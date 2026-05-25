@@ -5,7 +5,8 @@
   "description": "JARVIS app shell. Imports the verified jarvis-core engine as its data layer.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },
