@@ -1,0 +1,313 @@
+/* ============================================================
+   JARVIS uniformity.css  (gap overlay, RULE 3)
+   v1.3 - paired with manifest.md v1.
+   Loaded AFTER jarvis-design-system.css. Foundation is the design
+   system; this fills ONLY genuine systemic gaps. Tokens and classes
+   only (RULE 14): no inline styles, no hardcoded values, no new tokens.
+   Each rule cites its manifest atomic-rule ID.
+   ============================================================ */
+
+/* G1.  TRN-001 / TRN-002 / TRN-003: reusable single-line truncation. */
+.truncate {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* G2.  CAP-002 + section-with-right-meta inventory pattern (catalog .sec/.sec-r).
+   Layout only; title slot uses .t-h2 (Title Case), right meta uses .t-meta. */
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-2);
+}
+
+/* G3.  FND-032 (screen edge = --s-5 = 18px) + SAF-003 (landscape safe insets).
+   .screen handles vertical safe areas only; this adds the horizontal inset.
+   Screens compose: .screen (safe-area container) > .screen-pad (content inset). */
+.screen-pad {
+  padding-left: calc(var(--s-5) + var(--safe-left));
+  padding-right: calc(var(--s-5) + var(--safe-right));
+}
+
+/* G5.  BDG-003 tier/category pills. Design system color pills cover most
+   category colors (pill-red=elite, pill-teal=tucci, pill-pink=family,
+   pill-blue=brain, pill-good=health) but NOT the inverting BFFSA tag.
+   Uses existing tokens; no new token. */
+
+
+/* G6.  SYS-001/004 + RULE 14: apply category brand colors via a CLASS (the
+   design system defines --cat-* tokens but no utility to fill an element).
+   Needed for avatars, .cat-dot, .cat-bar, .proj-icon, .lifemap-fill, leading
+   glyphs. Existing tokens only; no new token. */
+/* Category color classes are the neutral slots in components.css (.cat-bg/bd/fg-{slot}). */
+
+/* G7.  Today snapshot stat tiles (added v1.3, STEP 3 Batch 2). No design-system
+   equivalent; a recurring composite. Tokens only; no new token. */
+.snapshot { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); }
+.stat-tile { background: var(--surface-2); border-radius: var(--r-md); padding: var(--s-3); }
+.stat-num { font-size: var(--t-h1); font-weight: var(--w-bold); color: var(--tint); line-height: 1; }
+.stat-label { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase;
+  letter-spacing: var(--track-caps); color: var(--tx-3); margin-top: var(--s-1); }
+
+/* G8.  Voice affordance bar (added v1.3). Placement on Today is PROVISIONAL
+   pending Dave (open item G2, RULE 17). Tokens only; no new token. */
+.voice-bar { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3) var(--s-2) var(--s-2);
+  background: var(--surface-3); border-radius: var(--r-pill); }
+.voice-mic { width: 36px; height: 36px; border-radius: var(--r-circle); background: var(--accent);
+  color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.voice-name { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--tx-1); }
+.voice-hint { font-size: var(--t-meta); color: var(--tx-3); margin-left: auto; }
+
+/* DEFERRED (intentionally not added):
+   G4 modal/sheet backdrop scrim needs a --scrim token (none exists). RULE 14
+   forbids inventing a color inline. Surfaced as a RULE 9 token proposal at
+   STEP 3 when screens render overlays. The zoo renders modals inline (per v2),
+   so no scrim is needed at STEP 2.5.
+   RESOLVED (v1.3, applied per readability rule RDB-001/003 + iOS convention):
+   money (yellow) and friends (mint) are light fills; white text fails contrast,
+   so .cat-bg-money / .cat-bg-friends now set color: var(--on-fill-dark) (dark, theme-constant).
+   Applies to proj-icon glyphs, avatars, and any future money/friends pills. */
+
+/* ============================================================
+   v1.9  GATE FIX: category color via CLASSES only (zero inline styles).
+   Per JARVIS_UI_Samples_v2 every category item wears its brand color;
+   we apply it with a utility class instead of an inline style.
+   .cat-bg-* already exist (G6); add border + light-fill on-color.
+   ============================================================ */
+
+/* v2.0 GATE declutter: stop message rows wrapping. msg-name takes the row width
+   and truncates; time stays on one line. Token-clean (layout only). */
+.msg-name { flex: 1; min-width: 0; }
+.msg-time { white-space: nowrap; flex-shrink: 0; }
+
+/* ============================================================
+   v2.1  GATE rebuild: R2 (Notes / Media / Search). The improvised
+   v1.4-v1.8 classes (note-row, ne-*, empty-*, as-*, srch-*, file-*,
+   topbar-*, grp-head, upload-*, recent-*, nav-compose, ph, pv-*) are
+   REMOVED. Screens now compose from canonical components: .row,
+   .conn-name, .conn-meta, .cat-dot, .chev, .empty-state, .empty-icon,
+   .empty-msg, .action-sheet button(.cancel/.destructive), .sheet-handle,
+   .eyebrow, .nav-bar, .nav-back, .nav-action, .nav-large, .search-bar.
+   Only genuinely-new pieces (no canonical equivalent) remain below.
+   Tokens only; black viewer surface is theme-invariant (DS uses #000/#fff
+   the same way for fixed surfaces).
+   ============================================================ */
+/* iOS back chevron on the canonical .nav-back (matches v2 sample L258) */
+.nav-back::before { content:''; display:inline-block; width:10px; height:10px;
+  border-left:2.5px solid var(--tint); border-bottom:2.5px solid var(--tint);
+  transform:rotate(45deg); margin-right:var(--s-1); }
+/* New-note placeholder text */
+.is-placeholder { color: var(--tx-4); }
+/* Trailing remove control in a row (detach an attachment); 44pt tap target */
+.row-x { display:flex; align-items:center; justify-content:center; color:var(--tint);
+  min-width:var(--tap-min); min-height:var(--tap-min); flex-shrink:0; background:0; border:0; }
+.row-x .ic { width:20px; height:20px; }
+/* Media: photo grid of square thumbnails */
+.photo-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--s-1); }
+.photo-tile { position:relative; aspect-ratio:1/1; background:var(--surface-3);
+  display:flex; align-items:center; justify-content:center; color:var(--tx-4); overflow:hidden; }
+.photo-tile .ic { width:28px; height:28px; }
+.photo-tile.sel { outline:2px solid var(--tint); outline-offset:-2px; }
+.photo-check { position:absolute; bottom:var(--s-1h); right:var(--s-1h); width:20px; height:20px;
+  border-radius:var(--r-circle); background:var(--tint); color:#fff; display:flex; align-items:center; justify-content:center; }
+.photo-check .ic { width:13px; height:13px; }
+/* Media: full-screen photo viewer (lightbox), theme-invariant black */
+.photo-viewer { position:absolute; inset:0; background:#000; display:flex; flex-direction:column; }
+.pv-stage { flex:1; display:flex; align-items:center; justify-content:center; color:#fff; opacity:0.45; }
+.pv-stage .ic { width:56px; height:56px; }
+
+/* v2.1b additions (still canonical-derived, tokens only) */
+/* optional glyph inside the canonical empty-icon (v2 leaves it blank; this is additive) */
+.empty-icon { display:flex; align-items:center; justify-content:center; color:var(--tx-4); }
+.empty-icon .ic { width:24px; height:24px; }
+/* leading row glyph color: action rows tint, neutral rows muted */
+.lead-tint { color: var(--tint); flex-shrink:0; }
+.lead-muted { color: var(--tx-3); flex-shrink:0; }
+/* document body (note read/compose surface); no canonical equivalent */
+.doc { padding: var(--s-4) var(--s-5); }
+.doc > * + * { margin-top: var(--s-3); }
+/* action-sheet backdrop using the new --scrim token */
+.sheet-scrim { position:absolute; inset:0; background:var(--scrim);
+  display:flex; flex-direction:column; justify-content:flex-end; padding:var(--s-2); gap:var(--s-2); }
+
+/* v2.2 GATE color: category tile glyph size + file-type color glyphs (Files-app convention) */
+.proj-icon .ic { width: 16px; height: 16px; }
+.fg-good{color:var(--good);flex-shrink:0} .fg-red{color:var(--red);flex-shrink:0} .fg-blue{color:var(--blue);flex-shrink:0} .fg-warn{color:var(--warn);flex-shrink:0}
+
+/* ============================================================
+   v2.3  R3: Maps / Notifications / Money / Charts.
+   Notifications reuse the canonical .msg-row. Charts are inline SVG:
+   geometry lives in SVG presentation attributes (x/y/width/height/
+   points/stroke-dasharray), NOT in style attrs, so screens stay
+   zero-inline; color comes from .cat-fg-* / .fg-* via fill/stroke
+   = currentColor. Tokens only.
+   ============================================================ */
+.chart { display:block; width:100%; height:auto; }
+.grid-line { stroke: var(--divider); stroke-width: 1; }
+.bar-track { fill: var(--press-3); }
+.fg-tint { color: var(--tint); flex-shrink:0; }
+.ring { width: 72px; height: 72px; flex-shrink:0; }
+.bar-cell { flex:1; }
+.map-stage { position:relative; height:220px; background:var(--surface-3); overflow:hidden; }
+.map-svg { position:absolute; inset:0; width:100%; height:100%; }
+.hero-num { font-size:var(--t-display); font-weight:var(--w-bold); line-height:1; letter-spacing:var(--track-display); font-feature-settings:"tnum"; }
+.delta-up { color: var(--good); font-weight: var(--w-semi); }
+.delta-down { color: var(--red); font-weight: var(--w-semi); }
+.day-axis { display:flex; margin-top:var(--s-2); }
+.day-axis span { flex:1; text-align:center; font-size:var(--t-eyebrow); color:var(--tx-3); }
+
+/* ============================================================
+   v2.4  R4: Projects + detail/settings screens. Settings rows compose
+   from .row + .conn-name + .conn-meta + .chev + .switch + .radio.
+   New pieces below (no canonical equivalent). Tokens only.
+   ============================================================ */
+.profile { padding: var(--s-6) var(--s-4) var(--s-4); text-align:center; }
+.profile .av { margin: 0 auto var(--s-3); }
+.profile-name { font-size: var(--t-h2); font-weight: var(--w-semi); }
+.profile-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-1); }
+.app-icon { width:64px; height:64px; border-radius:var(--r-lg); margin:0 auto var(--s-3);
+  display:flex; align-items:center; justify-content:center; background:var(--accent); color:#fff;
+  font-size:var(--t-h1); font-weight:var(--w-bold); }
+.destructive-row { justify-content:center; color:var(--red); font-weight:var(--w-semi); }
+.swatch { width:24px; height:24px; border-radius:var(--r-circle); flex-shrink:0; }
+.detail-head { padding: 0 var(--s-5) var(--s-2); }
+
+/* full-width button (v2 used inline width:100%; this is the class form) */
+.btn-block { width: 100%; }
+
+/* ============================================================
+   v2.5  R5: Voice interaction UI. Orb, prompt, transcript, command
+   chips (reuse .chip), conversation bubbles, capture bar (reuse G8
+   .voice-bar). Tokens only.
+   ============================================================ */
+.voice-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--s-5); padding:var(--s-9) var(--s-5); min-height:100%; text-align:center; }
+.voice-orb { width:120px; height:120px; border-radius:var(--r-circle); background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.voice-orb .ic { width:46px; height:46px; }
+.voice-orb.listening { box-shadow: 0 0 0 8px var(--red-tint), 0 0 0 20px var(--press-3); }
+.voice-prompt { font-size:var(--t-h2); font-weight:var(--w-semi); }
+.voice-transcript { font-size:var(--t-h2); font-weight:var(--w-medium); line-height:var(--lh-snug); }
+.voice-hint2 { font-size:var(--t-meta); color:var(--tx-3); }
+.chip-wrap { display:flex; flex-wrap:wrap; gap:var(--s-2); justify-content:center; }
+.convo { display:flex; flex-direction:column; gap:var(--s-3); padding:var(--s-4) var(--s-5); }
+.bubble { padding:var(--s-3) var(--s-3h); border-radius:var(--r-lg); font-size:var(--t-body); max-width:82%; line-height:var(--lh-relaxed); }
+.bubble-user { background:var(--accent); color:#fff; align-self:flex-end; border-bottom-right-radius:var(--r-xs); }
+.bubble-ai { background:var(--surface-3); color:var(--tx-1); align-self:flex-start; border-bottom-left-radius:var(--r-xs); }
+.convo-actions { display:flex; gap:var(--s-2); padding:var(--s-4) var(--s-5); }
+.convo-actions .btn { flex:1; }
+
+/* ============================================================
+   v2.6  NOTES UPGRADE (Phase 1): the block model. The R2 Notes
+   container stays (.doc editor shell, list, empty, category
+   color). These add typed blocks (heading, bulleted/numbered
+   list, checklist, light table, attachment), the add-block
+   inserter, template rows, and connection rows. Composed on
+   canonical .cb / .row / .task-row / .proj-icon / .conn-name /
+   .conn-meta / .chev / .urgency. Tokens only.
+   ============================================================ */
+/* dot + label inline group (note kicker, connection values); the
+   colored cat-dot carries category color, text stays grey (R4 rule) */
+.inline-dot { display:inline-flex; align-items:center; gap:var(--s-1h); }
+/* in-note sub-heading block (note title stays .t-h2) */
+.block-h { font-size:var(--t-h3); font-weight:var(--w-semi); }
+/* bulleted / numbered list blocks */
+.note-list { margin:0; padding-left:var(--s-5); }
+.note-list li { font-size:var(--t-body); line-height:var(--lh-relaxed); }
+/* checklist block line: canonical .cb + label, 44pt line */
+.check-line { display:flex; align-items:center; gap:var(--s-2h); min-height:var(--tap-min); }
+.check-line span { font-size:var(--t-body); }
+.check-line.done span { text-decoration:line-through; color:var(--tx-4); }
+.check-line .cb .ic { width:13px; height:13px; }
+/* light table block (rows, columns, simple sums) */
+.ntable { width:100%; border-collapse:collapse; border:0.5px solid var(--divider); border-radius:var(--r-md); overflow:hidden; }
+.ntable th, .ntable td { padding:var(--s-2) var(--s-3); text-align:left; font-size:var(--t-body); border-top:0.5px solid var(--divider); }
+.ntable th { font-size:var(--t-eyebrow); text-transform:uppercase; letter-spacing:var(--track-eyebrow); color:var(--tx-3); font-weight:var(--w-semi); border-top:0; }
+.ntable .num { text-align:right; font-feature-settings:"tnum"; }
+.ntable tr.sum td { font-weight:var(--w-semi); background:var(--press-1); }
+/* add-block affordance at the end of a note */
+.add-block { display:flex; align-items:center; gap:var(--s-2); color:var(--tint); font-size:var(--t-h3); font-weight:var(--w-semi); padding:var(--s-3) 0; min-height:var(--tap-min); background:0; border:0; font-family:var(--f); width:100%; }
+.add-block .ic { width:18px; height:18px; }
+/* stacked title + description (template rows) */
+.row-stack { display:flex; flex-direction:column; flex:1; min-width:0; gap:2px; }
+.row-stack .conn-name { flex:none; }
+/* v2.6b de-blue: non-category menu/list glyphs (block types, templates) wear the
+   label color, not the accent. iOS renders insert/format menu icons this way;
+   the accent is reserved for buttons and true accent affordances. */
+.lead-ink { color: var(--tx-2); flex-shrink:0; }
+
+/* ============================================================
+   v2.7  R6 MUSIC (FEAT-25) - mirrors Apple Music with the JARVIS
+   theme. Album art is an Apple-Music personalized-mix style cover
+   (category-hued gradient + sheen + title), standing in for the
+   real cover art the service returns. Now Playing mirrors the
+   Apple Music player (big art, title row + more, scrubber, large
+   transport, volume, Lyrics/AirPlay/Queue). Composed on canonical
+   .card/.row/.segmented/.btn/.pill/.switch/.radio/.empty-state/
+   .proj-icon/.convo-actions. The gradient sheen is a neutral
+   rgba shade over the category hue (same technique as the DS card
+   gradient), not an invented category color. Tokens only.
+   ============================================================ */
+.albumart { position:relative; width:52px; height:52px; border-radius:var(--r-md); overflow:hidden; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#fff;
+  background-image: linear-gradient(150deg, rgba(255,255,255,0.22), rgba(0,0,0,0.30)); }
+.albumart .ic { width:22px; height:22px; }
+.albumart-lg { width:236px; height:236px; border-radius:var(--r-lg); margin:0 auto; box-shadow:0 12px 32px rgba(0,0,0,0.35); }
+.albumart-lg .ic { width:52px; height:52px; }
+.albumart-lg::after { content:''; position:absolute; inset:0; background:linear-gradient(0deg, rgba(0,0,0,0.45), transparent 48%); }
+.albumart-title { position:absolute; left:var(--s-3h); right:var(--s-3h); bottom:var(--s-3); z-index:1; text-align:left; font-size:var(--t-h1); font-weight:var(--w-bold); color:#fff; line-height:var(--lh-snug); letter-spacing:-0.02em; }
+/* Now Playing - Apple Music layout */
+.np-head { display:flex; align-items:flex-start; gap:var(--s-3); padding:var(--s-5) var(--s-5) var(--s-2); }
+.np-head .msg-body { min-width:0; }
+.np-track { font-size:var(--t-h2); font-weight:var(--w-bold); line-height:var(--lh-snug); }
+.np-artist { font-size:var(--t-body); color:var(--tx-3); margin-top:var(--s-0h); }
+.np-more { width:30px; height:30px; border-radius:var(--r-circle); background:var(--press-3); color:var(--tx-1); display:flex; align-items:center; justify-content:center; flex-shrink:0; border:0; }
+.np-more .ic { width:17px; height:17px; }
+.scrub-times { display:flex; justify-content:space-between; margin-top:var(--s-1h); }
+.scrub-times span { font-size:var(--t-eyebrow); color:var(--tx-3); font-feature-settings:"tnum"; }
+.xport { display:flex; align-items:center; justify-content:center; gap:var(--s-8); padding:var(--s-3) 0 var(--s-2); }
+.xport button { background:0; border:0; color:var(--tx-1); display:flex; align-items:center; justify-content:center; min-width:var(--tap-min); min-height:var(--tap-min); font-family:var(--f); }
+.xport .ic { width:30px; height:30px; }
+.xport .play { color:var(--accent); }
+.xport .play .ic { width:50px; height:50px; }
+.volume { display:flex; align-items:center; gap:var(--s-2); padding:var(--s-1) var(--s-5) var(--s-2); color:var(--tx-4); }
+.volume .ic { width:16px; height:16px; flex-shrink:0; }
+.volume .vol-bar { flex:1; }
+.np-tools { display:flex; align-items:center; justify-content:space-around; padding:var(--s-2) var(--s-7) var(--s-2); color:var(--tint); }
+.np-tools .ic { width:21px; height:21px; }
+/* mix kicker (centered JARVIS context above the player) */
+.np-context { text-align:center; padding:var(--s-2) var(--s-5) 0; }
+.np-context .inline-dot { justify-content:center; }
+/* Lock-In */
+.lockin { text-align:center; padding:var(--s-7) var(--s-5) var(--s-4); }
+.lockin .inline-dot { justify-content:center; }
+.lockin .hero-num { display:block; margin-top:var(--s-2); }
+.lockin-sub { font-size:var(--t-body); color:var(--tx-3); margin-top:var(--s-2); }
+.np-meta { text-align:center; padding:var(--s-3) var(--s-5) var(--s-2); }
+.np-tools button { background:0; border:0; color:inherit; display:flex; align-items:center; justify-content:center; min-width:var(--tap-min); min-height:var(--tap-min); }
+/* custom-cover upload affordance on a large album-art box (service art is the default; tap to set your own image) */
+.albumart-edit { position:absolute; right:var(--s-2); bottom:var(--s-2); z-index:2; width:34px; height:34px; border-radius:var(--r-circle); background:var(--scrim); color:#fff; display:flex; align-items:center; justify-content:center; border:0; }
+.albumart-edit .ic { width:17px; height:17px; }
+/* light cards: solid white (gate: "solid white + shadow in light, glass in dark"); the DS glass-bg is translucent and reads grey on the light background */
+[data-theme="light"] .card { background: var(--surface-1); }
+
+/* ============================================================
+   v2.8  iOS HIG SPACING (locked, app-wide). Fixed at the shared
+   leverage classes so every screen inherits it. Values are the
+   exact iOS standards: 16pt layout margin, 44pt list rows
+   (12pt vertical = 44pt for a single line), 8/12/16 rhythm.
+   This overrides the JARVIS 18/14 edge/row values. Do not
+   re-introduce 18pt edges or 14pt row padding.
+   ============================================================ */
+/* 16pt layout margin everywhere the screen edge is set */
+.pad-x { padding: 0 var(--s-4); }
+.grp { padding: var(--s-6) var(--s-4) var(--s-1h); }
+.sub-bar { padding: 0 var(--s-4) var(--s-2); }
+.seg-card { padding: var(--s-2) var(--s-4) var(--s-3); }
+.detail-head { padding: 0 var(--s-4) var(--s-2); }
+.doc { padding: var(--s-4); }
+/* 44pt list rows, 12pt vertical (iOS single-line cell), 16pt leading */
+.row, .task-row, .conn-row, .msg-row, .sched-row, .proj-row, .suggestion-row, .lifemap-row { padding: var(--s-3) var(--s-4); min-height: var(--tap-min); }
+/* keep the player / voice / convo blocks on the 16pt margin too */
+.np, .np-meta, .np-context, .np-head, .volume, .np-tools, .convo, .convo-actions, .lockin, .voice-screen { padding-left: var(--s-4); padding-right: var(--s-4); }
