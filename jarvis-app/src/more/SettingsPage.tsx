@@ -12,6 +12,7 @@ const Layout = () => svg(<><rect x="3" y="3" width="18" height="18" rx="2" /><li
 const Cloud = () => svg(<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />);
 const Sliders = () => svg(<><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></>);
 const Info = () => svg(<><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></>);
+const LinkIco = () => svg(<><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></>);
 const Mag = () => svg(<><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>);
 const Chev = () => (
   <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
@@ -24,6 +25,7 @@ const ITEMS: Item[] = [
   { label: "Appearance", route: "appearance", tile: "cat-bg-pink", icon: <Paint />, group: 1 },
   { label: "Categories", route: "categories", tile: "cat-bg-yellow", icon: <Gear />, group: 1 },
   { label: "Edit Tabs", route: "edittabs", tile: "cat-bg-teal", icon: <Layout />, group: 1 },
+  { label: "Connections", route: "connections", tile: "cat-bg-sky", icon: <LinkIco />, group: 1 },
   { label: "Backup", route: "backup", tile: "ico-good", icon: <Cloud />, group: 2 },
   { label: "Advanced", route: "advanced", tile: "cat-bg-graphite", icon: <Sliders />, group: 2 },
   { label: "About", route: "about", tile: "ico-surface", icon: <Info />, group: 2 },

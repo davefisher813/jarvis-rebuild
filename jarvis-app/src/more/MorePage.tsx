@@ -9,7 +9,7 @@ const Chev = () => (
   <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
 );
 
-export type MoreRoute = "settings" | "profile" | "appearance" | "categories" | "edittabs" | "account" | "notifsettings" | "about" | "advanced" | "backup";
+export type MoreRoute = "settings" | "profile" | "appearance" | "categories" | "edittabs" | "account" | "notifsettings" | "about" | "advanced" | "backup" | "connections";
 
 const EXTRA_TILE: Record<string, string> = {
   today: "ico-accent", tasks: "cat-bg-blue", schedule: "cat-bg-sky", brain: "cat-bg-green", notes: "ico-accent",

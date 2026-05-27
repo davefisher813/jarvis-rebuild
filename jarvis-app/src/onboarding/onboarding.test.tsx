@@ -43,7 +43,7 @@ describe("OnboardingFlow", () => {
 
     // connect
     expect(screen.getByText(/inbox and calendar/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Skip for now"));
+    fireEvent.click(screen.getByText("Continue"));
 
     // daily rhythm
     expect(screen.getByText(/morning brief/)).toBeInTheDocument();

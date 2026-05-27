@@ -26,6 +26,21 @@ export default async function handler(req: Request): Promise<Response> {
     headers: { Authorization: `Bearer ${token}`, apikey: supaAnon },
   });
   if (!who.ok) return json({ error: "Unauthorized" }, 401);
+  const me = (await who.json()) as { id?: string };
+
+  // Per-user rate limit. Active once SUPABASE_SERVICE_ROLE_KEY is set (same key
+  // the admin endpoints use). Counts this user's AI calls in the last hour from
+  // the ai_usage log and rejects over the cap, bounding cost as users scale.
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const cap = parseInt(process.env.AI_RATE_PER_HOUR || "120", 10);
+  if (serviceKey && me.id && cap > 0) {
+    const since = new Date(Date.now() - 3600000).toISOString();
+    const cr = await fetch(
+      `${supaUrl}/rest/v1/ai_usage?user_id=eq.${me.id}&created_at=gte.${since}&select=id`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Prefer: "count=exact", Range: "0-0" } });
+    const used = parseInt((cr.headers.get("content-range") || "*/0").split("/")[1] || "0", 10) || 0;
+    if (used >= cap) return json({ error: "Rate limit reached. Try again shortly." }, 429);
+  }
 
   let body: { messages?: unknown; system?: unknown };
   try {
@@ -59,6 +74,16 @@ export default async function handler(req: Request): Promise<Response> {
     .filter((b) => b.type === "text")
     .map((b) => b.text ?? "")
     .join("");
+
+  // Best-effort usage log for admin analytics (user_id defaults to auth.uid()).
+  try {
+    await fetch(`${supaUrl}/rest/v1/ai_usage`, {
+      method: "POST",
+      headers: { apikey: supaAnon, Authorization: `Bearer ${token}`, "content-type": "application/json", Prefer: "return=minimal" },
+      body: "{}",
+    });
+  } catch { /* analytics is best-effort; never block the reply */ }
+
   return json({ text });
 }
 

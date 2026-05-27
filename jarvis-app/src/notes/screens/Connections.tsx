@@ -1,19 +1,32 @@
-import { Tag, CalendarDays, ListChecks, ListTodo } from "lucide-react";
+import { Tag, CalendarDays, ListChecks, ListTodo, Plus, X, Link2 } from "lucide-react";
 import { catColor } from "../../shared/categories";
 
-// Matches locked frame #50 "Connections". Content, labels, and icons are
-// unchanged from the lock; only the tile colors are varied (the lock had all
-// four green, which hid the color system). Each tile now reflects a distinct
-// category so the system reads.
+type Conn = { id: string; kind: string; label: string };
+
+function connIcon(kind: string) {
+  if (kind === "event") return { cls: "cat-bg-sky", node: <CalendarDays className="ic" /> };
+  if (kind === "task") return { cls: "cat-bg-red", node: <ListChecks className="ic" /> };
+  return { cls: "cat-bg-violet", node: <Link2 className="ic" /> };
+}
+
+// The note's real connections. The category is the note's own category (always
+// shown); the rest are live links the user added, each removable. "Add link"
+// opens a picker of the user's existing events and tasks.
 export default function Connections({
   category = "health",
   categoryLabel = "Health",
+  connections = [],
   onBack,
+  onAddLink,
+  onRemove,
   onCreateTasks,
 }: {
   category?: string;
   categoryLabel?: string;
+  connections?: Conn[];
   onBack?: () => void;
+  onAddLink?: () => void;
+  onRemove?: (connId: string) => void;
   onCreateTasks?: () => void;
 }) {
   return (
@@ -34,18 +47,22 @@ export default function Connections({
             <div className={"proj-icon cat-bg-" + catColor(category)}><Tag className="ic" /></div>
             <div className="conn-name">Category</div>
             <span className="conn-meta">{categoryLabel}</span>
-            <div className="chev"></div>
           </div>
-          <div className="row">
-            <div className="proj-icon cat-bg-sky"><CalendarDays className="ic" /></div>
-            <div className="conn-name">Event</div>
-            <span className="conn-meta">Long Run Sunday</span>
-            <div className="chev"></div>
-          </div>
-          <div className="row">
-            <div className="proj-icon cat-bg-red"><ListChecks className="ic" /></div>
-            <div className="conn-name">Task</div>
-            <span className="conn-meta">Add</span>
+          {connections.map((c) => {
+            const ic = connIcon(c.kind);
+            return (
+              <div className="row" key={c.id}>
+                <div className={"proj-icon " + ic.cls}>{ic.node}</div>
+                <div className="conn-name">{c.label}</div>
+                <button className="conn-remove" aria-label="Remove link" onClick={() => onRemove?.(c.id)}>
+                  <X className="ic" />
+                </button>
+              </div>
+            );
+          })}
+          <div className="row" role="button" tabIndex={0} onClick={onAddLink}>
+            <div className="proj-icon cat-bg-green"><Plus className="ic" /></div>
+            <div className="conn-name">Add link</div>
             <div className="chev"></div>
           </div>
         </div>
@@ -56,10 +73,9 @@ export default function Connections({
       </div>
       <div className="pad-x">
         <div className="card">
-          <div className="row" onClick={onCreateTasks}>
+          <div className="row" role="button" tabIndex={0} onClick={onCreateTasks}>
             <div className="proj-icon cat-bg-yellow"><ListTodo className="ic" /></div>
             <div className="conn-name">Create Tasks from Checklist</div>
-            <span className="conn-meta">3 items</span>
             <div className="chev"></div>
           </div>
         </div>

@@ -36,6 +36,7 @@ export interface Connection {
   kind: string; // "category" | "event" | "task" | ...
   label: string;
   category: string | null;
+  targetId?: string; // id of the linked entity (event/task), when applicable
 }
 
 export interface NoteData {

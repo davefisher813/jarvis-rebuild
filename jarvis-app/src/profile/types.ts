@@ -14,6 +14,7 @@ export interface ProfileData {
   connections?: Record<string, boolean>;
   notify?: { overdue: boolean; events: boolean; goals: boolean };
   calendar: boolean;
+  role?: "user" | "admin"; // reserved; real enforcement is server-side (RLS)
   onboarded: boolean;
 }
 

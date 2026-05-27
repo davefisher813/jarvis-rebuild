@@ -16,6 +16,7 @@ import SearchFlow from "../search/SearchFlow";
 import LifeMapFlow from "../life/LifeMapFlow";
 import ProjectsFlow from "../projects/ProjectsFlow";
 import MessagesFlow from "../messages/MessagesFlow";
+import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import NotificationsFlow from "../notifications/NotificationsFlow";
 import MoneyFlow from "../money/MoneyFlow";
 import InsightsFlow from "../insights/InsightsFlow";
@@ -86,6 +87,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   if (!ready) return <div className="app-shell"><div className="app-scroll" /></div>;
 
   return (
+    <GoogleSessionProvider>
     <div className="app-shell">
       <div className="app-scroll">
         <div className="tab-swap" key={active}>
@@ -96,7 +98,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} />}
         {active === "goals" && <LifeMapFlow />}
         {active === "projects" && <ProjectsFlow />}
-        {active === "messages" && <MessagesFlow />}
+        {active === "messages" && <MessagesFlow ai={ai} />}
         {active === "notifications" && <NotificationsFlow />}
         {active === "money" && <MoneyFlow />}
         {active === "insights" && <InsightsFlow />}
@@ -121,5 +123,6 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       {captureOpen && <QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} />}
       {searchOpen && <SearchFlow onClose={() => setSearchOpen(false)} />}
     </div>
+    </GoogleSessionProvider>
   );
 }

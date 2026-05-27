@@ -1,17 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNotes, useCategories } from "../data/NotesProvider";
+import { useNotes, useCategories, useTasks, useSchedule } from "../data/NotesProvider";
 import { catName } from "../shared/categories";
 import type { Category } from "../categories/types";
-import type { Block, NoteData, TemplateKey } from "./types";
+import type { Block, Connection, NoteData, TemplateKey } from "./types";
 import NotesList, { type NoteListItem } from "./screens/NotesList";
 import NoteEditor, { type EditorNote } from "./screens/NoteEditor";
 import Templates from "./screens/Templates";
 import AddBlockSheet from "./screens/AddBlockSheet";
 import Connections from "./screens/Connections";
+import LinkPicker from "./screens/LinkPicker";
 import CreateTasks from "./screens/CreateTasks";
 import type { BlockType } from "./types";
 
-type Screen = "list" | "editor" | "templates" | "connections" | "createTasks";
+type Screen = "list" | "editor" | "templates" | "connections" | "createTasks" | "linkPicker";
 
 const TEMPLATE_TITLE: Record<TemplateKey, string> = {
   blank: "New Note",
@@ -80,6 +81,8 @@ export default function NotesFlow({
 }) {
   const svc = useNotes();
   const cats = useCategories();
+  const tasksSvc = useTasks();
+  const schedSvc = useSchedule();
   const [catList, setCatList] = useState<Category[]>([]);
   const defaultCatId = catList[0]?.id ?? "";
   const [screen, setScreen] = useState<Screen>("list");
@@ -87,6 +90,9 @@ export default function NotesFlow({
   const [current, setCurrent] = useState<EditorNote | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [addBlockOpen, setAddBlockOpen] = useState(false);
+  const [conns, setConns] = useState<Connection[]>([]);
+  const [linkEvents, setLinkEvents] = useState<{ id: string; title: string }[]>([]);
+  const [linkTasks, setLinkTasks] = useState<{ id: string; text: string }[]>([]);
   const seeded = useRef(false);
 
   const loadList = useCallback(async () => {
@@ -103,6 +109,7 @@ export default function NotesFlow({
     async (id: string) => {
       const d = await svc.note(id);
       setCurrent(d ? toEditorNote(d) : null);
+      setConns(d?.connections ?? []);
     },
     [svc],
   );
@@ -124,6 +131,17 @@ export default function NotesFlow({
   useEffect(() => {
     onChrome?.({ tabBar: screen === "list" });
   }, [screen, onChrome]);
+
+  const loadLinkables = useCallback(async () => {
+    const ev = await schedSvc.listEvents();
+    const ts = await tasksSvc.listTasks();
+    setLinkEvents(ev.map((e) => ({ id: e.id, title: (e.data as { title?: string }).title || "Untitled" })));
+    setLinkTasks(
+      ts
+        .filter((t) => !(t.data as { done?: boolean }).done)
+        .map((t) => ({ id: t.id, text: (t.data as { text?: string }).text || "Untitled" })),
+    );
+  }, [schedSvc, tasksSvc]);
 
   const openNote = async (id: string) => {
     setCurrentId(id);
@@ -193,8 +211,31 @@ export default function NotesFlow({
       <Connections
         category={cat}
         categoryLabel={catName(cat)}
+        connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label }))}
         onBack={() => setScreen("editor")}
+        onAddLink={async () => { await loadLinkables(); setScreen("linkPicker"); }}
+        onRemove={async (connId) => {
+          if (!currentId) return;
+          await svc.removeConnection(currentId, connId);
+          await loadCurrent(currentId);
+        }}
         onCreateTasks={() => setScreen("createTasks")}
+      />
+    );
+  }
+  if (screen === "linkPicker") {
+    return (
+      <LinkPicker
+        events={linkEvents}
+        tasks={linkTasks}
+        onPick={async (kind, label, targetId) => {
+          if (currentId) {
+            await svc.addConnection(currentId, kind, label, null, targetId);
+            await loadCurrent(currentId);
+          }
+          setScreen("connections");
+        }}
+        onBack={() => setScreen("connections")}
       />
     );
   }

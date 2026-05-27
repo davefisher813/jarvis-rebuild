@@ -86,7 +86,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       case "template": return TEMPLATE_LABEL[template];
       case "categories": return seeds.map((x) => x.name).join(", ");
       case "people": return people.length ? people.join(", ") : "Maybe later";
-      case "connect": return [gmail && "Gmail", calendar && "Calendar"].filter(Boolean).join(" + ") || "Maybe later";
+      case "connect": return "Coming soon";
       case "time": return s.options?.find((o) => o.value === briefTime)?.label ?? "Skip";
       default: return "";
     }
@@ -213,15 +213,15 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           <div className="row connect-row">
             <div className="sec-ico ico-accent">{MAIL}</div>
             <div className="row-grow"><div className="conn-name">Gmail</div></div>
-            <button className={"chip" + (gmail ? " cat-bg-green" : "")} onClick={() => setGmail(!gmail)}>{gmail ? "Connected" : "Connect"}</button>
+            <button className="chip" disabled>Coming soon</button>
           </div>
           <div className="row connect-row">
             <div className="sec-ico ico-blue">{CAL}</div>
             <div className="row-grow"><div className="conn-name">Google Calendar</div></div>
-            <button className={"chip" + (calendar ? " cat-bg-green" : "")} onClick={() => setCalendar(!calendar)}>{calendar ? "Connected" : "Connect"}</button>
+            <button className="chip" disabled>Coming soon</button>
           </div>
         </div></div>
-        <div className="convo-foot"><button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>{gmail || calendar ? "Continue" : "Skip for now"}</button></div>
+        <div className="convo-foot"><div className="input-hint">Email and calendar connect in a later update.</div><button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>Continue</button></div>
       </>
     );
   } else if (step.kind === "time") {

@@ -24,7 +24,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; gcalId?: string },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -35,6 +35,7 @@ export class ScheduleService {
     };
     if (opts.end) data.end = opts.end;
     if (opts.location && opts.location.trim()) data.location = opts.location.trim();
+    if (opts.gcalId) data.gcalId = opts.gcalId;
     const id = await this.store.create(this.ownerId, ENTITY_EVENT, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_EVENT, entityId: id });
     return id;

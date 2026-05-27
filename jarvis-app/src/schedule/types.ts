@@ -9,6 +9,7 @@ export interface EventData {
   category: string;
   end?: string;
   location?: string;
+  gcalId?: string; // Google Calendar event id, when imported (dedupe key)
 }
 
 export interface EventItem {

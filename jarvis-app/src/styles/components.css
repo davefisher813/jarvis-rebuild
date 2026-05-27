@@ -389,3 +389,38 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .swatch-row { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 .av-swatch { width: 34px; height: 34px; border-radius: var(--r-circle); border: 0; padding: 0; cursor: pointer; }
 .av-swatch.sel { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--tx-1); }
+
+/* RULE-9: trailing remove button on a note connection row (.conn-name is flex:1
+   so this sits at the right edge). Ghost icon button, muted until pressed. */
+.conn-remove { flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--r-circle); background: transparent; border: 0; color: var(--tx-3); }
+.conn-remove .ic { width: 18px; height: 18px; }
+.conn-remove:active { background: var(--press-3); }
+
+/* RULE-9: Connections page status/error text + connected check glyph. */
+.conn-action { margin-top: var(--s-3); }
+.conn-status { margin-top: var(--s-2); font-size: var(--t-meta); color: var(--tx-3); }
+.conn-error { margin-top: var(--s-2); font-size: var(--t-meta); color: var(--red); }
+.conn-check { width: 16px; height: 16px; color: var(--good); flex-shrink: 0; }
+
+/* RULE-9: Messages tab. Most rows reuse .row/.card/.conn-name/.conn-meta. */
+.msg-dot { width: 8px; height: 8px; border-radius: var(--r-circle); background: var(--accent); flex-shrink: 0; align-self: center; }
+.msg-strong { font-weight: var(--w-semibold); }
+.msg-chips { display: flex; gap: var(--s-2); margin-bottom: var(--s-2); }
+.msg-detail-head { padding: var(--s-2) 0 var(--s-3); }
+.msg-detail-subj { font-size: var(--t-h3); font-weight: var(--w-bold); }
+.msg-summary { margin-bottom: var(--s-3); }
+.msg-summary-text { margin-top: var(--s-1); color: var(--tx-2); }
+.msg-body { white-space: pre-wrap; color: var(--tx-1); line-height: 1.5; }
+.msg-quick { display: flex; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
+.msg-actions { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
+.msg-compose { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-2); }
+.msg-input, .msg-textarea { width: 100%; background: var(--surface-2); border: 0.5px solid var(--card-bd); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); color: var(--tx-1); font-size: var(--t-body); }
+.msg-textarea { min-height: 160px; resize: vertical; }
+
+/* RULE-9: Admin / master-account panel. */
+.adm-banner { background: var(--surface-2); border: 0.5px solid var(--card-bd); border-radius: var(--r-md); padding: var(--s-2) var(--s-3); color: var(--tx-2); font-size: var(--t-meta); margin-bottom: var(--s-2); }
+.adm-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s-2); }
+.adm-tile { background: var(--surface-2); border: 0.5px solid var(--card-bd); border-radius: var(--r-md); padding: var(--s-3); }
+.adm-num { font-size: var(--t-h2); font-weight: var(--w-bold); }
+.adm-label { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-1); }
+.adm-role { margin-left: var(--s-2); font-size: var(--t-eyebrow); color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }

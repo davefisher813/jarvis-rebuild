@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { AppearanceProvider } from "../appearance/AppearanceProvider";
 import { NotesProvider } from "../data/NotesProvider";
+import { AuthProvider } from "../auth/AuthProvider";
 import AppearancePage from "../settings/AppearancePage";
 import ProfilePage from "../settings/ProfilePage";
 import MoreFlow from "./MoreFlow";
@@ -28,9 +29,11 @@ describe("Settings", () => {
   it("More -> Settings -> Categories and back", async () => {
     render(
       <AppearanceProvider>
+        <AuthProvider>
         <NotesProvider userId="u1">
           <MoreFlow extras={extrasFor(["today", "tasks", "schedule", "brain"])} onOpenExtra={() => {}} tabKeys={["today", "tasks", "schedule", "brain"]} onToggleTab={() => {}} />
         </NotesProvider>
+        </AuthProvider>
       </AppearanceProvider>,
     );
     expect(screen.getByText("More")).toBeInTheDocument();
@@ -46,9 +49,11 @@ describe("Settings", () => {
     const onOpen = vi.fn();
     render(
       <AppearanceProvider>
+        <AuthProvider>
         <NotesProvider userId="u1">
           <MoreFlow extras={extrasFor(["today", "tasks", "schedule", "brain"])} onOpenExtra={onOpen} tabKeys={["today", "tasks", "schedule", "brain"]} onToggleTab={() => {}} />
         </NotesProvider>
+        </AuthProvider>
       </AppearanceProvider>,
     );
     fireEvent.click(screen.getByText("Notes"));
