@@ -3,9 +3,10 @@ import { useTasks, useCategories } from "../data/NotesProvider";
 import TasksPage from "./screens/TasksPage";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
 import { partition, type Partitioned, type TaskFilter } from "./filters";
+import type { Recurrence } from "../notes/types";
 import { todayISO } from "./grouping";
 
-const EMPTY: Partitioned = { today: [], overdue: [], upcoming: [], done: [] };
+const EMPTY: Partitioned = { daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: TaskDraft } | null;
 
 export default function TasksFlow() {
@@ -37,6 +38,7 @@ export default function TasksFlow() {
   }, [cats]);
 
   const counts = {
+    daily: parts.daily.length,
     today: parts.today.length,
     overdue: parts.overdue.length,
     upcoming: parts.upcoming.length,
@@ -51,16 +53,18 @@ export default function TasksFlow() {
   const openEdit = async (id: string) => {
     const t = await svc.task(id);
     if (!t) return;
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "" } });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "", repeat: t.recurrence ?? "" } });
   };
 
   const onSave = async (draft: TaskDraft) => {
+    const rec = (draft.repeat || "") as "" | Recurrence;
     if (sheet?.mode === "new") {
-      await svc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null });
+      await svc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined });
     } else if (sheet?.mode === "edit") {
       await svc.editText(sheet.id, draft.text);
       await svc.setCategory(sheet.id, draft.category);
       await svc.setDue(sheet.id, draft.due || null);
+      await svc.setRecurrence(sheet.id, rec || null);
     }
     setSheet(null);
     await reload();
@@ -69,6 +73,11 @@ export default function TasksFlow() {
   const onDelete = async () => {
     if (sheet?.mode === "edit") await svc.deleteTask(sheet.id);
     setSheet(null);
+    await reload();
+  };
+
+  const onDeleteRow = async (id: string) => {
+    await svc.deleteTask(id);
     await reload();
   };
 
@@ -82,6 +91,7 @@ export default function TasksFlow() {
         onFilter={setFilter}
         onToggle={onToggle}
         onOpenTask={openEdit}
+        onDeleteTask={onDeleteRow}
         onNew={() => setSheet({ mode: "new" })}
         loading={loading}
       />

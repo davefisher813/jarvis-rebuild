@@ -1,4 +1,4 @@
-import type { TaskData } from "../notes/types";
+import type { TaskData, Recurrence } from "../notes/types";
 
 // Pure date logic shared by the service and the UI. Ports the rules approved in
 // the Tasks behavior harness exactly:
@@ -40,4 +40,14 @@ export function urgencyFor(task: TaskData, today: string): Urgency | null {
   const dt = atMidnight(task.due);
   if (diff <= 6) return { label: WD[dt.getDay()]!, kind: "soon" };
   return { label: `${MO[dt.getMonth()]} ${dt.getDate()}`, kind: "soon" };
+}
+
+// Next occurrence of a recurring task, given its current due date (or today).
+export function nextDue(fromISO: string, rec: Recurrence): string {
+  const d = atMidnight(fromISO);
+  if (rec === "daily") d.setDate(d.getDate() + 1);
+  else if (rec === "weekly") d.setDate(d.getDate() + 7);
+  else if (rec === "monthly") d.setMonth(d.getMonth() + 1);
+  else { do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6); }
+  return todayISO(d);
 }

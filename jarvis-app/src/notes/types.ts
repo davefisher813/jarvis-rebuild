@@ -46,12 +46,14 @@ export interface NoteData {
   connections: Connection[];
 }
 
+export type Recurrence = "daily" | "weekly" | "monthly" | "weekdays";
 export interface TaskData {
   text: string;
   category: string;
   done: boolean;
   fromNote?: string;
   due?: string | null;
+  recurrence?: Recurrence;
 }
 
 export type TemplateKey =

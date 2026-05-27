@@ -1,7 +1,7 @@
 import type { Store, Item, ItemData } from "@core";
 import type { EventInput } from "../events";
-import { ENTITY_TASK, type TaskData } from "../notes/types";
-import { groupFor, todayISO, type TaskGroup } from "./grouping";
+import { ENTITY_TASK, type TaskData, type Recurrence } from "../notes/types";
+import { groupFor, todayISO, nextDue, type TaskGroup } from "./grouping";
 
 export interface TaskItem {
   id: string;
@@ -36,12 +36,13 @@ export class TasksService {
 
   async createTask(
     text: string,
-    opts: { category?: string; due?: string | null; fromNote?: string } = {},
+    opts: { category?: string; due?: string | null; fromNote?: string; recurrence?: Recurrence } = {},
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
     const data: TaskData = { text: text.trim(), category: opts.category ?? "", done: false };
     if (opts.due) data.due = opts.due;
     if (opts.fromNote) data.fromNote = opts.fromNote;
+    if (opts.recurrence) data.recurrence = opts.recurrence;
     const id = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_TASK, entityId: id });
     return id;
@@ -50,7 +51,20 @@ export class TasksService {
   async toggleDone(id: string): Promise<boolean> {
     const t = await this.getTask(id);
     if (!t) return false;
-    await this.store.update(this.ownerId, id, { done: !t.done });
+    if (!t.done && t.recurrence) {
+      // completing a recurring task rolls it to the next occurrence instead of finishing it
+      await this.store.update(this.ownerId, id, { due: nextDue(t.due || todayISO(), t.recurrence) });
+    } else {
+      await this.store.update(this.ownerId, id, { done: !t.done });
+    }
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
+  async setRecurrence(id: string, recurrence: Recurrence | null): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t) return false;
+    await this.store.update(this.ownerId, id, { recurrence: recurrence ?? null });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }

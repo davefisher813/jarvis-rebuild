@@ -22,7 +22,8 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
 
   const [idx, setIdx] = useState(0);
   const [name, setName] = useState("");
-  const [nameDraft, setNameDraft] = useState("");
+  const [priority, setPriority] = useState("");
+  const [textDraft, setTextDraft] = useState("");
   const [template, setTemplate] = useState<TemplateKey>("personal");
   const [seeds, setSeeds] = useState<CategorySeed[]>([]);
   const [people, setPeople] = useState<string[]>([]);
@@ -42,6 +43,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       name: name.trim(),
       template,
       people,
+      priority: priority || undefined,
       briefTime: briefTime || undefined,
       gmail,
       calendar,
@@ -71,6 +73,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     setPersonDraft("");
   };
   const removeSeed = (i: number) => setSeeds(seeds.filter((_, k) => k !== i));
+  const updateSeed = (i: number, name: string) => setSeeds(seeds.map((x, k) => (k === i ? { ...x, name } : x)));
   const addSeed = () => {
     const used = new Set(seeds.map((s) => s.color));
     const free = COLOR_SLOTS.find((c) => !used.has(c)) ?? "graphite";
@@ -86,7 +89,8 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       case "template": return TEMPLATE_LABEL[template];
       case "categories": return seeds.map((x) => x.name).join(", ");
       case "people": return people.length ? people.join(", ") : "Maybe later";
-      case "connect": return "Coming soon";
+      case "priority": return priority || "Skipped";
+      case "connect": return "Got it";
       case "time": return s.options?.find((o) => o.value === briefTime)?.label ?? "Skip";
       default: return "";
     }
@@ -150,18 +154,33 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
 
   let control = null;
   if (step.kind === "text") {
+    const commit = () => {
+      const v = textDraft.trim();
+      if (step.key === "name") {
+        if (!v) return;
+        setName(v);
+      } else if (step.key === "priority") {
+        setPriority(v);
+      }
+      setTextDraft("");
+      setIdx(idx + 1);
+    };
+    const optional = step.key !== "name";
     control = (
       <div className="convo-foot">
         <div className="convo-inputbar">
           <input
             className="input"
             placeholder={step.placeholder}
-            value={nameDraft}
-            onChange={(e) => setNameDraft(e.target.value)}
+            value={textDraft}
+            onChange={(e) => setTextDraft(e.target.value)}
             autoFocus
           />
-          <button className="convo-send" aria-label="Send" onClick={() => { if (nameDraft.trim()) { setName(nameDraft.trim()); setIdx(idx + 1); } }}>{SEND}</button>
+          <button className="convo-send" aria-label="Send" onClick={commit}>{SEND}</button>
         </div>
+        {optional && (
+          <div className="ob-skip" role="button" tabIndex={0} onClick={() => { setTextDraft(""); setIdx(idx + 1); }}>Skip for now</div>
+        )}
       </div>
     );
   } else if (step.kind === "choice") {
@@ -179,9 +198,9 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       <>
         <div className="pad-x"><div className="card">
           {seeds.map((s, i) => (
-            <div className="row" key={s.name + i}>
+            <div className="row" key={i}>
               <span className={"ob-swatch cat-bg-" + s.color} />
-              <div className="row-grow"><div className="conn-name">{s.name}</div></div>
+              <div className="row-grow"><input className="input ob-rename" value={s.name} onChange={(e) => updateSeed(i, e.target.value)} aria-label={"Category " + (i + 1) + " name"} /></div>
               <button className="ob-x" aria-label={"Remove " + s.name} onClick={() => removeSeed(i)}>{X}</button>
             </div>
           ))}
@@ -212,16 +231,14 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
         <div className="pad-x"><div className="card">
           <div className="row connect-row">
             <div className="sec-ico ico-accent">{MAIL}</div>
-            <div className="row-grow"><div className="conn-name">Gmail</div></div>
-            <button className="chip" disabled>Coming soon</button>
+            <div className="row-grow"><div className="conn-name">Gmail</div><div className="eyebrow">Read and reply from the Email tab</div></div>
           </div>
           <div className="row connect-row">
             <div className="sec-ico ico-blue">{CAL}</div>
-            <div className="row-grow"><div className="conn-name">Google Calendar</div></div>
-            <button className="chip" disabled>Coming soon</button>
+            <div className="row-grow"><div className="conn-name">Google Calendar</div><div className="eyebrow">Events show up on Today</div></div>
           </div>
         </div></div>
-        <div className="convo-foot"><div className="input-hint">Email and calendar connect in a later update.</div><button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>Continue</button></div>
+        <div className="convo-foot"><div className="input-hint">Connect after setup in Settings &middot; Connections.</div><button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>Continue</button></div>
       </>
     );
   } else if (step.kind === "time") {

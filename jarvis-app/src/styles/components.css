@@ -426,3 +426,16 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .adm-role { margin-left: var(--s-2); font-size: var(--t-eyebrow); color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
 
 .msg-search { margin-bottom: var(--s-2); }
+
+/* RULE-9: Tasks - large completion target + swipe-to-delete. */
+.task-swipe { position: relative; overflow: hidden; }
+.task-del { position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0; background: var(--red);
+  color: #fff; display: flex; align-items: center; justify-content: center; }
+.task-del .ic { width: 22px; height: 22px; }
+.task-row { position: relative; background: var(--surface-2); transition: transform 0.16s ease; }
+.task-check-tap { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+  flex-shrink: 0; margin: -8px 0; cursor: pointer; }
+
+/* RULE-9: Onboarding inline-edit for category names. */
+.ob-rename { font: inherit; background: transparent; border: 0; padding: 6px 0; width: 100%; color: inherit; }
+.ob-rename:focus { outline: none; border-bottom: 1px solid var(--accent); }
