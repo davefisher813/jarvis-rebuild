@@ -424,3 +424,5 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .adm-num { font-size: var(--t-h2); font-weight: var(--w-bold); }
 .adm-label { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-1); }
 .adm-role { margin-left: var(--s-2); font-size: var(--t-eyebrow); color: var(--accent); text-transform: uppercase; letter-spacing: 0.04em; }
+
+.msg-search { margin-bottom: var(--s-2); }

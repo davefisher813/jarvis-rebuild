@@ -11,5 +11,8 @@ export function makeFakeGoogleApi(o: Partial<GoogleApi> = {}): GoogleApi {
     getMessage: o.getMessage ?? (async (id: string) => ({ id }) as GmailFull),
     sendMessage: o.sendMessage ?? (async () => ({ id: "sent_1" })),
     modifyMessage: o.modifyMessage ?? (async () => {}),
+    listDrafts: o.listDrafts ?? (async () => []),
+    getDraft: o.getDraft ?? (async (id: string) => ({ id, message: { id } as GmailFull })),
+    deleteDraft: o.deleteDraft ?? (async () => {}),
   };
 }

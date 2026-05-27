@@ -10,6 +10,9 @@ export interface GoogleApi {
   sendMessage(raw: string, threadId?: string): Promise<{ id: string }>;
   listInbox(max: number): Promise<GmailMeta[]>;
   modifyMessage(id: string, add: string[], remove: string[]): Promise<void>;
+  listDrafts(max: number): Promise<{ id: string; message: GmailMeta }[]>;
+  getDraft(id: string): Promise<{ id: string; message: GmailFull }>;
+  deleteDraft(id: string): Promise<void>;
 }
 
 type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<{
@@ -84,6 +87,31 @@ export function createGoogleApi(token: string, doFetch: FetchLike = fetch as unk
           body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }),
         });
       if (!r.ok) throw new Error("modify " + r.status);
+    },
+    async listDrafts(max) {
+      const lr = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts?maxResults=" + max, auth);
+      if (!lr.ok) throw new Error("drafts " + lr.status);
+      const list = (await lr.json()) as { drafts?: { id: string }[] };
+      const out: { id: string; message: GmailMeta }[] = [];
+      for (const d of list.drafts || []) {
+        const r = await doFetch(
+          "https://gmail.googleapis.com/gmail/v1/users/me/drafts/" + d.id +
+          "?format=metadata&metadataHeaders=To&metadataHeaders=Subject", auth);
+        if (r.ok) {
+          const j = (await r.json()) as { message: GmailMeta };
+          out.push({ id: d.id, message: j.message });
+        }
+      }
+      return out;
+    },
+    async getDraft(id) {
+      const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts/" + id + "?format=full", auth);
+      if (!r.ok) throw new Error("draft " + r.status);
+      return (await r.json()) as { id: string; message: GmailFull };
+    },
+    async deleteDraft(id) {
+      const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts/" + id, { method: "DELETE", headers: auth.headers });
+      if (!r.ok) throw new Error("draft del " + r.status);
     },
   };
 }

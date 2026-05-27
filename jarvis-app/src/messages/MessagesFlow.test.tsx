@@ -65,4 +65,38 @@ describe("MessagesFlow", () => {
     expect(screen.getByText("Email setup required")).toBeInTheDocument();
     expect(screen.queryByText("Texts aren't available")).toBeNull();
   });
+  it("lists drafts, opens one prefilled, and deletes it after sending", async () => {
+    let deleted: string | null = null;
+    const dapi = makeFakeGoogleApi({
+      listInbox: async () => [],
+      listDrafts: async () => [{ id: "d1", message: { id: "m9", snippet: "draft body",
+        payload: { headers: [{ name: "To", value: "z@x.com" }, { name: "Subject", value: "Hello draft" }] } } }],
+      getDraft: async (id: string) => ({ id, message: { id: "m9", threadId: "t9",
+        payload: { mimeType: "text/plain", body: { data: btoa("draft body") },
+          headers: [{ name: "To", value: "z@x.com" }, { name: "Subject", value: "Hello draft" }] } } }),
+      deleteDraft: async (id: string) => { deleted = id; },
+    });
+    render(
+      <NotesProvider userId="u1">
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => dapi}>
+          <MessagesFlow ai={noAI} configured />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText(/Drafts/));
+    fireEvent.click(await screen.findByText("Hello draft"));
+    expect(((await screen.findByPlaceholderText("To")) as HTMLInputElement).value).toBe("z@x.com");
+    fireEvent.click(screen.getByText("Send"));
+    await waitFor(() => expect(deleted).toBe("d1"));
+  });
+
+  it("filters the inbox with search", async () => {
+    render(wrap(<MessagesFlow ai={noAI} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Lunch?");
+    fireEvent.change(screen.getByPlaceholderText("Search mail"), { target: { value: "intro" } });
+    expect(screen.queryByText("Lunch?")).toBeNull();
+    expect(screen.getByText("Intro")).toBeInTheDocument();
+  });
 });

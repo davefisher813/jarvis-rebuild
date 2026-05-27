@@ -17,14 +17,14 @@ export const DESTINATIONS: Destination[] = [
   { key: "notes", label: "Notes", Icon: FileText },
   { key: "goals", label: "Life Map", Icon: Target },
   { key: "projects", label: "Projects", Icon: Briefcase },
-  { key: "messages", label: "Messages", Icon: MessageSquare },
+  { key: "messages", label: "Email", Icon: MessageSquare },
   { key: "notifications", label: "Notifications", Icon: Bell },
   { key: "money", label: "Money", Icon: Wallet },
   { key: "insights", label: "Insights", Icon: BarChart3 },
 ];
 
 export const DEFAULT_TABS = ["today", "tasks", "schedule", "brain"];
-export const MAX_TABS = 4;
+export const MAX_TABS = 5;
 
 export const destOf = (key: string): Destination | undefined =>
   DESTINATIONS.find((d) => d.key === key);
