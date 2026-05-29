@@ -49,7 +49,7 @@ export default function EventSheet({
             <label className="input-label">Title <span className="input-req">*</span></label>
             <input
               className="input"
-              placeholder="What\u2019s happening?"
+              placeholder="What's happening?"
               value={title}
               onChange={(e) => { setTitle(e.target.value); if (err) setErr(false); }}
               autoFocus

@@ -203,7 +203,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 
 /* All bottom sheets render the same: capped to the screen, body scrolls, actions
    stay pinned and visible. Applies to Task, Event and Category sheets uniformly. */
-.sheet-scrim > .card { max-height: 100%; display: flex; flex-direction: column; }
+.sheet-scrim > .card { max-height: 100%; min-height: 70dvh; display: flex; flex-direction: column; }
 .sheet-scrim .sheet-handle, .sheet-scrim .grp { flex-shrink: 0; }
 .sheet-scrim .sheet-form { flex: 1; min-height: 0; overflow-y: auto; }
 .sheet-scrim .sheet-actions { flex-shrink: 0; }
