@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useState } from "react";
 import { GOAL_META, GOAL_STATES, type GoalData, type GoalState, type Area } from "./types";
 
@@ -12,7 +13,7 @@ export default function GoalSheet({ mode, areas, initial, onSave, onDelete, onCa
   const [areaId, setAreaId] = useState<string>(initial?.areaId ?? "");
   const [touched, setTouched] = useState(false);
   const valid = title.trim().length > 0;
-  return (
+  return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
@@ -20,7 +21,7 @@ export default function GoalSheet({ mode, areas, initial, onSave, onDelete, onCa
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Goal</div>
-            <input className={"input" + (touched && !valid ? " input-error" : "")} placeholder="e.g. Run a half marathon" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+            <input className={"input" + (touched && !valid ? " input-error" : "")} placeholder="e.g. Run a half marathon" value={title} onChange={(e) => setTitle(e.target.value)} />
             {touched && !valid && <div className="input-error">Add a goal.</div>}
           </div>
           <div className="field">
@@ -50,5 +51,7 @@ export default function GoalSheet({ mode, areas, initial, onSave, onDelete, onCa
         </div>
       </div>
     </div>
+    ,
+    document.body,
   );
 }

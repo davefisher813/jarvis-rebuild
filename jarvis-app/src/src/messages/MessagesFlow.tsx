@@ -201,7 +201,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
   if (view === "list" && (!configured || !g.hasToken)) {
     return (
       <div className="screen">
-        <div className="nav-bar"><div className="nav-large">Messages</div></div>
+        <div className="nav-bar"><div className="nav-large">Email</div></div>
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><Mail className="ic" /></div>
           <div className="empty-title">{configured ? "Connect your email" : "Email setup required"}</div>
@@ -243,7 +243,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
     return (
       <div className="screen">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => setView("list")}>Messages</button>
+          <button className="nav-back" onClick={() => setView("list")}>Email</button>
           <span className="nav-title"></span>
           <button className="nav-act" onClick={() => archive(current.id)} aria-label="Archive"><Archive className="ic" /></button>
         </div>
@@ -282,7 +282,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
   return (
     <div className="screen">
       <div className="nav-bar">
-        <div className="nav-large">Messages</div>
+        <div className="nav-large">Email</div>
         <button className="nav-act" onClick={startCompose} aria-label="New message"><Plus className="ic" /></button>
       </div>
       <div className="pad-x">

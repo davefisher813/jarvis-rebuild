@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMoney } from "../data/NotesProvider";
 import { ACCOUNT_META, ACCOUNT_KINDS, formatMoney, totalBalance, type Account, type AccountData, type AccountKind } from "./types";
 
@@ -17,14 +18,14 @@ function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
   const [kind, setKind] = useState<AccountKind>(initial?.kind ?? "cash");
   const [touched, setTouched] = useState(false);
   const valid = name.trim().length > 0 && balance.trim() !== "" && Number.isFinite(Number(balance));
-  return (
+  return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{mode === "new" ? "New Account" : "Edit Account"}</div></div>
         <div className="pad-x sheet-form">
           <div className="field"><div className="input-label">Name</div>
-            <input className={"input" + (touched && !name.trim() ? " input-error" : "")} placeholder="e.g. Checking" value={name} onChange={(e) => setName(e.target.value)} autoFocus /></div>
+            <input className={"input" + (touched && !name.trim() ? " input-error" : "")} placeholder="e.g. Checking" value={name} onChange={(e) => setName(e.target.value)} /></div>
           <div className="field"><div className="input-label">Balance (USD)</div>
             <input className={"input" + (touched && !valid ? " input-error" : "")} inputMode="numeric" placeholder="0" value={balance} onChange={(e) => setBalance(e.target.value)} />
             {touched && !valid && <div className="input-error">Enter a name and a number.</div>}</div>
@@ -39,6 +40,8 @@ function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
         </div>
       </div>
     </div>
+    ,
+    document.body,
   );
 }
 

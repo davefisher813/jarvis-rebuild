@@ -1,5 +1,6 @@
 import { Store, InMemoryAdapter } from "@core";
 import { TasksService } from "../tasks/TasksService";
+import { nextDue } from "../tasks/grouping";
 import { ScheduleService } from "../schedule/ScheduleService";
 import { NotesService } from "../notes/NotesService";
 import { CategoriesService } from "../categories/CategoriesService";
@@ -172,4 +173,5 @@ export const CHECKS: Check[] = [
   { group: "Email", name: "reply threads + encodes RFC822", run: () => { const full = mapGmailFull({ id: "m1", threadId: "t9", payload: { mimeType: "text/plain", body: { data: btoa("hi") }, headers: [{ name: "From", value: "A <a@x.com>" }, { name: "Subject", value: "Plan" }, { name: "Message-ID", value: "<abc>" }] } }); const rep = buildReply(full, "ok"); eq(rep.threadId, "t9", "thread"); const raw = encodeEmail({ to: rep.to, subject: rep.subject, body: "ok", inReplyTo: rep.inReplyTo }); const d = atob(raw.replace(/-/g, "+").replace(/_/g, "/")); ok(d.includes("Subject: Re: Plan"), "subject"); ok(d.includes("In-Reply-To: <abc>"), "inReplyTo"); } },
   { group: "Admin", name: "sample source returns users + billing", run: async () => { const a = makeSampleAdminSource(); eq((await a.listUsers()).length, 3, "users"); eq((await a.billing()).mrr, 36, "mrr"); } },
   { group: "Admin", name: "real api stays unavailable until server wired", run: () => { ok(createAdminApi("t").available === false, "not configured by default"); } },
+  { group: "Tasks", name: "recurring task rolls forward, not done", run: async () => { const svc = new TasksService(store(), "u"); const id = (await svc.createTask("x", { due: "2026-05-27", recurrence: "daily" }))!; await svc.toggleDone(id); const t = await svc.task(id); ok(t?.done === false, "still open"); eq(t?.due ?? "", nextDue("2026-05-27", "daily"), "advanced"); } },
 ];

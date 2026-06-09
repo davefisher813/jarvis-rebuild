@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useState } from "react";
 import { useTasks, useSchedule, useNotes, useCategories } from "../data/NotesProvider";
 import { useAIContext, todayISO } from "../ai/useAIContext";
@@ -47,7 +48,7 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
     onClose();
   };
 
-  return (
+  return createPortal(
     <div className="sheet-scrim" onClick={onClose}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
@@ -90,5 +91,7 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
         )}
       </div>
     </div>
+    ,
+    document.body,
   );
 }

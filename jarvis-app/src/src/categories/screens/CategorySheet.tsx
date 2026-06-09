@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useState } from "react";
 import { COLOR_SLOTS, type ColorSlot } from "../types";
 import { catIcon, ICON_KEYS } from "../icons";
@@ -42,7 +43,7 @@ export default function CategorySheet({
     onSave({ name: name.trim(), color, icon });
   };
 
-  return (
+  return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
@@ -56,7 +57,6 @@ export default function CategorySheet({
               placeholder="Category name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              autoFocus
             />
             {touched && !valid && <div className="input-error">Add a category name.</div>}
           </div>
@@ -103,5 +103,7 @@ export default function CategorySheet({
         </div>
       </div>
     </div>
+    ,
+    document.body,
   );
 }

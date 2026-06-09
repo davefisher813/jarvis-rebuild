@@ -28,7 +28,7 @@ describe("TaskSheet", () => {
     expect(screen.getByText("Add a task name.")).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "  Pay rent  " } });
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith({ text: "Pay rent", category: "c1", due: "" });
+    expect(onSave).toHaveBeenCalledWith({ text: "Pay rent", category: "c1", due: "", repeat: "" });
   });
 
   it("selected category chip wears its slot color and is switchable", () => {
@@ -39,7 +39,7 @@ describe("TaskSheet", () => {
     expect(container.querySelector(".chip.cat-bg-yellow")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "X" } });
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith({ text: "X", category: "c2", due: "" });
+    expect(onSave).toHaveBeenCalledWith({ text: "X", category: "c2", due: "", repeat: "" });
   });
 
   it("due quick-picks set the date", () => {
@@ -48,7 +48,7 @@ describe("TaskSheet", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "X" } });
     fireEvent.click(screen.getByText("Today"));
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith({ text: "X", category: "c1", due: today });
+    expect(onSave).toHaveBeenCalledWith({ text: "X", category: "c1", due: today, repeat: "" });
   });
 
   it("edit mode: prefilled, delete present and fires", () => {

@@ -19,7 +19,7 @@ setCategoryRegistry([
 
 
 const tk = (id: string, due: string | null, cat = "tucci"): TaskItem => ({ id, data: { text: id, category: cat, done: false, due } });
-const counts: Record<TaskFilter, number> = { today: 2, overdue: 1, upcoming: 3, done: 1 };
+const counts: Record<TaskFilter, number> = { daily: 0, today: 2, overdue: 1, upcoming: 3, done: 1 };
 
 describe("TasksPage", () => {
   it("renders the filter chip row with counts", () => {
@@ -38,7 +38,7 @@ describe("TasksPage", () => {
   });
 
   it("shows an empty state when the filter has no items", () => {
-    const { container } = render(<TasksPage filter="done" counts={{ today: 0, overdue: 0, upcoming: 0, done: 0 }} items={[]} today="2026-05-20" />);
+    const { container } = render(<TasksPage filter="done" counts={{ daily: 0, today: 0, overdue: 0, upcoming: 0, done: 0 }} items={[]} today="2026-05-20" />);
     expect(container.querySelector(".empty-state")).toBeTruthy();
   });
 

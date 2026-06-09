@@ -34,15 +34,19 @@ describe("OnboardingFlow", () => {
 
     // categories (defaults seeded into the step)
     expect(screen.getByText(/life areas/)).toBeInTheDocument();
-    expect(screen.getByText("Work")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Work")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Continue"));
 
     // people
     expect(screen.getByText(/most important people/)).toBeInTheDocument();
     fireEvent.click(screen.getByText("Skip for now"));
 
+    // priority (new optional step)
+    expect(screen.getByText(/most important thing on your plate/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Skip for now"));
+
     // connect
-    expect(screen.getByText(/inbox and calendar/)).toBeInTheDocument();
+    expect(screen.getByText(/Gmail and Google Calendar/)).toBeInTheDocument();
     fireEvent.click(screen.getByText("Continue"));
 
     // daily rhythm
@@ -69,10 +73,10 @@ describe("OnboardingFlow", () => {
     fireEvent.click(screen.getByLabelText("Send"));
     fireEvent.click(screen.getByText("Business"));
     // business defaults include Clients; remove it
-    expect(screen.getByText("Clients")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Clients")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Remove Clients"));
-    expect(screen.queryByText("Clients")).not.toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Clients")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Add Category"));
-    expect(screen.getByText("New Area")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("New Area")).toBeInTheDocument();
   });
 });

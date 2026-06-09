@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useState } from "react";
 import type { PersonData, PersonGroup } from "../types";
 import type { ColorSlot } from "../../categories/types";
@@ -43,7 +44,7 @@ export default function PersonSheet({
     onSave({ name: name.trim(), relationship: relationship.trim(), birthday: birthday.trim(), notes: notes.trim(), color });
   };
 
-  return (
+  return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
@@ -51,7 +52,7 @@ export default function PersonSheet({
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Name</div>
-            <input className={"input" + (touched && !valid ? " input-error" : "")} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            <input className={"input" + (touched && !valid ? " input-error" : "")} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
             {touched && !valid && <div className="input-error">Add a name.</div>}
           </div>
           <div className="field">
@@ -84,5 +85,7 @@ export default function PersonSheet({
         </div>
       </div>
     </div>
+    ,
+    document.body,
   );
 }

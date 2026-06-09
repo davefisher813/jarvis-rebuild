@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { AlignLeft, Heading, List, ListOrdered, ListTodo, Table, Image, Paperclip } from "lucide-react";
 import type { BlockType } from "../types";
 
@@ -26,7 +27,7 @@ export default function AddBlockSheet({
   onSelect?: (type: BlockType) => void;
   onCancel?: () => void;
 }) {
-  return (
+  return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="grp">
@@ -47,5 +48,7 @@ export default function AddBlockSheet({
         </div>
       </div>
     </div>
+    ,
+    document.body,
   );
 }

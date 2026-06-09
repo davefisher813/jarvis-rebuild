@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useState } from "react";
 import { AREA_META, AREA_STATES, type AreaData, type AreaState } from "./types";
 
@@ -11,7 +12,7 @@ export default function AreaSheet({ mode, initial, onSave, onDelete, onCancel }:
   const [state, setState] = useState<AreaState>(initial?.state ?? "steady");
   const [touched, setTouched] = useState(false);
   const valid = name.trim().length > 0;
-  return (
+  return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
@@ -19,7 +20,7 @@ export default function AreaSheet({ mode, initial, onSave, onDelete, onCancel }:
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Name</div>
-            <input className={"input" + (touched && !valid ? " input-error" : "")} placeholder="e.g. Health" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+            <input className={"input" + (touched && !valid ? " input-error" : "")} placeholder="e.g. Health" value={name} onChange={(e) => setName(e.target.value)} />
             {touched && !valid && <div className="input-error">Add a name.</div>}
           </div>
           <div className="field">
@@ -38,5 +39,7 @@ export default function AreaSheet({ mode, initial, onSave, onDelete, onCancel }:
         </div>
       </div>
     </div>
+    ,
+    document.body,
   );
 }

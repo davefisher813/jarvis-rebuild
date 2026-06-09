@@ -1,25 +1,17 @@
 import { useState } from "react";
-import { Brain, Mail, Apple } from "lucide-react";
+import { Brain, Mail } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
 
 // Sign in. "Continue with Email" opens an email + password form (create account
-// or sign in). Apple is available once Sign in with Apple is configured.
+// or sign in). Apple sign-in returns once an Apple Developer account is set up.
 export default function SignIn() {
-  const { signInWithApple, signInWithPassword, signUpWithPassword, backendConfigured } = useAuth();
+  const { signInWithPassword, signUpWithPassword, backendConfigured } = useAuth();
   const [view, setView] = useState<"choose" | "email">("choose");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-
-  const onApple = async () => {
-    try {
-      await signInWithApple();
-    } catch (e) {
-      console.error("Apple sign-in failed:", e);
-    }
-  };
 
   const submit = async () => {
     setError("");
@@ -76,10 +68,7 @@ export default function SignIn() {
         <p className="signin-tag">Your day, handled.</p>
 
         <div className="signin-actions">
-          <button className="btn btn-lg btn-block btn-apple" onClick={onApple}>
-            <Apple size={20} /> Continue with Apple
-          </button>
-          <button className="btn btn-lg btn-block btn-secondary" onClick={() => setView("email")}>
+          <button className="btn btn-lg btn-block btn-primary" onClick={() => setView("email")}>
             <Mail size={20} /> Continue with Email
           </button>
         </div>

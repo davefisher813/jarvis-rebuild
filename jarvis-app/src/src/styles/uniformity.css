@@ -131,8 +131,9 @@
 .doc { padding: var(--s-4) var(--s-5); }
 .doc > * + * { margin-top: var(--s-3); }
 /* action-sheet backdrop using the new --scrim token */
-.sheet-scrim { position:absolute; inset:0; background:var(--scrim);
-  display:flex; flex-direction:column; justify-content:flex-end; padding:var(--s-2); gap:var(--s-2); }
+.sheet-scrim { position:fixed; top:0; left:0; right:0; height:100dvh; z-index:200; background:var(--scrim);
+  display:flex; flex-direction:column; justify-content:flex-end; padding:0; gap:0; }
+body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-open .voice-bar, body.sheet-open .tab-bar { visibility: hidden; }
 
 /* v2.2 GATE color: category tile glyph size + file-type color glyphs (Files-app convention) */
 .proj-icon .ic { width: 16px; height: 16px; }

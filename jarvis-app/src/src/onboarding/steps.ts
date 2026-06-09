@@ -8,7 +8,7 @@ export interface OnbStep {
   id: string;
   kind: StepKind;
   prompt?: string;
-  key?: "name" | "template" | "briefTime";
+  key?: "name" | "template" | "briefTime" | "priority";
   placeholder?: string;
   options?: Choice[];
 }
@@ -29,7 +29,8 @@ export const STEPS: OnbStep[] = [
   },
   { id: "categories", kind: "categories", prompt: "Here are the life areas I\u2019ll track. Remove any that don\u2019t fit, or add your own." },
   { id: "people", kind: "people", prompt: "Who are the most important people in your world? I\u2019ll keep them close.", placeholder: "Add a person" },
-  { id: "connect", kind: "connect", prompt: "Connect your inbox and calendar so I can see your day." },
+  { id: "priority", kind: "text", prompt: "What is the most important thing on your plate right now?", key: "priority", placeholder: "Your top focus" },
+  { id: "connect", kind: "connect", prompt: "Gmail and Google Calendar work in JARVIS. You can connect them now or later." },
   {
     id: "time",
     kind: "time",

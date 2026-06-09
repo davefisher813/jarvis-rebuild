@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useState } from "react";
 import type { ColorSlot } from "../../categories/types";
 import type { SheetCategory } from "../../tasks/screens/TaskSheet";
@@ -39,7 +40,7 @@ export default function EventSheet({
 
   const slot = (c: SheetCategory): ColorSlot => c.color;
 
-  return (
+  return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
@@ -49,10 +50,9 @@ export default function EventSheet({
             <label className="input-label">Title <span className="input-req">*</span></label>
             <input
               className="input"
-              placeholder="What\u2019s happening?"
+              placeholder="What's happening?"
               value={title}
               onChange={(e) => { setTitle(e.target.value); if (err) setErr(false); }}
-              autoFocus
             />
           </div>
 
@@ -102,5 +102,7 @@ export default function EventSheet({
         </div>
       </div>
     </div>
+    ,
+    document.body,
   );
 }

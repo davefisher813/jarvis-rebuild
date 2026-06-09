@@ -29,6 +29,15 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
         )}
         <div className="row"><div className="row-grow"><div className="conn-name">Template</div></div><span className="row-value">{tmpl}</span></div>
         <div className="row"><div className="row-grow"><div className="conn-name">Status</div></div><span className="row-value">Active</span></div>
+        <div className="row" role="button" tabIndex={0} onClick={async () => {
+          if (typeof window !== "undefined" && window.confirm("Run setup again? Your data stays. You will be asked the intake questions again.")) {
+            await svc.save({ onboarded: false });
+            window.location.reload();
+          }
+        }}>
+          <div className="row-grow"><div className="conn-name">Redo Setup</div></div>
+          <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+        </div>
       </div></div>
       {onSignOut && <div className="pad-x"><div className="card"><button className="row row-signout" onClick={onSignOut}>Sign Out</button></div></div>}
     </div>

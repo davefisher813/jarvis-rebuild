@@ -1,8 +1,9 @@
+import { createPortal } from "react-dom";
 import { useState } from "react";
 import type { ColorSlot } from "../../categories/types";
 
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
-export interface TaskDraft { text: string; category: string; due: string }
+export interface TaskDraft { text: string; category: string; due: string; repeat: string }
 
 const DAY = 86400000;
 const isoOf = (d: Date) => {
@@ -36,6 +37,7 @@ export default function TaskSheet({
   const [text, setText] = useState(initial?.text ?? "");
   const [category, setCategory] = useState(initial?.category ?? categories[0]?.id ?? "");
   const [due, setDue] = useState(initial?.due ?? "");
+  const [repeat, setRepeat] = useState(initial?.repeat ?? "");
   const [err, setErr] = useState(false);
 
   const dueMode = due === "" ? "none" : due === today ? "today" : due === tomorrow ? "tomorrow" : "pick";
@@ -45,10 +47,10 @@ export default function TaskSheet({
       setErr(true);
       return;
     }
-    onSave({ text: text.trim(), category, due });
+    onSave({ text: text.trim(), category, due, repeat });
   };
 
-  return (
+  return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
@@ -61,7 +63,6 @@ export default function TaskSheet({
               placeholder="What needs doing?"
               value={text}
               onChange={(e) => { setText(e.target.value); if (err) setErr(false); }}
-              autoFocus
             />
             {err && <div className="input-error">Add a task name.</div>}
           </div>
@@ -96,6 +97,15 @@ export default function TaskSheet({
               <input type="date" className="input field-gap" value={due} onChange={(e) => setDue(e.target.value)} />
             )}
           </div>
+
+          <div className="field">
+            <div className="input-label">Repeat</div>
+            <div className="segmented">
+              {([["", "None"], ["daily", "Daily"], ["weekly", "Weekly"], ["monthly", "Monthly"]] as const).map(([val, label]) => (
+                <div key={val} className={"seg" + (repeat === val ? " active" : "")} role="button" tabIndex={0} onClick={() => setRepeat(val)}>{label}</div>
+              ))}
+            </div>
+          </div>
         </div>
 
         <div className="pad-x sheet-actions">
@@ -107,5 +117,7 @@ export default function TaskSheet({
         </div>
       </div>
     </div>
+    ,
+    document.body,
   );
 }

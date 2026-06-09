@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { useState } from "react";
 import { PROJECT_META, PROJECT_STATES, type ProjectData, type ProjectStatus } from "./types";
 import type { Category } from "../categories/types";
@@ -13,7 +14,7 @@ export default function ProjectSheet({ mode, categories, initial, onSave, onDele
   const [category, setCategory] = useState<string>(initial?.category ?? "");
   const [touched, setTouched] = useState(false);
   const valid = title.trim().length > 0;
-  return (
+  return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
@@ -21,7 +22,7 @@ export default function ProjectSheet({ mode, categories, initial, onSave, onDele
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Project</div>
-            <input className={"input" + (touched && !valid ? " input-error" : "")} placeholder="e.g. Q3 launch plan" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus />
+            <input className={"input" + (touched && !valid ? " input-error" : "")} placeholder="e.g. Q3 launch plan" value={title} onChange={(e) => setTitle(e.target.value)} />
             {touched && !valid && <div className="input-error">Add a title.</div>}
           </div>
           <div className="field">
@@ -51,5 +52,7 @@ export default function ProjectSheet({ mode, categories, initial, onSave, onDele
         </div>
       </div>
     </div>
+    ,
+    document.body,
   );
 }

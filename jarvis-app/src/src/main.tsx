@@ -35,3 +35,14 @@ if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     });
   });
 }
+
+
+// Toggle a body class while any bottom sheet is open so the floating capture bar
+// hides. Uses a class (not the :has selector) to work on every browser, including
+// older iOS Safari. Watches childList only, so toggling the class cannot re-trigger.
+if (typeof document !== "undefined") {
+  const syncSheetOpen = () => {
+    document.body.classList.toggle("sheet-open", !!document.querySelector(".sheet-scrim"));
+  };
+  new MutationObserver(syncSheetOpen).observe(document.body, { childList: true, subtree: true });
+}
