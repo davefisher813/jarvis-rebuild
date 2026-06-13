@@ -35,3 +35,9 @@ export function partition(items: TaskItem[], today: string = todayISO()): Partit
   p.upcoming.sort((a, b) => key(a).localeCompare(key(b)));
   return p;
 }
+
+// Narrow a list to a single category. "all" or "" means no filtering. Pure.
+export function byCategory(items: TaskItem[], categoryId: string): TaskItem[] {
+  if (!categoryId || categoryId === "all") return items;
+  return items.filter((it) => (it.data.category ?? "") === categoryId);
+}

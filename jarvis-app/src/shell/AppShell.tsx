@@ -22,6 +22,9 @@ import MoneyFlow from "../money/MoneyFlow";
 import InsightsFlow from "../insights/InsightsFlow";
 import { seedDemoData } from "../data/seed";
 import { setCategoryRegistry } from "../shared/categories";
+import ToastHost from "../shared/ToastHost";
+import { bus } from "../events";
+import { ENTITY_CATEGORY } from "../categories/types";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
 // decides which pages are tabs; everything else lives in More. Any page can be
@@ -43,6 +46,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [active, setActive] = useState<string>("today");
   const [notesChrome, setNotesChrome] = useState(true);
   const [ready, setReady] = useState(false);
+  const [, bumpCatVer] = useState(0);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -65,6 +69,23 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     })();
     return () => { on = false; };
   }, [seedDemo, tasks, schedule, categories, profile, areas, goals, projects, money, people]);
+
+  // Keep the category name/color resolver in sync when a category is created,
+  // renamed, recolored, or deleted, so edits reflect live everywhere (schedule,
+  // today, tasks) without an app restart.
+  useEffect(() => {
+    let on = true;
+    const unsub = bus.subscribe((e) => {
+      if (e.entityType !== ENTITY_CATEGORY) return;
+      void (async () => {
+        const cats = await categories.list();
+        if (!on) return;
+        setCategoryRegistry(cats.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));
+        bumpCatVer((v) => v + 1);
+      })();
+    });
+    return () => { on = false; unsub(); };
+  }, [categories]);
 
   // Leaving Notes always restores the dock.
   useEffect(() => {
@@ -114,6 +135,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         )}
         </div>
       </div>
+      <ToastHost />
       {showDock && (
         <>
           <VoiceBar onTap={() => setCaptureOpen(true)} />

@@ -79,6 +79,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cal-dot { width: 5px; height: 5px; border-radius: var(--r-circle); }
 .sched-cat { display: flex; align-items: center; gap: var(--s-1h); font-size: var(--t-meta); color: var(--tx-3); }
 .sched-cat .cat-dot { width: 8px; height: 8px; }
+.sched-until, .sched-rep { font-size: var(--t-meta); color: var(--tx-3); }
+.sched-badge { margin-left: var(--s-1h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent); border: 1px solid var(--accent); border-radius: var(--r-pill); padding: 0 var(--s-1h); vertical-align: middle; }
+.sched-row-warn { box-shadow: inset 2px 0 0 var(--accent); }
+.input-note { font-size: var(--t-meta); color: var(--tx-2); margin-top: var(--s-1); }
 
 /* Today section header: Title Case section title + trailing See All link
    (RULE 9; the dashboard needs a header-with-action the other screens don't). */
@@ -434,6 +438,8 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .task-del { position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0; background: var(--red);
   color: #fff; display: flex; align-items: center; justify-content: center; }
 .task-del .ic { width: 22px; height: 22px; }
+.task-snooze { position: absolute; top: 0; right: 88px; bottom: 0; width: 88px; border: 0; background: var(--tint); color: #fff; display: flex; align-items: center; justify-content: center; }
+.task-snooze .ic { width: 22px; height: 22px; }
 .task-row { position: relative; background: var(--surface-2); transition: transform 0.16s ease; }
 .task-check-tap { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
   flex-shrink: 0; margin: -8px 0; cursor: pointer; }
@@ -441,3 +447,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* RULE-9: Onboarding inline-edit for category names. */
 .ob-rename { font: inherit; background: transparent; border: 0; padding: 6px 0; width: 100%; color: inherit; }
 .ob-rename:focus { outline: none; border-bottom: 1px solid var(--accent); }
+
+.toast-dock { padding: 0 var(--s-3) var(--s-2); }
+.toast { display: flex; align-items: center; gap: var(--s-3); background: var(--surface-3); border: 0.5px solid var(--divider); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); box-shadow: var(--shadow-card); }
+.toast-msg { flex: 1; font-size: var(--t-body); color: var(--tx-1); }
+.toast-action { background: 0; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-body); padding: var(--s-1) var(--s-2); flex-shrink: 0; }
+
+.sched-open-list { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-2); }
+.sched-open { display: flex; align-items: center; gap: var(--s-2); width: 100%; text-align: left; background: transparent; border: 1px dashed var(--divider); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); color: var(--tx-3); font-size: var(--t-meta); font-family: var(--f); }
+.sched-open-plus { color: var(--tint); font-weight: var(--w-semi); }

@@ -40,6 +40,16 @@ export function assembleContext(input: AIContextInput): AIContext {
   };
 }
 
+
+// "19:30" -> "7:30 PM". Local so this module stays dependency-free.
+function to12h(hhmm: string): string {
+  const [hRaw, mRaw] = hhmm.split(":");
+  let h = Number(hRaw);
+  const ap = h < 12 ? "AM" : "PM";
+  h = h % 12 || 12;
+  return `${h}:${(mRaw ?? "00").padStart(2, "0")} ${ap}`;
+}
+
 // A compact, deterministic text rendering for the system/context prompt.
 export function contextToText(ctx: AIContext): string {
   const lines: string[] = [];
@@ -47,7 +57,7 @@ export function contextToText(ctx: AIContext): string {
   if (ctx.people.length) lines.push(`Key people: ${ctx.people.join(", ")}`);
   if (ctx.categories.length) lines.push(`Life areas: ${ctx.categories.join(", ")}`);
   if (ctx.openTasks.length) lines.push(`Open tasks: ${ctx.openTasks.join("; ")}`);
-  if (ctx.events.length) lines.push(`Today's schedule: ${ctx.events.map((e) => `${e.start} ${e.title}`).join("; ")}`);
+  if (ctx.events.length) lines.push(`Today's schedule: ${ctx.events.map((e) => `${to12h(e.start)} ${e.title}`).join("; ")}`);
   if (ctx.philosophy) lines.push(`Philosophy: ${ctx.philosophy}`);
   if (ctx.values) lines.push(`Values: ${ctx.values}`);
   if (ctx.voice) lines.push(`Writing voice: ${ctx.voice}`);

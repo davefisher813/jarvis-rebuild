@@ -24,18 +24,18 @@ describe("EventSheet", () => {
     expect(screen.getByText("Add a title, date, and start time.")).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Standup" } });
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith({ title: "Standup", date: "2026-05-24", start: "09:00", category: "c1", location: "" });
+    expect(onSave).toHaveBeenCalledWith({ title: "Standup", date: "2026-05-24", start: "09:00", end: "10:00", category: "c1", location: "", recurrence: "none" });
   });
 
   it("category switch wears its slot color and saves its id", () => {
     const onSave = vi.fn();
-    const { container } = render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
-    expect(container.querySelector(".chip.cat-bg-blue")).toBeTruthy();
+    render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    expect(document.querySelector(".chip.cat-bg-blue")).toBeTruthy();
     fireEvent.click(screen.getByText("Friends"));
-    expect(container.querySelector(".chip.cat-bg-teal")).toBeTruthy();
+    expect(document.querySelector(".chip.cat-bg-teal")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Lunch" } });
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith({ title: "Lunch", date: "2026-05-24", start: "09:00", category: "c2", location: "" });
+    expect(onSave).toHaveBeenCalledWith({ title: "Lunch", date: "2026-05-24", start: "09:00", end: "10:00", category: "c2", location: "", recurrence: "none" });
   });
 
   it("edit mode: prefilled, delete fires", () => {

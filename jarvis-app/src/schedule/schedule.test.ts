@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { ScheduleService } from "./ScheduleService";
-import { monthMatrix, fmtTime, eventsForDate, dotsForMonth, todayISO } from "./calendar";
+import { monthMatrix, fmtTime, eventsForDate, dotsForMonth, todayISO, addMinutes, fmtRange, occursOn, findConflicts, nextFreeSlot, openSlots } from "./calendar";
 import type { EventItem } from "./types";
 
 const TODAY = "2026-05-20";
@@ -127,5 +127,78 @@ d3("week helpers", () => {
     e3(w[0]).toBe("2026-05-18"); e3(w[6]).toBe("2026-05-24"); e3(w.length).toBe(7);
     e3(addDays("2026-05-24", 7)).toBe("2026-05-31");
     e3(addDays("2026-05-01", -1)).toBe("2026-04-30");
+  });
+});
+
+
+describe("Schedule upgrades: time math, recurrence, conflicts, free slots", () => {
+  type Rec = "daily" | "weekly" | "monthly";
+  const ev = (id: string, date: string, start: string, end?: string, recurrence?: Rec): EventItem => ({
+    id,
+    data: { title: id, date, start, category: "", ...(end ? { end } : {}), ...(recurrence ? { recurrence } : {}) },
+  });
+
+  it("addMinutes rolls over and clamps within the day", () => {
+    expect(addMinutes("09:00", 60)).toBe("10:00");
+    expect(addMinutes("13:05", 90)).toBe("14:35");
+    expect(addMinutes("23:30", 60)).toBe("23:59");
+  });
+
+  it("fmtRange shares the meridiem only when both ends match", () => {
+    expect(fmtRange("13:00", "14:30")).toBe("1:00 - 2:30 PM");
+    expect(fmtRange("11:00", "13:00")).toBe("11:00 AM - 1:00 PM");
+    expect(fmtRange("09:00")).toBe("9:00 AM");
+  });
+
+  it("occursOn expands forward from the anchor only", () => {
+    const daily = ev("d", "2026-05-20", "09:00", undefined, "daily").data;
+    expect(occursOn(daily, "2026-05-25")).toBe(true);
+    expect(occursOn(daily, "2026-05-19")).toBe(false);
+    const weekly = ev("w", "2026-05-20", "09:00", undefined, "weekly").data; // a Wednesday
+    expect(occursOn(weekly, "2026-05-27")).toBe(true);
+    expect(occursOn(weekly, "2026-05-28")).toBe(false);
+    const monthly = ev("m", "2026-05-20", "09:00", undefined, "monthly").data;
+    expect(occursOn(monthly, "2026-06-20")).toBe(true);
+    expect(occursOn(monthly, "2026-06-21")).toBe(false);
+    expect(occursOn(ev("o", "2026-05-20", "09:00").data, "2026-05-21")).toBe(false);
+  });
+
+  it("eventsForDate surfaces a recurring instance on the queried day, keeping the base id", () => {
+    const out = eventsForDate([ev("a", "2026-05-20", "09:00", undefined, "daily")], "2026-05-23");
+    expect(out.length).toBe(1);
+    expect(out[0]!.data.date).toBe("2026-05-23");
+    expect(out[0]!.id).toBe("a");
+  });
+
+  it("findConflicts flags only overlapping ranges", () => {
+    const c = findConflicts([
+      ev("x", "2026-05-20", "09:00", "10:00"),
+      ev("y", "2026-05-20", "09:30", "10:30"),
+      ev("z", "2026-05-20", "11:00", "12:00"),
+    ]);
+    expect(c.has("x")).toBe(true);
+    expect(c.has("y")).toBe(true);
+    expect(c.has("z")).toBe(false);
+  });
+
+  it("nextFreeSlot skips booked time, returns the next open slot, defaults empty day to 9am", () => {
+    const notToday = new Date("2000-01-01T00:00:00");
+    const items = [ev("a", "2026-05-20", "09:00", "10:00"), ev("b", "2026-05-20", "10:00", "11:00")];
+    expect(nextFreeSlot(items, "2026-05-20", notToday, 60)).toBe("11:00");
+    expect(nextFreeSlot([], "2026-05-20", notToday, 60)).toBe("09:00");
+  });
+
+  it("openSlots returns the gaps between events within waking hours", () => {
+    const items = [ev("a", "2026-05-20", "09:00", "10:00"), ev("b", "2026-05-20", "12:00", "13:00")];
+    const slots = openSlots(items, "08:00", "18:00", 30);
+    expect(slots.map((s) => s.start)).toEqual(["08:00", "10:00", "13:00"]);
+    expect(slots[0]!.end).toBe("09:00");
+  });
+
+  it("occursOn skips exdates so a single occurrence can be removed", () => {
+    const daily = { ...ev("d", "2026-05-20", "09:00", undefined, "daily").data, exdates: ["2026-05-22"] };
+    expect(occursOn(daily, "2026-05-20")).toBe(true);
+    expect(occursOn(daily, "2026-05-21")).toBe(true);
+    expect(occursOn(daily, "2026-05-22")).toBe(false);
   });
 });

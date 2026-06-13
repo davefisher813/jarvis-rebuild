@@ -7,6 +7,7 @@ export function suggestionsSystemPrompt(ctx: AIContext, today: string): string {
     "You are JARVIS. Suggest what the user should focus on right now.",
     `Today is ${today} (ISO).`,
     "Ground every suggestion in their real tasks, schedule, people, and birthdays below.",
+    "Always write clock times in 12-hour format with AM/PM (e.g., 7:30 PM). Never use 24-hour time.",
     "Reply with ONLY a JSON array of at most 2 short strings (max ~12 words each), no prose, no code fences.",
     "If nothing is genuinely useful, reply with an empty array: [].",
     "",

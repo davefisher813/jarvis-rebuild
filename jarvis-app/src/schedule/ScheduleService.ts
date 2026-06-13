@@ -1,6 +1,6 @@
 import type { Store, Item, ItemData } from "@core";
 import type { EventInput } from "../events";
-import { ENTITY_EVENT, type EventData, type EventItem } from "./types";
+import { ENTITY_EVENT, type EventData, type EventItem, type EventRecurrence } from "./types";
 import { eventsForDate, dotsForMonth } from "./calendar";
 
 // The Schedule feature, backed by the engine Store. Each event is a Store item
@@ -24,7 +24,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; gcalId?: string },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; gcalId?: string },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -34,6 +34,7 @@ export class ScheduleService {
       category: opts.category ?? "",
     };
     if (opts.end) data.end = opts.end;
+    if (opts.recurrence && opts.recurrence !== "none") data.recurrence = opts.recurrence;
     if (opts.location && opts.location.trim()) data.location = opts.location.trim();
     if (opts.gcalId) data.gcalId = opts.gcalId;
     const id = await this.store.create(this.ownerId, ENTITY_EVENT, data as unknown as ItemData);
@@ -55,6 +56,19 @@ export class ScheduleService {
   }
   editTime(id: string, start: string): Promise<boolean> {
     return this.patch(id, { start });
+  }
+  editEnd(id: string, end: string): Promise<boolean> {
+    return this.patch(id, { end: end || undefined });
+  }
+  editRecurrence(id: string, recurrence: EventRecurrence): Promise<boolean> {
+    return this.patch(id, { recurrence: recurrence === "none" ? undefined : recurrence });
+  }
+  // Remove a single occurrence date from a recurring series.
+  async addExdate(id: string, date: string): Promise<boolean> {
+    const e = await this.get(id);
+    if (!e) return false;
+    const exdates = Array.from(new Set([...(e.exdates ?? []), date]));
+    return this.patch(id, { exdates });
   }
   moveDay(id: string, date: string): Promise<boolean> {
     return this.patch(id, { date });

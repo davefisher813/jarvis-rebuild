@@ -48,6 +48,7 @@ export default function TodayPage({
   tomorrowDate,
   tasks,
   today,
+  onToggleTask,
   avatar = "DF",
   onSeeAllSchedule,
   onSeeAllTasks,
@@ -65,6 +66,7 @@ export default function TodayPage({
   tomorrowDate: string;
   tasks: TaskItem[];
   today: string;
+  onToggleTask?: (id: string) => void;
   avatar?: string;
   onSeeAllSchedule: () => void;
   onSeeAllTasks: () => void;
@@ -115,7 +117,9 @@ export default function TodayPage({
                 const u = urgencyFor(t.data, today);
                 return (
                   <div className="task-row" key={t.id}>
-                    <div className={"task-check cat-bd-" + catColor(t.data.category)} />
+                    <div className="task-check-tap" role="checkbox" aria-checked={t.data.done} aria-label={t.data.done ? "Mark not done" : "Mark done"} onClick={() => onToggleTask?.(t.id)}>
+                      <div className={"task-check " + (t.data.done ? "done" : "cat-bd-" + catColor(t.data.category))} />
+                    </div>
                     <div className="task-title">{t.data.text}</div>
                     {u && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
                   </div>

@@ -22,6 +22,7 @@ export default function TaskSheet({
   initial,
   categories,
   onSave,
+  onSchedule,
   onDelete,
   onCancel,
 }: {
@@ -29,6 +30,7 @@ export default function TaskSheet({
   initial?: Partial<TaskDraft>;
   categories: SheetCategory[];
   onSave: (draft: TaskDraft) => void;
+  onSchedule?: () => void;
   onDelete?: () => void;
   onCancel: () => void;
 }) {
@@ -110,6 +112,9 @@ export default function TaskSheet({
 
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-block" onClick={save}>Save</button>
+          {mode === "edit" && onSchedule && (
+            <button className="btn btn-secondary btn-block" onClick={onSchedule}>Add to Schedule</button>
+          )}
           {mode === "edit" && onDelete && (
             <button className="btn btn-danger btn-block" onClick={onDelete}>Delete Task</button>
           )}

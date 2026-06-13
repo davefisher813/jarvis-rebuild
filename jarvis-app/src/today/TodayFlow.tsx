@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSchedule, useTasks, useProfile } from "../data/NotesProvider";
 import { todayISO, fmtTime } from "../schedule/calendar";
 import type { EventItem } from "../schedule/types";
@@ -35,26 +35,26 @@ export default function TodayFlow({
   const today = todayISO(now);
   const tmrw = tomorrowISO(today);
 
-  useEffect(() => {
-    let on = true;
-    (async () => {
-      const [te, tm, tk, prof] = await Promise.all([
-        schedule.eventsOn(today),
-        schedule.eventsOn(tmrw),
-        tasks.listTasks(),
-        profile.get(),
-      ]);
-      if (!on) return;
-      setTodayEvents(te);
-      setTomorrowEvents(tm);
-      setTaskItems(tk);
-      setName(prof?.name ?? "");
-      setLoading(false);
-    })();
-    return () => {
-      on = false;
-    };
+  const reload = useCallback(async () => {
+    const [te, tm, tk, prof] = await Promise.all([
+      schedule.eventsOn(today),
+      schedule.eventsOn(tmrw),
+      tasks.listTasks(),
+      profile.get(),
+    ]);
+    setTodayEvents(te);
+    setTomorrowEvents(tm);
+    setTaskItems(tk);
+    setName(prof?.name ?? "");
+    setLoading(false);
   }, [schedule, tasks, profile, today, tmrw]);
+
+  useEffect(() => { reload(); }, [reload]);
+
+  const onToggleTask = async (id: string) => {
+    await tasks.toggleDone(id);
+    await reload();
+  };
 
   if (loading) return <div className="screen" />;
 
@@ -71,6 +71,7 @@ export default function TodayFlow({
       tomorrowEvents={tomorrowEvents}
       tomorrowDate={shortDate(new Date(tmrw + "T00:00:00"))}
       tasks={todaysTasks(taskItems, today)}
+      onToggleTask={onToggleTask}
       today={today}
       suggestions={<TodaySuggestions ai={ai} />}
       onSearch={onSearch}

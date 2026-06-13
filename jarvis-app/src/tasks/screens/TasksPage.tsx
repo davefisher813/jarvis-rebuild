@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Clock } from "lucide-react";
 import SkeletonRows from "../../shared/SkeletonRows";
 import type { TaskItem } from "../TasksService";
 import { urgencyFor, type UrgencyKind } from "../grouping";
 import { FILTERS, FILTER_LABEL, type TaskFilter } from "../filters";
 import { catColor, catName } from "../../shared/categories";
+import type { SheetCategory } from "./TaskSheet";
 
 // Tasks page. Two-line rows with a large (44pt) completion target on the left
 // and swipe-left-to-delete, so completing or removing a task is one easy action.
@@ -21,12 +22,14 @@ function Row({
   onToggle,
   onOpen,
   onDelete,
+  onSnooze,
 }: {
   item: TaskItem;
   today: string;
   onToggle?: (id: string) => void;
   onOpen?: (id: string) => void;
   onDelete?: (id: string) => void;
+  onSnooze?: (id: string) => void;
 }) {
   const t = item.data;
   const u = urgencyFor(t, today);
@@ -46,15 +49,21 @@ function Row({
     prevDone.current = t.done;
   }, [t.done]);
 
+  const revealW = t.done ? 88 : 176; // open tasks also reveal a "tomorrow" action
   const onStart = (e: React.TouchEvent) => { startX.current = e.touches[0]!.clientX; swiping.current = true; };
   const onMove = (e: React.TouchEvent) => {
     if (!swiping.current) return;
-    setDx(Math.max(-96, Math.min(0, e.touches[0]!.clientX - startX.current)));
+    setDx(Math.max(-revealW, Math.min(0, e.touches[0]!.clientX - startX.current)));
   };
-  const onEnd = () => { swiping.current = false; setDx((d) => (d < -48 ? -88 : 0)); };
+  const onEnd = () => { swiping.current = false; setDx((d) => (d < -48 ? -revealW : 0)); };
 
   return (
     <div className="task-swipe">
+      {!t.done && (
+        <button className="task-snooze" onClick={() => onSnooze?.(item.id)} aria-label="Move to tomorrow">
+          <Clock className="ic" />
+        </button>
+      )}
       <button className="task-del" onClick={() => onDelete?.(item.id)} aria-label="Delete task">
         <Trash2 className="ic" />
       </button>
@@ -94,7 +103,11 @@ export default function TasksPage({
   onToggle,
   onOpenTask,
   onDeleteTask,
+  onSnoozeTask,
   onNew,
+  categories,
+  catFilter,
+  onCatFilter,
 }: {
   filter: TaskFilter;
   counts: Record<TaskFilter, number>;
@@ -105,7 +118,11 @@ export default function TasksPage({
   onToggle?: (id: string) => void;
   onOpenTask?: (id: string) => void;
   onDeleteTask?: (id: string) => void;
+  onSnoozeTask?: (id: string) => void;
   onNew?: () => void;
+  categories?: SheetCategory[];
+  catFilter?: string;
+  onCatFilter?: (id: string) => void;
 }) {
   return (
     <div className="screen">
@@ -128,17 +145,29 @@ export default function TasksPage({
         ))}
       </div>
 
+      {categories && categories.length > 0 && (
+        <div className="chip-row">
+          <button className={"chip" + (!catFilter || catFilter === "all" ? " active" : "")} onClick={() => onCatFilter?.("all")}>All</button>
+          {categories.map((c) => (
+            <button key={c.id} className={"chip" + (catFilter === c.id ? " active" : "")} onClick={() => onCatFilter?.(c.id)}>
+              <span className={"cat-dot cat-bg-" + c.color} />{c.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <SkeletonRows />
       ) : items.length === 0 ? (
         <div className="empty-state">
           <div className="t-body">No {FILTER_LABEL[filter].toLowerCase()} tasks</div>
+          <button className="btn btn-primary" onClick={onNew}>New Task</button>
         </div>
       ) : (
         <div className="pad-x">
           <div className="card">
             {items.map((it) => (
-              <Row key={it.id} item={it} today={today} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDeleteTask} />
+              <Row key={it.id} item={it} today={today} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDeleteTask} onSnooze={onSnoozeTask} />
             ))}
           </div>
         </div>

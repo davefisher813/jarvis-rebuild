@@ -52,7 +52,7 @@ describe("grouping logic", () => {
   });
 });
 
-import { partition, filterOf } from "./filters";
+import { partition, filterOf, byCategory } from "./filters";
 
 describe("filter partitioning (chips)", () => {
   const mk = (over: Partial<TaskData>): TaskData => ({ text: "x", category: "brain", done: false, ...over });
@@ -76,5 +76,17 @@ describe("filter partitioning (chips)", () => {
     expect(p.overdue.length).toBe(1);
     expect(p.upcoming.length).toBe(2);
     expect(p.done.length).toBe(1);
+  });
+  it("byCategory narrows to one group, 'all' keeps everything", () => {
+    const items = [
+      { id: "1", data: mk({ category: "work" }) },
+      { id: "2", data: mk({ category: "home" }) },
+      { id: "3", data: mk({ category: "work" }) },
+    ];
+    expect(byCategory(items, "all").length).toBe(3);
+    expect(byCategory(items, "").length).toBe(3);
+    expect(byCategory(items, "work").map((i) => i.id)).toEqual(["1", "3"]);
+    expect(byCategory(items, "home").length).toBe(1);
+    expect(byCategory(items, "missing").length).toBe(0);
   });
 });

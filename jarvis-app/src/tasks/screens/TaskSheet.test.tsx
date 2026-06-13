@@ -33,10 +33,10 @@ describe("TaskSheet", () => {
 
   it("selected category chip wears its slot color and is switchable", () => {
     const onSave = vi.fn();
-    const { container } = render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
-    expect(container.querySelector(".chip.cat-bg-blue")).toBeTruthy(); // default first
+    render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    expect(document.querySelector(".chip.cat-bg-blue")).toBeTruthy(); // default first
     fireEvent.click(screen.getByText("Money"));
-    expect(container.querySelector(".chip.cat-bg-yellow")).toBeTruthy();
+    expect(document.querySelector(".chip.cat-bg-yellow")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "X" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith({ text: "X", category: "c2", due: "", repeat: "" });
