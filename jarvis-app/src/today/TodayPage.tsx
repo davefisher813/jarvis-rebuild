@@ -49,6 +49,7 @@ export default function TodayPage({
   tasks,
   today,
   onToggleTask,
+  onOpenTask,
   avatar = "DF",
   onSeeAllSchedule,
   onSeeAllTasks,
@@ -67,6 +68,7 @@ export default function TodayPage({
   tasks: TaskItem[];
   today: string;
   onToggleTask?: (id: string) => void;
+  onOpenTask?: (id: string) => void;
   avatar?: string;
   onSeeAllSchedule: () => void;
   onSeeAllTasks: () => void;
@@ -120,7 +122,7 @@ export default function TodayPage({
                     <div className="task-check-tap" role="checkbox" aria-checked={t.data.done} aria-label={t.data.done ? "Mark not done" : "Mark done"} onClick={() => onToggleTask?.(t.id)}>
                       <div className={"task-check " + (t.data.done ? "done" : "cat-bd-" + catColor(t.data.category))} />
                     </div>
-                    <div className="task-title">{t.data.text}</div>
+                    <div className="task-title" role="button" tabIndex={0} onClick={() => onOpenTask?.(t.id)}>{t.data.text}</div>
                     {u && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
                   </div>
                 );

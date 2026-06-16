@@ -82,7 +82,8 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-until, .sched-rep { font-size: var(--t-meta); color: var(--tx-3); }
 .sched-badge { margin-left: var(--s-1h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent); border: 1px solid var(--accent); border-radius: var(--r-pill); padding: 0 var(--s-1h); vertical-align: middle; }
 .sched-row-warn { box-shadow: inset 2px 0 0 var(--accent); }
-.input-note { font-size: var(--t-meta); color: var(--tx-2); margin-top: var(--s-1); }
+.input-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: var(--t-meta); color: var(--tx-2); margin-top: var(--s-1); }
+.note-fix { background: 0; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-meta); padding: 0; }
 
 /* Today section header: Title Case section title + trailing See All link
    (RULE 9; the dashboard needs a header-with-action the other screens don't). */
@@ -456,3 +457,9 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-open-list { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-2); }
 .sched-open { display: flex; align-items: center; gap: var(--s-2); width: 100%; text-align: left; background: transparent; border: 1px dashed var(--divider); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); color: var(--tx-3); font-size: var(--t-meta); font-family: var(--f); }
 .sched-open-plus { color: var(--tint); font-weight: var(--w-semi); }
+
+.quick-add { padding-top: var(--s-1); padding-bottom: var(--s-2); }
+.clear-done { display: flex; justify-content: flex-end; padding-bottom: var(--s-2); }
+
+.tab { position: relative; }
+.tab-badge { position: absolute; top: 2px; left: calc(50% + 8px); min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--r-pill); background: var(--accent); color: #fff; font-size: 10px; font-weight: var(--w-bold); line-height: 16px; text-align: center; }

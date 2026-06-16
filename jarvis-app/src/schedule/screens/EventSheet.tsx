@@ -23,6 +23,7 @@ export default function EventSheet({
   initial,
   categories,
   checkConflict,
+  suggestSlot,
   onSave,
   onDelete,
   onCancel,
@@ -31,6 +32,7 @@ export default function EventSheet({
   initial?: Partial<EventDraft>;
   categories: SheetCategory[];
   checkConflict?: (date: string, start: string, end: string) => boolean;
+  suggestSlot?: (date: string) => string;
   onSave: (draft: EventDraft, scope?: "this" | "series") => void;
   onDelete?: (scope?: "this" | "series") => void;
   onCancel: () => void;
@@ -105,6 +107,18 @@ export default function EventSheet({
           </div>
 
           <div className="field">
+            <div className="chip-row dur-pick">
+              {([[30, "30m"], [60, "1h"], [120, "2h"]] as const).map(([mins, label]) => {
+                const tm = (h: string) => { const p = h.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
+                const activeDur = !!end && tm(end) - tm(start) === mins;
+                return (
+                  <div key={mins} className={"chip" + (activeDur ? " active" : "")} role="button" tabIndex={0} onClick={() => { setEnd(addMinutes(start, mins)); if (err) setErr(false); }}>{label}</div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="field">
             <div className="input-label">Category</div>
             <div className="chip-row cat-pick">
               {categories.map((c) =>
@@ -148,7 +162,19 @@ export default function EventSheet({
 
           {endInvalid && <div className="input-error">End time must be after the start time.</div>}
           {err && !endInvalid && <div className="input-error">Add a title, date, and start time.</div>}
-          {conflict && !endInvalid && <div className="input-note">Heads up: this overlaps another event on this day.</div>}
+          {conflict && !endInvalid && (
+            <div className="input-note">
+              <span>Heads up: this overlaps another event on this day.</span>
+              {suggestSlot && (
+                <button type="button" className="note-fix" onClick={() => {
+                  const tm = (h: string) => { const p = h.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
+                  const dur = end && tm(end) > tm(start) ? tm(end) - tm(start) : 60;
+                  const next = suggestSlot(date);
+                  setStart(next); setEnd(addMinutes(next, dur)); if (err) setErr(false);
+                }}>Use next free slot</button>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="pad-x sheet-actions">

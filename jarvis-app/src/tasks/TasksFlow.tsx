@@ -56,8 +56,26 @@ export default function TasksFlow() {
   };
 
   const onToggle = async (id: string) => {
+    const before = await svc.task(id);
     await svc.toggleDone(id);
     await reload();
+    if (before && !before.done) {
+      showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await svc.toggleDone(id); await reload(); } });
+    }
+  };
+
+  // Quick capture: create a task due today with the default category.
+  const onQuickAdd = async (text: string) => {
+    if (!text.trim()) return;
+    await svc.createTask(text.trim(), { category: categories[0]?.id || undefined, due: today });
+    await reload();
+  };
+
+  // Bulk-remove finished tasks from the Done list.
+  const onClearDone = async () => {
+    for (const t of parts.done) await svc.deleteTask(t.id);
+    await reload();
+    showToast({ message: "Cleared completed" });
   };
 
   const openEdit = async (id: string) => {
@@ -143,6 +161,8 @@ export default function TasksFlow() {
         onOpenTask={openEdit}
         onDeleteTask={onDeleteRow}
         onSnoozeTask={onSnooze}
+        onQuickAdd={onQuickAdd}
+        onClearDone={onClearDone}
         onNew={() => setSheet({ mode: "new" })}
         loading={loading}
       />

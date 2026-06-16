@@ -67,6 +67,11 @@ export default function ScheduleFlow() {
     return others.some((e) => { const es = toMin(e.data.start), ee = e.data.end ? toMin(e.data.end) : es + 60; return s < ee && es < en; });
   };
 
+  const suggestSlot = (date: string) => {
+    const exclude = sheet && sheet.mode === "edit" ? sheet.id : null;
+    return nextFreeSlot(allEvents.filter((e) => e.id !== exclude), date, new Date());
+  };
+
   const weekCells = weekOf(selected).map((date) => {
     const evs = eventsForDate(allEvents, date);
     const day = new Date(date + "T00:00:00").getDate();
@@ -161,6 +166,7 @@ export default function ScheduleFlow() {
           initial={sheet.mode === "edit" ? sheet.initial : { date: selected, start: newStart ?? nextFreeSlot(dayEvents, selected, new Date()) }}
           categories={categories}
           checkConflict={checkConflict}
+          suggestSlot={suggestSlot}
           onSave={onSave}
           onDelete={sheet.mode === "edit" ? onDelete : undefined}
           onCancel={() => { setSheet(null); setNewStart(null); }}

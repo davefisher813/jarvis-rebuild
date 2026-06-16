@@ -25,6 +25,9 @@ import { setCategoryRegistry } from "../shared/categories";
 import ToastHost from "../shared/ToastHost";
 import { bus } from "../events";
 import { ENTITY_CATEGORY } from "../categories/types";
+import { ENTITY_TASK } from "../notes/types";
+import { partition } from "../tasks/filters";
+import { todayISO } from "../tasks/grouping";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
 // decides which pages are tabs; everything else lives in More. Any page can be
@@ -47,6 +50,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [notesChrome, setNotesChrome] = useState(true);
   const [ready, setReady] = useState(false);
   const [, bumpCatVer] = useState(0);
+  const [taskBadge, setTaskBadge] = useState(0);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -86,6 +90,20 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     });
     return () => { on = false; unsub(); };
   }, [categories]);
+
+  // Tasks-tab badge: count of overdue + due-today (open) tasks, kept live.
+  useEffect(() => {
+    let on = true;
+    const recompute = async () => {
+      const items = await tasks.listTasks();
+      if (!on) return;
+      const p = partition(items, todayISO());
+      setTaskBadge(p.overdue.length + p.today.length);
+    };
+    recompute();
+    const unsub = bus.subscribe((e) => { if (e.entityType === ENTITY_TASK) void recompute(); });
+    return () => { on = false; unsub(); };
+  }, [tasks]);
 
   // Leaving Notes always restores the dock.
   useEffect(() => {
@@ -139,7 +157,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       {showDock && (
         <>
           <VoiceBar onTap={() => setCaptureOpen(true)} />
-          <TabBar tabKeys={tabKeys} active={active} onTab={setActive} />
+          <TabBar tabKeys={tabKeys} active={active} onTab={setActive} badges={{ tasks: taskBadge }} />
         </>
       )}
       {captureOpen && <QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} />}

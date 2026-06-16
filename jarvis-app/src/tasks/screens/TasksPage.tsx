@@ -105,6 +105,8 @@ export default function TasksPage({
   onDeleteTask,
   onSnoozeTask,
   onNew,
+  onQuickAdd,
+  onClearDone,
   categories,
   catFilter,
   onCatFilter,
@@ -120,10 +122,13 @@ export default function TasksPage({
   onDeleteTask?: (id: string) => void;
   onSnoozeTask?: (id: string) => void;
   onNew?: () => void;
+  onQuickAdd?: (text: string) => void;
+  onClearDone?: () => void;
   categories?: SheetCategory[];
   catFilter?: string;
   onCatFilter?: (id: string) => void;
 }) {
+  const [qa, setQa] = useState("");
   return (
     <div className="screen">
       <div className="nav-bar">
@@ -153,6 +158,24 @@ export default function TasksPage({
               <span className={"cat-dot cat-bg-" + c.color} />{c.name}
             </button>
           ))}
+        </div>
+      )}
+
+      {onQuickAdd && (
+        <div className="pad-x quick-add">
+          <input
+            className="input"
+            placeholder="Add a task"
+            value={qa}
+            onChange={(e) => setQa(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && qa.trim()) { onQuickAdd(qa); setQa(""); } }}
+          />
+        </div>
+      )}
+
+      {filter === "done" && counts.done > 0 && onClearDone && (
+        <div className="pad-x clear-done">
+          <button className="btn btn-secondary" onClick={onClearDone}>Clear {counts.done} Completed</button>
         </div>
       )}
 

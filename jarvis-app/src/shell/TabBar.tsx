@@ -8,10 +8,12 @@ export default function TabBar({
   tabKeys,
   active,
   onTab,
+  badges,
 }: {
   tabKeys: string[];
   active: string;
   onTab: (key: string) => void;
+  badges?: Record<string, number>;
 }) {
   const items = [
     ...tabKeys.map((k) => destOf(k)).filter((d): d is NonNullable<typeof d> => !!d),
@@ -31,6 +33,7 @@ export default function TabBar({
         >
           <Icon className="ic" />
           {label}
+          {badges && badges[key] ? <span className="tab-badge">{badges[key]! > 99 ? "99+" : badges[key]}</span> : null}
         </div>
       ))}
     </div>
