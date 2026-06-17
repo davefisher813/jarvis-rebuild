@@ -104,12 +104,7 @@ export default function TodayPage({
 
       {suggestions}
 
-      {onPlanDay && (
-        <div className="plan-cta-row">
-          <button className="plan-cta plan-cta-block" onClick={onPlanDay}>Plan my day</button>
-        </div>
-      )}
-      <YourDay events={todayEvents} now={now} nowLabel={nowLabel} onSeeAll={onSeeAllSchedule} />
+      <YourDay events={todayEvents} now={now} nowLabel={nowLabel} onSeeAll={onSeeAllSchedule} onPlanDay={onPlanDay} />
 
       {tasks.length > 0 && (
         <>

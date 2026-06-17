@@ -54,11 +54,13 @@ export default function YourDay({
   now,
   nowLabel,
   onSeeAll,
+  onPlanDay,
 }: {
   events: EventItem[];
   now: string;
   nowLabel: string;
   onSeeAll: () => void;
+  onPlanDay?: () => void;
 }) {
   const measureRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);
@@ -68,6 +70,12 @@ export default function YourDay({
     const el = measureRef.current;
     if (el) setOverflow(el.scrollHeight > WINDOW);
   }, [events, now]);
+
+  const planButton = onPlanDay ? (
+    <div className="plan-cta-row">
+      <button className="plan-cta plan-cta-block" onClick={onPlanDay}><CalIcon />Plan my day</button>
+    </div>
+  ) : null;
 
   const header = (
     <div className="sec-head">
@@ -93,6 +101,7 @@ export default function YourDay({
     return (
       <div className="yourday">
         {header}
+        {planButton}
         <div className="pad-x"><div className="card"><div className="empty-state">Nothing scheduled today</div></div></div>
       </div>
     );
@@ -103,6 +112,7 @@ export default function YourDay({
     return (
       <div className="yourday">
         {header}
+        {planButton}
         <div className="pad-x">
           <div className="card">
             <div ref={measureRef}><DaySet events={events} now={now} nowLabel={nowLabel} /></div>
@@ -116,6 +126,7 @@ export default function YourDay({
   return (
     <div className="yourday">
       {header}
+      {planButton}
       <div className="pad-x">
         <div className={"card sched-ticker" + (paused ? " paused" : "")}>
           <div className="ticker-track">
