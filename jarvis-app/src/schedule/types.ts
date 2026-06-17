@@ -14,6 +14,7 @@ export interface EventData {
   recurrence?: EventRecurrence; // repeats from `date` forward
   exdates?: string[]; // occurrence dates removed/overridden from the series
   gcalId?: string; // Google Calendar event id, when imported (dedupe key)
+  sourceTaskId?: string; // task this block was generated from, via Plan my day
 }
 
 export interface EventItem {

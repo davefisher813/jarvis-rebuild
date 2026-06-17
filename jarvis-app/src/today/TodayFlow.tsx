@@ -8,6 +8,8 @@ import { tomorrowISO, nowHHMM, daySummary, todaysTasks } from "./todayData";
 import TodayPage from "./TodayPage";
 import TodaySuggestions from "./TodaySuggestions";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
+import PlanDaySheet from "../schedule/screens/PlanDaySheet";
+import { aiPlanDay } from "../schedule/planDayAI";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
 import { showToast } from "../shared/toast";
@@ -36,6 +38,7 @@ export default function TodayFlow({
   const cats = useCategories();
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [sheet, setSheet] = useState<{ mode: "edit"; id: string; initial: TaskDraft } | null>(null);
+  const [planOpen, setPlanOpen] = useState(false);
 
   const now = new Date();
   const today = todayISO(now);
@@ -99,6 +102,33 @@ export default function TodayFlow({
     await reload();
   };
 
+  const plannedTaskIds = new Set(todayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
+  const planCandidates = taskItems
+    .filter((t) => !t.data.done && !plannedTaskIds.has(t.id) && (!t.data.due || (t.data.due as string) <= today))
+    .map((t) => {
+      const due = (t.data.due as string) || "";
+      return { id: t.id, text: t.data.text, category: t.data.category ?? "", due, suggested: !!due && due <= today, overdue: !!due && due < today };
+    })
+    .sort((a, b) => (a.suggested !== b.suggested ? (a.suggested ? -1 : 1) : (a.due || "z").localeCompare(b.due || "z")));
+  const planStart = (() => { const d = new Date(); return Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; })();
+  const onAIPlan = ai.available
+    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, todayEvents, s, e)
+    : undefined;
+  const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
+    const ids: string[] = [];
+    for (const b of blocks) {
+      const id = await schedule.createEvent(b.text, { date: today, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId });
+      if (id) ids.push(id);
+    }
+    setPlanOpen(false);
+    await reload();
+    showToast({
+      message: `Planned ${blocks.length} ${blocks.length === 1 ? "block" : "blocks"}`,
+      actionLabel: "Undo",
+      onAction: async () => { for (const id of ids) await schedule.deleteEvent(id); await reload(); },
+    });
+  };
+
   if (loading) return <div className="screen" />;
 
   const nhm = nowHHMM(now);
@@ -117,6 +147,7 @@ export default function TodayFlow({
       tasks={todaysTasks(taskItems, today)}
       onToggleTask={onToggleTask}
       onOpenTask={onOpenTask}
+      onPlanDay={() => setPlanOpen(true)}
       today={today}
       suggestions={<TodaySuggestions ai={ai} />}
       onSearch={onSearch}
@@ -125,6 +156,16 @@ export default function TodayFlow({
       onSeeAllTasks={onGoTasks}
       avatar={initials}
     />
+    {planOpen && (
+      <PlanDaySheet
+        events={todayEvents}
+        tasks={planCandidates}
+        startMin={planStart}
+        onCommit={onPlanCommit}
+        onAIPlan={onAIPlan}
+        onClose={() => setPlanOpen(false)}
+      />
+    )}
     {sheet && (
       <TaskSheet
         mode="edit"

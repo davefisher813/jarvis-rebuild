@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { useSchedule, useCategories } from "../data/NotesProvider";
+import { useSchedule, useCategories, useTasks } from "../data/NotesProvider";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import { todayISO, weekOf, addDays, eventsForDate, findConflicts, nextFreeSlot } from "./calendar";
 import type { EventItem, EventData } from "./types";
 import { showToast } from "../shared/toast";
+import PlanDaySheet from "./screens/PlanDaySheet";
+import { aiPlanDay } from "./planDayAI";
+import { useAI } from "../ai/useAI";
+import type { TaskItem } from "../tasks/TasksService";
 
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: EventDraft } | null;
 
@@ -21,6 +25,10 @@ export default function ScheduleFlow() {
   const [sheet, setSheet] = useState<SheetState>(null);
   const [mode, setMode] = useState<"day" | "week" | "month">("month");
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
+  const tasksSvc = useTasks();
+  const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
+  const [planOpen, setPlanOpen] = useState(false);
+  const ai = useAI();
   const [loading, setLoading] = useState(true);
   const [newStart, setNewStart] = useState<string | null>(null);
 
@@ -34,6 +42,12 @@ export default function ScheduleFlow() {
   useEffect(() => {
     reload();
   }, [reload]);
+
+  useEffect(() => {
+    let on = true;
+    tasksSvc.listTasks().then((t) => { if (on) setTaskItems(t); });
+    return () => { on = false; };
+  }, [tasksSvc, planOpen]);
 
   useEffect(() => {
     let on = true;
@@ -65,6 +79,36 @@ export default function ScheduleFlow() {
     const others = eventsForDate(allEvents, date).filter((e) => !(sheet && sheet.mode === "edit" && e.id === sheet.id));
     const s = toMin(startT), en = endT ? toMin(endT) : s + 60;
     return others.some((e) => { const es = toMin(e.data.start), ee = e.data.end ? toMin(e.data.end) : es + 60; return s < ee && es < en; });
+  };
+
+  const realToday = todayISO();
+  const plannedTaskIds = new Set(dayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
+  const planCandidates = taskItems
+    .filter((t) => !t.data.done && !plannedTaskIds.has(t.id) && (!t.data.due || (t.data.due as string) <= selected))
+    .map((t) => {
+      const due = (t.data.due as string) || "";
+      return { id: t.id, text: t.data.text, category: t.data.category ?? "", due, suggested: !!due && due <= selected, overdue: !!due && due < realToday };
+    })
+    .sort((a, b) => (a.suggested !== b.suggested ? (a.suggested ? -1 : 1) : (a.due || "z").localeCompare(b.due || "z")));
+  const planStart = selected === todayISO()
+    ? (() => { const d = new Date(); return Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; })()
+    : 9 * 60;
+  const onAIPlan = ai.available
+    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, dayEvents, s, e)
+    : undefined;
+  const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
+    const ids: string[] = [];
+    for (const b of blocks) {
+      const id = await svc.createEvent(b.text, { date: selected, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId });
+      if (id) ids.push(id);
+    }
+    setPlanOpen(false);
+    await reload();
+    showToast({
+      message: `Planned ${blocks.length} ${blocks.length === 1 ? "block" : "blocks"}`,
+      actionLabel: "Undo",
+      onAction: async () => { for (const id of ids) await svc.deleteEvent(id); await reload(); },
+    });
   };
 
   const suggestSlot = (date: string) => {
@@ -159,7 +203,18 @@ export default function ScheduleFlow() {
         onNew={() => setSheet({ mode: "new" })}
         onOpenEvent={openEdit}
         onPickSlot={onPickSlot}
+        onPlanDay={() => setPlanOpen(true)}
       />
+      {planOpen && (
+        <PlanDaySheet
+          events={dayEvents}
+          tasks={planCandidates}
+          startMin={planStart}
+          onCommit={onPlanCommit}
+          onAIPlan={onAIPlan}
+          onClose={() => setPlanOpen(false)}
+        />
+      )}
       {sheet && (
         <EventSheet
           mode={sheet.mode}

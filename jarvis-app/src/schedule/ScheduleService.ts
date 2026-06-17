@@ -24,7 +24,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; gcalId?: string },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; gcalId?: string; sourceTaskId?: string },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -37,6 +37,7 @@ export class ScheduleService {
     if (opts.recurrence && opts.recurrence !== "none") data.recurrence = opts.recurrence;
     if (opts.location && opts.location.trim()) data.location = opts.location.trim();
     if (opts.gcalId) data.gcalId = opts.gcalId;
+    if (opts.sourceTaskId) data.sourceTaskId = opts.sourceTaskId;
     const id = await this.store.create(this.ownerId, ENTITY_EVENT, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_EVENT, entityId: id });
     return id;

@@ -30,13 +30,13 @@ function weekRange(cells: WeekCell[]): string {
 export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts,
   mode = "month", onMode, weekCells = [], loading,
-  onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot,
+  onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay,
 }: {
   year: number; month: number; selected: string; todayDate: string;
   dots: Record<number, string[]>; dayEvents: EventItem[]; conflicts?: Set<string>;
   mode?: Mode; onMode?: (m: Mode) => void; weekCells?: WeekCell[]; loading?: boolean;
   onPrev?: () => void; onNext?: () => void; onSelect?: (date: string) => void;
-  onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void;
+  onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void;
 }) {
   const cells = monthMatrix(year, month);
   const n = dayEvents.length;
@@ -98,7 +98,10 @@ export default function SchedulePage({
         </div>
       )}
 
-      <div className="grp"><div className="eyebrow">{dayLabel(selected)} &middot; {n} {n === 1 ? "Event" : "Events"}</div></div>
+      <div className="grp"><div className="plan-head">
+        <div className="eyebrow">{dayLabel(selected)} &middot; {n} {n === 1 ? "Event" : "Events"}</div>
+        {onPlanDay && <button className="plan-cta" onClick={onPlanDay}>Plan my day</button>}
+      </div></div>
 
       {loading ? (
         <SkeletonRows />

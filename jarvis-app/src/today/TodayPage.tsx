@@ -52,6 +52,7 @@ export default function TodayPage({
   onOpenTask,
   avatar = "DF",
   onSeeAllSchedule,
+  onPlanDay,
   onSeeAllTasks,
   suggestions,
   onSearch,
@@ -71,6 +72,7 @@ export default function TodayPage({
   onOpenTask?: (id: string) => void;
   avatar?: string;
   onSeeAllSchedule: () => void;
+  onPlanDay?: () => void;
   onSeeAllTasks: () => void;
   suggestions?: ReactNode;
   onSearch?: () => void;
@@ -102,6 +104,11 @@ export default function TodayPage({
 
       {suggestions}
 
+      {onPlanDay && (
+        <div className="plan-cta-row">
+          <button className="plan-cta plan-cta-block" onClick={onPlanDay}>Plan my day</button>
+        </div>
+      )}
       <YourDay events={todayEvents} now={now} nowLabel={nowLabel} onSeeAll={onSeeAllSchedule} />
 
       {tasks.length > 0 && (
