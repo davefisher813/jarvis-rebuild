@@ -28,9 +28,21 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 
 // Register the PWA service worker only when served over http(s) (skips the
 // file-based single-file demo, where service workers are unavailable).
+// On every load we check for an updated SW and, when one is found, let it take
+// over right away (the SW calls skipWaiting + clients.claim). A controllerchange
+// then triggers a one-time reload so the user always lands on fresh code instead
+// of a stale cached shell (the cause of the earlier black-screen after deploy).
 if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  let reloadedForUpdate = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloadedForUpdate) return;
+    reloadedForUpdate = true;
+    window.location.reload();
+  });
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {
+    navigator.serviceWorker.register("/sw.js").then((reg) => {
+      reg.update();
+    }).catch(() => {
       /* offline shell is best-effort */
     });
   });
