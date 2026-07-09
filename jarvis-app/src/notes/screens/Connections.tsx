@@ -1,12 +1,15 @@
-import { Tag, CalendarDays, ListChecks, ListTodo, Plus, X, Link2 } from "lucide-react";
+import { Tag, CalendarDays, ListChecks, ListTodo, Plus, X, FolderKanban, User, Target, Link2 as LinkIcon } from "lucide-react";
 import { catColor } from "../../shared/categories";
 
-type Conn = { id: string; kind: string; label: string };
+type Conn = { id: string; kind: string; label: string; targetId?: string | null };
 
 function connIcon(kind: string) {
   if (kind === "event") return { cls: "cat-bg-sky", node: <CalendarDays className="ic" /> };
   if (kind === "task") return { cls: "cat-bg-red", node: <ListChecks className="ic" /> };
-  return { cls: "cat-bg-violet", node: <Link2 className="ic" /> };
+  if (kind === "project") return { cls: "cat-bg-blue", node: <FolderKanban className="ic" /> };
+  if (kind === "person") return { cls: "cat-bg-pink", node: <User className="ic" /> };
+  if (kind === "goal") return { cls: "cat-bg-green", node: <Target className="ic" /> };
+  return { cls: "cat-bg-graphite", node: <LinkIcon className="ic" /> };
 }
 
 // The note's real connections. The category is the note's own category (always
@@ -20,6 +23,7 @@ export default function Connections({
   onAddLink,
   onRemove,
   onCreateTasks,
+  onOpen,
 }: {
   category?: string;
   categoryLabel?: string;
@@ -28,6 +32,7 @@ export default function Connections({
   onAddLink?: () => void;
   onRemove?: (connId: string) => void;
   onCreateTasks?: () => void;
+  onOpen?: (kind: string, targetId: string) => void;
 }) {
   return (
     <div className="screen">
@@ -50,11 +55,19 @@ export default function Connections({
           </div>
           {connections.map((c) => {
             const ic = connIcon(c.kind);
+            const canOpen = !!(onOpen && c.targetId && (c.kind === "task" || c.kind === "project"));
             return (
-              <div className="row" key={c.id}>
+              <div
+                className="row"
+                key={c.id}
+                role={canOpen ? "button" : undefined}
+                tabIndex={canOpen ? 0 : undefined}
+                onClick={canOpen ? () => onOpen!(c.kind, c.targetId!) : undefined}
+              >
                 <div className={"proj-icon " + ic.cls}>{ic.node}</div>
                 <div className="conn-name">{c.label}</div>
-                <button className="conn-remove" aria-label="Remove link" onClick={() => onRemove?.(c.id)}>
+                {canOpen && <div className="chev"></div>}
+                <button className="conn-remove" aria-label="Remove link" onClick={(e) => { e.stopPropagation(); onRemove?.(c.id); }}>
                   <X className="ic" />
                 </button>
               </div>

@@ -74,10 +74,12 @@ export default function NotesFlow({
   seed = false,
   onChrome,
   onExit,
+  onNavigate,
 }: {
   seed?: boolean;
   onChrome?: (chrome: { tabBar: boolean }) => void;
   onExit?: () => void;
+  onNavigate?: (kind: string, targetId: string) => void;
 }) {
   const svc = useNotes();
   const cats = useCategories();
@@ -236,7 +238,7 @@ export default function NotesFlow({
       <Connections
         category={cat}
         categoryLabel={catName(cat)}
-        connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label }))}
+        connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label, targetId: c.targetId }))}
         onBack={() => setScreen("editor")}
         onAddLink={async () => { await loadLinkables(); setScreen("linkPicker"); }}
         onRemove={async (connId) => {
@@ -245,6 +247,7 @@ export default function NotesFlow({
           await loadCurrent(currentId);
         }}
         onCreateTasks={() => setScreen("createTasks")}
+        onOpen={(kind, targetId) => onNavigate?.(kind, targetId)}
       />
     );
   }

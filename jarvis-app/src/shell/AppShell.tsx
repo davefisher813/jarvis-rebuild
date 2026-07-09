@@ -51,6 +51,14 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // editor from the Plan sheet). Cleared after it is consumed.
   const [brainIntent, setBrainIntent] = useState<string | undefined>(undefined);
   const goToRoutine = () => { setBrainIntent("routine"); setActive("brain"); };
+  // One-shot deep-link into a target tab from a note connection. Cleared on any
+  // manual tab tap. Only tasks and projects are wired so far.
+  const [taskIntent, setTaskIntent] = useState<string | undefined>(undefined);
+  const [projectIntent, setProjectIntent] = useState<string | undefined>(undefined);
+  const navigateToEntity = (kind: string, targetId: string) => {
+    if (kind === "task") { setTaskIntent(targetId); setActive("tasks"); }
+    else if (kind === "project") { setProjectIntent(targetId); setActive("projects"); }
+  };
   const [notesChrome, setNotesChrome] = useState(true);
   const [ready, setReady] = useState(false);
   const [, bumpCatVer] = useState(0);
@@ -135,12 +143,12 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       <div className="app-scroll">
         <div className="tab-swap" key={active}>
         {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} />}
-        {active === "tasks" && <TasksFlow />}
+        {active === "tasks" && <TasksFlow openId={taskIntent} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} />}
         {active === "brain" && <BrainFlow openKey={brainIntent} />}
-        {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} />}
+        {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} />}
         {active === "goals" && <LifeMapFlow />}
-        {active === "projects" && <ProjectsFlow />}
+        {active === "projects" && <ProjectsFlow openId={projectIntent} />}
         {active === "messages" && <MessagesFlow ai={ai} />}
         {active === "notifications" && <NotificationsFlow />}
         {active === "money" && <MoneyFlow />}
@@ -161,7 +169,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       {showDock && (
         <>
           <VoiceBar onTap={() => setCaptureOpen(true)} />
-          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
+          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setProjectIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
         </>
       )}
       {captureOpen && <QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} />}

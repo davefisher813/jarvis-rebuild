@@ -11,7 +11,7 @@ import { showToast } from "../shared/toast";
 const EMPTY: Partitioned = { daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: TaskDraft } | null;
 
-export default function TasksFlow() {
+export default function TasksFlow({ openId }: { openId?: string } = {}) {
   const svc = useTasks();
   const cats = useCategories();
   const schedule = useSchedule();
@@ -83,6 +83,12 @@ export default function TasksFlow() {
     if (!t) return;
     setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "", repeat: t.recurrence ?? "" } });
   };
+
+  // When arriving via a note connection, open that task once on mount.
+  useEffect(() => {
+    if (openId) openEdit(openId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId]);
 
   const onSave = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;

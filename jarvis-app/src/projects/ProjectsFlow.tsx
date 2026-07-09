@@ -8,13 +8,13 @@ import ProjectDetailPage from "./ProjectDetailPage";
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
-export default function ProjectsFlow() {
+export default function ProjectsFlow({ openId }: { openId?: string } = {}) {
   const svc = useProjects();
   const catsSvc = useCategories();
   const [projects, setProjects] = useState<Project[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(openId ?? null);
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
