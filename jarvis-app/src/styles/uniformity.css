@@ -231,6 +231,24 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 /* add-block affordance at the end of a note */
 .add-block { display:flex; align-items:center; gap:var(--s-2); color:var(--tint); font-size:var(--t-h3); font-weight:var(--w-semi); padding:var(--s-3) 0; min-height:var(--tap-min); background:0; border:0; font-family:var(--f); width:100%; }
 .add-block .ic { width:18px; height:18px; }
+/* "Add item" row inside a checklist: quieter than Add block, aligned to items */
+.check-add { display:flex; align-items:center; gap:var(--s-2h); color:var(--tx-4); font-size:var(--t-body); padding:var(--s-1h) 0; min-height:var(--tap-min); background:0; border:0; font-family:var(--f); width:100%; }
+.check-add .ic { width:16px; height:16px; }
+/* empty-note cue so a blank note is inviting, not a void */
+.note-empty { color:var(--tx-4); font-size:var(--t-body); padding:var(--s-3) 0; }
+/* block row: content plus a quiet options button revealed on the right */
+.block-row { position:relative; display:flex; align-items:flex-start; gap:var(--s-2); }
+.block-body { flex:1; min-width:0; }
+.block-menu-btn { flex-shrink:0; background:0; border:0; color:var(--tx-4); padding:var(--s-1h); min-width:var(--tap-min); min-height:var(--tap-min); display:flex; align-items:center; justify-content:center; }
+.block-menu-btn .ic { width:18px; height:18px; }
+.block-menu-scrim { position:fixed; inset:0; z-index:40; }
+.block-menu { position:absolute; right:0; top:var(--s-7); z-index:50; background:var(--surface-3); border-radius:var(--r-md); padding:var(--s-1); min-width:160px; box-shadow:var(--shadow-card); }
+.block-menu-item { display:flex; align-items:center; gap:var(--s-2); width:100%; background:0; border:0; color:var(--tx-1); font-family:var(--f); font-size:var(--t-body); padding:var(--s-2h) var(--s-3); border-radius:var(--r-sm); min-height:var(--tap-min); }
+.block-menu-item .ic { width:17px; height:17px; }
+.block-menu-item.danger { color:var(--red); }
+.block-menu-item:active { background:var(--press-3); }
+/* placeholder text for empty editable lines, so a blank line shows a cue */
+[contenteditable][data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--tx-4); pointer-events: none; }
 /* stacked title + description (template rows) */
 .row-stack { display:flex; flex-direction:column; flex:1; min-width:0; gap:2px; }
 .row-stack .conn-name { flex:none; }

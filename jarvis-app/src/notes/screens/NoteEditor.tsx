@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
-import { MoreHorizontal, FileText, Image, Check, Plus } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { MoreHorizontal, FileText, Image, Check, Plus, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
 import { catColor } from "../../shared/categories";
 
 // Matches locked frame #47 "Editor / Blocks", now editable in place. Tapping a
@@ -31,11 +31,13 @@ function Editable({
   tag = "div",
   className,
   value,
+  placeholder,
   onSave,
 }: {
   tag?: "div" | "span";
   className?: string;
   value: string;
+  placeholder?: string;
   onSave?: (v: string) => void;
 }) {
   const ref = useRef<HTMLElement | null>(null);
@@ -52,6 +54,7 @@ function Editable({
       className={className}
       contentEditable
       suppressContentEditableWarning
+      data-placeholder={placeholder}
       onBlur={(e) => onSave((e.currentTarget.textContent ?? "").trim())}
     />
   );
@@ -61,10 +64,14 @@ function Checklist({
   block,
   onToggle,
   onEditItem,
+  onAddItem,
+  onDeleteItem,
 }: {
   block: Extract<EditorBlock, { type: "checklist" }>;
   onToggle?: (blockId: string, index: number) => void;
   onEditItem?: (blockId: string, index: number, text: string) => void;
+  onAddItem?: (blockId: string) => void;
+  onDeleteItem?: (blockId: string, index: number) => void;
 }) {
   return (
     <>
@@ -72,17 +79,27 @@ function Checklist({
         <div className={"check-line" + (it.done ? " done" : "")} key={i}>
           <div
             className={"cb" + (it.done ? " on" : "")}
-            onClick={() => onToggle?.(block.id, i)}
+            // Only allow checking an item that has text, so a blank line can
+            // never become an orphaned checked box.
+            onClick={() => { if (it.text.trim()) onToggle?.(block.id, i); }}
           >
             {it.done && <Check className="ic" />}
           </div>
           <Editable
             tag="span"
             value={it.text}
-            onSave={onEditItem ? (t) => onEditItem(block.id, i, t) : undefined}
+            placeholder="List item"
+            // On blur, an item left blank is removed so no empty checkbox lingers.
+            onSave={onEditItem ? (t) => { if (t.trim()) onEditItem(block.id, i, t); else onDeleteItem?.(block.id, i); } : undefined}
           />
         </div>
       ))}
+      {onAddItem && (
+        <button className="check-add" onClick={() => onAddItem(block.id)}>
+          <Plus className="ic" />
+          <span>Add item</span>
+        </button>
+      )}
     </>
   );
 }
@@ -116,6 +133,59 @@ function NoteTable({ block }: { block: Extract<EditorBlock, { type: "table" }> }
   );
 }
 
+// Wraps a block with a quiet (...) menu for move up / move down / delete.
+// Uses a menu rather than drag (drag fights scroll in a web view).
+function BlockRow({
+  blockId,
+  isFirst,
+  isLast,
+  onMove,
+  onDelete,
+  children,
+}: {
+  blockId: string;
+  isFirst: boolean;
+  isLast: boolean;
+  onMove?: (blockId: string, dir: -1 | 1) => void;
+  onDelete?: (blockId: string) => void;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const hasMenu = !!onMove || !!onDelete;
+  return (
+    <div className="block-row">
+      <div className="block-body">{children}</div>
+      {hasMenu && (
+        <button className="block-menu-btn" aria-label="Block options" onClick={() => setOpen((o) => !o)}>
+          <MoreHorizontal className="ic" />
+        </button>
+      )}
+      {open && (
+        <>
+          <div className="block-menu-scrim" onClick={() => setOpen(false)} />
+          <div className="block-menu">
+            {onMove && !isFirst && (
+              <button className="block-menu-item" onClick={() => { onMove(blockId, -1); setOpen(false); }}>
+                <ArrowUp className="ic" /> Move up
+              </button>
+            )}
+            {onMove && !isLast && (
+              <button className="block-menu-item" onClick={() => { onMove(blockId, 1); setOpen(false); }}>
+                <ArrowDown className="ic" /> Move down
+              </button>
+            )}
+            {onDelete && (
+              <button className="block-menu-item danger" onClick={() => { onDelete(blockId); setOpen(false); }}>
+                <Trash2 className="ic" /> Delete
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function NoteEditor({
   note,
   onBack,
@@ -125,6 +195,10 @@ export default function NoteEditor({
   onEditBlockText,
   onToggleCheck,
   onEditCheckItem,
+  onAddCheckItem,
+  onDeleteCheckItem,
+  onMoveBlock,
+  onDeleteBlock,
 }: {
   note: EditorNote;
   onBack?: () => void;
@@ -134,6 +208,10 @@ export default function NoteEditor({
   onEditBlockText?: (blockId: string, text: string) => void;
   onToggleCheck?: (blockId: string, index: number) => void;
   onEditCheckItem?: (blockId: string, index: number, text: string) => void;
+  onAddCheckItem?: (blockId: string) => void;
+  onDeleteCheckItem?: (blockId: string, index: number) => void;
+  onMoveBlock?: (blockId: string, dir: -1 | 1) => void;
+  onDeleteBlock?: (blockId: string) => void;
 }) {
   const inline = note.blocks.filter((b) => b.type !== "file" && b.type !== "photo");
   const attachments = note.blocks.filter(
@@ -160,22 +238,40 @@ export default function NoteEditor({
         </div>
         <Editable tag="div" className="t-h2" value={note.title} onSave={onEditTitle} />
 
-        {inline.map((b) => {
+        {inline.map((b, idx) => {
+          let content: React.ReactNode = null;
           if (b.type === "heading")
-            return <Editable key={b.id} tag="div" className="block-h" value={b.text}
+            content = <Editable tag="div" className="block-h" value={b.text} placeholder="Heading"
               onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
-          if (b.type === "text")
-            return <Editable key={b.id} tag="div" className="t-body" value={b.text}
+          else if (b.type === "text")
+            content = <Editable tag="div" className="t-body" value={b.text} placeholder="Write something"
               onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
-          if (b.type === "checklist")
-            return <Checklist key={b.id} block={b} onToggle={onToggleCheck} onEditItem={onEditCheckItem} />;
-          if (b.type === "bulleted_list")
-            return <div key={b.id}>{b.items.map((it, j) => <div className="t-body" key={j}>{"\u2022 " + it}</div>)}</div>;
-          if (b.type === "numbered_list")
-            return <div key={b.id}>{b.items.map((it, j) => <div className="t-body" key={j}>{j + 1 + ". " + it}</div>)}</div>;
-          if (b.type === "table") return <NoteTable key={b.id} block={b} />;
-          return null;
+          else if (b.type === "checklist")
+            content = <Checklist block={b} onToggle={onToggleCheck} onEditItem={onEditCheckItem} onAddItem={onAddCheckItem} onDeleteItem={onDeleteCheckItem} />;
+          else if (b.type === "bulleted_list")
+            content = <div>{b.items.map((it, j) => <div className="t-body" key={j}>{"\u2022 " + it}</div>)}</div>;
+          else if (b.type === "numbered_list")
+            content = <div>{b.items.map((it, j) => <div className="t-body" key={j}>{j + 1 + ". " + it}</div>)}</div>;
+          else if (b.type === "table")
+            content = <NoteTable block={b} />;
+          else return null;
+          return (
+            <BlockRow
+              key={b.id}
+              blockId={b.id}
+              isFirst={idx === 0}
+              isLast={idx === inline.length - 1}
+              onMove={onMoveBlock}
+              onDelete={onDeleteBlock}
+            >
+              {content}
+            </BlockRow>
+          );
         })}
+
+        {inline.length === 0 && (
+          <div className="note-empty">Nothing here yet. Tap Add below to start writing or add a to-do.</div>
+        )}
       </div>
 
       {attachments.length > 0 && (
@@ -197,7 +293,7 @@ export default function NoteEditor({
       <div className="pad-x">
         <button className="add-block" onClick={onAddBlock}>
           <Plus className="ic" />
-          Add Block
+          Add
         </button>
       </div>
     </div>

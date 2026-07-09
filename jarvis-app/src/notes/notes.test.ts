@@ -89,6 +89,49 @@ describe("Notes editing helpers", () => {
     expect((block.items as { done: boolean }[])[0]!.done).toBe(false);
   });
 
+  it("addChecklistItem appends a blank item and returns its index", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("n", "health"))!;
+    const bid = (await svc.addChecklist(id, ["a"]))!;
+    const idx = await svc.addChecklistItem(id, bid);
+    expect(idx).toBe(1);
+    const block = (await svc.note(id))!.blocks.find((b) => b.id === bid)!;
+    const items = block.items as { text: string }[];
+    expect(items.length).toBe(2);
+    expect(items[1]!.text).toBe("");
+  });
+
+  it("deleteChecklistItem removes the item so no empty box remains", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("n", "health"))!;
+    const bid = (await svc.addChecklist(id, ["a", "b", "c"]))!;
+    expect(await svc.deleteChecklistItem(id, bid, 1)).toBe(true);
+    const block = (await svc.note(id))!.blocks.find((b) => b.id === bid)!;
+    const items = block.items as { text: string }[];
+    expect(items.map((i) => i.text)).toEqual(["a", "c"]);
+  });
+
+  it("moveBlock reorders blocks", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("n", "health"))!;
+    const b1 = (await svc.addBlock(id, { type: "heading", text: "first" }))!;
+    const b2 = (await svc.addBlock(id, { type: "heading", text: "second" }))!;
+    expect(await svc.moveBlock(id, 0, 1)).toBe(true);
+    const blocks = (await svc.note(id))!.blocks;
+    expect(blocks[0]!.id).toBe(b2);
+    expect(blocks[1]!.id).toBe(b1);
+  });
+
+  it("deleteBlock removes a block", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("n", "health"))!;
+    const b1 = (await svc.addBlock(id, { type: "heading", text: "keep" }))!;
+    const b2 = (await svc.addBlock(id, { type: "heading", text: "drop" }))!;
+    expect(await svc.deleteBlock(id, b2)).toBe(true);
+    const blocks = (await svc.note(id))!.blocks;
+    expect(blocks.map((b) => b.id)).toEqual([b1]);
+  });
+
   it("setChecklistItemText updates the item text", async () => {
     const svc = freshService();
     const id = (await svc.createNote("n", "health"))!;

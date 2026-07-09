@@ -184,6 +184,32 @@ export class NotesService {
     return this.editBlock(noteId, blockId, { items });
   }
 
+  // Append a blank checklist item (the editor focuses it for typing). Returns
+  // the new item's index so the caller can focus it.
+  async addChecklistItem(noteId: string, blockId: string): Promise<number | null> {
+    const note = await this.getNote(noteId);
+    if (!note) return null;
+    const block = note.blocks.find((b) => b.id === blockId);
+    if (!block || block.type !== "checklist") return null;
+    const items = this.normalizeItems(block.items);
+    items.push({ text: "", done: false });
+    const ok = await this.editBlock(noteId, blockId, { items });
+    return ok ? items.length - 1 : null;
+  }
+
+  // Remove a checklist item (used when an item is left blank on blur, so no
+  // orphaned empty checkboxes remain).
+  async deleteChecklistItem(noteId: string, blockId: string, index: number): Promise<boolean> {
+    const note = await this.getNote(noteId);
+    if (!note) return false;
+    const block = note.blocks.find((b) => b.id === blockId);
+    if (!block || block.type !== "checklist") return false;
+    const items = this.normalizeItems(block.items);
+    if (index < 0 || index >= items.length) return false;
+    items.splice(index, 1);
+    return this.editBlock(noteId, blockId, { items });
+  }
+
   async deleteNote(id: string): Promise<void> {
     await this.store.delete(this.ownerId, id);
     this.onEvent({ type: "entity.deleted", entityType: ENTITY_NOTE, entityId: id });
