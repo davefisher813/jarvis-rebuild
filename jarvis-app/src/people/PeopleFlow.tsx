@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { usePeople } from "../data/NotesProvider";
+import { usePeople, useNotes } from "../data/NotesProvider";
 import type { Person, PersonGroup } from "./types";
 import PeopleListPage from "./screens/PeopleListPage";
 import PersonDetail from "./screens/PersonDetail";
@@ -7,10 +7,12 @@ import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
-export default function PeopleFlow({ group, onBack, openId: initialOpenId }: { group: PersonGroup; onBack: () => void; openId?: string }) {
+export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpenNote }: { group: PersonGroup; onBack: () => void; openId?: string; onOpenNote?: (id: string) => void }) {
   const people = usePeople();
+  const notesSvc = useNotes();
   const [list, setList] = useState<Person[]>([]);
   const [openId, setOpenId] = useState<string | null>(initialOpenId ?? null);
+  const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
 
   const reload = useCallback(async () => {
@@ -18,6 +20,14 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId }: { g
   }, [people, group]);
 
   useEffect(() => { void reload(); }, [reload]);
+
+  // Fetch notes linked to the open person for the Linked Notes section.
+  useEffect(() => {
+    if (!openId) { setLinkedNotes([]); return; }
+    let on = true;
+    notesSvc.notesLinkedTo(openId).then((n) => { if (on) setLinkedNotes(n); });
+    return () => { on = false; };
+  }, [openId, notesSvc]);
 
   const current = openId ? list.find((p) => p.id === openId) ?? null : null;
   const editing = sheet.kind === "edit" ? list.find((p) => p.id === sheet.id) : undefined;
@@ -53,7 +63,7 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId }: { g
   if (current) {
     return (
       <>
-        <PersonDetail person={current} onEdit={() => setSheet({ kind: "edit", id: current.id })} onBack={() => setOpenId(null)} />
+        <PersonDetail person={current} onEdit={() => setSheet({ kind: "edit", id: current.id })} onBack={() => setOpenId(null)} linkedNotes={linkedNotes} onOpenNote={onOpenNote} />
         {sheetEl}
       </>
     );

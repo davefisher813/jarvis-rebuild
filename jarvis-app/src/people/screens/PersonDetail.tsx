@@ -1,5 +1,7 @@
 import type { Person } from "../types";
 import { personInitials, avatarClass } from "../types";
+import { FileText } from "lucide-react";
+import { catColor } from "../../shared/categories";
 
 const BACK = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -22,10 +24,14 @@ export default function PersonDetail({
   person,
   onEdit,
   onBack,
+  linkedNotes = [],
+  onOpenNote,
 }: {
   person: Person;
   onEdit: () => void;
   onBack: () => void;
+  linkedNotes?: { id: string; title: string; category: string }[];
+  onOpenNote?: (id: string) => void;
 }) {
   const { name, relationship, birthday, notes, color } = person.data;
   const hasAttrs = relationship || birthday;
@@ -49,6 +55,20 @@ export default function PersonDetail({
         <>
           <div className="grp"><div className="eyebrow">Notes</div></div>
           <div className="pad-x"><div className="card"><div className="note-body">{notes}</div></div></div>
+        </>
+      )}
+      {linkedNotes.length > 0 && (
+        <>
+          <div className="grp"><div className="eyebrow">Linked Notes</div></div>
+          <div className="pad-x"><div className="card">
+            {linkedNotes.map((n) => (
+              <div className="row" role={onOpenNote ? "button" : undefined} tabIndex={onOpenNote ? 0 : undefined} key={n.id} onClick={onOpenNote ? () => onOpenNote(n.id) : undefined}>
+                <div className={"proj-icon cat-bg-" + (n.category ? catColor(n.category) : "graphite")}><FileText className="ic" /></div>
+                <div className="conn-name">{n.title}</div>
+                {onOpenNote && <div className="chev"></div>}
+              </div>
+            ))}
+          </div></div>
         </>
       )}
     </div>

@@ -22,7 +22,7 @@ const DOC_TOPIC: Record<string, string> = {
 // The Brain tab. The hub is built. The people rows (Contacts / Inner Circle /
 // Adversarial) open real, editable people lists; the remaining rows open a
 // lightweight placeholder for now. "Your Categories" is populated live.
-export default function BrainFlow({ openKey, personOpenId }: { openKey?: string; personOpenId?: string } = {}) {
+export default function BrainFlow({ openKey, personOpenId, onOpenNote }: { openKey?: string; personOpenId?: string; onOpenNote?: (id: string) => void } = {}) {
   const cats = useCategories();
   const [categories, setCategories] = useState<BrainCategory[]>([]);
   const [open, setOpen] = useState<{ key: string; name: string } | null>(
@@ -48,7 +48,7 @@ export default function BrainFlow({ openKey, personOpenId }: { openKey?: string;
     }
     const group = PEOPLE_GROUP[open.key];
     if (group) {
-      return <PeopleFlow group={group} openId={personOpenId} onBack={() => setOpen(null)} />;
+      return <PeopleFlow group={group} openId={personOpenId} onOpenNote={onOpenNote} onBack={() => setOpen(null)} />;
     }
     const topic = DOC_TOPIC[open.key];
     if (topic) {
