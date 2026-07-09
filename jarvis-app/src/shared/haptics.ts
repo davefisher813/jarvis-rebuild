@@ -1,11 +1,12 @@
 // Single haptics seam for the whole app. Call sites use the semantic methods
 // and never touch the platform API.
 //
-// TODAY (web/PWA): uses the Vibration API, which works on Android and is
-// silently ignored on iOS Safari, so it is harmless everywhere.
-//
-// AT CAPACITOR WRAP TIME: install @capacitor/haptics and replace the body of
-// fire() with native calls (one place, every call site lights up).
+// NATIVE (Capacitor iOS/Android): real Taptic/vibration feedback via
+// @capacitor/haptics. WEB (PWA/site): falls back to the Vibration API, which
+// works on Android and is silently ignored on iOS Safari. Either way a haptic
+// can never throw into a UI handler.
+import { Capacitor } from "@capacitor/core";
+import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 
 export type HapticKind = "selection" | "success" | "warning" | "impact";
 
@@ -16,13 +17,20 @@ const WEB_PATTERN: Record<HapticKind, number | number[]> = {
   impact: 14,
 };
 
-function canVibrate(): boolean {
-  return typeof navigator !== "undefined" && typeof navigator.vibrate === "function";
-}
+const NATIVE: Record<HapticKind, () => Promise<void>> = {
+  selection: () => Haptics.selectionStart().then(() => Haptics.selectionChanged()).then(() => Haptics.selectionEnd()),
+  success: () => Haptics.notification({ type: NotificationType.Success }),
+  warning: () => Haptics.notification({ type: NotificationType.Warning }),
+  impact: () => Haptics.impact({ style: ImpactStyle.Medium }),
+};
 
 function fire(kind: HapticKind): void {
-  if (canVibrate()) {
-    try { navigator.vibrate(WEB_PATTERN[kind]); } catch { /* never throw into UI */ }
+  if (Capacitor.isNativePlatform()) {
+    NATIVE[kind]().catch(() => { /* never throw into UI */ });
+    return;
+  }
+  if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+    try { navigator.vibrate(WEB_PATTERN[kind]); } catch { /* ignore */ }
   }
 }
 

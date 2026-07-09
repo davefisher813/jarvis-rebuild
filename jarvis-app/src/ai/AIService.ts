@@ -1,3 +1,4 @@
+import { apiUrl } from "../shared/apiBase";
 import { backendConfigured } from "../data/store";
 
 export interface AIMessage {
@@ -22,7 +23,7 @@ export class AIService {
   readonly available: boolean;
 
   constructor(opts: AIServiceOpts = {}) {
-    this.endpoint = opts.endpoint ?? "/api/ai";
+    this.endpoint = opts.endpoint ?? apiUrl("/api/ai");
     this.fetchImpl = opts.fetchImpl ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
     this.getToken = opts.getToken;
     this.available = opts.available ?? backendConfigured;

@@ -3,6 +3,8 @@
 // secret), never the client. So this is an interface the server fills. The app
 // holds the shape + UI; `available` is false until that endpoint exists.
 
+import { apiUrl } from "../shared/apiBase";
+
 export interface AdminUser {
   id: string;
   email: string;
@@ -41,7 +43,7 @@ export function adminConfigured(): boolean {
 
 // Real source: calls the privileged /api/admin endpoints (built at launch).
 export function createAdminApi(token: string, doFetch: FetchLike = fetch as unknown as FetchLike): AdminService {
-  const base = "/api/admin";
+  const base = apiUrl("/api/admin");
   const auth = { headers: { Authorization: "Bearer " + token } };
   const get = async (path: string) => {
     const r = await doFetch(base + path, auth);
