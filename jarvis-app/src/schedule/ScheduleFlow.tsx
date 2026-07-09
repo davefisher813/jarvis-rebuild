@@ -13,7 +13,7 @@ import type { TaskItem } from "../tasks/TasksService";
 
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: EventDraft } | null;
 
-export default function ScheduleFlow({ onEditRoutine }: { onEditRoutine?: () => void } = {}) {
+export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?: () => void; openId?: string } = {}) {
   const svc = useSchedule();
   const cats = useCategories();
   const today = todayISO();
@@ -142,6 +142,22 @@ export default function ScheduleFlow({ onEditRoutine }: { onEditRoutine?: () => 
     if (!e) return;
     setSheet({ mode: "edit", id, initial: { title: e.title, date: selected, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none" } });
   };
+
+  // When arriving via a note connection, jump to the event's own date and open
+  // it once on mount. Uses the event's real date, not the current selection.
+  useEffect(() => {
+    if (!openId) return;
+    let on = true;
+    (async () => {
+      const e = await svc.event(openId);
+      if (!on || !e) return;
+      setSelected(e.date);
+      syncView(e.date);
+      setSheet({ mode: "edit", id: openId, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none" } });
+    })();
+    return () => { on = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId]);
 
   const offerUndoEvent = (e: EventData) => {
     showToast({
