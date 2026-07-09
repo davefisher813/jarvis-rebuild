@@ -5,7 +5,6 @@ import { planDay, type PlanBlock } from "../planDay";
 import { fmtTime } from "../calendar";
 import { catColor } from "../../shared/categories";
 
-const DAY_END = 21 * 60; // plan within waking hours; ends at 9 PM
 const BUFFER = 10;
 const DEFAULT_DUR = 45;
 
@@ -25,6 +24,9 @@ export default function PlanDaySheet({
   events,
   tasks,
   startMin,
+  endMin,
+  routineConfigured = true,
+  onEditRoutine,
   onCommit,
   onClose,
   onAIPlan,
@@ -32,6 +34,9 @@ export default function PlanDaySheet({
   events: EventItem[];
   tasks: PlanCandidate[];
   startMin: number;
+  endMin: number;
+  routineConfigured?: boolean;
+  onEditRoutine?: () => void;
   onCommit: (blocks: PlanBlock[]) => void;
   onClose: () => void;
   onAIPlan?: (picks: { id: string; text: string; category: string; overdue: boolean }[], startMin: number, endMin: number) => Promise<{ id: string; minutes: number }[]>;
@@ -58,7 +63,7 @@ export default function PlanDaySheet({
 
   const plan = useMemo(() => {
     const picks = orderedTasks.filter((t) => selected.has(t.id)).map((t) => ({ id: t.id, text: t.text, category: t.category, durationMin: dur(t.id) }));
-    return planDay(picks, events, start, DAY_END, BUFFER);
+    return planDay(picks, events, start, endMin, BUFFER);
   }, [orderedTasks, selected, durations, start, events]);
 
   const runAI = async () => {
@@ -67,7 +72,7 @@ export default function PlanDaySheet({
     setAiLoading(true);
     setAiError(null);
     try {
-      const items = await onAIPlan(picks, start, DAY_END);
+      const items = await onAIPlan(picks, start, endMin);
       setDurations(Object.fromEntries(items.map((it) => [it.id, it.minutes])));
       setOrder(items.map((it) => it.id));
       setAiUsed(true);
@@ -102,6 +107,14 @@ export default function PlanDaySheet({
             <div className="grp"><div className="eyebrow">Plan your day</div></div>
             <div className="pad-x sheet-form">
               <div className="plan-sub">Pick what you want to get done. I'll fit it around what's already on your schedule.</div>
+              {routineConfigured ? (
+                <div className="input-help">Planning within your active hours, until {label(fromMin(endMin))}.</div>
+              ) : (
+                <div className="input-note">
+                  Using default hours, until {label(fromMin(endMin))}.
+                  {onEditRoutine && <button type="button" className="note-fix" onClick={onEditRoutine}>Set your routine</button>}
+                </div>
+              )}
 
               <div className="field">
                 <label className="input-label">Start at</label>

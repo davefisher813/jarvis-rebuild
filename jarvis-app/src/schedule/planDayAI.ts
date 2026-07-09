@@ -27,7 +27,7 @@ export function planDaySystem(): string {
   ].join("\n");
 }
 
-export function planDayUserMessage(picks: PlanPick[], events: EventItem[], startMin: number, endMin: number): string {
+export function planDayUserMessage(picks: PlanPick[], events: EventItem[], startMin: number, endMin: number, work?: { startMin: number; endMin: number }): string {
   const taskLines = picks.map((p) => `- [id: ${p.id}] ${p.text}${p.category ? ` (${p.category})` : ""}${p.overdue ? " [OVERDUE]" : ""}`);
   const evLines = events.length
     ? events
@@ -35,8 +35,12 @@ export function planDayUserMessage(picks: PlanPick[], events: EventItem[], start
         .sort((a, b) => a.data.start.localeCompare(b.data.start))
         .map((e) => `- ${label(e.data.start)}${e.data.end ? `-${label(e.data.end)}` : ""} ${e.data.title}`)
     : ["- (nothing scheduled yet)"];
+  const workLine = work
+    ? `Work hours are ${label(fromMin(work.startMin))} to ${label(fromMin(work.endMin))}. Schedule focused, deep, or work-category tasks inside work hours (deep work earlier, admin midday) and personal tasks outside them.`
+    : "";
   return [
     `Plan the window ${label(fromMin(startMin))} to ${label(fromMin(endMin))} today.`,
+    ...(workLine ? [workLine] : []),
     "",
     "Tasks to schedule:",
     ...taskLines,
@@ -82,9 +86,10 @@ export async function aiPlanDay(
   events: EventItem[],
   startMin: number,
   endMin: number,
+  work?: { startMin: number; endMin: number },
   timeoutMs: number = AI_PLAN_TIMEOUT_MS,
 ): Promise<AIPlanItem[]> {
-  const messages: AIMessage[] = [{ role: "user", content: planDayUserMessage(picks, events, startMin, endMin) }];
+  const messages: AIMessage[] = [{ role: "user", content: planDayUserMessage(picks, events, startMin, endMin, work) }];
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_res, rej) => { timer = setTimeout(() => rej(new Error("AI planning timed out")), timeoutMs); });
   try {

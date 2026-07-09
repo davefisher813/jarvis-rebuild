@@ -47,6 +47,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
   const [tabKeys, setTabKeys] = useState<string[]>(DEFAULT_TABS);
   const [active, setActive] = useState<string>("today");
+  // One-shot deep-link target inside the Brain tab (e.g. open the routine
+  // editor from the Plan sheet). Cleared after it is consumed.
+  const [brainIntent, setBrainIntent] = useState<string | undefined>(undefined);
+  const goToRoutine = () => { setBrainIntent("routine"); setActive("brain"); };
   const [notesChrome, setNotesChrome] = useState(true);
   const [ready, setReady] = useState(false);
   const [, bumpCatVer] = useState(0);
@@ -130,10 +134,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     <div className="app-shell">
       <div className="app-scroll">
         <div className="tab-swap" key={active}>
-        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} />}
+        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} />}
         {active === "tasks" && <TasksFlow />}
-        {active === "schedule" && <ScheduleFlow />}
-        {active === "brain" && <BrainFlow />}
+        {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} />}
+        {active === "brain" && <BrainFlow openKey={brainIntent} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} />}
         {active === "goals" && <LifeMapFlow />}
         {active === "projects" && <ProjectsFlow />}
@@ -157,7 +161,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       {showDock && (
         <>
           <VoiceBar onTap={() => setCaptureOpen(true)} />
-          <TabBar tabKeys={tabKeys} active={active} onTab={setActive} badges={{ tasks: taskBadge }} />
+          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
         </>
       )}
       {captureOpen && <QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} />}

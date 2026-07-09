@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useTasks, useSchedule, useNotes, usePeople } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, usePeople, useProjects, useMoney, useGoals, useCategories } from "../data/NotesProvider";
 import { runSearch, totalHits, type SearchInput } from "./search";
 import { personInitials, slotForName } from "../people/types";
 
@@ -12,17 +12,24 @@ export default function SearchFlow({ onClose }: { onClose: () => void }) {
   const schedule = useSchedule();
   const notes = useNotes();
   const people = usePeople();
+  const projects = useProjects();
+  const money = useMoney();
+  const goals = useGoals();
+  const categories = useCategories();
   const [data, setData] = useState<SearchInput | null>(null);
   const [q, setQ] = useState("");
 
   useEffect(() => {
     let on = true;
     (async () => {
-      const [t, e, n, p] = await Promise.all([tasks.listTasks(), schedule.listEvents(), notes.listNotes(), people.list()]);
-      if (on) setData({ tasks: t, events: e, notes: n, people: p });
+      const [t, e, n, p, pr, ac, g, c] = await Promise.all([
+        tasks.listTasks(), schedule.listEvents(), notes.listNotes(), people.list(),
+        projects.list(), money.list(), goals.list(), categories.list(),
+      ]);
+      if (on) setData({ tasks: t, events: e, notes: n, people: p, projects: pr, accounts: ac, goals: g, categories: c });
     })();
     return () => { on = false; };
-  }, [tasks, schedule, notes, people]);
+  }, [tasks, schedule, notes, people, projects, money, goals, categories]);
 
   const results = useMemo(() => (data ? runSearch(q, data) : null), [q, data]);
   const empty = q.trim() === "";
@@ -36,7 +43,7 @@ export default function SearchFlow({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="search-results">
-        {empty && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">Search tasks, events, notes, and people</div></div>}
+        {empty && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">Search tasks, events, notes, people, and more</div></div>}
         {none && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">No matches for &ldquo;{q.trim()}&rdquo;</div></div>}
 
         {results && !empty && results.events.length > 0 && (
@@ -78,6 +85,49 @@ export default function SearchFlow({ onClose }: { onClose: () => void }) {
             <div className="pad-x"><div className="card">
               {results.notes.map((n) => (
                 <div className="row" key={n.id}><div className="row-grow"><div className="conn-name">{n.title}</div></div></div>
+              ))}
+            </div></div>
+          </>
+        )}
+        {results && !empty && results.projects.length > 0 && (
+          <>
+            <div className="sec-head"><div className="sec-left"><div className="sec-title">Projects</div></div></div>
+            <div className="pad-x"><div className="card">
+              {results.projects.map((p) => (
+                <div className="row" key={p.id}><div className="row-grow"><div className="conn-name">{p.title}</div></div></div>
+              ))}
+            </div></div>
+          </>
+        )}
+
+        {results && !empty && results.goals.length > 0 && (
+          <>
+            <div className="sec-head"><div className="sec-left"><div className="sec-title">Goals</div></div></div>
+            <div className="pad-x"><div className="card">
+              {results.goals.map((g) => (
+                <div className="row" key={g.id}><div className="row-grow"><div className="conn-name">{g.title}</div></div></div>
+              ))}
+            </div></div>
+          </>
+        )}
+
+        {results && !empty && results.accounts.length > 0 && (
+          <>
+            <div className="sec-head"><div className="sec-left"><div className="sec-title">Money</div></div></div>
+            <div className="pad-x"><div className="card">
+              {results.accounts.map((a) => (
+                <div className="row" key={a.id}><div className="row-grow"><div className="conn-name">{a.name}</div></div></div>
+              ))}
+            </div></div>
+          </>
+        )}
+
+        {results && !empty && results.categories.length > 0 && (
+          <>
+            <div className="sec-head"><div className="sec-left"><div className="sec-title">Categories</div></div></div>
+            <div className="pad-x"><div className="card">
+              {results.categories.map((c) => (
+                <div className="row" key={c.id}><div className="row-grow"><div className="conn-name">{c.name}</div></div></div>
               ))}
             </div></div>
           </>

@@ -12,6 +12,7 @@ const Pen = () => svg(<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5
 const Flag = () => svg(<><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></>);
 const CheckC = () => svg(<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></>);
 const Cloud = () => svg(<><path d="M17.5 19a4.5 4.5 0 0 0 0-9h-1.8A7 7 0 1 0 4 15.3" /><polyline points="8 17 12 21 16 17" /><line x1="12" y1="12" x2="12" y2="21" /></>);
+const Clock = () => svg(<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>);
 const Chev = () => (
   <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
 );
@@ -45,6 +46,9 @@ const TOP_SECTIONS: { title: string; rows: BrainRow[] }[] = [
     { key: "philosophy", name: "Life Philosophy", icon: <Compass />, color: "cat-bg-blue" },
     { key: "writing", name: "How You Write", icon: <Pen />, color: "cat-bg-green" },
     { key: "values", name: "Values", icon: <Flag />, color: "cat-bg-yellow" },
+  ] },
+  { title: "How You Live", rows: [
+    { key: "routine", name: "Your Routine", icon: <Clock />, color: "cat-bg-teal" },
   ] },
 ];
 const SETUP: { title: string; rows: BrainRow[] } = {

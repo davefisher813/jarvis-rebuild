@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNotes, useCategories, useTasks, useSchedule } from "../data/NotesProvider";
+import { useNotes, useCategories, useTasks, useSchedule, useProjects, usePeople, useGoals } from "../data/NotesProvider";
 import { catName } from "../shared/categories";
 import type { Category } from "../categories/types";
 import type { Block, Connection, NoteData, TemplateKey } from "./types";
@@ -83,6 +83,9 @@ export default function NotesFlow({
   const cats = useCategories();
   const tasksSvc = useTasks();
   const schedSvc = useSchedule();
+  const projectsSvc = useProjects();
+  const peopleSvc = usePeople();
+  const goalsSvc = useGoals();
   const [catList, setCatList] = useState<Category[]>([]);
   const defaultCatId = catList[0]?.id ?? "";
   const [screen, setScreen] = useState<Screen>("list");
@@ -93,6 +96,9 @@ export default function NotesFlow({
   const [conns, setConns] = useState<Connection[]>([]);
   const [linkEvents, setLinkEvents] = useState<{ id: string; title: string }[]>([]);
   const [linkTasks, setLinkTasks] = useState<{ id: string; text: string }[]>([]);
+  const [linkProjects, setLinkProjects] = useState<{ id: string; title: string }[]>([]);
+  const [linkPeople, setLinkPeople] = useState<{ id: string; name: string }[]>([]);
+  const [linkGoals, setLinkGoals] = useState<{ id: string; title: string }[]>([]);
   const seeded = useRef(false);
 
   const loadList = useCallback(async () => {
@@ -135,13 +141,19 @@ export default function NotesFlow({
   const loadLinkables = useCallback(async () => {
     const ev = await schedSvc.listEvents();
     const ts = await tasksSvc.listTasks();
+    const pr = await projectsSvc.list();
+    const pe = await peopleSvc.list();
+    const go = await goalsSvc.list();
     setLinkEvents(ev.map((e) => ({ id: e.id, title: (e.data as { title?: string }).title || "Untitled" })));
     setLinkTasks(
       ts
         .filter((t) => !(t.data as { done?: boolean }).done)
         .map((t) => ({ id: t.id, text: (t.data as { text?: string }).text || "Untitled" })),
     );
-  }, [schedSvc, tasksSvc]);
+    setLinkProjects(pr.map((p) => ({ id: p.id, title: p.data.title || "Untitled" })));
+    setLinkPeople(pe.map((p) => ({ id: p.id, name: p.data.name || "Unnamed" })));
+    setLinkGoals(go.map((g) => ({ id: g.id, title: g.data.title || "Untitled" })));
+  }, [schedSvc, tasksSvc, projectsSvc, peopleSvc, goalsSvc]);
 
   const openNote = async (id: string) => {
     setCurrentId(id);
@@ -228,6 +240,9 @@ export default function NotesFlow({
       <LinkPicker
         events={linkEvents}
         tasks={linkTasks}
+        projects={linkProjects}
+        people={linkPeople}
+        goals={linkGoals}
         onPick={async (kind, label, targetId) => {
           if (currentId) {
             await svc.addConnection(currentId, kind, label, null, targetId);

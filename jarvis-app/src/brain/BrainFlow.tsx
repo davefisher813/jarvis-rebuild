@@ -5,6 +5,7 @@ import PeopleFlow from "../people/PeopleFlow";
 import type { PersonGroup } from "../people/types";
 import BrainDocPage from "./docs/BrainDocPage";
 import CategoryDetail from "./CategoryDetail";
+import RoutineFlow from "../routine/RoutineFlow";
 import type { ColorSlot } from "../categories/types";
 
 const PEOPLE_GROUP: Record<string, PersonGroup> = {
@@ -21,10 +22,12 @@ const DOC_TOPIC: Record<string, string> = {
 // The Brain tab. The hub is built. The people rows (Contacts / Inner Circle /
 // Adversarial) open real, editable people lists; the remaining rows open a
 // lightweight placeholder for now. "Your Categories" is populated live.
-export default function BrainFlow() {
+export default function BrainFlow({ openKey }: { openKey?: string } = {}) {
   const cats = useCategories();
   const [categories, setCategories] = useState<BrainCategory[]>([]);
-  const [open, setOpen] = useState<{ key: string; name: string } | null>(null);
+  const [open, setOpen] = useState<{ key: string; name: string } | null>(
+    openKey ? { key: openKey, name: "" } : null,
+  );
 
   useEffect(() => {
     let on = true;
@@ -40,6 +43,9 @@ export default function BrainFlow() {
   }, [cats]);
 
   if (open) {
+    if (open.key === "routine") {
+      return <RoutineFlow onBack={() => setOpen(null)} />;
+    }
     const group = PEOPLE_GROUP[open.key];
     if (group) {
       return <PeopleFlow group={group} onBack={() => setOpen(null)} />;

@@ -441,7 +441,8 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .task-del .ic { width: 22px; height: 22px; }
 .task-snooze { position: absolute; top: 0; right: 88px; bottom: 0; width: 88px; border: 0; background: var(--tint); color: #fff; display: flex; align-items: center; justify-content: center; }
 .task-snooze .ic { width: 22px; height: 22px; }
-.task-row { position: relative; background: var(--surface-2); transition: transform 0.16s ease; }
+.task-row { position: relative; background: var(--surface-2); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
+.task-row.swiping { transition: none; }
 .task-check-tap { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
   flex-shrink: 0; margin: -8px 0; cursor: pointer; }
 

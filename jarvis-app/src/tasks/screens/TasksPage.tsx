@@ -36,8 +36,12 @@ function Row({
   const prevDone = useRef(t.done);
   const [burst, setBurst] = useState(false);
   const [dx, setDx] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const startX = useRef(0);
-  const swiping = useRef(false);
+  const startY = useRef(0);
+  const decided = useRef(false);
+  const horizontal = useRef(false);
 
   useEffect(() => {
     if (t.done && !prevDone.current) {
@@ -50,12 +54,36 @@ function Row({
   }, [t.done]);
 
   const revealW = t.done ? 88 : 176; // open tasks also reveal a "tomorrow" action
-  const onStart = (e: React.TouchEvent) => { startX.current = e.touches[0]!.clientX; swiping.current = true; };
-  const onMove = (e: React.TouchEvent) => {
-    if (!swiping.current) return;
-    setDx(Math.max(-revealW, Math.min(0, e.touches[0]!.clientX - startX.current)));
+  const onStart = (e: React.TouchEvent) => {
+    startX.current = e.touches[0]!.clientX;
+    startY.current = e.touches[0]!.clientY;
+    decided.current = false;
+    horizontal.current = false;
+    setDragging(true);
   };
-  const onEnd = () => { swiping.current = false; setDx((d) => (d < -48 ? -revealW : 0)); };
+  const onMove = (e: React.TouchEvent) => {
+    const mx = e.touches[0]!.clientX - startX.current;
+    const my = e.touches[0]!.clientY - startY.current;
+    // Decide direction once: horizontal claims the gesture (so the page does not
+    // scroll), vertical is left alone so the list scrolls normally.
+    if (!decided.current) {
+      if (Math.abs(mx) > 8 || Math.abs(my) > 8) {
+        decided.current = true;
+        horizontal.current = Math.abs(mx) > Math.abs(my);
+      }
+    }
+    if (!horizontal.current) return;
+    e.preventDefault();
+    const base = open ? -revealW : 0;
+    setDx(Math.max(-revealW, Math.min(0, base + mx)));
+  };
+  const onEnd = () => {
+    setDragging(false);
+    if (!horizontal.current) return;
+    const nowOpen = dx < -revealW / 2;
+    setOpen(nowOpen);
+    setDx(nowOpen ? -revealW : 0);
+  };
 
   return (
     <div className="task-swipe">
@@ -68,7 +96,7 @@ function Row({
         <Trash2 className="ic" />
       </button>
       <div
-        className={"task-row" + (t.done ? " completed" : "") + (burst ? " just-done" : "")}
+        className={"task-row" + (t.done ? " completed" : "") + (burst ? " just-done" : "") + (dragging ? " swiping" : "")}
         style={{ transform: dx ? `translateX(${dx}px)` : undefined }}
         onTouchStart={onStart}
         onTouchMove={onMove}

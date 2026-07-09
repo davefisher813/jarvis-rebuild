@@ -16,4 +16,18 @@ describe("NotesService note linking", () => {
     note = (await svc.note(noteId))!;
     expect(note.connections.length).toBe(0);
   });
+
+  it("links a note to a project, person, and goal, each keeping its targetId", async () => {
+    const svc = new NotesService(new Store(new InMemoryAdapter()), "u");
+    const noteId = (await svc.createNote("Plan", "c1"))!;
+    await svc.addConnection(noteId, "project", "Website Redesign", null, "prj_1");
+    await svc.addConnection(noteId, "person", "Sam Rivera", null, "per_1");
+    await svc.addConnection(noteId, "goal", "Ship v2", null, "goal_1");
+    const note = (await svc.note(noteId))!;
+    const byKind = Object.fromEntries(note.connections.map((c) => [c.kind, c]));
+    expect(byKind.project!.targetId).toBe("prj_1");
+    expect(byKind.person!.targetId).toBe("per_1");
+    expect(byKind.goal!.targetId).toBe("goal_1");
+    expect(byKind.person!.label).toBe("Sam Rivera");
+  });
 });

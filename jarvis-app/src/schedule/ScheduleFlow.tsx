@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useSchedule, useCategories, useTasks } from "../data/NotesProvider";
+import { useSchedule, useCategories, useTasks, useRoutine } from "../data/NotesProvider";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import { todayISO, weekOf, addDays, eventsForDate, findConflicts, nextFreeSlot } from "./calendar";
@@ -7,12 +7,13 @@ import type { EventItem, EventData } from "./types";
 import { showToast } from "../shared/toast";
 import PlanDaySheet from "./screens/PlanDaySheet";
 import { aiPlanDay } from "./planDayAI";
+import { DEFAULT_ROUTINE, planWindowFor, type RoutineData } from "../routine/types";
 import { useAI } from "../ai/useAI";
 import type { TaskItem } from "../tasks/TasksService";
 
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: EventDraft } | null;
 
-export default function ScheduleFlow() {
+export default function ScheduleFlow({ onEditRoutine }: { onEditRoutine?: () => void } = {}) {
   const svc = useSchedule();
   const cats = useCategories();
   const today = todayISO();
@@ -29,6 +30,9 @@ export default function ScheduleFlow() {
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
   const [planOpen, setPlanOpen] = useState(false);
   const ai = useAI();
+  const routine = useRoutine();
+  const [routineData, setRoutineData] = useState<RoutineData>(DEFAULT_ROUTINE);
+  const [routineSet, setRoutineSet] = useState(true);
   const [loading, setLoading] = useState(true);
   const [newStart, setNewStart] = useState<string | null>(null);
 
@@ -48,6 +52,13 @@ export default function ScheduleFlow() {
     tasksSvc.listTasks().then((t) => { if (on) setTaskItems(t); });
     return () => { on = false; };
   }, [tasksSvc, planOpen]);
+
+  useEffect(() => {
+    let on = true;
+    routine.get().then((r) => { if (on) setRoutineData(r); });
+    routine.isConfigured().then((c) => { if (on) setRoutineSet(c); });
+    return () => { on = false; };
+  }, [routine]);
 
   useEffect(() => {
     let on = true;
@@ -90,11 +101,14 @@ export default function ScheduleFlow() {
       return { id: t.id, text: t.data.text, category: t.data.category ?? "", due, suggested: !!due && due <= selected, overdue: !!due && due < realToday };
     })
     .sort((a, b) => (a.suggested !== b.suggested ? (a.suggested ? -1 : 1) : (a.due || "z").localeCompare(b.due || "z")));
+  const planDow = (() => { const p = selected.split("-"); return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])).getDay(); })();
+  const planWindow = planWindowFor(routineData, planDow);
   const planStart = selected === todayISO()
-    ? (() => { const d = new Date(); return Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; })()
-    : 9 * 60;
+    ? (() => { const d = new Date(); const now = Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; return Math.max(now, planWindow.wakeMin); })()
+    : planWindow.wakeMin;
+  const planEnd = planWindow.endMin;
   const onAIPlan = ai.available
-    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, dayEvents, s, e)
+    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, dayEvents, s, e, { startMin: routineData.workStartMin, endMin: routineData.workEndMin })
     : undefined;
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
     const ids: string[] = [];
@@ -210,6 +224,9 @@ export default function ScheduleFlow() {
           events={dayEvents}
           tasks={planCandidates}
           startMin={planStart}
+          endMin={planEnd}
+          routineConfigured={routineSet}
+          onEditRoutine={onEditRoutine ? () => { setPlanOpen(false); onEditRoutine(); } : undefined}
           onCommit={onPlanCommit}
           onAIPlan={onAIPlan}
           onClose={() => setPlanOpen(false)}

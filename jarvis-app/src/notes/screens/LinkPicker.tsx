@@ -1,19 +1,29 @@
-import { CalendarDays, ListChecks } from "lucide-react";
+import { CalendarDays, ListChecks, FolderKanban, User, Target } from "lucide-react";
 
-// Lists the user's real events and open tasks so a note can be linked to one.
-// Tapping a row calls onPick with the entity's kind, label, and id.
+// Lists the user's real events, tasks, projects, people, and goals so a note
+// can be linked to any of them. Tapping a row calls onPick with the entity's
+// kind, label, and id (stored as a Connection with targetId for navigation).
 export default function LinkPicker({
   events = [],
   tasks = [],
+  projects = [],
+  people = [],
+  goals = [],
   onPick,
   onBack,
 }: {
   events?: { id: string; title: string }[];
   tasks?: { id: string; text: string }[];
+  projects?: { id: string; title: string }[];
+  people?: { id: string; name: string }[];
+  goals?: { id: string; title: string }[];
   onPick: (kind: string, label: string, targetId: string) => void;
   onBack?: () => void;
 }) {
-  const empty = events.length === 0 && tasks.length === 0;
+  const empty =
+    events.length === 0 && tasks.length === 0 && projects.length === 0 &&
+    people.length === 0 && goals.length === 0;
+
   return (
     <div className="screen">
       <div className="nav-bar">
@@ -26,7 +36,7 @@ export default function LinkPicker({
       {empty && (
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-title">Nothing to link yet</div>
-          <div className="empty-sub">Create an event or task first, then link it here.</div>
+          <div className="empty-sub">Create a task, event, project, person, or goal first, then link it here.</div>
         </div></div></div>
       )}
 
@@ -53,6 +63,51 @@ export default function LinkPicker({
               <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => onPick("task", t.text, t.id)}>
                 <div className="proj-icon cat-bg-red"><ListChecks className="ic" /></div>
                 <div className="conn-name">{t.text}</div>
+                <div className="chev"></div>
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
+
+      {projects.length > 0 && (
+        <>
+          <div className="grp"><div className="eyebrow">Projects</div></div>
+          <div className="pad-x"><div className="card">
+            {projects.map((p) => (
+              <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onPick("project", p.title, p.id)}>
+                <div className="proj-icon cat-bg-blue"><FolderKanban className="ic" /></div>
+                <div className="conn-name">{p.title}</div>
+                <div className="chev"></div>
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
+
+      {people.length > 0 && (
+        <>
+          <div className="grp"><div className="eyebrow">People</div></div>
+          <div className="pad-x"><div className="card">
+            {people.map((p) => (
+              <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onPick("person", p.name, p.id)}>
+                <div className="proj-icon cat-bg-pink"><User className="ic" /></div>
+                <div className="conn-name">{p.name}</div>
+                <div className="chev"></div>
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
+
+      {goals.length > 0 && (
+        <>
+          <div className="grp"><div className="eyebrow">Goals</div></div>
+          <div className="pad-x"><div className="card">
+            {goals.map((g) => (
+              <div className="row" role="button" tabIndex={0} key={g.id} onClick={() => onPick("goal", g.title, g.id)}>
+                <div className="proj-icon cat-bg-green"><Target className="ic" /></div>
+                <div className="conn-name">{g.title}</div>
                 <div className="chev"></div>
               </div>
             ))}

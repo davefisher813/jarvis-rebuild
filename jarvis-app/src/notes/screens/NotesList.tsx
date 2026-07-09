@@ -1,4 +1,5 @@
-import { FileText, PenLine } from "lucide-react";
+import { useState } from "react";
+import { FileText, PenLine, Search } from "lucide-react";
 import { catColor } from "../../shared/categories";
 
 // Matches locked frame #46 "List". The real iOS chrome (status bar, home
@@ -23,6 +24,9 @@ export default function NotesList({
   onNewNote?: () => void;
   onBack?: () => void;
 }) {
+  const [q, setQ] = useState("");
+  const query = q.trim().toLowerCase();
+  const shown = query ? notes.filter((n) => n.title.toLowerCase().includes(query)) : notes;
   return (
     <div className="screen">
       <div className="nav-bar">
@@ -41,14 +45,14 @@ export default function NotesList({
 
       <div className="sub-bar">
         <div className="search-bar">
-          <div className="ic"></div>
-          <input placeholder="Search" />
+          <Search className="ic" />
+          <input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
       </div>
 
       <div className="pad-x">
         <div className="card">
-          {notes.map((n) => (
+          {shown.map((n) => (
             <div className="row" key={n.id} onClick={() => onOpen?.(n.id)}>
               <div className={"proj-icon cat-bg-" + catColor(n.category)}>
                 <FileText className="ic" />
@@ -58,6 +62,9 @@ export default function NotesList({
               <div className="chev"></div>
             </div>
           ))}
+          {query && shown.length === 0 && (
+            <div className="row"><div className="conn-name">No notes match &ldquo;{q.trim()}&rdquo;</div></div>
+          )}
         </div>
       </div>
     </div>

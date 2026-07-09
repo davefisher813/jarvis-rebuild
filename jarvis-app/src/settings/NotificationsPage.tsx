@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useProfile } from "../data/NotesProvider";
 import LargeTitleNav from "../shared/LargeTitleNav";
+import { haptics } from "../shared/haptics";
 
 const BACK = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>;
 type Prefs = { overdue: boolean; events: boolean; goals: boolean };
@@ -9,7 +10,7 @@ const DEFAULT: Prefs = { overdue: true, events: true, goals: true };
 function SwitchRow({ name, on, onToggle }: { name: string; on: boolean; onToggle: () => void }) {
   return (
     <div className="row"><div className="row-grow"><div className="conn-name">{name}</div></div>
-      <div className={"switch" + (on ? "" : " off")} role="switch" aria-checked={on} tabIndex={0} onClick={onToggle} /></div>
+      <div className={"switch" + (on ? "" : " off")} role="switch" aria-checked={on} tabIndex={0} onClick={() => { haptics.selection(); onToggle(); }} /></div>
   );
 }
 

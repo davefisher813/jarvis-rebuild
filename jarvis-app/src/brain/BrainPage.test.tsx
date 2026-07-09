@@ -13,10 +13,11 @@ const CATS: BrainCategory[] = [
 describe("BrainPage", () => {
   it("renders the static sections plus a dynamic Your Categories section", () => {
     render(<BrainPage onOpen={() => {}} categories={CATS} />);
-    ["Who You Know", "How You Think", "Your Categories", "Setup"].forEach((t) =>
+    ["Who You Know", "How You Think", "How You Live", "Your Categories", "Setup"].forEach((t) =>
       expect(screen.getByText(t)).toBeInTheDocument(),
     );
     expect(screen.getByText("Work")).toBeInTheDocument();
+    expect(screen.getByText("Your Routine")).toBeInTheDocument();
   });
 
   it("omits Your Categories when there are none", () => {
@@ -28,7 +29,7 @@ describe("BrainPage", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
     const tiles = container.querySelectorAll(".sec-ico");
     // 8 static rows + 3 category rows
-    expect(tiles.length).toBe(11);
+    expect(tiles.length).toBe(12);
     expect(container.querySelectorAll(".sec-ico.ico-surface").length).toBe(0);
     tiles.forEach((t) => expect(t.className).toMatch(/ico-blue|ico-accent|ico-good|cat-bg-/));
   });

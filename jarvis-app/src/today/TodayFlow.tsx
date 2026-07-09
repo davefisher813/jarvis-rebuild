@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useSchedule, useTasks, useProfile, useCategories } from "../data/NotesProvider";
+import { useSchedule, useTasks, useProfile, useCategories, useRoutine } from "../data/NotesProvider";
 import { todayISO, fmtTime } from "../schedule/calendar";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
@@ -10,6 +10,7 @@ import TodaySuggestions from "./TodaySuggestions";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import PlanDaySheet from "../schedule/screens/PlanDaySheet";
 import { aiPlanDay } from "../schedule/planDayAI";
+import { DEFAULT_ROUTINE, planWindowFor, type RoutineData } from "../routine/types";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
 import { showToast } from "../shared/toast";
@@ -20,22 +21,33 @@ export default function TodayFlow({
   onGoTasks,
   onSearch,
   onProfile,
+  onEditRoutine,
 }: {
   onGoSchedule: () => void;
   onGoTasks: () => void;
   onSearch?: () => void;
   onProfile?: () => void;
+  onEditRoutine?: () => void;
 }) {
   const ai = useAI();
   const schedule = useSchedule();
   const tasks = useTasks();
   const profile = useProfile();
+  const routine = useRoutine();
+  const [routineData, setRoutineData] = useState<RoutineData>(DEFAULT_ROUTINE);
+  const [routineSet, setRoutineSet] = useState(true);
   const [name, setName] = useState("");
   const [todayEvents, setTodayEvents] = useState<EventItem[]>([]);
   const [tomorrowEvents, setTomorrowEvents] = useState<EventItem[]>([]);
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const cats = useCategories();
+  useEffect(() => {
+    let on = true;
+    routine.get().then((r) => { if (on) setRoutineData(r); });
+    routine.isConfigured().then((c) => { if (on) setRoutineSet(c); });
+    return () => { on = false; };
+  }, [routine]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [sheet, setSheet] = useState<{ mode: "edit"; id: string; initial: TaskDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
@@ -110,9 +122,11 @@ export default function TodayFlow({
       return { id: t.id, text: t.data.text, category: t.data.category ?? "", due, suggested: !!due && due <= today, overdue: !!due && due < today };
     })
     .sort((a, b) => (a.suggested !== b.suggested ? (a.suggested ? -1 : 1) : (a.due || "z").localeCompare(b.due || "z")));
-  const planStart = (() => { const d = new Date(); return Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; })();
+  const planWindow = planWindowFor(routineData, new Date().getDay());
+  const planStart = (() => { const d = new Date(); const now = Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; return Math.max(now, planWindow.wakeMin); })();
+  const planEnd = planWindow.endMin;
   const onAIPlan = ai.available
-    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, todayEvents, s, e)
+    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, todayEvents, s, e, { startMin: routineData.workStartMin, endMin: routineData.workEndMin })
     : undefined;
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
     const ids: string[] = [];
@@ -161,6 +175,9 @@ export default function TodayFlow({
         events={todayEvents}
         tasks={planCandidates}
         startMin={planStart}
+        endMin={planEnd}
+        routineConfigured={routineSet}
+        onEditRoutine={onEditRoutine ? () => { setPlanOpen(false); onEditRoutine(); } : undefined}
         onCommit={onPlanCommit}
         onAIPlan={onAIPlan}
         onClose={() => setPlanOpen(false)}

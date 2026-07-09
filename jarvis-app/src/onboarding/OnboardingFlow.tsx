@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useProfile, useCategories, usePeople } from "../data/NotesProvider";
+import { useProfile, useCategories, usePeople, useRoutine } from "../data/NotesProvider";
+import { wakeFromBrief } from "../routine/types";
 import { DEFAULT_CATEGORIES, type CategorySeed, type TemplateKey } from "../categories/defaults";
 import { COLOR_SLOTS } from "../categories/types";
 import { STEPS } from "./steps";
@@ -19,6 +20,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const profile = useProfile();
   const categories = useCategories();
   const peopleSvc = usePeople();
+  const routine = useRoutine();
 
   const [idx, setIdx] = useState(0);
   const [name, setName] = useState("");
@@ -56,6 +58,13 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       }
       if (people.length > 0 && (await peopleSvc.list("inner_circle")).length === 0) {
         for (const name of people) await peopleSvc.create({ name, group: "inner_circle" });
+      }
+      // Seed a smarter wake time from the morning-brief choice (people are
+      // usually up when their brief lands). Only if they picked one and have
+      // not already set a routine. Everything else stays at defaults; they
+      // refine in Brain. No extra onboarding step.
+      if (briefTime && !(await routine.isConfigured())) {
+        await routine.save({ wakeMin: wakeFromBrief(briefTime) });
       }
     }
     onFinish();
