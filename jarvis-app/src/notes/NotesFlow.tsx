@@ -75,11 +75,13 @@ export default function NotesFlow({
   onChrome,
   onExit,
   onNavigate,
+  openId,
 }: {
   seed?: boolean;
   onChrome?: (chrome: { tabBar: boolean }) => void;
   onExit?: () => void;
   onNavigate?: (kind: string, targetId: string) => void;
+  openId?: string;
 }) {
   const svc = useNotes();
   const cats = useCategories();
@@ -150,6 +152,13 @@ export default function NotesFlow({
     await loadCurrent(id);
     setScreen("editor");
   };
+
+  // When arriving from another screen (e.g. a project's Linked Notes), open that
+  // note once on mount.
+  useEffect(() => {
+    if (openId) openNote(openId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId]);
 
   const pickTemplate = async (key: TemplateKey) => {
     const id = await svc.createNote(TEMPLATE_TITLE[key], defaultCatId);

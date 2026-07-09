@@ -220,6 +220,23 @@ export class NotesService {
     return items.filter((i) => i.entityType === ENTITY_NOTE);
   }
 
+  // Reverse lookup: every note whose connections point at the given entity id.
+  // Returns light summaries so callers (project/task/person screens) can show a
+  // "Linked Notes" section without loading full note bodies.
+  async notesLinkedTo(targetId: string): Promise<{ id: string; title: string; category: string }[]> {
+    if (!targetId) return [];
+    const items = await this.store.listForUser(this.ownerId);
+    const out: { id: string; title: string; category: string }[] = [];
+    for (const it of items) {
+      if (it.entityType !== ENTITY_NOTE) continue;
+      const d = it.data as unknown as NoteData;
+      if (Array.isArray(d.connections) && d.connections.some((c) => c.targetId === targetId)) {
+        out.push({ id: it.id, title: d.title || "Untitled", category: d.category || "" });
+      }
+    }
+    return out;
+  }
+
   async listTasks() {
     const items = await this.store.listForUser(this.ownerId);
     return items.filter((i) => i.entityType === ENTITY_TASK);

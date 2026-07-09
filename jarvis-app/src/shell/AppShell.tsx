@@ -59,6 +59,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [goalIntent, setGoalIntent] = useState<string | undefined>(undefined);
   // Person deep-link: BrainFlow opens the group, PeopleFlow opens the person.
   const [personIntent, setPersonIntent] = useState<{ groupKey: string; id: string } | undefined>(undefined);
+  const [noteIntent, setNoteIntent] = useState<string | undefined>(undefined);
+  const navigateToNote = (id: string) => { setNoteIntent(id); setActive("notes"); };
   const navigateToEntity = async (kind: string, targetId: string) => {
     if (kind === "task") { setTaskIntent(targetId); setActive("tasks"); }
     else if (kind === "project") { setProjectIntent(targetId); setActive("projects"); }
@@ -162,9 +164,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "tasks" && <TasksFlow openId={taskIntent} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
         {active === "brain" && <BrainFlow openKey={brainIntent} personOpenId={personIntent?.id} />}
-        {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} />}
+        {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
         {active === "goals" && <LifeMapFlow openId={goalIntent} />}
-        {active === "projects" && <ProjectsFlow openId={projectIntent} />}
+        {active === "projects" && <ProjectsFlow openId={projectIntent} onOpenNote={navigateToNote} />}
         {active === "messages" && <MessagesFlow ai={ai} />}
         {active === "notifications" && <NotificationsFlow />}
         {active === "money" && <MoneyFlow />}
@@ -185,7 +187,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       {showDock && (
         <>
           <VoiceBar onTap={() => setCaptureOpen(true)} />
-          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
+          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
         </>
       )}
       {captureOpen && <QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} />}

@@ -30,4 +30,16 @@ describe("NotesService note linking", () => {
     expect(byKind.goal!.targetId).toBe("goal_1");
     expect(byKind.person!.label).toBe("Sam Rivera");
   });
+
+  it("notesLinkedTo finds every note pointing at an entity", async () => {
+    const svc = new NotesService(new Store(new InMemoryAdapter()), "u");
+    const a = (await svc.createNote("Alpha", "c1"))!;
+    const b = (await svc.createNote("Beta", "c1"))!;
+    await svc.createNote("Gamma", "c1"); // links to nothing
+    await svc.addConnection(a, "project", "P", null, "prj_9");
+    await svc.addConnection(b, "project", "P", null, "prj_9");
+    const linked = await svc.notesLinkedTo("prj_9");
+    expect(linked.map((n) => n.title).sort()).toEqual(["Alpha", "Beta"]);
+    expect(await svc.notesLinkedTo("nope")).toEqual([]);
+  });
 });
