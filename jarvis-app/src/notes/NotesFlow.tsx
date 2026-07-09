@@ -111,6 +111,9 @@ export default function NotesFlow({
 
   const loadCurrent = useCallback(
     async (id: string) => {
+      // Pull linked-task completions into the checklist first, so a task
+      // checked off in Tasks shows checked here on open.
+      await svc.reconcileChecklistTasks(id);
       const d = await svc.note(id);
       setCurrent(d ? toEditorNote(d) : null);
       setConns(d?.connections ?? []);

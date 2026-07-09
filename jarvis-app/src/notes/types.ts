@@ -18,6 +18,7 @@ export type BlockType =
 export interface ChecklistItem {
   text: string;
   done: boolean;
+  taskId?: string; // set when this item has been promoted to a real task; keeps them in sync
 }
 
 export interface Block {

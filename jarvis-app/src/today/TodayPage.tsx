@@ -5,6 +5,7 @@ import { fmtTime } from "../schedule/calendar";
 import { urgencyFor, type UrgencyKind } from "../tasks/grouping";
 import { catColor, catName } from "../shared/categories";
 import type { DaySummary } from "./todayData";
+import RollingNumber from "../shared/RollingNumber";
 import YourDay from "./YourDay";
 
 const URGENCY_CLASS: Record<UrgencyKind, string> = {
@@ -79,9 +80,9 @@ export default function TodayPage({
   onProfile?: () => void;
 }) {
   const parts: JSX.Element[] = [];
-  parts.push(<span key="e">{summary.events} {summary.events === 1 ? "event" : "events"}</span>);
-  parts.push(<span key="d"> &middot; {summary.due} {summary.due === 1 ? "task due" : "tasks due"}</span>);
-  if (summary.overdue > 0) parts.push(<span key="o"> &middot; <span className="fg-red">{summary.overdue} overdue</span></span>);
+  parts.push(<span key="e"><RollingNumber value={summary.events} /> {summary.events === 1 ? "event" : "events"}</span>);
+  parts.push(<span key="d"> &middot; <RollingNumber value={summary.due} /> {summary.due === 1 ? "task due" : "tasks due"}</span>);
+  if (summary.overdue > 0) parts.push(<span key="o"> &middot; <span className="fg-red"><RollingNumber value={summary.overdue} /> overdue</span></span>);
 
   return (
     <div className="screen">

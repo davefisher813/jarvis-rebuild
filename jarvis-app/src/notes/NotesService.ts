@@ -142,20 +142,51 @@ export class NotesService {
   // Each checklist item becomes a task item, linked one-way to the note and
   // inheriting the note's category. Tasks are independent items, so they
   // survive note deletion.
+  //
+  // Idempotent: items that already have a taskId are skipped (running it twice
+  // no longer duplicates every task), blanks are skipped, and each created
+  // task's id is stored back on the item so the two stay in sync.
   async tasksFromChecklist(id: string): Promise<string[]> {
     const note = await this.getNote(id);
     if (!note) return [];
     const made: string[] = [];
     for (const block of note.blocks) {
       if (block.type !== "checklist" || !block.items) continue;
-      for (const raw of block.items) {
-        const text = typeof raw === "string" ? raw : raw.text;
-        const data: TaskData = { text, fromNote: id, category: note.category, done: false };
+      const items = this.normalizeItems(block.items);
+      let changed = false;
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i]!;
+        if (!it.text.trim() || it.taskId) continue;
+        const data: TaskData = { text: it.text, fromNote: id, category: note.category, done: it.done };
         const tid = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
+        items[i] = { ...it, taskId: tid };
+        changed = true;
         made.push(tid);
       }
+      if (changed) await this.editBlock(id, block.id, { items });
     }
     return made;
+  }
+
+  // Pull linked-task completion states back into the note's checklist, so a
+  // task checked off in Tasks shows checked here too. Writes only on drift.
+  async reconcileChecklistTasks(id: string): Promise<void> {
+    const note = await this.getNote(id);
+    if (!note) return;
+    const tasks = await this.listTasks();
+    const doneById = new Map(tasks.map((t) => [t.id, !!(t.data as unknown as TaskData).done]));
+    for (const block of note.blocks) {
+      if (block.type !== "checklist" || !block.items) continue;
+      const items = this.normalizeItems(block.items);
+      let changed = false;
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i]!;
+        if (!it.taskId || !doneById.has(it.taskId)) continue;
+        const taskDone = doneById.get(it.taskId)!;
+        if (it.done !== taskDone) { items[i] = { ...it, done: taskDone }; changed = true; }
+      }
+      if (changed) await this.editBlock(id, block.id, { items });
+    }
   }
 
   private normalizeItems(items: Block["items"]): ChecklistItem[] {
@@ -169,8 +200,16 @@ export class NotesService {
     if (!block || block.type !== "checklist") return false;
     const items = this.normalizeItems(block.items);
     if (index < 0 || index >= items.length) return false;
-    items[index] = { ...items[index]!, done: !items[index]!.done };
-    return this.editBlock(noteId, blockId, { items });
+    const next = !items[index]!.done;
+    items[index] = { ...items[index]!, done: next };
+    const ok = await this.editBlock(noteId, blockId, { items });
+    // Keep the linked task (if this item was promoted) in the same state.
+    const taskId = items[index]!.taskId;
+    if (ok && taskId) {
+      try { await this.store.update(this.ownerId, taskId, { done: next } as unknown as ItemData); }
+      catch { /* the task may have been deleted; the note toggle still stands */ }
+    }
+    return ok;
   }
 
   async setChecklistItemText(noteId: string, blockId: string, index: number, text: string): Promise<boolean> {

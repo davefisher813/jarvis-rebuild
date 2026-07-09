@@ -132,6 +132,34 @@ describe("Notes editing helpers", () => {
     expect(blocks.map((b) => b.id)).toEqual([b1]);
   });
 
+  it("tasksFromChecklist is idempotent and back-links taskIds", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("n", "health"))!;
+    const bid = (await svc.addChecklist(id, ["a", "b"]))!;
+    const first = await svc.tasksFromChecklist(id);
+    expect(first.length).toBe(2);
+    const second = await svc.tasksFromChecklist(id);
+    expect(second.length).toBe(0); // no duplicates on a second run
+    const block = (await svc.note(id))!.blocks.find((b) => b.id === bid)!;
+    const items = block.items as { taskId?: string }[];
+    expect(items.every((i) => !!i.taskId)).toBe(true);
+  });
+
+  it("toggling a promoted item updates its task; reconcile pulls task state back", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("n", "health"))!;
+    const bid = (await svc.addChecklist(id, ["a"]))!;
+    const [tid] = await svc.tasksFromChecklist(id);
+    // note -> task
+    await svc.toggleChecklistItem(id, bid, 0);
+    let tasks = await svc.listTasks();
+    expect((tasks.find((t) => t.id === tid)!.data as { done?: boolean }).done).toBe(true);
+    // task -> note (flip the task off, reconcile, item follows)
+    await svc.toggleChecklistItem(id, bid, 0); // back to false (also sets task false)
+    tasks = await svc.listTasks();
+    expect((tasks.find((t) => t.id === tid)!.data as { done?: boolean }).done).toBe(false);
+  });
+
   it("setChecklistItemText updates the item text", async () => {
     const svc = freshService();
     const id = (await svc.createNote("n", "health"))!;
