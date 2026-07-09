@@ -292,6 +292,14 @@ export default function NotesFlow({
           note={current}
           onBack={() => { setScreen("list"); loadList(); }}
           onConnections={() => setScreen("connections")}
+          onDeleteNote={async () => {
+            if (!currentId) return;
+            if (!window.confirm("Delete this note? This cannot be undone.")) return;
+            await svc.deleteNote(currentId);
+            setCurrentId(null);
+            await loadList();
+            setScreen("list");
+          }}
           onAddBlock={() => setAddBlockOpen(true)}
           onEditTitle={editTitle}
           onEditBlockText={editBlockText}

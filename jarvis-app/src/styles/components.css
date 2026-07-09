@@ -28,6 +28,9 @@
    chrome. Added here so icons size consistently in the real app and previews.
    Add more contexts (e.g. .add-block .ic) as later screens need them. */
 .nav-action .ic { width: 24px; height: 24px; }
+/* groups header action buttons on the right (e.g. connections + delete) */
+.nav-actions { display: flex; align-items: center; gap: var(--s-1); }
+.nav-action.danger { color: var(--red); }
 .nav-back .ic { width: 24px; height: 24px; }
 .tab .ic { width: 26px; height: 26px; }
 

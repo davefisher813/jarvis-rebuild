@@ -199,10 +199,12 @@ export default function NoteEditor({
   onDeleteCheckItem,
   onMoveBlock,
   onDeleteBlock,
+  onDeleteNote,
 }: {
   note: EditorNote;
   onBack?: () => void;
   onConnections?: () => void;
+  onDeleteNote?: () => void;
   onAddBlock?: () => void;
   onEditTitle?: (text: string) => void;
   onEditBlockText?: (blockId: string, text: string) => void;
@@ -224,9 +226,16 @@ export default function NoteEditor({
       <div className="nav-bar">
         <button className="nav-back" onClick={onBack}>Notes</button>
         <span className="nav-title"></span>
-        <button className="nav-action" onClick={onConnections} aria-label="Connections">
-          <MoreHorizontal className="ic" />
-        </button>
+        <div className="nav-actions">
+          <button className="nav-action" onClick={onConnections} aria-label="Connections">
+            <MoreHorizontal className="ic" />
+          </button>
+          {onDeleteNote && (
+            <button className="nav-action danger" onClick={onDeleteNote} aria-label="Delete note">
+              <Trash2 className="ic" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="doc">
