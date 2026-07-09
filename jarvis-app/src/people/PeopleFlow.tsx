@@ -7,10 +7,10 @@ import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
-export default function PeopleFlow({ group, onBack }: { group: PersonGroup; onBack: () => void }) {
+export default function PeopleFlow({ group, onBack, openId: initialOpenId }: { group: PersonGroup; onBack: () => void; openId?: string }) {
   const people = usePeople();
   const [list, setList] = useState<Person[]>([]);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpenId ?? null);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
 
   const reload = useCallback(async () => {

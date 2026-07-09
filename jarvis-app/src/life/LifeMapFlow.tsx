@@ -11,12 +11,12 @@ type Sheet =
   | { kind: "area-new" } | { kind: "area-edit"; id: string }
   | { kind: "goal-new" } | { kind: "goal-edit"; id: string };
 
-export default function LifeMapFlow() {
+export default function LifeMapFlow({ openId }: { openId?: string } = {}) {
   const areasSvc = useAreas();
   const goalsSvc = useGoals();
   const [areas, setAreas] = useState<Area[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
-  const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
+  const [sheet, setSheet] = useState<Sheet>(openId ? { kind: "goal-edit", id: openId } : { kind: "closed" });
   const [detailId, setDetailId] = useState<string | null>(null);
 
   const reload = useCallback(async () => {

@@ -55,7 +55,7 @@ export default function Connections({
           </div>
           {connections.map((c) => {
             const ic = connIcon(c.kind);
-            const canOpen = !!(onOpen && c.targetId && (c.kind === "task" || c.kind === "project" || c.kind === "event"));
+            const canOpen = !!(onOpen && c.targetId && (c.kind === "task" || c.kind === "project" || c.kind === "event" || c.kind === "goal" || c.kind === "person"));
             return (
               <div
                 className="row"

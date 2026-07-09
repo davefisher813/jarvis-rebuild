@@ -56,10 +56,24 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [taskIntent, setTaskIntent] = useState<string | undefined>(undefined);
   const [projectIntent, setProjectIntent] = useState<string | undefined>(undefined);
   const [eventIntent, setEventIntent] = useState<string | undefined>(undefined);
-  const navigateToEntity = (kind: string, targetId: string) => {
+  const [goalIntent, setGoalIntent] = useState<string | undefined>(undefined);
+  // Person deep-link: BrainFlow opens the group, PeopleFlow opens the person.
+  const [personIntent, setPersonIntent] = useState<{ groupKey: string; id: string } | undefined>(undefined);
+  const navigateToEntity = async (kind: string, targetId: string) => {
     if (kind === "task") { setTaskIntent(targetId); setActive("tasks"); }
     else if (kind === "project") { setProjectIntent(targetId); setActive("projects"); }
     else if (kind === "event") { setEventIntent(targetId); setActive("schedule"); }
+    else if (kind === "goal") { setGoalIntent(targetId); setActive("goals"); }
+    else if (kind === "person") {
+      const p = await people.get(targetId);
+      if (!p) return;
+      // group value -> the Brain row key that opens that people list
+      const GROUP_KEY: Record<string, string> = { contacts: "contacts", inner_circle: "inner-circle", adversarial: "adversarial" };
+      const groupKey = GROUP_KEY[p.data.group] ?? "contacts";
+      setPersonIntent({ groupKey, id: targetId });
+      setBrainIntent(groupKey);
+      setActive("brain");
+    }
   };
   const [notesChrome, setNotesChrome] = useState(true);
   const [ready, setReady] = useState(false);
@@ -147,9 +161,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} />}
         {active === "tasks" && <TasksFlow openId={taskIntent} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
-        {active === "brain" && <BrainFlow openKey={brainIntent} />}
+        {active === "brain" && <BrainFlow openKey={brainIntent} personOpenId={personIntent?.id} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} />}
-        {active === "goals" && <LifeMapFlow />}
+        {active === "goals" && <LifeMapFlow openId={goalIntent} />}
         {active === "projects" && <ProjectsFlow openId={projectIntent} />}
         {active === "messages" && <MessagesFlow ai={ai} />}
         {active === "notifications" && <NotificationsFlow />}
@@ -171,7 +185,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       {showDock && (
         <>
           <VoiceBar onTap={() => setCaptureOpen(true)} />
-          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
+          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
         </>
       )}
       {captureOpen && <QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} />}
