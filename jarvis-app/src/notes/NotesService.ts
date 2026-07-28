@@ -64,6 +64,20 @@ export class NotesService {
     return b.id;
   }
 
+  // Canvas typing flow: pressing Enter continues the document, so new blocks
+  // land right after the one being written, not at the end of the note.
+  async insertBlockAfter(id: string, afterBlockId: string, block: Omit<Block, "id">): Promise<string | null> {
+    const note = await this.getNote(id);
+    if (!note) return null;
+    const idx = note.blocks.findIndex((b) => b.id === afterBlockId);
+    if (idx < 0) return this.addBlock(id, block);
+    const b: Block = { id: genId("b"), ...block };
+    const blocks = [...note.blocks.slice(0, idx + 1), b, ...note.blocks.slice(idx + 1)];
+    await this.store.update(this.ownerId, id, { blocks } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
+    return b.id;
+  }
+
   async addChecklist(id: string, items: string[]): Promise<string | null> {
     const checklistItems: ChecklistItem[] = items.map((t) => ({ text: t, done: false }));
     return this.addBlock(id, { type: "checklist", items: checklistItems });

@@ -13,6 +13,10 @@ export interface ProfileData {
   gmail: boolean;
   connections?: Record<string, boolean>;
   notify?: { overdue: boolean; events: boolean; goals: boolean };
+  // ADHD check-ins: per-day answers keyed by ISO date. one = the pinned ONE
+  // thing (task id), mood = evening answer, skip = question ids dismissed for
+  // the day (never re-asked; the feature must not nag).
+  checkin?: Record<string, { one?: string; mood?: string; skip?: string[] }>;
   calendar: boolean;
   priority?: string;
   role?: "user" | "admin"; // reserved; real enforcement is server-side (RLS)

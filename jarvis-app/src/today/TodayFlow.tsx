@@ -7,6 +7,7 @@ import { greetingFor, longDate, shortDate } from "./greeting";
 import { tomorrowISO, nowHHMM, daySummary, todaysTasks } from "./todayData";
 import TodayPage from "./TodayPage";
 import TodaySuggestions from "./TodaySuggestions";
+import CheckIn from "./CheckIn";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import PlanDaySheet from "../schedule/screens/PlanDaySheet";
 import { aiPlanDay } from "../schedule/planDayAI";
@@ -163,7 +164,7 @@ export default function TodayFlow({
       onOpenTask={onOpenTask}
       onPlanDay={() => setPlanOpen(true)}
       today={today}
-      suggestions={<TodaySuggestions ai={ai} />}
+      suggestions={<><CheckIn onChanged={() => { void reload(); }} /><TodaySuggestions ai={ai} /></>}
       onSearch={onSearch}
       onProfile={onProfile}
       onSeeAllSchedule={onGoSchedule}

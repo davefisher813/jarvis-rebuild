@@ -14,6 +14,13 @@ export interface BackupBundle {
   items: BackupItem[];
 }
 
+// Entity types this app knows how to render. Import refuses to write anything
+// else, so a tampered or future-version bundle can't seed unrenderable rows.
+const KNOWN_TYPES = new Set([
+  "note", "task", "event", "category", "person", "profile",
+  "project", "goal", "life_area", "account", "routine",
+]);
+
 export class BackupService {
   constructor(private store: Store, private ownerId: string) {}
 
@@ -29,15 +36,29 @@ export class BackupService {
 
   // Returns the number of records written. Throws on a file that is not a
   // JARVIS backup so the UI can show a clear message.
+  //
+  // All-or-nothing: if any write fails mid-loop, every record this import
+  // already created is deleted before the error surfaces, so a half-restored
+  // account can't happen. Unknown entity types are skipped, never written.
   async importBundle(bundle: BackupBundle): Promise<number> {
     if (!bundle || bundle.app !== "jarvis" || !Array.isArray(bundle.items)) {
       throw new Error("This file is not a JARVIS backup.");
     }
+    const created: string[] = [];
     let n = 0;
-    for (const it of bundle.items) {
-      if (!it || typeof it.entityType !== "string" || typeof it.data !== "object" || it.data === null) continue;
-      await this.store.create(this.ownerId, it.entityType, it.data as ItemData);
-      n++;
+    try {
+      for (const it of bundle.items) {
+        if (!it || typeof it.entityType !== "string" || typeof it.data !== "object" || it.data === null) continue;
+        if (!KNOWN_TYPES.has(it.entityType)) continue;
+        const id = await this.store.create(this.ownerId, it.entityType, it.data as ItemData);
+        created.push(id);
+        n++;
+      }
+    } catch (err) {
+      for (const id of created.reverse()) {
+        try { await this.store.delete(this.ownerId, id); } catch { /* keep rolling back */ }
+      }
+      throw new Error("Import failed part-way; everything was rolled back. Nothing was changed.");
     }
     return n;
   }

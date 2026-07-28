@@ -4,7 +4,8 @@
 export const ENTITY_CATEGORY = "category";
 
 export type ColorSlot =
-  | "red"
+  | "red" // legacy only: existing data renders as orange, picker no longer offers it
+  | "orange"
   | "sky"
   | "pink"
   | "yellow"
@@ -14,7 +15,7 @@ export type ColorSlot =
   | "graphite";
 
 export const COLOR_SLOTS: ColorSlot[] = [
-  "red",
+  "orange",
   "sky",
   "pink",
   "yellow",

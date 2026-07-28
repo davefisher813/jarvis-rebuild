@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { runSearch, totalHits, type SearchInput } from "./search";
+import { runSearch, totalHits, buildSuggestionIndex, suggest, type SearchInput } from "./search";
 
 const data: SearchInput = {
   tasks: [{ id: "t1", data: { text: "Email Sam", done: false, category: "" } }],
@@ -22,10 +22,40 @@ describe("runSearch", () => {
     expect(r.accounts[0]!.name).toBe("Sam savings");
     expect(r.categories[0]!.name).toBe("Sam");
   });
+
+  it("finds a note by text inside its blocks, not just the title", () => {
+    const withBody: SearchInput = {
+      ...data,
+      notes: [{
+        id: "n2", ownerId: "u", entityType: "note", serverTime: 0,
+        data: {
+          title: "Untitled thoughts",
+          category: "",
+          connections: [],
+          blocks: [
+            { id: "b1", type: "text", text: "call the venue about deposits" },
+            { id: "b2", type: "checklist", items: [{ text: "book photographer", done: false }] },
+          ],
+        } as never,
+      }],
+    };
+    expect(runSearch("deposits", withBody).notes.length).toBe(1);
+    expect(runSearch("photographer", withBody).notes.length).toBe(1);
+    expect(runSearch("nowhere", withBody).notes.length).toBe(0);
+  });
   it("returns nothing for an empty query", () => {
     expect(totalHits(runSearch("   ", data))).toBe(0);
   });
   it("returns nothing when no match", () => {
     expect(totalHits(runSearch("zzz", data))).toBe(0);
+  });
+});
+
+describe("type-ahead", () => {
+  it("completes the word being typed from the user's content", () => {
+    const idx = buildSuggestionIndex(data);
+    expect(suggest("sa", idx)).toContain("sam");
+    expect(suggest("lunch sa", idx)[0]).toBe("lunch sam");
+    expect(suggest("s", idx)).toEqual([]); // needs 2+ chars
   });
 });

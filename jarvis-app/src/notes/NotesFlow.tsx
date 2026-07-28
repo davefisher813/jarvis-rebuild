@@ -93,6 +93,51 @@ export default function NotesFlow({
   const [list, setList] = useState<NoteListItem[]>([]);
   const [current, setCurrent] = useState<EditorNote | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
+  // Canvas typing flow: which block should hold the caret after a mutation.
+  const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
+  const enterAt = async (blockId: string, text: string) => {
+    if (!currentId) return;
+    await svc.editBlock(currentId, blockId, { text });
+    const newId = await svc.insertBlockAfter(currentId, blockId, { type: "text", text: "" });
+    await loadCurrent(currentId);
+    setFocusBlockId(newId);
+  };
+  const backspaceAt = async (blockId: string) => {
+    if (!currentId || !current) return;
+    const idx = current.blocks.findIndex((b) => b.id === blockId);
+    const prev = [...current.blocks.slice(0, idx)].reverse().find((b) => b.type === "text" || b.type === "heading");
+    await svc.deleteBlock(currentId, blockId);
+    await loadCurrent(currentId);
+    setFocusBlockId(prev?.id ?? null);
+  };
+  const transformAt = async (blockId: string, prefix: "#" | "[]" | "-" | "1.", rest: string) => {
+    if (!currentId) return;
+    if (prefix === "#") await svc.editBlock(currentId, blockId, { type: "heading", text: rest });
+    else if (prefix === "[]") await svc.editBlock(currentId, blockId, { type: "checklist", text: undefined, items: [{ text: rest, done: false }] });
+    else if (prefix === "-") await svc.editBlock(currentId, blockId, { type: "bulleted_list", text: undefined, items: [rest] });
+    else await svc.editBlock(currentId, blockId, { type: "numbered_list", text: undefined, items: [rest] });
+    await loadCurrent(currentId);
+    setFocusBlockId(prefix === "#" ? blockId : prefix === "-" || prefix === "1." ? blockId + ":0" : null);
+  };
+  const listItems = async (blockId: string, items: string[], focusKey: string | null) => {
+    if (!currentId) return;
+    await svc.editBlock(currentId, blockId, { items });
+    await loadCurrent(currentId);
+    setFocusBlockId(focusKey);
+  };
+  const listExit = async (blockId: string, remaining: string[]) => {
+    if (!currentId) return;
+    if (remaining.length === 0) {
+      await svc.editBlock(currentId, blockId, { type: "text", text: "", items: undefined });
+      await loadCurrent(currentId);
+      setFocusBlockId(blockId);
+    } else {
+      await svc.editBlock(currentId, blockId, { items: remaining });
+      const newId = await svc.insertBlockAfter(currentId, blockId, { type: "text", text: "" });
+      await loadCurrent(currentId);
+      setFocusBlockId(newId);
+    }
+  };
   const [addBlockOpen, setAddBlockOpen] = useState(false);
   const [conns, setConns] = useState<Connection[]>([]);
   const [linkEvents, setLinkEvents] = useState<{ id: string; title: string }[]>([]);
@@ -301,6 +346,12 @@ export default function NotesFlow({
     <>
       {current && (
         <NoteEditor
+          focusBlockId={focusBlockId}
+          onEnterAt={enterAt}
+          onBackspaceAt={backspaceAt}
+          onTransformAt={transformAt}
+          onListItems={listItems}
+          onListExit={listExit}
           note={current}
           onBack={() => { setScreen("list"); loadList(); }}
           onConnections={() => setScreen("connections")}

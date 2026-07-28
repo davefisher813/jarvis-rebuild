@@ -30,7 +30,7 @@
 .nav-action .ic { width: 24px; height: 24px; }
 /* groups header action buttons on the right (e.g. connections + delete) */
 .nav-actions { display: flex; align-items: center; gap: var(--s-1); }
-.nav-action.danger { color: var(--red); }
+.nav-action.danger { color: var(--sys-red); }
 .nav-back .ic { width: 24px; height: 24px; }
 .tab .ic { width: 26px; height: 26px; }
 
@@ -139,10 +139,11 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    pick a slot; this replaces the org-named keys (tucci/elite/bffsa). Same values as
    the originals, just neutral names. Light fills carry a dark glyph for contrast. */
 :root {
-  --cat-red: #FF1F30; --cat-sky: #5AC8FA; --cat-pink: #FF85B8; --cat-yellow: #FFCC00;
+  --cat-red: #FF1F30; --cat-orange: #FF9F0A; --cat-sky: #5AC8FA; --cat-pink: #FF85B8; --cat-yellow: #FFCC00;
   --cat-green: #34D572; --cat-blue: #5E9BFF; --cat-teal: #4FE0BE; --cat-graphite: #8E8E93;
 }
 .cat-bg-red { background: var(--cat-red); } .cat-bd-red { border-color: var(--cat-red); } .cat-fg-red { color: var(--cat-red); }
+.cat-bg-orange { background: var(--cat-orange); } .cat-bd-orange { border-color: var(--cat-orange); } .cat-fg-orange { color: var(--cat-orange); }
 .cat-bg-sky { background: var(--cat-sky); color: var(--on-fill-dark); } .cat-bd-sky { border-color: var(--cat-sky); } .cat-fg-sky { color: var(--cat-sky); }
 .cat-bg-pink { background: var(--cat-pink); } .cat-bd-pink { border-color: var(--cat-pink); } .cat-fg-pink { color: var(--cat-pink); }
 .cat-bg-yellow { background: var(--cat-yellow); color: var(--on-fill-dark); } .cat-bd-yellow { border-color: var(--cat-yellow); } .cat-fg-yellow { color: var(--cat-yellow); }
@@ -480,7 +481,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .clear-done { display: flex; justify-content: flex-end; padding-bottom: var(--s-2); }
 
 .tab { position: relative; }
-.tab-badge { position: absolute; top: 2px; left: calc(50% + 8px); min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--r-pill); background: var(--accent); color: #fff; font-size: 10px; font-weight: var(--w-bold); line-height: 16px; text-align: center; }
+.tab-badge { position: absolute; top: 2px; left: calc(50% + 8px); min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--r-pill); background: var(--sys-red); color: #fff; font-size: 10px; font-weight: var(--w-bold); line-height: 16px; text-align: center; }
 
 .plan-sub { font-size: var(--t-body); color: var(--tx-2); margin-bottom: var(--s-3); line-height: 1.4; }
 .plan-list { display: flex; flex-direction: column; max-height: 40vh; overflow-y: auto; }

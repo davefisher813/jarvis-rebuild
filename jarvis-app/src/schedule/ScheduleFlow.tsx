@@ -140,7 +140,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const openEdit = async (id: string) => {
     const e = await svc.event(id);
     if (!e) return;
-    setSheet({ mode: "edit", id, initial: { title: e.title, date: selected, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none" } });
+    // Use the event's own date, not the currently selected day: editing an
+    // event from another day must not silently move it to the selected date.
+    setSheet({ mode: "edit", id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none" } });
   };
 
   // When arriving via a note connection, jump to the event's own date and open

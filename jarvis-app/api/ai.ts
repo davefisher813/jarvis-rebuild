@@ -1,8 +1,11 @@
 // Vercel Edge function: the ONLY place that calls Anthropic. The API key stays
-// server-side (set ANTHROPIC_API_KEY in Vercel). Requires a signed-in user (the
-// caller's Supabase access token), caps output size, and forwards the request.
-// Real per-user rate limiting (a Supabase-backed counter) is a later add; this
-// already gates to authenticated users and bounds cost per call.
+// server-side (set ANTHROPIC_API_KEY in Vercel). Requires a signed-in user,
+// enforces three cost bounds, then forwards the request:
+//   1. per-user hourly cap   (AI_RATE_PER_HOUR, default 120)
+//   2. global daily ceiling  (AI_GLOBAL_PER_DAY, default 2000) - the kill switch
+//   3. input size cap        (AI_MAX_INPUT_BYTES, default 32768) + output cap
+// Usage is logged BEFORE the upstream call so a failed or concurrent call can
+// never slip under the counter (the old version logged after, which under-counted).
 export const config = { runtime: "edge" };
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
@@ -27,29 +30,57 @@ export default async function handler(req: Request): Promise<Response> {
   });
   if (!who.ok) return json({ error: "Unauthorized" }, 401);
   const me = (await who.json()) as { id?: string };
+  if (!me.id) return json({ error: "Unauthorized" }, 401);
 
-  // Per-user rate limit. Active once SUPABASE_SERVICE_ROLE_KEY is set (same key
-  // the admin endpoints use). Counts this user's AI calls in the last hour from
-  // the ai_usage log and rejects over the cap, bounding cost as users scale.
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const cap = parseInt(process.env.AI_RATE_PER_HOUR || "120", 10);
-  if (serviceKey && me.id && cap > 0) {
-    const since = new Date(Date.now() - 3600000).toISOString();
-    const cr = await fetch(
-      `${supaUrl}/rest/v1/ai_usage?user_id=eq.${me.id}&created_at=gte.${since}&select=id`,
-      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Prefer: "count=exact", Range: "0-0" } });
-    const used = parseInt((cr.headers.get("content-range") || "*/0").split("/")[1] || "0", 10) || 0;
-    if (used >= cap) return json({ error: "Rate limit reached. Try again shortly." }, 429);
-  }
-
+  // Parse and size-check the input BEFORE any counting or upstream work.
+  const raw = await req.text();
+  const maxInput = parseInt(process.env.AI_MAX_INPUT_BYTES || "32768", 10);
+  if (raw.length > maxInput) return json({ error: "Request too large" }, 413);
   let body: { messages?: unknown; system?: unknown };
   try {
-    body = await req.json();
+    body = JSON.parse(raw) as { messages?: unknown; system?: unknown };
   } catch {
     return json({ error: "Bad request" }, 400);
   }
   const messages = Array.isArray(body.messages) ? body.messages : [];
   if (messages.length === 0) return json({ error: "No messages" }, 400);
+
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (serviceKey) {
+    const svc = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Prefer: "count=exact", Range: "0-0" };
+
+    // Global daily ceiling: the kill switch that bounds the whole bill. Counts
+    // every user's calls in the last 24h. Set AI_GLOBAL_PER_DAY in Vercel to
+    // tune; 0 disables AI entirely.
+    const globalCap = parseInt(process.env.AI_GLOBAL_PER_DAY || "2000", 10);
+    const dayAgo = new Date(Date.now() - 86400000).toISOString();
+    const gr = await fetch(`${supaUrl}/rest/v1/ai_usage?created_at=gte.${dayAgo}&select=id`, { headers: svc });
+    const globalUsed = parseInt((gr.headers.get("content-range") || "*/0").split("/")[1] || "0", 10) || 0;
+    if (globalUsed >= globalCap) return json({ error: "AI is temporarily unavailable. Try again later." }, 503);
+
+    // Per-user hourly cap.
+    const cap = parseInt(process.env.AI_RATE_PER_HOUR || "120", 10);
+    if (cap > 0) {
+      const since = new Date(Date.now() - 3600000).toISOString();
+      const cr = await fetch(
+        `${supaUrl}/rest/v1/ai_usage?user_id=eq.${me.id}&created_at=gte.${since}&select=id`,
+        { headers: svc });
+      const used = parseInt((cr.headers.get("content-range") || "*/0").split("/")[1] || "0", 10) || 0;
+      if (used >= cap) return json({ error: "Rate limit reached. Try again shortly." }, 429);
+    }
+  }
+
+  // Log usage BEFORE calling upstream, so concurrent or failed calls still
+  // count toward the caps. Narrows the read-then-act race window and removes
+  // the old under-count. If the log write fails we still serve the request
+  // (availability over perfect accounting), but we no longer count after the fact.
+  try {
+    await fetch(`${supaUrl}/rest/v1/ai_usage`, {
+      method: "POST",
+      headers: { apikey: supaAnon, Authorization: `Bearer ${token}`, "content-type": "application/json", Prefer: "return=minimal" },
+      body: "{}",
+    });
+  } catch { /* never block the reply on analytics */ }
 
   const upstream = await fetch(ANTHROPIC_URL, {
     method: "POST",
@@ -74,15 +105,6 @@ export default async function handler(req: Request): Promise<Response> {
     .filter((b) => b.type === "text")
     .map((b) => b.text ?? "")
     .join("");
-
-  // Best-effort usage log for admin analytics (user_id defaults to auth.uid()).
-  try {
-    await fetch(`${supaUrl}/rest/v1/ai_usage`, {
-      method: "POST",
-      headers: { apikey: supaAnon, Authorization: `Bearer ${token}`, "content-type": "application/json", Prefer: "return=minimal" },
-      body: "{}",
-    });
-  } catch { /* analytics is best-effort; never block the reply */ }
 
   return json({ text });
 }

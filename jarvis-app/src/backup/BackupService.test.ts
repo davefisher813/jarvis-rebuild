@@ -25,3 +25,41 @@ describe("BackupService", () => {
     await expect(s.importBundle({ foo: 1 } as never)).rejects.toThrow();
   });
 });
+
+describe("import hardening", () => {
+  it("skips unknown entity types", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new BackupService(store, "u");
+    const n = await svc.importBundle({
+      app: "jarvis", version: 1, exportedAt: "x",
+      items: [
+        { entityType: "task", data: { text: "ok" } },
+        { entityType: "malware_payload", data: { boom: 1 } },
+      ],
+    } as never);
+    expect(n).toBe(1);
+    const rows = await store.listForUser("u");
+    expect(rows.every((r) => r.entityType === "task")).toBe(true);
+  });
+
+  it("rolls back everything when a write fails mid-loop", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new BackupService(store, "u");
+    let calls = 0;
+    const realCreate = store.create.bind(store);
+    store.create = async (o, t, d) => {
+      calls++;
+      if (calls === 3) throw new Error("db down");
+      return realCreate(o, t, d);
+    };
+    await expect(svc.importBundle({
+      app: "jarvis", version: 1, exportedAt: "x",
+      items: [
+        { entityType: "task", data: { text: "a" } },
+        { entityType: "task", data: { text: "b" } },
+        { entityType: "task", data: { text: "c" } },
+      ],
+    } as never)).rejects.toThrow(/rolled back/);
+    expect((await store.listForUser("u")).length).toBe(0);
+  });
+});

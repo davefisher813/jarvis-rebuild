@@ -1,6 +1,10 @@
-import { useState } from "react";
-import { useProfile, useCategories, usePeople, useRoutine } from "../data/NotesProvider";
-import { wakeFromBrief } from "../routine/types";
+import { useEffect, useState } from "react";
+import { useProfile, useCategories, usePeople, useRoutine, useTasks } from "../data/NotesProvider";
+import { wakeFromBrief, DEFAULT_ROUTINE } from "../routine/types";
+import { localParse } from "../ai/capture";
+import { planDay } from "../schedule/planDay";
+import { todayISO, fmtTime } from "../schedule/calendar";
+import { haptics } from "../shared/haptics";
 import { DEFAULT_CATEGORIES, type CategorySeed, type TemplateKey } from "../categories/defaults";
 import { COLOR_SLOTS } from "../categories/types";
 import { STEPS } from "./steps";
@@ -16,15 +20,37 @@ const X = ic('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y
 
 const TEMPLATE_LABEL: Record<TemplateKey, string> = { personal: "Personal", business: "Business", student: "Student" };
 
+// Work-hour presets seeded by the one-tap workstyle question. "varies" keeps
+// the defaults; everything is refinable later in Brain.
+const WORK_PRESET: Record<string, { workStartMin: number; workEndMin: number } | null> = {
+  "9-5": { workStartMin: 9 * 60, workEndMin: 17 * 60 },
+  early: { workStartMin: 7 * 60, workEndMin: 15 * 60 },
+  late: { workStartMin: 11 * 60, workEndMin: 19 * 60 },
+  varies: null,
+};
+
+// Where the priority task lands: first open slot in the (chosen) work hours,
+// via the same deterministic engine Plan My Day uses. A fresh account has no
+// events, so this is exact, not a guess.
+function slotForPriority(text: string, workStartMin: number, workEndMin: number, now = new Date()) {
+  const plan = planDay([{ id: "p", text, category: "", durationMin: 60 }], [], workStartMin + 30, workEndMin);
+  const start = plan.blocks[0]?.start ?? null;
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const dayWord = nowMin < workEndMin - 60 ? "today" : "tomorrow";
+  return { start, dayWord };
+}
+
 export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const profile = useProfile();
   const categories = useCategories();
   const peopleSvc = usePeople();
   const routine = useRoutine();
+  const tasksSvc = useTasks();
 
   const [idx, setIdx] = useState(0);
   const [name, setName] = useState("");
   const [priority, setPriority] = useState("");
+  const [workStyle, setWorkStyle] = useState("");
   const [textDraft, setTextDraft] = useState("");
   const [template, setTemplate] = useState<TemplateKey>("personal");
   const [seeds, setSeeds] = useState<CategorySeed[]>([]);
@@ -59,12 +85,30 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       if (people.length > 0 && (await peopleSvc.list("inner_circle")).length === 0) {
         for (const name of people) await peopleSvc.create({ name, group: "inner_circle" });
       }
-      // Seed a smarter wake time from the morning-brief choice (people are
-      // usually up when their brief lands). Only if they picked one and have
-      // not already set a routine. Everything else stays at defaults; they
-      // refine in Brain. No extra onboarding step.
-      if (briefTime && !(await routine.isConfigured())) {
-        await routine.save({ wakeMin: wakeFromBrief(briefTime) });
+      // Seed a smarter wake time from the morning-brief choice, and work hours
+      // from the one-tap workstyle answer. Only when routine isn't already set.
+      if ((briefTime || WORK_PRESET[workStyle]) && !(await routine.isConfigured())) {
+        const work = WORK_PRESET[workStyle];
+        await routine.save({
+          ...(briefTime ? { wakeMin: wakeFromBrief(briefTime) } : {}),
+          ...(work ?? {}),
+        });
+      }
+      // The payoff made real: the priority answer becomes an actual task, its
+      // text understood by the capture parser (catches "by Friday", "at 3pm"),
+      // categorized when the parse names a seeded area, due where the plan
+      // engine slotted it.
+      if (priority.trim()) {
+        const today = todayISO();
+        const parsed = localParse(priority, today);
+        const cats = await categories.list();
+        const catHit = parsed.category
+          ? cats.find((c) => c.data.name.toLowerCase() === parsed.category!.toLowerCase())
+          : undefined;
+        const work = WORK_PRESET[workStyle] ?? { workStartMin: DEFAULT_ROUTINE.workStartMin, workEndMin: DEFAULT_ROUTINE.workEndMin };
+        const { dayWord } = slotForPriority(parsed.title || priority, work.workStartMin, work.workEndMin);
+        const due = parsed.date ?? (dayWord === "today" ? today : todayISO(new Date(Date.now() + 86400000)));
+        await tasksSvc.createTask(parsed.title || priority, { category: catHit?.id, due });
       }
     }
     onFinish();
@@ -99,10 +143,22 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       case "categories": return seeds.map((x) => x.name).join(", ");
       case "people": return people.length ? people.join(", ") : "Maybe later";
       case "priority": return priority || "Skipped";
+      case "workstyle": return s.options?.find((o) => o.value === workStyle)?.label ?? "Skipped";
       case "connect": return "Got it";
       case "time": return s.options?.find((o) => o.value === briefTime)?.label ?? "Skip";
       default: return "";
     }
+  };
+
+  // JARVIS's line for a step. The categories step visibly reacts to the
+  // template choice: the app assembles itself around their answer.
+  const promptOf = (s: (typeof STEPS)[number]): string => {
+    if (s.id === "categories" && seeds.length > 0) {
+      const names = seeds.map((x) => x.name);
+      const list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0]!;
+      return `Got it \u2014 for ${TEMPLATE_LABEL[template]}, I\u2019ve set up ${list}. Remove any that don\u2019t fit, or add your own.`;
+    }
+    return s.prompt!;
   };
 
   // ---- intro ----
@@ -132,22 +188,13 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     );
   }
 
-  // ---- done ----
+  // ---- done: the payoff. A live preview of their Today, already moving. ----
   if (step.kind === "done") {
-    return (
-      <div className="ob-screen">
-        <div className="convo">
-          <div className="convo-sender">JARVIS</div>
-          {STEPS.slice(1, idx).map((s) => (
-            <Turn key={s.id} prompt={s.prompt!} answer={answerOf(STEPS.indexOf(s))} />
-          ))}
-          <div className="bubble bubble-ai">{name ? `You\u2019re all set, ${name}. I\u2019ll take it from here.` : step.prompt}</div>
-        </div>
-        <div className="ob-foot">
-          <button className="btn btn-primary btn-block btn-lg" onClick={() => finish(true)} disabled={saving}>Enter JARVIS</button>
-        </div>
-      </div>
-    );
+    const parsed = priority.trim() ? localParse(priority, todayISO()) : null;
+    const work = WORK_PRESET[workStyle] ?? { workStartMin: DEFAULT_ROUTINE.workStartMin, workEndMin: DEFAULT_ROUTINE.workEndMin };
+    const slot = parsed ? slotForPriority(parsed.title || priority, work.workStartMin, work.workEndMin) : null;
+    const slotLine = slot?.start ? `I\u2019ve slotted it for ${slot.dayWord} at ${fmtTime(slot.start)}, right in your working hours.` : "";
+    return <PayoffScreen name={name} briefLabel={STEPS.find((s) => s.id === "time")?.options?.find((o) => o.value === briefTime)?.label} seeds={seeds} taskTitle={parsed ? parsed.title || priority : ""} slotLine={slotLine} saving={saving} onEnter={() => finish(true)} />;
   }
 
   // ---- conversation steps ----
@@ -155,9 +202,9 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     <div className="convo">
       <div className="convo-sender">JARVIS</div>
       {STEPS.slice(1, idx).map((s) => (
-        <Turn key={s.id} prompt={s.prompt!} answer={answerOf(STEPS.indexOf(s))} />
+        <Turn key={s.id} prompt={promptOf(s)} answer={answerOf(STEPS.indexOf(s))} />
       ))}
-      <div className="bubble bubble-ai">{step.prompt}</div>
+      <div className="bubble bubble-ai">{promptOf(step)}</div>
     </div>
   );
 
@@ -197,7 +244,10 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       <div className="convo-foot">
         <div className="convo-chips">
           {step.options!.map((o) => (
-            <div key={o.value} className="chip" role="button" tabIndex={0} onClick={() => pickTemplate(o.value as TemplateKey)}>{o.label}</div>
+            <div key={o.value} className="chip" role="button" tabIndex={0} onClick={() => {
+              if (step.key === "workStyle") { setWorkStyle(o.value); setIdx(idx + 1); }
+              else pickTemplate(o.value as TemplateKey);
+            }}>{o.label}</div>
           ))}
         </div>
       </div>
@@ -231,7 +281,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           <input className="input" placeholder={step.placeholder} value={personDraft} onChange={(e) => setPersonDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addPerson(); }} />
           <button className="convo-send" aria-label="Add person" onClick={addPerson}>{SEND}</button>
         </div>
-        <button className="btn btn-secondary btn-block" onClick={() => setIdx(idx + 1)}>{people.length ? "Continue" : "Skip for now"}</button>
+        <button className="btn btn-secondary btn-block" onClick={() => setIdx(idx + 1)}>{people.length ? "Continue" : "Later \u2014 I\u2019ll add people as I go"}</button>
       </div>
     );
   } else if (step.kind === "connect") {
@@ -247,7 +297,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
             <div className="row-grow"><div className="conn-name">Google Calendar</div><div className="eyebrow">Events show up on Today</div></div>
           </div>
         </div></div>
-        <div className="convo-foot"><div className="input-hint">Connect after setup in Settings &middot; Connections.</div><button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>Continue</button></div>
+        <div className="convo-foot"><button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>Continue</button><div className="ob-skip" role="button" tabIndex={0} onClick={() => setIdx(idx + 1)}>Later \u2014 JARVIS works fine without it</div></div>
       </>
     );
   } else if (step.kind === "time") {
@@ -276,5 +326,48 @@ function Turn({ prompt, answer }: { prompt: string; answer: string }) {
       <div className="bubble bubble-ai">{prompt}</div>
       {answer && <div className="bubble bubble-user">{answer}</div>}
     </>
+  );
+}
+
+// The last screen a new user sees: their Today, already assembled. Uses the
+// same card/row atoms as the real Today so entering the app matches the
+// preview, and the row-stagger entrance makes it assemble on screen.
+function PayoffScreen({ name, briefLabel, seeds, taskTitle, slotLine, saving, onEnter }: {
+  name: string;
+  briefLabel?: string;
+  seeds: CategorySeed[];
+  taskTitle: string;
+  slotLine: string;
+  saving: boolean;
+  onEnter: () => void;
+}) {
+  useEffect(() => { haptics.success(); }, []);
+  return (
+    <div className="ob-screen">
+      <div className="ob-body">
+        <div className="ob-card-title">{name ? `You\u2019re set, ${name}.` : "You\u2019re set."}</div>
+        <div className="ob-sub">Here\u2019s your day, already moving.</div>
+        <div className="grp"><div className="eyebrow">Today</div></div>
+        <div className="pad-x"><div className="card">
+          {briefLabel && (
+            <div className="row"><div className="row-grow"><div className="conn-name">Morning brief</div></div><span className="row-status">{briefLabel}</span></div>
+          )}
+          <div className="row">
+            <div className="row-grow"><div className="conn-name">Your areas</div></div>
+            {seeds.slice(0, 6).map((s, i) => <span key={i} className={"cat-dot cat-bg-" + s.color} />)}
+          </div>
+          {taskTitle && (
+            <div className="row">
+              <span className="task-check" aria-hidden="true" />
+              <div className="row-grow"><div className="conn-name">{taskTitle}</div><div className="eyebrow">Your top priority</div></div>
+            </div>
+          )}
+        </div></div>
+        {slotLine && <div className="ob-privacy"><div className="ob-privacy-txt">{slotLine} Tap it when it\u2019s done \u2014 I love that part.</div></div>}
+      </div>
+      <div className="ob-foot">
+        <button className="btn btn-primary btn-block btn-lg" onClick={onEnter} disabled={saving}>Enter JARVIS</button>
+      </div>
+    </div>
   );
 }

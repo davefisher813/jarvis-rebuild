@@ -1,0 +1,7 @@
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;background:#000;color:#EDEDF0;max-width:680px;margin:0 auto;padding:40px 20px 80px;line-height:1.65;-webkit-font-smoothing:antialiased}
+h1{font-size:28px;letter-spacing:-.3px}h1 span{color:#FF1F30}
+h2{font-size:18px;margin-top:32px}
+p,li{color:rgba(235,235,245,.78);font-size:15px}
+a{color:#FF1F30;text-decoration:none}
+.updated{color:rgba(235,235,245,.5);font-size:13px}
+.card{background:#1C1C1E;border-radius:14px;padding:16px 18px;margin:14px 0}

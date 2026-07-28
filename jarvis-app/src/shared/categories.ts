@@ -22,8 +22,11 @@ const isSlot = (v: string): v is ColorSlot => (COLOR_SLOTS as string[]).includes
 export function catColor(ref: string | undefined): ColorSlot {
   if (!ref) return "graphite";
   const hit = REGISTRY[ref];
-  if (hit) return hit.color;
-  if (isSlot(ref)) return ref;
+  // Categories never wear the alarm color: legacy "red" categories render as
+  // orange (the picker no longer offers red; brand red is interactive-only,
+  // system red is status-only).
+  if (hit) return hit.color === "red" ? "orange" : hit.color;
+  if (isSlot(ref)) return ref === "red" ? "orange" : ref;
   return "graphite";
 }
 

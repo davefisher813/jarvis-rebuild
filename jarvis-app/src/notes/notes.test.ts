@@ -132,6 +132,16 @@ describe("Notes editing helpers", () => {
     expect(blocks.map((b) => b.id)).toEqual([b1]);
   });
 
+  it("insertBlockAfter lands mid-document, not at the end", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("n", "health"))!;
+    const a = (await svc.addBlock(id, { type: "text", text: "first" }))!;
+    const c = (await svc.addBlock(id, { type: "text", text: "last" }))!;
+    const b = (await svc.insertBlockAfter(id, a, { type: "text", text: "middle" }))!;
+    const blocks = (await svc.note(id))!.blocks;
+    expect(blocks.map((x) => x.id)).toEqual([a, b, c]);
+  });
+
   it("tasksFromChecklist is idempotent and back-links taskIds", async () => {
     const svc = freshService();
     const id = (await svc.createNote("n", "health"))!;

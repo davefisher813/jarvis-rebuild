@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTasks, useSchedule, useNotes, usePeople, useProjects, useMoney, useGoals, useCategories } from "../data/NotesProvider";
-import { runSearch, totalHits, type SearchInput } from "./search";
+import { runSearch, totalHits, buildSuggestionIndex, suggest, type SearchInput } from "./search";
 import { personInitials, slotForName } from "../people/types";
 
 const MAG = (
@@ -35,15 +35,60 @@ export default function SearchFlow({ onClose }: { onClose: () => void }) {
   const empty = q.trim() === "";
   const none = !!results && !empty && totalHits(results) === 0;
 
+  // Word completions from the user's own content: typing "pho" offers
+  // "photographer" if it exists anywhere searchable.
+  const suggestionIndex = useMemo(() => (data ? buildSuggestionIndex(data) : []), [data]);
+  const completions = useMemo(
+    () => (empty ? [] : suggest(q, suggestionIndex)),
+    [q, empty, suggestionIndex],
+  );
+
+  // Recent searches, device-local. A query is remembered when the overlay
+  // closes after finding something; shown before you type.
+  const RECENTS_KEY = "jarvis.recent-searches";
+  const [recents, setRecents] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(RECENTS_KEY) || "[]") as string[]; } catch { return []; }
+  });
+  const close = () => {
+    const query = q.trim();
+    if (query && results && totalHits(results) > 0) {
+      const next = [query, ...recents.filter((r) => r.toLowerCase() !== query.toLowerCase())].slice(0, 8);
+      setRecents(next);
+      try { localStorage.setItem(RECENTS_KEY, JSON.stringify(next)); } catch { /* private mode */ }
+    }
+    onClose();
+  };
+
   return (
     <div className="search-overlay">
       <div className="search-top">
         <div className="search-bar">{MAG}<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything" autoFocus /></div>
-        <button className="search-cancel" onClick={onClose}>Cancel</button>
+        <button className="search-cancel" onClick={close}>Cancel</button>
       </div>
 
+      {completions.length > 0 && (
+        <div className="search-chips">
+          {completions.map((c) => (
+            <button className="search-chip" key={c} onClick={() => setQ(c)}>{c}</button>
+          ))}
+        </div>
+      )}
+
       <div className="search-results">
-        {empty && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">Search tasks, events, notes, people, and more</div></div>}
+        {empty && recents.length > 0 && (
+          <>
+            <div className="sec-head"><div className="sec-left"><div className="sec-title">Recent</div></div></div>
+            <div className="pad-x"><div className="card">
+              {recents.map((r) => (
+                <div className="row" role="button" tabIndex={0} key={r} onClick={() => setQ(r)}>
+                  <div className="conn-name">{r}</div>
+                  <div className="chev"></div>
+                </div>
+              ))}
+            </div></div>
+          </>
+        )}
+        {empty && recents.length === 0 && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">Search tasks, events, notes, people, and more</div></div>}
         {none && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">No matches for &ldquo;{q.trim()}&rdquo;</div></div>}
 
         {results && !empty && results.events.length > 0 && (

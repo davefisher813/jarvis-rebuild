@@ -137,7 +137,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 
 /* v2.2 GATE color: category tile glyph size + file-type color glyphs (Files-app convention) */
 .proj-icon .ic { width: 16px; height: 16px; }
-.fg-good{color:var(--good);flex-shrink:0} .fg-red{color:var(--red);flex-shrink:0} .fg-blue{color:var(--blue);flex-shrink:0} .fg-warn{color:var(--warn);flex-shrink:0}
+.fg-good{color:var(--good);flex-shrink:0} .fg-red{color:var(--sys-red);flex-shrink:0} .fg-blue{color:var(--blue);flex-shrink:0} .fg-warn{color:var(--warn);flex-shrink:0}
 
 /* ============================================================
    v2.3  R3: Maps / Notifications / Money / Charts.
@@ -245,7 +245,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .block-menu { position:absolute; right:0; top:var(--s-7); z-index:50; background:var(--surface-3); border-radius:var(--r-md); padding:var(--s-1); min-width:160px; box-shadow:var(--shadow-card); }
 .block-menu-item { display:flex; align-items:center; gap:var(--s-2); width:100%; background:0; border:0; color:var(--tx-1); font-family:var(--f); font-size:var(--t-body); padding:var(--s-2h) var(--s-3); border-radius:var(--r-sm); min-height:var(--tap-min); }
 .block-menu-item .ic { width:17px; height:17px; }
-.block-menu-item.danger { color:var(--red); }
+.block-menu-item.danger { color:var(--sys-red); }
 .block-menu-item:active { background:var(--press-3); }
 /* placeholder text for empty editable lines, so a blank line shows a cue */
 [contenteditable][data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--tx-4); pointer-events: none; }
@@ -330,3 +330,8 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .row, .task-row, .conn-row, .msg-row, .sched-row, .proj-row, .suggestion-row, .lifemap-row { padding: var(--s-3) var(--s-4); min-height: var(--tap-min); }
 /* keep the player / voice / convo blocks on the 16pt margin too */
 .np, .np-meta, .np-context, .np-head, .volume, .np-tools, .convo, .convo-actions, .lockin, .voice-screen { padding-left: var(--s-4); padding-right: var(--s-4); }
+/* type-ahead completion chips under the search bar */
+.search-chips { display:flex; gap:var(--s-2); padding:var(--s-2) var(--s-4) 0; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+.search-chips::-webkit-scrollbar { display:none; }
+.search-chip { flex-shrink:0; background:var(--surface-3); border:0; color:var(--tx-1); font-family:var(--f); font-size:var(--t-body); padding:var(--s-1h) var(--s-3); border-radius:var(--r-pill); min-height:var(--tap-min); }
+.search-chip:active { background:var(--press-3); }
