@@ -19,7 +19,6 @@ export interface ProfileData {
   checkin?: Record<string, { one?: string; mood?: string; skip?: string[] }>;
   calendar: boolean;
   priority?: string;
-  role?: "user" | "admin"; // reserved; real enforcement is server-side (RLS)
   onboarded: boolean;
 }
 

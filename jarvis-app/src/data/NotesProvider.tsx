@@ -31,6 +31,9 @@ const ProjectContext = createContext<ProjectsService | null>(null);
 const MoneyContext = createContext<MoneyService | null>(null);
 const BackupContext = createContext<BackupService | null>(null);
 const RoutineContext = createContext<RoutineService | null>(null);
+// The Supabase access token, for callers that hit privileged endpoints (e.g.
+// the admin check). Undefined when signed out or in the local harness.
+const TokenContext = createContext<string | undefined>(undefined);
 
 export function NotesProvider({
   userId,
@@ -60,6 +63,7 @@ export function NotesProvider({
     };
   }, [userId, accessToken]);
   return (
+    <TokenContext.Provider value={accessToken}>
     <NotesContext.Provider value={notes}>
       <TasksContext.Provider value={tasks}>
         <ScheduleContext.Provider value={schedule}>
@@ -85,6 +89,7 @@ export function NotesProvider({
         </ScheduleContext.Provider>
       </TasksContext.Provider>
     </NotesContext.Provider>
+    </TokenContext.Provider>
   );
 }
 
@@ -164,4 +169,8 @@ export function useBackup(): BackupService {
   const s = useContext(BackupContext);
   if (!s) throw new Error("useBackup must be used inside NotesProvider");
   return s;
+}
+
+export function useAccessToken(): string | undefined {
+  return useContext(TokenContext);
 }

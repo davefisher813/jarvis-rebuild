@@ -46,27 +46,42 @@ export default async function handler(req: Request): Promise<Response> {
   if (messages.length === 0) return json({ error: "No messages" }, 400);
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const globalCap = parseInt(process.env.AI_GLOBAL_PER_DAY || "2000", 10);
+  const cap = parseInt(process.env.AI_RATE_PER_HOUR || "120", 10);
+  let counted = false;
   if (serviceKey) {
-    const svc = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Prefer: "count=exact", Range: "0-0" };
-
-    // Global daily ceiling: the kill switch that bounds the whole bill. Counts
-    // every user's calls in the last 24h. Set AI_GLOBAL_PER_DAY in Vercel to
-    // tune; 0 disables AI entirely.
-    const globalCap = parseInt(process.env.AI_GLOBAL_PER_DAY || "2000", 10);
-    const dayAgo = new Date(Date.now() - 86400000).toISOString();
-    const gr = await fetch(`${supaUrl}/rest/v1/ai_usage?created_at=gte.${dayAgo}&select=id`, { headers: svc });
-    const globalUsed = parseInt((gr.headers.get("content-range") || "*/0").split("/")[1] || "0", 10) || 0;
-    if (globalUsed >= globalCap) return json({ error: "AI is temporarily unavailable. Try again later." }, 503);
-
-    // Per-user hourly cap.
-    const cap = parseInt(process.env.AI_RATE_PER_HOUR || "120", 10);
-    if (cap > 0) {
-      const since = new Date(Date.now() - 3600000).toISOString();
-      const cr = await fetch(
-        `${supaUrl}/rest/v1/ai_usage?user_id=eq.${me.id}&created_at=gte.${since}&select=id`,
-        { headers: svc });
-      const used = parseInt((cr.headers.get("content-range") || "*/0").split("/")[1] || "0", 10) || 0;
-      if (used >= cap) return json({ error: "Rate limit reached. Try again shortly." }, 429);
+    const svcJson = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "content-type": "application/json" };
+    // Airtight path: one atomic check-and-record in the database (migration
+    // 0013). Exact under concurrency. If the function isn't installed yet the
+    // call 404s and we fall back to the legacy two-step check below.
+    const rpc = await fetch(`${supaUrl}/rest/v1/rpc/ai_try_consume`, {
+      method: "POST",
+      headers: svcJson,
+      body: JSON.stringify({ p_user: me.id, p_user_cap: cap, p_global_cap: globalCap }),
+    });
+    if (rpc.ok) {
+      const verdict = (await rpc.json()) as { allowed?: boolean; reason?: string };
+      if (!verdict.allowed) {
+        return verdict.reason === "user"
+          ? json({ error: "Rate limit reached. Try again shortly." }, 429)
+          : json({ error: "AI is temporarily unavailable. Try again later." }, 503);
+      }
+      counted = true;
+    } else {
+      // Legacy fallback (pre-migration): read counts, then record below.
+      const svc = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Prefer: "count=exact", Range: "0-0" };
+      const dayAgo = new Date(Date.now() - 86400000).toISOString();
+      const gr = await fetch(`${supaUrl}/rest/v1/ai_usage?created_at=gte.${dayAgo}&select=id`, { headers: svc });
+      const globalUsed = parseInt((gr.headers.get("content-range") || "*/0").split("/")[1] || "0", 10) || 0;
+      if (globalUsed >= globalCap) return json({ error: "AI is temporarily unavailable. Try again later." }, 503);
+      if (cap > 0) {
+        const since = new Date(Date.now() - 3600000).toISOString();
+        const cr = await fetch(
+          `${supaUrl}/rest/v1/ai_usage?user_id=eq.${me.id}&created_at=gte.${since}&select=id`,
+          { headers: svc });
+        const used = parseInt((cr.headers.get("content-range") || "*/0").split("/")[1] || "0", 10) || 0;
+        if (used >= cap) return json({ error: "Rate limit reached. Try again shortly." }, 429);
+      }
     }
   }
 
@@ -75,7 +90,7 @@ export default async function handler(req: Request): Promise<Response> {
   // the old under-count. If the log write fails we still serve the request
   // (availability over perfect accounting), but we no longer count after the fact.
   try {
-    await fetch(`${supaUrl}/rest/v1/ai_usage`, {
+    if (!counted) await fetch(`${supaUrl}/rest/v1/ai_usage`, {
       method: "POST",
       headers: { apikey: supaAnon, Authorization: `Bearer ${token}`, "content-type": "application/json", Prefer: "return=minimal" },
       body: "{}",
