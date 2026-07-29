@@ -71,7 +71,8 @@
   --tint: #5E9BFF;
   --red-tint: rgba(255,31,48,0.16); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(52,213,114,0.16);
   --glass-bg: rgba(28,28,32,0.55);
-  --rim-card: rgba(255,255,255,0.14); --rim-bottom: rgba(0,0,0,0.55);
+  /* rim raised 0.14 -> 0.20 so glass edges catch light on OLED (RDB, Dave 2026-07-29) */
+  --rim-card: rgba(255,255,255,0.20); --rim-bottom: rgba(0,0,0,0.55);
   --nav-bg: rgba(0,0,0,0.65);
   --skel: rgba(255,255,255,0.06); --skel-shim: rgba(255,255,255,0.12);
   --shadow-card: 0 6px 22px rgba(0,0,0,0.55);
@@ -155,7 +156,11 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 
 /* BUTTONS */
 .btn { display: inline-flex; align-items: center; justify-content: center; font-family: var(--f); font-size: var(--t-h3); font-weight: var(--w-semi); height: 50px; padding: 0 var(--s-6); border-radius: var(--r-pill); border: 0; letter-spacing: var(--track-default); min-width: var(--tap-min); cursor: pointer; }
+/* Primary keeps the flat brand fill; the soft glow gives it presence on OLED
+   dark (RDB, Dave 2026-07-29: glow yes, gradient no). Dark theme only: a red
+   halo reads as a smudge on light surfaces. */
 .btn-primary { background: var(--accent); color: #fff; }
+[data-theme="dark"] .btn-primary { box-shadow: 0 4px 16px rgba(255,31,48,0.28); }
 .btn-secondary { background: var(--press-3); color: var(--tx-1); }
 .btn-tertiary { background: transparent; color: var(--tint); }
 .btn-danger { background: var(--sys-red); color: #fff; }

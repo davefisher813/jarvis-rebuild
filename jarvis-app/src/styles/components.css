@@ -392,9 +392,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .empty-state.empty-compact { min-height: 0; padding: var(--s-6) var(--s-5) var(--s-4); }
 
 /* Time-of-day hero tint: a whisper of warmth in the morning, cool dim in the
-   evening. Gradient only; no layout change. */
-.today-hero.hero-morning { background: linear-gradient(180deg, rgba(255,159,10,0.07), transparent 85%); }
-.today-hero.hero-evening { background: linear-gradient(180deg, rgba(94,155,255,0.06), transparent 85%); }
+   evening. Gradient only; no layout change. Dark theme only: on light
+   surfaces the same gradients read as dirty color bands (light QA 2026-07-29). */
+[data-theme="dark"] .today-hero.hero-morning { background: linear-gradient(180deg, rgba(255,159,10,0.07), transparent 85%); }
+[data-theme="dark"] .today-hero.hero-evening { background: linear-gradient(180deg, rgba(94,155,255,0.06), transparent 85%); }
 
 @media (prefers-reduced-motion: reduce) { .burst i, .day-ring.done { animation: none; } }
 
