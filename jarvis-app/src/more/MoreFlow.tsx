@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import MorePage, { type MoreRoute } from "./MorePage";
 import { usePushDepth } from "../shared/pushNav";
 import ProfilePage from "../settings/ProfilePage";
@@ -16,7 +16,8 @@ import CategoriesFlow from "../categories/CategoriesFlow";
 import ConnectionsPage from "../connections/ConnectionsPage";
 import EditTabsPage from "./EditTabsPage";
 import type { Destination } from "../shell/destinations";
-import AdminPanel from "../admin/AdminPanel";
+// Admin is a hidden owner-only surface; its chunk loads on first open.
+const AdminPanel = lazy(() => import("../admin/AdminPanel"));
 import { createAdminApi, makeSampleAdminSource } from "../admin/AdminService";
 import { useIsAdmin } from "../admin/useIsAdmin";
 import { useAuth } from "../auth/AuthProvider";
@@ -69,7 +70,7 @@ export default function MoreFlow({
   if (route === "account") return <AccountPage onBack={() => setRoute("settings")} onEditProfile={() => setRoute("profile")} onSignOut={onSignOut} />;
   if (route === "notifsettings") return <NotificationsPage onBack={() => setRoute("settings")} />;
   if (route === "about") return <AboutPage onBack={() => setRoute("settings")} onTerms={() => setRoute("terms")} onPrivacy={() => setRoute("privacy")} onSupport={() => setRoute("support")} onSecret={canAdmin ? () => setRoute("admin") : undefined} />;
-  if (route === "admin") return <AdminPanel isAdmin={canAdmin} source={adminSource} onBack={() => setRoute("settings")} />;
+  if (route === "admin") return <Suspense fallback={<div className="screen" />}><AdminPanel isAdmin={canAdmin} source={adminSource} onBack={() => setRoute("settings")} /></Suspense>;
   if (route === "terms") return <TermsPage onBack={() => setRoute("about")} />;
   if (route === "privacy") return <PrivacyPage onBack={() => setRoute("about")} />;
   if (route === "support") return <SupportPage onBack={() => setRoute("about")} />;

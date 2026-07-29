@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import TabBar from "./TabBar";
 import VoiceBar from "./VoiceBar";
 import MoreFlow from "../more/MoreFlow";
@@ -6,20 +6,26 @@ import TasksFlow from "../tasks/TasksFlow";
 import ScheduleFlow from "../schedule/ScheduleFlow";
 import TodayFlow from "../today/TodayFlow";
 import BrainFlow from "../brain/BrainFlow";
-import NotesFlow from "../notes/NotesFlow";
+import { dismissSplash } from "../shared/splash";
+import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, MAX_TABS, extrasFor } from "./destinations";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople } from "../data/NotesProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { useAI } from "../ai/useAI";
-import QuickCapture from "../capture/QuickCapture";
-import SearchFlow from "../search/SearchFlow";
-import LifeMapFlow from "../life/LifeMapFlow";
-import ProjectsFlow from "../projects/ProjectsFlow";
-import MessagesFlow from "../messages/MessagesFlow";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
-import NotificationsFlow from "../notifications/NotificationsFlow";
-import MoneyFlow from "../money/MoneyFlow";
-import InsightsFlow from "../insights/InsightsFlow";
+
+// Heavier, less-visited surfaces load on demand so the startup bundle stays
+// small: the default tabs (Today, Tasks, Schedule, Brain) plus More are enough
+// to launch. Everything else fetches its chunk on first open.
+const NotesFlow = lazy(() => import("../notes/NotesFlow"));
+const LifeMapFlow = lazy(() => import("../life/LifeMapFlow"));
+const ProjectsFlow = lazy(() => import("../projects/ProjectsFlow"));
+const MessagesFlow = lazy(() => import("../messages/MessagesFlow"));
+const NotificationsFlow = lazy(() => import("../notifications/NotificationsFlow"));
+const MoneyFlow = lazy(() => import("../money/MoneyFlow"));
+const InsightsFlow = lazy(() => import("../insights/InsightsFlow"));
+const QuickCapture = lazy(() => import("../capture/QuickCapture"));
+const SearchFlow = lazy(() => import("../search/SearchFlow"));
 import { seedDemoData } from "../data/seed";
 import { setCategoryRegistry } from "../shared/categories";
 import ToastHost from "../shared/ToastHost";
@@ -153,6 +159,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
   const showDock = active === "notes" ? notesChrome : true;
 
+  // The boot splash (index.html) stays up until the shell is actually ready,
+  // then fades. This is the first real UI of a signed-in launch.
+  useEffect(() => { if (ready) dismissSplash(); }, [ready]);
+
   if (!ready) return <div className="app-shell"><div className="app-scroll" /></div>;
 
   return (
@@ -161,6 +171,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       <div className="app-scroll">
         {/* key remounts the flow per tab; no transition class: tab switches
             are instant, like native iOS (RDB, Dave 2026-07-29) */}
+        <Suspense fallback={<SkeletonScreen hero={false} />}>
         <div key={active}>
         {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} />}
         {active === "tasks" && <TasksFlow openId={taskIntent} />}
@@ -184,6 +195,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           />
         )}
         </div>
+        </Suspense>
       </div>
       <ToastHost />
       {showDock && (
@@ -192,8 +204,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
         </>
       )}
-      {captureOpen && <QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} />}
-      {searchOpen && <SearchFlow onClose={() => setSearchOpen(false)} />}
+      {captureOpen && <Suspense fallback={null}><QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} /></Suspense>}
+      {searchOpen && <Suspense fallback={null}><SearchFlow onClose={() => setSearchOpen(false)} /></Suspense>}
     </div>
     </GoogleSessionProvider>
   );

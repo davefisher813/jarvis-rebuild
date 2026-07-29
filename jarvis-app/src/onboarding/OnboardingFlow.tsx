@@ -9,6 +9,7 @@ import { DEFAULT_CATEGORIES, type CategorySeed, type TemplateKey } from "../cate
 import { COLOR_SLOTS } from "../categories/types";
 import { STEPS } from "./steps";
 import { NEW_USER_TABS } from "../shell/destinations";
+import { dismissSplash } from "../shared/splash";
 
 const ic = (d: string) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
@@ -48,6 +49,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const routine = useRoutine();
   const tasksSvc = useTasks();
 
+  useEffect(() => { dismissSplash(); }, []);
   const [idx, setIdx] = useState(0);
   const [name, setName] = useState("");
   const [priority, setPriority] = useState("");

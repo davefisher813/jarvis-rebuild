@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Brain, Mail } from "lucide-react";
 import { useAuth } from "../auth/AuthProvider";
+import { dismissSplash } from "../shared/splash";
 
 // Sign in. "Continue with Email" opens an email + password form (create account
 // or sign in). Apple sign-in returns once an Apple Developer account is set up.
 export default function SignIn() {
   const { signInWithPassword, signUpWithPassword, backendConfigured } = useAuth();
+  useEffect(() => { dismissSplash(); }, []);
   const [view, setView] = useState<"choose" | "email">("choose");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");

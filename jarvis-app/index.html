@@ -14,6 +14,29 @@
     <meta name="apple-mobile-web-app-title" content="JARVIS" />
   </head>
   <body>
+    <!-- Boot splash: pure inline HTML/CSS so the first paint is instant, long
+         before the JS bundle arrives. The app fades it out once real UI is on
+         screen (shared/splash.ts); the timeout below is a safety net so it can
+         never stick. Colors mirror the design system's dark theme tokens. -->
+    <style>
+      #splash { position: fixed; inset: 0; z-index: 9999; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; transition: opacity 200ms ease-out; font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif; }
+      #splash .wm { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; color: #fff; }
+      #splash .wm span { color: #FF2B3C; }
+      #splash .bars { display: flex; flex-direction: column; gap: 10px; width: min(240px, 60vw); }
+      #splash .bar { height: 10px; border-radius: 4px; background: rgba(255,255,255,0.06); animation: splashShimmer 1.4s linear infinite; }
+      #splash .bar:nth-child(2) { width: 78%; animation-delay: 120ms; }
+      #splash .bar:nth-child(3) { width: 56%; animation-delay: 240ms; }
+      @keyframes splashShimmer { 0%,100% { background: rgba(255,255,255,0.06); } 50% { background: rgba(255,255,255,0.12); } }
+      @media (prefers-reduced-motion: reduce) { #splash .bar { animation: none; } }
+    </style>
+    <div id="splash" aria-hidden="true">
+      <div class="wm"><span>J</span>ARVIS</div>
+      <div class="bars"><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
+    </div>
+    <script>
+      // Safety net: never let the splash outlive a hung boot.
+      setTimeout(function () { var s = document.getElementById("splash"); if (s) { s.style.opacity = "0"; setTimeout(function () { s.remove(); }, 250); } }, 10000);
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

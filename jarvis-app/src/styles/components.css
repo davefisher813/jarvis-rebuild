@@ -345,9 +345,69 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .task-row.just-done { animation: taskDoneFlash var(--dur-slow) var(--ease-out); }
 .task-row.just-done .task-check { animation: checkPop 0.42s var(--ease-out); }
 
-/* Tap/press feedback on interactive rows + buttons */
-.row, .task-row, .proj-row, .sched-row, .conn-row, .msg-row, .lm-row, .lifemap-row, .suggestion-row, .settings-row, .cat-row { transition: background var(--dur-fast) var(--ease-out); }
-.row:active, .task-row:active, .proj-row:active, .sched-row:active, .conn-row:active, .msg-row:active, .lm-row:active, .lifemap-row:active, .suggestion-row:active, .settings-row:active, .cat-row:active { background: var(--press-3); }
+/* Completion micro-burst (RDB, Dave 2026-07-29): 8 good-green dots radiate
+   from the checkbox for 420ms on completion. Directions are fixed per dot via
+   nth-child custom properties; no inline styles at call sites. */
+.task-check-tap { position: relative; }
+.burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
+.burst i { position: absolute; left: -2.5px; top: -2.5px; width: 5px; height: 5px; border-radius: var(--r-circle); background: var(--good); animation: burstFly 420ms var(--ease-out) forwards; }
+.burst i:nth-child(1) { --bx: 0px;   --by: -22px; }
+.burst i:nth-child(2) { --bx: 16px;  --by: -16px; }
+.burst i:nth-child(3) { --bx: 22px;  --by: 0px; }
+.burst i:nth-child(4) { --bx: 16px;  --by: 16px; }
+.burst i:nth-child(5) { --bx: 0px;   --by: 22px; }
+.burst i:nth-child(6) { --bx: -16px; --by: 16px; }
+.burst i:nth-child(7) { --bx: -22px; --by: 0px; }
+.burst i:nth-child(8) { --bx: -16px; --by: -16px; }
+@keyframes burstFly { from { transform: none; opacity: 1; } to { transform: translate(var(--bx), var(--by)) scale(0.35); opacity: 0; } }
+
+/* Day progress ring in the Today hero (RDB, Dave 2026-07-29): fills as
+   due-today tasks complete; pops once full. Hidden when nothing is due. */
+.today-hero-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.day-ring { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
+.day-ring svg { transform: rotate(-90deg); }
+.day-ring .track { stroke: var(--press-5); }
+.day-ring .fill { stroke: var(--good); stroke-linecap: round; transition: stroke-dashoffset 500ms var(--ease-out); }
+.day-ring .count { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--tx-2); }
+.day-ring.done { animation: ringPop 480ms var(--ease-spring); }
+@keyframes ringPop { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
+
+/* Skeleton building blocks for loading screens (pairs with .skel-line etc.).
+   All sizing lives here so SkeletonScreen.tsx carries no inline styles. */
+.skel-card { border-radius: var(--r-xl); background: var(--surface-1); padding: var(--s-4); margin: 0 var(--s-4) var(--s-3); }
+.skel-hero { padding: var(--s-1) var(--s-4) var(--s-3); }
+.skel-screen .skel-line { margin-bottom: var(--s-2h); }
+.skel-screen .skel-line:last-child { margin-bottom: 0; }
+.skel-screen .skel-hero .skel-line:nth-child(1) { width: 120px; }
+.skel-screen .skel-hero .skel-line:nth-child(2) { width: 220px; height: 22px; }
+.skel-screen .skel-hero .skel-line:nth-child(3) { width: 160px; }
+.skel-screen .skel-card:nth-of-type(1) .skel-line:nth-child(1) { width: 70%; }
+.skel-screen .skel-card:nth-of-type(1) .skel-line:nth-child(2) { width: 45%; }
+.skel-screen .skel-card:nth-of-type(2) .skel-line:nth-child(1) { width: 60%; }
+.skel-screen .skel-card:nth-of-type(2) .skel-line:nth-child(2) { width: 80%; }
+.skel-screen .skel-card:nth-of-type(2) .skel-line:nth-child(3) { width: 35%; }
+
+/* Compact empty state for use inside cards; the base .empty-state is sized
+   for full screens (65vh). */
+.empty-state.empty-compact { min-height: 0; padding: var(--s-6) var(--s-5) var(--s-4); }
+
+/* Time-of-day hero tint: a whisper of warmth in the morning, cool dim in the
+   evening. Gradient only; no layout change. */
+.today-hero.hero-morning { background: linear-gradient(180deg, rgba(255,159,10,0.07), transparent 85%); }
+.today-hero.hero-evening { background: linear-gradient(180deg, rgba(94,155,255,0.06), transparent 85%); }
+
+@media (prefers-reduced-motion: reduce) { .burst i, .day-ring.done { animation: none; } }
+
+/* Tap/press feedback on interactive rows + buttons. Press uses press-5 so the
+   highlight actually reads on OLED dark (press-3 was invisible; RDB, Dave
+   2026-07-29); pointer hover gets the lighter press-3. */
+.row, .task-row, .proj-row, .sched-row, .conn-row, .msg-row, .lm-row, .lifemap-row, .suggestion-row, .settings-row, .cat-row, .plan-pick { transition: background var(--dur-fast) var(--ease-out); }
+.row:active, .task-row:active, .proj-row:active, .sched-row:active, .conn-row:active, .msg-row:active, .lm-row:active, .lifemap-row:active, .suggestion-row:active, .settings-row:active, .cat-row:active, .plan-pick:active { background: var(--press-5); }
+@media (hover: hover) {
+  .row[role="button"]:hover, .task-row:hover, .proj-row:hover, .sched-row:hover, .conn-row:hover, .msg-row:hover, .lm-row:hover, .lifemap-row:hover, .suggestion-row:hover, .settings-row:hover, .cat-row:hover, .plan-pick:hover { background: var(--press-3); }
+  .chip[role="button"]:hover:not(.active) { background: var(--press-5); }
+  .row[role="button"], .plan-pick, .chip[role="button"] { cursor: pointer; }
+}
 .btn { transition: transform var(--dur-fast) var(--ease-out); }
 .btn:active { transform: scale(0.97); }
 

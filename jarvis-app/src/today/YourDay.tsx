@@ -102,11 +102,19 @@ export default function YourDay({
   );
 
   if (events.length === 0) {
+    // Actionable empty state: an icon, one warm line, and the obvious next
+    // tap, instead of a grey sentence (RDB, Dave 2026-07-29).
     return (
       <div className="yourday">
         {header}
-        {planButton}
-        <div className="pad-x"><div className="card"><div className="empty-state">{emptyText}</div></div></div>
+        <div className="pad-x"><div className="card">
+          <div className="empty-state empty-compact">
+            <div className="empty-icon"><CalIcon /></div>
+            <div className="empty-title">{emptyText}</div>
+            <div className="empty-sub">Want me to build your day around what matters?</div>
+            {onPlanDay && <button className="btn btn-primary" onClick={onPlanDay}><CalIcon />Plan My Day</button>}
+          </div>
+        </div></div>
       </div>
     );
   }

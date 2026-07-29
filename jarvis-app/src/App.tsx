@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useAuth } from "./auth/AuthProvider";
 import { NotesProvider, useProfile } from "./data/NotesProvider";
 import { backendConfigured } from "./data/store";
 import SignIn from "./screens/SignIn";
 import AppShell from "./shell/AppShell";
-import OnboardingFlow from "./onboarding/OnboardingFlow";
+
+// Onboarding is a one-time surface; keep it out of the startup bundle that
+// every returning user pays for.
+const OnboardingFlow = lazy(() => import("./onboarding/OnboardingFlow"));
 
 // First-run gate (inside the provider so it can read the profile): show the
 // conversational onboarding until there is an onboarded profile, then the app.
@@ -26,7 +29,9 @@ function AppGate({ seedDemo = false }: { seedDemo?: boolean }) {
   if (state === "onboarding") {
     return (
       <div className="ob-host">
-        <OnboardingFlow onFinish={() => setState("app")} />
+        <Suspense fallback={null}>
+          <OnboardingFlow onFinish={() => setState("app")} />
+        </Suspense>
       </div>
     );
   }

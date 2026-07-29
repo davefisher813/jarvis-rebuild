@@ -7,6 +7,8 @@ import { catColor, catName } from "../shared/categories";
 import type { DaySummary } from "./todayData";
 import RollingNumber from "../shared/RollingNumber";
 import YourDay from "./YourDay";
+import DayRing from "./DayRing";
+import { Burst, useBurst } from "../shared/Burst";
 import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats } from "./evening";
 
 const URGENCY_CLASS: Record<UrgencyKind, string> = {
@@ -14,6 +16,21 @@ const URGENCY_CLASS: Record<UrgencyKind, string> = {
   today: "urgency-warn",
   soon: "urgency-muted",
 };
+
+// One task row with the completion micro-burst wired to the check tap.
+function TaskRow({ t, u, onToggle, onOpen }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; onToggle?: () => void; onOpen?: () => void }) {
+  const [bursting, fireBurst] = useBurst();
+  return (
+    <div className="task-row">
+      <div className="task-check-tap" role="checkbox" aria-checked={t.data.done} aria-label={t.data.done ? "Mark not done" : "Mark done"} onClick={() => { if (!t.data.done) fireBurst(); onToggle?.(); }}>
+        <div className={"task-check " + (t.data.done ? "done" : "cat-bd-" + catColor(t.data.category))} />
+        <Burst show={bursting} />
+      </div>
+      <div className="task-title" role="button" tabIndex={0} onClick={onOpen}>{t.data.text}</div>
+      {u && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
+    </div>
+  );
+}
 
 const CheckIcon = () => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -60,6 +77,8 @@ export default function TodayPage({
   onSearch,
   onProfile,
   evening,
+  ring,
+  daypart,
 }: {
   greeting: string;
   dateLong: string;
@@ -81,6 +100,8 @@ export default function TodayPage({
   onSearch?: () => void;
   onProfile?: () => void;
   evening?: EveningStats;
+  ring?: { done: number; total: number };
+  daypart?: "morning" | "evening" | null;
 }) {
   const parts: JSX.Element[] = [];
   parts.push(<span key="e"><RollingNumber value={summary.events} /> {summary.events === 1 ? "event" : "events"}</span>);
@@ -102,18 +123,9 @@ export default function TodayPage({
       </div>
       <div className="pad-x">
         <div className="card">
-          {tasks.map((t) => {
-            const u = evening ? null : urgencyFor(t.data, today);
-            return (
-              <div className="task-row" key={t.id}>
-                <div className="task-check-tap" role="checkbox" aria-checked={t.data.done} aria-label={t.data.done ? "Mark not done" : "Mark done"} onClick={() => onToggleTask?.(t.id)}>
-                  <div className={"task-check " + (t.data.done ? "done" : "cat-bd-" + catColor(t.data.category))} />
-                </div>
-                <div className="task-title" role="button" tabIndex={0} onClick={() => onOpenTask?.(t.id)}>{t.data.text}</div>
-                {u && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
-              </div>
-            );
-          })}
+          {tasks.map((t) => (
+            <TaskRow key={t.id} t={t} u={evening ? null : urgencyFor(t.data, today)} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
+          ))}
         </div>
       </div>
       {evening && <div className="pad-x"><div className="input-help">{EVENING_TASKS_NOTE}</div></div>}
@@ -150,10 +162,15 @@ export default function TodayPage({
           </button>
         ) : <div className="today-av" aria-hidden="true" />}
       </div>
-      <div className="today-hero">
-        <div className="eyebrow">{dateLong}</div>
-        <div className="today-title">{greeting}</div>
-        <div className="today-summary">{evening ? eveningSummary(evening) : parts}</div>
+      <div className={"today-hero" + (daypart === "morning" ? " hero-morning" : daypart === "evening" ? " hero-evening" : "")}>
+        <div className="today-hero-row">
+          <div>
+            <div className="eyebrow">{dateLong}</div>
+            <div className="today-title">{greeting}</div>
+            <div className="today-summary">{evening ? eveningSummary(evening) : parts}</div>
+          </div>
+          {ring && <DayRing done={ring.done} total={ring.total} />}
+        </div>
       </div>
 
       {suggestions}

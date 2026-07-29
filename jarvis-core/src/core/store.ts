@@ -11,11 +11,26 @@ import type { ApplyResult, Item, ItemData, QueuedOp, ServerTime } from "./types.
 export class Store {
   private online = true;
   private queue: QueuedOp[] = [];
+  // Short-lived read cache for listForUser. Every app service reads through
+  // listForUser, so a cold app start used to issue 10+ identical full fetches
+  // back to back. Concurrent calls now share one in-flight request, and the
+  // result stays warm for a few seconds. Any write through this Store
+  // invalidates immediately, so reads-after-writes always see fresh data.
+  // External writes (another device) can be up to LIST_TTL_MS stale, which is
+  // within the app's existing sync expectations.
+  private listCache = new Map<string, { at: number; items: Promise<Item[]> }>();
+  private static readonly LIST_TTL_MS = 3000;
 
   constructor(private readonly adapter: DataAdapter) {}
 
-  create(ownerId: string, entityType: string, data: ItemData): Promise<string> {
-    return this.adapter.create(ownerId, entityType, data);
+  private invalidate(ownerId: string): void {
+    this.listCache.delete(ownerId);
+  }
+
+  async create(ownerId: string, entityType: string, data: ItemData): Promise<string> {
+    const id = await this.adapter.create(ownerId, entityType, data);
+    this.invalidate(ownerId);
+    return id;
   }
 
   read(ownerId: string, id: string): Promise<Item | null> {
@@ -31,17 +46,32 @@ export class Store {
     patch: ItemData,
     serverTime?: ServerTime
   ): Promise<ApplyResult> {
-    if (this.online) return this.adapter.apply(ownerId, id, patch, serverTime);
+    if (this.online) {
+      const r = await this.adapter.apply(ownerId, id, patch, serverTime);
+      this.invalidate(ownerId);
+      return r;
+    }
     this.queue.push({ ownerId, id, patch, serverTime });
+    this.invalidate(ownerId);
     return "queued";
   }
 
-  delete(ownerId: string, id: string): Promise<void> {
-    return this.adapter.del(ownerId, id);
+  async delete(ownerId: string, id: string): Promise<void> {
+    await this.adapter.del(ownerId, id);
+    this.invalidate(ownerId);
   }
 
   listForUser(ownerId: string): Promise<Item[]> {
-    return this.adapter.listForUser(ownerId);
+    const hit = this.listCache.get(ownerId);
+    const now = Date.now();
+    if (hit && now - hit.at < Store.LIST_TTL_MS) return hit.items;
+    const items = this.adapter.listForUser(ownerId).catch((e: unknown) => {
+      // a failed fetch must not poison the cache window
+      this.invalidate(ownerId);
+      throw e;
+    });
+    this.listCache.set(ownerId, { at: now, items });
+    return items;
   }
 
   goOffline(): void {
@@ -56,6 +86,7 @@ export class Store {
     while (this.queue.length) {
       const op = this.queue.shift() as QueuedOp;
       await this.adapter.apply(op.ownerId, op.id, op.patch, op.serverTime);
+      this.invalidate(op.ownerId);
     }
   }
 

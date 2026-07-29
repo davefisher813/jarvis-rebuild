@@ -16,6 +16,7 @@ import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { daySizing } from "../schedule/daySizing";
 import { ensureCheckinNotifications } from "../shared/notifications";
 import { isEvening, eveningStats } from "./evening";
+import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
 import { showToast } from "../shared/toast";
@@ -176,13 +177,17 @@ export default function TodayFlow({
     });
   };
 
-  if (loading) return <div className="screen" />;
+  if (loading) return <SkeletonScreen />;
 
   const nhm = nowHHMM(now);
   // Evening posture (Phase 2 follow-on): after the workday (or 6 PM), Today
   // recaps instead of pushing, and the check-in leads.
   const nowMin = now.getHours() * 60 + now.getMinutes();
   const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm) : undefined;
+  // Day ring: due-today done over due-today total. Hero tint by daypart.
+  const dueToday = taskItems.filter((t) => t.data.due === today);
+  const ring = { done: dueToday.filter((t) => t.data.done).length, total: dueToday.length };
+  const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
   const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "JV";
   return (
     <>
@@ -197,6 +202,8 @@ export default function TodayFlow({
       tomorrowDate={shortDate(new Date(tmrw + "T00:00:00"))}
       tasks={todaysTasks(taskItems, today)}
       evening={evening}
+      ring={ring}
+      daypart={daypart}
       onToggleTask={onToggleTask}
       onOpenTask={onOpenTask}
       onPlanDay={() => setPlanOpen(true)}

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2, Clock } from "lucide-react";
+import { Plus, Trash2, Clock, ListChecks } from "lucide-react";
 import SkeletonRows from "../../shared/SkeletonRows";
+import { Burst } from "../../shared/Burst";
 import type { TaskItem } from "../TasksService";
 import { urgencyFor, type UrgencyKind } from "../grouping";
 import { FILTERS, FILTER_LABEL, type TaskFilter } from "../filters";
@@ -110,6 +111,7 @@ function Row({
           aria-label={t.done ? "Mark not done" : "Mark done"}
         >
           <div className={"task-check " + (t.done ? "done" : "cat-bd-" + catColor(t.category))} />
+          <Burst show={burst} />
         </div>
         <div className="row-stack" role="button" tabIndex={0} onClick={() => onOpen?.(item.id)}>
           <div className="conn-name truncate">{t.text}</div>
@@ -211,7 +213,9 @@ export default function TasksPage({
         <SkeletonRows />
       ) : items.length === 0 ? (
         <div className="empty-state">
-          <div className="t-body">No {FILTER_LABEL[filter].toLowerCase()} tasks</div>
+          <div className="empty-icon"><ListChecks className="ic" /></div>
+          <div className="empty-title">No {FILTER_LABEL[filter].toLowerCase()} tasks</div>
+          <div className="empty-sub">Add one and I&rsquo;ll keep track of it.</div>
           <button className="btn btn-primary" onClick={onNew}>New Task</button>
         </div>
       ) : (
