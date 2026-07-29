@@ -202,7 +202,10 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 /* SEGMENTED */
 .segmented { display: flex; background: var(--press-3); border-radius: var(--r-md); padding: 2px; }
 .segmented .seg { flex: 1; text-align: center; padding: var(--s-1h) var(--s-3); font-size: var(--t-meta); font-weight: var(--w-medium); color: var(--tx-1); border-radius: 7px; }
-.segmented .seg.active { background: var(--surface-3); font-weight: var(--w-semi); }
+/* Selected segment is brand red, matching active chips: the old surface-3
+   fill was invisible against the track inside sheets (Dave's screenshot,
+   2026-07-29). Red = selected is the app's established language. */
+.segmented .seg.active { background: var(--accent); color: #fff; font-weight: var(--w-semi); }
 
 /* RADIO / CHECKBOX */
 .radio, .cb { width: 22px; height: 22px; flex-shrink: 0; border: 2px solid var(--tx-4); display: flex; align-items: center; justify-content: center; }
