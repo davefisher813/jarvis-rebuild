@@ -27,4 +27,17 @@ describe("planDay", () => {
   it("empty task list yields an empty plan", () => {
     expect(planDay([], [], 540, 1260)).toEqual({ blocks: [], unplaced: [] });
   });
+
+  it("routes tasks around protected (blocked) ranges just like events", () => {
+    // 12:00-13:00 protected (lunch). A 60-min task starting 9:00 must jump it.
+    const plan = planDay([task("a", 240)], [], 540, 1260, 10, [{ s: 720, e: 780 }]);
+    // 240 min from 9:00 would hit lunch, so it lands after 13:00.
+    expect(plan.blocks[0]).toMatchObject({ start: "13:00", end: "17:00" });
+  });
+
+  it("still plans normally when blocked is empty (backward compatible)", () => {
+    const a = planDay([task("a", 45)], [], 540, 1260, 10);
+    const b = planDay([task("a", 45)], [], 540, 1260, 10, []);
+    expect(a).toEqual(b);
+  });
 });

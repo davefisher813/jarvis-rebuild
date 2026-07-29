@@ -7,7 +7,8 @@ import type { EventItem, EventData } from "./types";
 import { showToast } from "../shared/toast";
 import PlanDaySheet from "./screens/PlanDaySheet";
 import { aiPlanDay } from "./planDayAI";
-import { DEFAULT_ROUTINE, planWindowFor, type RoutineData } from "../routine/types";
+import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } from "../routine/types";
+import { chronotypeFor, peakWindowFor } from "./energy";
 import { useAI } from "../ai/useAI";
 import type { TaskItem } from "../tasks/TasksService";
 
@@ -107,8 +108,17 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     ? (() => { const d = new Date(); const now = Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; return Math.max(now, planWindow.wakeMin); })()
     : planWindow.wakeMin;
   const planEnd = planWindow.endMin;
+  // Phase 2: protected ranges and the inferred energy peak for the selected
+  // day. Mood sizing is a Today-surface behavior, so it is not applied here.
+  const blocked = protectedRangesFor(routineData, planDow);
+  const chrono = chronotypeFor(routineData);
+  const peak = peakWindowFor(routineData, chrono);
+  const energy = chrono !== "neutral" ? { chronotype: chrono, peakStartMin: peak.s, peakEndMin: peak.e } : undefined;
   const onAIPlan = ai.available
-    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, dayEvents, s, e, { startMin: routineData.workStartMin, endMin: routineData.workEndMin })
+    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, dayEvents, s, e, {
+        work: { startMin: routineData.workStartMin, endMin: routineData.workEndMin },
+        energy,
+      })
     : undefined;
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
     const ids: string[] = [];
@@ -244,6 +254,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           startMin={planStart}
           endMin={planEnd}
           routineConfigured={routineSet}
+          blocked={blocked}
           onEditRoutine={onEditRoutine ? () => { setPlanOpen(false); onEditRoutine(); } : undefined}
           onCommit={onPlanCommit}
           onAIPlan={onAIPlan}

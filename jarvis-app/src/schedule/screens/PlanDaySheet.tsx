@@ -4,9 +4,14 @@ import type { EventItem } from "../types";
 import { planDay, type PlanBlock } from "../planDay";
 import { fmtTime } from "../calendar";
 import { catColor } from "../../shared/categories";
+import { FULL_DAY, type DaySizing } from "../daySizing";
 
 const BUFFER = 10;
 const DEFAULT_DUR = 45;
+
+// A protected range shown in the plan: gym, meals, deep work. Rendered like a
+// fixed event and fed to the planner as busy time. Phase 2.
+export interface PlanBlocked { s: number; e: number; label: string }
 
 function fromMin(t: number) {
   const m = Math.max(0, Math.min(24 * 60 - 1, t));
@@ -26,6 +31,8 @@ export default function PlanDaySheet({
   startMin,
   endMin,
   routineConfigured = true,
+  blocked = [],
+  sizing = FULL_DAY,
   onEditRoutine,
   onCommit,
   onClose,
@@ -36,13 +43,21 @@ export default function PlanDaySheet({
   startMin: number;
   endMin: number;
   routineConfigured?: boolean;
+  blocked?: PlanBlocked[];
+  sizing?: DaySizing;
   onEditRoutine?: () => void;
   onCommit: (blocks: PlanBlock[]) => void;
   onClose: () => void;
   onAIPlan?: (picks: { id: string; text: string; category: string; overdue: boolean }[], startMin: number, endMin: number) => Promise<{ id: string; minutes: number }[]>;
 }) {
   const [phase, setPhase] = useState<"pick" | "preview">("pick");
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(tasks.filter((t) => t.suggested).map((t) => t.id)));
+  // On a lighter day (yesterday felt underwater), pre-select fewer tasks. The
+  // user can still add more: this is a gentle default, not a cap.
+  const [selected, setSelected] = useState<Set<string>>(() => {
+    const suggested = tasks.filter((t) => t.suggested).map((t) => t.id);
+    const seed = sizing.maxBlocks != null ? suggested.slice(0, sizing.maxBlocks) : suggested;
+    return new Set(seed);
+  });
   const [durations, setDurations] = useState<Record<string, number>>({});
   const [start, setStart] = useState(startMin);
   const [order, setOrder] = useState<string[]>([]);
@@ -63,8 +78,8 @@ export default function PlanDaySheet({
 
   const plan = useMemo(() => {
     const picks = orderedTasks.filter((t) => selected.has(t.id)).map((t) => ({ id: t.id, text: t.text, category: t.category, durationMin: dur(t.id) }));
-    return planDay(picks, events, start, endMin, BUFFER);
-  }, [orderedTasks, selected, durations, start, events]);
+    return planDay(picks, events, start, endMin, BUFFER + sizing.extraSlackMin, blocked.map((b) => ({ s: b.s, e: b.e })));
+  }, [orderedTasks, selected, durations, start, events, blocked, sizing]);
 
   const runAI = async () => {
     if (!onAIPlan) return;
@@ -88,12 +103,14 @@ export default function PlanDaySheet({
 
   const buildManually = () => { setAiUsed(false); setOrder([]); setDurations({}); setAiError(null); setPhase("preview"); };
 
-  // Existing events + proposed blocks, merged in time order for the preview.
+  // Existing events + protected time + proposed blocks, merged in time order
+  // for the preview. Protected time renders like a fixed event: not editable.
   const rows = useMemo(() => {
     const fixed = events.map((e) => ({ kind: "fixed" as const, start: e.data.start, title: e.data.title, category: e.data.category, end: e.data.end }));
+    const prot = blocked.map((b) => ({ kind: "protected" as const, start: fromMin(b.s), title: b.label, category: "", end: fromMin(b.e) }));
     const made = plan.blocks.map((b) => ({ kind: "block" as const, start: b.start, title: b.text, category: b.category, end: b.end, taskId: b.taskId }));
-    return [...fixed, ...made].sort((a, b) => a.start.localeCompare(b.start));
-  }, [events, plan]);
+    return [...fixed, ...prot, ...made].sort((a, b) => a.start.localeCompare(b.start));
+  }, [events, plan, blocked]);
 
   const selCount = selected.size;
 
@@ -107,6 +124,7 @@ export default function PlanDaySheet({
             <div className="grp"><div className="eyebrow">Plan your day</div></div>
             <div className="pad-x sheet-form">
               <div className="plan-sub">Pick what you want to get done. I'll fit it around what's already on your schedule.</div>
+              {sizing.note && <div className="input-note">{sizing.note}</div>}
               {routineConfigured ? (
                 <div className="input-help">Planning within your active hours, until {label(fromMin(endMin))}.</div>
               ) : (
@@ -174,19 +192,19 @@ export default function PlanDaySheet({
 
               <div className="plan-timeline">
                 {rows.map((r, i) => (
-                  <div className={"plan-row" + (r.kind === "fixed" ? " plan-row-fixed" : "")} key={i}>
+                  <div className={"plan-row" + (r.kind === "block" ? "" : " plan-row-fixed")} key={i}>
                     <div className="plan-time">{label(r.start)}</div>
                     <div className="plan-body">
                       <div className="plan-title">{r.title}</div>
-                      {r.kind === "fixed" ? (
-                        <div className="plan-tag">Already scheduled</div>
-                      ) : (
+                      {r.kind === "block" ? (
                         <div className="plan-controls">
                           <button className="plan-step" onClick={() => bump(r.taskId, -15)} aria-label="Shorter">−</button>
                           <span className="plan-dur">{toMin(r.end) - toMin(r.start)}m</span>
                           <button className="plan-step" onClick={() => bump(r.taskId, 15)} aria-label="Longer">+</button>
                           <button className="plan-drop" onClick={() => remove(r.taskId)}>Remove</button>
                         </div>
+                      ) : (
+                        <div className="plan-tag">{r.kind === "protected" ? "Protected" : "Already scheduled"}</div>
                       )}
                     </div>
                   </div>

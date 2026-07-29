@@ -6,6 +6,17 @@
 // only the Personal fields below are implemented now.
 export const ENTITY_ROUTINE = "routine";
 
+// A daily range the planner must never schedule over: gym, meals, family,
+// deep work. Days use JS getDay (0=Sun ... 6=Sat) so a block can apply on any
+// subset of the week. Times are minutes from midnight. Phase 2.
+export interface ProtectedBlock {
+  id: string;
+  label: string;
+  startMin: number;
+  endMin: number;
+  days: number[];
+}
+
 export interface RoutineData {
   wakeMin: number;      // start of the day, minutes from midnight
   sleepMin: number;     // bedtime, minutes from midnight
@@ -18,6 +29,9 @@ export interface RoutineData {
   weekendDifferent?: boolean;
   weekendWakeMin?: number;
   weekendSleepMin?: number;
+  // Protected time the planner routes around. Absent means none: no behavior
+  // change for anyone who has not set any. Phase 2.
+  protectedBlocks?: ProtectedBlock[];
 }
 
 export const DEFAULT_ROUTINE: RoutineData = {
@@ -28,7 +42,23 @@ export const DEFAULT_ROUTINE: RoutineData = {
   weekendDifferent: false,
   weekendWakeMin: 8 * 60,   // 8:00 AM default once enabled
   weekendSleepMin: 23 * 60, // 11:00 PM default once enabled
+  protectedBlocks: [],
 };
+
+// A protected range resolved for one day: the busy window the planner blocks
+// out, carrying its label for the preview. Phase 2.
+export interface ProtectedRange { s: number; e: number; label: string }
+
+// The protected ranges that apply on a given day of week, as sorted busy
+// ranges for the planner. Malformed blocks (end at or before start, empty
+// label, no days) are dropped so a bad entry can never wipe out a day.
+// dow: 0=Sun ... 6=Sat (JS getDay).
+export function protectedRangesFor(r: RoutineData, dow: number): ProtectedRange[] {
+  return (r.protectedBlocks ?? [])
+    .filter((b) => b.endMin > b.startMin && b.label.trim() !== "" && b.days.includes(dow))
+    .map((b) => ({ s: b.startMin, e: b.endMin, label: b.label.trim() }))
+    .sort((a, b) => a.s - b.s || a.e - b.e);
+}
 
 // The wake/sleep pair that applies on a given date, honoring weekend overrides.
 // dow: 0=Sun ... 6=Sat (JS getDay). Falls back to weekday hours when weekend

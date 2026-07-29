@@ -19,17 +19,23 @@ function fromMin(total: number): string {
 // Each task lands in the earliest free gap at or after a running cursor, with a
 // buffer after it. Tasks that can't fit before the window closes come back as
 // `unplaced` (no overcommitting, no silent overlaps).
+//
+// `blocked` seeds the busy set with protected ranges (gym, meals, deep work)
+// the planner must route around exactly like fixed events. Optional so every
+// existing caller keeps its behavior. Phase 2.
 export function planDay(
   tasks: PlanTask[],
   events: EventItem[],
   startMin: number,
   endMin: number,
   bufferMin = 10,
+  blocked: { s: number; e: number }[] = [],
 ): DayPlan {
   const busy = events.map((e) => ({
     s: toMin(e.data.start),
     e: e.data.end ? toMin(e.data.end) : toMin(e.data.start) + 60,
   }));
+  for (const b of blocked) if (b.e > b.s) busy.push({ s: b.s, e: b.e });
   const blocks: PlanBlock[] = [];
   const unplaced: PlanTask[] = [];
   let cursor = startMin;

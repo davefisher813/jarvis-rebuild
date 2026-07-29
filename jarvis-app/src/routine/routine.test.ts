@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { RoutineService } from "./RoutineService";
-import { DEFAULT_ROUTINE, planEndMin, WIND_DOWN_MIN, ENTITY_ROUTINE, isOvernight, isWorkOutsideActive, wakeFromBrief, activeHoursFor, planWindowFor } from "./types";
+import { DEFAULT_ROUTINE, planEndMin, WIND_DOWN_MIN, ENTITY_ROUTINE, isOvernight, isWorkOutsideActive, wakeFromBrief, activeHoursFor, planWindowFor, protectedRangesFor, type ProtectedBlock } from "./types";
 import { planDay } from "../schedule/planDay";
 
 describe("RoutineService", () => {
@@ -99,6 +99,36 @@ describe("planEndMin (window derivation)", () => {
   it("never returns an end before wake + 1h, even with a too-early bedtime", () => {
     const r = { wakeMin: 7 * 60, sleepMin: 7 * 60, workStartMin: 9 * 60, workEndMin: 17 * 60 };
     expect(planEndMin(r)).toBe(7 * 60 + 60);
+  });
+});
+
+describe("protectedRangesFor (Phase 2)", () => {
+  const gym: ProtectedBlock = { id: "g", label: "Gym", startMin: 6 * 60, endMin: 7 * 60, days: [1, 3, 5] };
+  const lunch: ProtectedBlock = { id: "l", label: "Lunch", startMin: 12 * 60, endMin: 13 * 60, days: [0, 1, 2, 3, 4, 5, 6] };
+  const r = { ...DEFAULT_ROUTINE, protectedBlocks: [lunch, gym] };
+
+  it("returns only the blocks that apply on the given day, sorted by start", () => {
+    // Monday (1): both gym and lunch apply, gym first.
+    expect(protectedRangesFor(r, 1)).toEqual([
+      { s: 6 * 60, e: 7 * 60, label: "Gym" },
+      { s: 12 * 60, e: 13 * 60, label: "Lunch" },
+    ]);
+    // Tuesday (2): only lunch.
+    expect(protectedRangesFor(r, 2)).toEqual([{ s: 12 * 60, e: 13 * 60, label: "Lunch" }]);
+  });
+
+  it("returns nothing when no blocks are set", () => {
+    expect(protectedRangesFor(DEFAULT_ROUTINE, 1)).toEqual([]);
+    expect(protectedRangesFor({ ...DEFAULT_ROUTINE, protectedBlocks: undefined }, 1)).toEqual([]);
+  });
+
+  it("drops malformed blocks so one bad entry cannot wipe the day", () => {
+    const bad = { ...DEFAULT_ROUTINE, protectedBlocks: [
+      { id: "x", label: "  ", startMin: 60, endMin: 120, days: [1] } as ProtectedBlock, // empty label
+      { id: "y", label: "Backwards", startMin: 120, endMin: 60, days: [1] } as ProtectedBlock, // end <= start
+      { id: "z", label: "Nap", startMin: 780, endMin: 840, days: [] } as ProtectedBlock, // no days
+    ] };
+    expect(protectedRangesFor(bad, 1)).toEqual([]);
   });
 });
 

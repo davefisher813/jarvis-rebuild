@@ -45,6 +45,6 @@ describe("aiPlanDay", () => {
 
   it("rejects when the call exceeds the timeout, so the sheet falls back", async () => {
     const ai = { complete: () => new Promise<string>(() => { /* never resolves */ }) } as never;
-    await expect(aiPlanDay(ai, [pick("a")], [], 540, 1260, undefined, 10)).rejects.toThrow(/timed out/);
+    await expect(aiPlanDay(ai, [pick("a")], [], 540, 1260, { timeoutMs: 10 })).rejects.toThrow(/timed out/);
   });
 });

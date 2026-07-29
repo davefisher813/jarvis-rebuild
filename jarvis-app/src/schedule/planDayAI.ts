@@ -10,6 +10,17 @@ import { fmtTime } from "./calendar";
 export interface AIPlanItem { id: string; minutes: number }
 export interface PlanPick { id: string; text: string; category: string; overdue: boolean }
 
+// Extra planning context, all optional so a bare call behaves exactly as before.
+// work: the user's work hours. energy: their inferred peak-focus window, so the
+// hardest tasks land there (Phase 2). gentle: yesterday felt heavy, so keep
+// today lighter (Phase 2). timeoutMs: override the AI wait.
+export interface AIPlanOpts {
+  work?: { startMin: number; endMin: number };
+  energy?: { chronotype: "morning" | "evening"; peakStartMin: number; peakEndMin: number };
+  gentle?: boolean;
+  timeoutMs?: number;
+}
+
 function label(hhmm: string): string { const t = fmtTime(hhmm); return `${t.time} ${t.ap}`; }
 function fromMin(t: number): string { const m = Math.max(0, Math.min(1439, t)); return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; }
 
@@ -29,7 +40,8 @@ export function planDaySystem(): string {
   ].join("\n");
 }
 
-export function planDayUserMessage(picks: PlanPick[], events: EventItem[], startMin: number, endMin: number, work?: { startMin: number; endMin: number }): string {
+export function planDayUserMessage(picks: PlanPick[], events: EventItem[], startMin: number, endMin: number, opts: AIPlanOpts = {}): string {
+  const { work, energy, gentle } = opts;
   const taskLines = picks.map((p) => `- [id: ${p.id}] ${p.text}${p.category ? ` (${p.category})` : ""}${p.overdue ? " [OVERDUE]" : ""}`);
   const evLines = events.length
     ? events
@@ -40,9 +52,17 @@ export function planDayUserMessage(picks: PlanPick[], events: EventItem[], start
   const workLine = work
     ? `Work hours are ${label(fromMin(work.startMin))} to ${label(fromMin(work.endMin))}. Schedule focused, deep, or work-category tasks inside work hours (deep work earlier, admin midday) and personal tasks outside them.`
     : "";
+  const energyLine = energy
+    ? `The user's focus peaks ${energy.chronotype === "morning" ? "earlier" : "later"} in the day, around ${label(fromMin(energy.peakStartMin))} to ${label(fromMin(energy.peakEndMin))}. Put the hardest, most demanding tasks in that window, and keep light admin or quick errands out of it.`
+    : "";
+  const gentleLine = gentle
+    ? "Yesterday was a heavy day for the user, so keep today gentle: lean toward shorter, realistic durations and do not fill every minute. A calmer day is the goal."
+    : "";
   return [
     `Plan the window ${label(fromMin(startMin))} to ${label(fromMin(endMin))} today.`,
     ...(workLine ? [workLine] : []),
+    ...(energyLine ? [energyLine] : []),
+    ...(gentleLine ? [gentleLine] : []),
     "",
     "Tasks to schedule:",
     ...taskLines,
@@ -88,10 +108,10 @@ export async function aiPlanDay(
   events: EventItem[],
   startMin: number,
   endMin: number,
-  work?: { startMin: number; endMin: number },
-  timeoutMs: number = AI_PLAN_TIMEOUT_MS,
+  opts: AIPlanOpts = {},
 ): Promise<AIPlanItem[]> {
-  const messages: AIMessage[] = [{ role: "user", content: planDayUserMessage(picks, events, startMin, endMin, work) }];
+  const timeoutMs = opts.timeoutMs ?? AI_PLAN_TIMEOUT_MS;
+  const messages: AIMessage[] = [{ role: "user", content: planDayUserMessage(picks, events, startMin, endMin, opts) }];
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_res, rej) => { timer = setTimeout(() => rej(new Error("AI planning timed out")), timeoutMs); });
   try {

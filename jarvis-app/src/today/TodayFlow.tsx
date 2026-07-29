@@ -11,7 +11,9 @@ import CheckIn from "./CheckIn";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import PlanDaySheet from "../schedule/screens/PlanDaySheet";
 import { aiPlanDay } from "../schedule/planDayAI";
-import { DEFAULT_ROUTINE, planWindowFor, type RoutineData } from "../routine/types";
+import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } from "../routine/types";
+import { chronotypeFor, peakWindowFor } from "../schedule/energy";
+import { daySizing } from "../schedule/daySizing";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
 import { showToast } from "../shared/toast";
@@ -41,6 +43,7 @@ export default function TodayFlow({
   const [todayEvents, setTodayEvents] = useState<EventItem[]>([]);
   const [tomorrowEvents, setTomorrowEvents] = useState<EventItem[]>([]);
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
+  const [prevMood, setPrevMood] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const cats = useCategories();
   useEffect(() => {
@@ -68,6 +71,11 @@ export default function TodayFlow({
     setTomorrowEvents(tm);
     setTaskItems(tk);
     setName(prof?.name ?? "");
+    // Yesterday's evening mood sizes today's plan (Phase 2). Noon anchor keeps
+    // the date subtraction clear of any midnight or DST edge.
+    const y = new Date(today + "T12:00:00");
+    y.setDate(y.getDate() - 1);
+    setPrevMood(prof?.checkin?.[todayISO(y)]?.mood);
     setLoading(false);
   }, [schedule, tasks, profile, today, tmrw]);
 
@@ -123,11 +131,23 @@ export default function TodayFlow({
       return { id: t.id, text: t.data.text, category: t.data.category ?? "", due, suggested: !!due && due <= today, overdue: !!due && due < today };
     })
     .sort((a, b) => (a.suggested !== b.suggested ? (a.suggested ? -1 : 1) : (a.due || "z").localeCompare(b.due || "z")));
-  const planWindow = planWindowFor(routineData, new Date().getDay());
+  const dow = new Date().getDay();
+  const planWindow = planWindowFor(routineData, dow);
   const planStart = (() => { const d = new Date(); const now = Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; return Math.max(now, planWindow.wakeMin); })();
   const planEnd = planWindow.endMin;
+  // Phase 2 planning context: protected ranges for today, the inferred energy
+  // peak, and how heavy yesterday felt.
+  const blocked = protectedRangesFor(routineData, dow);
+  const chrono = chronotypeFor(routineData);
+  const peak = peakWindowFor(routineData, chrono);
+  const energy = chrono !== "neutral" ? { chronotype: chrono, peakStartMin: peak.s, peakEndMin: peak.e } : undefined;
+  const sizing = daySizing(prevMood);
   const onAIPlan = ai.available
-    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, todayEvents, s, e, { startMin: routineData.workStartMin, endMin: routineData.workEndMin })
+    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, todayEvents, s, e, {
+        work: { startMin: routineData.workStartMin, endMin: routineData.workEndMin },
+        energy,
+        gentle: sizing.light,
+      })
     : undefined;
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
     const ids: string[] = [];
@@ -178,6 +198,8 @@ export default function TodayFlow({
         startMin={planStart}
         endMin={planEnd}
         routineConfigured={routineSet}
+        blocked={blocked}
+        sizing={sizing}
         onEditRoutine={onEditRoutine ? () => { setPlanOpen(false); onEditRoutine(); } : undefined}
         onCommit={onPlanCommit}
         onAIPlan={onAIPlan}
