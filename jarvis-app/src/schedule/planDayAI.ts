@@ -1,3 +1,4 @@
+import { JARVIS_VOICE } from "../ai/voice";
 import type { AIService, AIMessage } from "../ai/AIService";
 import type { EventItem } from "./types";
 import { fmtTime } from "./calendar";
@@ -14,7 +15,8 @@ function fromMin(t: number): string { const m = Math.max(0, Math.min(1439, t)); 
 
 export function planDaySystem(): string {
   return [
-    "You are JARVIS, planning the user's working day.",
+    JARVIS_VOICE,
+    "Task: you are, planning the user's working day.",
     "You are given a set of tasks to schedule and the events already fixed on their calendar.",
     "Your job: choose a smart ORDER for the tasks and estimate a realistic DURATION in minutes for each.",
     "Rules:",

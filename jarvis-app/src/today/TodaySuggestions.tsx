@@ -1,41 +1,80 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { AIService } from "../ai/AIService";
 import { useAIContext, todayISO } from "../ai/useAIContext";
-import { suggestionsSystemPrompt, parseSuggestions } from "../ai/suggestions";
+import { suggestionsSystemPrompt, parseSuggestions, type Suggestion } from "../ai/suggestions";
+import { useTasks } from "../data/NotesProvider";
+import { haptics } from "../shared/haptics";
 
 const ZAP = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
 );
-const CHEV = (
-  <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-);
 
-// Proactive nudges on Today. Reads context, asks the AI (via /api/ai). Hidden
-// when AI is off (e.g. the demo) so nothing looks broken; dismiss clears a nudge.
+// Proactive nudges on Today, made actionable and polite:
+// - one AI call per day (cached on device), so no burn on every open
+// - yesterday's and today's suggestions are passed back as "do not repeat"
+// - a suggestion tied to a real task gets a one-tap "Add To Today"
+// - dismissals persist for the day (an assistant that re-nags gets deleted)
+type DayCache = { items: Suggestion[]; dismissed: number[]; acted: number[] };
+const KEY = (d: string) => "jarvis.suggestions." + d;
+
+function readCache(d: string): DayCache | null {
+  try { return JSON.parse(localStorage.getItem(KEY(d)) || "null") as DayCache | null; } catch { return null; }
+}
+function writeCache(d: string, c: DayCache) {
+  try { localStorage.setItem(KEY(d), JSON.stringify(c)); } catch { /* private mode */ }
+}
+
 export default function TodaySuggestions({ ai }: { ai: AIService }) {
   const gather = useAIContext();
-  const [items, setItems] = useState<string[] | null>(null); // null = loading
-  const [dismissed, setDismissed] = useState<Set<number>>(new Set());
+  const tasksSvc = useTasks();
+  const today = todayISO();
+  const [cache, setCache] = useState<DayCache | null | undefined>(undefined); // undefined = loading
+
+  const persist = useCallback((c: DayCache) => { setCache(c); writeCache(today, c); }, [today]);
 
   useEffect(() => {
     if (!ai.available) return;
+    const existing = readCache(today);
+    if (existing) { setCache(existing); return; }
     let on = true;
     (async () => {
       try {
         const ctx = await gather();
-        const raw = await ai.complete([{ role: "user", content: "What should I focus on today?" }], suggestionsSystemPrompt(ctx, todayISO()));
-        if (on) setItems(parseSuggestions(raw));
+        const yesterday = readCache(todayISO(new Date(Date.now() - 86400000)));
+        const avoid = (yesterday?.items ?? []).map((s) => s.text);
+        const raw = await ai.complete(
+          [{ role: "user", content: "What should I focus on today?" }],
+          suggestionsSystemPrompt(ctx, today, avoid),
+        );
+        if (!on) return;
+        const c: DayCache = { items: parseSuggestions(raw), dismissed: [], acted: [] };
+        setCache(c); writeCache(today, c);
       } catch {
-        if (on) setItems([]);
+        if (on) setCache(null);
       }
     })();
     return () => { on = false; };
-  }, [ai, gather]);
+  }, [ai, gather, today]);
 
   if (!ai.available) return null;
+  if (cache === null) return null;
 
-  const visible = items ? items.map((t, i) => ({ t, i })).filter((x) => !dismissed.has(x.i)) : [];
+  const items = cache?.items ?? null;
+  const hidden = new Set([...(cache?.dismissed ?? []), ...(cache?.acted ?? [])]);
+  const visible = items ? items.map((s, i) => ({ s, i })).filter((x) => !hidden.has(x.i)) : [];
   if (items && visible.length === 0) return null;
+
+  const addToToday = async (idx: number, taskText: string) => {
+    const all = await tasksSvc.listTasks();
+    const hit = all.find((t) => !t.data.done && t.data.text.toLowerCase() === taskText.toLowerCase());
+    if (hit) await tasksSvc.setDue(hit.id, today);
+    haptics.success();
+    if (cache) persist({ ...cache, acted: [...cache.acted, idx] });
+  };
+  const dismiss = (idx: number) => {
+    haptics.selection();
+    if (cache) persist({ ...cache, dismissed: [...cache.dismissed, idx] });
+  };
 
   return (
     <>
@@ -46,13 +85,16 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
         </div>
       </div>
       <div className="pad-x"><div className="card">
-        {items === null ? (
+        {cache === undefined ? (
           <div className="suggestion-row"><div className="sug-title sug-dim">Thinking about your day...</div></div>
         ) : (
           visible.map((x) => (
-            <div className="suggestion-row" role="button" tabIndex={0} key={x.i} onClick={() => setDismissed((d) => new Set(d).add(x.i))}>
-              <div className="sug-title">{x.t}</div>
-              {CHEV}
+            <div className="suggestion-row" key={x.i}>
+              <div className="sug-title">{x.s.text}</div>
+              {x.s.task ? (
+                <button className="btn-sm" onClick={() => addToToday(x.i, x.s.task!)}>Add To Today</button>
+              ) : null}
+              <button className="conn-remove" aria-label="Dismiss" onClick={() => dismiss(x.i)}>&times;</button>
             </div>
           ))
         )}

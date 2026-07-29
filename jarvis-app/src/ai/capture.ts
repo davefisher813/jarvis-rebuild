@@ -1,3 +1,4 @@
+import { JARVIS_VOICE } from "./voice";
 import type { AIContext } from "./context";
 import { contextToText } from "./context";
 import type { Category } from "../categories/types";
@@ -18,7 +19,8 @@ export interface CaptureResult {
 export function captureSystemPrompt(ctx: AIContext, today: string): string {
   const cats = ctx.categories.length ? ctx.categories.join(", ") : "none";
   return [
-    "You are JARVIS, a personal assistant that files quick notes.",
+    JARVIS_VOICE,
+    "Task: you are, a personal assistant that files quick notes.",
     `Today is ${today} (ISO). Resolve relative dates ("tomorrow", "Friday") against it.`,
     "Decide if the input is a task, an event (has a time or specific day), or a note (a thought to keep).",
     `Pick a category by NAME from this list when one clearly fits: ${cats}.`,
