@@ -19,6 +19,6 @@ describe("daySizing", () => {
   it("never guilts: the note acknowledges without blame", () => {
     const note = daySizing("under").note ?? "";
     expect(note).not.toMatch(/fail|behind|should|lazy/i);
-    expect(note).not.toContain("—"); // no em dash, ever
+    expect(note).not.toContain("\u2014"); // no em dash, ever
   });
 });

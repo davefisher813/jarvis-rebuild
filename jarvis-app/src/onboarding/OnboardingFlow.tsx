@@ -8,6 +8,7 @@ import { haptics } from "../shared/haptics";
 import { DEFAULT_CATEGORIES, type CategorySeed, type TemplateKey } from "../categories/defaults";
 import { COLOR_SLOTS } from "../categories/types";
 import { STEPS } from "./steps";
+import { NEW_USER_TABS } from "../shell/destinations";
 
 const ic = (d: string) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
@@ -76,6 +77,10 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       gmail,
       calendar,
       onboarded: true,
+      // New users start with the trimmed tab set (see destinations.tsx).
+      // Persisted here so the default fallback never shifts under anyone who
+      // onboarded before this existed.
+      tabs: NEW_USER_TABS,
     });
     if (complete) {
       const existing = await categories.list();

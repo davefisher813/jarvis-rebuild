@@ -55,12 +55,16 @@ export default function YourDay({
   nowLabel,
   onSeeAll,
   onPlanDay,
+  title = "Your Day",
+  emptyText = "Nothing scheduled today",
 }: {
   events: EventItem[];
   now: string;
   nowLabel: string;
   onSeeAll: () => void;
   onPlanDay?: () => void;
+  title?: string;
+  emptyText?: string;
 }) {
   const measureRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);
@@ -81,7 +85,7 @@ export default function YourDay({
     <div className="sec-head">
       <div className="sec-left">
         <div className="sec-ico ico-blue"><CalIcon /></div>
-        <div className="sec-title">Your Day</div>
+        <div className="sec-title">{title}</div>
         {overflow && (
           <button
             className={"ticker-toggle" + (paused ? " paused" : "")}
@@ -102,7 +106,7 @@ export default function YourDay({
       <div className="yourday">
         {header}
         {planButton}
-        <div className="pad-x"><div className="card"><div className="empty-state">Nothing scheduled today</div></div></div>
+        <div className="pad-x"><div className="card"><div className="empty-state">{emptyText}</div></div></div>
       </div>
     );
   }

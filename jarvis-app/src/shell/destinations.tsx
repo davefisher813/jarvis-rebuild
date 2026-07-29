@@ -24,6 +24,10 @@ export const DESTINATIONS: Destination[] = [
 ];
 
 export const DEFAULT_TABS = ["today", "tasks", "schedule", "brain"];
+// New users start with three tabs: fewer choices on day one, and Brain is one
+// tap away in More. Persisted at onboarding completion so existing users (who
+// fall back to DEFAULT_TABS above) keep their current layout untouched.
+export const NEW_USER_TABS = ["today", "tasks", "schedule"];
 export const MAX_TABS = 5;
 
 export const destOf = (key: string): Destination | undefined =>

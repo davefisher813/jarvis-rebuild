@@ -7,6 +7,7 @@ import { catColor, catName } from "../shared/categories";
 import type { DaySummary } from "./todayData";
 import RollingNumber from "../shared/RollingNumber";
 import YourDay from "./YourDay";
+import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats } from "./evening";
 
 const URGENCY_CLASS: Record<UrgencyKind, string> = {
   overdue: "urgency-red",
@@ -58,6 +59,7 @@ export default function TodayPage({
   suggestions,
   onSearch,
   onProfile,
+  evening,
 }: {
   greeting: string;
   dateLong: string;
@@ -78,11 +80,62 @@ export default function TodayPage({
   suggestions?: ReactNode;
   onSearch?: () => void;
   onProfile?: () => void;
+  evening?: EveningStats;
 }) {
   const parts: JSX.Element[] = [];
   parts.push(<span key="e"><RollingNumber value={summary.events} /> {summary.events === 1 ? "event" : "events"}</span>);
   parts.push(<span key="d"> &middot; <RollingNumber value={summary.due} /> {summary.due === 1 ? "task due" : "tasks due"}</span>);
   if (summary.overdue > 0) parts.push(<span key="o"> &middot; <span className="fg-red"><RollingNumber value={summary.overdue} /> overdue</span></span>);
+
+  // Evening posture: recap instead of workload, Tonight instead of Your Day,
+  // Tomorrow promoted above the (softened) open tasks. Same page, same data.
+  const dayEvents = evening ? todayEvents.filter((e) => e.data.start >= now) : todayEvents;
+
+  const tasksSection = tasks.length > 0 && (
+    <>
+      <div className="sec-head">
+        <div className="sec-left">
+          <div className="sec-ico ico-good"><CheckIcon /></div>
+          <div className="sec-title">{evening ? "Still Open" : "Today’s Tasks"}</div>
+        </div>
+        <button className="see-all" onClick={onSeeAllTasks}>See All</button>
+      </div>
+      <div className="pad-x">
+        <div className="card">
+          {tasks.map((t) => {
+            const u = evening ? null : urgencyFor(t.data, today);
+            return (
+              <div className="task-row" key={t.id}>
+                <div className="task-check-tap" role="checkbox" aria-checked={t.data.done} aria-label={t.data.done ? "Mark not done" : "Mark done"} onClick={() => onToggleTask?.(t.id)}>
+                  <div className={"task-check " + (t.data.done ? "done" : "cat-bd-" + catColor(t.data.category))} />
+                </div>
+                <div className="task-title" role="button" tabIndex={0} onClick={() => onOpenTask?.(t.id)}>{t.data.text}</div>
+                {u && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      {evening && <div className="pad-x"><div className="input-help">{EVENING_TASKS_NOTE}</div></div>}
+    </>
+  );
+
+  const tomorrowSection = tomorrowEvents.length > 0 && (
+    <>
+      <div className="sec-head">
+        <div className="sec-left">
+          <div className="sec-ico ico-blue"><SunIcon /></div>
+          <div className="sec-title">Tomorrow</div>
+        </div>
+        <button className="see-all" onClick={onSeeAllSchedule}>{tomorrowDate}</button>
+      </div>
+      <div className="pad-x">
+        <div className="card">
+          {tomorrowEvents.map((ev) => <SchedRow ev={ev} key={ev.id} />)}
+        </div>
+      </div>
+    </>
+  );
 
   return (
     <div className="screen">
@@ -100,57 +153,23 @@ export default function TodayPage({
       <div className="today-hero">
         <div className="eyebrow">{dateLong}</div>
         <div className="today-title">{greeting}</div>
-        <div className="today-summary">{parts}</div>
+        <div className="today-summary">{evening ? eveningSummary(evening) : parts}</div>
       </div>
 
       {suggestions}
 
-      <YourDay events={todayEvents} now={now} nowLabel={nowLabel} onSeeAll={onSeeAllSchedule} onPlanDay={onPlanDay} />
+      <YourDay
+        events={dayEvents}
+        now={now}
+        nowLabel={nowLabel}
+        onSeeAll={onSeeAllSchedule}
+        onPlanDay={onPlanDay}
+        title={evening ? "Tonight" : "Your Day"}
+        emptyText={evening ? "Nothing else tonight" : "Nothing scheduled today"}
+      />
 
-      {tasks.length > 0 && (
-        <>
-          <div className="sec-head">
-            <div className="sec-left">
-              <div className="sec-ico ico-good"><CheckIcon /></div>
-              <div className="sec-title">Today&rsquo;s Tasks</div>
-            </div>
-            <button className="see-all" onClick={onSeeAllTasks}>See All</button>
-          </div>
-          <div className="pad-x">
-            <div className="card">
-              {tasks.map((t) => {
-                const u = urgencyFor(t.data, today);
-                return (
-                  <div className="task-row" key={t.id}>
-                    <div className="task-check-tap" role="checkbox" aria-checked={t.data.done} aria-label={t.data.done ? "Mark not done" : "Mark done"} onClick={() => onToggleTask?.(t.id)}>
-                      <div className={"task-check " + (t.data.done ? "done" : "cat-bd-" + catColor(t.data.category))} />
-                    </div>
-                    <div className="task-title" role="button" tabIndex={0} onClick={() => onOpenTask?.(t.id)}>{t.data.text}</div>
-                    {u && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </>
-      )}
-
-      {tomorrowEvents.length > 0 && (
-        <>
-          <div className="sec-head">
-            <div className="sec-left">
-              <div className="sec-ico ico-blue"><SunIcon /></div>
-              <div className="sec-title">Tomorrow</div>
-            </div>
-            <button className="see-all" onClick={onSeeAllSchedule}>{tomorrowDate}</button>
-          </div>
-          <div className="pad-x">
-            <div className="card">
-              {tomorrowEvents.map((ev) => <SchedRow ev={ev} key={ev.id} />)}
-            </div>
-          </div>
-        </>
-      )}
+      {evening ? tomorrowSection : tasksSection}
+      {evening ? tasksSection : tomorrowSection}
 
       <div className="screen-foot" />
     </div>

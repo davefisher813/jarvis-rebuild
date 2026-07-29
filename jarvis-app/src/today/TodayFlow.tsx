@@ -14,6 +14,8 @@ import { aiPlanDay } from "../schedule/planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { daySizing } from "../schedule/daySizing";
+import { ensureCheckinNotifications } from "../shared/notifications";
+import { isEvening, eveningStats } from "./evening";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
 import { showToast } from "../shared/toast";
@@ -52,6 +54,16 @@ export default function TodayFlow({
     routine.isConfigured().then((c) => { if (on) setRoutineSet(c); });
     return () => { on = false; };
   }, [routine]);
+  // Native check-in nudges (Phase 2 follow-on): reschedule daily locals from
+  // the current routine and brief time. No-op on web; cancel-then-schedule so
+  // routine edits always win. Fire-and-forget by design.
+  useEffect(() => {
+    let on = true;
+    Promise.all([routine.get(), profile.get()]).then(([r, prof]) => {
+      if (on) void ensureCheckinNotifications(r, prof?.briefTime);
+    });
+    return () => { on = false; };
+  }, [routine, profile]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [sheet, setSheet] = useState<{ mode: "edit"; id: string; initial: TaskDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
@@ -167,6 +179,10 @@ export default function TodayFlow({
   if (loading) return <div className="screen" />;
 
   const nhm = nowHHMM(now);
+  // Evening posture (Phase 2 follow-on): after the workday (or 6 PM), Today
+  // recaps instead of pushing, and the check-in leads.
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm) : undefined;
   const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "JV";
   return (
     <>
@@ -180,6 +196,7 @@ export default function TodayFlow({
       tomorrowEvents={tomorrowEvents}
       tomorrowDate={shortDate(new Date(tmrw + "T00:00:00"))}
       tasks={todaysTasks(taskItems, today)}
+      evening={evening}
       onToggleTask={onToggleTask}
       onOpenTask={onOpenTask}
       onPlanDay={() => setPlanOpen(true)}

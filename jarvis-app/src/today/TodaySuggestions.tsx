@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import type { AIService } from "../ai/AIService";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import { suggestionsSystemPrompt, parseSuggestions, type Suggestion } from "../ai/suggestions";
-import { useTasks } from "../data/NotesProvider";
+import { useTasks, useProfile } from "../data/NotesProvider";
 import { haptics } from "../shared/haptics";
+import { patternObservation, isPatternDismissed, dismissPattern, type PatternObservation } from "./patterns";
 
 const ZAP = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
@@ -27,10 +28,24 @@ function writeCache(d: string, c: DayCache) {
 export default function TodaySuggestions({ ai }: { ai: AIService }) {
   const gather = useAIContext();
   const tasksSvc = useTasks();
+  const profileSvc = useProfile();
   const today = todayISO();
   const [cache, setCache] = useState<DayCache | null | undefined>(undefined); // undefined = loading
+  // Pattern awareness (Phase 2 stretch): one deterministic observation from
+  // the check-in history, pinned above the AI rows. Works with AI off too.
+  const [pattern, setPattern] = useState<PatternObservation | null>(null);
 
   const persist = useCallback((c: DayCache) => { setCache(c); writeCache(today, c); }, [today]);
+
+  useEffect(() => {
+    let on = true;
+    profileSvc.get().then((prof) => {
+      if (!on) return;
+      const o = patternObservation(prof?.checkin, today);
+      setPattern(o && !isPatternDismissed(o.id, today) ? o : null);
+    });
+    return () => { on = false; };
+  }, [profileSvc, today]);
 
   useEffect(() => {
     if (!ai.available) return;
@@ -56,13 +71,14 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
     return () => { on = false; };
   }, [ai, gather, today]);
 
-  if (!ai.available) return null;
-  if (cache === null) return null;
-
-  const items = cache?.items ?? null;
+  // AI rows render when AI is on and produced something; the pattern row
+  // renders on its own merit. Nothing at all to show = no section.
+  const aiOn = ai.available && cache !== null;
+  const items = aiOn ? cache?.items ?? null : null;
   const hidden = new Set([...(cache?.dismissed ?? []), ...(cache?.acted ?? [])]);
   const visible = items ? items.map((s, i) => ({ s, i })).filter((x) => !hidden.has(x.i)) : [];
-  if (items && visible.length === 0) return null;
+  const aiEmpty = !aiOn || (items !== null && visible.length === 0);
+  if (aiEmpty && !pattern) return null;
 
   const addToToday = async (idx: number, taskText: string) => {
     const all = await tasksSvc.listTasks();
@@ -85,7 +101,13 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
         </div>
       </div>
       <div className="pad-x"><div className="card">
-        {cache === undefined ? (
+        {pattern && (
+          <div className="suggestion-row" key={"pattern-" + pattern.id}>
+            <div className="sug-title">{pattern.text}</div>
+            <button className="conn-remove" aria-label="Dismiss" onClick={() => { haptics.selection(); dismissPattern(pattern.id, today); setPattern(null); }}>&times;</button>
+          </div>
+        )}
+        {aiOn && cache === undefined ? (
           <div className="suggestion-row"><div className="sug-title sug-dim">Thinking about your day...</div></div>
         ) : (
           visible.map((x) => (
