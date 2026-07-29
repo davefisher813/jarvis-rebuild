@@ -4,6 +4,7 @@ import type { Person, PersonGroup } from "./types";
 import PeopleListPage from "./screens/PeopleListPage";
 import PersonDetail from "./screens/PersonDetail";
 import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
+import { usePushDepth } from "../shared/pushNav";
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
@@ -30,6 +31,7 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
   }, [openId, notesSvc]);
 
   const current = openId ? list.find((p) => p.id === openId) ?? null : null;
+  const pushCls = usePushDepth(current ? 1 : 0);
   const editing = sheet.kind === "edit" ? list.find((p) => p.id === sheet.id) : undefined;
 
   const onSave = async (d: PersonDraft) => {
@@ -62,17 +64,17 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
 
   if (current) {
     return (
-      <>
+      <div className={pushCls} key={"d-" + current.id}>
         <PersonDetail person={current} onEdit={() => setSheet({ kind: "edit", id: current.id })} onBack={() => setOpenId(null)} linkedNotes={linkedNotes} onOpenNote={onOpenNote} />
         {sheetEl}
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className={pushCls} key="base">
       <PeopleListPage group={group} people={list} onOpen={setOpenId} onAdd={() => setSheet({ kind: "new" })} onBack={onBack} />
       {sheetEl}
-    </>
+    </div>
   );
 }

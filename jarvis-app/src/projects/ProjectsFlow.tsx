@@ -5,6 +5,7 @@ import type { Category } from "../categories/types";
 import ProjectsPage from "./ProjectsPage";
 import ProjectSheet from "./ProjectSheet";
 import ProjectDetailPage from "./ProjectDetailPage";
+import { usePushDepth } from "../shared/pushNav";
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
@@ -42,21 +43,22 @@ export default function ProjectsFlow({ openId, onOpenNote }: { openId?: string; 
 
   const detail = detailId ? projects.find((p) => p.id === detailId) : undefined;
   if (detailId && !detail && projects.length) setDetailId(null);
+  const pushCls = usePushDepth(detail ? 1 : 0);
   if (detail) {
     return (
-      <>
+      <div className={pushCls} key={"d-" + detail.id}>
         <ProjectDetailPage project={detail} onBack={() => setDetailId(null)} onEdit={() => setSheet({ kind: "edit", id: detail.id })} linkedNotes={linkedNotes} onOpenNote={onOpenNote} />
         {sheet.kind === "edit" && (
           <ProjectSheet mode="edit" categories={categories} initial={editing?.data} onSave={save}
             onDelete={async () => { await svc.remove(sheet.id); setSheet({ kind: "closed" }); setDetailId(null); await reload(); }}
             onCancel={() => setSheet({ kind: "closed" })} />
         )}
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className={pushCls} key="base">
       <ProjectsPage projects={projects} loading={loading} onAdd={() => setSheet({ kind: "new" })} onOpen={(id) => setDetailId(id)} />
       {sheet.kind !== "closed" && (
         <ProjectSheet
@@ -68,6 +70,6 @@ export default function ProjectsFlow({ openId, onOpenNote }: { openId?: string; 
           onCancel={() => setSheet({ kind: "closed" })}
         />
       )}
-    </>
+    </div>
   );
 }

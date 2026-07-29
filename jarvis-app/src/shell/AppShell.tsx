@@ -159,7 +159,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     <GoogleSessionProvider>
     <div className="app-shell">
       <div className="app-scroll">
-        <div className="tab-swap" key={active}>
+        {/* key remounts the flow per tab; no transition class: tab switches
+            are instant, like native iOS (RDB, Dave 2026-07-29) */}
+        <div key={active}>
         {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} />}
         {active === "tasks" && <TasksFlow openId={taskIntent} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}

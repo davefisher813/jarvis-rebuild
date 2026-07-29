@@ -1,5 +1,6 @@
 import { useState } from "react";
 import MorePage, { type MoreRoute } from "./MorePage";
+import { usePushDepth } from "../shared/pushNav";
 import ProfilePage from "../settings/ProfilePage";
 import AppearancePage from "../settings/AppearancePage";
 import SettingsPage from "./SettingsPage";
@@ -48,6 +49,16 @@ export default function MoreFlow({
     : makeSampleAdminSource();
   const [route, setRoute] = useState<"hub" | MoreRoute | "terms" | "privacy" | "support" | "admin">("hub");
 
+  // Stack depth per route, so navigation animates as an iOS push going deeper
+  // and a pop coming back, whatever path led here.
+  const DEPTH: Record<string, number> = {
+    hub: 0,
+    settings: 1,
+    appearance: 2, categories: 2, connections: 2, edittabs: 2, account: 2, notifsettings: 2, about: 2, advanced: 2, backup: 2,
+    profile: 3, terms: 3, privacy: 3, support: 3, admin: 3,
+  };
+  const pushCls = usePushDepth(DEPTH[route] ?? 1);
+
   const screen = (() => {
   if (route === "settings") return <SettingsPage onNavigate={(r) => setRoute(r)} onBack={() => setRoute("hub")} />;
   if (route === "profile") return <ProfilePage onBack={() => setRoute("account")} />;
@@ -68,5 +79,5 @@ export default function MoreFlow({
   return <MorePage extras={extras} onOpenExtra={onOpenExtra} onNavigate={(r) => setRoute(r)} />;
   })();
 
-  return <div className="route-push" key={route}>{screen}</div>;
+  return <div className={pushCls} key={route}>{screen}</div>;
 }

@@ -6,6 +6,7 @@ import type { Block, Connection, NoteData, TemplateKey } from "./types";
 import NotesList, { type NoteListItem } from "./screens/NotesList";
 import NoteEditor, { type EditorNote } from "./screens/NoteEditor";
 import Templates from "./screens/Templates";
+import { usePushDepth } from "../shared/pushNav";
 import AddBlockSheet from "./screens/AddBlockSheet";
 import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
@@ -276,22 +277,30 @@ export default function NotesFlow({
     await loadCurrent(currentId);
   };
 
+  // Stack depth per screen: list is root, editor and templates sit above it,
+  // connections above the editor, its two pickers above that.
+  const NOTE_DEPTH: Record<Screen, number> = { list: 0, editor: 1, templates: 1, connections: 2, linkPicker: 3, createTasks: 3 };
+  const pushCls = usePushDepth(NOTE_DEPTH[screen]);
+
   if (screen === "list") {
     return (
+      <div className={pushCls} key="list">
       <NotesList
         notes={list}
         onOpen={openNote}
         onNewNote={() => setScreen("templates")}
         onBack={onExit}
       />
+      </div>
     );
   }
   if (screen === "templates") {
-    return <Templates onSelect={pickTemplate} onBack={() => setScreen("list")} />;
+    return <div className={pushCls} key="templates"><Templates onSelect={pickTemplate} onBack={() => setScreen("list")} /></div>;
   }
   if (screen === "connections") {
     const cat = current?.category ?? defaultCatId;
     return (
+      <div className={pushCls} key="connections">
       <Connections
         category={cat}
         categoryLabel={catName(cat)}
@@ -306,10 +315,12 @@ export default function NotesFlow({
         onCreateTasks={() => setScreen("createTasks")}
         onOpen={(kind, targetId) => onNavigate?.(kind, targetId)}
       />
+      </div>
     );
   }
   if (screen === "linkPicker") {
     return (
+      <div className={pushCls} key="linkPicker">
       <LinkPicker
         events={linkEvents}
         tasks={linkTasks}
@@ -322,6 +333,7 @@ export default function NotesFlow({
         }}
         onBack={() => setScreen("connections")}
       />
+      </div>
     );
   }
   if (screen === "createTasks") {
@@ -332,6 +344,7 @@ export default function NotesFlow({
         : [];
     const cat = current?.category ?? defaultCatId;
     return (
+      <div className={pushCls} key="createTasks">
       <CreateTasks
         category={cat}
         categoryLabel={catName(cat)}
@@ -339,11 +352,12 @@ export default function NotesFlow({
         onCreate={runCreateTasks}
         onBack={() => setScreen("connections")}
       />
+      </div>
     );
   }
   // editor
   return (
-    <>
+    <div className={pushCls} key="editor">
       {current && (
         <NoteEditor
           focusBlockId={focusBlockId}
@@ -377,7 +391,7 @@ export default function NotesFlow({
       {addBlockOpen && (
         <AddBlockSheet onSelect={addBlock} onCancel={() => setAddBlockOpen(false)} />
       )}
-    </>
+    </div>
   );
 }
 

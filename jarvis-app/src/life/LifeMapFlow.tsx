@@ -5,6 +5,7 @@ import LifeMapPage from "./LifeMapPage";
 import AreaSheet from "./AreaSheet";
 import GoalSheet from "./GoalSheet";
 import AreaDetailPage from "./AreaDetailPage";
+import { usePushDepth } from "../shared/pushNav";
 
 type Sheet =
   | { kind: "closed" }
@@ -41,9 +42,10 @@ export default function LifeMapFlow({ openId }: { openId?: string } = {}) {
 
   const detailArea = detailId ? areas.find((a) => a.id === detailId) : undefined;
   if (detailId && !detailArea && areas.length) setDetailId(null);
+  const pushCls = usePushDepth(detailArea ? 1 : 0);
   if (detailArea) {
     return (
-      <>
+      <div className={pushCls} key={"d-" + detailArea.id}>
         <AreaDetailPage area={detailArea} goals={goals}
           onBack={() => setDetailId(null)}
           onEdit={() => setSheet({ kind: "area-edit", id: detailArea.id })}
@@ -59,13 +61,13 @@ export default function LifeMapFlow({ openId }: { openId?: string } = {}) {
             onDelete={sheet.kind === "goal-edit" ? async () => { await goalsSvc.remove(sheet.id); setSheet({ kind: "closed" }); await reload(); } : undefined}
             onCancel={() => setSheet({ kind: "closed" })} />
         )}
-      </>
+      </div>
     );
   }
 
 
   return (
-    <>
+    <div className={pushCls} key="base">
       <LifeMapPage
         areas={areas}
         goals={goals}
@@ -93,6 +95,6 @@ export default function LifeMapFlow({ openId }: { openId?: string } = {}) {
           onCancel={() => setSheet({ kind: "closed" })}
         />
       )}
-    </>
+    </div>
   );
 }

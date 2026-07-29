@@ -9,6 +9,8 @@ import {
   type InboxRow, type MailFull,
 } from "../connections/google/map";
 
+import { usePushDepth } from "../shared/pushNav";
+
 type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string };
 type DraftRow = { id: string; to: string; subject: string; snippet: string };
 type View = "list" | "detail" | "compose";
@@ -198,9 +200,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
     }
   };
 
+  // Reader pushes over the inbox; compose pushes over either. Pops reverse.
+  const pushCls = usePushDepth(view === "compose" ? 2 : view === "detail" ? 1 : 0);
+
   if (view === "list" && (!configured || !g.hasToken)) {
     return (
-      <div className="screen">
+      <div className={"screen " + pushCls} key="connect">
         <div className="nav-bar"><div className="nav-large">Email</div></div>
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><Mail className="ic" /></div>
@@ -223,7 +228,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
 
   if (view === "compose") {
     return (
-      <div className="screen">
+      <div className={"screen " + pushCls} key="compose">
         <div className="nav-bar">
           <button className="nav-back" onClick={() => setView(current && !editingDraftId ? "detail" : "list")}>Cancel</button>
           <span className="nav-title">{editingDraftId ? "Draft" : "New message"}</span>
@@ -241,7 +246,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
 
   if (view === "detail" && current) {
     return (
-      <div className="screen">
+      <div className={"screen " + pushCls} key="detail">
         <div className="nav-bar">
           <button className="nav-back" onClick={() => setView("list")}>Email</button>
           <span className="nav-title"></span>
@@ -280,7 +285,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
   const draftList = drafts.filter((d) => !q || d.to.toLowerCase().includes(q) || d.subject.toLowerCase().includes(q));
 
   return (
-    <div className="screen">
+    <div className={"screen " + pushCls} key="list">
       <div className="nav-bar">
         <div className="nav-large">Email</div>
         <button className="nav-act" onClick={startCompose} aria-label="New message"><Plus className="ic" /></button>

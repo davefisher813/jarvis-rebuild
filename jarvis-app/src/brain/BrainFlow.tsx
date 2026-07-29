@@ -7,6 +7,7 @@ import BrainDocPage from "./docs/BrainDocPage";
 import CategoryDetail from "./CategoryDetail";
 import RoutineFlow from "../routine/RoutineFlow";
 import type { ColorSlot } from "../categories/types";
+import { usePushDepth } from "../shared/pushNav";
 
 const PEOPLE_GROUP: Record<string, PersonGroup> = {
   contacts: "contacts",
@@ -42,7 +43,10 @@ export default function BrainFlow({ openKey, personOpenId, onOpenNote }: { openK
     };
   }, [cats]);
 
-  if (open) {
+  const pushCls = usePushDepth(open ? 1 : 0);
+
+  const detail = (() => {
+    if (!open) return null;
     if (open.key === "routine") {
       return <RoutineFlow onBack={() => setOpen(null)} />;
     }
@@ -70,7 +74,8 @@ export default function BrainFlow({ openKey, personOpenId, onOpenNote }: { openK
         <div className="empty-state">This area is coming soon.</div>
       </div>
     );
-  }
+  })();
 
-  return <BrainPage onOpen={(key, name) => setOpen({ key, name })} categories={categories} />;
+  if (detail) return <div className={pushCls} key={"d-" + open!.key}>{detail}</div>;
+  return <div className={pushCls} key="base"><BrainPage onOpen={(key, name) => setOpen({ key, name })} categories={categories} /></div>;
 }
