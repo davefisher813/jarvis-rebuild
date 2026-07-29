@@ -9,7 +9,7 @@ export default function AdvancedPage({ onBack }: { onBack: () => void }) {
       <LargeTitleNav title="Advanced" back="Settings" onBack={onBack} />
       <div className="grp"><div className="eyebrow">Data</div></div>
       <div className="pad-x"><div className="card">
-        <div className="row" role="button" tabIndex={0}><div className="row-grow"><div className="conn-name">Export data</div></div><span className="row-value">JSON</span></div>
+        <div className="row" role="button" tabIndex={0}><div className="row-grow"><div className="conn-name">Export Data</div></div><span className="row-value">JSON</span></div>
       </div></div>
       <div className="pad-x"><div className="card">
         {!confirm

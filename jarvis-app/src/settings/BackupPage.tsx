@@ -52,19 +52,19 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
     <div className="screen">
       <LargeTitleNav title="Backup" back="Settings" onBack={onBack} />
 
-      <div className="grp"><div className="eyebrow">Your data</div></div>
+      <div className="grp"><div className="eyebrow">Your Data</div></div>
       <div className="pad-x"><div className="card">
         <div className="row" role="button" tabIndex={0} aria-disabled={busy} onClick={() => !busy && onExport()}>
-          <div className="row-grow"><div className="conn-name">Export all data</div><div className="conn-meta">Save a JSON file of everything on this device</div></div>
+          <div className="row-grow"><div className="conn-name">Export All Data</div><div className="conn-meta">Save a JSON file of everything on this device</div></div>
         </div>
         <div className="row" role="button" tabIndex={0} aria-disabled={busy} onClick={() => !busy && onPickFile()}>
-          <div className="row-grow"><div className="conn-name">Import from file</div><div className="conn-meta">Restore items from a JARVIS backup</div></div>
+          <div className="row-grow"><div className="conn-name">Import from File</div><div className="conn-meta">Restore items from a JARVIS backup</div></div>
         </div>
       </div></div>
 
       {status && <div className="page-explainer">{status}</div>}
 
-      <div className="grp"><div className="eyebrow">Account sync</div></div>
+      <div className="grp"><div className="eyebrow">Account Sync</div></div>
       <div className="pad-x"><div className="card">
         <div className="row"><div className="row-grow"><div className="conn-name">iCloud / account sync</div></div><span className="row-value">Off</span></div>
       </div></div>

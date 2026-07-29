@@ -75,7 +75,7 @@ export default function Connections({
           })}
           <div className="row" role="button" tabIndex={0} onClick={onAddLink}>
             <div className="proj-icon cat-bg-green"><Plus className="ic" /></div>
-            <div className="conn-name">Add link</div>
+            <div className="conn-name">Add Link</div>
             <div className="chev"></div>
           </div>
         </div>

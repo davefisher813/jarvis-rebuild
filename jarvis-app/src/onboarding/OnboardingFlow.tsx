@@ -174,7 +174,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           <div className="ob-brand ob-brand-lg"><span className="jr">J</span>ARVIS</div>
           <div className="ob-card-title ob-tagline-1">Your personal operating system</div>
           <div className="ob-sub">Build your Brain. Let JARVIS run the rest.</div>
-          <div className="grp"><div className="eyebrow">Three steps</div></div>
+          <div className="grp"><div className="eyebrow">Three Steps</div></div>
           <div className="card">
             <div className="row"><div className="sec-ico ico-accent ob-num">1</div><div className="row-grow"><div className="conn-name">Tell JARVIS about you</div></div><span className="row-status">2 min</span></div>
             <div className="row"><div className="sec-ico cat-bg-yellow ob-num">2</div><div className="row-grow"><div className="conn-name">Connect Gmail and Calendar</div></div><span className="row-status">1 min</span></div>
@@ -355,7 +355,7 @@ function PayoffScreen({ name, briefLabel, seeds, taskTitle, slotLine, saving, on
         <div className="grp"><div className="eyebrow">Today</div></div>
         <div className="pad-x"><div className="card">
           {briefLabel && (
-            <div className="row"><div className="row-grow"><div className="conn-name">Morning brief</div></div><span className="row-status">{briefLabel}</span></div>
+            <div className="row"><div className="row-grow"><div className="conn-name">Morning Brief</div></div><span className="row-status">{briefLabel}</span></div>
           )}
           <div className="row">
             <div className="row-grow"><div className="conn-name">Your areas</div></div>

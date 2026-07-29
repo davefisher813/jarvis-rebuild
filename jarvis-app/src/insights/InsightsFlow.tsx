@@ -57,11 +57,11 @@ export default function InsightsFlow() {
     <div className="screen">
       <div className="nav-bar"><div className="nav-large">Insights</div></div>
       {weekTotal > 0 && (<>
-        <div className="sec-head"><div className="sec-left"><div className="sec-title">This week</div></div><div className="chart-cap">{weekTotal} events</div></div>
+        <div className="sec-head"><div className="sec-left"><div className="sec-title">This Week</div></div><div className="chart-cap">{weekTotal} events</div></div>
         <div className="pad-x"><BarChart bars={week} /></div>
       </>)}
       {byArea.length > 0 && (<>
-        <div className="sec-head"><div className="sec-left"><div className="sec-title">Open tasks by area</div></div></div>
+        <div className="sec-head"><div className="sec-left"><div className="sec-title">Open Tasks by Area</div></div></div>
         <div className="pad-x"><BarChart bars={byArea} /></div>
       </>)}
       {hasMoney && (<>

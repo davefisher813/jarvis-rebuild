@@ -87,7 +87,7 @@ export default function ConnectionsPage({
 
       {mail.length > 0 && (
         <>
-          <div className="grp"><div className="eyebrow">Recent mail</div></div>
+          <div className="grp"><div className="eyebrow">Recent Mail</div></div>
           <div className="pad-x"><div className="card">
             {mail.map((m) => (
               <div className="row" key={m.id}>

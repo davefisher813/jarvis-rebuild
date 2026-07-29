@@ -77,7 +77,7 @@ export default function YourDay({
 
   const planButton = onPlanDay ? (
     <div className="plan-cta-row">
-      <button className="plan-cta plan-cta-block" onClick={onPlanDay}><CalIcon />Plan my day</button>
+      <button className="plan-cta plan-cta-block" onClick={onPlanDay}><CalIcon />Plan My Day</button>
     </div>
   ) : null;
 

@@ -147,7 +147,7 @@ export default function EventSheet({
 
           {recurringEdit && (
             <div className="field">
-              <div className="input-label">Apply to</div>
+              <div className="input-label">Apply To</div>
               <div className="segmented">
                 <div className={"seg" + (scope === "this" ? " active" : "")} role="button" tabIndex={0} onClick={() => setScope("this")}>This event</div>
                 <div className={"seg" + (scope === "series" ? " active" : "")} role="button" tabIndex={0} onClick={() => setScope("series")}>All events</div>

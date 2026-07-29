@@ -259,7 +259,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
           </div>
           {summary && (
             <div className="card msg-summary">
-              <div className="eyebrow">JARVIS summary</div>
+              <div className="eyebrow">JARVIS Summary</div>
               <div className="msg-summary-text">{summary}</div>
             </div>
           )}

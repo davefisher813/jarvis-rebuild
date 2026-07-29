@@ -100,7 +100,7 @@ export default function SchedulePage({
 
       <div className="grp"><div className="plan-head">
         <div className="eyebrow">{dayLabel(selected)} &middot; {n} {n === 1 ? "Event" : "Events"}</div>
-        {onPlanDay && <button className="plan-cta" onClick={onPlanDay}>Plan my day</button>}
+        {onPlanDay && <button className="plan-cta" onClick={onPlanDay}>Plan My Day</button>}
       </div></div>
 
       {loading ? (

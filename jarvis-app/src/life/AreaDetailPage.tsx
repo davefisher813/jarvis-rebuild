@@ -17,7 +17,7 @@ export default function AreaDetailPage({ area, goals, onBack, onEdit, onOpenGoal
           <div className="lm-bar"><div className={"lm-bar-fill lm-" + m.cls + "-bg"} style={{ width: m.pct + "%" }} /></div>
         </div>
       </div></div>
-      <div className="sec-head"><div className="sec-left"><div className="sec-title">Goals in this area</div></div></div>
+      <div className="sec-head"><div className="sec-left"><div className="sec-title">Goals in This Area</div></div></div>
       <div className="pad-x"><div className="card">
         {mine.map((g) => {
           const gm = GOAL_META[g.data.state];

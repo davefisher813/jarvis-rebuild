@@ -114,7 +114,7 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
             <div className="suggestion-row" key={x.i}>
               <div className="sug-title">{x.s.text}</div>
               {x.s.task ? (
-                <button className="btn-sm" onClick={() => addToToday(x.i, x.s.task!)}>Add To Today</button>
+                <button className="btn-sm" onClick={() => addToToday(x.i, x.s.task!)}>Add to Today</button>
               ) : null}
               <button className="conn-remove" aria-label="Dismiss" onClick={() => dismiss(x.i)}>&times;</button>
             </div>

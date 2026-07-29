@@ -26,7 +26,7 @@ describe("note Connections", () => {
   it("opens the link picker via Add link", () => {
     const onAddLink = vi.fn();
     render(<Connections onAddLink={onAddLink} />);
-    fireEvent.click(screen.getByText("Add link"));
+    fireEvent.click(screen.getByText("Add Link"));
     expect(onAddLink).toHaveBeenCalled();
   });
 });

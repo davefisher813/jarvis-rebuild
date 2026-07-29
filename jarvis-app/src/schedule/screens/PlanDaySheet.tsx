@@ -121,7 +121,7 @@ export default function PlanDaySheet({
 
         {phase === "pick" ? (
           <>
-            <div className="grp"><div className="eyebrow">Plan your day</div></div>
+            <div className="grp"><div className="eyebrow">Plan Your Day</div></div>
             <div className="pad-x sheet-form">
               <div className="plan-sub">Pick what you want to get done. I'll fit it around what's already on your schedule.</div>
               {sizing.note && <div className="input-note">{sizing.note}</div>}
@@ -130,12 +130,12 @@ export default function PlanDaySheet({
               ) : (
                 <div className="input-note">
                   Using default hours, until {label(fromMin(endMin))}.
-                  {onEditRoutine && <button type="button" className="note-fix" onClick={onEditRoutine}>Set your routine</button>}
+                  {onEditRoutine && <button type="button" className="note-fix" onClick={onEditRoutine}>Set Your Routine</button>}
                 </div>
               )}
 
               <div className="field">
-                <label className="input-label">Start at</label>
+                <label className="input-label">Start At</label>
                 <input type="time" className="input" value={fromMin(start)} onChange={(e) => setStart(toMin(e.target.value))} />
               </div>
 
@@ -147,7 +147,7 @@ export default function PlanDaySheet({
                     const showDivider = !t.suggested && (i === 0 || !!tasks[i - 1]?.suggested);
                     return (
                       <Fragment key={t.id}>
-                        {showDivider && <div className="plan-divider">Other tasks</div>}
+                        {showDivider && <div className="plan-divider">Other Tasks</div>}
                         <div className="plan-pick" role="button" tabIndex={0} onClick={() => toggle(t.id)}>
                           <div className="task-check-tap">
                             <div className={"task-check " + (selected.has(t.id) ? "done" : "cat-bd-" + catColor(t.category))} />
@@ -168,18 +168,18 @@ export default function PlanDaySheet({
                 <button className="btn btn-primary btn-block" disabled>Planning your day...</button>
               ) : onAIPlan ? (
                 <>
-                  <button className="btn btn-primary btn-block" disabled={selCount === 0} onClick={runAI}>Let AI plan it</button>
-                  <button className="btn btn-secondary btn-block" disabled={selCount === 0} onClick={buildManually}>Build it myself</button>
+                  <button className="btn btn-primary btn-block" disabled={selCount === 0} onClick={runAI}>Let AI Plan It</button>
+                  <button className="btn btn-secondary btn-block" disabled={selCount === 0} onClick={buildManually}>Build It Myself</button>
                 </>
               ) : (
-                <button className="btn btn-primary btn-block" disabled={selCount === 0} onClick={buildManually}>Build it</button>
+                <button className="btn btn-primary btn-block" disabled={selCount === 0} onClick={buildManually}>Build It</button>
               )}
               {!aiLoading && <button className="btn btn-secondary btn-block" onClick={onClose}>Cancel</button>}
             </div>
           </>
         ) : (
           <>
-            <div className="grp"><div className="eyebrow">Your day</div></div>
+            <div className="grp"><div className="eyebrow">Your Day</div></div>
             <div className="pad-x sheet-form">
               <div className="plan-sub">
                 {plan.blocks.length === 0

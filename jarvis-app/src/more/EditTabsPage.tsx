@@ -27,11 +27,11 @@ export default function EditTabsPage({
       <LargeTitleNav title="Edit Tabs" back="Settings" onBack={onBack} />
       {onReorder && tabKeys.length > 1 && (
         <>
-          <div className="grp"><div className="eyebrow">Tab order</div></div>
+          <div className="grp"><div className="eyebrow">Tab Order</div></div>
           <div className="pad-x"><TabOrderList keys={tabKeys} onReorder={onReorder} /></div>
         </>
       )}
-      <div className="grp"><div className="eyebrow">In the tab bar</div></div>
+      <div className="grp"><div className="eyebrow">In the Tab Bar</div></div>
       <div className="pad-x"><div className="card">
         {DESTINATIONS.map(({ key, label, Icon }) => {
           const on = tabKeys.includes(key);

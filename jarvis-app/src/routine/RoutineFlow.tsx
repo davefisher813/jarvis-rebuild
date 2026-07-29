@@ -41,7 +41,7 @@ const PRESETS: Preset[] = [
   { label: "Lunch", startMin: 12 * 60, endMin: 13 * 60, days: [1, 2, 3, 4, 5] },
   { label: "Gym", startMin: 6 * 60, endMin: 7 * 60, days: [1, 3, 5] },
   { label: "Family", startMin: 18 * 60, endMin: 19 * 60 + 30, days: [0, 1, 2, 3, 4, 5, 6] },
-  { label: "Deep work", startMin: 9 * 60, endMin: 11 * 60, days: [1, 2, 3, 4, 5] },
+  { label: "Deep Work", startMin: 9 * 60, endMin: 11 * 60, days: [1, 2, 3, 4, 5] },
 ];
 
 function pbId(): string {
@@ -115,7 +115,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
         <div className="grp"><div className="eyebrow">Active Hours</div></div>
         <div className="field-row">
           <div className="field">
-            <label className="input-label">Wake up</label>
+            <label className="input-label">Wake Up</label>
             <input type="time" className="input" value={toHHMM(data.wakeMin)} disabled={!loaded} onChange={(e) => set({ wakeMin: fromHHMM(e.target.value) })} />
           </div>
           <div className="field">
@@ -128,11 +128,11 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
         <div className="grp"><div className="eyebrow">Work Hours</div></div>
         <div className="field-row">
           <div className="field">
-            <label className="input-label">Work starts</label>
+            <label className="input-label">Work Starts</label>
             <input type="time" className="input" value={toHHMM(data.workStartMin)} disabled={!loaded} onChange={(e) => set({ workStartMin: fromHHMM(e.target.value) })} />
           </div>
           <div className="field">
-            <label className="input-label">Work ends</label>
+            <label className="input-label">Work Ends</label>
             <input type="time" className="input" value={toHHMM(data.workEndMin)} disabled={!loaded} onChange={(e) => set({ workEndMin: fromHHMM(e.target.value) })} />
           </div>
         </div>
@@ -158,7 +158,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
         {form ? (
           <div className="card pad">
             <div className="field">
-              <label className="input-label">Quick add</label>
+              <label className="input-label">Quick Add</label>
               <div className="chip-wrap">
                 {PRESETS.map((p) => (
                   <div className="chip" role="button" tabIndex={0} key={p.label} onClick={() => applyPreset(p)}>{p.label}</div>
@@ -183,18 +183,18 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
               </div>
             </div>
             <div className="field-row">
-              <button className="btn btn-primary btn-block" disabled={!formValid} onClick={commitForm}>{form.id ? "Save block" : "Add block"}</button>
+              <button className="btn btn-primary btn-block" disabled={!formValid} onClick={commitForm}>{form.id ? "Save Block" : "Add Block"}</button>
               <button className="btn btn-secondary btn-block" onClick={() => setForm(null)}>Cancel</button>
             </div>
           </div>
         ) : (
-          <button className="btn btn-secondary btn-block" onClick={openAdd}>Add protected time</button>
+          <button className="btn btn-secondary btn-block" onClick={openAdd}>Add Protected Time</button>
         )}
 
         <div className="grp"><div className="eyebrow">Weekends</div></div>
         <div className="card">
           <div className="row">
-            <div className="row-grow"><div className="conn-name">Different on weekends</div></div>
+            <div className="row-grow"><div className="conn-name">Different on Weekends</div></div>
             <button
               className={"switch" + (data.weekendDifferent ? "" : " off")}
               role="switch"
@@ -208,11 +208,11 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
         {data.weekendDifferent && (
           <div className="field-row">
             <div className="field">
-              <label className="input-label">Weekend wake</label>
+              <label className="input-label">Weekend Wake</label>
               <input type="time" className="input" value={toHHMM(data.weekendWakeMin ?? data.wakeMin)} disabled={!loaded} onChange={(e) => set({ weekendWakeMin: fromHHMM(e.target.value) })} />
             </div>
             <div className="field">
-              <label className="input-label">Weekend sleep</label>
+              <label className="input-label">Weekend Sleep</label>
               <input type="time" className="input" value={toHHMM(data.weekendSleepMin ?? data.sleepMin)} disabled={!loaded} onChange={(e) => set({ weekendSleepMin: fromHHMM(e.target.value) })} />
             </div>
           </div>
