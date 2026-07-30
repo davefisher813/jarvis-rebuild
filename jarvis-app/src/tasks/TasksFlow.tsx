@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { useTasks, useCategories, useSchedule } from "../data/NotesProvider";
 import TasksPage from "./screens/TasksPage";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
-import { partition, byCategory, type Partitioned, type TaskFilter } from "./filters";
+import { partition, byCategory, filterOf, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
 import type { Recurrence, TaskData } from "../notes/types";
 import { todayISO } from "./grouping";
 import { nextFreeSlot, addMinutes } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 
 const EMPTY: Partitioned = { daily: [], today: [], overdue: [], upcoming: [], done: [] };
-type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: TaskDraft } | null;
+type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft } | null;
 
 export default function TasksFlow({ openId }: { openId?: string } = {}) {
   const svc = useTasks();
@@ -100,8 +100,21 @@ export default function TasksFlow({ openId }: { openId?: string } = {}) {
       await svc.setDue(sheet.id, draft.due || null);
       await svc.setRecurrence(sheet.id, rec || null);
     }
+    const wasNew = sheet?.mode === "new";
     setSheet(null);
     await reload();
+    // A saved task must always be visible (audit 2026-07-30: a new task with
+    // no due date landed in Upcoming while the user watched Today, which read
+    // as "Save is broken"). Jump to the filter where it landed and clear a
+    // category filter that would hide it, with a toast naming the move.
+    if (wasNew) {
+      const landed = filterOf({ text: draft.text, category: draft.category, done: false, due: draft.due || undefined, recurrence: rec || undefined }, today);
+      if (draft.category && catFilter !== "all" && draft.category !== catFilter) setCatFilter("all");
+      if (landed !== filter) {
+        setFilter(landed);
+        showToast({ message: `Saved to ${FILTER_LABEL[landed]}` });
+      }
+    }
   };
 
   const onDelete = async () => {
@@ -169,13 +182,18 @@ export default function TasksFlow({ openId }: { openId?: string } = {}) {
         onSnoozeTask={onSnooze}
         onQuickAdd={onQuickAdd}
         onClearDone={onClearDone}
-        onNew={() => setSheet({ mode: "new" })}
+        onNew={() => setSheet({
+          mode: "new",
+          // Prefill from the filter being viewed, so a task made while looking
+          // at Today is due today by default (audit 2026-07-30).
+          initial: filter === "today" || filter === "overdue" ? { due: today } : filter === "daily" ? { repeat: "daily" } : undefined,
+        })}
         loading={loading}
       />
       {sheet && (
         <TaskSheet
           mode={sheet.mode}
-          initial={sheet.mode === "edit" ? sheet.initial : undefined}
+          initial={sheet.initial}
           categories={categories}
           onSave={onSave}
           onSchedule={sheet.mode === "edit" ? onScheduleTask : undefined}
