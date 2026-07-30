@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTasks, useCategories, useSchedule } from "../data/NotesProvider";
 import TasksPage from "./screens/TasksPage";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
-import { partition, byCategory, filterOf, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
+import { partition, byCategory, filterOf, FILTERS, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
 import type { Recurrence, TaskData } from "../notes/types";
 import type { TaskItem } from "./TasksService";
 import { todayISO } from "./grouping";
@@ -11,10 +11,10 @@ import { showToast } from "../shared/toast";
 import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage } from "./lifecycle";
 import { useAI } from "../ai/useAI";
 
-const EMPTY: Partitioned = { daily: [], today: [], overdue: [], upcoming: [], done: [] };
+const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft } | null;
 
-export default function TasksFlow({ openId }: { openId?: string } = {}) {
+export default function TasksFlow({ openId, openFilter }: { openId?: string; openFilter?: string } = {}) {
   const svc = useTasks();
   const cats = useCategories();
   const schedule = useSchedule();
@@ -23,7 +23,9 @@ export default function TasksFlow({ openId }: { openId?: string } = {}) {
   const tomorrow = (() => { const d = new Date(today + "T00:00:00"); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
   const [parts, setParts] = useState<Partitioned>(EMPTY);
   const [allItems, setAllItems] = useState<TaskItem[]>([]);
-  const [filter, setFilter] = useState<TaskFilter>("today");
+  const [filter, setFilter] = useState<TaskFilter>(
+    openFilter && (FILTERS as string[]).includes(openFilter) ? (openFilter as TaskFilter) : "today",
+  );
   const [catFilter, setCatFilter] = useState("all");
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [sheet, setSheet] = useState<SheetState>(null);
@@ -84,6 +86,7 @@ export default function TasksFlow({ openId }: { openId?: string } = {}) {
   }, [categories, catFilter]);
 
   const counts = {
+    all: parts.all.length,
     daily: parts.daily.length,
     today: parts.today.length,
     overdue: parts.overdue.length,
@@ -252,7 +255,7 @@ export default function TasksFlow({ openId }: { openId?: string } = {}) {
     showToast({ message: "Added to schedule" });
   };
 
-  const fsBanner = fsCandidate && (filter === "today" || filter === "overdue") ? (
+  const fsBanner = fsCandidate && (filter === "today" || filter === "overdue" || filter === "all") ? (
     <div className="pad-x">
       <div className="card pad">
         <div className="conn-name">&ldquo;{fsCandidate.data.text}&rdquo; keeps sliding.</div>
@@ -299,7 +302,7 @@ export default function TasksFlow({ openId }: { openId?: string } = {}) {
           mode: "new",
           // Prefill from the filter being viewed, so a task made while looking
           // at Today is due today by default (audit 2026-07-30).
-          initial: filter === "today" || filter === "overdue" ? { due: today } : filter === "daily" ? { repeat: "daily" } : undefined,
+          initial: filter === "today" || filter === "overdue" || filter === "all" ? { due: today } : filter === "daily" ? { repeat: "daily" } : undefined,
         })}
         loading={loading}
       />

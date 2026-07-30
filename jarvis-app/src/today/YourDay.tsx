@@ -49,12 +49,19 @@ const CalIcon = () => (
   </svg>
 );
 
+const FocusIcon = () => (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
 export default function YourDay({
   events,
   now,
   nowLabel,
   onSeeAll,
   onPlanDay,
+  onFocus,
   title = "Your Day",
   emptyText = "Nothing scheduled today",
 }: {
@@ -63,6 +70,7 @@ export default function YourDay({
   nowLabel: string;
   onSeeAll: () => void;
   onPlanDay?: () => void;
+  onFocus?: () => void;
   title?: string;
   emptyText?: string;
 }) {
@@ -75,9 +83,12 @@ export default function YourDay({
     if (el) setOverflow(el.scrollHeight > WINDOW);
   }, [events, now]);
 
-  const planButton = onPlanDay ? (
-    <div className="plan-cta-row">
-      <button className="plan-cta plan-cta-block" onClick={onPlanDay}><CalIcon />Plan My Day</button>
+  // Focus (the one-card mode) pairs with Plan My Day when available: Focus is
+  // the one red action on the page, Plan My Day drops to the quiet style.
+  const planButton = onPlanDay || onFocus ? (
+    <div className={"plan-cta-row" + (onPlanDay && onFocus ? " plan-cta-pair" : "")}>
+      {onFocus && <button className="plan-cta plan-cta-block" onClick={onFocus}><FocusIcon />Focus</button>}
+      {onPlanDay && <button className={"plan-cta plan-cta-block" + (onFocus ? " plan-cta-ghost" : "")} onClick={onPlanDay}><CalIcon />Plan My Day</button>}
     </div>
   ) : null;
 

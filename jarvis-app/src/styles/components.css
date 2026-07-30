@@ -280,8 +280,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .upnext-skip { background: 0; border: 0; color: var(--tx-4); font-size: var(--t-body); font-weight: var(--w-medium); font-family: var(--f); margin-top: var(--s-3h); }
 .upnext-pill-row { display: flex; justify-content: center; padding: var(--s-2) var(--s-4) 0; }
 .qw-pill { background: var(--red-tint); color: var(--accent); font-weight: var(--w-bold); font-size: var(--t-meta); padding: var(--s-1h) var(--s-3h); border-radius: var(--r-pill); }
-.hero-cta { margin-top: var(--s-3); background: var(--press-3); border: 0; border-radius: var(--r-pill); padding: var(--s-2) var(--s-3h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-1); font-family: var(--f); }
 .fresh-faded { color: var(--tx-3); }
+/* Focus + Plan My Day as a pair: Focus keeps the accent (one red action per
+   screen), Plan My Day drops to the quiet fill. */
+.plan-cta-pair { display: flex; gap: var(--s-2h); }
+.plan-cta-pair .plan-cta { width: auto; flex: 1; }
+.plan-cta.plan-cta-ghost { background: var(--press-3); color: var(--tx-1); box-shadow: none; }
 .search-top { display: flex; align-items: center; gap: var(--s-3); padding: calc(var(--safe-top) + var(--s-3)) var(--s-4) var(--s-3); }
 .search-top .search-bar { flex: 1; }
 .search-top .search-bar .ic { width: 18px; height: 18px; color: var(--tx-3); flex-shrink: 0; }

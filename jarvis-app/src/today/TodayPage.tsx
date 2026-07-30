@@ -52,6 +52,11 @@ const CheckIcon = () => (
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
   </svg>
 );
+const NextIcon = () => (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="13 17 18 12 13 7" /><polyline points="6 17 11 12 6 7" />
+  </svg>
+);
 const SunIcon = () => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <path d="M17 18a5 5 0 0 0-10 0" /><line x1="12" y1="2" x2="12" y2="9" /><line x1="4.2" y1="10.2" x2="5.6" y2="11.6" /><line x1="1" y1="18" x2="3" y2="18" /><line x1="21" y1="18" x2="23" y2="18" /><line x1="18.4" y1="11.6" x2="19.8" y2="10.2" /><polyline points="8 6 12 2 16 6" /><line x1="3" y1="22" x2="21" y2="22" />
@@ -88,6 +93,8 @@ export default function TodayPage({
   onSeeAllSchedule,
   onPlanDay,
   onUpNext,
+  upNext,
+  onSeeAllUpNext,
   freshStart,
   onSeeAllTasks,
   suggestions,
@@ -113,6 +120,8 @@ export default function TodayPage({
   onSeeAllSchedule: () => void;
   onPlanDay?: () => void;
   onUpNext?: () => void;
+  upNext?: TaskItem[];
+  onSeeAllUpNext?: () => void;
   freshStart?: () => void;
   onSeeAllTasks: () => void;
   suggestions?: ReactNode;
@@ -130,6 +139,29 @@ export default function TodayPage({
   // Evening posture: recap instead of workload, Tonight instead of Your Day,
   // Tomorrow promoted above the (softened) open tasks. Same page, same data.
   const dayEvents = evening ? todayEvents.filter((e) => e.data.start >= now) : todayEvents;
+
+  // Up Next: the deck's top 3, first thing under the hero (Dave 2026-07-30).
+  // Rows are the SAME task rows as every other list (all task lists identical,
+  // Dave 2026-07-30); the title stays outside the card; See All lands on the
+  // Tasks All filter. The one-card mode opens from the Focus button (YourDay).
+  const upNextSection = !evening && upNext && upNext.length > 0 && (
+    <>
+      <div className="sec-head">
+        <div className="sec-left">
+          <div className="sec-ico ico-accent"><NextIcon /></div>
+          <div className="sec-title">Up Next</div>
+        </div>
+        {onSeeAllUpNext && <button className="see-all" onClick={onSeeAllUpNext}>See All</button>}
+      </div>
+      <div className="pad-x">
+        <div className="card">
+          {upNext.map((t) => (
+            <TaskRow key={t.id} t={t} u={urgencyFor(t.data, today)} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
+          ))}
+        </div>
+      </div>
+    </>
+  );
 
   const tasksSection = tasks.length > 0 && (
     <>
@@ -187,13 +219,12 @@ export default function TodayPage({
             <div className="eyebrow">{dateLong}</div>
             <div className="today-title">{greeting}</div>
             <div className="today-summary">{evening ? eveningSummary(evening) : parts}</div>
-            {onUpNext && !evening && (
-              <button className="hero-cta" onClick={onUpNext}>Up Next</button>
-            )}
           </div>
           {ring && <DayRing done={ring.done} total={ring.total} />}
         </div>
       </div>
+
+      {upNextSection}
 
       {freshStart && (
         <div className="pad-x">
@@ -217,12 +248,16 @@ export default function TodayPage({
         nowLabel={nowLabel}
         onSeeAll={onSeeAllSchedule}
         onPlanDay={onPlanDay}
+        onFocus={evening ? undefined : onUpNext}
         title={evening ? "Tonight" : "Your Day"}
         emptyText={evening ? "Nothing else tonight" : "Nothing scheduled today"}
       />
 
-      {evening ? tomorrowSection : tasksSection}
-      {evening ? tasksSection : tomorrowSection}
+      {/* Daytime: Up Next (top of page) replaces the old task list; evening
+          keeps the softened Still Open recap. */}
+      {evening && tomorrowSection}
+      {evening && tasksSection}
+      {!evening && tomorrowSection}
 
       <div className="screen-foot" />
     </div>

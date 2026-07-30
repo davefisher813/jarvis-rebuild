@@ -60,6 +60,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // One-shot deep-link into a target tab from a note connection. Cleared on any
   // manual tab tap. Only tasks and projects are wired so far.
   const [taskIntent, setTaskIntent] = useState<string | undefined>(undefined);
+  // One-shot filter intent for the Tasks tab (Up Next's See All lands on All).
+  const [taskFilterIntent, setTaskFilterIntent] = useState<string | undefined>(undefined);
   const [projectIntent, setProjectIntent] = useState<string | undefined>(undefined);
   const [eventIntent, setEventIntent] = useState<string | undefined>(undefined);
   const [goalIntent, setGoalIntent] = useState<string | undefined>(undefined);
@@ -173,8 +175,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             are instant, like native iOS (RDB, Dave 2026-07-29) */}
         <Suspense fallback={<SkeletonScreen hero={false} />}>
         <div key={active}>
-        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} />}
-        {active === "tasks" && <TasksFlow openId={taskIntent} />}
+        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); setActive("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} />}
+        {active === "tasks" && <TasksFlow openId={taskIntent} openFilter={taskFilterIntent} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
         {active === "brain" && <BrainFlow openKey={brainIntent} personOpenId={personIntent?.id} onOpenNote={navigateToNote} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
@@ -201,7 +203,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       {showDock && (
         <>
           <VoiceBar onTap={() => setCaptureOpen(true)} />
-          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
+          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setTaskFilterIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
         </>
       )}
       {captureOpen && <Suspense fallback={null}><QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} /></Suspense>}

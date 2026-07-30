@@ -47,12 +47,41 @@ describe("TodayPage", () => {
     expect(summary.querySelector(".fg-red")).toHaveTextContent("1 overdue");
   });
 
-  it("renders Today's Tasks with the right urgency colors", () => {
-    const { container } = render(<TodayPage {...base} />);
-    expect(screen.getByText("Today\u2019s Tasks")).toBeInTheDocument();
+  it("renders Up Next with STANDARD task rows (identical to every list)", () => {
+    const upNext = [tk("over", "2026-05-18"), tk("due", "2026-05-20")];
+    const { container } = render(<TodayPage {...base} upNext={upNext} onUpNext={() => {}} onSeeAllUpNext={() => {}} />);
+    expect(screen.getByText("Up Next")).toBeInTheDocument();
+    expect(screen.getByText("See All")).toBeInTheDocument();
+    // same row anatomy as every other task list: check + title + urgency tag
     expect(container.querySelector(".urgency-red")).toBeTruthy(); // overdue
     expect(container.querySelector(".urgency-warn")).toBeTruthy(); // due today
     expect(container.querySelector(".task-check.cat-bd-sky")).toBeTruthy();
+    // no custom chrome: no meta lines, no per-row chevrons
+    expect(container.querySelector(".task-row .sched-cat")).toBeNull();
+    expect(container.querySelector(".upnext-deck-btn")).toBeNull();
+    // the old daytime task list is replaced by Up Next
+    expect(screen.queryByText("Today\u2019s Tasks")).toBeNull();
+  });
+
+  it("shows the Focus button paired with Plan My Day (daytime only)", () => {
+    render(<TodayPage {...base} upNext={[tk("due", "2026-05-20")]} onUpNext={() => {}} onPlanDay={() => {}} />);
+    expect(screen.getByText("Focus")).toBeInTheDocument();
+    expect(screen.getByText("Plan My Day")).toBeInTheDocument();
+  });
+
+  it("evening keeps the Still Open recap instead of Up Next, no Focus", () => {
+    render(
+      <TodayPage
+        {...base}
+        evening={{ doneDue: 2, dueTotal: 3, eventsLeft: 0, openCount: 1 }}
+        upNext={[tk("due", "2026-05-20")]}
+        onUpNext={() => {}}
+        onPlanDay={() => {}}
+      />,
+    );
+    expect(screen.queryByText("Up Next")).toBeNull();
+    expect(screen.queryByText("Focus")).toBeNull();
+    expect(screen.getByText("Still Open")).toBeInTheDocument();
   });
 
   it("renders Your Day and Tomorrow sections", () => {

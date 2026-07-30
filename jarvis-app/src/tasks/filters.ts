@@ -2,12 +2,14 @@ import { groupFor, urgencyFor, todayISO } from "./grouping";
 import type { TaskData } from "../notes/types";
 import type { TaskItem } from "./TasksService";
 
-// The four filter chips on the Tasks page. Overdue is split out of Today here
-// (the page shows one filter at a time); the service still groups overdue into
-// "today" for the grouped() view. Pure + tested.
-export type TaskFilter = "daily" | "today" | "overdue" | "upcoming" | "done";
-export const FILTERS: TaskFilter[] = ["daily", "today", "overdue", "upcoming", "done"];
+// The filter chips on the Tasks page. All leads (every open task in one list,
+// Dave 2026-07-30); Overdue is split out of Today here (the page shows one
+// filter at a time); the service still groups overdue into "today" for the
+// grouped() view. Pure + tested.
+export type TaskFilter = "all" | "daily" | "today" | "overdue" | "upcoming" | "done";
+export const FILTERS: TaskFilter[] = ["all", "daily", "today", "overdue", "upcoming", "done"];
 export const FILTER_LABEL: Record<TaskFilter, string> = {
+  all: "All",
   daily: "Daily",
   today: "Today",
   overdue: "Overdue",
@@ -24,7 +26,7 @@ export function filterOf(t: TaskData, today: string): TaskFilter {
 export type Partitioned = Record<TaskFilter, TaskItem[]>;
 
 export function partition(items: TaskItem[], today: string = todayISO()): Partitioned {
-  const p: Partitioned = { daily: [], today: [], overdue: [], upcoming: [], done: [] };
+  const p: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
   for (const it of items) {
     p[filterOf(it.data, today)].push(it);
     if (it.data.recurrence === "daily" && !it.data.done) p.daily.push(it);
@@ -33,6 +35,9 @@ export function partition(items: TaskItem[], today: string = todayISO()): Partit
   p.today.sort((a, b) => key(a).localeCompare(key(b)));
   p.overdue.sort((a, b) => key(a).localeCompare(key(b)));
   p.upcoming.sort((a, b) => key(a).localeCompare(key(b)));
+  // All = every open task, soonest first (overdue leads), no-date last. Done
+  // stays in its own chip so All is never a graveyard.
+  p.all = [...p.overdue, ...p.today, ...p.upcoming];
   return p;
 }
 

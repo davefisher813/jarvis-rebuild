@@ -21,7 +21,7 @@ import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
 import { showToast } from "../shared/toast";
 import { lazy, Suspense } from "react";
-import { isOffTrack } from "../upnext/upnext";
+import { isOffTrack, rankOpen } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 
 // Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
@@ -33,12 +33,14 @@ const FreshStartFlow = lazy(() => import("../upnext/FreshStartFlow"));
 export default function TodayFlow({
   onGoSchedule,
   onGoTasks,
+  onGoTasksAll,
   onSearch,
   onProfile,
   onEditRoutine,
 }: {
   onGoSchedule: () => void;
   onGoTasks: () => void;
+  onGoTasksAll?: () => void;
   onSearch?: () => void;
   onProfile?: () => void;
   onEditRoutine?: () => void;
@@ -202,6 +204,8 @@ export default function TodayFlow({
   // Fresh Start banner: only when the afternoon is honestly off track, never
   // in the evening posture, and never again today once waved off.
   const offTrack = !freshSkipped && !isEvening(nowMin, routineData) && isOffTrack(taskItems, today, nowMin);
+  // Up Next section: the deck's top 3, rendered as standard task rows.
+  const upNextRows = rankOpen(taskItems, today).slice(0, 3);
   const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm) : undefined;
   // Day ring: due-today done over due-today total. Hero tint by daypart.
   const dueToday = taskItems.filter((t) => t.data.due === today);
@@ -227,6 +231,8 @@ export default function TodayFlow({
       onOpenTask={onOpenTask}
       onPlanDay={() => setPlanOpen(true)}
       onUpNext={() => setUpNextOpen(true)}
+      upNext={upNextRows}
+      onSeeAllUpNext={onGoTasksAll ?? onGoTasks}
       freshStart={offTrack ? () => setFreshOpen(true) : undefined}
       today={today}
       suggestions={<><CheckIn onChanged={() => { void reload(); }} /><TodaySuggestions ai={ai} /></>}
