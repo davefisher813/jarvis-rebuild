@@ -36,6 +36,11 @@ function Row({
   const u = urgencyFor(t, today);
   const prevDone = useRef(t.done);
   const [burst, setBurst] = useState(false);
+  // Optimistic completion: flip + burst immediately, hold the real toggle
+  // 600ms so the row does not unmount (regroup to Done) mid-animation.
+  const [localDone, setLocalDone] = useState(false);
+  const pendingDone = useRef(false);
+  const shownDone = t.done || localDone;
   const [dx, setDx] = useState(0);
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -53,6 +58,16 @@ function Row({
     }
     prevDone.current = t.done;
   }, [t.done]);
+
+  const tapCheck = () => {
+    if (pendingDone.current) return;
+    if (t.done) { onToggle?.(item.id); return; } // un-completing: no ceremony
+    pendingDone.current = true;
+    setLocalDone(true);
+    setBurst(true);
+    setTimeout(() => setBurst(false), 650);
+    setTimeout(() => { pendingDone.current = false; setLocalDone(false); onToggle?.(item.id); }, 600);
+  };
 
   const revealW = t.done ? 88 : 176; // open tasks also reveal a "tomorrow" action
   const onStart = (e: React.TouchEvent) => {
@@ -105,12 +120,12 @@ function Row({
       >
         <div
           className="task-check-tap"
-          onClick={(e) => { e.stopPropagation(); onToggle?.(item.id); }}
+          onClick={(e) => { e.stopPropagation(); tapCheck(); }}
           role="checkbox"
-          aria-checked={t.done}
-          aria-label={t.done ? "Mark not done" : "Mark done"}
+          aria-checked={shownDone}
+          aria-label={shownDone ? "Mark not done" : "Mark done"}
         >
-          <div className={"task-check " + (t.done ? "done" : "cat-bd-" + catColor(t.category))} />
+          <div className={"task-check " + (shownDone ? "done" : "cat-bd-" + catColor(t.category))} />
           <Burst show={burst} />
         </div>
         <div className="row-stack" role="button" tabIndex={0} onClick={() => onOpen?.(item.id)}>

@@ -42,10 +42,28 @@ describe("TasksPage", () => {
     expect(container.querySelector(".empty-state")).toBeTruthy();
   });
 
-  it("fires onToggle with the task id when the check is tapped", () => {
+  it("fires onToggle after the completion animation window (optimistic check)", () => {
+    vi.useFakeTimers();
     const onToggle = vi.fn();
     const { container } = render(<TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20" onToggle={onToggle} />);
     fireEvent.click(container.querySelector(".task-check") as HTMLElement);
+    // check flips immediately (optimistic), burst plays, toggle is held 600ms
+    expect(container.querySelector(".task-check.done")).toBeTruthy();
+    expect(container.querySelector(".burst")).toBeTruthy();
+    expect(onToggle).not.toHaveBeenCalled();
+    // a second tap during the window is ignored (no double toggle)
+    fireEvent.click(container.querySelector(".task-check") as HTMLElement);
+    vi.advanceTimersByTime(700);
+    expect(onToggle).toHaveBeenCalledTimes(1);
     expect(onToggle).toHaveBeenCalledWith("a");
+    vi.useRealTimers();
+  });
+
+  it("un-completing fires immediately with no ceremony", () => {
+    const onToggle = vi.fn();
+    const doneTask: TaskItem = { id: "d", data: { text: "d", category: "tucci", done: true, due: "2026-05-20" } };
+    const { container } = render(<TasksPage filter="done" counts={counts} items={[doneTask]} today="2026-05-20" onToggle={onToggle} />);
+    fireEvent.click(container.querySelector(".task-check") as HTMLElement);
+    expect(onToggle).toHaveBeenCalledWith("d");
   });
 });

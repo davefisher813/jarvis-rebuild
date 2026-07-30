@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MoreHorizontal, FileText, Image, Check, Plus, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
 import { catColor } from "../../shared/categories";
+import { Burst } from "../../shared/Burst";
 
 // Matches locked frame #47 "Editor / Blocks", now editable in place. Tapping a
 // checkbox toggles it; title, text, headings, and checklist item text are
@@ -155,17 +156,31 @@ function Checklist({
   onAddItem?: (blockId: string) => void;
   onDeleteItem?: (blockId: string, index: number) => void;
 }) {
+  // Completion feedback (audit 2026-07-30): checking an item pops the box and
+  // fires the same micro-burst as tasks. Items stay in place when checked, so
+  // no delay is needed here.
+  const [burstAt, setBurstAt] = useState<number | null>(null);
+  const burstTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const celebrate = (i: number) => {
+    setBurstAt(null);
+    if (burstTimer.current) clearTimeout(burstTimer.current);
+    requestAnimationFrame(() => {
+      setBurstAt(i);
+      burstTimer.current = setTimeout(() => setBurstAt(null), 500);
+    });
+  };
   return (
     <>
       {block.items.map((it, i) => (
         <div className={"check-line" + (it.done ? " done" : "")} key={i}>
           <div
-            className={"cb" + (it.done ? " on" : "")}
+            className={"cb" + (it.done ? " on" : "") + (burstAt === i ? " just-checked" : "")}
             // Only allow checking an item that has text, so a blank line can
             // never become an orphaned checked box.
-            onClick={() => { if (it.text.trim()) onToggle?.(block.id, i); }}
+            onClick={() => { if (it.text.trim()) { if (!it.done) celebrate(i); onToggle?.(block.id, i); } }}
           >
             {it.done && <Check className="ic" />}
+            <Burst show={burstAt === i} />
           </div>
           <Editable
             tag="span"

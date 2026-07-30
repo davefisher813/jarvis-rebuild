@@ -4,6 +4,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import { fmtTime } from "../schedule/calendar";
 import { urgencyFor, type UrgencyKind } from "../tasks/grouping";
 import { catColor, catName } from "../shared/categories";
+import { useRef, useState } from "react";
 import type { DaySummary } from "./todayData";
 import RollingNumber from "../shared/RollingNumber";
 import YourDay from "./YourDay";
@@ -18,12 +19,26 @@ const URGENCY_CLASS: Record<UrgencyKind, string> = {
 };
 
 // One task row with the completion micro-burst wired to the check tap.
+// Completion is optimistic: the check flips and the burst plays immediately,
+// and the real toggle (which reloads the list and removes the row) is held
+// for 600ms so the animation is actually visible before the row leaves.
 function TaskRow({ t, u, onToggle, onOpen }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; onToggle?: () => void; onOpen?: () => void }) {
   const [bursting, fireBurst] = useBurst();
+  const [localDone, setLocalDone] = useState(false);
+  const pending = useRef(false);
+  const done = t.data.done || localDone;
+  const tap = () => {
+    if (pending.current) return; // ignore taps while the completion is in flight
+    if (t.data.done) { onToggle?.(); return; } // un-completing: no ceremony
+    pending.current = true;
+    setLocalDone(true);
+    fireBurst();
+    setTimeout(() => { pending.current = false; setLocalDone(false); onToggle?.(); }, 600);
+  };
   return (
-    <div className="task-row">
-      <div className="task-check-tap" role="checkbox" aria-checked={t.data.done} aria-label={t.data.done ? "Mark not done" : "Mark done"} onClick={() => { if (!t.data.done) fireBurst(); onToggle?.(); }}>
-        <div className={"task-check " + (t.data.done ? "done" : "cat-bd-" + catColor(t.data.category))} />
+    <div className={"task-row" + (localDone ? " just-done" : "")}>
+      <div className="task-check-tap" role="checkbox" aria-checked={done} aria-label={done ? "Mark not done" : "Mark done"} onClick={tap}>
+        <div className={"task-check " + (done ? "done" : "cat-bd-" + catColor(t.data.category))} />
         <Burst show={bursting} />
       </div>
       <div className="task-title" role="button" tabIndex={0} onClick={onOpen}>{t.data.text}</div>

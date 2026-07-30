@@ -347,19 +347,24 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 
 /* Completion micro-burst (RDB, Dave 2026-07-29): 8 good-green dots radiate
    from the checkbox for 420ms on completion. Directions are fixed per dot via
-   nth-child custom properties; no inline styles at call sites. */
+   nth-child custom properties; no inline styles at call sites. Anchors: task
+   checkboxes and note checklist boxes (audit 2026-07-30). */
 .task-check-tap { position: relative; }
+.cb { position: relative; }
+.cb.on.just-checked { animation: checkPop 0.42s var(--ease-out); }
 .burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
-.burst i { position: absolute; left: -2.5px; top: -2.5px; width: 5px; height: 5px; border-radius: var(--r-circle); background: var(--good); animation: burstFly 420ms var(--ease-out) forwards; }
-.burst i:nth-child(1) { --bx: 0px;   --by: -22px; }
-.burst i:nth-child(2) { --bx: 16px;  --by: -16px; }
-.burst i:nth-child(3) { --bx: 22px;  --by: 0px; }
-.burst i:nth-child(4) { --bx: 16px;  --by: 16px; }
-.burst i:nth-child(5) { --bx: 0px;   --by: 22px; }
-.burst i:nth-child(6) { --bx: -16px; --by: 16px; }
-.burst i:nth-child(7) { --bx: -22px; --by: 0px; }
-.burst i:nth-child(8) { --bx: -16px; --by: -16px; }
-@keyframes burstFly { from { transform: none; opacity: 1; } to { transform: translate(var(--bx), var(--by)) scale(0.35); opacity: 0; } }
+/* Sized to actually register (Dave 2026-07-30: original 5px/22px read as
+   "minimal"): 7px dots, 34px throw, full brightness for the first 60%. */
+.burst i { position: absolute; left: -3.5px; top: -3.5px; width: 7px; height: 7px; border-radius: var(--r-circle); background: var(--good); animation: burstFly 480ms var(--ease-out) forwards; }
+.burst i:nth-child(1) { --bx: 0px;   --by: -34px; }
+.burst i:nth-child(2) { --bx: 24px;  --by: -24px; }
+.burst i:nth-child(3) { --bx: 34px;  --by: 0px; }
+.burst i:nth-child(4) { --bx: 24px;  --by: 24px; }
+.burst i:nth-child(5) { --bx: 0px;   --by: 34px; }
+.burst i:nth-child(6) { --bx: -24px; --by: 24px; }
+.burst i:nth-child(7) { --bx: -34px; --by: 0px; }
+.burst i:nth-child(8) { --bx: -24px; --by: -24px; }
+@keyframes burstFly { 0% { transform: none; opacity: 1; } 60% { opacity: 1; } 100% { transform: translate(var(--bx), var(--by)) scale(0.4); opacity: 0; } }
 
 /* Day progress ring in the Today hero (RDB, Dave 2026-07-29): fills as
    due-today tasks complete; pops once full. Hidden when nothing is due. */
