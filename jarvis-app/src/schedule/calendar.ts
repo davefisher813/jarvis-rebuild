@@ -175,3 +175,20 @@ export function weekOf(iso: string): string[] {
 export function addDays(iso: string, n: number): string {
   const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10);
 }
+
+// Time as distance (roadmap v2): "in 40m", "in 2h 10m". Time blindness reads
+// distances, not clocks. Returns null when the moment has passed.
+export function fmtDistance(startHHMM: string, nowHHMM: string): string | null {
+  const diff = toMin(startHHMM) - toMin(nowHHMM);
+  if (diff <= 0) return null;
+  if (diff < 60) return `in ${diff}m`;
+  const h = Math.floor(diff / 60);
+  const m = diff % 60;
+  return m === 0 ? `in ${h}h` : `in ${h}h ${m}m`;
+}
+
+// Minutes-from-midnight <-> "HH:MM", shared by the locked-block rows.
+export function minToHHMM(min: number): string {
+  const t = Math.max(0, Math.min(24 * 60 - 1, min));
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+}

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSchedule, useCategories, useTasks, useRoutine } from "../data/NotesProvider";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
-import { todayISO, weekOf, addDays, eventsForDate, findConflicts, nextFreeSlot } from "./calendar";
+import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot } from "./calendar";
 import type { EventItem, EventData } from "./types";
 import { showToast } from "../shared/toast";
 import PlanDaySheet from "./screens/PlanDaySheet";
@@ -225,6 +225,48 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
 
   const onPickSlot = (start: string) => { setNewStart(start); setSheet({ mode: "new" }); };
 
+  // --- Roadmap v2 schedule basics ---
+  const nowHHMM = (() => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; })();
+
+  // Swipe: push one event 15 minutes (start and end shift together).
+  const onPush15 = async (id: string) => {
+    const e = await svc.event(id);
+    if (!e) return;
+    await svc.editTime(id, addMinutes(e.start, 15));
+    if (e.end) await svc.editEnd(id, addMinutes(e.end, 15));
+    await reload();
+    showToast({ message: "Pushed 15 minutes", actionLabel: "Undo", onAction: async () => { await svc.editTime(id, e.start); if (e.end) await svc.editEnd(id, e.end); await reload(); } });
+  };
+
+  // Swipe: push one event to tomorrow, same time.
+  const onPushTomorrow = async (id: string) => {
+    const e = await svc.event(id);
+    if (!e) return;
+    await svc.moveDay(id, addDays(e.date, 1));
+    await reload();
+    showToast({ message: "Moved to tomorrow", actionLabel: "Undo", onAction: async () => { await svc.moveDay(id, e.date); await reload(); } });
+  };
+
+  // Running Late: one tap shifts everything left in today as a unit. Recurring
+  // events are skipped (shifting a series from one bad morning is wrong); the
+  // toast says what moved and Undo restores every prior time.
+  const onRunningLate = async (mins: number) => {
+    const future = dayEvents.filter((e) => (!e.data.recurrence || e.data.recurrence === "none") && e.data.start >= nowHHMM);
+    if (future.length === 0) return;
+    const prior = future.map((e) => ({ id: e.id, start: e.data.start, end: e.data.end ?? null }));
+    for (const e of future) {
+      await svc.editTime(e.id, addMinutes(e.data.start, mins));
+      if (e.data.end) await svc.editEnd(e.id, addMinutes(e.data.end, mins));
+    }
+    await reload();
+    const skipped = dayEvents.filter((e) => e.data.recurrence && e.data.recurrence !== "none" && e.data.start >= nowHHMM).length;
+    showToast({
+      message: `Shifted ${future.length} ${future.length === 1 ? "event" : "events"} by ${mins === 60 ? "an hour" : mins + " minutes"}${skipped ? ` (${skipped} repeating left in place)` : ""}`,
+      actionLabel: "Undo",
+      onAction: async () => { for (const p of prior) { await svc.editTime(p.id, p.start); if (p.end) await svc.editEnd(p.id, p.end); } await reload(); },
+    });
+  };
+
   return (
     <>
       <SchedulePage
@@ -246,6 +288,12 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onOpenEvent={openEdit}
         onPickSlot={onPickSlot}
         onPlanDay={() => setPlanOpen(true)}
+        locked={blocked}
+        now={selected === today ? nowHHMM : null}
+        onEditRoutine={onEditRoutine}
+        onPush15={onPush15}
+        onPushTomorrow={onPushTomorrow}
+        onRunningLate={onRunningLate}
       />
       {planOpen && (
         <PlanDaySheet

@@ -9,6 +9,7 @@ import TodayPage from "./TodayPage";
 import TodaySuggestions from "./TodaySuggestions";
 import CheckIn from "./CheckIn";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
+import EventSheet, { type EventDraft } from "../schedule/screens/EventSheet";
 import PlanDaySheet from "../schedule/screens/PlanDaySheet";
 import { aiPlanDay } from "../schedule/planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } from "../routine/types";
@@ -77,6 +78,7 @@ export default function TodayFlow({
   }, [routine, profile]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [sheet, setSheet] = useState<{ mode: "edit"; id: string; initial: TaskDraft } | null>(null);
+  const [eventSheet, setEventSheet] = useState<{ id: string; initial: EventDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [upNextOpen, setUpNextOpen] = useState(false);
   const [freshOpen, setFreshOpen] = useState(false);
@@ -130,6 +132,45 @@ export default function TodayFlow({
   const onOpenTask = async (id: string) => {
     const t = await tasks.task(id);
     if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "", repeat: t.recurrence ?? "" } });
+  };
+
+  // Tappable schedule rows (roadmap v2): an event on Today opens the same
+  // editor the Schedule uses. Recurring edits from here apply to the series.
+  const onOpenEvent = async (id: string) => {
+    const e = await schedule.event(id);
+    if (e) setEventSheet({ id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none" } });
+  };
+
+  const onSaveEvent = async (draft: EventDraft) => {
+    if (!eventSheet) return;
+    const id = eventSheet.id;
+    await schedule.editTitle(id, draft.title);
+    if ((eventSheet.initial.recurrence ?? "none") === "none") await schedule.moveDay(id, draft.date);
+    await schedule.editTime(id, draft.start);
+    await schedule.editEnd(id, draft.end);
+    await schedule.editRecurrence(id, draft.recurrence);
+    await schedule.editCategory(id, draft.category);
+    await schedule.editLocation(id, draft.location);
+    setEventSheet(null);
+    await reload();
+  };
+
+  const onDeleteEvent = async () => {
+    if (!eventSheet) return;
+    const e = await schedule.event(eventSheet.id);
+    await schedule.deleteEvent(eventSheet.id);
+    setEventSheet(null);
+    await reload();
+    if (e) {
+      showToast({
+        message: "Event deleted",
+        actionLabel: "Undo",
+        onAction: async () => {
+          await schedule.createEvent(e.title, { date: e.date, start: e.start, end: e.end, category: e.category || undefined, location: e.location, recurrence: e.recurrence });
+          await reload();
+        },
+      });
+    }
   };
 
   const onSaveTask = async (draft: TaskDraft) => {
@@ -234,6 +275,9 @@ export default function TodayFlow({
       upNext={upNextRows}
       onSeeAllUpNext={onGoTasksAll ?? onGoTasks}
       freshStart={offTrack ? () => setFreshOpen(true) : undefined}
+      locked={blocked}
+      onOpenEvent={onOpenEvent}
+      onEditRoutine={onEditRoutine}
       today={today}
       suggestions={<><CheckIn onChanged={() => { void reload(); }} /><TodaySuggestions ai={ai} /></>}
       onSearch={onSearch}
@@ -265,6 +309,16 @@ export default function TodayFlow({
         onSave={onSaveTask}
         onDelete={onDeleteTask}
         onCancel={() => setSheet(null)}
+      />
+    )}
+    {eventSheet && (
+      <EventSheet
+        mode="edit"
+        initial={eventSheet.initial}
+        categories={categories}
+        onSave={onSaveEvent}
+        onDelete={onDeleteEvent}
+        onCancel={() => setEventSheet(null)}
       />
     )}
     {upNextOpen && (

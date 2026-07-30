@@ -85,7 +85,6 @@ export default function BrainPage({
   return (
     <div className="screen">
       <div className="nav-bar"><div className="nav-large">Brain</div></div>
-      <div className="sub-bar"><div className="eyebrow">Everything JARVIS knows about you</div></div>
       {TOP_SECTIONS.map((sec) => Section(sec.title, sec.rows))}
       {categories.length > 0 &&
         Section(

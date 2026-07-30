@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import type { EventItem } from "../schedule/types";
-import { fmtTime } from "../schedule/calendar";
+import { fmtTime, fmtDistance, minToHHMM } from "../schedule/calendar";
 import { catColor, catName } from "../shared/categories";
-import { nowIndex, isPast } from "./todayData";
+import { isPast } from "./todayData";
 
 const WINDOW = 252; // ticker viewport height (px), matches .sched-ticker
 
-function Row({ ev, past }: { ev: EventItem; past: boolean }) {
+export interface LockedRange { s: number; e: number; label: string }
+
+function Row({ ev, past, dist, onOpen }: { ev: EventItem; past: boolean; dist: string | null; onOpen?: () => void }) {
   const t = fmtTime(ev.data.start);
   return (
-    <div className={"sched-row" + (past ? " past" : "")}>
+    <div className={"sched-row" + (past ? " past" : "")} role="button" tabIndex={0} onClick={onOpen}>
       <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
       <div className="sched-body">
-        <div className="sched-title">{ev.data.title}</div>
+        <div className="sched-title">{ev.data.title}{dist && <span className="sched-dist">{dist}</span>}</div>
         <div className="sched-cat">
           <span className={"cat-dot cat-bg-" + catColor(ev.data.category)} />
           {catName(ev.data.category)}
@@ -22,15 +24,46 @@ function Row({ ev, past }: { ev: EventItem; past: boolean }) {
   );
 }
 
-// One full pass of the day, with the Now line inserted at the right spot.
-function DaySet({ events, now, nowLabel }: { events: EventItem[]; now: string; nowLabel: string }) {
-  const ni = nowIndex(events, now);
+// A protected block from Your Routine, real on the day view. Tap edits the routine.
+function LockedRow({ l, past, onOpen }: { l: LockedRange; past: boolean; onOpen?: () => void }) {
+  const t = fmtTime(minToHHMM(l.s));
+  return (
+    <div className={"sched-row sched-locked" + (past ? " past" : "")} role="button" tabIndex={0} onClick={onOpen}>
+      <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
+      <div className="sched-body">
+        <div className="sched-title sched-lock-title">
+          <svg className="ic lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+          {l.label}
+        </div>
+        <div className="sched-cat">Protected</div>
+      </div>
+    </div>
+  );
+}
+
+// One full pass of the day: events + protected blocks in time order, with the
+// Now line inserted at the right spot and time-as-distance on the next event.
+function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine }: { events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void; onEditRoutine?: () => void }) {
+  const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
+  const nowMin = toMin(now);
+  const nextId = events.filter((e) => toMin(e.data.start) >= nowMin).sort((a, b) => toMin(a.data.start) - toMin(b.data.start))[0]?.id;
+  type Entry = { kind: "event"; ev: EventItem; s: number } | { kind: "locked"; l: LockedRange; s: number };
+  const entries: Entry[] = [
+    ...events.map((ev): Entry => ({ kind: "event", ev, s: toMin(ev.data.start) })),
+    ...locked.map((l): Entry => ({ kind: "locked", l, s: l.s })),
+  ].sort((a, b) => a.s - b.s);
+  // Insert the Now line by minutes, simple and correct with locked rows mixed in.
   const out: JSX.Element[] = [];
-  events.forEach((ev, i) => {
-    if (i === ni) out.push(<NowLine key="now" label={nowLabel} />);
-    out.push(<Row key={ev.id} ev={ev} past={isPast(ev, now)} />);
+  let nowPlaced = false;
+  entries.forEach((en, i) => {
+    if (!nowPlaced && en.s >= nowMin) { out.push(<NowLine key="now" label={nowLabel} />); nowPlaced = true; }
+    if (en.kind === "event") {
+      out.push(<Row key={en.ev.id} ev={en.ev} past={isPast(en.ev, now)} dist={en.ev.id === nextId ? fmtDistance(en.ev.data.start, now) : null} onOpen={onOpenEvent ? () => onOpenEvent(en.ev.id) : undefined} />);
+    } else {
+      out.push(<LockedRow key={"lock-" + i} l={en.l} past={en.l.e <= nowMin} onOpen={onEditRoutine} />);
+    }
   });
-  if (ni === events.length) out.push(<NowLine key="now" label={nowLabel} />);
+  if (!nowPlaced) out.push(<NowLine key="now" label={nowLabel} />);
   return <>{out}</>;
 }
 
@@ -57,20 +90,26 @@ const FocusIcon = () => (
 
 export default function YourDay({
   events,
+  locked = [],
   now,
   nowLabel,
   onSeeAll,
   onPlanDay,
   onFocus,
+  onOpenEvent,
+  onEditRoutine,
   title = "Your Day",
   emptyText = "Nothing scheduled today",
 }: {
   events: EventItem[];
+  locked?: LockedRange[];
   now: string;
   nowLabel: string;
   onSeeAll: () => void;
   onPlanDay?: () => void;
   onFocus?: () => void;
+  onOpenEvent?: (id: string) => void;
+  onEditRoutine?: () => void;
   title?: string;
   emptyText?: string;
 }) {
@@ -138,7 +177,7 @@ export default function YourDay({
         {planButton}
         <div className="pad-x">
           <div className="card">
-            <div ref={measureRef}><DaySet events={events} now={now} nowLabel={nowLabel} /></div>
+            <div ref={measureRef}><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} /></div>
           </div>
         </div>
       </div>
@@ -153,8 +192,8 @@ export default function YourDay({
       <div className="pad-x">
         <div className={"card sched-ticker" + (paused ? " paused" : "")}>
           <div className="ticker-track">
-            <DaySet events={events} now={now} nowLabel={nowLabel} />
-            <DaySet events={events} now={now} nowLabel={nowLabel} />
+            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} />
+            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} />
           </div>
         </div>
       </div>

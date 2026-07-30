@@ -22,8 +22,6 @@ export default function LifeMapPage({ areas, goals, onAddArea, onAddGoal, onOpen
   return (
     <div className="screen">
       <div className="nav-bar"><div className="nav-large">Life Map</div></div>
-      <div className="page-explainer">A read on each area of your life, at a glance.</div>
-
       <div className="pad-x"><div className="card">
         {areas.map((a) => {
           const m = AREA_META[a.data.state];

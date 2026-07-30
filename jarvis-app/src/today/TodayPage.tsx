@@ -96,6 +96,9 @@ export default function TodayPage({
   upNext,
   onSeeAllUpNext,
   freshStart,
+  locked,
+  onOpenEvent,
+  onEditRoutine,
   onSeeAllTasks,
   suggestions,
   onSearch,
@@ -123,6 +126,9 @@ export default function TodayPage({
   upNext?: TaskItem[];
   onSeeAllUpNext?: () => void;
   freshStart?: () => void;
+  locked?: { s: number; e: number; label: string }[];
+  onOpenEvent?: (id: string) => void;
+  onEditRoutine?: () => void;
   onSeeAllTasks: () => void;
   suggestions?: ReactNode;
   onSearch?: () => void;
@@ -244,11 +250,14 @@ export default function TodayPage({
 
       <YourDay
         events={dayEvents}
+        locked={locked}
         now={now}
         nowLabel={nowLabel}
         onSeeAll={onSeeAllSchedule}
         onPlanDay={onPlanDay}
         onFocus={evening ? undefined : onUpNext}
+        onOpenEvent={onOpenEvent}
+        onEditRoutine={onEditRoutine}
         title={evening ? "Tonight" : "Your Day"}
         emptyText={evening ? "Nothing else tonight" : "Nothing scheduled today"}
       />

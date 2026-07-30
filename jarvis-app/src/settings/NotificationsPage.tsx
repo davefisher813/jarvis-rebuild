@@ -22,7 +22,6 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   return (
     <div className="screen">
       <LargeTitleNav title="Notifications" back="Settings" onBack={onBack} />
-      <div className="page-explainer">Choose what shows in your Notifications feed.</div>
       <div className="pad-x"><div className="card">
         <SwitchRow name="Overdue and due tasks" on={prefs.overdue} onToggle={() => set({ overdue: !prefs.overdue })} />
         <SwitchRow name="Today's events" on={prefs.events} onToggle={() => set({ events: !prefs.events })} />

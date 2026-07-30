@@ -113,8 +113,6 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
         <button className="nav-action-text" onClick={save} disabled={!dirty || !loaded}>{loaded && !dirty ? "Saved" : "Save"}</button>
       </div>
 
-      <div className="sub-bar"><div className="eyebrow">When you're up and when you work. JARVIS plans around it.</div></div>
-
       <div className="pad-x sheet-form">
         <div className="grp"><div className="eyebrow">Active Hours</div></div>
         <div className="field-row">
@@ -143,7 +141,6 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
         {workOutside && <div className="input-help">Some work hours fall outside your active hours. That's fine.</div>}
 
         <div className="grp"><div className="eyebrow">Protected Time</div></div>
-        <div className="input-help">Daily blocks JARVIS will never schedule over: gym, meals, family, deep work.</div>
 
         {blocks.map((b) => (
           <div className="field" key={b.id}>

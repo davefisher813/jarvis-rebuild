@@ -1,8 +1,13 @@
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { EventItem } from "../types";
-import { monthMatrix, fmtTime, fmtRange, openSlots } from "../calendar";
-import { catColor, catName } from "../../shared/categories";
+import { monthMatrix, fmtTime, fmtRange, openSlots, minToHHMM } from "../calendar";
+import { catColor } from "../../shared/categories";
 import SkeletonRows from "../../shared/SkeletonRows";
+import DayRow from "./DayRow";
+
+// A protected block from Your Routine, rendered on the day it applies.
+export interface LockedRange { s: number; e: number; label: string }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WD = ["S", "M", "T", "W", "T", "F", "S"];
@@ -12,10 +17,6 @@ const WKLONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"
 type Mode = "day" | "week" | "month";
 interface WeekCell { date: string; day: number; colors: string[]; }
 
-function dayLabel(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return `${MONTHS[d.getMonth()]!.slice(0, 3)} ${d.getDate()}`;
-}
 function fullDay(iso: string): string {
   const d = new Date(iso + "T00:00:00");
   return `${WKLONG[d.getDay()]}, ${MONTHS[d.getMonth()]!.slice(0, 3)} ${d.getDate()}`;
@@ -31,17 +32,40 @@ export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts,
   mode = "month", onMode, weekCells = [], loading,
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay,
+  locked = [], now, onEditRoutine, onPush15, onPushTomorrow, onRunningLate,
 }: {
   year: number; month: number; selected: string; todayDate: string;
   dots: Record<number, string[]>; dayEvents: EventItem[]; conflicts?: Set<string>;
   mode?: Mode; onMode?: (m: Mode) => void; weekCells?: WeekCell[]; loading?: boolean;
   onPrev?: () => void; onNext?: () => void; onSelect?: (date: string) => void;
   onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void;
+  locked?: LockedRange[]; now?: string | null; onEditRoutine?: () => void;
+  onPush15?: (id: string) => void; onPushTomorrow?: (id: string) => void;
+  onRunningLate?: (mins: number) => void;
 }) {
   const cells = monthMatrix(year, month);
   const n = dayEvents.length;
   const slots = openSlots(dayEvents);
   const navLabel = mode === "month" ? null : mode === "week" ? weekRange(weekCells) : fullDay(selected);
+  const [lateOpen, setLateOpen] = useState(false);
+  const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
+  const isToday = selected === todayDate && !!now;
+  // Merge events + protected blocks into one time-ordered list, so the routine
+  // is REAL on the calendar (roadmap v2), not an invisible wall.
+  type Entry = { kind: "event"; e: EventItem; s: number } | { kind: "locked"; l: LockedRange; s: number };
+  const entries: Entry[] = [
+    ...dayEvents.map((e): Entry => ({ kind: "event", e, s: toMin(e.data.start) })),
+    ...locked.map((l): Entry => ({ kind: "locked", l, s: l.s })),
+  ].sort((a, b) => a.s - b.s);
+  const nowMin = now ? toMin(now) : 0;
+  const nextId = isToday ? dayEvents.filter((e) => toMin(e.data.start) >= nowMin).sort((a, b) => toMin(a.data.start) - toMin(b.data.start))[0]?.id : undefined;
+  const hasFuture = isToday && dayEvents.some((e) => toMin(e.data.start) >= nowMin && (!e.data.recurrence || e.data.recurrence === "none"));
+  // Open at now: land the day view on the next thing, not the top of the day.
+  const nextRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (mode === "day" && isToday && entries.length > 5) nextRef.current?.scrollIntoView({ block: "center" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, selected, loading]);
 
   return (
     <div className="screen">
@@ -99,38 +123,67 @@ export default function SchedulePage({
       )}
 
       <div className="grp"><div className="plan-head">
-        <div className="eyebrow">{dayLabel(selected)} &middot; {n} {n === 1 ? "Event" : "Events"}</div>
-        {onPlanDay && <button className="plan-cta" onClick={onPlanDay}>Plan My Day</button>}
+        {/* Date lives in the nav above; repeating it here wrapped the row (no-repetition law). */}
+        <div className="eyebrow">{n} {n === 1 ? "Event" : "Events"}</div>
+        <div className="plan-head-acts">
+          {hasFuture && onRunningLate && (
+            <button className={"plan-cta plan-cta-ghost" + (lateOpen ? " late-armed" : "")} onClick={() => setLateOpen((v) => !v)}>Running Late?</button>
+          )}
+          {onPlanDay && <button className="plan-cta" onClick={onPlanDay}>Plan My Day</button>}
+        </div>
       </div></div>
+      {lateOpen && onRunningLate && (
+        <div className="pad-x late-chips">
+          <div className="segmented">
+            {[15, 30, 60].map((m) => (
+              <button className="seg" key={m} onClick={() => { setLateOpen(false); onRunningLate(m); }}>
+                {m === 60 ? "1 hour" : `${m} min`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <SkeletonRows />
-      ) : n === 0 ? (
+      ) : entries.length === 0 ? (
         <div className="empty-state"><div className="t-body">No events</div><button className="btn btn-primary" onClick={onNew}>New Event</button></div>
       ) : (
         <>
         <div className="pad-x"><div className="card">
-          {dayEvents.map((e) => {
-            const t = fmtTime(e.data.start);
-            const endT = e.data.end ? fmtTime(e.data.end) : null;
-            const conflict = conflicts?.has(e.id) ?? false;
-            const rep = e.data.recurrence && e.data.recurrence !== "none" ? e.data.recurrence : null;
-            return (
-              <div className={"sched-row" + (conflict ? " sched-row-warn" : "")} key={e.id} role="button" tabIndex={0} onClick={() => onOpenEvent?.(e.id)}>
-                <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
+          {entries.map((en, i) =>
+            en.kind === "locked" ? (
+              <div
+                className={"sched-row sched-locked" + (isToday && en.l.e <= nowMin ? " past" : "")}
+                key={"lock-" + i}
+                role="button"
+                tabIndex={0}
+                onClick={onEditRoutine}
+              >
+                <div className="sched-time">{fmtTime(minToHHMM(en.l.s)).time}<span className="ampm">{fmtTime(minToHHMM(en.l.s)).ap}</span></div>
                 <div className="sched-body">
-                  <div className="sched-title">{e.data.title}{conflict && <span className="sched-badge">Overlaps</span>}</div>
-                  <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(e.data.category)} />{catName(e.data.category)}{endT && <span className="sched-until">until {endT.time} {endT.ap}</span>}{rep && <span className="sched-rep">Repeats {rep}</span>}</div>
-                  {e.data.location && (
-                    <a className="sched-loc" href={"https://maps.apple.com/?q=" + encodeURIComponent(e.data.location)} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()}>
-                      <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z" /><circle cx="12" cy="10" r="3" /></svg>
-                      {e.data.location}
-                    </a>
-                  )}
+                  <div className="sched-title sched-lock-title">
+                    <svg className="ic lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                    {en.l.label}
+                  </div>
+                  <div className="sched-cat">Protected &middot; until {fmtTime(minToHHMM(en.l.e)).time} {fmtTime(minToHHMM(en.l.e)).ap}</div>
                 </div>
               </div>
-            );
-          })}
+            ) : (
+              <div key={en.e.id} ref={en.e.id === nextId ? nextRef : undefined}>
+                <DayRow
+                  e={en.e}
+                  conflict={conflicts?.has(en.e.id) ?? false}
+                  isNext={en.e.id === nextId}
+                  isPast={isToday ? (en.e.data.end ? toMin(en.e.data.end) : toMin(en.e.data.start) + 60) < nowMin : false}
+                  now={isToday ? now! : null}
+                  onOpen={() => onOpenEvent?.(en.e.id)}
+                  onPush15={onPush15 ? () => onPush15(en.e.id) : undefined}
+                  onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.e.id) : undefined}
+                />
+              </div>
+            ),
+          )}
         </div></div>
         {slots.length > 0 && onPickSlot && (
           <div className="pad-x sched-open-list">

@@ -171,7 +171,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cat-pick { margin: 0 calc(-1 * var(--s-4)); }
 .field-gap { margin-top: var(--s-2); }
 .field-row { display: flex; gap: var(--s-3); }
-.field-row > .field { flex: 1; margin-bottom: 0; }
+/* min-width: 0 lets native time/date inputs shrink to their column: without it
+   iOS input intrinsic width overflows the screen (Dave 2026-07-30). */
+.field-row > .field { flex: 1; margin-bottom: 0; min-width: 0; }
+.field-row .input { min-width: 0; }
 
 /* Onboarding flow (full-screen first-run). Tokens only. */
 .ob-screen { display: flex; flex-direction: column; flex: 1; min-height: 0; }
@@ -291,6 +294,23 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    card (titles never live inside cards). */
 .sec-head .quiet-action { color: var(--tx-4); }
 .sec-question { font-size: var(--t-meta); color: var(--tx-3); padding-bottom: var(--s-2); }
+
+/* ===== Roadmap v2 schedule basics: protected blocks visible, swipe actions,
+   Running Late, time-as-distance. Mirrors the task swipe pattern exactly so
+   every list feels the same. Tokens only. ===== */
+.sched-locked { opacity: 0.6; }
+.sched-lock-title { display: flex; align-items: center; gap: var(--s-1h); }
+.lock-ic { width: 13px; height: 13px; color: var(--tx-3); flex-shrink: 0; }
+.sched-dist { font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--good); margin-left: var(--s-2); }
+.sched-swipe-wrap { position: relative; overflow: hidden; }
+.sched-actions { position: absolute; top: 0; right: 0; bottom: 0; display: flex; }
+.sched-act { width: 88px; border: 0; background: var(--tint); color: #fff; font-size: var(--t-meta); font-weight: var(--w-semi); font-family: var(--f); }
+.sched-act-quiet { background: var(--press-5); color: var(--tx-1); }
+.sched-swipe-wrap .sched-row { position: relative; background: var(--surface-2); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
+.sched-swipe-wrap .sched-row.swiping { transition: none; }
+.plan-head-acts { display: flex; align-items: center; gap: var(--s-2); }
+.late-chips { padding-bottom: var(--s-2); }
+.plan-cta.late-armed { background: var(--press-5); }
 .search-top { display: flex; align-items: center; gap: var(--s-3); padding: calc(var(--safe-top) + var(--s-3)) var(--s-4) var(--s-3); }
 .search-top .search-bar { flex: 1; }
 .search-top .search-bar .ic { width: 18px; height: 18px; color: var(--tx-3); flex-shrink: 0; }
