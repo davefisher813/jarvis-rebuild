@@ -2,6 +2,8 @@ import type { Store, Item, ItemData } from "@core";
 import type { EventInput } from "../events";
 import { ENTITY_TASK, type TaskData, type Recurrence } from "../notes/types";
 import { groupFor, todayISO, nextDue, type TaskGroup } from "./grouping";
+import { nextStreak } from "./lifecycle";
+import { recordCompletion } from "../shared/timeSense";
 
 export interface TaskItem {
   id: string;
@@ -52,11 +54,21 @@ export class TasksService {
     const t = await this.getTask(id);
     if (!t) return false;
     if (!t.done && t.recurrence) {
-      // completing a recurring task rolls it to the next occurrence instead of finishing it
-      await this.store.update(this.ownerId, id, { due: nextDue(t.due || todayISO(), t.recurrence) });
+      // completing a recurring task rolls it to the next occurrence instead of
+      // finishing it, and advances the streak (pauses, never dies: lifecycle.ts)
+      const streak = nextStreak(t, todayISO());
+      await this.store.update(this.ownerId, id, {
+        due: nextDue(t.due || todayISO(), t.recurrence),
+        lastDone: streak.lastDone,
+        runLen: streak.runLen,
+        bestRun: streak.bestRun,
+      });
     } else {
       await this.store.update(this.ownerId, id, { done: !t.done });
     }
+    // Time Sense (silent, Phase 1): every completion logs an hour-of-day sample
+    // so Phase 2 launches with a real energy curve instead of self-report.
+    if (!t.done) recordCompletion(t.category ?? "");
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }
@@ -81,9 +93,32 @@ export class TasksService {
   async setDue(id: string, due: string | null): Promise<boolean> {
     const t = await this.getTask(id);
     if (!t) return false;
-    await this.store.update(this.ownerId, id, { due });
+    // Pushing a due date later counts as a slip (First Step watches for 3).
+    const slipped = !!t.due && !!due && due > t.due;
+    await this.store.update(this.ownerId, id, slipped ? { due, slips: (t.slips ?? 0) + 1 } : { due });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
+  }
+
+  // Set Aside (lifecycle): clear the due date of long-overdue tasks so nothing
+  // on screen is a shame wall. The old due survives in asideFrom for Undo.
+  async setAside(ids: string[]): Promise<void> {
+    for (const id of ids) {
+      const t = await this.getTask(id);
+      if (!t || t.done) continue;
+      await this.store.update(this.ownerId, id, { due: null, asideFrom: t.due ?? null });
+      this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    }
+  }
+
+  // Undo for Set Aside: restore the remembered due dates.
+  async restoreAside(ids: string[]): Promise<void> {
+    for (const id of ids) {
+      const t = await this.getTask(id);
+      if (!t || !t.asideFrom) continue;
+      await this.store.update(this.ownerId, id, { due: t.asideFrom, asideFrom: null });
+      this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    }
   }
 
   async setCategory(id: string, category: string): Promise<boolean> {

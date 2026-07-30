@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import { useRoutine } from "../data/NotesProvider";
 import { DEFAULT_ROUTINE, isOvernight, isWorkOutsideActive, type RoutineData, type ProtectedBlock } from "./types";
 import { fmtTime } from "../schedule/calendar";
+import { showToast } from "../shared/toast";
 
-const BACK = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-);
 
 // minutes-from-midnight <-> "HH:MM" for native time inputs.
 function toHHMM(min: number): string {
@@ -90,10 +88,16 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
   };
   const removeBlock = (id: string) => set({ protectedBlocks: blocks.filter((b) => b.id !== id) });
 
+  // A failed save must never look like a dead button (audit 2026-07-30): on
+  // any failure the user gets told and Save stays live to retry.
   const save = async () => {
-    await routine.save(data);
-    setDirty(false);
-    setSaved(true);
+    try {
+      await routine.save(data);
+      setDirty(false);
+      setSaved(true);
+    } catch {
+      showToast({ message: "Couldn't save. Check your connection and try again." });
+    }
   };
 
   // Soft, non-blocking notes. They never turn red, never block Save: they just
@@ -104,9 +108,9 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
   return (
     <div className="screen">
       <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}>{BACK}</button>
+        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Your Routine</div>
-        <button className="nav-action-text" onClick={save} disabled={!dirty || !loaded}>{saved && !dirty ? "Saved" : "Save"}</button>
+        <button className="nav-action-text" onClick={save} disabled={!dirty || !loaded}>{loaded && !dirty ? "Saved" : "Save"}</button>
       </div>
 
       <div className="sub-bar"><div className="eyebrow">When you're up and when you work. JARVIS plans around it.</div></div>

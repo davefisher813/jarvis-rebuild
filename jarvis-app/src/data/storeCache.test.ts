@@ -80,3 +80,24 @@ describe("Store list cache", () => {
     expect((await store.listForUser("u1")).find((i) => i.id === id)?.data.text).toBe("offline edit");
   });
 });
+
+describe("Store createMany (bulk import)", () => {
+  it("creates a batch in order and invalidates the list cache once", async () => {
+    const adapter = new InMemoryAdapter();
+    let listCalls = 0;
+    const orig = adapter.listForUser.bind(adapter);
+    adapter.listForUser = (o: string) => { listCalls++; return orig(o); };
+    const store = new Store(adapter);
+    await store.listForUser("u1");
+    const ids = await store.createMany("u1", "person", [{ name: "A" }, { name: "B" }, { name: "C" }]);
+    expect(ids).toHaveLength(3);
+    const after = await store.listForUser("u1");
+    expect(after.map((i) => i.data.name)).toEqual(["A", "B", "C"]);
+    expect(listCalls).toBe(2); // cached read + one fresh read after the batch
+  });
+
+  it("empty batch is a no-op", async () => {
+    const store = new Store(new InMemoryAdapter());
+    expect(await store.createMany("u1", "person", [])).toEqual([]);
+  });
+});

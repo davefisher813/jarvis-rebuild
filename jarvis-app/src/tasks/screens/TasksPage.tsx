@@ -155,6 +155,7 @@ export default function TasksPage({
   categories,
   catFilter,
   onCatFilter,
+  banner,
 }: {
   filter: TaskFilter;
   counts: Record<TaskFilter, number>;
@@ -172,6 +173,7 @@ export default function TasksPage({
   categories?: SheetCategory[];
   catFilter?: string;
   onCatFilter?: (id: string) => void;
+  banner?: React.ReactNode;
 }) {
   const [qa, setQa] = useState("");
   return (
@@ -217,6 +219,8 @@ export default function TasksPage({
           />
         </div>
       )}
+
+      {banner}
 
       {filter === "done" && counts.done > 0 && onClearDone && (
         <div className="pad-x clear-done">

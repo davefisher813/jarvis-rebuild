@@ -12,7 +12,13 @@ export type ColorSlot =
   | "green"
   | "blue"
   | "teal"
-  | "graphite";
+  | "graphite"
+  | "purple"
+  | "indigo"
+  | "magenta"
+  | "lime"
+  | "sand"
+  | "coral";
 
 export const COLOR_SLOTS: ColorSlot[] = [
   "orange",
@@ -23,6 +29,12 @@ export const COLOR_SLOTS: ColorSlot[] = [
   "blue",
   "teal",
   "graphite",
+  "purple",
+  "indigo",
+  "magenta",
+  "lime",
+  "sand",
+  "coral",
 ];
 
 export interface CategoryData {

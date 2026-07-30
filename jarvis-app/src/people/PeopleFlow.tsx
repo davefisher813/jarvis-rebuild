@@ -59,6 +59,7 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
   // against this group, preview the count, then create everyone on confirm.
   const [importPreview, setImportPreview] = useState<{ fresh: ImportedContact[]; dupes: number; bad: boolean } | null>(null);
   const [importing, setImporting] = useState(false);
+  const [importedSoFar, setImportedSoFar] = useState(0);
   const onImportFile = async (file: File) => {
     const text = await file.text();
     const parsed = parseContactsFile(file.name, text);
@@ -67,17 +68,39 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
     const fresh = parsed.filter((c) => !existing.has(c.name.trim().toLowerCase()));
     setImportPreview({ fresh, dupes: parsed.length - fresh.length, bad: false });
   };
+  const [importError, setImportError] = useState<string | null>(null);
   const runImport = async () => {
     if (!importPreview || importing) return;
     setImporting(true);
+    setImportedSoFar(0);
+    setImportError(null);
     const n = importPreview.fresh.length;
-    for (const c of importPreview.fresh) {
-      await people.create({ name: c.name, group, birthday: c.birthday, notes: c.notes });
+    // Bulk insert in chunks of 100: one round trip per chunk, live count on
+    // the button. 758 contacts lands in seconds instead of minutes. A network
+    // failure mid-run can never strand the button on "Adding...": whatever
+    // landed stays saved, the sheet reports it plainly, and tapping again
+    // continues with only the remaining people (2026-07-30: the first version
+    // had no error handling and froze at "Adding..." on one failed call).
+    const CHUNK = 100;
+    let added = 0;
+    try {
+      for (let i = 0; i < n; i += CHUNK) {
+        const batch = importPreview.fresh.slice(i, i + CHUNK).map((c) => ({ name: c.name, group, birthday: c.birthday, notes: c.notes }));
+        await people.createMany(batch);
+        added = Math.min(n, i + CHUNK);
+        setImportedSoFar(added);
+      }
+      setImporting(false);
+      setImportPreview(null);
+      await reload();
+      showToast({ message: `Added ${n} ${n === 1 ? "person" : "people"}` });
+    } catch {
+      setImporting(false);
+      const remaining = importPreview.fresh.slice(added);
+      setImportPreview({ fresh: remaining, dupes: importPreview.dupes, bad: false });
+      setImportError(`The connection dropped after ${added} of ${n}. Everyone added so far is saved. Tap to add the remaining ${remaining.length}.`);
+      await reload();
     }
-    setImporting(false);
-    setImportPreview(null);
-    await reload();
-    showToast({ message: `Added ${n} ${n === 1 ? "person" : "people"}` });
   };
 
   const importEl = importPreview && createPortal(
@@ -98,13 +121,14 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
               {importPreview.fresh.length > 0 && (
                 <div className="input-help">{importPreview.fresh.slice(0, 5).map((c) => c.name).join(", ")}{importPreview.fresh.length > 5 ? ` and ${importPreview.fresh.length - 5} more` : ""}</div>
               )}
+              {importError && <div className="input-note">{importError}</div>}
             </>
           )}
         </div>
         <div className="pad-x sheet-actions">
           {!importPreview.bad && importPreview.fresh.length > 0 && (
             <button className="btn btn-primary btn-block" disabled={importing} onClick={runImport}>
-              {importing ? "Adding..." : `Add ${importPreview.fresh.length} ${importPreview.fresh.length === 1 ? "Person" : "People"}`}
+              {importing ? `Adding ${importedSoFar} of ${importPreview.fresh.length}...` : `Add ${importPreview.fresh.length} ${importPreview.fresh.length === 1 ? "Person" : "People"}`}
             </button>
           )}
           <button className="btn btn-secondary btn-block" disabled={importing} onClick={() => setImportPreview(null)}>

@@ -52,6 +52,17 @@ export class SupabaseAdapter implements DataAdapter {
     return (row as { id: string }).id;
   }
 
+  async createMany(_ownerId: string, entityType: string, datas: ItemData[]): Promise<string[]> {
+    if (datas.length === 0) return [];
+    // One INSERT for the whole batch; RLS with-check validates every row.
+    const { data: rows, error } = await this.db
+      .from("item")
+      .insert(datas.map((data) => ({ entity_type: entityType, data })))
+      .select("id");
+    if (error) throw error;
+    return (rows as { id: string }[]).map((r) => r.id);
+  }
+
   async read(_ownerId: string, id: string): Promise<Item | null> {
     // RLS returns no row if the caller does not own it, so this is null-safe
     // for both missing and not-owned ids.

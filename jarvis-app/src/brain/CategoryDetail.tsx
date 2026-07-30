@@ -3,10 +3,6 @@ import { useTasks, useSchedule, useNotes } from "../data/NotesProvider";
 import type { ColorSlot } from "../categories/types";
 import type { NoteData } from "../notes/types";
 
-const BACK = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-);
-
 interface Lists {
   tasks: string[];
   events: { start: string; title: string }[];

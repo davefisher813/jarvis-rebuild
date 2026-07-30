@@ -33,9 +33,13 @@ export default async function handler(req: Request): Promise<Response> {
   if (!me.id) return json({ error: "Unauthorized" }, 401);
 
   // Parse and size-check the input BEFORE any counting or upstream work.
+  // Two size regimes: plain text requests keep the tight cap; a request
+  // carrying exactly one bounded image (Brain doc photo reading) is allowed a
+  // larger envelope. The absolute ceiling below bounds parse work either way.
   const raw = await req.text();
   const maxInput = parseInt(process.env.AI_MAX_INPUT_BYTES || "32768", 10);
-  if (raw.length > maxInput) return json({ error: "Request too large" }, 413);
+  const maxVision = parseInt(process.env.AI_MAX_VISION_BYTES || "600000", 10);
+  if (raw.length > maxVision) return json({ error: "Request too large" }, 413);
   let body: { messages?: unknown; system?: unknown };
   try {
     body = JSON.parse(raw) as { messages?: unknown; system?: unknown };
@@ -44,6 +48,8 @@ export default async function handler(req: Request): Promise<Response> {
   }
   const messages = Array.isArray(body.messages) ? body.messages : [];
   if (messages.length === 0) return json({ error: "No messages" }, 400);
+  if (!visionShapeOk(messages)) return json({ error: "Bad request" }, 400);
+  if (countImages(messages) === 0 && raw.length > maxInput) return json({ error: "Request too large" }, 413);
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const globalCap = parseInt(process.env.AI_GLOBAL_PER_DAY || "2000", 10);
@@ -129,4 +135,42 @@ function json(obj: unknown, status = 200): Response {
     status,
     headers: { "content-type": "application/json" },
   });
+}
+
+// A message's content may be a plain string, or an array of text blocks plus
+// AT MOST ONE bounded base64 image (jpeg/png/webp). Anything else is rejected
+// so the proxy can never be used to smuggle arbitrary payloads upstream.
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_IMAGE_B64 = 450000; // ~340KB binary, far above a downscaled screenshot
+
+function countImages(messages: unknown[]): number {
+  let n = 0;
+  for (const m of messages) {
+    const c = (m as { content?: unknown }).content;
+    if (Array.isArray(c)) for (const b of c) if ((b as { type?: string }).type === "image") n++;
+  }
+  return n;
+}
+
+function visionShapeOk(messages: unknown[]): boolean {
+  let images = 0;
+  for (const m of messages) {
+    const c = (m as { content?: unknown }).content;
+    if (typeof c === "string") continue;
+    if (!Array.isArray(c)) return false;
+    for (const b of c) {
+      const blk = b as { type?: string; text?: unknown; source?: { type?: string; media_type?: string; data?: unknown } };
+      if (blk.type === "text") {
+        if (typeof blk.text !== "string") return false;
+      } else if (blk.type === "image") {
+        images++;
+        const s = blk.source;
+        if (!s || s.type !== "base64" || !IMAGE_TYPES.includes(s.media_type || "")) return false;
+        if (typeof s.data !== "string" || s.data.length > MAX_IMAGE_B64) return false;
+      } else {
+        return false;
+      }
+    }
+  }
+  return images <= 1;
 }

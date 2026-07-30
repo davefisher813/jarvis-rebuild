@@ -55,6 +55,12 @@ export interface TaskData {
   fromNote?: string;
   due?: string | null;
   recurrence?: Recurrence;
+  // Lifecycle policy (ADHD strategy Phase 1). All optional and additive.
+  slips?: number; // times the due date was pushed later
+  asideFrom?: string | null; // previous due when Set Aside cleared it
+  lastDone?: string; // recurring: last completion date (streaks)
+  runLen?: number; // recurring: current run length
+  bestRun?: number; // recurring: best run ever (never shrinks)
 }
 
 export type TemplateKey =

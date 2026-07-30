@@ -3,7 +3,25 @@ import { backendConfigured } from "../data/store";
 
 export interface AIMessage {
   role: "user" | "assistant";
-  content: string;
+  content: string | AIBlock[];
+}
+
+// Content blocks for vision requests: text plus at most one base64 image (the
+// proxy enforces the same shape server-side).
+export type AIBlock =
+  | { type: "text"; text: string }
+  | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
+
+// One user message carrying a photo and an instruction, in the exact shape
+// the proxy and Anthropic expect. Pure; tested.
+export function buildVisionMessage(text: string, imageBase64: string, mediaType = "image/jpeg"): AIMessage {
+  return {
+    role: "user",
+    content: [
+      { type: "image", source: { type: "base64", media_type: mediaType, data: imageBase64 } },
+      { type: "text", text },
+    ],
+  };
 }
 
 interface AIServiceOpts {

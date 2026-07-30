@@ -33,6 +33,15 @@ export class Store {
     return id;
   }
 
+  // Bulk create in one round trip (contact import). Same cache semantics as
+  // create: one invalidation for the whole batch.
+  async createMany(ownerId: string, entityType: string, datas: ItemData[]): Promise<string[]> {
+    if (datas.length === 0) return [];
+    const ids = await this.adapter.createMany(ownerId, entityType, datas);
+    this.invalidate(ownerId);
+    return ids;
+  }
+
   read(ownerId: string, id: string): Promise<Item | null> {
     return this.adapter.read(ownerId, id);
   }

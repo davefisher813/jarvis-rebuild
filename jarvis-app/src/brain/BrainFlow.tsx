@@ -65,9 +65,7 @@ export default function BrainFlow({ openKey, personOpenId, onOpenNote }: { openK
     return (
       <div className="screen">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => setOpen(null)} aria-label="Back">
-            <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-          </button>
+          <button className="nav-back" onClick={() => setOpen(null)} aria-label="Back">          </button>
           <span></span>
         </div>
         <div className="nav-large">{open.name}</div>

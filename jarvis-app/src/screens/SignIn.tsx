@@ -36,9 +36,7 @@ export default function SignIn() {
     return (
       <div className="screen signin">
         <div className="nav-bar">
-          <button className="nav-back" aria-label="Back" onClick={() => { setView("choose"); setError(""); }}>
-            <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-          </button>
+          <button className="nav-back" aria-label="Back" onClick={() => { setView("choose"); setError(""); }}>          </button>
           <div className="nav-title">{mode === "signup" ? "Create Account" : "Sign In"}</div>
         </div>
         <div className="pad-x sheet-form">

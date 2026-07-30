@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTasks, useCategories, useSchedule } from "../data/NotesProvider";
 import TasksPage from "./screens/TasksPage";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
 import { partition, byCategory, filterOf, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
 import type { Recurrence, TaskData } from "../notes/types";
+import type { TaskItem } from "./TasksService";
 import { todayISO } from "./grouping";
 import { nextFreeSlot, addMinutes } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
+import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage } from "./lifecycle";
+import { useAI } from "../ai/useAI";
 
 const EMPTY: Partitioned = { daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft } | null;
@@ -15,24 +18,57 @@ export default function TasksFlow({ openId }: { openId?: string } = {}) {
   const svc = useTasks();
   const cats = useCategories();
   const schedule = useSchedule();
+  const ai = useAI();
   const today = todayISO();
   const tomorrow = (() => { const d = new Date(today + "T00:00:00"); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
   const [parts, setParts] = useState<Partitioned>(EMPTY);
+  const [allItems, setAllItems] = useState<TaskItem[]>([]);
   const [filter, setFilter] = useState<TaskFilter>("today");
   const [catFilter, setCatFilter] = useState("all");
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [sheet, setSheet] = useState<SheetState>(null);
   const [loading, setLoading] = useState(true);
+  // First Step offer state: the AI-drafted step, keyed to the sliding task.
+  const [fsStep, setFsStep] = useState<{ taskId: string; step: string } | null>(null);
+  const [fsBusy, setFsBusy] = useState(false);
+  const [fsHidden, setFsHidden] = useState(false);
+  const sweptRef = useRef(false);
 
   const reload = useCallback(async () => {
     const items = await svc.listTasks();
     setParts(partition(items, today));
+    setAllItems(items);
     setLoading(false);
+    return items;
   }, [svc, today]);
 
   useEffect(() => {
     reload();
   }, [reload]);
+
+  // Set Aside (lifecycle): once per day, long-overdue tasks quietly leave the
+  // red wall for Someday territory, transparently and reversibly. The app
+  // never shows a graveyard.
+  useEffect(() => {
+    if (loading || sweptRef.current) return;
+    sweptRef.current = true;
+    try {
+      if (localStorage.getItem("jarvis.setaside.last") === today) return;
+    } catch { /* private mode: sweep anyway */ }
+    const cands = setAsideCandidates(allItems, today);
+    if (cands.length === 0) return;
+    const ids = cands.map((t) => t.id);
+    void (async () => {
+      await svc.setAside(ids);
+      try { localStorage.setItem("jarvis.setaside.last", today); } catch { /* ok */ }
+      await reload();
+      showToast({
+        message: `Set aside ${ids.length} quiet ${ids.length === 1 ? "task" : "tasks"}. Nothing is overdue.`,
+        actionLabel: "Undo",
+        onAction: async () => { await svc.restoreAside(ids); await reload(); },
+      });
+    })();
+  }, [loading, allItems, svc, today, reload]);
 
   useEffect(() => {
     let on = true;
@@ -57,11 +93,62 @@ export default function TasksFlow({ openId }: { openId?: string } = {}) {
 
   const onToggle = async (id: string) => {
     const before = await svc.task(id);
+    // Back On Track: completing a recurring task after a real gap gets the
+    // comeback line instead of the stock toast. The old run still counts.
+    const comeback = before ? backOnTrackMessage(before, today) : null;
     await svc.toggleDone(id);
     await reload();
-    if (before && !before.done) {
+    if (comeback) {
+      showToast({ message: comeback });
+    } else if (before && !before.done) {
       showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await svc.toggleDone(id); await reload(); } });
     }
+  };
+
+  // First Step (lifecycle): one offer at a time for the task that keeps
+  // sliding. The AI drafts the smallest possible opening move; accepting adds
+  // it to Today and sets the big task aside, out of the red.
+  const fsCandidate = (() => {
+    if (!ai.available || fsHidden || loading) return null;
+    const c = firstStepCandidate(allItems, today);
+    return c && !isFirstStepDismissed(c.id, today) ? c : null;
+  })();
+
+  const fsAsk = async () => {
+    if (!fsCandidate || fsBusy) return;
+    setFsBusy(true);
+    try {
+      const out = await ai.complete([
+        {
+          role: "user",
+          content: `The user keeps putting off this task: "${fsCandidate.data.text}". Reply with ONLY the single smallest first physical step to start it, under 12 words, no quotes, no preamble. It must take under a minute.`,
+        },
+      ]);
+      const step = out.trim().split("\n")[0]?.trim();
+      if (!step) throw new Error("empty");
+      setFsStep({ taskId: fsCandidate.id, step });
+    } catch {
+      showToast({ message: "Couldn't reach JARVIS. Try again in a bit." });
+    } finally {
+      setFsBusy(false);
+    }
+  };
+
+  const fsAccept = async () => {
+    if (!fsStep || !fsCandidate || fsStep.taskId !== fsCandidate.id) return;
+    await svc.createTask(fsStep.step, { category: fsCandidate.data.category || undefined, due: today });
+    await svc.setAside([fsCandidate.id]);
+    dismissFirstStep(fsCandidate.id, today);
+    setFsStep(null);
+    setFsHidden(true);
+    await reload();
+    showToast({ message: "First step added to Today. The big one waits in Upcoming." });
+  };
+
+  const fsDismiss = () => {
+    if (fsCandidate) dismissFirstStep(fsCandidate.id, today);
+    setFsStep(null);
+    setFsHidden(true);
   };
 
   // Quick capture: create a task due today with the default category.
@@ -165,12 +252,38 @@ export default function TasksFlow({ openId }: { openId?: string } = {}) {
     showToast({ message: "Added to schedule" });
   };
 
+  const fsBanner = fsCandidate && (filter === "today" || filter === "overdue") ? (
+    <div className="pad-x">
+      <div className="card pad">
+        <div className="conn-name">&ldquo;{fsCandidate.data.text}&rdquo; keeps sliding.</div>
+        {fsStep && fsStep.taskId === fsCandidate.id ? (
+          <>
+            <div className="conn-meta">Start with: {fsStep.step}</div>
+            <div className="field-row">
+              <button className="btn btn-primary btn-block" onClick={fsAccept}>Add This Step</button>
+              <button className="btn btn-secondary btn-block" onClick={fsDismiss}>Not Now</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="conn-meta">Want the smallest possible first step?</div>
+            <div className="field-row">
+              <button className="btn btn-primary btn-block" onClick={fsAsk} disabled={fsBusy}>{fsBusy ? "Thinking..." : "First Step"}</button>
+              <button className="btn btn-secondary btn-block" onClick={fsDismiss}>Not Now</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <>
       <TasksPage
         filter={filter}
         counts={counts}
         items={byCategory(parts[filter], catFilter)}
+        banner={fsBanner}
         categories={categories}
         catFilter={catFilter}
         onCatFilter={setCatFilter}

@@ -8,7 +8,12 @@ export class RoutineService {
 
   private async record(): Promise<{ id: string; data: RoutineData } | null> {
     const items = await this.store.listForUser(this.ownerId);
-    const it = items.find((i) => i.entityType === ENTITY_ROUTINE);
+    // Single-record entity, defended: if duplicates ever exist (a historical
+    // create race), always read the newest by server time so edits can never
+    // appear to flip between copies (audit 2026-07-30).
+    const it = items
+      .filter((i) => i.entityType === ENTITY_ROUTINE)
+      .sort((a, b) => b.serverTime - a.serverTime)[0];
     return it ? { id: it.id, data: it.data as unknown as RoutineData } : null;
   }
 

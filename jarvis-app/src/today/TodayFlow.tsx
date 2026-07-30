@@ -20,6 +20,14 @@ import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
 import { showToast } from "../shared/toast";
+import { lazy, Suspense } from "react";
+import { isOffTrack } from "../upnext/upnext";
+import { backOnTrackMessage } from "../tasks/lifecycle";
+
+// Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
+// overlays, not tabs, and stay out of the boot bundle.
+const UpNextFlow = lazy(() => import("../upnext/UpNextFlow"));
+const FreshStartFlow = lazy(() => import("../upnext/FreshStartFlow"));
 
 // Read-only aggregation over the (already tested) Schedule and Tasks services.
 export default function TodayFlow({
@@ -68,6 +76,11 @@ export default function TodayFlow({
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [sheet, setSheet] = useState<{ mode: "edit"; id: string; initial: TaskDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
+  const [upNextOpen, setUpNextOpen] = useState(false);
+  const [freshOpen, setFreshOpen] = useState(false);
+  const [freshSkipped, setFreshSkipped] = useState(() => {
+    try { return localStorage.getItem("jarvis.fresh.skip") === todayISO(); } catch { return false; }
+  });
 
   const now = new Date();
   const today = todayISO(now);
@@ -96,9 +109,12 @@ export default function TodayFlow({
 
   const onToggleTask = async (id: string) => {
     const before = await tasks.task(id);
+    const comeback = before ? backOnTrackMessage(before, today) : null;
     await tasks.toggleDone(id);
     await reload();
-    if (before && !before.done) {
+    if (comeback) {
+      showToast({ message: comeback });
+    } else if (before && !before.done) {
       showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await tasks.toggleDone(id); await reload(); } });
     }
   };
@@ -183,6 +199,9 @@ export default function TodayFlow({
   // Evening posture (Phase 2 follow-on): after the workday (or 6 PM), Today
   // recaps instead of pushing, and the check-in leads.
   const nowMin = now.getHours() * 60 + now.getMinutes();
+  // Fresh Start banner: only when the afternoon is honestly off track, never
+  // in the evening posture, and never again today once waved off.
+  const offTrack = !freshSkipped && !isEvening(nowMin, routineData) && isOffTrack(taskItems, today, nowMin);
   const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm) : undefined;
   // Day ring: due-today done over due-today total. Hero tint by daypart.
   const dueToday = taskItems.filter((t) => t.data.due === today);
@@ -207,6 +226,8 @@ export default function TodayFlow({
       onToggleTask={onToggleTask}
       onOpenTask={onOpenTask}
       onPlanDay={() => setPlanOpen(true)}
+      onUpNext={() => setUpNextOpen(true)}
+      freshStart={offTrack ? () => setFreshOpen(true) : undefined}
       today={today}
       suggestions={<><CheckIn onChanged={() => { void reload(); }} /><TodaySuggestions ai={ai} /></>}
       onSearch={onSearch}
@@ -239,6 +260,24 @@ export default function TodayFlow({
         onDelete={onDeleteTask}
         onCancel={() => setSheet(null)}
       />
+    )}
+    {upNextOpen && (
+      <Suspense fallback={null}>
+        <UpNextFlow onClose={() => { setUpNextOpen(false); void reload(); }} />
+      </Suspense>
+    )}
+    {freshOpen && (
+      <Suspense fallback={null}>
+        <FreshStartFlow
+          onClose={() => {
+            setFreshOpen(false);
+            // Waving Fresh Start off silences the banner for the rest of the day.
+            setFreshSkipped(true);
+            try { localStorage.setItem("jarvis.fresh.skip", today); } catch { /* ok */ }
+          }}
+          onDone={() => { void reload(); }}
+        />
+      </Suspense>
     )}
     </>
   );

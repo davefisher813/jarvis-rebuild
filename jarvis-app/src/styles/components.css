@@ -141,6 +141,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 :root {
   --cat-red: #FF1F30; --cat-orange: #FF9F0A; --cat-sky: #5AC8FA; --cat-pink: #FF85B8; --cat-yellow: #FFCC00;
   --cat-green: #34D572; --cat-blue: #5E9BFF; --cat-teal: #4FE0BE; --cat-graphite: #8E8E93;
+  /* Expanded slots (Dave 2026-07-30): fill the purple/indigo/magenta hue gap plus
+     lime, sand, coral. Lime and sand are light fills and carry a dark glyph. */
+  --cat-purple: #BF5AF2; --cat-indigo: #7D7AFF; --cat-magenta: #E85BD8;
+  --cat-lime: #B3DB4D; --cat-sand: #C7A06B; --cat-coral: #FF6E5E;
 }
 .cat-bg-red { background: var(--cat-red); } .cat-bd-red { border-color: var(--cat-red); } .cat-fg-red { color: var(--cat-red); }
 .cat-bg-orange { background: var(--cat-orange); } .cat-bd-orange { border-color: var(--cat-orange); } .cat-fg-orange { color: var(--cat-orange); }
@@ -151,6 +155,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cat-bg-blue { background: var(--cat-blue); } .cat-bd-blue { border-color: var(--cat-blue); } .cat-fg-blue { color: var(--cat-blue); }
 .cat-bg-teal { background: var(--cat-teal); color: var(--on-fill-dark); } .cat-bd-teal { border-color: var(--cat-teal); } .cat-fg-teal { color: var(--cat-teal); }
 .cat-bg-graphite { background: var(--cat-graphite); } .cat-bd-graphite { border-color: var(--cat-graphite); } .cat-fg-graphite { color: var(--cat-graphite); }
+.cat-bg-purple { background: var(--cat-purple); } .cat-bd-purple { border-color: var(--cat-purple); } .cat-fg-purple { color: var(--cat-purple); }
+.cat-bg-indigo { background: var(--cat-indigo); } .cat-bd-indigo { border-color: var(--cat-indigo); } .cat-fg-indigo { color: var(--cat-indigo); }
+.cat-bg-magenta { background: var(--cat-magenta); } .cat-bd-magenta { border-color: var(--cat-magenta); } .cat-fg-magenta { color: var(--cat-magenta); }
+.cat-bg-lime { background: var(--cat-lime); color: var(--on-fill-dark); } .cat-bd-lime { border-color: var(--cat-lime); } .cat-fg-lime { color: var(--cat-lime); }
+.cat-bg-sand { background: var(--cat-sand); color: var(--on-fill-dark); } .cat-bd-sand { border-color: var(--cat-sand); } .cat-fg-sand { color: var(--cat-sand); }
+.cat-bg-coral { background: var(--cat-coral); } .cat-bd-coral { border-color: var(--cat-coral); } .cat-fg-coral { color: var(--cat-coral); }
 
 /* Add/edit form sheet layout (Tasks/Schedule). Tokens only; reuses .input,
    .segmented, .chip, .btn, .sheet-scrim, .sheet-handle. */
@@ -233,7 +243,9 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .row-signout { justify-content: center; width: 100%; background: transparent; border: 0; color: var(--red); font-weight: var(--w-semi); font-size: var(--t-body); }
 .input-multiline { height: auto; min-height: 88px; padding-top: var(--s-2h); resize: none; line-height: var(--lh-relaxed); font-family: inherit; }
 .nav-action-text { background: transparent; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-body); padding: 0 var(--s-1); }
-.nav-action-text:disabled { color: var(--tx-3); }
+/* Disabled must LOOK disabled: tx-3 (76% white) read as active next to the
+   blue tint, which made an at-rest Save feel broken (audit 2026-07-30). */
+.nav-action-text:disabled { color: var(--tx-4); }
 .input-doc { height: auto; min-height: 240px; padding-top: var(--s-3); resize: none; line-height: var(--lh-relaxed); font-family: inherit; }
 .nav-title .cat-dot { display: inline-block; vertical-align: middle; margin-right: var(--s-2); }
 .cat-time { width: 56px; flex-shrink: 0; font-variant-numeric: tabular-nums; }
@@ -256,6 +268,20 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .bench-line { font-size: var(--t-meta); color: var(--tx-1); line-height: var(--lh-relaxed); }
 .bench-line:first-child { font-weight: var(--w-semi); }
 .search-overlay { position: absolute; inset: 0; z-index: 50; background: var(--bg); display: flex; flex-direction: column; }
+
+/* ===== Up Next / Quick Wins / Fresh Start (ADHD strategy Phase 1). One card,
+   never a list. Tokens only; reuses .card/.btn/.chip/.conn-*; the overlay
+   itself is .search-overlay (same rules, same z). ===== */
+.upnext-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: var(--s-3); padding-bottom: var(--s-8); }
+.upnext-card { text-align: center; padding: var(--s-6) var(--s-5); }
+.upnext-cat { justify-content: center; display: flex; align-items: center; gap: var(--s-1h); margin-bottom: var(--s-3h); }
+.upnext-task { font-size: 26px; font-weight: var(--w-bold); line-height: var(--lh-default); margin-bottom: var(--s-2h); }
+.upnext-done-wrap { position: relative; margin-top: var(--s-5); }
+.upnext-skip { background: 0; border: 0; color: var(--tx-4); font-size: var(--t-body); font-weight: var(--w-medium); font-family: var(--f); margin-top: var(--s-3h); }
+.upnext-pill-row { display: flex; justify-content: center; padding: var(--s-2) var(--s-4) 0; }
+.qw-pill { background: var(--red-tint); color: var(--accent); font-weight: var(--w-bold); font-size: var(--t-meta); padding: var(--s-1h) var(--s-3h); border-radius: var(--r-pill); }
+.hero-cta { margin-top: var(--s-3); background: var(--press-3); border: 0; border-radius: var(--r-pill); padding: var(--s-2) var(--s-3h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-1); font-family: var(--f); }
+.fresh-faded { color: var(--tx-3); }
 .search-top { display: flex; align-items: center; gap: var(--s-3); padding: calc(var(--safe-top) + var(--s-3)) var(--s-4) var(--s-3); }
 .search-top .search-bar { flex: 1; }
 .search-top .search-bar .ic { width: 18px; height: 18px; color: var(--tx-3); flex-shrink: 0; }

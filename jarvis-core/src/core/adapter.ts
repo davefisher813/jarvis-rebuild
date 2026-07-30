@@ -17,6 +17,11 @@ export interface DataAdapter {
   // Create a record for an owner. Assigns id and the initial server time.
   create(ownerId: string, entityType: string, data: ItemData): Promise<string>;
 
+  // Create many records of one entity type in a single round trip, in order.
+  // Exists for bulk flows (contact import); behavior per row is identical to
+  // create(). Returns the new ids in input order.
+  createMany(ownerId: string, entityType: string, datas: ItemData[]): Promise<string[]>;
+
   // Read one record. Resolves null if it does not exist OR is not owned by the
   // caller (per-user isolation, D6). Never leaks another user's row.
   read(ownerId: string, id: string): Promise<Item | null>;

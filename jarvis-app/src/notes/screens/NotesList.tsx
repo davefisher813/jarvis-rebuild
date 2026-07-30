@@ -31,9 +31,7 @@ export default function NotesList({
     <div className="screen">
       <div className="nav-bar">
         {onBack ? (
-          <button className="nav-back" aria-label="Back" onClick={onBack}>
-            <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-          </button>
+          <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         ) : (
           <span></span>
         )}

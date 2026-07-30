@@ -38,6 +38,12 @@ export class InMemoryAdapter implements DataAdapter {
     return id;
   }
 
+  async createMany(ownerId: string, entityType: string, datas: ItemData[]): Promise<string[]> {
+    const ids: string[] = [];
+    for (const data of datas) ids.push(await this.create(ownerId, entityType, data));
+    return ids;
+  }
+
   async read(ownerId: string, id: string): Promise<Item | null> {
     const r = this.db.get(id);
     return r && r.ownerId === ownerId ? this.clone(r) : null;

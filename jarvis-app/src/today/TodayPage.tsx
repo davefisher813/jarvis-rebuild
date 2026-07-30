@@ -87,6 +87,8 @@ export default function TodayPage({
   avatar = "DF",
   onSeeAllSchedule,
   onPlanDay,
+  onUpNext,
+  freshStart,
   onSeeAllTasks,
   suggestions,
   onSearch,
@@ -110,6 +112,8 @@ export default function TodayPage({
   avatar?: string;
   onSeeAllSchedule: () => void;
   onPlanDay?: () => void;
+  onUpNext?: () => void;
+  freshStart?: () => void;
   onSeeAllTasks: () => void;
   suggestions?: ReactNode;
   onSearch?: () => void;
@@ -183,10 +187,27 @@ export default function TodayPage({
             <div className="eyebrow">{dateLong}</div>
             <div className="today-title">{greeting}</div>
             <div className="today-summary">{evening ? eveningSummary(evening) : parts}</div>
+            {onUpNext && !evening && (
+              <button className="hero-cta" onClick={onUpNext}>Up Next</button>
+            )}
           </div>
           {ring && <DayRing done={ring.done} total={ring.total} />}
         </div>
       </div>
+
+      {freshStart && (
+        <div className="pad-x">
+          <div className="card">
+            <div className="row" role="button" tabIndex={0} onClick={freshStart}>
+              <div className="row-grow">
+                <div className="conn-name">Rough day? Fresh start.</div>
+                <div className="conn-meta">Re-plan what's left. Nothing gets lost.</div>
+              </div>
+              <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+            </div>
+          </div>
+        </div>
+      )}
 
       {suggestions}
 
