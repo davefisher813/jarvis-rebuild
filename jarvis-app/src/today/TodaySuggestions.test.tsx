@@ -6,23 +6,28 @@ import { NotesProvider } from "../data/NotesProvider";
 import { AIService } from "../ai/AIService";
 import TodaySuggestions from "./TodaySuggestions";
 
+// "JARVIS Noticed": at most ONE row, never echoing a visible Up Next task.
+
 describe("TodaySuggestions", () => {
-  it("renders nothing when AI is off", () => {
+  it("renders nothing when AI is off and no pattern exists", () => {
     render(<NotesProvider userId="u1"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
-    expect(screen.queryByText("JARVIS Suggestions")).not.toBeInTheDocument();
+    expect(screen.queryByText("JARVIS Noticed")).not.toBeInTheDocument();
   });
 
-  it("shows AI suggestions and dismisses on tap", async () => {
+  it("shows exactly one AI row, dismissible from the header", async () => {
     const fetchImpl = vi.fn(async () => ({
       ok: true,
       status: 200,
       json: async () => ({ text: '["Email Sam the Q3 plan","Reach out to Maya"]' }),
       text: async () => "",
     })) as unknown as typeof fetch;
-    render(<NotesProvider userId="u1"><TodaySuggestions ai={new AIService({ available: true, getToken: () => "t", fetchImpl })} /></NotesProvider>);
+    render(<NotesProvider userId="u2"><TodaySuggestions ai={new AIService({ available: true, getToken: () => "t", fetchImpl })} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Email Sam the Q3 plan")).toBeInTheDocument());
-    expect(screen.getByText("JARVIS Suggestions")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Email Sam the Q3 plan"));
+    expect(screen.getByText("JARVIS Noticed")).toBeInTheDocument();
+    // one row at a time: the second suggestion waits its turn
+    expect(screen.queryByText("Reach out to Maya")).not.toBeInTheDocument();
+    // dismissing from the header reveals the next candidate
+    fireEvent.click(screen.getByLabelText("Dismiss"));
     await waitFor(() => expect(screen.queryByText("Email Sam the Q3 plan")).not.toBeInTheDocument());
   });
 });

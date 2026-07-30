@@ -5,6 +5,7 @@ import { suggestionsSystemPrompt, parseSuggestions, type Suggestion } from "../a
 import { useTasks, useProfile } from "../data/NotesProvider";
 import { haptics } from "../shared/haptics";
 import { patternObservation, isPatternDismissed, dismissPattern, type PatternObservation } from "./patterns";
+import { rankOpen } from "../upnext/upnext";
 
 const ZAP = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
@@ -34,8 +35,20 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
   // Pattern awareness (Phase 2 stretch): one deterministic observation from
   // the check-in history, pinned above the AI rows. Works with AI off too.
   const [pattern, setPattern] = useState<PatternObservation | null>(null);
+  // Texts of the tasks already visible in Up Next: a suggestion that echoes
+  // one of them is repetition, not value (Dave 2026-07-30), and is hidden.
+  const [visibleTaskTexts, setVisibleTaskTexts] = useState<Set<string> | null>(null);
 
   const persist = useCallback((c: DayCache) => { setCache(c); writeCache(today, c); }, [today]);
+
+  useEffect(() => {
+    let on = true;
+    tasksSvc.listTasks().then((items) => {
+      if (!on) return;
+      setVisibleTaskTexts(new Set(rankOpen(items, today).slice(0, 3).map((t) => t.data.text.toLowerCase())));
+    });
+    return () => { on = false; };
+  }, [tasksSvc, today]);
 
   useEffect(() => {
     let on = true;
@@ -71,14 +84,21 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
     return () => { on = false; };
   }, [ai, gather, today]);
 
-  // AI rows render when AI is on and produced something; the pattern row
-  // renders on its own merit. Nothing at all to show = no section.
+  // "JARVIS Noticed" shows at most ONE row, and only when it says something no
+  // visible list already says: the deterministic pattern first, else the first
+  // AI suggestion that does not echo an Up Next task. Most days: nothing, and
+  // nothing renders. Repetition is not value.
   const aiOn = ai.available && cache !== null;
   const items = aiOn ? cache?.items ?? null : null;
   const hidden = new Set([...(cache?.dismissed ?? []), ...(cache?.acted ?? [])]);
-  const visible = items ? items.map((s, i) => ({ s, i })).filter((x) => !hidden.has(x.i)) : [];
-  const aiEmpty = !aiOn || (items !== null && visible.length === 0);
-  if (aiEmpty && !pattern) return null;
+  const nonEcho = items
+    ? items
+        .map((s, i) => ({ s, i }))
+        .filter((x) => !hidden.has(x.i))
+        .filter((x) => !x.s.task || !visibleTaskTexts?.has(x.s.task.toLowerCase()))
+    : [];
+  const aiPick = !pattern && visibleTaskTexts !== null ? nonEcho[0] ?? null : null;
+  if (!pattern && !aiPick) return null;
 
   const addToToday = async (idx: number, taskText: string) => {
     const all = await tasksSvc.listTasks();
@@ -96,30 +116,34 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
     <>
       <div className="sec-head">
         <div className="sec-left">
-          <div className="sec-ico ico-accent">{ZAP}</div>
-          <div className="sec-title">JARVIS Suggestions</div>
+          <div className="sec-ico ico-good">{ZAP}</div>
+          <div className="sec-title">JARVIS Noticed</div>
         </div>
+        <button
+          className="see-all quiet-action"
+          aria-label="Dismiss"
+          onClick={() => {
+            haptics.selection();
+            if (pattern) { dismissPattern(pattern.id, today); setPattern(null); }
+            else if (aiPick) dismiss(aiPick.i);
+          }}
+        >
+          &times;
+        </button>
       </div>
       <div className="pad-x"><div className="card">
-        {pattern && (
+        {pattern ? (
           <div className="suggestion-row" key={"pattern-" + pattern.id}>
             <div className="sug-title">{pattern.text}</div>
-            <button className="conn-remove" aria-label="Dismiss" onClick={() => { haptics.selection(); dismissPattern(pattern.id, today); setPattern(null); }}>&times;</button>
           </div>
-        )}
-        {aiOn && cache === undefined ? (
-          <div className="suggestion-row"><div className="sug-title sug-dim">Thinking about your day...</div></div>
-        ) : (
-          visible.map((x) => (
-            <div className="suggestion-row" key={x.i}>
-              <div className="sug-title">{x.s.text}</div>
-              {x.s.task ? (
-                <button className="btn-sm" onClick={() => addToToday(x.i, x.s.task!)}>Add to Today</button>
-              ) : null}
-              <button className="conn-remove" aria-label="Dismiss" onClick={() => dismiss(x.i)}>&times;</button>
-            </div>
-          ))
-        )}
+        ) : aiPick ? (
+          <div className="suggestion-row" key={aiPick.i}>
+            <div className="sug-title">{aiPick.s.text}</div>
+            {aiPick.s.task ? (
+              <button className="btn-sm" onClick={() => addToToday(aiPick.i, aiPick.s.task!)}>Add to Today</button>
+            ) : null}
+          </div>
+        ) : null}
       </div></div>
     </>
   );
