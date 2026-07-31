@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import type { EventItem } from "../types";
 import { monthMatrix, fmtTime, fmtRange, openSlots, minToHHMM } from "../calendar";
 import { catColor } from "../../shared/categories";
 import SkeletonRows from "../../shared/SkeletonRows";
 import DayRow from "./DayRow";
+import AnytimeRow from "./AnytimeRow";
+import type { TaskItem } from "../../tasks/TasksService";
 
 // A protected block from Your Routine, rendered on the day it applies.
 export interface LockedRange { s: number; e: number; label: string }
@@ -33,6 +35,7 @@ export default function SchedulePage({
   mode = "month", onMode, weekCells = [], loading,
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay,
   locked = [], now, onEditRoutine, onPush15, onPushTomorrow, onRunningLate,
+  anytimeItems = [], onToggleTask, onScheduleTask,
 }: {
   year: number; month: number; selected: string; todayDate: string;
   dots: Record<number, string[]>; dayEvents: EventItem[]; conflicts?: Set<string>;
@@ -42,6 +45,7 @@ export default function SchedulePage({
   locked?: LockedRange[]; now?: string | null; onEditRoutine?: () => void;
   onPush15?: (id: string) => void; onPushTomorrow?: (id: string) => void;
   onRunningLate?: (mins: number) => void;
+  anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string) => void;
 }) {
   const cells = monthMatrix(year, month);
   const n = dayEvents.length;
@@ -49,6 +53,49 @@ export default function SchedulePage({
   const navLabel = mode === "month" ? null : mode === "week" ? weekRange(weekCells) : fullDay(selected);
   const [lateOpen, setLateOpen] = useState(false);
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
+
+  // Drag an Anytime row down onto the grid to give it a time (roadmap v2's one
+  // kept gesture). Long-press to lift so a quick tap still scrolls/opens; the
+  // drop only fires over the grid, so a mis-drop just falls back to nothing.
+  const gridZoneRef = useRef<HTMLDivElement>(null);
+  const [drag, setDrag] = useState<{ id: string; label: string; x: number; y: number; over: boolean } | null>(null);
+  const overGrid = (x: number, y: number) => {
+    const r = gridZoneRef.current?.getBoundingClientRect();
+    return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  };
+  const beginDrag = (id: string, label: string, e: RPointerEvent) => {
+    if (!onScheduleTask) return;
+    const startX = e.clientX, startY = e.clientY;
+    let active = false;
+    let timer: number | undefined;
+    const cleanup = () => {
+      if (timer !== undefined) { clearTimeout(timer); timer = undefined; }
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.classList.remove("jarvis-dragging");
+      setDrag(null);
+    };
+    const move = (ev: PointerEvent) => {
+      if (!active) {
+        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 10) cleanup(); // moved first: a scroll or tap, not a drag
+        return;
+      }
+      ev.preventDefault();
+      setDrag({ id, label, x: ev.clientX, y: ev.clientY, over: overGrid(ev.clientX, ev.clientY) });
+    };
+    const up = (ev: PointerEvent) => {
+      const dropped = active && overGrid(ev.clientX, ev.clientY);
+      cleanup();
+      if (dropped) onScheduleTask(id);
+    };
+    timer = window.setTimeout(() => {
+      active = true;
+      document.body.classList.add("jarvis-dragging");
+      setDrag({ id, label, x: startX, y: startY, over: overGrid(startX, startY) });
+    }, 260);
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", up);
+  };
   const isToday = selected === todayDate && !!now;
   // Merge events + protected blocks into one time-ordered list, so the routine
   // is REAL on the calendar (roadmap v2), not an invisible wall.
@@ -144,13 +191,17 @@ export default function SchedulePage({
         </div>
       )}
 
+      {mode === "day" && !loading && (
+        <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onDragStart={beginDrag} />
+      )}
+
       {loading ? (
         <SkeletonRows />
       ) : entries.length === 0 ? (
         <div className="empty-state"><div className="t-body">No events</div><button className="btn btn-primary" onClick={onNew}>New Event</button></div>
       ) : (
         <>
-        <div className="pad-x"><div className="card">
+        <div className="pad-x"><div className={"card" + (mode === "day" && drag?.over ? " drop-target" : "")} ref={gridZoneRef}>
           {entries.map((en, i) =>
             en.kind === "locked" ? (
               <div
@@ -195,6 +246,10 @@ export default function SchedulePage({
           </div>
         )}
         </>
+      )}
+
+      {drag && (
+        <div className="anytime-ghost" style={{ left: drag.x, top: drag.y }}>{drag.label}</div>
       )}
     </div>
   );

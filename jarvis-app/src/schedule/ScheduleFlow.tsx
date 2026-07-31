@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSchedule, useCategories, useTasks, useRoutine } from "../data/NotesProvider";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
-import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot } from "./calendar";
+import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot, openSlots, fmtRange } from "./calendar";
+import { anytimeTasksForDay } from "./anytime";
 import type { EventItem, EventData } from "./types";
 import { showToast } from "../shared/toast";
 import PlanDaySheet from "./screens/PlanDaySheet";
@@ -36,6 +37,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const [routineSet, setRoutineSet] = useState(true);
   const [loading, setLoading] = useState(true);
   const [newStart, setNewStart] = useState<string | null>(null);
+  // Soft anchor guard (roadmap v2): the one gentle nudge, at most once per day.
+  const [guard, setGuard] = useState<{ id: string; date: string } | null>(null);
+  const nudgedDays = useRef<Set<string>>(new Set());
 
   const reload = useCallback(async () => {
     setDots(await svc.daysWithEvents(view.y, view.m));
@@ -183,8 +187,11 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   };
 
   const onSave = async (draft: EventDraft, scope?: "this" | "series") => {
+    let newEventId: string | null = null;
+    let newEventDate: string | null = null;
     if (sheet?.mode === "new") {
-      await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence });
+      newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence });
+      newEventDate = draft.date;
     } else if (sheet?.mode === "edit") {
       const id = sheet.id;
       const recurring = (sheet.initial.recurrence ?? "none") !== "none";
@@ -205,6 +212,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     setSheet(null);
     setNewStart(null);
     await reload();
+    if (newEventId && newEventDate) await maybeAnchorGuard(newEventDate, newEventId);
   };
 
   const onDelete = async (scope?: "this" | "series") => {
@@ -224,6 +232,69 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   };
 
   const onPickSlot = (start: string) => { setNewStart(start); setSheet({ mode: "new" }); };
+
+  // --- Roadmap v2 Anytime row ---
+  // Tasks with no time for the selected day, shown as a strip above the grid.
+  const reloadTasks = useCallback(async () => { setTaskItems(await tasksSvc.listTasks()); }, [tasksSvc]);
+  const anytimeItems = mode === "day" ? anytimeTasksForDay(taskItems, dayEvents, selected) : [];
+
+  // Tap the circle: complete the task (it leaves the strip).
+  const onToggleTask = async (id: string) => { await tasksSvc.toggleDone(id); await reloadTasks(); };
+
+  // Give-back: move a timed block back to Anytime. If it came from a task the
+  // task still exists, so deleting the block returns it to the strip; a manual
+  // event becomes a fresh task first. Undo restores the block either way.
+  const onUnschedule = async (id: string) => {
+    const e = await svc.event(id);
+    if (!e) return;
+    let restoredTaskId: string | undefined;
+    if (!e.sourceTaskId) restoredTaskId = (await tasksSvc.createTask(e.title, { category: e.category || undefined })) ?? undefined;
+    await svc.deleteEvent(id);
+    await reload();
+    await reloadTasks();
+    showToast({
+      message: "Moved to Anytime",
+      actionLabel: "Undo",
+      onAction: async () => {
+        if (restoredTaskId) await tasksSvc.deleteTask(restoredTaskId);
+        await svc.createEvent(e.title, { date: e.date, start: e.start, end: e.end, category: e.category || undefined, location: e.location, recurrence: e.recurrence, sourceTaskId: e.sourceTaskId });
+        await reload(); await reloadTasks();
+      },
+    });
+  };
+
+  // The nudge: at most once per day, when a manual/tapped add reaches a 4th
+  // timed item. Plan My Day is exempt (it schedules on purpose).
+  const maybeAnchorGuard = async (date: string, newId: string): Promise<boolean> => {
+    if (nudgedDays.current.has(date)) return false;
+    if ((await svc.countOn(date)) >= 4) { nudgedDays.current.add(date); setGuard({ id: newId, date }); return true; }
+    return false;
+  };
+
+  // Tap the name: give the task a time. Drops a 60-minute block at the next open
+  // slot, carrying the task id so the strip and grid stay in sync. Undo removes it.
+  const onScheduleTask = async (id: string) => {
+    const t = await tasksSvc.task(id);
+    if (!t) return;
+    // Land the block in a real gap so tapping never creates an overlap (the
+    // mis-drop failure the roadmap warns against). Prefer a gap at or after now
+    // today; else the first gap that fits; else the next-free fallback.
+    const gaps = openSlots(eventsForDate(allEvents, selected));
+    const nowMin = selected === today ? toMin(nowHHMM) : 0;
+    const fits = (g: { start: string; end: string }) => toMin(g.end) - toMin(g.start) >= 60;
+    const gap = gaps.find((g) => fits(g) && toMin(g.start) >= nowMin) ?? gaps.find(fits) ?? null;
+    const start = gap ? gap.start : nextFreeSlot(allEvents, selected, new Date());
+    const end = addMinutes(start, 60);
+    const evId = await svc.createEvent(t.text, { date: selected, start, end, category: t.category || undefined, sourceTaskId: id });
+    await reload();
+    await reloadTasks();
+    const guarded = evId ? await maybeAnchorGuard(selected, evId) : false;
+    if (!guarded) showToast({
+      message: `Scheduled ${fmtRange(start, end)}`,
+      actionLabel: "Undo",
+      onAction: async () => { if (evId) await svc.deleteEvent(evId); await reload(); await reloadTasks(); },
+    });
+  };
 
   // --- Roadmap v2 schedule basics ---
   const nowHHMM = (() => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; })();
@@ -294,6 +365,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onPush15={onPush15}
         onPushTomorrow={onPushTomorrow}
         onRunningLate={onRunningLate}
+        anytimeItems={anytimeItems}
+        onToggleTask={onToggleTask}
+        onScheduleTask={onScheduleTask}
       />
       {planOpen && (
         <PlanDaySheet
@@ -318,8 +392,21 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           suggestSlot={suggestSlot}
           onSave={onSave}
           onDelete={sheet.mode === "edit" ? onDelete : undefined}
+          onMoveToAnytime={sheet.mode === "edit" ? () => { const id = sheet.id; setSheet(null); onUnschedule(id); } : undefined}
           onCancel={() => { setSheet(null); setNewStart(null); }}
         />
+      )}
+      {guard && (
+        <div className="ag-scrim" onClick={() => setGuard(null)}>
+          <div className="ag-card" onClick={(e) => e.stopPropagation()}>
+            <div className="ag-title">That&rsquo;s four anchors</div>
+            <div className="ag-body">A lighter day tends to stick. Want to keep this one in Anytime instead?</div>
+            <div className="ag-acts">
+              <button className="btn btn-primary btn-block" onClick={async () => { const g = guard; setGuard(null); if (g) await onUnschedule(g.id); }}>Keep in Anytime</button>
+              <button className="btn btn-tertiary btn-block" onClick={() => setGuard(null)}>Leave it scheduled</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

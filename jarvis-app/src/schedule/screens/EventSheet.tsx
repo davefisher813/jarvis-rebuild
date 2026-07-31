@@ -26,6 +26,7 @@ export default function EventSheet({
   suggestSlot,
   onSave,
   onDelete,
+  onMoveToAnytime,
   onCancel,
 }: {
   mode: "new" | "edit";
@@ -35,6 +36,7 @@ export default function EventSheet({
   suggestSlot?: (date: string) => string;
   onSave: (draft: EventDraft, scope?: "this" | "series") => void;
   onDelete?: (scope?: "this" | "series") => void;
+  onMoveToAnytime?: () => void;
   onCancel: () => void;
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -179,6 +181,9 @@ export default function EventSheet({
 
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-block" onClick={save}>Save</button>
+          {mode === "edit" && onMoveToAnytime && recurrence === "none" && (
+            <button className="btn btn-secondary btn-block" onClick={onMoveToAnytime}>Move to Anytime</button>
+          )}
           {mode === "edit" && onDelete && (
             <button className="btn btn-danger btn-block" onClick={() => (recurringEdit ? onDelete?.(scope) : onDelete?.())}>Delete Event</button>
           )}
