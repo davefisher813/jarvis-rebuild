@@ -4,6 +4,7 @@ import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot, openSlots, fmtRange } from "./calendar";
 import { anytimeTasksForDay } from "./anytime";
+import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
 import type { EventItem, EventData } from "./types";
 import { showToast } from "../shared/toast";
 import PlanDaySheet from "./screens/PlanDaySheet";
@@ -212,7 +213,24 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     setSheet(null);
     setNewStart(null);
     await reload();
-    if (newEventId && newEventDate) await maybeAnchorGuard(newEventDate, newEventId);
+    if (newEventId && newEventDate) {
+      const guarded = await maybeAnchorGuard(newEventDate, newEventId);
+      // Memory layer: third same-weekday in a row -> offer to make it repeat.
+      // One nudge at a time (the guard wins), asked once (only at exactly 3),
+      // and never applied silently.
+      if (!guarded) {
+        const cand = repeatCandidate(allEvents, { title: draft.title, date: newEventDate, recurrence: draft.recurrence });
+        if (cand && cand.count === 3) {
+          const WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+          const evId = newEventId;
+          showToast({
+            message: `Third ${WD[cand.weekday]} in a row. Repeat weekly?`,
+            actionLabel: "Make It Repeat",
+            onAction: async () => { await svc.editRecurrence(evId, "weekly"); await reload(); },
+          });
+        }
+      }
+    }
   };
 
   const onDelete = async (scope?: "this" | "series") => {
@@ -394,6 +412,8 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           onDelete={sheet.mode === "edit" ? onDelete : undefined}
           onMoveToAnytime={sheet.mode === "edit" ? () => { const id = sheet.id; setSheet(null); onUnschedule(id); } : undefined}
           onCancel={() => { setSheet(null); setNewStart(null); }}
+          suggestTitles={(typed) => suggestTitles(allEvents, typed)}
+          suggestLocations={(t) => suggestLocations(allEvents, t)}
         />
       )}
       {guard && (

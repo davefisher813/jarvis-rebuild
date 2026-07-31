@@ -5,6 +5,7 @@ import type { Category } from "../categories/types";
 import type { TasksService } from "../tasks/TasksService";
 import type { ScheduleService } from "../schedule/ScheduleService";
 import type { NotesService } from "../notes/NotesService";
+import { suggestCategory } from "../schedule/memory";
 
 export interface CaptureResult {
   kind: "task" | "event" | "note";
@@ -95,9 +96,21 @@ export async function applyCapture(
   categories: Category[],
   today: string,
 ): Promise<void> {
-  const catId = r.category
+  let catId = r.category
     ? categories.find((c) => c.data.name.toLowerCase() === r.category!.toLowerCase())?.id
     : undefined;
+  // Memory layer (Session 3): when nothing chose a category, learn one from
+  // history (exact-title match, then shared significant words across past
+  // events and tasks). A default at creation, never a silent edit later.
+  if (!catId && r.kind !== "note") {
+    try {
+      const [events, tasks] = await Promise.all([svc.schedule.listEvents(), svc.tasks.listTasks()]);
+      const learned = suggestCategory(events, tasks.map((t) => ({ text: t.data.text, category: t.data.category })), r.title);
+      if (learned && categories.some((c) => c.id === learned)) catId = learned;
+    } catch {
+      /* memory is best-effort; capture must never fail because of it */
+    }
+  }
   if (r.kind === "event") {
     await svc.schedule.createEvent(r.title, { date: r.date ?? today, start: r.start ?? "09:00", category: catId });
   } else if (r.kind === "note") {

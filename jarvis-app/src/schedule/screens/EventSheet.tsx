@@ -3,7 +3,9 @@ import { useState } from "react";
 import type { ColorSlot } from "../../categories/types";
 import type { SheetCategory } from "../../tasks/screens/TaskSheet";
 import type { EventRecurrence } from "../types";
-import { addMinutes } from "../calendar";
+import { addMinutes, fmtTime } from "../calendar";
+import type { TitleSuggestion } from "../memory";
+import { catColor } from "../../shared/categories";
 
 export type { SheetCategory };
 export interface EventDraft {
@@ -28,6 +30,8 @@ export default function EventSheet({
   onDelete,
   onMoveToAnytime,
   onCancel,
+  suggestTitles,
+  suggestLocations,
 }: {
   mode: "new" | "edit";
   initial?: Partial<EventDraft>;
@@ -38,6 +42,10 @@ export default function EventSheet({
   onDelete?: (scope?: "this" | "series") => void;
   onMoveToAnytime?: () => void;
   onCancel: () => void;
+  // Memory layer (Session 3): past events offered whole while typing a title,
+  // and locations typed before. Derived by the caller; presentational here.
+  suggestTitles?: (typed: string) => TitleSuggestion[];
+  suggestLocations?: (title: string) => string[];
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [date, setDate] = useState(initial?.date ?? "");
@@ -73,6 +81,26 @@ export default function EventSheet({
   const slot = (c: SheetCategory): ColorSlot => c.color;
   const reps: [EventRecurrence, string][] = [["none", "None"], ["daily", "Daily"], ["weekly", "Weekly"], ["monthly", "Monthly"]];
 
+  // Memory: only offer on a new event, and stop once a suggestion was applied
+  // or the title exactly matches (nothing left to fill).
+  const [memUsed, setMemUsed] = useState(false);
+  const titleSugs = mode === "new" && !memUsed && suggestTitles ? suggestTitles(title) : [];
+  const locSugs = !location && suggestLocations ? suggestLocations(title) : [];
+  const applySug = (s: TitleSuggestion) => {
+    setMemUsed(true);
+    setTitle(s.title);
+    setStart(s.start);
+    setEnd(addMinutes(s.start, s.durationMin));
+    if (s.location) setLocation(s.location);
+    if (categories.some((c) => c.id === s.category)) setCategory(s.category);
+    if (err) setErr(false);
+  };
+  const sugLabel = (s: TitleSuggestion) => {
+    const t = fmtTime(s.start);
+    const dur = s.durationMin % 60 === 0 ? `${s.durationMin / 60}h` : `${s.durationMin}m`;
+    return `${t.time} ${t.ap} · ${dur}`;
+  };
+
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
@@ -87,6 +115,16 @@ export default function EventSheet({
               value={title}
               onChange={(e) => { setTitle(e.target.value); if (err) setErr(false); }}
             />
+            {titleSugs.length > 0 && (
+              <div className="chip-row mem-row">
+                {titleSugs.map((s) => (
+                  <div key={s.title} className="chip" role="button" tabIndex={0} onClick={() => applySug(s)}>
+                    <span className={"cat-dot cat-bg-" + catColor(s.category)} />
+                    {s.title}&nbsp;<span className="t-meta">{sugLabel(s)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="field-row">
@@ -160,6 +198,13 @@ export default function EventSheet({
           <div className="field">
             <label className="input-label">Location</label>
             <input className="input" placeholder="Place or address (optional)" value={location} onChange={(e) => setLocation(e.target.value)} />
+            {locSugs.length > 0 && (
+              <div className="chip-row mem-row">
+                {locSugs.map((l) => (
+                  <div key={l} className="chip" role="button" tabIndex={0} onClick={() => setLocation(l)}>{l}</div>
+                ))}
+              </div>
+            )}
           </div>
 
           {endInvalid && <div className="input-error">End time must be after the start time.</div>}

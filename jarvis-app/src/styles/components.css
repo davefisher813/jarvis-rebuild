@@ -668,3 +668,6 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
   max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card.drop-target { outline: 2px solid var(--red); outline-offset: -2px; }
 body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; }
+
+/* === Roadmap v2 Session 3: memory suggestion rows in the event sheet === */
+.mem-row { margin: var(--s-2) calc(-1 * var(--s-4)) 0; padding-bottom: 0; }
