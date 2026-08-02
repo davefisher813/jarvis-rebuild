@@ -161,7 +161,10 @@ export default function YourDay({
           <div className="empty-state empty-compact">
             <div className="empty-icon"><CalIcon /></div>
             <div className="empty-title">{emptyText}</div>
-            <div className="empty-sub">Want me to build your day around what matters?</div>
+            {/* The line that used to sit here, "Want me to build your day
+                around what matters?", asked whether you wanted the thing the
+                button below it does. Same helper-text pattern removed from the
+                Tasks empty state and the First Step card. */}
             {onPlanDay && <button className="btn btn-primary" onClick={onPlanDay}><CalIcon />Plan My Day</button>}
           </div>
         </div></div>

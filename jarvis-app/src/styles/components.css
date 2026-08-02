@@ -292,7 +292,18 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* Quiet right-slot actions in section headers (Not Now, dismiss): same seat as
    See All, calmer color. The question line sits under the header, outside the
    card (titles never live inside cards). */
-.sec-head .quiet-action { color: var(--tx-4); }
+/* Promoted from a .sec-head-only modifier to a real component class. A
+   dismiss must not compete with the offer beside it: the Tasks nudge used a
+   full secondary button, which gave "Not Now" the same visual weight as the
+   thing being offered and made a two-line card read as four elements. Today's
+   Check In already dismissed this way. */
+.quiet-action { background: 0; border: 0; font-family: var(--f); font-size: var(--t-meta);
+  font-weight: var(--w-medium); color: var(--tx-4); min-height: var(--tap-min);
+  display: inline-flex; align-items: center; padding: 0 var(--s-2); }
+/* An offer inside a card: primary action sized to its label, quiet dismiss
+   beside it. Not .field-row, which stretches its children to fill. */
+.offer-row { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
+.offer-row .btn { padding-left: var(--s-7); padding-right: var(--s-7); }
 .sec-question { font-size: var(--t-meta); color: var(--tx-3); padding-bottom: var(--s-2); }
 
 /* ===== Roadmap v2 schedule basics: protected blocks visible, swipe actions,

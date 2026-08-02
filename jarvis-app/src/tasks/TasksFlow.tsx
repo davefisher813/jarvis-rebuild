@@ -261,26 +261,29 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     showToast({ message: "Added to schedule" });
   };
 
+  // One offer, one line, one action. The subtitle used to read "Want the
+  // smallest possible first step?", which is helper text describing the button
+  // sitting under it, and the dismiss was a full-weight secondary button
+  // competing with the thing being offered. Today's Check In already offers and
+  // dismisses this way; this card was the odd one out.
   const fsBanner = fsCandidate && (filter === "today" || filter === "overdue" || filter === "all") ? (
     <div className="pad-x">
       <div className="card pad">
         <div className="conn-name">&ldquo;{fsCandidate.data.text}&rdquo; keeps sliding.</div>
         {fsStep && fsStep.taskId === fsCandidate.id ? (
           <>
+            {/* This line IS the answer, not a description of the button. */}
             <div className="conn-meta">Start with: {fsStep.step}</div>
-            <div className="field-row">
-              <button className="btn btn-primary btn-block" onClick={fsAccept}>Add This Step</button>
-              <button className="btn btn-secondary btn-block" onClick={fsDismiss}>Not Now</button>
+            <div className="offer-row">
+              <button className="btn btn-primary" onClick={fsAccept}>Add This Step</button>
+              <button className="quiet-action" onClick={fsDismiss}>Not Now</button>
             </div>
           </>
         ) : (
-          <>
-            <div className="conn-meta">Want the smallest possible first step?</div>
-            <div className="field-row">
-              <button className="btn btn-primary btn-block" onClick={fsAsk} disabled={fsBusy}>{fsBusy ? "Thinking..." : "First Step"}</button>
-              <button className="btn btn-secondary btn-block" onClick={fsDismiss}>Not Now</button>
-            </div>
-          </>
+          <div className="offer-row">
+            <button className="btn btn-primary" onClick={fsAsk} disabled={fsBusy}>{fsBusy ? "Thinking..." : "First Step"}</button>
+            <button className="quiet-action" onClick={fsDismiss}>Not Now</button>
+          </div>
         )}
       </div>
     </div>
