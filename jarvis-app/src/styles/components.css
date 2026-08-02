@@ -304,7 +304,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-dist { font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--good); margin-left: var(--s-2); }
 .sched-swipe-wrap { position: relative; overflow: hidden; }
 .sched-actions { position: absolute; top: 0; right: 0; bottom: 0; display: flex; }
-.sched-act { width: 88px; border: 0; background: var(--tint); color: #fff; font-size: var(--t-meta); font-weight: var(--w-semi); font-family: var(--f); }
+/* Swipe-reveal actions are the one place --tint must NOT be used now that it
+   is red: "+15 min" and Snooze sit directly beside a red Delete, and a row of
+   identical red panels is how someone deletes a task they meant to defer.
+   Amber is already the design system's defer colour (.swipe-archive), and it
+   carries black text at 10.2:1 where it only manages 2.1:1 with white. */
+.sched-act { width: 88px; border: 0; background: var(--warn); color: var(--on-fill-dark); font-size: var(--t-meta); font-weight: var(--w-semi); font-family: var(--f); }
 .sched-act-quiet { background: var(--press-5); color: var(--tx-1); }
 .sched-swipe-wrap .sched-row { position: relative; background: var(--surface-2); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
 .sched-swipe-wrap .sched-row.swiping { transition: none; }
@@ -571,7 +576,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .task-del { position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0; background: var(--red);
   color: #fff; display: flex; align-items: center; justify-content: center; }
 .task-del .ic { width: 22px; height: 22px; }
-.task-snooze { position: absolute; top: 0; right: 88px; bottom: 0; width: 88px; border: 0; background: var(--tint); color: #fff; display: flex; align-items: center; justify-content: center; }
+.task-snooze { position: absolute; top: 0; right: 88px; bottom: 0; width: 88px; border: 0; background: var(--warn); color: var(--on-fill-dark); display: flex; align-items: center; justify-content: center; }
 .task-snooze .ic { width: 22px; height: 22px; }
 .task-row { position: relative; background: var(--surface-2); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
 .task-row.swiping { transition: none; }
@@ -813,9 +818,8 @@ button {
   letter-spacing: inherit;
   cursor: pointer;
 }
-/* The Add-event "+" is red text on the light page background: 3.43:1. Uses
-   the darkened light-theme red already defined for exactly this case. */
-[data-theme="light"] .sched-open-plus { color: var(--on-light-red); }
+/* (The Add-event "+" override that used to live here is gone: --tint is now
+   the darkened red in light theme, so the base rule already passes.) */
 
 /* Chips are 30px tall pills, under the 44pt minimum Apple checks. Same
    technique already used for the Today avatar and search: a transparent

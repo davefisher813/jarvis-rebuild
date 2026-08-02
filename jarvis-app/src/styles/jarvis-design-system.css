@@ -85,7 +85,12 @@
   --tx-1: #FFFFFF; --tx-2: rgba(255,255,255,0.92); --tx-3: rgba(255,255,255,0.76); --tx-4: rgba(255,255,255,0.50);
   --red: #FF1F30; --sys-red: #FF453A; --warn: #FF9F0A; --good: #34D572; --blue: #5E9BFF;
   --yellow: #FFCC00; --teal: #5AC8FA; --mint: #4FE0BE; --pink: #FF85B8;
-  --tint: #5E9BFF;
+  /* --tint is the colour of things that are tappable but are not buttons: the
+     nav "+", back chevrons, links, sliders, steppers, action-sheet items.
+     It was blue here and red in light theme, so the same control changed
+     meaning with the theme (Dave, 2026-08-02: "red in both themes"). Now one
+     value in both. 5.49:1 on black, 4.66:1 on the light page. */
+  --tint: #FF1F30;
   --red-tint: rgba(255,31,48,0.16); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(52,213,114,0.16);
   --glass-bg: rgba(28,28,32,0.55);
   /* rim raised 0.14 -> 0.20 so glass edges catch light on OLED (RDB, Dave 2026-07-29) */
@@ -111,7 +116,13 @@
   --tx-1: #000000; --tx-2: rgba(60,60,67,0.86); --tx-3: rgba(60,60,67,0.76); --tx-4: rgba(60,60,67,0.40);
   --red: #FF3B30; --sys-red: #FF3B30; --warn: #FF9500; --good: #34C759; --blue: #007AFF;
   --yellow: #FFCC00; --teal: #5AC8FA; --mint: #4FE0BE; --pink: #FF85B8;
-  --tint: #FF1F30;
+  /* Red in light theme too (Dave, 2026-08-02), but a darker red than dark
+     theme uses. --tint is drawn as TEXT in several places (toast action,
+     search cancel, tertiary buttons, action-sheet items, links), and
+     #FF1F30 on this page is only 3.43:1. This is the same value as
+     --on-light-red in components.css, 5.71:1, which the light theme already
+     uses everywhere a red has to sit on white. */
+  --tint: #C81E2B;
   --red-tint: rgba(255,59,48,0.12); --warn-tint: rgba(255,149,0,0.14); --good-tint: rgba(52,199,89,0.14);
   --glass-bg: rgba(255,255,255,0.72);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);
