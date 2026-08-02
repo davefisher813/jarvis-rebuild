@@ -5,6 +5,7 @@ import EventSheet, { type SheetCategory, type EventDraft } from "./screens/Event
 import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot, openSlots, fmtRange } from "./calendar";
 import { anytimeTasksForDay } from "./anytime";
 import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
+import { attachInfo, followUpCandidate, type AttachInfo } from "./attachments";
 import type { EventItem, EventData } from "./types";
 import { showToast } from "../shared/toast";
 import PlanDaySheet from "./screens/PlanDaySheet";
@@ -157,7 +158,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     if (!e) return;
     // Use the event's own date, not the currently selected day: editing an
     // event from another day must not silently move it to the selected date.
-    setSheet({ mode: "edit", id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none" } });
+    setSheet({ mode: "edit", id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", taskIds: e.taskIds ?? [] } });
   };
 
   // When arriving via a note connection, jump to the event's own date and open
@@ -170,7 +171,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
       if (!on || !e) return;
       setSelected(e.date);
       syncView(e.date);
-      setSheet({ mode: "edit", id: openId, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none" } });
+      setSheet({ mode: "edit", id: openId, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", taskIds: e.taskIds ?? [] } });
     })();
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -191,7 +192,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     let newEventId: string | null = null;
     let newEventDate: string | null = null;
     if (sheet?.mode === "new") {
-      newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence });
+      newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, taskIds: draft.taskIds });
       newEventDate = draft.date;
     } else if (sheet?.mode === "edit") {
       const id = sheet.id;
@@ -208,6 +209,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         await svc.editRecurrence(id, draft.recurrence);
         await svc.editCategory(id, draft.category);
         await svc.editLocation(id, draft.location);
+        await svc.editTaskIds(id, draft.taskIds ?? []);
       }
     }
     setSheet(null);
@@ -250,6 +252,39 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   };
 
   const onPickSlot = (start: string) => { setNewStart(start); setSheet({ mode: "new" }); };
+
+  // --- Session 4 connections: attachments + the event-end follow-up ---
+  const attachMap: Record<string, AttachInfo> = {};
+  for (const e of dayEvents) {
+    const info = attachInfo(e, taskItems);
+    if (info) attachMap[e.id] = info;
+  }
+  const attachableTasks = taskItems
+    .filter((t) => !t.data.done || dayEvents.some((e) => e.data.taskIds?.includes(t.id)))
+    .map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done }));
+  const onToggleAttached = async (id: string) => { await tasksSvc.toggleDone(id); await reloadTasks(); };
+
+  // "N tasks were attached. Any done?": once per event, ever. Asked ids live in
+  // localStorage so the question never comes back.
+  const ASKED_KEY = "jarvis.attach.asked";
+  const readAsked = (): string[] => { try { const v = JSON.parse(localStorage.getItem(ASKED_KEY) || "[]"); return Array.isArray(v) ? v : []; } catch { return []; } };
+  const followUpBusy = useRef(false);
+  useEffect(() => {
+    if (loading || selected !== today || followUpBusy.current) return;
+    const asked = readAsked();
+    const cand = followUpCandidate(allEvents, taskItems, today, nowHHMM, new Set(asked));
+    if (!cand) return;
+    followUpBusy.current = true;
+    try { localStorage.setItem(ASKED_KEY, JSON.stringify([...asked, cand.eventId].slice(-200))); } catch { /* private mode */ }
+    showToast({
+      message: `${cand.title} had ${cand.openCount} ${cand.openCount === 1 ? "task" : "tasks"} attached. Any done?`,
+      actionLabel: "Review",
+      onAction: () => { followUpBusy.current = false; openEdit(cand.eventId); },
+    });
+    // One question at a time: the next candidate (if any) waits half a minute.
+    setTimeout(() => { followUpBusy.current = false; }, 30000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, selected, allEvents, taskItems]);
 
   // --- Roadmap v2 Anytime row ---
   // Tasks with no time for the selected day, shown as a strip above the grid.
@@ -386,6 +421,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         anytimeItems={anytimeItems}
         onToggleTask={onToggleTask}
         onScheduleTask={onScheduleTask}
+        attachMap={attachMap}
       />
       {planOpen && (
         <PlanDaySheet
@@ -414,6 +450,8 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           onCancel={() => { setSheet(null); setNewStart(null); }}
           suggestTitles={(typed) => suggestTitles(allEvents, typed)}
           suggestLocations={(t) => suggestLocations(allEvents, t)}
+          attachTasks={attachableTasks}
+          onToggleTask={onToggleAttached}
         />
       )}
       {guard && (

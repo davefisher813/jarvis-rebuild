@@ -3,7 +3,8 @@ import { useState } from "react";
 import type { ColorSlot } from "../../categories/types";
 
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
-export interface TaskDraft { text: string; category: string; due: string; repeat: string }
+export interface TaskDraft { text: string; category: string; due: string; repeat: string; projectId?: string }
+export interface SheetProject { id: string; title: string }
 
 const DAY = 86400000;
 const isoOf = (d: Date) => {
@@ -21,6 +22,7 @@ export default function TaskSheet({
   mode,
   initial,
   categories,
+  projects = [],
   onSave,
   onSchedule,
   onDelete,
@@ -28,6 +30,7 @@ export default function TaskSheet({
 }: {
   mode: "new" | "edit";
   initial?: Partial<TaskDraft>;
+  projects?: SheetProject[];
   categories: SheetCategory[];
   onSave: (draft: TaskDraft) => void;
   onSchedule?: () => void;
@@ -40,6 +43,7 @@ export default function TaskSheet({
   const [category, setCategory] = useState(initial?.category ?? categories[0]?.id ?? "");
   const [due, setDue] = useState(initial?.due ?? "");
   const [repeat, setRepeat] = useState(initial?.repeat ?? "");
+  const [projectId, setProjectId] = useState(initial?.projectId ?? "");
   const [err, setErr] = useState(false);
 
   const dueMode = due === "" ? "none" : due === today ? "today" : due === tomorrow ? "tomorrow" : "pick";
@@ -49,7 +53,7 @@ export default function TaskSheet({
       setErr(true);
       return;
     }
-    onSave({ text: text.trim(), category, due, repeat });
+    onSave({ text: text.trim(), category, due, repeat, projectId: projectId || undefined });
   };
 
   return createPortal(
@@ -108,6 +112,18 @@ export default function TaskSheet({
               ))}
             </div>
           </div>
+
+          {projects.length > 0 && (
+            <div className="field">
+              <div className="input-label">Project</div>
+              <div className="chip-row">
+                <div className={"chip" + (projectId === "" ? " active" : "")} role="button" tabIndex={0} onClick={() => setProjectId("")}>None</div>
+                {projects.map((p) => (
+                  <div key={p.id} className={"chip" + (projectId === p.id ? " active" : "")} role="button" tabIndex={0} onClick={() => setProjectId(p.id)}>{p.title}</div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="pad-x sheet-actions">

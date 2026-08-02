@@ -73,7 +73,7 @@ describe("TodayPage", () => {
     render(
       <TodayPage
         {...base}
-        evening={{ doneDue: 2, dueTotal: 3, eventsLeft: 0, openCount: 1 }}
+        evening={{ doneDue: 2, dueTotal: 3, eventsLeft: 0, openCount: 1, thingsDone: 2 }}
         upNext={[tk("due", "2026-05-20")]}
         onUpNext={() => {}}
         onPlanDay={() => {}}

@@ -51,3 +51,21 @@ describe("AIService", () => {
     await expect(svc.complete([{ role: "user", content: "hi" }])).rejects.toThrow(/failed/);
   });
 });
+
+describe("writing voice is scoped to close audiences", () => {
+  it("attaches the limit whenever style notes are present", () => {
+    const ctx = assembleContext({ voice: "drops punctuation, swears casually" });
+    const text = contextToText(ctx);
+    expect(text).toContain("drops punctuation");
+    // The limit must travel with the notes, or a board email inherits them.
+    expect(text).toMatch(/ONLY to casual messages/);
+    expect(text).toMatch(/Never guess casual/);
+    expect(text).toMatch(/No profanity/);
+  });
+
+  it("says nothing about style when the user has no notes", () => {
+    const text = contextToText(assembleContext({ name: "Alex" }));
+    expect(text).not.toMatch(/Writing voice/);
+    expect(text).not.toMatch(/Never guess casual/);
+  });
+});

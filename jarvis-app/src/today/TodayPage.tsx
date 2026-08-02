@@ -10,7 +10,7 @@ import RollingNumber from "../shared/RollingNumber";
 import YourDay from "./YourDay";
 import DayRing from "./DayRing";
 import { Burst, useBurst } from "../shared/Burst";
-import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats } from "./evening";
+import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats, type WeekRecap } from "./evening";
 
 const URGENCY_CLASS: Record<UrgencyKind, string> = {
   overdue: "urgency-red",
@@ -84,6 +84,7 @@ export default function TodayPage({
   now,
   nowLabel,
   tomorrowEvents,
+  tomorrowTasks = [],
   tomorrowDate,
   tasks,
   today,
@@ -104,6 +105,7 @@ export default function TodayPage({
   onSearch,
   onProfile,
   evening,
+  weekly,
   ring,
   daypart,
 }: {
@@ -114,6 +116,7 @@ export default function TodayPage({
   now: string;
   nowLabel: string;
   tomorrowEvents: EventItem[];
+  tomorrowTasks?: TaskItem[]; // weeklies/monthlies due tomorrow: the heads-up
   tomorrowDate: string;
   tasks: TaskItem[];
   today: string;
@@ -134,6 +137,7 @@ export default function TodayPage({
   onSearch?: () => void;
   onProfile?: () => void;
   evening?: EveningStats;
+  weekly?: WeekRecap | null; // Sunday-evening close-out card
   ring?: { done: number; total: number };
   daypart?: "morning" | "evening" | null;
 }) {
@@ -189,7 +193,7 @@ export default function TodayPage({
     </>
   );
 
-  const tomorrowSection = tomorrowEvents.length > 0 && (
+  const tomorrowSection = (tomorrowEvents.length > 0 || tomorrowTasks.length > 0) && (
     <>
       <div className="sec-head">
         <div className="sec-left">
@@ -201,6 +205,18 @@ export default function TodayPage({
       <div className="pad-x">
         <div className="card">
           {tomorrowEvents.map((ev) => <SchedRow ev={ev} key={ev.id} />)}
+          {/* Weeklies/monthlies surface on their day only; the day before gets
+              this one quiet heads-up row (roadmap v2 dailies weaving). */}
+          {tomorrowTasks.map((t) => (
+            <div className="sched-row" key={t.id}>
+              <div className="sched-time" />
+              <div className="sched-body">
+                <div className="sched-title">{t.data.text}</div>
+                <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(t.data.category)} />{catName(t.data.category)}</div>
+              </div>
+              <span className="pill pill-subdued">{t.data.recurrence}</span>
+            </div>
+          ))}
         </div>
       </div>
     </>
@@ -261,6 +277,28 @@ export default function TodayPage({
         title={evening ? "Tonight" : "Your Day"}
         emptyText={evening ? "Nothing else tonight" : "Nothing scheduled today"}
       />
+
+      {/* Sunday evening only: the weekly close-out card. Two lines, no charts;
+          this is what the Insights page folds into (roadmap v2). */}
+      {evening && weekly && (
+        <>
+          <div className="sec-head">
+            <div className="sec-left">
+              <div className="sec-ico ico-blue"><SunIcon /></div>
+              <div className="sec-title">Your Week</div>
+            </div>
+          </div>
+          <div className="pad-x"><div className="card">
+            <div className="week-recap">
+              <div className="t-body">
+                <b>{weekly.things > 0 ? `${weekly.things} ${weekly.things === 1 ? "thing" : "things"} done` : "A quiet week"}</b>
+                {weekly.events > 0 ? ` across ${weekly.events} ${weekly.events === 1 ? "event" : "events"} this week.` : " this week."}
+              </div>
+              {weekly.bestDay && <div className="t-meta">{weekly.bestDay} was your biggest day.</div>}
+            </div>
+          </div></div>
+        </>
+      )}
 
       {/* Daytime: Up Next (top of page) replaces the old task list; evening
           keeps the softened Still Open recap. */}

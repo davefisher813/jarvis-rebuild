@@ -11,9 +11,34 @@ const Chev = () => (
 
 export type MoreRoute = "settings" | "profile" | "appearance" | "categories" | "edittabs" | "account" | "notifsettings" | "about" | "advanced" | "backup" | "connections";
 
+// Section tiles. Two rules, both of them load-bearing:
+//
+// 1. NO RED. Every row here is navigation, not an action and not a selection.
+//    Red is reserved for the selected tab, primary buttons, and capture. This
+//    screen previously had four red tiles, which broke the one-red-per-screen
+//    law and made red mean nothing.
+// 2. These use their own nav-tile-* classes rather than the cat-bg-* category
+//    palette, so section colour and user-category colour can evolve apart.
+//    Note the hexes are currently the SAME: this is separation of meaning, not
+//    of appearance. It is safe only because section tiles render on this screen
+//    alone and this screen shows no user categories. If the two ever need to
+//    share a surface, separate them by FORM (small solid dot vs rounded icon
+//    tile), never by hue: users pick from the same 14 slots, so no hue can be
+//    reserved for the app. The one exception is brand red, which the category
+//    palette genuinely excludes (COLOR_SLOTS), which is what makes rule 1 hold.
+//
+// One stable hue per destination, loosely mnemonic: paper-yellow notes,
+// money-green, sunrise-orange today. Anything unmapped falls back to neutral.
 const EXTRA_TILE: Record<string, string> = {
-  today: "ico-accent", tasks: "cat-bg-blue", schedule: "cat-bg-sky", brain: "cat-bg-green", notes: "ico-accent",
-  goals: "ico-accent", projects: "cat-bg-sky", messages: "cat-bg-green", notifications: "cat-bg-red", money: "cat-bg-green", insights: "cat-bg-blue",
+  today: "nav-tile-orange",
+  tasks: "nav-tile-blue",
+  schedule: "nav-tile-sky",
+  brain: "nav-tile-purple",
+  notes: "nav-tile-yellow",
+  bigger: "nav-tile-indigo",
+  messages: "nav-tile-teal",
+  notifications: "nav-tile-graphite",
+  money: "nav-tile-green",
 };
 
 export default function MorePage({ extras, onOpenExtra, onNavigate }: {

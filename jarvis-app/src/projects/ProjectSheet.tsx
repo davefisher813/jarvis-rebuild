@@ -2,16 +2,18 @@ import { createPortal } from "react-dom";
 import { useState } from "react";
 import { PROJECT_META, PROJECT_STATES, type ProjectData, type ProjectStatus } from "./types";
 import type { Category } from "../categories/types";
+import type { Goal } from "../life/types";
 
 const TRASH = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>;
 
-export default function ProjectSheet({ mode, categories, initial, onSave, onDelete, onCancel }: {
-  mode: "new" | "edit"; categories: Category[]; initial?: ProjectData;
+export default function ProjectSheet({ mode, categories, goals = [], initial, onSave, onDelete, onCancel }: {
+  mode: "new" | "edit"; categories: Category[]; goals?: Goal[]; initial?: ProjectData;
   onSave: (d: ProjectData) => void; onDelete?: () => void; onCancel: () => void;
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [status, setStatus] = useState<ProjectStatus>(initial?.status ?? "active");
   const [category, setCategory] = useState<string>(initial?.category ?? "");
+  const [goalId, setGoalId] = useState<string>(initial?.goalId ?? "");
   const [touched, setTouched] = useState(false);
   const valid = title.trim().length > 0;
   return createPortal(
@@ -44,9 +46,20 @@ export default function ProjectSheet({ mode, categories, initial, onSave, onDele
               </div>
             </div>
           )}
+          {goals.length > 0 && (
+            <div className="field">
+              <div className="input-label">Goal</div>
+              <div className="chip-row">
+                <div className={"chip" + (goalId === "" ? " active" : "")} role="button" tabIndex={0} onClick={() => setGoalId("")}>None</div>
+                {goals.map((g) => (
+                  <div key={g.id} className={"chip" + (goalId === g.id ? " active" : "")} role="button" tabIndex={0} onClick={() => setGoalId(g.id)}>{g.data.title}</div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), status, category: category || undefined }); }}>Save</button>
+          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), status, category: category || undefined, goalId: goalId || undefined }); }}>Save</button>
           {mode === "edit" && onDelete && <button className="btn btn-danger btn-block" onClick={onDelete}>{TRASH}Delete Project</button>}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>

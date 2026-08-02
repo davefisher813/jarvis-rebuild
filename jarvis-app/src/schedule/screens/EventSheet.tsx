@@ -16,6 +16,16 @@ export interface EventDraft {
   category: string;
   location: string;
   recurrence: EventRecurrence;
+  taskIds?: string[]; // attached tasks (Session 4 connections)
+}
+
+// A task the sheet can attach or show attached: open tasks plus any already
+// attached (which may be done). Provided by the caller.
+export interface AttachableTask {
+  id: string;
+  text: string;
+  category: string;
+  done: boolean;
 }
 
 // Bottom sheet to create or edit an event. Save calls existing ScheduleService
@@ -32,6 +42,8 @@ export default function EventSheet({
   onCancel,
   suggestTitles,
   suggestLocations,
+  attachTasks,
+  onToggleTask,
 }: {
   mode: "new" | "edit";
   initial?: Partial<EventDraft>;
@@ -46,7 +58,12 @@ export default function EventSheet({
   // and locations typed before. Derived by the caller; presentational here.
   suggestTitles?: (typed: string) => TitleSuggestion[];
   suggestLocations?: (title: string) => string[];
+  // Connections (Session 4): tasks this event can hold. Checking an attached
+  // task completes it everywhere; the caller owns persistence.
+  attachTasks?: AttachableTask[];
+  onToggleTask?: (id: string) => void;
 }) {
+  const [taskIds, setTaskIds] = useState<string[]>(initial?.taskIds ?? []);
   const [title, setTitle] = useState(initial?.title ?? "");
   const [date, setDate] = useState(initial?.date ?? "");
   const [start, setStart] = useState(initial?.start ?? "09:00");
@@ -74,9 +91,16 @@ export default function EventSheet({
       setErr(true);
       return;
     }
-    const draft = { title: title.trim(), date, start, end, category, location: location.trim(), recurrence };
+    const draft = { title: title.trim(), date, start, end, category, location: location.trim(), recurrence, taskIds: recurrence === "none" ? taskIds : [] };
     recurringEdit ? onSave(draft, scope) : onSave(draft);
   };
+
+  // Attachments: only non-recurring events hold tasks (links live on the event
+  // and die with it; a whole series sharing one link list is a footgun).
+  const canAttach = recurrence === "none" && !!attachTasks;
+  const byId = new Map((attachTasks ?? []).map((t) => [t.id, t] as const));
+  const attached = canAttach ? taskIds.map((id) => byId.get(id)).filter((t): t is AttachableTask => !!t) : [];
+  const attachable = canAttach ? (attachTasks ?? []).filter((t) => !t.done && !taskIds.includes(t.id)).slice(0, 4) : [];
 
   const slot = (c: SheetCategory): ColorSlot => c.color;
   const reps: [EventRecurrence, string][] = [["none", "None"], ["daily", "Daily"], ["weekly", "Weekly"], ["monthly", "Monthly"]];
@@ -192,6 +216,42 @@ export default function EventSheet({
                 <div className={"seg" + (scope === "this" ? " active" : "")} role="button" tabIndex={0} onClick={() => setScope("this")}>This event</div>
                 <div className={"seg" + (scope === "series" ? " active" : "")} role="button" tabIndex={0} onClick={() => setScope("series")}>All events</div>
               </div>
+            </div>
+          )}
+
+          {canAttach && (attached.length > 0 || attachable.length > 0) && (
+            <div className="field">
+              <div className="input-label">Attached Tasks</div>
+              {attached.length > 0 && (
+                <div className="att-list">
+                  {attached.map((t) => (
+                    <div className={"task-row" + (t.done ? " completed" : "")} key={t.id}>
+                      <div
+                        className="task-check-tap"
+                        role="checkbox"
+                        aria-checked={t.done}
+                        aria-label={t.done ? "Mark not done" : "Mark done"}
+                        onClick={() => onToggleTask?.(t.id)}
+                      >
+                        <div className={"task-check " + (t.done ? "done" : "cat-bd-" + catColor(t.category))} />
+                      </div>
+                      <div className="row-stack">
+                        <div className="conn-name truncate">{t.text}</div>
+                      </div>
+                      <button type="button" className="note-fix" onClick={() => setTaskIds((ids) => ids.filter((x) => x !== t.id))}>Detach</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {attachable.length > 0 && (
+                <div className="chip-row cat-pick">
+                  {attachable.map((t) => (
+                    <div key={t.id} className="chip" role="button" tabIndex={0} onClick={() => setTaskIds((ids) => [...ids, t.id])}>
+                      <span className={"cat-dot cat-bg-" + catColor(t.category)} />{t.text}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

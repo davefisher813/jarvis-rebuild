@@ -328,8 +328,9 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .lm-qual { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); flex-shrink: 0; }
 .lm-bar { height: 6px; border-radius: var(--r-pill); background: var(--press-3); overflow: hidden; }
 .lm-bar-fill { height: 100%; border-radius: var(--r-pill); }
-.lm-good { color: var(--good); } .lm-warn { color: var(--cat-yellow); } .lm-bad { color: var(--accent); }
-.lm-good-bg { background: var(--good); } .lm-warn-bg { background: var(--cat-yellow); } .lm-bad-bg { background: var(--accent); }
+/* lm-good / lm-warn / lm-bad were removed 2026-08-02: the status names no
+   longer map to them, and lm-bad rendered brand red for a mood, which the
+   one-red-per-screen law forbids. See .lm-ok / .lm-muted / .lm-attention. */
 .lm-mute { color: var(--tx-3); }
 .msg-seg { padding: var(--s-1) var(--s-4) var(--s-3); }
 .msg-lead { width: 8px; flex-shrink: 0; margin-top: var(--s-1h); display: flex; justify-content: center; }
@@ -616,6 +617,8 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .plan-cta svg { width: 18px; height: 18px; flex-shrink: 0; }
 .plan-cta-row { padding: var(--s-1) var(--s-4) var(--s-3); }
 .plan-cta-block { width: 100%; justify-content: center; padding: var(--s-3h) var(--s-4); font-size: var(--t-body); }
+/* The label is two or three short words; never let it stack into a column. */
+.plan-cta { white-space: nowrap; }
 .plan-divider { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-3); padding: var(--s-2) 0 var(--s-1); }
 .plan-overdue { margin-left: var(--s-2); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent); flex-shrink: 0; }
 
@@ -671,3 +674,88 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
 
 /* === Roadmap v2 Session 3: memory suggestion rows in the event sheet === */
 .mem-row { margin: var(--s-2) calc(-1 * var(--s-4)) 0; padding-bottom: 0; }
+
+/* === Roadmap v2 Session 4: attached tasks inside the event sheet ===
+   The rows ARE the standard task-row component (identical-lists law); this
+   wrapper only cancels the sheet's horizontal padding, like .cat-pick. */
+.att-list { margin: 0 calc(-1 * var(--s-4)); }
+.att-list .task-row .note-fix { flex-shrink: 0; }
+.clip-ic { width: 12px; height: 12px; color: var(--tx-3); flex-shrink: 0; }
+
+/* === Roadmap v2 Session 5: weekly close-out card (Sundays, evening only) === */
+.week-recap { padding: var(--s-3h) var(--s-4); display: flex; flex-direction: column; gap: var(--s-1h); }
+.week-recap b { font-weight: var(--w-semi); }
+
+/* === Roadmap v2 Session 6: Bigger Picture (goals + projects, derived) === */
+.bp-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: 2px; }
+.bp-stalled { color: var(--warn); }
+.bp-bar { height: 4px; background: var(--press-3); border-radius: 2px; overflow: hidden; margin-top: var(--s-1h); }
+.bp-bar-fill { height: 100%; border-radius: 2px; background: var(--good); }
+.bp-goal { align-items: center; }
+
+/* Session 6: red is never a mood (locked design law). Status qualifiers move to
+   green / muted / amber, freeing red for actions and the selected tab. */
+.lm-ok { color: var(--good); }
+.lm-muted { color: var(--tx-3); }
+.lm-attention { color: var(--warn); }
+.lm-ok-bg { background: var(--good); }
+.lm-muted-bg { background: var(--press-5); }
+.lm-attention-bg { background: var(--warn); }
+
+/* === Section tiles for More (Session 6 colour audit) ===
+   Deliberately separate from the cat-bg-* category palette: category colour is
+   user identity, section colour is wayfinding, and overloading one for the
+   other made both meaningless. No red here by design; red belongs to the
+   selected tab, primary buttons, and capture. */
+.nav-tile-orange { background: var(--cat-orange); }
+.nav-tile-blue { background: var(--cat-blue); }
+.nav-tile-sky { background: var(--cat-sky); color: var(--on-fill-dark); }
+.nav-tile-purple { background: var(--cat-purple); }
+.nav-tile-yellow { background: var(--cat-yellow); color: var(--on-fill-dark); }
+.nav-tile-indigo { background: var(--cat-indigo); }
+.nav-tile-teal { background: var(--cat-teal); color: var(--on-fill-dark); }
+.nav-tile-green { background: var(--cat-green); }
+.nav-tile-graphite { background: var(--cat-graphite); }
+
+/* === Light theme contrast (2026-08-02) ===
+   The brand accents are tuned for a black background. On white they land
+   around 2.2:1 to 3.7:1, under the 4.5:1 WCAG AA needs for small text, which
+   Apple checks at review. These are LIGHT-ONLY darkened variants: dark theme
+   already passes and is untouched. Verified by measuring computed styles, not
+   by eye. Fills carry white text, so the fill itself is darkened. */
+[data-theme="light"] {
+  --on-light-red: #C81E2B;   /* 5.71:1 on white, and with white text on it */
+  --on-light-warn: #8A5A00;  /* 5.93:1 */
+  --on-light-good: #1B7A3D;  /* 5.39:1 */
+}
+[data-theme="light"] .urgency-red { color: var(--on-light-red); }
+[data-theme="light"] .urgency-warn { color: var(--on-light-warn); }
+[data-theme="light"] .sched-dist { color: var(--on-light-good); }
+[data-theme="light"] .sec-head .see-all { color: var(--on-light-red); }
+[data-theme="light"] .now-line .now-label { color: var(--on-light-red); }
+[data-theme="light"] .brand-mark .j,
+[data-theme="light"] .today-brand .j { color: var(--on-light-red); }
+[data-theme="light"] .tab-badge { background: var(--on-light-red); }
+[data-theme="light"] .av-accent { background: var(--on-light-red); }
+[data-theme="light"] .bp-stalled { color: var(--on-light-warn); }
+[data-theme="light"] .lm-attention { color: var(--on-light-warn); }
+/* uniformity.css status text colours, same light-theme problem (the overdue
+   count in the Today summary, file markers in the note editor). */
+[data-theme="light"] .fg-red { color: var(--on-light-red); }
+[data-theme="light"] .fg-warn { color: var(--on-light-warn); }
+[data-theme="light"] .fg-good { color: var(--on-light-good); }
+
+/* === Tap targets (2026-08-02 accessibility pass) ===
+   Apple's HIG minimum is 44pt and VoiceOver/Switch Control users feel every
+   miss. These controls are visually small on purpose, so extend the TOUCH area
+   with the design system's .hit44 pseudo-element trick instead of resizing
+   them: the look is unchanged, the target is not. Measured before and after. */
+.today-av, .today-search, .ticker-toggle { position: relative; }
+/* see-all sits inside a flex header where a neighbour can win the hit test, so
+   it gets a real 44pt box with the extra height pulled back out of the layout
+   rather than an overlay pseudo-element. */
+.sec-head .see-all { min-height: var(--tap-min); margin-top: -13px; margin-bottom: -13px; display: inline-flex; align-items: center; }
+.today-av::after, .today-search::after, .ticker-toggle::after {
+  content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  min-width: var(--tap-min); min-height: var(--tap-min); width: 100%; height: 100%;
+}

@@ -24,7 +24,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; gcalId?: string; sourceTaskId?: string },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; gcalId?: string; sourceTaskId?: string; taskIds?: string[] },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -38,6 +38,7 @@ export class ScheduleService {
     if (opts.location && opts.location.trim()) data.location = opts.location.trim();
     if (opts.gcalId) data.gcalId = opts.gcalId;
     if (opts.sourceTaskId) data.sourceTaskId = opts.sourceTaskId;
+    if (opts.taskIds && opts.taskIds.length) data.taskIds = opts.taskIds;
     const id = await this.store.create(this.ownerId, ENTITY_EVENT, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_EVENT, entityId: id });
     return id;
@@ -76,6 +77,10 @@ export class ScheduleService {
   }
   editCategory(id: string, category: string): Promise<boolean> {
     return this.patch(id, { category });
+  }
+  // Attached tasks (Session 4 connections). Stored on the event; die with it.
+  editTaskIds(id: string, taskIds: string[]): Promise<boolean> {
+    return this.patch(id, { taskIds: taskIds.length ? taskIds : undefined });
   }
 
   async editLocation(id: string, location: string): Promise<boolean> {

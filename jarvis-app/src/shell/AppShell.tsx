@@ -8,7 +8,7 @@ import TodayFlow from "../today/TodayFlow";
 import BrainFlow from "../brain/BrainFlow";
 import { dismissSplash } from "../shared/splash";
 import SkeletonScreen from "../shared/SkeletonScreen";
-import { DEFAULT_TABS, MAX_TABS, extrasFor } from "./destinations";
+import { DEFAULT_TABS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople } from "../data/NotesProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { useAI } from "../ai/useAI";
@@ -18,12 +18,11 @@ import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 // small: the default tabs (Today, Tasks, Schedule, Brain) plus More are enough
 // to launch. Everything else fetches its chunk on first open.
 const NotesFlow = lazy(() => import("../notes/NotesFlow"));
-const LifeMapFlow = lazy(() => import("../life/LifeMapFlow"));
-const ProjectsFlow = lazy(() => import("../projects/ProjectsFlow"));
+const BiggerPictureFlow = lazy(() => import("../bigger/BiggerPictureFlow"));
 const MessagesFlow = lazy(() => import("../messages/MessagesFlow"));
 const NotificationsFlow = lazy(() => import("../notifications/NotificationsFlow"));
 const MoneyFlow = lazy(() => import("../money/MoneyFlow"));
-const InsightsFlow = lazy(() => import("../insights/InsightsFlow"));
+
 const QuickCapture = lazy(() => import("../capture/QuickCapture"));
 const SearchFlow = lazy(() => import("../search/SearchFlow"));
 import { seedDemoData } from "../data/seed";
@@ -71,9 +70,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const navigateToNote = (id: string) => { setNoteIntent(id); setActive("notes"); };
   const navigateToEntity = async (kind: string, targetId: string) => {
     if (kind === "task") { setTaskIntent(targetId); setActive("tasks"); }
-    else if (kind === "project") { setProjectIntent(targetId); setActive("projects"); }
+    else if (kind === "project") { setProjectIntent(targetId); setActive("bigger"); }
     else if (kind === "event") { setEventIntent(targetId); setActive("schedule"); }
-    else if (kind === "goal") { setGoalIntent(targetId); setActive("goals"); }
+    else if (kind === "goal") { setGoalIntent(targetId); setActive("bigger"); }
     else if (kind === "person") {
       const p = await people.get(targetId);
       if (!p) return;
@@ -104,7 +103,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       setCategoryRegistry(cats.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));
       if (seedDemo) await seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people });
       if (!on) return;
-      const keys = prof?.tabs?.length ? prof.tabs : DEFAULT_TABS;
+      const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
       setTabKeys(keys);
       setActive(keys[0] ?? "today");
       setReady(true);
@@ -180,12 +179,12 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
         {active === "brain" && <BrainFlow openKey={brainIntent} personOpenId={personIntent?.id} onOpenNote={navigateToNote} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
-        {active === "goals" && <LifeMapFlow openId={goalIntent} />}
-        {active === "projects" && <ProjectsFlow openId={projectIntent} onOpenNote={navigateToNote} />}
+        
+        {active === "bigger" && <BiggerPictureFlow openId={projectIntent} onOpenNote={navigateToNote} />}
         {active === "messages" && <MessagesFlow ai={ai} />}
         {active === "notifications" && <NotificationsFlow />}
         {active === "money" && <MoneyFlow />}
-        {active === "insights" && <InsightsFlow />}
+        
         {active === "more" && (
           <MoreFlow
             extras={extrasFor(tabKeys)}

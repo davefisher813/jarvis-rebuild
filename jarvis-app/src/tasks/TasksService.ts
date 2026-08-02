@@ -38,13 +38,14 @@ export class TasksService {
 
   async createTask(
     text: string,
-    opts: { category?: string; due?: string | null; fromNote?: string; recurrence?: Recurrence } = {},
+    opts: { category?: string; due?: string | null; fromNote?: string; recurrence?: Recurrence; projectId?: string } = {},
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
     const data: TaskData = { text: text.trim(), category: opts.category ?? "", done: false };
     if (opts.due) data.due = opts.due;
     if (opts.fromNote) data.fromNote = opts.fromNote;
     if (opts.recurrence) data.recurrence = opts.recurrence;
+    if (opts.projectId) data.projectId = opts.projectId;
     const id = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_TASK, entityId: id });
     return id;
@@ -68,7 +69,7 @@ export class TasksService {
     }
     // Time Sense (silent, Phase 1): every completion logs an hour-of-day sample
     // so Phase 2 launches with a real energy curve instead of self-report.
-    if (!t.done) recordCompletion(t.category ?? "");
+    if (!t.done) recordCompletion(t.category ?? "", new Date(), id);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }
@@ -119,6 +120,16 @@ export class TasksService {
       await this.store.update(this.ownerId, id, { due: t.asideFrom, asideFrom: null });
       this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     }
+  }
+
+  // Session 6: the goal -> project -> task chain. Progress is derived from this
+  // link, so it must be settable and clearable.
+  async setProject(id: string, projectId: string | null): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t) return false;
+    await this.store.update(this.ownerId, id, { projectId: projectId ?? null });
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
   }
 
   async setCategory(id: string, category: string): Promise<boolean> {

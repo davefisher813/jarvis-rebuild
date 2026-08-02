@@ -7,6 +7,7 @@ import SkeletonRows from "../../shared/SkeletonRows";
 import DayRow from "./DayRow";
 import AnytimeRow from "./AnytimeRow";
 import type { TaskItem } from "../../tasks/TasksService";
+import type { AttachInfo } from "../attachments";
 
 // A protected block from Your Routine, rendered on the day it applies.
 export interface LockedRange { s: number; e: number; label: string }
@@ -35,7 +36,7 @@ export default function SchedulePage({
   mode = "month", onMode, weekCells = [], loading,
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay,
   locked = [], now, onEditRoutine, onPush15, onPushTomorrow, onRunningLate,
-  anytimeItems = [], onToggleTask, onScheduleTask,
+  anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {},
 }: {
   year: number; month: number; selected: string; todayDate: string;
   dots: Record<number, string[]>; dayEvents: EventItem[]; conflicts?: Set<string>;
@@ -46,6 +47,7 @@ export default function SchedulePage({
   onPush15?: (id: string) => void; onPushTomorrow?: (id: string) => void;
   onRunningLate?: (mins: number) => void;
   anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string) => void;
+  attachMap?: Record<string, AttachInfo>;
 }) {
   const cells = monthMatrix(year, month);
   const n = dayEvents.length;
@@ -225,6 +227,7 @@ export default function SchedulePage({
                 <DayRow
                   e={en.e}
                   conflict={conflicts?.has(en.e.id) ?? false}
+                  attach={attachMap[en.e.id]}
                   isNext={en.e.id === nextId}
                   isPast={isToday ? (en.e.data.end ? toMin(en.e.data.end) : toMin(en.e.data.start) + 60) < nowMin : false}
                   now={isToday ? now! : null}

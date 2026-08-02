@@ -35,6 +35,9 @@ export function groupFor(task: TaskData, today: string): TaskGroup {
 export function urgencyFor(task: TaskData, today: string): Urgency | null {
   if (task.done || !task.due) return null;
   const diff = Math.round((atMidnight(task.due).getTime() - atMidnight(today).getTime()) / DAY);
+  // Dailies never go overdue (roadmap v2): a missed recurring task is just
+  // there today. The streak already paused; the red tag would be shame.
+  if (diff < 0 && task.recurrence) return { label: "TODAY", kind: "today" };
   if (diff < 0) return { label: "OVERDUE", kind: "overdue" };
   if (diff === 0) return { label: "TODAY", kind: "today" };
   const dt = atMidnight(task.due);

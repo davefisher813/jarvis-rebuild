@@ -15,7 +15,11 @@ export function daysBetween(fromISO: string, toISO: string): number {
 // Open tasks ranked: overdue first (oldest due leads), then due today, then
 // upcoming soonest, then no-date. This is the deck order for Next mode.
 export function rankOpen(tasks: TaskItem[], today: string): TaskItem[] {
-  const open = tasks.filter((t) => !t.data.done);
+  // Weeklies and monthlies surface on their day only (roadmap v2): a recurring
+  // task due later never enters the deck early. It has a day; it will come.
+  const open = tasks.filter(
+    (t) => !t.data.done && !(t.data.recurrence && t.data.due && daysBetween(today, t.data.due) > 0),
+  );
   const key = (t: TaskItem): string => {
     const due = t.data.due;
     if (!due) return "3~";

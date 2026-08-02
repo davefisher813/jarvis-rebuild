@@ -53,6 +53,8 @@ export interface TaskData {
   category: string;
   done: boolean;
   fromNote?: string;
+  projectId?: string; // the project this task belongs to (Session 6). Optional
+  // field on the existing task entity, so no registry migration is needed.
   due?: string | null;
   recurrence?: Recurrence;
   // Lifecycle policy (ADHD strategy Phase 1). All optional and additive.

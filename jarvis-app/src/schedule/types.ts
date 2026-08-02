@@ -15,6 +15,8 @@ export interface EventData {
   exdates?: string[]; // occurrence dates removed/overridden from the series
   gcalId?: string; // Google Calendar event id, when imported (dedupe key)
   sourceTaskId?: string; // task this block was generated from, via Plan my day
+  taskIds?: string[]; // attached tasks (Session 4 connections). Links live on
+  // the event and die with it; non-recurring events only.
 }
 
 export interface EventItem {

@@ -30,6 +30,15 @@ describe("rankOpen / pickNext", () => {
     expect(ranked.map((t) => t.id)).toEqual([older.id, old.id, today.id, future.id, noDate.id]);
   });
 
+  it("keeps future-due recurring tasks out of the deck until their day", () => {
+    const weeklyFuture = task("2026-08-03", false, { recurrence: "weekly" });
+    const weeklyToday = task(T, false, { recurrence: "weekly" });
+    const plain = task(null);
+    const ranked = rankOpen([weeklyFuture, weeklyToday, plain], T);
+    expect(ranked.map((t) => t.id)).toEqual([weeklyToday.id, plain.id]);
+    expect(quickWins([weeklyFuture, plain], T).map((t) => t.id)).toEqual([plain.id]);
+  });
+
   it("pickNext returns null with nothing open and skips move a card to the back", () => {
     expect(pickNext([task(T, true)], T)).toBeNull();
     const a = task("2026-07-20");

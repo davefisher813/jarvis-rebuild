@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTasks, useCategories, useSchedule } from "../data/NotesProvider";
 import TasksPage from "./screens/TasksPage";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
+import { useProjects } from "../data/NotesProvider";
+import type { Project } from "../projects/types";
 import { partition, byCategory, filterOf, FILTERS, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
 import type { Recurrence, TaskData } from "../notes/types";
 import type { TaskItem } from "./TasksService";
@@ -27,6 +29,9 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     openFilter && (FILTERS as string[]).includes(openFilter) ? (openFilter as TaskFilter) : "today",
   );
   const [catFilter, setCatFilter] = useState("all");
+  const projectsSvc = useProjects();
+  const [projects, setProjects] = useState<Project[]>([]);
+  useEffect(() => { let on = true; projectsSvc.list().then((p) => { if (on) setProjects(p); }); return () => { on = false; }; }, [projectsSvc]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [sheet, setSheet] = useState<SheetState>(null);
   const [loading, setLoading] = useState(true);
@@ -171,7 +176,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   const openEdit = async (id: string) => {
     const t = await svc.task(id);
     if (!t) return;
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "", repeat: t.recurrence ?? "" } });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "" } });
   };
 
   // When arriving via a note connection, open that task once on mount.
@@ -183,11 +188,12 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   const onSave = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;
     if (sheet?.mode === "new") {
-      await svc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined });
+      await svc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId });
     } else if (sheet?.mode === "edit") {
       await svc.editText(sheet.id, draft.text);
       await svc.setCategory(sheet.id, draft.category);
       await svc.setDue(sheet.id, draft.due || null);
+      await svc.setProject(sheet.id, draft.projectId ?? null);
       await svc.setRecurrence(sheet.id, rec || null);
     }
     const wasNew = sheet?.mode === "new";
@@ -308,6 +314,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
       />
       {sheet && (
         <TaskSheet
+          projects={projects.map((p) => ({ id: p.id, title: p.data.title }))}
           mode={sheet.mode}
           initial={sheet.initial}
           categories={categories}

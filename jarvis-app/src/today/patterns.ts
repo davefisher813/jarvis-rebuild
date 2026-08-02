@@ -97,3 +97,15 @@ export function dismissPattern(id: string, todayIso: string): void {
     localStorage.setItem(DISMISS_KEY, JSON.stringify(d));
   } catch { /* private mode */ }
 }
+
+// --- The writable Brain (Session 5) ---
+// An approved observation becomes a remembered habit: one line appended to the
+// Brain doc (topic "habits") that the context assembler feeds to every AI
+// feature. Only ever written on the user's explicit tap, never silently.
+export function appendHabit(existing: string, observation: string, todayIso: string): string {
+  const line = `${todayIso}: ${observation}`;
+  const lines = existing ? existing.split("\n").filter((l) => l.trim()) : [];
+  // The same observation text is never recorded twice.
+  if (lines.some((l) => l.includes(observation))) return existing;
+  return [...lines, line].slice(-20).join("\n");
+}

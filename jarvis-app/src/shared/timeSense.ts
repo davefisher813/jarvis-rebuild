@@ -11,6 +11,9 @@ export interface CompletionSample {
   h: number; // local hour 0-23
   dow: number; // 0-6
   cat: string; // category id ("" if none)
+  id?: string; // task id (Session 4+): per-task timing, so anchor-relative
+  // placement can one day ask "you take vitamins at 7:40, not 7:00, move it?"
+  // from real data instead of a guess. Still silent, still best-effort.
 }
 
 function storage(): Storage | null {
@@ -21,12 +24,14 @@ function storage(): Storage | null {
   }
 }
 
-export function recordCompletion(category: string, when: Date = new Date()): void {
+export function recordCompletion(category: string, when: Date = new Date(), taskId?: string): void {
   const s = storage();
   if (!s) return;
   try {
     const all = readSamples();
-    all.push({ t: when.getTime(), h: when.getHours(), dow: when.getDay(), cat: category });
+    const sample: CompletionSample = { t: when.getTime(), h: when.getHours(), dow: when.getDay(), cat: category };
+    if (taskId) sample.id = taskId;
+    all.push(sample);
     s.setItem(KEY, JSON.stringify(all.slice(-CAP)));
   } catch {
     /* full or private mode: sampling is best-effort by design */

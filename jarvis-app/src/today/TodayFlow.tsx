@@ -16,7 +16,8 @@ import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } 
 import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { daySizing } from "../schedule/daySizing";
 import { ensureCheckinNotifications } from "../shared/notifications";
-import { isEvening, eveningStats } from "./evening";
+import { isEvening, eveningStats, weekRecap } from "./evening";
+import { readSamples } from "../shared/timeSense";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
@@ -56,6 +57,7 @@ export default function TodayFlow({
   const [name, setName] = useState("");
   const [todayEvents, setTodayEvents] = useState<EventItem[]>([]);
   const [tomorrowEvents, setTomorrowEvents] = useState<EventItem[]>([]);
+  const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
   const [prevMood, setPrevMood] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -91,15 +93,17 @@ export default function TodayFlow({
   const tmrw = tomorrowISO(today);
 
   const reload = useCallback(async () => {
-    const [te, tm, tk, prof] = await Promise.all([
+    const [te, tm, tk, prof, all] = await Promise.all([
       schedule.eventsOn(today),
       schedule.eventsOn(tmrw),
       tasks.listTasks(),
       profile.get(),
+      schedule.listEvents(),
     ]);
     setTodayEvents(te);
     setTomorrowEvents(tm);
     setTaskItems(tk);
+    setAllEvents(all);
     setName(prof?.name ?? "");
     // Yesterday's evening mood sizes today's plan (Phase 2). Noon anchor keeps
     // the date subtraction clear of any midnight or DST edge.
@@ -247,7 +251,13 @@ export default function TodayFlow({
   const offTrack = !freshSkipped && !isEvening(nowMin, routineData) && isOffTrack(taskItems, today, nowMin);
   // Up Next section: the deck's top 3, rendered as standard task rows.
   const upNextRows = rankOpen(taskItems, today).slice(0, 3);
-  const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm) : undefined;
+  // Close-out (Session 5): Time Sense knows every completion today, not just
+  // the due-today ones. The weekly recap card speaks on Sunday evenings only.
+  const samples = readSamples();
+  const dayStart = new Date(today + "T00:00:00").getTime();
+  const completionsToday = samples.filter((s) => s.t >= dayStart && s.t < dayStart + 86400000).length;
+  const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm, completionsToday) : undefined;
+  const weekly = evening ? weekRecap(samples, allEvents, today) : null;
   // Day ring: due-today done over due-today total. Hero tint by daypart.
   const dueToday = taskItems.filter((t) => t.data.due === today);
   const ring = { done: dueToday.filter((t) => t.data.done).length, total: dueToday.length };
@@ -263,6 +273,8 @@ export default function TodayFlow({
       now={nhm}
       nowLabel={fmtTime(nhm).time}
       tomorrowEvents={tomorrowEvents}
+      weekly={weekly}
+      tomorrowTasks={taskItems.filter((t) => !t.data.done && t.data.recurrence && t.data.recurrence !== "daily" && t.data.due === tmrw)}
       tomorrowDate={shortDate(new Date(tmrw + "T00:00:00"))}
       tasks={todaysTasks(taskItems, today)}
       evening={evening}

@@ -33,7 +33,7 @@ describe("EditTabsPage", () => {
     expect(onToggle).not.toHaveBeenCalled(); // can't remove the last tab
 
     rerender(<EditTabsPage tabKeys={["today", "tasks", "schedule", "brain", "notes"]} onToggle={onToggle} onBack={() => {}} />);
-    fireEvent.click(screen.getByRole("switch", { name: "Life Map" }));
+    fireEvent.click(screen.getByRole("switch", { name: "Bigger Picture" }));
     expect(onToggle).not.toHaveBeenCalled(); // already at max (5)
   });
 });

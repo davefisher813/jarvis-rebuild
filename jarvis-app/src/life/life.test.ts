@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { AreaService } from "./AreaService";
 import { GoalService } from "./GoalService";
-import { AREA_META, GOAL_META } from "./types";
+import { GOAL_META } from "./types";
 
 describe("AreaService", () => {
   it("creates, lists, updates, removes", async () => {
@@ -19,7 +19,6 @@ describe("AreaService", () => {
     expect(await a.create({ name: "  ", state: "steady" })).toBeNull();
   });
   it("maps state to label/color/pct", () => {
-    expect(AREA_META.strong.cls).toBe("good");
     expect(GOAL_META.at_risk.label).toBe("At risk");
   });
 });

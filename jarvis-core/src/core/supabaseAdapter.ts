@@ -103,11 +103,26 @@ export class SupabaseAdapter implements DataAdapter {
 
   async listForUser(_ownerId: string): Promise<Item[]> {
     // RLS restricts the result to the signed-in user's rows.
-    const { data: rows, error } = await this.db
-      .from("item")
-      .select("id, owner_id, entity_type, data, updated_at");
-    if (error) throw error;
-    return (rows as ItemRow[]).map(toItem);
+    //
+    // PostgREST caps a response at max-rows (1000 by default), and it does so
+    // SILENTLY: you get a short array, not an error. Every app service reads
+    // the whole item table through here, so past that cap a user's tasks or
+    // events would simply start disappearing with nothing in the logs. Page
+    // explicitly with range() until a short page proves the end.
+    const PAGE = 1000;
+    const out: Item[] = [];
+    for (let from = 0; ; from += PAGE) {
+      const { data: rows, error } = await this.db
+        .from("item")
+        .select("id, owner_id, entity_type, data, updated_at")
+        .order("id", { ascending: true })
+        .range(from, from + PAGE - 1);
+      if (error) throw error;
+      const page = (rows ?? []) as ItemRow[];
+      out.push(...page.map(toItem));
+      if (page.length < PAGE) break;
+    }
+    return out;
   }
 }
 

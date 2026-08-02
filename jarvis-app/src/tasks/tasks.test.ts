@@ -36,6 +36,11 @@ describe("grouping logic", () => {
     expect(groupFor(t, TODAY)).toBe("today");
     expect(urgencyFor(t, TODAY)).toEqual({ label: "TODAY", kind: "today" });
   });
+  it("a past-due daily never shows OVERDUE, only TODAY", () => {
+    const t = mk({ due: addDays(TODAY, -2), recurrence: "daily" });
+    expect(groupFor(t, TODAY)).toBe("today");
+    expect(urgencyFor(t, TODAY)).toEqual({ label: "TODAY", kind: "today" });
+  });
   it("overdue groups as today with an OVERDUE tag", () => {
     const t = mk({ due: addDays(TODAY, -2) });
     expect(groupFor(t, TODAY)).toBe("today");

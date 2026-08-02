@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import type { AIService } from "../ai/AIService";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import { suggestionsSystemPrompt, parseSuggestions, type Suggestion } from "../ai/suggestions";
-import { useTasks, useProfile } from "../data/NotesProvider";
+import { useTasks, useProfile, useBrainDocs } from "../data/NotesProvider";
 import { haptics } from "../shared/haptics";
-import { patternObservation, isPatternDismissed, dismissPattern, type PatternObservation } from "./patterns";
+import { showToast } from "../shared/toast";
+import { patternObservation, isPatternDismissed, dismissPattern, appendHabit, type PatternObservation } from "./patterns";
 import { rankOpen } from "../upnext/upnext";
 
 const ZAP = (
@@ -30,6 +31,7 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
   const gather = useAIContext();
   const tasksSvc = useTasks();
   const profileSvc = useProfile();
+  const docs = useBrainDocs();
   const today = todayISO();
   const [cache, setCache] = useState<DayCache | null | undefined>(undefined); // undefined = loading
   // Pattern awareness (Phase 2 stretch): one deterministic observation from
@@ -135,6 +137,21 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
         {pattern ? (
           <div className="suggestion-row" key={"pattern-" + pattern.id}>
             <div className="sug-title">{pattern.text}</div>
+            <button
+              className="btn-sm"
+              onClick={async () => {
+                // The writable Brain: an approved observation becomes a habit
+                // every AI feature knows. Explicit tap only, never silent.
+                haptics.selection();
+                const cur = await docs.get("habits");
+                await docs.save("habits", appendHabit(cur, pattern.text, today));
+                dismissPattern(pattern.id, today);
+                setPattern(null);
+                showToast({ message: "Saved to your Brain" });
+              }}
+            >
+              Remember This
+            </button>
           </div>
         ) : aiPick ? (
           <div className="suggestion-row" key={aiPick.i}>

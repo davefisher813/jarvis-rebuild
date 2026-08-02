@@ -17,27 +17,86 @@ export interface EveningStats {
   dueTotal: number;   // tasks due today, done or not
   eventsLeft: number; // events that have not started yet
   openCount: number;  // open tasks on the plate (due today or overdue)
+  thingsDone: number; // the close-out number: completions today + events attended
 }
 
-export function eveningStats(events: EventItem[], tasks: TaskItem[], today: string, nowHHMM: string): EveningStats {
+export function eveningStats(
+  events: EventItem[],
+  tasks: TaskItem[],
+  today: string,
+  nowHHMM: string,
+  completionsToday = 0,
+): EveningStats {
   const dueToday = tasks.filter((t) => t.data.due === today);
   const open = tasks.filter((t) => !t.data.done && t.data.due && t.data.due <= today);
+  const doneDue = dueToday.filter((t) => t.data.done).length;
+  // Events attended: fully over by now (end, or start + an hour).
+  const endOf = (e: EventItem) => e.data.end ?? addHour(e.data.start);
+  const attended = events.filter((e) => endOf(e) <= nowHHMM).length;
   return {
-    doneDue: dueToday.filter((t) => t.data.done).length,
+    doneDue,
     dueTotal: dueToday.length,
     eventsLeft: events.filter((e) => e.data.start >= nowHHMM).length,
     openCount: open.length,
+    // Time Sense counts every completion today (passed in); fall back to the
+    // due-today dones when the collector has nothing (fresh device).
+    thingsDone: Math.max(completionsToday, doneDue) + attended,
   };
 }
 
-// The one-line recap under the evening greeting. Leads with the win when there
-// is one; never mentions what did not happen.
+function addHour(hhmm: string): string {
+  const p = hhmm.split(":");
+  const h = Math.min(23, Number(p[0] ?? 0) + 1);
+  return `${String(h).padStart(2, "0")}:${p[1] ?? "00"}`;
+}
+
+// The close-out line under the evening greeting (roadmap v2: "You did 6 things
+// today." One line, no charts). Leads with the win; never mentions what did
+// not happen.
 export function eveningSummary(s: EveningStats): string {
   const parts: string[] = [];
-  if (s.doneDue > 0) parts.push(`${s.doneDue} ${s.doneDue === 1 ? "task" : "tasks"} done today`);
-  if (s.eventsLeft > 0) parts.push(`${s.eventsLeft} ${s.eventsLeft === 1 ? "thing" : "things"} left tonight`);
+  if (s.thingsDone > 0) parts.push(`You did ${s.thingsDone} ${s.thingsDone === 1 ? "thing" : "things"} today.`);
+  if (s.eventsLeft > 0) parts.push(`${s.eventsLeft} ${s.eventsLeft === 1 ? "thing" : "things"} left tonight.`);
   if (parts.length === 0) return "A clear evening.";
-  return parts.join(" · ");
+  return parts.join(" ");
+}
+
+// --- The weekly close-out card (Sundays only; the Insights page folds into
+// this in the consolidation session). Two lines, no charts. ---
+
+export interface WeekRecap {
+  things: number; // completions this week (Time Sense)
+  events: number; // events that happened this week
+  bestDay: string | null; // weekday name with the most completions
+}
+
+const DOW_NAME = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+// Null unless `today` is a Sunday evening surface (callers gate on evening).
+// Week = Monday through today. Speaks only with something to say.
+export function weekRecap(
+  samples: { t: number; dow: number }[],
+  events: EventItem[],
+  today: string,
+): WeekRecap | null {
+  const d = new Date(today + "T00:00:00");
+  if (d.getDay() !== 0) return null; // Sundays only
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - 6);
+  const from = monday.getTime();
+  const to = d.getTime() + 86400000;
+  const week = samples.filter((s) => s.t >= from && s.t < to);
+  const mondayIso = monday.toISOString().slice(0, 10);
+  const evCount = events.filter((e) => e.data.date >= mondayIso && e.data.date <= today).length;
+  if (week.length === 0 && evCount === 0) return null;
+  let bestDay: string | null = null;
+  if (week.length > 0) {
+    const byDow = new Map<number, number>();
+    for (const s of week) byDow.set(s.dow, (byDow.get(s.dow) ?? 0) + 1);
+    const top = [...byDow.entries()].sort((a, b) => b[1] - a[1])[0]!;
+    bestDay = top[1] >= 2 ? DOW_NAME[top[0]]! : null;
+  }
+  return { things: week.length, events: evCount, bestDay };
 }
 
 // Shown under the Still Open card. Tone: permission, not pressure.

@@ -40,7 +40,10 @@ const TOP_SECTIONS: { title: string; rows: BrainRow[] }[] = [
   { title: "Who You Know", rows: [
     { key: "contacts", name: "Contacts", icon: <Users />, color: "ico-blue" },
     { key: "inner-circle", name: "Inner Circle", icon: <Heart />, color: "cat-bg-pink" },
-    { key: "adversarial", name: "Adversarial", icon: <Shield />, color: "ico-accent" },
+    // Graphite, not brand red: red is for actions and selection, never a
+    // mood, and colouring people as an alert is exactly the kind of judgement
+    // the app is not supposed to make.
+    { key: "adversarial", name: "Adversarial", icon: <Shield />, color: "cat-bg-graphite" },
   ] },
   { title: "How You Think", rows: [
     { key: "philosophy", name: "Life Philosophy", icon: <Compass />, color: "cat-bg-blue" },

@@ -8,7 +8,7 @@ import { SupabaseAdapter } from "@core";
 type Call = [string, unknown[]];
 function chain(result: unknown, calls: Call[]) {
   const q: Record<string, unknown> = {};
-  for (const m of ["insert", "select", "eq", "maybeSingle", "single", "delete", "update", "order"]) {
+  for (const m of ["insert", "select", "eq", "maybeSingle", "single", "delete", "update", "order", "range"]) {
     q[m] = (...a: unknown[]) => { calls.push([m, a]); return q; };
   }
   (q as { then: unknown }).then = (res: (v: unknown) => void) => res(result);
