@@ -31,7 +31,11 @@
   --s-0h: 2px; --s-1: 4px; --s-1h: 6px; --s-2: 8px; --s-2h: 10px;
   --s-3: 12px; --s-3h: 14px; --s-4: 16px; --s-5: 18px; --s-6: 20px;
   --s-6h: 22px; --s-7: 24px; --s-8: 32px; --s-9: 40px; --s-10: 48px;
-  --s-safe-b: 120px;
+  /* Trailing room at the end of a screen. The capture bar and tab bar are
+     static siblings of the scroll area, NOT overlays, so a screen does not
+     need to reserve their height. Measured 2026-08-02: at 120px every screen
+     carried 120px of dead scroll below its last row. */
+  --s-safe-b: 24px;
 
   /* RADIUS */
   --r-xxs: 2px; --r-xs: 4px; --r-sm: 8px; --r-md: 14px;
@@ -54,8 +58,21 @@
      defined with the slot classes in components.css. */
   --on-fill-dark: #000000; /* on-color for light category fills (money, friends); theme-constant per RDB-001/003 */
 
-  /* ACCENT = JARVIS red, the app tint for primary actions and active states (both themes) */
+  /* ACCENT = JARVIS red. Primary actions and app chrome ONLY (see below). */
   --accent: #FF2B3C;
+
+  /* SELECTION (2026-08-02). One treatment for "this one is picked", used by
+     every selectable control in the app: chips, segmented controls, radios,
+     checkboxes, the Pick Three rows, onboarding dots. Selection used to be
+     brand red, which meant a single screen could show six reds while the
+     design law allows one, and it made "picked" and "do this" look identical.
+     Red now means only: primary action, the current tab, a count badge, and
+     capture. Everything that merely says "picked" inverts instead.
+     Inversion also fixes a measured accessibility failure: white text on
+     #FF2B3C is 3.71:1, under the 4.5:1 Apple looks for. These are 21:1 dark
+     and 19.4:1 light. */
+  --sel-bg: var(--tx-1);
+  --sel-fg: var(--bg);
   --scrim: rgba(0,0,0,0.40); /* modal/sheet backdrop, theme-invariant (resolves uniformity G4) */
 }
 
@@ -85,7 +102,13 @@
   --surface-1: #FFFFFF; --surface-2: #FFFFFF; --surface-3: #E8E8EC;
   --card-bd: rgba(20,20,30,0.08); --divider: rgba(60,60,67,0.16);
   --press-1: rgba(20,20,30,0.04); --press-3: rgba(20,20,30,0.06); --press-5: rgba(20,20,30,0.10);
-  --tx-1: #000000; --tx-2: rgba(60,60,67,0.86); --tx-3: rgba(60,60,67,0.66); --tx-4: rgba(60,60,67,0.40);
+  /* --tx-3 raised from 0.66 to 0.76 (2026-08-02). At 0.66 every piece of
+     secondary text in light theme measured 3.83:1 on the page and 4.02:1 on a
+     card, under the 4.5:1 Apple checks: eyebrows, calendar weekday letters,
+     the capture hint, empty-state subtext, AM/PM. One token accounted for 16
+     of the 19 light-theme failures. 0.76 is the lowest value that clears both
+     backgrounds (4.98:1 on page, 5.31:1 on card) without going near black. */
+  --tx-1: #000000; --tx-2: rgba(60,60,67,0.86); --tx-3: rgba(60,60,67,0.76); --tx-4: rgba(60,60,67,0.40);
   --red: #FF3B30; --sys-red: #FF3B30; --warn: #FF9500; --good: #34C759; --blue: #007AFF;
   --yellow: #FFCC00; --teal: #5AC8FA; --mint: #4FE0BE; --pink: #FF85B8;
   --tint: #FF1F30;
@@ -202,24 +225,25 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 /* SEGMENTED */
 .segmented { display: flex; background: var(--press-3); border-radius: var(--r-md); padding: 2px; }
 .segmented .seg { flex: 1; text-align: center; padding: var(--s-1h) var(--s-3); font-size: var(--t-meta); font-weight: var(--w-medium); color: var(--tx-1); border-radius: 7px; }
-/* Selected segment is brand red, matching active chips: the old surface-3
-   fill was invisible against the track inside sheets (Dave's screenshot,
-   2026-07-29). Red = selected is the app's established language. */
-.segmented .seg.active { background: var(--accent); color: #fff; font-weight: var(--w-semi); }
+/* Selected segment uses the app-wide selection fill. It was brand red, which
+   read as "do this" rather than "this one is picked" (the original surface-3
+   fill was invisible against the track inside sheets, Dave's screenshot
+   2026-07-29; inversion solves that too, with far more contrast). */
+.segmented .seg.active { background: var(--sel-bg); color: var(--sel-fg); font-weight: var(--w-semi); }
 
 /* RADIO / CHECKBOX */
 .radio, .cb { width: 22px; height: 22px; flex-shrink: 0; border: 2px solid var(--tx-4); display: flex; align-items: center; justify-content: center; }
 .radio { border-radius: var(--r-circle); } .cb { border-radius: var(--r-xs); }
-.radio.on { border-color: var(--tint); }
-.radio.on::after { content: ''; width: 12px; height: 12px; background: var(--tint); border-radius: var(--r-circle); }
-.cb.on { background: var(--tint); border-color: var(--tint); color: #fff; font-size: var(--t-meta); font-weight: var(--w-semi); }
+.radio.on { border-color: var(--sel-bg); }
+.radio.on::after { content: ''; width: 12px; height: 12px; background: var(--sel-bg); border-radius: var(--r-circle); }
+.cb.on { background: var(--sel-bg); border-color: var(--sel-bg); color: var(--sel-fg); font-size: var(--t-meta); font-weight: var(--w-semi); }
 
 /* SEARCH / CHIPS */
 .search-bar { display: flex; align-items: center; gap: var(--s-2); background: var(--press-3); border-radius: var(--r-md); padding: var(--s-1h) var(--s-3); }
 .search-bar input { background: transparent; border: 0; outline: none; flex: 1; font-size: var(--t-h3); color: var(--tx-1); font-family: var(--f); }
 .search-bar input::placeholder { color: var(--tx-3); }
 .chip { background: var(--press-3); color: var(--tx-2); padding: var(--s-1h) var(--s-3); border-radius: var(--r-pill); font-size: var(--t-meta); font-weight: var(--w-medium); display: inline-flex; align-items: center; gap: var(--s-1); }
-.chip.active { background: var(--accent); color: #fff; }
+.chip.active, .chip.on { background: var(--sel-bg); color: var(--sel-fg); }
 
 /* TAB BAR */
 .tab-bar { display: flex; background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 0.5px solid var(--divider); padding: var(--s-1h) 0 calc(var(--s-3) + env(safe-area-inset-bottom, 0)); }
@@ -372,7 +396,14 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 /* Safe areas. The app shell and any fixed bar must respect these. */
 :root { --safe-top: env(safe-area-inset-top, 0px); --safe-bottom: env(safe-area-inset-bottom, 0px);
         --safe-left: env(safe-area-inset-left, 0px); --safe-right: env(safe-area-inset-right, 0px); }
-.screen { min-height: 100vh; padding-top: var(--safe-top); padding-bottom: calc(var(--safe-bottom) + var(--s-safe-b)); }
+.screen { min-height: 100vh; padding-top: var(--safe-top); padding-bottom: calc(var(--safe-bottom) + var(--s-safe-b)); display: flex; flex-direction: column; }
+/* An empty state that IS the screen should centre in whatever room is left,
+   not demand a fixed 65vh. On Tasks the nav bar, two filter rows, the quick-add
+   and a nudge card already spend 330px, so a 549px block overflowed the screen
+   and pushed its own button under the fold (measured 2026-08-02: 287px of
+   overflow on a screen with nothing in it). Direct children of .screen only,
+   so empty states nested inside a card keep the original sizing. */
+.screen > .empty-state { flex: 1 1 auto; min-height: 200px; }
 .nav-bar, .nav-large { padding-top: calc(var(--s-3) + var(--safe-top)); }
 .tab-bar { padding-bottom: calc(var(--s-3) + var(--safe-bottom)); }
 

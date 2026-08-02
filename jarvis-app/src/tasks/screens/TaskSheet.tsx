@@ -75,19 +75,25 @@ export default function TaskSheet({
 
           <div className="field">
             <div className="input-label">Category</div>
+            {/* Picking a category is the same act here as on the Tasks page,
+                so it wears the same selected state. It used to swap the whole
+                chip to the category colour and drop the dot, which meant one
+                idea had two looks on two screens, and it spent a colour on a
+                thing the dot was already saying. */}
             <div className="chip-row cat-pick">
-              {categories.map((c) =>
-                c.id === category ? (
-                  <div key={c.id} className={"chip cat-bg-" + c.color} role="button" tabIndex={0} onClick={() => setCategory(c.id)}>
-                    {c.name}
-                  </div>
-                ) : (
-                  <div key={c.id} className="chip" role="button" tabIndex={0} onClick={() => setCategory(c.id)}>
-                    <span className={"cat-dot cat-bg-" + c.color} />
-                    {c.name}
-                  </div>
-                ),
-              )}
+              {categories.map((c) => (
+                <div
+                  key={c.id}
+                  className={"chip" + (c.id === category ? " active" : "")}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={c.id === category}
+                  onClick={() => setCategory(c.id)}
+                >
+                  <span className={"cat-dot cat-bg-" + c.color} />
+                  {c.name}
+                </div>
+              ))}
             </div>
           </div>
 

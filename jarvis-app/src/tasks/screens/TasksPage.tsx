@@ -17,6 +17,32 @@ const URGENCY_CLASS: Record<UrgencyKind, string> = {
   soon: "urgency-muted",
 };
 
+// Empty-state copy, written per filter. The old version built the line from
+// the filter label ("No " + label + " tasks"), which produced "No today
+// tasks", "No done tasks" and "No all tasks". A template that reads wrong in
+// half its cases is not worth the line of code it saves.
+const EMPTY_TITLE: Record<TaskFilter, string> = {
+  all: "No tasks yet",
+  daily: "No dailies yet",
+  today: "Nothing due today",
+  overdue: "Nothing overdue",
+  upcoming: "Nothing coming up",
+  done: "Nothing completed yet",
+};
+
+// The second line exists ONLY when it carries information the user cannot
+// already see. "Add one above and I will keep track of it", "Finished tasks
+// collect here", "Tasks with a future date land here" are all directions, and
+// the app does not ship permanent helper text. The single case that earns a
+// line is an empty Today sitting on top of overdue work, because the screen
+// otherwise reads as "you are done" when the opposite is true.
+function emptySub(filter: TaskFilter, counts: Record<TaskFilter, number>): string | null {
+  if (filter === "today" && counts.overdue > 0) {
+    return `${counts.overdue} overdue ${counts.overdue === 1 ? "task is" : "tasks are"} waiting.`;
+  }
+  return null;
+}
+
 function Row({
   item,
   today,
@@ -212,6 +238,7 @@ export default function TasksPage({
         <div className="pad-x quick-add">
           <input
             className="input"
+            aria-label="Add a task"
             placeholder="Add a task"
             value={qa}
             onChange={(e) => setQa(e.target.value)}
@@ -233,9 +260,12 @@ export default function TasksPage({
       ) : items.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon"><ListChecks className="ic" /></div>
-          <div className="empty-title">No {FILTER_LABEL[filter].toLowerCase()} tasks</div>
-          <div className="empty-sub">Add one and I&rsquo;ll keep track of it.</div>
-          <button className="btn btn-primary" onClick={onNew}>New Task</button>
+          <div className="empty-title">{EMPTY_TITLE[filter]}</div>
+          {emptySub(filter, counts) && <div className="empty-sub">{emptySub(filter, counts)}</div>}
+          {/* No button here on purpose. The quick-add field sits directly
+              above this and the "+" is in the nav bar, so a third way to make
+              a task bought nothing and spent a second red fill on a screen
+              that is only allowed one. */}
         </div>
       ) : (
         <div className="pad-x">
