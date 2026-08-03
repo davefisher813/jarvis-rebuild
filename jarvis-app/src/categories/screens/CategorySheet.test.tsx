@@ -20,7 +20,8 @@ describe("CategorySheet", () => {
     fireEvent.click(screen.getByLabelText("green"));
     fireEvent.click(screen.getByLabelText("heart"));
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith({ name: "Travel", color: "green", icon: "heart" });
+    // kind defaults to plain for an unrecognized name; org settings unset off-org
+    expect(onSave).toHaveBeenCalledWith({ name: "Travel", color: "green", icon: "heart", kind: "plain", season: undefined, workHours: undefined });
   });
 
   it("edit mode prefills and offers delete", () => {

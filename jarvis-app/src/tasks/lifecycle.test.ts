@@ -51,6 +51,15 @@ describe("firstStepCandidate", () => {
     expect(firstStepCandidate([task("2026-07-01", { bill: { amount: 120 } })], T)).toBeNull();
     expect(firstStepCandidate([task(T, { slips: 5, bill: { amount: 120 } })], T)).toBeNull();
   });
+
+  it("a paused category gets no offers (Season)", () => {
+    const inPaused = task("2026-07-01", { category: "work" });
+    const elsewhere = task("2026-07-01", { category: "home" });
+    const paused = new Set(["work"]);
+    expect(firstStepCandidate([inPaused], T, paused)).toBeNull();
+    expect(firstStepCandidate([inPaused, elsewhere], T, paused)!.id).toBe(elsewhere.id);
+    expect(firstStepCandidate([inPaused], T)).not.toBeNull(); // no pause set: unchanged
+  });
 });
 
 describe("nextStreak", () => {

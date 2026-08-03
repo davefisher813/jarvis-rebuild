@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTasks, useCategories, useSchedule } from "../data/NotesProvider";
+import { pausedCategoryIds } from "../categories/kinds";
 import TasksPage from "./screens/TasksPage";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
 import { useProjects } from "../data/NotesProvider";
@@ -34,6 +35,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   const [projects, setProjects] = useState<Project[]>([]);
   useEffect(() => { let on = true; projectsSvc.list().then((p) => { if (on) setProjects(p); }); return () => { on = false; }; }, [projectsSvc]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
+  const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
   const [sheet, setSheet] = useState<SheetState>(null);
   const [loading, setLoading] = useState(true);
   // First Step offer state: the AI-drafted step, keyed to the sliding task.
@@ -81,7 +83,9 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   useEffect(() => {
     let on = true;
     cats.list().then((list) => {
-      if (on) setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));
+      if (!on) return;
+      setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));
+      setPausedCats(pausedCategoryIds(list));
     });
     return () => { on = false; };
   }, [cats]);
@@ -119,7 +123,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   // it to Today and sets the big task aside, out of the red.
   const fsCandidate = (() => {
     if (!ai.available || fsHidden || loading) return null;
-    const c = firstStepCandidate(allItems, today);
+    const c = firstStepCandidate(allItems, today, pausedCats);
     return c && !isFirstStepDismissed(c.id, today) ? c : null;
   })();
 

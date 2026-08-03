@@ -37,9 +37,11 @@ export function setAsideCandidates(tasks: TaskItem[], today: string): TaskItem[]
 export const FIRST_STEP_OVERDUE_DAYS = 5;
 export const FIRST_STEP_SLIPS = 3;
 
-export function firstStepCandidate(tasks: TaskItem[], today: string): TaskItem | null {
+export function firstStepCandidate(tasks: TaskItem[], today: string, pausedCats?: ReadonlySet<string>): TaskItem | null {
   const slipping = tasks
     .filter((t) => !t.data.done && !t.data.recurrence && !t.data.bill)
+    // Season pause (org categories): a paused category gets no offers.
+    .filter((t) => !pausedCats?.has(t.data.category ?? ""))
     .filter((t) => {
       const byAge = !!t.data.due && daysBetween(t.data.due, today) >= FIRST_STEP_OVERDUE_DAYS;
       const byPushes = (t.data.slips ?? 0) >= FIRST_STEP_SLIPS;

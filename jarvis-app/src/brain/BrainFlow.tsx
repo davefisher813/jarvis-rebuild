@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import BrainPage, { type BrainCategory } from "./BrainPage";
 import { useCategories } from "../data/NotesProvider";
 import PeopleFlow from "../people/PeopleFlow";
 import BrainDocPage from "./docs/BrainDocPage";
 import CategoryDetail from "./CategoryDetail";
 import RoutineFlow from "../routine/RoutineFlow";
-import type { ColorSlot } from "../categories/types";
 import { usePushDepth } from "../shared/pushNav";
 
 const DOC_TOPIC: Record<string, string> = {
@@ -24,18 +23,11 @@ export default function BrainFlow({ openKey, personOpenId, onOpenNote }: { openK
     openKey ? { key: openKey, name: "" } : null,
   );
 
-  useEffect(() => {
-    let on = true;
-    cats.list().then((list) => {
-      if (on)
-        setCategories(
-          list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color, icon: c.data.icon })),
-        );
-    });
-    return () => {
-      on = false;
-    };
+  const loadCats = useCallback(async () => {
+    const list = await cats.list();
+    setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color, icon: c.data.icon })));
   }, [cats]);
+  useEffect(() => { void loadCats(); }, [loadCats]);
 
   const pushCls = usePushDepth(open ? 1 : 0);
 
@@ -53,7 +45,9 @@ export default function BrainFlow({ openKey, personOpenId, onOpenNote }: { openK
     }
     const cat = categories.find((c) => c.id === open.key);
     if (cat) {
-      return <CategoryDetail categoryId={cat.id} name={cat.name} color={cat.color as ColorSlot} onBack={() => setOpen(null)} />;
+      // The page loads its own live record (name/colour/kind survive edits);
+      // onChanged keeps this hub's list fresh after a rename or delete.
+      return <CategoryDetail categoryId={cat.id} onBack={() => setOpen(null)} onOpenNote={onOpenNote} onChanged={() => void loadCats()} />;
     }
     return (
       <div className="screen">

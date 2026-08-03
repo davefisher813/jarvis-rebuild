@@ -1,12 +1,16 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
-import { COLOR_SLOTS, type ColorSlot } from "../types";
+import { COLOR_SLOTS, CATEGORY_KINDS, KIND_LABEL, type ColorSlot, type CategoryKind } from "../types";
+import { suggestKind } from "../kinds";
 import { catIcon, ICON_KEYS } from "../icons";
 
 export interface CategoryDraft {
   name: string;
   color: ColorSlot;
   icon: string;
+  kind: CategoryKind;
+  season?: "paused";
+  workHours?: boolean;
 }
 
 const TRASH = (
@@ -24,7 +28,7 @@ export default function CategorySheet({
   onCancel,
 }: {
   mode: "new" | "edit";
-  initial?: CategoryDraft;
+  initial?: Partial<CategoryDraft>;
   onSave: (draft: CategoryDraft) => void;
   onDelete?: () => void;
   onCancel: () => void;
@@ -32,6 +36,10 @@ export default function CategorySheet({
   const [name, setName] = useState(initial?.name ?? "");
   const [color, setColor] = useState<ColorSlot>(initial?.color ?? "blue");
   const [icon, setIcon] = useState<string>(initial?.icon ?? "folder");
+  // Kind defaults from the name (never silently written; saving makes it real).
+  const [kind, setKind] = useState<CategoryKind>(initial?.kind ?? suggestKind(initial?.name ?? ""));
+  const [season, setSeason] = useState<"paused" | undefined>(initial?.season);
+  const [workHours, setWorkHours] = useState(!!initial?.workHours);
   const [touched, setTouched] = useState(false);
 
   const valid = name.trim().length > 0;
@@ -40,7 +48,16 @@ export default function CategorySheet({
       setTouched(true);
       return;
     }
-    onSave({ name: name.trim(), color, icon });
+    onSave({
+      name: name.trim(),
+      color,
+      icon,
+      kind,
+      // Org settings only mean something on an org category; leaving org
+      // clears them so a paused Work category cannot haunt a renamed one.
+      season: kind === "org" ? season : undefined,
+      workHours: kind === "org" ? workHours : undefined,
+    });
   };
 
   return createPortal(
@@ -60,6 +77,37 @@ export default function CategorySheet({
             />
             {touched && !valid && <div className="input-error">Add a category name.</div>}
           </div>
+
+          <div className="field">
+            <div className="input-label">What kind of category</div>
+            <div className="chip-row chip-wrap-row">
+              {CATEGORY_KINDS.map((k) => (
+                <div key={k} className={"chip" + (kind === k ? " active" : "")} role="button" tabIndex={0} aria-pressed={kind === k}
+                  onClick={() => setKind(k)}>{KIND_LABEL[k]}</div>
+              ))}
+            </div>
+          </div>
+
+          {kind === "org" && (
+            <>
+              <div className="field">
+                <div className="input-label">Season</div>
+                {/* Paused = suggestions leave it alone until you wake it.
+                    Bills never pause; a low month cannot silence rent. */}
+                <div className="segmented">
+                  <button type="button" className={"seg" + (!season ? " active" : "")} onClick={() => setSeason(undefined)}>Active</button>
+                  <button type="button" className={"seg" + (season === "paused" ? " active" : "")} onClick={() => setSeason("paused")}>Paused</button>
+                </div>
+              </div>
+              <div className="field">
+                <div className="input-label">Work hours</div>
+                <div className="segmented">
+                  <button type="button" className={"seg" + (!workHours ? " active" : "")} onClick={() => setWorkHours(false)}>Off</button>
+                  <button type="button" className={"seg" + (workHours ? " active" : "")} onClick={() => setWorkHours(true)}>Follows my work hours</button>
+                </div>
+              </div>
+            </>
+          )}
 
           <div className="field">
             <div className="input-label">Color</div>

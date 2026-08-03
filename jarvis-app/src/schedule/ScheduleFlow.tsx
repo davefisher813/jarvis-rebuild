@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSchedule, useCategories, useTasks, useRoutine } from "../data/NotesProvider";
+import { pausedCategoryIds } from "../categories/kinds";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot, openSlots, fmtRange } from "./calendar";
@@ -27,6 +28,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const [dots, setDots] = useState<Record<number, string[]>>({});
   const [dayEvents, setDayEvents] = useState<EventItem[]>([]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
+  const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
   const [sheet, setSheet] = useState<SheetState>(null);
   const [mode, setMode] = useState<"day" | "week" | "month">("month");
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
@@ -70,7 +72,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   useEffect(() => {
     let on = true;
     cats.list().then((list) => {
-      if (on) setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));
+      if (!on) return;
+      setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));
+      setPausedCats(pausedCategoryIds(list));
     });
     return () => { on = false; };
   }, [cats]);
@@ -103,6 +107,8 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const plannedTaskIds = new Set(dayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
   const planCandidates = taskItems
     .filter((t) => !t.data.done && !plannedTaskIds.has(t.id) && (!t.data.due || (t.data.due as string) <= selected))
+    // Season pause: paused categories are not offered; bills are exempt.
+    .filter((t) => !pausedCats.has(t.data.category ?? "") || !!t.data.bill)
     .map((t) => {
       const due = (t.data.due as string) || "";
       return { id: t.id, text: t.data.text, category: t.data.category ?? "", due, suggested: !!due && due <= selected, overdue: !!due && due < realToday };

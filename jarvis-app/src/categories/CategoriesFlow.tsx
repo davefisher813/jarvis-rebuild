@@ -23,9 +23,12 @@ export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
 
   const onSave = async (draft: CategoryDraft) => {
     if (sheet.kind === "new") {
-      await categories.create(draft.name, draft.color, draft.icon);
+      const id = await categories.create(draft.name, draft.color, draft.icon);
+      if (id && (draft.kind !== "plain" || draft.season || draft.workHours)) {
+        await categories.update(id, { kind: draft.kind, season: draft.season, workHours: draft.workHours });
+      }
     } else if (sheet.kind === "edit") {
-      await categories.update(sheet.id, { name: draft.name, color: draft.color, icon: draft.icon });
+      await categories.update(sheet.id, { name: draft.name, color: draft.color, icon: draft.icon, kind: draft.kind, season: draft.season, workHours: draft.workHours });
     }
     setSheet({ kind: "closed" });
     await reload();
@@ -51,7 +54,7 @@ export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
           mode={sheet.kind === "new" ? "new" : "edit"}
           initial={
             editing
-              ? { name: editing.data.name, color: editing.data.color, icon: editing.data.icon ?? "folder" }
+              ? { name: editing.data.name, color: editing.data.color, icon: editing.data.icon ?? "folder", kind: editing.data.kind, season: editing.data.season, workHours: editing.data.workHours }
               : undefined
           }
           onSave={onSave}

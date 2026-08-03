@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople } from "../data/NotesProvider";
+import { pausedCategoryIds } from "../categories/kinds";
 import { todayISO, fmtTime } from "../schedule/calendar";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
@@ -82,6 +83,7 @@ export default function TodayFlow({
   const peopleSvc = usePeople();
   const [birthdays, setBirthdays] = useState<BirthdayHit[]>([]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
+  const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
   const [sheet, setSheet] = useState<{ mode: "edit"; id: string; initial: TaskDraft } | null>(null);
   const [eventSheet, setEventSheet] = useState<{ id: string; initial: EventDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
@@ -139,7 +141,7 @@ export default function TodayFlow({
 
   useEffect(() => {
     let on = true;
-    cats.list().then((list) => { if (on) setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))); });
+    cats.list().then((list) => { if (on) { setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))); setPausedCats(pausedCategoryIds(list)); } });
     return () => { on = false; };
   }, [cats]);
 
@@ -212,6 +214,9 @@ export default function TodayFlow({
   const plannedTaskIds = new Set(todayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
   const planCandidates = taskItems
     .filter((t) => !t.data.done && !plannedTaskIds.has(t.id) && (!t.data.due || (t.data.due as string) <= today))
+    // Season pause: a paused category's tasks are not offered. Bills are
+    // EXEMPT: pausing Money in a low moment cannot silence rent.
+    .filter((t) => !pausedCats.has(t.data.category ?? "") || !!t.data.bill)
     .map((t) => {
       const due = (t.data.due as string) || "";
       return { id: t.id, text: t.data.text, category: t.data.category ?? "", due, suggested: !!due && due <= today, overdue: !!due && due < today };
