@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
-import { useSchedule, useTasks, useProfile, useCategories, useRoutine } from "../data/NotesProvider";
+import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople } from "../data/NotesProvider";
 import { todayISO, fmtTime } from "../schedule/calendar";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { greetingFor, longDate, shortDate } from "./greeting";
 import { tomorrowISO, nowHHMM, daySummary, todaysTasks } from "./todayData";
 import TodayPage from "./TodayPage";
+import { birthdaysOn, type BirthdayHit } from "../people/birthdays";
 import TodaySuggestions from "./TodaySuggestions";
 import CheckIn from "./CheckIn";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
@@ -78,6 +79,8 @@ export default function TodayFlow({
     });
     return () => { on = false; };
   }, [routine, profile]);
+  const peopleSvc = usePeople();
+  const [birthdays, setBirthdays] = useState<BirthdayHit[]>([]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [sheet, setSheet] = useState<{ mode: "edit"; id: string; initial: TaskDraft } | null>(null);
   const [eventSheet, setEventSheet] = useState<{ id: string; initial: EventDraft } | null>(null);
@@ -91,6 +94,13 @@ export default function TodayFlow({
   const now = new Date();
   const today = todayISO(now);
   const tmrw = tomorrowISO(today);
+
+  // Today's birthdays (derived from People; empty is the normal state).
+  useEffect(() => {
+    let on = true;
+    peopleSvc.list().then((ps) => { if (on) setBirthdays(birthdaysOn(ps, today)); }).catch(() => {});
+    return () => { on = false; };
+  }, [peopleSvc, today]);
 
   const reload = useCallback(async () => {
     const [te, tm, tk, prof, all] = await Promise.all([
@@ -297,6 +307,7 @@ export default function TodayFlow({
       onSeeAllSchedule={onGoSchedule}
       onSeeAllTasks={onGoTasks}
       avatar={initials}
+      birthdays={birthdays}
     />
     {planOpen && (
       <PlanDaySheet

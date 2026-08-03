@@ -20,12 +20,13 @@ function Bar({ p }: { p: Progress }) {
 }
 
 export default function BiggerPicturePage({
-  goals, goalProgressOf, projectRows, loading, onAddGoal, onOpenGoal, onAddProject, onOpenProject,
+  goals, goalProgressOf, projectRows, loading, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf,
 }: {
   goals: Goal[];
   goalProgressOf: (id: string) => Progress | null;
   projectRows: ProjectRow[];
   loading?: boolean;
+  nextActionTextOf?: (projectId: string) => string | null;
   onAddGoal: () => void;
   onOpenGoal: (id: string) => void;
   onAddProject: () => void;
@@ -72,6 +73,10 @@ export default function BiggerPicturePage({
                 {tag && <div className="proj-tag">{tag}</div>}
                 <div className="proj-title">{project.data.title}</div>
                 <div className={"bp-sub" + (stalled ? " bp-stalled" : "")}>{progressLabel(progress, stalled)}</div>
+                {/* The one thing that would move this project (Session 6.6).
+                    Derived; a project with no next action is stuck by
+                    definition, and the counts line above already says so. */}
+                {(() => { const next = nextActionTextOf?.(project.id); return next ? <div className="bp-sub bp-next truncate">Next: {next}</div> : null; })()}
                 {progress && <Bar p={progress} />}
               </div>
               {CHEV}

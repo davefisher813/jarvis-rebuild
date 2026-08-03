@@ -3,6 +3,8 @@ import ReactDOM from "react-dom/client";
 import { AppearanceProvider } from "./appearance/AppearanceProvider";
 import { AuthProvider } from "./auth/AuthProvider";
 import { emit } from "./events";
+import { startEventPipeline } from "./events/pipeline";
+import { supabase } from "./auth/supabaseClient";
 import App from "./App";
 import ErrorBoundary from "./monitoring/ErrorBoundary";
 import { initMonitoring } from "./monitoring/monitor";
@@ -13,6 +15,9 @@ import "./styles/components.css";
 
 initMonitoring();
 emit({ type: "app.opened" });
+// Durable event pipeline (Session 6.5): connects the Supabase sink (null in
+// demo mode = queue-only), backfills Time Sense once, scores yesterday's plan.
+startEventPipeline(supabase);
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

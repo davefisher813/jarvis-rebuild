@@ -44,6 +44,12 @@ export function useAIContext(): () => Promise<AIContext> {
       name: p?.name,
       template: p?.template,
       people: ppl.map((x) => x.data.name),
+      peopleDetail: ppl.map((x) => ({
+        name: x.data.name,
+        label: x.data.relationship,
+        register: x.data.register,
+        flagged: x.data.flagged,
+      })),
       categories: cs.map((c) => ({ name: c.data.name })),
       tasks: tk.map((t) => ({ text: t.data.text, done: t.data.done, category: t.data.category })),
       events: ev.map((e) => ({ title: e.data.title, start: e.data.start })),

@@ -13,9 +13,12 @@ const CATS: BrainCategory[] = [
 describe("BrainPage", () => {
   it("renders the static sections plus a dynamic Your Categories section", () => {
     render(<BrainPage onOpen={() => {}} categories={CATS} />);
-    ["Who You Know", "How You Think", "How You Live", "Your Categories", "Setup"].forEach((t) =>
+    ["Who You Know", "How You Think", "How You Live", "Your Categories"].forEach((t) =>
       expect(screen.getByText(t)).toBeInTheDocument(),
     );
+    // Setup was removed 2026-08-03: its rows were Settings wearing a Brain
+    // costume, and both dead-ended in "coming soon" screens.
+    expect(screen.queryByText("Setup")).not.toBeInTheDocument();
     expect(screen.getByText("Work")).toBeInTheDocument();
     expect(screen.getByText("Your Routine")).toBeInTheDocument();
   });
@@ -28,8 +31,8 @@ describe("BrainPage", () => {
   it("renders every row with a colored (non-grey) icon tile", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
     const tiles = container.querySelectorAll(".sec-ico");
-    // 8 static rows + 3 category rows
-    expect(tiles.length).toBe(12);
+    // 7 static rows + 3 category rows (Setup's 2 rows removed 2026-08-03)
+    expect(tiles.length).toBe(10);
     expect(container.querySelectorAll(".sec-ico.ico-surface").length).toBe(0);
     tiles.forEach((t) => expect(t.className).toMatch(/ico-blue|ico-accent|ico-good|cat-bg-/));
   });
@@ -41,11 +44,11 @@ describe("BrainPage", () => {
     expect(container.querySelector(".sec-ico.cat-bg-green")).toBeTruthy();
   });
 
-  it("shows status on the Setup rows", () => {
+  it("has no dead-end Setup rows (Onboarding/Backup live in Settings)", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
-    expect(container.querySelectorAll(".row-status").length).toBe(2);
-    expect(screen.getByText("Complete")).toBeInTheDocument();
-    expect(screen.getByText("On")).toBeInTheDocument();
+    expect(container.querySelectorAll(".row-status").length).toBe(0);
+    expect(screen.queryByText("Onboarding")).not.toBeInTheDocument();
+    expect(screen.queryByText("Backup")).not.toBeInTheDocument();
   });
 
   it("fires onOpen for a static row and a category row", () => {

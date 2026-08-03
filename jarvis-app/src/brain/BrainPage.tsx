@@ -10,8 +10,6 @@ const Shield = () => svg(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
 const Compass = () => svg(<><circle cx="12" cy="12" r="10" /><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" /></>);
 const Pen = () => svg(<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></>);
 const Flag = () => svg(<><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></>);
-const CheckC = () => svg(<><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></>);
-const Cloud = () => svg(<><path d="M17.5 19a4.5 4.5 0 0 0 0-9h-1.8A7 7 0 1 0 4 15.3" /><polyline points="8 17 12 21 16 17" /><line x1="12" y1="12" x2="12" y2="21" /></>);
 const Clock = () => svg(<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>);
 const Chev = () => (
   <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
@@ -54,12 +52,10 @@ const TOP_SECTIONS: { title: string; rows: BrainRow[] }[] = [
     { key: "routine", name: "Your Routine", icon: <Clock />, color: "cat-bg-teal" },
   ] },
 ];
-const SETUP: { title: string; rows: BrainRow[] } = {
-  title: "Setup", rows: [
-    { key: "onboarding", name: "Onboarding", icon: <CheckC />, color: "ico-good", status: "Complete" },
-    { key: "backup", name: "Backup", icon: <Cloud />, color: "cat-bg-teal", status: "On" },
-  ],
-};
+// The Setup section (Onboarding, Backup) was removed 2026-08-03: both rows
+// were Settings wearing a Brain costume, and both dead-ended in "coming soon"
+// screens. Backup lives in Settings, where it always did; a row that leads
+// nowhere teaches users that rows might not go anywhere.
 
 export interface BrainCategory { id: string; name: string; color: string; icon?: string }
 
@@ -99,7 +95,6 @@ export default function BrainPage({
             icon: (CAT_ICON[c.icon ?? ""] ?? Tag)(),
           })),
         )}
-      {Section(SETUP.title, SETUP.rows)}
       <div className="screen-foot" />
     </div>
   );

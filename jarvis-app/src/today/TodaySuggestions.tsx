@@ -6,6 +6,7 @@ import { useTasks, useProfile, useBrainDocs } from "../data/NotesProvider";
 import { haptics } from "../shared/haptics";
 import { showToast } from "../shared/toast";
 import { patternObservation, isPatternDismissed, dismissPattern, appendHabit, type PatternObservation } from "./patterns";
+import { emit } from "../events";
 import { rankOpen } from "../upnext/upnext";
 
 const ZAP = (
@@ -107,10 +108,14 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
     const hit = all.find((t) => !t.data.done && t.data.text.toLowerCase() === taskText.toLowerCase());
     if (hit) await tasksSvc.setDue(hit.id, today);
     haptics.success();
+    // Accepted vs dismissed is how the Brain learns what a "proper
+    // suggestion" means for this user (durable log, Session 6.5).
+    emit({ type: "suggestion.accepted", props: { kind: "ai" } });
     if (cache) persist({ ...cache, acted: [...cache.acted, idx] });
   };
   const dismiss = (idx: number) => {
     haptics.selection();
+    emit({ type: "suggestion.dismissed", props: { kind: "ai" } });
     if (cache) persist({ ...cache, dismissed: [...cache.dismissed, idx] });
   };
 
@@ -126,7 +131,7 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
           aria-label="Dismiss"
           onClick={() => {
             haptics.selection();
-            if (pattern) { dismissPattern(pattern.id, today); setPattern(null); }
+            if (pattern) { dismissPattern(pattern.id, today); setPattern(null); emit({ type: "suggestion.dismissed", props: { kind: "pattern" } }); }
             else if (aiPick) dismiss(aiPick.i);
           }}
         >
@@ -147,6 +152,7 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
                 await docs.save("habits", appendHabit(cur, pattern.text, today));
                 dismissPattern(pattern.id, today);
                 setPattern(null);
+                emit({ type: "suggestion.accepted", props: { kind: "pattern" } });
                 showToast({ message: "Saved to your Brain" });
               }}
             >

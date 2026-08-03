@@ -21,7 +21,8 @@ describe("parseVCard", () => {
   it("parses multiple cards with name, birthday, and extras in notes", () => {
     const c = parseVCard(VCF);
     expect(c).toHaveLength(2);
-    expect(c[0]).toEqual({ name: "Mike Tucci", birthday: "1985-04-20", notes: "+1 555 0100\nmike@elitesquad.org\nElite Squad" });
+    // Person pass (2026-08-03): EMAIL/TEL land in real fields, not note lines.
+    expect(c[0]).toEqual({ name: "Mike Tucci", birthday: "1985-04-20", email: "mike@elitesquad.org", phone: "+1 555 0100", notes: "Elite Squad" });
     expect(c[1]).toEqual({ name: "Sarah Lee", birthday: "1990-01-01" });
   });
 

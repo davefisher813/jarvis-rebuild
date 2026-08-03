@@ -1,6 +1,7 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { Person, PersonGroup } from "../types";
 import { GROUP_TITLE, personInitials, avatarClass } from "../types";
+import { searchPeople } from "../views";
 
 const CHEV = (
   <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
@@ -11,6 +12,9 @@ const PLUS = (
 const UPLOAD = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
 );
+const SEARCH = (
+  <svg className="ic search-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+);
 const PEOPLE = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /></svg>
 );
@@ -18,6 +22,9 @@ const PEOPLE = (
 export default function PeopleListPage({
   group,
   people,
+  pendingReview = [],
+  onConfirmFlag,
+  onClearFlag,
   onOpen,
   onAdd,
   onImportFile,
@@ -25,12 +32,18 @@ export default function PeopleListPage({
 }: {
   group: PersonGroup;
   people: Person[];
+  pendingReview?: Person[]; // legacy Adversarial members awaiting consent
+  onConfirmFlag?: (id: string) => void;
+  onClearFlag?: (id: string) => void;
   onOpen: (id: string) => void;
   onAdd: () => void;
   onImportFile?: (file: File) => void;
   onBack: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [q, setQ] = useState("");
+  const pendingIds = new Set(pendingReview.map((p) => p.id));
+  const shown = searchPeople(people, q).filter((p) => !pendingIds.has(p.id));
 
   const importRow = onImportFile && (
     <div className="row ob-addrow" role="button" tabIndex={0} onClick={() => fileRef.current?.click()}>
@@ -63,6 +76,31 @@ export default function PeopleListPage({
         />
       )}
 
+      {people.length > 3 && (
+        <div className="pad-x list-search">
+          <div className="search-bar">
+            {SEARCH}
+            <input placeholder="Search people" aria-label="Search people" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      {/* Consent-first migration: the flag changes how JARVIS writes to a real
+          person, so legacy Adversarial members are confirmed, never converted. */}
+      {pendingReview.length > 0 && (
+        <div className="pad-x"><div className="card pad">
+          <div className="conn-name">From your old list. Still handle with care?</div>
+          {pendingReview.map((p) => (
+            <div className="offer-row" key={p.id}>
+              <div className="av av-32 cat-bg-graphite">{personInitials(p.data.name)}</div>
+              <div className="row-grow"><div className="conn-name truncate">{p.data.name}</div></div>
+              <button className="btn-sm" onClick={() => onConfirmFlag?.(p.id)}>Yes</button>
+              <button className="quiet-action" onClick={() => onClearFlag?.(p.id)}>No, move out</button>
+            </div>
+          ))}
+        </div></div>
+      )}
+
       {people.length === 0 ? (
         <>
           <div className="empty-state empty-compact">
@@ -74,10 +112,14 @@ export default function PeopleListPage({
         </>
       ) : (
         <div className="pad-x"><div className="card">
-          {people.map((p) => (
+          {shown.map((p) => (
             <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onOpen(p.id)}>
               <div className={"av av-40 " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div>
-              <div className="row-grow"><div className="conn-name">{p.data.name}</div></div>
+              <div className="row-grow">
+                <div className="conn-name">{p.data.name}</div>
+                {/* the label, or the honest absence of one; a fact, not a nag */}
+                <div className="eyebrow">{p.data.relationship || "No label yet"}</div>
+              </div>
               {CHEV}
             </div>
           ))}

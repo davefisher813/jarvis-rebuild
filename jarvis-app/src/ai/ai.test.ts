@@ -58,7 +58,7 @@ describe("writing voice is scoped to close audiences", () => {
     const text = contextToText(ctx);
     expect(text).toContain("drops punctuation");
     // The limit must travel with the notes, or a board email inherits them.
-    expect(text).toMatch(/ONLY to casual messages/);
+    expect(text).toMatch(/ONLY to messages aimed at people the user has marked casual/);
     expect(text).toMatch(/Never guess casual/);
     expect(text).toMatch(/No profanity/);
   });

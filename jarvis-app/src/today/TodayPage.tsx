@@ -52,6 +52,9 @@ const CheckIcon = () => (
     <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" />
   </svg>
 );
+const GiftIcon = () => (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 12 20 22 4 22 4 12" /><rect x="2" y="7" width="20" height="5" /><line x1="12" y1="22" x2="12" y2="7" /><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" /><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" /></svg>
+);
 const NextIcon = () => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
     <polyline points="13 17 18 12 13 7" /><polyline points="6 17 11 12 6 7" />
@@ -108,6 +111,7 @@ export default function TodayPage({
   weekly,
   ring,
   daypart,
+  birthdays,
 }: {
   greeting: string;
   dateLong: string;
@@ -140,6 +144,7 @@ export default function TodayPage({
   weekly?: WeekRecap | null; // Sunday-evening close-out card
   ring?: { done: number; total: number };
   daypart?: "morning" | "evening" | null;
+  birthdays?: { id: string; name: string }[]; // today's only; absent is the normal state
 }) {
   const parts: JSX.Element[] = [];
   parts.push(<span key="e"><RollingNumber value={summary.events} /> {summary.events === 1 ? "event" : "events"}</span>);
@@ -154,6 +159,33 @@ export default function TodayPage({
   // Rows are the SAME task rows as every other list (all task lists identical,
   // Dave 2026-07-30); the title stays outside the card; See All lands on the
   // Tasks All filter. The one-card mode opens from the Focus button (YourDay).
+  // Birthdays (ride-along 2026-08-03, previewed and approved): shown ONLY on
+  // the day itself, above Up Next. People-pink because this is people data;
+  // never red. The year is untrusted (contact imports), so no age is claimed.
+  const birthdaySection = birthdays && birthdays.length > 0 && (
+    <>
+      <div className="sec-head">
+        <div className="sec-left">
+          <div className="sec-ico cat-bg-pink"><GiftIcon /></div>
+          <div className="sec-title">{birthdays.length === 1 ? "Birthday" : "Birthdays"}</div>
+        </div>
+      </div>
+      <div className="pad-x">
+        <div className="card">
+          {birthdays.map((b) => (
+            <div className="row" key={b.id}>
+              <div className="av av-32 cat-bg-pink">{b.name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</div>
+              <div className="row-grow">
+                <div className="conn-name truncate">{b.name}</div>
+                <div className="eyebrow">Turns a year older today</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+
   const upNextSection = !evening && upNext && upNext.length > 0 && (
     <>
       <div className="sec-head">
@@ -246,6 +278,7 @@ export default function TodayPage({
         </div>
       </div>
 
+      {birthdaySection}
       {upNextSection}
 
       {freshStart && (

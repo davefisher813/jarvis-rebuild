@@ -7,6 +7,10 @@ export interface AIContextInput {
   name?: string;
   template?: string;
   people?: string[];
+  // Person pass (2026-08-03): structured people so the writing guardrail
+  // stops guessing who is close. label = who they are to the user;
+  // register = how JARVIS writes to them (casual | professional | unset).
+  peopleDetail?: { name: string; label?: string; register?: string; flagged?: boolean }[];
   categories?: { name: string }[];
   tasks?: { text: string; done: boolean; category?: string }[];
   events?: { title: string; start: string }[];
@@ -27,6 +31,7 @@ export interface AIContext {
   name: string;
   template: string;
   people: string[];
+  peopleDetail?: { name: string; label?: string; register?: string; flagged?: boolean }[];
   categories: string[];
   openTasks: string[];
   events: { title: string; start: string }[];
@@ -72,6 +77,7 @@ export function assembleContext(input: AIContextInput): AIContext {
     name: input.name?.trim() || "there",
     template: input.template || "personal",
     people: input.people ?? [],
+    peopleDetail: input.peopleDetail,
     categories: (input.categories ?? []).map((c) => c.name),
     openTasks: (input.tasks ?? []).filter((t) => !t.done).map((t) => t.text),
     events: (input.events ?? []).map((e) => ({ title: e.title, start: e.start })),
@@ -101,7 +107,19 @@ function to12h(hhmm: string): string {
 export function contextToText(ctx: AIContext): string {
   const lines: string[] = [];
   lines.push(`User: ${ctx.name} (${ctx.template} template)`);
-  if (ctx.people?.length) lines.push(`Key people: ${ctx.people.join(", ")}`);
+  if (ctx.peopleDetail?.length) {
+    // "Mike Torres (brother-in-law; write casual)". flagged renders as
+    // "handle with care" so every drafting feature inherits the precedence
+    // without knowing the schema.
+    const rendered = ctx.peopleDetail.map((p) => {
+      const notes: string[] = [];
+      if (p.label) notes.push(p.label.toLowerCase());
+      if (p.flagged) notes.push("handle with care: always professional");
+      else if (p.register) notes.push(`write ${p.register}`);
+      return notes.length ? `${p.name} (${notes.join("; ")})` : p.name;
+    });
+    lines.push(`Key people: ${rendered.join(", ")}`);
+  } else if (ctx.people?.length) lines.push(`Key people: ${ctx.people.join(", ")}`);
   if (ctx.categories?.length) lines.push(`Life areas: ${ctx.categories.join(", ")}`);
   if (ctx.openTasks?.length) lines.push(`Open tasks: ${ctx.openTasks.join("; ")}`);
   if (ctx.events?.length) lines.push(`Today's schedule: ${ctx.events.map((e) => `${to12h(e.start)} ${e.title}`).join("; ")}`);

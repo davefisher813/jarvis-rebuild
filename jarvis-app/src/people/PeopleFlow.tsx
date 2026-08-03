@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { usePeople, useNotes } from "../data/NotesProvider";
+import { usePeople, useNotes, useCategories } from "../data/NotesProvider";
 import type { Person, PersonGroup } from "./types";
+import { inView, needsAdversarialReview, extractEmailFromNotes } from "./views";
+import type { SheetCategoryOpt } from "./screens/PersonSheet";
 import PeopleListPage from "./screens/PeopleListPage";
 import PersonDetail from "./screens/PersonDetail";
 import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
@@ -15,13 +17,23 @@ type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string }
 export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpenNote }: { group: PersonGroup; onBack: () => void; openId?: string; onOpenNote?: (id: string) => void }) {
   const people = usePeople();
   const notesSvc = useNotes();
+  const catsSvc = useCategories();
   const [list, setList] = useState<Person[]>([]);
+  const [categories, setCategories] = useState<SheetCategoryOpt[]>([]);
+  useEffect(() => {
+    let on = true;
+    catsSvc.list().then((cs) => { if (on) setCategories(cs.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))); });
+    return () => { on = false; };
+  }, [catsSvc]);
   const [openId, setOpenId] = useState<string | null>(initialOpenId ?? null);
   const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
 
+  // The groups are VIEWS over per-person facts now (see views.ts): load
+  // everyone, filter here. Legacy rows keep matching what the user meant.
   const reload = useCallback(async () => {
-    setList(await people.list(group));
+    const all = await people.list();
+    setList(all.filter((p) => inView(group, p)));
   }, [people, group]);
 
   useEffect(() => { void reload(); }, [reload]);
@@ -39,13 +51,43 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
   const editing = sheet.kind === "edit" ? list.find((p) => p.id === sheet.id) : undefined;
 
   const onSave = async (d: PersonDraft) => {
+    const facts = {
+      relationship: d.relationship || undefined,
+      birthday: d.birthday || undefined,
+      notes: d.notes || undefined,
+      color: d.color,
+      email: d.email || undefined,
+      phone: d.phone || undefined,
+      register: d.register,
+      categoryIds: d.categoryIds.length ? d.categoryIds : undefined,
+    };
     if (sheet.kind === "new") {
-      await people.create({ name: d.name, group, relationship: d.relationship || undefined, birthday: d.birthday || undefined, notes: d.notes || undefined, color: d.color });
+      // New people are always plain contacts; the views derive from facts.
+      // Adding from a view sets the matching fact, visibly editable in the sheet.
+      await people.create({
+        name: d.name,
+        group: "contacts",
+        ...facts,
+        register: d.register ?? (group === "inner_circle" ? "casual" : undefined),
+        ...(group === "adversarial" ? { flagged: true } : {}),
+      });
     } else if (sheet.kind === "edit") {
-      await people.update(sheet.id, { name: d.name, relationship: d.relationship || undefined, birthday: d.birthday || undefined, notes: d.notes || undefined, color: d.color });
+      await people.update(sheet.id, { name: d.name, ...facts });
     }
     setSheet({ kind: "closed" });
     await reload();
+  };
+
+  // Adversarial legacy review (consent-first): the flag now changes how the
+  // app WRITES to a real person, so nobody gets flagged silently.
+  const confirmFlag = async (p: Person) => {
+    await people.update(p.id, { ...p.data, flagged: true });
+    await reload();
+  };
+  const clearFlag = async (p: Person) => {
+    await people.update(p.id, { ...p.data, flagged: false, group: "contacts" });
+    await reload();
+    showToast({ message: p.data.name + " moved to Contacts" });
   };
   const onDelete = async () => {
     if (sheet.kind !== "edit") return;
@@ -85,7 +127,7 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
     let added = 0;
     try {
       for (let i = 0; i < n; i += CHUNK) {
-        const batch = importPreview.fresh.slice(i, i + CHUNK).map((c) => ({ name: c.name, group, birthday: c.birthday, notes: c.notes }));
+        const batch = importPreview.fresh.slice(i, i + CHUNK).map((c) => ({ name: c.name, group: "contacts" as const, birthday: c.birthday, notes: c.notes, email: c.email, phone: c.phone }));
         await people.createMany(batch);
         added = Math.min(n, i + CHUNK);
         setImportedSoFar(added);
@@ -144,7 +186,14 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
     <PersonSheet
       mode={sheet.kind === "new" ? "new" : "edit"}
       group={group}
-      initial={editing?.data}
+      initial={editing ? {
+        ...editing.data,
+        // Contact identity hid in notes for months (vCard import folded
+        // EMAIL there). Surface it into the field when unambiguous; the user
+        // sees it in the sheet before it saves.
+        email: editing.data.email ?? extractEmailFromNotes(editing.data.notes) ?? undefined,
+      } : undefined}
+      categories={categories}
       onSave={onSave}
       onDelete={sheet.kind === "edit" ? onDelete : undefined}
       onCancel={() => setSheet({ kind: "closed" })}
@@ -162,7 +211,17 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
 
   return (
     <div className={pushCls} key="base">
-      <PeopleListPage group={group} people={list} onOpen={setOpenId} onAdd={() => setSheet({ kind: "new" })} onImportFile={onImportFile} onBack={onBack} />
+      <PeopleListPage
+        group={group}
+        people={list}
+        pendingReview={group === "adversarial" ? list.filter(needsAdversarialReview) : []}
+        onConfirmFlag={(id) => { const p = list.find((x) => x.id === id); if (p) void confirmFlag(p); }}
+        onClearFlag={(id) => { const p = list.find((x) => x.id === id); if (p) void clearFlag(p); }}
+        onOpen={setOpenId}
+        onAdd={() => setSheet({ kind: "new" })}
+        onImportFile={onImportFile}
+        onBack={onBack}
+      />
       {sheetEl}
       {importEl}
     </div>

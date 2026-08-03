@@ -5,6 +5,9 @@ import { planDay, type PlanBlock } from "../planDay";
 import { fmtTime } from "../calendar";
 import { catColor } from "../../shared/categories";
 import { FULL_DAY, type DaySizing } from "../daySizing";
+import { emit } from "../../events";
+import { recordPicks } from "../../events/planOutcome";
+import { todayISO } from "../../tasks/grouping";
 
 const BUFFER = 10;
 const DEFAULT_DUR = 45;
@@ -120,7 +123,16 @@ export default function PlanDaySheet({
           )}
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" disabled={count === 0} onClick={() => onCommit(plan.blocks)}>
+          <button className="btn btn-primary btn-block" disabled={count === 0} onClick={() => {
+            // Plan-vs-done (Session 6.5): record WHICH tasks were picked and in
+            // what order, so tomorrow's open can score whether they happened.
+            // Only the deliberate picks path; "Time everything" is not a plan
+            // in this sense and is not scored.
+            const day = todayISO();
+            picks.forEach((id, i) => emit({ type: "plan.picked", entityType: "task", entityId: id, props: { n: i + 1 } }));
+            recordPicks(day, picks);
+            onCommit(plan.blocks);
+          }}>
             {count === 0 ? "Pick your three" : `Add my ${countWord}`}
           </button>
           {tasks.length > 0 && (

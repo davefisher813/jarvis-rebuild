@@ -6,12 +6,30 @@ export type PersonGroup = "contacts" | "inner_circle" | "adversarial";
 
 export interface PersonData {
   name: string;
+  // Legacy placement field. Kept readable for migration; new people are always
+  // "contacts" and the Inner Circle / Adversarial surfaces are VIEWS over the
+  // per-person facts below (the exclusive-bucket model could not express real
+  // people, who can be close AND difficult).
   group: PersonGroup;
-  relationship?: string;
+  relationship?: string; // the label: who they are to you ("Sister", "Client")
   birthday?: string;
   notes?: string;
   color?: ColorSlot;
   order?: number;
+  // Person pass (2026-08-03):
+  email?: string;
+  phone?: string;
+  // How JARVIS writes to them. Deliberately NOT "closeness": nobody should
+  // have to rate a relationship. unset = unknown = clean prose (guardrail).
+  register?: "casual" | "professional";
+  // Handle-with-care. Set ONLY by explicit user action (or confirmed legacy
+  // review), never inferred. Precedence in drafting: flagged > casual > unset.
+  flagged?: boolean;
+  // A person can belong to several categories (Family AND Bridge): multi, not
+  // single, or we rebuild the exclusive-bucket mistake one layer down.
+  categoryIds?: string[];
+  // Reserved for the Adversarial behaviors step (game plans); schema only.
+  gamePlan?: string;
 }
 
 export interface Person {

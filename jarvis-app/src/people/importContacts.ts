@@ -7,7 +7,9 @@
 export interface ImportedContact {
   name: string;
   birthday?: string; // YYYY-MM-DD when parseable
-  notes?: string;    // phone / email / org folded into notes lines
+  notes?: string;    // org and extra lines still fold here
+  email?: string;    // first EMAIL (person pass: real fields, not note lines)
+  phone?: string;    // first TEL
 }
 
 // --- vCard ---
@@ -45,7 +47,7 @@ function vBirthday(v: string): string | undefined {
 
 export function parseVCard(text: string): ImportedContact[] {
   const out: ImportedContact[] = [];
-  let cur: { fn?: string; n?: string; bday?: string; extras: string[] } | null = null;
+  let cur: { fn?: string; n?: string; bday?: string; email?: string; phone?: string; extras: string[] } | null = null;
   for (const line of unfold(text)) {
     const p = vLine(line);
     if (!p) continue;
@@ -56,6 +58,8 @@ export function parseVCard(text: string): ImportedContact[] {
         if (name) {
           const c: ImportedContact = { name };
           if (cur.bday) c.birthday = cur.bday;
+          if (cur.email) c.email = cur.email;
+          if (cur.phone) c.phone = cur.phone;
           if (cur.extras.length) c.notes = cur.extras.join("\n");
           out.push(c);
         }
@@ -70,8 +74,8 @@ export function parseVCard(text: string): ImportedContact[] {
       const parts = p.value.split(";");
       cur.n = [parts[1], parts[0]].filter(Boolean).join(" ").trim();
     } else if (p.prop === "BDAY") cur.bday = vBirthday(p.value);
-    else if (p.prop === "TEL" && p.value) cur.extras.push(p.value);
-    else if (p.prop === "EMAIL" && p.value) cur.extras.push(p.value);
+    else if (p.prop === "TEL" && p.value) { if (!cur.phone) cur.phone = p.value; else cur.extras.push(p.value); }
+    else if (p.prop === "EMAIL" && p.value) { if (!cur.email) cur.email = p.value; else cur.extras.push(p.value); }
     else if (p.prop === "ORG" && p.value) cur.extras.push(p.value.replace(/;+$/, ""));
   }
   return out;

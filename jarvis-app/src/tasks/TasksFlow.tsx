@@ -12,6 +12,7 @@ import { nextFreeSlot, addMinutes } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage } from "./lifecycle";
 import { useAI } from "../ai/useAI";
+import { emit } from "../events";
 
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft } | null;
@@ -149,6 +150,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     dismissFirstStep(fsCandidate.id, today);
     setFsStep(null);
     setFsHidden(true);
+    emit({ type: "suggestion.accepted", props: { kind: "first_step" } });
     await reload();
     showToast({ message: "First step added to Today. The big one waits in Upcoming." });
   };
@@ -157,12 +159,17 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     if (fsCandidate) dismissFirstStep(fsCandidate.id, today);
     setFsStep(null);
     setFsHidden(true);
+    emit({ type: "suggestion.dismissed", props: { kind: "first_step" } });
   };
 
-  // Quick capture: create a task due today with the default category.
+  // Quick capture: create a task due today. UNTAGGED on purpose (2026-08-03):
+  // it used to default to whichever category was first in the list, which
+  // silently mis-tagged everything and poisoned every per-category number
+  // downstream. No tag is honest; the AI capture path still assigns real
+  // categories because it actually reasons about the text.
   const onQuickAdd = async (text: string) => {
     if (!text.trim()) return;
-    await svc.createTask(text.trim(), { category: categories[0]?.id || undefined, due: today });
+    await svc.createTask(text.trim(), { due: today });
     await reload();
   };
 

@@ -63,6 +63,25 @@ describe("TodayPage", () => {
     expect(screen.queryByText("Today\u2019s Tasks")).toBeNull();
   });
 
+  it("shows today's birthdays above Up Next, and nothing on ordinary days", () => {
+    const { container, rerender } = render(
+      <TodayPage {...base} birthdays={[{ id: "p1", name: "Mike Torres" }]} upNext={[tk("due", "2026-05-20")]} onUpNext={() => {}} />,
+    );
+    expect(screen.getByText("Birthday")).toBeInTheDocument();
+    expect(screen.getByText("Mike Torres")).toBeInTheDocument();
+    expect(screen.getByText("Turns a year older today")).toBeInTheDocument();
+    // people-pink tile, never red (colour audit law)
+    expect(container.querySelector(".sec-ico.cat-bg-pink")).toBeTruthy();
+    // section order: Birthday section head precedes Up Next's
+    const heads = [...container.querySelectorAll(".sec-title")].map((e) => e.textContent);
+    expect(heads.indexOf("Birthday")).toBeLessThan(heads.indexOf("Up Next"));
+    // absent = the normal state, and the plural title only with 2+
+    rerender(<TodayPage {...base} birthdays={[]} />);
+    expect(screen.queryByText("Birthday")).toBeNull();
+    rerender(<TodayPage {...base} birthdays={[{ id: "a", name: "A" }, { id: "b", name: "B" }]} />);
+    expect(screen.getByText("Birthdays")).toBeInTheDocument();
+  });
+
   it("shows the Focus button paired with Plan My Day (daytime only)", () => {
     render(<TodayPage {...base} upNext={[tk("due", "2026-05-20")]} onUpNext={() => {}} onPlanDay={() => {}} />);
     expect(screen.getByText("Focus")).toBeInTheDocument();

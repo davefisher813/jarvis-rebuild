@@ -3,6 +3,9 @@ import { useState } from "react";
 import type { PersonData, PersonGroup } from "../types";
 import type { ColorSlot } from "../../categories/types";
 import { AVATAR_COLORS, avatarClass } from "../types";
+import { LABEL_CHIPS } from "../views";
+
+export interface SheetCategoryOpt { id: string; name: string; color: ColorSlot }
 
 export interface PersonDraft {
   name: string;
@@ -10,6 +13,11 @@ export interface PersonDraft {
   birthday: string;
   notes: string;
   color: ColorSlot;
+  // Person pass (2026-08-03)
+  email: string;
+  phone: string;
+  register?: "casual" | "professional";
+  categoryIds: string[];
 }
 
 const TRASH = (
@@ -20,6 +28,7 @@ export default function PersonSheet({
   mode,
   group,
   initial,
+  categories = [],
   onSave,
   onDelete,
   onCancel,
@@ -27,6 +36,7 @@ export default function PersonSheet({
   mode: "new" | "edit";
   group: PersonGroup;
   initial?: PersonData;
+  categories?: SheetCategoryOpt[];
   onSave: (draft: PersonDraft) => void;
   onDelete?: () => void;
   onCancel: () => void;
@@ -36,12 +46,29 @@ export default function PersonSheet({
   const [birthday, setBirthday] = useState(initial?.birthday ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [color, setColor] = useState<ColorSlot>(initial?.color ?? "red");
+  const [email, setEmail] = useState(initial?.email ?? "");
+  const [phone, setPhone] = useState(initial?.phone ?? "");
+  const [register, setRegister] = useState<"casual" | "professional" | undefined>(initial?.register);
+  const [categoryIds, setCategoryIds] = useState<string[]>(initial?.categoryIds ?? []);
   const [touched, setTouched] = useState(false);
+
+  const toggleCategory = (id: string) =>
+    setCategoryIds((cur) => (cur.includes(id) ? cur.filter((c) => c !== id) : [...cur, id]));
 
   const valid = name.trim().length > 0;
   const save = () => {
     if (!valid) { setTouched(true); return; }
-    onSave({ name: name.trim(), relationship: relationship.trim(), birthday: birthday.trim(), notes: notes.trim(), color });
+    onSave({
+      name: name.trim(),
+      relationship: relationship.trim(),
+      birthday: birthday.trim(),
+      notes: notes.trim(),
+      color,
+      email: email.trim(),
+      phone: phone.trim(),
+      register,
+      categoryIds,
+    });
   };
 
   return createPortal(
@@ -56,9 +83,48 @@ export default function PersonSheet({
             {touched && !valid && <div className="input-error">Add a name.</div>}
           </div>
           <div className="field">
-            <div className="input-label">Relationship</div>
-            <input className="input" placeholder="e.g. Business partner" value={relationship} onChange={(e) => setRelationship(e.target.value)} />
+            <div className="input-label">Who they are to you</div>
+            {/* Chips first, typing second: the label field existed for months
+                and stayed empty because it was a blank box. One universal set
+                for v1; kind-aware sets arrive when category kinds exist. */}
+            <div className="chip-row chip-wrap-row">
+              {LABEL_CHIPS.map((l) => (
+                <div key={l} className={"chip" + (relationship === l ? " active" : "")} role="button" tabIndex={0} aria-pressed={relationship === l}
+                  onClick={() => setRelationship(relationship === l ? "" : l)}>{l}</div>
+              ))}
+            </div>
+            <input className="input" placeholder="Or say it your way" value={(LABEL_CHIPS as readonly string[]).includes(relationship) ? "" : relationship} onChange={(e) => setRelationship(e.target.value)} />
           </div>
+          <div className="field">
+            <div className="input-label">How JARVIS writes to them</div>
+            {/* Register, deliberately NOT closeness: nobody taps "Not really"
+                about their mother. Unset = unknown = clean prose. */}
+            <div className="segmented">
+              <button type="button" className={"seg" + (register === "casual" ? " active" : "")} onClick={() => setRegister(register === "casual" ? undefined : "casual")}>Casual</button>
+              <button type="button" className={"seg" + (register === "professional" ? " active" : "")} onClick={() => setRegister(register === "professional" ? undefined : "professional")}>Professional</button>
+            </div>
+          </div>
+          <div className="field">
+            <div className="input-label">Contact</div>
+            <input className="input input-stack" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className="input" type="tel" placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </div>
+          {categories.length > 0 && (
+            <div className="field">
+              <div className="input-label">Part of</div>
+              {/* MULTI-select on purpose: a person can be Family AND Bridge.
+                  Single-tag here would rebuild the exclusive-bucket mistake
+                  one layer down. */}
+              <div className="chip-row chip-wrap-row">
+                {categories.map((c) => (
+                  <div key={c.id} className={"chip" + (categoryIds.includes(c.id) ? " active" : "")} role="button" tabIndex={0} aria-pressed={categoryIds.includes(c.id)}
+                    onClick={() => toggleCategory(c.id)}>
+                    <span className={"cat-dot cat-bg-" + c.color} />{c.name}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="field">
             <div className="input-label">Color</div>
             <div className="swatch-row">

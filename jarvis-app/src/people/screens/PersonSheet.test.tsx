@@ -13,13 +13,33 @@ describe("PersonSheet", () => {
     expect(screen.getByText("Add a name.")).toBeInTheDocument();
   });
 
-  it("saves the entered fields", () => {
+  it("saves the entered fields: chip label, register, and contact identity", () => {
     const onSave = vi.fn();
     render(<PersonSheet mode="new" group="contacts" onSave={onSave} onCancel={() => {}} />);
     fireEvent.change(screen.getByPlaceholderText("Full name"), { target: { value: "Sam Rivera" } });
-    fireEvent.change(screen.getByPlaceholderText("e.g. Business partner"), { target: { value: "Partner" } });
+    // label via chip, one tap (the blank box was why labels stayed empty)
+    fireEvent.click(screen.getByText("Coworker"));
+    fireEvent.click(screen.getByText("Casual"));
+    fireEvent.change(screen.getByPlaceholderText("Email"), { target: { value: "sam@work.com" } });
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith({ name: "Sam Rivera", relationship: "Partner", birthday: "", notes: "", color: "red" });
+    expect(onSave).toHaveBeenCalledWith({
+      name: "Sam Rivera", relationship: "Coworker", birthday: "", notes: "", color: "red",
+      email: "sam@work.com", phone: "", register: "casual", categoryIds: [],
+    });
+  });
+
+  it("free text overrides the chip, and register is un-set by a second tap", () => {
+    const onSave = vi.fn();
+    render(<PersonSheet mode="new" group="contacts" onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText("Full name"), { target: { value: "Ana" } });
+    fireEvent.click(screen.getByText("Friend"));
+    fireEvent.change(screen.getByPlaceholderText("Or say it your way"), { target: { value: "College roommate" } });
+    fireEvent.click(screen.getByText("Professional"));
+    fireEvent.click(screen.getByText("Professional")); // toggle off => unknown => clean prose
+    fireEvent.click(screen.getByText("Save"));
+    const draft = onSave.mock.calls[0]![0] as { relationship: string; register?: string };
+    expect(draft.relationship).toBe("College roommate");
+    expect(draft.register).toBeUndefined();
   });
 
   it("edit mode prefills and offers delete", () => {

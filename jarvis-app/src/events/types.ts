@@ -34,6 +34,13 @@ export type EventType =
   | "task.completed"
   | "focus.started"
   | "focus.completed"
+  // Brain rebuild layer 1 (Session 6.5): the semantic acts the durable log
+  // persists and the launch derivations read
+  | "task.pushed"
+  | "plan.picked"
+  | "plan.outcome"
+  | "suggestion.accepted"
+  | "suggestion.dismissed"
   // escape hatch: props.name carries the specific action, no schema bump needed
   | "action";
 

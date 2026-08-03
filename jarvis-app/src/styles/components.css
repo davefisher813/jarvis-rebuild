@@ -846,3 +846,16 @@ button {
   content: ""; position: absolute; top: 50%; left: 0; right: 0;
   transform: translateY(-50%); height: var(--tap-min);
 }
+
+/* === Session 6.6: connected Bigger Picture === */
+/* The next-action line on a project row: quieter than the counts line above
+   it, single line, never wraps (row height stays uniform). */
+.bp-next { color: var(--tx-4); }
+
+/* Person pass: chip rows inside sheets wrap instead of scrolling (a sheet has
+   no horizontal-scroll affordance, and label/category picks must all be
+   visible at once). The base .chip-row mask/scroll behavior stays for pages. */
+.chip-wrap-row { flex-wrap: wrap; overflow-x: visible; -webkit-mask-image: none; mask-image: none; margin-bottom: 8px; }
+.input-stack { margin-bottom: 8px; }
+.list-search { padding-bottom: 8px; }
+.search-bar .search-ic { width: 18px; height: 18px; opacity: 0.6; flex-shrink: 0; }

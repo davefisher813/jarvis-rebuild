@@ -69,7 +69,12 @@ export class TasksService {
     }
     // Time Sense (silent, Phase 1): every completion logs an hour-of-day sample
     // so Phase 2 launches with a real energy curve instead of self-report.
-    if (!t.done) recordCompletion(t.category ?? "", new Date(), id);
+    if (!t.done) {
+      recordCompletion(t.category ?? "", new Date(), id);
+      // Semantic event for the durable log: completions are what the Brain's
+      // completion-window and plan-vs-done derivations read.
+      this.onEvent({ type: "task.completed", entityType: ENTITY_TASK, entityId: id, props: { category: t.category ?? "" } });
+    }
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }
@@ -97,6 +102,8 @@ export class TasksService {
     // Pushing a due date later counts as a slip (First Step watches for 3).
     const slipped = !!t.due && !!due && due > t.due;
     await this.store.update(this.ownerId, id, slipped ? { due, slips: (t.slips ?? 0) + 1 } : { due });
+    // Semantic event: slips-by-category is a Brain launch derivation.
+    if (slipped) this.onEvent({ type: "task.pushed", entityType: ENTITY_TASK, entityId: id, props: { category: t.category ?? "" } });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }
