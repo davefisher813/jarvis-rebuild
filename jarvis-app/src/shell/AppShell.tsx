@@ -64,7 +64,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [projectIntent, setProjectIntent] = useState<string | undefined>(undefined);
   const [eventIntent, setEventIntent] = useState<string | undefined>(undefined);
   const [goalIntent, setGoalIntent] = useState<string | undefined>(undefined);
-  // Person deep-link: BrainFlow opens the group, PeopleFlow opens the person.
+  // Person deep-link: BrainFlow opens Contacts, PeopleFlow opens the person.
   const [personIntent, setPersonIntent] = useState<{ groupKey: string; id: string } | undefined>(undefined);
   const [noteIntent, setNoteIntent] = useState<string | undefined>(undefined);
   const navigateToNote = (id: string) => { setNoteIntent(id); setActive("notes"); };
@@ -75,12 +75,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     else if (kind === "goal") { setGoalIntent(targetId); setActive("bigger"); }
     else if (kind === "person") {
       const p = await people.get(targetId);
-      if (!p) return;
-      // group value -> the Brain row key that opens that people list
-      const GROUP_KEY: Record<string, string> = { contacts: "contacts", inner_circle: "inner-circle", adversarial: "adversarial" };
-      const groupKey = GROUP_KEY[p.data.group] ?? "contacts";
-      setPersonIntent({ groupKey, id: targetId });
-      setBrainIntent(groupKey);
+      if (!p) return; // deleted person: the link goes nowhere, quietly
+      // One people list now: every person opens through Contacts.
+      setPersonIntent({ groupKey: "contacts", id: targetId });
+      setBrainIntent("contacts");
       setActive("brain");
     }
   };

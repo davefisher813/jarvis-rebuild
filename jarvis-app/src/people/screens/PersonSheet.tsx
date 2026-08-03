@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
-import type { PersonData, PersonGroup } from "../types";
+import type { PersonData } from "../types";
 import type { ColorSlot } from "../../categories/types";
 import { AVATAR_COLORS, avatarClass } from "../types";
 import { LABEL_CHIPS } from "../views";
@@ -16,7 +16,7 @@ export interface PersonDraft {
   // Person pass (2026-08-03)
   email: string;
   phone: string;
-  register?: "casual" | "professional";
+  register?: "casual" | "professional" | "friend";
   categoryIds: string[];
 }
 
@@ -26,7 +26,6 @@ const TRASH = (
 
 export default function PersonSheet({
   mode,
-  group,
   initial,
   categories = [],
   onSave,
@@ -34,7 +33,6 @@ export default function PersonSheet({
   onCancel,
 }: {
   mode: "new" | "edit";
-  group: PersonGroup;
   initial?: PersonData;
   categories?: SheetCategoryOpt[];
   onSave: (draft: PersonDraft) => void;
@@ -48,7 +46,7 @@ export default function PersonSheet({
   const [color, setColor] = useState<ColorSlot>(initial?.color ?? "red");
   const [email, setEmail] = useState(initial?.email ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
-  const [register, setRegister] = useState<"casual" | "professional" | undefined>(initial?.register);
+  const [register, setRegister] = useState<"casual" | "professional" | "friend" | undefined>(initial?.register);
   const [categoryIds, setCategoryIds] = useState<string[]>(initial?.categoryIds ?? []);
   const [touched, setTouched] = useState(false);
 
@@ -75,7 +73,7 @@ export default function PersonSheet({
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{mode === "new" ? "New Person" : "Edit Person"} · {group === "inner_circle" ? "Inner Circle" : group === "adversarial" ? "Adversarial" : "Contacts"}</div></div>
+        <div className="grp"><div className="eyebrow">{mode === "new" ? "New Person" : "Edit Person"}</div></div>
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Name</div>
@@ -98,8 +96,11 @@ export default function PersonSheet({
           <div className="field">
             <div className="input-label">How JARVIS writes to them</div>
             {/* Register, deliberately NOT closeness: nobody taps "Not really"
-                about their mother. Unset = unknown = clean prose. */}
+                about their mother. Unset = unknown = clean prose. Ordered as a
+                looseness scale; "Close Friend" (not "Friend") so the segment
+                never shares its exact title with the label chip above. */}
             <div className="segmented">
+              <button type="button" className={"seg" + (register === "friend" ? " active" : "")} onClick={() => setRegister(register === "friend" ? undefined : "friend")}>Close Friend</button>
               <button type="button" className={"seg" + (register === "casual" ? " active" : "")} onClick={() => setRegister(register === "casual" ? undefined : "casual")}>Casual</button>
               <button type="button" className={"seg" + (register === "professional" ? " active" : "")} onClick={() => setRegister(register === "professional" ? undefined : "professional")}>Professional</button>
             </div>

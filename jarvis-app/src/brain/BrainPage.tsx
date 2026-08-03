@@ -6,7 +6,6 @@ const svg = (children: ReactNode) => (
 );
 const Users = () => svg(<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>);
 const Heart = () => svg(<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z" />);
-const Shield = () => svg(<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></>);
 const Compass = () => svg(<><circle cx="12" cy="12" r="10" /><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" /></>);
 const Pen = () => svg(<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></>);
 const Flag = () => svg(<><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></>);
@@ -35,13 +34,13 @@ const CAT_ICON: Record<string, () => ReactNode> = {
 
 interface BrainRow { key: string; name: string; icon: ReactNode; color: string; status?: string }
 const TOP_SECTIONS: { title: string; rows: BrainRow[] }[] = [
+  // ONE people row (2026-08-03). Inner Circle and Adversarial were cut: a
+  // list only earns a row when a feature acts on membership, and neither did.
+  // The facts they organized (register, handle-with-care) live on each person
+  // and keep driving how JARVIS writes. They return only as the surface of a
+  // feature that uses them (staying-in-touch nudges, game plans).
   { title: "Who You Know", rows: [
     { key: "contacts", name: "Contacts", icon: <Users />, color: "ico-blue" },
-    { key: "inner-circle", name: "Inner Circle", icon: <Heart />, color: "cat-bg-pink" },
-    // Graphite, not brand red: red is for actions and selection, never a
-    // mood, and colouring people as an alert is exactly the kind of judgement
-    // the app is not supposed to make.
-    { key: "adversarial", name: "Adversarial", icon: <Shield />, color: "cat-bg-graphite" },
   ] },
   { title: "How You Think", rows: [
     { key: "philosophy", name: "Life Philosophy", icon: <Compass />, color: "cat-bg-blue" },

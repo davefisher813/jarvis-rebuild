@@ -22,8 +22,9 @@ export const JARVIS_VOICE = [
 // fallback is always the clean voice, never the casual one.
 export const STYLE_SCOPE_RULE = [
   "How to use the writing voice above: it describes how the user writes to people they are CLOSE to.",
-  "Apply it ONLY to messages aimed at people the user has marked casual (see Key people), or who are otherwise plainly close (family, close friends).",
-  "Anyone marked 'handle with care' ALWAYS gets clean, guarded, professional prose, even if they also seem close. That marking outranks everything.",
+  "Apply it ONLY to messages aimed at people the user has marked casual or close friend (see Key people), or who are otherwise plainly close (family, close friends).",
+  "For someone marked 'write like a close friend', go loosest: short, contractions, no greetings or sign-offs, relaxed punctuation. Loosen STRUCTURE only. Never invent slang, inside jokes, or nicknames the user has not used themselves; fake familiarity is worse than plain text.",
+  "Anyone marked 'handle with care' ALWAYS gets clean, guarded, professional prose, even if they also seem close. That marking outranks everything, including close friend.",
   "For anything professional, unfamiliar, formal, public, or of unknown audience: keep the user's meaning and warmth, but write clean standard prose. No profanity, no slang or internet-speak, no deliberately dropped punctuation, no all-lowercase styling.",
   "If you cannot tell who the audience is, use the clean version. Never guess casual.",
 ].join("\n");

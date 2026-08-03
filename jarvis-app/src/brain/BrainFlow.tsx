@@ -2,26 +2,20 @@ import { useEffect, useState } from "react";
 import BrainPage, { type BrainCategory } from "./BrainPage";
 import { useCategories } from "../data/NotesProvider";
 import PeopleFlow from "../people/PeopleFlow";
-import type { PersonGroup } from "../people/types";
 import BrainDocPage from "./docs/BrainDocPage";
 import CategoryDetail from "./CategoryDetail";
 import RoutineFlow from "../routine/RoutineFlow";
 import type { ColorSlot } from "../categories/types";
 import { usePushDepth } from "../shared/pushNav";
 
-const PEOPLE_GROUP: Record<string, PersonGroup> = {
-  contacts: "contacts",
-  "inner-circle": "inner_circle",
-  adversarial: "adversarial",
-};
 const DOC_TOPIC: Record<string, string> = {
   philosophy: "philosophy",
   writing: "writing",
   values: "values",
 };
 
-// The Brain tab. The hub is built. The people rows (Contacts / Inner Circle /
-// Adversarial) open real, editable people lists; the remaining rows open a
+// The Brain tab. The hub is built. Contacts opens the one people list (the
+// Inner Circle / Adversarial rows were cut 2026-08-03); the doc rows open a
 // lightweight placeholder for now. "Your Categories" is populated live.
 export default function BrainFlow({ openKey, personOpenId, onOpenNote }: { openKey?: string; personOpenId?: string; onOpenNote?: (id: string) => void } = {}) {
   const cats = useCategories();
@@ -50,9 +44,8 @@ export default function BrainFlow({ openKey, personOpenId, onOpenNote }: { openK
     if (open.key === "routine") {
       return <RoutineFlow onBack={() => setOpen(null)} />;
     }
-    const group = PEOPLE_GROUP[open.key];
-    if (group) {
-      return <PeopleFlow group={group} openId={personOpenId} onOpenNote={onOpenNote} onBack={() => setOpen(null)} />;
+    if (open.key === "contacts") {
+      return <PeopleFlow openId={personOpenId} onOpenNote={onOpenNote} onBack={() => setOpen(null)} />;
     }
     const topic = DOC_TOPIC[open.key];
     if (topic) {

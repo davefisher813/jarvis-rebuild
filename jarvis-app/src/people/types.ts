@@ -6,10 +6,10 @@ export type PersonGroup = "contacts" | "inner_circle" | "adversarial";
 
 export interface PersonData {
   name: string;
-  // Legacy placement field. Kept readable for migration; new people are always
-  // "contacts" and the Inner Circle / Adversarial surfaces are VIEWS over the
-  // per-person facts below (the exclusive-bucket model could not express real
-  // people, who can be close AND difficult).
+  // Legacy placement field. Kept readable for old rows; new people are always
+  // "contacts". The Inner Circle / Adversarial lists were removed 2026-08-03
+  // (a list only earns a tab when a feature acts on membership; none did).
+  // The per-person facts below carry the value the lists claimed to.
   group: PersonGroup;
   relationship?: string; // the label: who they are to you ("Sister", "Client")
   birthday?: string;
@@ -21,9 +21,11 @@ export interface PersonData {
   phone?: string;
   // How JARVIS writes to them. Deliberately NOT "closeness": nobody should
   // have to rate a relationship. unset = unknown = clean prose (guardrail).
-  register?: "casual" | "professional";
+  // "friend" is the loosest register (how people actually text close friends);
+  // it loosens structure only, never invents slang (Dave, 2026-08-03).
+  register?: "casual" | "professional" | "friend";
   // Handle-with-care. Set ONLY by explicit user action (or confirmed legacy
-  // review), never inferred. Precedence in drafting: flagged > casual > unset.
+  // review), never inferred. Precedence in drafting: flagged > any register.
   flagged?: boolean;
   // A person can belong to several categories (Family AND Bridge): multi, not
   // single, or we rebuild the exclusive-bucket mistake one layer down.
@@ -36,12 +38,6 @@ export interface Person {
   id: string;
   data: PersonData;
 }
-
-export const GROUP_TITLE: Record<PersonGroup, string> = {
-  contacts: "Contacts",
-  inner_circle: "Inner Circle",
-  adversarial: "Adversarial",
-};
 
 export function personInitials(name: string): string {
   return name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "?";

@@ -89,8 +89,10 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       if (existing.length === 0) {
         for (const s of seeds) await categories.create(s.name, s.color, s.icon);
       }
-      if (people.length > 0 && (await peopleSvc.list("inner_circle")).length === 0) {
-        for (const name of people) await peopleSvc.create({ name, group: "inner_circle" });
+      // Plain contacts, no register: onboarding asked who matters, not how
+      // the user writes to them, and a guessed register is worse than none.
+      if (people.length > 0 && (await peopleSvc.list()).length === 0) {
+        for (const name of people) await peopleSvc.create({ name, group: "contacts" });
       }
       // Seed a smarter wake time from the morning-brief choice, and work hours
       // from the one-tap workstyle answer. Only when routine isn't already set.

@@ -19,6 +19,11 @@ describe("BrainPage", () => {
     // Setup was removed 2026-08-03: its rows were Settings wearing a Brain
     // costume, and both dead-ended in "coming soon" screens.
     expect(screen.queryByText("Setup")).not.toBeInTheDocument();
+    // The Inner Circle / Adversarial rows were cut the same day: a list only
+    // earns a row when a feature acts on membership, and neither did.
+    expect(screen.queryByText("Inner Circle")).not.toBeInTheDocument();
+    expect(screen.queryByText("Adversarial")).not.toBeInTheDocument();
+    expect(screen.getByText("Contacts")).toBeInTheDocument();
     expect(screen.getByText("Work")).toBeInTheDocument();
     expect(screen.getByText("Your Routine")).toBeInTheDocument();
   });
@@ -31,8 +36,9 @@ describe("BrainPage", () => {
   it("renders every row with a colored (non-grey) icon tile", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
     const tiles = container.querySelectorAll(".sec-ico");
-    // 7 static rows + 3 category rows (Setup's 2 rows removed 2026-08-03)
-    expect(tiles.length).toBe(10);
+    // 5 static rows + 3 category rows (Setup's 2 rows and the Inner Circle /
+    // Adversarial rows all removed 2026-08-03)
+    expect(tiles.length).toBe(8);
     expect(container.querySelectorAll(".sec-ico.ico-surface").length).toBe(0);
     tiles.forEach((t) => expect(t.className).toMatch(/ico-blue|ico-accent|ico-good|cat-bg-/));
   });

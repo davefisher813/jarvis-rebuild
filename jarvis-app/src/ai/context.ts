@@ -110,11 +110,13 @@ export function contextToText(ctx: AIContext): string {
   if (ctx.peopleDetail?.length) {
     // "Mike Torres (brother-in-law; write casual)". flagged renders as
     // "handle with care" so every drafting feature inherits the precedence
-    // without knowing the schema.
+    // without knowing the schema. "friend" renders as a sentence because
+    // "write friend" is not English.
     const rendered = ctx.peopleDetail.map((p) => {
       const notes: string[] = [];
       if (p.label) notes.push(p.label.toLowerCase());
       if (p.flagged) notes.push("handle with care: always professional");
+      else if (p.register === "friend") notes.push("write like a close friend");
       else if (p.register) notes.push(`write ${p.register}`);
       return notes.length ? `${p.name} (${notes.join("; ")})` : p.name;
     });

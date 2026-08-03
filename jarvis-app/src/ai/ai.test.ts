@@ -58,9 +58,28 @@ describe("writing voice is scoped to close audiences", () => {
     const text = contextToText(ctx);
     expect(text).toContain("drops punctuation");
     // The limit must travel with the notes, or a board email inherits them.
-    expect(text).toMatch(/ONLY to messages aimed at people the user has marked casual/);
+    expect(text).toMatch(/ONLY to messages aimed at people the user has marked casual or close friend/);
     expect(text).toMatch(/Never guess casual/);
     expect(text).toMatch(/No profanity/);
+    // Friend mode loosens structure, never invents familiarity.
+    expect(text).toMatch(/Never invent slang, inside jokes, or nicknames/);
+  });
+
+  it("renders each register readably, and flagged outranks friend", () => {
+    const text = contextToText(assembleContext({
+      peopleDetail: [
+        { name: "Chris", register: "friend" },
+        { name: "Sam", register: "casual" },
+        { name: "Dana", register: "professional" },
+        { name: "Lex", register: "friend", flagged: true },
+      ],
+    }));
+    expect(text).toContain("Chris (write like a close friend)");
+    expect(text).toContain("Sam (write casual)");
+    expect(text).toContain("Dana (write professional)");
+    // flagged wins: the friend register must not leak into the prompt
+    expect(text).toContain("Lex (handle with care: always professional)");
+    expect(text).not.toContain("Lex (write");
   });
 
   it("says nothing about style when the user has no notes", () => {

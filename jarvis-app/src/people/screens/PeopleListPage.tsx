@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
-import type { Person, PersonGroup } from "../types";
-import { GROUP_TITLE, personInitials, avatarClass } from "../types";
+import type { Person } from "../types";
+import { personInitials, avatarClass } from "../types";
 import { searchPeople } from "../views";
 
 const CHEV = (
@@ -20,7 +20,6 @@ const PEOPLE = (
 );
 
 export default function PeopleListPage({
-  group,
   people,
   pendingReview = [],
   onConfirmFlag,
@@ -30,7 +29,6 @@ export default function PeopleListPage({
   onImportFile,
   onBack,
 }: {
-  group: PersonGroup;
   people: Person[];
   pendingReview?: Person[]; // legacy Adversarial members awaiting consent
   onConfirmFlag?: (id: string) => void;
@@ -59,7 +57,7 @@ export default function PeopleListPage({
     <div className="screen">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">{GROUP_TITLE[group]}</div>
+        <div className="nav-title">Contacts</div>
       </div>
 
       {onImportFile && (

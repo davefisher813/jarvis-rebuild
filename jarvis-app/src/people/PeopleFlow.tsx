@@ -1,20 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePeople, useNotes, useCategories } from "../data/NotesProvider";
-import type { Person, PersonGroup } from "./types";
-import { inView, needsAdversarialReview, extractEmailFromNotes } from "./views";
+import type { Person } from "./types";
+import { needsAdversarialReview, extractEmailFromNotes } from "./views";
 import type { SheetCategoryOpt } from "./screens/PersonSheet";
 import PeopleListPage from "./screens/PeopleListPage";
 import PersonDetail from "./screens/PersonDetail";
 import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 import { usePushDepth } from "../shared/pushNav";
 import { parseContactsFile, type ImportedContact } from "./importContacts";
-import { GROUP_TITLE } from "./types";
 import { showToast } from "../shared/toast";
 import { createPortal } from "react-dom";
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
-export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpenNote }: { group: PersonGroup; onBack: () => void; openId?: string; onOpenNote?: (id: string) => void }) {
+export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }: { onBack: () => void; openId?: string; onOpenNote?: (id: string) => void }) {
   const people = usePeople();
   const notesSvc = useNotes();
   const catsSvc = useCategories();
@@ -29,12 +28,11 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
   const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
 
-  // The groups are VIEWS over per-person facts now (see views.ts): load
-  // everyone, filter here. Legacy rows keep matching what the user meant.
+  // ONE list, everyone (the Inner Circle / Adversarial lists were removed
+  // 2026-08-03; the facts they claimed to organize live on each person).
   const reload = useCallback(async () => {
-    const all = await people.list();
-    setList(all.filter((p) => inView(group, p)));
-  }, [people, group]);
+    setList(await people.list());
+  }, [people]);
 
   useEffect(() => { void reload(); }, [reload]);
 
@@ -62,15 +60,9 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
       categoryIds: d.categoryIds.length ? d.categoryIds : undefined,
     };
     if (sheet.kind === "new") {
-      // New people are always plain contacts; the views derive from facts.
-      // Adding from a view sets the matching fact, visibly editable in the sheet.
-      await people.create({
-        name: d.name,
-        group: "contacts",
-        ...facts,
-        register: d.register ?? (group === "inner_circle" ? "casual" : undefined),
-        ...(group === "adversarial" ? { flagged: true } : {}),
-      });
+      // New people are always plain contacts; every fact is what the user
+      // set in the sheet, nothing is inferred from where they tapped Add.
+      await people.create({ name: d.name, group: "contacts", ...facts });
     } else if (sheet.kind === "edit") {
       await people.update(sheet.id, { name: d.name, ...facts });
     }
@@ -97,8 +89,8 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
     await reload();
   };
 
-  // Contact import (Dave 2026-07-30): parse a shared .vcf/.csv, dedupe by name
-  // against this group, preview the count, then create everyone on confirm.
+  // Contact import (Dave 2026-07-30): parse a shared .vcf/.csv, dedupe by
+  // name against everyone, preview the count, then create all on confirm.
   const [importPreview, setImportPreview] = useState<{ fresh: ImportedContact[]; dupes: number; bad: boolean } | null>(null);
   const [importing, setImporting] = useState(false);
   const [importedSoFar, setImportedSoFar] = useState(0);
@@ -157,8 +149,8 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
             <>
               <div className="plan-sub">
                 Found {importPreview.fresh.length + importPreview.dupes} {importPreview.fresh.length + importPreview.dupes === 1 ? "person" : "people"}.
-                {importPreview.dupes > 0 && ` ${importPreview.dupes} already in ${GROUP_TITLE[group]}, skipping ${importPreview.dupes === 1 ? "that one" : "those"}.`}
-                {importPreview.fresh.length > 0 && ` Adding ${importPreview.fresh.length} to ${GROUP_TITLE[group]}.`}
+                {importPreview.dupes > 0 && ` ${importPreview.dupes} already here, skipping ${importPreview.dupes === 1 ? "that one" : "those"}.`}
+                {importPreview.fresh.length > 0 && ` Adding ${importPreview.fresh.length}.`}
               </div>
               {importPreview.fresh.length > 0 && (
                 <div className="input-help">{importPreview.fresh.slice(0, 5).map((c) => c.name).join(", ")}{importPreview.fresh.length > 5 ? ` and ${importPreview.fresh.length - 5} more` : ""}</div>
@@ -185,7 +177,6 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
   const sheetEl = sheet.kind !== "closed" && (
     <PersonSheet
       mode={sheet.kind === "new" ? "new" : "edit"}
-      group={group}
       initial={editing ? {
         ...editing.data,
         // Contact identity hid in notes for months (vCard import folded
@@ -212,9 +203,8 @@ export default function PeopleFlow({ group, onBack, openId: initialOpenId, onOpe
   return (
     <div className={pushCls} key="base">
       <PeopleListPage
-        group={group}
         people={list}
-        pendingReview={group === "adversarial" ? list.filter(needsAdversarialReview) : []}
+        pendingReview={list.filter(needsAdversarialReview)}
         onConfirmFlag={(id) => { const p = list.find((x) => x.id === id); if (p) void confirmFlag(p); }}
         onClearFlag={(id) => { const p = list.find((x) => x.id === id); if (p) void clearFlag(p); }}
         onOpen={setOpenId}

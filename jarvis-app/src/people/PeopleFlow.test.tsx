@@ -9,7 +9,7 @@ describe("PeopleFlow", () => {
   it("starts empty, then adds a person who appears in the list", async () => {
     render(
       <NotesProvider userId="u1">
-        <PeopleFlow group="inner_circle" onBack={() => {}} />
+        <PeopleFlow onBack={() => {}} />
       </NotesProvider>,
     );
     expect(screen.getByText("No one here yet")).toBeInTheDocument();

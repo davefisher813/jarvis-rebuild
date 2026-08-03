@@ -7,7 +7,7 @@ import PersonSheet from "./PersonSheet";
 describe("PersonSheet", () => {
   it("requires a name", () => {
     const onSave = vi.fn();
-    render(<PersonSheet mode="new" group="inner_circle" onSave={onSave} onCancel={() => {}} />);
+    render(<PersonSheet mode="new" onSave={onSave} onCancel={() => {}} />);
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).not.toHaveBeenCalled();
     expect(screen.getByText("Add a name.")).toBeInTheDocument();
@@ -15,7 +15,7 @@ describe("PersonSheet", () => {
 
   it("saves the entered fields: chip label, register, and contact identity", () => {
     const onSave = vi.fn();
-    render(<PersonSheet mode="new" group="contacts" onSave={onSave} onCancel={() => {}} />);
+    render(<PersonSheet mode="new" onSave={onSave} onCancel={() => {}} />);
     fireEvent.change(screen.getByPlaceholderText("Full name"), { target: { value: "Sam Rivera" } });
     // label via chip, one tap (the blank box was why labels stayed empty)
     fireEvent.click(screen.getByText("Coworker"));
@@ -30,9 +30,9 @@ describe("PersonSheet", () => {
 
   it("free text overrides the chip, and register is un-set by a second tap", () => {
     const onSave = vi.fn();
-    render(<PersonSheet mode="new" group="contacts" onSave={onSave} onCancel={() => {}} />);
+    render(<PersonSheet mode="new" onSave={onSave} onCancel={() => {}} />);
     fireEvent.change(screen.getByPlaceholderText("Full name"), { target: { value: "Ana" } });
-    fireEvent.click(screen.getByText("Friend"));
+    fireEvent.click(screen.getByText("Friend")); // the label CHIP (exact match; the segment says "Close Friend")
     fireEvent.change(screen.getByPlaceholderText("Or say it your way"), { target: { value: "College roommate" } });
     fireEvent.click(screen.getByText("Professional"));
     fireEvent.click(screen.getByText("Professional")); // toggle off => unknown => clean prose
@@ -42,9 +42,20 @@ describe("PersonSheet", () => {
     expect(draft.register).toBeUndefined();
   });
 
+  it("Close Friend is its own register, distinct from the Friend label chip", () => {
+    const onSave = vi.fn();
+    render(<PersonSheet mode="new" onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText("Full name"), { target: { value: "Chris" } });
+    fireEvent.click(screen.getByText("Close Friend"));
+    fireEvent.click(screen.getByText("Save"));
+    const draft = onSave.mock.calls[0]![0] as { register?: string; relationship: string };
+    expect(draft.register).toBe("friend");
+    expect(draft.relationship).toBe(""); // the register never sets the label
+  });
+
   it("edit mode prefills and offers delete", () => {
     const onDelete = vi.fn();
-    render(<PersonSheet mode="edit" group="inner_circle" initial={{ name: "Dev", group: "inner_circle", notes: "x", color: "red" }} onSave={() => {}} onDelete={onDelete} onCancel={() => {}} />);
+    render(<PersonSheet mode="edit" initial={{ name: "Dev", group: "contacts", notes: "x", color: "red" }} onSave={() => {}} onDelete={onDelete} onCancel={() => {}} />);
     expect((screen.getByPlaceholderText("Full name") as HTMLInputElement).value).toBe("Dev");
     fireEvent.click(screen.getByText("Delete Person"));
     expect(onDelete).toHaveBeenCalled();
