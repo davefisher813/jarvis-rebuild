@@ -41,3 +41,32 @@ describe("planDay", () => {
     expect(a).toEqual(b);
   });
 });
+
+describe("work-hours placement windows (6.7)", () => {
+  it("a windowed task lands inside its window even when earlier gaps exist", () => {
+    // Day runs 7:00-21:00; work window 9:00-17:00. Task must not land at 7:00.
+    const plan = planDay([{ id: "w", text: "w", category: "work", durationMin: 60, windowS: 540, windowE: 1020 }], [], 420, 1260, 10);
+    expect(plan.blocks[0]).toMatchObject({ start: "09:00", end: "10:00" });
+  });
+
+  it("evening plan cannot place a work task: it comes back unplaced, honestly", () => {
+    // Planning starts 19:00; work window ended 17:00. Plenty of evening room.
+    const plan = planDay([{ id: "w", text: "w", category: "work", durationMin: 45, windowS: 540, windowE: 1020 }], [], 1140, 1380, 10);
+    expect(plan.blocks).toHaveLength(0);
+    expect(plan.unplaced.map((t) => t.id)).toEqual(["w"]);
+  });
+
+  it("unwindowed tasks flow around a windowed one without inheriting its limits", () => {
+    const plan = planDay(
+      [
+        { id: "w", text: "w", category: "work", durationMin: 60, windowS: 540, windowE: 1020 },
+        { id: "p", text: "p", category: "", durationMin: 60 },
+      ],
+      [], 420, 1260, 10,
+    );
+    const w = plan.blocks.find((b) => b.taskId === "w")!;
+    const p = plan.blocks.find((b) => b.taskId === "p")!;
+    expect(w.start).toBe("09:00");
+    expect(p.start).toBe("10:10"); // after w + buffer, no window of its own
+  });
+});

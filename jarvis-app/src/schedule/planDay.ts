@@ -1,7 +1,11 @@
 import type { EventItem } from "./types";
 
 // A task the user wants to fit into today, with an estimated length.
-export interface PlanTask { id: string; text: string; category: string; durationMin: number }
+// windowS/windowE (6.7): an optional placement window WITHIN the day. Used by
+// work-hours org categories: their tasks only land inside work hours, so an
+// evening plan stops proposing work into the user's night. A task that cannot
+// fit its window comes back unplaced, honestly.
+export interface PlanTask { id: string; text: string; category: string; durationMin: number; windowS?: number; windowE?: number }
 // A proposed time block for one task.
 export interface PlanBlock { taskId: string; text: string; category: string; start: string; end: string }
 export interface DayPlan { blocks: PlanBlock[]; unplaced: PlanTask[] }
@@ -42,9 +46,10 @@ export function planDay(
 
   for (const t of tasks) {
     const dur = Math.max(5, t.durationMin);
-    let s = cursor;
+    const cap = Math.min(endMin, t.windowE ?? endMin);
+    let s = Math.max(cursor, t.windowS ?? cursor);
     let placed = false;
-    while (s + dur <= endMin) {
+    while (s + dur <= cap) {
       const clash = busy.find((b) => s < b.e && b.s < s + dur);
       if (!clash) {
         blocks.push({ taskId: t.id, text: t.text, category: t.category, start: fromMin(s), end: fromMin(s + dur) });

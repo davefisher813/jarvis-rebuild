@@ -11,9 +11,13 @@ import GoalSheet from "../life/GoalSheet";
 import { rankProjects, goalProgress } from "./progress";
 import GoalDetailPage from "./GoalDetailPage";
 import { relatedProjectsForGoal, nextActionOf, isLinkDismissed, dismissLink } from "./related";
+import { stalledCandidate, dismissProjStep } from "./stalled";
 import { readSamples } from "../shared/timeSense";
 import { usePushDepth } from "../shared/pushNav";
 import { emit } from "../events";
+import { useAI } from "../ai/useAI";
+import { showToast } from "../shared/toast";
+import { todayISO } from "../tasks/grouping";
 
 type Sheet =
   | { kind: "closed" }
@@ -73,6 +77,77 @@ export default function BiggerPictureFlow({ openId, onOpenNote }: { openId?: str
   const detail = detailId ? projects.find((p) => p.id === detailId) : undefined;
   const editingProject = sheet.kind === "editProject" ? projects.find((p) => p.id === sheet.id) : undefined;
   const editingGoal = sheet.kind === "editGoal" ? goals.find((g) => g.id === sheet.id) : undefined;
+
+  // Stalled-project First Step (6.7): an active project with nothing open
+  // under it is stuck by definition. One offer at a time; dismissals stay
+  // quiet for 7 days; AI drafts the smallest opening move, accepting creates
+  // it born-linked and due today.
+  const ai = useAI();
+  const today = todayISO();
+  const [projStep, setProjStep] = useState<{ projectId: string; step: string } | null>(null);
+  const [projStepBusy, setProjStepBusy] = useState(false);
+  const stalled = useMemo(
+    () => (ai.available && !loading ? stalledCandidate(projects, tasks, today) : null),
+    // dismissTick re-reads dismissal storage after Not Now
+    [ai.available, loading, projects, tasks, today, dismissTick],
+  );
+  const projStepAsk = async () => {
+    if (!stalled || projStepBusy) return;
+    setProjStepBusy(true);
+    try {
+      const out = await ai.complete([
+        {
+          role: "user",
+          content: `The user's project "${stalled.data.title}" has no next action and nothing moving. Reply with ONLY the single smallest first physical step to get it moving, under 12 words, no quotes, no preamble. It must take under a minute.`,
+        },
+      ]);
+      const step = out.trim().split("\n")[0]?.trim();
+      if (!step) throw new Error("empty");
+      setProjStep({ projectId: stalled.id, step });
+    } catch {
+      showToast({ message: "Couldn't reach JARVIS. Try again in a bit." });
+    } finally {
+      setProjStepBusy(false);
+    }
+  };
+  const projStepAccept = async () => {
+    if (!projStep || !stalled || projStep.projectId !== stalled.id) return;
+    await tasksSvc.createTask(projStep.step, { projectId: stalled.id, category: stalled.data.category || undefined, due: today });
+    dismissProjStep(stalled.id, today);
+    setProjStep(null);
+    setDismissTick((n) => n + 1);
+    emit({ type: "suggestion.accepted", props: { kind: "proj_step" } });
+    await reload();
+    showToast({ message: "First step added to Today." });
+  };
+  const projStepDismiss = () => {
+    if (!stalled) return;
+    dismissProjStep(stalled.id, today);
+    setProjStep(null);
+    setDismissTick((n) => n + 1);
+    emit({ type: "suggestion.dismissed", props: { kind: "proj_step" } });
+  };
+  const stalledOffer = stalled ? (
+    <div className="pad-x">
+      <div className="card pad">
+        <div className="conn-name">&ldquo;{stalled.data.title}&rdquo; has nothing moving.</div>
+        {projStep && projStep.projectId === stalled.id ? (
+          <>
+            <div className="conn-meta">Start with: {projStep.step}</div>
+            <div className="offer-row">
+              <button className="btn btn-primary" onClick={() => void projStepAccept()}>Add This Step</button>
+              <button className="quiet-action" onClick={projStepDismiss}>Not Now</button>
+            </div>
+          </>
+        ) : (
+          <div className="offer-row">
+            <button className="btn btn-primary" onClick={() => void projStepAsk()} disabled={projStepBusy}>{projStepBusy ? "Thinking..." : "First Step"}</button>
+            <button className="quiet-action" onClick={projStepDismiss}>Not Now</button>
+          </div>
+        )}
+      </div>
+    </div>
+  ) : null;
 
   const saveProject = async (d: ProjectData) => {
     if (sheet.kind === "newProject") await projectsSvc.create(d);
@@ -194,6 +269,7 @@ export default function BiggerPictureFlow({ openId, onOpenNote }: { openId?: str
         goalProgressOf={goalProgressOf}
         projectRows={projectRows}
         loading={loading}
+        offer={stalledOffer}
         nextActionTextOf={nextActionTextOf}
         // Single-goal default: with exactly one goal, a new project starts
         // linked to it, visibly, one tap to undo in the sheet. A default, not

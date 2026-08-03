@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople } from "../data/NotesProvider";
+import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals } from "../data/NotesProvider";
 import { pausedCategoryIds } from "../categories/kinds";
+import { goalTitleOf, workWindowOf } from "../schedule/planMeta";
+import type { Category } from "../categories/types";
+import type { Project } from "../projects/types";
+import type { Goal } from "../life/types";
 import { todayISO, fmtTime } from "../schedule/calendar";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
@@ -84,6 +88,16 @@ export default function TodayFlow({
   const [birthdays, setBirthdays] = useState<BirthdayHit[]>([]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
+  const [catsFull, setCatsFull] = useState<Category[]>([]);
+  const projectsSvc = useProjects();
+  const goalsSvc = useGoals();
+  const [projList, setProjList] = useState<Project[]>([]);
+  const [goalList, setGoalList] = useState<Goal[]>([]);
+  useEffect(() => {
+    let on = true;
+    Promise.all([projectsSvc.list(), goalsSvc.list()]).then(([p, g]) => { if (on) { setProjList(p); setGoalList(g); } });
+    return () => { on = false; };
+  }, [projectsSvc, goalsSvc]);
   const [sheet, setSheet] = useState<{ mode: "edit"; id: string; initial: TaskDraft } | null>(null);
   const [eventSheet, setEventSheet] = useState<{ id: string; initial: EventDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
@@ -141,7 +155,7 @@ export default function TodayFlow({
 
   useEffect(() => {
     let on = true;
-    cats.list().then((list) => { if (on) { setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))); setPausedCats(pausedCategoryIds(list)); } });
+    cats.list().then((list) => { if (on) { setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))); setPausedCats(pausedCategoryIds(list)); setCatsFull(list); } });
     return () => { on = false; };
   }, [cats]);
 
@@ -219,7 +233,13 @@ export default function TodayFlow({
     .filter((t) => !pausedCats.has(t.data.category ?? "") || !!t.data.bill)
     .map((t) => {
       const due = (t.data.due as string) || "";
-      return { id: t.id, text: t.data.text, category: t.data.category ?? "", due, suggested: !!due && due <= today, overdue: !!due && due < today };
+      const win = workWindowOf(catsFull, t.data.category, routineData);
+      return {
+        id: t.id, text: t.data.text, category: t.data.category ?? "", due,
+        suggested: !!due && due <= today, overdue: !!due && due < today,
+        goal: goalTitleOf(projList, goalList, t.data.projectId),
+        ...(win ? { windowS: win.s, windowE: win.e } : {}),
+      };
     })
     .sort((a, b) => (a.suggested !== b.suggested ? (a.suggested ? -1 : 1) : (a.due || "z").localeCompare(b.due || "z")));
   const dow = new Date().getDay();

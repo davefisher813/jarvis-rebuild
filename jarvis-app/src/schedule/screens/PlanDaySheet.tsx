@@ -16,7 +16,9 @@ const MAX_THREE = 3;
 // A protected range shown in the plan: gym, meals, deep work. Fed to the planner
 // as busy time so proposed blocks route around it. Phase 2.
 export interface PlanBlocked { s: number; e: number; label: string }
-export interface PlanCandidate { id: string; text: string; category: string; suggested: boolean; overdue: boolean }
+// goal (6.7): the goal this task moves, shown under the name so picking your
+// three is also picking what they advance. windowS/E: work-hours placement.
+export interface PlanCandidate { id: string; text: string; category: string; suggested: boolean; overdue: boolean; goal?: string | null; windowS?: number; windowE?: number }
 
 function fromMin(t: number) {
   const m = Math.max(0, Math.min(24 * 60 - 1, t));
@@ -70,7 +72,7 @@ export default function PlanDaySheet({
     const picked = tasks
       .filter((t) => ids.includes(t.id))
       .sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0))
-      .map((t) => ({ id: t.id, text: t.text, category: t.category, durationMin: DEFAULT_DUR }));
+      .map((t) => ({ id: t.id, text: t.text, category: t.category, durationMin: DEFAULT_DUR, ...(t.windowS != null ? { windowS: t.windowS } : {}), ...(t.windowE != null ? { windowE: t.windowE } : {}) }));
     return planDay(picked, events, startMin, endMin, BUFFER + sizing.extraSlackMin, blocked.map((b) => ({ s: b.s, e: b.e })));
   };
 
@@ -106,7 +108,13 @@ export default function PlanDaySheet({
                   <div key={t.id} className={"p3-row" + (on ? " on" : "")} role="button" tabIndex={0} onClick={() => toggle(t.id)}>
                     <div className="p3-num">{on ? i + 1 : ""}</div>
                     <span className={"cat-dot cat-bg-" + catColor(t.category)} />
-                    <div className="p3-name truncate">{t.text}</div>
+                    <div className="row-grow">
+                      <div className="p3-name truncate">{t.text}</div>
+                      {/* What this pick MOVES (6.7): the goal at the end of
+                          the task -> project -> goal chain, right where the
+                          choice is being made. Derived; absent when unlinked. */}
+                      {t.goal && <div className="bp-sub truncate">Moves {t.goal}</div>}
+                    </div>
                     {on ? (
                       <span className="p3-time">{at ? label(at) : "No room"}</span>
                     ) : t.overdue ? (

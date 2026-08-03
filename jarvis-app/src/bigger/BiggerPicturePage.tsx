@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { Goal } from "../life/types";
 import type { ProjectRow, Progress } from "./progress";
 import { progressLabel } from "./progress";
@@ -20,12 +21,13 @@ function Bar({ p }: { p: Progress }) {
 }
 
 export default function BiggerPicturePage({
-  goals, goalProgressOf, projectRows, loading, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf,
+  goals, goalProgressOf, projectRows, loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf,
 }: {
   goals: Goal[];
   goalProgressOf: (id: string) => Progress | null;
   projectRows: ProjectRow[];
   loading?: boolean;
+  offer?: ReactNode; // the one stalled-project First Step card (6.7)
   nextActionTextOf?: (projectId: string) => string | null;
   onAddGoal: () => void;
   onOpenGoal: (id: string) => void;
@@ -58,6 +60,8 @@ export default function BiggerPicturePage({
   return (
     <div className="screen">
       <div className="nav-bar"><div className="nav-large">Bigger Picture</div></div>
+
+      {offer}
 
       <div className="sec-head">
         <div className="sec-left"><div className="sec-title">Moving Now</div></div>

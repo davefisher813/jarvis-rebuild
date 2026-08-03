@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSchedule, useCategories, useTasks, useRoutine } from "../data/NotesProvider";
+import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals } from "../data/NotesProvider";
 import { pausedCategoryIds } from "../categories/kinds";
+import { goalTitleOf, workWindowOf } from "./planMeta";
+import type { Category } from "../categories/types";
+import type { Project } from "../projects/types";
+import type { Goal } from "../life/types";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot, openSlots, fmtRange } from "./calendar";
@@ -29,6 +33,16 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const [dayEvents, setDayEvents] = useState<EventItem[]>([]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
+  const [catsFull, setCatsFull] = useState<Category[]>([]);
+  const projectsSvc = useProjects();
+  const goalsSvc = useGoals();
+  const [projList, setProjList] = useState<Project[]>([]);
+  const [goalList, setGoalList] = useState<Goal[]>([]);
+  useEffect(() => {
+    let on = true;
+    Promise.all([projectsSvc.list(), goalsSvc.list()]).then(([p, g]) => { if (on) { setProjList(p); setGoalList(g); } });
+    return () => { on = false; };
+  }, [projectsSvc, goalsSvc]);
   const [sheet, setSheet] = useState<SheetState>(null);
   const [mode, setMode] = useState<"day" | "week" | "month">("month");
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
@@ -75,6 +89,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
       if (!on) return;
       setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));
       setPausedCats(pausedCategoryIds(list));
+      setCatsFull(list);
     });
     return () => { on = false; };
   }, [cats]);
@@ -111,7 +126,13 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     .filter((t) => !pausedCats.has(t.data.category ?? "") || !!t.data.bill)
     .map((t) => {
       const due = (t.data.due as string) || "";
-      return { id: t.id, text: t.data.text, category: t.data.category ?? "", due, suggested: !!due && due <= selected, overdue: !!due && due < realToday };
+      const win = workWindowOf(catsFull, t.data.category, routineData);
+      return {
+        id: t.id, text: t.data.text, category: t.data.category ?? "", due,
+        suggested: !!due && due <= selected, overdue: !!due && due < realToday,
+        goal: goalTitleOf(projList, goalList, t.data.projectId),
+        ...(win ? { windowS: win.s, windowE: win.e } : {}),
+      };
     })
     .sort((a, b) => (a.suggested !== b.suggested ? (a.suggested ? -1 : 1) : (a.due || "z").localeCompare(b.due || "z")));
   const planDow = (() => { const p = selected.split("-"); return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])).getDay(); })();
