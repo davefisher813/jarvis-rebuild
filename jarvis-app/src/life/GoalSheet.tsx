@@ -16,8 +16,13 @@ export default function GoalSheet({ mode, initial, onSave, onDelete, onCancel }:
   onSave: (d: GoalData) => void; onDelete?: () => void; onCancel: () => void;
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
+  // Money v1: an optional dollar target turns this into a savings goal.
+  // Progress stays DERIVED (from logged entries), so this is a target, not a
+  // self-reported status; it earns its field.
+  const [target, setTarget] = useState(initial?.moneyTarget ? String(initial.moneyTarget) : "");
   const [touched, setTouched] = useState(false);
-  const valid = title.trim().length > 0;
+  const targetOk = target.trim() === "" || (Number.isFinite(Number(target)) && Number(target) > 0);
+  const valid = title.trim().length > 0 && targetOk;
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
@@ -26,12 +31,17 @@ export default function GoalSheet({ mode, initial, onSave, onDelete, onCancel }:
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Goal</div>
-            <input className={"input" + (touched && !valid ? " input-error" : "")} placeholder="e.g. Run a half marathon" value={title} onChange={(e) => setTitle(e.target.value)} />
-            {touched && !valid && <div className="input-error">Add a goal.</div>}
+            <input className={"input" + (touched && !title.trim() ? " input-error" : "")} placeholder="e.g. Run a half marathon" value={title} onChange={(e) => setTitle(e.target.value)} />
+            {touched && !title.trim() && <div className="input-error">Add a goal.</div>}
+          </div>
+          <div className="field">
+            <div className="input-label">Dollar target</div>
+            <input className={"input" + (touched && !targetOk ? " input-error" : "")} inputMode="numeric" placeholder="Optional, e.g. 2000" value={target} onChange={(e) => setTarget(e.target.value)} />
+            {touched && !targetOk && <div className="input-error">Enter a number, or leave it empty.</div>}
           </div>
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), state: initial?.state ?? "on_track", ...(initial?.areaId ? { areaId: initial.areaId } : {}) }); }}>Save</button>
+          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), state: initial?.state ?? "on_track", ...(initial?.areaId ? { areaId: initial.areaId } : {}), ...(initial?.saved ? { saved: initial.saved } : {}), moneyTarget: target.trim() ? Number(target) : undefined }); }}>Save</button>
           {mode === "edit" && onDelete && <button className="btn btn-danger btn-block" onClick={onDelete}>{TRASH}Delete Goal</button>}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>

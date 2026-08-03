@@ -356,6 +356,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .money-hero-label { font-size: var(--t-meta); color: var(--tx-3); font-weight: var(--w-medium); margin-bottom: var(--s-1); }
 .money-hero-total { font-size: var(--t-h1); font-weight: var(--w-bold); color: var(--tx-1); }
 .money-amt { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
+/* Money v1 bills (2026-08-03). .bill-pay is the pay deep-link (tint text is
+   the law for tappable non-buttons); .money-amt.paid mutes a receipt row's
+   amount so the unpaid amounts carry the visual weight. */
+.bill-pay { font-size: var(--t-body); color: var(--tint); font-weight: var(--w-semi); text-decoration: none; padding-left: var(--s-3); flex-shrink: 0; }
+.money-amt.paid { color: var(--tx-3); font-weight: var(--w-regular); }
+.money-hero-total + .money-hero-label { margin-bottom: 0; margin-top: var(--s-1); }
 .sched-loc { display: inline-flex; align-items: center; gap: var(--s-1); margin-top: var(--s-1); font-size: var(--t-meta); color: var(--tint); font-weight: var(--w-medium); text-decoration: none; }
 .sched-loc .ic { width: 16px; height: 16px; }
 .account-hero { display: flex; flex-direction: column; align-items: center; gap: var(--s-1h); padding: var(--s-6) var(--s-4); }

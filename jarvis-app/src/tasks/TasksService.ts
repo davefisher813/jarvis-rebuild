@@ -1,6 +1,6 @@
 import type { Store, Item, ItemData } from "@core";
 import type { EventInput } from "../events";
-import { ENTITY_TASK, type TaskData, type Recurrence } from "../notes/types";
+import { ENTITY_TASK, type TaskData, type Recurrence, type BillInfo } from "../notes/types";
 import { groupFor, todayISO, nextDue, type TaskGroup } from "./grouping";
 import { nextStreak } from "./lifecycle";
 import { recordCompletion } from "../shared/timeSense";
@@ -38,7 +38,7 @@ export class TasksService {
 
   async createTask(
     text: string,
-    opts: { category?: string; due?: string | null; fromNote?: string; recurrence?: Recurrence; projectId?: string } = {},
+    opts: { category?: string; due?: string | null; fromNote?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo } = {},
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
     const data: TaskData = { text: text.trim(), category: opts.category ?? "", done: false };
@@ -46,6 +46,7 @@ export class TasksService {
     if (opts.fromNote) data.fromNote = opts.fromNote;
     if (opts.recurrence) data.recurrence = opts.recurrence;
     if (opts.projectId) data.projectId = opts.projectId;
+    if (opts.bill) data.bill = opts.bill;
     const id = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_TASK, entityId: id });
     return id;
@@ -65,7 +66,11 @@ export class TasksService {
         bestRun: streak.bestRun,
       });
     } else {
-      await this.store.update(this.ownerId, id, { done: !t.done });
+      // One-time bills stamp lastDone on completion: it is the "Paid Jul 28"
+      // receipt that kills the did-I-already-pay loop (Money v1).
+      const patch: ItemData = { done: !t.done };
+      if (t.bill && !t.done) patch.lastDone = todayISO();
+      await this.store.update(this.ownerId, id, patch);
     }
     // Time Sense (silent, Phase 1): every completion logs an hour-of-day sample
     // so Phase 2 launches with a real energy curve instead of self-report.
@@ -77,6 +82,52 @@ export class TasksService {
     }
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
+  }
+
+  /**
+   * Money v1: edit a bill's facts directly. Deliberately NOT setDue: pushing a
+   * bill's date from the edit sheet must not count a slip or emit task.pushed,
+   * or bill edits would poison the Brain's slip-by-category derivation.
+   */
+  async updateBillTask(
+    id: string,
+    patch: { text?: string; due?: string | null; recurrence?: Recurrence | null; bill?: BillInfo },
+  ): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t || !t.bill) return false;
+    const next: ItemData = {};
+    if (patch.text?.trim()) next.text = patch.text.trim();
+    if (patch.due !== undefined) next.due = patch.due;
+    if (patch.recurrence !== undefined) next.recurrence = patch.recurrence;
+    if (patch.bill) next.bill = patch.bill as unknown as ItemData;
+    await this.store.update(this.ownerId, id, next);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
+  /**
+   * Money v1: autopay bills whose date has passed roll themselves forward.
+   * Nobody taps an autopay bill, so without this it would sit "overdue",
+   * which reads as a lie. lastDone records the date the payment was
+   * SCHEDULED (the old due); the copy layer says "Autopay scheduled", never
+   * "paid". No slips, no task.pushed, no task.completed: nothing happened
+   * that the app can honestly claim.
+   */
+  async rollAutopayBills(today: string = todayISO()): Promise<number> {
+    const all = await this.listTasks();
+    let rolled = 0;
+    for (const t of all) {
+      const d = t.data;
+      if (!d.bill?.autopay || d.done || !d.recurrence || !d.due || d.due >= today) continue;
+      const scheduledOn = d.due;
+      let due = d.due;
+      let guard = 0;
+      while (due < today && guard++ < 400) due = nextDue(due, d.recurrence);
+      await this.store.update(this.ownerId, t.id, { due, lastDone: scheduledOn });
+      this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: t.id });
+      rolled++;
+    }
+    return rolled;
   }
 
   async setRecurrence(id: string, recurrence: Recurrence | null): Promise<boolean> {

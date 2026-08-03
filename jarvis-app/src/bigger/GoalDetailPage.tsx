@@ -1,6 +1,11 @@
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
 import type { Progress } from "./progress";
+import { savingsLine, savingsPct, savedNewestFirst, savedTotal } from "./savings";
+import { formatMoney } from "../money/types";
+import { monthDay } from "../money/bills";
 
 // Session 6.6: a goal is a PLACE, not an edit form. One glance answers "is
 // this moving, and what happens next": an aggregate progress line in the hero
@@ -30,6 +35,7 @@ export default function GoalDetailPage({
   onAddProject,
   onLinkSuggestion,
   onDismissSuggestion,
+  onAddSavings,
 }: {
   goal: Goal;
   progress: Progress | null;
@@ -42,7 +48,12 @@ export default function GoalDetailPage({
   onAddProject: () => void;
   onLinkSuggestion?: (projectId: string) => void;
   onDismissSuggestion?: (projectId: string) => void;
+  onAddSavings?: (amount: number) => void; // Money v1: append a dated entry
 }) {
+  const target = goal.data.moneyTarget;
+  const [savingsOpen, setSavingsOpen] = useState(false);
+  const [savingsAmt, setSavingsAmt] = useState("");
+  const savingsValid = Number.isFinite(Number(savingsAmt)) && Number(savingsAmt) > 0;
   return (
     <div className="screen">
       <div className="nav-bar">
@@ -57,10 +68,40 @@ export default function GoalDetailPage({
             34px screen-title size wraps them badly */}
         <div className="proj-detail-title">{goal.data.title}</div>
         {/* The ONLY place counts appear on this page. Honest null: a goal
-            with no tasks under it yet says so instead of claiming 0%. */}
-        <div className="bp-sub">{progress ? `${progress.done} of ${progress.total} tasks done` : "No tasks under this goal yet"}</div>
-        {progress && <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, progress.pct) + "%" }} /></div>}
+            with no tasks under it yet says so instead of claiming 0%. A
+            dollar target replaces the counts line with the DERIVED savings
+            line (Money v1); the bar then tracks dollars, not tasks. */}
+        {target ? (
+          <>
+            <div className="bp-sub">{savingsLine(target, goal.data.saved)}</div>
+            {savedTotal(goal.data.saved) > 0 && (
+              <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, savingsPct(target, goal.data.saved)) + "%" }} /></div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="bp-sub">{progress ? `${progress.done} of ${progress.total} tasks done` : "No tasks under this goal yet"}</div>
+            {progress && <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, progress.pct) + "%" }} /></div>}
+          </>
+        )}
       </div></div>
+
+      {target && onAddSavings && (
+        <>
+          <div className="sec-head"><div className="sec-left"><div className="sec-title">Savings</div></div></div>
+          <div className="pad-x"><div className="card">
+            {savedNewestFirst(goal.data.saved).slice(0, 5).map((e, i) => (
+              <div className="row" key={e.d + "-" + i}>
+                <div className="row-grow"><div className="conn-name">{formatMoney(e.amount)}</div><div className="eyebrow">{monthDay(e.d)}</div></div>
+              </div>
+            ))}
+            <div className="row ob-addrow" role="button" tabIndex={0} onClick={() => { setSavingsAmt(""); setSavingsOpen(true); }}>
+              <div className="sec-ico ico-accent">{PLUS}</div>
+              <div className="row-grow"><div className="conn-name">Add to Savings</div></div>
+            </div>
+          </div></div>
+        </>
+      )}
 
       <div className="sec-head"><div className="sec-left"><div className="sec-title">Projects</div></div></div>
       <div className="pad-x"><div className="card">
@@ -99,6 +140,25 @@ export default function GoalDetailPage({
         </>
       )}
       <div className="screen-foot" />
+      {savingsOpen && onAddSavings && createPortal(
+        <div className="sheet-scrim" onClick={() => setSavingsOpen(false)}>
+          <div className="card" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            <div className="grp"><div className="eyebrow">Add to Savings</div></div>
+            <div className="pad-x sheet-form">
+              <div className="field">
+                <div className="input-label">Amount (USD)</div>
+                <input className="input" inputMode="numeric" placeholder="0" value={savingsAmt} onChange={(e) => setSavingsAmt(e.target.value)} />
+              </div>
+            </div>
+            <div className="pad-x sheet-actions">
+              <button className="btn btn-primary btn-block" onClick={() => { if (!savingsValid) return; onAddSavings(Number(savingsAmt)); setSavingsOpen(false); }}>Save</button>
+              <button className="btn btn-secondary btn-block" onClick={() => setSavingsOpen(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

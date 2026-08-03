@@ -95,7 +95,11 @@ function Row({
     setTimeout(() => { pendingDone.current = false; setLocalDone(false); onToggle?.(item.id); }, 600);
   };
 
-  const revealW = t.done ? 88 : 176; // open tasks also reveal a "tomorrow" action
+  // Open tasks also reveal a "tomorrow" action; BILLS DO NOT (Money v1):
+  // pushing rent to tomorrow in one gesture is exactly the ADHD-tax move the
+  // money track exists to stop. Delete stays; deferral needs the sheet.
+  const snoozable = !t.done && !t.bill;
+  const revealW = snoozable ? 176 : 88;
   const onStart = (e: React.TouchEvent) => {
     startX.current = e.touches[0]!.clientX;
     startY.current = e.touches[0]!.clientY;
@@ -129,7 +133,7 @@ function Row({
 
   return (
     <div className="task-swipe">
-      {!t.done && (
+      {snoozable && (
         <button className="task-snooze" onClick={() => onSnooze?.(item.id)} aria-label="Move to tomorrow">
           <Clock className="ic" />
         </button>

@@ -25,6 +25,11 @@ describe("setAsideCandidates", () => {
     expect(setAsideCandidates([task("2026-07-16")], T)).toHaveLength(0);
     expect(setAsideCandidates([task("2026-07-15")], T)).toHaveLength(1);
   });
+
+  it("NEVER sweeps a bill out of view, however overdue (Money v1 carve-out)", () => {
+    const overdueRent = task("2026-06-01", { bill: { amount: 1850 } });
+    expect(setAsideCandidates([overdueRent], T)).toHaveLength(0);
+  });
 });
 
 describe("firstStepCandidate", () => {
@@ -40,6 +45,11 @@ describe("firstStepCandidate", () => {
   it("never offers on recurring or done tasks", () => {
     expect(firstStepCandidate([task("2026-07-01", { recurrence: "daily" })], T)).toBeNull();
     expect(firstStepCandidate([task("2026-07-01", { done: true })], T)).toBeNull();
+  });
+
+  it("never offers to break a bill into a smaller step (Money v1 carve-out)", () => {
+    expect(firstStepCandidate([task("2026-07-01", { bill: { amount: 120 } })], T)).toBeNull();
+    expect(firstStepCandidate([task(T, { slips: 5, bill: { amount: 120 } })], T)).toBeNull();
   });
 });
 

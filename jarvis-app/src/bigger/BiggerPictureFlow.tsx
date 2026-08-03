@@ -156,6 +156,13 @@ export default function BiggerPictureFlow({ openId, onOpenNote }: { openId?: str
           onAddProject={() => setSheet({ kind: "newProject", goalId: goalDetail.id })}
           onLinkSuggestion={(id) => void linkSuggestion(id)}
           onDismissSuggestion={dismissSuggestion}
+          onAddSavings={async (amount) => {
+            // Dated entry, derived progress. Only real logged money ever
+            // lands here (never skipped purchases: Money v1 law).
+            const d = new Date().toISOString().slice(0, 10);
+            await goalsSvc.update(goalDetail.id, { saved: [...(goalDetail.data.saved ?? []), { d, amount }] });
+            await reload();
+          }}
         />
         {(sheet.kind === "newProject" || sheet.kind === "editGoal") && sheet.kind === "newProject" && (
           <ProjectSheet

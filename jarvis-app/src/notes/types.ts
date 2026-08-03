@@ -48,6 +48,23 @@ export interface NoteData {
 }
 
 export type Recurrence = "daily" | "weekly" | "monthly" | "weekdays";
+
+// Money v1 (2026-08-03): a bill is a task wearing money facts. Riding the task
+// entity means bills surface on Today when due with zero extra plumbing, and
+// needs no registry migration. Presence of `bill` is the ONE switch every
+// carve-out checks: bills are excluded from Set Aside, First Step, and
+// swipe-snooze (see lifecycle.ts and TasksPage), because behaviors that
+// protect feelings on tasks hide rent on bills.
+export interface BillInfo {
+  amount: number;
+  // Autopay means the app never claims "paid": it cannot know a payment
+  // cleared. Copy is always "Set to autopay" / "Autopay scheduled".
+  autopay?: boolean;
+  // The pay link is First Step for money: "find the website" is where
+  // initiation dies, so the bill stores it once.
+  payUrl?: string;
+}
+
 export interface TaskData {
   text: string;
   category: string;
@@ -60,9 +77,10 @@ export interface TaskData {
   // Lifecycle policy (ADHD strategy Phase 1). All optional and additive.
   slips?: number; // times the due date was pushed later
   asideFrom?: string | null; // previous due when Set Aside cleared it
-  lastDone?: string; // recurring: last completion date (streaks)
+  lastDone?: string; // recurring: last completion date (streaks; bills: paid receipt)
   runLen?: number; // recurring: current run length
   bestRun?: number; // recurring: best run ever (never shrinks)
+  bill?: BillInfo; // Money v1: this task is a bill (see BillInfo)
 }
 
 export type TemplateKey =

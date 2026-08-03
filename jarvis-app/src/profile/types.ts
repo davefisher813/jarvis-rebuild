@@ -20,6 +20,11 @@ export interface ProfileData {
   calendar: boolean;
   priority?: string;
   onboarded: boolean;
+  // Money v1: payday anchoring (Personal template only; Business cash flow is
+  // lumpy and Student mostly has no paycheck, so the line simply doesn't
+  // render there). amount = one paycheck; next = an upcoming payday date the
+  // math advances from by freq.
+  payday?: { amount: number; next: string; freq: "weekly" | "biweekly" | "monthly" };
 }
 
 export const EMPTY_PROFILE: ProfileData = {

@@ -5,7 +5,11 @@ export type AreaState = "strong" | "steady" | "drifting";
 export type GoalState = "on_track" | "steady" | "at_risk";
 
 export interface AreaData { name: string; state: AreaState; order?: number; }
-export interface GoalData { title: string; state: GoalState; areaId?: string; order?: number; }
+// Money v1 savings (2026-08-03): a goal may carry a dollar target. Progress is
+// DERIVED from dated entries the user logged, never self-reported, and skipped
+// purchases NEVER feed it (not-spending is not saving).
+export interface SavedEntry { d: string; amount: number }
+export interface GoalData { title: string; state: GoalState; areaId?: string; order?: number; moneyTarget?: number; saved?: SavedEntry[]; }
 export interface Area { id: string; data: AreaData; }
 export interface Goal { id: string; data: GoalData; }
 

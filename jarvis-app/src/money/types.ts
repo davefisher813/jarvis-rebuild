@@ -1,7 +1,9 @@
 export const ENTITY_ACCOUNT = "account";
 export type AccountKind = "cash" | "savings" | "investment" | "credit" | "other";
 
-export interface AccountData { name: string; balance: number; kind: AccountKind; order?: number; }
+// asOf: when the balance was last entered. Balances are self-reported and the
+// page must say so with a date (Money v1 law) rather than posing as live data.
+export interface AccountData { name: string; balance: number; kind: AccountKind; order?: number; asOf?: string; }
 export interface Account { id: string; data: AccountData; }
 
 export const ACCOUNT_META: Record<AccountKind, { label: string; slot: string }> = {

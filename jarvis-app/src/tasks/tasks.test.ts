@@ -95,3 +95,52 @@ describe("filter partitioning (chips)", () => {
     expect(byCategory(items, "missing").length).toBe(0);
   });
 });
+
+describe("bills on the task entity (Money v1)", () => {
+  it("a one-time bill stamps a dated receipt on completion", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new TasksService(store, "u1");
+    const id = await svc.createTask("Deposit for trip", { due: todayISO(), bill: { amount: 300 } });
+    await svc.toggleDone(id!);
+    const t = await svc.task(id!);
+    expect(t!.done).toBe(true);
+    expect(t!.lastDone).toBe(todayISO()); // the "Paid <date>" receipt source
+    expect(t!.bill!.amount).toBe(300);
+  });
+
+  it("rollAutopayBills advances a lapsed autopay bill without a slip or completion", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const events: string[] = [];
+    const svc = new TasksService(store, "u1", (e) => events.push(e.type));
+    const id = await svc.createTask("Rent", { due: "2026-07-01", recurrence: "monthly", bill: { amount: 1850, autopay: true } });
+    const manual = await svc.createTask("Electric", { due: "2026-07-01", recurrence: "monthly", bill: { amount: 120 } });
+    events.length = 0;
+    const rolled = await svc.rollAutopayBills("2026-08-03");
+    expect(rolled).toBe(1); // manual bills are NEVER auto-rolled
+    const t = await svc.task(id!);
+    expect(t!.due).toBe("2026-09-01");
+    expect(t!.lastDone).toBe("2026-07-01"); // the date autopay was SCHEDULED
+    expect(t!.slips ?? 0).toBe(0);
+    // nothing claimed: no task.completed, no task.pushed
+    expect(events).not.toContain("task.completed");
+    expect(events).not.toContain("task.pushed");
+    expect((await svc.task(manual!))!.due).toBe("2026-07-01"); // untouched, honestly overdue
+  });
+
+  it("updateBillTask edits facts without counting a slip", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const events: string[] = [];
+    const svc = new TasksService(store, "u1", (e) => events.push(e.type));
+    const id = await svc.createTask("Internet", { due: "2026-08-05", recurrence: "monthly", bill: { amount: 80 } });
+    events.length = 0;
+    await svc.updateBillTask(id!, { due: "2026-08-20", bill: { amount: 85, payUrl: "https://pay.example.com" } });
+    const t = await svc.task(id!);
+    expect(t!.due).toBe("2026-08-20");
+    expect(t!.bill!.amount).toBe(85);
+    expect(t!.slips ?? 0).toBe(0);
+    expect(events).not.toContain("task.pushed");
+    // and it refuses to touch a non-bill task
+    const plain = await svc.createTask("Not a bill");
+    expect(await svc.updateBillTask(plain!, { due: "2026-08-20" })).toBe(false);
+  });
+});

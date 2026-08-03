@@ -12,12 +12,16 @@ import { daysBetween } from "../upnext/upnext";
 // A task qualifies for Set Aside when it has been sitting overdue for more
 // than 14 days: at that point the red wall is shame, not information. It is
 // moved (due cleared), never deleted, and the previous due survives for Undo.
+// BILLS ARE EXCLUDED (Money v1): sweeping overdue rent out of view to protect
+// feelings is how a late fee becomes an eviction notice. An overdue bill is
+// information, and it stays.
 export const SET_ASIDE_AFTER_DAYS = 14;
 
 export function setAsideCandidates(tasks: TaskItem[], today: string): TaskItem[] {
   return tasks.filter(
     (t) =>
       !t.data.done &&
+      !t.data.bill &&
       !t.data.recurrence &&
       !!t.data.due &&
       daysBetween(t.data.due, today) > SET_ASIDE_AFTER_DAYS,
@@ -28,12 +32,14 @@ export function setAsideCandidates(tasks: TaskItem[], today: string): TaskItem[]
 
 // The task that keeps sliding: open, non-recurring, overdue 5+ days (or pushed
 // back 3+ times), oldest first. One offer at a time, ever.
+// BILLS ARE EXCLUDED (Money v1): "break Pay Rent into a smaller step" is
+// nonsense; the bill's own pay link is the money version of a first step.
 export const FIRST_STEP_OVERDUE_DAYS = 5;
 export const FIRST_STEP_SLIPS = 3;
 
 export function firstStepCandidate(tasks: TaskItem[], today: string): TaskItem | null {
   const slipping = tasks
-    .filter((t) => !t.data.done && !t.data.recurrence)
+    .filter((t) => !t.data.done && !t.data.recurrence && !t.data.bill)
     .filter((t) => {
       const byAge = !!t.data.due && daysBetween(t.data.due, today) >= FIRST_STEP_OVERDUE_DAYS;
       const byPushes = (t.data.slips ?? 0) >= FIRST_STEP_SLIPS;
