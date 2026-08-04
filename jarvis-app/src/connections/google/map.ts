@@ -157,6 +157,53 @@ export function encodeEmail(msg: { to: string; subject: string; body: string; in
   return b64urlEncode(headers.join("\r\n") + "\r\n\r\n" + msg.body);
 }
 
+// --- Threads (Email rebuild) ---
+// A thread's list row speaks with the LATEST message's voice (that is what is
+// new) but keeps the FIRST message's subject (that is what the conversation
+// is about, before the Re: Re: Re: pileup).
+export interface GmailThreadMeta { id: string; messages?: GmailMeta[] }
+export interface GmailThreadFull { id: string; messages?: GmailFull[] }
+
+export interface ThreadRow {
+  id: string;
+  from: string;       // display name of latest sender
+  fromEmail: string;
+  subject: string;
+  snippet: string;    // latest message snippet
+  unread: boolean;    // any message unread
+  inInbox: boolean;   // any message still labeled INBOX
+  dateMs: number;     // latest message time
+  count: number;      // messages in thread
+  lastMsgId: string;  // triage cache key: a new message re-triages the thread
+}
+
+export function mapThread(t: GmailThreadMeta): ThreadRow | null {
+  const msgs = t.messages || [];
+  const first = msgs[0];
+  const last = msgs[msgs.length - 1];
+  if (!t.id || !first || !last) return null;
+  return {
+    id: t.id,
+    from: displayFrom(header(last, "From")),
+    fromEmail: emailOf(header(last, "From")),
+    subject: (header(first, "Subject") || header(last, "Subject") || "(no subject)").replace(/^(re|fwd?):\s*/i, ""),
+    snippet: last.snippet || "",
+    unread: msgs.some((m) => (m.labelIds || []).includes("UNREAD")),
+    inInbox: msgs.some((m) => (m.labelIds || []).includes("INBOX")),
+    dateMs: Number(last.internalDate) || 0,
+    count: msgs.length,
+    lastMsgId: last.id,
+  };
+}
+
+export interface ThreadFull { id: string; subject: string; messages: MailFull[] }
+
+export function mapThreadFull(t: GmailThreadFull): ThreadFull {
+  const messages = (t.messages || []).map(mapGmailFull);
+  const subject = (messages[0]?.subject || "(no subject)").replace(/^(re|fwd?):\s*/i, "");
+  return { id: t.id, subject, messages };
+}
+
 // --- Inbox (Messages tab) ---
 export interface InboxRow {
   id: string;

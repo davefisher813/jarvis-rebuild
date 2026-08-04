@@ -1,4 +1,4 @@
-import type { GCalEvent, GmailMeta, GmailFull } from "./map";
+import type { GCalEvent, GmailMeta, GmailFull, GmailThreadMeta, GmailThreadFull } from "./map";
 
 // The network surface, as an interface so the orchestration above it can be
 // tested with a mock. createGoogleApi is the real implementation; pass a fake
@@ -13,6 +13,10 @@ export interface GoogleApi {
   listDrafts(max: number): Promise<{ id: string; message: GmailMeta }[]>;
   getDraft(id: string): Promise<{ id: string; message: GmailFull }>;
   deleteDraft(id: string): Promise<void>;
+  listThreads(max: number): Promise<GmailThreadMeta[]>;
+  searchThreads(q: string, max: number): Promise<GmailThreadMeta[]>;
+  getThread(id: string): Promise<GmailThreadFull>;
+  modifyThread(id: string, add: string[], remove: string[]): Promise<void>;
 }
 
 type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<{
@@ -113,5 +117,47 @@ export function createGoogleApi(token: string, doFetch: FetchLike = fetch as unk
       const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts/" + id, { method: "DELETE", headers: auth.headers });
       if (!r.ok) throw new Error("draft del " + r.status);
     },
+    async listThreads(max) {
+      return fetchThreadMetas(doFetch, auth, "labelIds=INBOX&maxResults=" + max);
+    },
+    async searchThreads(q, max) {
+      return fetchThreadMetas(doFetch, auth, "q=" + encodeURIComponent(q) + "&maxResults=" + max);
+    },
+    async getThread(id) {
+      const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/threads/" + id + "?format=full", auth);
+      if (!r.ok) throw new Error("thread " + r.status);
+      return (await r.json()) as GmailThreadFull;
+    },
+    async modifyThread(id, add, remove) {
+      const r = await doFetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/threads/" + id + "/modify", {
+          method: "POST",
+          headers: { ...auth.headers, "Content-Type": "application/json" },
+          body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }),
+        });
+      if (!r.ok) throw new Error("thread modify " + r.status);
+    },
   };
+}
+
+// threads.list gives only ids; each thread's headers come from a metadata get.
+// Same N+1 shape the message paths already use; fine at inbox sizes.
+async function fetchThreadMetas(
+  doFetch: FetchLike,
+  auth: { headers: Record<string, string> },
+  query: string,
+): Promise<GmailThreadMeta[]> {
+  const lr = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/threads?" + query, auth);
+  if (!lr.ok) throw new Error("threads " + lr.status);
+  const list = (await lr.json()) as { threads?: { id: string }[] };
+  const out: GmailThreadMeta[] = [];
+  for (const t of list.threads || []) {
+    const r = await doFetch(
+      "https://gmail.googleapis.com/gmail/v1/users/me/threads/" + t.id +
+      "?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=To",
+      auth,
+    );
+    if (r.ok) out.push((await r.json()) as GmailThreadMeta);
+  }
+  return out;
 }

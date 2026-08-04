@@ -1,33 +1,55 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "../data/NotesProvider";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";
 import { AIService } from "../ai/AIService";
+import type { GmailMeta, GmailThreadMeta } from "../connections/google/map";
 import MessagesFlow from "./MessagesFlow";
 
 const noAI = new AIService({ available: false });
 
-const api = makeFakeGoogleApi({
-  listInbox: async () => [
-    { id: "m1", snippet: "hi", labelIds: ["INBOX", "UNREAD"], internalDate: "200",
-      payload: { headers: [{ name: "From", value: "Sam <s@x.com>" }, { name: "Subject", value: "Lunch?" }] } },
-    { id: "m2", snippet: "yo", labelIds: ["INBOX"], internalDate: "100",
-      payload: { headers: [{ name: "From", value: "Wei <w@x.com>" }, { name: "Subject", value: "Intro" }] } },
-  ],
-  getMessage: async (id: string) => ({
-    id, threadId: "t1",
-    payload: {
-      mimeType: "text/plain",
-      body: { data: btoa("Lets get lunch") },
-      headers: [{ name: "From", value: "Sam <s@x.com>" }, { name: "Subject", value: "Lunch?" }, { name: "Date", value: "Mon" }],
-    },
-  }),
+const aiReturning = (text: string) => new AIService({
+  available: true,
+  getToken: () => "tok",
+  fetchImpl: (async () => ({ ok: true, status: 200, json: async () => ({ text }), text: async () => "" })) as unknown as typeof fetch,
 });
 
-function wrap(node: React.ReactNode) {
+
+const msg = (id: string, from: string, subject: string, snippet: string, labels: string[], dateMs: number): GmailMeta => ({
+  id, snippet, labelIds: labels, internalDate: String(dateMs),
+  payload: { headers: [{ name: "From", value: from }, { name: "Subject", value: subject }] },
+});
+
+const THREADS: GmailThreadMeta[] = [
+  { id: "t1", messages: [
+    msg("m1", "Tucci <t@x.com>", "Waiver", "Need the waiver by Friday", ["INBOX"], 100),
+    msg("m2", "Tucci <t@x.com>", "Re: Waiver", "Haven't seen it yet", ["INBOX", "UNREAD"], 300),
+  ] },
+  { id: "t2", messages: [msg("m3", "DoorDash <no@dd.com>", "20% off", "Order now", ["INBOX"], 200)] },
+];
+
+const fullThread = {
+  id: "t1",
+  messages: [
+    { id: "m1", threadId: "t1", snippet: "", payload: { mimeType: "text/plain", body: { data: btoa("Need the waiver by Friday") },
+      headers: [{ name: "From", value: "Tucci <t@x.com>" }, { name: "Subject", value: "Waiver" }, { name: "Date", value: "Mon" }, { name: "Message-ID", value: "<a@x>" }] } },
+    { id: "m2", threadId: "t1", snippet: "", payload: { mimeType: "text/plain", body: { data: btoa("Haven't seen it yet") },
+      headers: [{ name: "From", value: "Tucci <t@x.com>" }, { name: "Subject", value: "Re: Waiver" }, { name: "Date", value: "Thu" }, { name: "Message-ID", value: "<b@x>" }] } },
+  ],
+};
+
+function makeApi(o: Parameters<typeof makeFakeGoogleApi>[0] = {}) {
+  return makeFakeGoogleApi({
+    listThreads: async () => THREADS,
+    getThread: async () => fullThread,
+    ...o,
+  });
+}
+
+function wrap(node: React.ReactNode, api = makeApi()) {
   return (
     <NotesProvider userId="u1">
       <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}>{node}</GoogleSessionProvider>
@@ -35,20 +57,107 @@ function wrap(node: React.ReactNode) {
   );
 }
 
-describe("MessagesFlow", () => {
-  it("connects and lists the real inbox", async () => {
+beforeEach(() => localStorage.clear());
+
+describe("MessagesFlow (threads)", () => {
+  it("connects and lists threads: latest sender's voice, first message's subject, count", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    expect(await screen.findByText("Lunch?")).toBeInTheDocument();
-    expect(screen.getByText("Sam")).toBeInTheDocument();
+    expect(await screen.findByText("Tucci")).toBeInTheDocument();
+    expect(screen.getByText(/Waiver · 2/)).toBeInTheDocument(); // subject without Re:, with count
+    expect(screen.getByText("DoorDash")).toBeInTheDocument();
   });
 
-  it("opens a message and shows its body", async () => {
+  it("without AI there is no fake triage: no headline, no buckets, threads newest-first", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    fireEvent.click(await screen.findByText("Lunch?"));
-    expect(await screen.findByText("Lets get lunch")).toBeInTheDocument();
-    expect(screen.getByText("Reply")).toBeInTheDocument();
+    await screen.findByText("Tucci");
+    expect(screen.queryByText(/needs? you/i)).toBeNull();
+    expect(screen.queryByText("Noise")).toBeNull();
+    const names = screen.getAllByText(/^(Tucci|DoorDash)$/).map((n) => n.textContent);
+    expect(names).toEqual(["Tucci", "DoorDash"]); // t1 latest msg 300 > t2 200
+  });
+
+  it("with AI, one triage pass buckets the inbox with gists and the honest headline", async () => {
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "needs_you", gist: "Tucci needs the waiver by Friday." },
+      { id: "t2", bucket: "noise", gist: "DoorDash promo." },
+    ]));
+    render(wrap(<MessagesFlow ai={ai} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    expect(await screen.findByText("Needs You")).toBeInTheDocument();
+    expect(screen.getByText("1 needs you. The rest is handled.")).toBeInTheDocument();
+    expect(screen.getByText(/Tucci needs the waiver by Friday/)).toBeInTheDocument();
+    expect(screen.getByText("Noise")).toBeInTheDocument();
+    expect(screen.getByText("1 automated email")).toBeInTheDocument();
+    // Noise is collapsed: the promo thread is one line, not a row per sender.
+    expect(screen.queryByText(/DoorDash promo/)).toBeNull();
+  });
+
+  it("Archive All clears noise threads and says what it did", async () => {
+    const archived: string[] = [];
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "needs_you", gist: "g" },
+      { id: "t2", bucket: "noise", gist: "promo" },
+    ]));
+    const api = makeApi({ modifyThread: async (id, _a, remove) => { if (remove.includes("INBOX")) archived.push(id); } });
+    render(wrap(<MessagesFlow ai={ai} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Archive All"));
+    await waitFor(() => expect(archived).toEqual(["t2"]));
+    expect(screen.getByText("1 conversation archived")).toBeInTheDocument();
+    expect(screen.queryByText("Noise")).toBeNull();
+    expect(screen.getByText(/Tucci/)).toBeInTheDocument(); // needs_you untouched
+  });
+
+  it("opens a thread: every message shown, thread marked read", async () => {
+    let readCleared: string | null = null;
+    const api = makeApi({ modifyThread: async (id, _a, remove) => { if (remove.includes("UNREAD")) readCleared = id; } });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Tucci"));
+    expect(await screen.findByText("Need the waiver by Friday")).toBeInTheDocument();
+    expect(screen.getByText("Haven't seen it yet")).toBeInTheDocument();
+    expect(screen.getByText("2 messages")).toBeInTheDocument();
+    await waitFor(() => expect(readCleared).toBe("t1"));
+  });
+
+  it("reply targets the LAST message in the thread", async () => {
+    render(wrap(<MessagesFlow ai={noAI} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Tucci"));
+    fireEvent.click(await screen.findByText("Reply"));
+    expect(((await screen.findByPlaceholderText("To")) as HTMLInputElement).value).toBe("t@x.com");
+    expect((screen.getByPlaceholderText("Subject") as HTMLInputElement).value).toBe("Re: Waiver"); // already Re:, not stacked
+  });
+
+  it("search hits the server over the whole mailbox, not the loaded list", async () => {
+    let q: string | null = null;
+    const api = makeApi({
+      searchThreads: async (query) => {
+        q = query;
+        return [{ id: "t9", messages: [msg("m9", "Sarah <s@x.com>", "LLC docs", "Operating agreement", [], 50)] }];
+      },
+    });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Tucci");
+    fireEvent.change(screen.getByPlaceholderText("Search all mail"), { target: { value: "llc" } });
+    fireEvent.keyDown(screen.getByPlaceholderText("Search all mail"), { key: "Enter" });
+    expect(await screen.findByText("Sarah")).toBeInTheDocument();
+    expect(q).toBe("llc");
+    expect(screen.queryByText("Tucci")).toBeNull(); // results replace the list
+    fireEvent.change(screen.getByPlaceholderText("Search all mail"), { target: { value: "" } });
+    expect(await screen.findByText("Tucci")).toBeInTheDocument(); // clearing restores
+  });
+
+  it("triage failure falls back to the plain list, never an invented sort", async () => {
+    const ai = aiReturning("I refuse to answer with JSON today.");
+    render(wrap(<MessagesFlow ai={ai} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    expect(await screen.findByText("Tucci")).toBeInTheDocument();
+    expect(screen.queryByText("Needs You")).toBeNull();
+    expect(screen.queryByText("Noise")).toBeNull();
   });
 
   it("composes and sends", async () => {
@@ -60,15 +169,15 @@ describe("MessagesFlow", () => {
     await waitFor(() => expect(screen.getByText("Sent")).toBeInTheDocument());
   });
 
-  it("shows an honest setup state when unconfigured (no fake text inbox)", () => {
+  it("shows an honest setup state when unconfigured", () => {
     render(wrap(<MessagesFlow ai={noAI} configured={false} />));
     expect(screen.getByText("Email setup required")).toBeInTheDocument();
-    expect(screen.queryByText("Texts aren't available")).toBeNull();
   });
+
   it("lists drafts, opens one prefilled, and deletes it after sending", async () => {
     let deleted: string | null = null;
-    const dapi = makeFakeGoogleApi({
-      listInbox: async () => [],
+    const api = makeApi({
+      listThreads: async () => [],
       listDrafts: async () => [{ id: "d1", message: { id: "m9", snippet: "draft body",
         payload: { headers: [{ name: "To", value: "z@x.com" }, { name: "Subject", value: "Hello draft" }] } } }],
       getDraft: async (id: string) => ({ id, message: { id: "m9", threadId: "t9",
@@ -76,27 +185,12 @@ describe("MessagesFlow", () => {
           headers: [{ name: "To", value: "z@x.com" }, { name: "Subject", value: "Hello draft" }] } } }),
       deleteDraft: async (id: string) => { deleted = id; },
     });
-    render(
-      <NotesProvider userId="u1">
-        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => dapi}>
-          <MessagesFlow ai={noAI} configured />
-        </GoogleSessionProvider>
-      </NotesProvider>,
-    );
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
     fireEvent.click(await screen.findByText(/Drafts/));
     fireEvent.click(await screen.findByText("Hello draft"));
     expect(((await screen.findByPlaceholderText("To")) as HTMLInputElement).value).toBe("z@x.com");
     fireEvent.click(screen.getByText("Send"));
     await waitFor(() => expect(deleted).toBe("d1"));
-  });
-
-  it("filters the inbox with search", async () => {
-    render(wrap(<MessagesFlow ai={noAI} configured />));
-    fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("Lunch?");
-    fireEvent.change(screen.getByPlaceholderText("Search mail"), { target: { value: "intro" } });
-    expect(screen.queryByText("Lunch?")).toBeNull();
-    expect(screen.getByText("Intro")).toBeInTheDocument();
   });
 });

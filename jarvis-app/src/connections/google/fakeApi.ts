@@ -1,5 +1,5 @@
 import type { GoogleApi } from "./api";
-import type { GCalEvent, GmailMeta, GmailFull } from "./map";
+import type { GCalEvent, GmailMeta, GmailFull, GmailThreadMeta, GmailThreadFull } from "./map";
 
 // A complete GoogleApi stub for tests and the bench. Override only the methods a
 // given test exercises; the rest return empty/no-op so the type stays satisfied.
@@ -14,5 +14,9 @@ export function makeFakeGoogleApi(o: Partial<GoogleApi> = {}): GoogleApi {
     listDrafts: o.listDrafts ?? (async () => []),
     getDraft: o.getDraft ?? (async (id: string) => ({ id, message: { id } as GmailFull })),
     deleteDraft: o.deleteDraft ?? (async () => {}),
+    listThreads: o.listThreads ?? (async () => [] as GmailThreadMeta[]),
+    searchThreads: o.searchThreads ?? (async () => [] as GmailThreadMeta[]),
+    getThread: o.getThread ?? (async (id: string) => ({ id, messages: [] }) as GmailThreadFull),
+    modifyThread: o.modifyThread ?? (async () => {}),
   };
 }
