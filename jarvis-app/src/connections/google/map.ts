@@ -70,6 +70,7 @@ export interface GmailFull extends GmailMeta {
   threadId?: string;
   payload?: { headers?: GmailHeader[]; mimeType?: string; body?: { data?: string }; parts?: GmailPart[] };
 }
+export interface MailAttachment { filename: string; mime: string; attachmentId: string }
 export interface MailFull extends MailRow {
   to: string;
   fromEmail: string;
@@ -77,6 +78,17 @@ export interface MailFull extends MailRow {
   body: string;
   threadId: string;
   messageId: string;
+  attachments: MailAttachment[];
+}
+
+// Raw bytes of a base64url string (attachment downloads need bytes, not text).
+export function b64urlDecodeBytes(d: string): Uint8Array {
+  try {
+    const bin = atob(d.replace(/-/g, "+").replace(/_/g, "/"));
+    return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  } catch {
+    return new Uint8Array(0);
+  }
 }
 
 function b64urlDecode(d: string): string {
@@ -123,9 +135,20 @@ function emailOf(raw: string): string {
   return (m && m[1]!.trim()) || raw.trim();
 }
 
+function collectAttachments(part: GmailPart | undefined, out: MailAttachment[]): void {
+  if (!part) return;
+  const p = part as GmailPart & { filename?: string; body?: { attachmentId?: string } };
+  if (p.filename && p.body?.attachmentId) {
+    out.push({ filename: p.filename, mime: p.mimeType || "application/octet-stream", attachmentId: p.body.attachmentId });
+  }
+  for (const c of part.parts || []) collectAttachments(c, out);
+}
+
 export function mapGmailFull(m: GmailFull): MailFull {
   const row = mapGmailMessage(m);
   const hs = m.payload?.headers;
+  const attachments: MailAttachment[] = [];
+  collectAttachments(m.payload as GmailPart | undefined, attachments);
   return {
     ...row,
     to: headerOf(hs, "To"),
@@ -134,6 +157,7 @@ export function mapGmailFull(m: GmailFull): MailFull {
     body: extractBody(m.payload),
     threadId: m.threadId || "",
     messageId: headerOf(hs, "Message-ID"),
+    attachments,
   };
 }
 
@@ -150,11 +174,39 @@ export function buildReply(orig: MailFull, body: string): {
   };
 }
 
-// Encodes a plain-text email as the base64url RFC822 string Gmail's send wants.
-export function encodeEmail(msg: { to: string; subject: string; body: string; inReplyTo?: string }): string {
-  const headers = ["To: " + msg.to, "Subject: " + msg.subject, "Content-Type: text/plain; charset=UTF-8"];
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// Encodes an email as the base64url RFC822 string Gmail's send wants.
+// Plain text by default. With pixelUrl (email 3 open tracking) it becomes
+// multipart/alternative: the same text, plus an HTML part that is nothing but
+// the escaped text and one 1x1 tracking image. The words the recipient reads
+// are identical either way.
+export function encodeEmail(msg: { to: string; subject: string; body: string; inReplyTo?: string; pixelUrl?: string }): string {
+  const headers = ["To: " + msg.to, "Subject: " + msg.subject];
   if (msg.inReplyTo) headers.push("In-Reply-To: " + msg.inReplyTo, "References: " + msg.inReplyTo);
-  return b64urlEncode(headers.join("\r\n") + "\r\n\r\n" + msg.body);
+  if (!msg.pixelUrl) {
+    headers.push("Content-Type: text/plain; charset=UTF-8");
+    return b64urlEncode(headers.join("\r\n") + "\r\n\r\n" + msg.body);
+  }
+  const boundary = "=_jarvis_" + Math.abs(msg.body.length * 31 + msg.to.length).toString(36) + "_b";
+  headers.push('Content-Type: multipart/alternative; boundary="' + boundary + '"');
+  const html =
+    "<div>" + escapeHtml(msg.body).replace(/\r?\n/g, "<br>") + "</div>" +
+    '<img src="' + msg.pixelUrl + '" width="1" height="1" alt="">';
+  const parts = [
+    "--" + boundary,
+    "Content-Type: text/plain; charset=UTF-8",
+    "",
+    msg.body,
+    "--" + boundary,
+    "Content-Type: text/html; charset=UTF-8",
+    "",
+    html,
+    "--" + boundary + "--",
+  ].join("\r\n");
+  return b64urlEncode(headers.join("\r\n") + "\r\n\r\n" + parts);
 }
 
 // --- Threads (Email rebuild) ---

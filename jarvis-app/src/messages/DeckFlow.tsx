@@ -6,6 +6,7 @@ import { useTasks, useSchedule, usePeople } from "../data/NotesProvider";
 import { emit } from "../events";
 import { buildPlanPrompt, parseDeckPlan, primaryLabel, laterTaskTitle, type DeckPlan, type VoiceProfile } from "./deck";
 import { voiceExamplesFor } from "./voiceExamples";
+import { newTrackId, pixelUrlFor, saveTrack, registerTrack } from "./tracking";
 import { showToast } from "../shared/toast";
 
 // The Deal With It deck (email 2): one email at a time, the decision already
@@ -13,10 +14,11 @@ import { showToast } from "../shared/toast";
 // Schedule, or a task. One tap closes the loop and advances. "Later" files a
 // real task pointing back at the email, so deferring never means losing.
 // Nothing sends, files, or schedules without the tap.
-export default function DeckFlow({ ai, api, threads, onDone, onExit, onOpenThread, onEditReply, onHandled }: {
+export default function DeckFlow({ ai, api, threads, token, onDone, onExit, onOpenThread, onEditReply, onHandled }: {
   ai: AIService;
   api: GoogleApi;
   threads: ThreadRow[];
+  token?: string;
   onDone: (handled: number, ms: number) => void;
   onExit: () => void;
   onOpenThread: (id: string) => void;
@@ -89,7 +91,13 @@ export default function DeckFlow({ ai, api, threads, onDone, onExit, onOpenThrea
       if (plan.kind === "reply" && plan.reply) {
         const last = thread.messages[thread.messages.length - 1]!;
         const r = buildReply(last, plan.reply);
-        await api.sendMessage(encodeEmail({ to: r.to, subject: r.subject, body: plan.reply, inReplyTo: r.inReplyTo }), r.threadId);
+        const trackId = newTrackId();
+        const sent = await api.sendMessage(
+          encodeEmail({ to: r.to, subject: r.subject, body: plan.reply, inReplyTo: r.inReplyTo, pixelUrl: pixelUrlFor(trackId) }),
+          r.threadId,
+        );
+        saveTrack(trackId, { threadId: sent.threadId || r.threadId || sent.id, sentAt: Date.now() });
+        void registerTrack(trackId, token);
         archiveRemote(row.id);
         // The honest voice metric: sent exactly as drafted (edited sends are
         // logged from the compose path with edited: true).

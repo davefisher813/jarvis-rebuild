@@ -18,5 +18,7 @@ export function makeFakeGoogleApi(o: Partial<GoogleApi> = {}): GoogleApi {
     searchThreads: o.searchThreads ?? (async () => [] as GmailThreadMeta[]),
     getThread: o.getThread ?? (async (id: string) => ({ id, messages: [] }) as GmailThreadFull),
     modifyThread: o.modifyThread ?? (async () => {}),
+    getProfile: o.getProfile ?? (async () => ({ emailAddress: "me@example.com" })),
+    getAttachment: o.getAttachment ?? (async () => ({ data: "", size: 0 })),
   };
 }

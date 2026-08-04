@@ -92,3 +92,10 @@ export function useAuth(): AuthValue {
   if (!v) throw new Error("useAuth must be used inside AuthProvider");
   return v;
 }
+
+// For features where auth is an ENHANCEMENT, not a requirement (open-tracking
+// registration, for one): outside AuthProvider this returns null instead of
+// throwing, so demo mode, the bench, and component tests need no auth stack.
+export function useOptionalSession(): Session | null {
+  return useContext(AuthContext)?.session ?? null;
+}

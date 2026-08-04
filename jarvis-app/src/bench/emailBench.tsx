@@ -74,10 +74,42 @@ const FULLS: Record<string, GmailThreadFull> = {
   t_patel: full("t_patel", [{ from: "Dr. Patel's Office <front@patelmed.com>", subject: "Appointment reminder", date: "Yesterday", body: "Please confirm your appointment on Aug 8 at 2:30 PM. Reply CONFIRM or call us." }]),
 };
 
+// The waiver form rides the first Tucci message as a real attachment part.
+{
+  const first = FULLS.t_tucci?.messages?.[0] as { payload?: { parts?: unknown[] } } | undefined;
+  if (first?.payload) {
+    first.payload.parts = [
+      { filename: "waiver.pdf", mimeType: "application/pdf", body: { attachmentId: "att1" } },
+    ];
+  }
+}
+
+// Sent mail for Waiting On: Sarah owes a reply (4 days), Bo already replied.
+const SENT_THREADS: GmailThreadMeta[] = [
+  { id: "t_sent_sarah", messages: [
+    { id: "ms1", snippet: "Attached the operating agreement draft", internalDate: String(NOW - 96 * H),
+      payload: { headers: [
+        { name: "From", value: "Dave <dave@x.com>" },
+        { name: "To", value: "Sarah <sarah@y.com>" },
+        { name: "Subject", value: "LLC operating agreement" },
+      ] } },
+  ] },
+  { id: "t_sent_bo", messages: [
+    { id: "ms2", snippet: "You in for Saturday?", internalDate: String(NOW - 120 * H),
+      payload: { headers: [
+        { name: "From", value: "Dave <dave@x.com>" }, { name: "To", value: "Bo <bo@y.com>" },
+        { name: "Subject", value: "Saturday" } ] } },
+    { id: "ms3", snippet: "Yessir", internalDate: String(NOW - 100 * H),
+      payload: { headers: [
+        { name: "From", value: "Bo <bo@y.com>" }, { name: "To", value: "Dave <dave@x.com>" },
+        { name: "Subject", value: "Re: Saturday" } ] } },
+  ] },
+];
+
 // A thread without a hand-written full view synthesizes one from its meta, so
 // EVERY thread opens (the walk caught a dead-end tap on a fixture gap).
 function synthFull(id: string): GmailThreadFull {
-  const meta = THREADS.find((t) => t.id === id);
+  const meta = [...THREADS, ...SENT_THREADS].find((t) => t.id === id);
   return full(id, (meta?.messages || []).map((m) => ({
     from: (m.payload?.headers || []).find((h) => h.name === "From")?.value || "Someone <s@x.com>",
     subject: (m.payload?.headers || []).find((h) => h.name === "Subject")?.value || "(no subject)",
@@ -89,8 +121,13 @@ function synthFull(id: string): GmailThreadFull {
 const api = makeFakeGoogleApi({
   listThreads: async () => THREADS,
   getThread: async (id) => FULLS[id] ?? synthFull(id),
-  searchThreads: async (q) => THREADS.filter((t) =>
-    JSON.stringify(t).toLowerCase().includes(q.toLowerCase())),
+  searchThreads: async (q) => {
+    if (q.includes("in:sent to:")) return []; // no voice examples on the bench
+    if (q.includes("in:sent")) return SENT_THREADS;
+    return THREADS.filter((t) => JSON.stringify(t).toLowerCase().includes(q.toLowerCase()));
+  },
+  getProfile: async () => ({ emailAddress: "dave@x.com" }),
+  getAttachment: async () => ({ data: btoa("PDFBYTES").replace(/\+/g, "-").replace(/\//g, "_"), size: 8 }),
 });
 
 // Scripted AI: answers by recognizing which prompt MessagesFlow sent.
@@ -121,6 +158,7 @@ const fetchImpl = (async (_url: RequestInfo | URL, init?: RequestInit) => {
       text = JSON.stringify({ kind: "archive", why: "Nothing needed." });
     }
   }
+  else if (body.includes("follow-up nudge")) text = "Hey Sarah, floating this back to the top of your inbox. No rush, just don't want it to slip.";
   else if (body.includes("Summarize this email conversation")) text = "Tucci needs the signed waiver by Friday; he has followed up twice and the blank form is on the first message.";
   else if (body.includes("3 short reply options")) text = JSON.stringify(["Sending it tonight", "Done by morning", "Call you at noon"]);
   return { ok: true, status: 200, json: async () => ({ text }), text: async () => "" };
@@ -131,7 +169,7 @@ const ai = new AIService({ available: true, fetchImpl, getToken: () => "bench" }
 createRoot(document.getElementById("root")!).render(
   <NotesProvider userId="bench">
     <GoogleSessionProvider requestToken={async () => "bench-token"} makeApi={() => api}>
-      <MessagesFlow ai={ai} configured />
+      <MessagesFlow ai={ai} configured token="bench-token" />
     </GoogleSessionProvider>
   </NotesProvider>,
 );

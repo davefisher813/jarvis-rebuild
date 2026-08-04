@@ -16,6 +16,10 @@ import DeckFlow from "./DeckFlow";
 import { emit } from "../events";
 import { usePushDepth } from "../shared/pushNav";
 import { Burst } from "../shared/Burst";
+import { useOptionalSession } from "../auth/AuthProvider";
+import { findWaiting, waitingLine, nudgePrompt, type WaitingRow } from "./waiting";
+import { loadTracks, saveTrack, trackForThread, newTrackId, pixelUrlFor, registerTrack, checkOpens } from "./tracking";
+import { b64urlDecodeBytes } from "../connections/google/map";
 
 type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean };
 type DraftRow = { id: string; to: string; subject: string; snippet: string };
@@ -53,8 +57,10 @@ function fmtWhen(ms: number): string {
 // so junk is never opened. The headline counts what needs Dave, never unread.
 // Threads are the unit throughout; search is server-side over the whole
 // mailbox. Without AI the tab is an honest threaded list — no fake triage.
-export default function MessagesFlow({ ai, configured = googleConfigured() }: { ai: AIService; configured?: boolean }) {
+export default function MessagesFlow({ ai, configured = googleConfigured(), token }: { ai: AIService; configured?: boolean; token?: string }) {
   const g = useGoogle();
+  const session = useOptionalSession();
+  const authToken = token ?? session?.access_token;
   const [view, setView] = useState<View>("list");
   const [rows, setRows] = useState<ThreadRow[]>([]);
   const [triage, setTriage] = useState<TriageMap>({});
@@ -71,6 +77,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
   // and silently skipped an email (caught by the email 2 walk). A skipped
   // email nobody decided on is this feature's worst failure.
   const [deckRows, setDeckRows] = useState<ThreadRow[] | null>(null);
+  const [waiting, setWaiting] = useState<WaitingRow[]>([]);
+  const [opens, setOpens] = useState<Record<string, string>>({}); // threadId -> first-open ISO
+  const [nudging, setNudging] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [filter, setFilter] = useState<Filter>("triage");
@@ -126,12 +135,69 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
       setRows(mapped);
       setTriage(loadTriageCache());
       void runTriage(mapped);
+      void loadWaiting(api);
     } catch (e) {
       setError((e as Error).message || "Could not load mail");
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [g, runTriage]);
+
+  // Waiting On is a bonus layer: it loads after the inbox and fails to
+  // nothing. Opens are looked up only for threads we actually tracked.
+  const loadWaiting = async (api: NonNullable<ReturnType<typeof g.api>>) => {
+    try {
+      const w = await findWaiting(api, Date.now());
+      setWaiting(w);
+      const tracks = loadTracks();
+      const pairs = w
+        .map((row) => ({ threadId: row.threadId, trackId: trackForThread(row.threadId, tracks) }))
+        .filter((p): p is { threadId: string; trackId: string } => !!p.trackId);
+      if (pairs.length) {
+        const found = await checkOpens(pairs.map((p) => p.trackId), authToken);
+        const byThread: Record<string, string> = {};
+        for (const p of pairs) if (found[p.trackId]) byThread[p.threadId] = found[p.trackId]!;
+        setOpens(byThread);
+      }
+    } catch { setWaiting([]); }
+  };
+
+  // Tap a Waiting On row: JARVIS drafts the nudge, the user gets it in
+  // compose. It never auto-sends: a nudge is a relationship move.
+  const startNudge = async (row: WaitingRow) => {
+    const api = g.api();
+    if (!api || nudging) return;
+    setNudging(row.threadId);
+    try {
+      const full = mapThreadFull(await api.getThread(row.threadId));
+      const last = full.messages[full.messages.length - 1];
+      if (!last) return;
+      let body = "";
+      if (ai.available) {
+        try {
+          const p = nudgePrompt(row);
+          body = (await ai.complete([{ role: "user", content: p.user }], p.system, { tier: "write" })).trim();
+        } catch { body = ""; }
+      }
+      setEditingDraftId(null);
+      // No thread state: a nudge starts from HOME, so compose's Cancel must
+      // land back on the list, not on a detail view the user never visited.
+      setThread(null);
+      setDraft({
+        to: row.toEmail,
+        subject: /^re:/i.test(last.subject) ? last.subject : "Re: " + last.subject,
+        body,
+        inReplyTo: last.messageId,
+        threadId: full.id,
+      });
+      setView("compose");
+    } catch {
+      setError("Couldn't open that conversation.");
+    } finally {
+      setNudging(null);
+    }
+  };
 
   const loadDrafts = useCallback(async () => {
     const api = g.api();
@@ -217,6 +283,27 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
       }
     } catch (e) {
       setError((e as Error).message || "Could not open conversation");
+    }
+  };
+
+  // Attachments open in a new tab (or download when the browser can't render
+  // the type). Bytes travel Gmail -> this device only, nothing is uploaded.
+  const openAttachment = async (messageId: string, attachmentId: string, filename: string, mime: string) => {
+    const api = g.api();
+    if (!api) return;
+    try {
+      const { data } = await api.getAttachment(messageId, attachmentId);
+      const bytes = b64urlDecodeBytes(data);
+      if (bytes.length === 0) throw new Error("empty");
+      const url = URL.createObjectURL(new Blob([bytes.buffer as ArrayBuffer], { type: mime }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch {
+      setError("Couldn't fetch " + filename);
     }
   };
 
@@ -308,8 +395,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
     setSending(true);
     setError(null);
     try {
-      const raw = encodeEmail({ to: draft.to.trim(), subject: draft.subject, body: draft.body, inReplyTo: draft.inReplyTo });
-      await api.sendMessage(raw, draft.threadId);
+      // Every send carries the pixel: that is what powers "Opened" on Waiting
+      // On. The id-to-thread mapping stays on this device; the server knows
+      // only an anonymous id and a timestamp.
+      const trackId = newTrackId();
+      const raw = encodeEmail({ to: draft.to.trim(), subject: draft.subject, body: draft.body, inReplyTo: draft.inReplyTo, pixelUrl: pixelUrlFor(trackId) });
+      const sent = await api.sendMessage(raw, draft.threadId);
+      saveTrack(trackId, { threadId: sent.threadId || draft.threadId || sent.id, sentAt: Date.now() });
+      void registerTrack(trackId, authToken);
       // The voice metric: a deck draft that needed editing before it could be
       // sent. Unedited sends are logged from the deck's Send & Next.
       if (draft.fromDeck) emit({ type: "action", props: { name: "email.deck.sent", edited: true } });
@@ -342,6 +435,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
           ai={ai}
           api={api}
           threads={deckRows}
+          token={authToken}
           onExit={() => { setDeckRows(null); setView("list"); }}
           onDone={(n, ms) => { setDeckRows(null); setDeadStats({ n, ms }); setView("dead"); }}
           onOpenThread={(id) => void openThread(id)}
@@ -443,6 +537,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
                 <span className="conn-meta">{m.date}</span>
               </div>
               <div className="msg-body">{m.body}</div>
+              {m.attachments.length > 0 && (
+                <div className="msg-quick">
+                  {m.attachments.map((a) => (
+                    <button key={a.attachmentId} className="chip" onClick={() => void openAttachment(m.id, a.attachmentId, a.filename, a.mime)}>
+                      {a.filename}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
           <div className="msg-quick">
@@ -582,6 +685,24 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
               <div className="sec-head"><div className="sec-left"><div className="sec-title">Needs You</div></div></div>
               <div className="pad-x"><div className="card">
                 {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist))}
+              </div></div>
+            </>
+          )}
+          {waiting.length > 0 && (
+            <>
+              <div className="sec-head"><div className="sec-left"><div className="sec-title">Waiting On</div></div></div>
+              <div className="pad-x"><div className="card">
+                {waiting.map((w) => (
+                  <div className="row" role="button" tabIndex={0} key={w.threadId} onClick={() => void startNudge(w)}>
+                    <div className="row-grow">
+                      <div className="msg-line">
+                        <span className="conn-name truncate">{w.to}</span>
+                        <span className="msg-when">{nudging === w.threadId ? "Drafting..." : "Nudge"}</span>
+                      </div>
+                      <div className="conn-meta msg-gist">{w.subject} · {waitingLine(w, opens[w.threadId] ?? null)}</div>
+                    </div>
+                  </div>
+                ))}
               </div></div>
             </>
           )}

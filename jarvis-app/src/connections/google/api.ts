@@ -7,7 +7,7 @@ export interface GoogleApi {
   listUpcomingEvents(max: number): Promise<GCalEvent[]>;
   listRecentMessages(max: number): Promise<GmailMeta[]>;
   getMessage(id: string): Promise<GmailFull>;
-  sendMessage(raw: string, threadId?: string): Promise<{ id: string }>;
+  sendMessage(raw: string, threadId?: string): Promise<{ id: string; threadId?: string }>;
   listInbox(max: number): Promise<GmailMeta[]>;
   modifyMessage(id: string, add: string[], remove: string[]): Promise<void>;
   listDrafts(max: number): Promise<{ id: string; message: GmailMeta }[]>;
@@ -17,6 +17,8 @@ export interface GoogleApi {
   searchThreads(q: string, max: number): Promise<GmailThreadMeta[]>;
   getThread(id: string): Promise<GmailThreadFull>;
   modifyThread(id: string, add: string[], remove: string[]): Promise<void>;
+  getProfile(): Promise<{ emailAddress: string }>;
+  getAttachment(messageId: string, attachmentId: string): Promise<{ data: string; size: number }>;
 }
 
 type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<{
@@ -67,7 +69,7 @@ export function createGoogleApi(token: string, doFetch: FetchLike = fetch as unk
         body: JSON.stringify(payload),
       });
       if (!r.ok) throw new Error("send " + r.status);
-      return (await r.json()) as { id: string };
+      return (await r.json()) as { id: string; threadId?: string };
     },
     async listInbox(max) {
       const listRes = await doFetch(
@@ -136,6 +138,17 @@ export function createGoogleApi(token: string, doFetch: FetchLike = fetch as unk
           body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }),
         });
       if (!r.ok) throw new Error("thread modify " + r.status);
+    },
+    async getProfile() {
+      const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", auth);
+      if (!r.ok) throw new Error("profile " + r.status);
+      return (await r.json()) as { emailAddress: string };
+    },
+    async getAttachment(messageId, attachmentId) {
+      const r = await doFetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages/" + messageId + "/attachments/" + attachmentId, auth);
+      if (!r.ok) throw new Error("attachment " + r.status);
+      return (await r.json()) as { data: string; size: number };
     },
   };
 }
