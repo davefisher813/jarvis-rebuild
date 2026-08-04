@@ -9,14 +9,26 @@ import {
 } from "../connections/google/map";
 import {
   loadTriageCache, saveTriageCache, triageDelta, buildTriageInput, parseTriage,
-  fillSkipped, splitByBucket, headline, noiseLine, type TriageMap,
+  fillSkipped, splitByBucket, headline, noiseLine, type TriageMap, type Bucket,
 } from "./triage";
+import { loadRules, saveRule, applyRules, type SenderRules } from "./rules";
+import DeckFlow from "./DeckFlow";
+import { emit } from "../events";
 import { usePushDepth } from "../shared/pushNav";
+import { Burst } from "../shared/Burst";
 
-type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string };
+type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean };
 type DraftRow = { id: string; to: string; subject: string; snippet: string };
-type View = "list" | "detail" | "compose";
+type View = "list" | "detail" | "compose" | "deck" | "dead";
 type Filter = "triage" | "all" | "drafts";
+
+const AUTONOISE_KEY = "jarvis.mail.autonoise.v1";
+const BUCKET_LABEL: Record<Bucket, string> = { needs_you: "Needs You", worth_knowing: "Worth Knowing", noise: "Noise" };
+
+function fmtDuration(ms: number): string {
+  const s = Math.max(1, Math.round(ms / 1000));
+  return s < 60 ? s + "s" : Math.floor(s / 60) + "m " + (s % 60) + "s";
+}
 
 const DEFAULT_REPLIES = ["Thanks", "Got it", "Will do"];
 
@@ -47,7 +59,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
   const [rows, setRows] = useState<ThreadRow[]>([]);
   const [triage, setTriage] = useState<TriageMap>({});
   const [triaged, setTriaged] = useState(false);
+  const [rules, setRules] = useState<SenderRules>(() => loadRules());
   const [noiseOpen, setNoiseOpen] = useState(false);
+  const [autoNoise, setAutoNoise] = useState<boolean>(() => {
+    try { return localStorage.getItem(AUTONOISE_KEY) === "1"; } catch { return false; }
+  });
+  const [autoOffer, setAutoOffer] = useState(false);
+  const [deadStats, setDeadStats] = useState<{ n: number; ms: number } | null>(null);
+  // The deck runs on a SNAPSHOT of needs-you taken when it opens. Passing the
+  // live-filtered list while the deck advances its own index double-advanced
+  // and silently skipped an email (caught by the email 2 walk). A skipped
+  // email nobody decided on is this feature's worst failure.
+  const [deckRows, setDeckRows] = useState<ThreadRow[] | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [filter, setFilter] = useState<Filter>("triage");
@@ -206,16 +229,36 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
     api.modifyThread(id, [], ["INBOX"]).catch(() => {});
   };
 
-  const archiveAllNoise = (noise: ThreadRow[]) => {
+  const archiveAllNoise = (noise: ThreadRow[], manual = true) => {
     const api = g.api();
     if (!api || noise.length === 0) return;
     const ids = new Set(noise.map((r) => r.id));
     setRows((rs) => rs.filter((r) => !ids.has(r.id)));
     setNoiseOpen(false);
     for (const r of noise) api.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
-    setToast(noise.length === 1 ? "1 conversation archived" : noise.length + " conversations archived");
-    setTimeout(() => setToast(null), 2500);
+    const what = noise.length === 1 ? "1 conversation archived" : noise.length + " conversations archived";
+    setToast(manual ? what : "Handled for you: " + what.toLowerCase() + " (" + noiseLine(noise) + ")");
+    setTimeout(() => setToast(null), manual ? 2500 : 5000);
+    if (manual && !autoNoise) setAutoOffer(true);
   };
+
+  const enableAutoNoise = () => {
+    try { localStorage.setItem(AUTONOISE_KEY, "1"); } catch { /* stays manual */ }
+    setAutoNoise(true);
+    setAutoOffer(false);
+  };
+
+  // Auto-clear noise (opt-in): runs once per triage result. The receipt names
+  // what was archived, so nothing is ever silently hidden.
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (!triaged || !autoNoise || autoRan.current) return;
+    const { noise } = splitByBucket(rows, applyRules(triage, rows, rules));
+    if (noise.length === 0) return;
+    autoRan.current = true;
+    archiveAllNoise(noise, false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triaged, autoNoise, rows, triage, rules]);
 
   const lastMsg = (t: ThreadFull): MailFull => t.messages[t.messages.length - 1]!;
 
@@ -267,6 +310,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
     try {
       const raw = encodeEmail({ to: draft.to.trim(), subject: draft.subject, body: draft.body, inReplyTo: draft.inReplyTo });
       await api.sendMessage(raw, draft.threadId);
+      // The voice metric: a deck draft that needed editing before it could be
+      // sent. Unedited sends are logged from the deck's Send & Next.
+      if (draft.fromDeck) emit({ type: "action", props: { name: "email.deck.sent", edited: true } });
       if (editingDraftId) {
         const id = editingDraftId;
         api.deleteDraft(id).catch(() => {});
@@ -283,7 +329,52 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
     }
   };
 
-  const pushCls = usePushDepth(view === "compose" ? 2 : view === "detail" ? 1 : 0);
+  const pushCls = usePushDepth(view === "compose" ? 2 : view === "detail" || view === "deck" ? 1 : 0);
+
+  const effTriage = applyRules(triage, rows, rules);
+
+  if (view === "deck") {
+    const api = g.api();
+    if (!api || !deckRows || deckRows.length === 0) { setView("list"); return null; }
+    return (
+      <div className={"screen " + pushCls} key="deck">
+        <DeckFlow
+          ai={ai}
+          api={api}
+          threads={deckRows}
+          onExit={() => { setDeckRows(null); setView("list"); }}
+          onDone={(n, ms) => { setDeckRows(null); setDeadStats({ n, ms }); setView("dead"); }}
+          onOpenThread={(id) => void openThread(id)}
+          onEditReply={(t, body) => {
+            const r = buildReply(t.messages[t.messages.length - 1]!, body);
+            setThread(t);
+            setEditingDraftId(null);
+            setDraft({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, threadId: r.threadId, fromDeck: true });
+            setView("compose");
+          }}
+          onHandled={(threadId, archived) => {
+            if (archived) setRows((rs) => rs.filter((r) => r.id !== threadId));
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (view === "dead" && deadStats) {
+    return (
+      <div className={"screen " + pushCls} key="dead">
+        <div className="nav-bar"><div className="nav-large">Email</div></div>
+        <div className="pad-x"><div className="card"><div className="empty-state">
+          <div className="deck-dead-burst"><Burst show /></div>
+          <div className="empty-title">Inbox: dead</div>
+          <div className="empty-sub">{deadStats.n} handled in {fmtDuration(deadStats.ms)}</div>
+        </div></div></div>
+        <div className="pad-x conn-action">
+          <button className="btn btn-secondary btn-block" onClick={() => { setDeadStats(null); setView("list"); }}>Back to Email</button>
+        </div>
+      </div>
+    );
+  }
 
   if (view === "list" && (!configured || !g.hasToken)) {
     return (
@@ -363,13 +454,39 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
             <button className="btn btn-secondary" onClick={() => startReply(thread)}><CornerUpLeft className="ic" /> Reply</button>
             <button className="btn btn-secondary" onClick={() => startForward(thread)}><Forward className="ic" /> Forward</button>
           </div>
+          {/* Sender rule: filing a sender is a RULE, not a hint. Deterministic,
+              wins over triage, forever. Only shown when triage is live. */}
+          {triaged && (
+            <div className="msg-filed">
+              <span className="conn-meta">This sender goes to</span>
+              <div className="msg-chips">
+                {(["needs_you", "worth_knowing", "noise"] as Bucket[]).map((b) => {
+                  const senderEmail = lastMsg(thread).fromEmail;
+                  const current = rules[senderEmail.toLowerCase()]
+                    ?? applyRules(triage, rows, rules)[thread.id]?.bucket;
+                  return (
+                    <button
+                      key={b}
+                      className={"chip" + (current === b ? " on" : "")}
+                      onClick={() => {
+                        setRules(saveRule(senderEmail, b));
+                        setToast("Noted. " + lastMsg(thread).from + " goes to " + BUCKET_LABEL[b] + " from now on.");
+                        setTimeout(() => setToast(null), 2500);
+                      }}
+                    >{BUCKET_LABEL[b]}</button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {toast && <div className="conn-status">{toast}</div>}
         </div>
       </div>
     );
   }
 
   // ---- list ----
-  const { needsYou, worthKnowing, noise } = splitByBucket(rows, triage);
+  const { needsYou, worthKnowing, noise } = splitByBucket(rows, effTriage);
   const showTriage = filter === "triage" && triaged && results === null;
   const listRows = results !== null ? results : rows;
 
@@ -393,6 +510,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
         <button className="nav-act" onClick={startCompose} aria-label="New message"><Plus className="ic" /></button>
       </div>
       {showTriage && <div className="pad-x msg-headline">{headline(needsYou.length, rows.length)}</div>}
+      {showTriage && needsYou.length > 0 && (
+        <div className="pad-x deck-cta">
+          <button className="btn btn-primary btn-block" onClick={() => { setDeckRows(needsYou); setView("deck"); }}>
+            Deal With It · {needsYou.length}
+          </button>
+        </div>
+      )}
       <div className="pad-x">
         <input
           className="msg-input msg-search" placeholder="Search all mail" value={search}
@@ -457,7 +581,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
             <>
               <div className="sec-head"><div className="sec-left"><div className="sec-title">Needs You</div></div></div>
               <div className="pad-x"><div className="card">
-                {needsYou.map((r) => threadRow(r, triage[r.id]?.gist))}
+                {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist))}
               </div></div>
             </>
           )}
@@ -465,7 +589,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
             <>
               <div className="sec-head"><div className="sec-left"><div className="sec-title">Worth Knowing</div></div></div>
               <div className="pad-x"><div className="card">
-                {worthKnowing.map((r) => threadRow(r, triage[r.id]?.gist))}
+                {worthKnowing.map((r) => threadRow(r, effTriage[r.id]?.gist))}
               </div></div>
             </>
           )}
@@ -482,9 +606,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured() }: { 
                     <div className="conn-meta msg-gist">{noiseLine(noise)}</div>
                   </div>
                 </div>
-                {noiseOpen && noise.map((r) => threadRow(r, triage[r.id]?.gist))}
+                {noiseOpen && noise.map((r) => threadRow(r, effTriage[r.id]?.gist))}
               </div></div>
             </>
+          )}
+          {autoOffer && (
+            <div className="pad-x offer-row">
+              <button className="btn btn-secondary btn-block" onClick={enableAutoNoise}>Clear Noise Automatically From Now On</button>
+              <button className="quiet-action" onClick={() => setAutoOffer(false)}>Keep it manual</button>
+            </div>
           )}
         </>
       )}

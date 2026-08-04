@@ -47,7 +47,9 @@ export class AIService {
     this.available = opts.available ?? backendConfigured;
   }
 
-  async complete(messages: AIMessage[], system?: string): Promise<string> {
+  // tier "write": words that go out in the user's voice route to the stronger
+  // model server-side (AI_MODEL_WRITE). Everything else stays on the default.
+  async complete(messages: AIMessage[], system?: string, opts?: { tier?: "write" }): Promise<string> {
     if (!this.available) throw new Error("AI is not configured in this build.");
     const token = this.getToken?.();
     const res = await this.fetchImpl(this.endpoint, {
@@ -56,7 +58,7 @@ export class AIService {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ messages, system }),
+      body: JSON.stringify({ messages, system, ...(opts?.tier ? { tier: opts.tier } : {}) }),
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");

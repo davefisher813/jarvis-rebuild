@@ -74,9 +74,21 @@ const FULLS: Record<string, GmailThreadFull> = {
   t_patel: full("t_patel", [{ from: "Dr. Patel's Office <front@patelmed.com>", subject: "Appointment reminder", date: "Yesterday", body: "Please confirm your appointment on Aug 8 at 2:30 PM. Reply CONFIRM or call us." }]),
 };
 
+// A thread without a hand-written full view synthesizes one from its meta, so
+// EVERY thread opens (the walk caught a dead-end tap on a fixture gap).
+function synthFull(id: string): GmailThreadFull {
+  const meta = THREADS.find((t) => t.id === id);
+  return full(id, (meta?.messages || []).map((m) => ({
+    from: (m.payload?.headers || []).find((h) => h.name === "From")?.value || "Someone <s@x.com>",
+    subject: (m.payload?.headers || []).find((h) => h.name === "Subject")?.value || "(no subject)",
+    date: "Yesterday",
+    body: m.snippet || "(empty)",
+  })));
+}
+
 const api = makeFakeGoogleApi({
   listThreads: async () => THREADS,
-  getThread: async (id) => FULLS[id] ?? { id, messages: [] },
+  getThread: async (id) => FULLS[id] ?? synthFull(id),
   searchThreads: async (q) => THREADS.filter((t) =>
     JSON.stringify(t).toLowerCase().includes(q.toLowerCase())),
 });
@@ -97,6 +109,18 @@ const fetchImpl = (async (_url: RequestInfo | URL, init?: RequestInit) => {
   const body = String(init?.body || "");
   let text = "OK";
   if (body.includes("triage an inbox")) text = TRIAGE_REPLY;
+  else if (body.includes("prepare ONE decision")) {
+    // Deck plans, one per needs-you thread, keyed by content.
+    if (body.includes("waiver")) {
+      text = JSON.stringify({ kind: "reply", why: "Tucci needs the signed waiver by Friday or Marcus sits.", reply: "My bad Tucci, got buried. Signing it tonight, you'll have it by morning. Marcus plays Saturday." });
+    } else if (body.includes("policy renews")) {
+      text = JSON.stringify({ kind: "bill", why: "Auto policy renews Aug 12, $214.", bill: { name: "Geico", amount: 214, due: "2026-08-12" } });
+    } else if (body.includes("Patel")) {
+      text = JSON.stringify({ kind: "event", why: "Confirm the Aug 8, 2:30 PM appointment.", event: { title: "Dr. Patel", date: "2026-08-08", start: "14:30" } });
+    } else {
+      text = JSON.stringify({ kind: "archive", why: "Nothing needed." });
+    }
+  }
   else if (body.includes("Summarize this email conversation")) text = "Tucci needs the signed waiver by Friday; he has followed up twice and the blank form is on the first message.";
   else if (body.includes("3 short reply options")) text = JSON.stringify(["Sending it tonight", "Done by morning", "Call you at noon"]);
   return { ok: true, status: 200, json: async () => ({ text }), text: async () => "" };

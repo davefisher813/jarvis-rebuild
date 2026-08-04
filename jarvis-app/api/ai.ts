@@ -10,6 +10,10 @@ export const config = { runtime: "edge" };
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = process.env.AI_MODEL || "claude-sonnet-4-6";
+// Routing (Email 2): words that go out in the USER'S voice earn the strongest
+// model; classification and extraction stay on the default. Unset, both tiers
+// are the same model, so this costs nothing until AI_MODEL_WRITE is set.
+const WRITE_MODEL = process.env.AI_MODEL_WRITE || MODEL;
 const MAX_TOKENS = 1024;
 
 export default async function handler(req: Request): Promise<Response> {
@@ -40,9 +44,9 @@ export default async function handler(req: Request): Promise<Response> {
   const maxInput = parseInt(process.env.AI_MAX_INPUT_BYTES || "32768", 10);
   const maxVision = parseInt(process.env.AI_MAX_VISION_BYTES || "600000", 10);
   if (raw.length > maxVision) return json({ error: "Request too large" }, 413);
-  let body: { messages?: unknown; system?: unknown };
+  let body: { messages?: unknown; system?: unknown; tier?: unknown };
   try {
-    body = JSON.parse(raw) as { messages?: unknown; system?: unknown };
+    body = JSON.parse(raw) as { messages?: unknown; system?: unknown; tier?: unknown };
   } catch {
     return json({ error: "Bad request" }, 400);
   }
@@ -111,7 +115,7 @@ export default async function handler(req: Request): Promise<Response> {
       "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model: MODEL,
+      model: body.tier === "write" ? WRITE_MODEL : MODEL,
       max_tokens: MAX_TOKENS,
       ...(typeof body.system === "string" ? { system: body.system } : {}),
       messages,
