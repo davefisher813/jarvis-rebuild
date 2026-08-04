@@ -1,0 +1,101 @@
+import { describe, it, expect } from "vitest";
+import { isPR, bestBefore, receiptFor, lastTimeLine } from "./prs";
+import type { Workout, WorkoutExercise, MeasureKind, SetLog } from "./types";
+
+const wk = (date: string, exercises: WorkoutExercise[]): Workout =>
+  ({ id: date, data: { programId: "p", dayId: "d", dayName: "Day", date, startedAt: 0, endedAt: 0, exercises } });
+const wex = (name: string, kind: MeasureKind, sets: SetLog[], unit?: string): WorkoutExercise =>
+  ({ exerciseId: "x", name, kind, unit, sets });
+
+describe("isPR", () => {
+  const history = [
+    wk("2026-07-01", [wex("Bench", "weight_reps", [{ w: 125, r: 8 }], "lb")]),
+    wk("2026-07-15", [wex("Bench", "weight_reps", [{ w: 135, r: 6 }], "lb")]),
+    wk("2026-07-20", [wex("40 Yard Dash", "time_faster", [{ v: 4.71 }, { v: 4.68 }], "sec")]),
+  ];
+
+  it("first time on an exercise is its own moment", () => {
+    expect(isPR(history, "Deadlift", "weight_reps", { w: 95, r: 5 })).toBe(true);
+  });
+
+  it("beats the heaviest ever for weight work", () => {
+    expect(isPR(history, "Bench", "weight_reps", { w: 145, r: 3 })).toBe(true);
+    expect(isPR(history, "Bench", "weight_reps", { w: 135, r: 10 })).toBe(false);
+  });
+
+  it("a faster sprint is the record, a slower one is not", () => {
+    expect(isPR(history, "40 Yard Dash", "time_faster", { v: 4.64 })).toBe(true);
+    expect(isPR(history, "40 Yard Dash", "time_faster", { v: 4.70 })).toBe(false);
+  });
+
+  it("skipped entries and Done never produce records", () => {
+    expect(isPR(history, "Bench", "weight_reps", { w: 999, r: 1, skipped: true })).toBe(false);
+    expect(isPR(history, "Stretching", "done", {})).toBe(false);
+  });
+
+  it("changing an exercise's kind starts fresh instead of ranking seconds against pounds", () => {
+    // same name, different kind: prior weight history must not be compared
+    expect(bestBefore(history, "Bench", "time_faster")).toBeNull();
+    expect(isPR(history, "Bench", "time_faster", { v: 30 })).toBe(true);
+  });
+
+  it("distance_time compares only against the same distance", () => {
+    const runs = [
+      wk("2026-07-10", [wex("Run", "distance_time", [{ v: 1, t: 7 }], "mi")]), // 7:00 mile
+      wk("2026-07-18", [wex("Run", "distance_time", [{ v: 3, t: 27 }], "mi")]), // 9:00 pace
+    ];
+    // 8:00 pace over 3 mi beats the prior 3 mi, even though the 1 mi was faster
+    expect(isPR(runs, "Run", "distance_time", { v: 3, t: 24 })).toBe(true);
+    // and a slower 3 mi is not a record
+    expect(isPR(runs, "Run", "distance_time", { v: 3, t: 30 })).toBe(false);
+  });
+});
+
+describe("receiptFor", () => {
+  const history = [wk("2026-07-15", [wex("Bench", "weight_reps", [{ w: 125, r: 8 }], "lb")])];
+
+  it("counts volume only from weight work and names the PR", () => {
+    const r = receiptFor(
+      [wex("Bench", "weight_reps", [{ w: 135, r: 8 }, { w: 135, r: 8 }], "lb")],
+      history, 0, 42 * 60000,
+    );
+    expect(r.minutes).toBe(42);
+    expect(r.exercises).toBe(1);
+    expect(r.volume).toBe(2160);
+    expect(r.volumeUnit).toBe("lb");
+    expect(r.prs).toEqual([{ name: "Bench", text: "135 lb × 8", from: "125 lb × 8" }]);
+  });
+
+  it("a speed day reports no volume at all rather than an invented number", () => {
+    const r = receiptFor(
+      [wex("40 Yard Dash", "time_faster", [{ v: 4.64 }], "sec"), wex("Stretching", "done", [{}])],
+      [], 0, 20 * 60000,
+    );
+    expect(r.volume).toBe(0);
+    expect(r.volumeUnit).toBeNull();
+    expect(r.exercises).toBe(2);
+    expect(r.prs.map((p) => p.name)).toEqual(["40 Yard Dash"]); // Done never PRs
+  });
+
+  it("partial work still counts as a session; skipped exercises do not inflate it", () => {
+    const r = receiptFor(
+      [
+        wex("Bench", "weight_reps", [{ w: 135, r: 8 }], "lb"),
+        { ...wex("Row", "weight_reps", [], "lb"), skipped: true },
+      ],
+      history, 0, 15 * 60000,
+    );
+    expect(r.exercises).toBe(1);
+  });
+});
+
+describe("lastTimeLine", () => {
+  it("shows the most recent real numbers, skipping empty sessions", () => {
+    const history = [
+      wk("2026-07-01", [wex("Bench", "weight_reps", [{ w: 125, r: 8 }, { w: 125, r: 7 }], "lb")]),
+      wk("2026-07-15", [wex("Bench", "weight_reps", [], "lb")]), // nothing logged
+    ];
+    expect(lastTimeLine(history, "Bench", "weight_reps")).toBe("Last time: 125 lb × 8, 125 lb × 7");
+    expect(lastTimeLine(history, "Squat", "weight_reps")).toBeNull();
+  });
+});

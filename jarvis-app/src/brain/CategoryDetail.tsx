@@ -14,6 +14,9 @@ import { dayPhrase } from "../money/bills";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import ProjectSheet from "../projects/ProjectSheet";
 import CategorySheet, { type CategoryDraft } from "../categories/screens/CategorySheet";
+import GymFlow from "../gym/GymFlow";
+import { useGym } from "../data/NotesProvider";
+import type { Program } from "../gym/types";
 
 const CHEV = (
   <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
@@ -26,6 +29,10 @@ const UP_NEXT_CAP = 6;
 const NOTES_CAP = 4;
 
 type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project" } | { kind: "edit" };
+
+const DUMBBELL = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="m6.5 6.5 11 11" /><path d="m21 21-1-1" /><path d="m3 3 1 1" /><path d="m18 22 4-4" /><path d="m2 6 4-4" /><path d="m3 10 7-7" /><path d="m14 21 7-7" /></svg>
+);
 
 // The category page (2026-08-03), replacing the read-only archive. Pages are
 // RECEIPTS for behavior happening elsewhere: This Week is derived from real
@@ -61,6 +68,9 @@ export default function CategoryDetail({
   const [events, setEvents] = useState<WeekEvent[]>([]);
   const [work, setWork] = useState<{ startMin: number; endMin: number } | null>(null);
   const [sheet, setSheet] = useState<SheetState>({ kind: "closed" });
+  const gymSvc = useGym();
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [gymOpen, setGymOpen] = useState(false);
   const today = todayISO();
 
   const reload = useCallback(async () => {
@@ -97,7 +107,15 @@ export default function CategoryDetail({
 
   useEffect(() => { void reload(); }, [reload]);
 
+  // Training lives behind the health kind (gym track, 2026-08-04).
+  useEffect(() => {
+    let on = true;
+    gymSvc.listPrograms().then((p) => { if (on) setPrograms(p); }).catch(() => {});
+    return () => { on = false; };
+  }, [gymSvc, gymOpen]);
+
   if (!cat) return <div className="screen" />;
+  if (gymOpen) return <GymFlow onBack={() => setGymOpen(false)} />;
   const kind = effectiveKind(cat.data);
   const isOrg = kind === "org";
   const paused = isOrg && cat.data.season === "paused";
@@ -174,6 +192,22 @@ export default function CategoryDetail({
             <div className="row ob-addrow" role="button" tabIndex={0} onClick={() => setSheet({ kind: "project" })}>
               <div className="sec-ico ico-accent">{PLUS}</div>
               <div className="row-grow"><div className="conn-name">Add Project</div></div>
+            </div>
+          </div></div>
+        </>
+      )}
+
+      {kind === "health" && (
+        <>
+          <div className="sec-head"><div className="sec-left"><div className="sec-title">Training</div></div></div>
+          <div className="pad-x"><div className="card">
+            <div className="row" role="button" tabIndex={0} onClick={() => setGymOpen(true)}>
+              <div className="sec-ico ico-blue">{DUMBBELL}</div>
+              <div className="row-grow">
+                <div className="conn-name">{programs[0]?.data.name ?? "Set Up a Program"}</div>
+                {programs[0] && <div className="eyebrow">{programs[0].data.days.length} {programs[0].data.days.length === 1 ? "day" : "days"}</div>}
+              </div>
+              {CHEV}
             </div>
           </div></div>
         </>

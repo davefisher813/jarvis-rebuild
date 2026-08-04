@@ -1,0 +1,43 @@
+import { describe, it, expect } from "vitest";
+import { exerciseHistory, trendLine } from "./history";
+import type { Workout, WorkoutExercise, MeasureKind, SetLog } from "./types";
+
+const wk = (date: string, exercises: WorkoutExercise[]): Workout =>
+  ({ id: date, data: { programId: "p", dayId: "d", dayName: "Day", date, startedAt: 0, endedAt: 0, exercises } });
+const wex = (name: string, kind: MeasureKind, sets: SetLog[], unit?: string): WorkoutExercise =>
+  ({ exerciseId: "x", name, kind, unit, sets });
+
+describe("exerciseHistory", () => {
+  const workouts = [
+    wk("2026-06-09", [wex("Bench", "weight_reps", [{ w: 115, r: 8 }, { w: 115, r: 7 }], "lb")]),
+    wk("2026-07-01", [wex("Bench", "weight_reps", [{ w: 125, r: 8 }], "lb"), wex("Stretching", "done", [{}])]),
+    wk("2026-08-04", [wex("Bench", "weight_reps", [{ w: 135, r: 8 }], "lb"), wex("40 Yard Dash", "time_faster", [{ v: 4.71 }], "sec")]),
+  ];
+
+  it("one row per exercise, most recently trained first, tracking first/best/last", () => {
+    const rows = exerciseHistory(workouts);
+    expect(rows.map((r) => r.name)).toEqual(["Bench", "40 Yard Dash"]); // Done leaves no numbers
+    const bench = rows[0]!;
+    expect(bench.sessions).toBe(3);
+    expect(bench.first.set).toEqual({ w: 115, r: 8 });
+    expect(bench.best.set).toEqual({ w: 135, r: 8 });
+    expect(bench.entries.map((e) => e.date)).toEqual(["2026-08-04", "2026-07-01", "2026-06-09"]);
+  });
+
+  it("trendLine tells the honest story in the exercise's own units", () => {
+    const rows = exerciseHistory(workouts);
+    expect(trendLine(rows[0]!)).toBe("115 lb × 8 → 135 lb × 8 over 8 weeks");
+    expect(trendLine(rows[1]!)).toBe("4.71 sec"); // one session: just the fact
+  });
+
+  it("a slide is stated as numbers, never as decline language", () => {
+    const slid = exerciseHistory([
+      wk("2026-07-01", [wex("Squat", "weight_reps", [{ w: 185, r: 5 }], "lb")]),
+      wk("2026-07-20", [wex("Squat", "weight_reps", [{ w: 155, r: 5 }], "lb")]),
+    ]);
+    const line = trendLine(slid[0]!);
+    expect(line).toBe("185 lb × 5 → 155 lb × 5 over 3 weeks");
+    expect(line.toLowerCase()).not.toMatch(/lost|down|decline|worse/);
+    expect(slid[0]!.best.set).toEqual({ w: 185, r: 5 }); // the best is still the best
+  });
+});

@@ -12,6 +12,7 @@ import { ProjectsService } from "../projects/ProjectsService";
 import { MoneyService } from "../money/MoneyService";
 import { BackupService } from "../backup/BackupService";
 import { RoutineService } from "../routine/RoutineService";
+import { GymService } from "../gym/GymService";
 import { makeStore } from "./store";
 import { emit } from "../events";
 
@@ -29,6 +30,7 @@ const AreaContext = createContext<AreaService | null>(null);
 const GoalContext = createContext<GoalService | null>(null);
 const ProjectContext = createContext<ProjectsService | null>(null);
 const MoneyContext = createContext<MoneyService | null>(null);
+const GymContext = createContext<GymService | null>(null);
 const BackupContext = createContext<BackupService | null>(null);
 const RoutineContext = createContext<RoutineService | null>(null);
 // The Supabase access token, for callers that hit privileged endpoints (e.g.
@@ -44,7 +46,7 @@ export function NotesProvider({
   accessToken?: string;
   children: ReactNode;
 }) {
-  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine } = useMemo(() => {
+  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym } = useMemo(() => {
     const store = makeStore(accessToken);
     return {
       notes: new NotesService(store, userId, (e) => emit(e)),
@@ -60,6 +62,7 @@ export function NotesProvider({
       money: new MoneyService(store, userId, (e) => emit(e)),
       backup: new BackupService(store, userId),
       routine: new RoutineService(store, userId),
+      gym: new GymService(store, userId, (e) => emit(e)),
     };
   }, [userId, accessToken]);
   return (
@@ -76,7 +79,9 @@ export function NotesProvider({
                       <ProjectContext.Provider value={projects}>
                       <MoneyContext.Provider value={money}>
                       <BackupContext.Provider value={backup}>
-                      <RoutineContext.Provider value={routine}>{children}</RoutineContext.Provider>
+                      <RoutineContext.Provider value={routine}>
+                      <GymContext.Provider value={gym}>{children}</GymContext.Provider>
+                      </RoutineContext.Provider>
                       </BackupContext.Provider>
                       </MoneyContext.Provider>
                     </ProjectContext.Provider>
@@ -156,6 +161,12 @@ export function useProjects(): ProjectsService {
 export function useMoney(): MoneyService {
   const s = useContext(MoneyContext);
   if (!s) throw new Error("useMoney must be used inside NotesProvider");
+  return s;
+}
+
+export function useGym(): GymService {
+  const s = useContext(GymContext);
+  if (!s) throw new Error("useGym must be used inside NotesProvider");
   return s;
 }
 

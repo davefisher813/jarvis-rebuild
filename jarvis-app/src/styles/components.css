@@ -360,6 +360,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    the law for tappable non-buttons); .money-amt.paid mutes a receipt row's
    amount so the unpaid amounts carry the visual weight. */
 .bill-pay { font-size: var(--t-body); color: var(--tint); font-weight: var(--w-semi); text-decoration: none; padding-left: var(--s-3); flex-shrink: 0; }
+/* Gym (2026-08-04): the session receipt's tile row, and the breathing room
+   above the one big in-gym log button. Classes, not inline styles. */
+.stat-row { display: flex; gap: var(--s-2); }
+.stat-row .stat-tile { flex: 1; text-align: center; }
+.stat-row-gap { margin-top: var(--s-2); }
+.gym-log { margin-top: var(--s-4); }
 .money-amt.paid { color: var(--tx-3); font-weight: var(--w-regular); }
 .money-hero-total + .money-hero-label { margin-bottom: 0; margin-top: var(--s-1); }
 .sched-loc { display: inline-flex; align-items: center; gap: var(--s-1); margin-top: var(--s-1); font-size: var(--t-meta); color: var(--tint); font-weight: var(--w-medium); text-decoration: none; }
