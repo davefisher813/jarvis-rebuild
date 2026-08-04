@@ -44,6 +44,34 @@ describe("google sync", () => {
     expect(all.length).toBe(3);
   });
 
+  it("sweeps same-slot copies under DIFFERENT gcal ids, and refuses to re-import into an occupied slot", async () => {
+    // The case the id-only sweep missed: 26 separate Google events, all
+    // "Jarvis AM Brief" at the same date+time, each with its own id.
+    const schedule = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    for (let i = 0; i < 5; i++) {
+      await schedule.createEvent("Jarvis AM Brief", { date: "2026-08-04", start: "00:00", gcalId: "brief_" + i });
+    }
+    // Same title, different day: legitimate, must survive.
+    await schedule.createEvent("Jarvis AM Brief", { date: "2026-08-05", start: "00:00", gcalId: "brief_next" });
+    const api = apiWith([
+      { id: "brief_99", summary: "Jarvis AM Brief", start: { dateTime: "2026-08-04T00:00:00" } }, // occupied slot: skipped
+      { id: "g_new", summary: "Dentist", start: { dateTime: "2026-08-06T09:00:00" } },            // genuinely new: imported
+    ]);
+    expect(await importCalendar(api, schedule)).toBe(1);
+    const all = await schedule.listEvents();
+    expect(all.filter((e) => e.data.title === "Jarvis AM Brief" && e.data.date === "2026-08-04").length).toBe(1);
+    expect(all.filter((e) => e.data.title === "Jarvis AM Brief" && e.data.date === "2026-08-05").length).toBe(1);
+    expect(all.filter((e) => e.data.title === "Dentist").length).toBe(1);
+  });
+
+  it("the slot sweep never touches user-created events, even identical ones", async () => {
+    const schedule = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    await schedule.createEvent("Standup", { date: "2026-08-04", start: "09:00" }); // user's own
+    await schedule.createEvent("Standup", { date: "2026-08-04", start: "09:00" }); // user's own duplicate: their business
+    expect(await importCalendar(apiWith([]), schedule)).toBe(0);
+    expect((await schedule.listEvents()).length).toBe(2);
+  });
+
   it("cold-read guard: after a past import, an empty store is re-read before re-importing", async () => {
     const store = new Store(new InMemoryAdapter());
     const schedule = new ScheduleService(store, "u");

@@ -10,9 +10,9 @@ import { mapGoogleEvent, mapGmailMessage, type MailRow } from "./map";
 //   1. SWEEP FIRST. Right after an app open, listEvents() can be read before
 //      remote data has landed, so a past import's events are invisible and
 //      everything imports again (Dave's schedule once held a dozen identical
-//      midnight briefs, every one flagged Overlaps). The sweep deletes any
-//      extra copies sharing a gcalId — keeping the first — so even if a cold
-//      read ever duplicates again, the next connect heals it.
+//      midnight briefs, every one flagged Overlaps). The sweep deletes extra
+//      copies (same gcalId, or same title+date+start under different ids) so
+//      whatever caused them, the next import heals it.
 //   2. COLD-READ GUARD. A marker remembers that a past import happened; if the
 //      store then shows zero imported events, the read was cold — wait and
 //      re-read before trusting it, instead of re-importing the world.
@@ -53,20 +53,35 @@ export async function importCalendar(
   const events = await api.listUpcomingEvents(max);
   const existing = await trustedExisting(schedule, storage, wait);
 
-  // Self-healing sweep: one event per gcalId, first one wins.
-  const byGcal = new Map<string, string>(); // gcalId -> keeper event id
+  // Self-healing sweep, two layers, gcal-imported events ONLY (a user-created
+  // event is never touched):
+  //   - one event per gcalId (repeated imports of the same event), and
+  //   - one event per identical (title, date, start) slot (the same thing
+  //     imported under DIFFERENT Google ids — e.g. an upstream automation
+  //     writing the same brief into Google Calendar many times over).
+  // First one wins. Two genuinely distinct primary-calendar events with the
+  // same title at the same minute are indistinguishable from junk; we accept
+  // collapsing them and say so here rather than pretending it cannot happen.
+  const slotOf = (d: { title?: string; date?: string; start?: string }) =>
+    (d.title || "") + "|" + (d.date || "") + "|" + (d.start || "");
+  const seen = new Set<string>();
+  const seenSlots = new Set<string>();
   for (const e of existing) {
-    const gid = (e.data as { gcalId?: string }).gcalId;
-    if (!gid) continue;
-    if (byGcal.has(gid)) await schedule.deleteEvent(e.id);
-    else byGcal.set(gid, e.id);
+    const d = e.data as { gcalId?: string; title?: string; date?: string; start?: string };
+    if (!d.gcalId) continue;
+    const slot = slotOf(d);
+    if (seen.has(d.gcalId) || seenSlots.has(slot)) {
+      await schedule.deleteEvent(e.id);
+      continue;
+    }
+    seen.add(d.gcalId);
+    seenSlots.add(slot);
   }
 
-  const seen = new Set(byGcal.keys());
   let created = 0;
   for (const g of events) {
     const m = mapGoogleEvent(g);
-    if (!m || seen.has(m.gcalId)) continue;
+    if (!m || seen.has(m.gcalId) || seenSlots.has(slotOf(m))) continue;
     const id = await schedule.createEvent(m.title, {
       date: m.date,
       start: m.start,
@@ -77,6 +92,7 @@ export async function importCalendar(
     if (id) {
       created++;
       seen.add(m.gcalId);
+      seenSlots.add(slotOf(m));
     }
   }
   if (seen.size > 0) {
