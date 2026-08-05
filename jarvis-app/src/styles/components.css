@@ -980,3 +980,10 @@ button {
    title for a row the user chose to skip. */
 .upload-thumb { width: 44px; height: 44px; border-radius: var(--r-md); object-fit: cover; flex-shrink: 0; }
 .upload-row-skipped { opacity: 0.45; }
+
+/* Brain's Your Categories, grouped by kind (2026-08-05): each kind cluster is
+   its own card with a small caption above it, spaced apart like the rest of
+   the screen's sections. */
+.cat-group { margin-bottom: var(--s-4); }
+.cat-group:last-child { margin-bottom: 0; }
+.cat-group-label { padding: 0 var(--s-1) var(--s-1h); }

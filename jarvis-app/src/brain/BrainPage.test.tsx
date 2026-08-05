@@ -66,3 +66,54 @@ describe("BrainPage", () => {
     expect(onOpen).toHaveBeenCalledWith("c1", "Work");
   });
 });
+
+describe("BrainPage category grouping (2026-08-05)", () => {
+  it("groups categories by kind with a label per group, when more than one kind is present", () => {
+    const cats: BrainCategory[] = [
+      { id: "c1", name: "Work", color: "blue", icon: "briefcase", kind: "org" },
+      { id: "c2", name: "Elite Squad", color: "red", icon: "folder", kind: "org" },
+      { id: "c3", name: "Budget", color: "yellow", icon: "wallet", kind: "money" },
+      { id: "c4", name: "Personal", color: "sand", icon: "folder", kind: "plain" },
+    ];
+    render(<BrainPage onOpen={() => {}} categories={cats} />);
+    expect(screen.getByText("Orgs")).toBeInTheDocument();
+    expect(screen.getByText("Budget")).toBeInTheDocument();
+    expect(screen.getByText("General")).toBeInTheDocument();
+    // every row still present, nothing hidden or merged away
+    ["Work", "Elite Squad", "Personal"].forEach((n) => expect(screen.getByText(n)).toBeInTheDocument());
+  });
+
+  it("skips the group label when every category is the same kind, so it never states the obvious", () => {
+    const cats: BrainCategory[] = [
+      { id: "c1", name: "Work", color: "blue", icon: "briefcase", kind: "org" },
+      { id: "c2", name: "Business", color: "green", icon: "briefcase", kind: "org" },
+    ];
+    render(<BrainPage onOpen={() => {}} categories={cats} />);
+    expect(screen.queryByText("Orgs")).not.toBeInTheDocument();
+    expect(screen.getByText("Work")).toBeInTheDocument();
+    expect(screen.getByText("Business")).toBeInTheDocument();
+  });
+
+  it("a category with no kind set defaults to General, not dropped", () => {
+    const cats: BrainCategory[] = [
+      { id: "c1", name: "Money", color: "yellow", icon: "wallet", kind: "money" },
+      { id: "c2", name: "Whatever", color: "sand", icon: "folder" },
+    ];
+    render(<BrainPage onOpen={() => {}} categories={cats} />);
+    expect(screen.getByText("General")).toBeInTheDocument();
+    expect(screen.getByText("Whatever")).toBeInTheDocument();
+  });
+
+  it("orders groups Orgs, Money, Health, People, General regardless of input order", () => {
+    const cats: BrainCategory[] = [
+      { id: "c1", name: "Personal", color: "sand", icon: "folder", kind: "plain" },
+      { id: "c2", name: "Health", color: "green", icon: "dumbbell", kind: "health" },
+      { id: "c3", name: "Family", color: "pink", icon: "heart", kind: "people" },
+      { id: "c4", name: "Money", color: "yellow", icon: "wallet", kind: "money" },
+      { id: "c5", name: "Work", color: "blue", icon: "briefcase", kind: "org" },
+    ];
+    const { container } = render(<BrainPage onOpen={() => {}} categories={cats} />);
+    const labels = Array.from(container.querySelectorAll(".cat-group-label")).map((n) => n.textContent);
+    expect(labels).toEqual(["Orgs", "Money", "Health", "People", "General"]);
+  });
+});

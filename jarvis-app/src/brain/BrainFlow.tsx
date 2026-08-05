@@ -6,6 +6,7 @@ import BrainDocPage from "./docs/BrainDocPage";
 import CategoryDetail from "./CategoryDetail";
 import RoutineFlow from "../routine/RoutineFlow";
 import { usePushDepth } from "../shared/pushNav";
+import { effectiveKind } from "../categories/kinds";
 
 const DOC_TOPIC: Record<string, string> = {
   philosophy: "philosophy",
@@ -25,7 +26,7 @@ export default function BrainFlow({ openKey, personOpenId, onOpenNote }: { openK
 
   const loadCats = useCallback(async () => {
     const list = await cats.list();
-    setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color, icon: c.data.icon })));
+    setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color, icon: c.data.icon, kind: effectiveKind(c.data) })));
   }, [cats]);
   useEffect(() => { void loadCats(); }, [loadCats]);
 

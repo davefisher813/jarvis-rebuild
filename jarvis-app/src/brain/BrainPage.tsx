@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { CategoryKind } from "../categories/types";
 
 // Inline icons so the build matches the approved preview exactly (no icon-name drift).
 const svg = (children: ReactNode) => (
@@ -56,7 +57,19 @@ const TOP_SECTIONS: { title: string; rows: BrainRow[] }[] = [
 // screens. Backup lives in Settings, where it always did; a row that leads
 // nowhere teaches users that rows might not go anywhere.
 
-export interface BrainCategory { id: string; name: string; color: string; icon?: string }
+export interface BrainCategory { id: string; name: string; color: string; icon?: string; kind?: CategoryKind }
+
+// Your Categories groups by kind (2026-08-05) rather than one flat list, so
+// the categories with a real page behind them (Money's budget, Health's
+// training, an Org's projects and season) read as distinct from a plain
+// category, which still gets a complete page, just not a module. This is
+// purely a grouping of the same rows into labeled clusters: nothing here
+// hides, merges, or deletes a category, and every row still opens the exact
+// same detail page as before.
+const KIND_GROUP_LABEL: Record<CategoryKind, string> = {
+  org: "Orgs", money: "Money", health: "Health", people: "People", plain: "General",
+};
+const KIND_GROUP_ORDER: CategoryKind[] = ["org", "money", "health", "people", "plain"];
 
 export default function BrainPage({
   onOpen,
@@ -80,20 +93,35 @@ export default function BrainPage({
     </div>
   );
 
+  const catRow = (c: BrainCategory): BrainRow => ({
+    key: c.id,
+    name: c.name,
+    color: "cat-bg-" + c.color,
+    icon: (CAT_ICON[c.icon ?? ""] ?? Tag)(),
+  });
+  const groups = KIND_GROUP_ORDER
+    .map((kind) => ({ kind, rows: categories.filter((c) => (c.kind ?? "plain") === kind).map(catRow) }))
+    .filter((g) => g.rows.length > 0);
+  // A single kind present reads as noise (a lone sub-label saying what the
+  // list already shows); the grouping only earns its keep once it is
+  // actually distinguishing something.
+  const showGroupLabels = groups.length > 1;
+
   return (
     <div className="screen">
       <div className="nav-bar"><div className="nav-large">Brain</div></div>
       {TOP_SECTIONS.map((sec) => Section(sec.title, sec.rows))}
-      {categories.length > 0 &&
-        Section(
-          "Your Categories",
-          categories.map((c) => ({
-            key: c.id,
-            name: c.name,
-            color: "cat-bg-" + c.color,
-            icon: (CAT_ICON[c.icon ?? ""] ?? Tag)(),
-          })),
-        )}
+      {categories.length > 0 && (
+        <div>
+          <div className="sec-head"><div className="sec-title">Your Categories</div></div>
+          {groups.map((g) => (
+            <div className="pad-x cat-group" key={g.kind}>
+              {showGroupLabels && <div className="cat-group-label eyebrow">{KIND_GROUP_LABEL[g.kind]}</div>}
+              <div className="card">{g.rows.map(Row)}</div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="screen-foot" />
     </div>
   );
