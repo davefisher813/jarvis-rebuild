@@ -60,8 +60,17 @@ export default async function handler(req: Request): Promise<Response> {
   const supaUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
   const supaAnon = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-  if (!clientId || !clientSecret || !tokenKey || !supaUrl || !service) {
-    return json({ error: "Persistent sign-in is not configured on the server" }, 501);
+  // Names only, never values: a 501 that does not say WHICH piece is missing
+  // costs an hour of guessing at the dashboard.
+  const missing = [
+    !clientId && "GOOGLE_CLIENT_ID",
+    !clientSecret && "GOOGLE_CLIENT_SECRET",
+    !tokenKey && "GOOGLE_TOKEN_KEY",
+    !supaUrl && "SUPABASE_URL",
+    !service && "SUPABASE_SERVICE_ROLE_KEY",
+  ].filter(Boolean) as string[];
+  if (missing.length > 0) {
+    return json({ error: "Persistent sign-in is not configured on the server", missing }, 501);
   }
   const userId = await authedUserId(req, supaUrl, supaAnon);
   if (!userId) return json({ error: "Unauthorized" }, 401);
