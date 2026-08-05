@@ -289,11 +289,18 @@ export default function TodayPage({
 
       {emailLine && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Email</div></div></div>
+          {/* Icon lives in the SECTION HEADER beside the title, like Up Next
+              and every other section. Inside the card it read as a row badge
+              and broke the one pattern this page has. */}
+          <div className="sec-head">
+            <div className="sec-left">
+              <div className="sec-ico ico-blue"><Mail className="ic" /></div>
+              <div className="sec-title">Email</div>
+            </div>
+          </div>
           <div className="pad-x">
             <div className="card">
               <div className="row" role="button" tabIndex={0} onClick={onOpenEmail}>
-                <div className="proj-icon cat-bg-sky"><Mail className="ic" /></div>
                 <div className="row-grow">
                   <div className="conn-name">{emailLine}</div>
                   <div className="conn-meta">Deal with it from here.</div>
