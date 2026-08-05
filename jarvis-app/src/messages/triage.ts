@@ -1,7 +1,7 @@
 import type { ThreadRow } from "../connections/google/map";
 
 // Triage (email 1): one AI pass sorts the inbox into what needs Dave, what is
-// worth knowing, and noise — with a one-line gist per thread so junk never has
+// worth knowing, and noise, with a one-line gist per thread so junk never has
 // to be opened to be dismissed.
 //
 // Laws:
@@ -11,7 +11,7 @@ import type { ThreadRow } from "../connections/google/map";
 //     the gist: visible and safe, never silently hidden in noise.
 //   - Results are cached per thread keyed by its latest message id, so a
 //     refresh costs nothing and only NEW mail is ever sent to the model.
-//   - Only from/subject/snippet travel to the model here — never full bodies.
+//   - Only from/subject/snippet travel to the model here, never full bodies.
 
 export type Bucket = "needs_you" | "worth_knowing" | "noise";
 // "by" is the answer-by the SENDER stated, never one we invented: "today",
@@ -26,7 +26,7 @@ const GIST_MAX = 140;
 
 export const TRIAGE_PROMPT = `You triage an inbox for a busy person with ADHD. For each thread decide:
 
-- "needs_you": the user must act — reply, decide, pay, sign, confirm, or a deadline is coming. A real person waiting on them is needs_you.
+- "needs_you": the user must act, reply, decide, pay, sign, confirm, or a deadline is coming. A real person waiting on them is needs_you.
 - "worth_knowing": real information, no action required (receipts for things already handled, status updates, genuine announcements).
 - "noise": promotions, marketing, social-network notifications, newsletters, automated mail nobody replies to.
 
@@ -46,7 +46,7 @@ export function buildTriageInput(rows: ThreadRow[]): string {
 }
 
 // Tolerant parse: fences and prose stripped, unknown ids dropped, bad buckets
-// coerced to worth_knowing (the honest middle — visible, unalarming). Returns
+// coerced to worth_knowing (the honest middle, visible, unalarming). Returns
 // null when there is nothing usable.
 export function parseTriage(raw: string, rows: ThreadRow[]): TriageMap | null {
   const byId = new Map(rows.map((r) => [r.id, r]));
@@ -85,7 +85,7 @@ export function fillSkipped(map: TriageMap, rows: ThreadRow[]): TriageMap {
 }
 
 // Threads with no cache entry, or with a NEW latest message (someone wrote
-// again — whatever it was before, it may need Dave now).
+// again, whatever it was before, it may need Dave now).
 export function triageDelta(rows: ThreadRow[], cache: TriageMap): ThreadRow[] {
   return rows.filter((r) => !cache[r.id] || cache[r.id]!.lastMsgId !== r.lastMsgId);
 }
@@ -145,7 +145,7 @@ export function headline(needsYou: number, total: number): string {
   return needsYou === 1 ? "1 needs you. The rest is handled." : needsYou + " need you. The rest is handled.";
 }
 
-// "DoorDash, LinkedIn +3 more" — enough to trust Archive All without opening.
+// "DoorDash, LinkedIn +3 more", enough to trust Archive All without opening.
 export function noiseLine(noise: ThreadRow[]): string {
   const names = [...new Set(noise.map((r) => r.from))];
   const shown = names.slice(0, 3).join(", ");
@@ -191,7 +191,7 @@ export function sortByDeadline(rows: ThreadRow[], map: TriageMap, now = new Date
 
 // The Today line. Email stops being a destination: one sentence on the Today
 // page says where it stands, and only appears when something actually needs
-// him. Silence when the answer is "nothing" — a card that says "0 emails need
+// him. Silence when the answer is "nothing", a card that says "0 emails need
 // you" is still a thing to read.
 export function todayEmailLine(needsYou: number, replied: number): string {
   if (needsYou <= 0) return "";

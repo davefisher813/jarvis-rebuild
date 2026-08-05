@@ -2,7 +2,9 @@ export const ENTITY_AREA = "life_area";
 export const ENTITY_GOAL = "goal";
 
 export type AreaState = "strong" | "steady" | "drifting";
-export type GoalState = "on_track" | "steady" | "at_risk";
+// "achieved" was missing entirely: a goal could be on track forever and never
+// be finished. There was nothing to reach, and so nothing to celebrate.
+export type GoalState = "on_track" | "steady" | "at_risk" | "achieved";
 
 export interface AreaData { name: string; state: AreaState; order?: number; }
 // Money v1 savings (2026-08-03): a goal may carry a dollar target. Progress is
@@ -20,6 +22,7 @@ export const GOAL_META: Record<GoalState, { label: string; cls: string }> = {
   on_track: { label: "On track", cls: "ok" },
   steady: { label: "Steady", cls: "muted" },
   at_risk: { label: "At risk", cls: "attention" },
+  achieved: { label: "Achieved", cls: "ok" },
 };
 export const AREA_STATES: AreaState[] = ["strong", "steady", "drifting"];
-export const GOAL_STATES: GoalState[] = ["on_track", "steady", "at_risk"];
+export const GOAL_STATES: GoalState[] = ["on_track", "steady", "at_risk", "achieved"];

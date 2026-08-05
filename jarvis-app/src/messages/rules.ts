@@ -2,7 +2,7 @@ import type { Bucket, TriageMap } from "./triage";
 import type { ThreadRow } from "../connections/google/map";
 
 // Sender overrides (email 2): when the user files a sender somewhere, that is
-// a RULE, not a training hint. Deterministic, instant, permanent — the model
+// a RULE, not a training hint. Deterministic, instant, permanent, the model
 // never gets a second chance to misfile that sender. Overrides win over AI
 // triage, always.
 

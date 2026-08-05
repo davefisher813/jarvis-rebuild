@@ -1,7 +1,7 @@
 import type { GoogleApi } from "../connections/google/api";
 import { mapThread, type ThreadRow } from "../connections/google/map";
 
-// Waiting On (email 3): the loops running the OTHER way — emails the user
+// Waiting On (email 3): the loops running the OTHER way, emails the user
 // sent that expect a reply and have not gotten one. Derived, never guessed:
 // a thread qualifies only if the LAST message is the user's own and enough
 // time has passed. If the other person replied, the last message would be

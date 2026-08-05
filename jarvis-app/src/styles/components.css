@@ -957,3 +957,15 @@ button {
 .msg-undo { flex-shrink: 0; }
 /* The three sender-level exits, stacked quietly under the thread actions. */
 .msg-quiet-acts { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); margin-top: var(--s-3); }
+
+/* The payoff moment for a finished project or goal. Tasks have had a burst
+   since day one; the things that take weeks had nothing. Centred, one way
+   out, and the line under the title is derived or absent. */
+.payoff { display: flex; flex-direction: column; justify-content: center; }
+.payoff-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--s-2); padding: var(--s-6) var(--s-4); text-align: center; }
+.payoff-burst { position: relative; width: 64px; height: 64px; margin-bottom: var(--s-3); }
+.payoff-title { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: -0.02em; }
+.payoff-line { font-size: var(--t-body); color: var(--tx-2); }
+/* The category picker opening inside the Connections card. */
+.conn-sub { padding-left: var(--s-5); }

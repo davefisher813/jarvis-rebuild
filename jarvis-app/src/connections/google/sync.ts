@@ -14,7 +14,7 @@ import { mapGoogleEvent, mapGmailMessage, type MailRow } from "./map";
 //      copies (same gcalId, or same title+date+start under different ids) so
 //      whatever caused them, the next import heals it.
 //   2. COLD-READ GUARD. A marker remembers that a past import happened; if the
-//      store then shows zero imported events, the read was cold — wait and
+//      store then shows zero imported events, the read was cold, wait and
 //      re-read before trusting it, instead of re-importing the world.
 const IMPORTED_MARK = "jarvis.gcal.imported.v1";
 
@@ -57,7 +57,7 @@ export async function importCalendar(
   // event is never touched):
   //   - one event per gcalId (repeated imports of the same event), and
   //   - one event per identical (title, date, start) slot (the same thing
-  //     imported under DIFFERENT Google ids — e.g. an upstream automation
+  //     imported under DIFFERENT Google ids, e.g. an upstream automation
   //     writing the same brief into Google Calendar many times over).
   // First one wins. Two genuinely distinct primary-calendar events with the
   // same title at the same minute are indistinguishable from junk; we accept

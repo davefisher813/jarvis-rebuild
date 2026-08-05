@@ -54,6 +54,14 @@ export class NotesService {
     this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
   }
 
+  // A note's category is a real connection, not a label chosen once at
+  // creation. Changing it is how a note moves between areas of your life.
+  async setCategory(id: string, category: string): Promise<void> {
+    if (!category) return;
+    await this.store.update(this.ownerId, id, { category } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
+  }
+
   async addBlock(id: string, block: Omit<Block, "id">): Promise<string | null> {
     const note = await this.getNote(id);
     if (!note) return null;

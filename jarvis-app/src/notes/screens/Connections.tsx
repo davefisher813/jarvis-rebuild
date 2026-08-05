@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Tag, CalendarDays, ListChecks, ListTodo, Plus, X, FolderKanban, User, Target, Link2 as LinkIcon } from "lucide-react";
 import { catColor } from "../../shared/categories";
 
@@ -24,6 +25,8 @@ export default function Connections({
   onRemove,
   onCreateTasks,
   onOpen,
+  onChangeCategory,
+  categories = [],
 }: {
   category?: string;
   categoryLabel?: string;
@@ -33,7 +36,13 @@ export default function Connections({
   onRemove?: (connId: string) => void;
   onCreateTasks?: () => void;
   onOpen?: (kind: string, targetId: string) => void;
+  onChangeCategory?: (categoryId: string) => void;
+  categories?: { id: string; name: string }[];
 }) {
+  // The category row looked exactly like every other tappable row in the app
+  // and did nothing at all. It is the note's most-used connection, so it opens
+  // in place rather than pushing a screen for a one-tap choice.
+  const [picking, setPicking] = useState(false);
   return (
     <div className="screen">
       <div className="nav-bar">
@@ -48,11 +57,30 @@ export default function Connections({
       </div>
       <div className="pad-x">
         <div className="card">
-          <div className="row">
+          <div
+            className="row"
+            role={onChangeCategory ? "button" : undefined}
+            tabIndex={onChangeCategory ? 0 : undefined}
+            onClick={onChangeCategory ? () => setPicking(!picking) : undefined}
+          >
             <div className={"proj-icon cat-bg-" + catColor(category)}><Tag className="ic" /></div>
             <div className="conn-name">Category</div>
             <span className="conn-meta">{categoryLabel}</span>
+            {onChangeCategory && <div className="chev"></div>}
           </div>
+          {picking && categories.map((c) => (
+            <div
+              className="row conn-sub"
+              role="button"
+              tabIndex={0}
+              key={c.id}
+              onClick={() => { onChangeCategory?.(c.id); setPicking(false); }}
+            >
+              <div className={"proj-icon cat-bg-" + catColor(c.id)}><Tag className="ic" /></div>
+              <div className="conn-name">{c.name}</div>
+              {c.id === category && <span className="conn-meta">Current</span>}
+            </div>
+          ))}
           {connections.map((c) => {
             const ic = connIcon(c.kind);
             const canOpen = !!(onOpen && c.targetId && (c.kind === "task" || c.kind === "project" || c.kind === "event" || c.kind === "goal" || c.kind === "person"));

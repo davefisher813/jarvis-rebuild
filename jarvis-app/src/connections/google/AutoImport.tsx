@@ -3,7 +3,7 @@ import { useGoogle } from "./GoogleSession";
 import { useSchedule } from "../../data/NotesProvider";
 import { importCalendar } from "./sync";
 
-// Runs the calendar import — and its self-healing duplicate sweep — on EVERY
+// Runs the calendar import, and its self-healing duplicate sweep, on EVERY
 // Google connect, wherever the connect happened. Before this, only the
 // Connections page button imported: connecting through the Email tab skipped
 // the sweep entirely, so a "fixed" duplicate bug looked unfixed on Dave's

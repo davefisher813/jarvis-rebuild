@@ -3,9 +3,9 @@ import { requestGoogleCode, type TokenOpts } from "./gis";
 
 // The token broker (persistent sign-in, 2026-08-04): how the session gets
 // Google access tokens.
-//   authorize: interactive (popup) — used the FIRST time an account connects
+//   authorize: interactive (popup), used the FIRST time an account connects
 //              or when a stored sign-in has been revoked.
-//   silent:    no user interaction — the server mints a fresh access token
+//   silent:    no user interaction, the server mints a fresh access token
 //              from the stored refresh token. This is "stays signed in".
 //   forget:    drop the stored sign-in (disconnect).
 // The server does the exchange because refresh tokens must never reach the

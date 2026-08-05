@@ -11,7 +11,7 @@ import { newTrackId, pixelUrlFor, saveTrack, registerTrack } from "./tracking";
 import { showToast } from "../shared/toast";
 
 // The Deal With It deck (email 2): one email at a time, the decision already
-// prepared — a reply in the user's voice, a bill for Money, a slot for the
+// prepared, a reply in the user's voice, a bill for Money, a slot for the
 // Schedule, or a task. One tap closes the loop and advances. "Later" files a
 // real task pointing back at the email, so deferring never means losing.
 // Nothing sends, files, or schedules without the tap.

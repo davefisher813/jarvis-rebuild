@@ -2,7 +2,7 @@ import { apiUrl } from "../shared/apiBase";
 
 // Open tracking, client side (email 3). Each tracked send gets an unguessable
 // uuid; the uuid-to-thread mapping lives ONLY on this device (localStorage).
-// The server table knows the uuid and the open time, nothing else — it cannot
+// The server table knows the uuid and the open time, nothing else, it cannot
 // say who was emailed or about what.
 //
 // Honesty rule for every surface that reads this: "Opened" is shown only on a

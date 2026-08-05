@@ -5,6 +5,7 @@ import type { Goal, GoalData } from "../life/types";
 import type { Category } from "../categories/types";
 import type { TaskItem } from "../tasks/TasksService";
 import BiggerPicturePage from "./BiggerPicturePage";
+import Payoff, { payoffLine } from "../shared/Payoff";
 import ProjectSheet from "../projects/ProjectSheet";
 import ProjectDetailPage from "../projects/ProjectDetailPage";
 import GoalSheet from "../life/GoalSheet";
@@ -39,6 +40,7 @@ export default function BiggerPictureFlow({ openId, onOpenNote }: { openId?: str
   const [categories, setCategories] = useState<Category[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
+  const [payoff, setPayoff] = useState<{ kind: "project" | "goal"; title: string; line: string } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(openId ?? null);
   const [goalDetailId, setGoalDetailId] = useState<string | null>(null);
   // Bumps after a dismissal so the derived suggestion re-reads storage.
@@ -149,17 +151,50 @@ export default function BiggerPictureFlow({ openId, onOpenNote }: { openId?: str
     </div>
   ) : null;
 
+  // Finishing something big earns a moment. Only on the TRANSITION into done:
+  // saving an already-finished project must not re-congratulate anyone.
+  if (payoff) {
+    return (
+      <Payoff kind={payoff.kind} title={payoff.title} line={payoff.line || undefined} onDone={() => setPayoff(null)} />
+    );
+  }
+
   const saveProject = async (d: ProjectData) => {
+    const was = sheet.kind === "editProject" ? projects.find((p) => p.id === sheet.id)?.data.status : undefined;
     if (sheet.kind === "newProject") await projectsSvc.create(d);
     else if (sheet.kind === "editProject") await projectsSvc.update(sheet.id, d);
     setSheet({ kind: "closed" });
     await reload();
+    if (d.status === "done" && was !== "done" && sheet.kind === "editProject") {
+      const mine = tasks.filter((t) => (t.data as { projectId?: string }).projectId === sheet.id);
+      setPayoff({
+        kind: "project",
+        title: d.title,
+        line: payoffLine({ tasksDone: mine.filter((t) => (t.data as { done?: boolean }).done).length }),
+      });
+    }
   };
   const saveGoal = async (d: GoalData) => {
+    const was = sheet.kind === "editGoal" ? goals.find((g) => g.id === sheet.id)?.data.state : undefined;
     if (sheet.kind === "newGoal") await goalsSvc.create(d);
     else if (sheet.kind === "editGoal") await goalsSvc.update(sheet.id, d);
     setSheet({ kind: "closed" });
     await reload();
+    if (d.state === "achieved" && was !== "achieved" && sheet.kind === "editGoal") {
+      const mine = projects.filter((p) => p.data.goalId === sheet.id);
+      const ids = new Set(mine.map((p) => p.id));
+      setPayoff({
+        kind: "goal",
+        title: d.title,
+        line: payoffLine({
+          projectsDone: mine.filter((p) => p.data.status === "done").length,
+          tasksDone: tasks.filter((t) => {
+            const pid = (t.data as { projectId?: string }).projectId;
+            return !!pid && ids.has(pid) && (t.data as { done?: boolean }).done === true;
+          }).length,
+        }),
+      });
+    }
   };
 
   // ---- Goal detail (Session 6.6): the goal as a place ----

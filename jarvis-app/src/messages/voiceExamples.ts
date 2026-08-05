@@ -2,7 +2,7 @@ import type { GoogleApi } from "../connections/google/api";
 import { mapThreadFull } from "../connections/google/map";
 
 // Voice examples (email 2): the user's own sent messages TO a given person are
-// the ground truth of how they write to that person — better than any
+// the ground truth of how they write to that person, better than any
 // instruction. Fetched client-side through the same Gmail session (the token
 // never leaves the phone), capped small, cached per sender so a deck run
 // costs at most one search per NEW sender.
@@ -54,7 +54,7 @@ export function cleanSentBody(body: string): string {
 }
 
 // Fetch up to MAX_EXAMPLES of the user's own recent messages to this address.
-// Failure returns [] — drafting still works, just without the examples.
+// Failure returns [], drafting still works, just without the examples.
 export async function voiceExamplesFor(
   api: Pick<GoogleApi, "searchThreads" | "getThread">,
   senderEmail: string,

@@ -4,7 +4,7 @@ import { JARVIS_VOICE, STYLE_SCOPE_RULE } from "../ai/voice";
 // The Deal With It deck (email 2): for each thread that needs the user, ONE
 // AI pass prepares the decision so the card arrives with the work already
 // done. The plan is a proposal: nothing sends, files, or schedules without
-// the user's tap, and the parser is tolerant but never inventive — an
+// the user's tap, and the parser is tolerant but never inventive, an
 // unusable reply means NO plan (the card falls back to read-and-reply),
 // never a fabricated bill or a made-up meeting.
 

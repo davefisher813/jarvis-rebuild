@@ -93,7 +93,7 @@ export function GoogleSessionProvider({
 
   // The broker: persistent (code flow + server refresh) by default; the
   // legacy direct-token flow when a requestToken override is injected
-  // (tests, the bench) — those environments have no server.
+  // (tests, the bench), those environments have no server.
   const brokerRef = useRef<TokenBroker | null>(null);
   const legacy = requestToken !== requestGoogleToken;
   if (!brokerRef.current || legacy) {
@@ -114,7 +114,7 @@ export function GoogleSessionProvider({
   }, [makeApi, storeToken]);
 
   // "Stays signed in": on app open, mint tokens for every known account from
-  // the stored sign-ins — no popup, no tap. Interactive connect remains the
+  // the stored sign-ins, no popup, no tap. Interactive connect remains the
   // fallback when an account was never stored or got revoked.
   const silentTried = useRef(false);
   useEffect(() => {

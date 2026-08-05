@@ -16,6 +16,7 @@ import DeckFlow from "./DeckFlow";
 import MailSwipe from "./MailSwipe";
 import { loadMuted, mute, unmute, dropMuted } from "./mute";
 import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY } from "./unsubscribe";
+import { BRIEF_SYSTEM, briefPrompt, parseBrief, briefFor, saveBrief } from "./brief";
 import { emit } from "../events";
 import { usePushDepth } from "../shared/pushNav";
 import { Burst } from "../shared/Burst";
@@ -83,11 +84,11 @@ function fmtWhen(ms: number): string {
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
-// Email (rebuild, session Email 1): not an inbox — a status report. One AI
+// Email (rebuild, session Email 1): not an inbox, a status report. One AI
 // pass buckets every thread (needs you / worth knowing / noise) with a gist,
 // so junk is never opened. The headline counts what needs Dave, never unread.
 // Threads are the unit throughout; search is server-side over the whole
-// mailbox. Without AI the tab is an honest threaded list — no fake triage.
+// mailbox. Without AI the tab is an honest threaded list, no fake triage.
 export default function MessagesFlow({ ai, configured = googleConfigured(), token }: { ai: AIService; configured?: boolean; token?: string }) {
   const g = useGoogle();
   const tasks = useOptionalTasks();
@@ -156,7 +157,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   //
   // The first version sent every thread in one request with no timeout. With a
   // real inbox that request is huge and slow, and if it never came back the
-  // calm "Reading your inbox" screen sat there forever — a nicer looking wall
+  // calm "Reading your inbox" screen sat there forever, a nicer looking wall
   // is still a wall. Now: 12 threads per request, 20s ceiling each, one silent
   // retry per batch, and the sorted view appears as soon as the FIRST batch
   // lands instead of waiting for the whole inbox.
@@ -394,26 +395,25 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setView("detail");
       setRows((rs) => rs.map((r) => (r.id === id ? { ...r, unread: false } : r)));
       api.modifyThread(id, [], ["UNREAD"]).catch(() => {});
-      const convo = full.messages.slice(-4).map((m) => m.from + ": " + m.body.slice(0, 1500)).join("\n---\n");
-      if (ai.available && convo.trim()) {
-        try {
-          const s = await ai.complete(
-            [{ role: "user", content: "Summarize this email conversation in one or two sentences. If something is being asked of the reader, lead with that.\n\n" + convo }],
-            "You are a concise assistant. Reply with only the summary.",
-          );
-          setSummary(s.trim());
-        } catch { setSummary(null); }
-        try {
-          const raw = await ai.complete(
-            [{ role: "user", content: "Suggest 3 short reply options to the last message in this conversation, each under 6 words. Return ONLY a JSON array of 3 strings.\n\n" + convo }],
-            "You output only a JSON array of strings, nothing else.",
-          );
-          const parsed = JSON.parse(raw.trim()) as unknown;
-          if (Array.isArray(parsed)) {
-            const clean = parsed.filter((x): x is string => typeof x === "string").slice(0, 3);
-            if (clean.length) setReplies(clean);
-          }
-        } catch { /* keep default replies */ }
+      // ONE call for the summary and the replies, cached against the latest
+      // message id. Reopening a thread costs nothing until someone writes.
+      const lastId = full.messages[full.messages.length - 1]?.id || id;
+      const cached = briefFor(lastId);
+      if (cached) {
+        setSummary(cached.summary || null);
+        if (cached.replies.length) setReplies(cached.replies);
+      } else if (ai.available) {
+        const convo = full.messages.slice(-4).map((m) => m.from + ": " + cleanBody(m.body).slice(0, 1200)).join("\n---\n");
+        if (convo.trim()) {
+          try {
+            const brief = parseBrief(await ai.complete([{ role: "user", content: briefPrompt(convo) }], BRIEF_SYSTEM));
+            if (brief) {
+              saveBrief(lastId, brief);
+              setSummary(brief.summary || null);
+              if (brief.replies.length) setReplies(brief.replies);
+            }
+          } catch { /* the thread still reads fine without either */ }
+        }
       }
     } catch (e) {
       setError((e as Error).message || "Could not open conversation");

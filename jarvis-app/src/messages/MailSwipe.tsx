@@ -3,7 +3,7 @@ import { Archive, Trash2 } from "lucide-react";
 
 // Swipe a mail row: Archive, or Delete.
 //
-// Same gesture, same classes, same 88px reveal as Tasks — a swipe must feel
+// Same gesture, same classes, same 88px reveal as Tasks, a swipe must feel
 // identical everywhere in the app. Two differences, both deliberate:
 //
 //   - Archive is NOT amber. Amber means defer, and archiving is not deferring;

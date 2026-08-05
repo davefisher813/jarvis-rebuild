@@ -1,4 +1,4 @@
-// The drain: "give me N minutes" — and N is the USER'S number, always.
+// The drain: "give me N minutes", and N is the USER'S number, always.
 //
 // Dave's explicit requirement: he sets the timer. Presets exist because
 // picking from three is faster than typing, not because the app knows better.

@@ -3,7 +3,7 @@
 // One gesture forwards a thread to a person you know, with a short note
 // already written, and files the thread under Waiting On so it leaves your
 // head without leaving your life. Delegation is normally three decisions (who,
-// what to say, how to remember) — this is one.
+// what to say, how to remember), this is one.
 //
 // Laws: nothing sends without a tap, and the note is a proposal, editable.
 
