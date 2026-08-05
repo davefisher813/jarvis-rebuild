@@ -21,7 +21,7 @@ import { findWaiting, waitingLine, nudgePrompt, type WaitingRow } from "./waitin
 import { loadTracks, saveTrack, trackForThread, newTrackId, pixelUrlFor, registerTrack, checkOpens } from "./tracking";
 import { b64urlDecodeBytes } from "../connections/google/map";
 
-type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean };
+type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string };
 type DraftRow = { id: string; to: string; subject: string; snippet: string };
 type View = "list" | "detail" | "compose" | "deck" | "dead";
 type Filter = "triage" | "all" | "drafts";
@@ -32,6 +32,13 @@ const BUCKET_LABEL: Record<Bucket, string> = { needs_you: "Needs You", worth_kno
 function fmtDuration(ms: number): string {
   const s = Math.max(1, Math.round(ms / 1000));
   return s < 60 ? s + "s" : Math.floor(s / 60) + "m " + (s % 60) + "s";
+}
+
+// "bffsa.org" for work-style domains, "gmail" for the big ones: the shortest
+// string that still tells the accounts apart.
+function acctLabel(email: string): string {
+  const domain = email.split("@")[1] || email;
+  return /gmail|googlemail/.test(domain) ? "gmail" : domain;
 }
 
 const DEFAULT_REPLIES = ["Thanks", "Got it", "Will do"];
@@ -77,9 +84,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // and silently skipped an email (caught by the email 2 walk). A skipped
   // email nobody decided on is this feature's worst failure.
   const [deckRows, setDeckRows] = useState<ThreadRow[] | null>(null);
-  const [waiting, setWaiting] = useState<WaitingRow[]>([]);
+  const [waiting, setWaiting] = useState<(WaitingRow & { account?: string })[]>([]);
   const [opens, setOpens] = useState<Record<string, string>>({}); // threadId -> first-open ISO
   const [nudging, setNudging] = useState<string | null>(null);
+  const [acctFilter, setAcctFilter] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   const [filter, setFilter] = useState<Filter>("triage");
@@ -124,18 +132,24 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   }, [ai]);
 
   const loadThreads = useCallback(async () => {
-    const api = g.api();
-    if (!api) return;
+    const list = g.apis("mail");
+    if (list.length === 0) return;
     setLoading(true);
     setError(null);
     try {
-      const metas = await api.listThreads(40);
-      const mapped = metas.map(mapThread).filter((t): t is ThreadRow => t !== null && t.inInbox)
-        .sort((a, b) => b.dateMs - a.dateMs);
+      // One inbox across every account: each thread remembers which account
+      // it lives in, and that account is where its reply will leave from.
+      const perAccount = await Promise.all(list.map(async ({ email, api }) => {
+        const metas = await api.listThreads(30).catch(() => []);
+        return metas.map(mapThread)
+          .filter((t): t is ThreadRow => t !== null && t.inInbox)
+          .map((t) => ({ ...t, account: email }));
+      }));
+      const mapped = perAccount.flat().sort((a, b) => b.dateMs - a.dateMs);
       setRows(mapped);
       setTriage(loadTriageCache());
       void runTriage(mapped);
-      void loadWaiting(api);
+      void loadWaiting();
     } catch (e) {
       setError((e as Error).message || "Could not load mail");
     } finally {
@@ -146,9 +160,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   // Waiting On is a bonus layer: it loads after the inbox and fails to
   // nothing. Opens are looked up only for threads we actually tracked.
-  const loadWaiting = async (api: NonNullable<ReturnType<typeof g.api>>) => {
+  const loadWaiting = async () => {
     try {
-      const w = await findWaiting(api, Date.now());
+      const per = await Promise.all(g.apis("mail").map(async ({ email, api }) => {
+        const rows = await findWaiting(api, Date.now()).catch(() => []);
+        return rows.map((r) => ({ ...r, account: email }));
+      }));
+      const w = per.flat().sort((a, b) => b.waitingDays - a.waitingDays).slice(0, 5);
       setWaiting(w);
       const tracks = loadTracks();
       const pairs = w
@@ -165,8 +183,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   // Tap a Waiting On row: JARVIS drafts the nudge, the user gets it in
   // compose. It never auto-sends: a nudge is a relationship move.
-  const startNudge = async (row: WaitingRow) => {
-    const api = g.api();
+  const startNudge = async (row: WaitingRow & { account?: string }) => {
+    const api = apiFor(row.account);
     if (!api || nudging) return;
     setNudging(row.threadId);
     try {
@@ -190,6 +208,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         body,
         inReplyTo: last.messageId,
         threadId: full.id,
+        account: (row as { account?: string }).account,
       });
       setView("compose");
     } catch {
@@ -232,6 +251,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   };
 
+  // The api for a specific account, falling back to any live one so legacy
+  // single-account data (no account tag) keeps working.
+  const apiFor = (account?: string) => (account ? g.api(account) : null) ?? g.api();
+  const accountOfThread = (id: string) => rows.find((r) => r.id === id)?.account;
+
   const runSearch = async () => {
     const api = g.api();
     const q = search.trim();
@@ -249,7 +273,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   };
 
   const openThread = async (id: string) => {
-    const api = g.api();
+    const api = apiFor(accountOfThread(id));
     if (!api) return;
     setSummary(null);
     setReplies(DEFAULT_REPLIES);
@@ -289,7 +313,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // Attachments open in a new tab (or download when the browser can't render
   // the type). Bytes travel Gmail -> this device only, nothing is uploaded.
   const openAttachment = async (messageId: string, attachmentId: string, filename: string, mime: string) => {
-    const api = g.api();
+    const api = apiFor(thread ? accountOfThread(thread.id) : undefined);
     if (!api) return;
     try {
       const { data } = await api.getAttachment(messageId, attachmentId);
@@ -308,7 +332,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   };
 
   const archiveThread = (id: string) => {
-    const api = g.api();
+    const api = apiFor(accountOfThread(id));
     if (!api) return;
     setRows((rs) => rs.filter((r) => r.id !== id));
     setResults((rs) => (rs ? rs.filter((r) => r.id !== id) : rs));
@@ -317,12 +341,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   };
 
   const archiveAllNoise = (noise: ThreadRow[], manual = true) => {
-    const api = g.api();
-    if (!api || noise.length === 0) return;
+    if (noise.length === 0) return;
     const ids = new Set(noise.map((r) => r.id));
     setRows((rs) => rs.filter((r) => !ids.has(r.id)));
     setNoiseOpen(false);
-    for (const r of noise) api.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
+    for (const r of noise) apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
     const what = noise.length === 1 ? "1 conversation archived" : noise.length + " conversations archived";
     setToast(manual ? what : "Handled for you: " + what.toLowerCase() + " (" + noiseLine(noise) + ")");
     setTimeout(() => setToast(null), manual ? 2500 : 5000);
@@ -352,13 +375,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const startReply = (t: ThreadFull) => {
     const r = buildReply(lastMsg(t), "");
     setEditingDraftId(null);
-    setDraft({ to: r.to, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId });
+    setDraft({ to: r.to, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) });
     setView("compose");
   };
   const startForward = (t: ThreadFull) => {
     const m = lastMsg(t);
     setEditingDraftId(null);
-    setDraft({ to: "", subject: /^fwd:/i.test(m.subject) ? m.subject : "Fwd: " + m.subject, body: "\n\n---------- Forwarded ----------\n" + m.body });
+    setDraft({ to: "", subject: /^fwd:/i.test(m.subject) ? m.subject : "Fwd: " + m.subject, body: "\n\n---------- Forwarded ----------\n" + m.body, account: accountOfThread(t.id) });
     setView("compose");
   };
   const startCompose = () => {
@@ -369,7 +392,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const quickReply = (t: ThreadFull, text: string) => {
     const r = buildReply(lastMsg(t), text);
     setEditingDraftId(null);
-    setDraft({ to: r.to, subject: r.subject, body: text, inReplyTo: r.inReplyTo, threadId: r.threadId });
+    setDraft({ to: r.to, subject: r.subject, body: text, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) });
     setView("compose");
   };
   const openDraft = async (draftId: string) => {
@@ -387,7 +410,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   };
 
   const send = async () => {
-    const api = g.api();
+    const api = apiFor(draft.account);
     if (!api || !draft.to.trim()) {
       setError(!draft.to.trim() ? "Add a recipient" : "Not connected");
       return;
@@ -424,16 +447,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   const pushCls = usePushDepth(view === "compose" ? 2 : view === "detail" || view === "deck" ? 1 : 0);
 
+  const visibleRows = acctFilter ? rows.filter((r) => r.account === acctFilter) : rows;
   const effTriage = applyRules(triage, rows, rules);
 
   if (view === "deck") {
-    const api = g.api();
-    if (!api || !deckRows || deckRows.length === 0) { setView("list"); return null; }
+    if (!g.hasToken || !deckRows || deckRows.length === 0) { setView("list"); return null; }
     return (
       <div className={"screen " + pushCls} key="deck">
         <DeckFlow
           ai={ai}
-          api={api}
+          apiFor={apiFor}
           threads={deckRows}
           token={authToken}
           onExit={() => { setDeckRows(null); setView("list"); }}
@@ -589,9 +612,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   }
 
   // ---- list ----
-  const { needsYou, worthKnowing, noise } = splitByBucket(rows, effTriage);
+  const { needsYou, worthKnowing, noise } = splitByBucket(visibleRows, effTriage);
   const showTriage = filter === "triage" && triaged && results === null;
-  const listRows = results !== null ? results : rows;
+  const listRows = results !== null ? results : visibleRows;
 
   const threadRow = (r: ThreadRow, gist?: string) => (
     <div className="row" role="button" tabIndex={0} key={r.id} onClick={() => void openThread(r.id)}>
@@ -601,7 +624,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <span className={"conn-name truncate" + (r.unread ? " msg-strong" : "")}>{r.from}</span>
           <span className="msg-when">{fmtWhen(r.dateMs)}</span>
         </div>
-        <div className="conn-meta msg-gist">{gist ?? r.subject}{r.count > 1 ? " · " + r.count : ""}</div>
+        <div className="conn-meta msg-gist">
+          {gist ?? r.subject}{r.count > 1 ? " · " + r.count : ""}
+          {g.accounts.length > 1 && r.account && <span className="msg-acct">{acctLabel(r.account)}</span>}
+        </div>
       </div>
     </div>
   );
@@ -612,7 +638,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="nav-large">Email</div>
         <button className="nav-act" onClick={startCompose} aria-label="New message"><Plus className="ic" /></button>
       </div>
-      {showTriage && <div className="pad-x msg-headline">{headline(needsYou.length, rows.length)}</div>}
+      {showTriage && <div className="pad-x msg-headline">{headline(needsYou.length, visibleRows.length)}</div>}
       {showTriage && needsYou.length > 0 && (
         <div className="pad-x deck-cta">
           <button className="btn btn-primary btn-block" onClick={() => { setDeckRows(needsYou); setView("deck"); }}>
@@ -630,6 +656,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }}
         />
       </div>
+      {g.accounts.length > 1 && (
+        <div className="pad-x msg-chips">
+          <button className={"chip" + (acctFilter === null ? " on" : "")} onClick={() => setAcctFilter(null)}>All Accounts</button>
+          {g.accounts.filter((a) => a.mail).map((a) => (
+            <button key={a.email} className={"chip" + (acctFilter === a.email ? " on" : "")} onClick={() => setAcctFilter(a.email)}>
+              {acctLabel(a.email)}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="pad-x msg-chips">
         <button className={"chip" + (filter === "triage" ? " on" : "")} onClick={() => setFilter("triage")}>For You</button>
         <button className={"chip" + (filter === "all" ? " on" : "")} onClick={() => setFilter("all")}>All</button>
@@ -699,7 +735,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         <span className="conn-name truncate">{w.to}</span>
                         <span className="msg-when">{nudging === w.threadId ? "Drafting..." : "Nudge"}</span>
                       </div>
-                      <div className="conn-meta msg-gist">{w.subject} · {waitingLine(w, opens[w.threadId] ?? null)}</div>
+                      <div className="conn-meta msg-gist">
+                        {w.subject} · {waitingLine(w, opens[w.threadId] ?? null)}
+                        {g.accounts.length > 1 && w.account && <span className="msg-acct">{acctLabel(w.account)}</span>}
+                      </div>
                     </div>
                   </div>
                 ))}

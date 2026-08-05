@@ -1,19 +1,40 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useProfile } from "../../data/NotesProvider";
-import { requestGoogleToken } from "./gis";
+import { requestGoogleToken, type TokenOpts } from "./gis";
+import { serverBroker, type TokenBroker } from "./broker";
+import { useOptionalSession } from "../../auth/AuthProvider";
 import { createGoogleApi, type GoogleApi } from "./api";
 
-// App-wide Google session: holds the access token for this session so both the
-// Connections screen and the Messages tab can use it. connect() returns a ready
-// GoogleApi built from the fresh token, so callers never race React state. The
-// token is in-memory only (never persisted); the connected flag persists on the
-// profile, so after a reload we know to re-auth on demand.
+// App-wide Google session, multi-account (2026-08-04). Each account has its
+// own in-memory token (never persisted); the ACCOUNT LIST persists on the
+// profile (email + which features it powers), so after a reload we know who
+// to re-auth, each with a login_hint so the chooser only appears for NEW
+// accounts. The account an email arrived on is the account its reply leaves
+// from; that mapping lives on the data (ThreadRow.account), not here.
+//
+// Legacy migration: profiles from the single-account era carry
+// connections.gmail/googleCalendar booleans and no account list. They stay
+// "connected" (the UI offers Connect), and the first successful connect
+// learns the real address via getProfile and creates the account entry.
+
+export interface GoogleAccount { email: string; mail: boolean; cal: boolean }
+
 interface GoogleSessionValue {
-  connected: boolean;
-  hasToken: boolean;
+  connected: boolean; // any account known (or legacy flag)
+  accounts: GoogleAccount[];
+  hasToken: boolean; // any live token this session
+  /** Reconnect every known account (login_hint each); first connect runs the chooser. Returns the first ready api. */
   connect: () => Promise<GoogleApi>;
-  disconnect: () => Promise<void>;
-  api: () => GoogleApi | null;
+  /** Force the account chooser to add a new account. */
+  addAccount: () => Promise<{ api: GoogleApi; email: string }>;
+  reconnect: (email: string) => Promise<GoogleApi>;
+  /** No email: disconnect everything (legacy behavior). */
+  disconnect: (email?: string) => Promise<void>;
+  setFeature: (email: string, key: "mail" | "cal", on: boolean) => Promise<void>;
+  /** No email: the first account with a live token (single-account call sites keep working). */
+  api: (email?: string) => GoogleApi | null;
+  /** Every tokened account, optionally filtered to a feature. */
+  apis: (feature?: "mail" | "cal") => { email: string; api: GoogleApi }[];
 }
 
 const Ctx = createContext<GoogleSessionValue | null>(null);
@@ -24,41 +45,177 @@ export function GoogleSessionProvider({
   makeApi = (t: string) => createGoogleApi(t),
 }: {
   children: ReactNode;
-  requestToken?: () => Promise<string>;
+  /** Test/bench override: forces the legacy direct-token flow (no persistence). */
+  requestToken?: (opts?: TokenOpts) => Promise<string>;
   makeApi?: (token: string) => GoogleApi;
 }) {
   const profile = useProfile();
-  const [token, setToken] = useState<string | null>(null);
-  const [connected, setConnected] = useState(false);
+  const supaSession = useOptionalSession();
+  const supaToken = supaSession?.access_token;
+  const tokenRefValue = useRef<string | undefined>(supaToken);
+  tokenRefValue.current = supaToken;
+  const tokens = useRef<Record<string, string>>({});
+  const [tokenVersion, setTokenVersion] = useState(0); // bumps re-render when tokens change
+  const [accounts, setAccounts] = useState<GoogleAccount[]>([]);
+  const [legacyConnected, setLegacyConnected] = useState(false);
+
+  // If a connect lands before the initial profile read resolves, the read must
+  // not clobber it (a race the session tests caught; humans are slower but
+  // the guard costs nothing).
+  const dirty = useRef(false);
 
   useEffect(() => {
     (async () => {
       const p = await profile.get();
+      if (!dirty.current) {
+        const list = (p?.googleAccounts as GoogleAccount[] | undefined) || [];
+        setAccounts(list.filter((a) => typeof a?.email === "string"));
+      }
       const c = p?.connections || {};
-      setConnected(!!(c.gmail || c.googleCalendar || p?.gmail || p?.calendar));
+      setLegacyConnected(!!(c.gmail || c.googleCalendar || p?.gmail || p?.calendar));
     })();
   }, [profile]);
 
-  const connect = useCallback(async (): Promise<GoogleApi> => {
-    const t = await requestToken();
-    setToken(t);
+  const persist = useCallback(async (list: GoogleAccount[]) => {
+    dirty.current = true;
+    setAccounts(list);
     const p = await profile.get();
-    await profile.save({ connections: { ...(p?.connections || {}), gmail: true, googleCalendar: true } });
-    setConnected(true);
-    return makeApi(t);
-  }, [profile, requestToken, makeApi]);
-
-  const disconnect = useCallback(async () => {
-    setToken(null);
-    setConnected(false);
-    const p = await profile.get();
-    await profile.save({ connections: { ...(p?.connections || {}), gmail: false, googleCalendar: false } });
+    await profile.save({
+      googleAccounts: list,
+      connections: { ...(p?.connections || {}), gmail: list.some((a) => a.mail), googleCalendar: list.some((a) => a.cal) },
+    });
   }, [profile]);
 
-  const api = useCallback(() => (token ? makeApi(token) : null), [token, makeApi]);
+  const storeToken = useCallback((email: string, token: string) => {
+    tokens.current[email.toLowerCase()] = token;
+    setTokenVersion((v) => v + 1);
+  }, []);
+
+  // The broker: persistent (code flow + server refresh) by default; the
+  // legacy direct-token flow when a requestToken override is injected
+  // (tests, the bench) — those environments have no server.
+  const brokerRef = useRef<TokenBroker | null>(null);
+  const legacy = requestToken !== requestGoogleToken;
+  if (!brokerRef.current || legacy) {
+    brokerRef.current = legacy
+      ? { authorize: async (opts) => ({ token: await requestToken(opts) }) }
+      : serverBroker(() => tokenRefValue.current);
+  }
+
+  // A token grant always ends with getProfile when the broker didn't already
+  // say whose it is: the USER picks the account in Google's UI, so the truth
+  // of "who authorized" comes from Google, not from what we asked for.
+  const authorize = useCallback(async (opts: TokenOpts): Promise<{ api: GoogleApi; email: string }> => {
+    const got = await brokerRef.current!.authorize(opts);
+    const api = makeApi(got.token);
+    const email = (got.email ?? (await api.getProfile()).emailAddress).toLowerCase();
+    storeToken(email, got.token);
+    return { api, email };
+  }, [makeApi, storeToken]);
+
+  // "Stays signed in": on app open, mint tokens for every known account from
+  // the stored sign-ins — no popup, no tap. Interactive connect remains the
+  // fallback when an account was never stored or got revoked.
+  const silentTried = useRef(false);
+  useEffect(() => {
+    const broker = brokerRef.current;
+    if (silentTried.current || !broker?.silent || accounts.length === 0 || !supaToken) return;
+    silentTried.current = true;
+    (async () => {
+      for (const a of accounts) {
+        const t = await broker.silent!(a.email).catch(() => null);
+        if (t) storeToken(a.email, t);
+      }
+    })();
+  }, [accounts, supaToken, storeToken]);
+
+  const addAccount = useCallback(async () => {
+    const got = await authorize({ selectAccount: true });
+    if (!accounts.some((a) => a.email === got.email)) {
+      await persist([...accounts, { email: got.email, mail: true, cal: true }]);
+    }
+    return got;
+  }, [authorize, accounts, persist]);
+
+  const reconnect = useCallback(async (email: string) => {
+    // Silent first: with a stored sign-in this is popup-free.
+    const silent = brokerRef.current?.silent;
+    if (silent) {
+      const t = await silent(email).catch(() => null);
+      if (t) {
+        storeToken(email.toLowerCase(), t);
+        return makeApi(t);
+      }
+    }
+    const got = await authorize({ loginHint: email });
+    if (!accounts.some((a) => a.email === got.email)) {
+      // The user picked a different account in the popup: honor reality.
+      await persist([...accounts, { email: got.email, mail: true, cal: true }]);
+    }
+    return got.api;
+  }, [authorize, accounts, persist]);
+
+  const connect = useCallback(async (): Promise<GoogleApi> => {
+    if (accounts.length === 0) return (await addAccount()).api;
+    let first: GoogleApi | null = null;
+    let lastErr: unknown = null;
+    for (const a of accounts) {
+      try {
+        const api = await reconnect(a.email);
+        if (!first) first = api;
+      } catch (e) { lastErr = e; }
+    }
+    if (!first) throw (lastErr instanceof Error ? lastErr : new Error("Could not connect"));
+    return first;
+  }, [accounts, addAccount, reconnect]);
+
+  const disconnect = useCallback(async (email?: string) => {
+    const forget = brokerRef.current?.forget;
+    if (email) {
+      if (forget) void forget(email.toLowerCase()).catch(() => {});
+      delete tokens.current[email.toLowerCase()];
+      setTokenVersion((v) => v + 1);
+      await persist(accounts.filter((a) => a.email !== email.toLowerCase()));
+    } else {
+      if (forget) for (const a of accounts) void forget(a.email).catch(() => {});
+      tokens.current = {};
+      setTokenVersion((v) => v + 1);
+      setLegacyConnected(false);
+      await persist([]);
+    }
+  }, [accounts, persist]);
+
+  const setFeature = useCallback(async (email: string, key: "mail" | "cal", on: boolean) => {
+    await persist(accounts.map((a) => (a.email === email.toLowerCase() ? { ...a, [key]: on } : a)));
+  }, [accounts, persist]);
+
+  const api = useCallback((email?: string) => {
+    void tokenVersion;
+    if (email) {
+      const t = tokens.current[email.toLowerCase()];
+      return t ? makeApi(t) : null;
+    }
+    const firstTokened = accounts.find((a) => tokens.current[a.email]) ?? null;
+    const t = firstTokened ? tokens.current[firstTokened.email] : Object.values(tokens.current)[0];
+    return t ? makeApi(t) : null;
+  }, [accounts, makeApi, tokenVersion]);
+
+  const apis = useCallback((feature?: "mail" | "cal") => {
+    void tokenVersion;
+    const known = accounts.length > 0 ? accounts : Object.keys(tokens.current).map((email) => ({ email, mail: true, cal: true }));
+    return known
+      .filter((a) => (feature ? a[feature] : true))
+      .map((a) => ({ email: a.email, api: tokens.current[a.email] ? makeApi(tokens.current[a.email]!) : null }))
+      .filter((x): x is { email: string; api: GoogleApi } => x.api !== null);
+  }, [accounts, makeApi, tokenVersion]);
+
+  void tokenVersion; // token changes re-render, so this read is fresh
+  const hasToken = Object.keys(tokens.current).length > 0;
 
   return (
-    <Ctx.Provider value={{ connected, hasToken: !!token, connect, disconnect, api }}>{children}</Ctx.Provider>
+    <Ctx.Provider value={{ connected: accounts.length > 0 || legacyConnected, accounts, hasToken, connect, addAccount, reconnect, disconnect, setFeature, api, apis }}>
+      {children}
+    </Ctx.Provider>
   );
 }
 

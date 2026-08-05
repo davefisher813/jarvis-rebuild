@@ -12,6 +12,9 @@ export interface ProfileData {
   tabs?: string[];
   gmail: boolean;
   connections?: Record<string, boolean>;
+  // Multi-account Google (2026-08-04): the persisted account list. Tokens are
+  // never stored; only who to re-auth and which features each account powers.
+  googleAccounts?: { email: string; mail: boolean; cal: boolean }[];
   notify?: { overdue: boolean; events: boolean; goals: boolean };
   // ADHD check-ins: per-day answers keyed by ISO date. one = the pinned ONE
   // thing (task id), mood = evening answer, skip = question ids dismissed for

@@ -14,9 +14,9 @@ import { showToast } from "../shared/toast";
 // Schedule, or a task. One tap closes the loop and advances. "Later" files a
 // real task pointing back at the email, so deferring never means losing.
 // Nothing sends, files, or schedules without the tap.
-export default function DeckFlow({ ai, api, threads, token, onDone, onExit, onOpenThread, onEditReply, onHandled }: {
+export default function DeckFlow({ ai, apiFor, threads, token, onDone, onExit, onOpenThread, onEditReply, onHandled }: {
   ai: AIService;
-  api: GoogleApi;
+  apiFor: (account?: string) => GoogleApi | null;
   threads: ThreadRow[];
   token?: string;
   onDone: (handled: number, ms: number) => void;
@@ -42,6 +42,8 @@ export default function DeckFlow({ ai, api, threads, token, onDone, onExit, onOp
     setThread(null);
     setPlan(null);
     try {
+      const api = apiFor(r.account);
+      if (!api) throw new Error("not connected");
       const full = mapThreadFull(await api.getThread(r.id));
       if (full.messages.length === 0) throw new Error("empty");
       setThread(full);
@@ -63,7 +65,7 @@ export default function DeckFlow({ ai, api, threads, token, onDone, onExit, onOp
     } finally {
       setPreparing(false);
     }
-  }, [ai, api, people]);
+  }, [ai, apiFor, people]);
 
   useEffect(() => {
     if (row) void prepare(row);
@@ -79,13 +81,15 @@ export default function DeckFlow({ ai, api, threads, token, onDone, onExit, onOp
     }
   };
 
-  const archiveRemote = (id: string) => {
-    api.modifyThread(id, [], ["INBOX", "UNREAD"]).catch(() => {});
+  const archiveRemote = (id: string, account?: string) => {
+    apiFor(account)?.modifyThread(id, [], ["INBOX", "UNREAD"]).catch(() => {});
   };
 
   const runPrimary = async () => {
     if (!row || !thread || busy) return;
     if (!plan) { onOpenThread(row.id); return; }
+    const api = apiFor(row.account);
+    if (!api) return;
     setBusy(true);
     try {
       if (plan.kind === "reply" && plan.reply) {
@@ -98,7 +102,7 @@ export default function DeckFlow({ ai, api, threads, token, onDone, onExit, onOp
         );
         saveTrack(trackId, { threadId: sent.threadId || r.threadId || sent.id, sentAt: Date.now() });
         void registerTrack(trackId, token);
-        archiveRemote(row.id);
+        archiveRemote(row.id, row.account);
         // The honest voice metric: sent exactly as drafted (edited sends are
         // logged from the compose path with edited: true).
         emit({ type: "action", props: { name: "email.deck.sent", edited: false } });
@@ -108,7 +112,7 @@ export default function DeckFlow({ ai, api, threads, token, onDone, onExit, onOp
           due: plan.bill.due ?? null,
           bill: { amount: plan.bill.amount },
         });
-        archiveRemote(row.id);
+        archiveRemote(row.id, row.account);
         showToast({ message: "Bill added to Money" });
       } else if (plan.kind === "event" && plan.event) {
         await schedule.createEvent(plan.event.title, {
@@ -116,14 +120,14 @@ export default function DeckFlow({ ai, api, threads, token, onDone, onExit, onOp
           start: plan.event.start,
           end: plan.event.end,
         });
-        archiveRemote(row.id);
+        archiveRemote(row.id, row.account);
         showToast({ message: "On the schedule" });
       } else if (plan.kind === "task" && plan.task) {
         await tasks.createTask(plan.task.title, { due: plan.task.due ?? null });
-        archiveRemote(row.id);
+        archiveRemote(row.id, row.account);
         showToast({ message: "Task added" });
       } else {
-        archiveRemote(row.id);
+        archiveRemote(row.id, row.account);
       }
       emit({ type: "action", props: { name: "email.deck.handled", kind: plan.kind } });
       advance(true);
@@ -148,7 +152,7 @@ export default function DeckFlow({ ai, api, threads, token, onDone, onExit, onOp
 
   const archive = () => {
     if (!row || busy) return;
-    archiveRemote(row.id);
+    archiveRemote(row.id, row.account);
     emit({ type: "action", props: { name: "email.deck.handled", kind: "archive" } });
     advance(true);
   };

@@ -19,12 +19,17 @@ export default function GoogleAutoImport() {
       done.current = false;
       return;
     }
-    const api = g.api();
-    if (!api || done.current) return;
+    const list = g.apis("cal");
+    if (list.length === 0 || done.current) return;
     done.current = true;
-    importCalendar(api, schedule).catch(() => {
-      done.current = false;
-    });
+    // Every calendar-enabled account imports; the sweep dedupes by gcalId and
+    // by identical slot, which also collapses the invited-on-both-accounts
+    // case (same Google event id in both calendars) to one JARVIS event.
+    (async () => {
+      for (const { api } of list) {
+        await importCalendar(api, schedule).catch(() => { done.current = false; });
+      }
+    })();
   }, [g, schedule]);
 
   return null;

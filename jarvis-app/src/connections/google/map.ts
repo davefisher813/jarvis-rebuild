@@ -227,6 +227,7 @@ export interface ThreadRow {
   dateMs: number;     // latest message time
   count: number;      // messages in thread
   lastMsgId: string;  // triage cache key: a new message re-triages the thread
+  account?: string;   // which Google account this thread lives in (multi-account)
 }
 
 export function mapThread(t: GmailThreadMeta): ThreadRow | null {
