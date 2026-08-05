@@ -14,7 +14,10 @@ import type { ThreadRow } from "../connections/google/map";
 //   - Only from/subject/snippet travel to the model here — never full bodies.
 
 export type Bucket = "needs_you" | "worth_knowing" | "noise";
-export interface Triage { bucket: Bucket; gist: string }
+// "by" is the answer-by the SENDER stated, never one we invented: "today",
+// "friday", "aug 14", or "" when nobody named a time. Fake urgency is the
+// thing this feature exists to remove, so an absent deadline stays absent.
+export interface Triage { bucket: Bucket; gist: string; by?: string }
 export type TriageMap = Record<string, Triage & { lastMsgId: string }>;
 
 const CACHE_KEY = "jarvis.mail.triage.v1";
@@ -29,7 +32,9 @@ export const TRIAGE_PROMPT = `You triage an inbox for a busy person with ADHD. F
 
 Also write "gist": ONE plain sentence (under 15 words) saying who wants what and by when. Be concrete: names, amounts, dates. Never scold, never say "you should". If a deadline or amount is in the snippet, it goes in the gist.
 
-Reply with ONLY a JSON array, one object per thread: [{"id":"...","bucket":"needs_you|worth_knowing|noise","gist":"..."}]
+Also write "by": the answer-by the SENDER actually stated, copied in their words and under 20 characters ("today", "Friday", "Aug 14", "end of month"). If the sender did not name a time, use "". NEVER invent a deadline and never guess one from tone.
+
+Reply with ONLY a JSON array, one object per thread: [{"id":"...","bucket":"needs_you|worth_knowing|noise","gist":"...","by":"..."}]
 
 THREADS:
 `;
@@ -58,13 +63,14 @@ export function parseTriage(raw: string, rows: ThreadRow[]): TriageMap | null {
   const out: TriageMap = {};
   for (const item of parsed) {
     if (typeof item !== "object" || item === null) continue;
-    const { id, bucket, gist } = item as { id?: unknown; bucket?: unknown; gist?: unknown };
+    const { id, bucket, gist, by } = item as { id?: unknown; bucket?: unknown; gist?: unknown; by?: unknown };
     if (typeof id !== "string") continue;
     const row = byId.get(id);
     if (!row) continue;
     const b: Bucket = bucket === "needs_you" || bucket === "noise" ? bucket : "worth_knowing";
     const g = typeof gist === "string" && gist.trim() ? gist.trim().slice(0, GIST_MAX) : row.snippet.slice(0, GIST_MAX);
-    out[id] = { bucket: b, gist: g, lastMsgId: row.lastMsgId };
+    const d = typeof by === "string" ? by.trim().slice(0, 20) : "";
+    out[id] = { bucket: b, gist: g, lastMsgId: row.lastMsgId, ...(d ? { by: d } : {}) };
   }
   return Object.keys(out).length ? out : null;
 }
@@ -93,10 +99,10 @@ export function loadTriageCache(storage: Pick<Storage, "getItem"> = localStorage
     const out: TriageMap = {};
     for (const [id, v] of Object.entries(parsed as Record<string, unknown>)) {
       if (typeof v !== "object" || v === null) continue;
-      const { bucket, gist, lastMsgId } = v as { bucket?: unknown; gist?: unknown; lastMsgId?: unknown };
+      const { bucket, gist, lastMsgId, by } = v as { bucket?: unknown; gist?: unknown; lastMsgId?: unknown; by?: unknown };
       if ((bucket === "needs_you" || bucket === "worth_knowing" || bucket === "noise")
         && typeof gist === "string" && typeof lastMsgId === "string") {
-        out[id] = { bucket, gist, lastMsgId };
+        out[id] = { bucket, gist, lastMsgId, ...(typeof by === "string" && by ? { by } : {}) };
       }
     }
     return out;
@@ -145,4 +151,59 @@ export function noiseLine(noise: ThreadRow[]): string {
   const shown = names.slice(0, 3).join(", ");
   const extra = names.length - 3;
   return extra > 0 ? shown + " +" + extra + " more" : shown;
+}
+
+// Ranking for the answer-by the sender stated. Lower sorts first. Anything we
+// cannot read stays in the middle: an unparsed phrase must never jump the
+// queue, and "no rush" must never outrank a real date.
+export function byRank(by: string | undefined, now = new Date()): number {
+  const t = (by || "").trim().toLowerCase();
+  if (!t) return 500;
+  if (/(no rush|whenever|any ?time|when you can)/.test(t)) return 900;
+  if (/(asap|urgent|now|today|end of day|eod)/.test(t)) return 0;
+  if (/tomorrow/.test(t)) return 1;
+  const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const day = DAYS.findIndex((d) => t.startsWith(d.slice(0, 3)));
+  if (day >= 0) {
+    const delta = (day - now.getDay() + 7) % 7;
+    return delta === 0 ? 7 : delta; // "friday" said ON friday means next friday
+  }
+  if (/(this week|end of week)/.test(t)) return 5;
+  if (/(next week)/.test(t)) return 10;
+  if (/(this month|end of month)/.test(t)) return 20;
+  const d = new Date(t + " " + now.getFullYear());
+  if (!isNaN(d.getTime())) {
+    const days = Math.round((d.getTime() - now.getTime()) / 86400000);
+    if (days >= -1 && days < 365) return Math.max(0, days);
+  }
+  return 500;
+}
+
+// Needs You in the order the SENDERS need it, not the order it arrived.
+// Equal deadlines fall back to newest first, which is the old behaviour.
+export function sortByDeadline(rows: ThreadRow[], map: TriageMap, now = new Date()): ThreadRow[] {
+  return [...rows].sort((a, b) => {
+    const ra = byRank(map[a.id]?.by, now);
+    const rb = byRank(map[b.id]?.by, now);
+    return ra !== rb ? ra - rb : b.dateMs - a.dateMs;
+  });
+}
+
+// The Today line. Email stops being a destination: one sentence on the Today
+// page says where it stands, and only appears when something actually needs
+// him. Silence when the answer is "nothing" — a card that says "0 emails need
+// you" is still a thing to read.
+export function todayEmailLine(needsYou: number, replied: number): string {
+  if (needsYou <= 0) return "";
+  const who = needsYou === 1 ? "1 email needs you" : needsYou + " emails need you";
+  if (replied >= needsYou && needsYou > 0) {
+    return who + ", " + (needsYou === 1 ? "the reply is written" : "the replies are written");
+  }
+  return who;
+}
+
+// Counts straight off the cache, so Today never waits on the network or the
+// AI. Cache-only is the point: this line must render instantly or not at all.
+export function needsYouCount(map: TriageMap = loadTriageCache()): number {
+  return Object.values(map).filter((t) => t.bucket === "needs_you").length;
 }

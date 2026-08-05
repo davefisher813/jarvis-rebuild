@@ -112,9 +112,15 @@ export default function TodayPage({
   ring,
   daypart,
   birthdays,
+  emailLine,
+  onOpenEmail,
 }: {
   greeting: string;
   dateLong: string;
+  // Email as a LINE, not a destination. Empty means nothing needs him, and
+  // then nothing renders: a card saying "0 emails need you" is still homework.
+  emailLine?: string;
+  onOpenEmail?: () => void;
   summary: DaySummary;
   todayEvents: EventItem[];
   now: string;
@@ -279,6 +285,21 @@ export default function TodayPage({
       </div>
 
       {birthdaySection}
+
+      {emailLine && (
+        <div className="pad-x">
+          <div className="card">
+            <div className="row" role="button" tabIndex={0} onClick={onOpenEmail}>
+              <div className="row-grow">
+                <div className="conn-name">{emailLine}</div>
+                <div className="conn-meta">Deal with it from here.</div>
+              </div>
+              <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+            </div>
+          </div>
+        </div>
+      )}
+
       {upNextSection}
 
       {freshStart && (

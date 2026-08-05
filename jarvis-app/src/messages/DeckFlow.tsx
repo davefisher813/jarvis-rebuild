@@ -4,6 +4,7 @@ import type { GoogleApi } from "../connections/google/api";
 import { mapThreadFull, buildReply, encodeEmail, type ThreadRow, type ThreadFull } from "../connections/google/map";
 import { useTasks, useSchedule, usePeople } from "../data/NotesProvider";
 import { emit } from "../events";
+import { fmtClock } from "./drain";
 import { buildPlanPrompt, parseDeckPlan, primaryLabel, laterTaskTitle, type DeckPlan, type VoiceProfile } from "./deck";
 import { voiceExamplesFor } from "./voiceExamples";
 import { newTrackId, pixelUrlFor, saveTrack, registerTrack } from "./tracking";
@@ -14,12 +15,14 @@ import { showToast } from "../shared/toast";
 // Schedule, or a task. One tap closes the loop and advances. "Later" files a
 // real task pointing back at the email, so deferring never means losing.
 // Nothing sends, files, or schedules without the tap.
-export default function DeckFlow({ ai, apiFor, threads, token, onDone, onExit, onOpenThread, onEditReply, onHandled }: {
+export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, onExit, onOpenThread, onEditReply, onHandled }: {
   ai: AIService;
   apiFor: (account?: string) => GoogleApi | null;
   threads: ThreadRow[];
   token?: string;
   onDone: (handled: number, ms: number) => void;
+  // The drain: a hard stop the USER chose. Undefined means no timer at all.
+  limitMs?: number;
   onExit: () => void;
   onOpenThread: (id: string) => void;
   onEditReply: (thread: ThreadFull, body: string) => void;
@@ -35,6 +38,8 @@ export default function DeckFlow({ ai, apiFor, threads, token, onDone, onExit, o
   const [busy, setBusy] = useState(false);
   const handled = useRef(0);
   const started = useRef(Date.now());
+  const [left, setLeft] = useState<number | null>(limitMs ?? null);
+  const done = useRef(false);
   const row = threads[idx];
 
   const prepare = useCallback(async (r: ThreadRow) => {
@@ -71,10 +76,27 @@ export default function DeckFlow({ ai, apiFor, threads, token, onDone, onExit, o
     if (row) void prepare(row);
   }, [row, prepare]);
 
+  // At zero it stops dead. Mid-card is fine: the card was a proposal, and an
+  // undecided proposal costs nothing.
+  useEffect(() => {
+    if (!limitMs) return;
+    const id = setInterval(() => {
+      const remaining = limitMs - (Date.now() - started.current);
+      setLeft(remaining);
+      if (remaining <= 0 && !done.current) {
+        done.current = true;
+        clearInterval(id);
+        onDone(handled.current, limitMs);
+      }
+    }, 250);
+    return () => clearInterval(id);
+  }, [limitMs, onDone]);
+
   const advance = (archivedRow: boolean) => {
     if (row) onHandled(row.id, archivedRow);
     handled.current += 1;
     if (idx + 1 >= threads.length) {
+      done.current = true;
       onDone(handled.current, Date.now() - started.current);
     } else {
       setIdx(idx + 1);
@@ -163,7 +185,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, onDone, onExit, o
     <div className="screen" key={"deck" + row.id}>
       <div className="nav-bar">
         <button className="nav-back" onClick={onExit}>Email</button>
-        <span className="nav-title">{idx + 1} of {threads.length}</span>
+        <span className="nav-title">{limitMs && left !== null ? fmtClock(left) : idx + 1 + " of " + threads.length}</span>
         <span className="nav-act"></span>
       </div>
       <div className="pad-x">

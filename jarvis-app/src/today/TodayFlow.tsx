@@ -11,6 +11,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import { greetingFor, longDate, shortDate } from "./greeting";
 import { tomorrowISO, nowHHMM, daySummary, todaysTasks } from "./todayData";
 import TodayPage from "./TodayPage";
+import { todayEmailLine, needsYouCount } from "../messages/triage";
 import { birthdaysOn, type BirthdayHit } from "../people/birthdays";
 import TodaySuggestions from "./TodaySuggestions";
 import CheckIn from "./CheckIn";
@@ -42,6 +43,7 @@ export default function TodayFlow({
   onGoSchedule,
   onGoTasks,
   onGoTasksAll,
+  onGoEmail,
   onSearch,
   onProfile,
   onEditRoutine,
@@ -49,6 +51,7 @@ export default function TodayFlow({
   onGoSchedule: () => void;
   onGoTasks: () => void;
   onGoTasksAll?: () => void;
+  onGoEmail?: () => void;
   onSearch?: () => void;
   onProfile?: () => void;
   onEditRoutine?: () => void;
@@ -321,6 +324,8 @@ export default function TodayFlow({
       onUpNext={() => setUpNextOpen(true)}
       upNext={upNextRows}
       onSeeAllUpNext={onGoTasksAll ?? onGoTasks}
+      emailLine={todayEmailLine(needsYouCount(), 0)}
+      onOpenEmail={onGoEmail}
       freshStart={offTrack ? () => setFreshOpen(true) : undefined}
       locked={blocked}
       onOpenEvent={onOpenEvent}

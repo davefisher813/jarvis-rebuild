@@ -117,6 +117,12 @@ export function useOptionalTasks(): TasksService | null {
   return useContext(TasksContext) ?? null;
 }
 
+// Same principle as useOptionalTasks: the email tab offers hand-off only when
+// there is a people list to offer from, and renders fine when there is not.
+export function useOptionalPeople(): PeopleService | null {
+  return useContext(PeopleContext) ?? null;
+}
+
 export function useSchedule(): ScheduleService {
   const s = useContext(ScheduleContext);
   if (!s) throw new Error("useSchedule must be used inside NotesProvider");

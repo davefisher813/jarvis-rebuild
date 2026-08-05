@@ -174,7 +174,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             are instant, like native iOS (RDB, Dave 2026-07-29) */}
         <Suspense fallback={<SkeletonScreen hero={false} />}>
         <div key={active}>
-        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); setActive("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} />}
+        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); setActive("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={() => setActive("messages")} />}
         {active === "tasks" && <TasksFlow openId={taskIntent} openFilter={taskFilterIntent} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
         {active === "brain" && <BrainFlow openKey={brainIntent} personOpenId={personIntent?.id} onOpenNote={navigateToNote} />}

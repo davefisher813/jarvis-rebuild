@@ -9,7 +9,7 @@ import {
 } from "../connections/google/map";
 import {
   loadTriageCache, saveTriageCache, triageDelta, buildTriageInput, parseTriage,
-  fillSkipped, splitByBucket, headline, noiseLine, type TriageMap, type Bucket,
+  fillSkipped, splitByBucket, headline, noiseLine, sortByDeadline, byRank, type TriageMap, type Bucket,
 } from "./triage";
 import { loadRules, saveRule, applyRules, type SenderRules } from "./rules";
 import DeckFlow from "./DeckFlow";
@@ -20,17 +20,34 @@ import { useOptionalSession } from "../auth/AuthProvider";
 import { findWaiting, waitingLine, nudgePrompt, type WaitingRow } from "./waiting";
 import { loadTracks, saveTrack, trackForThread, newTrackId, pixelUrlFor, registerTrack, checkOpens } from "./tracking";
 import { loadNetted, saveNetted, netCandidates, guardLine } from "./safetyNet";
+import { cleanBody, isLong, leadIn, wordCount } from "./bodyText";
+import { recordToss, markAsked, tossOffer, tossLine } from "./selfClean";
+import { PRESETS, loadMinutes, saveMinutes, clampMinutes, drainReceipt } from "./drain";
+import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, handoffLine, type HandoffTarget } from "./handoff";
+import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, markPromised, commitmentLine } from "./commitments";
 import { laterTaskTitle } from "./deck";
-import { useOptionalTasks } from "../data/NotesProvider";
+import { useOptionalTasks, useOptionalPeople } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
 
-type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string };
+type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string };
 type DraftRow = { id: string; to: string; subject: string; snippet: string };
 type View = "list" | "detail" | "compose" | "deck" | "dead";
 type Filter = "triage" | "all" | "drafts";
 type TriageState = "idle" | "pending" | "ready" | "failed";
 
 const AUTONOISE_KEY = "jarvis.mail.autonoise.v1";
+// Small enough that one request is fast and well under the proxy's input cap.
+const TRIAGE_BATCH = 12;
+const TRIAGE_TIMEOUT_MS = 20000;
+
+// A promise that cannot hang forever. Without this the calm pending screen has
+// no exit, which is the exact failure it was built to prevent.
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error("Sorting took too long.")), ms)),
+  ]);
+}
 const BUCKET_LABEL: Record<Bucket, string> = { needs_you: "Needs You", worth_knowing: "Worth Knowing", noise: "Noise" };
 
 function fmtDuration(ms: number): string {
@@ -71,6 +88,7 @@ function fmtWhen(ms: number): string {
 export default function MessagesFlow({ ai, configured = googleConfigured(), token }: { ai: AIService; configured?: boolean; token?: string }) {
   const g = useGoogle();
   const tasks = useOptionalTasks();
+  const people = useOptionalPeople();
   const session = useOptionalSession();
   const authToken = token ?? session?.access_token;
   const [view, setView] = useState<View>("list");
@@ -82,7 +100,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // the raw list dumped back in Dave's face.
   const [triageState, setTriageState] = useState<TriageState>("idle");
   const [triageWhy, setTriageWhy] = useState<string>("");
+  const [openBodies, setOpenBodies] = useState<Record<string, boolean>>({});
   const [restOpen, setRestOpen] = useState(false);
+  const [toss, setToss] = useState<{ sender: string; n: number } | null>(null);
+  // The drain. minutes is the user's number, remembered between runs.
+  const [minutes, setMinutes] = useState<number>(() => loadMinutes());
+  const [drainOpen, setDrainOpen] = useState(false);
+  const [drainMs, setDrainMs] = useState<number | undefined>(undefined);
+  // Hand off: null = closed, [] = open and loading the people list.
+  const [handTargets, setHandTargets] = useState<HandoffTarget[] | null>(null);
+  const [handing, setHanding] = useState(false);
   const [netted, setNetted] = useState(0);
   const [rules, setRules] = useState<SenderRules>(() => loadRules());
   const [noiseOpen, setNoiseOpen] = useState(false);
@@ -118,9 +145,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [toast, setToast] = useState<string | null>(null);
   const triageBusy = useRef(false);
 
-  // One pass, with exactly ONE silent retry. Two failures is a real outage and
-  // the user gets told once, calmly, instead of watching a spinner forever.
-  const runTriage = useCallback(async (threads: ThreadRow[], attempt = 0) => {
+  // Triage in SMALL BATCHES, each with a hard timeout, rendering as they land.
+  //
+  // The first version sent every thread in one request with no timeout. With a
+  // real inbox that request is huge and slow, and if it never came back the
+  // calm "Reading your inbox" screen sat there forever — a nicer looking wall
+  // is still a wall. Now: 12 threads per request, 20s ceiling each, one silent
+  // retry per batch, and the sorted view appears as soon as the FIRST batch
+  // lands instead of waiting for the whole inbox.
+  const runTriage = useCallback(async (threads: ThreadRow[]) => {
     if (!ai.available || triageBusy.current) return;
     const cache = loadTriageCache();
     const delta = triageDelta(threads, cache);
@@ -131,30 +164,47 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       return;
     }
     triageBusy.current = true;
-    // Warm start: if the cache already covers some threads, the sorted view is
-    // already on screen and this pass is a refresh, not a gate.
     setTriageState((s) => (s === "ready" ? s : "pending"));
+    let merged: TriageMap = { ...cache };
+    let anyOk = false;
+    let lastErr = "";
     try {
-      const raw = await ai.complete(
-        [{ role: "user", content: buildTriageInput(delta) }],
-        "You output only a JSON array, nothing else.",
-      );
-      const parsed = parseTriage(raw, delta);
-      if (!parsed) throw new Error("unparseable");
-      const merged = fillSkipped({ ...cache, ...parsed }, delta);
+      for (let i = 0; i < delta.length; i += TRIAGE_BATCH) {
+        const batch = delta.slice(i, i + TRIAGE_BATCH);
+        let parsed = null;
+        for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
+          try {
+            const raw = await withTimeout(
+              ai.complete(
+                [{ role: "user", content: buildTriageInput(batch) }],
+                "You output only a JSON array, nothing else.",
+              ),
+              TRIAGE_TIMEOUT_MS,
+            );
+            parsed = parseTriage(raw, batch);
+            if (!parsed) lastErr = "The sort came back unreadable.";
+          } catch (e) {
+            lastErr = ((e as Error)?.message || "").slice(0, 140);
+          }
+        }
+        if (!parsed) continue; // this batch stays unsorted; the rest still sorts
+        merged = fillSkipped({ ...merged, ...parsed }, batch);
+        anyOk = true;
+        // Render progress immediately: partial sorted beats a spinner.
+        saveTriageCache(merged);
+        setTriage(merged);
+        setTriaged(true);
+        setTriageState("ready");
+      }
+      if (!anyOk) {
+        setTriageWhy(lastErr);
+        setTriageState((s) => (s === "ready" ? s : "failed"));
+        return;
+      }
+      // Anything a failed batch left behind is surfaced, never hidden.
+      merged = fillSkipped(merged, delta);
       saveTriageCache(merged);
       setTriage(merged);
-      setTriaged(true);
-      setTriageState("ready");
-    } catch (e) {
-      triageBusy.current = false;
-      if (attempt === 0) { await runTriage(threads, 1); return; }
-      // Keep the reason. A silent failure sent us chasing the wrong bug for an
-      // hour; the calm state can afford one quiet line of truth.
-      setTriageWhy(((e as Error)?.message || "").slice(0, 140));
-      // Cached rows still render sorted; only a cold, twice-failed pass is a
-      // dead end, and even then it is a calm screen, not the raw list.
-      setTriageState((s) => (s === "ready" ? s : "failed"));
     } finally {
       triageBusy.current = false;
     }
@@ -385,6 +435,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const archiveThread = (id: string) => {
     const api = apiFor(accountOfThread(id));
     if (!api) return;
+    // Self-cleaning: throwing a sender away UNREAD, repeatedly, is a decision.
+    const row = rows.find((r) => r.id === id);
+    if (row) setToss(tossOffer(recordToss(row.fromEmail, row.unread)));
     setRows((rs) => rs.filter((r) => r.id !== id));
     setResults((rs) => (rs ? rs.filter((r) => r.id !== id) : rs));
     setView("list");
@@ -396,7 +449,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const ids = new Set(noise.map((r) => r.id));
     setRows((rs) => rs.filter((r) => !ids.has(r.id)));
     setNoiseOpen(false);
-    for (const r of noise) apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
+    let counts;
+    for (const r of noise) {
+      counts = recordToss(r.fromEmail, r.unread);
+      apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
+    }
+    if (counts) setToss(tossOffer(counts));
     const what = noise.length === 1 ? "1 conversation archived" : noise.length + " conversations archived";
     setToast(manual ? what : "Handled for you: " + what.toLowerCase() + " (" + noiseLine(noise) + ")");
     setTimeout(() => setToast(null), manual ? 2500 : 5000);
@@ -435,6 +493,47 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setDraft({ to: "", subject: /^fwd:/i.test(m.subject) ? m.subject : "Fwd: " + m.subject, body: "\n\n---------- Forwarded ----------\n" + m.body, account: accountOfThread(t.id) });
     setView("compose");
   };
+  // Hand off. Opens the people list; picking a person drafts the note and puts
+  // it in compose, where he still has to tap Send. Delegation, one gesture,
+  // zero surprises.
+  const openHandoff = async () => {
+    if (!people) return;
+    setHandTargets([]);
+    try {
+      setHandTargets(handoffTargets(await people.list()));
+    } catch {
+      setHandTargets([]);
+    }
+  };
+
+  const handOffTo = async (t: ThreadFull, target: HandoffTarget) => {
+    if (handing) return;
+    setHanding(true);
+    try {
+      const m = lastMsg(t);
+      let note = defaultNote(target, t.subject);
+      if (ai.available) {
+        try {
+          const p = handoffPrompt(target, t.subject, effTriage[t.id]?.gist || "");
+          const written = (await ai.complete([{ role: "user", content: p.user }], p.system, { tier: "write" })).trim();
+          if (written) note = written;
+        } catch { /* the plain note is a fine note */ }
+      }
+      setEditingDraftId(null);
+      setDraft({
+        to: target.email,
+        subject: forwardSubject(t.subject),
+        body: note + "\n\n---------- Forwarded ----------\n" + cleanBody(m.body),
+        account: accountOfThread(t.id),
+        handoffTo: target.name,
+      });
+      setHandTargets(null);
+      setView("compose");
+    } finally {
+      setHanding(false);
+    }
+  };
+
   const startCompose = () => {
     setEditingDraftId(null);
     setDraft({ to: "", subject: "", body: "" });
@@ -486,9 +585,43 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         setDrafts((ds) => ds.filter((d) => d.id !== id));
         setEditingDraftId(null);
       }
-      setToast("Sent");
+      // Commitment catcher: if he just promised something, it becomes a task
+      // with the date HE named. Once per thread, and never for a hand-off note
+      // (the promise there is the other person's).
+      const threadForPromise = draft.threadId || sent.threadId;
+      if (tasks && ai.available && !draft.handoffTo && threadForPromise && !alreadyPromised(threadForPromise)) {
+        const today = new Date().toISOString().slice(0, 10);
+        void (async () => {
+          try {
+            const raw = await ai.complete(
+              [{ role: "user", content: commitmentPrompt(draft.body, today) }],
+              COMMITMENT_SYSTEM,
+            );
+            const c = parseCommitment(raw, today);
+            if (!c) return;
+            markPromised(threadForPromise);
+            await tasks.createTask(c.text, { due: c.due ?? null });
+            emit({ type: "action", props: { name: "email.commitment.caught" } });
+            setToast(commitmentLine(c));
+            setTimeout(() => setToast(null), 4000);
+          } catch { /* a missed catch is silent; a wrong task is not */ }
+        })();
+      }
+      if (draft.handoffTo) {
+        // It is theirs now: out of the inbox, into Waiting On.
+        const tid = draft.threadId || sent.threadId;
+        if (tid) {
+          setRows((rs) => rs.filter((r) => r.id !== tid));
+          apiFor(draft.account)?.modifyThread(tid, [], ["INBOX"]).catch(() => {});
+        }
+        void loadWaiting();
+        emit({ type: "action", props: { name: "email.handoff" } });
+        setToast(handoffLine(draft.handoffTo));
+      } else {
+        setToast("Sent");
+      }
       setView("list");
-      setTimeout(() => setToast(null), 2000);
+      setTimeout(() => setToast(null), draft.handoffTo ? 3000 : 2000);
     } catch (e) {
       setError((e as Error).message || "Could not send");
     } finally {
@@ -509,9 +642,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           ai={ai}
           apiFor={apiFor}
           threads={deckRows}
+          limitMs={drainMs}
           token={authToken}
-          onExit={() => { setDeckRows(null); setView("list"); }}
-          onDone={(n, ms) => { setDeckRows(null); setDeadStats({ n, ms }); setView("dead"); }}
+          onExit={() => { setDeckRows(null); setDrainMs(undefined); setView("list"); }}
+          onDone={(n, ms) => { setDeckRows(null); setDrainMs(undefined); setDeadStats({ n, ms }); setView("dead"); }}
           onOpenThread={(id) => void openThread(id)}
           onEditReply={(t, body) => {
             const r = buildReply(t.messages[t.messages.length - 1]!, body);
@@ -535,7 +669,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="deck-dead-burst"><Burst show /></div>
           <div className="empty-title">Inbox: dead</div>
-          <div className="empty-sub">{deadStats.n} handled in {fmtDuration(deadStats.ms)}</div>
+          <div className="empty-sub">
+            {deadStats.ms % 60000 === 0 && deadStats.ms >= 60000
+              ? drainReceipt(deadStats.n, deadStats.ms / 60000)
+              : deadStats.n + " handled in " + fmtDuration(deadStats.ms)}
+          </div>
         </div></div></div>
         <div className="pad-x conn-action">
           <button className="btn btn-secondary btn-block" onClick={() => { setDeadStats(null); setView("list"); }}>Back to Email</button>
@@ -604,13 +742,27 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="msg-summary-text">{summary}</div>
             </div>
           )}
-          {thread.messages.map((m) => (
+          {thread.messages.map((m) => {
+            // No text walls: strip the plumbing, and fold anything long behind
+            // one tap. The words are never altered, only what is shown first.
+            const clean = cleanBody(m.body);
+            const long = isLong(clean);
+            const open = openBodies[m.id] === true;
+            return (
             <div className="msg-turn" key={m.id}>
               <div className="msg-turn-head">
                 <span className="msg-turn-from">{m.from}</span>
                 <span className="conn-meta">{m.date}</span>
               </div>
-              <div className="msg-body">{m.body}</div>
+              <div className="msg-body">{long && !open ? leadIn(clean) : clean}</div>
+              {long && (
+                <button
+                  className="quiet-action msg-more"
+                  onClick={() => setOpenBodies((o) => ({ ...o, [m.id]: !open }))}
+                >
+                  {open ? "Fold it back" : "Read the whole thing · " + wordCount(clean) + " words"}
+                </button>
+              )}
               {m.attachments.length > 0 && (
                 <div className="msg-quick">
                   {m.attachments.map((a) => (
@@ -621,7 +773,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 </div>
               )}
             </div>
-          ))}
+            );
+          })}
           <div className="msg-quick">
             {replies.map((q) => (
               <button key={q} className="chip" onClick={() => quickReply(thread, q)}>{q}</button>
@@ -631,6 +784,37 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <button className="btn btn-secondary" onClick={() => startReply(thread)}><CornerUpLeft className="ic" /> Reply</button>
             <button className="btn btn-secondary" onClick={() => startForward(thread)}><Forward className="ic" /> Forward</button>
           </div>
+          {/* Hand off: one gesture for "this is not mine". */}
+          {people && handTargets === null && (
+            <button className="btn btn-secondary btn-block msg-hand" onClick={() => void openHandoff()}>
+              <Forward className="ic" /> Hand this to someone
+            </button>
+          )}
+          {handTargets !== null && (
+            <div className="msg-hand-pick">
+              <div className="eyebrow">Hand this to</div>
+              <div className="card">
+                {handTargets.length === 0 ? (
+                  <div className="row"><div className="row-grow">
+                    <div className="conn-meta">Nobody in People has an email address yet.</div>
+                  </div></div>
+                ) : handTargets.map((t) => (
+                  <div className="row" role="button" tabIndex={0} key={t.email}
+                    onClick={() => void handOffTo(thread, t)}>
+                    <div className="row-grow">
+                      <div className="line-between">
+                        <span className="conn-name">{t.name}</span>
+                        {t.relationship && <span className="conn-meta">{t.relationship}</span>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button className="quiet-action" onClick={() => setHandTargets(null)}>
+                {handing ? "Writing the note..." : "Never mind"}
+              </button>
+            </div>
+          )}
           {/* Sender rule: filing a sender is a RULE, not a hint. Deterministic,
               wins over triage, forever. Only shown when triage is live. */}
           {triaged && (
@@ -663,7 +847,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   }
 
   // ---- list ----
-  const { needsYou, worthKnowing, noise } = splitByBucket(visibleRows, effTriage);
+  const split = splitByBucket(visibleRows, effTriage);
+  // Real deadlines: Needs You is ordered by when the sender said they need it.
+  const needsYou = sortByDeadline(split.needsYou, effTriage);
+  const { worthKnowing, noise } = split;
   // For You is a promise: it either shows sorted mail or it shows a calm
   // state. It never falls through to the wall.
   const forYou = filter === "triage" && results === null && ai.available;
@@ -679,7 +866,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       <div className="row-grow">
         <div className="msg-line">
           <span className={"conn-name truncate" + (r.unread ? " msg-strong" : "")}>{r.from}</span>
-          <span className="msg-when">{fmtWhen(r.dateMs)}</span>
+          {effTriage[r.id]?.by
+            ? <span className={"msg-due" + (byRank(effTriage[r.id]!.by) >= 900 ? " soft" : "")}>{effTriage[r.id]!.by}</span>
+            : <span className="msg-when">{fmtWhen(r.dateMs)}</span>}
         </div>
         <div className="conn-meta msg-gist">
           {gist ?? r.subject}{!gist && r.count > 1 ? " · " + r.count : ""}
@@ -701,6 +890,33 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <button className="btn btn-primary btn-block" onClick={() => { setDeckRows(needsYou); setView("deck"); }}>
             Deal With It · {needsYou.length}
           </button>
+          {/* The drain: he picks the number, always. */}
+          {!drainOpen ? (
+            <button className="quiet-action" onClick={() => setDrainOpen(true)}>Only have a few minutes?</button>
+          ) : (
+            <div className="drain-pick">
+              <div className="eyebrow">Give me</div>
+              <div className="msg-chips">
+                {PRESETS.map((m) => (
+                  <button key={m} className={"chip" + (minutes === m ? " on" : "")}
+                    onClick={() => setMinutes(saveMinutes(m))}>{m} min</button>
+                ))}
+                <input
+                  className="msg-input drain-input" type="number" min={1} max={60} value={minutes}
+                  aria-label="Minutes"
+                  onChange={(e) => setMinutes(clampMinutes(parseInt(e.target.value, 10)))}
+                  onBlur={() => setMinutes(saveMinutes(minutes))}
+                />
+              </div>
+              <button className="btn btn-secondary btn-block" onClick={() => {
+                saveMinutes(minutes);
+                setDrainMs(minutes * 60000);
+                setDeckRows(needsYou);
+                setDrainOpen(false);
+                setView("deck");
+              }}>Start the drain</button>
+            </div>
+          )}
         </div>
       )}
       <div className="pad-x">
@@ -774,6 +990,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="empty-icon"><Mail className="ic" /></div>
             <div className="empty-title">Reading your inbox</div>
             <div className="empty-sub">Sorting out what actually needs you.</div>
+            {/* Never trapped: the way out is on screen the whole time. */}
+            <button className="quiet-action" onClick={() => setFilter("all")}>Show all mail instead</button>
           </div></div></div>
         )
       ) : results !== null || !showTriage ? (
@@ -868,6 +1086,26 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             </div>
           )}
           {restCount === 0 && netted > 0 && <div className="pad-x msg-guard">{guardLine(netted)}</div>}
+          {/* Self-cleaning offer: one line, one action, quiet dismiss, asked
+              once per sender whatever the answer is. */}
+          {toss && (
+            <div className="pad-x offer-row">
+              <div className="card"><div className="row"><div className="row-grow">
+                <div className="conn-meta msg-offer-line">{tossLine(toss.sender, toss.n)}</div>
+              </div></div></div>
+              <button
+                className="btn btn-primary btn-block"
+                onClick={() => {
+                  setRules(saveRule(toss.sender, "noise"));
+                  markAsked(toss.sender);
+                  setToss(null);
+                  setToast("Done. They go straight to Noise from now on.");
+                  setTimeout(() => setToast(null), 2500);
+                }}
+              >Yes, file them</button>
+              <button className="quiet-action" onClick={() => { markAsked(toss.sender); setToss(null); }}>No thanks</button>
+            </div>
+          )}
           {autoOffer && (
             <div className="pad-x offer-row">
               <button className="btn btn-secondary btn-block" onClick={enableAutoNoise}>Clear Noise Automatically From Now On</button>

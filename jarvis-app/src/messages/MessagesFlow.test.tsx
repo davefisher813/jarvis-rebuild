@@ -171,6 +171,20 @@ describe("MessagesFlow (threads)", () => {
     expect(await screen.findByText("Tucci")).toBeInTheDocument();
   });
 
+  it("a triage request that hangs is not allowed to trap the user", async () => {
+    const hanging = new AIService({
+      available: true,
+      getToken: () => "tok",
+      fetchImpl: (() => new Promise(() => {})) as unknown as typeof fetch,
+    });
+    render(wrap(<MessagesFlow ai={hanging} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Reading your inbox");
+    // The exit is on screen while it is still trying, not only after failure.
+    fireEvent.click(screen.getByText("Show all mail instead"));
+    expect(await screen.findByText("Tucci")).toBeInTheDocument();
+  });
+
   it("while triage is still running, For You is a calm state and never the wall", async () => {
     const pending = new AIService({
       available: true,

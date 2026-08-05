@@ -916,3 +916,22 @@ button {
 .input-stack { margin-bottom: 8px; }
 .list-search { padding-bottom: 8px; }
 .search-bar .search-ic { width: 18px; height: 18px; opacity: 0.6; flex-shrink: 0; }
+
+/* The answer-by the sender actually stated. Amber because it is a real
+   constraint; "no rush" goes grey so it reads as permission, not pressure. */
+.msg-due { font-size: var(--t-meta); color: var(--warn, #ffd60a); flex-shrink: 0; }
+.msg-due.soft { color: var(--tx-3); }
+/* "Read the whole thing": the way out of a folded body. */
+.msg-more { margin-top: var(--s-2); }
+
+/* The drain: the user's number, not ours. The input sits in the chip row so
+   the custom case is the same gesture as the presets. */
+.drain-pick { margin-top: var(--s-2h); }
+.drain-input { width: 5.5rem; padding: var(--s-1h) var(--s-2); }
+.msg-offer-line { color: var(--tx-1); }
+
+/* Hand off: the people list is a picker, not a menu — same rows as everywhere
+   else so choosing a person feels like the rest of the app. */
+.msg-hand { margin-top: var(--s-2); }
+.msg-hand-pick { margin-top: var(--s-3); }
+.line-between { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
