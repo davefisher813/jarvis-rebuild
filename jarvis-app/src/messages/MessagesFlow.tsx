@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Mail, Plus, Archive, CornerUpLeft, Forward } from "lucide-react";
+import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward } from "lucide-react";
 import type { AIService } from "../ai/AIService";
 import { useGoogle } from "../connections/google/GoogleSession";
 import { googleConfigured } from "../connections/google/config";
@@ -11,15 +11,18 @@ import {
   loadTriageCache, saveTriageCache, triageDelta, buildTriageInput, parseTriage,
   fillSkipped, splitByBucket, headline, noiseLine, sortByDeadline, byRank, type TriageMap, type Bucket,
 } from "./triage";
-import { loadRules, saveRule, applyRules, type SenderRules } from "./rules";
+import { loadRules, saveRule, clearRule, applyRules, type SenderRules } from "./rules";
 import DeckFlow from "./DeckFlow";
+import MailSwipe from "./MailSwipe";
+import { loadMuted, mute, unmute, dropMuted } from "./mute";
+import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY } from "./unsubscribe";
 import { emit } from "../events";
 import { usePushDepth } from "../shared/pushNav";
 import { Burst } from "../shared/Burst";
 import { useOptionalSession } from "../auth/AuthProvider";
 import { findWaiting, waitingLine, nudgePrompt, type WaitingRow } from "./waiting";
 import { loadTracks, saveTrack, trackForThread, newTrackId, pixelUrlFor, registerTrack, checkOpens } from "./tracking";
-import { loadNetted, saveNetted, netCandidates, guardLine } from "./safetyNet";
+import { loadNetted, saveNetted, netCandidates, guardLine, seedFirstRun } from "./safetyNet";
 import { cleanBody, isLong, leadIn, wordCount } from "./bodyText";
 import { recordToss, markAsked, tossOffer, tossLine } from "./selfClean";
 import { PRESETS, loadMinutes, saveMinutes, clampMinutes, drainReceipt } from "./drain";
@@ -31,7 +34,7 @@ import { b64urlDecodeBytes } from "../connections/google/map";
 
 type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string };
 type DraftRow = { id: string; to: string; subject: string; snippet: string };
-type View = "list" | "detail" | "compose" | "deck" | "dead";
+type View = "list" | "detail" | "compose" | "deck" | "dead" | "rules";
 type Filter = "triage" | "all" | "drafts";
 type TriageState = "idle" | "pending" | "ready" | "failed";
 
@@ -110,6 +113,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // Hand off: null = closed, [] = open and loading the people list.
   const [handTargets, setHandTargets] = useState<HandoffTarget[] | null>(null);
   const [handing, setHanding] = useState(false);
+  const [muted, setMuted] = useState<string[]>(() => loadMuted());
+  // Undo: the last destructive action, and how to put it back. One deep, which
+  // is all anyone ever uses, and it expires with the toast.
+  const [undo, setUndo] = useState<{ label: string; run: () => void } | null>(null);
   const [netted, setNetted] = useState(0);
   const [rules, setRules] = useState<SenderRules>(() => loadRules());
   const [noiseOpen, setNoiseOpen] = useState(false);
@@ -325,6 +332,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   useEffect(() => {
     if (!tasks || !triaged || rows.length === 0) return;
     const { needsYou: nagging } = splitByBucket(rows, applyRules(triage, rows, rules));
+    // First ever pass on this inbox: absorb the backlog silently.
+    if (seedFirstRun(nagging)) return;
     const already = loadNetted();
     const due = netCandidates(nagging, already, Date.now());
     if (due.length === 0) return;
@@ -442,6 +451,85 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setResults((rs) => (rs ? rs.filter((r) => r.id !== id) : rs));
     setView("list");
     api.modifyThread(id, [], ["INBOX"]).catch(() => {});
+  };
+
+  // How many loaded threads share this sender. Only offered when it is more
+  // than the one you are looking at, otherwise it is just Archive with extra
+  // words.
+  const sweepCount = (fromEmail: string) =>
+    rows.filter((r) => r.fromEmail.toLowerCase() === fromEmail.toLowerCase()).length;
+
+  const sweepSender = (fromEmail: string) => {
+    const hit = rows.filter((r) => r.fromEmail.toLowerCase() === fromEmail.toLowerCase());
+    if (hit.length === 0) return;
+    setRows((rs) => rs.filter((r) => r.fromEmail.toLowerCase() !== fromEmail.toLowerCase()));
+    setView("list");
+    for (const r of hit) apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
+    say(hit.length + (hit.length === 1 ? " conversation archived" : " conversations archived"), {
+      label: "Undo",
+      run: () => {
+        setRows((rs) => [...hit, ...rs].sort((a, b) => b.dateMs - a.dateMs));
+        for (const r of hit) apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []).catch(() => {});
+      },
+    });
+  };
+
+  // Unsubscribe using the sender's own header. mailto is sent (on this tap);
+  // an http endpoint is opened, because only the sender's page can finish it.
+  // The receipt never claims success: some senders ignore it.
+  const doUnsub = async (t: ThreadFull) => {
+    const m = lastMsg(t);
+    const u = parseUnsub(m.listUnsubscribe, m.listUnsubscribePost);
+    if (!u) return;
+    if (u.kind === "mailto") {
+      const api = apiFor(accountOfThread(t.id));
+      if (!api) return;
+      const raw = encodeEmail({ to: u.target, subject: u.subject || UNSUB_SUBJECT, body: UNSUB_BODY });
+      await api.sendMessage(raw).catch(() => {});
+    } else {
+      window.open(u.target, "_blank", "noopener,noreferrer");
+    }
+    emit({ type: "action", props: { name: "email.unsubscribe", kind: u.kind } });
+    setView("list");
+    say(unsubLine(m.from));
+  };
+
+  // Archive from the list. Same effect as the detail-view archive, without
+  // making him open something he already knows he is done with.
+  // Every reversible action goes through here so the offer to undo is never
+  // forgotten on one path and present on another.
+  const say = (msg: string, undoable?: { label: string; run: () => void }, ms = 6000) => {
+    setToast(msg);
+    setUndo(undoable ?? null);
+    setTimeout(() => { setToast(null); setUndo(null); }, ms);
+  };
+
+  const archiveRow = (r: ThreadRow) => {
+    setToss(tossOffer(recordToss(r.fromEmail, r.unread)));
+    setRows((rs) => rs.filter((x) => x.id !== r.id));
+    setResults((rs) => (rs ? rs.filter((x) => x.id !== r.id) : rs));
+    apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
+    say("Archived", { label: "Undo", run: () => {
+      setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
+      apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []).catch(() => {});
+    } });
+  };
+
+  // Delete goes to Gmail's Trash, recoverable for 30 days. The permanent
+  // delete endpoint is never called from this app.
+  const trashThread = (id: string, account?: string) => {
+    const api = apiFor(account ?? accountOfThread(id));
+    if (!api) return;
+    setRows((rs) => rs.filter((r) => r.id !== id));
+    setResults((rs) => (rs ? rs.filter((r) => r.id !== id) : rs));
+    // Deleting the thread you are reading must not leave you reading it.
+    setView("list");
+    const gone = rows.find((r) => r.id === id);
+    api.trashThread(id).catch(() => {});
+    say("Deleted. It’s in Gmail’s trash for 30 days.", { label: "Undo", run: () => {
+      if (gone) setRows((rs) => [gone, ...rs.filter((x) => x.id !== id)].sort((a, b) => b.dateMs - a.dateMs));
+      api.untrashThread(id).catch(() => {});
+    } });
   };
 
   const archiveAllNoise = (noise: ThreadRow[], manual = true) => {
@@ -631,7 +719,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   const pushCls = usePushDepth(view === "compose" ? 2 : view === "detail" || view === "deck" ? 1 : 0);
 
-  const visibleRows = acctFilter ? rows.filter((r) => r.account === acctFilter) : rows;
+  // Muted threads never surface, however many replies land. The mail itself is
+  // untouched in Gmail.
+  const unmutedRows = dropMuted(rows, muted);
+  const visibleRows = acctFilter ? unmutedRows.filter((r) => r.account === acctFilter) : unmutedRows;
   const effTriage = applyRules(triage, rows, rules);
 
   if (view === "deck") {
@@ -678,6 +769,57 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="pad-x conn-action">
           <button className="btn btn-secondary btn-block" onClick={() => { setDeadStats(null); setView("list"); }}>Back to Email</button>
         </div>
+      </div>
+    );
+  }
+
+  // Every standing decision, in one place, each one undoable. A rule that is
+  // permanent and invisible is not a rule, it is a haunting.
+  if (view === "rules") {
+    const filed = Object.entries(rules);
+    return (
+      <div className={"screen " + pushCls} key="rules">
+        <div className="nav-bar"><button className="nav-back" onClick={() => setView("list")}>Email</button>
+          <span className="nav-title">Standing rules</span><span className="nav-act"></span></div>
+        <div className="grp"><div className="eyebrow">Senders you filed</div></div>
+        <div className="pad-x"><div className="card">
+          {filed.length === 0 ? (
+            <div className="row"><div className="row-grow"><div className="conn-meta">Nothing filed yet.</div></div></div>
+          ) : filed.map(([sender, bucket]) => (
+            <div className="row" key={sender}>
+              <div className="row-grow">
+                <div className="line-between">
+                  <span className="conn-name truncate">{sender}</span>
+                  <span className="conn-meta">{BUCKET_LABEL[bucket]}</span>
+                </div>
+              </div>
+              <button className="quiet-action" onClick={() => setRules(clearRule(sender))}>Undo</button>
+            </div>
+          ))}
+        </div></div>
+        <div className="grp"><div className="eyebrow">Muted threads</div></div>
+        <div className="pad-x"><div className="card">
+          {muted.length === 0 ? (
+            <div className="row"><div className="row-grow"><div className="conn-meta">Nothing muted.</div></div></div>
+          ) : muted.map((id) => {
+            const r = rows.find((x) => x.id === id);
+            return (
+              <div className="row" key={id}>
+                <div className="row-grow"><div className="conn-name truncate">{r ? r.subject : "A thread"}</div></div>
+                <button className="quiet-action" onClick={() => setMuted(unmute(id))}>Unmute</button>
+              </div>
+            );
+          })}
+        </div></div>
+        {autoNoise && (
+          <div className="pad-x conn-action">
+            <button className="btn btn-secondary btn-block" onClick={() => {
+              try { localStorage.removeItem(AUTONOISE_KEY); } catch { /* ignore */ }
+              setAutoNoise(false);
+              say("Noise stays until you clear it.");
+            }}>Stop clearing noise automatically</button>
+          </div>
+        )}
       </div>
     );
   }
@@ -729,7 +871,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="nav-bar">
           <button className="nav-back" onClick={() => setView("list")}>Email</button>
           <span className="nav-title"></span>
-          <button className="nav-act" onClick={() => archiveThread(thread.id)} aria-label="Archive"><Archive className="ic" /></button>
+          <div className="nav-act nav-act-pair">
+            <button onClick={() => trashThread(thread.id)} aria-label="Delete"><Trash2 className="ic" /></button>
+            <button onClick={() => archiveThread(thread.id)} aria-label="Archive"><Archive className="ic" /></button>
+          </div>
         </div>
         <div className="pad-x">
           <div className="msg-detail-head">
@@ -784,6 +929,26 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <button className="btn btn-secondary" onClick={() => startReply(thread)}><CornerUpLeft className="ic" /> Reply</button>
             <button className="btn btn-secondary" onClick={() => startForward(thread)}><Forward className="ic" /> Forward</button>
           </div>
+          {/* Mute, sweep, unsubscribe: the three ways to make a sender stop
+              costing you attention, strongest last. */}
+          <div className="msg-quiet-acts">
+            <button className="quiet-action" onClick={() => {
+              setMuted(mute(thread.id));
+              setView("list");
+              say("Muted. It won’t come back here.", { label: "Undo", run: () => setMuted(unmute(thread.id)) });
+            }}>Mute this thread</button>
+            {sweepCount(lastMsg(thread).fromEmail) > 1 && (
+              <button className="quiet-action" onClick={() => sweepSender(lastMsg(thread).fromEmail)}>
+                Archive all {sweepCount(lastMsg(thread).fromEmail)} from {lastMsg(thread).from}
+              </button>
+            )}
+            {parseUnsub(lastMsg(thread).listUnsubscribe, lastMsg(thread).listUnsubscribePost) && (
+              <button className="quiet-action msg-unsub" onClick={() => void doUnsub(thread)}>
+                {unsubLabel(lastMsg(thread).from)}
+              </button>
+            )}
+          </div>
+
           {/* Hand off: one gesture for "this is not mine". */}
           {people && handTargets === null && (
             <button className="btn btn-secondary btn-block msg-hand" onClick={() => void openHandoff()}>
@@ -861,7 +1026,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // A triaged row shows the gist and NOTHING else: the thread count is inbox
   // bookkeeping, and bookkeeping is exactly what the fold is removing.
   const threadRow = (r: ThreadRow, gist?: string) => (
-    <div className="row" role="button" tabIndex={0} key={r.id} onClick={() => void openThread(r.id)}>
+    <MailSwipe
+      key={r.id}
+      onArchive={() => archiveRow(r)}
+      onDelete={() => trashThread(r.id, r.account)}
+    >
+    <div className="row" role="button" tabIndex={0} onClick={() => void openThread(r.id)}>
       {r.unread && <span className="msg-dot" aria-label="unread"></span>}
       <div className="row-grow">
         <div className="msg-line">
@@ -876,6 +1046,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         </div>
       </div>
     </div>
+    </MailSwipe>
   );
 
   return (
@@ -1086,9 +1257,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             </div>
           )}
           {restCount === 0 && netted > 0 && <div className="pad-x msg-guard">{guardLine(netted)}</div>}
-          {/* Self-cleaning offer: one line, one action, quiet dismiss, asked
-              once per sender whatever the answer is. */}
-          {toss && (
+          {/* ONE offer at a time. Three stacked offers is a form, and the law
+              is one line, one action, one quiet dismiss. Self-cleaning wins
+              because it ends a sender for good. */}
+          {toss ? (
             <div className="pad-x offer-row">
               <div className="card"><div className="row"><div className="row-grow">
                 <div className="conn-meta msg-offer-line">{tossLine(toss.sender, toss.n)}</div>
@@ -1105,16 +1277,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               >Yes, file them</button>
               <button className="quiet-action" onClick={() => { markAsked(toss.sender); setToss(null); }}>No thanks</button>
             </div>
-          )}
-          {autoOffer && (
+          ) : autoOffer ? (
             <div className="pad-x offer-row">
               <button className="btn btn-secondary btn-block" onClick={enableAutoNoise}>Clear Noise Automatically From Now On</button>
               <button className="quiet-action" onClick={() => setAutoOffer(false)}>Keep it manual</button>
             </div>
-          )}
+          ) : null}
         </>
       )}
-      {toast && <div className="pad-x conn-status">{toast}</div>}
+      {toast && (
+        <div className="pad-x conn-status msg-toast">
+          <span>{toast}</span>
+          {undo && (
+            <button className="quiet-action msg-undo" onClick={() => { undo.run(); setUndo(null); setToast(null); }}>
+              {undo.label}
+            </button>
+          )}
+        </div>
+      )}
+      {/* The standing rules live one tap from the tab that creates them. */}
+      {(Object.keys(rules).length > 0 || muted.length > 0) && (
+        <div className="pad-x"><button className="quiet-action" onClick={() => setView("rules")}>Standing rules</button></div>
+      )}
     </div>
   );
 }

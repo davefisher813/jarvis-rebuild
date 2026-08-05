@@ -57,3 +57,15 @@ export function applyRules(map: TriageMap, rows: ThreadRow[], rules: SenderRules
   }
   return out;
 }
+
+// Undo a standing rule. A permanent decision with no way back is not a
+// feature, and the sender returns to whatever the AI thinks of them next pass.
+export function clearRule(senderEmail: string): SenderRules {
+  const key = senderEmail.trim().toLowerCase();
+  const all = loadRules();
+  if (!(key in all)) return all;
+  const next = { ...all };
+  delete next[key];
+  try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* private mode */ }
+  return next;
+}

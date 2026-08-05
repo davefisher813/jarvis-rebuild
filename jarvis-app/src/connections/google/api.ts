@@ -17,6 +17,13 @@ export interface GoogleApi {
   searchThreads(q: string, max: number): Promise<GmailThreadMeta[]>;
   getThread(id: string): Promise<GmailThreadFull>;
   modifyThread(id: string, add: string[], remove: string[]): Promise<void>;
+  // Gmail's TRASH, which is recoverable for 30 days. The permanent-delete
+  // endpoint exists and this app will never call it: an email the user cannot
+  // get back is a bug they can never report.
+  trashThread(id: string): Promise<void>;
+  // Undo for a delete. Gmail keeps trashed mail for 30 days, so this always
+  // works inside the window the app promises.
+  untrashThread(id: string): Promise<void>;
   getProfile(): Promise<{ emailAddress: string }>;
   getAttachment(messageId: string, attachmentId: string): Promise<{ data: string; size: number }>;
 }
@@ -138,6 +145,20 @@ export function createGoogleApi(token: string, doFetch: FetchLike = fetch as unk
           body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }),
         });
       if (!r.ok) throw new Error("thread modify " + r.status);
+    },
+    async trashThread(id) {
+      const r = await doFetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/threads/" + id + "/trash",
+        { method: "POST", headers: auth.headers },
+      );
+      if (!r.ok) throw new Error("thread trash " + r.status);
+    },
+    async untrashThread(id) {
+      const r = await doFetch(
+        "https://gmail.googleapis.com/gmail/v1/users/me/threads/" + id + "/untrash",
+        { method: "POST", headers: auth.headers },
+      );
+      if (!r.ok) throw new Error("thread untrash " + r.status);
     },
     async getProfile() {
       const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", auth);

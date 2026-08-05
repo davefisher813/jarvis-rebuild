@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadNetted, saveNetted, netCandidates, guardLine, NET_DAYS } from "./safetyNet";
+import { loadNetted, saveNetted, netCandidates, guardLine, seedFirstRun, NET_DAYS, NET_MAX_PER_PASS } from "./safetyNet";
 import type { ThreadRow } from "../connections/google/map";
 
 const DAY = 86400000;
@@ -16,10 +16,27 @@ function row(id: string, ageDays: number): ThreadRow {
 describe("email safety net", () => {
   beforeEach(() => localStorage.clear());
 
-  it("catches only threads that have needed him longer than the window", () => {
+  it("catches only threads that have needed him longer than the window, oldest first", () => {
     const rows = [row("fresh", 1), row("edge", NET_DAYS), row("old", 9)];
     const got = netCandidates(rows, [], NOW).map((r) => r.id);
-    expect(got).toEqual(["edge", "old"]);
+    expect(got).toEqual(["old", "edge"]);
+  });
+
+  it("never dumps the whole backlog in one pass", () => {
+    const many = Array.from({ length: 30 }, (_, i) => row("t" + i, 10 + i));
+    const got = netCandidates(many, [], NOW);
+    expect(got).toHaveLength(NET_MAX_PER_PASS);
+    expect(got[0]!.id).toBe("t29"); // the oldest of all of them
+  });
+
+  it("absorbs the existing backlog silently on the very first run", () => {
+    const rows = [row("a", 9), row("b", 20)];
+    expect(seedFirstRun(rows)).toBe(true);           // first ever: seeded
+    expect(netCandidates(rows, loadNetted(), NOW)).toHaveLength(0);
+    expect(seedFirstRun(rows)).toBe(false);          // never seeds twice
+    // Something that goes stale AFTER the seed is still caught.
+    const fresh = [row("c", 9)];
+    expect(netCandidates(fresh, loadNetted(), NOW).map((r) => r.id)).toEqual(["c"]);
   });
 
   it("never nets the same thread twice, which is the whole point", () => {

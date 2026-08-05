@@ -73,6 +73,9 @@ export interface GmailFull extends GmailMeta {
 export interface MailAttachment { filename: string; mime: string; attachmentId: string }
 export interface MailFull extends MailRow {
   to: string;
+  // The sender's own machine-readable "here is how to stop" (RFC 2369/8058).
+  listUnsubscribe: string;
+  listUnsubscribePost: string;
   fromEmail: string;
   date: string;
   body: string;
@@ -157,6 +160,8 @@ export function mapGmailFull(m: GmailFull): MailFull {
     body: extractBody(m.payload),
     threadId: m.threadId || "",
     messageId: headerOf(hs, "Message-ID"),
+    listUnsubscribe: headerOf(hs, "List-Unsubscribe"),
+    listUnsubscribePost: headerOf(hs, "List-Unsubscribe-Post"),
     attachments,
   };
 }

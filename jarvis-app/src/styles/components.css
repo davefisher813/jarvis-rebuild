@@ -575,8 +575,13 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .msg-chips { display: flex; gap: var(--s-2); margin-bottom: var(--s-2); }
 .msg-detail-head { padding: var(--s-2) 0 var(--s-3); }
 .msg-detail-subj { font-size: var(--t-h3); font-weight: var(--w-bold); }
-.msg-summary { margin-bottom: var(--s-3); }
-.msg-summary-text { margin-top: var(--s-1); color: var(--tx-2); }
+/* The thread summary is the most valuable thing on this screen, and it was the
+   only card modifier in the app that forgot to set its own padding. .card has
+   overflow:hidden, so the text ran flush into the rounded corners and the
+   eyebrow lost its first letter. Every other hero card (money, project, goal,
+   account, about) pads itself; this one now does too. */
+.msg-summary { padding: var(--s-4); margin-bottom: var(--s-3); }
+.msg-summary-text { margin-top: var(--s-1h); color: var(--tx-1); line-height: 1.5; }
 .msg-body { white-space: pre-wrap; color: var(--tx-1); line-height: 1.5; }
 .msg-quick { display: flex; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
 .msg-actions { display: flex; gap: var(--s-2); margin-top: var(--s-3); }
@@ -935,3 +940,20 @@ button {
 .msg-hand { margin-top: var(--s-2); }
 .msg-hand-pick { margin-top: var(--s-3); }
 .line-between { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-2); }
+
+/* Mail swipe. Archive is NOT amber: amber means defer, and archiving is
+   filing, not deferring. It gets a neutral fill so the only coloured action in
+   the reveal is the destructive one. Delete goes to Gmail's trash, which is
+   recoverable, and the app never permanently deletes. */
+.mail-arch { position: absolute; top: 0; right: 88px; bottom: 0; width: 88px; border: 0;
+  background: var(--surface-3, #2c2c2e); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
+.mail-arch .ic { width: 22px; height: 22px; }
+/* Two icon actions in one nav slot. */
+.nav-act-pair { display: flex; align-items: center; gap: var(--s-4); }
+
+/* Undo lives in the toast, because the moment right after the action is the
+   only moment anyone wants it. */
+.msg-toast { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
+.msg-undo { flex-shrink: 0; }
+/* The three sender-level exits, stacked quietly under the thread actions. */
+.msg-quiet-acts { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); margin-top: var(--s-3); }

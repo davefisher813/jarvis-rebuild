@@ -199,6 +199,9 @@ describe("MessagesFlow (threads)", () => {
   });
 
   it("a thread that has needed him for days is caught by the net, exactly once", async () => {
+    // Pretend this inbox has been seen before: the first run deliberately
+    // absorbs the backlog instead of dumping it into the task list.
+    localStorage.setItem("jarvis.mail.netted.seeded.v1", "1");
     const ai = aiReturning(JSON.stringify([
       { id: "t1", bucket: "needs_you", gist: "Tucci needs the waiver by Friday." },
       { id: "t2", bucket: "noise", gist: "DoorDash promo." },
@@ -216,6 +219,90 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     expect(await screen.findByText("The rest · 1")).toBeInTheDocument();
     expect(screen.queryByText(/moved to your tasks/)).toBeNull();
+  });
+
+  it("deletes a thread to Gmail's trash, never permanently", async () => {
+    const trashed: string[] = [];
+    let permanentDeleteCalled = false;
+    const api = makeApi({
+      trashThread: async (id: string) => { trashed.push(id); },
+      // If a permanent delete ever appears on the API, this must never fire.
+      deleteThread: async () => { permanentDeleteCalled = true; },
+    } as Parameters<typeof makeApi>[0]);
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Tucci"));
+    fireEvent.click(await screen.findByLabelText("Delete"));
+    await waitFor(() => expect(trashed).toEqual(["t1"]));
+    expect(permanentDeleteCalled).toBe(false);
+    expect(await screen.findByText(/trash for 30 days/)).toBeInTheDocument();
+    expect(screen.queryByText("Tucci")).toBeNull(); // gone from the list too
+  });
+
+  it("swipe actions exist on every mail row: archive and delete", async () => {
+    render(wrap(<MessagesFlow ai={noAI} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Tucci");
+    // Two rows, each with its own pair of actions.
+    expect(screen.getAllByLabelText("Archive")).toHaveLength(2);
+    expect(screen.getAllByLabelText("Delete")).toHaveLength(2);
+  });
+
+  it("archiving from the list needs no thread open", async () => {
+    const archived: string[] = [];
+    const api = makeApi({ modifyThread: async (id, _a, remove) => { if (remove.includes("INBOX")) archived.push(id); } });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Tucci");
+    fireEvent.click(screen.getAllByLabelText("Archive")[0]!);
+    await waitFor(() => expect(archived).toEqual(["t1"]));
+    expect(screen.queryByText("Tucci")).toBeNull();
+  });
+
+  it("only one offer can be on screen at a time", async () => {
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "needs_you", gist: "g" },
+      { id: "t2", bucket: "noise", gist: "promo" },
+    ]));
+    // This sender is already over the self-cleaning threshold, and Archive All
+    // arms the auto-noise offer. Both want the same slot.
+    localStorage.setItem("jarvis.mail.tossed.v1", JSON.stringify({ "no@dd.com": 4 }));
+    render(wrap(<MessagesFlow ai={ai} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("The rest · 1"));
+    fireEvent.click(await screen.findByText("Archive All"));
+    expect(await screen.findByText(/Send them straight to Noise/)).toBeInTheDocument();
+    expect(screen.queryByText("Clear Noise Automatically From Now On")).toBeNull();
+  });
+
+  it("archive can be undone from the toast", async () => {
+    const calls: string[] = [];
+    const api = makeApi({ modifyThread: async (id, add, remove) => {
+      if (remove.includes("INBOX")) calls.push("archive:" + id);
+      if (add.includes("INBOX")) calls.push("restore:" + id);
+    } });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Tucci");
+    fireEvent.click(screen.getAllByLabelText("Archive")[0]!);
+    await waitFor(() => expect(calls).toContain("archive:t1"));
+    expect(screen.queryByText("Tucci")).toBeNull();
+    fireEvent.click(screen.getByText("Undo"));
+    await waitFor(() => expect(calls).toContain("restore:t1"));
+    expect(await screen.findByText("Tucci")).toBeInTheDocument();
+  });
+
+  it("a muted thread never comes back, and the rules screen can unmute it", async () => {
+    render(wrap(<MessagesFlow ai={noAI} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Tucci"));
+    fireEvent.click(await screen.findByText("Mute this thread"));
+    await waitFor(() => expect(screen.queryByText("Tucci")).toBeNull());
+    expect(screen.getByText("DoorDash")).toBeInTheDocument(); // only that thread
+    fireEvent.click(screen.getByText("Standing rules"));
+    fireEvent.click(await screen.findByText("Unmute"));
+    fireEvent.click(screen.getByText("Email"));
+    expect(await screen.findByText("Tucci")).toBeInTheDocument();
   });
 
   it("composes and sends", async () => {

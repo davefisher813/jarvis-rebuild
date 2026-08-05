@@ -10,7 +10,7 @@ const THREAD: ThreadFull = {
   id: "t1", subject: "Waiver",
   messages: [{
     id: "m1", from: "Tucci", fromEmail: "t@x.com", to: "d@x.com", date: "Mon",
-    subject: "Waiver", snippet: "", body: "Need the waiver by Friday", threadId: "t1", messageId: "<a@x>", attachments: [],
+    subject: "Waiver", snippet: "", body: "Need the waiver by Friday", threadId: "t1", messageId: "<a@x>", attachments: [], listUnsubscribe: "", listUnsubscribePost: "",
   }],
 };
 
