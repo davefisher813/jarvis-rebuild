@@ -372,7 +372,7 @@ function PayoffScreen({ name, briefLabel, seeds, taskTitle, slotLine, saving, on
             </div>
           )}
         </div></div>
-        {slotLine && <div className="ob-privacy"><div className="ob-privacy-txt">{slotLine} Tap it when it\u2019s done \u2014 I love that part.</div></div>}
+        {slotLine && <div className="ob-privacy"><div className="ob-privacy-txt">{slotLine} Tap it when it\u2019s done. I love that part.</div></div>}
       </div>
       <div className="ob-foot">
         <button className="btn btn-primary btn-block btn-lg" onClick={onEnter} disabled={saving}>Enter JARVIS</button>

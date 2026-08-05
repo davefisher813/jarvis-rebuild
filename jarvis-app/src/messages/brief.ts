@@ -7,6 +7,8 @@
 // latest message id, so reopening a thread costs nothing until someone
 // actually writes again.
 
+import { noDashes } from "../ai/suggestions";
+
 export interface Brief {
   summary: string;
   replies: string[];
@@ -44,9 +46,9 @@ export function parseBrief(raw: string): Brief | null {
   }
   if (typeof o !== "object" || o === null) return null;
   const { summary, replies } = o as { summary?: unknown; replies?: unknown };
-  const s = typeof summary === "string" ? summary.trim() : "";
+  const s = typeof summary === "string" ? noDashes(summary.trim()) : "";
   const r = Array.isArray(replies)
-    ? replies.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => x.trim()).slice(0, 3)
+    ? replies.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => noDashes(x.trim())).slice(0, 3)
     : [];
   if (!s && r.length === 0) return null;
   return { summary: s, replies: r };

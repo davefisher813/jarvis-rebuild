@@ -10,6 +10,8 @@
 //   - One task per thread, ever. Marked before the task is created.
 //   - No shame copy. The task is the promise, phrased as the promise.
 
+import { noDashes } from "../ai/suggestions";
+
 const KEY = "jarvis.mail.promised.v1";
 const CAP = 300;
 
@@ -63,7 +65,7 @@ export function parseCommitment(raw: string, todayISO: string): Commitment | nul
   if (typeof o !== "object" || o === null) return null;
   const { text, due } = o as { text?: unknown; due?: unknown };
   if (typeof text !== "string") return null;
-  const t = text.trim().slice(0, 60);
+  const t = noDashes(text.trim()).slice(0, 60);
   if (!t) return null;
   const out: Commitment = { text: t };
   if (typeof due === "string" && /^\d{4}-\d{2}-\d{2}$/.test(due.trim())) {

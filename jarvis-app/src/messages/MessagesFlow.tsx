@@ -30,6 +30,7 @@ import { PRESETS, loadMinutes, saveMinutes, clampMinutes, drainReceipt } from ".
 import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, handoffLine, type HandoffTarget } from "./handoff";
 import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, markPromised, commitmentLine } from "./commitments";
 import { laterTaskTitle } from "./deck";
+import { noDashes } from "../ai/suggestions";
 import { useOptionalTasks, useOptionalPeople } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
 
@@ -282,7 +283,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (ai.available) {
         try {
           const p = nudgePrompt(row);
-          body = (await ai.complete([{ role: "user", content: p.user }], p.system, { tier: "write" })).trim();
+          body = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system, { tier: "write" })).trim());
         } catch { body = ""; }
       }
       setEditingDraftId(null);
@@ -603,7 +604,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (ai.available) {
         try {
           const p = handoffPrompt(target, t.subject, effTriage[t.id]?.gist || "");
-          const written = (await ai.complete([{ role: "user", content: p.user }], p.system, { tier: "write" })).trim();
+          const written = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system, { tier: "write" })).trim());
           if (written) note = written;
         } catch { /* the plain note is a fine note */ }
       }

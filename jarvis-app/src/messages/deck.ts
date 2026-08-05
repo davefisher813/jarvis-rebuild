@@ -1,5 +1,6 @@
 import type { ThreadFull } from "../connections/google/map";
 import { JARVIS_VOICE, STYLE_SCOPE_RULE } from "../ai/voice";
+import { noDashes } from "../ai/suggestions";
 
 // The Deal With It deck (email 2): for each thread that needs the user, ONE
 // AI pass prepares the decision so the card arrives with the work already
@@ -87,12 +88,12 @@ export function parseDeckPlan(raw: string): DeckPlan | null {
   const kind = o.kind;
   if (kind !== "reply" && kind !== "bill" && kind !== "event" && kind !== "task" && kind !== "archive") return null;
   const why = typeof o.why === "string" && o.why.trim() ? o.why.trim().slice(0, 140) : "";
-  const plan: DeckPlan = { kind, why };
+  const plan: DeckPlan = { kind, why: noDashes(why) };
 
   if (kind === "reply") {
     const r = o.reply;
     if (typeof r !== "string" || !r.trim()) return null;
-    plan.reply = r.trim().slice(0, 2000);
+    plan.reply = noDashes(r.trim()).slice(0, 2000);
   }
   if (kind === "bill") {
     const b = o.bill as Record<string, unknown> | undefined;

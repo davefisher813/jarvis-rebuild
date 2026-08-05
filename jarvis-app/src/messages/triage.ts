@@ -1,4 +1,5 @@
 import type { ThreadRow } from "../connections/google/map";
+import { noDashes } from "../ai/suggestions";
 
 // Triage (email 1): one AI pass sorts the inbox into what needs Dave, what is
 // worth knowing, and noise, with a one-line gist per thread so junk never has
@@ -73,7 +74,7 @@ export function parseTriage(raw: string, rows: ThreadRow[]): TriageMap | null {
     const row = byId.get(id);
     if (!row) continue;
     const b: Bucket = bucket === "needs_you" || bucket === "noise" ? bucket : "worth_knowing";
-    const g = typeof gist === "string" && gist.trim() ? gist.trim().slice(0, GIST_MAX) : row.snippet.slice(0, GIST_MAX);
+    const g = noDashes(typeof gist === "string" && gist.trim() ? gist.trim().slice(0, GIST_MAX) : row.snippet.slice(0, GIST_MAX));
     const d = typeof by === "string" ? by.trim().slice(0, 20) : "";
     out[id] = { bucket: b, gist: g, lastMsgId: row.lastMsgId, ...(d ? { by: d } : {}) };
   }

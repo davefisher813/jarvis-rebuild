@@ -25,6 +25,15 @@ export function suggestionsSystemPrompt(ctx: AIContext, today: string, avoid: st
 // Hard style guarantees, applied even if the model ignores instructions:
 // em dashes become colons, and trailing periods are dropped, so AI text can
 // never break the app's voice rules.
+// The narrow version: em dashes only, punctuation otherwise untouched.
+// Anything the model writes that a human will READ goes through this, because
+// no amount of prompt instruction stops a model reaching for an em dash, and
+// the app has one hard rule about them. Trailing periods survive here: a
+// summary that ends mid-air reads broken.
+export function noDashes(s: string): string {
+  return s.replace(/\s*\u2014\s*/g, ", ").replace(/\s+--\s+/g, ", ");
+}
+
 export function scrubStyle(s: string): string {
   return s
     .replace(/\s*\u2014\s*/g, ": ")

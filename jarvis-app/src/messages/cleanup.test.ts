@@ -3,6 +3,12 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { loadMuted, mute, unmute, isMuted, dropMuted } from "./mute";
 import { parseUnsub, unsubLabel, unsubLine } from "./unsubscribe";
 import { saveRule, clearRule, loadRules } from "./rules";
+import { noDashes } from "../ai/suggestions";
+import { parseTriage } from "./triage";
+import { parseBrief } from "./brief";
+import { parseCommitment } from "./commitments";
+import { parseDeckPlan } from "./deck";
+import type { ThreadRow } from "../connections/google/map";
 
 describe("mute", () => {
   beforeEach(() => localStorage.clear());
@@ -75,5 +81,43 @@ describe("standing rules are undoable", () => {
   it("is a no-op for a sender that was never filed", () => {
     saveRule("a@x.com", "noise");
     expect(Object.keys(clearRule("nobody@x.com"))).toEqual(["a@x.com"]);
+  });
+});
+
+// The model will reach for an em dash no matter what the prompt says. These
+// assert that nothing it writes can carry one into the UI or into a sent mail.
+
+describe("no em dash survives an AI answer", () => {
+  const row: ThreadRow = {
+    id: "t1", from: "Tucci", fromEmail: "t@x.com", subject: "Waiver", snippet: "",
+    unread: true, inInbox: true, dateMs: 1, count: 1, lastMsgId: "m1",
+  };
+
+  it("replaces the dash without eating the sentence", () => {
+    expect(noDashes("Pay Tucci — by Friday")).toBe("Pay Tucci, by Friday");
+    expect(noDashes("Send it — today.")).toBe("Send it, today."); // period survives
+    expect(noDashes("no dashes here")).toBe("no dashes here");
+  });
+
+  it("scrubs a triage gist", () => {
+    const m = parseTriage('[{"id":"t1","bucket":"needs_you","gist":"Tucci wants it — by Friday"}]', [row]);
+    expect(m!["t1"]!.gist).not.toContain("—");
+  });
+
+  it("scrubs a thread summary and its quick replies", () => {
+    const b = parseBrief('{"summary":"He asks — again","replies":["On it — today","No","Later"]}');
+    expect(b!.summary).not.toContain("—");
+    expect(b!.replies.join(" ")).not.toContain("—");
+  });
+
+  it("scrubs a caught commitment", () => {
+    const c = parseCommitment('{"text":"Send roster — Friday"}', "2026-08-05");
+    expect(c!.text).not.toContain("—");
+  });
+
+  it("scrubs a drafted reply before it can be sent as him", () => {
+    const p = parseDeckPlan('{"kind":"reply","why":"He needs an answer — today","reply":"On it — sending tonight."}');
+    expect(p!.reply).not.toContain("—");
+    expect(p!.why).not.toContain("—");
   });
 });
