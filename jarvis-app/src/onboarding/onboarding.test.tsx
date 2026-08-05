@@ -33,17 +33,23 @@ describe("OnboardingFlow", () => {
     fireEvent.click(screen.getByText("Personal"));
 
     // categories (defaults seeded into the step)
-    expect(screen.getByText(/life areas/)).toBeInTheDocument();
+    // The categories prompt is personalized ("for Personal, I've set up ...");
+    // assert the stable half of the sentence, not the template-specific half.
+    expect(screen.getByText(/Remove any that don/)).toBeInTheDocument();
     expect(screen.getByDisplayValue("Work")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Continue"));
 
     // people
     expect(screen.getByText(/most important people/)).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Skip for now"));
+    fireEvent.click(screen.getByText(/add people as I go/));
 
     // priority (new optional step)
     expect(screen.getByText(/most important thing on your plate/)).toBeInTheDocument();
     fireEvent.click(screen.getByText("Skip for now"));
+
+    // work style
+    expect(screen.getByText(/When do you usually work/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("9 to 5"));
 
     // connect
     expect(screen.getByText(/Gmail and Google Calendar/)).toBeInTheDocument();
@@ -54,7 +60,7 @@ describe("OnboardingFlow", () => {
     fireEvent.click(screen.getByText("7:00 AM"));
 
     // done, personalized
-    expect(screen.getByText(/all set, Alex/)).toBeInTheDocument();
+    expect(screen.getByText(/You’re set, Alex\./)).toBeInTheDocument();
     fireEvent.click(screen.getByText("Enter JARVIS"));
 
     await waitFor(() => expect(onFinish).toHaveBeenCalled());
