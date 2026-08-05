@@ -132,9 +132,9 @@ const api = makeFakeGoogleApi({
 
 // Scripted AI: answers by recognizing which prompt MessagesFlow sent.
 const TRIAGE_REPLY = JSON.stringify([
-  { id: "t_tucci", bucket: "needs_you", gist: "Tucci needs the signed waiver by Friday or Marcus sits Saturday." },
-  { id: "t_geico", bucket: "needs_you", gist: "Auto policy renews Aug 12, $214." },
-  { id: "t_patel", bucket: "needs_you", gist: "Confirm the Aug 8, 2:30 PM appointment." },
+  { id: "t_tucci", bucket: "needs_you", gist: "Tucci needs the signed waiver by Friday or Marcus sits Saturday.", by: "Friday" },
+  { id: "t_geico", bucket: "needs_you", gist: "Auto policy renews Aug 12, $214.", by: "Aug 12" },
+  { id: "t_patel", bucket: "needs_you", gist: "Confirm the Aug 8, 2:30 PM appointment.", by: "today" },
   { id: "t_bffsa", bucket: "worth_knowing", gist: "Fall registration opens Monday. Nothing due yet." },
   { id: "t_vercel", bucket: "worth_knowing", gist: "Deploy succeeded. FYI only." },
   { id: "t_dd", bucket: "noise", gist: "DoorDash promo." },
@@ -159,8 +159,20 @@ const fetchImpl = (async (_url: RequestInfo | URL, init?: RequestInit) => {
     }
   }
   else if (body.includes("follow-up nudge")) text = "Hey Sarah, floating this back to the top of your inbox. No rush, just don't want it to slip.";
-  else if (body.includes("Summarize this email conversation")) text = "Tucci needs the signed waiver by Friday; he has followed up twice and the blank form is on the first message.";
-  else if (body.includes("3 short reply options")) text = JSON.stringify(["Sending it tonight", "Done by morning", "Call you at noon"]);
+  // The thread brief is ONE call returning both halves (see messages/brief.ts).
+  // The old shim answered two separate prompts and silently stopped matching
+  // when they merged, which left the bench with no summary at all.
+  // Match on PROSE, never on a JSON fragment: the prompt is embedded in a
+  // JSON request body, so every quote in it arrives escaped and a literal
+  // {"summary" never appears.
+  else if (body.includes("Read this email conversation")) {
+    text = JSON.stringify({
+      summary: "Tucci needs the signed waiver by Friday. He has followed up twice and the blank form is on the first message.",
+      replies: ["Sending it tonight", "Done by morning", "Call you at noon"],
+    });
+  }
+  else if (body.includes("forwarding note")) text = "Jen, can you take this one? Tucci needs the waiver signed before Friday. Thanks.";
+  else if (body.includes("commitment they made")) text = JSON.stringify({ text: "Send Tucci the waiver", due: "" });
   return { ok: true, status: 200, json: async () => ({ text }), text: async () => "" };
 }) as unknown as typeof fetch;
 

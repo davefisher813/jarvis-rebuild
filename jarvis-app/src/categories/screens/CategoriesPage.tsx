@@ -1,6 +1,7 @@
 import type { Category } from "../types";
 import { catIcon } from "../icons";
 import LargeTitleNav from "../../shared/LargeTitleNav";
+import ReorderList from "../../shared/ReorderList";
 
 const BACK = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -17,16 +18,38 @@ export default function CategoriesPage({
   onEdit,
   onAdd,
   onBack,
+  onReorder,
 }: {
   categories: Category[];
   onEdit: (id: string) => void;
   onAdd: () => void;
   onBack: () => void;
+  // Drag to reorder. This order is the order everywhere the categories are
+  // listed, so the one the user cares about can sit at the top.
+  onReorder?: (ids: string[]) => void;
 }) {
+  const byId = (id: string) => categories.find((c) => c.id === id)!;
   return (
     <div className="screen">
       <LargeTitleNav title="Categories" back="Settings" onBack={onBack} />
       <div className="pad-x">
+        {onReorder && categories.length > 1 ? (
+          <ReorderList
+            ids={categories.map((c) => c.id)}
+            onReorder={onReorder}
+            renderRow={(id) => {
+              const c = byId(id);
+              return (
+                <>
+                  <div className={"sec-ico cat-bg-" + c.data.color}>{catIcon(c.data.icon)}</div>
+                  <div className="row-grow" role="button" tabIndex={0} onClick={() => onEdit(c.id)}>
+                    <div className="conn-name">{c.data.name}</div>
+                  </div>
+                </>
+              );
+            }}
+          />
+        ) : (
         <div className="card">
           {categories.map((c) => (
             <div className="row" role="button" tabIndex={0} key={c.id} onClick={() => onEdit(c.id)}>
@@ -35,6 +58,9 @@ export default function CategoriesPage({
               {CHEV}
             </div>
           ))}
+        </div>
+        )}
+        <div className="card conn-action">
           <div className="row ob-addrow" role="button" tabIndex={0} onClick={onAdd}>
             <div className="sec-ico ico-accent">{PLUS}</div>
             <div className="row-grow"><div className="conn-name">Add Category</div></div>

@@ -2,7 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMoney, useTasks, useProfile } from "../data/NotesProvider";
 import { ACCOUNT_META, ACCOUNT_KINDS, formatMoney, totalBalance, type Account, type AccountData, type AccountKind } from "./types";
-import { activeBills, billSubline, paydayLine, monthDay, type PaydayInfo, type PaydayFreq } from "./bills";
+import {
+  loadEnvelopes, saveEnvelopes, setAsideTotal, leftToSpend, leftSub, shortLine,
+  daysUntil, perDayLine, envelopeId, type Envelope,
+} from "./budget";
+import { activeBills, billSubline, paydayLine, paydayNext, monthDay, type PaydayInfo, type PaydayFreq } from "./bills";
 import BillSheet, { type BillDraft } from "./BillSheet";
 import type { TaskItem } from "../tasks/TasksService";
 import { todayISO } from "../tasks/grouping";
@@ -103,6 +107,13 @@ export default function MoneyFlow() {
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [billSheet, setBillSheet] = useState<BillSheetState>({ kind: "closed" });
   const [paydayOpen, setPaydayOpen] = useState(false);
+  // Budgeting: envelopes are a plan he chose, and the breakdown stays folded
+  // until he doubts the number.
+  const [envelopes, setEnvelopes] = useState<Envelope[]>(() => loadEnvelopes());
+  const [mathOpen, setMathOpen] = useState(false);
+  const [envOpen, setEnvOpen] = useState(false);
+  const [envName, setEnvName] = useState("");
+  const [envAmt, setEnvAmt] = useState("");
   const today = todayISO();
 
   const reload = useCallback(async () => {
@@ -143,6 +154,18 @@ export default function MoneyFlow() {
   };
 
   const anchor = payday && isPersonal && bills.length > 0 ? paydayLine(payday, bills, today) : null;
+
+  // What is actually his. Derived from the paycheck he entered, the bills he
+  // entered, and the money he chose to reserve. Absent entirely without a
+  // payday, because without one there is no window and no honest answer.
+  const nextPay = payday && isPersonal ? paydayNext(payday, today) : null;
+  const billsOut = nextPay
+    ? bills.filter((b) => !b.data.done && !!b.data.due && b.data.due <= nextPay)
+        .reduce((sum, b) => sum + (b.data.bill?.amount ?? 0), 0)
+    : 0;
+  const setAside = setAsideTotal(envelopes);
+  const left = payday && isPersonal ? leftToSpend(payday.amount, billsOut, setAside) : null;
+  const daysLeft = nextPay ? daysUntil(today, nextPay) : 0;
   const balanceAsOf = accounts.map((a) => a.data.asOf).filter((d): d is string => !!d).sort().pop();
 
   const billRows = (
@@ -201,6 +224,71 @@ export default function MoneyFlow() {
           <button className="btn btn-secondary" onClick={() => setBillSheet({ kind: "new" })}>Add a Bill</button></div>
       ) : (
         <>
+          {/* THE NUMBER. One line answers "what is actually mine right now".
+              The arithmetic behind it is one tap away and folded by default:
+              nobody needs to re-read the math every single time. */}
+          {left && (
+            <>
+              <div className="pad-x"><div className="card money-hero" role="button" tabIndex={0} onClick={() => setMathOpen(!mathOpen)}>
+                <div className="money-hero-label">{nextPay ? "Yours until " + monthDay(nextPay) : "Yours"}</div>
+                <div className="money-hero-total">{formatMoney(Math.max(0, left.amount))}</div>
+                {left.amount < 0
+                  ? <div className="money-hero-label">{shortLine(left)}</div>
+                  : <div className="money-hero-label">{leftSub(left) || perDayLine(left, daysLeft)}</div>}
+                {mathOpen && (
+                  <div className="budget-math">
+                    <div className="budget-row"><span>Paycheck</span><span>{formatMoney(left.paycheck)}</span></div>
+                    {left.billsOut > 0 && (
+                      <div className="budget-row"><span>Bills before {monthDay(nextPay!)}</span><span>-{formatMoney(left.billsOut)}</span></div>
+                    )}
+                    {left.setAside > 0 && (
+                      <div className="budget-row"><span>Set aside</span><span>-{formatMoney(left.setAside)}</span></div>
+                    )}
+                    <div className="budget-row budget-total"><span>Yours</span><span>{formatMoney(left.amount)}</span></div>
+                    {perDayLine(left, daysLeft) && <div className="money-hero-label">{perDayLine(left, daysLeft)}</div>}
+                  </div>
+                )}
+              </div></div>
+
+              <div className="sec-head"><div className="sec-left"><div className="sec-title">Set Aside</div></div></div>
+              <div className="pad-x"><div className="card">
+                {envelopes.map((e) => (
+                  <div className="row" key={e.id}>
+                    <div className="row-grow"><div className="conn-name truncate">{e.name}</div></div>
+                    <span className="money-amt">{formatMoney(e.amount)}</span>
+                    <button className="conn-remove" aria-label={"Remove " + e.name}
+                      onClick={() => setEnvelopes(saveEnvelopes(envelopes.filter((x) => x.id !== e.id)))}>{TRASH}</button>
+                  </div>
+                ))}
+                {envOpen ? (
+                  <div className="row">
+                    <div className="row-grow budget-add">
+                      <input className="input" placeholder="What for" value={envName} onChange={(ev) => setEnvName(ev.target.value)} />
+                      <input className="input budget-amt" inputMode="numeric" placeholder="0" value={envAmt}
+                        onChange={(ev) => setEnvAmt(ev.target.value)} />
+                      <button className="btn btn-primary btn-sm" onClick={() => {
+                        const amt = Number(envAmt);
+                        if (!envName.trim() || !isFinite(amt) || amt <= 0) return;
+                        setEnvelopes(saveEnvelopes([...envelopes, { id: envelopeId(envelopes.length + Date.now() % 9999), name: envName, amount: amt }]));
+                        setEnvName(""); setEnvAmt(""); setEnvOpen(false);
+                      }}>Add</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="row ob-addrow" role="button" tabIndex={0} onClick={() => setEnvOpen(true)}>
+                    <div className="sec-ico ico-accent">{PLUS}</div>
+                    <div className="row-grow"><div className="conn-name">Set Money Aside</div></div>
+                  </div>
+                )}
+              </div></div>
+              {envelopes.length === 0 && (
+                <div className="pad-x"><div className="input-help">
+                  Money you reserve here stops counting as spendable. It is a plan, not a record of spending.
+                </div></div>
+              )}
+            </>
+          )}
+
           {accounts.length > 0 && (
             <div className="pad-x"><div className="card money-hero">
               <div className="money-hero-label">Total balance</div>

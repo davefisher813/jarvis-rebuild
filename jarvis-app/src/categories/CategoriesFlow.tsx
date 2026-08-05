@@ -48,6 +48,7 @@ export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
         onEdit={(id) => setSheet({ kind: "edit", id })}
         onAdd={() => setSheet({ kind: "new" })}
         onBack={onBack}
+        onReorder={async (ids) => { await categories.reorder(ids); await reload(); }}
       />
       {sheet.kind !== "closed" && (
         <CategorySheet
