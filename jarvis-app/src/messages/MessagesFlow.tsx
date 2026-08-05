@@ -780,8 +780,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     return (
       <div className={"screen " + pushCls} key="rules">
         <div className="nav-bar"><button className="nav-back" onClick={() => setView("list")}>Email</button>
-          <span className="nav-title">Standing rules</span><span className="nav-act"></span></div>
-        <div className="grp"><div className="eyebrow">Senders you filed</div></div>
+          <span className="nav-title">Standing Rules</span><span className="nav-action"></span></div>
+        <div className="grp"><div className="eyebrow">Senders You Filed</div></div>
         <div className="pad-x"><div className="card">
           {filed.length === 0 ? (
             <div className="row"><div className="row-grow"><div className="conn-meta">Nothing filed yet.</div></div></div>
@@ -797,7 +797,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             </div>
           ))}
         </div></div>
-        <div className="grp"><div className="eyebrow">Muted threads</div></div>
+        <div className="grp"><div className="eyebrow">Muted Threads</div></div>
         <div className="pad-x"><div className="card">
           {muted.length === 0 ? (
             <div className="row"><div className="row-grow"><div className="conn-meta">Nothing muted.</div></div></div>
@@ -853,7 +853,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="nav-bar">
           <button className="nav-back" onClick={() => setView(thread && !editingDraftId ? "detail" : "list")}>Cancel</button>
           <span className="nav-title">{editingDraftId ? "Draft" : "New message"}</span>
-          <button className="nav-act" onClick={send} disabled={sending}>{sending ? "..." : "Send"}</button>
+          <button className="nav-action" onClick={send} disabled={sending}>{sending ? "..." : "Send"}</button>
         </div>
         <div className="pad-x msg-compose">
           <input className="msg-input" placeholder="To" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} />
@@ -871,7 +871,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="nav-bar">
           <button className="nav-back" onClick={() => setView("list")}>Email</button>
           <span className="nav-title"></span>
-          <div className="nav-act nav-act-pair">
+          <div className="nav-actions">
             <button onClick={() => trashThread(thread.id)} aria-label="Delete"><Trash2 className="ic" /></button>
             <button onClick={() => archiveThread(thread.id)} aria-label="Archive"><Archive className="ic" /></button>
           </div>
@@ -943,7 +943,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               </button>
             )}
             {parseUnsub(lastMsg(thread).listUnsubscribe, lastMsg(thread).listUnsubscribePost) && (
-              <button className="quiet-action msg-unsub" onClick={() => void doUnsub(thread)}>
+              <button className="quiet-action" onClick={() => void doUnsub(thread)}>
                 {unsubLabel(lastMsg(thread).from)}
               </button>
             )}
@@ -957,7 +957,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           )}
           {handTargets !== null && (
             <div className="msg-hand-pick">
-              <div className="eyebrow">Hand this to</div>
+              <div className="eyebrow">Hand This To</div>
               <div className="card">
                 {handTargets.length === 0 ? (
                   <div className="row"><div className="row-grow">
@@ -1053,7 +1053,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     <div className={"screen " + pushCls} key="list">
       <div className="nav-bar">
         <div className="nav-large">Email</div>
-        <button className="nav-act" onClick={startCompose} aria-label="New message"><Plus className="ic" /></button>
+        <button className="nav-action" onClick={startCompose} aria-label="New message"><Plus className="ic" /></button>
       </div>
       {showTriage && <div className="pad-x msg-headline">{headline(needsYou.length, visibleRows.length)}</div>}
       {showTriage && needsYou.length > 0 && (
@@ -1066,7 +1066,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <button className="quiet-action" onClick={() => setDrainOpen(true)}>Only have a few minutes?</button>
           ) : (
             <div className="drain-pick">
-              <div className="eyebrow">Give me</div>
+              <div className="eyebrow">Give Me</div>
               <div className="msg-chips">
                 {PRESETS.map((m) => (
                   <button key={m} className={"chip" + (minutes === m ? " on" : "")}
@@ -1297,7 +1297,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       )}
       {/* The standing rules live one tap from the tab that creates them. */}
       {(Object.keys(rules).length > 0 || muted.length > 0) && (
-        <div className="pad-x"><button className="quiet-action" onClick={() => setView("rules")}>Standing rules</button></div>
+        <div className="pad-x"><button className="quiet-action" onClick={() => setView("rules")}>Standing Rules</button></div>
       )}
     </div>
   );

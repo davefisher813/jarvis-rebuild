@@ -155,7 +155,7 @@ export default function YourDay({
     // Actionable empty state: an icon, one warm line, and the obvious next
     // tap, instead of a grey sentence (RDB, Dave 2026-07-29).
     return (
-      <div className="yourday">
+      <div>
         {header}
         <div className="pad-x"><div className="card">
           <div className="empty-state empty-compact">
@@ -175,7 +175,7 @@ export default function YourDay({
   // Not overflowing: a plain static card (no animation, no toggle).
   if (!overflow) {
     return (
-      <div className="yourday">
+      <div>
         {header}
         {planButton}
         <div className="pad-x">
@@ -189,7 +189,7 @@ export default function YourDay({
 
   // Overflowing: duplicate the day and let the CSS loop scroll it.
   return (
-    <div className="yourday">
+    <div>
       {header}
       {planButton}
       <div className="pad-x">

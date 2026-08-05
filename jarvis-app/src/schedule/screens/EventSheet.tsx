@@ -171,7 +171,7 @@ export default function EventSheet({
           </div>
 
           <div className="field">
-            <div className="chip-row dur-pick">
+            <div className="chip-row">
               {([[30, "30m"], [60, "1h"], [120, "2h"]] as const).map(([mins, label]) => {
                 const tm = (h: string) => { const p = h.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
                 const activeDur = !!end && tm(end) - tm(start) === mins;

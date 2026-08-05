@@ -948,8 +948,6 @@ button {
 .mail-arch { position: absolute; top: 0; right: 88px; bottom: 0; width: 88px; border: 0;
   background: var(--surface-3, #2c2c2e); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
 .mail-arch .ic { width: 22px; height: 22px; }
-/* Two icon actions in one nav slot. */
-.nav-act-pair { display: flex; align-items: center; gap: var(--s-4); }
 
 /* Undo lives in the toast, because the moment right after the action is the
    only moment anyone wants it. */

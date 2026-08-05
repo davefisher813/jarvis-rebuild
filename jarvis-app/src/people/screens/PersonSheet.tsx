@@ -112,7 +112,7 @@ export default function PersonSheet({
           </div>
           {categories.length > 0 && (
             <div className="field">
-              <div className="input-label">Part of</div>
+              <div className="input-label">Part Of</div>
               {/* MULTI-select on purpose: a person can be Family AND Bridge.
                   Single-tag here would rebuild the exclusive-bucket mistake
                   one layer down. */}

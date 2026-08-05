@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Mail } from "lucide-react";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { fmtTime } from "../schedule/calendar";
@@ -287,17 +288,21 @@ export default function TodayPage({
       {birthdaySection}
 
       {emailLine && (
-        <div className="pad-x">
-          <div className="card">
-            <div className="row" role="button" tabIndex={0} onClick={onOpenEmail}>
-              <div className="row-grow">
-                <div className="conn-name">{emailLine}</div>
-                <div className="conn-meta">Deal with it from here.</div>
+        <>
+          <div className="sec-head"><div className="sec-left"><div className="sec-title">Email</div></div></div>
+          <div className="pad-x">
+            <div className="card">
+              <div className="row" role="button" tabIndex={0} onClick={onOpenEmail}>
+                <div className="proj-icon cat-bg-sky"><Mail className="ic" /></div>
+                <div className="row-grow">
+                  <div className="conn-name">{emailLine}</div>
+                  <div className="conn-meta">Deal with it from here.</div>
+                </div>
+                <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
               </div>
-              <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {upNextSection}

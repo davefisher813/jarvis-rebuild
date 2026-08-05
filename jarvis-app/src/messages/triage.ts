@@ -20,7 +20,12 @@ export type Bucket = "needs_you" | "worth_knowing" | "noise";
 export interface Triage { bucket: Bucket; gist: string; by?: string }
 export type TriageMap = Record<string, Triage & { lastMsgId: string }>;
 
-const CACHE_KEY = "jarvis.mail.triage.v1";
+// v2: the cached shape gained "by" (the sender's stated deadline). Entries
+// written by v1 have no deadline and, because the delta only re-triages a
+// thread when a NEW message arrives, they would never get one. Bumping the key
+// forces one re-sort, after which deadlines appear on mail that is already in
+// the inbox. Any schema change here MUST bump this.
+const CACHE_KEY = "jarvis.mail.triage.v2";
 const CACHE_CAP = 300;
 const GIST_MAX = 140;
 

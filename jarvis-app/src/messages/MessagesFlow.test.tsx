@@ -299,7 +299,7 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Mute this thread"));
     await waitFor(() => expect(screen.queryByText("Tucci")).toBeNull());
     expect(screen.getByText("DoorDash")).toBeInTheDocument(); // only that thread
-    fireEvent.click(screen.getByText("Standing rules"));
+    fireEvent.click(screen.getByText("Standing Rules"));
     fireEvent.click(await screen.findByText("Unmute"));
     fireEvent.click(screen.getByText("Email"));
     expect(await screen.findByText("Tucci")).toBeInTheDocument();

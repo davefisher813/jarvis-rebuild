@@ -186,7 +186,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
       <div className="nav-bar">
         <button className="nav-back" onClick={onExit}>Email</button>
         <span className="nav-title">{limitMs && left !== null ? fmtClock(left) : idx + 1 + " of " + threads.length}</span>
-        <span className="nav-act"></span>
+        <span className="nav-action"></span>
       </div>
       <div className="pad-x">
         <div className="card pad deck-card">

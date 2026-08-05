@@ -368,7 +368,7 @@ function PayoffScreen({ name, briefLabel, seeds, taskTitle, slotLine, saving, on
           {taskTitle && (
             <div className="row">
               <span className="task-check" aria-hidden="true" />
-              <div className="row-grow"><div className="conn-name">{taskTitle}</div><div className="eyebrow">Your top priority</div></div>
+              <div className="row-grow"><div className="conn-name">{taskTitle}</div><div className="eyebrow">Your Top Priority</div></div>
             </div>
           )}
         </div></div>
