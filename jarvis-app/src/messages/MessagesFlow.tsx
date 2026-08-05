@@ -19,12 +19,16 @@ import { Burst } from "../shared/Burst";
 import { useOptionalSession } from "../auth/AuthProvider";
 import { findWaiting, waitingLine, nudgePrompt, type WaitingRow } from "./waiting";
 import { loadTracks, saveTrack, trackForThread, newTrackId, pixelUrlFor, registerTrack, checkOpens } from "./tracking";
+import { loadNetted, saveNetted, netCandidates, guardLine } from "./safetyNet";
+import { laterTaskTitle } from "./deck";
+import { useOptionalTasks } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
 
 type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string };
 type DraftRow = { id: string; to: string; subject: string; snippet: string };
 type View = "list" | "detail" | "compose" | "deck" | "dead";
 type Filter = "triage" | "all" | "drafts";
+type TriageState = "idle" | "pending" | "ready" | "failed";
 
 const AUTONOISE_KEY = "jarvis.mail.autonoise.v1";
 const BUCKET_LABEL: Record<Bucket, string> = { needs_you: "Needs You", worth_knowing: "Worth Knowing", noise: "Noise" };
@@ -66,12 +70,19 @@ function fmtWhen(ms: number): string {
 // mailbox. Without AI the tab is an honest threaded list — no fake triage.
 export default function MessagesFlow({ ai, configured = googleConfigured(), token }: { ai: AIService; configured?: boolean; token?: string }) {
   const g = useGoogle();
+  const tasks = useOptionalTasks();
   const session = useOptionalSession();
   const authToken = token ?? session?.access_token;
   const [view, setView] = useState<View>("list");
   const [rows, setRows] = useState<ThreadRow[]>([]);
   const [triage, setTriage] = useState<TriageMap>({});
   const [triaged, setTriaged] = useState(false);
+  // Never show the wall: For You has three honest states besides "ready".
+  // The fallback for a failed sort is a calm screen with one way out, never
+  // the raw list dumped back in Dave's face.
+  const [triageState, setTriageState] = useState<TriageState>("idle");
+  const [restOpen, setRestOpen] = useState(false);
+  const [netted, setNetted] = useState(0);
   const [rules, setRules] = useState<SenderRules>(() => loadRules());
   const [noiseOpen, setNoiseOpen] = useState(false);
   const [autoNoise, setAutoNoise] = useState<boolean>(() => {
@@ -90,7 +101,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [acctFilter, setAcctFilter] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
   const [draftsLoaded, setDraftsLoaded] = useState(false);
-  const [filter, setFilter] = useState<Filter>("triage");
+  // No AI build: there is no For You chip at all, so the tab opens on All.
+  const [filter, setFilter] = useState<Filter>(ai.available ? "triage" : "all");
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<ThreadRow[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -105,28 +117,41 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [toast, setToast] = useState<string | null>(null);
   const triageBusy = useRef(false);
 
-  const runTriage = useCallback(async (threads: ThreadRow[]) => {
+  // One pass, with exactly ONE silent retry. Two failures is a real outage and
+  // the user gets told once, calmly, instead of watching a spinner forever.
+  const runTriage = useCallback(async (threads: ThreadRow[], attempt = 0) => {
     if (!ai.available || triageBusy.current) return;
     const cache = loadTriageCache();
     const delta = triageDelta(threads, cache);
     if (delta.length === 0) {
       setTriage(cache);
       setTriaged(true);
+      setTriageState("ready");
       return;
     }
     triageBusy.current = true;
+    // Warm start: if the cache already covers some threads, the sorted view is
+    // already on screen and this pass is a refresh, not a gate.
+    setTriageState((s) => (s === "ready" ? s : "pending"));
     try {
       const raw = await ai.complete(
         [{ role: "user", content: buildTriageInput(delta) }],
         "You output only a JSON array, nothing else.",
       );
       const parsed = parseTriage(raw, delta);
-      if (!parsed) return; // honest fallback: plain list, not invented buckets
+      if (!parsed) throw new Error("unparseable");
       const merged = fillSkipped({ ...cache, ...parsed }, delta);
       saveTriageCache(merged);
       setTriage(merged);
       setTriaged(true);
-    } catch { /* triage is a layer, not a gate: the list still works */ } finally {
+      setTriageState("ready");
+    } catch {
+      triageBusy.current = false;
+      if (attempt === 0) { await runTriage(threads, 1); return; }
+      // Cached rows still render sorted; only a cold, twice-failed pass is a
+      // dead end, and even then it is a calm screen, not the raw list.
+      setTriageState((s) => (s === "ready" ? s : "failed"));
+    } finally {
       triageBusy.current = false;
     }
   }, [ai]);
@@ -240,6 +265,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   useEffect(() => {
     if (g.hasToken && filter === "drafts" && !draftsLoaded) void loadDrafts();
   }, [g.hasToken, filter, draftsLoaded, loadDrafts]);
+
+  // Nothing-slips net: anything that has needed Dave for 3+ days becomes a
+  // task, exactly once. This is what earns the right to fold the rest away.
+  useEffect(() => {
+    if (!tasks || !triaged || rows.length === 0) return;
+    const { needsYou: nagging } = splitByBucket(rows, applyRules(triage, rows, rules));
+    const already = loadNetted();
+    const due = netCandidates(nagging, already, Date.now());
+    if (due.length === 0) return;
+    // Mark BEFORE the awaits: a failed createTask must not queue the same
+    // thread up to be netted again on every render.
+    saveNetted([...already, ...due.map((r) => r.id)]);
+    setNetted((n) => n + due.length);
+    void (async () => {
+      for (const r of due) {
+        await tasks
+          .createTask(laterTaskTitle(r.from, r.subject), { due: new Date().toISOString().slice(0, 10) })
+          .catch(() => {});
+      }
+      emit({ type: "action", props: { name: "email.net.caught", n: due.length } });
+    })();
+  }, [tasks, triaged, rows, triage, rules]);
 
   const connect = async () => {
     setError(null);
@@ -613,9 +660,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   // ---- list ----
   const { needsYou, worthKnowing, noise } = splitByBucket(visibleRows, effTriage);
-  const showTriage = filter === "triage" && triaged && results === null;
+  // For You is a promise: it either shows sorted mail or it shows a calm
+  // state. It never falls through to the wall.
+  const forYou = filter === "triage" && results === null && ai.available;
+  const showTriage = forYou && triaged;
+  const restCount = worthKnowing.length + noise.length;
   const listRows = results !== null ? results : visibleRows;
 
+  // A triaged row shows the gist and NOTHING else: the thread count is inbox
+  // bookkeeping, and bookkeeping is exactly what the fold is removing.
   const threadRow = (r: ThreadRow, gist?: string) => (
     <div className="row" role="button" tabIndex={0} key={r.id} onClick={() => void openThread(r.id)}>
       {r.unread && <span className="msg-dot" aria-label="unread"></span>}
@@ -625,7 +678,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <span className="msg-when">{fmtWhen(r.dateMs)}</span>
         </div>
         <div className="conn-meta msg-gist">
-          {gist ?? r.subject}{r.count > 1 ? " · " + r.count : ""}
+          {gist ?? r.subject}{!gist && r.count > 1 ? " · " + r.count : ""}
           {g.accounts.length > 1 && r.account && <span className="msg-acct">{acctLabel(r.account)}</span>}
         </div>
       </div>
@@ -667,7 +720,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         </div>
       )}
       <div className="pad-x msg-chips">
-        <button className={"chip" + (filter === "triage" ? " on" : "")} onClick={() => setFilter("triage")}>For You</button>
+        {ai.available && (
+          <button className={"chip" + (filter === "triage" ? " on" : "")} onClick={() => setFilter("triage")}>For You</button>
+        )}
         <button className={"chip" + (filter === "all" ? " on" : "")} onClick={() => setFilter("all")}>All</button>
         <button className={"chip" + (filter === "drafts" ? " on" : "")} onClick={() => setFilter("drafts")}>
           Drafts {draftsLoaded && drafts.length > 0 ? "(" + drafts.length + ")" : ""}
@@ -698,6 +753,24 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         )
       ) : loading && rows.length === 0 ? (
         <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">Loading...</div></div></div></div>
+      ) : forYou && !triaged ? (
+        // The two calm states. Neither one ever shows unsorted mail.
+        triageState === "failed" ? (
+          <div className="pad-x"><div className="card"><div className="empty-state">
+            <div className="empty-icon"><Mail className="ic" /></div>
+            <div className="empty-title">Couldn’t sort your mail</div>
+            <div className="empty-sub">It’s all still here, nothing was lost.</div>
+            <div className="conn-action">
+              <button className="btn btn-secondary btn-block" onClick={() => setFilter("all")}>Show All Mail</button>
+            </div>
+          </div></div></div>
+        ) : (
+          <div className="pad-x"><div className="card"><div className="empty-state">
+            <div className="empty-icon"><Mail className="ic" /></div>
+            <div className="empty-title">Reading your inbox</div>
+            <div className="empty-sub">Sorting out what actually needs you.</div>
+          </div></div></div>
+        )
       ) : results !== null || !showTriage ? (
         // Search results, the All chip, or triage unavailable: honest threaded list.
         listRows.length === 0 ? (
@@ -745,31 +818,51 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               </div></div>
             </>
           )}
-          {worthKnowing.length > 0 && (
-            <>
-              <div className="sec-head"><div className="sec-left"><div className="sec-title">Worth Knowing</div></div></div>
-              <div className="pad-x"><div className="card">
-                {worthKnowing.map((r) => threadRow(r, effTriage[r.id]?.gist))}
-              </div></div>
-            </>
-          )}
-          {noise.length > 0 && (
-            <>
-              <div className="sec-head">
-                <div className="sec-left"><div className="sec-title">Noise</div></div>
-                <button className="see-all" onClick={() => archiveAllNoise(noise)}>Archive All</button>
-              </div>
-              <div className="pad-x"><div className="card">
-                <div className="row" role="button" tabIndex={0} onClick={() => setNoiseOpen(!noiseOpen)}>
+          {/* THE FOLD. Everything that does not need Dave collapses to one
+              line. Worth Knowing and Noise live behind it and expand in
+              place, so the tab is never a scroll of mail he did not ask for. */}
+          {restCount > 0 && (
+            <div className="pad-x msg-fold">
+              <div className="card">
+                <div className="row" role="button" tabIndex={0} onClick={() => setRestOpen(!restOpen)}>
                   <div className="row-grow">
-                    <div className="conn-name">{noise.length === 1 ? "1 automated email" : noise.length + " automated emails"}</div>
-                    <div className="conn-meta msg-gist">{noiseLine(noise)}</div>
+                    <div className="conn-name">The rest · {restCount}</div>
+                    <div className="conn-meta msg-gist">
+                      {restOpen ? "Tap to fold away" : "Nothing here is waiting on you"}
+                    </div>
                   </div>
                 </div>
-                {noiseOpen && noise.map((r) => threadRow(r, effTriage[r.id]?.gist))}
-              </div></div>
-            </>
+                {restOpen && (
+                  <>
+                    {worthKnowing.length > 0 && (
+                      <>
+                        <div className="msg-fold-head">Worth Knowing</div>
+                        {worthKnowing.map((r) => threadRow(r, effTriage[r.id]?.gist))}
+                      </>
+                    )}
+                    {noise.length > 0 && (
+                      <>
+                        <div className="msg-fold-head">
+                          Noise
+                          <button className="see-all" onClick={() => archiveAllNoise(noise)}>Archive All</button>
+                        </div>
+                        <div className="row" role="button" tabIndex={0} onClick={() => setNoiseOpen(!noiseOpen)}>
+                          <div className="row-grow">
+                            <div className="conn-name">{noise.length === 1 ? "1 automated email" : noise.length + " automated emails"}</div>
+                            <div className="conn-meta msg-gist">{noiseLine(noise)}</div>
+                          </div>
+                        </div>
+                        {noiseOpen && noise.map((r) => threadRow(r, effTriage[r.id]?.gist))}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+              {/* The guard line: proof that folding is safe, derived or absent. */}
+              {netted > 0 && <div className="msg-guard">{guardLine(netted)}</div>}
+            </div>
           )}
+          {restCount === 0 && netted > 0 && <div className="pad-x msg-guard">{guardLine(netted)}</div>}
           {autoOffer && (
             <div className="pad-x offer-row">
               <button className="btn btn-secondary btn-block" onClick={enableAutoNoise}>Clear Noise Automatically From Now On</button>

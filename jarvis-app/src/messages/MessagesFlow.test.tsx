@@ -88,9 +88,14 @@ describe("MessagesFlow (threads)", () => {
     expect(await screen.findByText("Needs You")).toBeInTheDocument();
     expect(screen.getByText("1 needs you. The rest is handled.")).toBeInTheDocument();
     expect(screen.getByText(/Tucci needs the waiver by Friday/)).toBeInTheDocument();
+    // THE FOLD: everything that does not need him is one line, not a section.
+    expect(screen.getByText("The rest · 1")).toBeInTheDocument();
+    expect(screen.queryByText("Noise")).toBeNull();
+    expect(screen.queryByText("1 automated email")).toBeNull();
+    // It expands in place, and noise inside it is still collapsed to a count.
+    fireEvent.click(screen.getByText("The rest · 1"));
     expect(screen.getByText("Noise")).toBeInTheDocument();
     expect(screen.getByText("1 automated email")).toBeInTheDocument();
-    // Noise is collapsed: the promo thread is one line, not a row per sender.
     expect(screen.queryByText(/DoorDash promo/)).toBeNull();
   });
 
@@ -103,6 +108,7 @@ describe("MessagesFlow (threads)", () => {
     const api = makeApi({ modifyThread: async (id, _a, remove) => { if (remove.includes("INBOX")) archived.push(id); } });
     render(wrap(<MessagesFlow ai={ai} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("The rest · 1"));
     fireEvent.click(await screen.findByText("Archive All"));
     await waitFor(() => expect(archived).toEqual(["t2"]));
     expect(screen.getByText("1 conversation archived")).toBeInTheDocument();
@@ -151,13 +157,51 @@ describe("MessagesFlow (threads)", () => {
     expect(await screen.findByText("Tucci")).toBeInTheDocument(); // clearing restores
   });
 
-  it("triage failure falls back to the plain list, never an invented sort", async () => {
+  it("triage failure lands on a calm state, never the wall and never an invented sort", async () => {
     const ai = aiReturning("I refuse to answer with JSON today.");
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    expect(await screen.findByText("Tucci")).toBeInTheDocument();
+    // The law: a failed sort must not dump the raw list back on him.
+    expect(await screen.findByText("Couldn’t sort your mail")).toBeInTheDocument();
+    expect(screen.queryByText("Tucci")).toBeNull();
     expect(screen.queryByText("Needs You")).toBeNull();
     expect(screen.queryByText("Noise")).toBeNull();
+    // One way out, and he chooses it.
+    fireEvent.click(screen.getByText("Show All Mail"));
+    expect(await screen.findByText("Tucci")).toBeInTheDocument();
+  });
+
+  it("while triage is still running, For You is a calm state and never the wall", async () => {
+    const pending = new AIService({
+      available: true,
+      getToken: () => "tok",
+      fetchImpl: (() => new Promise(() => {})) as unknown as typeof fetch,
+    });
+    render(wrap(<MessagesFlow ai={pending} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    expect(await screen.findByText("Reading your inbox")).toBeInTheDocument();
+    expect(screen.queryByText("Tucci")).toBeNull();
+    expect(screen.queryByText("DoorDash")).toBeNull();
+  });
+
+  it("a thread that has needed him for days is caught by the net, exactly once", async () => {
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "needs_you", gist: "Tucci needs the waiver by Friday." },
+      { id: "t2", bucket: "noise", gist: "DoorDash promo." },
+    ]));
+    const { unmount } = render(wrap(<MessagesFlow ai={ai} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    expect(await screen.findByText(/moved to your tasks/)).toBeInTheDocument();
+    expect(JSON.parse(localStorage.getItem("jarvis.mail.netted.v1") || "[]")).toContain("t1");
+    unmount();
+
+    // Second run of the app: the thread is already netted, so nothing is
+    // created again and there is no receipt to show. Nagging is the failure
+    // mode this feature exists to avoid.
+    render(wrap(<MessagesFlow ai={ai} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    expect(await screen.findByText("The rest · 1")).toBeInTheDocument();
+    expect(screen.queryByText(/moved to your tasks/)).toBeNull();
   });
 
   it("composes and sends", async () => {

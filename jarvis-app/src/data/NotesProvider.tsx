@@ -110,6 +110,13 @@ export function useTasks(): TasksService {
   return s;
 }
 
+// For features where tasks are an ENHANCEMENT, not a requirement (the email
+// safety net, for one): outside NotesProvider this returns null instead of
+// throwing, so the bench and component tests need no data stack.
+export function useOptionalTasks(): TasksService | null {
+  return useContext(TasksContext) ?? null;
+}
+
 export function useSchedule(): ScheduleService {
   const s = useContext(ScheduleContext);
   if (!s) throw new Error("useSchedule must be used inside NotesProvider");
