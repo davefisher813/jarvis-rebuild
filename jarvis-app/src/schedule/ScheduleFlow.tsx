@@ -7,6 +7,7 @@ import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
+import ScheduleUploadFlow from "./screens/ScheduleUploadFlow";
 import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot, openSlots, fmtRange } from "./calendar";
 import { anytimeTasksForDay } from "./anytime";
 import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
@@ -44,6 +45,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     return () => { on = false; };
   }, [projectsSvc, goalsSvc]);
   const [sheet, setSheet] = useState<SheetState>(null);
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [mode, setMode] = useState<"day" | "week" | "month">("month");
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const tasksSvc = useTasks();
@@ -439,6 +441,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onOpenEvent={openEdit}
         onPickSlot={onPickSlot}
         onPlanDay={() => setPlanOpen(true)}
+        onUpload={ai.available ? () => setUploadOpen(true) : undefined}
         locked={blocked}
         now={selected === today ? nowHHMM : null}
         onEditRoutine={onEditRoutine}
@@ -462,6 +465,27 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           onCommit={onPlanCommit}
           onAIPlan={onAIPlan}
           onClose={() => setPlanOpen(false)}
+        />
+      )}
+      {uploadOpen && (
+        <ScheduleUploadFlow
+          ai={ai}
+          svc={svc}
+          categories={categories}
+          existingEvents={allEvents}
+          onDone={async ({ createdCount, updatedCount, undo }) => {
+            setUploadOpen(false);
+            await reload();
+            const parts: string[] = [];
+            if (createdCount) parts.push(`${createdCount} added`);
+            if (updatedCount) parts.push(`${updatedCount} updated`);
+            showToast({
+              message: parts.join(", "),
+              actionLabel: "Undo",
+              onAction: async () => { await undo(); await reload(); },
+            });
+          }}
+          onCancel={() => setUploadOpen(false)}
         />
       )}
       {sheet && (

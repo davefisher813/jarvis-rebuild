@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Camera } from "lucide-react";
 import type { EventItem } from "../types";
 import { monthMatrix, fmtTime, fmtRange, openSlots, minToHHMM } from "../calendar";
 import { catColor } from "../../shared/categories";
@@ -34,7 +34,7 @@ function weekRange(cells: WeekCell[]): string {
 export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts,
   mode = "month", onMode, weekCells = [], loading,
-  onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay,
+  onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload,
   locked = [], now, onEditRoutine, onPush15, onPushTomorrow, onRunningLate,
   anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {},
 }: {
@@ -42,7 +42,7 @@ export default function SchedulePage({
   dots: Record<number, string[]>; dayEvents: EventItem[]; conflicts?: Set<string>;
   mode?: Mode; onMode?: (m: Mode) => void; weekCells?: WeekCell[]; loading?: boolean;
   onPrev?: () => void; onNext?: () => void; onSelect?: (date: string) => void;
-  onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void;
+  onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void; onUpload?: () => void;
   locked?: LockedRange[]; now?: string | null; onEditRoutine?: () => void;
   onPush15?: (id: string) => void; onPushTomorrow?: (id: string) => void;
   onRunningLate?: (mins: number) => void;
@@ -120,7 +120,10 @@ export default function SchedulePage({
     <div className="screen">
       <div className="nav-bar">
         <div className="nav-large">Schedule</div>
-        <button className="nav-action" onClick={onNew} aria-label="New event"><Plus className="ic" /></button>
+        <div className="nav-actions">
+          {onUpload && <button className="nav-action" onClick={onUpload} aria-label="Upload a schedule"><Camera className="ic" /></button>}
+          <button className="nav-action" onClick={onNew} aria-label="New event"><Plus className="ic" /></button>
+        </div>
       </div>
 
       <div className="sched-seg"><div className="segmented">

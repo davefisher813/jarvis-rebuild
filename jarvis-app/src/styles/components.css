@@ -967,3 +967,16 @@ button {
 .payoff-line { font-size: var(--t-body); color: var(--tx-2); }
 /* The category picker opening inside the Connections card. */
 .conn-sub { padding-left: var(--s-5); }
+
+/* Budgeting: the number, and the arithmetic folded behind it. */
+.budget-math { margin-top: var(--s-3); border-top: 0.5px solid var(--card-bd); padding-top: var(--s-2h); }
+.budget-row { display: flex; justify-content: space-between; align-items: baseline; padding: var(--s-1h) 0;
+  font-size: var(--t-body); color: var(--tx-2); }
+.budget-total { color: var(--tx-1); font-weight: var(--w-semibold); border-top: 0.5px solid var(--card-bd); margin-top: var(--s-1); padding-top: var(--s-2); }
+.budget-add { display: flex; gap: var(--s-2); align-items: center; }
+.budget-amt { width: 6rem; flex-shrink: 0; }
+
+/* Schedule upload: the photo thumbnail on the review screen, and the dimmed
+   title for a row the user chose to skip. */
+.upload-thumb { width: 44px; height: 44px; border-radius: var(--r-md); object-fit: cover; flex-shrink: 0; }
+.upload-row-skipped { opacity: 0.45; }

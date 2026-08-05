@@ -7,33 +7,11 @@ import { targetLine } from "./measures";
 import { MEASURE_LABEL, type ProgramData, type Exercise } from "./types";
 import ExerciseSheet from "./ExerciseSheet";
 import { showToast } from "../shared/toast";
+import { encodeImageForVision } from "../shared/imageEncode";
 
 const CHEV = (
   <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
 );
-
-// Downscale a photo before it travels: a 12MP screenshot of a coach's
-// spreadsheet does not need 12MP to be read, and the proxy bounds image size.
-async function toJpegBase64(file: File, maxDim = 1568): Promise<{ data: string; mediaType: string }> {
-  const url = URL.createObjectURL(file);
-  try {
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const i = new Image();
-      i.onload = () => resolve(i);
-      i.onerror = () => reject(new Error("unreadable image"));
-      i.src = url;
-    });
-    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, Math.round(img.width * scale));
-    canvas.height = Math.max(1, Math.round(img.height * scale));
-    canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-    return { data: dataUrl.split(",")[1]!, mediaType: "image/jpeg" };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
 
 // Upload a program (gym session 2). Photo/screenshot or pasted text -> the
 // model extracts -> the user REVIEWS every piece before anything commits.
@@ -68,7 +46,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
 
   const onFile = async (file: File) => {
     try {
-      const img = await toJpegBase64(file);
+      const img = await encodeImageForVision(file);
       await extract(buildVisionMessage(EXTRACT_PROMPT, img.data, img.mediaType));
     } catch {
       showToast({ message: "Couldn't read that image." });
