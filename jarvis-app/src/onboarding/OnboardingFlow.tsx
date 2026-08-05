@@ -165,7 +165,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     if (s.id === "categories" && seeds.length > 0) {
       const names = seeds.map((x) => x.name);
       const list = names.length > 1 ? names.slice(0, -1).join(", ") + " and " + names[names.length - 1] : names[0]!;
-      return `Got it \u2014 for ${TEMPLATE_LABEL[template]}, I\u2019ve set up ${list}. Remove any that don\u2019t fit, or add your own.`;
+      return `Got it, for ${TEMPLATE_LABEL[template]} I\u2019ve set up ${list}. Remove any that don\u2019t fit, or add your own.`;
     }
     return s.prompt!;
   };
@@ -290,7 +290,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           <input className="input" placeholder={step.placeholder} value={personDraft} onChange={(e) => setPersonDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addPerson(); }} />
           <button className="convo-send" aria-label="Add person" onClick={addPerson}>{SEND}</button>
         </div>
-        <button className="btn btn-secondary btn-block" onClick={() => setIdx(idx + 1)}>{people.length ? "Continue" : "Later \u2014 I\u2019ll add people as I go"}</button>
+        <button className="btn btn-secondary btn-block" onClick={() => setIdx(idx + 1)}>{people.length ? "Continue" : "Later, I\u2019ll add people as I go"}</button>
       </div>
     );
   } else if (step.kind === "connect") {
@@ -306,7 +306,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
             <div className="row-grow"><div className="conn-name">Google Calendar</div><div className="eyebrow">Events show up on Today</div></div>
           </div>
         </div></div>
-        <div className="convo-foot"><button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>Continue</button><div className="ob-skip" role="button" tabIndex={0} onClick={() => setIdx(idx + 1)}>Later \u2014 JARVIS works fine without it</div></div>
+        <div className="convo-foot"><button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>Continue</button><div className="ob-skip" role="button" tabIndex={0} onClick={() => setIdx(idx + 1)}>Later, JARVIS works fine without it</div></div>
       </>
     );
   } else if (step.kind === "time") {

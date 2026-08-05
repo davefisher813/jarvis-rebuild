@@ -66,8 +66,8 @@ function starterBlock(type: BlockType): Omit<Block, "id"> {
     case "bulleted_list": return { type, items: ["Item"] };
     case "numbered_list": return { type, items: ["Item"] };
     case "table": return { type, columns: ["Col 1", "Col 2"], rows: [["", ""]] };
-    case "photo": return { type, name: "Photo", size: "\u2014" };
-    case "file": return { type, name: "Attachment", size: "\u2014" };
+    case "photo": return { type, name: "Photo", size: "" };
+    case "file": return { type, name: "Attachment", size: "" };
   }
 }
 
