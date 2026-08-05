@@ -81,6 +81,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // The fallback for a failed sort is a calm screen with one way out, never
   // the raw list dumped back in Dave's face.
   const [triageState, setTriageState] = useState<TriageState>("idle");
+  const [triageWhy, setTriageWhy] = useState<string>("");
   const [restOpen, setRestOpen] = useState(false);
   const [netted, setNetted] = useState(0);
   const [rules, setRules] = useState<SenderRules>(() => loadRules());
@@ -145,9 +146,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setTriage(merged);
       setTriaged(true);
       setTriageState("ready");
-    } catch {
+    } catch (e) {
       triageBusy.current = false;
       if (attempt === 0) { await runTriage(threads, 1); return; }
+      // Keep the reason. A silent failure sent us chasing the wrong bug for an
+      // hour; the calm state can afford one quiet line of truth.
+      setTriageWhy(((e as Error)?.message || "").slice(0, 140));
       // Cached rows still render sorted; only a cold, twice-failed pass is a
       // dead end, and even then it is a calm screen, not the raw list.
       setTriageState((s) => (s === "ready" ? s : "failed"));
@@ -760,6 +764,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="empty-icon"><Mail className="ic" /></div>
             <div className="empty-title">Couldn’t sort your mail</div>
             <div className="empty-sub">It’s all still here, nothing was lost.</div>
+            {triageWhy && <div className="msg-guard">{triageWhy}</div>}
             <div className="conn-action">
               <button className="btn btn-secondary btn-block" onClick={() => setFilter("all")}>Show All Mail</button>
             </div>

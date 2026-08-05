@@ -1,23 +1,26 @@
-// App-shell service worker v3: instant reopen without the v1 poison bug.
+// App-shell service worker v4: a deploy is live on the NEXT open, not the one
+// after it.
 //
 // History: v1 cached HTML but not its hashed bundles, so a deploy could leave
 // cached HTML pointing at assets that no longer existed (black screen). v2
 // overcorrected to network-everything, which made every reopen a full reload.
+// v3 used stale-while-revalidate for HTML, which paints instantly but applies
+// a deploy one open LATE — the user had to close and reopen twice to see a
+// change, and a correctly shipped feature looked broken for an hour.
 //
-// v3 does it properly:
+// v4:
 //   - /assets/* bundles are IMMUTABLE (content-hashed filenames): cache-first,
 //     forever. A filename can never point at different bytes, so this is the
 //     safest possible caching.
-//   - HTML navigations: stale-while-revalidate. Serve the last good HTML
-//     instantly (reopen paints at once), refresh it from the network in the
-//     background. A deploy therefore applies on the NEXT open. Because every
-//     bundle the cached HTML references is itself cached, the pair always
-//     works offline: the v1 poison cannot recur.
+//   - HTML navigations: network-first with a 2.5s timeout, cache as fallback.
+//     Online, you always get the current app. Offline or on a bad connection,
+//     you get the last good HTML, and because every bundle it references is
+//     itself cached, the pair always works: the v1 poison cannot recur.
 //   - Old caches are purged on activate; the asset cache is trimmed so it
 //     holds roughly the last couple of deploys.
-const HTML_CACHE = "jarvis-html-v3";
-const ASSET_CACHE = "jarvis-assets-v3";
-const STABLE_CACHE = "jarvis-shell-v3";
+const HTML_CACHE = "jarvis-html-v4";
+const ASSET_CACHE = "jarvis-assets-v4";
+const STABLE_CACHE = "jarvis-shell-v4";
 const KEEP = [HTML_CACHE, ASSET_CACHE, STABLE_CACHE];
 const STABLE = ["/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
 const ASSET_LIMIT = 60; // ~3 deploys of bundles; trimmed oldest-first
@@ -48,23 +51,34 @@ self.addEventListener("fetch", (e) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // leave Supabase + others alone
 
-  // HTML navigations: cached-first for instant paint, revalidate in background.
+  // HTML navigations: NETWORK FIRST, with the cache as a fast fallback.
+  //
+  // This used to be cached-first with a background revalidate, which meant a
+  // deploy only appeared on the SECOND open ("close it, open it, close it,
+  // open it"). That is an unacceptable thing to ask a user to do, and it cost
+  // a whole debugging session where a shipped fix looked like it had not
+  // shipped. Now: try the network for up to 2.5s, and only fall back to the
+  // last good HTML if the network is slow or gone. Online, a deploy is live
+  // the very next time the app opens.
   if (req.mode === "navigate") {
     e.respondWith((async () => {
       const cache = await caches.open(HTML_CACHE);
-      const hit = await cache.match("/index-shell");
-      // no-store: the revalidation must reach the server, never the HTTP
-      // cache, or a deploy could sit unseen behind a cached 200.
-      const refresh = fetch(req.url, { cache: "no-store" }).then(async (res) => {
+      // no-store: this must reach the server, never the HTTP cache, or a
+      // deploy could sit unseen behind a cached 200.
+      const net = fetch(req.url, { cache: "no-store" }).then(async (res) => {
         if (res && res.ok) await cache.put("/index-shell", res.clone());
         return res;
       }).catch(() => null);
+      const timeout = new Promise((r) => setTimeout(() => r(null), 2500));
+      const fresh = await Promise.race([net, timeout]);
+      if (fresh) return fresh;
+      const hit = await cache.match("/index-shell");
       if (hit) {
-        e.waitUntil(refresh); // background revalidate; applies next open
+        e.waitUntil(net); // keep the slow response for next time
         return hit;
       }
-      const net = await refresh;
-      if (net) return net;
+      const late = await net;
+      if (late) return late;
       return new Response(
         "<!doctype html><meta charset=utf-8><title>Offline</title><body style='background:#000;color:#fff;font-family:-apple-system,sans-serif;padding:2rem'>You're offline. Reconnect and reopen JARVIS.</body>",
         { headers: { "Content-Type": "text/html" } },
