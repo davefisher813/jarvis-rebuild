@@ -6,6 +6,7 @@ import { useTasks, useProfile, useBrainDocs } from "../data/NotesProvider";
 import { haptics } from "../shared/haptics";
 import { showToast } from "../shared/toast";
 import { patternObservation, isPatternDismissed, dismissPattern, appendHabit, type PatternObservation } from "./patterns";
+import { planningPatternObservation, readDurationCorrections } from "./planningPatterns";
 import { emit } from "../events";
 import { rankOpen } from "../upnext/upnext";
 
@@ -57,7 +58,12 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
     let on = true;
     profileSvc.get().then((prof) => {
       if (!on) return;
-      const o = patternObservation(prof?.checkin, today);
+      // Mood wins when both exist: a wellbeing signal outranks a scheduling
+      // nudge. Brain Personalization Phase 2 (2026-08-06) adds the second
+      // source; the "at most one row" rule and the dismiss-memory below are
+      // shared, unmodified, since isPatternDismissed/dismissPattern already
+      // work on any observation id, not just mood's.
+      const o = patternObservation(prof?.checkin, today) ?? planningPatternObservation(readDurationCorrections(), Date.now());
       setPattern(o && !isPatternDismissed(o.id, today) ? o : null);
     });
     return () => { on = false; };

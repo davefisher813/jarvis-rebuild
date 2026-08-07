@@ -41,6 +41,11 @@ export type EventType =
   | "plan.outcome"
   | "suggestion.accepted"
   | "suggestion.dismissed"
+  // Brain Personalization Phase 2 (2026-08-06): the AI's Plan My Day duration
+  // estimate vs. what the user actually committed, category + signed minutes
+  // (positive = ran longer than estimated). Feeds a Phase-2-only pattern
+  // observation; carries no free text, same discipline as the rest of this log.
+  | "plan.duration_corrected"
   // escape hatch: props.name carries the specific action, no schema bump needed
   | "action";
 

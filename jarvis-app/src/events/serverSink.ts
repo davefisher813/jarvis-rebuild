@@ -45,6 +45,7 @@ const PERSISTED: ReadonlySet<string> = new Set([
   "plan.outcome",
   "suggestion.accepted",
   "suggestion.dismissed",
+  "plan.duration_corrected",
 ]);
 
 // Storage seam (same pattern as LocalEventLog) so tests run without a browser.

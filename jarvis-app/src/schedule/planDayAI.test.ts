@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseAIPlan, aiPlanDay } from "./planDayAI";
+import { parseAIPlan, aiPlanDay, planDayUserMessage } from "./planDayAI";
 
 describe("parseAIPlan", () => {
   it("parses a clean JSON array, preserving order", () => {
@@ -46,5 +46,23 @@ describe("aiPlanDay", () => {
   it("rejects when the call exceeds the timeout, so the sheet falls back", async () => {
     const ai = { complete: () => new Promise<string>(() => { /* never resolves */ }) } as never;
     await expect(aiPlanDay(ai, [pick("a")], [], 540, 1260, { timeoutMs: 10 })).rejects.toThrow(/timed out/);
+  });
+});
+
+describe("planDayUserMessage profile line (Brain Personalization Phase 1, 2026-08-06)", () => {
+  it("includes the assembled profile context when given", () => {
+    const msg = planDayUserMessage([pick("a")], [], 540, 1260, { profile: "Values: family first." });
+    expect(msg).toContain("About this person, from their JARVIS profile:");
+    expect(msg).toContain("Values: family first.");
+  });
+
+  it("omits the profile line entirely when there is none, unchanged from before", () => {
+    const msg = planDayUserMessage([pick("a")], [], 540, 1260);
+    expect(msg).not.toContain("About this person");
+  });
+
+  it("omits the profile line for blank/whitespace-only profile text", () => {
+    const msg = planDayUserMessage([pick("a")], [], 540, 1260, { profile: "   " });
+    expect(msg).not.toContain("About this person");
   });
 });

@@ -13,11 +13,15 @@ export interface PlanPick { id: string; text: string; category: string; overdue:
 // Extra planning context, all optional so a bare call behaves exactly as before.
 // work: the user's work hours. energy: their inferred peak-focus window, so the
 // hardest tasks land there (Phase 2). gentle: yesterday felt heavy, so keep
-// today lighter (Phase 2). timeoutMs: override the AI wait.
+// today lighter (Phase 2). profile: the same assembled Brain context
+// (contextToText output, Life Philosophy / Values / How You Write / habits /
+// completion patterns / etc.) every other AI feature in JARVIS already reads
+// (Brain Personalization Phase 1, 2026-08-06). timeoutMs: override the AI wait.
 export interface AIPlanOpts {
   work?: { startMin: number; endMin: number };
   energy?: { chronotype: "morning" | "evening"; peakStartMin: number; peakEndMin: number };
   gentle?: boolean;
+  profile?: string;
   timeoutMs?: number;
 }
 
@@ -41,7 +45,7 @@ export function planDaySystem(): string {
 }
 
 export function planDayUserMessage(picks: PlanPick[], events: EventItem[], startMin: number, endMin: number, opts: AIPlanOpts = {}): string {
-  const { work, energy, gentle } = opts;
+  const { work, energy, gentle, profile } = opts;
   const taskLines = picks.map((p) => `- [id: ${p.id}] ${p.text}${p.category ? ` (${p.category})` : ""}${p.overdue ? " [OVERDUE]" : ""}`);
   const evLines = events.length
     ? events
@@ -49,6 +53,7 @@ export function planDayUserMessage(picks: PlanPick[], events: EventItem[], start
         .sort((a, b) => a.data.start.localeCompare(b.data.start))
         .map((e) => `- ${label(e.data.start)}${e.data.end ? `-${label(e.data.end)}` : ""} ${e.data.title}`)
     : ["- (nothing scheduled yet)"];
+  const profileLine = profile?.trim() ? `About this person, from their JARVIS profile:\n${profile.trim()}` : "";
   const workLine = work
     ? `Work hours are ${label(fromMin(work.startMin))} to ${label(fromMin(work.endMin))}. Schedule focused, deep, or work-category tasks inside work hours (deep work earlier, admin midday) and personal tasks outside them.`
     : "";
@@ -60,6 +65,7 @@ export function planDayUserMessage(picks: PlanPick[], events: EventItem[], start
     : "";
   return [
     `Plan the window ${label(fromMin(startMin))} to ${label(fromMin(endMin))} today.`,
+    ...(profileLine ? [profileLine] : []),
     ...(workLine ? [workLine] : []),
     ...(energyLine ? [energyLine] : []),
     ...(gentleLine ? [gentleLine] : []),

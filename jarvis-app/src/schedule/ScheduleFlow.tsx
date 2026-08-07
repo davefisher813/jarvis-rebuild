@@ -19,6 +19,8 @@ import { aiPlanDay } from "./planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "./energy";
 import { useAI } from "../ai/useAI";
+import { useAIContext } from "../ai/useAIContext";
+import { contextToText } from "../ai/context";
 import type { TaskItem } from "../tasks/TasksService";
 
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: EventDraft } | null;
@@ -52,6 +54,11 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
   const [planOpen, setPlanOpen] = useState(false);
   const ai = useAI();
+  // Brain Personalization Phase 1 (2026-08-06): the same assembled context
+  // every other AI feature already reads (Life Philosophy, Values, How You
+  // Write, habits, completion patterns, etc.), now also reaching the day
+  // planner instead of it reasoning from work hours and energy alone.
+  const gatherContext = useAIContext();
   const routine = useRoutine();
   const [routineData, setRoutineData] = useState<RoutineData>(DEFAULT_ROUTINE);
   const [routineSet, setRoutineSet] = useState(true);
@@ -150,10 +157,14 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const peak = peakWindowFor(routineData, chrono);
   const energy = chrono !== "neutral" ? { chronotype: chrono, peakStartMin: peak.s, peakEndMin: peak.e } : undefined;
   const onAIPlan = ai.available
-    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, dayEvents, s, e, {
-        work: { startMin: routineData.workStartMin, endMin: routineData.workEndMin },
-        energy,
-      })
+    ? async (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => {
+        const ctx = await gatherContext();
+        return aiPlanDay(ai, picks, dayEvents, s, e, {
+          work: { startMin: routineData.workStartMin, endMin: routineData.workEndMin },
+          energy,
+          profile: contextToText(ctx),
+        });
+      }
     : undefined;
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
     const ids: string[] = [];
