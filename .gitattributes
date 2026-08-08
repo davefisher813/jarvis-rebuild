@@ -1,0 +1,28 @@
+# Line endings. Added 2026-08-07.
+#
+# This repo accumulated roughly 300 files whose only difference from HEAD was
+# carriage returns, because it is edited from both Windows and Linux tooling.
+# Two concrete costs, both hit during the 2026-08-07 session: a 71 line
+# addition showed up as a 130 line whole-file rewrite, and `git add -A` is
+# unsafe here because it sweeps up hundreds of files nobody meant to touch.
+#
+# text=auto tells git to normalize to LF in the repository for anything it
+# detects as text. eol=lf checks it back out as LF everywhere. Existing drifted
+# files are NOT rewritten by this on its own: they normalize the next time each
+# one is staged, so the cleanup arrives gradually instead of as one enormous
+# commit.
+* text=auto eol=lf
+
+# Binary, never touch.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+*.zip binary
