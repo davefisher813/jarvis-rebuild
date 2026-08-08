@@ -57,3 +57,74 @@ describe("EventSheet", () => {
     expect(onDelete).toHaveBeenCalled();
   });
 });
+
+// Move chips (Dave 2026-08-07): adjusting WHEN something happens without
+// opening a time picker. Position only; length is the job of the chips below.
+describe("EventSheet move chips", () => {
+  const openEdit = (initial: Record<string, string>, onSave = vi.fn()) => {
+    render(
+      <EventSheet mode="edit" initial={{ title: "Client Call", category: "c1", ...initial }}
+        categories={CATS} onSave={onSave} onCancel={() => {}} />,
+    );
+    return onSave;
+  };
+
+  it("shifts start and end together, so the duration is untouched", () => {
+    const onSave = openEdit({ date: "2026-05-26", start: "10:00", end: "11:30" });
+    fireEvent.click(screen.getByText("+30m"));
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ start: "10:30", end: "12:00" });
+  });
+
+  it("moves earlier too, which the swipe action never could", () => {
+    const onSave = openEdit({ date: "2026-05-26", start: "10:00", end: "11:00" });
+    fireEvent.click(screen.getByText("-15m"));
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ start: "09:45", end: "10:45" });
+  });
+
+  it("stacks taps, so a bigger move is repeated taps and not a time picker", () => {
+    const onSave = openEdit({ date: "2026-05-26", start: "10:00", end: "11:00" });
+    fireEvent.click(screen.getByText("+30m"));
+    fireEvent.click(screen.getByText("+30m"));
+    fireEvent.click(screen.getByText("+15m"));
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ start: "11:15", end: "12:15" });
+  });
+
+  it("Tomorrow moves the day and leaves the time alone", () => {
+    const onSave = openEdit({ date: "2026-05-26", start: "10:00", end: "11:00" });
+    fireEvent.click(screen.getByText("Tomorrow"));
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ date: "2026-05-27", start: "10:00", end: "11:00" });
+  });
+
+  it("refuses a move that would run past midnight instead of clamping it", () => {
+    openEdit({ date: "2026-05-26", start: "23:30", end: "23:55" });
+    const plus30 = screen.getByText("+30m");
+    expect(plus30.className).toContain("chip-off");
+    fireEvent.click(plus30);
+    // Silently resizing the event to fit the day would be the wrong fix.
+    expect(screen.getByDisplayValue("23:30")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("23:55")).toBeInTheDocument();
+  });
+
+  it("refuses a move back past midnight, and only the chip that would cross it", () => {
+    openEdit({ date: "2026-05-26", start: "00:20", end: "01:00" });
+    expect(screen.getByText("-30m").className).toContain("chip-off"); // 00:20 - 30 is yesterday
+    expect(screen.getByText("-15m").className).not.toContain("chip-off"); // 00:05 is fine
+  });
+
+  it("moves an event with no end time set, leaving it without one", () => {
+    const onSave = openEdit({ date: "2026-05-26", start: "10:00", end: "" });
+    fireEvent.click(screen.getByText("+15m"));
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ start: "10:15", end: "" });
+  });
+
+  it("offers no Tomorrow chip before a date exists", () => {
+    render(<EventSheet mode="new" initial={{ date: "" }} categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.queryByText("Tomorrow")).not.toBeInTheDocument();
+    expect(screen.getByText("+15m")).toBeInTheDocument();
+  });
+});

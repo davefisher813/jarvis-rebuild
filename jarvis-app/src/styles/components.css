@@ -58,6 +58,10 @@
 .chip-row { display: flex; gap: var(--s-2); overflow-x: auto; padding: 0 var(--s-4) var(--s-2); scrollbar-width: none; }
 .chip-row::-webkit-scrollbar { display: none; }
 .chip-row > .chip { flex-shrink: 0; white-space: nowrap; }
+/* A Move chip that would push the event past midnight. Shown, not hidden: a
+   row whose contents shuffle as you tap is harder to aim at than one with a
+   dead key in it. */
+.chip.chip-off { opacity: 0.38; pointer-events: none; }
 
 /* Voice bar docked above the tab bar (real app, was preview-only). */
 .voice-dock { padding-bottom: var(--s-3); }

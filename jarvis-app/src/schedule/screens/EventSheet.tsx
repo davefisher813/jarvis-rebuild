@@ -3,11 +3,24 @@ import { useState } from "react";
 import type { ColorSlot } from "../../categories/types";
 import type { SheetCategory } from "../../tasks/screens/TaskSheet";
 import type { EventRecurrence } from "../types";
-import { addMinutes, fmtTime } from "../calendar";
+import { addMinutes, fmtTime, minToHHMM, addDays } from "../calendar";
 import type { TitleSuggestion } from "../memory";
 import { catColor } from "../../shared/categories";
 
 export type { SheetCategory };
+
+// "13:45" -> 825. This file had three inline copies of it.
+const toMin = (hhmm: string): number => {
+  const p = hhmm.split(":");
+  return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0);
+};
+
+// Move chips (Dave 2026-08-07: "moving stuff around... feels like work. I want
+// it to be something people want to tap"). Adjusting WHEN something happens
+// should not mean opening a time picker and dialling. These shift start and
+// end together, so length stays the job of the duration chips below and one
+// control never quietly does two things.
+const NUDGES: [number, string][] = [[-30, "-30m"], [-15, "-15m"], [15, "+15m"], [30, "+30m"]];
 export interface EventDraft {
   title: string;
   date: string;
@@ -171,9 +184,51 @@ export default function EventSheet({
           </div>
 
           <div className="field">
+            <div className="input-label">Move</div>
+            <div className="chip-row">
+              {NUDGES.map(([mins, label]) => {
+                const dur = end && toMin(end) > toMin(start) ? toMin(end) - toMin(start) : 0;
+                const nextStart = toMin(start) + mins;
+                // Refuse rather than clamp. addMinutes clamps at midnight, which
+                // would pin start or end and silently change the duration: a
+                // "move" control that resizes the event is a bug, not a nudge.
+                const blocked = nextStart < 0 || nextStart + dur > 24 * 60 - 1;
+                return (
+                  <div
+                    key={mins}
+                    className={"chip" + (blocked ? " chip-off" : "")}
+                    role="button"
+                    tabIndex={blocked ? -1 : 0}
+                    aria-disabled={blocked}
+                    onClick={() => {
+                      if (blocked) return;
+                      setStart(minToHHMM(nextStart));
+                      if (end) setEnd(minToHHMM(nextStart + dur));
+                      if (err) setErr(false);
+                    }}
+                  >
+                    {label}
+                  </div>
+                );
+              })}
+              {date && (
+                <div
+                  className="chip"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => { setDate(addDays(date, 1)); if (err) setErr(false); }}
+                >
+                  Tomorrow
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="field">
+            <div className="input-label">Length</div>
             <div className="chip-row">
               {([[30, "30m"], [60, "1h"], [120, "2h"]] as const).map(([mins, label]) => {
-                const tm = (h: string) => { const p = h.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
+                const tm = toMin;
                 const activeDur = !!end && tm(end) - tm(start) === mins;
                 return (
                   <div key={mins} className={"chip" + (activeDur ? " active" : "")} role="button" tabIndex={0} onClick={() => { setEnd(addMinutes(start, mins)); if (err) setErr(false); }}>{label}</div>
