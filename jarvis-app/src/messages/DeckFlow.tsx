@@ -45,9 +45,22 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
   const started = useRef(Date.now());
   const [left, setLeft] = useState<number | null>(limitMs ?? null);
   const done = useRef(false);
+  // Generation counter for prepare (audit 2026-08-07). Later and Archive stay
+  // enabled while a card is preparing, deliberately, so the user is never made
+  // to wait on the AI to say "not this one." But that means card A's in-flight
+  // prepare can resolve AFTER the deck has advanced to card B, and without
+  // this guard its late setThread/setPlan landed on B: the card showed B's
+  // sender with A's prepared reply, the primary button re-sent A's reply, and
+  // B was archived without ever being decided, the exact silent skip the
+  // snapshot comment in MessagesFlow calls this feature's worst failure. Every
+  // await in prepare is followed by a staleness check; stale results are
+  // dropped on the floor.
+  const prepGen = useRef(0);
   const row = threads[idx];
 
   const prepare = useCallback(async (r: ThreadRow) => {
+    const gen = ++prepGen.current;
+    const live = () => gen === prepGen.current;
     setPreparing(true);
     setThread(null);
     setPlan(null);
@@ -55,6 +68,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
       const api = apiFor(r.account);
       if (!api) throw new Error("not connected");
       const full = mapThreadFull(await api.getThread(r.id));
+      if (!live()) return;
       if (full.messages.length === 0) throw new Error("empty");
       setThread(full);
       if (!ai.available) return; // honest degrade: read + reply, no prepared plan
@@ -73,13 +87,15 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
       const userVoice = await gatherContext()
         .then((c) => voiceToText(c, { styleRule: false }))
         .catch(() => "");
+      if (!live()) return;
       const { system, user } = buildPlanPrompt(full, voice, today, userVoice);
       const raw = await ai.complete([{ role: "user", content: user }], system, { tier: "write" });
+      if (!live()) return;
       setPlan(parseDeckPlan(raw)); // null = honest fallback, card still works
     } catch {
-      setPlan(null);
+      if (live()) setPlan(null);
     } finally {
-      setPreparing(false);
+      if (live()) setPreparing(false);
     }
   }, [ai, apiFor, people, gatherContext]);
 
@@ -178,6 +194,10 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
       await tasks.createTask(laterTaskTitle(row.from, row.subject), { due: new Date().toISOString().slice(0, 10) });
       emit({ type: "action", props: { name: "email.deck.later" } });
       advance(false); // stays in the inbox: the task is the reminder, the mail is the evidence
+    } catch (e) {
+      // Do NOT advance: Later without its task is a silent loss, and the whole
+      // point of Later is that deferring never means losing.
+      showToast({ message: (e as Error).message || "Couldn't save that for later. Nothing was lost." });
     } finally {
       setBusy(false);
     }

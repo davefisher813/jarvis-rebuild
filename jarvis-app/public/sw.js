@@ -5,7 +5,7 @@
 // cached HTML pointing at assets that no longer existed (black screen). v2
 // overcorrected to network-everything, which made every reopen a full reload.
 // v3 used stale-while-revalidate for HTML, which paints instantly but applies
-// a deploy one open LATE — the user had to close and reopen twice to see a
+// a deploy one open LATE: the user had to close and reopen twice to see a
 // change, and a correctly shipped feature looked broken for an hour.
 //
 // v4:

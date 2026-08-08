@@ -1,4 +1,5 @@
 import { JARVIS_VOICE } from "./voice";
+import { noDashes } from "./suggestions";
 import type { AIContext } from "./context";
 import { contextToText } from "./context";
 import type { Category } from "../categories/types";
@@ -37,7 +38,14 @@ export function parseCapture(raw: string): CaptureResult | null {
   try {
     const o = JSON.parse(cleaned) as Partial<CaptureResult>;
     if (o && (o.kind === "task" || o.kind === "event" || o.kind === "note") && typeof o.title === "string" && o.title.trim()) {
-      return o as CaptureResult;
+      // Model-authored, human-read, persisted as a title: the noDashes
+      // invariant in suggestions.ts applies. This parser skipped it until the
+      // 2026-08-07 audit, so an em-dash title could land in the DB and every
+      // list view with no way for the voice rules to stop it.
+      const out = o as CaptureResult;
+      out.title = noDashes(out.title);
+      if (typeof out.notes === "string") out.notes = noDashes(out.notes);
+      return out;
     }
   } catch {
     /* not JSON */

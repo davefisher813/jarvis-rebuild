@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AIService } from "../../ai/AIService";
 import { buildVisionMessage } from "../../ai/AIService";
+import { JARVIS_VOICE } from "../../ai/voice";
 import { encodeImageForVision } from "../../shared/imageEncode";
 import { SCHEDULE_EXTRACT_PROMPT, parseScheduleExtract, buildScheduleRows, type ExtractedEvent, type ScheduleRow } from "../scheduleExtract";
 import { fmtRange } from "../calendar";
@@ -72,7 +73,11 @@ export default function ScheduleUploadFlow({
   const runExtract = async (message: Parameters<AIService["complete"]>[0][number]) => {
     setBusy(true);
     try {
-      const out = await ai.complete([message]);
+      // Same fix as the gym uploader (audit 2026-08-07): this call had no
+      // system prompt at all, the one thing voice.ts says no AI surface may
+      // skip. Titles stay the source's own words; the voice rules govern the
+      // model's side of the exchange.
+      const out = await ai.complete([message], JARVIS_VOICE);
       const found = parseScheduleExtract(out);
       if (!found) {
         showToast({ message: "Couldn't read a schedule out of that. Try a clearer photo or paste the text." });

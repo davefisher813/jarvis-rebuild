@@ -89,9 +89,12 @@ export default function DayRow({
   return (
     <div className="sched-swipe-wrap">
       {swipeable && (
+        // tabIndex mirrors aria-hidden (audit 2026-08-07): aria-hidden with
+        // still-focusable children is an ARIA violation, and it let keyboard
+        // users tab into buttons that were visually absent.
         <div className="sched-actions" aria-hidden={!open}>
-          <button className="sched-act" onClick={() => closeThen(onPush15)}>+15 min</button>
-          <button className="sched-act sched-act-quiet" onClick={() => closeThen(onPushTomorrow)}>Tomorrow</button>
+          <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(onPush15)}>+15 min</button>
+          <button className="sched-act sched-act-quiet" tabIndex={open ? 0 : -1} onClick={() => closeThen(onPushTomorrow)}>Tomorrow</button>
         </div>
       )}
       <div

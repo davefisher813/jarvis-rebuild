@@ -21,11 +21,11 @@ export type JsonValue =
 export type EventType =
   // app + session lifecycle
   | "app.opened"
-  | "app.foregrounded"
+  | "app.foregrounded" // reserved: no emitter yet (audit 2026-08-07)
   | "auth.signed_in"
   | "auth.signed_out"
   // navigation
-  | "screen.viewed"
+  | "screen.viewed" // reserved: no emitter yet (audit 2026-08-07)
   // generic entity lifecycle (the data engine's CRUD)
   | "entity.created"
   | "entity.updated"

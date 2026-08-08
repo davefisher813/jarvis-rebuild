@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AIService } from "../ai/AIService";
 import { buildVisionMessage } from "../ai/AIService";
+import { JARVIS_VOICE } from "../ai/voice";
 import { EXTRACT_PROMPT, parseProgramExtract } from "./extract";
 import { targetLine } from "./measures";
 import { MEASURE_LABEL, type ProgramData, type Exercise } from "./types";
@@ -30,7 +31,12 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
   const extract = async (message: Parameters<AIService["complete"]>[0][number]) => {
     setBusy(true);
     try {
-      const out = await ai.complete([message]);
+      // JARVIS_VOICE as the system prompt, same as every other AI surface
+      // (voice.ts: "Any new AI feature MUST prepend this"). This call shipped
+      // without one entirely, caught by the 2026-08-07 audit. Extraction
+      // output is parsed, not prose, but the voice rules still bound whatever
+      // the model writes into note fields.
+      const out = await ai.complete([message], JARVIS_VOICE);
       const parsed = parseProgramExtract(out);
       if (!parsed) {
         showToast({ message: "Couldn't read a program out of that. Try a clearer photo or paste the text." });

@@ -28,13 +28,17 @@ export interface EventRow {
   category: string | null;
   n: number | null;
   flag: boolean | null;
-  kind: string | null; // suggestion channel: ai | pattern | first_step | link
+  kind: string | null; // closed vocab, regex-gated: ai | pattern | first_step | link | proj_step | workout
   src: string; // 'live' | 'import'
 }
 
 // Only these types survive to the server. app.opened gives usage rhythm;
 // created/deleted give lifecycle; the rest are the semantic acts the Brain's
-// launch derivations need. screen.viewed and entity.updated stay local-only.
+// launch derivations need. Deliberately local-only: entity.updated (too
+// chatty), auth.signed_in/out (privacy, and the server already knows), and
+// "action" (its props are free-form names this row shape has no columns for;
+// promoting an action to durable means giving it a real EventType first,
+// the way plan.duration_corrected was).
 const PERSISTED: ReadonlySet<string> = new Set([
   "app.opened",
   "entity.created",

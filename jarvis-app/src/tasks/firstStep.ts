@@ -1,4 +1,5 @@
 import { JARVIS_VOICE } from "../ai/voice";
+import { noDashes } from "../ai/suggestions";
 
 // First Step: the smallest possible opening move on something that is stuck.
 //
@@ -38,8 +39,11 @@ export function firstStepPrompt(what: string, kind: StuckKind, identity = ""): {
 
 // The model was asked for one line. Take the first non-empty one and ignore
 // any bonus commentary; an empty result is a failure, not a blank suggestion.
+// noDashes because this text is model-authored, human-read, and becomes a
+// persisted task title: the invariant in suggestions.ts applies (audit
+// 2026-08-07, this parser originally skipped it).
 export function parseFirstStep(raw: string): string | null {
   const line = raw.trim().split("\n").map((l) => l.trim()).find((l) => l.length > 0);
   if (!line) return null;
-  return line.replace(/^["']|["']$/g, "").trim() || null;
+  return noDashes(line.replace(/^["']|["']$/g, "")).trim() || null;
 }
