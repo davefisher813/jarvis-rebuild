@@ -9,6 +9,14 @@ import { attachLabel } from "../attachments";
 // keep tap-to-edit only: shifting a whole series from a swipe is a footgun),
 // the next upcoming event carries a time-as-distance label, and past events
 // dim. Tap always opens the editor.
+//
+// The chevron (Dave 2026-08-07, "it's something you don't wanna tap on because
+// it's a headache") exists because the swipe alone had two problems. It was
+// invisible: nothing on screen said the actions were there, so the fast path
+// only helped someone who already knew about it. And it was bound to
+// onTouchStart/Move/End only, which meant +15 min and Tomorrow were literally
+// unreachable with a mouse or a keyboard, on a row whose every other action
+// was not. The chevron is the same reveal, announced and operable by anyone.
 
 export default function DayRow({
   e,
@@ -76,6 +84,7 @@ export default function DayRow({
     setDx(shouldOpen ? -REVEAL : 0);
   };
   const closeThen = (fn?: () => void) => { setOpen(false); setDx(0); fn?.(); };
+  const toggle = () => { const next = !open; setOpen(next); setDx(next ? -REVEAL : 0); };
 
   return (
     <div className="sched-swipe-wrap">
@@ -121,6 +130,17 @@ export default function DayRow({
             </a>
           )}
         </div>
+        {swipeable && (
+          <button
+            type="button"
+            className={"sched-grip" + (open ? " open" : "")}
+            aria-label={open ? "Hide quick actions" : "Quick actions"}
+            aria-expanded={open}
+            onClick={(ev) => { ev.stopPropagation(); toggle(); }}
+          >
+            <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+          </button>
+        )}
       </div>
     </div>
   );

@@ -1,6 +1,19 @@
 // Vercel Edge function: the ONLY place that calls Anthropic. The API key stays
 // server-side (set ANTHROPIC_API_KEY in Vercel). Requires a signed-in user,
-// enforces three cost bounds, then forwards the request:
+// enforces the cost bounds below, then forwards the request.
+//
+// READ THIS BEFORE TRUSTING THE CAPS: bounds 1 and 2 are enforced only when
+// SUPABASE_SERVICE_ROLE_KEY is set. Without it the whole rate-limit block is
+// skipped and this endpoint serves an authenticated user an UNLIMITED number
+// of Anthropic calls. The size caps still apply, so a request cannot be large,
+// but nothing stops it being frequent. That is a config gap, not a code one,
+// and it used to fail silently; it now shouts into the Vercel logs on every
+// request. Deliberately not a hard failure: taking AI offline across the whole
+// app because one env var is missing is worse than serving uncapped while the
+// logs are screaming. Revisit that tradeoff before public launch, when the
+// blast radius stops being one person.
+//
+// The bounds:
 //   1. per-user hourly cap   (AI_RATE_PER_HOUR, default 120)
 //   2. global daily ceiling  (AI_GLOBAL_PER_DAY, default 2000) - the kill switch
 //   3. input size cap        (AI_MAX_INPUT_BYTES, default 32768) + output cap
@@ -59,6 +72,13 @@ export default async function handler(req: Request): Promise<Response> {
   const globalCap = parseInt(process.env.AI_GLOBAL_PER_DAY || "2000", 10);
   const cap = parseInt(process.env.AI_RATE_PER_HOUR || "120", 10);
   let counted = false;
+  if (!serviceKey) {
+    // The one path where this endpoint has no frequency limit at all. Silence
+    // here is how an uncapped proxy stays uncapped for months.
+    console.error(
+      "[ai] SUPABASE_SERVICE_ROLE_KEY is not set: per-user and global AI rate limits are NOT being enforced. Serving uncapped.",
+    );
+  }
   if (serviceKey) {
     const svcJson = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "content-type": "application/json" };
     // Airtight path: one atomic check-and-record in the database (migration
