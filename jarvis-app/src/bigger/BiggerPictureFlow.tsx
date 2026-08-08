@@ -17,6 +17,9 @@ import { readSamples } from "../shared/timeSense";
 import { usePushDepth } from "../shared/pushNav";
 import { emit } from "../events";
 import { useAI } from "../ai/useAI";
+import { useAIContext } from "../ai/useAIContext";
+import { identityToText } from "../ai/context";
+import { firstStepPrompt, parseFirstStep } from "../tasks/firstStep";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
 
@@ -85,6 +88,7 @@ export default function BiggerPictureFlow({ openId, onOpenNote }: { openId?: str
   // quiet for 7 days; AI drafts the smallest opening move, accepting creates
   // it born-linked and due today.
   const ai = useAI();
+  const gatherContext = useAIContext();
   const today = todayISO();
   const [projStep, setProjStep] = useState<{ projectId: string; step: string } | null>(null);
   const [projStepBusy, setProjStepBusy] = useState(false);
@@ -97,13 +101,12 @@ export default function BiggerPictureFlow({ openId, onOpenNote }: { openId?: str
     if (!stalled || projStepBusy) return;
     setProjStepBusy(true);
     try {
-      const out = await ai.complete([
-        {
-          role: "user",
-          content: `The user's project "${stalled.data.title}" has no next action and nothing moving. Reply with ONLY the single smallest first physical step to get it moving, under 12 words, no quotes, no preamble. It must take under a minute.`,
-        },
-      ]);
-      const step = out.trim().split("\n")[0]?.trim();
+      // Same shared prompt as the task-level First Step in TasksFlow: one
+      // feature, one wording, one system prompt (Phase 3). Context failure
+      // must not block the offer.
+      const identity = await gatherContext().then(identityToText).catch(() => "");
+      const p = firstStepPrompt(stalled.data.title, "project", identity);
+      const step = parseFirstStep(await ai.complete([{ role: "user", content: p.user }], p.system));
       if (!step) throw new Error("empty");
       setProjStep({ projectId: stalled.id, step });
     } catch {
@@ -262,6 +265,25 @@ export default function BiggerPictureFlow({ openId, onOpenNote }: { openId?: str
           suggestion={goalSuggestion}
           onBack={() => setGoalDetailId(null)}
           onEdit={() => setSheet({ kind: "editGoal", id: goalDetail.id })}
+          onAchieve={async () => {
+            const g = goalDetail;
+            await goalsSvc.update(g.id, { ...g.data, state: "achieved" });
+            await reload();
+            const mine = projects.filter((p) => p.data.goalId === g.id);
+            const ids = new Set(mine.map((p) => p.id));
+            setGoalDetailId(null);
+            setPayoff({
+              kind: "goal",
+              title: g.data.title,
+              line: payoffLine({
+                projectsDone: mine.filter((p) => p.data.status === "done").length,
+                tasksDone: tasks.filter((t) => {
+                  const pid = (t.data as { projectId?: string }).projectId;
+                  return !!pid && ids.has(pid) && (t.data as { done?: boolean }).done === true;
+                }).length,
+              }),
+            });
+          }}
           onOpenProject={(id) => setDetailId(id)}
           onAddProject={() => setSheet({ kind: "newProject", goalId: goalDetail.id })}
           onLinkSuggestion={(id) => void linkSuggestion(id)}

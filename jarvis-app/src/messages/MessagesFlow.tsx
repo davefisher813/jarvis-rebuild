@@ -31,6 +31,8 @@ import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, handoffLine
 import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, markPromised, commitmentLine } from "./commitments";
 import { laterTaskTitle } from "./deck";
 import { noDashes } from "../ai/suggestions";
+import { useOptionalAIContext } from "../ai/useAIContext";
+import { voiceToText } from "../ai/context";
 import { useOptionalTasks, useOptionalPeople } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
 
@@ -95,6 +97,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const tasks = useOptionalTasks();
   const people = useOptionalPeople();
   const session = useOptionalSession();
+  // Phase 3: anything drafted here goes out over the user's name, so it gets
+  // their voice and the people guardrail. Optional on purpose, matching the
+  // Optional task and people services above: this tab renders without
+  // NotesProvider, and a missing context means a plain prompt, never a crash.
+  const gatherContext = useOptionalAIContext();
+  const voiceText = useCallback(
+    () => gatherContext().then((c) => (c ? voiceToText(c) : "")).catch(() => ""),
+    [gatherContext],
+  );
   const authToken = token ?? session?.access_token;
   const [view, setView] = useState<View>("list");
   const [rows, setRows] = useState<ThreadRow[]>([]);
@@ -282,7 +293,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       let body = "";
       if (ai.available) {
         try {
-          const p = nudgePrompt(row);
+          const p = nudgePrompt(row, await voiceText());
           body = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system, { tier: "write" })).trim());
         } catch { body = ""; }
       }
@@ -603,7 +614,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       let note = defaultNote(target, t.subject);
       if (ai.available) {
         try {
-          const p = handoffPrompt(target, t.subject, effTriage[t.id]?.gist || "");
+          const p = handoffPrompt(target, t.subject, effTriage[t.id]?.gist || "", await voiceText());
           const written = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system, { tier: "write" })).trim());
           if (written) note = written;
         } catch { /* the plain note is a fine note */ }

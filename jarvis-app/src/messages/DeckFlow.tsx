@@ -3,6 +3,8 @@ import type { AIService } from "../ai/AIService";
 import type { GoogleApi } from "../connections/google/api";
 import { mapThreadFull, buildReply, encodeEmail, type ThreadRow, type ThreadFull } from "../connections/google/map";
 import { useTasks, useSchedule, usePeople } from "../data/NotesProvider";
+import { useAIContext } from "../ai/useAIContext";
+import { voiceToText } from "../ai/context";
 import { emit } from "../events";
 import { fmtClock } from "./drain";
 import { buildPlanPrompt, parseDeckPlan, primaryLabel, laterTaskTitle, type DeckPlan, type VoiceProfile } from "./deck";
@@ -31,6 +33,9 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
   const tasks = useTasks();
   const schedule = useSchedule();
   const people = usePeople();
+  // Required, not optional, unlike MessagesFlow: this component already calls
+  // useTasks and useSchedule, so it cannot render without NotesProvider anyway.
+  const gatherContext = useAIContext();
   const [idx, setIdx] = useState(0);
   const [thread, setThread] = useState<ThreadFull | null>(null);
   const [plan, setPlan] = useState<DeckPlan | null>(null);
@@ -62,7 +67,13 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
         examples: await voiceExamplesFor(api, r.fromEmail, Date.now()),
       };
       const today = new Date().toISOString().slice(0, 10);
-      const { system, user } = buildPlanPrompt(full, voice, today);
+      // styleRule: false because buildPlanPrompt already emits
+      // STYLE_SCOPE_RULE unconditionally. Sending it twice is roughly 250
+      // wasted tokens on every card in the deck.
+      const userVoice = await gatherContext()
+        .then((c) => voiceToText(c, { styleRule: false }))
+        .catch(() => "");
+      const { system, user } = buildPlanPrompt(full, voice, today, userVoice);
       const raw = await ai.complete([{ role: "user", content: user }], system, { tier: "write" });
       setPlan(parseDeckPlan(raw)); // null = honest fallback, card still works
     } catch {
@@ -70,7 +81,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
     } finally {
       setPreparing(false);
     }
-  }, [ai, apiFor, people]);
+  }, [ai, apiFor, people, gatherContext]);
 
   useEffect(() => {
     if (row) void prepare(row);

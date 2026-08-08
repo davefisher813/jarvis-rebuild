@@ -28,13 +28,21 @@ export interface VoiceProfile {
 
 const AMOUNT_MAX = 100000;
 
-export function buildPlanPrompt(thread: ThreadFull, voice: VoiceProfile, todayISO: string): { system: string; user: string } {
+// `userVoice` is voiceToText(ctx) from the one assembler (Brain
+// Personalization Phase 3). It carries who the user is, the key people
+// guardrail, and their general writing notes. The per-recipient examples
+// below still outrank it: real messages to THIS person beat notes about how
+// the user writes in general. The general notes matter most in the common
+// case where there are no examples yet, which used to leave the model with
+// nothing but a register word.
+export function buildPlanPrompt(thread: ThreadFull, voice: VoiceProfile, todayISO: string, userVoice = ""): { system: string; user: string } {
   const convo = thread.messages
     .slice(-5)
     .map((m) => m.from + ": " + m.body.slice(0, 1200))
     .join("\n---\n");
 
   const voiceLines: string[] = [];
+  if (userVoice.trim()) voiceLines.push("About the user, and the people they know:\n" + userVoice.trim());
   if (voice.flagged) {
     voiceLines.push("Write guarded and neutral: polite, brief, commits to nothing.");
   } else if (voice.register === "friend") {
@@ -46,7 +54,8 @@ export function buildPlanPrompt(thread: ThreadFull, voice: VoiceProfile, todayIS
   }
   if (voice.examples.length) {
     voiceLines.push(
-      "Here is how the user ACTUALLY writes to this person. Match this voice exactly:\n" +
+      "Here is how the user ACTUALLY writes to this person. Match this voice exactly, " +
+      "and prefer it over the general notes above wherever the two disagree:\n" +
       voice.examples.map((e) => '"' + e.slice(0, 400) + '"').join("\n"),
     );
   }

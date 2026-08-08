@@ -34,6 +34,25 @@ describe("hand off", () => {
     expect(p.user).toContain("Jen");
   });
 
+  // Brain Personalization Phase 3: the note goes out over the user's name.
+  it("carries the JARVIS voice, which this prompt never had", () => {
+    const p = handoffPrompt({ name: "Jen", email: "j@x.com" }, "Invoice", "");
+    expect(p.system).toContain("You are JARVIS");
+    expect(p.system).toContain("Never use em dashes");
+  });
+
+  it("is actually shown the voice it was already being told to imitate", () => {
+    const p = handoffPrompt({ name: "Jen", email: "j@x.com" }, "Invoice", "", "User: Alex\nWriting voice: blunt, no filler");
+    expect(p.system).toContain("Write it as this person would write it:");
+    expect(p.system).toContain("blunt, no filler");
+  });
+
+  it("drafts fine with no voice context at all", () => {
+    const p = handoffPrompt({ name: "Jen", email: "j@x.com" }, "Invoice", "", "");
+    expect(p.system).not.toContain("Write it as this person would write it:");
+    expect(p.system).toContain("Never apologise");
+  });
+
   it("never stacks Fwd: on Fwd:", () => {
     expect(forwardSubject("Invoice")).toBe("Fwd: Invoice");
     expect(forwardSubject("Fwd: Invoice")).toBe("Fwd: Invoice");

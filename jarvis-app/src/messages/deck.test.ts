@@ -68,6 +68,46 @@ describe("buildPlanPrompt", () => {
     // register text is fine; it is the per-person instruction that must not).
     expect(system).not.toContain("Write like a close friend:");
   });
+
+  // Brain Personalization Phase 3 (2026-08-07): the deck now also gets who the
+  // user is and their general writing notes, which matters most for a
+  // recipient they have never written to before.
+  it("carries the user's own context when it is given any", () => {
+    const { system } = buildPlanPrompt(
+      THREAD, { register: "casual", examples: [] }, "2026-08-04",
+      "User: Dave\nWriting voice: blunt, no filler",
+    );
+    expect(system).toContain("About the user, and the people they know:");
+    expect(system).toContain("blunt, no filler");
+  });
+
+  it("is unchanged when no user context is passed, so every old caller still works", () => {
+    const { system } = buildPlanPrompt(THREAD, { register: "casual", examples: [] }, "2026-08-04");
+    expect(system).not.toContain("About the user");
+    expect(system).toContain("Write casually.");
+  });
+
+  it("tells the model that messages to THIS person outrank the general notes", () => {
+    const { system } = buildPlanPrompt(
+      THREAD, { register: "casual", examples: ["yo got it, tonight"] }, "2026-08-04",
+      "User: Dave\nWriting voice: formal, complete sentences",
+    );
+    // Both are present, and the specific one is explicitly the tiebreaker.
+    expect(system).toContain("formal, complete sentences");
+    expect(system).toContain("yo got it, tonight");
+    expect(system).toContain("prefer it over the general notes above");
+    expect(system.indexOf("About the user")).toBeLessThan(system.indexOf("ACTUALLY writes to this person"));
+  });
+
+  // The deck emits STYLE_SCOPE_RULE itself, so the context it is handed must
+  // not carry a second copy. This test guards the token cost, not the wording.
+  it("still emits the style scope rule exactly once", () => {
+    const { system } = buildPlanPrompt(
+      THREAD, { register: "casual", examples: [] }, "2026-08-04",
+      "User: Dave\nWriting voice: blunt",
+    );
+    expect(system.split("Never guess casual").length - 1).toBe(1);
+  });
 });
 
 describe("voiceExamples", () => {

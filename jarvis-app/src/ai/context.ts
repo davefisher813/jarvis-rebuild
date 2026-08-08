@@ -103,24 +103,28 @@ function to12h(hhmm: string): string {
   return `${h}:${(mRaw ?? "00").padStart(2, "0")} ${ap}`;
 }
 
+// "Mike Torres (brother-in-law; write casual)". flagged renders as "handle
+// with care" so every drafting feature inherits the precedence without knowing
+// the schema. "friend" renders as a sentence because "write friend" is not
+// English. Shared by every renderer below so the guardrail wording cannot
+// drift between one prompt and another.
+function renderPeople(people: NonNullable<AIContext["peopleDetail"]>): string[] {
+  return people.map((p) => {
+    const notes: string[] = [];
+    if (p.label) notes.push(p.label.toLowerCase());
+    if (p.flagged) notes.push("handle with care: always professional");
+    else if (p.register === "friend") notes.push("write like a close friend");
+    else if (p.register) notes.push(`write ${p.register}`);
+    return notes.length ? `${p.name} (${notes.join("; ")})` : p.name;
+  });
+}
+
 // A compact, deterministic text rendering for the system/context prompt.
 export function contextToText(ctx: AIContext): string {
   const lines: string[] = [];
   lines.push(`User: ${ctx.name} (${ctx.template} template)`);
   if (ctx.peopleDetail?.length) {
-    // "Mike Torres (brother-in-law; write casual)". flagged renders as
-    // "handle with care" so every drafting feature inherits the precedence
-    // without knowing the schema. "friend" renders as a sentence because
-    // "write friend" is not English.
-    const rendered = ctx.peopleDetail.map((p) => {
-      const notes: string[] = [];
-      if (p.label) notes.push(p.label.toLowerCase());
-      if (p.flagged) notes.push("handle with care: always professional");
-      else if (p.register === "friend") notes.push("write like a close friend");
-      else if (p.register) notes.push(`write ${p.register}`);
-      return notes.length ? `${p.name} (${notes.join("; ")})` : p.name;
-    });
-    lines.push(`Key people: ${rendered.join(", ")}`);
+    lines.push(`Key people: ${renderPeople(ctx.peopleDetail).join(", ")}`);
   } else if (ctx.people?.length) lines.push(`Key people: ${ctx.people.join(", ")}`);
   if (ctx.categories?.length) lines.push(`Life areas: ${ctx.categories.join(", ")}`);
   if (ctx.openTasks?.length) lines.push(`Open tasks: ${ctx.openTasks.join("; ")}`);
@@ -141,5 +145,58 @@ export function contextToText(ctx: AIContext): string {
     lines.push(`Writing voice: ${ctx.voice}`);
     lines.push(STYLE_SCOPE_RULE);
   }
+  return lines.join("\n");
+}
+
+// Two narrower renderings of the SAME assembled context (Brain Personalization
+// Phase 3). Not a second assembler: `useAIContext()` stays the one place data
+// is gathered, exactly as before. These pick which of its fields a given kind
+// of prompt actually needs, which is the pattern suggestionsSystemPrompt and
+// captureSystemPrompt already follow.
+//
+// Why not just use contextToText everywhere: it carries every open task, the
+// day's schedule, and account balances. Sending all of that to draft a two
+// sentence forwarding note costs tokens on an AI proxy that still has no per
+// user rate limit, and none of it makes the note better.
+
+// For prompts that write something the USER will send. Who they are, who they
+// are writing to, how they write, and the hard limit on when that style
+// applies. The people list is the load-bearing part: without it the model
+// cannot tell a close friend from someone marked handle with care, and
+// STYLE_SCOPE_RULE has nothing to key on.
+// `styleRule: false` is for the one caller that already emits STYLE_SCOPE_RULE
+// itself, unconditionally: buildPlanPrompt in the email deck. Sending it twice
+// costs about 250 tokens on the app's highest-frequency AI call and says
+// nothing new. That caller keeps its own copy rather than inheriting this
+// one, because its copy is unconditional and this one only appears when the
+// user has written style notes: dropping it there would quietly remove a
+// guardrail from every draft by anyone who has not filled that doc in.
+export function voiceToText(ctx: AIContext, { styleRule = true }: { styleRule?: boolean } = {}): string {
+  const lines: string[] = [];
+  lines.push(`User: ${ctx.name}`);
+  if (ctx.peopleDetail?.length) {
+    lines.push(`Key people: ${renderPeople(ctx.peopleDetail).join(", ")}`);
+  } else if (ctx.people?.length) lines.push(`Key people: ${ctx.people.join(", ")}`);
+  if (ctx.voice) {
+    lines.push(`Writing voice: ${ctx.voice}`);
+    if (styleRule) lines.push(STYLE_SCOPE_RULE);
+  }
+  return lines.join("\n");
+}
+
+// For prompts that decide what this person should DO. What they are working
+// toward and what is already known about how they work. Deliberately excludes
+// the open task list: a feature that picks a first step is looking at one
+// specific task already, and the other fifty are noise.
+export function identityToText(ctx: AIContext): string {
+  const lines: string[] = [];
+  lines.push(`User: ${ctx.name} (${ctx.template} template)`);
+  if (ctx.goals?.length) lines.push(`Goals: ${ctx.goals.join("; ")}`);
+  if (ctx.projects?.length) lines.push(`Projects: ${ctx.projects.join(", ")}`);
+  if (ctx.routineLine) lines.push(`Routine: ${ctx.routineLine}`);
+  if (ctx.patternLine) lines.push(`Patterns: ${ctx.patternLine}`);
+  if (ctx.habits) lines.push(`Known habits: ${ctx.habits}`);
+  if (ctx.philosophy) lines.push(`Philosophy: ${ctx.philosophy}`);
+  if (ctx.values) lines.push(`Values: ${ctx.values}`);
   return lines.join("\n");
 }

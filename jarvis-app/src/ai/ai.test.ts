@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { assembleContext, contextToText } from "./context";
+import { assembleContext, contextToText, voiceToText, identityToText } from "./context";
 import { AIService } from "./AIService";
 
 describe("AI context", () => {
@@ -86,5 +86,89 @@ describe("writing voice is scoped to close audiences", () => {
     const text = contextToText(assembleContext({ name: "Alex" }));
     expect(text).not.toMatch(/Writing voice/);
     expect(text).not.toMatch(/Never guess casual/);
+  });
+});
+
+// Brain Personalization Phase 3: two narrower renderings of the SAME context.
+// Not a second assembler, a second and third view of the one there already is.
+describe("voiceToText (for prompts that write as the user)", () => {
+  const full = assembleContext({
+    name: "Alex",
+    peopleDetail: [{ name: "Chris", register: "friend" }, { name: "Lex", register: "friend", flagged: true }],
+    voice: "short sentences, no greetings",
+    tasks: [{ text: "Pay rent", done: false }],
+    events: [{ title: "Standup", start: "09:00" }],
+    money: [{ name: "Checking", balance: 1200 }],
+    goals: [{ name: "Ship JARVIS" }],
+  });
+
+  it("carries the user, the people guardrail, and the style scope rule", () => {
+    const text = voiceToText(full);
+    expect(text).toContain("User: Alex");
+    expect(text).toContain("Chris (write like a close friend)");
+    expect(text).toContain("Lex (handle with care: always professional)");
+    expect(text).toContain("Writing voice: short sentences, no greetings");
+    expect(text).toContain("Never guess casual"); // STYLE_SCOPE_RULE rides along
+  });
+
+  it("leaves out the operational noise a draft does not need", () => {
+    const text = voiceToText(full);
+    expect(text).not.toContain("Pay rent");
+    expect(text).not.toContain("Standup");
+    expect(text).not.toContain("Checking");
+    expect(text).not.toContain("Ship JARVIS");
+  });
+
+  it("emits the style rule only alongside real notes, same law as contextToText", () => {
+    const text = voiceToText(assembleContext({ name: "Alex" }));
+    expect(text).not.toMatch(/Writing voice/);
+    expect(text).not.toMatch(/Never guess casual/);
+  });
+
+  // The email deck emits STYLE_SCOPE_RULE itself, unconditionally. Sending it
+  // twice is ~250 wasted tokens on the app's highest-frequency AI call.
+  it("can omit the style rule while keeping the notes, for a caller that has its own", () => {
+    const text = voiceToText(full, { styleRule: false });
+    expect(text).toContain("Writing voice: short sentences, no greetings");
+    expect(text).toContain("Chris (write like a close friend)"); // the guardrail data still ships
+    expect(text).not.toContain("Never guess casual");
+  });
+});
+
+describe("identityToText (for prompts that decide what to do)", () => {
+  const full = assembleContext({
+    name: "Alex",
+    template: "personal",
+    goals: [{ name: "Ship JARVIS", status: "active" }],
+    projects: ["LLC formation"],
+    habits: "Starts strong in the morning",
+    values: "build things that last",
+    philosophy: "small steps",
+    routine: { workStartMin: 540, workEndMin: 1020 },
+    tasks: [{ text: "Pay rent", done: false }],
+    money: [{ name: "Checking", balance: 1200 }],
+    voice: "short sentences",
+  });
+
+  it("carries what the person is working toward and what is known about them", () => {
+    const text = identityToText(full);
+    expect(text).toContain("User: Alex (personal template)");
+    expect(text).toContain("Goals: Ship JARVIS (active)");
+    expect(text).toContain("Projects: LLC formation");
+    expect(text).toContain("Routine: Works 9 AM to 5 PM");
+    expect(text).toContain("Known habits: Starts strong in the morning");
+    expect(text).toContain("Values: build things that last");
+    expect(text).toContain("Philosophy: small steps");
+  });
+
+  it("leaves out the full task list, money, and writing style", () => {
+    const text = identityToText(full);
+    expect(text).not.toContain("Pay rent");
+    expect(text).not.toContain("Checking");
+    expect(text).not.toContain("Writing voice");
+  });
+
+  it("degrades to just the user line when nothing else is known", () => {
+    expect(identityToText(assembleContext({ name: "Alex" }))).toBe("User: Alex (personal template)");
   });
 });

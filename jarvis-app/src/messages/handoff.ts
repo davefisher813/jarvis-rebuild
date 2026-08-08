@@ -1,3 +1,5 @@
+import { JARVIS_VOICE } from "../ai/voice";
+
 // Hand off: not everything in your inbox is yours.
 //
 // One gesture forwards a thread to a person you know, with a short note
@@ -36,13 +38,21 @@ export function defaultNote(target: HandoffTarget, subject: string): string {
   return target.name + ", can you take this one? " + subject.trim() + ". Thanks.";
 }
 
-export function handoffPrompt(target: HandoffTarget, subject: string, gist: string): { system: string; user: string } {
+// The note is sent over the USER'S name, so like the nudge it now inherits
+// JARVIS_VOICE and, when available, the writing voice plus STYLE_SCOPE_RULE
+// (Brain Personalization Phase 3). "in the sender's own plain voice" was an
+// instruction the model had no way to follow: it was never shown that voice.
+// `voice` stays optional so the note still drafts without context.
+export function handoffPrompt(target: HandoffTarget, subject: string, gist: string, voice = ""): { system: string; user: string } {
   return {
-    system:
+    system: [
+      JARVIS_VOICE,
       "You write one short forwarding note, in the sender's own plain voice. " +
       "Two sentences maximum. No greeting block, no signature, no subject line. " +
       "Never apologise, never explain why it is being forwarded, never say 'per my last email'. " +
       "Output only the note.",
+      voice.trim() ? "\nWrite it as this person would write it:\n" + voice.trim() : "",
+    ].filter(Boolean).join("\n"),
     user:
       "Forward this to " + target.name +
       (target.relationship ? " (" + target.relationship + ")" : "") +

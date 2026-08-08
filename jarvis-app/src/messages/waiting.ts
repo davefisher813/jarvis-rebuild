@@ -1,5 +1,6 @@
 import type { GoogleApi } from "../connections/google/api";
 import { mapThread, type ThreadRow } from "../connections/google/map";
+import { JARVIS_VOICE } from "../ai/voice";
 
 // Waiting On (email 3): the loops running the OTHER way, emails the user
 // sent that expect a reply and have not gotten one. Derived, never guessed:
@@ -71,14 +72,22 @@ export function waitingLine(row: WaitingRow, openedISO: string | null): string {
   return "Opened " + when + " · no reply";
 }
 
-export function nudgePrompt(row: WaitingRow): { system: string; user: string } {
+// The nudge goes out over the USER'S name, so it inherits JARVIS_VOICE and,
+// when the app knows the recipient, the writing voice plus STYLE_SCOPE_RULE
+// (Brain Personalization Phase 3). Before this it had neither: every nudge
+// read the same whether it was going to a brother-in-law or a sponsor, and
+// the model was never told the em dash rule. `voice` is optional so the
+// prompt still builds in tests and when context gathering fails.
+export function nudgePrompt(row: WaitingRow, voice = ""): { system: string; user: string } {
   return {
     system: [
+      JARVIS_VOICE,
       "You draft a SHORT follow-up nudge for an email the user sent that got no reply.",
       "One to three sentences. Warm, zero guilt, zero passive aggression: assume they are busy, make replying easy.",
       "Never mention tracking, opens, or that the user knows anything about whether it was read.",
       "Reply with ONLY the message body, no subject, no signature.",
-    ].join("\n"),
+      voice.trim() ? "\nWrite it as this person would write it:\n" + voice.trim() : "",
+    ].filter(Boolean).join("\n"),
     user: "The email was to " + row.to + ", subject: \"" + row.subject + "\", sent " + row.waitingDays + " days ago. Draft the nudge.",
   };
 }

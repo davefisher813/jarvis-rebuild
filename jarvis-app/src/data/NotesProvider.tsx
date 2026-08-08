@@ -123,6 +123,21 @@ export function useOptionalPeople(): PeopleService | null {
   return useContext(PeopleContext) ?? null;
 }
 
+// The rest of the optional accessors, added so useOptionalAIContext can
+// assemble the user's context WITHOUT turning a soft dependency into a hard
+// one (Brain Personalization Phase 3). MessagesFlow is the reason: it is
+// built to render outside this provider, and personalizing its drafts must
+// not quietly cost it that. Every one of these returns null instead of
+// throwing, which is the only difference from the required versions above.
+export function useOptionalProfile(): ProfileService | null { return useContext(ProfileContext) ?? null; }
+export function useOptionalBrainDocs(): BrainDocService | null { return useContext(BrainDocContext) ?? null; }
+export function useOptionalSchedule(): ScheduleService | null { return useContext(ScheduleContext) ?? null; }
+export function useOptionalCategories(): CategoriesService | null { return useContext(CategoriesContext) ?? null; }
+export function useOptionalRoutine(): RoutineService | null { return useContext(RoutineContext) ?? null; }
+export function useOptionalGoals(): GoalService | null { return useContext(GoalContext) ?? null; }
+export function useOptionalProjects(): ProjectsService | null { return useContext(ProjectContext) ?? null; }
+export function useOptionalMoney(): MoneyService | null { return useContext(MoneyContext) ?? null; }
+
 export function useSchedule(): ScheduleService {
   const s = useContext(ScheduleContext);
   if (!s) throw new Error("useSchedule must be used inside NotesProvider");

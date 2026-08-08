@@ -13,6 +13,9 @@ import { nextFreeSlot, addMinutes } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage } from "./lifecycle";
 import { useAI } from "../ai/useAI";
+import { useAIContext } from "../ai/useAIContext";
+import { identityToText } from "../ai/context";
+import { firstStepPrompt, parseFirstStep } from "./firstStep";
 import { emit } from "../events";
 
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
@@ -23,6 +26,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   const cats = useCategories();
   const schedule = useSchedule();
   const ai = useAI();
+  const gatherContext = useAIContext();
   const today = todayISO();
   const tomorrow = (() => { const d = new Date(today + "T00:00:00"); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
   const [parts, setParts] = useState<Partitioned>(EMPTY);
@@ -131,13 +135,12 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     if (!fsCandidate || fsBusy) return;
     setFsBusy(true);
     try {
-      const out = await ai.complete([
-        {
-          role: "user",
-          content: `The user keeps putting off this task: "${fsCandidate.data.text}". Reply with ONLY the single smallest first physical step to start it, under 12 words, no quotes, no preamble. It must take under a minute.`,
-        },
-      ]);
-      const step = out.trim().split("\n")[0]?.trim();
+      // Phase 3: the step is drafted with JARVIS's voice and what the app
+      // knows about this person, not from the task text alone. Context
+      // failure must not block the offer, a generic step beats no step.
+      const identity = await gatherContext().then(identityToText).catch(() => "");
+      const p = firstStepPrompt(fsCandidate.data.text, "task", identity);
+      const step = parseFirstStep(await ai.complete([{ role: "user", content: p.user }], p.system));
       if (!step) throw new Error("empty");
       setFsStep({ taskId: fsCandidate.id, step });
     } catch {

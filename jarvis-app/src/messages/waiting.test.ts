@@ -62,12 +62,33 @@ describe("waitingLine", () => {
 });
 
 describe("nudgePrompt", () => {
+  const row = { threadId: "t", to: "Sarah", toEmail: "s@y.com", subject: "LLC docs", waitingDays: 4, lastMsgId: "m" };
+
   it("never guilts and never leaks the tracking", () => {
-    const { system, user } = nudgePrompt({ threadId: "t", to: "Sarah", toEmail: "s@y.com", subject: "LLC docs", waitingDays: 4, lastMsgId: "m" });
+    const { system, user } = nudgePrompt(row);
     expect(system).toContain("zero guilt");
     expect(system).toContain("Never mention tracking");
     expect(user).toContain("Sarah");
     expect(user).toContain("4 days");
+  });
+
+  // Brain Personalization Phase 3: this message is sent over the user's name.
+  it("carries the JARVIS voice, which this prompt never had", () => {
+    const { system } = nudgePrompt(row);
+    expect(system).toContain("You are JARVIS");
+    expect(system).toContain("Never use em dashes");
+  });
+
+  it("takes the user's writing voice when the app knows it", () => {
+    const { system } = nudgePrompt(row, "User: Alex\nWriting voice: short, no greetings");
+    expect(system).toContain("Write it as this person would write it:");
+    expect(system).toContain("short, no greetings");
+  });
+
+  it("still builds a usable prompt when context gathering came back empty", () => {
+    const { system } = nudgePrompt(row, "");
+    expect(system).not.toContain("Write it as this person would write it:");
+    expect(system).toContain("zero guilt"); // the real instructions survive
   });
 });
 
