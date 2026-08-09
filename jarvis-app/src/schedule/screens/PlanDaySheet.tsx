@@ -162,7 +162,8 @@ export default function PlanDaySheet({
   };
 
   const plan = useMemo(() => planFor(picks), [picks, tasks, events, startMin, endMin, blocked, sizing, durations, overrides]);
-  const timeFor = (id: string) => plan.blocks.find((b) => b.taskId === id)?.start ?? null;
+  const blockFor = (id: string) => plan.blocks.find((b) => b.taskId === id);
+  const timeFor = (id: string) => blockFor(id)?.start ?? null;
 
   const count = plan.blocks.length;
   const countLabel = count === 1 ? "my one" : count === 2 ? "my two" : count === 3 ? "my three" : `these ${count}`;
@@ -215,6 +216,14 @@ export default function PlanDaySheet({
                             the task -> project -> goal chain, right where the
                             choice is being made. Derived; absent when unlinked. */}
                         {t.goal && <div className="bp-sub truncate">Moves {t.goal}</div>}
+                        {/* Soft-window spill (2026-08-09): the slot is real,
+                            the label says it broke the preference. The old
+                            behavior was a bare "No room" over an open evening,
+                            which read as the feature being broken, because for
+                            the user's actual life it was. */}
+                        {on && blockFor(t.id)?.outsideWindow && (
+                          <div className="bp-sub">Outside its usual work hours; change the time if that&rsquo;s wrong</div>
+                        )}
                       </div>
                       {on ? (
                         <span className="p3-time">{at ? label(at) : "No room"}</span>

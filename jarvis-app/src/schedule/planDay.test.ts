@@ -49,9 +49,29 @@ describe("work-hours placement windows (6.7)", () => {
     expect(plan.blocks[0]).toMatchObject({ start: "09:00", end: "10:00" });
   });
 
-  it("evening plan cannot place a work task: it comes back unplaced, honestly", () => {
+  // The 2026-08-09 fix. The old behavior, "evening plan cannot place a work
+  // task, it comes back unplaced", was pinned by a test right here, and it is
+  // exactly what made the feature read as broken: "No room" over a wide-open
+  // evening. Windows are soft now.
+  it("an evening plan spills a work task past its window, labeled, instead of lying about room", () => {
     // Planning starts 19:00; work window ended 17:00. Plenty of evening room.
     const plan = planDay([{ id: "w", text: "w", category: "work", durationMin: 45, windowS: 540, windowE: 1020 }], [], 1140, 1380, 10);
+    expect(plan.unplaced).toHaveLength(0);
+    expect(plan.blocks[0]).toMatchObject({ taskId: "w", start: "19:00", end: "19:45", outsideWindow: true });
+  });
+
+  it("the window still wins whenever it has room: inside placement carries no label", () => {
+    const plan = planDay([{ id: "w", text: "w", category: "work", durationMin: 60, windowS: 540, windowE: 1020 }], [], 420, 1260, 10);
+    expect(plan.blocks[0]).toMatchObject({ start: "09:00", end: "10:00" });
+    expect(plan.blocks[0]!.outsideWindow).toBeUndefined();
+  });
+
+  it("a genuinely full day is still 'no room': soft windows never overlap anything", () => {
+    // The whole day is one solid event; nowhere to spill to.
+    const plan = planDay(
+      [{ id: "w", text: "w", category: "work", durationMin: 45, windowS: 540, windowE: 1020 }],
+      [ev("wall", "07:00", "21:00")], 420, 1260, 10,
+    );
     expect(plan.blocks).toHaveLength(0);
     expect(plan.unplaced.map((t) => t.id)).toEqual(["w"]);
   });
@@ -67,6 +87,23 @@ describe("work-hours placement windows (6.7)", () => {
     const w = plan.blocks.find((b) => b.taskId === "w")!;
     const p = plan.blocks.find((b) => b.taskId === "p")!;
     expect(w.start).toBe("09:00");
-    expect(p.start).toBe("10:10"); // after w + buffer, no window of its own
+    // The cursor bug used to shove p to 10:10, after w, wasting the open
+    // morning. First-fit gives the unwindowed task the 7:00 gap w refused.
+    expect(p.start).toBe("07:00");
+  });
+
+  it("a later pick backfills an earlier gap instead of the day reading full", () => {
+    // Morning gap 7:00-8:30 exists; first pick is long and lands after the
+    // meetings; the short second pick must come back for the morning gap.
+    const plan = planDay(
+      [task("long", 180), task("short", 30)],
+      [ev("m1", "08:30", "09:15"), ev("m2", "09:20", "12:20")],
+      420, 1260, 10,
+    );
+    const long = plan.blocks.find((b) => b.taskId === "long")!;
+    const short = plan.blocks.find((b) => b.taskId === "short")!;
+    expect(long.start).toBe("12:20");
+    expect(short).toMatchObject({ start: "07:00", end: "07:30" });
+    expect(plan.unplaced).toHaveLength(0);
   });
 });

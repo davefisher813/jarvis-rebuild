@@ -25,6 +25,36 @@ const END = 17 * 60;
 // instead of working around the two suggested tasks TASKS pre-seeds.
 const NONE_SUGGESTED = TASKS.map((t) => ({ ...t, suggested: false }));
 
+// The 2026-08-09 fix, at the sheet level: an evening plan with a work-hours
+// task shows a real evening slot plus an honest label, never "No room" over
+// an open evening. That exact wrong behavior is what made the feature feel
+// broken (Dave's screenshot).
+describe("PlanDaySheet soft work-hours windows", () => {
+  const WORK_TASK: PlanCandidate[] = [
+    { id: "w1", text: "Send sponsor recap", category: "work", suggested: false, overdue: false, windowS: 540, windowE: 1020 },
+  ];
+
+  it("evening planning spills a work task into the evening, labeled, instead of No room", () => {
+    // Planning window 7:00 PM to 11:00 PM; the work window ended at 5:00 PM.
+    render(
+      <PlanDaySheet events={[]} tasks={WORK_TASK} startMin={1140} endMin={1380} onCommit={() => {}} onClose={() => {}} />,
+    );
+    fireEvent.click(screen.getByText("Send sponsor recap"));
+    expect(screen.queryByText("No room")).not.toBeInTheDocument();
+    expect(screen.getByText("7:00 PM")).toBeInTheDocument();
+    expect(screen.getByText(/Outside its usual work hours/)).toBeInTheDocument();
+  });
+
+  it("inside its window there is no label: the preference only speaks when broken", () => {
+    render(
+      <PlanDaySheet events={[]} tasks={WORK_TASK} startMin={420} endMin={1260} onCommit={() => {}} onClose={() => {}} />,
+    );
+    fireEvent.click(screen.getByText("Send sponsor recap"));
+    expect(screen.getByText("9:00 AM")).toBeInTheDocument();
+    expect(screen.queryByText(/Outside its usual work hours/)).not.toBeInTheDocument();
+  });
+});
+
 describe("PlanDaySheet (redesigned 2026-08-06)", () => {
   it("has no cap on how many tasks can be picked", () => {
     render(
