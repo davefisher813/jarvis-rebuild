@@ -81,6 +81,21 @@ describe("ServerSink", () => {
     expect(sink.queue().map((r) => r.type)).toEqual(["task.completed", "plan.picked"]);
   });
 
+  // The deck's voice metric, promoted from a device-local "action" on
+  // 2026-08-07. flag carries edited-first; nothing else about the send leaves
+  // the device (no recipient, no subject, no text: rowFrom has no columns
+  // for them and drops unknown props by construction).
+  it("persists email.deck_sent with the edited flag and nothing else", () => {
+    const storage = memStorage();
+    const sink = new ServerSink(storage, () => null);
+    sink.capture(ev("email.deck_sent", { props: { flag: true, subject: "LEAK" } }));
+    const rows = sink.queue();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.type).toBe("email.deck_sent");
+    expect(rows[0]!.flag).toBe(true);
+    expect(JSON.stringify(rows[0])).not.toContain("LEAK");
+  });
+
   it("holds the queue with no client (demo mode) and flushes once connected", async () => {
     const storage = memStorage();
     let c: SinkClient | null = null;

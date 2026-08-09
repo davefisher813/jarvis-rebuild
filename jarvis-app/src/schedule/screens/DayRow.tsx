@@ -48,6 +48,12 @@ export default function DayRow({
   const swipeable = !rep && !isPast && (onPush15 || onPushTomorrow);
   const REVEAL = 176;
   const [dx, setDx] = useState(0);
+  // Ref mirror of dx (audit 2026-08-07): onEnd used to read the STATE, which
+  // on a fast flick can be one queued update behind the finger, snapping the
+  // row the wrong way. The ref is written in the same breath as the state, so
+  // onEnd always judges the position the finger actually reached.
+  const dxRef = useRef(0);
+  const moveTo = (v: number) => { dxRef.current = v; setDx(v); };
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const startX = useRef(0);
@@ -74,17 +80,17 @@ export default function DayRow({
     }
     if (!horizontal.current) return;
     const base = open ? -REVEAL : 0;
-    setDx(Math.min(0, Math.max(-REVEAL, base + mx)));
+    moveTo(Math.min(0, Math.max(-REVEAL, base + mx)));
   };
   const onEnd = () => {
     if (!swipeable) return;
     setDragging(false);
-    const shouldOpen = dx < -REVEAL / 2;
+    const shouldOpen = dxRef.current < -REVEAL / 2;
     setOpen(shouldOpen);
-    setDx(shouldOpen ? -REVEAL : 0);
+    moveTo(shouldOpen ? -REVEAL : 0);
   };
-  const closeThen = (fn?: () => void) => { setOpen(false); setDx(0); fn?.(); };
-  const toggle = () => { const next = !open; setOpen(next); setDx(next ? -REVEAL : 0); };
+  const closeThen = (fn?: () => void) => { setOpen(false); moveTo(0); fn?.(); };
+  const toggle = () => { const next = !open; setOpen(next); moveTo(next ? -REVEAL : 0); };
 
   return (
     <div className="sched-swipe-wrap">

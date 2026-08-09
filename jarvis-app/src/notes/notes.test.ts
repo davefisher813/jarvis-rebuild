@@ -38,6 +38,23 @@ describe("Notes permanent guard: tombstone (R12)", () => {
     expect(await svc.note(id)).toBeNull();
     expect((await svc.listNotes()).length).toBe(0);
   });
+
+  // restoreNote powers the Undo toast that replaced the delete confirm dialog
+  // (audit 2026-08-07). It must bring the WHOLE note back, blocks and
+  // connections included, under a fresh id, or Undo is a lie.
+  it("restoreNote resurrects a snapshot whole, under a new id", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("keep me", "health"))!;
+    await svc.addBlock(id, { type: "text", text: "the body" });
+    const snapshot = (await svc.note(id))!;
+    await svc.deleteNote(id);
+    expect((await svc.listNotes()).length).toBe(0);
+    const newId = (await svc.restoreNote(snapshot))!;
+    expect(newId).not.toBe(id); // the old id is gone for good (R12 stands)
+    const back = (await svc.note(newId))!;
+    expect(back.title).toBe("keep me");
+    expect(back.blocks.map((b) => b.text)).toContain("the body");
+  });
 });
 
 describe("Notes permanent guard: sync loss (R17)", () => {

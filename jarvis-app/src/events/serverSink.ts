@@ -38,7 +38,7 @@ export interface EventRow {
 // chatty), auth.signed_in/out (privacy, and the server already knows), and
 // "action" (its props are free-form names this row shape has no columns for;
 // promoting an action to durable means giving it a real EventType first,
-// the way plan.duration_corrected was).
+// the way plan.duration_corrected was, and email.deck_sent on 2026-08-07).
 const PERSISTED: ReadonlySet<string> = new Set([
   "app.opened",
   "entity.created",
@@ -50,6 +50,7 @@ const PERSISTED: ReadonlySet<string> = new Set([
   "suggestion.accepted",
   "suggestion.dismissed",
   "plan.duration_corrected",
+  "email.deck_sent",
 ]);
 
 // Storage seam (same pattern as LocalEventLog) so tests run without a browser.

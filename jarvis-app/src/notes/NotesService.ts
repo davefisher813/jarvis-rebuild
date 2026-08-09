@@ -276,6 +276,17 @@ export class NotesService {
     this.onEvent({ type: "entity.deleted", entityType: ENTITY_NOTE, entityId: id });
   }
 
+  // Recreate a just-deleted note whole: blocks, connections, everything. This
+  // exists so note deletion can use the app's one convention for destructive
+  // actions, delete-then-Undo-toast (tasks set it), instead of the
+  // window.confirm dialog it had (audit 2026-08-07). The note gets a NEW id;
+  // by the time Undo is tappable the old id is already gone from every list.
+  async restoreNote(data: NoteData): Promise<string | null> {
+    const id = await this.store.create(this.ownerId, ENTITY_NOTE, data as unknown as ItemData);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_NOTE, entityId: id });
+    return id;
+  }
+
   async listNotes() {
     const items = await this.store.listForUser(this.ownerId);
     return items.filter((i) => i.entityType === ENTITY_NOTE);

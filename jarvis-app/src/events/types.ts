@@ -46,6 +46,12 @@ export type EventType =
   // (positive = ran longer than estimated). Feeds a Phase-2-only pattern
   // observation; carries no free text, same discipline as the rest of this log.
   | "plan.duration_corrected"
+  // The deck's voice metric (promoted from a free-form "action" 2026-08-07):
+  // an AI-drafted reply that went out. flag = edited first (true means the
+  // draft was NOT good enough to send as written, which is the number that
+  // says whether the voice work is landing). Durable because losing a phone
+  // must not zero the one measure of draft quality.
+  | "email.deck_sent"
   // escape hatch: props.name carries the specific action, no schema bump needed
   | "action";
 

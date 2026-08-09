@@ -677,8 +677,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       saveTrack(trackId, { threadId: sent.threadId || draft.threadId || sent.id, sentAt: Date.now() });
       void registerTrack(trackId, authToken);
       // The voice metric: a deck draft that needed editing before it could be
-      // sent. Unedited sends are logged from the deck's Send & Next.
-      if (draft.fromDeck) emit({ type: "action", props: { name: "email.deck.sent", edited: true } });
+      // sent (flag: true). Unedited sends are logged from the deck's Send &
+      // Next. Durable EventType since 2026-08-07, same shape both places.
+      if (draft.fromDeck) emit({ type: "email.deck_sent", props: { flag: true } });
       if (editingDraftId) {
         const id = editingDraftId;
         api.deleteDraft(id).catch(() => {});

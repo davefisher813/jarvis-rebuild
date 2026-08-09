@@ -21,6 +21,30 @@ export const config = { runtime: "edge" };
 const GIF = Uint8Array.from(atob("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"), (c) => c.charCodeAt(0));
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Best-effort per-IP throttle on the unauthenticated pixel (audit 2026-08-07).
+// The pixel MUST stay auth-free (mail clients cannot sign in), so someone who
+// holds a valid track id can inflate its open_count; this bounds how fast, and
+// stops an id-guessing loop from turning every miss into two DB round-trips.
+// Per-isolate memory, so it is a damper rather than a wall: an edge isolate
+// that never saw you cannot count you. That is fine, because the endpoint's
+// worst case was already bounded work; this just makes hammering it boring.
+// The ceiling is deliberately high (120/min) because Gmail's image proxy
+// funnels MANY real recipients through FEW IPs; a tight cap here would eat
+// real opens, which is worse than admitting a few extra.
+const PIXEL_PER_MIN = 120;
+const hits = new Map<string, { n: number; t: number }>();
+function pixelAllowed(ip: string): boolean {
+  const now = Date.now();
+  const h = hits.get(ip);
+  if (!h || now - h.t > 60_000) {
+    if (hits.size > 5000) hits.clear(); // bound the map; resets are harmless
+    hits.set(ip, { n: 1, t: now });
+    return true;
+  }
+  h.n += 1;
+  return h.n <= PIXEL_PER_MIN;
+}
+
 function gif(): Response {
   return new Response(GIF, {
     status: 200,
@@ -55,9 +79,12 @@ export default async function handler(req: Request): Promise<Response> {
 
   if (req.method === "GET") {
     // The pixel. ALWAYS answer with the gif, whatever happens server-side: a
-    // broken tracker must never break the recipient's email rendering.
+    // broken tracker must never break the recipient's email rendering. Over
+    // the per-IP throttle the gif still ships and only the recording is
+    // skipped, same principle.
     const t = new URL(req.url).searchParams.get("t") || "";
-    if (UUID_RE.test(t) && supaUrl && service) {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (UUID_RE.test(t) && supaUrl && service && pixelAllowed(ip)) {
       try {
         const row = await fetch(rest + "?track_id=eq." + t + "&select=track_id,first_open,open_count", { headers: svcHeaders });
         const rows = row.ok ? ((await row.json()) as { first_open: string | null; open_count: number }[]) : [];

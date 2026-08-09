@@ -153,8 +153,10 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
         void registerTrack(trackId, token);
         archiveRemote(row.id, row.account);
         // The honest voice metric: sent exactly as drafted (edited sends are
-        // logged from the compose path with edited: true).
-        emit({ type: "action", props: { name: "email.deck.sent", edited: false } });
+        // logged from the compose path with flag: true). A real, durable
+        // EventType since 2026-08-07; it was a device-local "action" before,
+        // so the one measure of draft quality died with the device.
+        emit({ type: "email.deck_sent", props: { flag: false } });
         showToast({ message: "Sent" });
       } else if (plan.kind === "bill" && plan.bill) {
         await tasks.createTask("Pay " + plan.bill.name, {

@@ -78,6 +78,15 @@ export default async function handler(req: Request): Promise<Response> {
     console.error(
       "[ai] SUPABASE_SERVICE_ROLE_KEY is not set: per-user and global AI rate limits are NOT being enforced. Serving uncapped.",
     );
+    // The launch lever (audit 2026-08-07): with AI_REQUIRE_LIMITS=1 set, a
+    // missing service key fails CLOSED instead of serving uncapped. Off by
+    // default on purpose: while the blast radius is one person, taking AI
+    // down app-wide over an env var is the worse failure. Flip it on before
+    // Track 3, when "uncapped" means every user at once, and the flip is a
+    // dashboard toggle instead of a code change.
+    if (process.env.AI_REQUIRE_LIMITS === "1") {
+      return json({ error: "AI is temporarily unavailable. Try again later." }, 503);
+    }
   }
   if (serviceKey) {
     const svcJson = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "content-type": "application/json" };

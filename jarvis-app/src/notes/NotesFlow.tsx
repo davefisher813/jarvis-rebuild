@@ -10,6 +10,7 @@ import { usePushDepth } from "../shared/pushNav";
 import AddBlockSheet from "./screens/AddBlockSheet";
 import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
+import { showToast } from "../shared/toast";
 import CreateTasks from "./screens/CreateTasks";
 import type { BlockType } from "./types";
 
@@ -396,11 +397,24 @@ export default function NotesFlow({
           onConnections={() => setScreen("connections")}
           onDeleteNote={async () => {
             if (!currentId) return;
-            if (!window.confirm("Delete this note? This cannot be undone.")) return;
+            // The app's one convention for destructive actions: do it, offer
+            // Undo in the toast (tasks set the pattern). This was the last
+            // window.confirm dialog on a destructive path; a native popup
+            // asking "are you sure?" is exactly the interrogation the rest of
+            // the app refuses to do (audit 2026-08-07).
+            const snapshot = await svc.note(currentId);
             await svc.deleteNote(currentId);
             setCurrentId(null);
             await loadList();
             setScreen("list");
+            showToast({
+              message: "Note deleted",
+              actionLabel: "Undo",
+              onAction: async () => {
+                if (snapshot) await svc.restoreNote(snapshot);
+                await loadList();
+              },
+            });
           }}
           onAddBlock={() => setAddBlockOpen(true)}
           onEditTitle={editTitle}
