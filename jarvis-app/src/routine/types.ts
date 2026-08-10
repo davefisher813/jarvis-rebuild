@@ -125,7 +125,10 @@ export const WIND_DOWN_MIN = 30;
 // tail belongs to the single-day model's tomorrow, honestly.
 function endOfDayFor(wakeMin: number, sleepMin: number): number {
   const sleepAdj = sleepMin <= wakeMin ? 24 * 60 : sleepMin;
-  return Math.max(wakeMin + 60, Math.min(sleepAdj - WIND_DOWN_MIN, 24 * 60 - 1));
+  // Outer clamp (found by the invariant stress test): a wake time near
+  // midnight would push the wake+60 floor past 24h into invalid clock time.
+  // The single-day model ends at 11:59 PM, whatever the routine claims.
+  return Math.min(24 * 60 - 1, Math.max(wakeMin + 60, Math.min(sleepAdj - WIND_DOWN_MIN, 24 * 60 - 1)));
 }
 
 // The planner's end-of-day cutoff derived from the routine: a wind-down buffer
