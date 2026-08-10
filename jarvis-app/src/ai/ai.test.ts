@@ -172,3 +172,48 @@ describe("identityToText (for prompts that decide what to do)", () => {
     expect(identityToText(assembleContext({ name: "Alex" }))).toBe("User: Alex (personal template)");
   });
 });
+
+// The full money picture (2026-08-10, Dave: "shouldn't it feed the brain?").
+// The AI used to see a bill as just a task name. Now bills carry amounts,
+// due dates, and autopay, and cash flow carries the same derivation the
+// Money tab shows, so what the AI says can never disagree with the screen.
+describe("money picture in the assembled context", () => {
+  const withMoney = assembleContext({
+    name: "Dave",
+    bills: [
+      { name: "Rent", amount: 1850, due: "2026-08-15", autopay: true },
+      { name: "Electric", amount: 120, due: "2026-08-12" },
+      { name: "Gym", amount: 40 },
+    ],
+    cashFlow: { paycheck: 2500, nextPayday: "2026-08-14", billsOut: 470, setAside: 300, left: 1730, short: false },
+  });
+
+  it("renders bills with amounts, due dates, and autopay", () => {
+    expect(withMoney.billsLine).toBe("Rent $1850 due Aug 15, autopay; Electric $120 due Aug 12; Gym $40");
+  });
+
+  it("renders the cash-flow line with payday and left-to-spend", () => {
+    expect(withMoney.cashLine).toBe("Next paycheck $2500 on Aug 14; bills before then $470; set aside $300; left to spend $1730");
+  });
+
+  it("flags when bills exceed the paycheck, in words", () => {
+    const short = assembleContext({
+      cashFlow: { paycheck: 800, nextPayday: "2026-08-14", billsOut: 1200, setAside: 0, left: -400, short: true },
+    });
+    expect(short.cashLine).toContain("(bills exceed the paycheck)");
+  });
+
+  it("contextToText and identityToText both carry Bills and Cash flow", () => {
+    for (const render of [contextToText, identityToText]) {
+      const text = render(withMoney);
+      expect(text).toContain("Bills: Rent $1850");
+      expect(text).toContain("Cash flow: Next paycheck $2500");
+    }
+  });
+
+  it("absent money data renders nothing: no empty Bills or Cash flow lines", () => {
+    const bare = contextToText(assembleContext({ name: "Alex" }));
+    expect(bare).not.toContain("Bills:");
+    expect(bare).not.toContain("Cash flow:");
+  });
+});

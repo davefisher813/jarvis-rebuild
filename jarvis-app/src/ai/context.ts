@@ -30,6 +30,13 @@ export interface AIContextInput {
   habits?: string; // the app-writable Brain doc (topic "habits")
   completionSamples?: { h: number; t: number }[]; // Time Sense: hour + epoch ms
   money?: { name: string; balance: number }[];
+  // The full money picture (2026-08-10, Dave's call: "feed the brain"). The
+  // AI used to see a bill as just its task name ("Rent"): no amount, no due
+  // date, and nothing about payday or what is actually spendable. bills and
+  // cashFlow carry what the Money tab itself derives, so every AI feature
+  // can reason about real cash flow instead of a word.
+  bills?: { name: string; amount: number; due?: string | null; autopay?: boolean }[];
+  cashFlow?: { paycheck: number; nextPayday: string; billsOut: number; setAside: number; left: number; short: boolean } | null;
 }
 
 export interface AIContext {
@@ -49,6 +56,10 @@ export interface AIContext {
   habits: string;
   patternLine: string;
   moneyLine: string;
+  // Optional so hand-built contexts (tests, older callers) keep compiling;
+  // the assembler always fills them, empty string when there is nothing.
+  billsLine?: string;
+  cashLine?: string;
 }
 
 function minTo12h(min: number): string {
@@ -95,7 +106,22 @@ export function assembleContext(input: AIContextInput): AIContext {
     habits: input.habits?.trim() ?? "",
     patternLine: patternLineFrom(input.completionSamples),
     moneyLine: (input.money ?? []).map((a) => `${a.name} ${a.balance < 0 ? "-" : ""}$${Math.abs(a.balance).toFixed(0)}`).join(", "),
+    billsLine: (input.bills ?? [])
+      .map((b) => `${b.name} $${b.amount}${b.due ? ` due ${isoToMonthDay(b.due)}` : ""}${b.autopay ? ", autopay" : ""}`)
+      .join("; "),
+    cashLine: input.cashFlow
+      ? `Next paycheck $${input.cashFlow.paycheck} on ${isoToMonthDay(input.cashFlow.nextPayday)}; bills before then $${input.cashFlow.billsOut}; set aside $${input.cashFlow.setAside}; left to spend $${input.cashFlow.left}${input.cashFlow.short ? " (bills exceed the paycheck)" : ""}`
+      : "",
   };
+}
+
+// "2026-08-15" -> "Aug 15". Local (money/bills has one too) so this module
+// stays dependency-free.
+const MONTHS_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function isoToMonthDay(iso: string): string {
+  const p = iso.split("-");
+  const m = MONTHS_ABBR[Number(p[1]) - 1];
+  return m ? `${m} ${Number(p[2])}` : iso;
 }
 
 
@@ -142,6 +168,8 @@ export function contextToText(ctx: AIContext): string {
   if (ctx.patternLine) lines.push(`Patterns: ${ctx.patternLine}`);
   if (ctx.habits) lines.push(`Known habits: ${ctx.habits}`);
   if (ctx.moneyLine) lines.push(`Money: ${ctx.moneyLine}`);
+  if (ctx.billsLine) lines.push(`Bills: ${ctx.billsLine}`);
+  if (ctx.cashLine) lines.push(`Cash flow: ${ctx.cashLine}`);
   if (ctx.philosophy) lines.push(`Philosophy: ${ctx.philosophy}`);
   if (ctx.values) lines.push(`Values: ${ctx.values}`);
   // The style notes and the limit on using them are emitted together, always.
@@ -192,7 +220,9 @@ export function voiceToText(ctx: AIContext, { styleRule = true }: { styleRule?: 
 // For prompts that decide what this person should DO. What they are working
 // toward and what is already known about how they work. Deliberately excludes
 // the open task list: a feature that picks a first step is looking at one
-// specific task already, and the other fifty are noise.
+// specific task already, and the other fifty are noise. Bills and cash flow
+// ARE included (2026-08-10): "pay the electric before Friday" is exactly a
+// what-should-I-do decision, and a due date with an amount changes it.
 export function identityToText(ctx: AIContext): string {
   const lines: string[] = [];
   lines.push(`User: ${ctx.name} (${ctx.template} template)`);
@@ -201,6 +231,8 @@ export function identityToText(ctx: AIContext): string {
   if (ctx.routineLine) lines.push(`Routine: ${ctx.routineLine}`);
   if (ctx.patternLine) lines.push(`Patterns: ${ctx.patternLine}`);
   if (ctx.habits) lines.push(`Known habits: ${ctx.habits}`);
+  if (ctx.billsLine) lines.push(`Bills: ${ctx.billsLine}`);
+  if (ctx.cashLine) lines.push(`Cash flow: ${ctx.cashLine}`);
   if (ctx.philosophy) lines.push(`Philosophy: ${ctx.philosophy}`);
   if (ctx.values) lines.push(`Values: ${ctx.values}`);
   return lines.join("\n");

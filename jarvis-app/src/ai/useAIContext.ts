@@ -7,6 +7,8 @@ import {
 import { assembleContext, type AIContext } from "./context";
 import { routineToText } from "../routine/types";
 import { readSamples } from "../shared/timeSense";
+import { activeBills, paydayNext } from "../money/bills";
+import { loadEnvelopes, setAsideTotal, leftToSpend } from "../money/budget";
 
 export function todayISO(d = new Date()): string {
   return d.toISOString().slice(0, 10);
@@ -49,6 +51,23 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
     s.money.list(),
     s.docs.get("habits"),
   ]);
+  // The full money picture (2026-08-10): bills with amounts and due dates,
+  // and the same cash-flow derivation the Money tab shows (payday, bills
+  // before it, envelopes, left to spend). Same helpers, so the AI can never
+  // quote a different number than the screen. Payday math is Personal
+  // template only, matching MoneyFlow's gate.
+  const openBills = activeBills(tk, today).filter((b) => !b.data.done);
+  const payday = (p?.template ?? "personal") === "personal" ? p?.payday : undefined;
+  let cashFlow: { paycheck: number; nextPayday: string; billsOut: number; setAside: number; left: number; short: boolean } | null = null;
+  if (payday) {
+    const next = paydayNext(payday, today);
+    const billsOut = openBills
+      .filter((b) => !!b.data.due && b.data.due <= next)
+      .reduce((sum, b) => sum + (b.data.bill?.amount ?? 0), 0);
+    const setAside = setAsideTotal(loadEnvelopes());
+    const l = leftToSpend(payday.amount, billsOut, setAside);
+    cashFlow = { paycheck: payday.amount, nextPayday: next, billsOut, setAside, left: l.amount, short: l.short };
+  }
   return assembleContext({
     name: p?.name,
     template: p?.template,
@@ -72,6 +91,13 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
     habits,
     completionSamples: readSamples().map((s2) => ({ h: s2.h, t: s2.t })),
     money: mn.map((a) => ({ name: a.data.name, balance: a.data.balance })),
+    bills: openBills.map((b) => ({
+      name: b.data.text,
+      amount: b.data.bill?.amount ?? 0,
+      due: b.data.due,
+      ...(b.data.bill?.autopay ? { autopay: true } : {}),
+    })),
+    cashFlow,
   });
 }
 
