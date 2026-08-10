@@ -33,8 +33,8 @@ describe("CategoryDetail", () => {
     expect(screen.getByText("Add Task")).toBeInTheDocument();
     // Bridge suggests plain, so the org module must not render
     expect(screen.queryByText("Projects")).not.toBeInTheDocument();
-    // nothing happened yet: no This Week section, no fake receipt
-    expect(screen.queryByText("This Week")).not.toBeInTheDocument();
+    // nothing happened yet: no Record section, no fake receipt
+    expect(screen.queryByText("Record")).not.toBeInTheDocument();
   });
 
   it("org kind adds the Projects block with next actions, born-tagged Add Project", async () => {
@@ -154,5 +154,36 @@ describe("CategoryDetail org health (2026-08-10)", () => {
     await waitFor(() => expect(screen.getByText("People")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Coach Ray"));
     expect(onOpenPerson).toHaveBeenCalled();
+  });
+});
+
+// The Record (2026-08-10, Dave: "records and insight... tracking what
+// someone has done is important"). The bare This Week count becomes named
+// history: the actual completions with their days.
+
+function SeededRecord() {
+  const tasks = useTasks();
+  const cats = useCategories();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const id = await cats.create("Chores", "green");
+      const tid = await tasks.createTask("Take out trash", { category: id! });
+      await tasks.toggleDone(tid!); // writes the Time Sense sample
+      setCid(id!);
+    })();
+  }, [tasks, cats]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
+}
+
+describe("CategoryDetail record (2026-08-10)", () => {
+  it("shows what actually got done, by name, with the day", async () => {
+    render(<NotesProvider userId="rec1"><SeededRecord /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Record")).toBeInTheDocument());
+    expect(screen.getByText("1 thing done")).toBeInTheDocument();
+    expect(screen.getByText("Take out trash")).toBeInTheDocument();
+    expect(screen.getByText("Today")).toBeInTheDocument();
+    // done, so it must not also sit in Up Next
+    expect(screen.getAllByText("Take out trash")).toHaveLength(1);
   });
 });

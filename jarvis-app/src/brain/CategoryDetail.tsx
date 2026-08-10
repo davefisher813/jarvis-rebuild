@@ -18,6 +18,7 @@ import { showToast } from "../shared/toast";
 import type { TaskItem } from "../tasks/TasksService";
 import { effectiveKind } from "../categories/kinds";
 import { weekReceipt, receiptLine, afterHoursLine, type WeekEvent } from "../categories/receipts";
+import { categoryRecord } from "../categories/record";
 import { eventLog } from "../events";
 import { readSamples } from "../shared/timeSense";
 import { todayISO } from "../tasks/grouping";
@@ -49,7 +50,7 @@ const DUMBBELL = (
 );
 
 // The category page (2026-08-03), replacing the read-only archive. Pages are
-// RECEIPTS for behavior happening elsewhere: This Week is derived from real
+// RECEIPTS for behavior happening elsewhere: the Record is derived from real
 // completions and events, Up Next is the real open tasks, adds are born
 // tagged. The org kind adds Projects (6.6 machinery scoped here) and the
 // Season / Work hours settings via the editor.
@@ -236,9 +237,14 @@ export default function CategoryDetail({
   const kind = effectiveKind(cat.data);
   const isOrg = kind === "org";
   const paused = isOrg && cat.data.season === "paused";
-  const receipt = weekReceipt(categoryId, readSamples(), events, today, cat.data.workHours ? work : null);
+  const samples = readSamples();
+  const receipt = weekReceipt(categoryId, samples, events, today, cat.data.workHours ? work : null);
   const line = receiptLine(receipt);
   const ahLine = cat.data.workHours ? afterHoursLine(receipt) : null;
+  // The Record (2026-08-10, Dave: "records and insight... tracking what
+  // someone has done is important"). Named history that survives the Monday
+  // reset, plus the week-over-week compare and the pattern in the data.
+  const rec = categoryRecord(categoryId, samples, allTasks, today);
   // People-kind page derivations (2026-08-10).
   const bdayById = new Map(upcomingBirthdays(catPeople, today).map((b) => [b.id, b] as const));
   const nowMs = Date.now();
@@ -286,17 +292,32 @@ export default function CategoryDetail({
         </div></div>
       )}
 
-      {line && (
+      {(line || rec.lastWeek > 0 || rec.recent.length > 0) && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">This Week</div></div></div>
+          {/* The Record replaces the bare This Week count (2026-08-10). It
+              keeps the receipt but adds what the count was hiding: the actual
+              things that got done with their days, how this week compares to
+              last, and the pattern once there is enough history. Still fully
+              derived; still silent when nothing has ever happened here. */}
+          <div className="sec-head"><div className="sec-left"><div className="sec-title">Record</div></div></div>
           <div className="pad-x"><div className="card">
             <div className="row">
               <div className="row-grow">
-                <div className="conn-name">{line}</div>
+                <div className="conn-name">{line ?? "Nothing done yet this week"}</div>
+                {rec.lastWeek > 0 && <div className="eyebrow">{rec.lastWeek === 1 ? "1 done last week" : `${rec.lastWeek} done last week`}</div>}
                 {ahLine && <div className="eyebrow">{ahLine}</div>}
                 {pushedWeek > 0 && <div className="eyebrow">{pushedWeek === 1 ? "1 task pushed forward" : `${pushedWeek} tasks pushed forward`}</div>}
+                {rec.insight && <div className="eyebrow">{rec.insight}</div>}
               </div>
             </div>
+            {rec.recent.map((r) => (
+              <div className="row" key={r.key}>
+                <div className="row-grow">
+                  <div className="conn-name truncate">{r.text}</div>
+                  <div className="eyebrow">{r.when}</div>
+                </div>
+              </div>
+            ))}
           </div></div>
         </>
       )}
