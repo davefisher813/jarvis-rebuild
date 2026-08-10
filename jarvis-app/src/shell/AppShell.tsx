@@ -177,13 +177,13 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); setActive("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={() => setActive("messages")} />}
         {active === "tasks" && <TasksFlow openId={taskIntent} openFilter={taskFilterIntent} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
-        {active === "brain" && <BrainFlow openKey={brainIntent} personOpenId={personIntent?.id} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} />}
+        {active === "brain" && <BrainFlow openKey={brainIntent} personOpenId={personIntent?.id} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenMoney={() => setActive("money")} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
         
         {active === "bigger" && <BiggerPictureFlow openId={projectIntent} openGoalId={goalIntent} onOpenNote={navigateToNote} />}
         {active === "messages" && <MessagesFlow ai={ai} />}
         {active === "notifications" && <NotificationsFlow />}
-        {active === "money" && <MoneyFlow />}
+        {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} />}
         
         {active === "more" && (
           <MoreFlow

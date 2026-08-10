@@ -60,12 +60,14 @@ const TOP_SECTIONS: { title: string; rows: BrainRow[] }[] = [
 export interface BrainCategory { id: string; name: string; color: string; icon?: string; kind?: CategoryKind }
 
 // Your Categories groups by kind (2026-08-05) rather than one flat list, so
-// the categories with a real page behind them (Money's budget, Health's
-// training, an Org's projects and season) read as distinct from a plain
-// category, which still gets a complete page, just not a module. This is
-// purely a grouping of the same rows into labeled clusters: nothing here
-// hides, merges, or deletes a category, and every row still opens the exact
-// same detail page as before.
+// the categories with a real page behind them (Health's training, an Org's
+// projects and season) read as distinct from a plain category, which still
+// gets a complete page, just not a module. This is purely a grouping of the
+// same rows into labeled clusters: nothing here hides, merges, or deletes a
+// category. Money is the one exception (2026-08-10): tapping it never opens
+// a detail page at all, it opens the real Money tab (BrainFlow.tsx), because
+// the app used to have two disconnected "Money"s and a page here was one of
+// them.
 const KIND_GROUP_LABEL: Record<CategoryKind, string> = {
   org: "Orgs", money: "Money", health: "Health", people: "People", plain: "General",
 };

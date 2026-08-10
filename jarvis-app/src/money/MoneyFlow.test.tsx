@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+import { useEffect, useState } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider } from "../data/NotesProvider";
+import { NotesProvider, useTasks, useCategories } from "../data/NotesProvider";
 import MoneyFlow from "./MoneyFlow";
 
 describe("MoneyFlow", () => {
@@ -40,5 +41,58 @@ describe("MoneyFlow", () => {
     await waitFor(() => expect(screen.getByText("Rent")).toBeInTheDocument());
     expect(screen.getByText(/Set to autopay/)).toBeInTheDocument();
     expect(screen.queryByText(/Rent.*paid/i)).not.toBeInTheDocument();
+  });
+});
+
+// One Money (2026-08-10): Dave, "there should only be one money category with
+// all of its features". The old Money category opened a dead-end page with
+// no financial data; that page is gone, but a task tagged to it (not a bill)
+// must not become invisible now that the category no longer has its own
+// screen. It surfaces here instead, and opening it hands off through
+// onOpenTask exactly like any other deep link.
+function SeededTagged({ onOpenTask }: { onOpenTask?: (id: string) => void }) {
+  const tasks = useTasks();
+  const cats = useCategories();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const id = await cats.create("Money", "yellow");
+      await tasks.createTask("Budget Review", { category: id! });
+      // A done task and a bill-flavored task must NOT show up here: done
+      // items are finished, and bills already have their own section.
+      const doneId = await tasks.createTask("Old Money Thing", { category: id! });
+      await tasks.toggleDone(doneId!);
+      await tasks.createTask("Rent", { category: id!, bill: { amount: 100 } });
+      // A non-money category's task must never leak into this list either.
+      const other = await cats.create("Home", "blue");
+      await tasks.createTask("Fix Sink", { category: other! });
+      setReady(true);
+    })();
+  }, [tasks, cats]);
+  return ready ? <MoneyFlow onOpenTask={onOpenTask} /> : null;
+}
+
+describe("MoneyFlow: tagged Money tasks (2026-08-10)", () => {
+  it("surfaces a non-bill task tagged Money, excludes done and other-category tasks", async () => {
+    render(<NotesProvider userId="u3"><SeededTagged /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Also Tagged Money")).toBeInTheDocument());
+    expect(screen.getByText("Budget Review")).toBeInTheDocument();
+    expect(screen.queryByText("Old Money Thing")).not.toBeInTheDocument();
+    expect(screen.queryByText("Fix Sink")).not.toBeInTheDocument();
+    // Rent is a bill: it shows once, in Bills, never duplicated into this section.
+    expect(screen.getAllByText("Rent")).toHaveLength(1);
+  });
+
+  it("tapping a tagged task hands off through onOpenTask", async () => {
+    const onOpenTask = vi.fn();
+    render(<NotesProvider userId="u4"><SeededTagged onOpenTask={onOpenTask} /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Budget Review"));
+    expect(onOpenTask).toHaveBeenCalledWith(expect.any(String));
+  });
+
+  it("a Money-tagged task alone (no accounts, no bills) is not swallowed by the empty state", async () => {
+    render(<NotesProvider userId="u5"><SeededTagged /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Budget Review")).toBeInTheDocument());
+    expect(screen.queryByText("No accounts yet")).not.toBeInTheDocument();
   });
 });

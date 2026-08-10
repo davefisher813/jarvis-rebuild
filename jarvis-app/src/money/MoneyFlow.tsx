@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useMoney, useTasks, useProfile } from "../data/NotesProvider";
+import { useMoney, useTasks, useProfile, useCategories } from "../data/NotesProvider";
+import { effectiveKind } from "../categories/kinds";
 import { ACCOUNT_META, ACCOUNT_KINDS, formatMoney, totalBalance, type Account, type AccountData, type AccountKind } from "./types";
 import {
   loadEnvelopes, saveEnvelopes, setAsideTotal, leftToSpend, leftSub, shortLine,
@@ -97,12 +98,20 @@ function PaydaySheet({ initial, onSave, onRemove, onCancel }: {
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 type BillSheetState = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
-export default function MoneyFlow() {
+export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) => void } = {}) {
   const svc = useMoney();
   const tasksSvc = useTasks();
   const profileSvc = useProfile();
+  const catsSvc = useCategories();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [bills, setBills] = useState<TaskItem[]>([]);
+  // Also tagged Money (2026-08-10): the "Money" category used to be its own
+  // page with tasks like "Budget Review" or "File Taxes" living only there.
+  // Now that tapping the category opens this tab instead, anything tagged to
+  // it that ISN'T a bill would otherwise vanish from view entirely. This
+  // keeps it visible, not stranded, without turning Money into a second task
+  // list: bills stay bills, this is everything else that shares the tag.
+  const [tagged, setTagged] = useState<TaskItem[]>([]);
   const [payday, setPayday] = useState<PaydayInfo | undefined>(undefined);
   const [isPersonal, setIsPersonal] = useState(true);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
@@ -121,12 +130,14 @@ export default function MoneyFlow() {
     // Autopay bills whose date passed roll themselves forward first, so the
     // list never shows an autopay bill pretending to be overdue.
     await tasksSvc.rollAutopayBills();
-    const [accts, allTasks, prof] = await Promise.all([svc.list(), tasksSvc.listTasks(), profileSvc.get()]);
+    const [accts, allTasks, prof, cats] = await Promise.all([svc.list(), tasksSvc.listTasks(), profileSvc.get(), catsSvc.list()]);
     setAccounts(accts);
     setBills(activeBills(allTasks, todayISO()));
     setPayday(prof?.payday);
     setIsPersonal((prof?.template ?? "personal") === "personal");
-  }, [svc, tasksSvc, profileSvc]);
+    const moneyCatIds = new Set(cats.filter((c) => effectiveKind(c.data) === "money").map((c) => c.id));
+    setTagged(allTasks.filter((t) => !t.data.done && !t.data.bill && moneyCatIds.has(t.data.category ?? "")));
+  }, [svc, tasksSvc, profileSvc, catsSvc]);
   useEffect(() => { void reload(); }, [reload]);
 
   const editing = sheet.kind === "edit" ? accounts.find((a) => a.id === sheet.id) : undefined;
@@ -224,7 +235,7 @@ export default function MoneyFlow() {
   return (
     <div className="screen">
       <div className="nav-bar"><div className="nav-large">Money</div></div>
-      {accounts.length === 0 && bills.length === 0 ? (
+      {accounts.length === 0 && bills.length === 0 && tagged.length === 0 ? (
         <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No accounts yet</div>
           <button className="btn btn-primary" onClick={() => setSheet({ kind: "new" })}>Add an Account</button>
           <button className="btn btn-secondary" onClick={() => setBillSheet({ kind: "new" })}>Add a Bill</button></div>
@@ -311,6 +322,19 @@ export default function MoneyFlow() {
           )}
           <div className="sec-head"><div className="sec-left"><div className="sec-title">Bills</div></div></div>
           <div className="pad-x">{billRows}</div>
+          {tagged.length > 0 && (
+            <>
+              <div className="sec-head"><div className="sec-left"><div className="sec-title">Also Tagged Money</div></div></div>
+              <div className="pad-x"><div className="card">
+                {tagged.map((t) => (
+                  <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => onOpenTask?.(t.id)}>
+                    <div className="row-grow"><div className="conn-name truncate">{t.data.text}</div></div>
+                    {CHEV}
+                  </div>
+                ))}
+              </div></div>
+            </>
+          )}
           <div className="sec-head"><div className="sec-left"><div className="sec-title">Accounts</div></div></div>
           <div className="pad-x"><div className="card">
             {accounts.map((a) => {
