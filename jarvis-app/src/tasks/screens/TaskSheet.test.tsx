@@ -28,7 +28,8 @@ describe("TaskSheet", () => {
     expect(screen.getByText("Add a task name.")).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "  Pay rent  " } });
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith({ text: "Pay rent", category: "c1", due: "", repeat: "" });
+    // Default category is NONE (2026-08-09): first-in-list silently mis-tagged.
+    expect(onSave).toHaveBeenCalledWith({ text: "Pay rent", category: "", due: "", repeat: "" });
   });
 
   it("selected category chip wears the app-wide selected state and is switchable", () => {
@@ -37,10 +38,9 @@ describe("TaskSheet", () => {
     // Selection is the same everywhere (.chip.active), never the category
     // colour: the dot already carries identity, and one idea gets one look.
     const selected = () => document.querySelector(".chip.active");
-    expect(selected()?.textContent).toContain("Work"); // default first
+    expect(selected()?.textContent).toBe("None"); // honest default (2026-08-09)
     // every chip keeps its dot, selected or not
     expect(document.querySelectorAll(".chip .cat-dot")).toHaveLength(CATS.length);
-    expect(selected()?.querySelector(".cat-dot.cat-bg-blue")).toBeTruthy();
     expect(document.querySelector(".chip.cat-bg-blue")).toBeNull(); // never fills with the slot colour
     fireEvent.click(screen.getByText("Money"));
     expect(selected()?.textContent).toContain("Money");
@@ -57,7 +57,7 @@ describe("TaskSheet", () => {
     fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "X" } });
     fireEvent.click(screen.getByText("Today"));
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith({ text: "X", category: "c1", due: today, repeat: "" });
+    expect(onSave).toHaveBeenCalledWith({ text: "X", category: "", due: today, repeat: "" });
   });
 
   it("edit mode: prefilled, delete present and fires", () => {

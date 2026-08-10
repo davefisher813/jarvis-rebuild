@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
-import { BackupService } from "./BackupService";
+import { BackupService, type BackupBundle } from "./BackupService";
 
 describe("BackupService", () => {
   it("exports all owned items and imports them into another store", async () => {
@@ -61,5 +61,23 @@ describe("import hardening", () => {
       ],
     } as never)).rejects.toThrow(/rolled back/);
     expect((await store.listForUser("u")).length).toBe(0);
+  });
+});
+
+// Import dedupe (2026-08-09): the same file twice must not double a life.
+describe("importBundle dedupe", () => {
+  it("skips items identical to ones already present and reports only real writes", async () => {
+    const svc = new BackupService(new Store(new InMemoryAdapter()), "u-dedupe");
+    const bundle: BackupBundle = {
+      app: "jarvis", version: 1, exportedAt: "2026-08-01T00:00:00Z",
+      items: [
+        { entityType: "task", data: { text: "Pay rent", done: false } },
+        { entityType: "note", data: { title: "Ideas", category: "", blocks: [], connections: [] } },
+      ] as BackupBundle["items"],
+    };
+    expect(await svc.importBundle(bundle)).toBe(2);
+    expect(await svc.importBundle(bundle)).toBe(0); // second run: everything exists
+    const again = await svc.exportBundle();
+    expect(again.items.filter((i) => i.entityType === "task")).toHaveLength(1);
   });
 });

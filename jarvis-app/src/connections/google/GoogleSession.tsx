@@ -23,6 +23,7 @@ interface GoogleSessionValue {
   connected: boolean; // any account known (or legacy flag)
   accounts: GoogleAccount[];
   hasToken: boolean; // any live token this session
+  tokenEmails: string[]; // which accounts hold a live token (2026-08-09): lets settings show per-account signed-out state
   /** Reconnect every known account (login_hint each); first connect runs the chooser. Returns the first ready api. */
   connect: () => Promise<GoogleApi>;
   /** Force the account chooser to add a new account. */
@@ -211,9 +212,10 @@ export function GoogleSessionProvider({
 
   void tokenVersion; // token changes re-render, so this read is fresh
   const hasToken = Object.keys(tokens.current).length > 0;
+  const tokenEmails = Object.keys(tokens.current);
 
   return (
-    <Ctx.Provider value={{ connected: accounts.length > 0 || legacyConnected, accounts, hasToken, connect, addAccount, reconnect, disconnect, setFeature, api, apis }}>
+    <Ctx.Provider value={{ connected: accounts.length > 0 || legacyConnected, accounts, hasToken, tokenEmails, connect, addAccount, reconnect, disconnect, setFeature, api, apis }}>
       {children}
     </Ctx.Provider>
   );
@@ -223,4 +225,11 @@ export function useGoogle(): GoogleSessionValue {
   const v = useContext(Ctx);
   if (!v) throw new Error("GoogleSession provider missing");
   return v;
+}
+
+// For surfaces that render with or without the provider (onboarding renders
+// before the shell mounts one). Null means "connecting is not possible from
+// here", and the caller degrades to its providerless behavior. 2026-08-09.
+export function useOptionalGoogle(): GoogleSessionValue | null {
+  return useContext(Ctx) ?? null;
 }

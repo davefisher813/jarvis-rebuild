@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useProfile, useCategories, usePeople, useRoutine, useTasks } from "../data/NotesProvider";
 import { wakeFromBrief, DEFAULT_ROUTINE } from "../routine/types";
 import { localParse } from "../ai/capture";
+import { useOptionalGoogle } from "../connections/google/GoogleSession";
+import { googleConfigured } from "../connections/google/config";
 import { planDay } from "../schedule/planDay";
 import { todayISO, fmtTime } from "../schedule/calendar";
 import { haptics } from "../shared/haptics";
@@ -61,6 +63,22 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const [personDraft, setPersonDraft] = useState("");
   const [gmail, setGmail] = useState(false);
   const [calendar, setCalendar] = useState(false);
+  // Real connect from the connect step (2026-08-09): the rows now DO the
+  // thing the step's copy promises. Optional so tests and providerless
+  // renders keep the old static behavior.
+  const google = useOptionalGoogle();
+  const canConnect = !!google && googleConfigured();
+  const [connecting, setConnecting] = useState(false);
+  const connectGoogle = async () => {
+    if (!google || connecting) return;
+    setConnecting(true);
+    try {
+      await google.addAccount();
+      setGmail(true);
+      setCalendar(true);
+    } catch { /* user closed the chooser: the Later path still works */ }
+    finally { setConnecting(false); }
+  };
   const [briefTime, setBriefTime] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -297,16 +315,26 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     control = (
       <>
         <div className="pad-x"><div className="card">
-          <div className="row connect-row">
+          <div className="row connect-row" {...(canConnect ? { role: "button" as const, tabIndex: 0, onClick: () => void connectGoogle() } : {})}>
             <div className="sec-ico ico-accent">{MAIL}</div>
             <div className="row-grow"><div className="conn-name">Gmail</div><div className="eyebrow">Read and reply from the Email tab</div></div>
           </div>
-          <div className="row connect-row">
+          <div className="row connect-row" {...(canConnect ? { role: "button" as const, tabIndex: 0, onClick: () => void connectGoogle() } : {})}>
             <div className="sec-ico ico-blue">{CAL}</div>
             <div className="row-grow"><div className="conn-name">Google Calendar</div><div className="eyebrow">Events show up on Today</div></div>
           </div>
+          {(google?.accounts.length ?? 0) > 0 && (
+            <div className="row"><div className="row-grow"><div className="conn-name">Connected</div><div className="eyebrow">{google!.accounts.map((a) => a.email).join(", ")}</div></div></div>
+          )}
         </div></div>
-        <div className="convo-foot"><button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>Continue</button><div className="ob-skip" role="button" tabIndex={0} onClick={() => setIdx(idx + 1)}>Later, JARVIS works fine without it</div></div>
+        <div className="convo-foot">
+          {canConnect && (google?.accounts.length ?? 0) === 0 ? (
+            <button className="btn btn-primary btn-block" disabled={connecting} onClick={() => void connectGoogle()}>{connecting ? "Connecting..." : "Connect Google"}</button>
+          ) : (
+            <button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>Continue</button>
+          )}
+          <div className="ob-skip" role="button" tabIndex={0} onClick={() => setIdx(idx + 1)}>Later, JARVIS works fine without it</div>
+        </div>
       </>
     );
   } else if (step.kind === "time") {

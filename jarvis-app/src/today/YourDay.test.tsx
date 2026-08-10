@@ -51,3 +51,34 @@ describe("YourDay", () => {
     });
   });
 });
+
+// Evening planning + Running Late on Today (2026-08-09).
+import { vi } from "vitest";
+
+describe("YourDay evening and recovery actions", () => {
+  it("offers Plan Tomorrow only when the entry point is provided", () => {
+    const onPlanTomorrow = vi.fn();
+    render(<YourDay events={[]} now="20:00" nowLabel="8:00 PM" onSeeAll={() => {}} onPlanTomorrow={onPlanTomorrow} />);
+    fireEvent.click(screen.getByText("Plan Tomorrow"));
+    expect(onPlanTomorrow).toHaveBeenCalled();
+  });
+
+  it("hides Plan Tomorrow without the prop", () => {
+    render(<YourDay events={[]} now="20:00" nowLabel="8:00 PM" onSeeAll={() => {}} onPlanDay={() => {}} />);
+    expect(screen.queryByText("Plan Tomorrow")).not.toBeInTheDocument();
+  });
+
+  it("Running Late arms, then fires with the chosen shift", () => {
+    const onRunningLate = vi.fn();
+    render(<YourDay events={[ev("a", "15:00")]} now="10:00" nowLabel="10:00" onSeeAll={() => {}} onRunningLate={onRunningLate} />);
+    fireEvent.click(screen.getByText("Running Late?"));
+    fireEvent.click(screen.getByText("+30m"));
+    expect(onRunningLate).toHaveBeenCalledWith(30);
+  });
+
+  it("offers no Running Late when nothing ahead can move", () => {
+    // Only a past event: shifting the past is not a thing.
+    render(<YourDay events={[ev("a", "08:00")]} now="10:00" nowLabel="10:00" onSeeAll={() => {}} onRunningLate={() => {}} />);
+    expect(screen.queryByText("Running Late?")).not.toBeInTheDocument();
+  });
+});

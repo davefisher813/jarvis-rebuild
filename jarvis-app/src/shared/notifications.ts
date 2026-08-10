@@ -88,3 +88,77 @@ export async function ensureCheckinNotifications(routine: RoutineData, briefTime
     /* notifications are a bonus, never a crash */
   }
 }
+
+// The off switch (2026-08-09): the Notifications page gained a Daily
+// check-ins toggle, and off has to actually cancel what is scheduled.
+export async function cancelCheckinNotifications(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    await LocalNotifications.cancel({ notifications: [{ id: MORNING_ID }, { id: EVENING_ID }] });
+  } catch {
+    /* notifications are a bonus, never a crash */
+  }
+}
+
+// ---- Event reminders (2026-08-09) ----
+// The time-blindness feature: "Standup in 15 minutes" on the lock screen.
+// Same seam, same rules as the check-ins: native-only, permission-gated,
+// cancel-then-schedule, and a bonus rather than a crash. Ids live in their
+// own block so re-scheduling can never touch the check-in pair.
+
+export const EVENT_REMINDER_BASE = 9100;
+export const EVENT_REMINDER_CAP = 40; // two days of events is nowhere near this
+export const EVENT_REMINDER_LEAD_MIN = 15;
+
+export interface ReminderInput { date: string; start: string; title: string; location?: string }
+export interface EventReminder { id: number; title: string; body: string; at: Date }
+
+// Pure: which reminders exist for these events, from this moment. Only
+// future fire-times survive (a reminder for something already started is
+// noise). Sorted by fire time so ids are stable for a given day's shape.
+export function buildEventReminders(
+  events: ReminderInput[],
+  nowMs: number,
+  leadMin: number = EVENT_REMINDER_LEAD_MIN,
+): EventReminder[] {
+  const out: EventReminder[] = [];
+  for (const e of events) {
+    if (!e.title.trim() || !/^\d{2}:\d{2}$/.test(e.start)) continue;
+    const at = new Date(`${e.date}T${e.start}:00`);
+    at.setMinutes(at.getMinutes() - leadMin);
+    if (at.getTime() <= nowMs) continue;
+    out.push({
+      id: 0, // assigned after sorting
+      title: e.title.trim(),
+      body: `Starts in ${leadMin} minutes${e.location?.trim() ? ` · ${e.location.trim()}` : ""}`,
+      at,
+    });
+  }
+  out.sort((a, b) => a.at.getTime() - b.at.getTime());
+  return out.slice(0, EVENT_REMINDER_CAP).map((r, i) => ({ ...r, id: EVENT_REMINDER_BASE + i }));
+}
+
+export async function ensureEventReminders(events: ReminderInput[], nowMs: number = Date.now()): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    const perm = await LocalNotifications.checkPermissions();
+    // Never prompt from here: the check-in flow owns the permission ask, so
+    // the user is asked once, in context, not ambushed by a schedule refresh.
+    if (perm.display !== "granted") return;
+    await LocalNotifications.cancel({
+      notifications: Array.from({ length: EVENT_REMINDER_CAP }, (_, i) => ({ id: EVENT_REMINDER_BASE + i })),
+    });
+    const specs = buildEventReminders(events, nowMs);
+    if (specs.length === 0) return;
+    await LocalNotifications.schedule({
+      notifications: specs.map((s) => ({
+        id: s.id,
+        title: s.title,
+        body: s.body,
+        schedule: { at: s.at, allowWhileIdle: true },
+      })),
+    });
+  } catch {
+    /* notifications are a bonus, never a crash */
+  }
+}

@@ -4,8 +4,8 @@ import LargeTitleNav from "../shared/LargeTitleNav";
 import { haptics } from "../shared/haptics";
 
 const BACK = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>;
-type Prefs = { overdue: boolean; events: boolean; goals: boolean };
-const DEFAULT: Prefs = { overdue: true, events: true, goals: true };
+type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean };
+const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true };
 
 function SwitchRow({ name, on, onToggle }: { name: string; on: boolean; onToggle: () => void }) {
   return (
@@ -25,6 +25,7 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
       <div className="pad-x"><div className="card">
         <SwitchRow name="Overdue and due tasks" on={prefs.overdue} onToggle={() => set({ overdue: !prefs.overdue })} />
         <SwitchRow name="Today's events" on={prefs.events} onToggle={() => set({ events: !prefs.events })} />
+        <SwitchRow name="Daily check-ins" on={prefs.checkins} onToggle={() => set({ checkins: !prefs.checkins })} />
         <SwitchRow name="Goal and life-area nudges" on={prefs.goals} onToggle={() => set({ goals: !prefs.goals })} />
       </div></div>
     </div>

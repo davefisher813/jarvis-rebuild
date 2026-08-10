@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals } from "../data/NotesProvider";
 import { pausedCategoryIds } from "../categories/kinds";
-import { goalTitleOf, workWindowOf } from "../schedule/planMeta";
+import { goalTitleOf, workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
@@ -9,7 +9,7 @@ import { todayISO, fmtTime } from "../schedule/calendar";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { greetingFor, longDate, shortDate } from "./greeting";
-import { tomorrowISO, nowHHMM, daySummary, todaysTasks } from "./todayData";
+import { tomorrowISO, nowHHMM, daySummary, todaysTasks, billsLine } from "./todayData";
 import TodayPage from "./TodayPage";
 import { todayEmailLine, needsYouCount } from "../messages/triage";
 import { birthdaysOn, type BirthdayHit } from "../people/birthdays";
@@ -22,7 +22,9 @@ import { aiPlanDay } from "../schedule/planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { daySizing } from "../schedule/daySizing";
-import { ensureCheckinNotifications } from "../shared/notifications";
+import { shiftFutureEvents, restoreShift } from "../schedule/runningLate";
+import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventReminders } from "../shared/notifications";
+import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap } from "./evening";
 import { readSamples } from "../shared/timeSense";
 import SkeletonScreen from "../shared/SkeletonScreen";
@@ -80,10 +82,19 @@ export default function TodayFlow({
   // Native check-in nudges (Phase 2 follow-on): reschedule daily locals from
   // the current routine and brief time. No-op on web; cancel-then-schedule so
   // routine edits always win. Fire-and-forget by design.
+  // Gated on the Notifications page's switches (2026-08-09): those toggles
+  // used to filter only the in-app feed while the actual lock-screen
+  // notifications fired unconditionally, an off switch that switched nothing.
+  const [notifyPrefs, setNotifyPrefs] = useState<{ events: boolean; checkins: boolean }>({ events: true, checkins: true });
   useEffect(() => {
     let on = true;
     Promise.all([routine.get(), profile.get()]).then(([r, prof]) => {
-      if (on) void ensureCheckinNotifications(r, prof?.briefTime);
+      if (!on) return;
+      const n = prof?.notify;
+      const prefs = { events: n?.events ?? true, checkins: n?.checkins ?? true };
+      setNotifyPrefs(prefs);
+      if (prefs.checkins) void ensureCheckinNotifications(r, prof?.briefTime);
+      else void cancelCheckinNotifications();
     });
     return () => { on = false; };
   }, [routine, profile]);
@@ -228,36 +239,59 @@ export default function TodayFlow({
     await reload();
   };
 
-  const plannedTaskIds = new Set(todayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
-  const planCandidates = taskItems
-    .filter((t) => !t.data.done && !plannedTaskIds.has(t.id) && (!t.data.due || (t.data.due as string) <= today))
-    // Season pause: a paused category's tasks are not offered. Bills are
-    // EXEMPT: pausing Money in a low moment cannot silence rent.
-    .filter((t) => !pausedCats.has(t.data.category ?? "") || !!t.data.bill)
-    .map((t) => {
-      const due = (t.data.due as string) || "";
-      const win = workWindowOf(catsFull, t.data.category, routineData);
-      return {
-        id: t.id, text: t.data.text, category: t.data.category ?? "", due,
-        suggested: !!due && due <= today, overdue: !!due && due < today,
-        goal: goalTitleOf(projList, goalList, t.data.projectId),
-        ...(win ? { windowS: win.s, windowE: win.e } : {}),
-      };
-    })
-    .sort((a, b) => (a.suggested !== b.suggested ? (a.suggested ? -1 : 1) : (a.due || "z").localeCompare(b.due || "z")));
-  const dow = new Date().getDay();
+  // Candidates follow the plan's target date (2026-08-09): planning tomorrow
+  // offers what is due by tomorrow and skips what tomorrow already holds.
+  // "overdue" stays measured against the real today either way.
+  const candidatesFor = (dateISO: string, evts: EventItem[]) => {
+    const plannedTaskIds = new Set(evts.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
+    return taskItems
+      .filter((t) => !t.data.done && !plannedTaskIds.has(t.id) && (!t.data.due || (t.data.due as string) <= dateISO))
+      // Season pause: a paused category's tasks are not offered. Bills are
+      // EXEMPT: pausing Money in a low moment cannot silence rent.
+      .filter((t) => !pausedCats.has(t.data.category ?? "") || !!t.data.bill)
+      .map((t) => {
+        const due = (t.data.due as string) || "";
+        const win = workWindowOf(catsFull, t.data.category, routineData);
+        return {
+          id: t.id, text: t.data.text, category: t.data.category ?? "", due,
+          suggested: isSuggested(due, dateISO, t.data.recurrence), overdue: !!due && due < today,
+          goal: goalTitleOf(projList, goalList, t.data.projectId),
+          ...(win ? { windowS: win.s, windowE: win.e } : {}),
+        };
+      })
+      .sort(rankCandidates);
+  };
+  // Plan tomorrow, tonight (2026-08-09): the same sheet can aim at tomorrow.
+  // Planning today at 10 PM is planning a dead day; the evening entry point
+  // flips every derived input (date, events, window, protected ranges) to
+  // tomorrow's, and the commit lands events on tomorrow.
+  // tomorrowEvents state already exists above for the evening preview; the
+  // planner reuses it and refreshes it on open.
+  const [planTarget, setPlanTarget] = useState<"today" | "tomorrow">("today");
+  const tomorrow = tomorrowISO(today);
+  const planningTomorrow = planTarget === "tomorrow";
+  const planDate = planningTomorrow ? tomorrow : today;
+  const planEvents = planningTomorrow ? tomorrowEvents : todayEvents;
+  const openPlan = async (target: "today" | "tomorrow") => {
+    if (target === "tomorrow") setTomorrowEvents(await schedule.eventsOn(tomorrow));
+    setPlanTarget(target);
+    setPlanOpen(true);
+  };
+  const dow = planningTomorrow ? new Date(tomorrow + "T00:00:00").getDay() : new Date().getDay();
   const planWindow = planWindowFor(routineData, dow);
-  const planStart = (() => { const d = new Date(); const now = Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; return Math.max(now, planWindow.wakeMin); })();
+  const planStart = planningTomorrow
+    ? planWindow.wakeMin // a future day starts at wake, not at "now"
+    : (() => { const d = new Date(); const now = Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; return Math.max(now, planWindow.wakeMin); })();
   const planEnd = planWindow.endMin;
-  // Phase 2 planning context: protected ranges for today, the inferred energy
-  // peak, and how heavy yesterday felt.
+  // Phase 2 planning context: protected ranges for the target day, the
+  // inferred energy peak, and how heavy yesterday felt.
   const blocked = protectedRangesFor(routineData, dow);
   const chrono = chronotypeFor(routineData);
   const peak = peakWindowFor(routineData, chrono);
   const energy = chrono !== "neutral" ? { chronotype: chrono, peakStartMin: peak.s, peakEndMin: peak.e } : undefined;
   const sizing = daySizing(prevMood);
   const onAIPlan = ai.available
-    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, todayEvents, s, e, {
+    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, planEvents, s, e, {
         work: { startMin: routineData.workStartMin, endMin: routineData.workEndMin },
         energy,
         gentle: sizing.light,
@@ -266,15 +300,50 @@ export default function TodayFlow({
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
     const ids: string[] = [];
     for (const b of blocks) {
-      const id = await schedule.createEvent(b.text, { date: today, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId });
+      const id = await schedule.createEvent(b.text, { date: planDate, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId });
       if (id) ids.push(id);
     }
     setPlanOpen(false);
+    setPlanTarget("today");
     await reload();
     showToast({
-      message: `Planned ${blocks.length} ${blocks.length === 1 ? "block" : "blocks"}`,
+      message: `Planned ${blocks.length} ${blocks.length === 1 ? "block" : "blocks"}${planningTomorrow ? " for tomorrow" : ""}`,
       actionLabel: "Undo",
       onAction: async () => { for (const id of ids) await schedule.deleteEvent(id); await reload(); },
+    });
+  };
+
+  // App icon badge (2026-08-09): mirrors the due-today count on every reload
+  // and toggle, so the home screen answers "does JARVIS need me" honestly,
+  // including going back to zero.
+  useEffect(() => {
+    void setAppBadge(badgeCount(taskItems, today));
+  }, [taskItems, today]);
+
+  // Event reminders (2026-08-09): today's and tomorrow's timed events get a
+  // lock-screen nudge 15 minutes out, rescheduled whenever either day's
+  // events change. Native-only; the seam no-ops everywhere else.
+  useEffect(() => {
+    const inputs = notifyPrefs.events
+      ? [
+          ...todayEvents.map((e) => ({ date: today, start: e.data.start, title: e.data.title, location: e.data.location })),
+          ...tomorrowEvents.map((e) => ({ date: tomorrow, start: e.data.start, title: e.data.title, location: e.data.location })),
+        ]
+      : []; // pref off: an empty schedule cancels whatever was pending
+    void ensureEventReminders(inputs);
+  }, [todayEvents, tomorrowEvents, today, tomorrow, notifyPrefs.events]);
+
+  // Running Late lands on Today too (2026-08-09): the plan lives here, so the
+  // one-tap recovery for falling behind has to live here. Same shared shift
+  // as the Schedule tab, recurring events left in place, full Undo.
+  const onRunningLate = async (mins: number) => {
+    const { moved, skipped, prior } = await shiftFutureEvents(schedule, todayEvents, nhm, mins);
+    if (moved === 0) return;
+    await reload();
+    showToast({
+      message: `Shifted ${moved} ${moved === 1 ? "event" : "events"} by ${mins === 60 ? "an hour" : mins + " minutes"}${skipped ? ` (${skipped} repeating left in place)` : ""}`,
+      actionLabel: "Undo",
+      onAction: async () => { await restoreShift(schedule, prior); await reload(); },
     });
   };
 
@@ -320,12 +389,15 @@ export default function TodayFlow({
       daypart={daypart}
       onToggleTask={onToggleTask}
       onOpenTask={onOpenTask}
-      onPlanDay={() => setPlanOpen(true)}
+      onPlanDay={() => void openPlan("today")}
+      onPlanTomorrow={evening ? () => void openPlan("tomorrow") : undefined}
+      onRunningLate={onRunningLate}
       onUpNext={() => setUpNextOpen(true)}
       upNext={upNextRows}
       onSeeAllUpNext={onGoTasksAll ?? onGoTasks}
       emailLine={todayEmailLine(needsYouCount(), 0)}
       onOpenEmail={onGoEmail}
+      billLine={billsLine(taskItems, today) ?? undefined}
       freshStart={offTrack ? () => setFreshOpen(true) : undefined}
       locked={blocked}
       onOpenEvent={onOpenEvent}
@@ -341,8 +413,9 @@ export default function TodayFlow({
     />
     {planOpen && (
       <PlanDaySheet
-        events={todayEvents}
-        tasks={planCandidates}
+        key={planDate}
+        events={planEvents}
+        tasks={candidatesFor(planDate, planEvents)}
         startMin={planStart}
         endMin={planEnd}
         routineConfigured={routineSet}
@@ -351,7 +424,7 @@ export default function TodayFlow({
         onEditRoutine={onEditRoutine ? () => { setPlanOpen(false); onEditRoutine(); } : undefined}
         onCommit={onPlanCommit}
         onAIPlan={onAIPlan}
-        onClose={() => setPlanOpen(false)}
+        onClose={() => { setPlanOpen(false); setPlanTarget("today"); }}
       />
     )}
     {sheet && (

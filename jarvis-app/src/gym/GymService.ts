@@ -67,4 +67,12 @@ export class GymService {
     }
     return id;
   }
+
+  // Honest history (2026-08-09): a fat-fingered set used to poison PRs
+  // forever because no delete existed. PRs and history are derived from the
+  // workout list, so removing the bad session fixes every number downstream.
+  async removeWorkout(id: string): Promise<void> {
+    await this.store.delete(this.ownerId, id);
+    this.onEvent({ type: "entity.deleted", entityType: ENTITY_WORKOUT, entityId: id });
+  }
 }

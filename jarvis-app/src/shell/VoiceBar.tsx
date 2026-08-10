@@ -1,9 +1,13 @@
-import { Sparkles } from "lucide-react";
+import { Sparkles, Search } from "lucide-react";
 
 // Quick-capture bar docked above the tab bar on main tab screens. Tapping it
 // opens text Quick Capture, where JARVIS parses what you type into tasks,
 // events, or notes. Voice (speech) is a native-phase feature; this is text.
-export default function VoiceBar({ onTap }: { onTap?: () => void }) {
+//
+// Search rides here too (2026-08-09): this bar is the one piece of chrome on
+// every tab, and search used to be reachable only from Today's header, which
+// meant "go to Today first" as a search step. Same dock, one more tap target.
+export default function VoiceBar({ onTap, onSearch }: { onTap?: () => void; onSearch?: () => void }) {
   return (
     <div className="pad-x voice-dock">
       <button className="voice-bar" onClick={onTap} aria-label="Quick capture">
@@ -11,6 +15,11 @@ export default function VoiceBar({ onTap }: { onTap?: () => void }) {
         <div className="voice-name">JARVIS</div>
         <div className="voice-hint">Tap to capture</div>
       </button>
+      {onSearch && (
+        <button className="voice-search" onClick={onSearch} aria-label="Search everything">
+          <Search className="ic" />
+        </button>
+      )}
     </div>
   );
 }

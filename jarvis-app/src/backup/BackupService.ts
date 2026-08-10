@@ -44,13 +44,22 @@ export class BackupService {
     if (!bundle || bundle.app !== "jarvis" || !Array.isArray(bundle.items)) {
       throw new Error("This file is not a JARVIS backup.");
     }
+    // Skip exact duplicates (2026-08-09): running the same import twice used
+    // to double every task, note, and event. An item identical in type and
+    // content to one already present has nothing to restore.
+    const existing = new Set(
+      (await this.store.listForUser(this.ownerId)).map((i) => i.entityType + ":" + JSON.stringify(i.data)),
+    );
     const created: string[] = [];
     let n = 0;
     try {
       for (const it of bundle.items) {
         if (!it || typeof it.entityType !== "string" || typeof it.data !== "object" || it.data === null) continue;
         if (!KNOWN_TYPES.has(it.entityType)) continue;
+        const key = it.entityType + ":" + JSON.stringify(it.data);
+        if (existing.has(key)) continue;
         const id = await this.store.create(this.ownerId, it.entityType, it.data as ItemData);
+        existing.add(key);
         created.push(id);
         n++;
       }

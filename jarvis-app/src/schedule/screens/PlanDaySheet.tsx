@@ -7,6 +7,8 @@ import { catColor } from "../../shared/categories";
 import { FULL_DAY, type DaySizing } from "../daySizing";
 import { emit } from "../../events";
 import { recordPicks } from "../../events/planOutcome";
+import { learnedDurations, readCommittedDurations } from "../learnedDurations";
+import PlanStrip from "./PlanStrip";
 import { todayISO } from "../../tasks/grouping";
 
 const BUFFER = 10;
@@ -17,7 +19,10 @@ const DUR_MAX = 180;
 
 // A protected range shown in the plan: gym, meals, deep work. Fed to the planner
 // as busy time so proposed blocks route around it. Phase 2.
-export interface PlanBlocked { s: number; e: number; label: string }
+// soft (2026-08-09): rides in from the routine's hard/soft split. Hard blocks
+// are walls the auto-placer routes around; soft ones are preferences it uses
+// only when the day is tight, and the sheet says so per pick.
+export interface PlanBlocked { s: number; e: number; label: string; soft?: boolean }
 // goal (6.7): the goal this task moves, shown under the name so picking a
 // task is also picking what it advances. windowS/E: work-hours placement.
 export interface PlanCandidate { id: string; text: string; category: string; suggested: boolean; overdue: boolean; goal?: string | null; windowS?: number; windowE?: number }
@@ -80,7 +85,13 @@ export default function PlanDaySheet({
   // start time the user set by hand, taking precedence over auto-placement.
   const [durations, setDurations] = useState<Record<string, number>>({});
   const [overrides, setOverrides] = useState<Record<string, string>>({});
-  const durFor = (id: string) => durations[id] ?? DEFAULT_DUR;
+  // Learned lengths (2026-08-09): the stepper starts at the median of what
+  // this category has actually committed at (3+ samples, last 30 days), else
+  // the flat default. Explicit stepper edits always win. Read once per open:
+  // the sheet is short-lived and the history cannot change under it.
+  const learned = useMemo(() => learnedDurations(readCommittedDurations(), Date.now()), []);
+  const catOf = (id: string) => tasks.find((t) => t.id === id)?.category ?? "";
+  const durFor = (id: string) => durations[id] ?? learned[catOf(id)] ?? DEFAULT_DUR;
   const setDur = (id: string, next: number) => setDurations((prev) => ({ ...prev, [id]: Math.max(DUR_MIN, Math.min(DUR_MAX, next)) }));
   const setOverride = (id: string, hhmm: string) => setOverrides((prev) => {
     if (!hhmm) { const n = { ...prev }; delete n[id]; return n; }
@@ -156,7 +167,9 @@ export default function PlanDaySheet({
       }
     }
     const manualBusy = manual.map((b) => ({ s: toMin(b.start), e: toMin(b.end) }));
-    const autoResult = planDay(auto, events, startMin, endMin, BUFFER + sizing.extraSlackMin, [...blocked.map((b) => ({ s: b.s, e: b.e })), ...manualBusy]);
+    const hard = blocked.filter((b) => !b.soft);
+    const soft = blocked.filter((b) => b.soft).map((b) => ({ s: b.s, e: b.e, label: b.label }));
+    const autoResult = planDay(auto, events, startMin, endMin, BUFFER + sizing.extraSlackMin, [...hard.map((b) => ({ s: b.s, e: b.e })), ...manualBusy], soft);
     const blocks = [...manual, ...autoResult.blocks].sort((a, b) => a.start.localeCompare(b.start));
     return { blocks, unplaced: autoResult.unplaced };
   };
@@ -164,6 +177,21 @@ export default function PlanDaySheet({
   const plan = useMemo(() => planFor(picks), [picks, tasks, events, startMin, endMin, blocked, sizing, durations, overrides]);
   const blockFor = (id: string) => plan.blocks.find((b) => b.taskId === id);
   const timeFor = (id: string) => blockFor(id)?.start ?? null;
+
+  // Tap-to-place (2026-08-09): tapping a picked row's time chip arms it, then
+  // a tap on the strip drops it there (clamped so it always fits the window,
+  // snapped to the same 15s everything else uses). Placement goes through the
+  // existing override path, so it prints, plans, and commits exactly like a
+  // hand-typed time.
+  const [placing, setPlacing] = useState<string | null>(null);
+  const placingTask = placing ? tasks.find((t) => t.id === placing) : null;
+  const placeAt = (min: number) => {
+    if (!placing) return;
+    const dur = durFor(placing);
+    const clamped = Math.max(startMin, Math.min(endMin - dur, min));
+    setOverride(placing, fromMin(clamped));
+    setPlacing(null);
+  };
 
   const count = plan.blocks.length;
   const countLabel = count === 1 ? "my one" : count === 2 ? "my two" : count === 3 ? "my three" : `these ${count}`;
@@ -183,9 +211,20 @@ export default function PlanDaySheet({
               : `Using default hours until ${label(fromMin(endMin))}.`}
             {!routineConfigured && onEditRoutine && <button type="button" className="note-fix" onClick={onEditRoutine}>Set Your Routine</button>}
           </div>
-          {blocked.length > 0 && (
+          {(events.length > 0 || blocked.length > 0 || plan.blocks.length > 0) && (
+            <PlanStrip startMin={startMin} endMin={endMin} events={events} blocked={blocked} blocks={plan.blocks} onTapMin={placing ? placeAt : undefined} />
+          )}
+          {placingTask && (
+            <div className="plan-sub">Tap the strip where &ldquo;{placingTask.text}&rdquo; should go.</div>
+          )}
+          {blocked.some((b) => !b.soft) && (
             <div className="plan-sub">
-              Protected today: {blocked.map((b) => `${b.label} ${label(fromMin(b.s))}–${label(fromMin(b.e))}`).join(", ")}. Auto-placed picks route around these; set a time by hand if you want to schedule over one.
+              Protected today: {blocked.filter((b) => !b.soft).map((b) => `${b.label} ${label(fromMin(b.s))}–${label(fromMin(b.e))}`).join(", ")}. Auto-placed picks route around these; set a time by hand if you want to schedule over one.
+            </div>
+          )}
+          {blocked.some((b) => b.soft) && (
+            <div className="plan-sub">
+              Flexible today: {blocked.filter((b) => b.soft).map((b) => `${b.label} ${label(fromMin(b.s))}–${label(fromMin(b.e))}`).join(", ")}. Kept clear while there&rsquo;s room; used only when the day is tight.
             </div>
           )}
           {onAIPlan && picks.length > 0 && (
@@ -224,9 +263,19 @@ export default function PlanDaySheet({
                         {on && blockFor(t.id)?.outsideWindow && (
                           <div className="bp-sub">Outside its usual work hours; change the time if that&rsquo;s wrong</div>
                         )}
+                        {on && blockFor(t.id)?.overSoft && (
+                          <div className="bp-sub">Overlaps your {blockFor(t.id)!.overSoft}; the day is tight, move it if that doesn&rsquo;t work</div>
+                        )}
                       </div>
                       {on ? (
-                        <span className="p3-time">{at ? label(at) : "No room"}</span>
+                        <button
+                          type="button"
+                          className={"p3-time p3-time-btn" + (placing === t.id ? " placing" : "")}
+                          aria-label={`${t.text}: place on the day`}
+                          onClick={(e) => { e.stopPropagation(); setPlacing((p) => (p === t.id ? null : t.id)); }}
+                        >
+                          {at ? label(at) : "No room"}
+                        </button>
                       ) : t.overdue ? (
                         <span className="plan-overdue">Overdue</span>
                       ) : null}
@@ -283,6 +332,14 @@ export default function PlanDaySheet({
               const category = tasks.find((t) => t.id === id)?.category ?? "";
               if (!category) continue;
               emit({ type: "plan.duration_corrected", entityType: "task", entityId: id, props: { category, n: delta } });
+            }
+            // What each block actually committed at, per category, feeding the
+            // learned defaults above (2026-08-09). Every commit teaches; the
+            // 3-sample gate on the reading side keeps one day from deciding.
+            for (const b of plan.blocks) {
+              if (!b.category) continue;
+              const mins = toMin(b.end) - toMin(b.start);
+              if (mins > 0) emit({ type: "plan.duration_committed", entityType: "task", entityId: b.taskId, props: { category: b.category, n: mins } });
             }
             recordPicks(day, picks);
             onCommit(plan.blocks);

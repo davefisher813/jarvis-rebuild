@@ -41,8 +41,49 @@ describe("PlanDaySheet soft work-hours windows", () => {
     );
     fireEvent.click(screen.getByText("Send sponsor recap"));
     expect(screen.queryByText("No room")).not.toBeInTheDocument();
-    expect(screen.getByText("7:00 PM")).toBeInTheDocument();
+    // The row's own time slot (the day strip's scale also prints 7:00 PM).
+    expect(document.querySelector(".p3-time")!.textContent).toBe("7:00 PM");
     expect(screen.getByText(/Outside its usual work hours/)).toBeInTheDocument();
+  });
+
+  it("draws the day strip: picks, events, and protected time as proportional segments", () => {
+    render(
+      <PlanDaySheet
+        events={[{ id: "e1", data: { title: "Standup", date: "2026-08-09", start: "09:00", end: "09:30", category: "" } }]}
+        tasks={WORK_TASK}
+        startMin={420} endMin={1260}
+        blocked={[{ s: 720, e: 780, label: "Lunch", soft: true }]}
+        onCommit={() => {}} onClose={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByText("Send sponsor recap"));
+    const bar = document.querySelector(".plan-strip-bar")!;
+    expect(bar).toBeTruthy();
+    expect(bar.querySelector('[title="Standup"]')).toBeTruthy();
+    expect(bar.querySelector('[title="Lunch"]')!.className).toContain("strip-soft");
+    expect(bar.querySelector('[title="Send sponsor recap"]')!.className).toContain("strip-pick");
+    // Proportions: a 9:00 AM event in a 7 AM-9 PM window starts 1/7 in.
+    const standup = bar.querySelector('[title="Standup"]') as HTMLElement;
+    expect(parseFloat(standup.style.left)).toBeCloseTo(((540 - 420) / 840) * 100, 1);
+  });
+
+  it("tap-to-place: arm a pick's time chip, tap the strip, the pick lands there", () => {
+    render(
+      <PlanDaySheet
+        events={[{ id: "e1", data: { title: "Standup", date: "2026-08-09", start: "09:00", end: "09:30", category: "" } }]}
+        tasks={NONE_SUGGESTED} startMin={420} endMin={1260}
+        onCommit={() => {}} onClose={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByText("Return package"));
+    fireEvent.click(screen.getByLabelText("Return package: place on the day"));
+    expect(screen.getByText(/Tap the strip where/)).toBeInTheDocument();
+    const bar = document.querySelector(".plan-strip-bar") as HTMLElement;
+    // 7 AM-9 PM window, 840 wide in test pixels: one px per minute.
+    bar.getBoundingClientRect = () => ({ left: 0, width: 840, top: 0, right: 840, bottom: 22, height: 22, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    fireEvent.click(bar, { clientX: 600 }); // minute 1020 = 5:00 PM, snaps clean
+    expect((screen.getByLabelText("Return package: time") as HTMLInputElement).value).toBe("17:00");
+    expect(screen.queryByText(/Tap the strip where/)).not.toBeInTheDocument();
   });
 
   it("inside its window there is no label: the preference only speaks when broken", () => {

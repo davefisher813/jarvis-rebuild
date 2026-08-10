@@ -31,7 +31,10 @@ type Sheet =
   | { kind: "editGoal"; id: string };
 
 // One surface for goals and projects. Replaces LifeMapFlow and ProjectsFlow.
-export default function BiggerPictureFlow({ openId, onOpenNote }: { openId?: string; onOpenNote?: (id: string) => void } = {}) {
+// openGoalId (2026-08-09): goal deep-links used to be set by the shell and
+// then dropped on the floor here, so tapping a linked goal landed on the
+// list instead of the goal.
+export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote }: { openId?: string; openGoalId?: string; onOpenNote?: (id: string) => void } = {}) {
   const projectsSvc = useProjects();
   const goalsSvc = useGoals();
   const catsSvc = useCategories();
@@ -45,7 +48,7 @@ export default function BiggerPictureFlow({ openId, onOpenNote }: { openId?: str
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [payoff, setPayoff] = useState<{ kind: "project" | "goal"; title: string; line: string } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(openId ?? null);
-  const [goalDetailId, setGoalDetailId] = useState<string | null>(null);
+  const [goalDetailId, setGoalDetailId] = useState<string | null>(openGoalId ?? null);
   // Bumps after a dismissal so the derived suggestion re-reads storage.
   const [dismissTick, setDismissTick] = useState(0);
   const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);

@@ -12,8 +12,11 @@ import type { EventItem } from "./types";
 // blocking off "work" must not make work tasks impossible for someone with
 // no set hours. "No room" now means the DAY is full, nothing else.
 export interface PlanTask { id: string; text: string; category: string; durationMin: number; windowS?: number; windowE?: number }
-// A proposed time block for one task.
-export interface PlanBlock { taskId: string; text: string; category: string; start: string; end: string; outsideWindow?: boolean }
+// A proposed time block for one task. outsideWindow: landed past its
+// preferred work-hours window. overSoft: landed on top of a SOFT routine
+// block (named, so the UI can say "overlaps your Dinner"), which only happens
+// when the day had no room anywhere else.
+export interface PlanBlock { taskId: string; text: string; category: string; start: string; end: string; outsideWindow?: boolean; overSoft?: string }
 export interface DayPlan { blocks: PlanBlock[]; unplaced: PlanTask[] }
 
 function toMin(hhmm: string): number {
@@ -39,9 +42,19 @@ function fromMin(total: number): string {
 // Events and protected ranges stay exact: the buffer is for transitions
 // between planned work, not a claim that a meeting runs long.
 //
-// `blocked` seeds the busy set with protected ranges (gym, meals, deep work)
-// the planner must route around exactly like fixed events. Optional so every
-// existing caller keeps its behavior. Phase 2.
+// `blocked` seeds the busy set with HARD protected ranges (the walls) the
+// planner must route around exactly like fixed events. `softBlocked`
+// (2026-08-09) carries the routine's SOFT blocks, preferences from the
+// hard/soft split Dave asked for: avoided while the day has room, scheduled
+// over (labeled with the block's name) only when it does not. Both optional
+// so every existing caller keeps its behavior.
+//
+// Placement ladder per task, first rung that fits wins:
+//   1. inside its window, clear of soft blocks   (the ideal slot)
+//   2. inside its window, over a soft block      (window beats preference)
+//   3. anywhere in the day, clear of soft blocks (spill past the window)
+//   4. anywhere, over a soft block               (the day is genuinely tight)
+//   5. unplaced                                  (the day is genuinely full)
 export function planDay(
   tasks: PlanTask[],
   events: EventItem[],
@@ -49,20 +62,25 @@ export function planDay(
   endMin: number,
   bufferMin = 10,
   blocked: { s: number; e: number }[] = [],
+  softBlocked: { s: number; e: number; label: string }[] = [],
 ): DayPlan {
   const busy = events.map((e) => ({
     s: toMin(e.data.start),
     e: e.data.end ? toMin(e.data.end) : toMin(e.data.start) + 60,
   }));
   for (const b of blocked) if (b.e > b.s) busy.push({ s: b.s, e: b.e });
+  const soft = softBlocked.filter((b) => b.e > b.s);
   const blocks: PlanBlock[] = [];
   const unplaced: PlanTask[] = [];
 
-  // Earliest start in [from, cap - dur] clear of every busy range, or null.
-  const fit = (dur: number, from: number, cap: number): number | null => {
+  // Earliest start in [from, cap - dur] clear of every busy range (and, when
+  // avoidSoft, every soft range too), or null.
+  const fit = (dur: number, from: number, cap: number, avoidSoft: boolean): number | null => {
     let s = from;
     while (s + dur <= cap) {
-      const clash = busy.find((b) => s < b.e && b.s < s + dur);
+      const clash =
+        busy.find((b) => s < b.e && b.s < s + dur) ??
+        (avoidSoft ? soft.find((b) => s < b.e && b.s < s + dur) : undefined);
       if (!clash) return s;
       s = clash.e;
     }
@@ -72,22 +90,26 @@ export function planDay(
   for (const t of tasks) {
     const dur = Math.max(5, t.durationMin);
     const windowed = t.windowS != null || t.windowE != null;
-    // Inside the preferred window first...
-    let s = fit(dur, Math.max(startMin, t.windowS ?? startMin), Math.min(endMin, t.windowE ?? endMin));
+    const winFrom = Math.max(startMin, t.windowS ?? startMin);
+    const winCap = Math.min(endMin, t.windowE ?? endMin);
+
+    let s = fit(dur, winFrom, winCap, true);
     let outside = false;
-    // ...and only when the window is genuinely full, anywhere in the day.
-    if (s === null && windowed) {
-      s = fit(dur, startMin, endMin);
-      outside = s !== null;
-    }
+    let overSoft = false;
+    if (s === null && soft.length > 0) { s = fit(dur, winFrom, winCap, false); overSoft = s !== null; }
+    if (s === null && windowed) { s = fit(dur, startMin, endMin, true); outside = s !== null; overSoft = false; }
+    if (s === null && windowed && soft.length > 0) { s = fit(dur, startMin, endMin, false); outside = overSoft = s !== null; }
     if (s === null) {
       unplaced.push(t);
       continue;
     }
+    const placedS = s;
+    const softHit = overSoft ? soft.find((b) => placedS < b.e && b.s < placedS + dur) : undefined;
     blocks.push({
       taskId: t.id, text: t.text, category: t.category,
       start: fromMin(s), end: fromMin(s + dur),
       ...(outside ? { outsideWindow: true } : {}),
+      ...(softHit ? { overSoft: softHit.label } : {}),
     });
     busy.push({ s, e: s + dur + bufferMin });
   }

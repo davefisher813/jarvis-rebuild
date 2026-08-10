@@ -30,7 +30,11 @@ describe("CategorySheet", () => {
       <CategorySheet mode="edit" initial={{ name: "Work", color: "blue", icon: "briefcase" }} onSave={() => {}} onDelete={onDelete} onCancel={() => {}} />,
     );
     expect((screen.getByPlaceholderText("Category name") as HTMLInputElement).value).toBe("Work");
+    // Armed two-tap (2026-08-09): the first tap only arms, because this
+    // delete orphans everything tagged with the category.
     fireEvent.click(screen.getByText("Delete Category"));
+    expect(onDelete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("Tap again to delete"));
     expect(onDelete).toHaveBeenCalled();
   });
 });

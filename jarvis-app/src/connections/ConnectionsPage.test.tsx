@@ -48,6 +48,8 @@ describe("ConnectionsPage", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     await screen.findByText("me@example.com");
     fireEvent.click(screen.getByText("Disconnect"));
+    // Armed two-tap (2026-08-09): first tap only arms.
+    fireEvent.click(screen.getByText("Tap again"));
     await waitFor(() => expect(screen.getByText("me@example.com disconnected.")).toBeInTheDocument());
     expect(screen.getByText("No accounts yet")).toBeInTheDocument();
   });

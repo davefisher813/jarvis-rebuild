@@ -4,6 +4,7 @@ import type { GoogleApi } from "../connections/google/api";
 import { mapThreadFull, buildReply, encodeEmail, type ThreadRow, type ThreadFull } from "../connections/google/map";
 import { useTasks, useSchedule, usePeople } from "../data/NotesProvider";
 import { useAIContext } from "../ai/useAIContext";
+import { useProfile } from "../data/NotesProvider";
 import { voiceToText } from "../ai/context";
 import { emit } from "../events";
 import { fmtClock } from "./drain";
@@ -36,6 +37,13 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
   // Required, not optional, unlike MessagesFlow: this component already calls
   // useTasks and useSchedule, so it cannot render without NotesProvider anyway.
   const gatherContext = useAIContext();
+  const profileSvc = useProfile();
+  const [trackOpens, setTrackOpens] = useState(true);
+  useEffect(() => {
+    let on = true;
+    profileSvc.get().then((p) => { if (on) setTrackOpens(p?.trackOpens !== false); }).catch(() => {});
+    return () => { on = false; };
+  }, [profileSvc]);
   const [idx, setIdx] = useState(0);
   const [thread, setThread] = useState<ThreadFull | null>(null);
   const [plan, setPlan] = useState<DeckPlan | null>(null);
@@ -146,11 +154,13 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
         const r = buildReply(last, plan.reply);
         const trackId = newTrackId();
         const sent = await api.sendMessage(
-          encodeEmail({ to: r.to, subject: r.subject, body: plan.reply, inReplyTo: r.inReplyTo, pixelUrl: pixelUrlFor(trackId) }),
+          encodeEmail({ to: r.to, subject: r.subject, body: plan.reply, inReplyTo: r.inReplyTo, ...(trackOpens ? { pixelUrl: pixelUrlFor(trackId) } : {}) }),
           r.threadId,
         );
-        saveTrack(trackId, { threadId: sent.threadId || r.threadId || sent.id, sentAt: Date.now() });
-        void registerTrack(trackId, token);
+        if (trackOpens) {
+          saveTrack(trackId, { threadId: sent.threadId || r.threadId || sent.id, sentAt: Date.now() });
+          void registerTrack(trackId, token);
+        }
         archiveRemote(row.id, row.account);
         // The honest voice metric: sent exactly as drafted (edited sends are
         // logged from the compose path with flag: true). A real, durable

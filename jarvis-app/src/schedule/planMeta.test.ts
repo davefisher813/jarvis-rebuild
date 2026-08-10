@@ -34,3 +34,34 @@ describe("workWindowOf", () => {
     expect(workWindowOf(cats, "work", { workStartMin: 600, workEndMin: 600 })).toBeNull();
   });
 });
+
+// Candidate ranking (2026-08-09): daily tasks and goals reach the pick list.
+import { isSuggested, rankCandidates } from "./planMeta";
+
+describe("isSuggested", () => {
+  it("suggests anything due today or before, exactly as before", () => {
+    expect(isSuggested("2026-08-09", "2026-08-09")).toBe(true);
+    expect(isSuggested("2026-08-01", "2026-08-09")).toBe(true);
+    expect(isSuggested("2026-08-10", "2026-08-09")).toBe(false);
+  });
+
+  it("suggests a daily task even with no due date: rhythm is part of the day", () => {
+    expect(isSuggested("", "2026-08-09", "daily")).toBe(true);
+    expect(isSuggested("", "2026-08-09", "weekly")).toBe(false);
+    expect(isSuggested("", "2026-08-09")).toBe(false);
+  });
+});
+
+describe("rankCandidates", () => {
+  it("suggested beats not, a goal beats no goal, then earliest due", () => {
+    const rows = [
+      { id: "later", suggested: false, goal: null, due: "2026-08-20" },
+      { id: "due-nogoal", suggested: true, goal: null, due: "2026-08-08" },
+      { id: "due-goal", suggested: true, goal: "Ship JARVIS", due: "2026-08-09" },
+      { id: "sameday-goal", suggested: false, goal: "Get healthy", due: "" },
+    ].sort(rankCandidates).map((r) => r.id);
+    // A due task that moves a stated goal outranks a due task that moves
+    // nothing, even with a later due date: pick order is placement priority.
+    expect(rows).toEqual(["due-goal", "due-nogoal", "sameday-goal", "later"]);
+  });
+});

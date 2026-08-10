@@ -335,6 +335,27 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-grip.open .ic { transform: rotate(180deg); }
 .sched-swipe-wrap .sched-row.swiping { transition: none; }
 .plan-head-acts { display: flex; align-items: center; gap: var(--s-2); }
+/* The plan as a picture (2026-08-09): one proportional bar for the planning
+   window. Events are fixed gray, protected time is dim (soft ones dimmer and
+   dashed), picks wear their category color. Gaps are just the track showing
+   through, which is the point. */
+.plan-strip { padding: var(--s-2) 0 var(--s-1); }
+.plan-strip-bar { position: relative; height: 22px; border-radius: 6px; background: var(--press-3); overflow: hidden; }
+.plan-strip-seg { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+.strip-event { background: var(--press-6, rgba(255,255,255,0.28)); }
+.strip-protected { background: var(--press-5); }
+.strip-protected.strip-soft { opacity: 0.45; border: 1px dashed var(--tx-3); }
+.strip-pick { opacity: 0.92; }
+.plan-strip-scale { display: flex; justify-content: space-between; font-size: var(--t-micro, 11px); color: var(--tx-3); padding-top: 2px; }
+/* Tap-to-place: the armed chip and the live strip both say "I'm listening". */
+.p3-time-btn { background: 0; border: 0; font: inherit; color: inherit; padding: 0; }
+.p3-time-btn.placing { color: var(--tint); font-weight: var(--w-semi); }
+.plan-strip-bar.strip-live { outline: 1px dashed var(--tint); cursor: pointer; }
+/* Search on the dock (2026-08-09): same height as the capture bar beside it. */
+.voice-dock { display: flex; gap: var(--s-2); align-items: stretch; }
+.voice-dock .voice-bar { flex: 1; min-width: 0; }
+.voice-search { flex-shrink: 0; width: 52px; border: 0; border-radius: var(--r-card, 16px); background: var(--surface-2); color: var(--tx-2); display: flex; align-items: center; justify-content: center; }
+.voice-search .ic { width: 20px; height: 20px; }
 .late-chips { padding-bottom: var(--s-2); }
 .plan-cta.late-armed { background: var(--press-5); }
 .search-top { display: flex; align-items: center; gap: var(--s-3); padding: calc(var(--safe-top) + var(--s-3)) var(--s-4) var(--s-3); }

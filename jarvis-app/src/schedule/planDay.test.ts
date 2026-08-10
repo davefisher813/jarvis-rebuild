@@ -107,3 +107,59 @@ describe("work-hours placement windows (6.7)", () => {
     expect(plan.unplaced).toHaveLength(0);
   });
 });
+
+// The hard/soft split (2026-08-09), from Dave's block-time brainstorm: soft
+// routine blocks are preferences the planner honors while it can and uses,
+// labeled, when it must.
+describe("soft routine blocks", () => {
+  const soft = [{ s: 1110, e: 1170, label: "Dinner" }]; // 6:30-7:30 PM
+
+  it("avoids a soft block while the day has room elsewhere", () => {
+    // 6-9 PM window. A 45m task at 6:00 would run into the 6:30 dinner, so
+    // avoiding the preference means waiting until dinner ends.
+    const plan = planDay([task("a", 45)], [], 1080, 1260, 10, [], soft);
+    expect(plan.blocks[0]).toMatchObject({ start: "19:30", end: "20:15" });
+    expect(plan.blocks[0]!.overSoft).toBeUndefined();
+  });
+
+  it("takes the pre-dinner slot when the task actually fits before it", () => {
+    const plan = planDay([task("quick", 25)], [], 1080, 1260, 10, [], soft);
+    expect(plan.blocks[0]).toMatchObject({ start: "18:00", end: "18:25" });
+    expect(plan.blocks[0]!.overSoft).toBeUndefined();
+  });
+
+  it("plans over the soft block, carrying its name, when the day is tight", () => {
+    // 6:00-9:00 PM window; events wall off everything except dinner itself.
+    const plan = planDay(
+      [task("a", 45)],
+      [ev("e1", "18:00", "18:30"), ev("e2", "19:30", "21:00")],
+      1080, 1260, 10, [], soft,
+    );
+    expect(plan.unplaced).toHaveLength(0);
+    expect(plan.blocks[0]).toMatchObject({ start: "18:30", overSoft: "Dinner" });
+  });
+
+  it("hard blocks stay walls: never planned over, soft or no soft", () => {
+    const hard = [{ s: 1110, e: 1170 }];
+    const plan = planDay(
+      [task("a", 45)],
+      [ev("e1", "18:00", "18:30"), ev("e2", "19:30", "21:00")],
+      1080, 1260, 10, hard, [],
+    );
+    expect(plan.blocks).toHaveLength(0);
+    expect(plan.unplaced.map((t) => t.id)).toEqual(["a"]);
+  });
+
+  it("uses a flexible block inside the window before spilling past the window", () => {
+    // Work window 9-5 fully walled except a flexible lunch; evening open.
+    // The ladder keeps work inside work hours when a flexible slot exists
+    // there: lunch is used, labeled, rather than pushing work into the night.
+    const plan = planDay(
+      [{ id: "w", text: "w", category: "work", durationMin: 45, windowS: 540, windowE: 1020 }],
+      [ev("wall1", "09:00", "12:00"), ev("wall2", "13:00", "17:00")],
+      420, 1260, 10, [], [{ s: 720, e: 780, label: "Lunch" }],
+    );
+    expect(plan.blocks[0]!.overSoft).toBe("Lunch"); // window beats preference: lunch slot, labeled
+    expect(plan.blocks[0]).toMatchObject({ start: "12:00" });
+  });
+});

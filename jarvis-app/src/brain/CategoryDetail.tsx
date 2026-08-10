@@ -4,6 +4,7 @@ import type { Category } from "../categories/types";
 import type { NoteData, Recurrence } from "../notes/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
+import { showToast } from "../shared/toast";
 import type { TaskItem } from "../tasks/TasksService";
 import { effectiveKind } from "../categories/kinds";
 import { weekReceipt, receiptLine, afterHoursLine, type WeekEvent } from "../categories/receipts";
@@ -43,11 +44,13 @@ export default function CategoryDetail({
   categoryId,
   onBack,
   onOpenNote,
+  onOpenProject,
   onChanged,
 }: {
   categoryId: string;
   onBack: () => void;
   onOpenNote?: (id: string) => void;
+  onOpenProject?: (id: string) => void;
   onChanged?: () => void;
 }) {
   const tasksSvc = useTasks();
@@ -179,8 +182,11 @@ export default function CategoryDetail({
           <div className="pad-x"><div className="card">
             {projects.map((p) => {
               const next = nextActionOf(allTasks, p.id);
+              // 2026-08-09: this row wore role="button" and a chevron with no
+              // onClick, the exact row that DOES open on the goal page. A
+              // control that looks tappable and is not reads as broken.
               return (
-                <div className="row" role="button" tabIndex={0} key={p.id}>
+                <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onOpenProject?.(p.id)}>
                   <div className="row-grow">
                     <div className="conn-name truncate">{p.data.title}</div>
                     <div className="bp-sub truncate">{next ? `Next: ${next.data.text}` : "No next action"}</div>
@@ -267,7 +273,20 @@ export default function CategoryDetail({
             onChanged?.();
             await reload();
           }}
-          onDelete={async () => { await catsSvc.remove(categoryId); onChanged?.(); onBack(); }}
+          onDelete={async () => {
+            // Undo restores the category itself (new id); items that pointed
+            // at the old id stay untagged either way, which the toast owns up
+            // to by naming the delete rather than pretending it was free.
+            const gone = cat ? { ...cat.data } : null;
+            await catsSvc.remove(categoryId);
+            onChanged?.();
+            onBack();
+            showToast({
+              message: "Category deleted",
+              actionLabel: "Undo",
+              onAction: async () => { if (gone) await catsSvc.create(gone.name, gone.color, gone.icon); onChanged?.(); },
+            });
+          }}
           onCancel={() => setSheet({ kind: "closed" })} />
       )}
     </div>

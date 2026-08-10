@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import type { AIService } from "../ai/AIService";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import { suggestionsSystemPrompt, parseSuggestions, type Suggestion } from "../ai/suggestions";
-import { useTasks, useProfile, useBrainDocs } from "../data/NotesProvider";
+import { useTasks, useProfile, useBrainDocs, useSchedule, useRoutine } from "../data/NotesProvider";
 import { haptics } from "../shared/haptics";
 import { showToast } from "../shared/toast";
 import { patternObservation, isPatternDismissed, dismissPattern, appendHabit, type PatternObservation } from "./patterns";
 import { planningPatternObservation, readDurationCorrections } from "./planningPatterns";
+import { routineBlockCandidate } from "./routinePatterns";
+import type { ProtectedBlock } from "../routine/types";
 import { emit } from "../events";
 import { rankOpen } from "../upnext/upnext";
 
@@ -34,11 +36,17 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
   const tasksSvc = useTasks();
   const profileSvc = useProfile();
   const docs = useBrainDocs();
+  const scheduleSvc = useSchedule();
+  const routineSvc = useRoutine();
   const today = todayISO();
   const [cache, setCache] = useState<DayCache | null | undefined>(undefined); // undefined = loading
   // Pattern awareness (Phase 2 stretch): one deterministic observation from
   // the check-in history, pinned above the AI rows. Works with AI off too.
-  const [pattern, setPattern] = useState<PatternObservation | null>(null);
+  // A pattern row is an observation plus what accepting it DOES. Habit rows
+  // write the habits doc (the original pipeline); routine rows (2026-08-09)
+  // append a learned block to the routine itself. Same dismiss memory, same
+  // one-row rule, different landing place for the tap.
+  const [pattern, setPattern] = useState<(PatternObservation & { routineBlock?: ProtectedBlock }) | null>(null);
   // Texts of the tasks already visible in Up Next: a suggestion that echoes
   // one of them is repetition, not value (Dave 2026-07-30), and is hidden.
   const [visibleTaskTexts, setVisibleTaskTexts] = useState<Set<string> | null>(null);
@@ -56,18 +64,27 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
 
   useEffect(() => {
     let on = true;
-    profileSvc.get().then((prof) => {
+    void (async () => {
+      const [prof, events, routine] = await Promise.all([
+        profileSvc.get(),
+        scheduleSvc.listEvents(),
+        routineSvc.get(),
+      ]);
       if (!on) return;
-      // Mood wins when both exist: a wellbeing signal outranks a scheduling
-      // nudge. Brain Personalization Phase 2 (2026-08-06) adds the second
-      // source; the "at most one row" rule and the dismiss-memory below are
-      // shared, unmodified, since isPatternDismissed/dismissPattern already
-      // work on any observation id, not just mood's.
-      const o = patternObservation(prof?.checkin, today) ?? planningPatternObservation(readDurationCorrections(), Date.now());
-      setPattern(o && !isPatternDismissed(o.id, today) ? o : null);
-    });
+      // Priority when several exist: mood (wellbeing outranks everything),
+      // then a learned routine block (structure beats a tip), then the
+      // planning-duration tip. One row, first non-dismissed candidate wins;
+      // the dismiss-memory works on any observation id, unmodified.
+      const routineC = routineBlockCandidate(events, routine, Date.now());
+      const candidates: (PatternObservation & { routineBlock?: ProtectedBlock })[] = [
+        ...(patternObservation(prof?.checkin, today) ? [patternObservation(prof?.checkin, today)!] : []),
+        ...(routineC ? [{ id: routineC.id, text: routineC.text, routineBlock: routineC.block }] : []),
+        ...(planningPatternObservation(readDurationCorrections(), Date.now()) ? [planningPatternObservation(readDurationCorrections(), Date.now())!] : []),
+      ];
+      setPattern(candidates.find((c) => !isPatternDismissed(c.id, today)) ?? null);
+    })();
     return () => { on = false; };
-  }, [profileSvc, today]);
+  }, [profileSvc, scheduleSvc, routineSvc, today]);
 
   useEffect(() => {
     if (!ai.available) return;
@@ -151,18 +168,27 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
             <button
               className="btn-sm"
               onClick={async () => {
-                // The writable Brain: an approved observation becomes a habit
-                // every AI feature knows. Explicit tap only, never silent.
+                // Explicit tap only, never silent, both paths. A habit row
+                // writes the Brain doc every AI feature reads; a routine row
+                // (2026-08-09) appends the learned block to the routine, so
+                // the planner starts honoring it the next time it runs.
                 haptics.selection();
-                const cur = await docs.get("habits");
-                await docs.save("habits", appendHabit(cur, pattern.text, today));
+                if (pattern.routineBlock) {
+                  const r = await routineSvc.get();
+                  await routineSvc.save({ protectedBlocks: [...(r.protectedBlocks ?? []), pattern.routineBlock] });
+                  emit({ type: "suggestion.accepted", props: { kind: "routine" } });
+                  showToast({ message: "Added to your routine" });
+                } else {
+                  const cur = await docs.get("habits");
+                  await docs.save("habits", appendHabit(cur, pattern.text, today));
+                  emit({ type: "suggestion.accepted", props: { kind: "pattern" } });
+                  showToast({ message: "Saved to your Brain" });
+                }
                 dismissPattern(pattern.id, today);
                 setPattern(null);
-                emit({ type: "suggestion.accepted", props: { kind: "pattern" } });
-                showToast({ message: "Saved to your Brain" });
               }}
             >
-              Remember This
+              {pattern.routineBlock ? "Add to Routine" : "Remember This"}
             </button>
           </div>
         ) : aiPick ? (

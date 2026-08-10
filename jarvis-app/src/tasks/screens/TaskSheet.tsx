@@ -40,7 +40,10 @@ export default function TaskSheet({
   const today = todayISO();
   const tomorrow = addDaysISO(today, 1);
   const [text, setText] = useState(initial?.text ?? "");
-  const [category, setCategory] = useState(initial?.category ?? categories[0]?.id ?? "");
+  // No default category (2026-08-09): defaulting to whichever category was
+  // first silently mis-tagged every "+" task, the exact poisoning the
+  // quick-add path fixed on 2026-08-03. Untagged is honest; tagging is a tap.
+  const [category, setCategory] = useState(initial?.category ?? "");
   const [due, setDue] = useState(initial?.due ?? "");
   const [repeat, setRepeat] = useState(initial?.repeat ?? "");
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
@@ -81,6 +84,7 @@ export default function TaskSheet({
                 idea had two looks on two screens, and it spent a colour on a
                 thing the dot was already saying. */}
             <div className="chip-row cat-pick">
+              <div className={"chip" + (category === "" ? " active" : "")} role="button" tabIndex={0} aria-pressed={category === ""} onClick={() => setCategory("")}>None</div>
               {categories.map((c) => (
                 <div
                   key={c.id}

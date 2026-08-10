@@ -16,6 +16,7 @@ import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { identityToText } from "../ai/context";
 import { firstStepPrompt, parseFirstStep } from "./firstStep";
+import { localParse } from "../ai/capture";
 import { emit } from "../events";
 
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
@@ -174,17 +175,43 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   // silently mis-tagged everything and poisoned every per-category number
   // downstream. No tag is honest; the AI capture path still assigns real
   // categories because it actually reasons about the text.
+  //
+  // Date words (2026-08-09): "call dentist friday" is one thought, and the
+  // deterministic parser the offline capture path already uses can read it.
+  // No AI call, no new grammar: today/tomorrow/weekday words set the due
+  // date, anything else lands due today exactly as before. The toast names
+  // the date so a task visibly leaving the Today filter never reads as a
+  // broken save (audit 2026-07-30 precedent).
   const onQuickAdd = async (text: string) => {
     if (!text.trim()) return;
-    await svc.createTask(text.trim(), { due: today });
+    const parsed = localParse(text.trim(), today);
+    const due = parsed.date ?? today;
+    await svc.createTask(text.trim(), { due });
     await reload();
+    if (due !== today) {
+      const label = new Date(due + "T00:00:00").toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+      showToast({ message: `Due ${label}` });
+    }
   };
 
-  // Bulk-remove finished tasks from the Done list.
+  // Bulk-remove finished tasks from the Done list. With Undo (2026-08-09):
+  // this was the ONE delete on the page without it, and it is the delete
+  // that takes the most at once.
   const onClearDone = async () => {
+    const snapshot = parts.done.map((t) => ({ ...t.data }));
     for (const t of parts.done) await svc.deleteTask(t.id);
     await reload();
-    showToast({ message: "Cleared completed" });
+    showToast({
+      message: `Cleared ${snapshot.length} completed`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        for (const d of snapshot) {
+          const id = await svc.createTask(d.text, { category: d.category || undefined, due: d.due ?? null, recurrence: d.recurrence });
+          if (id) await svc.toggleDone(id); // they come back DONE, as they were
+        }
+        await reload();
+      },
+    });
   };
 
   const openEdit = async (id: string) => {

@@ -4,6 +4,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import { todayISO } from "../tasks/grouping";
 import { catColor, catName } from "../shared/categories";
 import { Burst, useBurst } from "../shared/Burst";
+import { showToast } from "../shared/toast";
 import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { DEFAULT_ROUTINE } from "../routine/types";
 import { pickNext, quickWins, reasonFor, QUICK_WINS_COUNT } from "./upnext";
@@ -92,6 +93,14 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
         setWinsAt((i) => i + 1);
       }
       completing.current = false;
+      // Undo (2026-08-09): the one-card mode is the easiest place in the app
+      // to fat-finger a completion, and it was the one completion without a
+      // way back. Same toast contract as the Tasks page.
+      showToast({
+        message: "Task completed",
+        actionLabel: "Undo",
+        onAction: async () => { await svc.toggleDone(t.id); await reload(); },
+      });
     }, 600);
   };
 

@@ -5,6 +5,7 @@ import {
   useOptionalCategories, useOptionalRoutine, useOptionalGoals, useOptionalProjects, useOptionalMoney,
 } from "../data/NotesProvider";
 import { assembleContext, type AIContext } from "./context";
+import { routineToText } from "../routine/types";
 import { readSamples } from "../shared/timeSense";
 
 export function todayISO(d = new Date()): string {
@@ -65,6 +66,7 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
     values,
     philosophy,
     routine: { workStartMin: rt.workStartMin, workEndMin: rt.workEndMin },
+    routineDetail: routineToText(rt),
     goals: gl.map((g) => ({ name: g.data.title, status: g.data.state })),
     projects: pj.map((x) => x.data.title),
     habits,

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useSchedule } from "../data/NotesProvider";
+import { useEffect, useState } from "react";
+import { useSchedule, useProfile } from "../data/NotesProvider";
 import { useGoogle } from "./google/GoogleSession";
 import { googleConfigured } from "./google/config";
 import { importCalendar } from "./google/sync";
@@ -19,7 +19,23 @@ export default function ConnectionsPage({
 }) {
   const g = useGoogle();
   const schedule = useSchedule();
+  const profile = useProfile();
+  // Open tracking made visible (2026-08-09): the pixel rode on every send
+  // with no disclosure and no way off. Default stays on (that is what the
+  // app always did); the switch and the privacy-policy line are the fix.
+  const [trackOpens, setTrackOpens] = useState(true);
+  useEffect(() => {
+    let on = true;
+    profile.get().then((p) => { if (on) setTrackOpens(p?.trackOpens !== false); });
+    return () => { on = false; };
+  }, [profile]);
   const [busy, setBusy] = useState(false);
+  const [armDisc, setArmDisc] = useState<string | null>(null);
+  useEffect(() => {
+    if (!armDisc) return;
+    const id = setTimeout(() => setArmDisc(null), 4000);
+    return () => clearTimeout(id);
+  }, [armDisc]);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,24 +85,42 @@ export default function ConnectionsPage({
         </div></div></div>
       ) : (
         <div className="pad-x"><div className="card">
-          {g.accounts.map((a) => (
+          {g.accounts.map((a) => {
+            const signedOut = !g.tokenEmails.includes(a.email);
+            return (
             <div className="row" key={a.email}>
               <div className="proj-icon cat-bg-sky"><Mail className="ic" /></div>
               <div className="row-grow">
                 <div className="conn-name truncate">{a.email}</div>
+                {/* Per-account signed-out state (2026-08-09): one expired
+                    account used to silently drop its mail from the unified
+                    inbox with no reconnect anywhere; Reconnect All only
+                    appeared when EVERY account was out. */}
+                {signedOut && <div className="conn-meta">Signed out. Its mail and events are missing until you reconnect.</div>}
                 <div className="msg-chips conn-acct-chips">
+                  {signedOut && (
+                    <button className="chip on" disabled={busy}
+                      onClick={() => void run(async () => { await g.reconnect(a.email); return a.email + " reconnected."; })}>Reconnect</button>
+                  )}
                   <button className={"chip" + (a.mail ? " on" : "")} disabled={busy}
                     onClick={() => void g.setFeature(a.email, "mail", !a.mail)}>Email</button>
                   <button className={"chip" + (a.cal ? " on" : "")} disabled={busy}
                     onClick={() => void g.setFeature(a.email, "cal", !a.cal)}>Calendar</button>
+                  {/* Armed two-tap (2026-08-09): disconnect sat one accidental
+                      tap away, styled like the harmless toggles beside it. */}
                   <button className="chip" disabled={busy}
-                    onClick={() => void run(async () => { await g.disconnect(a.email); return a.email + " disconnected."; })}>
-                    Disconnect
+                    onClick={() => {
+                      if (armDisc !== a.email) { setArmDisc(a.email); return; }
+                      setArmDisc(null);
+                      void run(async () => { await g.disconnect(a.email); return a.email + " disconnected."; });
+                    }}>
+                    {armDisc === a.email ? "Tap again" : "Disconnect"}
                   </button>
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div></div>
       )}
 
@@ -108,6 +142,22 @@ export default function ConnectionsPage({
             <div className="conn-name">Calendar import</div>
             <div className="conn-meta">Upcoming events flow into the Schedule on every connect</div>
           </div>
+        </div></div></div>
+      )}
+
+      {g.accounts.some((a) => a.mail) && (
+        <div className="pad-x"><div className="card"><div className="row">
+          <div className="row-grow">
+            <div className="conn-name">Know when your email is opened</div>
+            <div className="conn-meta">Adds an invisible receipt to mail you send. Powers &ldquo;Opened&rdquo; on Waiting On. Blocked images hide it either way.</div>
+          </div>
+          <button
+            className={"switch" + (trackOpens ? "" : " off")}
+            role="switch"
+            aria-checked={trackOpens}
+            aria-label="Know when your email is opened"
+            onClick={async () => { const next = !trackOpens; setTrackOpens(next); await profile.save({ trackOpens: next }); }}
+          />
         </div></div></div>
       )}
 

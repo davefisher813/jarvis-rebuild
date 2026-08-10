@@ -9,6 +9,7 @@ import {
 import { activeBills, billSubline, paydayLine, paydayNext, monthDay, type PaydayInfo, type PaydayFreq } from "./bills";
 import BillSheet, { type BillDraft } from "./BillSheet";
 import type { TaskItem } from "../tasks/TasksService";
+import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
 
 const CHEV = <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>;
@@ -148,7 +149,12 @@ export default function MoneyFlow() {
     const state = billSubline(b, today).state;
     // A recently-paid recurring bill is already rolled to next month; a second
     // tap must not "pay" next month too. One-time bills can still un-check.
-    if (state === "paid" && b.data.recurrence) return;
+    // The refusal now SAYS so (2026-08-09): a control that eats taps in
+    // silence reads as broken, not protective.
+    if (state === "paid" && b.data.recurrence) {
+      showToast({ message: "Already paid. The next one rolls in on its own." });
+      return;
+    }
     await tasksSvc.toggleDone(b.id);
     await reload();
   };
@@ -268,7 +274,13 @@ export default function MoneyFlow() {
                         onChange={(ev) => setEnvAmt(ev.target.value)} />
                       <button className="btn btn-primary btn-sm" onClick={() => {
                         const amt = Number(envAmt);
-                        if (!envName.trim() || !isFinite(amt) || amt <= 0) return;
+                        // Say WHY nothing happened (2026-08-09): this button
+                        // used to eat the tap in silence on a blank name or
+                        // zero amount, unlike every sheet in this module.
+                        if (!envName.trim() || !isFinite(amt) || amt <= 0) {
+                          showToast({ message: !envName.trim() ? "Give it a name first." : "Amount needs to be more than zero." });
+                          return;
+                        }
                         setEnvelopes(saveEnvelopes([...envelopes, { id: envelopeId(envelopes.length + Date.now() % 9999), name: envName, amount: amt }]));
                         setEnvName(""); setEnvAmt(""); setEnvOpen(false);
                       }}>Add</button>
@@ -321,14 +333,40 @@ export default function MoneyFlow() {
       )}
       {sheet.kind !== "closed" && (
         <AccountSheet mode={sheet.kind === "new" ? "new" : "edit"} initial={editing?.data} onSave={save}
-          onDelete={sheet.kind === "edit" ? async () => { await svc.remove(sheet.id); setSheet({ kind: "closed" }); await reload(); } : undefined}
+          onDelete={sheet.kind === "edit" ? async () => {
+            // Toast + Undo (2026-08-09): Money was the only surface where a
+            // delete just made the thing vanish. Same contract as everywhere.
+            const gone = editing ? { ...editing.data } : null;
+            await svc.remove(sheet.id);
+            setSheet({ kind: "closed" });
+            await reload();
+            showToast({
+              message: "Account deleted",
+              actionLabel: "Undo",
+              onAction: async () => { if (gone) await svc.create(gone); await reload(); },
+            });
+          } : undefined}
           onCancel={() => setSheet({ kind: "closed" })} />
       )}
       {billSheet.kind !== "closed" && (
         <BillSheet mode={billSheet.kind === "new" ? "new" : "edit"}
           initial={editingBill ? { text: editingBill.data.text, due: editingBill.data.due ?? "", recurrence: editingBill.data.recurrence ?? null, bill: editingBill.data.bill! } : undefined}
           onSave={saveBill}
-          onDelete={billSheet.kind === "edit" ? async () => { const id = billSheet.id; setBillSheet({ kind: "closed" }); await tasksSvc.deleteTask(id); await reload(); } : undefined}
+          onDelete={billSheet.kind === "edit" ? async () => {
+            const gone = editingBill ? { ...editingBill.data } : null;
+            const id = billSheet.id;
+            setBillSheet({ kind: "closed" });
+            await tasksSvc.deleteTask(id);
+            await reload();
+            showToast({
+              message: "Bill deleted",
+              actionLabel: "Undo",
+              onAction: async () => {
+                if (gone) await tasksSvc.createTask(gone.text, { due: gone.due ?? null, recurrence: gone.recurrence ?? undefined, bill: gone.bill });
+                await reload();
+              },
+            });
+          } : undefined}
           onCancel={() => setBillSheet({ kind: "closed" })} />
       )}
       {paydayOpen && (

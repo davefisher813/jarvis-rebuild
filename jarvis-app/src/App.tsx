@@ -4,6 +4,7 @@ import { NotesProvider, useProfile } from "./data/NotesProvider";
 import { backendConfigured } from "./data/store";
 import SignIn from "./screens/SignIn";
 import AppShell from "./shell/AppShell";
+import { GoogleSessionProvider } from "./connections/google/GoogleSession";
 
 // Onboarding is a one-time surface; keep it out of the startup bundle that
 // every returning user pays for.
@@ -30,7 +31,14 @@ function AppGate({ seedDemo = false }: { seedDemo?: boolean }) {
     return (
       <div className="ob-host">
         <Suspense fallback={null}>
-          <OnboardingFlow onFinish={() => setState("app")} />
+          {/* Its own GoogleSessionProvider (2026-08-09): the connect step used
+              to promise "Connect Gmail and Calendar" and then render two
+              static rows, because the only provider lived inside the shell
+              the user had not reached yet. Accounts connected here persist
+              and the shell's provider picks them up. */}
+          <GoogleSessionProvider>
+            <OnboardingFlow onFinish={() => setState("app")} />
+          </GoogleSessionProvider>
         </Suspense>
       </div>
     );

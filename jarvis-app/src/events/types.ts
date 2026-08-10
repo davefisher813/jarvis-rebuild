@@ -52,6 +52,11 @@ export type EventType =
   // says whether the voice work is landing). Durable because losing a phone
   // must not zero the one measure of draft quality.
   | "email.deck_sent"
+  // What a plan block actually committed at (category, n = minutes), so the
+  // sheet can pre-fill lengths from the user's own history instead of a flat
+  // 30 (2026-08-09). Durable for the same reason durations were worth
+  // correcting at all: the learning must survive the device.
+  | "plan.duration_committed"
   // escape hatch: props.name carries the specific action, no schema bump needed
   | "action";
 

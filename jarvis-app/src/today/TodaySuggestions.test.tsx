@@ -53,3 +53,58 @@ describe("TodaySuggestions planning pattern (Brain Personalization Phase 2, 2026
     expect(screen.queryByText("JARVIS Noticed")).not.toBeInTheDocument();
   });
 });
+
+// The routine that builds itself (2026-08-09): repeated events surface as a
+// one-tap routine block through the same JARVIS Noticed row.
+describe("TodaySuggestions routine candidate", () => {
+  beforeEach(() => { eventLog.clear(); });
+
+  function Seed({ done }: { done: () => void }) {
+    const schedule = useSchedule();
+    useEffect(() => {
+      void (async () => {
+        const d = (daysAgo: number) => new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10);
+        await schedule.createEvent("Gym", { date: d(2), start: "06:00", end: "07:00" });
+        await schedule.createEvent("Gym", { date: d(9), start: "06:00", end: "07:00" });
+        await schedule.createEvent("Gym", { date: d(16), start: "06:00", end: "07:00" });
+        done();
+      })();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    return null;
+  }
+
+  it("offers the learned block and Add to Routine actually writes it", async () => {
+    let seeded = false;
+    const ai = new AIService({ available: false });
+    const { rerender } = render(
+      <NotesProvider userId="u-routine"><Seed done={() => { seeded = true; }} /></NotesProvider>,
+    );
+    await waitFor(() => expect(seeded).toBe(true));
+    // Mount the suggestions AFTER seeding so its one read sees the events.
+    rerender(
+      <NotesProvider userId="u-routine"><RoutineProbe /><TodaySuggestions ai={ai} /></NotesProvider>,
+    );
+    await waitFor(() => expect(screen.getByText(/Gym has landed around 6 AM/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Add to Routine"));
+    await waitFor(() => expect(screen.queryByText(/Gym has landed/)).not.toBeInTheDocument());
+    await waitFor(async () => {
+      expect(probedRoutine?.protectedBlocks?.some((b) => b.label === "Gym" && b.startMin === 360)).toBe(true);
+    });
+  });
+});
+
+// Reads the live routine record so the test can assert the accept actually
+// persisted the block, not just closed the row.
+import { useSchedule, useRoutine } from "../data/NotesProvider";
+import { useEffect } from "react";
+import type { RoutineData } from "../routine/types";
+let probedRoutine: RoutineData | null = null;
+function RoutineProbe() {
+  const routine = useRoutine();
+  useEffect(() => {
+    const id = setInterval(() => { void routine.get().then((r) => { probedRoutine = r; }); }, 50);
+    return () => clearInterval(id);
+  }, [routine]);
+  return null;
+}

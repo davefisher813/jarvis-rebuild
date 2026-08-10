@@ -36,6 +36,7 @@ export default function GoalDetailPage({
   onLinkSuggestion,
   onDismissSuggestion,
   onAddSavings,
+  onAchieve,
 }: {
   goal: Goal;
   progress: Progress | null;
@@ -49,6 +50,9 @@ export default function GoalDetailPage({
   onLinkSuggestion?: (projectId: string) => void;
   onDismissSuggestion?: (projectId: string) => void;
   onAddSavings?: (amount: number) => void; // Money v1: append a dated entry
+  // Finishing a goal was buried in the edit sheet behind a segmented control.
+  // The biggest moment in the app does not live inside a form.
+  onAchieve?: () => void;
 }) {
   const target = goal.data.moneyTarget;
   const [savingsOpen, setSavingsOpen] = useState(false);
@@ -158,6 +162,14 @@ export default function GoalDetailPage({
           </div>
         </div>,
         document.body,
+      )}
+
+      {/* Finishing the goal, where the goal actually lives. Hidden once it is
+          achieved, because the moment is not a toggle to flip back and forth. */}
+      {onAchieve && goal.data.state !== "achieved" && (
+        <div className="pad-x conn-action">
+          <button className="btn btn-primary btn-block" onClick={onAchieve}>Mark Achieved</button>
+        </div>
       )}
     </div>
   );

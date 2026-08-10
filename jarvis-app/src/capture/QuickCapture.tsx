@@ -4,6 +4,7 @@ import { useTasks, useSchedule, useNotes, useCategories } from "../data/NotesPro
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import type { AIService } from "../ai/AIService";
 import { captureSystemPrompt, parseCapture, localParse, applyCapture, type CaptureResult } from "../ai/capture";
+import { showToast } from "../shared/toast";
 
 const KIND_LABEL: Record<CaptureResult["kind"], string> = { task: "Task", event: "Event", note: "Note" };
 
@@ -42,10 +43,24 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
     }
   };
 
+  // Confirm says what happened, in both directions (2026-08-09). A failed
+  // write used to die silently with the sheet just sitting there, and a
+  // successful one closed without a word even though the item may land on a
+  // tab the user is not looking at.
+  const [saving, setSaving] = useState(false);
   const confirm = async () => {
-    if (!result) return;
-    await applyCapture(result, { tasks, schedule, notes }, await categories.list(), todayISO());
-    onClose();
+    if (!result || saving) return;
+    setSaving(true);
+    try {
+      await applyCapture(result, { tasks, schedule, notes }, await categories.list(), todayISO());
+      onClose();
+      showToast({ message: `Saved to ${KIND_LABEL[result.kind]}s` });
+    } catch {
+      setError("Couldn't save that. Check your connection and try again.");
+      setPhase("input");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return createPortal(
@@ -84,7 +99,7 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
               {result.category && <div className="capture-meta">{result.category}</div>}
             </div>
             <div className="sheet-actions">
-              <button className="btn btn-primary btn-block" onClick={confirm}>Add {KIND_LABEL[result.kind]}</button>
+              <button className="btn btn-primary btn-block" onClick={confirm} disabled={saving}>{saving ? "Saving..." : `Add ${KIND_LABEL[result.kind]}`}</button>
               <button className="btn btn-secondary btn-block" onClick={() => setPhase("input")}>Edit</button>
             </div>
           </div>

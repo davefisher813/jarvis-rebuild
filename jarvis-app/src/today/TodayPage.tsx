@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Mail } from "lucide-react";
+import { Mail, DollarSign } from "lucide-react";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { fmtTime } from "../schedule/calendar";
@@ -97,6 +97,8 @@ export default function TodayPage({
   avatar = "DF",
   onSeeAllSchedule,
   onPlanDay,
+  onPlanTomorrow,
+  onRunningLate,
   onUpNext,
   upNext,
   onSeeAllUpNext,
@@ -114,6 +116,7 @@ export default function TodayPage({
   daypart,
   birthdays,
   emailLine,
+  billLine,
   onOpenEmail,
 }: {
   greeting: string;
@@ -121,6 +124,7 @@ export default function TodayPage({
   // Email as a LINE, not a destination. Empty means nothing needs him, and
   // then nothing renders: a card saying "0 emails need you" is still homework.
   emailLine?: string;
+  billLine?: string; // bills due within 3 days, from billsLine (2026-08-09)
   onOpenEmail?: () => void;
   summary: DaySummary;
   todayEvents: EventItem[];
@@ -136,6 +140,8 @@ export default function TodayPage({
   avatar?: string;
   onSeeAllSchedule: () => void;
   onPlanDay?: () => void;
+  onPlanTomorrow?: () => void; // evening-only entry aiming the sheet at tomorrow (2026-08-09)
+  onRunningLate?: (mins: number) => void; // shift the rest of today from here (2026-08-09)
   onUpNext?: () => void;
   upNext?: TaskItem[];
   onSeeAllUpNext?: () => void;
@@ -287,6 +293,29 @@ export default function TodayPage({
 
       {birthdaySection}
 
+      {/* Bills where the eyes are (2026-08-09): one quiet line when money is
+          due within three days. Not tappable to nowhere: it only becomes a
+          row-button when a Money destination exists. */}
+      {billLine && (
+        <>
+          <div className="sec-head">
+            <div className="sec-left">
+              <div className="sec-ico ico-good"><DollarSign className="ic" /></div>
+              <div className="sec-title">Money</div>
+            </div>
+          </div>
+          <div className="pad-x">
+            <div className="card">
+              <div className="row">
+                <div className="row-grow">
+                  <div className="conn-name">{billLine}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {emailLine && (
         <>
           {/* Icon lives in the SECTION HEADER beside the title, like Up Next
@@ -337,6 +366,8 @@ export default function TodayPage({
         nowLabel={nowLabel}
         onSeeAll={onSeeAllSchedule}
         onPlanDay={onPlanDay}
+        onPlanTomorrow={onPlanTomorrow}
+        onRunningLate={onRunningLate}
         onFocus={evening ? undefined : onUpNext}
         onOpenEvent={onOpenEvent}
         onEditRoutine={onEditRoutine}

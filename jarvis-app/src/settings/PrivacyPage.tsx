@@ -11,6 +11,8 @@ export default function PrivacyPage({ onBack }: { onBack: () => void }) {
       <p>Until you sign in with a synced account, your data stays on your device. With an account, it is stored to sync across your devices.</p>
       <h4 className="legal-h">Third parties</h4>
       <p>We use service providers for sign-in, sync, and error reporting. They process data only to deliver those functions.</p>
+      <h4 className="legal-h">Email open receipts</h4>
+      <p>When enabled in Settings, mail you send through JARVIS includes an invisible image that reports back when the message is first displayed. Only an anonymous identifier and a timestamp are stored; never the recipient, subject, or content. You can turn this off any time under Settings, Connections.</p>
       <h4 className="legal-h">Your choices</h4>
       <p>You can export your data at any time from Settings, and request deletion of your account.</p>
       <h4 className="legal-h">Children</h4>

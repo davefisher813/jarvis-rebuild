@@ -151,3 +151,48 @@ describe("planDay respects the routine window", () => {
     expect(plan.unplaced.length).toBe(0);
   });
 });
+
+// Routine enrichment (2026-08-09): kinds, locations, hard/soft, and the
+// routine rendered as text for the one assembler.
+import { routineToText, protectedRangesFor as rangesFor } from "./types";
+
+describe("routineToText", () => {
+  it("renders the four numbers the AI always had", () => {
+    expect(routineToText(DEFAULT_ROUTINE)).toBe("Awake 7 AM to 10 PM; works 9 AM to 5 PM.");
+  });
+
+  it("renders the life around the work: meals, gym with a place, flexible hobbies", () => {
+    const text = routineToText({
+      ...DEFAULT_ROUTINE,
+      protectedBlocks: [
+        { id: "1", label: "Gym", startMin: 360, endMin: 420, days: [1, 3, 5], kind: "gym", location: "Cortland YMCA" },
+        { id: "2", label: "Dinner", startMin: 1110, endMin: 1170, days: [0, 1, 2, 3, 4, 5, 6], kind: "meal", soft: true },
+      ],
+    });
+    expect(text).toContain("Gym Mon Wed Fri 6 AM to 7 AM, at Cortland YMCA");
+    expect(text).toContain("Dinner every day 6:30 PM to 7:30 PM, flexible");
+  });
+
+  it("drops malformed blocks instead of rendering nonsense", () => {
+    const text = routineToText({
+      ...DEFAULT_ROUTINE,
+      protectedBlocks: [{ id: "1", label: "  ", startMin: 600, endMin: 500, days: [] }],
+    });
+    expect(text).toBe("Awake 7 AM to 10 PM; works 9 AM to 5 PM.");
+  });
+});
+
+describe("protectedRangesFor soft flag", () => {
+  it("carries soft through so the planner can split walls from preferences", () => {
+    const r = {
+      ...DEFAULT_ROUTINE,
+      protectedBlocks: [
+        { id: "1", label: "Gym", startMin: 360, endMin: 420, days: [1] },
+        { id: "2", label: "Dinner", startMin: 1110, endMin: 1170, days: [1], soft: true },
+      ],
+    };
+    const ranges = rangesFor(r, 1);
+    expect(ranges.find((x) => x.label === "Gym")?.soft).toBeUndefined();
+    expect(ranges.find((x) => x.label === "Dinner")?.soft).toBe(true);
+  });
+});

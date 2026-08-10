@@ -34,6 +34,7 @@ export default function CategorySheet({
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
+  const [delArmed, setDelArmed] = useState(false);
   const [color, setColor] = useState<ColorSlot>(initial?.color ?? "blue");
   const [icon, setIcon] = useState<string>(initial?.icon ?? "folder");
   // Kind defaults from the name (never silently written; saving makes it real).
@@ -144,8 +145,13 @@ export default function CategorySheet({
 
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-block" onClick={save}>Save</button>
+          {/* Armed two-tap (2026-08-09): deleting a category orphans every
+              task, note, and project tagged with it, and it fired on ONE tap
+              of a red button. Same pattern as Redo Setup. */}
           {mode === "edit" && onDelete && (
-            <button className="btn btn-danger btn-block" onClick={onDelete}>{TRASH}Delete Category</button>
+            <button className="btn btn-danger btn-block" onClick={() => { if (delArmed) { onDelete(); } else { setDelArmed(true); } }}>
+              {TRASH}{delArmed ? "Tap again to delete" : "Delete Category"}
+            </button>
           )}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>

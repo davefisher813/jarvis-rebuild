@@ -54,3 +54,33 @@ export function nowIndex(events: EventItem[], now: string): number {
 export function isPast(ev: EventItem, now: string): boolean {
   return ev.data.start < now;
 }
+
+// Bills where the eyes are (2026-08-09). Money already knows every bill and
+// its due date; Today said nothing until one became an overdue task. One
+// deterministic line for anything due in the next three days, because bills
+// are the category where a missed day costs actual money.
+export function billsLine(tasks: TaskItem[], today: string): string | null {
+  const horizon = new Date(today + "T00:00:00");
+  horizon.setDate(horizon.getDate() + 3);
+  const cutoff = horizon.toISOString().slice(0, 10);
+  const due = tasks
+    .filter((t) => !t.data.done && !!t.data.bill && !!t.data.due && (t.data.due as string) >= today && (t.data.due as string) <= cutoff)
+    .sort((a, b) => ((a.data.due as string) || "").localeCompare((b.data.due as string) || ""));
+  if (due.length === 0) return null;
+
+  const when = (iso: string): string => {
+    if (iso === today) return "today";
+    const d = new Date(iso + "T00:00:00");
+    const t = new Date(today + "T00:00:00");
+    if (d.getTime() - t.getTime() === 86400000) return "tomorrow";
+    return d.toLocaleDateString([], { weekday: "long" });
+  };
+  const name = (t: TaskItem) => t.data.text.replace(/^Pay /, "");
+
+  if (due.length === 1) {
+    const t = due[0]!;
+    const amt = t.data.bill?.amount;
+    return `${name(t)}${amt ? ` ($${amt})` : ""} due ${when(t.data.due as string)}`;
+  }
+  return `${due.length} bills due soon: ${due.map(name).join(", ")}`;
+}

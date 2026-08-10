@@ -95,6 +95,8 @@ export default function YourDay({
   nowLabel,
   onSeeAll,
   onPlanDay,
+  onPlanTomorrow,
+  onRunningLate,
   onFocus,
   onOpenEvent,
   onEditRoutine,
@@ -107,6 +109,8 @@ export default function YourDay({
   nowLabel: string;
   onSeeAll: () => void;
   onPlanDay?: () => void;
+  onPlanTomorrow?: () => void;
+  onRunningLate?: (mins: number) => void;
   onFocus?: () => void;
   onOpenEvent?: (id: string) => void;
   onEditRoutine?: () => void;
@@ -124,11 +128,36 @@ export default function YourDay({
 
   // Focus (the one-card mode) pairs with Plan My Day when available: Focus is
   // the one red action on the page, Plan My Day drops to the quiet style.
-  const planButton = onPlanDay || onFocus ? (
-    <div className={"plan-cta-row" + (onPlanDay && onFocus ? " plan-cta-pair" : "")}>
-      {onFocus && <button className="plan-cta plan-cta-block" onClick={onFocus}><FocusIcon />Focus</button>}
-      {onPlanDay && <button className={"plan-cta plan-cta-block" + (onFocus ? " plan-cta-ghost" : "")} onClick={onPlanDay}><CalIcon />Plan My Day</button>}
-    </div>
+  // Running Late on Today (2026-08-09): the plan lives here, so recovering
+  // from a slipped morning cannot require a tab switch. Armed chip row, same
+  // vocabulary as the Schedule tab's. Offered only while something ahead can
+  // still move.
+  const [lateOpen, setLateOpen] = useState(false);
+  const hasFuture = !!onRunningLate && events.some((e) => (!e.data.recurrence || e.data.recurrence === "none") && e.data.start >= now);
+
+  const planButton = onPlanDay || onFocus || onPlanTomorrow || hasFuture ? (
+    <>
+      <div className={"plan-cta-row" + (onPlanDay && onFocus ? " plan-cta-pair" : "")}>
+        {onFocus && <button className="plan-cta plan-cta-block" onClick={onFocus}><FocusIcon />Focus</button>}
+        {onPlanDay && <button className={"plan-cta plan-cta-block" + (onFocus ? " plan-cta-ghost" : "")} onClick={onPlanDay}><CalIcon />Plan My Day</button>}
+      </div>
+      {(onPlanTomorrow || hasFuture) && (
+        <div className="plan-cta-row plan-cta-pair">
+          {/* Evening: plan the day that still has all its hours (2026-08-09). */}
+          {onPlanTomorrow && <button className="plan-cta plan-cta-block plan-cta-ghost" onClick={onPlanTomorrow}><CalIcon />Plan Tomorrow</button>}
+          {hasFuture && <button className={"plan-cta plan-cta-block plan-cta-ghost" + (lateOpen ? " late-armed" : "")} onClick={() => setLateOpen((v) => !v)}>Running Late?</button>}
+        </div>
+      )}
+      {lateOpen && onRunningLate && (
+        <div className="late-chips">
+          <div className="segmented">
+            {[15, 30, 60].map((m) => (
+              <button className="seg" key={m} onClick={() => { setLateOpen(false); onRunningLate(m); }}>+{m === 60 ? "1h" : m + "m"}</button>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
   ) : null;
 
   const header = (
@@ -166,6 +195,9 @@ export default function YourDay({
                 button below it does. Same helper-text pattern removed from the
                 Tasks empty state and the First Step card. */}
             {onPlanDay && <button className="btn btn-primary" onClick={onPlanDay}><CalIcon />Plan My Day</button>}
+            {/* An empty evening is the best moment to plan tomorrow, not a
+                reason to hide the button (2026-08-09). */}
+            {onPlanTomorrow && <button className="btn btn-secondary" onClick={onPlanTomorrow}><CalIcon />Plan Tomorrow</button>}
           </div>
         </div></div>
       </div>

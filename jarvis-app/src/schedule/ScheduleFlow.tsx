@@ -18,6 +18,8 @@ import PlanDaySheet from "./screens/PlanDaySheet";
 import { aiPlanDay } from "./planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "./energy";
+import { isSuggested, rankCandidates } from "./planMeta";
+import { shiftFutureEvents, restoreShift } from "./runningLate";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
@@ -138,12 +140,12 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
       const win = workWindowOf(catsFull, t.data.category, routineData);
       return {
         id: t.id, text: t.data.text, category: t.data.category ?? "", due,
-        suggested: !!due && due <= selected, overdue: !!due && due < realToday,
+        suggested: isSuggested(due, selected, t.data.recurrence), overdue: !!due && due < realToday,
         goal: goalTitleOf(projList, goalList, t.data.projectId),
         ...(win ? { windowS: win.s, windowE: win.e } : {}),
       };
     })
-    .sort((a, b) => (a.suggested !== b.suggested ? (a.suggested ? -1 : 1) : (a.due || "z").localeCompare(b.due || "z")));
+    .sort(rankCandidates);
   const planDow = (() => { const p = selected.split("-"); return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])).getDay(); })();
   const planWindow = planWindowFor(routineData, planDow);
   const planStart = selected === todayISO()
@@ -415,19 +417,13 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // events are skipped (shifting a series from one bad morning is wrong); the
   // toast says what moved and Undo restores every prior time.
   const onRunningLate = async (mins: number) => {
-    const future = dayEvents.filter((e) => (!e.data.recurrence || e.data.recurrence === "none") && e.data.start >= nowHHMM);
-    if (future.length === 0) return;
-    const prior = future.map((e) => ({ id: e.id, start: e.data.start, end: e.data.end ?? null }));
-    for (const e of future) {
-      await svc.editTime(e.id, addMinutes(e.data.start, mins));
-      if (e.data.end) await svc.editEnd(e.id, addMinutes(e.data.end, mins));
-    }
+    const { moved, skipped, prior } = await shiftFutureEvents(svc, dayEvents, nowHHMM, mins);
+    if (moved === 0) return;
     await reload();
-    const skipped = dayEvents.filter((e) => e.data.recurrence && e.data.recurrence !== "none" && e.data.start >= nowHHMM).length;
     showToast({
-      message: `Shifted ${future.length} ${future.length === 1 ? "event" : "events"} by ${mins === 60 ? "an hour" : mins + " minutes"}${skipped ? ` (${skipped} repeating left in place)` : ""}`,
+      message: `Shifted ${moved} ${moved === 1 ? "event" : "events"} by ${mins === 60 ? "an hour" : mins + " minutes"}${skipped ? ` (${skipped} repeating left in place)` : ""}`,
       actionLabel: "Undo",
-      onAction: async () => { for (const p of prior) { await svc.editTime(p.id, p.start); if (p.end) await svc.editEnd(p.id, p.end); } await reload(); },
+      onAction: async () => { await restoreShift(svc, prior); await reload(); },
     });
   };
 

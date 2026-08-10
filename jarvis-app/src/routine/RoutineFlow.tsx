@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRoutine } from "../data/NotesProvider";
-import { DEFAULT_ROUTINE, isOvernight, isWorkOutsideActive, type RoutineData, type ProtectedBlock } from "./types";
+import { DEFAULT_ROUTINE, isOvernight, isWorkOutsideActive, type RoutineData, type ProtectedBlock, type BlockKind } from "./types";
 import { fmtTime } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 
@@ -32,14 +32,27 @@ function daysSummary(days: number[]): string {
   return s.map((d) => DOW_ABBR[d]).join(" ");
 }
 
-interface FormState { id: string | null; label: string; startMin: number; endMin: number; days: number[] }
-interface Preset { label: string; startMin: number; endMin: number; days: number[] }
-// One-tap starting points. Every field stays editable after a preset is picked.
+interface FormState { id: string | null; label: string; startMin: number; endMin: number; days: number[]; kind: BlockKind; soft: boolean; location: string }
+interface Preset { label: string; startMin: number; endMin: number; days: number[]; kind: BlockKind; soft?: boolean }
+// One-tap starting points. Every field stays editable after a preset is
+// picked. Grown 2026-08-09 (Dave: the routine "does not account for times
+// people eat, when they like to work, when they do hobbies"): all three
+// meals and a hobby slot, each carrying its kind so the AI knows what the
+// time IS, not just that it is taken. Meals and hobbies start flexible;
+// gym and family start firm; every one of those is a tap to flip.
 const PRESETS: Preset[] = [
-  { label: "Lunch", startMin: 12 * 60, endMin: 13 * 60, days: [1, 2, 3, 4, 5] },
-  { label: "Gym", startMin: 6 * 60, endMin: 7 * 60, days: [1, 3, 5] },
-  { label: "Family", startMin: 18 * 60, endMin: 19 * 60 + 30, days: [0, 1, 2, 3, 4, 5, 6] },
-  { label: "Deep Work", startMin: 9 * 60, endMin: 11 * 60, days: [1, 2, 3, 4, 5] },
+  { label: "Breakfast", startMin: 7 * 60 + 30, endMin: 8 * 60, days: [0, 1, 2, 3, 4, 5, 6], kind: "meal", soft: true },
+  { label: "Lunch", startMin: 12 * 60, endMin: 13 * 60, days: [1, 2, 3, 4, 5], kind: "meal", soft: true },
+  { label: "Dinner", startMin: 18 * 60, endMin: 19 * 60, days: [0, 1, 2, 3, 4, 5, 6], kind: "meal", soft: true },
+  { label: "Gym", startMin: 6 * 60, endMin: 7 * 60, days: [1, 3, 5], kind: "gym" },
+  { label: "Family", startMin: 18 * 60, endMin: 19 * 60 + 30, days: [0, 1, 2, 3, 4, 5, 6], kind: "family" },
+  { label: "Deep Work", startMin: 9 * 60, endMin: 11 * 60, days: [1, 2, 3, 4, 5], kind: "focus" },
+  { label: "Hobby", startMin: 19 * 60 + 30, endMin: 20 * 60 + 30, days: [2, 4], kind: "hobby", soft: true },
+];
+
+const KINDS: { k: BlockKind; label: string }[] = [
+  { k: "meal", label: "Meal" }, { k: "gym", label: "Gym" }, { k: "hobby", label: "Hobby" },
+  { k: "family", label: "Family" }, { k: "focus", label: "Focus" }, { k: "errand", label: "Errand" }, { k: "other", label: "Other" },
 ];
 
 function pbId(): string {
@@ -76,13 +89,18 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
   const blocks = data.protectedBlocks ?? [];
   const formValid = !!form && form.label.trim() !== "" && form.endMin > form.startMin && form.days.length > 0;
 
-  const openAdd = () => setForm({ id: null, label: "", startMin: 12 * 60, endMin: 13 * 60, days: [1, 2, 3, 4, 5] });
-  const openEdit = (b: ProtectedBlock) => setForm({ id: b.id, label: b.label, startMin: b.startMin, endMin: b.endMin, days: [...b.days] });
-  const applyPreset = (p: Preset) => setForm((f) => ({ id: f?.id ?? null, label: p.label, startMin: p.startMin, endMin: p.endMin, days: [...p.days] }));
+  const openAdd = () => setForm({ id: null, label: "", startMin: 12 * 60, endMin: 13 * 60, days: [1, 2, 3, 4, 5], kind: "other", soft: false, location: "" });
+  const openEdit = (b: ProtectedBlock) => setForm({ id: b.id, label: b.label, startMin: b.startMin, endMin: b.endMin, days: [...b.days], kind: b.kind ?? "other", soft: !!b.soft, location: b.location ?? "" });
+  const applyPreset = (p: Preset) => setForm((f) => ({ id: f?.id ?? null, label: p.label, startMin: p.startMin, endMin: p.endMin, days: [...p.days], kind: p.kind, soft: !!p.soft, location: f?.location ?? "" }));
   const toggleDay = (d: number) => setForm((f) => (f ? { ...f, days: f.days.includes(d) ? f.days.filter((x) => x !== d) : [...f.days, d].sort((a, b) => a - b) } : f));
   const commitForm = () => {
     if (!form || !formValid) return;
-    const block: ProtectedBlock = { id: form.id ?? pbId(), label: form.label.trim(), startMin: form.startMin, endMin: form.endMin, days: [...form.days].sort((a, b) => a - b) };
+    const block: ProtectedBlock = {
+      id: form.id ?? pbId(), label: form.label.trim(), startMin: form.startMin, endMin: form.endMin,
+      days: [...form.days].sort((a, b) => a - b), kind: form.kind,
+      ...(form.soft ? { soft: true } : {}),
+      ...(form.location.trim() ? { location: form.location.trim() } : {}),
+    };
     set({ protectedBlocks: form.id ? blocks.map((b) => (b.id === form.id ? block : b)) : [...blocks, block] });
     setForm(null);
   };
@@ -147,8 +165,8 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
             <div className="card">
               <div className="row" role="button" tabIndex={0} onClick={() => openEdit(b)}>
                 <div className="row-grow">
-                  <div className="conn-name">{b.label}</div>
-                  <div className="conn-meta">{label12(b.startMin)} to {label12(b.endMin)} &middot; {daysSummary(b.days)}</div>
+                  <div className="conn-name">{b.label}{b.soft ? " · Flexible" : ""}</div>
+                  <div className="conn-meta">{label12(b.startMin)} to {label12(b.endMin)} &middot; {daysSummary(b.days)}{b.location ? ` · ${b.location}` : ""}</div>
                 </div>
                 <button className="conn-remove" aria-label={`Remove ${b.label}`} onClick={(e) => { e.stopPropagation(); removeBlock(b.id); }}>&times;</button>
               </div>
@@ -175,6 +193,31 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
               <div className="field"><label className="input-label">To</label><input type="time" className="input" value={toHHMM(form.endMin)} onChange={(e) => setForm({ ...form, endMin: fromHHMM(e.target.value) })} /></div>
             </div>
             {form.endMin <= form.startMin && <div className="input-help">End time needs to be after the start.</div>}
+            <div className="field">
+              <label className="input-label">What is it?</label>
+              <div className="chip-wrap">
+                {KINDS.map(({ k, label: kl }) => (
+                  <div className={"chip" + (form.kind === k ? " active" : "")} role="button" tabIndex={0} key={k} aria-pressed={form.kind === k} onClick={() => setForm({ ...form, kind: k })}>{kl}</div>
+                ))}
+              </div>
+            </div>
+            <div className="field">
+              <label className="input-label">Where (optional)</label>
+              <input className="input" placeholder="Cortland YMCA, home office..." value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+            </div>
+            <div className="row">
+              <div className="row-grow">
+                <div className="conn-name">Flexible</div>
+                <div className="conn-meta">JARVIS keeps this clear when there&rsquo;s room, and may plan over it on a tight day. Off means it&rsquo;s a wall.</div>
+              </div>
+              <button
+                className={"switch" + (form.soft ? "" : " off")}
+                role="switch"
+                aria-checked={form.soft}
+                aria-label="Flexible block"
+                onClick={() => setForm({ ...form, soft: !form.soft })}
+              />
+            </div>
             <div className="field">
               <label className="input-label">Days</label>
               <div className="chip-wrap">

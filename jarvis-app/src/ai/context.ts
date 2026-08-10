@@ -20,6 +20,11 @@ export interface AIContextInput {
   // Session 5, the Brain as the single context layer. All optional; every AI
   // feature gets the same full picture through this one assembler.
   routine?: { workStartMin: number; workEndMin: number };
+  // The full routine as text (2026-08-09): wake/sleep, meals, gym, hobbies,
+  // family time, locations, hard vs flexible. When present it REPLACES the
+  // thin "Works 9 AM to 5 PM" line, because that one sentence was everything
+  // the AI knew about the user's actual day, and it showed in the plans.
+  routineDetail?: string;
   goals?: { name: string; status?: string }[];
   projects?: string[];
   habits?: string; // the app-writable Brain doc (topic "habits")
@@ -84,7 +89,7 @@ export function assembleContext(input: AIContextInput): AIContext {
     voice: input.voice?.trim() ?? "",
     values: input.values?.trim() ?? "",
     philosophy: input.philosophy?.trim() ?? "",
-    routineLine: r ? `Works ${minTo12h(r.workStartMin)} to ${minTo12h(r.workEndMin)}` : "",
+    routineLine: input.routineDetail?.trim() || (r ? `Works ${minTo12h(r.workStartMin)} to ${minTo12h(r.workEndMin)}` : ""),
     goals: (input.goals ?? []).map((g) => (g.status ? `${g.name} (${g.status})` : g.name)),
     projects: input.projects ?? [],
     habits: input.habits?.trim() ?? "",

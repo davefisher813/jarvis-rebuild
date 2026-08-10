@@ -33,7 +33,7 @@ import { laterTaskTitle } from "./deck";
 import { noDashes } from "../ai/suggestions";
 import { useOptionalAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
-import { useOptionalTasks, useOptionalPeople } from "../data/NotesProvider";
+import { useOptionalTasks, useOptionalPeople, useOptionalProfile } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
 
 type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string };
@@ -107,6 +107,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     [gatherContext],
   );
   const authToken = token ?? session?.access_token;
+  // Open tracking is a setting now (2026-08-09), not a constant. Loaded once;
+  // missing provider or profile means the default (on), matching history.
+  const profileSvc = useOptionalProfile();
+  const [trackOpens, setTrackOpens] = useState(true);
+  useEffect(() => {
+    let on = true;
+    profileSvc?.get().then((p) => { if (on) setTrackOpens(p?.trackOpens !== false); }).catch(() => {});
+    return () => { on = false; };
+  }, [profileSvc]);
   const [view, setView] = useState<View>("list");
   const [rows, setRows] = useState<ThreadRow[]>([]);
   const [triage, setTriage] = useState<TriageMap>({});
@@ -317,13 +326,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   };
 
+  // Every account's drafts, not just the first's (2026-08-09).
   const loadDrafts = useCallback(async () => {
-    const api = g.api();
-    if (!api) return;
+    const list = g.apis("mail");
+    if (list.length === 0) return;
     setLoading(true);
     try {
-      const ds = await api.listDrafts(25);
-      setDrafts(ds.map((d) => ({ id: d.id, to: header(d.message, "To"), subject: header(d.message, "Subject"), snippet: d.message.snippet || "" })));
+      const per = await Promise.all(list.map(async ({ api }) => api.listDrafts(25).catch(() => [])));
+      setDrafts(per.flat().map((d) => ({ id: d.id, to: header(d.message, "To"), subject: header(d.message, "Subject"), snippet: d.message.snippet || "" })));
       setDraftsLoaded(true);
     } catch (e) {
       setError((e as Error).message || "Could not load drafts");
@@ -379,15 +389,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const apiFor = (account?: string) => (account ? g.api(account) : null) ?? g.api();
   const accountOfThread = (id: string) => rows.find((r) => r.id === id)?.account;
 
+  // Fans out across EVERY mail account (2026-08-09): it used to quietly
+  // cover only the first, so a hit in the second account came back as "No
+  // matches" with no hint anything was skipped. Same shape as loadThreads.
   const runSearch = async () => {
-    const api = g.api();
+    const list = g.apis("mail");
     const q = search.trim();
-    if (!api || !q) return;
+    if (list.length === 0 || !q) return;
     setSearching(true);
     setError(null);
     try {
-      const metas = await api.searchThreads(q, 20);
-      setResults(metas.map(mapThread).filter((t): t is ThreadRow => t !== null).sort((a, b) => b.dateMs - a.dateMs));
+      const perAccount = await Promise.all(list.map(async ({ email, api }) => {
+        const metas = await api.searchThreads(q, 20).catch(() => []);
+        return metas.map(mapThread).filter((t): t is ThreadRow => t !== null).map((t) => ({ ...t, account: email }));
+      }));
+      setResults(perAccount.flat().sort((a, b) => b.dateMs - a.dateMs));
     } catch (e) {
       setError((e as Error).message || "Search failed");
     } finally {
@@ -453,16 +469,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   };
 
+  // Detail-view archive rides the list row's path (2026-08-09): the same
+  // gesture used to teach two contracts, toast+Undo from the list and dead
+  // silence from the open thread.
   const archiveThread = (id: string) => {
-    const api = apiFor(accountOfThread(id));
-    if (!api) return;
-    // Self-cleaning: throwing a sender away UNREAD, repeatedly, is a decision.
     const row = rows.find((r) => r.id === id);
-    if (row) setToss(tossOffer(recordToss(row.fromEmail, row.unread)));
-    setRows((rs) => rs.filter((r) => r.id !== id));
-    setResults((rs) => (rs ? rs.filter((r) => r.id !== id) : rs));
     setView("list");
-    api.modifyThread(id, [], ["INBOX"]).catch(() => {});
+    if (row) archiveRow(row);
   };
 
   // How many loaded threads share this sender. Only offered when it is more
@@ -520,7 +533,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setToss(tossOffer(recordToss(r.fromEmail, r.unread)));
     setRows((rs) => rs.filter((x) => x.id !== r.id));
     setResults((rs) => (rs ? rs.filter((x) => x.id !== r.id) : rs));
-    apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
+    // A failed write un-hides the row and says so (2026-08-09): pretending it
+    // worked meant the "archived" mail quietly reappeared on the next load.
+    apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {
+      setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
+      say("Couldn't archive that. It's still in your inbox.");
+    });
     say("Archived", { label: "Undo", run: () => {
       setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
       apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []).catch(() => {});
@@ -556,8 +574,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
     if (counts) setToss(tossOffer(counts));
     const what = noise.length === 1 ? "1 conversation archived" : noise.length + " conversations archived";
-    setToast(manual ? what : "Handled for you: " + what.toLowerCase() + " (" + noiseLine(noise) + ")");
-    setTimeout(() => setToast(null), manual ? 2500 : 5000);
+    // Undo (2026-08-09): this was the one archive without it, and it is the
+    // one that takes the most at once, including when the opt-in auto-clear
+    // runs it unattended.
+    say(manual ? what : "Handled for you: " + what.toLowerCase() + " (" + noiseLine(noise) + ")", {
+      label: "Undo",
+      run: () => {
+        setRows((rs) => [...noise, ...rs].sort((a, b) => b.dateMs - a.dateMs));
+        for (const r of noise) apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []).catch(() => {});
+      },
+    }, manual ? 6000 : 8000);
     if (manual && !autoNoise) setAutoOffer(true);
   };
 
@@ -672,10 +698,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // On. The id-to-thread mapping stays on this device; the server knows
       // only an anonymous id and a timestamp.
       const trackId = newTrackId();
-      const raw = encodeEmail({ to: draft.to.trim(), subject: draft.subject, body: draft.body, inReplyTo: draft.inReplyTo, pixelUrl: pixelUrlFor(trackId) });
+      const raw = encodeEmail({ to: draft.to.trim(), subject: draft.subject, body: draft.body, inReplyTo: draft.inReplyTo, ...(trackOpens ? { pixelUrl: pixelUrlFor(trackId) } : {}) });
       const sent = await api.sendMessage(raw, draft.threadId);
-      saveTrack(trackId, { threadId: sent.threadId || draft.threadId || sent.id, sentAt: Date.now() });
-      void registerTrack(trackId, authToken);
+      if (trackOpens) {
+        saveTrack(trackId, { threadId: sent.threadId || draft.threadId || sent.id, sentAt: Date.now() });
+        void registerTrack(trackId, authToken);
+      }
       // The voice metric: a deck draft that needed editing before it could be
       // sent (flag: true). Unedited sends are logged from the deck's Send &
       // Next. Durable EventType since 2026-08-07, same shape both places.

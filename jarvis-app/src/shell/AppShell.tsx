@@ -177,10 +177,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); setActive("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={() => setActive("messages")} />}
         {active === "tasks" && <TasksFlow openId={taskIntent} openFilter={taskFilterIntent} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
-        {active === "brain" && <BrainFlow openKey={brainIntent} personOpenId={personIntent?.id} onOpenNote={navigateToNote} />}
+        {active === "brain" && <BrainFlow openKey={brainIntent} personOpenId={personIntent?.id} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
         
-        {active === "bigger" && <BiggerPictureFlow openId={projectIntent} onOpenNote={navigateToNote} />}
+        {active === "bigger" && <BiggerPictureFlow openId={projectIntent} openGoalId={goalIntent} onOpenNote={navigateToNote} />}
         {active === "messages" && <MessagesFlow ai={ai} />}
         {active === "notifications" && <NotificationsFlow />}
         {active === "money" && <MoneyFlow />}
@@ -201,12 +201,19 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       <ToastHost />
       {showDock && (
         <>
-          <VoiceBar onTap={() => setCaptureOpen(true)} />
+          <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} />
           <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setTaskFilterIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
         </>
       )}
       {captureOpen && <Suspense fallback={null}><QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} /></Suspense>}
-      {searchOpen && <Suspense fallback={null}><SearchFlow onClose={() => setSearchOpen(false)} /></Suspense>}
+      {searchOpen && <Suspense fallback={null}><SearchFlow onClose={() => setSearchOpen(false)} onOpen={(kind, id) => {
+        // A search hit becomes the open thing (2026-08-09). Money and
+        // categories have no per-item deep link yet, so they land on their
+        // surface; everything else opens the exact item via the intents.
+        if (kind === "account") setActive("money");
+        else if (kind === "category") { setBrainIntent(id); setActive("brain"); }
+        else void navigateToEntity(kind, id);
+      }} /></Suspense>}
     </div>
     </GoogleSessionProvider>
   );

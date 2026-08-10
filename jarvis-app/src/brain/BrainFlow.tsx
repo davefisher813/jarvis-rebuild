@@ -17,7 +17,7 @@ const DOC_TOPIC: Record<string, string> = {
 // The Brain tab. The hub is built. Contacts opens the one people list (the
 // Inner Circle / Adversarial rows were cut 2026-08-03); the doc rows open a
 // lightweight placeholder for now. "Your Categories" is populated live.
-export default function BrainFlow({ openKey, personOpenId, onOpenNote }: { openKey?: string; personOpenId?: string; onOpenNote?: (id: string) => void } = {}) {
+export default function BrainFlow({ openKey, personOpenId, onOpenNote, onOpenProject }: { openKey?: string; personOpenId?: string; onOpenNote?: (id: string) => void; onOpenProject?: (id: string) => void } = {}) {
   const cats = useCategories();
   const [categories, setCategories] = useState<BrainCategory[]>([]);
   const [open, setOpen] = useState<{ key: string; name: string } | null>(
@@ -48,7 +48,7 @@ export default function BrainFlow({ openKey, personOpenId, onOpenNote }: { openK
     if (cat) {
       // The page loads its own live record (name/colour/kind survive edits);
       // onChanged keeps this hub's list fresh after a rename or delete.
-      return <CategoryDetail categoryId={cat.id} onBack={() => setOpen(null)} onOpenNote={onOpenNote} onChanged={() => void loadCats()} />;
+      return <CategoryDetail categoryId={cat.id} onBack={() => setOpen(null)} onOpenNote={onOpenNote} onOpenProject={onOpenProject} onChanged={() => void loadCats()} />;
     }
     return (
       <div className="screen">

@@ -71,8 +71,16 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
   const [programs, setPrograms] = useState<Program[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [openDayId, setOpenDayId] = useState<string | null>(null);
-  const [live, setLive] = useState<LiveSession | null>(null);
+  // Seed from storage (2026-08-09): an in-progress session used to be
+  // invisible until startDay silently overwrote it. Same-day sessions resume
+  // right where they were; an older one with real work is SAVED as a partial
+  // workout on mount (a logged set is never lost), and an empty one clears.
+  const [live, setLive] = useState<LiveSession | null>(() => {
+    const s = readLive();
+    return s && s.date === todayISO() ? s : null;
+  });
   const [receipt, setReceipt] = useState<{ receipt: Receipt; dayName: string } | null>(null);
+  const [viewWorkout, setViewWorkout] = useState<Workout | null>(null);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [uploadOpen, setUploadOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -112,8 +120,31 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
   };
 
   // ---- in-gym ----
+  // Recover a stale session left from another day (2026-08-09): real work
+  // gets saved as the partial workout it was; an empty shell just clears.
+  // Without this, the next startDay would have silently destroyed it.
+  useEffect(() => {
+    const s = readLive();
+    if (!s || s.date === todayISO()) return;
+    clearLive();
+    if (hasWork(s.exercises)) {
+      queueFinished({ programId: s.programId, dayId: s.dayId, dayName: s.dayName, date: s.date, startedAt: s.startedAt, endedAt: s.startedAt, exercises: s.exercises });
+      void flushPending((w) => svc.saveWorkout(w)).then(() => reload());
+      showToast({ message: `Saved your unfinished ${s.dayName} workout from ${monthDay(s.date)}.` });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const startDay = (day: ProgramDay) => {
     if (!program) return;
+    // Never overwrite logged work (2026-08-09): if a session with real sets
+    // is already going, starting a day RESUMES it instead of destroying it.
+    const existing = readLive();
+    if (existing && existing.date === todayISO() && hasWork(existing.exercises)) {
+      setLive(existing);
+      showToast({ message: "Resumed the workout you had going. Finish it to start another." });
+      return;
+    }
     const s: LiveSession = {
       programId: program.id, dayId: day.id, dayName: day.name, date: todayISO(),
       startedAt: Date.now(), idx: 0,
@@ -151,6 +182,47 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
   }
   if (historyOpen) {
     return <HistoryScreen workouts={workouts} onBack={() => setHistoryOpen(false)} />;
+  }
+  if (viewWorkout) {
+    const w = viewWorkout;
+    const mins = Math.max(1, Math.round((w.data.endedAt - w.data.startedAt) / 60000));
+    return (
+      <div className="screen">
+        <div className="nav-bar">
+          <button className="nav-back" aria-label="Back" onClick={() => setViewWorkout(null)}></button>
+          <div className="nav-title">{w.data.dayName}</div>
+          <span className="nav-action"></span>
+        </div>
+        <div className="grp"><div className="eyebrow">{monthDay(w.data.date)} · {mins} min</div></div>
+        <div className="pad-x"><div className="card">
+          {w.data.exercises.map((e) => (
+            <div className="row" key={e.exerciseId}>
+              <div className="row-grow">
+                <div className="conn-name">{e.name}</div>
+                <div className="eyebrow">{e.sets.filter((x) => !x.skipped).length === 0 ? "Skipped" : e.sets.filter((x) => !x.skipped).map((x) => [x.w ? `${x.w}${e.unit === "kg" ? "kg" : "lb"}` : "", x.r ? `x${x.r}` : "", x.v ? `${x.v}` : ""].filter(Boolean).join("") || "logged").join(" · ")}</div>
+              </div>
+            </div>
+          ))}
+        </div></div>
+        <div className="pad-x sheet-actions">
+          {/* Delete with Undo (2026-08-09): PRs and history derive from the
+              workout list, so removing a mislogged session heals every number
+              downstream. Same toast contract as every delete in the app. */}
+          <button className="btn btn-danger btn-block" onClick={async () => {
+            const gone = { ...w.data };
+            await svc.removeWorkout(w.id);
+            setViewWorkout(null);
+            await reload();
+            showToast({
+              message: "Workout deleted",
+              actionLabel: "Undo",
+              onAction: async () => { await svc.saveWorkout(gone); await reload(); },
+            });
+          }}>Delete Workout</button>
+        </div>
+        <div className="screen-foot" />
+      </div>
+    );
   }
   if (live) {
     const day = program?.data.days.find((d) => d.id === live.dayId);
@@ -346,13 +418,17 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
                     const total = w.data.exercises.length;
                     const mins = Math.max(1, Math.round((w.data.endedAt - w.data.startedAt) / 60000));
                     return (
-                      <div className="row" key={w.id}>
+                      // Tappable since 2026-08-09: these rows were inert, which
+                      // made a mislogged workout permanent. The detail sheet
+                      // carries the delete.
+                      <div className="row" role="button" tabIndex={0} key={w.id} onClick={() => setViewWorkout(w)}>
                         <div className="row-grow">
                           <div className="conn-name truncate">{w.data.dayName}</div>
                           {/* Partial work is stated as the fact it is: never a
                               percentage, never a shortfall. */}
                           <div className="eyebrow">{monthDay(w.data.date)} · {mins} min · {logged === total ? `${total} ${total === 1 ? "exercise" : "exercises"}` : `${logged} of ${total} exercises`}</div>
                         </div>
+                        {CHEV}
                       </div>
                     );
                   })}

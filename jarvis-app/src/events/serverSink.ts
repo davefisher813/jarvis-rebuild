@@ -28,7 +28,7 @@ export interface EventRow {
   category: string | null;
   n: number | null;
   flag: boolean | null;
-  kind: string | null; // closed vocab, regex-gated: ai | pattern | first_step | link | proj_step | workout
+  kind: string | null; // closed vocab, regex-gated: ai | pattern | first_step | link | proj_step | workout | routine
   src: string; // 'live' | 'import'
 }
 
@@ -51,6 +51,7 @@ const PERSISTED: ReadonlySet<string> = new Set([
   "suggestion.dismissed",
   "plan.duration_corrected",
   "email.deck_sent",
+  "plan.duration_committed",
 ]);
 
 // Storage seam (same pattern as LocalEventLog) so tests run without a browser.

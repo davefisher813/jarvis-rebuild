@@ -6,15 +6,34 @@
 // only the Personal fields below are implemented now.
 export const ENTITY_ROUTINE = "routine";
 
-// A daily range the planner must never schedule over: gym, meals, family,
-// deep work. Days use JS getDay (0=Sun ... 6=Sat) so a block can apply on any
+// What a block IS, so the AI can reason about the life it describes ("dinner"
+// means something "block 3" does not) and the editor can offer honest
+// presets. Closed vocabulary, optional: every existing block has none and
+// keeps working. Routine enrichment, 2026-08-09 (Dave: "it should know your
+// routine life... how can it plan your day when it doesn't know what your
+// day is like").
+export type BlockKind = "meal" | "gym" | "hobby" | "family" | "focus" | "errand" | "other";
+
+// A daily range in the user's routine: gym, meals, family, deep work, hobby
+// time. Days use JS getDay (0=Sun ... 6=Sat) so a block can apply on any
 // subset of the week. Times are minutes from midnight. Phase 2.
+//
+// soft (2026-08-09): the hard/soft split from Dave's block-time brainstorm.
+// A hard block (default, and every pre-existing block) is a wall the planner
+// routes around. A soft block is a preference: the planner avoids it while
+// the day has room and schedules over it, labeled, when the day is tight.
+// location feeds the AI's picture of the day; the deterministic planner
+// ignores it (travel time is not modeled, and pretending otherwise would be
+// a guess wearing math).
 export interface ProtectedBlock {
   id: string;
   label: string;
   startMin: number;
   endMin: number;
   days: number[];
+  kind?: BlockKind;
+  soft?: boolean;
+  location?: string;
 }
 
 export interface RoutineData {
@@ -46,17 +65,18 @@ export const DEFAULT_ROUTINE: RoutineData = {
 };
 
 // A protected range resolved for one day: the busy window the planner blocks
-// out, carrying its label for the preview. Phase 2.
-export interface ProtectedRange { s: number; e: number; label: string }
+// out, carrying its label for the preview. soft rides along so callers can
+// split walls from preferences. Phase 2, extended 2026-08-09.
+export interface ProtectedRange { s: number; e: number; label: string; soft?: boolean }
 
 // The protected ranges that apply on a given day of week, as sorted busy
-// ranges for the planner. Malformed blocks (end at or before start, empty
-// label, no days) are dropped so a bad entry can never wipe out a day.
-// dow: 0=Sun ... 6=Sat (JS getDay).
+// ranges for the planner, hard and soft together. Malformed blocks (end at or
+// before start, empty label, no days) are dropped so a bad entry can never
+// wipe out a day. dow: 0=Sun ... 6=Sat (JS getDay).
 export function protectedRangesFor(r: RoutineData, dow: number): ProtectedRange[] {
   return (r.protectedBlocks ?? [])
     .filter((b) => b.endMin > b.startMin && b.label.trim() !== "" && b.days.includes(dow))
-    .map((b) => ({ s: b.startMin, e: b.endMin, label: b.label.trim() }))
+    .map((b) => ({ s: b.startMin, e: b.endMin, label: b.label.trim(), ...(b.soft ? { soft: true } : {}) }))
     .sort((a, b) => a.s - b.s || a.e - b.e);
 }
 
@@ -105,4 +125,47 @@ export function planEndMin(r: RoutineData): number {
 export function planWindowFor(r: RoutineData, dow: number): { wakeMin: number; endMin: number } {
   const { wakeMin, sleepMin } = activeHoursFor(r, dow);
   return { wakeMin, endMin: Math.max(wakeMin + 60, sleepMin - WIND_DOWN_MIN) };
+}
+
+// ---- Routine as text (2026-08-09) ----
+// The AI used to know exactly one sentence about the user's day: "Works 9 AM
+// to 5 PM." Wake, meals, gym, hobbies, family time, and where any of it
+// happens never reached a single prompt, and Dave's complaint was the direct
+// consequence: "how can it plan your day when it doesn't know what your day
+// is like." This renders the WHOLE routine record compactly for the one
+// assembler. Deterministic, no free text beyond what the user typed into
+// their own routine.
+
+const DAY_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export function daysSummary(days: number[]): string {
+  const s = [...new Set(days)].sort((a, b) => a - b);
+  if (s.length === 7) return "every day";
+  if (s.length === 5 && [1, 2, 3, 4, 5].every((d) => s.includes(d))) return "weekdays";
+  if (s.length === 2 && s.includes(0) && s.includes(6)) return "weekends";
+  return s.map((d) => DAY_ABBR[d]).join(" ");
+}
+
+function min12h(min: number): string {
+  let h = Math.floor(min / 60);
+  const ap = h < 12 ? "AM" : "PM";
+  h = h % 12 || 12;
+  const m = min % 60;
+  return m === 0 ? `${h} ${ap}` : `${h}:${String(m).padStart(2, "0")} ${ap}`;
+}
+
+export function routineToText(r: RoutineData): string {
+  const parts: string[] = [];
+  parts.push(`Awake ${min12h(r.wakeMin)} to ${min12h(r.sleepMin)}; works ${min12h(r.workStartMin)} to ${min12h(r.workEndMin)}`);
+  if (r.weekendDifferent && r.weekendWakeMin != null && r.weekendSleepMin != null) {
+    parts.push(`weekends awake ${min12h(r.weekendWakeMin)} to ${min12h(r.weekendSleepMin)}`);
+  }
+  for (const b of r.protectedBlocks ?? []) {
+    if (b.endMin <= b.startMin || !b.label.trim() || b.days.length === 0) continue;
+    const bits = [`${b.label.trim()} ${daysSummary(b.days)} ${min12h(b.startMin)} to ${min12h(b.endMin)}`];
+    if (b.location?.trim()) bits.push(`at ${b.location.trim()}`);
+    if (b.soft) bits.push("flexible");
+    parts.push(bits.join(", "));
+  }
+  return parts.join(". ") + ".";
 }

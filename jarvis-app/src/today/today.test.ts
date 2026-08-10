@@ -61,3 +61,35 @@ describe("today aggregation", () => {
     expect(isPast(ev("x", "15:00"), "13:00")).toBe(false);
   });
 });
+
+// Bills where the eyes are (2026-08-09).
+import { billsLine } from "./todayData";
+
+const bill = (id: string, text: string, due: string, amount?: number, done = false): TaskItem =>
+  ({ id, data: { text, done, due, bill: { amount: amount ?? 0 } } }) as TaskItem;
+const plain = (id: string, due: string): TaskItem => ({ id, data: { text: id, done: false, due } }) as TaskItem;
+
+describe("billsLine", () => {
+  const T = "2026-08-09"; // a Sunday
+
+  it("says nothing when no bill is due within three days", () => {
+    expect(billsLine([], T)).toBeNull();
+    expect(billsLine([bill("b", "Pay Rent", "2026-08-20", 1850)], T)).toBeNull();
+    expect(billsLine([plain("t", T)], T)).toBeNull(); // plain tasks are not bills
+  });
+
+  it("names one bill with its amount and a human day", () => {
+    expect(billsLine([bill("b", "Pay Rent", "2026-08-10", 1850)], T)).toBe("Rent ($1850) due tomorrow");
+    expect(billsLine([bill("b", "Pay Rent", T, 1850)], T)).toBe("Rent ($1850) due today");
+    expect(billsLine([bill("b", "Pay Electric", "2026-08-12", 120)], T)).toBe("Electric ($120) due Wednesday");
+  });
+
+  it("rolls several into a count, earliest first", () => {
+    const out = billsLine([bill("a", "Pay Electric", "2026-08-11", 120), bill("b", "Pay Rent", "2026-08-10", 1850)], T);
+    expect(out).toBe("2 bills due soon: Rent, Electric");
+  });
+
+  it("ignores a paid bill", () => {
+    expect(billsLine([bill("b", "Pay Rent", T, 1850, true)], T)).toBeNull();
+  });
+});
