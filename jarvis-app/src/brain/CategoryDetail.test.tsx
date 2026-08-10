@@ -107,3 +107,52 @@ describe("CategoryDetail people kind (2026-08-10)", () => {
     expect(onOpenContacts).toHaveBeenCalled();
   });
 });
+
+// Org pages become health boards (2026-08-10, Dave: "improve the orgs page
+// as well to make it more than just a list"). Rows carry the next action
+// with its due date, overdue counts, stalled states, and the org's tagged
+// people show with the same staying-in-touch machinery as Family.
+import { useGoals } from "../data/NotesProvider";
+
+function SeededOrg({ onOpenPerson }: { onOpenPerson?: (id: string) => void }) {
+  const tasks = useTasks();
+  const cats = useCategories();
+  const projects = useProjects();
+  const goals = useGoals();
+  const people = usePeople();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const id = await cats.create("Work", "blue"); // name suggests org
+      const gid = await goals.create({ title: "Grow the league", state: "on_track" });
+      const pid = await projects.create({ title: "Sponsor Push", category: id!, status: "active", goalId: gid! });
+      await tasks.createTask("Email sponsors", { category: id!, projectId: pid!, due: "2020-01-01" }); // long overdue
+      await projects.create({ title: "Empty Project", category: id!, status: "active" });
+      await people.create({ name: "Coach Ray", group: "contacts", relationship: "League director", categoryIds: [id!] });
+      setCid(id!);
+    })();
+  }, [tasks, cats, projects, goals, people]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} onOpenPerson={onOpenPerson} /> : null;
+}
+
+describe("CategoryDetail org health (2026-08-10)", () => {
+  it("project rows carry next action with due, overdue count, and the goal they move", async () => {
+    render(<NotesProvider userId="org1"><SeededOrg /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Sponsor Push")).toBeInTheDocument());
+    expect(screen.getByText(/Next: Email sponsors · due/)).toBeInTheDocument();
+    expect(screen.getByText(/1 overdue · Moves Grow the league/)).toBeInTheDocument();
+  });
+
+  it("a project with no open task says Stalled out loud", async () => {
+    render(<NotesProvider userId="org2"><SeededOrg /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Stalled · no next action")).toBeInTheDocument());
+  });
+
+  it("an org with tagged people gets the People section, tap-through included", async () => {
+    const onOpenPerson = vi.fn();
+    render(<NotesProvider userId="org3"><SeededOrg onOpenPerson={onOpenPerson} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("People")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Coach Ray"));
+    expect(onOpenPerson).toHaveBeenCalled();
+  });
+});

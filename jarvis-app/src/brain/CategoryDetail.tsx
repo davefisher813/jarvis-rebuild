@@ -22,6 +22,7 @@ import { eventLog } from "../events";
 import { readSamples } from "../shared/timeSense";
 import { todayISO } from "../tasks/grouping";
 import { nextActionOf } from "../bigger/related";
+import { goalTitleOf } from "../schedule/planMeta";
 import { dayPhrase } from "../money/bills";
 import { fmtTime } from "../schedule/calendar";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
@@ -318,14 +319,16 @@ export default function CategoryDetail({
         </>
       )}
 
-      {kind === "people" && (
+      {(kind === "people" || (isOrg && catPeople.length > 0)) && (
         <>
           {/* The point of a Family page is the family (2026-08-10, Dave:
               "actual features with real value not a place for tasks"). The
               people tagged to this category, with the two facts a person page
               can act on: a birthday coming, and how long since you talked
-              (derived from Gmail when connected, silent when not). */}
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Your People</div></div></div>
+              (derived from Gmail when connected, silent when not). Orgs get
+              the same section when they have tagged people (clients, a team);
+              on an org it stays hidden while empty instead of nagging. */}
+          <div className="sec-head"><div className="sec-left"><div className="sec-title">{isOrg ? "People" : "Your People"}</div></div></div>
           <div className="pad-x"><div className="card">
             {catPeople.length === 0 && (
               <div className="row">
@@ -398,18 +401,36 @@ export default function CategoryDetail({
 
       {isOrg && (
         <>
+          {/* Project health, not a project list (2026-08-10, Dave: "make it
+              more than just a list"). Every row answers: what moves it next,
+              is it moving (done this week, from real completions), is it
+              slipping (overdue count), and what goal it advances. A project
+              with no open task says "Stalled" out loud instead of hiding it. */}
           <div className="sec-head"><div className="sec-left"><div className="sec-title">Projects</div></div></div>
           <div className="pad-x"><div className="card">
             {projects.map((p) => {
               const next = nextActionOf(allTasks, p.id);
-              // 2026-08-09: this row wore role="button" and a chevron with no
-              // onClick, the exact row that DOES open on the goal page. A
-              // control that looks tappable and is not reads as broken.
+              const projTasks = allTasks.filter((t) => t.data.projectId === p.id);
+              const taskIds = new Set(projTasks.map((t) => t.id));
+              const weekAgoMs = nowMs - 7 * 86400000;
+              const doneWeek = readSamples().filter((s) => s.t >= weekAgoMs && s.id && taskIds.has(s.id)).length;
+              const overdue = projTasks.filter((t) => !t.data.done && !!t.data.due && t.data.due < today).length;
+              const goal = goalTitleOf(projects, goals, p.id);
+              const bits: string[] = [];
+              if (p.data.status === "on_hold") bits.push("On hold");
+              if (doneWeek > 0) bits.push(`${doneWeek} done this week`);
+              if (overdue > 0) bits.push(overdue === 1 ? "1 overdue" : `${overdue} overdue`);
+              if (goal) bits.push(`Moves ${goal}`);
               return (
                 <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onOpenProject?.(p.id)}>
                   <div className="row-grow">
                     <div className="conn-name truncate">{p.data.title}</div>
-                    <div className="bp-sub truncate">{next ? `Next: ${next.data.text}` : "No next action"}</div>
+                    <div className="bp-sub truncate">
+                      {next
+                        ? `Next: ${next.data.text}${next.data.due ? ` · due ${dayPhrase(next.data.due, today)}` : ""}`
+                        : p.data.status === "on_hold" ? "Paused on purpose" : "Stalled · no next action"}
+                    </div>
+                    {bits.length > 0 && <div className="eyebrow truncate">{bits.join(" · ")}</div>}
                   </div>
                   {CHEV}
                 </div>
