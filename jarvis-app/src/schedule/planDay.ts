@@ -49,7 +49,14 @@ function fromMin(total: number): string {
 // over (labeled with the block's name) only when it does not. Both optional
 // so every existing caller keeps its behavior.
 //
+// `focusZones` (2026-08-10, Dave: "work tasks during work"): time the user
+// set aside FOR tasks (a Deep Work block). The opposite of blocked: instead
+// of routing around it, the planner fills it FIRST, before any other open
+// time, then overflows to the normal ladder. Zones are preferences, not
+// walls: events and hard blocks inside a zone still win.
+//
 // Placement ladder per task, first rung that fits wins:
+//   0. inside a focus zone (clipped to its window), clear of soft blocks
 //   1. inside its window, clear of soft blocks   (the ideal slot)
 //   2. inside its window, over a soft block      (window beats preference)
 //   3. anywhere in the day, clear of soft blocks (spill past the window)
@@ -63,6 +70,7 @@ export function planDay(
   bufferMin = 10,
   blocked: { s: number; e: number }[] = [],
   softBlocked: { s: number; e: number; label: string }[] = [],
+  focusZones: { s: number; e: number }[] = [],
 ): DayPlan {
   const busy = events.map((e) => ({
     s: toMin(e.data.start),
@@ -87,13 +95,26 @@ export function planDay(
     return null;
   };
 
+  const zones = focusZones
+    .map((z) => ({ s: Math.max(z.s, startMin), e: Math.min(z.e, endMin) }))
+    .filter((z) => z.e > z.s)
+    .sort((a, b) => a.s - b.s);
+
   for (const t of tasks) {
     const dur = Math.max(5, t.durationMin);
     const windowed = t.windowS != null || t.windowE != null;
     const winFrom = Math.max(startMin, t.windowS ?? startMin);
     const winCap = Math.min(endMin, t.windowE ?? endMin);
 
-    let s = fit(dur, winFrom, winCap, true);
+    // Rung 0: focus time first. Clipped to the task's own window so a
+    // windowed task landing in a zone never silently breaks its window
+    // promise; when the clip empties, the normal ladder takes over.
+    let s: number | null = null;
+    for (const z of zones) {
+      s = fit(dur, Math.max(winFrom, z.s), Math.min(winCap, z.e), true);
+      if (s !== null) break;
+    }
+    if (s === null) s = fit(dur, winFrom, winCap, true);
     let outside = false;
     let overSoft = false;
     if (s === null && soft.length > 0) { s = fit(dur, winFrom, winCap, false); overSoft = s !== null; }

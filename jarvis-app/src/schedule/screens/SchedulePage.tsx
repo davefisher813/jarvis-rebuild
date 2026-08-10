@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 
 import { ChevronLeft, ChevronRight, Plus, Camera } from "lucide-react";
 import type { EventItem } from "../types";
 import { monthMatrix, fmtTime, fmtRange, openSlots, minToHHMM } from "../calendar";
+import { isFocusRange } from "../../routine/types";
 import { catColor } from "../../shared/categories";
 import SkeletonRows from "../../shared/SkeletonRows";
 import DayRow from "./DayRow";
@@ -10,7 +11,7 @@ import type { TaskItem } from "../../tasks/TasksService";
 import type { AttachInfo } from "../attachments";
 
 // A protected block from Your Routine, rendered on the day it applies.
-export interface LockedRange { s: number; e: number; label: string }
+export interface LockedRange { s: number; e: number; label: string; soft?: boolean; kind?: string }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WD = ["S", "M", "T", "W", "T", "F", "S"];
@@ -232,7 +233,7 @@ export default function SchedulePage({
                     <svg className="ic lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
                     {en.l.label}
                   </div>
-                  <div className="sched-cat">Protected &middot; until {fmtTime(minToHHMM(en.l.e)).time} {fmtTime(minToHHMM(en.l.e)).ap}</div>
+                  <div className="sched-cat">{isFocusRange(en.l) ? "Focus time · tasks land here" : "Protected"} &middot; until {fmtTime(minToHHMM(en.l.e)).time} {fmtTime(minToHHMM(en.l.e)).ap}</div>
                 </div>
               </div>
             ) : (

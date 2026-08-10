@@ -10,6 +10,7 @@ import { recordPicks } from "../../events/planOutcome";
 import { learnedDurations, readCommittedDurations } from "../learnedDurations";
 import PlanStrip from "./PlanStrip";
 import { todayISO } from "../../tasks/grouping";
+import { splitProtectedRanges, type BlockKind } from "../../routine/types";
 
 const BUFFER = 10;
 const DEFAULT_DUR = 45;
@@ -22,7 +23,9 @@ const DUR_MAX = 180;
 // soft (2026-08-09): rides in from the routine's hard/soft split. Hard blocks
 // are walls the auto-placer routes around; soft ones are preferences it uses
 // only when the day is tight, and the sheet says so per pick.
-export interface PlanBlocked { s: number; e: number; label: string; soft?: boolean }
+// kind (2026-08-10): focus blocks flip the whole relationship: they are time
+// set aside FOR tasks, so picks land inside them first instead of around them.
+export interface PlanBlocked { s: number; e: number; label: string; soft?: boolean; kind?: BlockKind }
 // goal (6.7): the goal this task moves, shown under the name so picking a
 // task is also picking what it advances. windowS/E: work-hours placement.
 export interface PlanCandidate { id: string; text: string; category: string; suggested: boolean; overdue: boolean; goal?: string | null; windowS?: number; windowE?: number }
@@ -167,14 +170,14 @@ export default function PlanDaySheet({
       }
     }
     const manualBusy = manual.map((b) => ({ s: toMin(b.start), e: toMin(b.end) }));
-    const hard = blocked.filter((b) => !b.soft);
-    const soft = blocked.filter((b) => b.soft).map((b) => ({ s: b.s, e: b.e, label: b.label }));
-    const autoResult = planDay(auto, events, startMin, endMin, BUFFER + sizing.extraSlackMin, [...hard.map((b) => ({ s: b.s, e: b.e })), ...manualBusy], soft);
+    const { hard, soft, focus } = splitProtectedRanges(blocked);
+    const autoResult = planDay(auto, events, startMin, endMin, BUFFER + sizing.extraSlackMin, [...hard.map((b) => ({ s: b.s, e: b.e })), ...manualBusy], soft, focus);
     const blocks = [...manual, ...autoResult.blocks].sort((a, b) => a.start.localeCompare(b.start));
     return { blocks, unplaced: autoResult.unplaced };
   };
 
   const plan = useMemo(() => planFor(picks), [picks, tasks, events, startMin, endMin, blocked, sizing, durations, overrides]);
+  const ranges = useMemo(() => splitProtectedRanges(blocked), [blocked]);
   const blockFor = (id: string) => plan.blocks.find((b) => b.taskId === id);
   const timeFor = (id: string) => blockFor(id)?.start ?? null;
 
@@ -217,14 +220,19 @@ export default function PlanDaySheet({
           {placingTask && (
             <div className="plan-sub">Tap the strip where &ldquo;{placingTask.text}&rdquo; should go.</div>
           )}
-          {blocked.some((b) => !b.soft) && (
+          {ranges.focus.length > 0 && (
             <div className="plan-sub">
-              Protected today: {blocked.filter((b) => !b.soft).map((b) => `${b.label} ${label(fromMin(b.s))}–${label(fromMin(b.e))}`).join(", ")}. Auto-placed picks route around these; set a time by hand if you want to schedule over one.
+              Focus time today: {ranges.focus.map((b) => `${b.label} ${label(fromMin(b.s))}–${label(fromMin(b.e))}`).join(", ")}. Your picks land here first.
             </div>
           )}
-          {blocked.some((b) => b.soft) && (
+          {ranges.hard.length > 0 && (
             <div className="plan-sub">
-              Flexible today: {blocked.filter((b) => b.soft).map((b) => `${b.label} ${label(fromMin(b.s))}–${label(fromMin(b.e))}`).join(", ")}. Kept clear while there&rsquo;s room; used only when the day is tight.
+              Protected today: {ranges.hard.map((b) => `${b.label} ${label(fromMin(b.s))}–${label(fromMin(b.e))}`).join(", ")}. Auto-placed picks route around these; set a time by hand if you want to schedule over one.
+            </div>
+          )}
+          {ranges.soft.length > 0 && (
+            <div className="plan-sub">
+              Flexible today: {ranges.soft.map((b) => `${b.label} ${label(fromMin(b.s))}–${label(fromMin(b.e))}`).join(", ")}. Kept clear while there&rsquo;s room; used only when the day is tight.
             </div>
           )}
           {onAIPlan && picks.length > 0 && (

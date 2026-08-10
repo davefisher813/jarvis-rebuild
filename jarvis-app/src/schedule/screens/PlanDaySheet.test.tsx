@@ -250,3 +250,42 @@ describe("PlanDaySheet Estimate with AI (Brain Personalization Phase 1, 2026-08-
     expect(screen.getByText("45m")).toBeInTheDocument();
   });
 });
+
+// Focus zones at the sheet level (2026-08-10): a Deep Work block is announced
+// as landing space, drawn as an invitation on the strip, and actually pulls
+// the pick into it.
+describe("PlanDaySheet focus zones", () => {
+  const BLOCKED: PlanBlocked[] = [
+    { s: 780, e: 1020, label: "Deep Work", kind: "focus" },
+    { s: 720, e: 780, label: "Lunch", soft: true },
+  ];
+
+  it("announces focus time, pulls the pick into it, and keeps lunch flexible", () => {
+    render(
+      <PlanDaySheet
+        events={[]} tasks={NONE_SUGGESTED} startMin={510} endMin={1410}
+        blocked={BLOCKED} onCommit={() => {}} onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText(/Focus time today: Deep Work 1:00 PM–5:00 PM/)).toBeInTheDocument();
+    expect(screen.getByText(/Flexible today: Lunch/)).toBeInTheDocument();
+    // Deep Work never appears under Protected (there are no hard blocks here).
+    expect(screen.queryByText(/Protected today:/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Return package"));
+    // The morning is wide open, but the pick lands at 1:00 PM, inside the zone.
+    expect(document.querySelector(".p3-time")!.textContent).toBe("1:00 PM");
+  });
+
+  it("draws the zone as an outlined invitation, not a wall", () => {
+    render(
+      <PlanDaySheet
+        events={[]} tasks={NONE_SUGGESTED} startMin={510} endMin={1410}
+        blocked={BLOCKED} onCommit={() => {}} onClose={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByText("Return package"));
+    const bar = document.querySelector(".plan-strip-bar")!;
+    expect(bar.querySelector('[title="Deep Work"]')!.className).toContain("strip-focus");
+    expect(bar.querySelector('[title="Lunch"]')!.className).toContain("strip-soft");
+  });
+});

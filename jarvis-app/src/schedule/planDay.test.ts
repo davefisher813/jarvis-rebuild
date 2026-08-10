@@ -163,3 +163,63 @@ describe("soft routine blocks", () => {
     expect(plan.blocks[0]).toMatchObject({ start: "12:00" });
   });
 });
+
+// Focus zones (2026-08-10, Dave: "what about stuff that is tied together
+// naturally? example, lunch during work or work tasks during work"). A Deep
+// Work block is time FOR tasks: rung 0 fills it before any other open time.
+describe("focus zones pull tasks in", () => {
+  const DW = [{ s: 780, e: 1020 }]; // Deep Work 1-5 PM
+
+  it("a pick lands inside the zone even when the morning is wide open", () => {
+    const plan = planDay([task("a", 45)], [], 510, 1410, 10, [], [], DW);
+    expect(plan.blocks[0]).toMatchObject({ start: "13:00", end: "13:45" });
+  });
+
+  it("picks fill the zone back-to-back, then overflow to normal open time", () => {
+    // Zone holds 240 min; 45+10 buffer each -> four fit (last needs no tail
+    // room), the fifth overflows to the earliest open slot of the day.
+    const five = ["a", "b", "c", "d", "e"].map((id) => task(id, 45));
+    const plan = planDay(five, [], 510, 1410, 10, [], [], DW);
+    expect(plan.unplaced).toHaveLength(0);
+    const starts = plan.blocks.map((b) => b.start);
+    expect(starts).toContain("13:00");
+    expect(starts).toContain("13:55");
+    expect(starts).toContain("14:50");
+    expect(starts).toContain("15:45");
+    expect(starts).toContain("08:30"); // overflow backfills the open morning
+  });
+
+  it("events and hard blocks inside the zone still win", () => {
+    const plan = planDay(
+      [task("a", 45)], [ev("call", "13:00", "14:00")], 510, 1410, 10,
+      [{ s: 840, e: 900 }], [], DW, // hard 2-3 PM
+    );
+    // 1-2 is the call, 2-3 is hard: first clear slot inside the zone is 3:00.
+    expect(plan.blocks[0]).toMatchObject({ start: "15:00", end: "15:45" });
+  });
+
+  it("a windowed task only uses the zone where zone and window overlap", () => {
+    // Work window ends 2 PM; zone runs 1-5. The overlap 1-2 fits the task.
+    const t = { ...task("a", 45), windowS: 540, windowE: 840 };
+    const plan = planDay([t], [], 510, 1410, 10, [], [], DW);
+    expect(plan.blocks[0]).toMatchObject({ start: "13:00" });
+    expect(plan.blocks[0]!.outsideWindow).toBeUndefined();
+  });
+
+  it("zone clipped away entirely: the normal ladder takes over, no labels", () => {
+    // Zone sits after the day ends; task places at the day start as always.
+    const plan = planDay([task("a", 45)], [], 540, 720, 10, [], [], [{ s: 780, e: 1020 }]);
+    expect(plan.blocks[0]).toMatchObject({ start: "09:00" });
+    expect(plan.blocks[0]!.outsideWindow).toBeUndefined();
+  });
+
+  it("zones avoid soft blocks: focus first never tramples a flexible lunch silently", () => {
+    // Soft lunch sits inside the zone 1-2; the pick takes 2:00, clear of it.
+    const plan = planDay(
+      [task("a", 45)], [], 510, 1410, 10, [],
+      [{ s: 780, e: 840, label: "Late Lunch" }], DW,
+    );
+    expect(plan.blocks[0]).toMatchObject({ start: "14:00" });
+    expect(plan.blocks[0]!.overSoft).toBeUndefined();
+  });
+});

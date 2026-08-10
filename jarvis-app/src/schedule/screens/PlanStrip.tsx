@@ -3,6 +3,7 @@ import type { PlanBlock } from "../planDay";
 import type { PlanBlocked } from "./PlanDaySheet";
 import { catColor } from "../../shared/categories";
 import { fmtTime } from "../calendar";
+import { isFocusRange } from "../../routine/types";
 
 // The plan as a picture (2026-08-09). The sheet used to answer "what does my
 // day look like" with a list of times to read; this strip answers it at a
@@ -54,7 +55,9 @@ export default function PlanStrip({ startMin, endMin, events, blocked, blocks, o
         {...(onTapMin ? { role: "button" as const, tabIndex: 0, "aria-label": "Tap where the pick should go" } : {})}
       >
         {blocked.map((b, i) => (
-          <div key={"b" + i} className={"plan-strip-seg strip-protected" + (b.soft ? " strip-soft" : "")} style={seg(b.s, b.e)} title={b.label} />
+          // Focus zones draw as invitations (outline, no fill), not walls:
+          // that time is FOR picks, and picks render on top of it.
+          <div key={"b" + i} className={"plan-strip-seg " + (isFocusRange(b) ? "strip-focus" : "strip-protected" + (b.soft ? " strip-soft" : ""))} style={seg(b.s, b.e)} title={b.label} />
         ))}
         {events.map((e) => {
           const s = toMin(e.data.start);

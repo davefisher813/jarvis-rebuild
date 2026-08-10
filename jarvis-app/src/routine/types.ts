@@ -66,8 +66,9 @@ export const DEFAULT_ROUTINE: RoutineData = {
 
 // A protected range resolved for one day: the busy window the planner blocks
 // out, carrying its label for the preview. soft rides along so callers can
-// split walls from preferences. Phase 2, extended 2026-08-09.
-export interface ProtectedRange { s: number; e: number; label: string; soft?: boolean }
+// split walls from preferences; kind (2026-08-10) so focus blocks can be
+// told apart from time to protect. Phase 2, extended 2026-08-09/10.
+export interface ProtectedRange { s: number; e: number; label: string; soft?: boolean; kind?: BlockKind }
 
 // The protected ranges that apply on a given day of week, as sorted busy
 // ranges for the planner, hard and soft together. Malformed blocks (end at or
@@ -76,8 +77,34 @@ export interface ProtectedRange { s: number; e: number; label: string; soft?: bo
 export function protectedRangesFor(r: RoutineData, dow: number): ProtectedRange[] {
   return (r.protectedBlocks ?? [])
     .filter((b) => b.endMin > b.startMin && b.label.trim() !== "" && b.days.includes(dow))
-    .map((b) => ({ s: b.startMin, e: b.endMin, label: b.label.trim(), ...(b.soft ? { soft: true } : {}) }))
+    .map((b) => ({ s: b.startMin, e: b.endMin, label: b.label.trim(), ...(b.soft ? { soft: true } : {}), ...(b.kind ? { kind: b.kind } : {}) }))
     .sort((a, b) => a.s - b.s || a.e - b.e);
+}
+
+// Focus blocks pull tasks IN (2026-08-10, Dave's call): a block like Deep
+// Work is time set aside FOR tasks, so treating it like lunch (time to
+// protect FROM tasks) sent picks to the evening while a four-hour block
+// built exactly for them sat empty. kind === "focus" is the signal; blocks
+// created before kinds existed fall back to the label, deterministically,
+// so an existing "Deep Work" block starts working without being re-edited.
+export function isFocusRange(x: { label: string; kind?: string }): boolean {
+  return x.kind === "focus" || (x.kind == null && /\b(deep work|focus)\b/i.test(x.label));
+}
+
+// One classification, shared by the plan sheet, the planner tests, and any
+// future caller, so "what counts as focus time" can never drift apart.
+export function splitProtectedRanges(ranges: ProtectedRange[]): {
+  hard: { s: number; e: number; label: string }[];
+  soft: { s: number; e: number; label: string }[];
+  focus: { s: number; e: number; label: string }[];
+} {
+  const focus = ranges.filter(isFocusRange).map((x) => ({ s: x.s, e: x.e, label: x.label }));
+  const rest = ranges.filter((x) => !isFocusRange(x));
+  return {
+    hard: rest.filter((x) => !x.soft).map((x) => ({ s: x.s, e: x.e, label: x.label })),
+    soft: rest.filter((x) => x.soft).map((x) => ({ s: x.s, e: x.e, label: x.label })),
+    focus,
+  };
 }
 
 // The wake/sleep pair that applies on a given date, honoring weekend overrides.

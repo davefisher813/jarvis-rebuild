@@ -8,7 +8,8 @@ import type { Goal } from "../life/types";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import ScheduleUploadFlow from "./screens/ScheduleUploadFlow";
-import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot, openSlots, fmtRange, minToHHMM } from "./calendar";
+import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot, fmtRange } from "./calendar";
+import { planDay } from "./planDay";
 import { anytimeTasksForDay } from "./anytime";
 import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
 import { attachInfo, followUpCandidate, type AttachInfo } from "./attachments";
@@ -16,7 +17,7 @@ import type { EventItem, EventData } from "./types";
 import { showToast } from "../shared/toast";
 import PlanDaySheet from "./screens/PlanDaySheet";
 import { aiPlanDay } from "./planDayAI";
-import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } from "../routine/types";
+import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, splitProtectedRanges, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "./energy";
 import { isSuggested, rankCandidates } from "./planMeta";
 import { shiftFutureEvents, restoreShift } from "./runningLate";
@@ -371,16 +372,17 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const onScheduleTask = async (id: string) => {
     const t = await tasksSvc.task(id);
     if (!t) return;
-    // Land the block in a real gap so tapping never creates an overlap (the
-    // mis-drop failure the roadmap warns against). Prefer a gap at or after now
-    // today; else the first gap that fits; else the next-free fallback.
-    // Same window and protected ranges the day list shows, so a tapped task
-    // can never land on the routine or outside the user's real day.
-    const gaps = openSlots(eventsForDate(allEvents, selected), minToHHMM(planWindow.wakeMin), minToHHMM(planWindow.endMin), 30, blocked);
-    const nowMin = selected === today ? toMin(nowHHMM) : 0;
-    const fits = (g: { start: string; end: string }) => toMin(g.end) - toMin(g.start) >= 60;
-    const gap = gaps.find((g) => fits(g) && toMin(g.start) >= nowMin) ?? gaps.find(fits) ?? null;
-    const start = gap ? gap.start : nextFreeSlot(allEvents, selected, new Date());
+    // Land the block through the SAME ladder Plan My Day uses (2026-08-10),
+    // so one tapped task behaves exactly like a planned pick: focus zones
+    // first, then open time, routing around events and protected blocks,
+    // inside the routine window. planStart already begins at "now" when the
+    // selected day is today, so it never proposes the past.
+    const split = splitProtectedRanges(blocked);
+    const drop = planDay(
+      [{ id, text: t.text, category: t.category ?? "", durationMin: 60 }],
+      eventsForDate(allEvents, selected), planStart, planEnd, 10, split.hard, split.soft, split.focus,
+    );
+    const start = drop.blocks[0]?.start ?? nextFreeSlot(allEvents, selected, new Date());
     const end = addMinutes(start, 60);
     const evId = await svc.createEvent(t.text, { date: selected, start, end, category: t.category || undefined, sourceTaskId: id });
     await reload();

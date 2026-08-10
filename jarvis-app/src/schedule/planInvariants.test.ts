@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { planDay, type PlanTask } from "./planDay";
 import { openSlots } from "./calendar";
-import { planWindowFor, protectedRangesFor, type RoutineData, type ProtectedBlock } from "../routine/types";
+import { planWindowFor, protectedRangesFor, splitProtectedRanges, type RoutineData, type ProtectedBlock } from "../routine/types";
 import type { EventItem } from "./types";
 
 // Planning invariants (2026-08-10), born from "I don't want anymore issues
@@ -80,17 +80,18 @@ describe("invariants 2-4: randomized planner stress (500 days)", () => {
           workStartMin: int(r, 300, 780), workEndMin: int(r, 800, 1380),
           protectedBlocks: Array.from({ length: int(r, 0, 6) }, (_, k): ProtectedBlock => {
             const s = int(r, wake, 1380);
+            const focusBlock = r() < 0.25; // some days have Deep Work zones
             return {
-              id: "b" + k, label: "Block" + k, startMin: s, endMin: Math.min(s + int(r, 15, 240), 24 * 60 - 1),
-              days: [0, 1, 2, 3, 4, 5, 6], ...(r() < 0.5 ? { soft: true } : {}),
+              id: "b" + k, label: focusBlock ? "Zone" + k : "Block" + k,
+              startMin: s, endMin: Math.min(s + int(r, 15, 240), 24 * 60 - 1),
+              days: [0, 1, 2, 3, 4, 5, 6],
+              ...(focusBlock ? { kind: "focus" as const } : r() < 0.5 ? { soft: true } : {}),
             };
           }),
         };
         const dow = int(r, 0, 6);
         const win = planWindowFor(routine, dow);
-        const ranges = protectedRangesFor(routine, dow);
-        const hard = ranges.filter((x) => !x.soft).map((x) => ({ s: x.s, e: x.e }));
-        const soft = ranges.filter((x) => x.soft).map((x) => ({ s: x.s, e: x.e, label: x.label }));
+        const { hard, soft, focus } = splitProtectedRanges(protectedRangesFor(routine, dow));
 
         // Random fixed events.
         const events = Array.from({ length: int(r, 0, 4) }, (_, k) => {
@@ -106,7 +107,7 @@ describe("invariants 2-4: randomized planner stress (500 days)", () => {
           ...(r() < 0.4 ? { windowS: routine.workStartMin, windowE: routine.workEndMin } : {}),
         }));
 
-        const plan = planDay(tasks, events, win.wakeMin, win.endMin, buffer, hard, soft);
+        const plan = planDay(tasks, events, win.wakeMin, win.endMin, buffer, hard, soft, focus);
         const ctx = `wake=${wake} sleep=${sleep} dow=${dow} i=${i}`;
 
         // Invariant 2: legal placements.

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { RoutineService } from "./RoutineService";
-import { DEFAULT_ROUTINE, planEndMin, WIND_DOWN_MIN, ENTITY_ROUTINE, isOvernight, isWorkOutsideActive, wakeFromBrief, activeHoursFor, planWindowFor, protectedRangesFor, type ProtectedBlock } from "./types";
+import { DEFAULT_ROUTINE, planEndMin, WIND_DOWN_MIN, ENTITY_ROUTINE, isOvernight, isWorkOutsideActive, wakeFromBrief, activeHoursFor, planWindowFor, protectedRangesFor, splitProtectedRanges, type ProtectedBlock } from "./types";
 import { planDay } from "../schedule/planDay";
 
 describe("RoutineService", () => {
@@ -200,19 +200,29 @@ describe("planDay respects the routine window", () => {
     const win = planWindowFor(r, 1); // Monday
     expect(win).toEqual({ wakeMin: 510, endMin: 1410 });
 
-    const ranges = protectedRangesFor(r, 1);
-    const hard = ranges.filter((x) => !x.soft);
-    const soft = ranges.filter((x) => x.soft).map((x) => ({ s: x.s, e: x.e, label: x.label }));
+    // The sheet's split: Deep Work classifies as FOCUS (label fallback, since
+    // this block predates kinds), meals stay flexible, gym stays a wall.
+    const { hard, soft, focus } = splitProtectedRanges(protectedRangesFor(r, 1));
+    expect(focus).toEqual([{ s: 780, e: 1020, label: "Deep Work" }]);
     const picks = [
       { ...task("t1", 45), windowS: r.workStartMin, windowE: r.workEndMin },
       { ...task("t2", 45), windowS: r.workStartMin, windowE: r.workEndMin },
       { ...task("t3", 45), windowS: r.workStartMin, windowE: r.workEndMin },
     ];
-    const plan = planDay(picks, [], win.wakeMin, win.endMin, 10, hard, soft);
+    const plan = planDay(picks, [], win.wakeMin, win.endMin, 10, hard, soft, focus);
     expect(plan.unplaced).toEqual([]);
     expect(plan.blocks.length).toBe(3);
-    // None needed to land on a flexible block: the real day has plenty of room.
-    expect(plan.blocks.every((b) => !b.overSoft && !b.outsideWindow)).toBe(true);
+    // All three land INSIDE Deep Work (1 to 5 PM), the time built for them,
+    // instead of being pushed to the evening. No labels: nothing spilled,
+    // nothing trampled.
+    for (const b of plan.blocks) {
+      const s = Number(b.start.slice(0, 2)) * 60 + Number(b.start.slice(3));
+      const e = Number(b.end.slice(0, 2)) * 60 + Number(b.end.slice(3));
+      expect(s).toBeGreaterThanOrEqual(780);
+      expect(e).toBeLessThanOrEqual(1020);
+      expect(b.overSoft).toBeUndefined();
+      expect(b.outsideWindow).toBeUndefined();
+    }
   });
 });
 
@@ -243,6 +253,25 @@ describe("routineToText", () => {
       protectedBlocks: [{ id: "1", label: "  ", startMin: 600, endMin: 500, days: [] }],
     });
     expect(text).toBe("Awake 7 AM to 10 PM; works 9 AM to 5 PM.");
+  });
+});
+
+// Focus classification (2026-08-10): kind is the signal; label is the
+// fallback for blocks created before kinds existed; an explicit non-focus
+// kind always wins over the label.
+import { isFocusRange } from "./types";
+
+describe("isFocusRange", () => {
+  it("kind focus is focus, whatever the label", () => {
+    expect(isFocusRange({ label: "Admin", kind: "focus" })).toBe(true);
+  });
+  it("no kind falls back to the label, so old Deep Work blocks just work", () => {
+    expect(isFocusRange({ label: "Deep Work" })).toBe(true);
+    expect(isFocusRange({ label: "Focus block" })).toBe(true);
+    expect(isFocusRange({ label: "Lunch" })).toBe(false);
+  });
+  it("an explicit non-focus kind beats a focus-looking label", () => {
+    expect(isFocusRange({ label: "Deep Work", kind: "other" })).toBe(false);
   });
 });
 
