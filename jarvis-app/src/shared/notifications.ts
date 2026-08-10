@@ -49,8 +49,13 @@ export function buildCheckinNotifications(routine: RoutineData, briefTime?: stri
     });
   }
 
-  const eveningMin = Math.max(18 * 60, routine.sleepMin - 120);
-  if (eveningMin < routine.sleepMin && eveningMin < 24 * 60) {
+  // Overnight-safe (2026-08-10): a bedtime at or before the wake time (1 AM)
+  // means bed is tomorrow on the clock, so read it as sleepMin + 24h. The old
+  // math turned "bed at 1 AM" into a negative offset and the eveningMin <
+  // sleepMin guard silently dropped the evening check-in for every night owl.
+  const sleepAdj = routine.sleepMin <= routine.wakeMin ? routine.sleepMin + 24 * 60 : routine.sleepMin;
+  const eveningMin = Math.max(18 * 60, sleepAdj - 120);
+  if (eveningMin < sleepAdj && eveningMin < 24 * 60) {
     out.push({
       id: EVENING_ID,
       title: "How did today feel?",

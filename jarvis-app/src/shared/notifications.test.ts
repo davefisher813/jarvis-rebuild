@@ -28,6 +28,19 @@ describe("buildCheckinNotifications", () => {
     expect(n.find((x) => x.id === EVENING_ID)).toBeUndefined();
   });
 
+  // Overnight fix (2026-08-10): bed at 1 AM used to read as "before 6 PM" and
+  // silently dropped the evening check-in for every night owl.
+  it("asks the evening question at 11 PM for a bed-at-1-AM night owl", () => {
+    const n = buildCheckinNotifications(r({ wakeMin: 8 * 60 + 30, sleepMin: 60 }), "09:00");
+    expect(n.find((x) => x.id === EVENING_ID)).toMatchObject({ hour: 23, minute: 0 });
+  });
+
+  it("caps the evening ask before midnight when bed is just past midnight", () => {
+    // Bed 00:30: two hours before is 22:30, still today. Fires.
+    const n = buildCheckinNotifications(r({ wakeMin: 8 * 60, sleepMin: 30 }), "09:00");
+    expect(n.find((x) => x.id === EVENING_ID)).toMatchObject({ hour: 22, minute: 30 });
+  });
+
   it("skips the morning nudge when it would land after noon (matches CheckIn's window)", () => {
     const n = buildCheckinNotifications(r({ wakeMin: 12 * 60 }));
     expect(n.find((x) => x.id === MORNING_ID)).toBeUndefined();

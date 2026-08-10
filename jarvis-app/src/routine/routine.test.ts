@@ -97,8 +97,37 @@ describe("planEndMin (window derivation)", () => {
   });
 
   it("never returns an end before wake + 1h, even with a too-early bedtime", () => {
-    const r = { wakeMin: 7 * 60, sleepMin: 7 * 60, workStartMin: 9 * 60, workEndMin: 17 * 60 };
+    // Bed 30 minutes after waking: absurd but typable. The floor holds.
+    const r = { wakeMin: 7 * 60, sleepMin: 7 * 60 + 30, workStartMin: 9 * 60, workEndMin: 17 * 60 };
     expect(planEndMin(r)).toBe(7 * 60 + 60);
+  });
+
+  // The 2:41 AM screenshot bug (2026-08-10). Bed at 1:00 AM with an 8:30 wake
+  // used to collapse the WHOLE planning day to one hour ("open gaps before
+  // 9:30 AM", every pick "No room"). A bedtime at or before wake is overnight:
+  // the day now runs to 11:30 PM (midnight minus wind-down).
+  it("treats a past-midnight bedtime as overnight, not as before wake", () => {
+    const r = { wakeMin: 8 * 60 + 30, sleepMin: 60, workStartMin: 9 * 60, workEndMin: 22 * 60 };
+    expect(planEndMin(r)).toBe(24 * 60 - WIND_DOWN_MIN); // 23:30 = 1410
+  });
+
+  it("treats sleep equal to wake as overnight too, matching isOvernight", () => {
+    const r = { wakeMin: 7 * 60, sleepMin: 7 * 60, workStartMin: 9 * 60, workEndMin: 17 * 60 };
+    expect(planEndMin(r)).toBe(1410); // 11:30 PM, not wake + 1h
+  });
+
+  it("planWindowFor carries the overnight fix through weekend hours", () => {
+    const r = {
+      wakeMin: 8 * 60 + 30, sleepMin: 60, workStartMin: 9 * 60, workEndMin: 22 * 60,
+      weekendDifferent: true, weekendWakeMin: 10 * 60, weekendSleepMin: 2 * 60,
+    };
+    expect(planWindowFor(r, 3)).toEqual({ wakeMin: 8 * 60 + 30, endMin: 1410 }); // Wed
+    expect(planWindowFor(r, 6)).toEqual({ wakeMin: 10 * 60, endMin: 1410 });     // Sat, bed 2 AM
+  });
+
+  it("midnight exactly still means a late night, capped before the day ends", () => {
+    const r = { wakeMin: 8 * 60, sleepMin: 0, workStartMin: 9 * 60, workEndMin: 17 * 60 };
+    expect(planEndMin(r)).toBe(1410);
   });
 });
 
@@ -149,6 +178,39 @@ describe("planDay respects the routine window", () => {
     const plan = planDay([task("a", 60)], [], DEFAULT_ROUTINE.wakeMin, end, 10);
     expect(plan.blocks.length).toBe(1);
     expect(plan.unplaced.length).toBe(0);
+  });
+
+  // Dave's 2:41 AM screenshot, end to end: wake 8:30, bed 1:00 AM, work 9 to
+  // 10 PM, a hard Gym block, four flexible meals-and-focus blocks, three
+  // 45-minute picks. Before the overnight fix the window was 8:30 to 9:30 and
+  // every pick read "No room" over an empty day. Now everything places.
+  it("plans a full day for an overnight sleeper (the No-room screenshot)", () => {
+    const r = {
+      wakeMin: 8 * 60 + 30, sleepMin: 60, workStartMin: 9 * 60, workEndMin: 22 * 60,
+      protectedBlocks: [
+        { id: "g", label: "Gym", startMin: 600, endMin: 690, days: [0, 1, 2, 3, 4, 5, 6] },
+        { id: "b", label: "Breakfast", startMin: 540, endMin: 570, days: [0, 1, 2, 3, 4, 5, 6], soft: true },
+        { id: "l", label: "Lunch", startMin: 750, endMin: 795, days: [0, 1, 2, 3, 4, 5, 6], soft: true },
+        { id: "d", label: "Deep Work", startMin: 840, endMin: 960, days: [0, 1, 2, 3, 4, 5, 6], soft: true },
+        { id: "n", label: "Dinner", startMin: 1110, endMin: 1170, days: [0, 1, 2, 3, 4, 5, 6], soft: true },
+      ] as ProtectedBlock[],
+    };
+    const win = planWindowFor(r, 1); // Monday
+    expect(win).toEqual({ wakeMin: 510, endMin: 1410 });
+
+    const ranges = protectedRangesFor(r, 1);
+    const hard = ranges.filter((x) => !x.soft);
+    const soft = ranges.filter((x) => x.soft).map((x) => ({ s: x.s, e: x.e, label: x.label }));
+    const picks = [
+      { ...task("t1", 45), windowS: r.workStartMin, windowE: r.workEndMin },
+      { ...task("t2", 45), windowS: r.workStartMin, windowE: r.workEndMin },
+      { ...task("t3", 45), windowS: r.workStartMin, windowE: r.workEndMin },
+    ];
+    const plan = planDay(picks, [], win.wakeMin, win.endMin, 10, hard, soft);
+    expect(plan.unplaced).toEqual([]);
+    expect(plan.blocks.length).toBe(3);
+    // None needed to land on a flexible block: the real day has plenty of room.
+    expect(plan.blocks.every((b) => !b.overSoft && !b.outsideWindow)).toBe(true);
   });
 });
 

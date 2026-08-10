@@ -113,10 +113,25 @@ export function wakeFromBrief(briefTime: string): number {
 // Minutes to stop scheduling before bedtime, so nothing lands right at sleep.
 export const WIND_DOWN_MIN = 30;
 
+// End-of-day for the planner, overnight-safe (2026-08-10). A bedtime past
+// midnight (sleep 1:00 AM = 60 minutes) used to make `sleep - wind-down`
+// tiny, so the wake+60 floor kicked in and the WHOLE PLANNING DAY collapsed
+// to one hour after waking: every pick read "No room" over a completely open
+// day (Dave's 2:41 AM screenshot: "gaps before 9:30 AM" on an 8:30 wake).
+// The editor even detects overnight schedules and promises "JARVIS plans
+// your daytime hours", but this function never honored that promise. Now a
+// bedtime at or before the wake time means the day runs to late night: the
+// planner's day ends at 11:30 PM (midnight minus wind-down), and the 1 AM
+// tail belongs to the single-day model's tomorrow, honestly.
+function endOfDayFor(wakeMin: number, sleepMin: number): number {
+  const sleepAdj = sleepMin <= wakeMin ? 24 * 60 : sleepMin;
+  return Math.max(wakeMin + 60, Math.min(sleepAdj - WIND_DOWN_MIN, 24 * 60 - 1));
+}
+
 // The planner's end-of-day cutoff derived from the routine: a wind-down buffer
 // before bedtime, floored so it can never cross before the wake time.
 export function planEndMin(r: RoutineData): number {
-  return Math.max(r.wakeMin + 60, r.sleepMin - WIND_DOWN_MIN);
+  return endOfDayFor(r.wakeMin, r.sleepMin);
 }
 
 // Day-aware planning window: the wake floor and the wind-down end for a given
@@ -124,7 +139,7 @@ export function planEndMin(r: RoutineData): number {
 // Saturday plan respects weekend hours when enabled.
 export function planWindowFor(r: RoutineData, dow: number): { wakeMin: number; endMin: number } {
   const { wakeMin, sleepMin } = activeHoursFor(r, dow);
-  return { wakeMin, endMin: Math.max(wakeMin + 60, sleepMin - WIND_DOWN_MIN) };
+  return { wakeMin, endMin: endOfDayFor(wakeMin, sleepMin) };
 }
 
 // ---- Routine as text (2026-08-09) ----
