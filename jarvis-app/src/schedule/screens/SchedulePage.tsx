@@ -37,6 +37,7 @@ export default function SchedulePage({
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload,
   locked = [], now, onEditRoutine, onPush15, onPushTomorrow, onRunningLate,
   anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {},
+  windowStartMin, windowEndMin,
 }: {
   year: number; month: number; selected: string; todayDate: string;
   dots: Record<number, string[]>; dayEvents: EventItem[]; conflicts?: Set<string>;
@@ -48,10 +49,19 @@ export default function SchedulePage({
   onRunningLate?: (mins: number) => void;
   anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string) => void;
   attachMap?: Record<string, AttachInfo>;
+  // The routine-derived planning window (minutes). Open rows honor the user's
+  // real day instead of a hardcoded 8 AM to 9 PM (2026-08-10).
+  windowStartMin?: number; windowEndMin?: number;
 }) {
   const cells = monthMatrix(year, month);
   const n = dayEvents.length;
-  const slots = openSlots(dayEvents);
+  const slots = openSlots(
+    dayEvents,
+    minToHHMM(windowStartMin ?? 8 * 60),
+    minToHHMM(windowEndMin ?? 21 * 60),
+    30,
+    locked,
+  );
   const navLabel = mode === "month" ? null : mode === "week" ? weekRange(weekCells) : fullDay(selected);
   const [lateOpen, setLateOpen] = useState(false);
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };

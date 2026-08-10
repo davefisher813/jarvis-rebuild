@@ -195,6 +195,32 @@ describe("Schedule upgrades: time math, recurrence, conflicts, free slots", () =
     expect(slots[0]!.end).toBe("09:00");
   });
 
+  // 2026-08-10: open rows must respect the routine, not just events. Dave's
+  // screenshot showed five "Protected" rows and then "Open 8:00 AM - 9:00 PM"
+  // drawn straight across all of them (0 events that day, so openSlots saw a
+  // completely empty day).
+  it("openSlots treats protected routine ranges as busy, matching the rows on screen", () => {
+    const blocks = [
+      { s: 570, e: 600 },   // Breakfast 9:30-10
+      { s: 600, e: 690 },   // Gym 10-11:30
+      { s: 720, e: 780 },   // Lunch 12-1
+      { s: 780, e: 1020 },  // Deep Work 1-5
+      { s: 1200, e: 1260 }, // Dinner 8-9
+    ];
+    const slots = openSlots([], "08:30", "23:30", 30, blocks);
+    expect(slots).toEqual([
+      { start: "08:30", end: "09:30" },
+      { start: "11:30", end: "12:00" },
+      { start: "17:00", end: "20:00" },
+      { start: "21:00", end: "23:30" },
+    ]);
+  });
+
+  it("openSlots with no extra busy behaves exactly as before", () => {
+    const items = [ev("a", "2026-05-20", "09:00", "10:00")];
+    expect(openSlots(items, "08:00", "18:00", 30)).toEqual(openSlots(items, "08:00", "18:00", 30, []));
+  });
+
   it("occursOn skips exdates so a single occurrence can be removed", () => {
     const daily = { ...ev("d", "2026-05-20", "09:00", undefined, "daily").data, exdates: ["2026-05-22"] };
     expect(occursOn(daily, "2026-05-20")).toBe(true);

@@ -8,7 +8,7 @@ import type { Goal } from "../life/types";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import ScheduleUploadFlow from "./screens/ScheduleUploadFlow";
-import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot, openSlots, fmtRange } from "./calendar";
+import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot, openSlots, fmtRange, minToHHMM } from "./calendar";
 import { anytimeTasksForDay } from "./anytime";
 import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
 import { attachInfo, followUpCandidate, type AttachInfo } from "./attachments";
@@ -374,7 +374,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     // Land the block in a real gap so tapping never creates an overlap (the
     // mis-drop failure the roadmap warns against). Prefer a gap at or after now
     // today; else the first gap that fits; else the next-free fallback.
-    const gaps = openSlots(eventsForDate(allEvents, selected));
+    // Same window and protected ranges the day list shows, so a tapped task
+    // can never land on the routine or outside the user's real day.
+    const gaps = openSlots(eventsForDate(allEvents, selected), minToHHMM(planWindow.wakeMin), minToHHMM(planWindow.endMin), 30, blocked);
     const nowMin = selected === today ? toMin(nowHHMM) : 0;
     const fits = (g: { start: string; end: string }) => toMin(g.end) - toMin(g.start) >= 60;
     const gap = gaps.find((g) => fits(g) && toMin(g.start) >= nowMin) ?? gaps.find(fits) ?? null;
@@ -450,6 +452,8 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onPlanDay={() => setPlanOpen(true)}
         onUpload={ai.available ? () => setUploadOpen(true) : undefined}
         locked={blocked}
+        windowStartMin={planWindow.wakeMin}
+        windowEndMin={planWindow.endMin}
         now={selected === today ? nowHHMM : null}
         onEditRoutine={onEditRoutine}
         onPush15={onPush15}

@@ -187,12 +187,14 @@ describe("planDay respects the routine window", () => {
   it("plans a full day for an overnight sleeper (the No-room screenshot)", () => {
     const r = {
       wakeMin: 8 * 60 + 30, sleepMin: 60, workStartMin: 9 * 60, workEndMin: 22 * 60,
+      // His real blocks, from the schedule screenshot: Breakfast 9:30-10,
+      // Gym 10-11:30, Lunch 12-1, Deep Work 1-5, Dinner 8-9.
       protectedBlocks: [
         { id: "g", label: "Gym", startMin: 600, endMin: 690, days: [0, 1, 2, 3, 4, 5, 6] },
-        { id: "b", label: "Breakfast", startMin: 540, endMin: 570, days: [0, 1, 2, 3, 4, 5, 6], soft: true },
-        { id: "l", label: "Lunch", startMin: 750, endMin: 795, days: [0, 1, 2, 3, 4, 5, 6], soft: true },
-        { id: "d", label: "Deep Work", startMin: 840, endMin: 960, days: [0, 1, 2, 3, 4, 5, 6], soft: true },
-        { id: "n", label: "Dinner", startMin: 1110, endMin: 1170, days: [0, 1, 2, 3, 4, 5, 6], soft: true },
+        { id: "b", label: "Breakfast", startMin: 570, endMin: 600, days: [0, 1, 2, 3, 4, 5, 6], soft: true },
+        { id: "l", label: "Lunch", startMin: 720, endMin: 780, days: [0, 1, 2, 3, 4, 5, 6], soft: true },
+        { id: "d", label: "Deep Work", startMin: 780, endMin: 1020, days: [0, 1, 2, 3, 4, 5, 6], soft: true },
+        { id: "n", label: "Dinner", startMin: 1200, endMin: 1260, days: [0, 1, 2, 3, 4, 5, 6], soft: true },
       ] as ProtectedBlock[],
     };
     const win = planWindowFor(r, 1); // Monday

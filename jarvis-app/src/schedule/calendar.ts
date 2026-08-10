@@ -112,11 +112,21 @@ export function nextFreeSlot(
 export interface FreeSlot { start: string; end: string }
 
 // Open gaps on a single day's event list, within waking hours. Used to let the
-// user tap a free block and create an event starting there.
-export function openSlots(items: EventItem[], dayStart = "08:00", dayEnd = "21:00", minMin = 30): FreeSlot[] {
+// user tap a free block and create an event starting there. extraBusy
+// (2026-08-10) carries the routine's protected ranges: before it, the day
+// list drew "Protected" rows and then an Open row spanning straight across
+// them (Dave's 2:42 AM screenshot: five protected blocks, "Open 8:00 AM -
+// 9:00 PM"), because open time only knew about events. Callers pass the same
+// locked ranges the list renders, so the two can never disagree again.
+export function openSlots(
+  items: EventItem[], dayStart = "08:00", dayEnd = "21:00", minMin = 30,
+  extraBusy: { s: number; e: number }[] = [],
+): FreeSlot[] {
   const lo = toMin(dayStart), hi = toMin(dayEnd);
-  const busy = items
-    .map((e) => ({ s: toMin(e.data.start), e: e.data.end ? toMin(e.data.end) : toMin(e.data.start) + 60 }))
+  const busy = [
+    ...items.map((e) => ({ s: toMin(e.data.start), e: e.data.end ? toMin(e.data.end) : toMin(e.data.start) + 60 })),
+    ...extraBusy.map((b) => ({ s: b.s, e: b.e })),
+  ]
     .filter((b) => b.e > lo && b.s < hi)
     .sort((a, b) => a.s - b.s);
   const out: FreeSlot[] = [];
