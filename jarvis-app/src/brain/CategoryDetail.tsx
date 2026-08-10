@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { useTasks, useSchedule, useNotes, useCategories, useProjects, useGoals, useRoutine } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, useCategories, useProjects, useGoals, useRoutine, usePeople } from "../data/NotesProvider";
+import { useOptionalGoogle } from "../connections/google/GoogleSession";
+import type { Person } from "../people/types";
+import { personInitials, avatarClass } from "../people/types";
+import { upcomingBirthdays } from "../people/birthdays";
+import { lastContactFor, agoLabel, isQuiet, checkinPrompt } from "../people/lastContact";
+import { findWaiting, nudgePrompt, type WaitingRow } from "../messages/waiting";
+import { useAI } from "../ai/useAI";
+import { useOptionalAIContext } from "../ai/useAIContext";
+import { voiceToText } from "../ai/context";
+import { noDashes } from "../ai/suggestions";
 import type { Category } from "../categories/types";
 import type { NoteData, Recurrence } from "../notes/types";
 import type { Project } from "../projects/types";
@@ -8,10 +18,12 @@ import { showToast } from "../shared/toast";
 import type { TaskItem } from "../tasks/TasksService";
 import { effectiveKind } from "../categories/kinds";
 import { weekReceipt, receiptLine, afterHoursLine, type WeekEvent } from "../categories/receipts";
+import { eventLog } from "../events";
 import { readSamples } from "../shared/timeSense";
 import { todayISO } from "../tasks/grouping";
 import { nextActionOf } from "../bigger/related";
 import { dayPhrase } from "../money/bills";
+import { fmtTime } from "../schedule/calendar";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import ProjectSheet from "../projects/ProjectSheet";
 import CategorySheet, { type CategoryDraft } from "../categories/screens/CategorySheet";
@@ -45,12 +57,16 @@ export default function CategoryDetail({
   onBack,
   onOpenNote,
   onOpenProject,
+  onOpenPerson,
+  onOpenContacts,
   onChanged,
 }: {
   categoryId: string;
   onBack: () => void;
   onOpenNote?: (id: string) => void;
   onOpenProject?: (id: string) => void;
+  onOpenPerson?: (id: string) => void;
+  onOpenContacts?: () => void;
   onChanged?: () => void;
 }) {
   const tasksSvc = useTasks();
@@ -60,6 +76,8 @@ export default function CategoryDetail({
   const projectsSvc = useProjects();
   const goalsSvc = useGoals();
   const routine = useRoutine();
+  const peopleSvc = usePeople();
+  const google = useOptionalGoogle();
 
   const [cat, setCat] = useState<Category | null>(null);
   const [allCats, setAllCats] = useState<Category[]>([]);
@@ -69,7 +87,20 @@ export default function CategoryDetail({
   const [goals, setGoals] = useState<Goal[]>([]);
   const [notes, setNotes] = useState<{ id: string; title: string }[]>([]);
   const [events, setEvents] = useState<WeekEvent[]>([]);
+  // Full event rows for the Coming Up section (WeekEvent above is the thin
+  // shape the receipt needs; this keeps titles and times).
+  const [upcoming, setUpcoming] = useState<{ id: string; title: string; date: string; start: string }[]>([]);
+  // The people in this category (person.categoryIds, set from the person's
+  // own card). Written since the person-pass; READ for the first time here.
+  const [catPeople, setCatPeople] = useState<Person[]>([]);
+  // Last mail contact per person id, derived from Gmail when connected.
+  const [contact, setContact] = useState<Record<string, number | null>>({});
+  // Sent-and-unanswered threads keyed by person id (waiting.ts derivation).
+  const [waitingBy, setWaitingBy] = useState<Record<string, WaitingRow>>({});
+  // Person id currently having a nudge drafted (disables the button).
+  const [nudging, setNudging] = useState<string | null>(null);
   const [work, setWork] = useState<{ startMin: number; endMin: number } | null>(null);
+  const [pushedWeek, setPushedWeek] = useState(0);
   const [sheet, setSheet] = useState<SheetState>({ kind: "closed" });
   const gymSvc = useGym();
   const [programs, setPrograms] = useState<Program[]>([]);
@@ -77,7 +108,7 @@ export default function CategoryDetail({
   const today = todayISO();
 
   const reload = useCallback(async () => {
-    const [c, cs, tk, pj, gl, nt, ev, rt] = await Promise.all([
+    const [c, cs, tk, pj, gl, nt, ev, rt, ppl] = await Promise.all([
       catsSvc.get(categoryId),
       catsSvc.list(),
       tasksSvc.listTasks(),
@@ -86,6 +117,7 @@ export default function CategoryDetail({
       notesSvc.listNotes(),
       schedule.listEvents(),
       routine.get(),
+      peopleSvc.list(),
     ]);
     setCat(c);
     setAllCats(cs);
@@ -105,8 +137,21 @@ export default function CategoryDetail({
         : [],
     );
     setEvents(ev.map((e) => ({ date: e.data.date, start: e.data.start, category: e.data.category })));
+    const nowIso = todayISO();
+    setUpcoming(
+      ev.filter((e) => e.data.category === categoryId && e.data.date >= nowIso)
+        .sort((a, b) => (a.data.date + a.data.start).localeCompare(b.data.date + b.data.start))
+        .slice(0, 4)
+        .map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, start: e.data.start })),
+    );
+    setCatPeople(ppl.filter((p) => (p.data.categoryIds ?? []).includes(categoryId)));
+    // Pushed-forward count for the week (2026-08-10): the receipt told half
+    // the story (what got done); this is the honest other half, read from the
+    // same local event log the pushes already write to.
+    const weekAgo = Date.now() - 7 * 86400000;
+    setPushedWeek(eventLog.all().filter((e) => e.type === "task.pushed" && e.ts >= weekAgo && e.props?.category === categoryId).length);
     setWork(rt ? { startMin: rt.workStartMin, endMin: rt.workEndMin } : null);
-  }, [catsSvc, tasksSvc, projectsSvc, goalsSvc, notesSvc, schedule, routine, categoryId]);
+  }, [catsSvc, tasksSvc, projectsSvc, goalsSvc, notesSvc, schedule, routine, peopleSvc, categoryId]);
 
   useEffect(() => { void reload(); }, [reload]);
 
@@ -117,6 +162,74 @@ export default function CategoryDetail({
     return () => { on = false; };
   }, [gymSvc, gymOpen]);
 
+  // Last contact (2026-08-10): one cached Gmail lookup per person with an
+  // email. Silent degrade: no Google session or no email means the subline
+  // simply is not there, never an error and never a spinner.
+  useEffect(() => {
+    const api = google?.api();
+    if (!api || catPeople.length === 0) return;
+    let on = true;
+    (async () => {
+      const now = Date.now();
+      for (const p of catPeople.slice(0, 15)) {
+        const email = p.data.email;
+        if (!email) continue;
+        const ms = await lastContactFor(api, email, now);
+        if (!on) return;
+        setContact((prev) => ({ ...prev, [p.id]: ms }));
+      }
+      // Waiting On, scoped to these people: emails the user sent them that
+      // never got a reply. One derivation call, matched by address.
+      try {
+        const rows = await findWaiting(api, now, 15);
+        if (!on) return;
+        const byId: Record<string, WaitingRow> = {};
+        for (const p of catPeople) {
+          const e = p.data.email?.trim().toLowerCase();
+          if (!e) continue;
+          const row = rows.find((r) => r.toEmail.toLowerCase() === e);
+          if (row) byId[p.id] = row;
+        }
+        setWaitingBy(byId);
+      } catch { /* silent: the section just shows less */ }
+    })();
+    return () => { on = false; };
+  }, [google, catPeople]);
+
+  // One-tap nudge (2026-08-10): drafts a short message in the user's voice
+  // (follow-up when they owe a reply, check-in when things just went quiet)
+  // and opens the mail app with it, via mailto. Nothing sends without the
+  // user hitting send in their own mail app. AI unavailable = a blank
+  // compose, still useful, never an error.
+  const ai = useAI();
+  const gatherCtx = useOptionalAIContext();
+  const nudge = async (p: Person) => {
+    const email = p.data.email;
+    if (!email || nudging) return;
+    setNudging(p.id);
+    try {
+      const wrow = waitingBy[p.id];
+      let body = "";
+      if (ai.available) {
+        const voice = await gatherCtx().then((c) => (c ? voiceToText(c) : "")).catch(() => "");
+        const prompt = wrow
+          ? nudgePrompt(wrow, voice)
+          : checkinPrompt(p.data.name, contact[p.id] != null ? agoLabel(contact[p.id]!, Date.now()) : "a while ago", voice);
+        body = noDashes((await ai.complete([{ role: "user", content: prompt.user }], prompt.system, { tier: "write" })).trim());
+      }
+      const subject = wrow ? "Re: " + wrow.subject : "";
+      const q = [
+        subject ? "subject=" + encodeURIComponent(subject) : "",
+        body ? "body=" + encodeURIComponent(body) : "",
+      ].filter(Boolean).join("&");
+      window.location.href = "mailto:" + email + (q ? "?" + q : "");
+    } catch {
+      window.location.href = "mailto:" + email;
+    } finally {
+      setNudging(null);
+    }
+  };
+
   if (!cat) return <div className="screen" />;
   if (gymOpen) return <GymFlow onBack={() => setGymOpen(false)} />;
   const kind = effectiveKind(cat.data);
@@ -125,6 +238,16 @@ export default function CategoryDetail({
   const receipt = weekReceipt(categoryId, readSamples(), events, today, cat.data.workHours ? work : null);
   const line = receiptLine(receipt);
   const ahLine = cat.data.workHours ? afterHoursLine(receipt) : null;
+  // People-kind page derivations (2026-08-10).
+  const bdayById = new Map(upcomingBirthdays(catPeople, today).map((b) => [b.id, b] as const));
+  const nowMs = Date.now();
+  // Streaks (2026-08-10): recurring tasks in this category that are actually
+  // running. The data (runLen/bestRun) has been maintained since the ADHD
+  // lifecycle work; the page never showed it.
+  const streaks = allTasks
+    .filter((t) => t.data.category === categoryId && t.data.recurrence && (t.data.runLen ?? 0) >= 2)
+    .sort((a, b) => (b.data.runLen ?? 0) - (a.data.runLen ?? 0))
+    .slice(0, 5);
 
   const toggle = async (id: string) => { await tasksSvc.toggleDone(id); await reload(); };
 
@@ -170,8 +293,105 @@ export default function CategoryDetail({
               <div className="row-grow">
                 <div className="conn-name">{line}</div>
                 {ahLine && <div className="eyebrow">{ahLine}</div>}
+                {pushedWeek > 0 && <div className="eyebrow">{pushedWeek === 1 ? "1 task pushed forward" : `${pushedWeek} tasks pushed forward`}</div>}
               </div>
             </div>
+          </div></div>
+        </>
+      )}
+
+      {streaks.length > 0 && (
+        <>
+          {/* What keeps happening here: live streaks on this category's
+              recurring tasks. Scoreboard, not a to-do list. */}
+          <div className="sec-head"><div className="sec-left"><div className="sec-title">Streaks</div></div></div>
+          <div className="pad-x"><div className="card">
+            {streaks.map((t) => (
+              <div className="row" key={t.id}>
+                <div className="row-grow">
+                  <div className="conn-name truncate">{t.data.text}</div>
+                  <div className="eyebrow">{t.data.runLen} in a row{(t.data.bestRun ?? 0) > (t.data.runLen ?? 0) ? ` · best ${t.data.bestRun}` : (t.data.runLen ?? 0) >= 3 ? " · your best" : ""}</div>
+                </div>
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
+
+      {kind === "people" && (
+        <>
+          {/* The point of a Family page is the family (2026-08-10, Dave:
+              "actual features with real value not a place for tasks"). The
+              people tagged to this category, with the two facts a person page
+              can act on: a birthday coming, and how long since you talked
+              (derived from Gmail when connected, silent when not). */}
+          <div className="sec-head"><div className="sec-left"><div className="sec-title">Your People</div></div></div>
+          <div className="pad-x"><div className="card">
+            {catPeople.length === 0 && (
+              <div className="row">
+                <div className="row-grow">
+                  <div className="conn-name">No people here yet</div>
+                  <div className="eyebrow">Open someone in Contacts and tag them {cat.data.name}</div>
+                </div>
+              </div>
+            )}
+            {catPeople.map((p) => {
+              const bday = bdayById.get(p.id);
+              const last = contact[p.id];
+              const wrow = waitingBy[p.id];
+              const quiet = last != null && isQuiet(last, nowMs);
+              const bits: string[] = [];
+              if (p.data.relationship) bits.push(p.data.relationship);
+              if (bday) bits.push(bday.inDays === 0 ? "Birthday today" : bday.inDays === 1 ? "Birthday tomorrow" : `Birthday ${bday.label}`);
+              else if (wrow) bits.push(wrow.waitingDays === 1 ? "Waiting on their reply · 1 day" : `Waiting on their reply · ${wrow.waitingDays} days`);
+              else if (quiet) bits.push(`Gone quiet: last talked ${agoLabel(last, nowMs)}`);
+              else if (last != null) bits.push(`Last talked ${agoLabel(last, nowMs)}`);
+              const nudgeable = !!p.data.email && (quiet || !!wrow);
+              return (
+                <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onOpenPerson?.(p.id)}>
+                  <div className={"av " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div>
+                  <div className="row-grow">
+                    <div className="conn-name truncate">{p.data.name}</div>
+                    {bits.length > 0 && <div className="eyebrow truncate">{bits.join(" · ")}</div>}
+                  </div>
+                  {nudgeable && (
+                    <button className="btn-sm" disabled={nudging === p.id}
+                      onClick={(e) => { e.stopPropagation(); void nudge(p); }}>
+                      {nudging === p.id ? "Drafting…" : "Nudge"}
+                    </button>
+                  )}
+                  {CHEV}
+                </div>
+              );
+            })}
+            {onOpenContacts && (
+              <div className="row ob-addrow" role="button" tabIndex={0} onClick={onOpenContacts}>
+                <div className="sec-ico ico-accent">{PLUS}</div>
+                <div className="row-grow"><div className="conn-name">Open Contacts</div></div>
+              </div>
+            )}
+          </div></div>
+        </>
+      )}
+
+      {upcoming.length > 0 && (
+        <>
+          {/* What is on the calendar for this part of life. Read-only rows on
+              purpose: the schedule tab owns editing. */}
+          <div className="sec-head"><div className="sec-left"><div className="sec-title">Coming Up</div></div></div>
+          <div className="pad-x"><div className="card">
+            {upcoming.map((e) => {
+              const p = dayPhrase(e.date, today);
+              const when = p.charAt(0).toUpperCase() + p.slice(1);
+              return (
+                <div className="row" key={e.id}>
+                  <div className="row-grow">
+                    <div className="conn-name truncate">{e.title}</div>
+                    <div className="eyebrow">{when}{e.start ? ` · ${fmtTime(e.start).time} ${fmtTime(e.start).ap}` : ""}</div>
+                  </div>
+                </div>
+              );
+            })}
           </div></div>
         </>
       )}

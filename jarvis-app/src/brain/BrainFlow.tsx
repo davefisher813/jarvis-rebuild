@@ -30,6 +30,11 @@ export default function BrainFlow({ openKey, personOpenId, onOpenNote, onOpenPro
   }, [cats]);
   useEffect(() => { void loadCats(); }, [loadCats]);
 
+  // A person tapped on a people-kind category page (2026-08-10) opens through
+  // Contacts, the one people surface. Cleared when Contacts closes so a later
+  // manual visit does not jump back to them.
+  const [personId, setPersonId] = useState<string | undefined>(undefined);
+
   // The app had two "Money"s (2026-08-10, Dave: "there should only be one
   // money category with all of its features"): this category, which opened a
   // generic skeleton page with no financial data on it, and the real Money
@@ -55,7 +60,7 @@ export default function BrainFlow({ openKey, personOpenId, onOpenNote, onOpenPro
       return <RoutineFlow onBack={() => setOpen(null)} />;
     }
     if (open.key === "contacts") {
-      return <PeopleFlow openId={personOpenId} onOpenNote={onOpenNote} onBack={() => setOpen(null)} />;
+      return <PeopleFlow openId={personOpenId ?? personId} onOpenNote={onOpenNote} onBack={() => { setPersonId(undefined); setOpen(null); }} />;
     }
     const topic = DOC_TOPIC[open.key];
     if (topic) {
@@ -65,7 +70,17 @@ export default function BrainFlow({ openKey, personOpenId, onOpenNote, onOpenPro
     if (cat) {
       // The page loads its own live record (name/colour/kind survive edits);
       // onChanged keeps this hub's list fresh after a rename or delete.
-      return <CategoryDetail categoryId={cat.id} onBack={() => setOpen(null)} onOpenNote={onOpenNote} onOpenProject={onOpenProject} onChanged={() => void loadCats()} />;
+      return (
+        <CategoryDetail
+          categoryId={cat.id}
+          onBack={() => setOpen(null)}
+          onOpenNote={onOpenNote}
+          onOpenProject={onOpenProject}
+          onOpenPerson={(id) => { setPersonId(id); setOpen({ key: "contacts", name: "Contacts" }); }}
+          onOpenContacts={() => { setPersonId(undefined); setOpen({ key: "contacts", name: "Contacts" }); }}
+          onChanged={() => void loadCats()}
+        />
+      );
     }
     return (
       <div className="screen">

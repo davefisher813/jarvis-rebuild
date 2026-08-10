@@ -26,15 +26,27 @@ export default function PersonDetail({
   onBack,
   linkedNotes = [],
   onOpenNote,
+  categoryNames = [],
 }: {
   person: Person;
   onEdit: () => void;
   onBack: () => void;
   linkedNotes?: { id: string; title: string; category: string }[];
   onOpenNote?: (id: string) => void;
+  // Names of the categories this person belongs to (resolved by the caller,
+  // since this screen has no service access on purpose).
+  categoryNames?: string[];
 }) {
-  const { name, relationship, birthday, notes, color } = person.data;
-  const hasAttrs = relationship || birthday;
+  const { name, relationship, birthday, notes, color, email, phone, register, flagged } = person.data;
+  const hasAttrs = relationship || birthday || flagged || register || categoryNames.length > 0;
+  // How JARVIS writes to them, stated in the card because it drives every
+  // draft. Flagged wins over register, same precedence the drafting stack uses.
+  const writeStyle = flagged
+    ? "With care, always professional"
+    : register === "friend" ? "Like a close friend"
+    : register === "casual" ? "Casual"
+    : register === "professional" ? "Professional"
+    : undefined;
   return (
     <div className="screen">
       <div className="nav-bar">
@@ -45,10 +57,37 @@ export default function PersonDetail({
         <div className={"av av-72 " + avatarClass(color)}>{personInitials(name)}</div>
         <div className="person-name">{name}</div>
       </div>
+      {/* Reach them (2026-08-10): the email and phone this card has stored
+          since the person pass, finally shown, and tappable so the card is a
+          launchpad, not a filing cabinet. */}
+      {(email || phone) && (
+        <div className="pad-x"><div className="card">
+          {phone && (
+            <a className="row person-reach" href={"tel:" + phone.replace(/[^+\d]/g, "")}>
+              <div className="row-grow"><div className="conn-name">Call</div></div>
+              <span className="kv-val">{phone}</span>
+            </a>
+          )}
+          {phone && (
+            <a className="row person-reach" href={"sms:" + phone.replace(/[^+\d]/g, "")}>
+              <div className="row-grow"><div className="conn-name">Text</div></div>
+              <span className="kv-val">{phone}</span>
+            </a>
+          )}
+          {email && (
+            <a className="row person-reach" href={"mailto:" + email}>
+              <div className="row-grow"><div className="conn-name">Email</div></div>
+              <span className="kv-val">{email}</span>
+            </a>
+          )}
+        </div></div>
+      )}
       {hasAttrs && (
         <div className="pad-x"><div className="card">
           <KV label="Relationship" value={relationship} />
           <KV label="Birthday" value={birthday} />
+          <KV label="JARVIS writes" value={writeStyle} />
+          <KV label="Categories" value={categoryNames.length > 0 ? categoryNames.join(", ") : undefined} />
         </div></div>
       )}
       {notes && (

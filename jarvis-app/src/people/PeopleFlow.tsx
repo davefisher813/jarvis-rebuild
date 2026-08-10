@@ -194,7 +194,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
   if (current) {
     return (
       <div className={pushCls} key={"d-" + current.id}>
-        <PersonDetail person={current} onEdit={() => setSheet({ kind: "edit", id: current.id })} onBack={() => setOpenId(null)} linkedNotes={linkedNotes} onOpenNote={onOpenNote} />
+        <PersonDetail person={current} onEdit={() => setSheet({ kind: "edit", id: current.id })} onBack={() => setOpenId(null)} linkedNotes={linkedNotes} onOpenNote={onOpenNote}
+          categoryNames={(current.data.categoryIds ?? []).map((id) => categories.find((c) => c.id === id)?.name).filter((n): n is string => !!n)} />
         {sheetEl}
       </div>
     );

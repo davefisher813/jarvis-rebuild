@@ -34,3 +34,43 @@ describe("birthdaysOn", () => {
     expect(birthdaysOn([person("1", "Mike", "1988-08-03")], "2026-09-01")).toHaveLength(0);
   });
 });
+
+// Upcoming birthdays (2026-08-10): the people-kind category page's window.
+import { upcomingBirthdays } from "./birthdays";
+
+describe("upcomingBirthdays", () => {
+  const person = (id: string, name: string, birthday?: string) =>
+    ({ id, data: { name, group: "contacts" as const, birthday } });
+
+  it("returns birthdays inside the window, sorted soonest first, labeled", () => {
+    const out = upcomingBirthdays([
+      person("a", "Mom", "1958-08-24"),
+      person("b", "Sam", "08-12"),
+      person("c", "Far", "12-25"),
+      person("d", "NoBday"),
+    ], "2026-08-10");
+    expect(out.map((x) => x.id)).toEqual(["b", "a"]);
+    expect(out[0]).toMatchObject({ name: "Sam", inDays: 2, label: "Aug 12" });
+    expect(out[1]).toMatchObject({ name: "Mom", inDays: 14, label: "Aug 24" });
+  });
+
+  it("labels today and tomorrow in words", () => {
+    const out = upcomingBirthdays([
+      person("a", "A", "08-10"),
+      person("b", "B", "08-11"),
+    ], "2026-08-10");
+    expect(out[0]!.label).toBe("Today");
+    expect(out[1]!.label).toBe("Tomorrow");
+  });
+
+  it("wraps the year: late December sees early January", () => {
+    const out = upcomingBirthdays([person("a", "NYE Kid", "01-02")], "2026-12-27");
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ inDays: 6, label: "Jan 2" });
+  });
+
+  it("free-text months work through the same parser as the day-of view", () => {
+    const out = upcomingBirthdays([person("a", "A", "August 24")], "2026-08-10");
+    expect(out[0]).toMatchObject({ label: "Aug 24" });
+  });
+});

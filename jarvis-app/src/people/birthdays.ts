@@ -35,6 +35,38 @@ export function birthdayMonthDay(b: string | undefined): string | null {
   return null;
 }
 
+// Upcoming birthdays (2026-08-10): the people-kind category page shows the
+// next `windowDays` of birthdays among ITS people, so "Family" answers the
+// question a family page should ("anyone's day coming up?") instead of
+// listing tasks. Year wrap handled (a late-December today still sees early
+// January). Feb 29 in a non-leap year lands on Mar 1: a greeting a day late
+// beats one that never fires. Same accuracy stance as birthdaysOn: no ages,
+// the stored year is unreliable.
+export interface UpcomingBirthday { id: string; name: string; inDays: number; label: string }
+
+const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+export function upcomingBirthdays(people: Person[], todayIso: string, windowDays = 30): UpcomingBirthday[] {
+  const todayMs = Date.parse(todayIso + "T00:00:00Z");
+  if (!isFinite(todayMs)) return [];
+  const year = Number(todayIso.slice(0, 4));
+  const out: UpcomingBirthday[] = [];
+  for (const p of people) {
+    const mmdd = birthdayMonthDay(p.data.birthday);
+    if (!mmdd) continue;
+    const mo = Number(mmdd.slice(0, 2));
+    const day = Number(mmdd.slice(3));
+    let t = Date.UTC(year, mo - 1, day);
+    if (t < todayMs) t = Date.UTC(year + 1, mo - 1, day);
+    const inDays = Math.round((t - todayMs) / 86400000);
+    if (inDays > windowDays) continue;
+    const d2 = new Date(t); // re-read so Feb 29 rollover prints its real date
+    const label = inDays === 0 ? "Today" : inDays === 1 ? "Tomorrow" : `${MONTH_ABBR[d2.getUTCMonth()]} ${d2.getUTCDate()}`;
+    out.push({ id: p.id, name: p.data.name, inDays, label });
+  }
+  return out.sort((a, b) => a.inDays - b.inDays || a.name.localeCompare(b.name));
+}
+
 // Match on month-day. The stored year is often a guess or absent (contact
 // imports), so age is never computed and never shown; "turns a year older" is
 // all the copy may claim.
