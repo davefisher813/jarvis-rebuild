@@ -64,14 +64,21 @@ export interface BrainCategory { id: string; name: string; color: string; icon?:
 // projects and season) read as distinct from a plain category, which still
 // gets a complete page, just not a module. This is purely a grouping of the
 // same rows into labeled clusters: nothing here hides, merges, or deletes a
-// category. Money is the one exception (2026-08-10): tapping it never opens
-// a detail page at all, it opens the real Money tab (BrainFlow.tsx), because
-// the app used to have two disconnected "Money"s and a page here was one of
-// them.
-const KIND_GROUP_LABEL: Record<CategoryKind, string> = {
-  org: "Orgs", money: "Money", health: "Health", people: "People", plain: "General",
+// category.
+//
+// Money does not get a row here at all (2026-08-10). It first routed to the
+// real Money tab instead of a dead-end page, but Dave: "it looks the same. i
+// only want one money category": a Brain row that just re-opens a tab
+// already sitting in the bottom nav is still two visible doors to the same
+// room, even once both doors lead somewhere. The category itself is
+// untouched: it still exists, still tags tasks and bills, still shows up in
+// Settings -> Categories to rename or recolor. It just is not ALSO a
+// destination here, because it is not a destination, it is the Money tab.
+type BrainGroupKind = Exclude<CategoryKind, "money">;
+const KIND_GROUP_LABEL: Record<BrainGroupKind, string> = {
+  org: "Orgs", health: "Health", people: "People", plain: "General",
 };
-const KIND_GROUP_ORDER: CategoryKind[] = ["org", "money", "health", "people", "plain"];
+const KIND_GROUP_ORDER: BrainGroupKind[] = ["org", "health", "people", "plain"];
 
 export default function BrainPage({
   onOpen,
@@ -113,7 +120,7 @@ export default function BrainPage({
     <div className="screen">
       <div className="nav-bar"><div className="nav-large">Brain</div></div>
       {TOP_SECTIONS.map((sec) => Section(sec.title, sec.rows))}
-      {categories.length > 0 && (
+      {groups.length > 0 && (
         <div>
           <div className="sec-head"><div className="sec-title">Your Categories</div></div>
           {groups.map((g) => (

@@ -72,15 +72,46 @@ describe("BrainPage category grouping (2026-08-05)", () => {
     const cats: BrainCategory[] = [
       { id: "c1", name: "Work", color: "blue", icon: "briefcase", kind: "org" },
       { id: "c2", name: "Elite Squad", color: "red", icon: "folder", kind: "org" },
-      { id: "c3", name: "Budget", color: "yellow", icon: "wallet", kind: "money" },
       { id: "c4", name: "Personal", color: "sand", icon: "folder", kind: "plain" },
     ];
     render(<BrainPage onOpen={() => {}} categories={cats} />);
     expect(screen.getByText("Orgs")).toBeInTheDocument();
-    expect(screen.getByText("Budget")).toBeInTheDocument();
     expect(screen.getByText("General")).toBeInTheDocument();
     // every row still present, nothing hidden or merged away
     ["Work", "Elite Squad", "Personal"].forEach((n) => expect(screen.getByText(n)).toBeInTheDocument());
+  });
+
+  // One Money (2026-08-10): Dave, "it looks the same. i only want one money
+  // category." A Brain row that just re-opens the Money tab is a second
+  // visible door to the same room. Money-kind categories get no row here at
+  // all now, whatever they're named; the category still exists, it's just
+  // not ALSO a destination in this list. BrainFlow.tsx is what routes a
+  // money category to the real Money tab on the rare path that still reaches
+  // it (a search deep-link); this list never offers it as a tap target.
+  it("drops money-kind categories from the list entirely, regardless of name", () => {
+    const cats: BrainCategory[] = [
+      { id: "c1", name: "Work", color: "blue", icon: "briefcase", kind: "org" },
+      { id: "c3", name: "Budget", color: "yellow", icon: "wallet", kind: "money" },
+      { id: "c4", name: "Personal", color: "sand", icon: "folder", kind: "plain" },
+    ];
+    render(<BrainPage onOpen={() => {}} categories={cats} />);
+    expect(screen.getByText("Work")).toBeInTheDocument();
+    expect(screen.getByText("Personal")).toBeInTheDocument();
+    expect(screen.queryByText("Budget")).not.toBeInTheDocument();
+    expect(screen.queryByText("Money")).not.toBeInTheDocument();
+  });
+
+  it("a lone money-kind category leaves Your Categories empty, not a stray group", () => {
+    const cats: BrainCategory[] = [
+      { id: "c1", name: "Money", color: "yellow", icon: "wallet", kind: "money" },
+    ];
+    render(<BrainPage onOpen={() => {}} categories={cats} />);
+    // A category exists, but it's money-kind and filtered, so the WHOLE
+    // section is gone too: a header over an empty card would be its own
+    // small lie ("here's your stuff" over nothing).
+    expect(screen.queryByText("Your Categories")).not.toBeInTheDocument();
+    expect(screen.queryByText("Money")).not.toBeInTheDocument();
+    expect(screen.queryByText("General")).not.toBeInTheDocument();
   });
 
   it("skips the group label when every category is the same kind, so it never states the obvious", () => {
@@ -96,7 +127,7 @@ describe("BrainPage category grouping (2026-08-05)", () => {
 
   it("a category with no kind set defaults to General, not dropped", () => {
     const cats: BrainCategory[] = [
-      { id: "c1", name: "Money", color: "yellow", icon: "wallet", kind: "money" },
+      { id: "c1", name: "Work", color: "blue", icon: "briefcase", kind: "org" },
       { id: "c2", name: "Whatever", color: "sand", icon: "folder" },
     ];
     render(<BrainPage onOpen={() => {}} categories={cats} />);
@@ -104,7 +135,7 @@ describe("BrainPage category grouping (2026-08-05)", () => {
     expect(screen.getByText("Whatever")).toBeInTheDocument();
   });
 
-  it("orders groups Orgs, Money, Health, People, General regardless of input order", () => {
+  it("orders groups Orgs, Health, People, General regardless of input order (Money never appears)", () => {
     const cats: BrainCategory[] = [
       { id: "c1", name: "Personal", color: "sand", icon: "folder", kind: "plain" },
       { id: "c2", name: "Health", color: "green", icon: "dumbbell", kind: "health" },
@@ -114,6 +145,6 @@ describe("BrainPage category grouping (2026-08-05)", () => {
     ];
     const { container } = render(<BrainPage onOpen={() => {}} categories={cats} />);
     const labels = Array.from(container.querySelectorAll(".cat-group-label")).map((n) => n.textContent);
-    expect(labels).toEqual(["Orgs", "Money", "Health", "People", "General"]);
+    expect(labels).toEqual(["Orgs", "Health", "People", "General"]);
   });
 });
