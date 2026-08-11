@@ -28,3 +28,20 @@ export function effectiveKind(data: CategoryData): CategoryKind {
 export function pausedCategoryIds(categories: Category[]): Set<string> {
   return new Set(categories.filter((c) => c.data.season === "paused").map((c) => c.id));
 }
+
+/**
+ * Work-hours categories go quiet outside the work window (audit 2026-08-10:
+ * placement respected work hours but suggestions kept offering work tasks at
+ * 9 PM). Only suggestion OFFERS are gated; the tasks themselves, receipts,
+ * and deliberate navigation are untouched. No routine or an inverted window
+ * means no gating, matching workWindowOf's own validity rule.
+ */
+export function offHoursCategoryIds(
+  categories: Category[],
+  routine: { workStartMin: number; workEndMin: number } | null,
+  nowMin: number,
+): Set<string> {
+  if (!routine || !(routine.workEndMin > routine.workStartMin)) return new Set();
+  if (nowMin >= routine.workStartMin && nowMin < routine.workEndMin) return new Set();
+  return new Set(categories.filter((c) => c.data.workHours).map((c) => c.id));
+}

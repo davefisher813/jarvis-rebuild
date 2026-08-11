@@ -1,7 +1,7 @@
 import { Store, InMemoryAdapter } from "@core";
 import { describe, it, expect } from "vitest";
 import { ScheduleService } from "../../schedule/ScheduleService";
-import { importCalendar, listMail } from "./sync";
+import { importCalendar } from "./sync";
 import { makeFakeGoogleApi } from "./fakeApi";
 import type { GCalEvent, GmailMeta } from "./map";
 
@@ -100,12 +100,5 @@ describe("google sync", () => {
     const storage = { getItem: () => null, setItem: () => {} };
     expect(await importCalendar(api, schedule, 25, storage, async (ms) => { waits.push(ms); })).toBe(1);
     expect(waits.length).toBe(0);
-  });
-
-  it("lists mail as display rows", async () => {
-    const api = apiWith([], [
-      { id: "m1", snippet: "hey", payload: { headers: [{ name: "Subject", value: "Hi" }, { name: "From", value: "A <a@b.com>" }] } },
-    ]);
-    expect(await listMail(api)).toEqual([{ id: "m1", from: "A", subject: "Hi", snippet: "hey" }]);
   });
 });

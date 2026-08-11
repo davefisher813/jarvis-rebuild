@@ -138,12 +138,11 @@ export class NotesService {
     id: string,
     kind: string,
     label: string,
-    category: string | null = null,
     targetId?: string,
   ): Promise<string | null> {
     const note = await this.getNote(id);
     if (!note) return null;
-    const conn: Connection = { id: genId("c"), kind, label, category };
+    const conn: Connection = { id: genId("c"), kind, label };
     if (targetId) conn.targetId = targetId;
     const connections = [...note.connections, conn];
     await this.store.update(this.ownerId, id, { connections } as unknown as ItemData);

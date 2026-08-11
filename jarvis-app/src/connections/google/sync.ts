@@ -1,6 +1,6 @@
 import type { ScheduleService } from "../../schedule/ScheduleService";
 import type { GoogleApi } from "./api";
-import { mapGoogleEvent, mapGmailMessage, type MailRow } from "./map";
+import { mapGoogleEvent } from "./map";
 
 // Imports upcoming Google events into the engine as real events, skipping any
 // already imported (matched on gcalId), so re-running is safe and idempotent.
@@ -99,10 +99,4 @@ export async function importCalendar(
     try { storage.setItem(IMPORTED_MARK, "1"); } catch { /* marker is best-effort */ }
   }
   return created;
-}
-
-// Fetches recent mail headers and maps them to display rows (read-only preview).
-export async function listMail(api: Pick<GoogleApi, "listRecentMessages">, max = 15): Promise<MailRow[]> {
-  const metas = await api.listRecentMessages(max);
-  return metas.map(mapGmailMessage);
 }

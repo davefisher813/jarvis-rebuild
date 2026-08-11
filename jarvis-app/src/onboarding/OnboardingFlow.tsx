@@ -88,11 +88,12 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const finish = async (complete: boolean) => {
     if (saving) return;
     setSaving(true);
+    // (people and priority are deliberately NOT persisted on the profile:
+    // the names become real person entities and the priority becomes a real
+    // task below. Audit 2026-08-10 removed the write-only duplicates.)
     await profile.save({
       name: name.trim(),
       template,
-      people,
-      priority: priority || undefined,
       briefTime: briefTime || undefined,
       gmail,
       calendar,

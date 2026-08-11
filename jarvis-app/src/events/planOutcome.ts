@@ -95,3 +95,32 @@ export function resolvePendingPlans(
   storage.write(JSON.stringify(pending.filter((p) => !(p.day < todayIso))));
   return resolved;
 }
+
+// ---- Reading it back (2026-08-10) ----
+// The audit found this measurement was computed, logged, synced, and never
+// looked at. This is the reader: the last two weeks of plan.outcome events,
+// summarized for the one place the number can change behavior, the moment
+// the user commits the next plan.
+
+export const PLAN_RECORD_DAYS = 14;
+// Below this many scored picks the number is noise, so nothing renders.
+const PLAN_RECORD_MIN_PICKS = 3;
+
+export interface PlanRecord { picks: number; done: number }
+
+export function planRecord(
+  events: { type: string; ts: number; props?: Record<string, unknown> }[],
+  now: number,
+  windowDays = PLAN_RECORD_DAYS,
+): PlanRecord {
+  const since = now - windowDays * 86400000;
+  const rows = events.filter((e) => e.type === "plan.outcome" && e.ts >= since);
+  return { picks: rows.length, done: rows.filter((e) => e.props?.flag === true).length };
+}
+
+// The locked definition rides in the copy: "done the same day". A pick
+// finished two days later after a push did not survive that plan.
+export function planRecordLine(r: PlanRecord): string | null {
+  if (r.picks < PLAN_RECORD_MIN_PICKS) return null;
+  return `Lately: ${r.done} of ${r.picks} planned picks got done the same day.`;
+}

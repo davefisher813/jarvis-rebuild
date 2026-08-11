@@ -120,7 +120,7 @@ export const STEPS: Step[] = [
   {
     kind: "core", covers: ["R7"], label: "Add a connection",
     async run(s, c) {
-      c.connId = (await s.addConnection(c.id!, "event", "Long Run Sunday", "health")) ?? undefined;
+      c.connId = (await s.addConnection(c.id!, "event", "Long Run Sunday")) ?? undefined;
       const ok = !!c.connId && data(await s.note(c.id!)).connections.length === 1;
       return { ok, msg: ok ? "Connection added." : "Connection not added." };
     },

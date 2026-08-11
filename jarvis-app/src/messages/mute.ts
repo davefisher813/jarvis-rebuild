@@ -32,10 +32,6 @@ export function unmute(threadId: string): string[] {
   return save(loadMuted().filter((id) => id !== threadId));
 }
 
-export function isMuted(threadId: string, muted: string[] = loadMuted()): boolean {
-  return muted.includes(threadId);
-}
-
 export function dropMuted<T extends { id: string }>(rows: T[], muted: string[]): T[] {
   if (muted.length === 0) return rows;
   const set = new Set(muted);

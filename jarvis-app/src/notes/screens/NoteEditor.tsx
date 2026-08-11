@@ -408,7 +408,7 @@ export default function NoteEditor({
                   {a.type === "file" ? <FileText className="ic" /> : <Image className="ic" />}
                 </span>
                 <div className="conn-name truncate">{a.name}</div>
-                <div className="conn-meta">{a.size}</div>
+                {a.size && <div className="conn-meta">{a.size}</div>}
               </div>
             ))}
           </div>

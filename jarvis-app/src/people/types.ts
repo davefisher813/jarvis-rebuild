@@ -30,8 +30,6 @@ export interface PersonData {
   // A person can belong to several categories (Family AND Bridge): multi, not
   // single, or we rebuild the exclusive-bucket mistake one layer down.
   categoryIds?: string[];
-  // Reserved for the Adversarial behaviors step (game plans); schema only.
-  gamePlan?: string;
 }
 
 export interface Person {

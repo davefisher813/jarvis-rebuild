@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTasks, useCategories, useSchedule } from "../data/NotesProvider";
-import { pausedCategoryIds } from "../categories/kinds";
+import { useTasks, useCategories, useSchedule, useRoutine } from "../data/NotesProvider";
+import { pausedCategoryIds, offHoursCategoryIds } from "../categories/kinds";
 import TasksPage from "./screens/TasksPage";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
 import { useProjects } from "../data/NotesProvider";
@@ -41,6 +41,10 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   useEffect(() => { let on = true; projectsSvc.list().then((p) => { if (on) setProjects(p); }); return () => { on = false; }; }, [projectsSvc]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
+  // Work-hours quiet set (audit 2026-08-10): after hours, work-category tasks
+  // get no First Step offers. Same exclusion mechanics as the season pause.
+  const [offHoursCats, setOffHoursCats] = useState<ReadonlySet<string>>(new Set());
+  const routineSvc = useRoutine();
   const [sheet, setSheet] = useState<SheetState>(null);
   const [loading, setLoading] = useState(true);
   // First Step offer state: the AI-drafted step, keyed to the sliding task.
@@ -87,13 +91,16 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
 
   useEffect(() => {
     let on = true;
-    cats.list().then((list) => {
+    void (async () => {
+      const [list, rt] = await Promise.all([cats.list(), routineSvc.get()]);
       if (!on) return;
       setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));
       setPausedCats(pausedCategoryIds(list));
-    });
+      const now = new Date();
+      setOffHoursCats(offHoursCategoryIds(list, rt, now.getHours() * 60 + now.getMinutes()));
+    })();
     return () => { on = false; };
-  }, [cats]);
+  }, [cats, routineSvc]);
 
   // Fall back to "All" if the selected category no longer exists.
   useEffect(() => {
@@ -128,7 +135,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   // it to Today and sets the big task aside, out of the red.
   const fsCandidate = (() => {
     if (!ai.available || fsHidden || loading) return null;
-    const c = firstStepCandidate(allItems, today, pausedCats);
+    const c = firstStepCandidate(allItems, today, new Set([...pausedCats, ...offHoursCats]));
     return c && !isFirstStepDismissed(c.id, today) ? c : null;
   })();
 

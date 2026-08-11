@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { suggestKind, effectiveKind, pausedCategoryIds } from "./kinds";
+import { suggestKind, effectiveKind, pausedCategoryIds, offHoursCategoryIds } from "./kinds";
 import type { Category, CategoryData } from "./types";
 
 // The kind derivation: conservative by design (a wrong module block is worse
@@ -42,5 +42,33 @@ describe("pausedCategoryIds", () => {
     ] as Category[]);
     expect(ids.has("a")).toBe(true);
     expect(ids.has("b")).toBe(false);
+  });
+});
+
+// Work-hours quiet set (audit 2026-08-10): after hours, work-category tasks
+// stop being OFFERED. Same shape as the season pause so callers can union.
+
+describe("offHoursCategoryIds", () => {
+  const CATS = [
+    { id: "w", data: { name: "Work", color: "blue", order: 0, kind: "org", workHours: true } },
+    { id: "h", data: { name: "Home", color: "green", order: 1 } },
+  ] as Category[];
+  const ROUTINE = { workStartMin: 540, workEndMin: 1020 }; // 9-5
+
+  it("after hours, work-hours categories are quiet; others never are", () => {
+    const ids = offHoursCategoryIds(CATS, ROUTINE, 21 * 60);
+    expect(ids.has("w")).toBe(true);
+    expect(ids.has("h")).toBe(false);
+  });
+
+  it("inside work hours nothing is quiet, boundaries included", () => {
+    expect(offHoursCategoryIds(CATS, ROUTINE, 540).size).toBe(0); // 9:00 sharp
+    expect(offHoursCategoryIds(CATS, ROUTINE, 720).size).toBe(0);
+    expect(offHoursCategoryIds(CATS, ROUTINE, 1020).has("w")).toBe(true); // 5:00 sharp is off
+  });
+
+  it("no routine or an inverted window means no gating at all", () => {
+    expect(offHoursCategoryIds(CATS, null, 21 * 60).size).toBe(0);
+    expect(offHoursCategoryIds(CATS, { workStartMin: 600, workEndMin: 600 }, 21 * 60).size).toBe(0);
   });
 });

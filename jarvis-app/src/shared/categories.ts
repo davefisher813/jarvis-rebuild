@@ -1,10 +1,11 @@
 import { COLOR_SLOTS, type ColorSlot } from "../categories/types";
 
 // A lightweight runtime registry of the user's categories, populated by the app
-// shell at startup so presentational screens can resolve a category id to its
-// name and color without prop-drilling a service everywhere. Categories are
-// seeded once at startup; when category editing lands this should move to React
-// context so edits reflect live.
+// shell so presentational screens can resolve a category id to its name and
+// color without prop-drilling a service everywhere. Seeded at startup AND
+// refreshed live by AppShell's category-bus subscription, so renames and
+// recolors reflect immediately (the old "move to context when editing lands"
+// note was stale; audit 2026-08-10).
 interface CatEntry { name: string; color: ColorSlot }
 let REGISTRY: Record<string, CatEntry> = {};
 
@@ -37,6 +38,3 @@ export function catName(ref: string | undefined): string {
   if (hit) return hit.name;
   return ref.charAt(0).toUpperCase() + ref.slice(1);
 }
-
-// Back-compat alias for older imports.
-export const catLabel = catName;

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { loadMuted, mute, unmute, isMuted, dropMuted } from "./mute";
+import { loadMuted, mute, unmute, dropMuted } from "./mute";
 import { parseUnsub, unsubLabel, unsubLine } from "./unsubscribe";
 import { saveRule, clearRule, loadRules } from "./rules";
 import { noDashes } from "../ai/suggestions";
@@ -16,7 +16,7 @@ describe("mute", () => {
   it("hides a thread from every surface without touching the mail", () => {
     const rows = [{ id: "a" }, { id: "b" }, { id: "c" }];
     const m = mute("b");
-    expect(isMuted("b", m)).toBe(true);
+    expect(m.includes("b")).toBe(true);
     expect(dropMuted(rows, m).map((r) => r.id)).toEqual(["a", "c"]);
   });
 

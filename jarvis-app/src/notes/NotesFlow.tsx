@@ -75,13 +75,11 @@ function starterBlock(type: BlockType): Omit<Block, "id"> {
 export default function NotesFlow({
   seed = false,
   onChrome,
-  onExit,
   onNavigate,
   openId,
 }: {
   seed?: boolean;
   onChrome?: (chrome: { tabBar: boolean }) => void;
-  onExit?: () => void;
   onNavigate?: (kind: string, targetId: string) => void;
   openId?: string;
 }) {
@@ -306,7 +304,6 @@ export default function NotesFlow({
         notes={list}
         onOpen={openNote}
         onNewNote={() => setScreen("templates")}
-        onBack={onExit}
       />
       </div>
     );
@@ -352,7 +349,7 @@ export default function NotesFlow({
         people={linkPeople}
         onPick={async (kind, label, targetId) => {
           if (currentId) {
-            await svc.addConnection(currentId, kind, label, null, targetId);
+            await svc.addConnection(currentId, kind, label, targetId);
             await loadCurrent(currentId);
           }
           setScreen("connections");

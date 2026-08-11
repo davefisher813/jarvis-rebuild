@@ -41,15 +41,6 @@ export function todaysTasks(tasks: TaskItem[], today: string): TaskItem[] {
   return [...p.overdue, ...p.today];
 }
 
-// Index where the "Now" line belongs in a time-sorted event list:
-// before the first event that has not started yet. All past -> end.
-export function nowIndex(events: EventItem[], now: string): number {
-  for (let i = 0; i < events.length; i++) {
-    if (events[i]!.data.start >= now) return i;
-  }
-  return events.length;
-}
-
 // An event is "past" once its start time is earlier than the current time.
 export function isPast(ev: EventItem, now: string): boolean {
   return ev.data.start < now;

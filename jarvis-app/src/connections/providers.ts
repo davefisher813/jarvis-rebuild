@@ -24,7 +24,6 @@ export const PROVIDERS: Provider[] = [
 
 export const webProviders = (): Provider[] => PROVIDERS.filter((p) => p.kind === "web");
 export const nativeProviders = (): Provider[] => PROVIDERS.filter((p) => p.kind === "native");
-export const providerOf = (key: string): Provider | undefined => PROVIDERS.find((p) => p.key === key);
 
 // Connection status, reading the generic map and falling back to the legacy
 // onboarding flags so nothing already captured is lost.

@@ -4,10 +4,13 @@ import type { TemplateKey } from "../categories/defaults";
 // (greeting, avatar, which template's categories to seed, setup status).
 export const ENTITY_PROFILE = "profile";
 
+// (Audit 2026-08-10: two write-only fields removed. `people` duplicated names
+// that onboarding materializes as real person entities; `priority` duplicated
+// an answer that becomes a real task. Old records may still carry both in
+// JSONB, harmlessly.)
 export interface ProfileData {
   name: string;
   template: TemplateKey;
-  people: string[];
   briefTime?: string;
   tabs?: string[];
   gmail: boolean;
@@ -25,7 +28,6 @@ export interface ProfileData {
   // the day (never re-asked; the feature must not nag).
   checkin?: Record<string, { one?: string; mood?: string; skip?: string[] }>;
   calendar: boolean;
-  priority?: string;
   onboarded: boolean;
   // Money v1: payday anchoring (Personal template only; Business cash flow is
   // lumpy and Student mostly has no paycheck, so the line simply doesn't
@@ -37,7 +39,6 @@ export interface ProfileData {
 export const EMPTY_PROFILE: ProfileData = {
   name: "",
   template: "personal",
-  people: [],
   gmail: false,
   calendar: false,
   onboarded: false,

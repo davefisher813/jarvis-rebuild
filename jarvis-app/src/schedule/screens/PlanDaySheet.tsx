@@ -5,8 +5,8 @@ import { planDay, type PlanBlock } from "../planDay";
 import { fmtTime } from "../calendar";
 import { catColor } from "../../shared/categories";
 import { FULL_DAY, type DaySizing } from "../daySizing";
-import { emit } from "../../events";
-import { recordPicks } from "../../events/planOutcome";
+import { emit, eventLog } from "../../events";
+import { recordPicks, planRecord, planRecordLine } from "../../events/planOutcome";
 import { learnedDurations, readCommittedDurations } from "../learnedDurations";
 import PlanStrip from "./PlanStrip";
 import { todayISO } from "../../tasks/grouping";
@@ -93,6 +93,10 @@ export default function PlanDaySheet({
   // the flat default. Explicit stepper edits always win. Read once per open:
   // the sheet is short-lived and the history cannot change under it.
   const learned = useMemo(() => learnedDurations(readCommittedDurations(), Date.now()), []);
+  // Plan-vs-done, read back at last (2026-08-10): the score of the last two
+  // weeks of plans, shown at the exact moment the next one is committed.
+  // Silent under 3 scored picks; a number that thin is noise.
+  const record = useMemo(() => planRecordLine(planRecord(eventLog.all(), Date.now())), []);
   const catOf = (id: string) => tasks.find((t) => t.id === id)?.category ?? "";
   const durFor = (id: string) => durations[id] ?? learned[catOf(id)] ?? DEFAULT_DUR;
   const setDur = (id: string, next: number) => setDurations((prev) => ({ ...prev, [id]: Math.max(DUR_MIN, Math.min(DUR_MAX, next)) }));
@@ -214,6 +218,7 @@ export default function PlanDaySheet({
               : `Using default hours until ${label(fromMin(endMin))}.`}
             {!routineConfigured && onEditRoutine && <button type="button" className="note-fix" onClick={onEditRoutine}>Set Your Routine</button>}
           </div>
+          {record && <div className="plan-sub">{record}</div>}
           {(events.length > 0 || blocked.length > 0 || plan.blocks.length > 0) && (
             <PlanStrip startMin={startMin} endMin={endMin} events={events} blocked={blocked} blocks={plan.blocks} onTapMin={placing ? placeAt : undefined} />
           )}

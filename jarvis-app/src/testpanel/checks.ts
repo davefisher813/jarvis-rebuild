@@ -26,7 +26,6 @@ import { createElement, type ReactElement } from "react";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import VoiceBar from "../shell/VoiceBar";
-import MessagesFlow from "../messages/MessagesFlow";
 import Connections from "../notes/screens/Connections";
 import LinkPicker from "../notes/screens/LinkPicker";
 import { mapGoogleEvent, mapGmailMessage } from "../connections/google/map";
@@ -99,11 +98,8 @@ export const CHECKS: Check[] = [
       btn.click();
       eq(tapped, 1, "tap opens capture");
       m.unmount(); } },
-  { group: "UI", name: "Messages shows coming-soon, no demo rows", run: () => {
-      const m = mount(createElement(MessagesFlow));
-      ok(m.text().includes("Coming soon"), "coming-soon shown");
-      eq(m.div.querySelectorAll(".msg-row").length, 0, "no fabricated rows");
-      m.unmount(); } },
+  // (The old "Messages shows coming-soon" check died with the placeholder:
+  // Messages is a real email surface now. Audit 2026-08-10.)
   { group: "UI", name: "Note Connections renders real link + add/remove", run: () => {
       const m = mount(createElement(Connections, { category: "health", categoryLabel: "Health", connections: [{ id: "c1", kind: "event", label: "Kickoff" }] }));
       ok(m.text().includes("Health"), "real category shown");
@@ -115,7 +111,7 @@ export const CHECKS: Check[] = [
   { group: "Note linking", name: "add link (targetId) persists, then remove", run: async () => {
       const svc = new NotesService(store(), "u");
       const noteId = (await svc.createNote("Plan", "c1"))!;
-      const connId = (await svc.addConnection(noteId, "event", "Kickoff", null, "evt_1"))!;
+      const connId = (await svc.addConnection(noteId, "event", "Kickoff", "evt_1"))!;
       let n = (await svc.note(noteId))!;
       eq(n.connections.length, 1, "added"); eq(n.connections[0]!.targetId, "evt_1", "targetId");
       await svc.removeConnection(noteId, connId);

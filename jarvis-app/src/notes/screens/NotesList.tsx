@@ -13,16 +13,16 @@ export interface NoteListItem {
   category: string; // drives the category tile color
 }
 
+// Notes is a tab-level surface: there is deliberately no back button on the
+// list (audit 2026-08-10 removed a dead onBack prop no parent ever passed).
 export default function NotesList({
   notes,
   onOpen,
   onNewNote,
-  onBack,
 }: {
   notes: NoteListItem[];
   onOpen?: (id: string) => void;
   onNewNote?: () => void;
-  onBack?: () => void;
 }) {
   const [q, setQ] = useState("");
   const query = q.trim().toLowerCase();
@@ -30,11 +30,7 @@ export default function NotesList({
   return (
     <div className="screen">
       <div className="nav-bar">
-        {onBack ? (
-          <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        ) : (
-          <span></span>
-        )}
+        <span></span>
         <button className="nav-action" onClick={onNewNote} aria-label="New note">
           <PenLine className="ic" />
         </button>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { greetingFor, longDate, shortDate } from "./greeting";
-import { tomorrowISO, nowHHMM, daySummary, todaysTasks, nowIndex, isPast } from "./todayData";
+import { tomorrowISO, nowHHMM, daySummary, todaysTasks, isPast } from "./todayData";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 
@@ -52,11 +52,7 @@ describe("today aggregation", () => {
     const tasks = [tk("due", today), tk("over", "2026-05-18"), tk("later", "2026-05-25"), tk("done", today, true)];
     expect(todaysTasks(tasks, today).map((t) => t.id)).toEqual(["over", "due"]);
   });
-  it("now line index + past detection", () => {
-    const events = [ev("a", "09:00"), ev("b", "12:00"), ev("c", "15:00")];
-    expect(nowIndex(events, "13:00")).toBe(2);
-    expect(nowIndex(events, "08:00")).toBe(0);
-    expect(nowIndex(events, "23:00")).toBe(3);
+  it("past detection", () => {
     expect(isPast(ev("x", "09:00"), "13:00")).toBe(true);
     expect(isPast(ev("x", "15:00"), "13:00")).toBe(false);
   });

@@ -32,11 +32,13 @@ export interface Block {
   size?: string;
 }
 
+// (Audit 2026-08-10: the always-null `category` field was removed. Every
+// caller passed null and the UI dropped it before render; old records that
+// still carry it in JSONB are ignored harmlessly.)
 export interface Connection {
   id: string;
   kind: string; // "category" | "event" | "task" | ...
   label: string;
-  category: string | null;
   targetId?: string; // id of the linked entity (event/task), when applicable
 }
 

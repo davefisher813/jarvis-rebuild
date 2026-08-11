@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { recordPicks, resolvePendingPlans, type PlanStorage } from "./planOutcome";
+import { recordPicks, resolvePendingPlans, planRecord, planRecordLine, type PlanStorage } from "./planOutcome";
 import type { EventInput } from "./types";
 
 // Plan-vs-done is advertised as the app's most valuable measurement, so its
@@ -78,5 +78,32 @@ describe("plan outcome resolution", () => {
     const { out, emit } = collect();
     expect(resolvePendingPlans("2026-08-03", [], emit, storage)).toBe(0);
     expect(out).toHaveLength(0);
+  });
+});
+
+// Reading the measurement back (2026-08-10): the audit found plan.outcome was
+// emitted and never consumed. planRecord summarizes the recent window for the
+// commit moment in Plan My Day.
+
+describe("planRecord", () => {
+  const NOW = at(2026, 8, 10, 12);
+  const ev = (daysAgo: number, flag: boolean, type = "plan.outcome") => ({
+    type, ts: NOW - daysAgo * 86400000, props: { n: 1, flag },
+  });
+
+  it("counts picks and same-day dones inside the window only", () => {
+    const r = planRecord([ev(1, true), ev(3, false), ev(5, true), ev(20, true)], NOW);
+    expect(r).toEqual({ picks: 3, done: 2 });
+  });
+
+  it("ignores other event types", () => {
+    const r = planRecord([ev(1, true), ev(1, true, "plan.picked"), ev(1, true, "task.completed")], NOW);
+    expect(r.picks).toBe(1);
+  });
+
+  it("line renders the locked definition, silent under 3 picks", () => {
+    expect(planRecordLine({ picks: 5, done: 3 })).toBe("Lately: 3 of 5 planned picks got done the same day.");
+    expect(planRecordLine({ picks: 2, done: 2 })).toBeNull();
+    expect(planRecordLine({ picks: 0, done: 0 })).toBeNull();
   });
 });

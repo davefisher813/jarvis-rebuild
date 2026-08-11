@@ -24,5 +24,5 @@ export const GOAL_META: Record<GoalState, { label: string; cls: string }> = {
   at_risk: { label: "At risk", cls: "attention" },
   achieved: { label: "Achieved", cls: "ok" },
 };
-export const AREA_STATES: AreaState[] = ["strong", "steady", "drifting"];
-export const GOAL_STATES: GoalState[] = ["on_track", "steady", "at_risk", "achieved"];
+// AREA_STATES/GOAL_STATES lists were removed in the 2026-08-10 audit: nothing
+// anywhere iterated them. The union types above are the source of truth.
