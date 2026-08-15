@@ -51,6 +51,10 @@ describe("OnboardingFlow", () => {
     expect(screen.getByText(/When do you usually work/)).toBeInTheDocument();
     fireEvent.click(screen.getByText("9 to 5"));
 
+    // AI choice (item 22): two options, no preselection
+    expect(screen.getByText(/How much should I do on my own/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Everything"));
+
     // connect
     expect(screen.getByText(/Gmail and Google Calendar/)).toBeInTheDocument();
     fireEvent.click(screen.getByText("Continue"));

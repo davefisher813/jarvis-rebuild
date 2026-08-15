@@ -56,6 +56,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const [name, setName] = useState("");
   const [priority, setPriority] = useState("");
   const [workStyle, setWorkStyle] = useState("");
+  const [aiChoice, setAiChoice] = useState(""); // item 22; empty = skipped = Draft Only
   const [textDraft, setTextDraft] = useState("");
   const [template, setTemplate] = useState<TemplateKey>("personal");
   const [seeds, setSeeds] = useState<CategorySeed[]>([]);
@@ -95,6 +96,8 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       name: name.trim(),
       template,
       briefTime: briefTime || undefined,
+      // Item 22: Skip lands on Draft Only, and the level applies instantly.
+      ai: { level: aiChoice === "everything" ? "everything" as const : "draft" as const },
       gmail,
       calendar,
       onboarded: true,
@@ -172,6 +175,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       case "people": return people.length ? people.join(", ") : "Maybe later";
       case "priority": return priority || "Skipped";
       case "workstyle": return s.options?.find((o) => o.value === workStyle)?.label ?? "Skipped";
+      case "aichoice": return s.options?.find((o) => o.value === aiChoice)?.label ?? "Draft Only";
       case "connect": return "Got it";
       case "time": return s.options?.find((o) => o.value === briefTime)?.label ?? "Skip";
       default: return "";
@@ -274,6 +278,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           {step.options!.map((o) => (
             <div key={o.value} className="chip" role="button" tabIndex={0} onClick={() => {
               if (step.key === "workStyle") { setWorkStyle(o.value); setIdx(idx + 1); }
+              else if (step.key === "aiChoice") { setAiChoice(o.value); setIdx(idx + 1); }
               else pickTemplate(o.value as TemplateKey);
             }}>{o.label}</div>
           ))}

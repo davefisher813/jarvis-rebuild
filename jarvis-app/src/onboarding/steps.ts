@@ -8,7 +8,7 @@ export interface OnbStep {
   id: string;
   kind: StepKind;
   prompt?: string;
-  key?: "name" | "template" | "briefTime" | "priority" | "workStyle";
+  key?: "name" | "template" | "briefTime" | "priority" | "workStyle" | "aiChoice";
   placeholder?: string;
   options?: Choice[];
 }
@@ -40,6 +40,20 @@ export const STEPS: OnbStep[] = [
       { label: "Early bird", value: "early" },
       { label: "Night owl", value: "late" },
       { label: "It varies", value: "varies" },
+    ],
+  },
+  {
+    id: "aichoice",
+    kind: "choice",
+    // Item 22, Dave's decision: one screen, two options, NO preselection, no
+    // badges. Off and On Request live in Settings only; Skip lands on Draft
+    // Only. Onboarding is the one conversational surface, so the prompt may
+    // talk. Sending always needs the user's tap, at every level.
+    prompt: "How much should I do on my own? Everything means I act on reversible things and always show a receipt with undo. Draft Only means I prepare and wait for you. Sending anything always needs your tap. You can change this anytime in Settings.",
+    key: "aiChoice",
+    options: [
+      { label: "Everything", value: "everything" },
+      { label: "Draft Only", value: "draft" },
     ],
   },
   { id: "connect", kind: "connect", prompt: "Gmail and Google Calendar work in JARVIS. You can connect them now or later." },

@@ -24,6 +24,9 @@ import { useOptionalSession } from "../auth/AuthProvider";
 import { findWaiting, waitingLine, nudgePrompt, type WaitingRow } from "./waiting";
 import { loadTracks, saveTrack, trackForThread, newTrackId, pixelUrlFor, registerTrack, checkOpens } from "./tracking";
 import { loadNetted, saveNetted, netCandidates, guardLine, seedFirstRun } from "./safetyNet";
+import { madeBy } from "../shared/provenance";
+import { effectiveLevel } from "../ai/aiGate";
+import { getAIControl } from "../ai/levelStore";
 import { cleanBody, isLong, leadIn, wordCount } from "./bodyText";
 import { recordToss, markAsked, tossOffer, tossLine } from "./selfClean";
 import { PRESETS, loadMinutes, saveMinutes, clampMinutes, drainReceipt } from "./drain";
@@ -367,7 +370,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     void (async () => {
       for (const r of due) {
         await tasks
-          .createTask(laterTaskTitle(r.from, r.subject), { due: new Date().toISOString().slice(0, 10) })
+          .createTask(laterTaskTitle(r.from, r.subject), { due: new Date().toISOString().slice(0, 10), source: madeBy("email", r.id) })
           .catch(() => {});
       }
       emit({ type: "action", props: { name: "email.net.caught", n: due.length } });
@@ -597,7 +600,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // what was archived, so nothing is ever silently hidden.
   const autoRan = useRef(false);
   useEffect(() => {
-    if (!triaged || !autoNoise || autoRan.current) return;
+    // Push 15 (auto-file, folded into the Everything AI level): auto-clear
+    // runs at Everything without the manual opt-in; the opt-in still works
+    // at any level. Receipt + undo either way; nothing is silently hidden.
+    const autoOn = autoNoise || effectiveLevel(getAIControl()) === "everything";
+    if (!triaged || !autoOn || autoRan.current) return;
     const { noise } = splitByBucket(rows, applyRules(triage, rows, rules));
     if (noise.length === 0) return;
     autoRan.current = true;
@@ -729,7 +736,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             const c = parseCommitment(raw, today);
             if (!c) return;
             markPromised(threadForPromise);
-            await tasks.createTask(c.text, { due: c.due ?? null });
+            await tasks.createTask(c.text, { due: c.due ?? null, source: madeBy("email", threadForPromise) });
             emit({ type: "action", props: { name: "email.commitment.caught" } });
             setToast(commitmentLine(c));
             setTimeout(() => setToast(null), 4000);
