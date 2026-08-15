@@ -38,7 +38,7 @@ export class TasksService {
 
   async createTask(
     text: string,
-    opts: { category?: string; due?: string | null; fromNote?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo } = {},
+    opts: { category?: string; due?: string | null; fromNote?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; source?: import("../shared/provenance").Source } = {},
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
     const data: TaskData = { text: text.trim(), category: opts.category ?? "", done: false };
@@ -47,6 +47,7 @@ export class TasksService {
     if (opts.recurrence) data.recurrence = opts.recurrence;
     if (opts.projectId) data.projectId = opts.projectId;
     if (opts.bill) data.bill = opts.bill;
+    if (opts.source) data.source = opts.source;
     const id = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_TASK, entityId: id });
     return id;

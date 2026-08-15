@@ -103,7 +103,8 @@ export async function applyCapture(
   svc: ApplyServices,
   categories: Category[],
   today: string,
-): Promise<void> {
+  source?: import("../shared/provenance").Source,
+): Promise<{ id: string | null; kind: CaptureResult["kind"] }> {
   let catId = r.category
     ? categories.find((c) => c.data.name.toLowerCase() === r.category!.toLowerCase())?.id
     : undefined;
@@ -119,11 +120,16 @@ export async function applyCapture(
       /* memory is best-effort; capture must never fail because of it */
     }
   }
+  let id: string | null = null;
   if (r.kind === "event") {
-    await svc.schedule.createEvent(r.title, { date: r.date ?? today, start: r.start ?? "09:00", category: catId });
+    id = await svc.schedule.createEvent(r.title, { date: r.date ?? today, start: r.start ?? "09:00", category: catId, source });
   } else if (r.kind === "note") {
-    await svc.notes.createNote(r.title, catId ?? "");
+    id = await svc.notes.createNote(r.title, catId ?? "");
+    // A paste-born note keeps the copied text VERBATIM as its body (Smart
+    // Paste law: copied text is never rewritten).
+    if (id && r.notes) await svc.notes.addBlock(id, { type: "text", text: r.notes });
   } else {
-    await svc.tasks.createTask(r.title, { category: catId, due: r.date ?? null });
+    id = await svc.tasks.createTask(r.title, { category: catId, due: r.date ?? null, source });
   }
+  return { id, kind: r.kind };
 }

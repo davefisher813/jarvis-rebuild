@@ -1039,3 +1039,11 @@ button {
    .chip anatomy; this class only lets the option row wrap in place instead of
    scrolling off, so the picker opens where the value stood. */
 .chip-picker-open { flex-wrap: wrap; overflow-x: visible; }
+
+/* Smart Paste (addendum item 1, LOCKED-CSS CHANGE FLAGGED): the saved
+   receipt list and the Recent Captures strip inside the capture sheet. Rows
+   are the standard .row anatomy; these two wrappers only space the groups. */
+.capture-saved-list { display: flex; flex-direction: column; gap: var(--s-2); }
+.capture-saved { border-bottom: 0.5px solid var(--divider); padding-bottom: var(--s-2); }
+.capture-saved:last-child { border-bottom: 0; padding-bottom: 0; }
+.capture-recents { max-height: 220px; overflow-y: auto; }
