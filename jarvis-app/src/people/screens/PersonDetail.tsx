@@ -27,6 +27,7 @@ export default function PersonDetail({
   linkedNotes = [],
   onOpenNote,
   onCallPrep,
+  onMessage,
   categoryNames = [],
 }: {
   person: Person;
@@ -37,6 +38,9 @@ export default function PersonDetail({
   // Opens the Call Prep card (addendum item 2). Without it the row falls
   // back to a bare tel: link (surfaces with no service access).
   onCallPrep?: () => void;
+  // Opens the Messages drafting sheet (addendum item 3). Without it the row
+  // falls back to a bare sms: link.
+  onMessage?: () => void;
   // Names of the categories this person belongs to (resolved by the caller,
   // since this screen has no service access on purpose).
   categoryNames?: string[];
@@ -80,7 +84,15 @@ export default function PersonDetail({
               <span className="kv-val">{phone}</span>
             </a>
           )}
-          {phone && (
+          {phone && onMessage && (
+            // Messages Drafting (addendum item 3): the text action opens the
+            // drafting sheet; the draft exists when it opens.
+            <div className="row person-reach" role="button" tabIndex={0} onClick={onMessage}>
+              <div className="row-grow"><div className="conn-name">Text</div></div>
+              <span className="kv-val">{phone}</span>
+            </div>
+          )}
+          {phone && !onMessage && (
             <a className="row person-reach" href={"sms:" + phone.replace(/[^+\d]/g, "")}>
               <div className="row-grow"><div className="conn-name">Text</div></div>
               <span className="kv-val">{phone}</span>

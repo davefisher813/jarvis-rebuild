@@ -6,6 +6,8 @@ import type { SheetCategoryOpt } from "./screens/PersonSheet";
 import PeopleListPage from "./screens/PeopleListPage";
 import PersonDetail from "./screens/PersonDetail";
 import CallPrepSheet from "./CallPrepSheet";
+import MessageDraftSheet from "./MessageDraftSheet";
+import { useAI } from "../ai/useAI";
 import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 import { usePushDepth } from "../shared/pushNav";
 import { parseContactsFile, type ImportedContact } from "./importContacts";
@@ -29,6 +31,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
   const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [prepOpen, setPrepOpen] = useState(false);
+  const [msgOpen, setMsgOpen] = useState(false);
+  const ai = useAI();
 
   // ONE list, everyone (the Inner Circle / Adversarial lists were removed
   // 2026-08-03; the facts they claimed to organize live on each person).
@@ -41,6 +45,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
   // Fetch notes linked to the open person for the Linked Notes section.
   useEffect(() => {
     setPrepOpen(false); // a different person is a different call
+    setMsgOpen(false);
     if (!openId) { setLinkedNotes([]); return; }
     let on = true;
     notesSvc.notesLinkedTo(openId).then((n) => { if (on) setLinkedNotes(n); });
@@ -199,6 +204,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
       <div className={pushCls} key={"d-" + current.id}>
         <PersonDetail person={current} onEdit={() => setSheet({ kind: "edit", id: current.id })} onBack={() => setOpenId(null)} linkedNotes={linkedNotes} onOpenNote={onOpenNote}
           onCallPrep={current.data.phone ? () => setPrepOpen(true) : undefined}
+          onMessage={current.data.phone ? () => setMsgOpen(true) : undefined}
           categoryNames={(current.data.categoryIds ?? []).map((id) => categories.find((c) => c.id === id)?.name).filter((n): n is string => !!n)} />
         {prepOpen && (
           <CallPrepSheet
@@ -219,6 +225,9 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
             }}
             onClose={() => setPrepOpen(false)}
           />
+        )}
+        {msgOpen && (
+          <MessageDraftSheet person={current} ai={ai} onClose={() => setMsgOpen(false)} />
         )}
         {sheetEl}
       </div>
