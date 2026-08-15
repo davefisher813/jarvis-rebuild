@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTasks, useRoutine } from "../data/NotesProvider";
+import { useTasks, useRoutine, useSchedule } from "../data/NotesProvider";
+import type { EventItem } from "../schedule/types";
+import { hyperfocusGuard } from "../today/nowContext";
+import { nowHHMM } from "../today/todayData";
 import type { TaskItem } from "../tasks/TasksService";
 import { todayISO } from "../tasks/grouping";
 import { catColor, catName } from "../shared/categories";
@@ -24,6 +27,18 @@ function fmtClock(s: number): string {
 export default function UpNextFlow({ onClose }: { onClose: () => void }) {
   const svc = useTasks();
   const routine = useRoutine();
+  const schedule = useSchedule();
+  // Hyperfocus Guard (item 12): today's events + a minute tick keep the
+  // commitment line honest while the user is deep in one card.
+  const [guardEvents, setGuardEvents] = useState<EventItem[]>([]);
+  const [, setGuardTick] = useState(0);
+  useEffect(() => {
+    let on = true;
+    void schedule.eventsOn(todayISO()).then((e) => { if (on) setGuardEvents(e); });
+    const id = setInterval(() => setGuardTick((n) => n + 1), 60_000);
+    return () => { on = false; clearInterval(id); };
+  }, [schedule]);
+  const guard = hyperfocusGuard(guardEvents, nowHHMM());
   const today = todayISO();
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -120,6 +135,14 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
       </div>
       <div className="upnext-task">{t.data.text}</div>
       <div className="conn-meta">{reasonFor(t, today, inPeak)}</div>
+      {/* Hyperfocus Guard (Group B item 12): the next hard commitment as a
+          fact line on the focus card. Warn tone inside 10 minutes. Never a
+          modal; it informs, it does not interrupt. */}
+      {guard && (
+        <div className="conn-meta">
+          {guard.warn ? <span className="urgency urgency-warn">{guard.text}</span> : guard.text}
+        </div>
+      )}
       <div className="upnext-done-wrap">
         <button className="btn btn-primary btn-block" onClick={complete} disabled={completing.current}>Done</button>
         <Burst show={bursting} />

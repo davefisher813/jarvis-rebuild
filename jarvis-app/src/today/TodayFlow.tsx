@@ -34,12 +34,17 @@ import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, spotMeta, type WorkSpot } from "../restore/whereYouWere";
+import { nowContext, gapFill, fmtSpan } from "./nowContext";
+import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
 import { lazy, Suspense } from "react";
 import { isOffTrack, rankOpen } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 
 // Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
 // overlays, not tabs, and stay out of the boot bundle.
+const CLOCK_ICO = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+);
 const UpNextFlow = lazy(() => import("../upnext/UpNextFlow"));
 const FreshStartFlow = lazy(() => import("../upnext/FreshStartFlow"));
 
@@ -78,6 +83,16 @@ export default function TodayFlow({
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
   const [prevMood, setPrevMood] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  // Group B (item 10): the Now line self-updates on a minute tick.
+  const [, setMinuteTick] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setMinuteTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+  // Gap Fill dismissals: once per gap, keyed by the gap's next-commitment
+  // start, so a new gap is a fresh (single) offer.
+  const [gapDismissed, setGapDismissed] = useState<string | null>(null);
+
   // Group A: Auto-Sweep receipt (item 9) and the Where You Were spot (item 6).
   const [sweepReceipt, setSweepReceipt] = useState<SweepReceipt | null>(null);
   const [spot, setSpot] = useState<WorkSpot | null>(null);
@@ -401,8 +416,52 @@ export default function TodayFlow({
   // GROUP A banners (items 6 and 9), above the day. Success is quiet;
   // failure is louder, and tappable to retry.
   const sweepCand = sweepReceipt && !sweepReceipt.failed ? setAsideCandidate(sweepReceipt) : null;
+  // GROUP B (items 10-11): the Now line and the gap offer, derived fresh
+  // every render (and the minute tick keeps renders coming).
+  const nowCtx = nowContext(todayEvents, blocked, nhm);
+  const estimates = learnedDurations(readCommittedDurations(), Date.now());
+  const gapKey = today + ":" + (nowCtx.nextStart ?? "end");
+  const gapPick = evening || gapDismissed === gapKey
+    ? null
+    : gapFill(
+        taskItems.map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done, due: t.data.due, bill: t.data.bill })),
+        nowCtx.gapMin,
+        today,
+        (cat) => estimates[cat] ?? 45,
+      );
+
+  const nowSection = !evening && (
+    <>
+      <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-orange">{CLOCK_ICO}</div><div className="sec-title">Now</div></div></div>
+      <div className="pad-x"><div className="card">
+        <div className="row">
+          <div className="row-stack">
+            <div className="conn-name">{nowCtx.line.split(" · ")[0]}</div>
+            {nowCtx.gapMin !== null && <div className="conn-meta">{fmtSpan(nowCtx.gapMin)} open</div>}
+          </div>
+          {nowCtx.nextStart && nowCtx.gapMin !== null && (
+            <span className="urgency urgency-muted">{fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</span>
+          )}
+        </div>
+        {gapPick && (
+          <div className="row">
+            <div className="row-stack">
+              <div className="conn-name">{gapPick.text}</div>
+              <div className="conn-meta">About {gapPick.estimateMin} min · fits this gap</div>
+            </div>
+            <div className="momentum-actions">
+              <button className="btn-sm" onClick={() => void onOpenTask(gapPick.id)}>Start</button>
+              <button className="btn-sm" onClick={() => setGapDismissed(gapKey)}>Not Now</button>
+            </div>
+          </div>
+        )}
+      </div></div>
+    </>
+  );
+
   const banners = (
     <>
+      {nowSection}
       {sweepReceipt && sweepReceipt.failed && (
         <div className="pad-x">
           <div className="sweep-receipt sweep-error" role="button" tabIndex={0} onClick={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}>
