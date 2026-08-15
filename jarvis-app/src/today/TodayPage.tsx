@@ -114,6 +114,7 @@ export default function TodayPage({
   onEditRoutine,
   onSeeAllTasks,
   suggestions,
+  banners,
   onSearch,
   onProfile,
   evening,
@@ -157,6 +158,8 @@ export default function TodayPage({
   onEditRoutine?: () => void;
   onSeeAllTasks: () => void;
   suggestions?: ReactNode;
+  // Group A banners (Where You Were, Auto-Sweep receipt), above the day.
+  banners?: ReactNode;
   onSearch?: () => void;
   onProfile?: () => void;
   evening?: EveningStats;
@@ -299,6 +302,8 @@ export default function TodayPage({
           {ring && <DayRing done={ring.done} total={ring.total} />}
         </div>
       </div>
+
+      {banners}
 
       {birthdaySection}
 

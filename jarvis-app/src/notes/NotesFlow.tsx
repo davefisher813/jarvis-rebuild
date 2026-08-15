@@ -12,6 +12,7 @@ import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
+import { recordSpot } from "../restore/whereYouWere";
 import CreateTasks from "./screens/CreateTasks";
 import type { BlockType } from "./types";
 
@@ -179,6 +180,8 @@ export default function NotesFlow({
       const d = await svc.note(id);
       setCurrent(d ? toEditorNote(d) : null);
       setConns(d?.connections ?? []);
+      // Where You Were (addendum item 6): the open note is the spot.
+      if (d) recordSpot({ kind: "note", id, label: d.title || "Untitled" });
     },
     [svc],
   );

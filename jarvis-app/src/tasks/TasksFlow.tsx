@@ -19,6 +19,8 @@ import { identityToText } from "../ai/context";
 import { firstStepPrompt, parseFirstStep } from "./firstStep";
 import { localParse } from "../ai/capture";
 import { emit } from "../events";
+import { chainQuietToday, dismissChain, nextBest, chainReason } from "./momentum";
+import { touchActivity, recordSpot } from "../restore/whereYouWere";
 
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
@@ -47,6 +49,8 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   const [offHoursCats, setOffHoursCats] = useState<ReadonlySet<string>>(new Set());
   const routineSvc = useRoutine();
   const [sheet, setSheet] = useState<SheetState>(null);
+  // Momentum Chain: the suggestion occupying a just-finished task's slot.
+  const [momentum, setMomentum] = useState<{ afterId: string; task: TaskItem } | null>(null);
   const [loading, setLoading] = useState(true);
   // First Step offer state: the AI-drafted step, keyed to the sliding task.
   const [fsStep, setFsStep] = useState<{ taskId: string; step: string } | null>(null);
@@ -136,6 +140,16 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     const ok = await attemptWrite(() => svc.toggleDone(id));
     await reload();
     if (!ok) return;
+    touchActivity(); // completing things is being HERE (Where You Were)
+    if (before && !before.done) {
+      // Momentum Chain (addendum item 7): the next best thing slides into
+      // the finished slot, unless the chain was quieted for today.
+      if (!chainQuietToday(today)) {
+        const items = await svc.listTasks();
+        const next = nextBest(items, id, before.category ?? "");
+        setMomentum(next ? { afterId: id, task: next } : null);
+      }
+    }
     if (comeback) {
       showToast({ message: comeback });
     } else if (before && !before.done) {
@@ -244,6 +258,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   const openEdit = async (id: string) => {
     const t = await svc.task(id);
     if (!t) return;
+    recordSpot({ kind: "task", id, label: t.text }); // Where You Were
     setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "" }, source: t.source });
   };
 
@@ -374,6 +389,24 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
         onFilter={setFilter}
         onToggle={onToggle}
         onOpenTask={openEdit}
+        momentum={momentum && {
+          afterId: momentum.afterId,
+          el: (
+            <div className="row momentum-slot">
+              <div className="row-stack">
+                <div className="eyebrow">Keep Going</div>
+                <div className="conn-name">{momentum.task.data.text}</div>
+                {chainReason(momentum.task, momentum.task.data.category ?? "", today) && (
+                  <div className="conn-meta">{chainReason(momentum.task, momentum.task.data.category ?? "", today)}</div>
+                )}
+              </div>
+              <div className="momentum-actions">
+                <button className="btn-sm" onClick={() => { const id = momentum.task.id; setMomentum(null); openEdit(id); }}>Start</button>
+                <button className="btn-sm" onClick={() => { dismissChain(today); setMomentum(null); }}>Not Now</button>
+              </div>
+            </div>
+          ),
+        }}
         onDeleteTask={onDeleteRow}
         onSnoozeTask={onSnooze}
         onQuickAdd={onQuickAdd}

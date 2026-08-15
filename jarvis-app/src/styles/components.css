@@ -1057,3 +1057,36 @@ button {
 /* Music Tier 1 (addendum item 5, LOCKED-CSS CHANGE FLAGGED): the paste-a-link
    field inside the music picker row. Chips are standard .chip anatomy. */
 .music-paste { height: 34px; font-size: var(--t-meta); flex: 1; min-width: 140px; }
+
+/* GROUP A (addendum items 6, 7, 9, LOCKED-CSS CHANGE FLAGGED).
+
+   Where You Were: one line above the day. Arrives soft, tappable everywhere,
+   gone the moment the user acts. Accent edge, never red: an offer, not an
+   action. */
+@keyframes restoreIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.restore-banner { display: flex; align-items: center; gap: var(--s-2h); padding: var(--s-2h) var(--s-3h);
+  margin-bottom: var(--s-3); border-radius: var(--r-lg); background: var(--press-3);
+  border-left: 3px solid var(--tint); cursor: pointer; animation: restoreIn var(--dur-normal) var(--ease-out); }
+.restore-banner:active { opacity: 0.7; }
+.restore-title { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
+.restore-meta { font-size: var(--t-meta); color: var(--tx-3); }
+
+/* Momentum Chain: the next-best thing SLIDES INTO the finished slot, riding
+   the same spring as the rest of the app's completion moment. Green-tinted
+   like the done flash it follows, cooling to the card surface. */
+@keyframes momentumIn { 0% { opacity: 0; transform: translateX(32px); background: var(--good-tint); }
+  60% { opacity: 1; transform: none; background: var(--good-tint); }
+  100% { opacity: 1; transform: none; background: transparent; } }
+.momentum-slot { animation: momentumIn 0.5s var(--ease-spring); }
+.momentum-actions { display: flex; gap: var(--s-2); flex-shrink: 0; }
+
+/* Auto-Sweep: the receipt banner at the top of Today. A success is quiet;
+   a FAILED silent automation is louder than a success on purpose (error
+   form carries the warn edge and does not animate away). */
+.sweep-receipt { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-2h) var(--s-3h);
+  margin-bottom: var(--s-3); border-radius: var(--r-lg); background: var(--press-3);
+  animation: restoreIn var(--dur-normal) var(--ease-out); }
+.sweep-receipt .momentum-actions { justify-content: flex-end; }
+.sweep-receipt.sweep-error { flex-direction: row; align-items: center; }
+.sweep-receipt.sweep-error { border-left: 3px solid var(--warn); background: var(--warn-tint); cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .restore-banner, .sweep-receipt, .momentum-slot { animation: none; } }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Plus, Trash2, Clock, ListChecks } from "lucide-react";
 import SkeletonRows from "../../shared/SkeletonRows";
 import { Burst } from "../../shared/Burst";
@@ -8,6 +8,7 @@ import { FILTERS, FILTER_LABEL, type TaskFilter } from "../filters";
 import { catColor, catName } from "../../shared/categories";
 import type { SheetCategory } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
+import Provenance from "../../shared/Provenance";
 
 // Tasks page. Two-line rows with a large (44pt) completion target on the left
 // and swipe-left-to-delete, so completing or removing a task is one easy action.
@@ -122,6 +123,9 @@ function Row({
         <div className="row-stack" role="button" tabIndex={0} onClick={() => onOpen?.(item.id)}>
           <div className="conn-name truncate">{t.text}</div>
           <div className="eyebrow">{catName(t.category)}{t.recurrence ? " \u00b7 " + t.recurrence : ""}</div>
+          {/* Provenance Line (addendum item 8): auto-created rows say where
+              they came from; hand-made rows render nothing here. */}
+          <Provenance source={t.source} />
         </div>
         {u && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
       </div>
@@ -147,6 +151,7 @@ export default function TasksPage({
   catFilter,
   onCatFilter,
   banner,
+  momentum,
 }: {
   filter: TaskFilter;
   counts: Record<TaskFilter, number>;
@@ -165,6 +170,8 @@ export default function TasksPage({
   catFilter?: string;
   onCatFilter?: (id: string) => void;
   banner?: React.ReactNode;
+  // Momentum Chain: a suggestion element pinned under the row it follows.
+  momentum?: { afterId: string; el: React.ReactNode } | null;
 }) {
   const [qa, setQa] = useState("");
   return (
@@ -236,7 +243,12 @@ export default function TasksPage({
         <div className="pad-x">
           <div className="card">
             {items.map((it) => (
-              <Row key={it.id} item={it} today={today} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDeleteTask} onSnooze={onSnoozeTask} />
+              <React.Fragment key={it.id}>
+                <Row item={it} today={today} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDeleteTask} onSnooze={onSnoozeTask} />
+                {/* Momentum Chain (addendum item 7): the suggestion slides
+                    into the just-finished slot, right below its row. */}
+                {momentum?.afterId === it.id && momentum.el}
+              </React.Fragment>
             ))}
           </div>
         </div>

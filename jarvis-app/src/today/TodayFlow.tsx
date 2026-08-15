@@ -32,6 +32,8 @@ import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
+import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, type SweepReceipt } from "../tasks/autoSweep";
+import { restorableSpot, clearSpot, spotMeta, type WorkSpot } from "../restore/whereYouWere";
 import { lazy, Suspense } from "react";
 import { isOffTrack, rankOpen } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
@@ -50,6 +52,7 @@ export default function TodayFlow({
   onSearch,
   onProfile,
   onEditRoutine,
+  onRestoreSpot,
 }: {
   onGoSchedule: () => void;
   onGoTasks: () => void;
@@ -58,6 +61,8 @@ export default function TodayFlow({
   onSearch?: () => void;
   onProfile?: () => void;
   onEditRoutine?: () => void;
+  // Where You Were (addendum item 6): navigate back to a recorded spot.
+  onRestoreSpot?: (kind: "note" | "task" | "event" | "gym", id: string) => void;
 }) {
   const ai = useAI();
   const schedule = useSchedule();
@@ -73,6 +78,22 @@ export default function TodayFlow({
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
   const [prevMood, setPrevMood] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  // Group A: Auto-Sweep receipt (item 9) and the Where You Were spot (item 6).
+  const [sweepReceipt, setSweepReceipt] = useState<SweepReceipt | null>(null);
+  const [spot, setSpot] = useState<WorkSpot | null>(null);
+  useEffect(() => {
+    setSpot(restorableSpot());
+    void (async () => {
+      try {
+        const r = await runAutoSweep(tasks, todayISO());
+        setSweepReceipt(r);
+        if (r && r.moved.length > 0) await reload();
+      } catch {
+        setSweepReceipt({ date: todayISO(), moved: [], failed: true });
+      }
+    })();
+    // Once, at open: the sweep is a first-open-of-the-day event by definition.
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const cats = useCategories();
   useEffect(() => {
     let on = true;
@@ -377,6 +398,54 @@ export default function TodayFlow({
   // Day ring: due-today done over due-today total. Hero tint by daypart.
   const dueToday = taskItems.filter((t) => t.data.due === today);
   const ring = { done: dueToday.filter((t) => t.data.done).length, total: dueToday.length };
+  // GROUP A banners (items 6 and 9), above the day. Success is quiet;
+  // failure is louder, and tappable to retry.
+  const sweepCand = sweepReceipt && !sweepReceipt.failed ? setAsideCandidate(sweepReceipt) : null;
+  const banners = (
+    <>
+      {sweepReceipt && sweepReceipt.failed && (
+        <div className="pad-x">
+          <div className="sweep-receipt sweep-error" role="button" tabIndex={0} onClick={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}>
+            <div className="row-grow"><div className="restore-title">Couldn't move yesterday's tasks. Tap to retry.</div></div>
+          </div>
+        </div>
+      )}
+      {sweepReceipt && !sweepReceipt.failed && sweepReceipt.moved.length > 0 && (
+        <div className="pad-x">
+          <div className="sweep-receipt">
+            <div className="row-grow">
+              <div className="restore-title">Moved {sweepReceipt.moved.length} unfinished {sweepReceipt.moved.length === 1 ? "task" : "tasks"} to today</div>
+              {sweepCand && <div className="restore-meta">{sweepCand.text} has moved {sweepCand.slips} days in a row</div>}
+            </div>
+            <div className="momentum-actions">
+              {sweepCand && (
+                <button className="btn-sm" onClick={() => void (async () => {
+                  markOffered(sweepCand.id);
+                  const ok = await attemptWrite(() => tasks.setAside([sweepCand.id]));
+                  setSweepReceipt(readReceipt(today));
+                  await reload();
+                  if (ok) showToast({ message: "Set aside. It keeps its place, not your morning.", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
+                })()}>Set Aside</button>
+              )}
+              <button className="btn-sm" onClick={() => void (async () => { await attemptWrite(() => undoSweep(tasks, sweepReceipt)); setSweepReceipt(null); await reload(); })()}>Undo</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {spot && (
+        <div className="pad-x">
+          <div className="restore-banner" role="button" tabIndex={0} onClick={() => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); }}>
+            <div className="row-grow">
+              <div className="restore-title">Pick up where you left off</div>
+              <div className="restore-meta">{spotMeta(spot)}</div>
+            </div>
+            <div className="chev" />
+          </div>
+        </div>
+      )}
+    </>
+  );
+
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
   const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "JV";
   return (
@@ -412,6 +481,7 @@ export default function TodayFlow({
       onOpenEvent={onOpenEvent}
       onEditRoutine={onEditRoutine}
       today={today}
+      banners={banners}
       suggestions={<><CheckIn onChanged={() => { void reload(); }} /><TodaySuggestions ai={ai} /></>}
       onSearch={onSearch}
       onProfile={onProfile}
