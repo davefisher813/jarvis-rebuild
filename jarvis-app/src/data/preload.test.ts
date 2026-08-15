@@ -1,0 +1,166 @@
+// @vitest-environment jsdom
+// Laws for the preload layer (addendum locked principle 2): lists answer
+// instantly from cache, a background refresh repaints only on real change,
+// mutations write through so a flow always reads its own writes, and
+// pre-generation is capped, cache-first, and gated by AI Control.
+
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { InMemoryAdapter, type Item } from "@core";
+import { CachedAdapter } from "./CachedAdapter";
+import { readPreload, writePreload, clearPreload, listSignature } from "./preloadCache";
+import { cachedDraft, contentHash, pregenerate, PREGEN_CAP } from "../ai/pregen";
+import { setAIControl } from "../ai/levelStore";
+
+const U = "user1";
+
+const flush = () => new Promise((r) => setTimeout(r, 0));
+
+beforeEach(() => { localStorage.clear(); });
+afterEach(() => { setAIControl(undefined); localStorage.clear(); });
+
+describe("preload cache", () => {
+  it("round-trips a typed list and refuses another owner's cache", () => {
+    const items: Item[] = [{ id: "a", ownerId: U, entityType: "task", data: { text: "t" }, serverTime: 1 }];
+    writePreload(U, "task", items);
+    expect(readPreload(U, "task")).toEqual(items);
+    expect(readPreload("someone-else", "task")).toBeNull();
+  });
+
+  it("clearPreload removes every cached type and nothing else", () => {
+    writePreload(U, "task", []);
+    writePreload(U, "note", []);
+    localStorage.setItem("jarvis.appearance", "keep");
+    clearPreload();
+    expect(readPreload(U, "task")).toBeNull();
+    expect(readPreload(U, "note")).toBeNull();
+    expect(localStorage.getItem("jarvis.appearance")).toBe("keep");
+  });
+
+  it("an oversized list is not cached at all, never truncated", () => {
+    const items: Item[] = Array.from({ length: 501 }, (_, i) => ({
+      id: "i" + i, ownerId: U, entityType: "task", data: {}, serverTime: i,
+    }));
+    writePreload(U, "task", items);
+    expect(readPreload(U, "task")).toBeNull();
+  });
+});
+
+describe("stale-while-revalidate adapter", () => {
+  it("a cold list hits the network and warms the cache", async () => {
+    const inner = new InMemoryAdapter();
+    await inner.create(U, "task", { text: "a" });
+    const adapter = new CachedAdapter(inner);
+    const out = await adapter.listForUser(U, "task");
+    expect(out.length).toBe(1);
+    expect(readPreload(U, "task")!.length).toBe(1);
+  });
+
+  it("a warm list answers from cache and repaints only on real change", async () => {
+    const inner = new InMemoryAdapter();
+    await inner.create(U, "task", { text: "a" });
+    const fresh: string[] = [];
+    const adapter = new CachedAdapter(inner, (t) => fresh.push(t));
+    await adapter.listForUser(U, "task"); // warm
+    await adapter.listForUser(U, "task"); // cached, refresh finds no change
+    await flush();
+    expect(fresh).toEqual([]);
+    await inner.create(U, "task", { text: "b" }); // change behind the cache
+    await adapter.listForUser(U, "task");
+    await flush();
+    expect(fresh).toEqual(["task"]);
+  });
+
+  it("read-your-writes: create, patch, and delete all show in the next cached list", async () => {
+    const inner = new InMemoryAdapter();
+    const adapter = new CachedAdapter(inner);
+    const first = await adapter.create(U, "task", { text: "a", done: false });
+    await adapter.listForUser(U, "task"); // warm the cache
+    const second = await adapter.create(U, "task", { text: "b", done: false });
+    let list = await adapter.listForUser(U, "task");
+    expect(list.map((i) => i.id).sort()).toEqual([first, second].sort());
+    await adapter.apply(U, first, { done: true });
+    list = await adapter.listForUser(U, "task");
+    expect(list.find((i) => i.id === first)!.data.done).toBe(true);
+    await adapter.del(U, second);
+    list = await adapter.listForUser(U, "task");
+    expect(list.some((i) => i.id === second)).toBe(false);
+  });
+
+  it("untyped lists bypass the cache so backup always reads the truth", async () => {
+    const inner = new InMemoryAdapter();
+    const adapter = new CachedAdapter(inner);
+    await adapter.create(U, "task", { text: "a" });
+    await adapter.listForUser(U, "task");
+    const all = await adapter.listForUser(U);
+    expect(all.length).toBe(1);
+    // No untyped cache entry was written.
+    expect(localStorage.getItem("jarvis.preload.v1" + ".undefined")).toBeNull();
+  });
+
+  it("listSignature detects both membership and content change", () => {
+    const a: Item = { id: "a", ownerId: U, entityType: "task", data: {}, serverTime: 1 };
+    expect(listSignature([a])).not.toBe(listSignature([]));
+    expect(listSignature([a])).not.toBe(listSignature([{ ...a, serverTime: 2 }]));
+    expect(listSignature([a])).toBe(listSignature([{ ...a }]));
+  });
+});
+
+describe("law: pre-generation is capped, cache-first, and obeys AI Control", () => {
+  const req = (id: string, calls: { n: number }) => ({
+    kind: "reply",
+    sourceId: id,
+    hash: "h1",
+    build: async () => { calls.n++; return "draft " + id; },
+  });
+
+  it("generates on miss, then serves from cache with zero calls", async () => {
+    setAIControl({ level: "draft" });
+    const calls = { n: 0 };
+    await pregenerate([req("s1", calls)]);
+    expect(calls.n).toBe(1);
+    expect(cachedDraft("reply", "s1", "h1")).toBe("draft s1");
+    await pregenerate([req("s1", calls)]);
+    expect(calls.n).toBe(1); // cache hit, no second call
+  });
+
+  it("regenerates only when the source hash changes", async () => {
+    setAIControl({ level: "draft" });
+    const calls = { n: 0 };
+    await pregenerate([req("s1", calls)]);
+    await pregenerate([{ ...req("s1", calls), hash: "h2" }]);
+    expect(calls.n).toBe(2);
+    expect(cachedDraft("reply", "s1", "h1")).toBeNull();
+    expect(cachedDraft("reply", "s1", "h2")).toBe("draft s1");
+  });
+
+  it("caps a pass at five calls", async () => {
+    setAIControl({ level: "everything" });
+    const calls = { n: 0 };
+    const many = Array.from({ length: 9 }, (_, i) => req("s" + i, calls));
+    const made = await pregenerate(many);
+    expect(made).toBe(PREGEN_CAP);
+    expect(calls.n).toBe(PREGEN_CAP);
+  });
+
+  it("Off and On Request produce ZERO pre-generation calls", async () => {
+    for (const level of ["off", "request"] as const) {
+      const calls = { n: 0 };
+      setAIControl({ level });
+      const made = await pregenerate([req("s-" + level, calls)]);
+      expect(made).toBe(0);
+      expect(calls.n).toBe(0);
+    }
+  });
+
+  it("a pinned-off feature is skipped even when the master allows background", async () => {
+    setAIControl({ level: "everything", pins: { emailDrafts: "off" } });
+    const calls = { n: 0 };
+    await pregenerate([{ ...req("s9", calls), pin: "emailDrafts" }]);
+    expect(calls.n).toBe(0);
+  });
+
+  it("contentHash is stable and change-sensitive", () => {
+    expect(contentHash("abc")).toBe(contentHash("abc"));
+    expect(contentHash("abc")).not.toBe(contentHash("abd"));
+  });
+});

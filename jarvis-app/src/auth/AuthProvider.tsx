@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { clearPreload } from "../data/preloadCache";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 import { emit } from "../events";
@@ -79,6 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       signOut: async () => {
         await supabase?.auth.signOut();
+        // The preload cache is one user's data on shared glass: it dies with
+        // the session, unconditionally.
+        clearPreload();
       },
     }),
     [session, ready],
