@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { MoreHorizontal, FileText, Image, Check, Plus, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
 import { catColor } from "../../shared/categories";
 import { Burst } from "../../shared/Burst";
+import InlineEdit from "../../shared/InlineEdit";
 
 // Matches locked frame #47 "Editor / Blocks", now editable in place. Tapping a
 // checkbox toggles it; title, text, headings, and checklist item text are
@@ -26,76 +27,6 @@ export interface EditorNote {
   blocks: EditorBlock[];
 }
 
-// contentEditable text. Read-only when no onSave is given (static use). Sets its
-// text once and on external change; never while focused, so the caret is stable.
-function Editable({
-  tag = "div",
-  className,
-  value,
-  placeholder,
-  onSave,
-  focused,
-  onEnter,
-  onEmptyBackspace,
-  onTransform,
-}: {
-  tag?: "div" | "span";
-  className?: string;
-  value: string;
-  placeholder?: string;
-  onSave?: (v: string) => void;
-  focused?: boolean;
-  onEnter?: (current: string) => void;
-  onEmptyBackspace?: () => void;
-  onTransform?: (prefix: "#" | "[]" | "-" | "1.", rest: string) => void;
-}) {
-  const ref = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (el && el.textContent !== value) el.textContent = value;
-  }, [value]);
-  // Canvas flow: when this block was just created by Enter, put the caret in it.
-  useEffect(() => {
-    const el = ref.current;
-    if (focused && el) {
-      el.focus();
-      const sel = window.getSelection();
-      if (sel) { sel.selectAllChildren(el); sel.collapseToEnd(); }
-    }
-  }, [focused]);
-
-  const Tag = tag as "div";
-  if (!onSave) return <Tag className={className}>{value}</Tag>;
-  return (
-    <Tag
-      ref={ref as React.Ref<HTMLDivElement>}
-      className={className}
-      contentEditable
-      suppressContentEditableWarning
-      data-placeholder={placeholder}
-      onBlur={(e) => onSave((e.currentTarget.textContent ?? "").trim())}
-      onKeyDown={(e) => {
-        const text = (e.currentTarget.textContent ?? "").trim();
-        if (e.key === "Enter" && !e.shiftKey && onEnter) {
-          e.preventDefault();
-          onEnter(text);
-        } else if (e.key === "Backspace" && text === "" && onEmptyBackspace) {
-          e.preventDefault();
-          onEmptyBackspace();
-        }
-      }}
-      onInput={(e) => {
-        if (!onTransform) return;
-        const t = e.currentTarget.textContent ?? "";
-        if (t.startsWith("# ")) onTransform("#", t.slice(2));
-        else if (t.startsWith("[] ") || t.startsWith("[ ] ")) onTransform("[]", t.replace(/^\[\s?\]\s/, ""));
-        else if (t.startsWith("- ") || t.startsWith("* ")) onTransform("-", t.slice(2));
-        else if (/^1[.)] /.test(t)) onTransform("1.", t.slice(3));
-      }}
-    />
-  );
-}
-
 // Canvas flow for bulleted/numbered lists: every item is typeable, Enter adds
 // the next item, Enter on an empty item exits the list into fresh text, and
 // backspace on an empty item removes it (emptying the list turns it back into
@@ -117,7 +48,7 @@ function ListBlock({
       {block.items.map((it, j) => (
         <div className="t-body" key={block.id + ":" + j}>
           <span aria-hidden="true">{marker(j) + " "}</span>
-          <Editable
+          <InlineEdit
             tag="span"
             value={it}
             placeholder="List item"
@@ -182,7 +113,7 @@ function Checklist({
             {it.done && <Check className="ic" />}
             <Burst show={burstAt === i} />
           </div>
-          <Editable
+          <InlineEdit
             tag="span"
             value={it.text}
             placeholder="List item"
@@ -354,18 +285,18 @@ export default function NoteEditor({
           </div>
           <span className="eyebrow">{note.eyebrow}</span>
         </div>
-        <Editable tag="div" className="t-h2" value={note.title} onSave={onEditTitle} />
+        <InlineEdit tag="div" className="t-h2" value={note.title} onSave={onEditTitle} />
 
         {inline.map((b, idx) => {
           let content: React.ReactNode = null;
           if (b.type === "heading")
-            content = <Editable tag="div" className="block-h" value={b.text} placeholder="Heading"
+            content = <InlineEdit tag="div" className="block-h" value={b.text} placeholder="Heading"
               focused={focusBlockId === b.id}
               onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
               onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
               onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
           else if (b.type === "text")
-            content = <Editable tag="div" className="t-body" value={b.text} placeholder="Write something"
+            content = <InlineEdit tag="div" className="t-body" value={b.text} placeholder="Write something"
               focused={focusBlockId === b.id}
               onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
               onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}

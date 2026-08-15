@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
 import type { EventItem } from "../types";
+import { useSwipe } from "../../shared/useSwipe";
 import { fmtTime, fmtDistance } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
 import { attachLabel } from "../attachments";
@@ -44,53 +44,11 @@ export default function DayRow({
   const rep = e.data.recurrence && e.data.recurrence !== "none" ? e.data.recurrence : null;
   const dist = isNext && now ? fmtDistance(e.data.start, now) : null;
 
-  // Swipe machinery, ported from the task rows so every list feels the same.
+  // The one shared swipe controller, so every list feels the same. (The old
+  // local copy's dx-ref lesson from audit 2026-08-07 lives inside useSwipe
+  // now: release always judges the position the finger actually reached.)
   const swipeable = !rep && !isPast && (onPush15 || onPushTomorrow);
-  const REVEAL = 176;
-  const [dx, setDx] = useState(0);
-  // Ref mirror of dx (audit 2026-08-07): onEnd used to read the STATE, which
-  // on a fast flick can be one queued update behind the finger, snapping the
-  // row the wrong way. The ref is written in the same breath as the state, so
-  // onEnd always judges the position the finger actually reached.
-  const dxRef = useRef(0);
-  const moveTo = (v: number) => { dxRef.current = v; setDx(v); };
-  const [open, setOpen] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const startX = useRef(0);
-  const startY = useRef(0);
-  const horizontal = useRef(false);
-  const decided = useRef(false);
-
-  const onStart = (ev: React.TouchEvent) => {
-    if (!swipeable) return;
-    startX.current = ev.touches[0]!.clientX;
-    startY.current = ev.touches[0]!.clientY;
-    decided.current = false;
-    horizontal.current = false;
-    setDragging(true);
-  };
-  const onMove = (ev: React.TouchEvent) => {
-    if (!swipeable) return;
-    const mx = ev.touches[0]!.clientX - startX.current;
-    const my = ev.touches[0]!.clientY - startY.current;
-    if (!decided.current) {
-      if (Math.abs(mx) < 6 && Math.abs(my) < 6) return;
-      horizontal.current = Math.abs(mx) > Math.abs(my);
-      decided.current = true;
-    }
-    if (!horizontal.current) return;
-    const base = open ? -REVEAL : 0;
-    moveTo(Math.min(0, Math.max(-REVEAL, base + mx)));
-  };
-  const onEnd = () => {
-    if (!swipeable) return;
-    setDragging(false);
-    const shouldOpen = dxRef.current < -REVEAL / 2;
-    setOpen(shouldOpen);
-    moveTo(shouldOpen ? -REVEAL : 0);
-  };
-  const closeThen = (fn?: () => void) => { setOpen(false); moveTo(0); fn?.(); };
-  const toggle = () => { const next = !open; setOpen(next); moveTo(next ? -REVEAL : 0); };
+  const { dx, open, dragging, handlers, closeThen, toggle } = useSwipe({ revealW: 176, enabled: !!swipeable });
 
   return (
     <div className="sched-swipe-wrap">
@@ -109,9 +67,7 @@ export default function DayRow({
         role="button"
         tabIndex={0}
         onClick={() => (open ? closeThen() : onOpen?.())}
-        onTouchStart={onStart}
-        onTouchMove={onMove}
-        onTouchEnd={onEnd}
+        {...handlers}
       >
         <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
         <div className="sched-body">

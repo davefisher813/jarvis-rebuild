@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { clearPreload } from "../data/preloadCache";
+import { clearUndo } from "../shared/undoStack";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 import { emit } from "../events";
@@ -80,9 +81,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
       signOut: async () => {
         await supabase?.auth.signOut();
-        // The preload cache is one user's data on shared glass: it dies with
-        // the session, unconditionally.
+        // One user's data on shared glass dies with the session,
+        // unconditionally: the preload cache and the undo stack both.
         clearPreload();
+        clearUndo();
       },
     }),
     [session, ready],

@@ -7,6 +7,7 @@ import { urgencyFor, type UrgencyKind } from "../grouping";
 import { FILTERS, FILTER_LABEL, type TaskFilter } from "../filters";
 import { catColor, catName } from "../../shared/categories";
 import type { SheetCategory } from "./TaskSheet";
+import { useSwipe } from "../../shared/useSwipe";
 
 // Tasks page. Two-line rows with a large (44pt) completion target on the left
 // and swipe-left-to-delete, so completing or removing a task is one easy action.
@@ -67,13 +68,11 @@ function Row({
   const [localDone, setLocalDone] = useState(false);
   const pendingDone = useRef(false);
   const shownDone = t.done || localDone;
-  const [dx, setDx] = useState(0);
-  const [open, setOpen] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const startX = useRef(0);
-  const startY = useRef(0);
-  const decided = useRef(false);
-  const horizontal = useRef(false);
+  // Open tasks also reveal a "tomorrow" action; BILLS DO NOT (Money v1):
+  // pushing rent to tomorrow in one gesture is exactly the ADHD-tax move the
+  // money track exists to stop. Delete stays; deferral needs the sheet.
+  const snoozable = !t.done && !t.bill;
+  const { dx, dragging, handlers } = useSwipe({ revealW: snoozable ? 176 : 88 });
 
   useEffect(() => {
     if (t.done && !prevDone.current) {
@@ -95,42 +94,6 @@ function Row({
     setTimeout(() => { pendingDone.current = false; setLocalDone(false); onToggle?.(item.id); }, 600);
   };
 
-  // Open tasks also reveal a "tomorrow" action; BILLS DO NOT (Money v1):
-  // pushing rent to tomorrow in one gesture is exactly the ADHD-tax move the
-  // money track exists to stop. Delete stays; deferral needs the sheet.
-  const snoozable = !t.done && !t.bill;
-  const revealW = snoozable ? 176 : 88;
-  const onStart = (e: React.TouchEvent) => {
-    startX.current = e.touches[0]!.clientX;
-    startY.current = e.touches[0]!.clientY;
-    decided.current = false;
-    horizontal.current = false;
-    setDragging(true);
-  };
-  const onMove = (e: React.TouchEvent) => {
-    const mx = e.touches[0]!.clientX - startX.current;
-    const my = e.touches[0]!.clientY - startY.current;
-    // Decide direction once: horizontal claims the gesture (so the page does not
-    // scroll), vertical is left alone so the list scrolls normally.
-    if (!decided.current) {
-      if (Math.abs(mx) > 8 || Math.abs(my) > 8) {
-        decided.current = true;
-        horizontal.current = Math.abs(mx) > Math.abs(my);
-      }
-    }
-    if (!horizontal.current) return;
-    e.preventDefault();
-    const base = open ? -revealW : 0;
-    setDx(Math.max(-revealW, Math.min(0, base + mx)));
-  };
-  const onEnd = () => {
-    setDragging(false);
-    if (!horizontal.current) return;
-    const nowOpen = dx < -revealW / 2;
-    setOpen(nowOpen);
-    setDx(nowOpen ? -revealW : 0);
-  };
-
   return (
     <div className="task-swipe">
       {snoozable && (
@@ -144,9 +107,7 @@ function Row({
       <div
         className={"task-row" + (t.done ? " completed" : "") + (burst ? " just-done" : "") + (dragging ? " swiping" : "")}
         style={{ transform: dx ? `translateX(${dx}px)` : undefined }}
-        onTouchStart={onStart}
-        onTouchMove={onMove}
-        onTouchEnd={onEnd}
+        {...handlers}
       >
         <div
           className="task-check-tap"
