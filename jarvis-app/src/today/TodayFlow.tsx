@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals } from "../data/NotesProvider";
 import { pausedCategoryIds } from "../categories/kinds";
 import { goalTitleOf, workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
@@ -36,12 +36,19 @@ import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, ma
 import { restorableSpot, clearSpot, spotMeta, type WorkSpot } from "../restore/whereYouWere";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
+import { readDraft, writeDraft, draftDay, reflowDay, type DayDraft } from "../dayloop/dayLoop";
+import { madeBy } from "../shared/provenance";
+import { effectiveLevel } from "../ai/aiGate";
+import { getAIControl } from "../ai/levelStore";
 import { lazy, Suspense } from "react";
 import { isOffTrack, rankOpen } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 
 // Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
 // overlays, not tabs, and stay out of the boot bundle.
+const SPARK_ICO = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /></svg>
+);
 const CLOCK_ICO = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
 );
@@ -83,6 +90,10 @@ export default function TodayFlow({
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
   const [prevMood, setPrevMood] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+  // Group C (item 14): the Day Loop's draft for today.
+  const [dayDraft, setDayDraft] = useState<DayDraft | null>(null);
+  const reflowGuard = useRef(0);
+
   // Group B (item 10): the Now line self-updates on a minute tick.
   const [, setMinuteTick] = useState(0);
   useEffect(() => {
@@ -92,6 +103,10 @@ export default function TodayFlow({
   // Gap Fill dismissals: once per gap, keyed by the gap's next-commitment
   // start, so a new gap is a fresh (single) offer.
   const [gapDismissed, setGapDismissed] = useState<string | null>(null);
+
+  // Re-flow overflow (push 16): the one block that stopped fitting, offered
+  // Set Aside out loud, never dropped silently.
+  const [overflowOffer, setOverflowOffer] = useState<{ eventId: string; title: string } | null>(null);
 
   // Group A: Auto-Sweep receipt (item 9) and the Where You Were spot (item 6).
   const [sweepReceipt, setSweepReceipt] = useState<SweepReceipt | null>(null);
@@ -416,6 +431,140 @@ export default function TodayFlow({
   // GROUP A banners (items 6 and 9), above the day. Success is quiet;
   // failure is louder, and tappable to retry.
   const sweepCand = sweepReceipt && !sweepReceipt.failed ? setAsideCandidate(sweepReceipt) : null;
+  // THE DAY LOOP (Group C item 14). Draft at first open, deterministic and
+  // instant; Accept stays the one honest commit moment.
+  const todayDow = new Date().getDay();
+  const todayWindow = planWindowFor(routineData, todayDow);
+  const todayBlocked = protectedRangesFor(routineData, todayDow);
+  const draftStart = (() => { const d = new Date(); const n = Math.ceil((d.getHours() * 60 + d.getMinutes()) / 15) * 15; return Math.max(n, todayWindow.wakeMin); })();
+  useEffect(() => {
+    if (loading || evening) return;
+    const existing = readDraft(today);
+    if (existing) { setDayDraft(existing); return; }
+    const cands = candidatesFor(today, todayEvents);
+    if (cands.length === 0) return;
+    const d = draftDay({
+      date: today,
+      candidates: cands,
+      events: todayEvents,
+      startMin: draftStart,
+      endMin: todayWindow.endMin,
+      blocked: todayBlocked,
+      maxBlocks: sizing.maxBlocks,
+      estimateFor: (c) => estimates[c] ?? 45,
+    });
+    writeDraft(d);
+    setDayDraft(d);
+    // Once per day-open; candidate churn intra-day must not redraft an
+    // undecided card out from under the user.
+  }, [loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Overnight redraft: evening prepares tomorrow, so the next open is instant.
+  useEffect(() => {
+    if (loading || !evening) return;
+    if (readDraft(tomorrow)) return;
+    const dow = new Date(tomorrow + "T00:00:00").getDay();
+    const win = planWindowFor(routineData, dow);
+    const cands = candidatesFor(tomorrow, tomorrowEvents);
+    if (cands.length === 0) return;
+    writeDraft(draftDay({
+      date: tomorrow,
+      candidates: cands,
+      events: tomorrowEvents,
+      startMin: win.wakeMin,
+      endMin: win.endMin,
+      blocked: protectedRangesFor(routineData, dow),
+      maxBlocks: sizing.maxBlocks,
+      estimateFor: (c) => estimates[c] ?? 45,
+    }));
+  }, [loading, evening]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const acceptDraft = async () => {
+    if (!dayDraft) return;
+    const ids: string[] = [];
+    const ok = await attemptWrite(async () => {
+      for (const b of dayDraft.blocks) {
+        const id = await schedule.createEvent(b.text, { date: today, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId, source: madeBy("plan") });
+        if (id) ids.push(id);
+      }
+    });
+    if (!ok) return;
+    const next = { ...dayDraft, accepted: true, eventIds: ids };
+    writeDraft(next);
+    setDayDraft(next);
+    await reload();
+    showToast({
+      message: `Day planned · ${ids.length} ${ids.length === 1 ? "block" : "blocks"}`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => { for (const id of ids) await schedule.deleteEvent(id); });
+        const back = { ...next, accepted: false, eventIds: [] };
+        writeDraft(back);
+        setDayDraft(back);
+        await reload();
+      },
+    });
+  };
+
+  const dismissDraft = () => {
+    if (!dayDraft) return;
+    const next = { ...dayDraft, dismissed: true };
+    writeDraft(next);
+    setDayDraft(next);
+  };
+
+  // Re-flow (push 16): the remainder re-draped around reality. Automatic
+  // ONLY at Everything (a real receipt with undo every time); below that the
+  // slippage is stated with a one-tap Re-flow.
+  const hardRanges = todayBlocked.filter((b) => !b.soft).map((b) => ({ s: b.s, e: b.e }));
+  const planEvs = dayDraft?.accepted ? todayEvents.filter((e) => dayDraft.eventIds.includes(e.id)) : [];
+  const otherEvs = dayDraft?.accepted ? todayEvents.filter((e) => !dayDraft.eventIds.includes(e.id)) : [];
+  const slippedCount = planEvs.filter((e) => {
+    const p = e.data.start.split(":");
+    return Number(p[0]) * 60 + Number(p[1]) < nowMin;
+  }).length;
+
+  const runReflow = useCallback(async () => {
+    if (!dayDraft?.accepted) return;
+    const res = reflowDay(planEvs, otherEvs, nowMin, todayWindow.endMin, hardRanges);
+    if (res.moves.length === 0 && res.overflow.length === 0) return;
+    const ok = await attemptWrite(async () => {
+      for (const m of res.moves) {
+        await schedule.editTime(m.eventId, m.start);
+        await schedule.editEnd(m.eventId, m.end);
+      }
+    });
+    await reload();
+    if (!ok) return;
+    if (res.overflow[0]) setOverflowOffer(res.overflow[0]);
+    if (res.moves.length > 0) {
+      showToast({
+        message: `Re-flowed ${res.moves.length} ${res.moves.length === 1 ? "block" : "blocks"}`,
+        actionLabel: "Undo",
+        onAction: async () => {
+          await attemptWrite(async () => {
+            for (const m of res.moves) {
+              await schedule.editTime(m.eventId, m.prevStart);
+              await schedule.editEnd(m.eventId, m.prevEnd);
+            }
+          });
+          await reload();
+        },
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dayDraft, todayEvents, nowMin]);
+
+  useEffect(() => {
+    if (loading || evening || !dayDraft?.accepted || slippedCount === 0) return;
+    if (effectiveLevel(getAIControl()) !== "everything") return;
+    const t = Date.now();
+    if (t - reflowGuard.current < 5 * 60_000) return;
+    reflowGuard.current = t;
+    void runReflow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, evening, slippedCount, dayDraft]);
+
   // GROUP B (items 10-11): the Now line and the gap offer, derived fresh
   // every render (and the minute tick keeps renders coming).
   const nowCtx = nowContext(todayEvents, blocked, nhm);
@@ -459,8 +608,73 @@ export default function TodayFlow({
     </>
   );
 
+  // The Day Loop card: the whole day, drafted, one Accept. Purple spark: a
+  // JARVIS-made proposal, not yet the user's plan.
+  const draftSection = !evening && dayDraft && !dayDraft.accepted && !dayDraft.dismissed && dayDraft.blocks.length > 0 && (
+    <>
+      <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-purple">{SPARK_ICO}</div><div className="sec-title">Your Day, Drafted</div></div></div>
+      <div className="pad-x"><div className="card">
+        {dayDraft.blocks.map((b) => (
+          <div className="row" key={b.taskId}>
+            <div className="row-grow"><div className="conn-name truncate">{b.text}</div></div>
+            <span className="urgency urgency-muted">{fmtTime(b.start).time} {fmtTime(b.start).ap}</span>
+          </div>
+        ))}
+        {dayDraft.anytime.length > 0 && (
+          <div className="row"><div className="conn-meta">{dayDraft.anytime.length} more in Anytime</div></div>
+        )}
+        <div className="row">
+          <div className="momentum-actions">
+            <button className="btn btn-primary btn-sm" onClick={() => void acceptDraft()}>Accept the Day</button>
+            <button className="btn-sm" onClick={() => void openPlan("today")}>Edit</button>
+            <button className="btn-sm" onClick={dismissDraft}>Not Today</button>
+          </div>
+        </div>
+      </div></div>
+    </>
+  );
+
+  // Slippage stated out loud below Everything; automatic (receipted) at it.
+  const reflowSection = !evening && dayDraft?.accepted && slippedCount > 0 && effectiveLevel(getAIControl()) !== "everything" && (
+    <div className="pad-x">
+      <div className="sweep-receipt">
+        <div className="row-grow"><div className="restore-title">{slippedCount} {slippedCount === 1 ? "block" : "blocks"} slipped</div></div>
+        <div className="momentum-actions">
+          <button className="btn-sm" onClick={() => void runReflow()}>Re-Flow</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const overflowSection = overflowOffer && (
+    <div className="pad-x">
+      <div className="sweep-receipt">
+        <div className="row-grow">
+          <div className="restore-title">{overflowOffer.title} · no room left today</div>
+        </div>
+        <div className="momentum-actions">
+          <button className="btn-sm" onClick={() => void (async () => {
+            const ev = todayEvents.find((e) => e.id === overflowOffer.eventId);
+            const taskId = ev?.data.sourceTaskId;
+            const ok = await attemptWrite(async () => {
+              await schedule.deleteEvent(overflowOffer.eventId);
+              if (taskId) await tasks.setAside([taskId]);
+            });
+            setOverflowOffer(null);
+            await reload();
+            if (ok) showToast({ message: "Set aside · keeps its place" });
+          })()}>Set Aside</button>
+          <button className="btn-sm" onClick={() => setOverflowOffer(null)}>Leave It</button>
+        </div>
+      </div>
+    </div>
+  );
+
   const banners = (
     <>
+      {draftSection}
+      {reflowSection}
+      {overflowSection}
       {nowSection}
       {sweepReceipt && sweepReceipt.failed && (
         <div className="pad-x">
