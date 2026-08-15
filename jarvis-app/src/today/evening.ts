@@ -55,10 +55,10 @@ function addHour(hhmm: string): string {
 // not happen.
 export function eveningSummary(s: EveningStats): string {
   const parts: string[] = [];
-  if (s.thingsDone > 0) parts.push(`You did ${s.thingsDone} ${s.thingsDone === 1 ? "thing" : "things"} today.`);
-  if (s.eventsLeft > 0) parts.push(`${s.eventsLeft} ${s.eventsLeft === 1 ? "thing" : "things"} left tonight.`);
-  if (parts.length === 0) return "A clear evening.";
-  return parts.join(" ");
+  if (s.thingsDone > 0) parts.push(`${s.thingsDone} done today`);
+  if (s.eventsLeft > 0) parts.push(`${s.eventsLeft} left tonight`);
+  if (parts.length === 0) return "A clear evening";
+  return parts.join(" · ");
 }
 
 // --- The weekly close-out card (Sundays only; the Insights page folds into
@@ -100,4 +100,4 @@ export function weekRecap(
 }
 
 // Shown under the Still Open card. Tone: permission, not pressure.
-export const EVENING_TASKS_NOTE = "These can wait for tomorrow's plan. Tonight is yours.";
+export const EVENING_TASKS_NOTE = "Waits for tomorrow · tonight is yours";

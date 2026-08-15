@@ -43,7 +43,7 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><ShieldAlert className="ic" /></div>
           <div className="empty-title">Not authorized</div>
-          <div className="empty-sub">This area is for the master account only.</div>
+          <div className="empty-sub">Master account only</div>
         </div></div></div>
       </div>
     );
@@ -52,7 +52,7 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
   const serverNote = (
     <div className="pad-x"><div className="card"><div className="empty-state">
       <div className="empty-title">Live data needs the admin server</div>
-      <div className="empty-sub">Cross-user data, usage, and billing come from a privileged endpoint, wired at launch.</div>
+      <div className="empty-sub">Usage + billing · wired at launch</div>
     </div></div></div>
   );
 

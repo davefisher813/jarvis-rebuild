@@ -38,7 +38,7 @@ export default function NotificationsFlow() {
       <div className="nav-bar"><div className="nav-large">Notifications</div></div>
       {feed.length === 0 ? (
         <div className="empty-state"><div className="empty-icon">{BELL}</div><div className="empty-title">You're all caught up</div>
-          <div className="empty-sub">Overdue tasks, today's events, and at-risk goals show up here.</div></div>
+          <div className="empty-sub">Overdue · today's events · at-risk goals</div></div>
       ) : (
         <div className="pad-x"><div className="card">
           {feed.map((n) => {

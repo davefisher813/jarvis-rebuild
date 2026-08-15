@@ -73,5 +73,5 @@ export function billsLine(tasks: TaskItem[], today: string): string | null {
     const amt = t.data.bill?.amount;
     return `${name(t)}${amt ? ` ($${amt})` : ""} due ${when(t.data.due as string)}`;
   }
-  return `${due.length} bills due soon: ${due.map(name).join(", ")}`;
+  return `${due.length} bills due soon · ${due.map(name).join(", ")}`;
 }

@@ -39,7 +39,7 @@ export default function CreateTasks({
 
       <div className="detail-head">
         <div className="t-meta">
-          These checklist items become {categoryLabel} Tasks. Completed items are skipped.
+          Checklist items become {categoryLabel} Tasks · completed ones skipped
         </div>
       </div>
 

@@ -322,11 +322,11 @@ export default function EventSheet({
             )}
           </div>
 
-          {endInvalid && <div className="input-error">End time must be after the start time.</div>}
-          {err && !endInvalid && <div className="input-error">Add a title, date, and start time.</div>}
+          {endInvalid && <div className="input-error">End must be after start</div>}
+          {err && !endInvalid && <div className="input-error">Needs title · date · start</div>}
           {conflict && !endInvalid && (
             <div className="input-note">
-              <span>Heads up: this overlaps another event on this day.</span>
+              <span>Overlaps another event</span>
               {suggestSlot && (
                 <button type="button" className="note-fix" onClick={() => {
                   const tm = (h: string) => { const p = h.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };

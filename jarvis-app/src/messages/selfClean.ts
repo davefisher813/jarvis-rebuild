@@ -75,5 +75,5 @@ export function tossOffer(counts: TossCounts = loadTossed(), asked: string[] = l
 export function tossLine(sender: string, n: number): string {
   const who = sender.includes("@") ? sender.split("@")[0]!.replace(/[._-]+/g, " ") : sender;
   const name = who.charAt(0).toUpperCase() + who.slice(1);
-  return "You’ve archived " + name + " unread " + n + " times. Send them straight to Noise?";
+  return name + " · archived unread " + n + " times";
 }

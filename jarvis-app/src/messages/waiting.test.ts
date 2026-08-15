@@ -53,7 +53,8 @@ describe("waitingLine", () => {
   const row = { threadId: "t", to: "Sarah", toEmail: "s@y.com", subject: "LLC", waitingDays: 4, lastMsgId: "m" };
   it("no open signal: states the wait, never claims 'not opened'", () => {
     const line = waitingLine(row, null);
-    expect(line).toBe("4 days, no reply");
+    // SPEC MOVED (short copy, 2026-08-15)
+    expect(line).toBe("4 days · no reply");
     expect(line.toLowerCase()).not.toContain("not opened");
   });
   it("a real open shows the date", () => {

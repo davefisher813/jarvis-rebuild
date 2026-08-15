@@ -100,7 +100,8 @@ describe("self-cleaning inbox", () => {
 
   it("says it in one plain line with no scolding", () => {
     const line = tossLine("peloton@x.com", 6);
-    expect(line).toBe("You’ve archived Peloton unread 6 times. Send them straight to Noise?");
+    // SPEC MOVED (short copy, 2026-08-15)
+    expect(line).toBe("Peloton · archived unread 6 times");
     expect(line.toLowerCase()).not.toContain("should");
   });
 });

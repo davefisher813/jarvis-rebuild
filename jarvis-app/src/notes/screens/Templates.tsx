@@ -10,9 +10,9 @@ const TEMPLATES_LIST: {
   cat: string;
   Icon: typeof AlignLeft;
 }[] = [
-  { key: "blank", name: "Blank", desc: "Start with an empty page.", cat: "blue", Icon: AlignLeft },
+  { key: "blank", name: "Blank", desc: "An empty page.", cat: "blue", Icon: AlignLeft },
   { key: "meeting", name: "Meeting Notes", desc: "Date, attendees, agenda, decisions, action items.", cat: "sky", Icon: CalendarDays },
-  { key: "todo", name: "To-Do / Checklist", desc: "A simple checklist you can turn into tasks.", cat: "green", Icon: ListTodo },
+  { key: "todo", name: "To-Do / Checklist", desc: "A checklist · turns into tasks.", cat: "green", Icon: ListTodo },
   { key: "tracker", name: "Tracker", desc: "A table you define: rows, columns, sums.", cat: "yellow", Icon: Table },
   { key: "brief", name: "Project Brief", desc: "Objective, key dates, tasks, notes.", cat: "red", Icon: FileText },
   { key: "journal", name: "Log / Journal", desc: "Date-stamped entries over time.", cat: "teal", Icon: ListOrdered },

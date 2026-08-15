@@ -326,7 +326,7 @@ export default function NoteEditor({
         })}
 
         {inline.length === 0 && (
-          <div className="note-empty">Nothing here yet. Tap Add below to start writing or add a to-do.</div>
+          <div className="note-empty">Nothing here yet</div>
         )}
       </div>
 

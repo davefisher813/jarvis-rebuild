@@ -37,7 +37,7 @@ export default function GoalSheet({ mode, initial, onSave, onDelete, onCancel }:
           <div className="field">
             <div className="input-label">Dollar target</div>
             <input className={"input" + (touched && !targetOk ? " input-error" : "")} inputMode="numeric" placeholder="Optional, e.g. 2000" value={target} onChange={(e) => setTarget(e.target.value)} />
-            {touched && !targetOk && <div className="input-error">Enter a number, or leave it empty.</div>}
+            {touched && !targetOk && <div className="input-error">A number, or empty</div>}
           </div>
         </div>
         <div className="pad-x sheet-actions">

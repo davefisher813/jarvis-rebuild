@@ -37,23 +37,23 @@ describe("eveningStats + eveningSummary", () => {
     const s = eveningStats(events, tasks, TODAY, "19:00");
     // 2 done + the 9 AM event attended = 3 things
     expect(s).toEqual({ doneDue: 2, dueTotal: 3, eventsLeft: 1, openCount: 2, thingsDone: 3 });
-    expect(eveningSummary(s)).toBe("You did 3 things today. 1 thing left tonight.");
+    expect(eveningSummary(s)).toBe("3 done today · 1 left tonight") // SPEC MOVED (short copy, 2026-08-15);
   });
 
   it("Time Sense completions win over the due-today count when larger", () => {
     const s = eveningStats([], [task(true, TODAY)], TODAY, "19:00", 5);
     expect(s.thingsDone).toBe(5);
-    expect(eveningSummary(s)).toBe("You did 5 things today.");
+    expect(eveningSummary(s)).toBe("5 done today");
   });
 
   it("leads with the win when the evening is clear", () => {
     const s = eveningStats([], [task(true, TODAY)], TODAY, "19:00");
-    expect(eveningSummary(s)).toBe("You did 1 thing today.");
+    expect(eveningSummary(s)).toBe("1 done today");
   });
 
   it("a truly clear evening says so, without inventing wins", () => {
     const s = eveningStats([], [], TODAY, "19:00");
-    expect(eveningSummary(s)).toBe("A clear evening.");
+    expect(eveningSummary(s)).toBe("A clear evening");
   });
 
   it("never mentions what did not happen, and uses no em dashes", () => {

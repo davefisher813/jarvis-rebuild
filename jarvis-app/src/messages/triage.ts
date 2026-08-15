@@ -146,9 +146,9 @@ export function splitByBucket(rows: ThreadRow[], map: TriageMap): {
 
 // The headline the tab lives by: the count that matters, never unread totals.
 export function headline(needsYou: number, total: number): string {
-  if (total === 0) return "Inbox is quiet.";
-  if (needsYou === 0) return "Nothing needs you. The rest is handled.";
-  return needsYou === 1 ? "1 needs you. The rest is handled." : needsYou + " need you. The rest is handled.";
+  if (total === 0) return "Inbox is quiet";
+  if (needsYou === 0) return "Nothing needs you";
+  return needsYou === 1 ? "1 needs you · rest handled" : needsYou + " need you · rest handled";
 }
 
 // "DoorDash, LinkedIn +3 more", enough to trust Archive All without opening.
@@ -203,7 +203,7 @@ export function todayEmailLine(needsYou: number, replied: number): string {
   if (needsYou <= 0) return "";
   const who = needsYou === 1 ? "1 email needs you" : needsYou + " emails need you";
   if (replied >= needsYou && needsYou > 0) {
-    return who + ", " + (needsYou === 1 ? "the reply is written" : "the replies are written");
+    return who + " · " + (needsYou === 1 ? "reply written" : "replies written");
   }
   return who;
 }

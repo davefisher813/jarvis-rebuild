@@ -19,7 +19,7 @@ export default function AdvancedPage({ onBack, onExport }: { onBack: () => void;
           ? <button className="row row-signout" onClick={() => setConfirm(true)}>Clear local data</button>
           : <button className="row row-signout" onClick={() => { try { localStorage.clear(); } catch { /* ignore */ } location.reload(); }}>Tap again to confirm</button>}
       </div></div>
-      <div className="page-explainer">Clearing local data removes everything stored on this device. This cannot be undone.</div>
+      <div className="page-explainer">Removes everything on this device · no undo</div>
     </div>
   );
 }

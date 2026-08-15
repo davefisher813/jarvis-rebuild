@@ -114,7 +114,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
       setDirty(false);
       setSaved(true);
     } catch {
-      showToast({ message: "Couldn't save. Check your connection and try again." });
+      showToast({ message: "Couldn't save · check your connection" });
     }
   };
 
@@ -143,7 +143,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
             <input type="time" className="input" value={toHHMM(data.sleepMin)} disabled={!loaded} onChange={(e) => set({ sleepMin: fromHHMM(e.target.value) })} />
           </div>
         </div>
-        {overnight && <div className="input-help">Overnight schedule. JARVIS plans your daytime hours.</div>}
+        {overnight && <div className="input-help">Overnight · JARVIS plans the day</div>}
 
         <div className="grp"><div className="eyebrow">Work Hours</div></div>
         <div className="field-row">
@@ -156,7 +156,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
             <input type="time" className="input" value={toHHMM(data.workEndMin)} disabled={!loaded} onChange={(e) => set({ workEndMin: fromHHMM(e.target.value) })} />
           </div>
         </div>
-        {workOutside && <div className="input-help">Some work hours fall outside your active hours. That's fine.</div>}
+        {workOutside && <div className="input-help">Work hours outside active hours · fine</div>}
 
         <div className="grp"><div className="eyebrow">Protected Time</div></div>
 
@@ -192,7 +192,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
               <div className="field"><label className="input-label">From</label><input type="time" className="input" value={toHHMM(form.startMin)} onChange={(e) => setForm({ ...form, startMin: fromHHMM(e.target.value) })} /></div>
               <div className="field"><label className="input-label">To</label><input type="time" className="input" value={toHHMM(form.endMin)} onChange={(e) => setForm({ ...form, endMin: fromHHMM(e.target.value) })} /></div>
             </div>
-            {form.endMin <= form.startMin && <div className="input-help">End time needs to be after the start.</div>}
+            {form.endMin <= form.startMin && <div className="input-help">End must be after start</div>}
             <div className="field">
               <label className="input-label">What is it?</label>
               <div className="chip-wrap">
@@ -208,7 +208,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
             <div className="row">
               <div className="row-grow">
                 <div className="conn-name">Flexible</div>
-                <div className="conn-meta">JARVIS keeps this clear when there&rsquo;s room, and may plan over it on a tight day. Off means it&rsquo;s a wall.</div>
+                <div className="conn-meta">Kept clear when possible · off means never</div>
               </div>
               <button
                 className={"switch" + (form.soft ? "" : " off")}

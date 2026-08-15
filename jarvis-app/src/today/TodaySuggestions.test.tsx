@@ -42,7 +42,7 @@ describe("TodaySuggestions planning pattern (Brain Personalization Phase 2, 2026
     }
     render(<NotesProvider userId="u3"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("JARVIS Noticed")).toBeInTheDocument());
-    expect(screen.getByText(/Your work tasks have been taking about 20 minutes longer/)).toBeInTheDocument();
+    expect(screen.getByText(/work tasks run 20 min long/)).toBeInTheDocument();
     fireEvent.click(screen.getByText("Remember This"));
     await waitFor(() => expect(screen.queryByText(/Your work tasks/)).not.toBeInTheDocument());
   });
@@ -85,7 +85,7 @@ describe("TodaySuggestions routine candidate", () => {
     rerender(
       <NotesProvider userId="u-routine"><RoutineProbe /><TodaySuggestions ai={ai} /></NotesProvider>,
     );
-    await waitFor(() => expect(screen.getByText(/Gym has landed around 6 AM/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Gym · around 6 AM/)).toBeInTheDocument());
     fireEvent.click(screen.getByText("Add to Routine"));
     await waitFor(() => expect(screen.queryByText(/Gym has landed/)).not.toBeInTheDocument());
     await waitFor(async () => {

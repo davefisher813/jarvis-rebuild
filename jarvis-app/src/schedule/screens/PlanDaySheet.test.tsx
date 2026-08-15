@@ -43,7 +43,7 @@ describe("PlanDaySheet soft work-hours windows", () => {
     expect(screen.queryByText("No room")).not.toBeInTheDocument();
     // The row's own time slot (the day strip's scale also prints 7:00 PM).
     expect(document.querySelector(".p3-time")!.textContent).toBe("7:00 PM");
-    expect(screen.getByText(/Outside its usual work hours/)).toBeInTheDocument();
+    expect(screen.getByText(/Outside its work hours/)).toBeInTheDocument();
   });
 
   it("draws the day strip: picks, events, and protected time as proportional segments", () => {
@@ -77,13 +77,13 @@ describe("PlanDaySheet soft work-hours windows", () => {
     );
     fireEvent.click(screen.getByText("Return package"));
     fireEvent.click(screen.getByLabelText("Return package: place on the day"));
-    expect(screen.getByText(/Tap the strip where/)).toBeInTheDocument();
+    expect(screen.getByText(/Tap where/)).toBeInTheDocument();
     const bar = document.querySelector(".plan-strip-bar") as HTMLElement;
     // 7 AM-9 PM window, 840 wide in test pixels: one px per minute.
     bar.getBoundingClientRect = () => ({ left: 0, width: 840, top: 0, right: 840, bottom: 22, height: 22, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
     fireEvent.click(bar, { clientX: 600 }); // minute 1020 = 5:00 PM, snaps clean
     expect((screen.getByLabelText("Return package: time") as HTMLInputElement).value).toBe("17:00");
-    expect(screen.queryByText(/Tap the strip where/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Tap where/)).not.toBeInTheDocument();
   });
 
   it("inside its window there is no label: the preference only speaks when broken", () => {
@@ -151,7 +151,7 @@ describe("PlanDaySheet (redesigned 2026-08-06)", () => {
     render(
       <PlanDaySheet events={[]} tasks={TASKS} startMin={START} endMin={END} blocked={blocked} onCommit={() => {}} onClose={() => {}} />,
     );
-    expect(screen.getByText(/Protected today:/)).toBeInTheDocument();
+    expect(screen.getByText(/Protected · routed around/)).toBeInTheDocument();
     expect(screen.getByText(/Lunch/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Return package"));
@@ -267,10 +267,10 @@ describe("PlanDaySheet focus zones", () => {
         blocked={BLOCKED} onCommit={() => {}} onClose={() => {}}
       />,
     );
-    expect(screen.getByText(/Focus time today: Deep Work 1:00 PM–5:00 PM/)).toBeInTheDocument();
-    expect(screen.getByText(/Flexible today: Lunch/)).toBeInTheDocument();
+    expect(screen.getByText(/Focus · picks land here/)).toBeInTheDocument();
+    expect(screen.getByText(/Flexible · used when tight/)).toBeInTheDocument();
     // Deep Work never appears under Protected (there are no hard blocks here).
-    expect(screen.queryByText(/Protected today:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Protected · routed around/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Return package"));
     // The morning is wide open, but the pick lands at 1:00 PM, inside the zone.
     expect(document.querySelector(".p3-time")!.textContent).toBe("1:00 PM");

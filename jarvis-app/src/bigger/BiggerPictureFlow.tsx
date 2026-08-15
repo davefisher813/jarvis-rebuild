@@ -113,7 +113,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote }: { 
       if (!step) throw new Error("empty");
       setProjStep({ projectId: stalled.id, step });
     } catch {
-      showToast({ message: "Couldn't reach JARVIS. Try again in a bit." });
+      showToast({ message: "Couldn't reach JARVIS" });
     } finally {
       setProjStepBusy(false);
     }
@@ -126,7 +126,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote }: { 
     setDismissTick((n) => n + 1);
     emit({ type: "suggestion.accepted", props: { kind: "proj_step" } });
     await reload();
-    showToast({ message: "First step added to Today." });
+    showToast({ message: "First step on Today" });
   };
   const projStepDismiss = () => {
     if (!stalled) return;

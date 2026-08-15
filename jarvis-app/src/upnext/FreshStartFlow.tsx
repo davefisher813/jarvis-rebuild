@@ -41,7 +41,7 @@ export default function FreshStartFlow({ onClose, onDone }: { onClose: () => voi
     onDone?.();
     onClose();
     showToast({
-      message: move.length > 0 ? `Fresh start. ${move.length} moved to tomorrow.` : "Fresh start.",
+      message: move.length > 0 ? `Fresh start · ${move.length} moved to tomorrow` : "Fresh start",
       actionLabel: move.length > 0 ? "Undo" : undefined,
       onAction: move.length > 0
         ? async () => { for (const m of moved) await svc.setDue(m.id, m.prevDue); onDone?.(); }

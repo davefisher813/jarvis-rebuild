@@ -48,7 +48,7 @@ export default function PeopleListPage({
       <div className="sec-ico ico-blue">{UPLOAD}</div>
       <div className="row-grow">
         <div className="conn-name">Import from File</div>
-        <div className="conn-meta">Share contacts from your phone (.vcf) or a spreadsheet (.csv)</div>
+        <div className="conn-meta">.vcf from your phone · .csv with a Name column</div>
       </div>
     </div>
   );
@@ -87,7 +87,7 @@ export default function PeopleListPage({
           person, so legacy Adversarial members are confirmed, never converted. */}
       {pendingReview.length > 0 && (
         <div className="pad-x"><div className="card pad">
-          <div className="conn-name">From your old list. Still handle with care?</div>
+          <div className="conn-name">From your old list · still handle with care?</div>
           {pendingReview.map((p) => (
             <div className="offer-row" key={p.id}>
               <div className="av av-32 cat-bg-graphite">{personInitials(p.data.name)}</div>

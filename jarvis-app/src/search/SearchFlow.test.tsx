@@ -16,7 +16,7 @@ function Seeded() {
 describe("SearchFlow", () => {
   it("prompts when empty, then finds a seeded task", async () => {
     render(<NotesProvider userId="u1"><Seeded /></NotesProvider>);
-    expect(await screen.findByText(/Search tasks, events/)).toBeInTheDocument();
+    expect(await screen.findByText(/Search everything/)).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText("Search everything"), { target: { value: "sam" } });
     await waitFor(() => expect(screen.getByText("Email Sam")).toBeInTheDocument());
   });

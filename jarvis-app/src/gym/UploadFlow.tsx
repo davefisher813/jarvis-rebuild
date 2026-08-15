@@ -39,12 +39,12 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
       const out = await ai.complete([message], JARVIS_VOICE);
       const parsed = parseProgramExtract(out);
       if (!parsed) {
-        showToast({ message: "Couldn't read a program out of that. Try a clearer photo or paste the text." });
+        showToast({ message: "Couldn't read that · try a clearer photo" });
         return;
       }
       setDraft(parsed);
     } catch {
-      showToast({ message: "Couldn't reach JARVIS. Try again in a bit." });
+      showToast({ message: "Couldn't reach JARVIS · try again" });
     } finally {
       setBusy(false);
     }
@@ -55,7 +55,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
       const img = await encodeImageForVision(file);
       await extract(buildVisionMessage(EXTRACT_PROMPT, img.data, img.mediaType));
     } catch {
-      showToast({ message: "Couldn't read that image." });
+      showToast({ message: "Couldn't read that image" });
     }
   };
 
@@ -72,7 +72,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
           {/* Derived and conditional: this line changes what the user does
               (check before saving), so it earns its place. */}
           <div className="pad-x"><div className="card pad">
-            <div className="conn-name">Here&rsquo;s what I read. Tap anything to fix it.</div>
+            <div className="conn-name">What I read · tap to fix</div>
           </div></div>
           {draft.days.map((day, di) => (
             <div key={day.id}>

@@ -471,6 +471,6 @@ async function seedDemoNotes(svc: ReturnType<typeof useNotes>, cats: Category[])
 
     await svc.createNote("Standup Notes", id("Work"));
   } catch {
-    showToast({ message: "Couldn't save. Check your connection and try again." });
+    showToast({ message: "Couldn't save · check your connection" });
   }
 }

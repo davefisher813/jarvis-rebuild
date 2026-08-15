@@ -163,7 +163,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
     // The refusal now SAYS so (2026-08-09): a control that eats taps in
     // silence reads as broken, not protective.
     if (state === "paid" && b.data.recurrence) {
-      showToast({ message: "Already paid. The next one rolls in on its own." });
+      showToast({ message: "Already paid · next rolls in" });
       return;
     }
     await tasksSvc.toggleDone(b.id);
@@ -289,7 +289,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
                         // used to eat the tap in silence on a blank name or
                         // zero amount, unlike every sheet in this module.
                         if (!envName.trim() || !isFinite(amt) || amt <= 0) {
-                          showToast({ message: !envName.trim() ? "Give it a name first." : "Amount needs to be more than zero." });
+                          showToast({ message: !envName.trim() ? "Needs a name" : "Needs an amount over zero" });
                           return;
                         }
                         setEnvelopes(saveEnvelopes([...envelopes, { id: envelopeId(envelopes.length + Date.now() % 9999), name: envName, amount: amt }]));
@@ -306,7 +306,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               </div></div>
               {envelopes.length === 0 && (
                 <div className="pad-x"><div className="input-help">
-                  Money you reserve here stops counting as spendable. It is a plan, not a record of spending.
+                  Reserved · not spendable · a plan
                 </div></div>
               )}
             </>

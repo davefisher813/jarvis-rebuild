@@ -1090,3 +1090,20 @@ button {
 .sweep-receipt.sweep-error { flex-direction: row; align-items: center; }
 .sweep-receipt.sweep-error { border-left: 3px solid var(--warn); background: var(--warn-tint); cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .restore-banner, .sweep-receipt, .momentum-slot { animation: none; } }
+
+/* V2 INFORMATION ANATOMY (approved 2026-08-15, LOCKED-CSS CHANGE FLAGGED).
+   Dave: lists must read at a glance. Numbers become tinted stat tiles, rows
+   lead with a TYPE icon tile (what it IS before you read a word; the user's
+   category dot moves to the right edge and keeps its meaning), repeated day
+   labels collapse into one divider, counts ride as pills. The stat tile's
+   tint carries the number's meaning: green done, sky events, amber pushed. */
+.stat-tile.stat-good { background: var(--good-tint); }
+.stat-tile.stat-good .stat-num { color: var(--good); }
+.stat-tile.stat-sky { background: rgba(90, 200, 250, 0.14); }
+.stat-tile.stat-sky .stat-num { color: var(--cat-sky, #5AC8FA); }
+.stat-tile.stat-warn { background: var(--warn-tint); }
+.stat-tile.stat-warn .stat-num { color: var(--warn); }
+.stat-tile.stat-plain .stat-num { color: var(--tx-1); }
+.row-ico { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
+.row-ico .ic { width: 15px; height: 15px; }
+.day-divide { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-4); padding: var(--s-2h) var(--s-1) var(--s-1); }

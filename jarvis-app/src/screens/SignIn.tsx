@@ -18,7 +18,7 @@ export default function SignIn() {
   const submit = async () => {
     setError("");
     if (!email.trim() || password.length < 6) {
-      setError("Enter your email and a password of at least 6 characters.");
+      setError("Email + password · 6 characters minimum");
       return;
     }
     setBusy(true);
@@ -26,7 +26,7 @@ export default function SignIn() {
       if (mode === "signup") await signUpWithPassword(email.trim(), password);
       else await signInWithPassword(email.trim(), password);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong. Try again.");
+      setError(e instanceof Error ? e.message : "Something went wrong · try again");
     } finally {
       setBusy(false);
     }

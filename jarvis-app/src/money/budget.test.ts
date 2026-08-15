@@ -53,7 +53,8 @@ describe("what is actually yours", () => {
   });
 
   it("names a shortfall in words, and never when there is none", () => {
-    expect(shortLine(leftToSpend(1000, 1200, 0))).toBe("$200 more than this paycheck covers.");
+    // SPEC MOVED (short copy, 2026-08-15)
+    expect(shortLine(leftToSpend(1000, 1200, 0))).toBe("$200 past this paycheck");
     expect(shortLine(leftToSpend(2102, 1240, 450))).toBe("");
   });
 

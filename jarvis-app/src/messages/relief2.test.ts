@@ -60,7 +60,8 @@ describe("hand off", () => {
   });
 
   it("tells him who has it now", () => {
-    expect(handoffLine("Jen")).toBe("Sent to Jen. It’s in Waiting On now.");
+    // SPEC MOVED (short copy, 2026-08-15)
+    expect(handoffLine("Jen")).toBe("Sent to Jen · now in Waiting On");
   });
 });
 
@@ -93,7 +94,8 @@ describe("commitment catcher", () => {
 
   it("states the promise without a word of judgement", () => {
     const line = commitmentLine({ text: "Send the roster", due: "2026-08-14" });
-    expect(line).toBe("Caught: Send the roster, by 2026-08-14.");
+    // SPEC MOVED (short copy, 2026-08-15)
+    expect(line).toBe("Caught: Send the roster · by 2026-08-14");
     for (const w of ["forgot", "remember", "don't", "again", "promised you"]) {
       expect(line.toLowerCase()).not.toContain(w);
     }
@@ -108,9 +110,10 @@ describe("today line", () => {
   });
 
   it("counts people, and mentions the prepared replies when they exist", () => {
+    // SPEC MOVED (short copy, 2026-08-15)
     expect(todayEmailLine(1, 0)).toBe("1 email needs you");
-    expect(todayEmailLine(2, 2)).toBe("2 emails need you, the replies are written");
-    expect(todayEmailLine(1, 1)).toBe("1 email needs you, the reply is written");
+    expect(todayEmailLine(2, 2)).toBe("2 emails need you · replies written");
+    expect(todayEmailLine(1, 1)).toBe("1 email needs you · reply written");
   });
 
   it("reads the count straight off the cache so Today never waits", () => {

@@ -73,7 +73,7 @@ export default function ConnectionsPage({
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><Link2 className="ic" /></div>
           <div className="empty-title">Google setup required</div>
-          <div className="empty-sub">A Google sign-in client must be configured before Gmail and Calendar can connect.</div>
+          <div className="empty-sub">Needs Google setup first</div>
         </div></div></div>
       )}
 
@@ -96,7 +96,7 @@ export default function ConnectionsPage({
                     account used to silently drop its mail from the unified
                     inbox with no reconnect anywhere; Reconnect All only
                     appeared when EVERY account was out. */}
-                {signedOut && <div className="conn-meta">Signed out. Its mail and events are missing until you reconnect.</div>}
+                {signedOut && <div className="conn-meta">Signed out · reconnect for mail + events</div>}
                 <div className="msg-chips conn-acct-chips">
                   {signedOut && (
                     <button className="chip on" disabled={busy}
@@ -140,7 +140,7 @@ export default function ConnectionsPage({
           <div className="proj-icon cat-bg-sky"><CalendarDays className="ic" /></div>
           <div className="row-grow">
             <div className="conn-name">Calendar import</div>
-            <div className="conn-meta">Upcoming events flow into the Schedule on every connect</div>
+            <div className="conn-meta">Events flow into Schedule</div>
           </div>
         </div></div></div>
       )}
@@ -149,7 +149,7 @@ export default function ConnectionsPage({
         <div className="pad-x"><div className="card"><div className="row">
           <div className="row-grow">
             <div className="conn-name">Know when your email is opened</div>
-            <div className="conn-meta">Adds an invisible receipt to mail you send. Powers &ldquo;Opened&rdquo; on Waiting On. Blocked images hide it either way.</div>
+            <div className="conn-meta">Read receipts on sent mail · powers Opened</div>
           </div>
           <button
             className={"switch" + (trackOpens ? "" : " off")}

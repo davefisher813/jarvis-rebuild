@@ -134,8 +134,8 @@ export function staleSuffix(snap: WeatherSnapshot, now: () => number = Date.now)
   if (age > 24 * 3600e3) return null;
   if (age < 15 * 60_000) return "";
   const mins = Math.round(age / 60_000);
-  if (mins < 90) return ` Checked ${mins} min ago.`;
-  return ` Checked ${Math.round(mins / 60)} hours ago.`;
+  if (mins < 90) return ` · checked ${mins} min ago`;
+  return ` · checked ${Math.round(mins / 60)} hr ago`;
 }
 
 // The morning line: today's first rain window, or the day's extreme, or
@@ -160,19 +160,19 @@ export function morningLine(snap: WeatherSnapshot, todayIso: string, now: () => 
   if (rainStart >= 0) {
     const until = hourly.time[rainEnd + 1];
     const line = until && until.startsWith(todayIso)
-      ? `Rain likely from ${fmtHour(hourly.time[rainStart]!)} until about ${fmtHour(until)}.`
-      : `Rain likely from ${fmtHour(hourly.time[rainStart]!)} on.`;
+      ? `Rain likely ${fmtHour(hourly.time[rainStart]!)}-${fmtHour(until)}`
+      : `Rain likely from ${fmtHour(hourly.time[rainStart]!)}`;
     return line + stale;
   }
 
   const temps = idx.map(({ i }) => hourly.tempF[i] ?? 70);
   const hi = Math.max(...temps);
   const lo = Math.min(...temps);
-  if (hi >= HOT_F) return `${Math.round(hi)} at the peak today.` + stale;
-  if (lo <= COLD_F) return `Down to ${Math.round(lo)} today.` + stale;
+  if (hi >= HOT_F) return `${Math.round(hi)} at the peak` + stale;
+  if (lo <= COLD_F) return `Down to ${Math.round(lo)}` + stale;
 
   const wind = Math.max(...idx.map(({ i }) => hourly.windMph[i] ?? 0));
-  if (wind >= WINDY_MPH) return `Wind to ${Math.round(wind)} mph today.` + stale;
+  if (wind >= WINDY_MPH) return `Wind to ${Math.round(wind)} mph` + stale;
 
   return null; // mild: silence
 }
@@ -187,9 +187,9 @@ export function eventLine(snap: WeatherSnapshot, dateIso: string, startHHMM: str
   const p = snap.hourly.precipProb[i] ?? 0;
   const t = snap.hourly.tempF[i];
   const w = snap.hourly.windMph[i] ?? 0;
-  if (p >= RAIN_PROB_MIN) return `Rain likely at start.` + stale;
-  if (t !== undefined && t >= HOT_F) return `${Math.round(t)} at start.` + stale;
-  if (t !== undefined && t <= COLD_F) return `${Math.round(t)} at start.` + stale;
-  if (w >= WINDY_MPH) return `Wind to ${Math.round(w)} mph at start.` + stale;
+  if (p >= RAIN_PROB_MIN) return `Rain likely at start` + stale;
+  if (t !== undefined && t >= HOT_F) return `${Math.round(t)} at start` + stale;
+  if (t !== undefined && t <= COLD_F) return `${Math.round(t)} at start` + stale;
+  if (w >= WINDY_MPH) return `Wind to ${Math.round(w)} mph at start` + stale;
   return null;
 }

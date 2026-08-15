@@ -80,12 +80,12 @@ export default function ScheduleUploadFlow({
       const out = await ai.complete([message], JARVIS_VOICE);
       const found = parseScheduleExtract(out);
       if (!found) {
-        showToast({ message: "Couldn't read a schedule out of that. Try a clearer photo or paste the text." });
+        showToast({ message: "Couldn't read that · try a clearer photo" });
         return;
       }
       afterExtract(found, year);
     } catch {
-      showToast({ message: "Couldn't reach JARVIS. Try again in a bit." });
+      showToast({ message: "Couldn't reach JARVIS · try again" });
     } finally {
       setBusy(false);
     }
@@ -171,7 +171,7 @@ export default function ScheduleUploadFlow({
           <div className="grp"><div className="eyebrow">What Year Is This?</div></div>
           <div className="pad-x sheet-form">
             <div className="field">
-              <div className="t-body">The schedule didn&rsquo;t say. This applies to every date that didn&rsquo;t have one.</div>
+              <div className="t-body">Schedule didn&rsquo;t say · applies to undated rows</div>
             </div>
             <div className="field">
               <label className="input-label">Year</label>
@@ -203,7 +203,7 @@ export default function ScheduleUploadFlow({
               <img className="upload-thumb" src={thumb} alt="Uploaded schedule" />
               <div className="row-grow">
                 <div className="conn-name">{rows.length} {rows.length === 1 ? "event" : "events"} found</div>
-                <div className="eyebrow">Tap any row to fix it before adding</div>
+                <div className="eyebrow">Tap a row to fix it</div>
               </div>
             </div></div>
           )}

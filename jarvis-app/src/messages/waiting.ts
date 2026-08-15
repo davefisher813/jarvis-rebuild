@@ -65,7 +65,7 @@ export async function findWaiting(
 // The absence of an open says NOTHING (image blockers read invisibly), so the
 // line never claims "not opened".
 export function waitingLine(row: WaitingRow, openedISO: string | null): string {
-  const wait = row.waitingDays === 1 ? "1 day, no reply" : row.waitingDays + " days, no reply";
+  const wait = row.waitingDays === 1 ? "1 day · no reply" : row.waitingDays + " days · no reply";
   if (!openedISO) return wait;
   const d = new Date(openedISO);
   const when = d.toLocaleDateString([], { month: "short", day: "numeric" });

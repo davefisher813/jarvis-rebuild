@@ -17,7 +17,7 @@
 // without needing a browser.
 
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
-export const UPLOAD_TOO_BIG_MESSAGE = "That file is over 10MB. Choose a smaller file.";
+export const UPLOAD_TOO_BIG_MESSAGE = "Over 10MB · pick a smaller file";
 
 export const ALLOWED_UPLOAD_TYPES = [
   "image/jpeg",

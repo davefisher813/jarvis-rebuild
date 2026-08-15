@@ -77,7 +77,7 @@ export default function CallPrepSheet({
     const ok = await attemptWrite(async () => { await onCaptureNote(t); });
     if (!ok) return;
     setCaptureText("");
-    showToast({ message: "Saved to a note linked to " + name });
+    showToast({ message: "Saved · linked to " + name });
   };
 
   return createPortal(

@@ -19,10 +19,10 @@ const LEVEL_LABEL: Record<AILevel, string> = {
 };
 
 const LEVEL_SUB: Record<AILevel, string> = {
-  everything: "JARVIS acts on reversible things and shows a receipt with undo. Sending anything still needs your tap.",
-  draft: "Drafts and suggestions are ready when you arrive. Nothing happens without you.",
-  request: "AI runs only when you ask. Nothing prepares in the background.",
-  off: "Zero AI calls. Everything else keeps working. Nothing is deleted.",
+  everything: "Acts · receipts + undo · you send",
+  draft: "Drafts ready · nothing acts",
+  request: "Only when you ask",
+  off: "Zero AI calls · nothing deleted",
 };
 
 const PIN_LABEL: Record<AIPinKey, string> = {

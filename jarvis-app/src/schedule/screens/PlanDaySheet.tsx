@@ -210,34 +210,47 @@ export default function PlanDaySheet({
         <div className="grp"><div className="eyebrow">Plan My Day</div></div>
         <div className="pad-x sheet-form">
           <div className="p3-q">What fits today?</div>
-          <div className="plan-sub">
-            {routineConfigured
-              ? (sizing.maxBlocks != null
-                  ? `Your anchors are set. Pick up to ${sizing.maxBlocks}; I’ll slot them into the open gaps before ${label(fromMin(endMin))}.`
-                  : `Your anchors are set. Pick as many as you like; I’ll slot them into the open gaps before ${label(fromMin(endMin))}.`)
-              : `Using default hours until ${label(fromMin(endMin))}.`}
-            {!routineConfigured && onEditRoutine && <button type="button" className="note-fix" onClick={onEditRoutine}>Set Your Routine</button>}
+          {/* Short-copy sweep (approved 2026-08-15): the seven stacked prose
+              sentences became fact chips and colored rows. Same information,
+              read in one glance. */}
+          <div className="chip-row">
+            <div className="chip">{sizing.maxBlocks != null ? `Pick up to ${sizing.maxBlocks}` : "Pick freely"}</div>
+            <div className="chip">Before {label(fromMin(endMin))}</div>
+            {!routineConfigured && <div className="chip">Default hours</div>}
           </div>
+          {!routineConfigured && onEditRoutine && (
+            <div className="plan-sub"><button type="button" className="note-fix" onClick={onEditRoutine}>Set Your Routine</button></div>
+          )}
           {record && <div className="plan-sub">{record}</div>}
           {(events.length > 0 || blocked.length > 0 || plan.blocks.length > 0) && (
             <PlanStrip startMin={startMin} endMin={endMin} events={events} blocked={blocked} blocks={plan.blocks} onTapMin={placing ? placeAt : undefined} />
           )}
           {placingTask && (
-            <div className="plan-sub">Tap the strip where &ldquo;{placingTask.text}&rdquo; should go.</div>
+            <div className="plan-sub">Tap where &ldquo;{placingTask.text}&rdquo; goes</div>
           )}
-          {ranges.focus.length > 0 && (
-            <div className="plan-sub">
-              Focus time today: {ranges.focus.map((b) => `${b.label} ${label(fromMin(b.s))}–${label(fromMin(b.e))}`).join(", ")}. Your picks land here first.
-            </div>
-          )}
-          {ranges.hard.length > 0 && (
-            <div className="plan-sub">
-              Protected today: {ranges.hard.map((b) => `${b.label} ${label(fromMin(b.s))}–${label(fromMin(b.e))}`).join(", ")}. Auto-placed picks route around these; set a time by hand if you want to schedule over one.
-            </div>
-          )}
-          {ranges.soft.length > 0 && (
-            <div className="plan-sub">
-              Flexible today: {ranges.soft.map((b) => `${b.label} ${label(fromMin(b.s))}–${label(fromMin(b.e))}`).join(", ")}. Kept clear while there&rsquo;s room; used only when the day is tight.
+          {(ranges.focus.length > 0 || ranges.hard.length > 0 || ranges.soft.length > 0) && (
+            <div className="card">
+              {ranges.focus.map((b) => (
+                <div className="row" key={"f" + b.s}>
+                  <span className="cat-dot cat-bg-blue" />
+                  <div className="row-stack"><div className="conn-name">{b.label}</div><div className="conn-meta">Focus · picks land here</div></div>
+                  <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
+                </div>
+              ))}
+              {ranges.hard.map((b) => (
+                <div className="row" key={"h" + b.s}>
+                  <span className="cat-dot cat-bg-graphite" />
+                  <div className="row-stack"><div className="conn-name">{b.label}</div><div className="conn-meta">Protected · routed around</div></div>
+                  <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
+                </div>
+              ))}
+              {ranges.soft.map((b) => (
+                <div className="row" key={"s" + b.s}>
+                  <span className="cat-dot cat-bg-teal" />
+                  <div className="row-stack"><div className="conn-name">{b.label}</div><div className="conn-meta">Flexible · used when tight</div></div>
+                  <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
+                </div>
+              ))}
             </div>
           )}
           {onAIPlan && picks.length > 0 && (
@@ -245,12 +258,12 @@ export default function PlanDaySheet({
               <button type="button" className="note-fix" disabled={aiBusy} onClick={estimateWithAI}>
                 {aiBusy ? "Estimating…" : "Estimate with AI"}
               </button>
-              {aiError && <span>Couldn&rsquo;t reach the AI. Lengths stay as they are.</span>}
+              {aiError && <span>Couldn&rsquo;t reach the AI · lengths unchanged</span>}
             </div>
           )}
 
           {tasks.length === 0 ? (
-            <div className="empty-state"><div className="t-body">Nothing in Anytime to plan. Capture a few tasks first.</div></div>
+            <div className="empty-state"><div className="t-body">Nothing in Anytime yet</div></div>
           ) : (
             <div className="p3-list">
               {tasks.map((t) => {
@@ -274,7 +287,7 @@ export default function PlanDaySheet({
                             which read as the feature being broken, because for
                             the user's actual life it was. */}
                         {on && blockFor(t.id)?.outsideWindow && (
-                          <div className="bp-sub">Outside its usual work hours; change the time if that&rsquo;s wrong</div>
+                          <div className="bp-sub">Outside its work hours</div>
                         )}
                         {on && blockFor(t.id)?.overSoft && (
                           <div className="bp-sub">Overlaps your {blockFor(t.id)!.overSoft}; the day is tight, move it if that doesn&rsquo;t work</div>
@@ -321,7 +334,7 @@ export default function PlanDaySheet({
           )}
 
           {picks.length > 0 && plan.unplaced.length > 0 && (
-            <div className="input-note">Not enough open time for all of them. {plan.unplaced.map((t) => t.text).join(", ")} stays in Anytime.</div>
+            <div className="input-note">No room today · {plan.unplaced.map((t) => t.text).join(", ")} stays in Anytime</div>
           )}
         </div>
         <div className="pad-x sheet-actions">

@@ -27,7 +27,7 @@ describe("BrainDocPage", () => {
       </NotesProvider>,
     );
     expect(screen.getByText("How You Write")).toBeInTheDocument();
-    const ta = await screen.findByPlaceholderText(/tone and style/i);
+    const ta = await screen.findByPlaceholderText(/Tone · style/i);
     fireEvent.change(ta, { target: { value: "Short and direct." } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());

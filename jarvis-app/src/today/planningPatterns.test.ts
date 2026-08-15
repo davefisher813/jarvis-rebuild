@@ -24,13 +24,13 @@ describe("planningPatternObservation", () => {
   it("reports a category that consistently runs longer than estimated", () => {
     const cs = [corr("work", 20), corr("work", 15), corr("work", 25)];
     const r = planningPatternObservation(cs, NOW);
-    expect(r).toEqual({ id: "plan-dur-long-work", text: "Your work tasks have been taking about 20 minutes longer than the AI estimates." });
+    expect(r).toEqual({ id: "plan-dur-long-work", text: "work tasks run 20 min long" }); // SPEC MOVED (short copy, 2026-08-15)
   });
 
   it("reports a category that consistently wraps up faster than estimated", () => {
     const cs = [corr("errands", -10), corr("errands", -15), corr("errands", -20)];
     const r = planningPatternObservation(cs, NOW);
-    expect(r).toEqual({ id: "plan-dur-short-errands", text: "Your errands tasks have been wrapping up about 15 minutes faster than the AI estimates." });
+    expect(r).toEqual({ id: "plan-dur-short-errands", text: "errands tasks finish 15 min early" }); // SPEC MOVED
   });
 
   it("says nothing when the direction is not consistent (mixed signal, not a pattern)", () => {

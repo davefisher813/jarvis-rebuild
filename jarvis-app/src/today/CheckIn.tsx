@@ -70,7 +70,7 @@ export default function CheckIn({ onChanged }: { onChanged?: () => void }) {
             <div className="chip" role="button" tabIndex={0} key={v} onClick={async () => {
               await saveDay({ mood: v });
               haptics.selection();
-              setAffirm("Noted. That helps me plan better days.");
+              setAffirm("Noted · helps me plan");
               setShow(false);
               onChanged?.();
               window.setTimeout(() => setAffirm(null), 3500);

@@ -46,7 +46,7 @@ describe("thresholds gate every line", () => {
     const p = Array(24).fill(5);
     for (let h = 9; h <= 10; h++) p[h] = 70;
     const line = morningLine(snap({ precipProb: p }), TODAY, now)!;
-    expect(line).toMatch(/Rain likely from 9 AM until about 11 AM\./);
+    expect(line).toMatch(/Rain likely 9 AM-11 AM/); // SPEC MOVED (short copy, 2026-08-15)
   });
 
   it("heat and cold speak only past the gates", () => {
@@ -68,8 +68,8 @@ describe("staleness is stated, death is silence", () => {
     expect(staleSuffix(snap(), now)).toBe("");
   });
   it("an old snapshot says how old", () => {
-    expect(staleSuffix(snap({ fetchedAt: NOW - 40 * 60_000 }), now)).toBe(" Checked 40 min ago.");
-    expect(staleSuffix(snap({ fetchedAt: NOW - 3 * 3600e3 }), now)).toBe(" Checked 3 hours ago.");
+    expect(staleSuffix(snap({ fetchedAt: NOW - 40 * 60_000 }), now)).toBe(" · checked 40 min ago"); // SPEC MOVED
+    expect(staleSuffix(snap({ fetchedAt: NOW - 3 * 3600e3 }), now)).toBe(" · checked 3 hr ago"); // SPEC MOVED
   });
   it("a day-old snapshot renders nothing at all", () => {
     const dead = snap({ fetchedAt: NOW - 25 * 3600e3, precipProb: Array(24).fill(90) });

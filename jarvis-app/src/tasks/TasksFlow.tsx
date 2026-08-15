@@ -90,13 +90,13 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
         try {
           await svc.setAside(ids);
         } catch {
-          showToast({ message: "Couldn't set aside quiet tasks. Tap to retry.", actionLabel: "Retry", onAction: () => { void runSweep(); } });
+          showToast({ message: "Couldn't set aside quiet tasks", actionLabel: "Retry", onAction: () => { void runSweep(); } });
           return;
         }
         try { localStorage.setItem("jarvis.setaside.last", today); } catch { /* ok */ }
         await reload();
         showToast({
-          message: `Set aside ${ids.length} quiet ${ids.length === 1 ? "task" : "tasks"}. Nothing is overdue.`,
+          message: `Set aside ${ids.length} quiet ${ids.length === 1 ? "task" : "tasks"} · nothing overdue`,
           actionLabel: "Undo",
           onAction: async () => { await attemptWrite(() => svc.restoreAside(ids)); await reload(); },
         });
@@ -179,7 +179,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
       if (!step) throw new Error("empty");
       setFsStep({ taskId: fsCandidate.id, step });
     } catch {
-      showToast({ message: "Couldn't reach JARVIS. Try again in a bit." });
+      showToast({ message: "Couldn't reach JARVIS" });
     } finally {
       setFsBusy(false);
     }
@@ -197,7 +197,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     setFsHidden(true);
     emit({ type: "suggestion.accepted", props: { kind: "first_step" } });
     await reload();
-    showToast({ message: "First step added to Today. The big one waits in Upcoming." });
+    showToast({ message: "First step on Today · big one waits" });
   };
 
   const fsDismiss = () => {

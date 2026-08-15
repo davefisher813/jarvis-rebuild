@@ -193,7 +193,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
       emit({ type: "action", props: { name: "email.deck.handled", kind: plan.kind } });
       advance(true);
     } catch (e) {
-      showToast({ message: (e as Error).message || "That didn't go through. Nothing was lost." });
+      showToast({ message: (e as Error).message || "Didn't send · nothing lost" });
     } finally {
       setBusy(false);
     }
@@ -209,7 +209,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
     } catch (e) {
       // Do NOT advance: Later without its task is a silent loss, and the whole
       // point of Later is that deferring never means losing.
-      showToast({ message: (e as Error).message || "Couldn't save that for later. Nothing was lost." });
+      showToast({ message: (e as Error).message || "Couldn't save · nothing lost" });
     } finally {
       setBusy(false);
     }

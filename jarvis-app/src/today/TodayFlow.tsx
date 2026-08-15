@@ -371,7 +371,7 @@ export default function TodayFlow({
     if (moved === 0) return;
     await reload();
     showToast({
-      message: `Shifted ${moved} ${moved === 1 ? "event" : "events"} by ${mins === 60 ? "an hour" : mins + " minutes"}${skipped ? ` (${skipped} repeating left in place)` : ""}`,
+      message: `${moved} ${moved === 1 ? "event" : "events"} +${mins === 60 ? "1 hr" : mins + " min"}${skipped ? ` · ${skipped} repeating stayed` : ""}`,
       actionLabel: "Undo",
       onAction: async () => { await restoreShift(schedule, prior); await reload(); },
     });
@@ -406,7 +406,7 @@ export default function TodayFlow({
       {sweepReceipt && sweepReceipt.failed && (
         <div className="pad-x">
           <div className="sweep-receipt sweep-error" role="button" tabIndex={0} onClick={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}>
-            <div className="row-grow"><div className="restore-title">Couldn't move yesterday's tasks. Tap to retry.</div></div>
+            <div className="row-grow"><div className="restore-title">Couldn't move yesterday's tasks · tap to retry</div></div>
           </div>
         </div>
       )}
@@ -415,7 +415,7 @@ export default function TodayFlow({
           <div className="sweep-receipt">
             <div className="row-grow">
               <div className="restore-title">Moved {sweepReceipt.moved.length} unfinished {sweepReceipt.moved.length === 1 ? "task" : "tasks"} to today</div>
-              {sweepCand && <div className="restore-meta">{sweepCand.text} has moved {sweepCand.slips} days in a row</div>}
+              {sweepCand && <div className="restore-meta">{sweepCand.text} · moved {sweepCand.slips} days running</div>}
             </div>
             <div className="momentum-actions">
               {sweepCand && (
@@ -424,7 +424,7 @@ export default function TodayFlow({
                   const ok = await attemptWrite(() => tasks.setAside([sweepCand.id]));
                   setSweepReceipt(readReceipt(today));
                   await reload();
-                  if (ok) showToast({ message: "Set aside. It keeps its place, not your morning.", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
+                  if (ok) showToast({ message: "Set aside · keeps its place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
                 })()}>Set Aside</button>
               )}
               <button className="btn-sm" onClick={() => void (async () => { await attemptWrite(() => undoSweep(tasks, sweepReceipt)); setSweepReceipt(null); await reload(); })()}>Undo</button>

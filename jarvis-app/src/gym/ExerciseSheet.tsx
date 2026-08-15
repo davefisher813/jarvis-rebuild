@@ -122,7 +122,7 @@ export default function ExerciseSheet({ mode, initial, onSave, onDelete, onCance
           <div className="field">
             <div className="input-label">Note</div>
             {/* Reference, never coaching: the app does not tell anyone how to lift. */}
-            <input className="input" placeholder="Optional, e.g. full recovery between reps" value={note} onChange={(e) => setNote(e.target.value)} />
+            <input className="input" placeholder="Optional note" value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
         </div>
         <div className="pad-x sheet-actions">

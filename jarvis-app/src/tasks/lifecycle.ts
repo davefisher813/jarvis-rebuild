@@ -112,5 +112,5 @@ export function backOnTrackMessage(data: TaskData, today: string): string | null
   const gap = daysBetween(last, today);
   if (gap <= intervalDays(rec) + 1) return null; // no gap, no ceremony
   if (prevLen < 3) return null; // a short run does not need a comeback story
-  return `Back on track. The ${prevLen}-day run still counts.`;
+  return `Back on track · ${prevLen}-day run still counts`;
 }

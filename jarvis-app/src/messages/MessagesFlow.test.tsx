@@ -86,7 +86,8 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     expect(await screen.findByText("Needs You")).toBeInTheDocument();
-    expect(screen.getByText("1 needs you. The rest is handled.")).toBeInTheDocument();
+    // SPEC MOVED (short copy, 2026-08-15)
+    expect(screen.getByText("1 needs you · rest handled")).toBeInTheDocument();
     expect(screen.getByText(/Tucci needs the waiver by Friday/)).toBeInTheDocument();
     // THE FOLD: everything that does not need him is one line, not a section.
     expect(screen.getByText("The rest · 1")).toBeInTheDocument();
@@ -208,7 +209,8 @@ describe("MessagesFlow (threads)", () => {
     ]));
     const { unmount } = render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    expect(await screen.findByText(/moved to your tasks/)).toBeInTheDocument();
+    // SPEC MOVED (short copy, 2026-08-15)
+    expect(await screen.findByText(/now tasks/)).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("jarvis.mail.netted.v1") || "[]")).toContain("t1");
     unmount();
 
@@ -218,7 +220,8 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     expect(await screen.findByText("The rest · 1")).toBeInTheDocument();
-    expect(screen.queryByText(/moved to your tasks/)).toBeNull();
+    // SPEC MOVED (short copy, 2026-08-15)
+    expect(screen.queryByText(/now tasks/)).toBeNull();
   });
 
   it("deletes a thread to Gmail's trash, never permanently", async () => {
@@ -235,7 +238,8 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByLabelText("Delete"));
     await waitFor(() => expect(trashed).toEqual(["t1"]));
     expect(permanentDeleteCalled).toBe(false);
-    expect(await screen.findByText(/trash for 30 days/)).toBeInTheDocument();
+    // SPEC MOVED (short copy, 2026-08-15)
+    expect(await screen.findByText(/in trash 30 days/)).toBeInTheDocument();
     expect(screen.queryByText("Tucci")).toBeNull(); // gone from the list too
   });
 
@@ -271,7 +275,8 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     fireEvent.click(await screen.findByText("The rest · 1"));
     fireEvent.click(await screen.findByText("Archive All"));
-    expect(await screen.findByText(/Send them straight to Noise/)).toBeInTheDocument();
+    // SPEC MOVED (short copy, 2026-08-15)
+    expect(await screen.findByText(/archived unread 4 times/)).toBeInTheDocument();
     expect(screen.queryByText("Clear Noise Automatically From Now On")).toBeNull();
   });
 

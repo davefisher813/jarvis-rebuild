@@ -211,7 +211,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               TRIAGE_TIMEOUT_MS,
             );
             parsed = parseTriage(raw, batch);
-            if (!parsed) lastErr = "The sort came back unreadable.";
+            if (!parsed) lastErr = "Sort came back unreadable";
           } catch (e) {
             lastErr = ((e as Error)?.message || "").slice(0, 140);
           }
@@ -537,7 +537,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // worked meant the "archived" mail quietly reappeared on the next load.
     apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {
       setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
-      say("Couldn't archive that. It's still in your inbox.");
+      say("Couldn't archive · still in inbox");
     });
     say("Archived", { label: "Undo", run: () => {
       setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
@@ -556,7 +556,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setView("list");
     const gone = rows.find((r) => r.id === id);
     api.trashThread(id).catch(() => {});
-    say("Deleted. It’s in Gmail’s trash for 30 days.", { label: "Undo", run: () => {
+    say("Deleted · in trash 30 days", { label: "Undo", run: () => {
       if (gone) setRows((rs) => [gone, ...rs.filter((x) => x.id !== id)].sort((a, b) => b.dateMs - a.dateMs));
       api.untrashThread(id).catch(() => {});
     } });
@@ -577,7 +577,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // Undo (2026-08-09): this was the one archive without it, and it is the
     // one that takes the most at once, including when the opt-in auto-clear
     // runs it unattended.
-    say(manual ? what : "Handled for you: " + what.toLowerCase() + " (" + noiseLine(noise) + ")", {
+    say(manual ? what : what + " · " + noiseLine(noise), {
       label: "Undo",
       run: () => {
         setRows((rs) => [...noise, ...rs].sort((a, b) => b.dateMs - a.dateMs));
@@ -857,8 +857,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <button className="btn btn-secondary btn-block" onClick={() => {
               try { localStorage.removeItem(AUTONOISE_KEY); } catch { /* ignore */ }
               setAutoNoise(false);
-              say("Noise stays until you clear it.");
-            }}>Stop clearing noise automatically</button>
+              say("Auto-clear off · noise stays");
+            }}>Stop Clearing Noise Automatically</button>
           </div>
         )}
       </div>
@@ -874,8 +874,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="empty-title">{configured ? "Connect your email" : "Email setup required"}</div>
           <div className="empty-sub">
             {configured
-              ? "Connect Google to read and send email here."
-              : "A Google sign-in client must be set up before email can connect (Settings, Connections)."}
+              ? "Connect Google for email"
+              : "Needs Google setup · Settings, Connections"}
           </div>
         </div></div></div>
         {configured && (
@@ -976,7 +976,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <button className="quiet-action" onClick={() => {
               setMuted(mute(thread.id));
               setView("list");
-              say("Muted. It won’t come back here.", { label: "Undo", run: () => setMuted(unmute(thread.id)) });
+              say("Muted · won't come back", { label: "Undo", run: () => setMuted(unmute(thread.id)) });
             }}>Mute this thread</button>
             {sweepCount(lastMsg(thread).fromEmail) > 1 && (
               <button className="quiet-action" onClick={() => sweepSender(lastMsg(thread).fromEmail)}>
@@ -1002,7 +1002,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="card">
                 {handTargets.length === 0 ? (
                   <div className="row"><div className="row-grow">
-                    <div className="conn-meta">Nobody in People has an email address yet.</div>
+                    <div className="conn-meta">No emails in People yet</div>
                   </div></div>
                 ) : handTargets.map((t) => (
                   <div className="row" role="button" tabIndex={0} key={t.email}
@@ -1037,7 +1037,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       className={"chip" + (current === b ? " on" : "")}
                       onClick={() => {
                         setRules(saveRule(senderEmail, b));
-                        setToast("Noted. " + lastMsg(thread).from + " goes to " + BUCKET_LABEL[b] + " from now on.");
+                        setToast(lastMsg(thread).from + " · " + BUCKET_LABEL[b] + " from now on");
                         setTimeout(() => setToast(null), 2500);
                       }}
                     >{BUCKET_LABEL[b]}</button>
@@ -1191,7 +1191,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="pad-x"><div className="card"><div className="empty-state">
             <div className="empty-icon"><Mail className="ic" /></div>
             <div className="empty-title">Couldn’t sort your mail</div>
-            <div className="empty-sub">It’s all still here, nothing was lost.</div>
+            <div className="empty-sub">Nothing lost · all still here</div>
             {triageWhy && <div className="msg-guard">{triageWhy}</div>}
             <div className="conn-action">
               <button className="btn btn-secondary btn-block" onClick={() => setFilter("all")}>Show All Mail</button>
@@ -1201,7 +1201,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="pad-x"><div className="card"><div className="empty-state">
             <div className="empty-icon"><Mail className="ic" /></div>
             <div className="empty-title">Reading your inbox</div>
-            <div className="empty-sub">Sorting out what actually needs you.</div>
+            <div className="empty-sub">Sorting your mail</div>
             {/* Never trapped: the way out is on screen the whole time. */}
             <button className="quiet-action" onClick={() => setFilter("all")}>Show all mail instead</button>
           </div></div></div>
@@ -1263,7 +1263,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <div className="row-grow">
                     <div className="conn-name">The rest · {restCount}</div>
                     <div className="conn-meta msg-gist">
-                      {restOpen ? "Tap to fold away" : "Nothing here is waiting on you"}
+                      {restOpen ? "Tap to fold away" : "Nothing waiting on you"}
                     </div>
                   </div>
                 </div>
@@ -1312,7 +1312,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   setRules(saveRule(toss.sender, "noise"));
                   markAsked(toss.sender);
                   setToss(null);
-                  setToast("Done. They go straight to Noise from now on.");
+                  setToast("Straight to Noise from now on");
                   setTimeout(() => setToast(null), 2500);
                 }}
               >Yes, file them</button>

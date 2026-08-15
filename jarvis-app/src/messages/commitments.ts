@@ -77,5 +77,5 @@ export function parseCommitment(raw: string, todayISO: string): Commitment | nul
 
 // The receipt. States the promise, names the day, and stops.
 export function commitmentLine(c: Commitment): string {
-  return c.due ? "Caught: " + c.text + ", by " + c.due + "." : "Caught: " + c.text + ".";
+  return c.due ? "Caught: " + c.text + " · by " + c.due : "Caught: " + c.text;
 }

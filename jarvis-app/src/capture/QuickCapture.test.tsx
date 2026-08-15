@@ -22,7 +22,7 @@ describe("QuickCapture (Smart Paste)", () => {
         <QuickCapture ai={new AIService({ available: false })} onClose={onClose} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste anything/), { target: { value: "Renew the domain" } });
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
     fireEvent.click(screen.getByText("Capture"));
     // Instant save: the receipt appears without any confirm step.
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
@@ -50,7 +50,7 @@ describe("QuickCapture (Smart Paste)", () => {
     );
     // "standup tomorrow": a date with no time and no imperative opener is
     // the deterministic layer's unconfident case, so the AI gets a say.
-    fireEvent.change(screen.getByPlaceholderText(/Paste anything/), { target: { value: "standup tomorrow" } });
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "standup tomorrow" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     expect(screen.getByText("Standup")).toBeInTheDocument();
@@ -64,7 +64,7 @@ describe("QuickCapture (Smart Paste)", () => {
         <QuickCapture ai={new AIService({ available: true, getToken: () => "tok", fetchImpl })} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste anything/), { target: { value: "call the plumber back" } });
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "call the plumber back" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -77,7 +77,7 @@ describe("QuickCapture (Smart Paste)", () => {
         <QuickCapture ai={ai} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste anything/), { target: { value: "call the plumber back" } });
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "call the plumber back" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
     unmount();
@@ -87,7 +87,7 @@ describe("QuickCapture (Smart Paste)", () => {
         <QuickCapture ai={ai} onClose={() => {}} />
       </NotesProvider>,
     );
-    fireEvent.change(screen.getByPlaceholderText(/Paste anything/), { target: { value: "call the plumber back" } });
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "call the plumber back" } });
     fireEvent.click(screen.getByText("Capture"));
     await waitFor(() => expect(screen.getByText(/You captured this exact text/)).toBeInTheDocument());
     fireEvent.click(screen.getByText("Save Anyway"));

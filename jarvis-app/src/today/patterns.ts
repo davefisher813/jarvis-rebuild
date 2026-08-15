@@ -46,7 +46,7 @@ export function patternObservation(checkin: CheckinMap | undefined, _todayIso: s
   const streak = endingStreak(entries);
 
   if (streak && streak.mood === "under" && streak.len >= 3) {
-    return { id: "under-streak", text: "It has been a heavy stretch. Small days still count, and I am keeping your plans light." };
+    return { id: "under-streak", text: "Heavy stretch · keeping plans light" };
   }
 
   // Weekday heaviness needs real evidence: at least 6 answered evenings, and a
@@ -63,13 +63,13 @@ export function patternObservation(checkin: CheckinMap | undefined, _todayIso: s
     for (let dow = 0; dow < 7; dow++) {
       const c = byDow.get(dow);
       if (c && c.total >= 2 && c.under === c.total) {
-        return { id: `heavy-${dow}`, text: `${DOW_NAME[dow]} have been running heavy for you. Worth planning them a little lighter.` };
+        return { id: `heavy-${dow}`, text: `${DOW_NAME[dow]} run heavy · plan lighter?` };
       }
     }
   }
 
   if (streak && streak.mood === "fire" && streak.len >= 3) {
-    return { id: "fire-streak", text: `${streak.len} days in flow. Whatever this rhythm is, it is working.` };
+    return { id: "fire-streak", text: `${streak.len} days in flow · it is working` };
   }
 
   return null;

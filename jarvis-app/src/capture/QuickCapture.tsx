@@ -123,7 +123,7 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
           <div className="pad-x sheet-form">
             <textarea
               className="input input-multiline"
-              placeholder="Paste anything, or type it. Dinner with Marco Thursday 7pm."
+              placeholder="Paste or type · dinner with Marco Thursday 7pm"
               value={text}
               onChange={(e) => { setText(e.target.value); setDupAge(null); }}
               autoFocus

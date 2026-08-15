@@ -122,5 +122,5 @@ export function planRecord(
 // finished two days later after a push did not survive that plan.
 export function planRecordLine(r: PlanRecord): string | null {
   if (r.picks < PLAN_RECORD_MIN_PICKS) return null;
-  return `Lately: ${r.done} of ${r.picks} planned picks got done the same day.`;
+  return `Lately · ${r.done} of ${r.picks} picks done same-day`;
 }

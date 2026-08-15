@@ -42,7 +42,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
       setDirty(false);
       setSaved(true);
     } catch {
-      showToast({ message: "Couldn't save. Check your connection and try again." });
+      showToast({ message: "Couldn't save · check your connection" });
     }
   };
 
@@ -61,7 +61,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
       setDirty(true);
       setSaved(false);
     } catch {
-      showToast({ message: "Couldn't read that photo. Try a clearer one." });
+      showToast({ message: "Couldn't read that photo · try clearer" });
     } finally {
       setReading(false);
     }
@@ -96,7 +96,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                 <div className="sec-ico ico-blue">{PHOTO}</div>
                 <div className="row-grow">
                   <div className="conn-name">{reading ? "Reading your photo..." : "Add a Photo"}</div>
-                  <div className="conn-meta">{reading ? "A few seconds." : "JARVIS reads it and adds what it learns here."}</div>
+                  <div className="conn-meta">{reading ? "A few seconds." : "JARVIS reads it · learns from it"}</div>
                 </div>
               </div>
             </div>

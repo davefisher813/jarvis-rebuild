@@ -23,7 +23,7 @@ export default function LearnedRulesPage({ onBack }: { onBack: () => void }) {
   const remove = async (r: LearnedRule) => {
     const ok = await attemptWrite(() => svc.delete(r.id));
     await reload();
-    if (ok) showToast({ message: "Rule deleted. JARVIS will ask again instead." });
+    if (ok) showToast({ message: "Rule deleted · JARVIS asks again" });
   };
 
   return (

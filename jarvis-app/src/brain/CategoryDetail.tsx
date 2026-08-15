@@ -18,7 +18,8 @@ import { showToast } from "../shared/toast";
 import type { TaskItem } from "../tasks/TasksService";
 import { effectiveKind } from "../categories/kinds";
 import { weekReceipt, receiptLine, afterHoursLine, type WeekEvent } from "../categories/receipts";
-import { categoryRecord } from "../categories/record";
+import { categoryRecord, type RecordEntry } from "../categories/record";
+import { StatTiles, DayDivide, RowIcon } from "../shared/anatomy";
 import { eventLog } from "../events";
 import { readSamples } from "../shared/timeSense";
 import { todayISO } from "../tasks/grouping";
@@ -41,6 +42,26 @@ const PLUS = (
 );
 
 const UP_NEXT_CAP = 6;
+const CHECK_ICO = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+);
+const CAL_ICO = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+);
+const FOLDER_ICO = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+);
+
+// V2 anatomy: one day label per group, not one per row.
+function groupByDay(recent: RecordEntry[]): { day: string; rows: RecordEntry[] }[] {
+  const out: { day: string; rows: RecordEntry[] }[] = [];
+  for (const r of recent) {
+    const last = out[out.length - 1];
+    if (last && last.day === r.when) last.rows.push(r);
+    else out.push({ day: r.when, rows: [r] });
+  }
+  return out;
+}
 const NOTES_CAP = 4;
 
 type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project" } | { kind: "edit" };
@@ -299,26 +320,38 @@ export default function CategoryDetail({
               things that got done with their days, how this week compares to
               last, and the pattern once there is enough history. Still fully
               derived; still silent when nothing has ever happened here. */}
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Record</div></div></div>
-          <div className="pad-x"><div className="card">
-            <div className="row">
-              <div className="row-grow">
-                <div className="conn-name">{line ?? "Nothing done yet this week"}</div>
-                {rec.lastWeek > 0 && <div className="eyebrow">{rec.lastWeek === 1 ? "1 done last week" : `${rec.lastWeek} done last week`}</div>}
-                {ahLine && <div className="eyebrow">{ahLine}</div>}
-                {pushedWeek > 0 && <div className="eyebrow">{pushedWeek === 1 ? "1 task pushed forward" : `${pushedWeek} tasks pushed forward`}</div>}
-                {rec.insight && <div className="eyebrow">{rec.insight}</div>}
+          {/* V2 anatomy (approved 2026-08-15): numbers as tinted stat tiles,
+              completions grouped under one day divider each, a done check on
+              every row. The old version was prose lines and repeated
+              all-caps day labels; Dave: unreadable. */}
+          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green">{CHECK_ICO}</div><div className="sec-title">This Week</div></div></div>
+          <div className="pad-x">
+            <StatTiles stats={[
+              { num: receipt.done, label: "Done", tint: "good" },
+              { num: receipt.events, label: receipt.events === 1 ? "Event" : "Events", tint: "sky" },
+              ...(pushedWeek > 0 ? [{ num: pushedWeek, label: "Pushed", tint: "warn" as const }] : []),
+              ...(rec.lastWeek > 0 ? [{ num: (receipt.done - rec.lastWeek >= 0 ? "+" : "") + (receipt.done - rec.lastWeek), label: "vs Last Week", tint: "plain" as const }] : []),
+            ]} />
+            {(ahLine || rec.insight) && (
+              <div className="card stat-row-gap">
+                {ahLine && <div className="row"><div className="conn-meta">{ahLine}</div></div>}
+                {rec.insight && <div className="row"><div className="conn-meta">{rec.insight}</div></div>}
               </div>
-            </div>
-            {rec.recent.map((r) => (
-              <div className="row" key={r.key}>
-                <div className="row-grow">
-                  <div className="conn-name truncate">{r.text}</div>
-                  <div className="eyebrow">{r.when}</div>
+            )}
+            {groupByDay(rec.recent).map((g) => (
+              <div key={g.day}>
+                <DayDivide label={g.day} />
+                <div className="card">
+                  {g.rows.map((r) => (
+                    <div className="row" key={r.key}>
+                      <div className="task-check done" />
+                      <div className="row-grow"><div className="conn-name truncate">{r.text}</div></div>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
-          </div></div>
+          </div>
         </>
       )}
 
@@ -402,17 +435,20 @@ export default function CategoryDetail({
         <>
           {/* What is on the calendar for this part of life. Read-only rows on
               purpose: the schedule tab owns editing. */}
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Coming Up</div></div></div>
+          {/* V2 anatomy: type icon leads, the WHEN rides right as a colored
+              time (orange = today, muted = later), never a repeated eyebrow. */}
+          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-sky">{CAL_ICO}</div><div className="sec-title">Coming Up</div></div></div>
           <div className="pad-x"><div className="card">
             {upcoming.map((e) => {
               const p = dayPhrase(e.date, today);
               const when = p.charAt(0).toUpperCase() + p.slice(1);
+              const isToday = e.date === today;
+              const label = isToday && e.start ? `${fmtTime(e.start).time} ${fmtTime(e.start).ap}` : when;
               return (
                 <div className="row" key={e.id}>
-                  <div className="row-grow">
-                    <div className="conn-name truncate">{e.title}</div>
-                    <div className="eyebrow">{when}{e.start ? ` · ${fmtTime(e.start).time} ${fmtTime(e.start).ap}` : ""}</div>
-                  </div>
+                  <RowIcon kind="event" />
+                  <div className="row-grow"><div className="conn-name truncate">{e.title}</div></div>
+                  <span className={"urgency " + (isToday ? "urgency-warn" : "urgency-muted")}>{label}</span>
                 </div>
               );
             })}
@@ -427,7 +463,7 @@ export default function CategoryDetail({
               is it moving (done this week, from real completions), is it
               slipping (overdue count), and what goal it advances. A project
               with no open task says "Stalled" out loud instead of hiding it. */}
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Projects</div></div></div>
+          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-indigo">{FOLDER_ICO}</div><div className="sec-title">Projects</div></div></div>
           <div className="pad-x"><div className="card">
             {projects.map((p) => {
               const next = nextActionOf(allTasks, p.id);
@@ -437,22 +473,28 @@ export default function CategoryDetail({
               const doneWeek = readSamples().filter((s) => s.t >= weekAgoMs && s.id && taskIds.has(s.id)).length;
               const overdue = projTasks.filter((t) => !t.data.done && !!t.data.due && t.data.due < today).length;
               const goal = goalTitleOf(projects, goals, p.id);
+              // V2 anatomy: state leads in its color (red = stalled, muted =
+              // moving/paused), the week's count rides as a pill, goal link
+              // stays a short fact.
               const bits: string[] = [];
-              if (p.data.status === "on_hold") bits.push("On hold");
-              if (doneWeek > 0) bits.push(`${doneWeek} done this week`);
               if (overdue > 0) bits.push(overdue === 1 ? "1 overdue" : `${overdue} overdue`);
               if (goal) bits.push(`Moves ${goal}`);
+              const state = p.data.status === "on_hold"
+                ? { cls: "urgency-muted", label: "Paused" }
+                : next
+                  ? { cls: "urgency-muted", label: "Moving" }
+                  : { cls: "urgency-red", label: "Stalled" };
+              const stateSub = next
+                ? `next: ${next.data.text}${next.data.due ? ` · ${dayPhrase(next.data.due, today)}` : ""}`
+                : p.data.status === "on_hold" ? "on purpose" : "no next action";
               return (
                 <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onOpenProject?.(p.id)}>
                   <div className="row-grow">
                     <div className="conn-name truncate">{p.data.title}</div>
-                    <div className="bp-sub truncate">
-                      {next
-                        ? `Next: ${next.data.text}${next.data.due ? ` · due ${dayPhrase(next.data.due, today)}` : ""}`
-                        : p.data.status === "on_hold" ? "Paused on purpose" : "Stalled · no next action"}
-                    </div>
+                    <div className="bp-sub truncate"><span className={"urgency " + state.cls}>{state.label}</span> · {stateSub}</div>
                     {bits.length > 0 && <div className="eyebrow truncate">{bits.join(" · ")}</div>}
                   </div>
+                  {doneWeek > 0 && <span className="pill pill-good">{doneWeek} done</span>}
                   {CHEV}
                 </div>
               );

@@ -14,9 +14,9 @@ export interface BrainDocMeta {
 }
 
 export const BRAIN_DOCS: BrainDocMeta[] = [
-  { topic: "philosophy", title: "Life Philosophy", placeholder: "How you see the world, what drives you, the principles you live by." },
-  { topic: "writing", title: "How You Write", placeholder: "Your tone and style. Formal or casual? Short or detailed? Words you use, words you avoid." },
-  { topic: "values", title: "Values", placeholder: "What matters most. The lines you won't cross. What JARVIS should always protect." },
+  { topic: "philosophy", title: "Life Philosophy", placeholder: "Worldview · drives · principles" },
+  { topic: "writing", title: "How You Write", placeholder: "Tone · style · words you use and avoid" },
+  { topic: "values", title: "Values", placeholder: "What matters · hard lines · what to protect" },
 ];
 
 export const docMeta = (topic: string): BrainDocMeta | undefined => BRAIN_DOCS.find((d) => d.topic === topic);

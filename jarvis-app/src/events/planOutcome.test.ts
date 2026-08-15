@@ -102,7 +102,7 @@ describe("planRecord", () => {
   });
 
   it("line renders the locked definition, silent under 3 picks", () => {
-    expect(planRecordLine({ picks: 5, done: 3 })).toBe("Lately: 3 of 5 planned picks got done the same day.");
+    expect(planRecordLine({ picks: 5, done: 3 })).toBe("Lately · 3 of 5 picks done same-day");
     expect(planRecordLine({ picks: 2, done: 2 })).toBeNull();
     expect(planRecordLine({ picks: 0, done: 0 })).toBeNull();
   });

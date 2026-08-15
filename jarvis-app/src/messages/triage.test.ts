@@ -104,10 +104,11 @@ describe("presentation", () => {
   });
 
   it("headline counts what needs you, never unread", () => {
-    expect(headline(0, 0)).toBe("Inbox is quiet.");
-    expect(headline(0, 12)).toBe("Nothing needs you. The rest is handled.");
-    expect(headline(1, 12)).toBe("1 needs you. The rest is handled.");
-    expect(headline(3, 12)).toBe("3 need you. The rest is handled.");
+    // SPEC MOVED (short copy, 2026-08-15)
+    expect(headline(0, 0)).toBe("Inbox is quiet");
+    expect(headline(0, 12)).toBe("Nothing needs you");
+    expect(headline(1, 12)).toBe("1 needs you · rest handled");
+    expect(headline(3, 12)).toBe("3 need you · rest handled");
   });
 
   it("noiseLine names senders without listing forever", () => {

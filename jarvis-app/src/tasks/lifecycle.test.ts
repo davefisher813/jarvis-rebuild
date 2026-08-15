@@ -86,8 +86,9 @@ describe("nextStreak", () => {
 describe("backOnTrackMessage", () => {
   const base: TaskData = { text: "Gym", category: "", done: false, recurrence: "daily" };
   it("fires only after a real gap ends a run worth naming", () => {
+    // SPEC MOVED (short copy, 2026-08-15)
     expect(backOnTrackMessage({ ...base, lastDone: "2026-07-17", runLen: 12 }, T)).toBe(
-      "Back on track. The 12-day run still counts.",
+      "Back on track · 12-day run still counts",
     );
     expect(backOnTrackMessage({ ...base, lastDone: "2026-07-29", runLen: 12 }, T)).toBeNull(); // no gap
     expect(backOnTrackMessage({ ...base, lastDone: "2026-07-17", runLen: 2 }, T)).toBeNull(); // short run

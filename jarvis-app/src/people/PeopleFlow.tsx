@@ -140,7 +140,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
       setImporting(false);
       const remaining = importPreview.fresh.slice(added);
       setImportPreview({ fresh: remaining, dupes: importPreview.dupes, bad: false });
-      setImportError(`The connection dropped after ${added} of ${n}. Everyone added so far is saved. Tap to add the remaining ${remaining.length}.`);
+      setImportError(`Stopped at ${added} of ${n} · saved so far · tap to finish`);
       await reload();
     }
   };
@@ -152,13 +152,13 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
         <div className="grp"><div className="eyebrow">Import Contacts</div></div>
         <div className="pad-x sheet-form">
           {importPreview.bad ? (
-            <div className="plan-sub">I couldn't read people from that file. Share contacts from your phone as a .vcf, or use a .csv with a Name column.</div>
+            <div className="plan-sub">Couldn't read that file · use .vcf or .csv with names</div>
           ) : (
             <>
               <div className="plan-sub">
-                Found {importPreview.fresh.length + importPreview.dupes} {importPreview.fresh.length + importPreview.dupes === 1 ? "person" : "people"}.
-                {importPreview.dupes > 0 && ` ${importPreview.dupes} already here, skipping ${importPreview.dupes === 1 ? "that one" : "those"}.`}
-                {importPreview.fresh.length > 0 && ` Adding ${importPreview.fresh.length}.`}
+                Found {importPreview.fresh.length + importPreview.dupes} {importPreview.fresh.length + importPreview.dupes === 1 ? "person" : "people"}
+                {importPreview.dupes > 0 && ` · skipping ${importPreview.dupes} already here`}
+                {importPreview.fresh.length > 0 && ` · adding ${importPreview.fresh.length}`}
               </div>
               {importPreview.fresh.length > 0 && (
                 <div className="input-help">{importPreview.fresh.slice(0, 5).map((c) => c.name).join(", ")}{importPreview.fresh.length > 5 ? ` and ${importPreview.fresh.length - 5} more` : ""}</div>

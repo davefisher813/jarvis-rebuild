@@ -110,7 +110,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
       await svc.createProgram({ name: p.name, days: p.days });
     }
     await reload();
-    showToast({ message: "Program saved. Check the days over once before you train." });
+    showToast({ message: "Program saved · check days once" });
   };
 
   const saveDays = async (days: ProgramDay[]) => {
@@ -130,7 +130,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
     if (hasWork(s.exercises)) {
       queueFinished({ programId: s.programId, dayId: s.dayId, dayName: s.dayName, date: s.date, startedAt: s.startedAt, endedAt: s.startedAt, exercises: s.exercises });
       void flushPending((w) => svc.saveWorkout(w)).then(() => reload());
-      showToast({ message: `Saved your unfinished ${s.dayName} workout from ${monthDay(s.date)}.` });
+      showToast({ message: `Saved unfinished ${s.dayName} · ${monthDay(s.date)}` });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -142,7 +142,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
     const existing = readLive();
     if (existing && existing.date === todayISO() && hasWork(existing.exercises)) {
       setLive(existing);
-      showToast({ message: "Resumed the workout you had going. Finish it to start another." });
+      showToast({ message: "Resumed your open workout" });
       return;
     }
     const s: LiveSession = {
@@ -172,7 +172,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
       await flushPending((w) => svc.saveWorkout(w));
       setReceipt({ receipt: r, dayName: live.dayName });
     } else {
-      showToast({ message: "Nothing logged, so nothing saved." });
+      showToast({ message: "Nothing logged · nothing saved" });
     }
     await reload();
   };

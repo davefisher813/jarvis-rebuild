@@ -40,7 +40,7 @@ const EMPTY_TITLE: Record<TaskFilter, string> = {
 // otherwise reads as "you are done" when the opposite is true.
 function emptySub(filter: TaskFilter, counts: Record<TaskFilter, number>): string | null {
   if (filter === "today" && counts.overdue > 0) {
-    return `${counts.overdue} overdue ${counts.overdue === 1 ? "task is" : "tasks are"} waiting.`;
+    return `${counts.overdue} overdue waiting`;
   }
   return null;
 }

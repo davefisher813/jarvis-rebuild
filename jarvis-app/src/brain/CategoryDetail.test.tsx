@@ -86,11 +86,15 @@ describe("CategoryDetail people kind (2026-08-10)", () => {
     expect(onOpenPerson).toHaveBeenCalled();
   });
 
-  it("Coming Up shows the category's future events with a day and time", async () => {
+  // SPEC MOVED (V2 anatomy, approved 2026-08-15): a future event shows its
+  // DAY as the right-side label; the clock time appears only day-of, when it
+  // is what matters. The old day-and-time eyebrow was the repeated-prose
+  // pattern Dave rejected.
+  it("Coming Up shows a future event with its day, time reserved for day-of", async () => {
     render(<NotesProvider userId="pk4"><SeededFamily /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Coming Up")).toBeInTheDocument());
     expect(screen.getByText("Sunday Dinner")).toBeInTheDocument();
-    expect(screen.getByText(/6:00 PM/)).toBeInTheDocument();
+    expect(screen.queryByText(/6:00 PM/)).not.toBeInTheDocument();
   });
 
   it("empty people list explains how to link, and Open Contacts is offered", async () => {
@@ -139,13 +143,18 @@ describe("CategoryDetail org health (2026-08-10)", () => {
   it("project rows carry next action with due, overdue count, and the goal they move", async () => {
     render(<NotesProvider userId="org1"><SeededOrg /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Sponsor Push")).toBeInTheDocument());
-    expect(screen.getByText(/Next: Email sponsors · due/)).toBeInTheDocument();
+    // SPEC MOVED (V2): the state leads in its color, the next action follows
+    // as a lowercase fragment.
+    expect(screen.getByText("Moving")).toBeInTheDocument();
+    expect(screen.getByText(/next: Email sponsors/)).toBeInTheDocument();
     expect(screen.getByText(/1 overdue · Moves Grow the league/)).toBeInTheDocument();
   });
 
   it("a project with no open task says Stalled out loud", async () => {
     render(<NotesProvider userId="org2"><SeededOrg /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Stalled · no next action")).toBeInTheDocument());
+    // SPEC MOVED (V2): "Stalled" is a red state span, the reason follows.
+    await waitFor(() => expect(screen.getByText("Stalled")).toBeInTheDocument());
+    expect(screen.getByText(/no next action/)).toBeInTheDocument();
   });
 
   it("an org with tagged people gets the People section, tap-through included", async () => {
@@ -177,10 +186,13 @@ function SeededRecord() {
 }
 
 describe("CategoryDetail record (2026-08-10)", () => {
-  it("shows what actually got done, by name, with the day", async () => {
+  // SPEC MOVED (V2 anatomy, approved 2026-08-15): the count is a tinted stat
+  // tile, completions group under one day divider, and the section is This
+  // Week. "1 thing done" prose is exactly what Dave rejected.
+  it("shows the count as a stat tile and the completion under its day", async () => {
     render(<NotesProvider userId="rec1"><SeededRecord /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Record")).toBeInTheDocument());
-    expect(screen.getByText("1 thing done")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("This Week")).toBeInTheDocument());
+    expect(screen.getByText("Done")).toBeInTheDocument();
     expect(screen.getByText("Take out trash")).toBeInTheDocument();
     expect(screen.getByText("Today")).toBeInTheDocument();
     // done, so it must not also sit in Up Next

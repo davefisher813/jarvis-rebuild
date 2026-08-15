@@ -84,7 +84,7 @@ export default function GoalDetailPage({
           </>
         ) : (
           <>
-            <div className="bp-sub">{progress ? `${progress.done} of ${progress.total} tasks done` : "No tasks under this goal yet"}</div>
+            <div className="bp-sub">{progress ? `${progress.done} of ${progress.total} tasks done` : "No tasks yet"}</div>
             {progress && <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, progress.pct) + "%" }} /></div>}
           </>
         )}

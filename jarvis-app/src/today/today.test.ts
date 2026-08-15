@@ -82,7 +82,7 @@ describe("billsLine", () => {
 
   it("rolls several into a count, earliest first", () => {
     const out = billsLine([bill("a", "Pay Electric", "2026-08-11", 120), bill("b", "Pay Rent", "2026-08-10", 1850)], T);
-    expect(out).toBe("2 bills due soon: Rent, Electric");
+    expect(out).toBe("2 bills due soon · Rent, Electric") // SPEC MOVED;
   });
 
   it("ignores a paid bill", () => {

@@ -51,7 +51,7 @@ export function unsubLabel(from: string): string {
 
 // The receipt. Never claims success, because we cannot know it.
 export function unsubLine(from: string): string {
-  return "Asked " + from + " to stop. It can take a few days.";
+  return "Asked " + from + " to stop · takes a few days";
 }
 
 export const UNSUB_SUBJECT = "unsubscribe";

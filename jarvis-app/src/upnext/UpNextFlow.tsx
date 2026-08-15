@@ -160,8 +160,8 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
               {winsDone >= Math.min(QUICK_WINS_COUNT, winsDeck.length) && winsDeck.length > 0
                 ? "A clean sweep."
                 : winsDone > 0
-                  ? "That's momentum. Ride it or rest, both count."
-                  : "No pressure. It'll be here when you're ready."}
+                  ? "That's momentum · ride it or rest"
+                  : "No pressure · it'll be here"}
             </div>
             <div className="upnext-done-wrap">
               <button className="btn btn-primary btn-block" onClick={onClose}>Back to Today</button>
@@ -179,7 +179,7 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
         ) : (
           <div className="card pad upnext-card">
             <div className="upnext-task">Nothing waiting.</div>
-            <div className="conn-meta">Enjoy it. That's the whole point.</div>
+            <div className="conn-meta">Enjoy it</div>
             <div className="upnext-done-wrap">
               <button className="btn btn-primary btn-block" onClick={onClose}>Back to Today</button>
             </div>

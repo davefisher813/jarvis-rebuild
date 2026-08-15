@@ -280,7 +280,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           const WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
           const evId = newEventId;
           showToast({
-            message: `Third ${WD[cand.weekday]} in a row. Repeat weekly?`,
+            message: `Third ${WD[cand.weekday]} running · repeat weekly?`,
             actionLabel: "Make It Repeat",
             onAction: async () => { await attemptWrite(() => svc.editRecurrence(evId, "weekly")); await reload(); },
           });
@@ -331,7 +331,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     followUpBusy.current = true;
     try { localStorage.setItem(ASKED_KEY, JSON.stringify([...asked, cand.eventId].slice(-200))); } catch { /* private mode */ }
     showToast({
-      message: `${cand.title} had ${cand.openCount} ${cand.openCount === 1 ? "task" : "tasks"} attached. Any done?`,
+      message: `${cand.title} · ${cand.openCount} attached ${cand.openCount === 1 ? "task" : "tasks"} · any done?`,
       actionLabel: "Review",
       onAction: () => { followUpBusy.current = false; openEdit(cand.eventId); },
     });
@@ -452,7 +452,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     const { moved, skipped, prior } = shift;
     if (moved === 0) return;
     showToast({
-      message: `Shifted ${moved} ${moved === 1 ? "event" : "events"} by ${mins === 60 ? "an hour" : mins + " minutes"}${skipped ? ` (${skipped} repeating left in place)` : ""}`,
+      message: `${moved} ${moved === 1 ? "event" : "events"} +${mins === 60 ? "1 hr" : mins + " min"}${skipped ? ` · ${skipped} repeating stayed` : ""}`,
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => restoreShift(svc, prior)); await reload(); },
     });

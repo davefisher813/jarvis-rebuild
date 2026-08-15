@@ -80,7 +80,7 @@ export function leftSub(l: Left): string {
 // overdue bill is. It is information, not an alarm.
 export function shortLine(l: Left): string {
   if (l.amount >= 0) return "";
-  return formatMoney(Math.abs(l.amount)) + " more than this paycheck covers.";
+  return formatMoney(Math.abs(l.amount)) + " past this paycheck";
 }
 
 // Days remaining is inclusive of today: with payday tomorrow you still have to

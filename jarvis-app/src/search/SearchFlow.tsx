@@ -93,7 +93,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             </div></div>
           </>
         )}
-        {empty && recents.length === 0 && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">Search tasks, events, notes, people, and more</div></div>}
+        {empty && recents.length === 0 && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">Search everything</div></div>}
         {none && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">No matches for &ldquo;{q.trim()}&rdquo;</div></div>}
 
         {results && !empty && results.events.length > 0 && (

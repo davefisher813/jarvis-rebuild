@@ -73,7 +73,7 @@ export function planningPatternObservation(corrections: DurationCorrection[], no
   const longer = best.deltas[0]! > 0;
   const id = `plan-dur-${longer ? "long" : "short"}-${best.category}`;
   const text = longer
-    ? `Your ${best.category} tasks have been taking about ${avg} minutes longer than the AI estimates.`
-    : `Your ${best.category} tasks have been wrapping up about ${avg} minutes faster than the AI estimates.`;
+    ? `${best.category} tasks run ${avg} min long`
+    : `${best.category} tasks finish ${avg} min early`;
   return { id, text };
 }
