@@ -18,6 +18,8 @@ const PLUS = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="current
 const WALLET = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" /><path d="M18 12a2 2 0 0 0 0 4h4v-4Z" /></svg>;
 const TRASH = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>;
 const REPEAT = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9" /><path d="M3 11V9a4 4 0 0 1 4-4h14" /><polyline points="7 23 3 19 7 15" /><path d="M21 13v2a4 4 0 0 1-4 4H3" /></svg>;
+// V2 anatomy (2026-08-15): money sections carry the green money tile.
+const DOLLAR = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>;
 
 const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
 
@@ -211,7 +213,9 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
             )}
             <div className="row-grow" role="button" tabIndex={0} onClick={() => setBillSheet({ kind: "edit", id: b.id })}>
               <div className="conn-name truncate">{b.data.text}</div>
-              <div className="eyebrow">{sub.text}</div>
+              {/* V2 anatomy: state carries color (amber, never red); the words
+                  themselves are the money laws' and stay untouched. */}
+              <div className={sub.state === "overdue" ? "urgency urgency-warn" : "eyebrow"}>{sub.text}</div>
             </div>
             <span className={"money-amt" + (paid ? " paid" : "")}>{formatMoney(info.amount)}</span>
             {!info.autopay && !paid && info.payUrl && (
@@ -267,7 +271,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
                 )}
               </div></div>
 
-              <div className="sec-head"><div className="sec-left"><div className="sec-title">Set Aside</div></div></div>
+              <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green">{DOLLAR}</div><div className="sec-title">Set Aside</div></div></div>
               <div className="pad-x"><div className="card">
                 {envelopes.map((e) => (
                   <div className="row" key={e.id}>
@@ -320,11 +324,11 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               <div className="money-hero-label">As you last entered it{balanceAsOf ? ` · ${monthDay(balanceAsOf)}` : ""}</div>
             </div></div>
           )}
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Bills</div></div></div>
+          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green">{DOLLAR}</div><div className="sec-title">Bills</div></div></div>
           <div className="pad-x">{billRows}</div>
           {tagged.length > 0 && (
             <>
-              <div className="sec-head"><div className="sec-left"><div className="sec-title">Also Tagged Money</div></div></div>
+              <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green">{DOLLAR}</div><div className="sec-title">Also Tagged Money</div></div></div>
               <div className="pad-x"><div className="card">
                 {tagged.map((t) => (
                   <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => onOpenTask?.(t.id)}>
@@ -335,7 +339,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               </div></div>
             </>
           )}
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Accounts</div></div></div>
+          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green">{WALLET}</div><div className="sec-title">Accounts</div></div></div>
           <div className="pad-x"><div className="card">
             {accounts.map((a) => {
               const m = ACCOUNT_META[a.data.kind];

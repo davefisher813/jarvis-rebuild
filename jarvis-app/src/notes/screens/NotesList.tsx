@@ -44,6 +44,9 @@ export default function NotesList({
         </div>
       </div>
 
+      {/* V2 anatomy: the section carries the yellow note tile; each row's
+          category tile is its leading visual, so no RowIcon on rows. */}
+      <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-yellow"><FileText className="ic" /></div><div className="sec-title">All Notes</div></div></div>
       <div className="pad-x">
         <div className="card">
           {shown.map((n) => (

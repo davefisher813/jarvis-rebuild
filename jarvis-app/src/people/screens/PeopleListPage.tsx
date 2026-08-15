@@ -109,6 +109,10 @@ export default function PeopleListPage({
           {importRow && <div className="pad-x"><div className="card">{importRow}</div></div>}
         </>
       ) : (
+        <>
+        {/* V2 anatomy: the section carries the teal people tile; each row's
+            avatar IS its type, so rows never double up with a RowIcon. */}
+        <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-teal">{PEOPLE}</div><div className="sec-title">Your People</div></div></div>
         <div className="pad-x"><div className="card">
           {shown.map((p) => (
             <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onOpen(p.id)}>
@@ -127,6 +131,7 @@ export default function PeopleListPage({
           </div>
           {importRow}
         </div></div>
+        </>
       )}
     </div>
   );

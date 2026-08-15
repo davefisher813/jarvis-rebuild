@@ -1226,7 +1226,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           )}
           {needsYou.length > 0 && (
             <>
-              <div className="sec-head"><div className="sec-left"><div className="sec-title">Needs You</div></div></div>
+              {/* V2 anatomy: mail sections carry the teal mail tile. */}
+              <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-teal"><Mail className="ic" /></div><div className="sec-title">Needs You</div></div></div>
               <div className="pad-x"><div className="card">
                 {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist))}
               </div></div>
@@ -1234,7 +1235,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           )}
           {waiting.length > 0 && (
             <>
-              <div className="sec-head"><div className="sec-left"><div className="sec-title">Waiting On</div></div></div>
+              <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-teal"><Mail className="ic" /></div><div className="sec-title">Waiting On</div></div></div>
               <div className="pad-x"><div className="card">
                 {waiting.map((w) => (
                   <div className="row" role="button" tabIndex={0} key={w.threadId} onClick={() => void startNudge(w)}>
@@ -1261,11 +1262,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="card">
                 <div className="row" role="button" tabIndex={0} onClick={() => setRestOpen(!restOpen)}>
                   <div className="row-grow">
-                    <div className="conn-name">The rest · {restCount}</div>
+                    <div className="conn-name">The rest</div>
                     <div className="conn-meta msg-gist">
                       {restOpen ? "Tap to fold away" : "Nothing waiting on you"}
                     </div>
                   </div>
+                  {/* V2 anatomy: the count is a pill, never buried in the line. */}
+                  <span className="pill pill-subdued">{restCount}</span>
                 </div>
                 {restOpen && (
                   <>

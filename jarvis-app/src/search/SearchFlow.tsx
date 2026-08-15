@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTasks, useSchedule, useNotes, usePeople, useProjects, useMoney, useGoals, useCategories } from "../data/NotesProvider";
 import { runSearch, totalHits, buildSuggestionIndex, suggest, type SearchInput } from "./search";
 import { personInitials, slotForName } from "../people/types";
+import { RowIcon } from "../shared/anatomy";
 
 const MAG = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
@@ -82,7 +83,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
       <div className="search-results">
         {empty && recents.length > 0 && (
           <>
-            <div className="sec-head"><div className="sec-left"><div className="sec-title">Recent</div></div></div>
+            <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-graphite">{MAG}</div><div className="sec-title">Recent</div></div></div>
             <div className="pad-x"><div className="card">
               {recents.map((r) => (
                 <div className="row" role="button" tabIndex={0} key={r} onClick={() => setQ(r)}>
@@ -98,10 +99,10 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
 
         {results && !empty && results.events.length > 0 && (
           <>
-            <div className="sec-head"><div className="sec-left"><div className="sec-title">Schedule</div></div></div>
+            <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-graphite">{MAG}</div><div className="sec-title">Schedule</div></div></div>
             <div className="pad-x"><div className="card">
               {results.events.map((e) => (
-                <div className="sched-row" role="button" tabIndex={0} key={e.id} onClick={() => open("event", e.id)}><div className="sched-time">{e.start}</div><div className="sched-body"><div className="sched-title">{e.title}</div></div></div>
+                <div className="row" role="button" tabIndex={0} key={e.id} onClick={() => open("event", e.id)}><RowIcon kind="event" /><div className="row-grow"><div className="conn-name">{e.title}</div></div><span className="urgency urgency-muted">{e.start}</span></div>
               ))}
             </div></div>
           </>
@@ -109,10 +110,10 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
 
         {results && !empty && results.tasks.length > 0 && (
           <>
-            <div className="sec-head"><div className="sec-left"><div className="sec-title">Tasks</div></div></div>
+            <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-graphite">{MAG}</div><div className="sec-title">Tasks</div></div></div>
             <div className="pad-x"><div className="card">
               {results.tasks.map((t) => (
-                <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => open("task", t.id)}><div className="row-grow"><div className="conn-name">{t.text}</div></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => open("task", t.id)}><RowIcon kind="task" /><div className="row-grow"><div className="conn-name">{t.text}</div></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>
@@ -120,7 +121,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
 
         {results && !empty && results.people.length > 0 && (
           <>
-            <div className="sec-head"><div className="sec-left"><div className="sec-title">People</div></div></div>
+            <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-graphite">{MAG}</div><div className="sec-title">People</div></div></div>
             <div className="pad-x"><div className="card">
               {results.people.map((p) => (
                 <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => open("person", p.id)}><div className={"av av-40 cat-bg-" + slotForName(p.name)}>{personInitials(p.name)}</div><div className="row-grow"><div className="conn-name">{p.name}</div></div><div className="chev"></div></div>
@@ -131,20 +132,20 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
 
         {results && !empty && results.notes.length > 0 && (
           <>
-            <div className="sec-head"><div className="sec-left"><div className="sec-title">Notes</div></div></div>
+            <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-graphite">{MAG}</div><div className="sec-title">Notes</div></div></div>
             <div className="pad-x"><div className="card">
               {results.notes.map((n) => (
-                <div className="row" role="button" tabIndex={0} key={n.id} onClick={() => open("note", n.id)}><div className="row-grow"><div className="conn-name">{n.title}</div></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={n.id} onClick={() => open("note", n.id)}><RowIcon kind="note" /><div className="row-grow"><div className="conn-name">{n.title}</div></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>
         )}
         {results && !empty && results.projects.length > 0 && (
           <>
-            <div className="sec-head"><div className="sec-left"><div className="sec-title">Projects</div></div></div>
+            <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-graphite">{MAG}</div><div className="sec-title">Projects</div></div></div>
             <div className="pad-x"><div className="card">
               {results.projects.map((p) => (
-                <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => open("project", p.id)}><div className="row-grow"><div className="conn-name">{p.title}</div></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => open("project", p.id)}><RowIcon kind="project" /><div className="row-grow"><div className="conn-name">{p.title}</div></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>
@@ -152,10 +153,10 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
 
         {results && !empty && results.goals.length > 0 && (
           <>
-            <div className="sec-head"><div className="sec-left"><div className="sec-title">Goals</div></div></div>
+            <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-graphite">{MAG}</div><div className="sec-title">Goals</div></div></div>
             <div className="pad-x"><div className="card">
               {results.goals.map((g) => (
-                <div className="row" role="button" tabIndex={0} key={g.id} onClick={() => open("goal", g.id)}><div className="row-grow"><div className="conn-name">{g.title}</div></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={g.id} onClick={() => open("goal", g.id)}><RowIcon kind="goal" /><div className="row-grow"><div className="conn-name">{g.title}</div></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>
@@ -163,10 +164,10 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
 
         {results && !empty && results.accounts.length > 0 && (
           <>
-            <div className="sec-head"><div className="sec-left"><div className="sec-title">Money</div></div></div>
+            <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-graphite">{MAG}</div><div className="sec-title">Money</div></div></div>
             <div className="pad-x"><div className="card">
               {results.accounts.map((a) => (
-                <div className="row" role="button" tabIndex={0} key={a.id} onClick={() => open("account", a.id)}><div className="row-grow"><div className="conn-name">{a.name}</div></div><div className="chev"></div></div>
+                <div className="row" role="button" tabIndex={0} key={a.id} onClick={() => open("account", a.id)}><RowIcon kind="money" /><div className="row-grow"><div className="conn-name">{a.name}</div></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>
@@ -174,7 +175,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
 
         {results && !empty && results.categories.length > 0 && (
           <>
-            <div className="sec-head"><div className="sec-left"><div className="sec-title">Categories</div></div></div>
+            <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-graphite">{MAG}</div><div className="sec-title">Categories</div></div></div>
             <div className="pad-x"><div className="card">
               {results.categories.map((c) => (
                 <div className="row" role="button" tabIndex={0} key={c.id} onClick={() => open("category", c.id)}><div className="row-grow"><div className="conn-name">{c.name}</div></div><div className="chev"></div></div>

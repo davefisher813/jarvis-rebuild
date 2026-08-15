@@ -90,11 +90,13 @@ describe("MessagesFlow (threads)", () => {
     expect(screen.getByText("1 needs you · rest handled")).toBeInTheDocument();
     expect(screen.getByText(/Tucci needs the waiver by Friday/)).toBeInTheDocument();
     // THE FOLD: everything that does not need him is one line, not a section.
-    expect(screen.getByText("The rest · 1")).toBeInTheDocument();
+    // SPEC MOVED (V2 anatomy, 2026-08-15): the count is a pill beside the line.
+    expect(screen.getByText("The rest")).toBeInTheDocument();
+    expect(screen.getByText("1")).toBeInTheDocument();
     expect(screen.queryByText("Noise")).toBeNull();
     expect(screen.queryByText("1 automated email")).toBeNull();
     // It expands in place, and noise inside it is still collapsed to a count.
-    fireEvent.click(screen.getByText("The rest · 1"));
+    fireEvent.click(screen.getByText("The rest"));
     expect(screen.getByText("Noise")).toBeInTheDocument();
     expect(screen.getByText("1 automated email")).toBeInTheDocument();
     expect(screen.queryByText(/DoorDash promo/)).toBeNull();
@@ -109,7 +111,8 @@ describe("MessagesFlow (threads)", () => {
     const api = makeApi({ modifyThread: async (id, _a, remove) => { if (remove.includes("INBOX")) archived.push(id); } });
     render(wrap(<MessagesFlow ai={ai} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
-    fireEvent.click(await screen.findByText("The rest · 1"));
+    // SPEC MOVED (V2 anatomy, 2026-08-15): fold count now rides as a pill.
+    fireEvent.click(await screen.findByText("The rest"));
     fireEvent.click(await screen.findByText("Archive All"));
     await waitFor(() => expect(archived).toEqual(["t2"]));
     expect(screen.getByText("1 conversation archived")).toBeInTheDocument();
@@ -219,7 +222,8 @@ describe("MessagesFlow (threads)", () => {
     // mode this feature exists to avoid.
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    expect(await screen.findByText("The rest · 1")).toBeInTheDocument();
+    // SPEC MOVED (V2 anatomy, 2026-08-15): fold count now rides as a pill.
+    expect(await screen.findByText("The rest")).toBeInTheDocument();
     // SPEC MOVED (short copy, 2026-08-15)
     expect(screen.queryByText(/now tasks/)).toBeNull();
   });
@@ -273,7 +277,8 @@ describe("MessagesFlow (threads)", () => {
     localStorage.setItem("jarvis.mail.tossed.v1", JSON.stringify({ "no@dd.com": 4 }));
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    fireEvent.click(await screen.findByText("The rest · 1"));
+    // SPEC MOVED (V2 anatomy, 2026-08-15): fold count now rides as a pill.
+    fireEvent.click(await screen.findByText("The rest"));
     fireEvent.click(await screen.findByText("Archive All"));
     // SPEC MOVED (short copy, 2026-08-15)
     expect(await screen.findByText(/archived unread 4 times/)).toBeInTheDocument();
