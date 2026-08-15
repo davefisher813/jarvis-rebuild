@@ -21,6 +21,8 @@
 // never slip under the counter (the old version logged after, which under-counted).
 export const config = { runtime: "edge" };
 
+import { aiCallAllowed, normalizeLevel, refusalMessage, DEFAULT_AI_LEVEL } from "../src/ai/aiGate";
+
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = process.env.AI_MODEL || "claude-sonnet-4-6";
 // Routing (Email 2): words that go out in the USER'S voice earn the strongest
@@ -57,9 +59,9 @@ export default async function handler(req: Request): Promise<Response> {
   const maxInput = parseInt(process.env.AI_MAX_INPUT_BYTES || "32768", 10);
   const maxVision = parseInt(process.env.AI_MAX_VISION_BYTES || "600000", 10);
   if (raw.length > maxVision) return json({ error: "Request too large" }, 413);
-  let body: { messages?: unknown; system?: unknown; tier?: unknown };
+  let body: { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown };
   try {
-    body = JSON.parse(raw) as { messages?: unknown; system?: unknown; tier?: unknown };
+    body = JSON.parse(raw) as { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown };
   } catch {
     return json({ error: "Bad request" }, 400);
   }
@@ -67,6 +69,34 @@ export default async function handler(req: Request): Promise<Response> {
   if (messages.length === 0) return json({ error: "No messages" }, 400);
   if (!visionShapeOk(messages)) return json({ error: "Bad request" }, 400);
   if (countImages(messages) === 0 && raw.length > maxInput) return json({ error: "Request too large" }, 413);
+  // What the call says it is. kind feeds What Ran (a short slug, bounded and
+  // cleaned here because clients lie); background marks anything the user did
+  // not just ask for, which is what AI Control gates hardest.
+  const kind = typeof body.kind === "string" ? body.kind.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 32) : "";
+  const background = body.background === true;
+
+  // AI CONTROL, SERVER SIDE (addendum item 21). The stored profile is the
+  // authority, read with the CALLER'S token under RLS, so this works with or
+  // without a service key and can only ever see the caller's own record. A
+  // client bug (or a hostile client) cannot spend AI the user turned off,
+  // because the refusal happens here, before admission and before counting.
+  // If the profile cannot be read the default level applies (draft): taking
+  // AI down on a transient read failure would hurt more than it protects,
+  // and Off is enforced the moment the read succeeds again.
+  let aiLevel = DEFAULT_AI_LEVEL;
+  try {
+    const pr = await fetch(
+      `${supaUrl}/rest/v1/item?entity_type=eq.profile&select=data&order=updated_at.desc&limit=1`,
+      { headers: { apikey: supaAnon, Authorization: `Bearer ${token}` } },
+    );
+    if (pr.ok) {
+      const rows = (await pr.json()) as { data?: { ai?: { level?: unknown } } }[];
+      aiLevel = normalizeLevel(rows[0]?.data?.ai?.level);
+    }
+  } catch { /* default level applies; see above */ }
+  if (!aiCallAllowed(aiLevel, background)) {
+    return json({ error: refusalMessage(aiLevel, background) }, 403);
+  }
 
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const globalCap = parseInt(process.env.AI_GLOBAL_PER_DAY || "2000", 10);
@@ -96,7 +126,7 @@ export default async function handler(req: Request): Promise<Response> {
     const rpc = await fetch(`${supaUrl}/rest/v1/rpc/ai_try_consume`, {
       method: "POST",
       headers: svcJson,
-      body: JSON.stringify({ p_user: me.id, p_user_cap: cap, p_global_cap: globalCap }),
+      body: JSON.stringify({ p_user: me.id, p_user_cap: cap, p_global_cap: globalCap, p_kind: kind }),
     });
     if (rpc.ok) {
       const verdict = (await rpc.json()) as { allowed?: boolean; reason?: string };
@@ -137,7 +167,7 @@ export default async function handler(req: Request): Promise<Response> {
     if (!counted && serviceKey) await fetch(`${supaUrl}/rest/v1/ai_usage`, {
       method: "POST",
       headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "content-type": "application/json", Prefer: "return=minimal" },
-      body: JSON.stringify({ user_id: me.id }),
+      body: JSON.stringify({ user_id: me.id, kind }),
     });
   } catch { /* never block the reply on analytics */ }
 

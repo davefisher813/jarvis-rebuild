@@ -1,5 +1,7 @@
 import { apiUrl } from "../shared/apiBase";
 import { backendConfigured } from "../data/store";
+import { aiCallAllowed, effectiveLevel, refusalMessage, type AIPinKey } from "./aiGate";
+import { getAIControl } from "./levelStore";
 
 export interface AIMessage {
   role: "user" | "assistant";
@@ -49,8 +51,23 @@ export class AIService {
 
   // tier "write": words that go out in the user's voice route to the stronger
   // model server-side (AI_MODEL_WRITE). Everything else stays on the default.
-  async complete(messages: AIMessage[], system?: string, opts?: { tier?: "write" }): Promise<string> {
+  //
+  // AI Control (addendum items 18-21): every call declares what it is.
+  // kind: a short slug for What Ran ("triage", "capture", "plan", ...).
+  // background: true for anything the user did not just ask for (pre-generation).
+  // pin: the per-feature pin this call rides under, when one exists.
+  // The gate runs here first (so the UI can explain a refusal without a
+  // round trip) and again authoritatively in the proxy against the stored
+  // profile, so a client bug can never spend AI the user turned off.
+  async complete(
+    messages: AIMessage[],
+    system?: string,
+    opts?: { tier?: "write"; kind?: string; background?: boolean; pin?: AIPinKey },
+  ): Promise<string> {
     if (!this.available) throw new Error("AI is not configured in this build.");
+    const level = effectiveLevel(getAIControl(), opts?.pin);
+    const background = opts?.background ?? false;
+    if (!aiCallAllowed(level, background)) throw new Error(refusalMessage(level, background));
     const token = this.getToken?.();
     const res = await this.fetchImpl(this.endpoint, {
       method: "POST",
@@ -58,7 +75,13 @@ export class AIService {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ messages, system, ...(opts?.tier ? { tier: opts.tier } : {}) }),
+      body: JSON.stringify({
+        messages,
+        system,
+        ...(opts?.tier ? { tier: opts.tier } : {}),
+        ...(opts?.kind ? { kind: opts.kind } : {}),
+        ...(background ? { background: true } : {}),
+      }),
     });
     if (!res.ok) {
       const detail = await res.text().catch(() => "");

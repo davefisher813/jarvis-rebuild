@@ -1026,3 +1026,10 @@ button {
 .cat-group { margin-bottom: var(--s-4); }
 .cat-group:last-child { margin-bottom: 0; }
 .cat-group-label { padding: 0 var(--s-1) var(--s-1h); }
+
+/* Provenance (addendum item 8, LOCKED-CSS CHANGE FLAGGED): the one meta line
+   on auto-created entities. A fact, not a control, unless a source can be
+   opened, in which case it is a quiet text button with no button chrome. */
+.prov-line { font-size: var(--t-meta); color: var(--tx-3); padding: 0; background: none; border: none; text-align: left; }
+.prov-link { color: var(--tx-3); text-decoration: none; cursor: pointer; }
+.prov-link:active { opacity: 0.6; }

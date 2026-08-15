@@ -1,5 +1,6 @@
 import type { Store, ItemData } from "@core";
 import { ENTITY_PROFILE, EMPTY_PROFILE, type ProfileData } from "./types";
+import { setAIControl } from "../ai/levelStore";
 
 // The single per-user profile record, backed by the engine Store.
 export class ProfileService {
@@ -17,6 +18,11 @@ export class ProfileService {
 
   async get(): Promise<ProfileData | null> {
     const r = await this.record();
+    // Mirror AI Control into the session singleton every time the profile is
+    // read, so AIService and pre-generation obey the stored level without
+    // any hook plumbing. The profile is read at app open (onboarding check),
+    // which is what makes the level live before the first AI call.
+    if (r) setAIControl(r.data.ai);
     return r ? r.data : null;
   }
 
@@ -30,10 +36,12 @@ export class ProfileService {
     if (r) {
       const next = { ...r.data, ...patch };
       await this.store.update(this.ownerId, r.id, next as unknown as ItemData);
+      setAIControl(next.ai);
       return next;
     }
     const next = { ...EMPTY_PROFILE, ...patch };
     await this.store.create(this.ownerId, ENTITY_PROFILE, next as unknown as ItemData);
+    setAIControl(next.ai);
     return next;
   }
 }

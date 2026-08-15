@@ -21,7 +21,7 @@ import { localParse } from "../ai/capture";
 import { emit } from "../events";
 
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
-type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft } | null;
+type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
 
 export default function TasksFlow({ openId, openFilter }: { openId?: string; openFilter?: string } = {}) {
   const svc = useTasks();
@@ -244,7 +244,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   const openEdit = async (id: string) => {
     const t = await svc.task(id);
     if (!t) return;
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "" } });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "" }, source: t.source });
   };
 
   // When arriving via a note connection, open that task once on mount.
@@ -391,6 +391,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
           projects={projects.map((p) => ({ id: p.id, title: p.data.title }))}
           mode={sheet.mode}
           initial={sheet.initial}
+          source={sheet.mode === "edit" ? sheet.source : undefined}
           categories={categories}
           onSave={onSave}
           onSchedule={sheet.mode === "edit" ? onScheduleTask : undefined}

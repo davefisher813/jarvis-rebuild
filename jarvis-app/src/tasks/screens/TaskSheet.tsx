@@ -1,6 +1,8 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
 import type { ColorSlot } from "../../categories/types";
+import Provenance from "../../shared/Provenance";
+import type { Source } from "../../shared/provenance";
 
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
 export interface TaskDraft { text: string; category: string; due: string; repeat: string; projectId?: string }
@@ -23,6 +25,7 @@ export default function TaskSheet({
   initial,
   categories,
   projects = [],
+  source,
   onSave,
   onSchedule,
   onDelete,
@@ -32,6 +35,9 @@ export default function TaskSheet({
   initial?: Partial<TaskDraft>;
   projects?: SheetProject[];
   categories: SheetCategory[];
+  // Provenance of the task being edited, when it was auto-created. A fact
+  // line only; the sheet never writes it (coverage map: not editable).
+  source?: Source;
   onSave: (draft: TaskDraft) => void;
   onSchedule?: () => void;
   onDelete?: () => void;
@@ -65,6 +71,7 @@ export default function TaskSheet({
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{mode === "new" ? "New Task" : "Edit Task"}</div></div>
         <div className="pad-x sheet-form">
+          <Provenance source={source} />
           <div className="field">
             <label className="input-label">Task <span className="input-req">*</span></label>
             <input

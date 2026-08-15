@@ -1,5 +1,6 @@
 import type { Store, ItemData } from "@core";
 import type { EventInput } from "../events";
+import { madeBy } from "../shared/provenance";
 import {
   ENTITY_NOTE,
   ENTITY_TASK,
@@ -178,7 +179,7 @@ export class NotesService {
       for (let i = 0; i < items.length; i++) {
         const it = items[i]!;
         if (!it.text.trim() || it.taskId) continue;
-        const data: TaskData = { text: it.text, fromNote: id, category: note.category, done: it.done };
+        const data: TaskData = { text: it.text, fromNote: id, category: note.category, done: it.done, source: madeBy("note", id) };
         const tid = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
         items[i] = { ...it, taskId: tid };
         changed = true;

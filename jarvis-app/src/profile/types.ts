@@ -34,6 +34,11 @@ export interface ProfileData {
   // render there). amount = one paycheck; next = an upcoming payday date the
   // math advances from by freq.
   payday?: { amount: number; next: string; freq: "weekly" | "biweekly" | "monthly" };
+  // AI Control (addendum items 18-22): master level + per-feature pins.
+  // Absent means Draft Only (the default; also where onboarding Skip lands).
+  // Stored on the profile so it syncs; mirrored into the levelStore singleton
+  // and enforced server-side by the proxy, which reads THIS record.
+  ai?: import("../ai/aiGate").AIControlState;
 }
 
 export const EMPTY_PROFILE: ProfileData = {

@@ -17,6 +17,9 @@ export interface EventData {
   sourceTaskId?: string; // task this block was generated from, via Plan my day
   taskIds?: string[]; // attached tasks (Session 4 connections). Links live on
   // the event and die with it; non-recurring events only.
+  // Provenance (addendum item 8): set on every AUTO-created event, absent on
+  // hand-made ones. Lives in JSONB, no migration needed.
+  source?: import("../shared/provenance").Source;
 }
 
 export interface EventItem {

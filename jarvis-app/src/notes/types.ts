@@ -72,6 +72,9 @@ export interface TaskData {
   category: string;
   done: boolean;
   fromNote?: string;
+  // Provenance (addendum item 8): set on every AUTO-created task, absent on
+  // hand-made ones. Lives in JSONB, no migration needed.
+  source?: import("../shared/provenance").Source;
   projectId?: string; // the project this task belongs to (Session 6). Optional
   // field on the existing task entity, so no registry migration is needed.
   due?: string | null;
