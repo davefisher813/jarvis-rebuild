@@ -5,6 +5,7 @@ import { needsAdversarialReview, extractEmailFromNotes } from "./views";
 import type { SheetCategoryOpt } from "./screens/PersonSheet";
 import PeopleListPage from "./screens/PeopleListPage";
 import PersonDetail from "./screens/PersonDetail";
+import CallPrepSheet from "./CallPrepSheet";
 import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 import { usePushDepth } from "../shared/pushNav";
 import { parseContactsFile, type ImportedContact } from "./importContacts";
@@ -27,6 +28,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
   const [openId, setOpenId] = useState<string | null>(initialOpenId ?? null);
   const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
+  const [prepOpen, setPrepOpen] = useState(false);
 
   // ONE list, everyone (the Inner Circle / Adversarial lists were removed
   // 2026-08-03; the facts they claimed to organize live on each person).
@@ -38,6 +40,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
 
   // Fetch notes linked to the open person for the Linked Notes section.
   useEffect(() => {
+    setPrepOpen(false); // a different person is a different call
     if (!openId) { setLinkedNotes([]); return; }
     let on = true;
     notesSvc.notesLinkedTo(openId).then((n) => { if (on) setLinkedNotes(n); });
@@ -195,7 +198,28 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
     return (
       <div className={pushCls} key={"d-" + current.id}>
         <PersonDetail person={current} onEdit={() => setSheet({ kind: "edit", id: current.id })} onBack={() => setOpenId(null)} linkedNotes={linkedNotes} onOpenNote={onOpenNote}
+          onCallPrep={current.data.phone ? () => setPrepOpen(true) : undefined}
           categoryNames={(current.data.categoryIds ?? []).map((id) => categories.find((c) => c.id === id)?.name).filter((n): n is string => !!n)} />
+        {prepOpen && (
+          <CallPrepSheet
+            person={current}
+            linkedNotes={linkedNotes}
+            onCall={async () => {
+              const out = await people.logCallAttempt(current.id);
+              await reload();
+              return out;
+            }}
+            onUndoCall={async (prior) => { await people.restoreCallAttempt(current.id, prior); await reload(); }}
+            onCaptureNote={async (text) => {
+              const noteId = await notesSvc.createNote("Call with " + current.data.name, "");
+              if (!noteId) return false;
+              await notesSvc.addBlock(noteId, { type: "text", text });
+              await notesSvc.addConnection(noteId, "person", current.data.name, current.id);
+              return true;
+            }}
+            onClose={() => setPrepOpen(false)}
+          />
+        )}
         {sheetEl}
       </div>
     );

@@ -55,4 +55,23 @@ export class PeopleService {
     await this.store.delete(this.ownerId, id);
     this.onEvent({ type: "entity.deleted", entityType: ENTITY_PERSON, entityId: id });
   }
+
+  // Call Prep (addendum item 2): tapping Call logs one ATTEMPT, automatically,
+  // with undo. Returns the prior value so the undo can restore it exactly
+  // (including "never called", which is undefined). Never duration, never
+  // outcome; the app knows you dialed and nothing more.
+  async logCallAttempt(id: string, at: string = new Date().toISOString()): Promise<{ prior: string | undefined } | null> {
+    const p = await this.get(id);
+    if (!p) return null;
+    const prior = p.data.lastCallAttempt;
+    await this.update(id, { lastCallAttempt: at });
+    return { prior };
+  }
+
+  // Patches are MERGED into JSONB (a missing key survives a merge), so
+  // "never called" restores as empty string, and every reader treats a falsy
+  // lastCallAttempt as never-called.
+  async restoreCallAttempt(id: string, prior: string | undefined): Promise<void> {
+    await this.update(id, { lastCallAttempt: prior ?? "" });
+  }
 }

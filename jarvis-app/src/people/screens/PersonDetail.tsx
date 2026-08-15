@@ -26,6 +26,7 @@ export default function PersonDetail({
   onBack,
   linkedNotes = [],
   onOpenNote,
+  onCallPrep,
   categoryNames = [],
 }: {
   person: Person;
@@ -33,6 +34,9 @@ export default function PersonDetail({
   onBack: () => void;
   linkedNotes?: { id: string; title: string; category: string }[];
   onOpenNote?: (id: string) => void;
+  // Opens the Call Prep card (addendum item 2). Without it the row falls
+  // back to a bare tel: link (surfaces with no service access).
+  onCallPrep?: () => void;
   // Names of the categories this person belongs to (resolved by the caller,
   // since this screen has no service access on purpose).
   categoryNames?: string[];
@@ -62,7 +66,15 @@ export default function PersonDetail({
           launchpad, not a filing cabinet. */}
       {(email || phone) && (
         <div className="pad-x"><div className="card">
-          {phone && (
+          {phone && onCallPrep && (
+            // Call Prep (addendum item 2): the call action opens the prep
+            // card, which carries the dial. Context first, then the phone.
+            <div className="row person-reach" role="button" tabIndex={0} onClick={onCallPrep}>
+              <div className="row-grow"><div className="conn-name">Call</div></div>
+              <span className="kv-val">{phone}</span>
+            </div>
+          )}
+          {phone && !onCallPrep && (
             <a className="row person-reach" href={"tel:" + phone.replace(/[^+\d]/g, "")}>
               <div className="row-grow"><div className="conn-name">Call</div></div>
               <span className="kv-val">{phone}</span>

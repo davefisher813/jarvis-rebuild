@@ -30,6 +30,11 @@ export interface PersonData {
   // A person can belong to several categories (Family AND Bridge): multi, not
   // single, or we rebuild the exclusive-bucket mistake one layer down.
   categoryIds?: string[];
+  // Call Prep (addendum item 2): when you last tapped Call from the prep
+  // card, ISO datetime. An ATTEMPT, logged automatically with undo. Never
+  // duration, never outcome: the app knows you dialed, nothing more, and it
+  // does not pretend otherwise.
+  lastCallAttempt?: string;
 }
 
 export interface Person {
