@@ -1047,3 +1047,9 @@ button {
 .capture-saved { border-bottom: 0.5px solid var(--divider); padding-bottom: var(--s-2); }
 .capture-saved:last-child { border-bottom: 0; padding-bottom: 0; }
 .capture-recents { max-height: 220px; overflow-y: auto; }
+
+/* Weather Fact (addendum item 4, LOCKED-CSS CHANGE FLAGGED): one quiet line
+   on Today, one inline fragment on an event row. Facts wear meta styling;
+   weather gets no color, no icon, no theater. */
+.weather-line { margin-top: var(--s-1); }
+.weather-inline { font-size: var(--t-meta); color: var(--tx-3); }

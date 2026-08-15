@@ -3,6 +3,7 @@ import type { EventItem } from "../schedule/types";
 import { fmtTime, fmtDistance, minToHHMM } from "../schedule/calendar";
 import { catColor, catName } from "../shared/categories";
 import { isPast } from "./todayData";
+import { EventWeatherLine } from "../weather/WeatherLine";
 
 const WINDOW = 252; // ticker viewport height (px), matches .sched-ticker
 
@@ -18,11 +19,20 @@ function Row({ ev, past, dist, onOpen }: { ev: EventItem; past: boolean; dist: s
         <div className="sched-cat">
           <span className={"cat-dot cat-bg-" + catColor(ev.data.category)} />
           {catName(ev.data.category)}
+          {/* Weather Fact (addendum item 4), day-of, placed events only: an
+              event with a location happens somewhere weather matters.
+              Threshold-gated, so most rows show nothing. */}
+          {!past && ev.data.location && <EventWeatherLine dateIso={todayISODate()} start={ev.data.start} />}
         </div>
       </div>
     </div>
   );
 }
+
+const todayISODate = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 // A protected block from Your Routine, real on the day view. Tap edits the routine.
 function LockedRow({ l, past, onOpen }: { l: LockedRange; past: boolean; onOpen?: () => void }) {

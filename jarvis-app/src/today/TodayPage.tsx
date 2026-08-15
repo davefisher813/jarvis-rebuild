@@ -12,6 +12,12 @@ import YourDay from "./YourDay";
 import DayRing from "./DayRing";
 import { Burst, useBurst } from "../shared/Burst";
 import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats, type WeekRecap } from "./evening";
+import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
+
+const localISODate = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 
 const URGENCY_CLASS: Record<UrgencyKind, string> = {
   overdue: "urgency-red",
@@ -286,12 +292,19 @@ export default function TodayPage({
             <div className="eyebrow">{dateLong}</div>
             <div className="today-title">{greeting}</div>
             <div className="today-summary">{evening ? eveningSummary(evening) : parts}</div>
+            {/* Weather Fact (addendum item 4): the morning line. Threshold-
+                gated; a mild day renders nothing here. */}
+            <MorningWeatherLine todayIso={localISODate()} />
           </div>
           {ring && <DayRing done={ring.done} total={ring.total} />}
         </div>
       </div>
 
       {birthdaySection}
+
+      {/* Weather's one-time connect moment: a single row, once, gone forever
+          on decline (same doctrine as the gym page's Health row). */}
+      <div className="pad-x"><WeatherOfferRow /></div>
 
       {/* Bills where the eyes are (2026-08-09): one quiet line when money is
           due within three days. Not tappable to nowhere: it only becomes a
