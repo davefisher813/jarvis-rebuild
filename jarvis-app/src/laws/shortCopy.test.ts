@@ -28,6 +28,7 @@ const EXEMPT_FILES = new Set([
   // Their few UI strings are individually short-copy compliant; the file
   // stays here because the scanner cannot tell a prompt from a label.
   "ai/voice.ts",
+  "chat/chatPrompt.ts",
   "ai/capture.ts",
   "ai/suggestions.ts",
   "ai/context.ts",

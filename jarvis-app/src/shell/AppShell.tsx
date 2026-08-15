@@ -23,6 +23,7 @@ const BiggerPictureFlow = lazy(() => import("../bigger/BiggerPictureFlow"));
 const MessagesFlow = lazy(() => import("../messages/MessagesFlow"));
 const NotificationsFlow = lazy(() => import("../notifications/NotificationsFlow"));
 const MoneyFlow = lazy(() => import("../money/MoneyFlow"));
+const ChatFlow = lazy(() => import("../chat/ChatFlow"));
 
 const QuickCapture = lazy(() => import("../capture/QuickCapture"));
 const SearchFlow = lazy(() => import("../search/SearchFlow"));
@@ -184,6 +185,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "messages" && <MessagesFlow ai={ai} />}
         {active === "notifications" && <NotificationsFlow />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} />}
+        {active === "chat" && <ChatFlow />}
         
         {active === "more" && (
           <MoreFlow

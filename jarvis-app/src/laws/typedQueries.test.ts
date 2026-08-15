@@ -22,6 +22,7 @@ import { GoalService } from "../life/GoalService";
 import { PeopleService } from "../people/PeopleService";
 import { BackupService } from "../backup/BackupService";
 import { LearnedRulesService } from "../rules/LearnedRulesService";
+import { ChatService } from "../chat/ChatService";
 
 // An adapter that records every listForUser call so the tests can prove the
 // type made it all the way down (not just into the Store's cache key).
@@ -144,6 +145,13 @@ describe("law: every service list is a typed adapter query", () => {
     const { adapter, store } = rig();
     await new LearnedRulesService(store, U).list();
     expect(adapter.calls).toContain("learned_rule");
+    expect(adapter.calls).not.toContain(undefined);
+  });
+
+  it("ChatService lists with entity type chat_message", async () => {
+    const { adapter, store } = rig();
+    await new ChatService(store, U).list();
+    expect(adapter.calls).toContain("chat_message");
     expect(adapter.calls).not.toContain(undefined);
   });
 

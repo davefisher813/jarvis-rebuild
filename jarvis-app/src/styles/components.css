@@ -1107,3 +1107,16 @@ button {
 .row-ico { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
 .row-ico .ic { width: 15px; height: 15px; }
 .day-divide { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-4); padding: var(--s-2h) var(--s-1) var(--s-1); }
+
+/* CHAT BUBBLE ANATOMY (addendum item 24: THE one sanctioned locked-CSS
+   addition from the 2026-08-14 session, approved by Dave). chat-user rides
+   the accent, chat-jarvis rides press-3, iOS Messages corner treatment, and
+   the provenance line is eyebrow-size uppercase. */
+.chat-thread { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3) var(--s-4); }
+.chat-bubble { max-width: 78%; padding: var(--s-2h) var(--s-3h); border-radius: 18px; }
+.chat-user { align-self: flex-end; background: var(--accent); color: #fff; border-bottom-right-radius: 6px; }
+.chat-jarvis { align-self: flex-start; background: var(--press-3); color: var(--tx-1); border-bottom-left-radius: 6px; }
+.chat-text { font-size: var(--t-body); line-height: var(--lh-relaxed); white-space: pre-wrap; }
+.chat-prov { margin-top: var(--s-1); font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--tx-3); }
+.chat-inputbar { display: flex; gap: var(--s-2); padding: var(--s-2h) var(--s-4); padding-bottom: calc(var(--s-2h) + var(--s-safe-b)); }
+.chat-inputbar .input { flex: 1; }

@@ -14,6 +14,7 @@ import { BackupService } from "../backup/BackupService";
 import { RoutineService } from "../routine/RoutineService";
 import { GymService } from "../gym/GymService";
 import { LearnedRulesService } from "../rules/LearnedRulesService";
+import { ChatService } from "../chat/ChatService";
 import { makeStore } from "./store";
 import { emit } from "../events";
 
@@ -35,6 +36,7 @@ const GymContext = createContext<GymService | null>(null);
 const RulesContext = createContext<LearnedRulesService | null>(null);
 const BackupContext = createContext<BackupService | null>(null);
 const RoutineContext = createContext<RoutineService | null>(null);
+const ChatContext = createContext<ChatService | null>(null);
 // The Supabase access token, for callers that hit privileged endpoints (e.g.
 // the admin check). Undefined when signed out or in the local harness.
 const TokenContext = createContext<string | undefined>(undefined);
@@ -48,7 +50,7 @@ export function NotesProvider({
   accessToken?: string;
   children: ReactNode;
 }) {
-  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, rules } = useMemo(() => {
+  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, rules, chat } = useMemo(() => {
     const store = makeStore(accessToken);
     return {
       rules: new LearnedRulesService(store, userId),
@@ -66,6 +68,7 @@ export function NotesProvider({
       backup: new BackupService(store, userId),
       routine: new RoutineService(store, userId),
       gym: new GymService(store, userId, (e) => emit(e)),
+      chat: new ChatService(store, userId),
     };
   }, [userId, accessToken]);
   return (
@@ -84,7 +87,9 @@ export function NotesProvider({
                       <BackupContext.Provider value={backup}>
                       <RoutineContext.Provider value={routine}>
                       <GymContext.Provider value={gym}>
-                      <RulesContext.Provider value={rules}>{children}</RulesContext.Provider>
+                      <RulesContext.Provider value={rules}>
+                      <ChatContext.Provider value={chat}>{children}</ChatContext.Provider>
+                      </RulesContext.Provider>
                       </GymContext.Provider>
                       </RoutineContext.Provider>
                       </BackupContext.Provider>
@@ -224,6 +229,12 @@ export function useRoutine(): RoutineService {
 export function useBackup(): BackupService {
   const s = useContext(BackupContext);
   if (!s) throw new Error("useBackup must be used inside NotesProvider");
+  return s;
+}
+
+export function useChat(): ChatService {
+  const s = useContext(ChatContext);
+  if (!s) throw new Error("useChat must be used inside NotesProvider");
   return s;
 }
 
