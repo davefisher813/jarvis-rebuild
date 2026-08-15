@@ -8,6 +8,7 @@ import { showToast } from "../shared/toast";
 import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { DEFAULT_ROUTINE } from "../routine/types";
 import { pickNext, quickWins, reasonFor, QUICK_WINS_COUNT } from "./upnext";
+import MusicChip from "../music/MusicChip";
 
 // Up Next (ADHD strategy Phase 1): one card at a time, never a list. Next mode
 // deals the single best task; Quick Wins deals a short rapid-fire run. Two
@@ -141,6 +142,9 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
             <div className="chip active" role="button" tabIndex={0}>Next</div>
             <div className="chip" role="button" tabIndex={0} onClick={startWins}>Quick Wins</div>
           </div>
+          {/* Music Tier 1 (addendum item 5): the focus context's remembered
+              link. One tap when remembered; a picker the first time. */}
+          <MusicChip context="focus" />
         </div>
       )}
       {mode === "wins" && !winsOver && (

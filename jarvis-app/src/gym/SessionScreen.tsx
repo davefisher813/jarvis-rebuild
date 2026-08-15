@@ -3,6 +3,7 @@ import type { Exercise, SetLog, Workout } from "./types";
 import type { LiveSession } from "./liveSession";
 import { formatSet, logButtonLabel, targetSet, entryNoun, fieldsFor } from "./measures";
 import { isPR, lastTimeLine } from "./prs";
+import MusicChip from "../music/MusicChip";
 
 const CHEV = (
   <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
@@ -74,6 +75,9 @@ export default function SessionScreen({
         {last && <div className="bp-sub">{last}</div>}
         {exercise.note && <div className="bp-sub">{exercise.note}</div>}
       </div></div>
+
+      {/* Music Tier 1 (addendum item 5): the gym context's remembered link. */}
+      <div className="pad-x"><MusicChip context="gym" /></div>
 
       <div className="sec-head"><div className="sec-left"><div className="sec-title">{noun}</div></div></div>
       <div className="pad-x"><div className="card">

@@ -1053,3 +1053,7 @@ button {
    weather gets no color, no icon, no theater. */
 .weather-line { margin-top: var(--s-1); }
 .weather-inline { font-size: var(--t-meta); color: var(--tx-3); }
+
+/* Music Tier 1 (addendum item 5, LOCKED-CSS CHANGE FLAGGED): the paste-a-link
+   field inside the music picker row. Chips are standard .chip anatomy. */
+.music-paste { height: 34px; font-size: var(--t-meta); flex: 1; min-width: 140px; }
