@@ -25,6 +25,9 @@ export class BackupService {
   constructor(private store: Store, private ownerId: string) {}
 
   async exportBundle(): Promise<BackupBundle> {
+    // Deliberately untyped: export means EVERY record in the account. This is
+    // the one sanctioned whole-account read (corrections pack 2026-08-14
+    // item 4); feature services always pass their entity type.
     const items = await this.store.listForUser(this.ownerId);
     return {
       app: "jarvis",

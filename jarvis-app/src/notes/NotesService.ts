@@ -287,8 +287,7 @@ export class NotesService {
   }
 
   async listNotes() {
-    const items = await this.store.listForUser(this.ownerId);
-    return items.filter((i) => i.entityType === ENTITY_NOTE);
+    return this.store.listForUser(this.ownerId, ENTITY_NOTE);
   }
 
   // Reverse lookup: every note whose connections point at the given entity id.
@@ -296,10 +295,11 @@ export class NotesService {
   // "Linked Notes" section without loading full note bodies.
   async notesLinkedTo(targetId: string): Promise<{ id: string; title: string; category: string }[]> {
     if (!targetId) return [];
-    const items = await this.store.listForUser(this.ownerId);
+    const items = await this.store.listForUser(this.ownerId, ENTITY_NOTE);
     const out: { id: string; title: string; category: string }[] = [];
     for (const it of items) {
-      if (it.entityType !== ENTITY_NOTE) continue;
+      // connections membership is a JSONB predicate the DB query does not
+      // express; that filtering stays in memory by design.
       const d = it.data as unknown as NoteData;
       if (Array.isArray(d.connections) && d.connections.some((c) => c.targetId === targetId)) {
         out.push({ id: it.id, title: d.title || "Untitled", category: d.category || "" });
@@ -309,8 +309,7 @@ export class NotesService {
   }
 
   async listTasks() {
-    const items = await this.store.listForUser(this.ownerId);
-    return items.filter((i) => i.entityType === ENTITY_TASK);
+    return this.store.listForUser(this.ownerId, ENTITY_TASK);
   }
 
   // offline controls pass through to the engine store

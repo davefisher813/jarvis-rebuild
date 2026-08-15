@@ -6,12 +6,11 @@ export class ProfileService {
   constructor(private store: Store, private ownerId: string) {}
 
   private async record(): Promise<{ id: string; data: ProfileData } | null> {
-    const items = await this.store.listForUser(this.ownerId);
+    const items = await this.store.listForUser(this.ownerId, ENTITY_PROFILE);
     // Single-record entity, defended: if duplicates ever exist (a historical
     // create race), always read the newest by server time so edits can never
     // appear to flip between copies (audit 2026-07-30).
     const it = items
-      .filter((i) => i.entityType === ENTITY_PROFILE)
       .sort((a, b) => b.serverTime - a.serverTime)[0];
     return it ? { id: it.id, data: it.data as unknown as ProfileData } : null;
   }

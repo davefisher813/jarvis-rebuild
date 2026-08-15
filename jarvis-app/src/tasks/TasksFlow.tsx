@@ -11,6 +11,7 @@ import type { TaskItem } from "./TasksService";
 import { todayISO } from "./grouping";
 import { nextFreeSlot, addMinutes } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
+import { attemptWrite } from "../shared/guard";
 import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage } from "./lifecycle";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
@@ -78,14 +79,25 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     if (cands.length === 0) return;
     const ids = cands.map((t) => t.id);
     void (async () => {
-      await svc.setAside(ids);
-      try { localStorage.setItem("jarvis.setaside.last", today); } catch { /* ok */ }
-      await reload();
-      showToast({
-        message: `Set aside ${ids.length} quiet ${ids.length === 1 ? "task" : "tasks"}. Nothing is overdue.`,
-        actionLabel: "Undo",
-        onAction: async () => { await svc.restoreAside(ids); await reload(); },
-      });
+      // Silent automation law (corrections pack item 3): a failed automation
+      // may never fail silently. On failure the line renders in error form
+      // with a retry, louder than the success receipt.
+      const runSweep = async (): Promise<void> => {
+        try {
+          await svc.setAside(ids);
+        } catch {
+          showToast({ message: "Couldn't set aside quiet tasks. Tap to retry.", actionLabel: "Retry", onAction: () => { void runSweep(); } });
+          return;
+        }
+        try { localStorage.setItem("jarvis.setaside.last", today); } catch { /* ok */ }
+        await reload();
+        showToast({
+          message: `Set aside ${ids.length} quiet ${ids.length === 1 ? "task" : "tasks"}. Nothing is overdue.`,
+          actionLabel: "Undo",
+          onAction: async () => { await attemptWrite(() => svc.restoreAside(ids)); await reload(); },
+        });
+      };
+      await runSweep();
     })();
   }, [loading, allItems, svc, today, reload]);
 
@@ -121,12 +133,13 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     // Back On Track: completing a recurring task after a real gap gets the
     // comeback line instead of the stock toast. The old run still counts.
     const comeback = before ? backOnTrackMessage(before, today) : null;
-    await svc.toggleDone(id);
+    const ok = await attemptWrite(() => svc.toggleDone(id));
     await reload();
+    if (!ok) return;
     if (comeback) {
       showToast({ message: comeback });
     } else if (before && !before.done) {
-      showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await svc.toggleDone(id); await reload(); } });
+      showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => svc.toggleDone(id)); await reload(); } });
     }
   };
 
@@ -160,8 +173,11 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
 
   const fsAccept = async () => {
     if (!fsStep || !fsCandidate || fsStep.taskId !== fsCandidate.id) return;
-    await svc.createTask(fsStep.step, { category: fsCandidate.data.category || undefined, due: today });
-    await svc.setAside([fsCandidate.id]);
+    const ok = await attemptWrite(async () => {
+      await svc.createTask(fsStep.step, { category: fsCandidate.data.category || undefined, due: today });
+      await svc.setAside([fsCandidate.id]);
+    });
+    if (!ok) return;
     dismissFirstStep(fsCandidate.id, today);
     setFsStep(null);
     setFsHidden(true);
@@ -193,8 +209,9 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     if (!text.trim()) return;
     const parsed = localParse(text.trim(), today);
     const due = parsed.date ?? today;
-    await svc.createTask(text.trim(), { due });
+    const ok = await attemptWrite(() => svc.createTask(text.trim(), { due }));
     await reload();
+    if (!ok) return;
     if (due !== today) {
       const label = new Date(due + "T00:00:00").toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
       showToast({ message: `Due ${label}` });
@@ -206,16 +223,19 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   // that takes the most at once.
   const onClearDone = async () => {
     const snapshot = parts.done.map((t) => ({ ...t.data }));
-    for (const t of parts.done) await svc.deleteTask(t.id);
+    const ok = await attemptWrite(async () => { for (const t of parts.done) await svc.deleteTask(t.id); });
     await reload();
+    if (!ok) return;
     showToast({
       message: `Cleared ${snapshot.length} completed`,
       actionLabel: "Undo",
       onAction: async () => {
-        for (const d of snapshot) {
-          const id = await svc.createTask(d.text, { category: d.category || undefined, due: d.due ?? null, recurrence: d.recurrence });
-          if (id) await svc.toggleDone(id); // they come back DONE, as they were
-        }
+        await attemptWrite(async () => {
+          for (const d of snapshot) {
+            const id = await svc.createTask(d.text, { category: d.category || undefined, due: d.due ?? null, recurrence: d.recurrence });
+            if (id) await svc.toggleDone(id); // they come back DONE, as they were
+          }
+        });
         await reload();
       },
     });
@@ -235,16 +255,19 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
 
   const onSave = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;
+    let saved = true;
     if (sheet?.mode === "new") {
-      await svc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId });
+      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId }));
     } else if (sheet?.mode === "edit") {
-      await svc.editText(sheet.id, draft.text);
-      await svc.setCategory(sheet.id, draft.category);
-      await svc.setDue(sheet.id, draft.due || null);
-      await svc.setProject(sheet.id, draft.projectId ?? null);
-      await svc.setRecurrence(sheet.id, rec || null);
+      saved = await attemptWrite(async () => {
+        await svc.editText(sheet.id, draft.text);
+        await svc.setCategory(sheet.id, draft.category);
+        await svc.setDue(sheet.id, draft.due || null);
+        await svc.setProject(sheet.id, draft.projectId ?? null);
+        await svc.setRecurrence(sheet.id, rec || null);
+      });
     }
-    const wasNew = sheet?.mode === "new";
+    const wasNew = sheet?.mode === "new" && saved;
     setSheet(null);
     await reload();
     // A saved task must always be visible (audit 2026-07-30: a new task with
@@ -264,8 +287,8 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   const onDelete = async () => {
     if (sheet?.mode === "edit") {
       const t = await svc.task(sheet.id);
-      await svc.deleteTask(sheet.id);
-      if (t) offerUndoTask(t);
+      const ok = await attemptWrite(() => svc.deleteTask(sheet.id));
+      if (ok && t) offerUndoTask(t);
     }
     setSheet(null);
     await reload();
@@ -273,8 +296,8 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
 
   const onDeleteRow = async (id: string) => {
     const t = await svc.task(id);
-    await svc.deleteTask(id);
-    if (t) offerUndoTask(t);
+    const ok = await attemptWrite(() => svc.deleteTask(id));
+    if (ok && t) offerUndoTask(t);
     await reload();
   };
 
@@ -284,7 +307,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
       message: "Task deleted",
       actionLabel: "Undo",
       onAction: async () => {
-        await svc.createTask(t.text, { category: t.category || undefined, due: t.due ?? null, recurrence: t.recurrence });
+        await attemptWrite(() => svc.createTask(t.text, { category: t.category || undefined, due: t.due ?? null, recurrence: t.recurrence }));
         await reload();
       },
     });
@@ -292,9 +315,9 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
 
   // Push a task to tomorrow without opening the editor.
   const onSnooze = async (id: string) => {
-    await svc.setDue(id, tomorrow);
+    const ok = await attemptWrite(() => svc.setDue(id, tomorrow));
     await reload();
-    showToast({ message: "Moved to tomorrow" });
+    if (ok) showToast({ message: "Moved to tomorrow" });
   };
 
   // Drop the task into the next free slot on its due day (or today) as a 1h event.
@@ -304,9 +327,9 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     if (!t) return;
     const date = t.due || today;
     const start = nextFreeSlot(await schedule.eventsOn(date), date, new Date());
-    await schedule.createEvent(t.text, { date, start, end: addMinutes(start, 60), category: t.category || undefined });
+    const ok = await attemptWrite(() => schedule.createEvent(t.text, { date, start, end: addMinutes(start, 60), category: t.category || undefined }));
     setSheet(null);
-    showToast({ message: "Added to schedule" });
+    if (ok) showToast({ message: "Added to schedule" });
   };
 
   // One offer, one line, one action. The subtitle used to read "Want the

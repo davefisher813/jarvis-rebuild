@@ -11,6 +11,7 @@ import AddBlockSheet from "./screens/AddBlockSheet";
 import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
 import { showToast } from "../shared/toast";
+import { attemptWrite } from "../shared/guard";
 import CreateTasks from "./screens/CreateTasks";
 import type { BlockType } from "./types";
 
@@ -100,8 +101,11 @@ export default function NotesFlow({
   const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
   const enterAt = async (blockId: string, text: string) => {
     if (!currentId) return;
-    await svc.editBlock(currentId, blockId, { text });
-    const newId = await svc.insertBlockAfter(currentId, blockId, { type: "text", text: "" });
+    let newId: string | null = null;
+    await attemptWrite(async () => {
+      await svc.editBlock(currentId, blockId, { text });
+      newId = await svc.insertBlockAfter(currentId, blockId, { type: "text", text: "" });
+    });
     await loadCurrent(currentId);
     setFocusBlockId(newId);
   };
@@ -109,34 +113,39 @@ export default function NotesFlow({
     if (!currentId || !current) return;
     const idx = current.blocks.findIndex((b) => b.id === blockId);
     const prev = [...current.blocks.slice(0, idx)].reverse().find((b) => b.type === "text" || b.type === "heading");
-    await svc.deleteBlock(currentId, blockId);
+    await attemptWrite(() => svc.deleteBlock(currentId, blockId));
     await loadCurrent(currentId);
     setFocusBlockId(prev?.id ?? null);
   };
   const transformAt = async (blockId: string, prefix: "#" | "[]" | "-" | "1.", rest: string) => {
     if (!currentId) return;
-    if (prefix === "#") await svc.editBlock(currentId, blockId, { type: "heading", text: rest });
-    else if (prefix === "[]") await svc.editBlock(currentId, blockId, { type: "checklist", text: undefined, items: [{ text: rest, done: false }] });
-    else if (prefix === "-") await svc.editBlock(currentId, blockId, { type: "bulleted_list", text: undefined, items: [rest] });
-    else await svc.editBlock(currentId, blockId, { type: "numbered_list", text: undefined, items: [rest] });
+    await attemptWrite(async () => {
+      if (prefix === "#") await svc.editBlock(currentId, blockId, { type: "heading", text: rest });
+      else if (prefix === "[]") await svc.editBlock(currentId, blockId, { type: "checklist", text: undefined, items: [{ text: rest, done: false }] });
+      else if (prefix === "-") await svc.editBlock(currentId, blockId, { type: "bulleted_list", text: undefined, items: [rest] });
+      else await svc.editBlock(currentId, blockId, { type: "numbered_list", text: undefined, items: [rest] });
+    });
     await loadCurrent(currentId);
     setFocusBlockId(prefix === "#" ? blockId : prefix === "-" || prefix === "1." ? blockId + ":0" : null);
   };
   const listItems = async (blockId: string, items: string[], focusKey: string | null) => {
     if (!currentId) return;
-    await svc.editBlock(currentId, blockId, { items });
+    await attemptWrite(() => svc.editBlock(currentId, blockId, { items }));
     await loadCurrent(currentId);
     setFocusBlockId(focusKey);
   };
   const listExit = async (blockId: string, remaining: string[]) => {
     if (!currentId) return;
     if (remaining.length === 0) {
-      await svc.editBlock(currentId, blockId, { type: "text", text: "", items: undefined });
+      await attemptWrite(() => svc.editBlock(currentId, blockId, { type: "text", text: "", items: undefined }));
       await loadCurrent(currentId);
       setFocusBlockId(blockId);
     } else {
-      await svc.editBlock(currentId, blockId, { items: remaining });
-      const newId = await svc.insertBlockAfter(currentId, blockId, { type: "text", text: "" });
+      let newId: string | null = null;
+      await attemptWrite(async () => {
+        await svc.editBlock(currentId, blockId, { items: remaining });
+        newId = await svc.insertBlockAfter(currentId, blockId, { type: "text", text: "" });
+      });
       await loadCurrent(currentId);
       setFocusBlockId(newId);
     }
@@ -225,9 +234,12 @@ export default function NotesFlow({
   }, [openId]);
 
   const pickTemplate = async (key: TemplateKey) => {
-    const id = await svc.createNote(TEMPLATE_TITLE[key], defaultCatId);
+    let id: string | null = null;
+    await attemptWrite(async () => {
+      id = await svc.createNote(TEMPLATE_TITLE[key], defaultCatId);
+      if (id && key !== "blank") await svc.applyTemplate(id, key);
+    });
     if (!id) return;
-    if (key !== "blank") await svc.applyTemplate(id, key);
     setCurrentId(id);
     await loadCurrent(id);
     setScreen("editor");
@@ -235,45 +247,45 @@ export default function NotesFlow({
 
   const addBlock = async (type: BlockType) => {
     if (!currentId) return;
-    await svc.addBlock(currentId, starterBlock(type));
+    await attemptWrite(() => svc.addBlock(currentId, starterBlock(type)));
     setAddBlockOpen(false);
     await loadCurrent(currentId);
   };
 
   const runCreateTasks = async () => {
     if (!currentId) return;
-    await svc.tasksFromChecklist(currentId);
+    await attemptWrite(() => svc.tasksFromChecklist(currentId));
     setScreen("editor");
   };
 
   const editTitle = async (text: string) => {
     if (!currentId) return;
-    if (text) await svc.editTitle(currentId, text); // ignore empty, revert on reload
+    if (text) await attemptWrite(() => svc.editTitle(currentId, text)); // ignore empty, revert on reload
     await loadCurrent(currentId);
   };
   const editBlockText = async (blockId: string, text: string) => {
     if (!currentId) return;
-    await svc.editBlock(currentId, blockId, { text });
+    await attemptWrite(() => svc.editBlock(currentId, blockId, { text }));
     await loadCurrent(currentId);
   };
   const toggleCheck = async (blockId: string, index: number) => {
     if (!currentId) return;
-    await svc.toggleChecklistItem(currentId, blockId, index);
+    await attemptWrite(() => svc.toggleChecklistItem(currentId, blockId, index));
     await loadCurrent(currentId);
   };
   const editCheckItem = async (blockId: string, index: number, text: string) => {
     if (!currentId) return;
-    await svc.setChecklistItemText(currentId, blockId, index, text);
+    await attemptWrite(() => svc.setChecklistItemText(currentId, blockId, index, text));
     await loadCurrent(currentId);
   };
   const addCheckItem = async (blockId: string) => {
     if (!currentId) return;
-    await svc.addChecklistItem(currentId, blockId);
+    await attemptWrite(() => svc.addChecklistItem(currentId, blockId));
     await loadCurrent(currentId);
   };
   const deleteCheckItem = async (blockId: string, index: number) => {
     if (!currentId) return;
-    await svc.deleteChecklistItem(currentId, blockId, index);
+    await attemptWrite(() => svc.deleteChecklistItem(currentId, blockId, index));
     await loadCurrent(currentId);
   };
   const moveBlockDir = async (blockId: string, dir: -1 | 1) => {
@@ -283,12 +295,12 @@ export default function NotesFlow({
     if (i < 0) return;
     const j = i + dir;
     if (j < 0 || j >= blocks.length) return;
-    await svc.moveBlock(currentId, i, j);
+    await attemptWrite(() => svc.moveBlock(currentId, i, j));
     await loadCurrent(currentId);
   };
   const deleteBlock = async (blockId: string) => {
     if (!currentId) return;
-    await svc.deleteBlock(currentId, blockId);
+    await attemptWrite(() => svc.deleteBlock(currentId, blockId));
     await loadCurrent(currentId);
   };
 
@@ -323,13 +335,13 @@ export default function NotesFlow({
         onAddLink={async () => { await loadLinkables(); setScreen("linkPicker"); }}
         onRemove={async (connId) => {
           if (!currentId) return;
-          await svc.removeConnection(currentId, connId);
+          await attemptWrite(() => svc.removeConnection(currentId, connId));
           await loadCurrent(currentId);
         }}
         categories={catList.map((c) => ({ id: c.id, name: catName(c.id) }))}
         onChangeCategory={async (categoryId) => {
           if (!currentId) return;
-          await svc.setCategory(currentId, categoryId);
+          await attemptWrite(() => svc.setCategory(currentId, categoryId));
           await loadCurrent(currentId);
         }}
         onCreateTasks={() => setScreen("createTasks")}
@@ -349,7 +361,7 @@ export default function NotesFlow({
         people={linkPeople}
         onPick={async (kind, label, targetId) => {
           if (currentId) {
-            await svc.addConnection(currentId, kind, label, targetId);
+            await attemptWrite(() => svc.addConnection(currentId, kind, label, targetId));
             await loadCurrent(currentId);
           }
           setScreen("connections");
@@ -400,7 +412,8 @@ export default function NotesFlow({
             // asking "are you sure?" is exactly the interrogation the rest of
             // the app refuses to do (audit 2026-08-07).
             const snapshot = await svc.note(currentId);
-            await svc.deleteNote(currentId);
+            const ok = await attemptWrite(() => svc.deleteNote(currentId));
+            if (!ok) return;
             setCurrentId(null);
             await loadList();
             setScreen("list");
@@ -408,7 +421,7 @@ export default function NotesFlow({
               message: "Note deleted",
               actionLabel: "Undo",
               onAction: async () => {
-                if (snapshot) await svc.restoreNote(snapshot);
+                if (snapshot) await attemptWrite(() => svc.restoreNote(snapshot));
                 await loadList();
               },
             });
@@ -435,20 +448,26 @@ export default function NotesFlow({
 async function seedDemoNotes(svc: ReturnType<typeof useNotes>, cats: Category[]) {
   const id = (n: string) => cats.find((c) => c.data.name === n)?.id ?? cats[0]?.id ?? "";
 
-  const plan = await svc.createNote("Quarterly Planning", id("Work"));
-  if (plan) await svc.applyTemplate(plan, "meeting");
+  // Demo-only writes, guarded as one action: a failed seed toasts once and
+  // leaves whatever landed (the demo reseeds on next empty open anyway).
+  try {
+    const plan = await svc.createNote("Quarterly Planning", id("Work"));
+    if (plan) await svc.applyTemplate(plan, "meeting");
 
-  const training = await svc.createNote("Training Plan", id("Health"));
-  if (training) {
-    await svc.addBlock(training, { type: "heading", text: "This Week" });
-    await svc.addChecklist(training, ["Tuesday tempo run", "Thursday intervals", "Sunday long run"]);
+    const training = await svc.createNote("Training Plan", id("Health"));
+    if (training) {
+      await svc.addBlock(training, { type: "heading", text: "This Week" });
+      await svc.addChecklist(training, ["Tuesday tempo run", "Thursday intervals", "Sunday long run"]);
+    }
+
+    const home = await svc.createNote("Home Projects", id("Family"));
+    if (home) await svc.applyTemplate(home, "todo");
+
+    const outreach = await svc.createNote("Outreach List", id("Friends"));
+    if (outreach) await svc.applyTemplate(outreach, "brief");
+
+    await svc.createNote("Standup Notes", id("Work"));
+  } catch {
+    showToast({ message: "Couldn't save. Check your connection and try again." });
   }
-
-  const home = await svc.createNote("Home Projects", id("Family"));
-  if (home) await svc.applyTemplate(home, "todo");
-
-  const outreach = await svc.createNote("Outreach List", id("Friends"));
-  if (outreach) await svc.applyTemplate(outreach, "brief");
-
-  await svc.createNote("Standup Notes", id("Work"));
 }

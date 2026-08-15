@@ -78,10 +78,12 @@ export class InMemoryAdapter implements DataAdapter {
     if (r && r.ownerId === ownerId) this.db.delete(id); // hard delete, no tombstone
   }
 
-  async listForUser(ownerId: string): Promise<Item[]> {
+  async listForUser(ownerId: string, entityType?: string): Promise<Item[]> {
     const out: Item[] = [];
     for (const r of this.db.values()) {
-      if (r.ownerId === ownerId) out.push(this.clone(r));
+      if (r.ownerId !== ownerId) continue;
+      if (entityType !== undefined && r.entityType !== entityType) continue;
+      out.push(this.clone(r));
     }
     return out;
   }

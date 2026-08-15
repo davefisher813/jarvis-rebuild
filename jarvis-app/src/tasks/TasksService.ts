@@ -204,10 +204,8 @@ export class TasksService {
   }
 
   async listTasks(): Promise<TaskItem[]> {
-    const items: Item[] = await this.store.listForUser(this.ownerId);
-    return items
-      .filter((i) => i.entityType === ENTITY_TASK)
-      .map((i) => ({ id: i.id, data: i.data as unknown as TaskData }));
+    const items: Item[] = await this.store.listForUser(this.ownerId, ENTITY_TASK);
+    return items.map((i) => ({ id: i.id, data: i.data as unknown as TaskData }));
   }
 
   // Tasks split into Today / Upcoming / Done and sorted soonest-first within

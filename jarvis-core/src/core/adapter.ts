@@ -45,5 +45,9 @@ export interface DataAdapter {
   del(ownerId: string, id: string): Promise<void>;
 
   // All records owned by this user. Never includes other users' rows (D6).
-  listForUser(ownerId: string): Promise<Item[]>;
+  // With entityType, only rows of that type, filtered AT THE BACKEND (SQL
+  // eq on entity_type; the (owner_id, entity_type) index from migration 0001
+  // covers it). Services pass their type so a list never becomes a full
+  // table scan; omitting it is reserved for whole-account flows (backup).
+  listForUser(ownerId: string, entityType?: string): Promise<Item[]>;
 }

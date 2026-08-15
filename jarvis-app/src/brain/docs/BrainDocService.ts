@@ -6,8 +6,9 @@ export class BrainDocService {
   constructor(private store: Store, private ownerId: string) {}
 
   private async record(topic: string): Promise<{ id: string; data: BrainDocData } | null> {
-    const items = await this.store.listForUser(this.ownerId);
-    const it = items.find((i) => i.entityType === ENTITY_BRAIN_DOC && (i.data as unknown as BrainDocData).topic === topic);
+    const items = await this.store.listForUser(this.ownerId, ENTITY_BRAIN_DOC);
+    // topic lives inside JSONB; that predicate stays in memory by design.
+    const it = items.find((i) => (i.data as unknown as BrainDocData).topic === topic);
     return it ? { id: it.id, data: it.data as unknown as BrainDocData } : null;
   }
 

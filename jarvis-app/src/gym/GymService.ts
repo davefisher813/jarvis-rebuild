@@ -13,9 +13,8 @@ export class GymService {
   ) {}
 
   async listPrograms(): Promise<Program[]> {
-    const items = await this.store.listForUser(this.ownerId);
+    const items = await this.store.listForUser(this.ownerId, ENTITY_PROGRAM);
     return items
-      .filter((i) => i.entityType === ENTITY_PROGRAM)
       .map((i) => ({ id: i.id, data: i.data as unknown as ProgramData }))
       .filter((p) => !p.data.archived)
       .sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0) || a.data.name.localeCompare(b.data.name));
@@ -49,9 +48,8 @@ export class GymService {
   }
 
   async listWorkouts(): Promise<Workout[]> {
-    const items = await this.store.listForUser(this.ownerId);
+    const items = await this.store.listForUser(this.ownerId, ENTITY_WORKOUT);
     return items
-      .filter((i) => i.entityType === ENTITY_WORKOUT)
       .map((i) => ({ id: i.id, data: i.data as unknown as WorkoutData }))
       .sort((a, b) => a.data.date.localeCompare(b.data.date));
   }

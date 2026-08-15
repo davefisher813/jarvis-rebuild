@@ -7,10 +7,10 @@ export class PeopleService {
   constructor(private store: Store, private ownerId: string, private onEvent: Emit = () => {}) {}
 
   async list(group?: PersonGroup): Promise<Person[]> {
-    const items = await this.store.listForUser(this.ownerId);
+    const items = await this.store.listForUser(this.ownerId, ENTITY_PERSON);
     return items
-      .filter((i) => i.entityType === ENTITY_PERSON)
       .map((i) => ({ id: i.id, data: i.data as unknown as PersonData }))
+      // group lives inside JSONB; that predicate stays in memory by design.
       .filter((p) => !group || p.data.group === group)
       .sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0) || a.data.name.localeCompare(b.data.name));
   }

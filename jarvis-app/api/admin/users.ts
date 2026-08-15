@@ -20,7 +20,11 @@ export default async function handler(req: Request): Promise<Response> {
   if (req.method === "POST") {
     const body = (await req.json().catch(() => ({}))) as { id?: string; status?: string };
     if (!body.id || (body.status !== "active" && body.status !== "disabled")) return json({ error: "Bad request" }, 400);
-    const ban = body.status === "disabled" ? "876000h" : "none";
+    // 10 years, the maximum ban this endpoint will ever set. The old value
+    // was 876000h (about 100 years), which the 2026-08-14 corrections pack
+    // flagged as a DoS vector; a disable should be reversible on a human
+    // timescale even if the admin account is compromised.
+    const ban = body.status === "disabled" ? "87600h" : "none";
     const r = await fetch(`${ctx.url}/auth/v1/admin/users/${body.id}`, {
       method: "PUT",
       headers: { ...svcHeaders(ctx), "content-type": "application/json" },

@@ -128,11 +128,16 @@ export default async function handler(req: Request): Promise<Response> {
   // count toward the caps. Narrows the read-then-act race window and removes
   // the old under-count. If the log write fails we still serve the request
   // (availability over perfect accounting), but we no longer count after the fact.
+  //
+  // Since migration 0019 the table is service-role only (no user policies),
+  // so this legacy fallback writes with the service key. Without a service
+  // key nothing can record usage; the uncapped-proxy console.error above has
+  // already shouted about that state.
   try {
-    if (!counted) await fetch(`${supaUrl}/rest/v1/ai_usage`, {
+    if (!counted && serviceKey) await fetch(`${supaUrl}/rest/v1/ai_usage`, {
       method: "POST",
-      headers: { apikey: supaAnon, Authorization: `Bearer ${token}`, "content-type": "application/json", Prefer: "return=minimal" },
-      body: "{}",
+      headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "content-type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ user_id: me.id }),
     });
   } catch { /* never block the reply on analytics */ }
 

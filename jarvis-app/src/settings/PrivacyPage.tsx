@@ -2,7 +2,7 @@ import LegalScreen from "./LegalScreen";
 
 export default function PrivacyPage({ onBack }: { onBack: () => void }) {
   return (
-    <LegalScreen title="Privacy Policy" updated="May 2026" onBack={onBack}>
+    <LegalScreen title="Privacy Policy" updated="August 2026" onBack={onBack}>
       <h4 className="legal-h">What we collect</h4>
       <p>The content you create in the app (notes, tasks, events, and similar), plus basic account information when you sign in.</p>
       <h4 className="legal-h">How it is used</h4>
@@ -11,6 +11,12 @@ export default function PrivacyPage({ onBack }: { onBack: () => void }) {
       <p>Until you sign in with a synced account, your data stays on your device. With an account, it is stored to sync across your devices.</p>
       <h4 className="legal-h">Third parties</h4>
       <p>We use service providers for sign-in, sync, and error reporting. They process data only to deliver those functions.</p>
+      <h4 className="legal-h">Files you upload</h4>
+      <p>Files you upload (images and PDFs) are stored privately in your account, readable only by you. We remove location data embedded in images before storing them. Files are deleted when you delete the item they belong to, or when you delete them directly.</p>
+      <h4 className="legal-h">Conversations with JARVIS</h4>
+      <p>Your conversations with JARVIS are stored in your account so the assistant can keep context. You can delete your entire chat history at any time in Settings. Deleted history is removed from our systems and is not used afterward.</p>
+      <h4 className="legal-h">Documents you upload for extraction</h4>
+      <p>Statements and documents you upload for extraction are processed to create the records you review. Merchant names from financial documents are retained with those records; you can delete any record and its source file at any time.</p>
       <h4 className="legal-h">Email open receipts</h4>
       <p>When enabled in Settings, mail you send through JARVIS includes an invisible image that reports back when the message is first displayed. Only an anonymous identifier and a timestamp are stored; never the recipient, subject, or content. You can turn this off any time under Settings, Connections.</p>
       <h4 className="legal-h">Your choices</h4>

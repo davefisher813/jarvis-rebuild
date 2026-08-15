@@ -13,9 +13,8 @@ export class CategoriesService {
   ) {}
 
   async list(): Promise<Category[]> {
-    const items = await this.store.listForUser(this.ownerId);
+    const items = await this.store.listForUser(this.ownerId, ENTITY_CATEGORY);
     return items
-      .filter((i) => i.entityType === ENTITY_CATEGORY)
       .map((i) => ({ id: i.id, data: i.data as unknown as CategoryData }))
       .sort((a, b) => a.data.order - b.data.order);
   }

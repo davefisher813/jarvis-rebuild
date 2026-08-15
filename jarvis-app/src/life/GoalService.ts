@@ -6,8 +6,8 @@ type Emit = (e: { type: "entity.created" | "entity.updated" | "entity.deleted"; 
 export class GoalService {
   constructor(private store: Store, private ownerId: string, private onEvent: Emit = () => {}) {}
   async list(): Promise<Goal[]> {
-    const items = await this.store.listForUser(this.ownerId);
-    return items.filter((i) => i.entityType === ENTITY_GOAL).map((i) => ({ id: i.id, data: i.data as unknown as GoalData }))
+    const items = await this.store.listForUser(this.ownerId, ENTITY_GOAL);
+    return items.map((i) => ({ id: i.id, data: i.data as unknown as GoalData }))
       .sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0) || a.data.title.localeCompare(b.data.title));
   }
   async get(id: string): Promise<Goal | null> { const it = await this.store.read(this.ownerId, id); return it ? { id: it.id, data: it.data as unknown as GoalData } : null; }

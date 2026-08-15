@@ -93,10 +93,8 @@ export class ScheduleService {
   }
 
   async listEvents(): Promise<EventItem[]> {
-    const items: Item[] = await this.store.listForUser(this.ownerId);
-    return items
-      .filter((i) => i.entityType === ENTITY_EVENT)
-      .map((i) => ({ id: i.id, data: i.data as unknown as EventData }));
+    const items: Item[] = await this.store.listForUser(this.ownerId, ENTITY_EVENT);
+    return items.map((i) => ({ id: i.id, data: i.data as unknown as EventData }));
   }
 
   async eventsOn(date: string): Promise<EventItem[]> {

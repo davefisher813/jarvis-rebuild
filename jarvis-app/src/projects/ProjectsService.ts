@@ -6,9 +6,9 @@ type Emit = (e: { type: "entity.created" | "entity.updated" | "entity.deleted"; 
 export class ProjectsService {
   constructor(private store: Store, private ownerId: string, private onEvent: Emit = () => {}) {}
   async list(): Promise<Project[]> {
-    const items = await this.store.listForUser(this.ownerId);
+    const items = await this.store.listForUser(this.ownerId, ENTITY_PROJECT);
     const order = { active: 0, on_hold: 1, done: 2 };
-    return items.filter((i) => i.entityType === ENTITY_PROJECT).map((i) => ({ id: i.id, data: i.data as unknown as ProjectData }))
+    return items.map((i) => ({ id: i.id, data: i.data as unknown as ProjectData }))
       .sort((a, b) => order[a.data.status] - order[b.data.status] || (a.data.order ?? 0) - (b.data.order ?? 0) || a.data.title.localeCompare(b.data.title));
   }
   async get(id: string): Promise<Project | null> { const it = await this.store.read(this.ownerId, id); return it ? { id: it.id, data: it.data as unknown as ProjectData } : null; }

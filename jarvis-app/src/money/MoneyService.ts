@@ -6,8 +6,8 @@ type Emit = (e: { type: "entity.created" | "entity.updated" | "entity.deleted"; 
 export class MoneyService {
   constructor(private store: Store, private ownerId: string, private onEvent: Emit = () => {}) {}
   async list(): Promise<Account[]> {
-    const items = await this.store.listForUser(this.ownerId);
-    return items.filter((i) => i.entityType === ENTITY_ACCOUNT).map((i) => ({ id: i.id, data: i.data as unknown as AccountData }))
+    const items = await this.store.listForUser(this.ownerId, ENTITY_ACCOUNT);
+    return items.map((i) => ({ id: i.id, data: i.data as unknown as AccountData }))
       .sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0) || a.data.name.localeCompare(b.data.name));
   }
   async get(id: string): Promise<Account | null> { const it = await this.store.read(this.ownerId, id); return it ? { id: it.id, data: it.data as unknown as AccountData } : null; }

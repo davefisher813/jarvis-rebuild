@@ -18,13 +18,19 @@ export class Store {
   // invalidates immediately, so reads-after-writes always see fresh data.
   // External writes (another device) can be up to LIST_TTL_MS stale, which is
   // within the app's existing sync expectations.
+  // Keyed by owner + entity type ("*" for the untyped whole-account read),
+  // so typed lists cache independently. Any write for an owner invalidates
+  // every cached list for that owner: cheaper than tracking which type a
+  // patch touched, and writes are rare next to reads.
   private listCache = new Map<string, { at: number; items: Promise<Item[]> }>();
   private static readonly LIST_TTL_MS = 3000;
 
   constructor(private readonly adapter: DataAdapter) {}
 
   private invalidate(ownerId: string): void {
-    this.listCache.delete(ownerId);
+    for (const key of this.listCache.keys()) {
+      if (key.startsWith(ownerId + "|")) this.listCache.delete(key);
+    }
   }
 
   async create(ownerId: string, entityType: string, data: ItemData): Promise<string> {
@@ -70,16 +76,17 @@ export class Store {
     this.invalidate(ownerId);
   }
 
-  listForUser(ownerId: string): Promise<Item[]> {
-    const hit = this.listCache.get(ownerId);
+  listForUser(ownerId: string, entityType?: string): Promise<Item[]> {
+    const key = ownerId + "|" + (entityType ?? "*");
+    const hit = this.listCache.get(key);
     const now = Date.now();
     if (hit && now - hit.at < Store.LIST_TTL_MS) return hit.items;
-    const items = this.adapter.listForUser(ownerId).catch((e: unknown) => {
+    const items = this.adapter.listForUser(ownerId, entityType).catch((e: unknown) => {
       // a failed fetch must not poison the cache window
-      this.invalidate(ownerId);
+      this.listCache.delete(key);
       throw e;
     });
-    this.listCache.set(ownerId, { at: now, items });
+    this.listCache.set(key, { at: now, items });
     return items;
   }
 

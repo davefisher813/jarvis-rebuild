@@ -31,6 +31,7 @@ import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
 import { showToast } from "../shared/toast";
+import { attemptWrite } from "../shared/guard";
 import { lazy, Suspense } from "react";
 import { isOffTrack, rankOpen } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
@@ -158,12 +159,13 @@ export default function TodayFlow({
   const onToggleTask = async (id: string) => {
     const before = await tasks.task(id);
     const comeback = before ? backOnTrackMessage(before, today) : null;
-    await tasks.toggleDone(id);
+    const ok = await attemptWrite(() => tasks.toggleDone(id));
     await reload();
+    if (!ok) return;
     if (comeback) {
       showToast({ message: comeback });
     } else if (before && !before.done) {
-      showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await tasks.toggleDone(id); await reload(); } });
+      showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.toggleDone(id)); await reload(); } });
     }
   };
 
@@ -188,13 +190,15 @@ export default function TodayFlow({
   const onSaveEvent = async (draft: EventDraft) => {
     if (!eventSheet) return;
     const id = eventSheet.id;
-    await schedule.editTitle(id, draft.title);
-    if ((eventSheet.initial.recurrence ?? "none") === "none") await schedule.moveDay(id, draft.date);
-    await schedule.editTime(id, draft.start);
-    await schedule.editEnd(id, draft.end);
-    await schedule.editRecurrence(id, draft.recurrence);
-    await schedule.editCategory(id, draft.category);
-    await schedule.editLocation(id, draft.location);
+    await attemptWrite(async () => {
+      await schedule.editTitle(id, draft.title);
+      if ((eventSheet.initial.recurrence ?? "none") === "none") await schedule.moveDay(id, draft.date);
+      await schedule.editTime(id, draft.start);
+      await schedule.editEnd(id, draft.end);
+      await schedule.editRecurrence(id, draft.recurrence);
+      await schedule.editCategory(id, draft.category);
+      await schedule.editLocation(id, draft.location);
+    });
     setEventSheet(null);
     await reload();
   };
@@ -202,15 +206,15 @@ export default function TodayFlow({
   const onDeleteEvent = async () => {
     if (!eventSheet) return;
     const e = await schedule.event(eventSheet.id);
-    await schedule.deleteEvent(eventSheet.id);
+    const ok = await attemptWrite(() => schedule.deleteEvent(eventSheet.id));
     setEventSheet(null);
     await reload();
-    if (e) {
+    if (ok && e) {
       showToast({
         message: "Event deleted",
         actionLabel: "Undo",
         onAction: async () => {
-          await schedule.createEvent(e.title, { date: e.date, start: e.start, end: e.end, category: e.category || undefined, location: e.location, recurrence: e.recurrence });
+          await attemptWrite(() => schedule.createEvent(e.title, { date: e.date, start: e.start, end: e.end, category: e.category || undefined, location: e.location, recurrence: e.recurrence }));
           await reload();
         },
       });
@@ -220,10 +224,12 @@ export default function TodayFlow({
   const onSaveTask = async (draft: TaskDraft) => {
     if (sheet?.mode === "edit") {
       const rec = (draft.repeat || "") as "" | Recurrence;
-      await tasks.editText(sheet.id, draft.text);
-      await tasks.setCategory(sheet.id, draft.category);
-      await tasks.setDue(sheet.id, draft.due || null);
-      await tasks.setRecurrence(sheet.id, rec || null);
+      await attemptWrite(async () => {
+        await tasks.editText(sheet.id, draft.text);
+        await tasks.setCategory(sheet.id, draft.category);
+        await tasks.setDue(sheet.id, draft.due || null);
+        await tasks.setRecurrence(sheet.id, rec || null);
+      });
     }
     setSheet(null);
     await reload();
@@ -232,8 +238,8 @@ export default function TodayFlow({
   const onDeleteTask = async () => {
     if (sheet?.mode === "edit") {
       const t = await tasks.task(sheet.id);
-      await tasks.deleteTask(sheet.id);
-      if (t) showToast({ message: "Task deleted", actionLabel: "Undo", onAction: async () => { await tasks.createTask(t.text, { category: t.category || undefined, due: t.due ?? null, recurrence: t.recurrence }); await reload(); } });
+      const ok = await attemptWrite(() => tasks.deleteTask(sheet.id));
+      if (ok && t) showToast({ message: "Task deleted", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.createTask(t.text, { category: t.category || undefined, due: t.due ?? null, recurrence: t.recurrence })); await reload(); } });
     }
     setSheet(null);
     await reload();
@@ -299,17 +305,20 @@ export default function TodayFlow({
     : undefined;
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
     const ids: string[] = [];
-    for (const b of blocks) {
-      const id = await schedule.createEvent(b.text, { date: planDate, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId });
-      if (id) ids.push(id);
-    }
+    const ok = await attemptWrite(async () => {
+      for (const b of blocks) {
+        const id = await schedule.createEvent(b.text, { date: planDate, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId });
+        if (id) ids.push(id);
+      }
+    });
     setPlanOpen(false);
     setPlanTarget("today");
     await reload();
+    if (!ok) return;
     showToast({
       message: `Planned ${blocks.length} ${blocks.length === 1 ? "block" : "blocks"}${planningTomorrow ? " for tomorrow" : ""}`,
       actionLabel: "Undo",
-      onAction: async () => { for (const id of ids) await schedule.deleteEvent(id); await reload(); },
+      onAction: async () => { await attemptWrite(async () => { for (const id of ids) await schedule.deleteEvent(id); }); await reload(); },
     });
   };
 

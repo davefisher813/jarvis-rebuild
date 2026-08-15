@@ -15,12 +15,13 @@ import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
 import { attachInfo, followUpCandidate, type AttachInfo } from "./attachments";
 import type { EventItem, EventData } from "./types";
 import { showToast } from "../shared/toast";
+import { attemptWrite } from "../shared/guard";
 import PlanDaySheet from "./screens/PlanDaySheet";
 import { aiPlanDay } from "./planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, splitProtectedRanges, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "./energy";
 import { isSuggested, rankCandidates } from "./planMeta";
-import { shiftFutureEvents, restoreShift } from "./runningLate";
+import { shiftFutureEvents, restoreShift, type ShiftResult } from "./runningLate";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
@@ -171,16 +172,19 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     : undefined;
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
     const ids: string[] = [];
-    for (const b of blocks) {
-      const id = await svc.createEvent(b.text, { date: selected, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId });
-      if (id) ids.push(id);
-    }
+    const ok = await attemptWrite(async () => {
+      for (const b of blocks) {
+        const id = await svc.createEvent(b.text, { date: selected, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId });
+        if (id) ids.push(id);
+      }
+    });
     setPlanOpen(false);
     await reload();
+    if (!ok) return;
     showToast({
       message: `Planned ${blocks.length} ${blocks.length === 1 ? "block" : "blocks"}`,
       actionLabel: "Undo",
-      onAction: async () => { for (const id of ids) await svc.deleteEvent(id); await reload(); },
+      onAction: async () => { await attemptWrite(async () => { for (const id of ids) await svc.deleteEvent(id); }); await reload(); },
     });
   };
 
@@ -225,7 +229,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
       message: "Event deleted",
       actionLabel: "Undo",
       onAction: async () => {
-        await svc.createEvent(e.title, { date: e.date, start: e.start, end: e.end, category: e.category || undefined, location: e.location, recurrence: e.recurrence });
+        await attemptWrite(() => svc.createEvent(e.title, { date: e.date, start: e.start, end: e.end, category: e.category || undefined, location: e.location, recurrence: e.recurrence }));
         await reload();
       },
     });
@@ -235,24 +239,31 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     let newEventId: string | null = null;
     let newEventDate: string | null = null;
     if (sheet?.mode === "new") {
-      newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, taskIds: draft.taskIds });
+      const created = await attemptWrite(async () => {
+        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, taskIds: draft.taskIds });
+      });
+      if (!created) newEventId = null;
       newEventDate = draft.date;
     } else if (sheet?.mode === "edit") {
       const id = sheet.id;
       const recurring = (sheet.initial.recurrence ?? "none") !== "none";
       if (recurring && scope === "this") {
         // Split one occurrence off the series into a standalone event.
-        await svc.addExdate(id, selected);
-        await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined });
+        await attemptWrite(async () => {
+          await svc.addExdate(id, selected);
+          await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined });
+        });
       } else {
-        await svc.editTitle(id, draft.title);
-        if (!recurring) await svc.moveDay(id, draft.date);
-        await svc.editTime(id, draft.start);
-        await svc.editEnd(id, draft.end);
-        await svc.editRecurrence(id, draft.recurrence);
-        await svc.editCategory(id, draft.category);
-        await svc.editLocation(id, draft.location);
-        await svc.editTaskIds(id, draft.taskIds ?? []);
+        await attemptWrite(async () => {
+          await svc.editTitle(id, draft.title);
+          if (!recurring) await svc.moveDay(id, draft.date);
+          await svc.editTime(id, draft.start);
+          await svc.editEnd(id, draft.end);
+          await svc.editRecurrence(id, draft.recurrence);
+          await svc.editCategory(id, draft.category);
+          await svc.editLocation(id, draft.location);
+          await svc.editTaskIds(id, draft.taskIds ?? []);
+        });
       }
     }
     setSheet(null);
@@ -271,7 +282,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           showToast({
             message: `Third ${WD[cand.weekday]} in a row. Repeat weekly?`,
             actionLabel: "Make It Repeat",
-            onAction: async () => { await svc.editRecurrence(evId, "weekly"); await reload(); },
+            onAction: async () => { await attemptWrite(() => svc.editRecurrence(evId, "weekly")); await reload(); },
           });
         }
       }
@@ -282,11 +293,11 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     if (sheet?.mode === "edit") {
       const recurring = (sheet.initial.recurrence ?? "none") !== "none";
       if (recurring && scope === "this") {
-        await svc.addExdate(sheet.id, selected);
+        await attemptWrite(() => svc.addExdate(sheet.id, selected));
       } else {
         const e = await svc.event(sheet.id);
-        await svc.deleteEvent(sheet.id);
-        if (e) offerUndoEvent(e);
+        const ok = await attemptWrite(() => svc.deleteEvent(sheet.id));
+        if (ok && e) offerUndoEvent(e);
       }
     }
     setSheet(null);
@@ -305,7 +316,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const attachableTasks = taskItems
     .filter((t) => !t.data.done || dayEvents.some((e) => e.data.taskIds?.includes(t.id)))
     .map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done }));
-  const onToggleAttached = async (id: string) => { await tasksSvc.toggleDone(id); await reloadTasks(); };
+  const onToggleAttached = async (id: string) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reloadTasks(); };
 
   // "N tasks were attached. Any done?": once per event, ever. Asked ids live in
   // localStorage so the question never comes back.
@@ -335,7 +346,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const anytimeItems = mode === "day" ? anytimeTasksForDay(taskItems, dayEvents, selected) : [];
 
   // Tap the circle: complete the task (it leaves the strip).
-  const onToggleTask = async (id: string) => { await tasksSvc.toggleDone(id); await reloadTasks(); };
+  const onToggleTask = async (id: string) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reloadTasks(); };
 
   // Give-back: move a timed block back to Anytime. If it came from a task the
   // task still exists, so deleting the block returns it to the strip; a manual
@@ -344,16 +355,21 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     const e = await svc.event(id);
     if (!e) return;
     let restoredTaskId: string | undefined;
-    if (!e.sourceTaskId) restoredTaskId = (await tasksSvc.createTask(e.title, { category: e.category || undefined })) ?? undefined;
-    await svc.deleteEvent(id);
+    const ok = await attemptWrite(async () => {
+      if (!e.sourceTaskId) restoredTaskId = (await tasksSvc.createTask(e.title, { category: e.category || undefined })) ?? undefined;
+      await svc.deleteEvent(id);
+    });
     await reload();
     await reloadTasks();
+    if (!ok) return;
     showToast({
       message: "Moved to Anytime",
       actionLabel: "Undo",
       onAction: async () => {
-        if (restoredTaskId) await tasksSvc.deleteTask(restoredTaskId);
-        await svc.createEvent(e.title, { date: e.date, start: e.start, end: e.end, category: e.category || undefined, location: e.location, recurrence: e.recurrence, sourceTaskId: e.sourceTaskId });
+        await attemptWrite(async () => {
+          if (restoredTaskId) await tasksSvc.deleteTask(restoredTaskId);
+          await svc.createEvent(e.title, { date: e.date, start: e.start, end: e.end, category: e.category || undefined, location: e.location, recurrence: e.recurrence, sourceTaskId: e.sourceTaskId });
+        });
         await reload(); await reloadTasks();
       },
     });
@@ -384,14 +400,18 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     );
     const start = drop.blocks[0]?.start ?? nextFreeSlot(allEvents, selected, new Date());
     const end = addMinutes(start, 60);
-    const evId = await svc.createEvent(t.text, { date: selected, start, end, category: t.category || undefined, sourceTaskId: id });
+    let evId: string | null = null;
+    const ok = await attemptWrite(async () => {
+      evId = await svc.createEvent(t.text, { date: selected, start, end, category: t.category || undefined, sourceTaskId: id });
+    });
     await reload();
     await reloadTasks();
+    if (!ok) return;
     const guarded = evId ? await maybeAnchorGuard(selected, evId) : false;
     if (!guarded) showToast({
       message: `Scheduled ${fmtRange(start, end)}`,
       actionLabel: "Undo",
-      onAction: async () => { if (evId) await svc.deleteEvent(evId); await reload(); await reloadTasks(); },
+      onAction: async () => { await attemptWrite(async () => { if (evId) await svc.deleteEvent(evId); }); await reload(); await reloadTasks(); },
     });
   };
 
@@ -402,32 +422,39 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const onPush15 = async (id: string) => {
     const e = await svc.event(id);
     if (!e) return;
-    await svc.editTime(id, addMinutes(e.start, 15));
-    if (e.end) await svc.editEnd(id, addMinutes(e.end, 15));
+    const ok = await attemptWrite(async () => {
+      await svc.editTime(id, addMinutes(e.start, 15));
+      if (e.end) await svc.editEnd(id, addMinutes(e.end, 15));
+    });
     await reload();
-    showToast({ message: "Pushed 15 minutes", actionLabel: "Undo", onAction: async () => { await svc.editTime(id, e.start); if (e.end) await svc.editEnd(id, e.end); await reload(); } });
+    if (!ok) return;
+    showToast({ message: "Pushed 15 minutes", actionLabel: "Undo", onAction: async () => { await attemptWrite(async () => { await svc.editTime(id, e.start); if (e.end) await svc.editEnd(id, e.end); }); await reload(); } });
   };
 
   // Swipe: push one event to tomorrow, same time.
   const onPushTomorrow = async (id: string) => {
     const e = await svc.event(id);
     if (!e) return;
-    await svc.moveDay(id, addDays(e.date, 1));
+    const ok = await attemptWrite(() => svc.moveDay(id, addDays(e.date, 1)));
     await reload();
-    showToast({ message: "Moved to tomorrow", actionLabel: "Undo", onAction: async () => { await svc.moveDay(id, e.date); await reload(); } });
+    if (!ok) return;
+    showToast({ message: "Moved to tomorrow", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => svc.moveDay(id, e.date)); await reload(); } });
   };
 
   // Running Late: one tap shifts everything left in today as a unit. Recurring
   // events are skipped (shifting a series from one bad morning is wrong); the
   // toast says what moved and Undo restores every prior time.
   const onRunningLate = async (mins: number) => {
-    const { moved, skipped, prior } = await shiftFutureEvents(svc, dayEvents, nowHHMM, mins);
-    if (moved === 0) return;
+    let shift: ShiftResult | null = null;
+    const ok = await attemptWrite(async () => { shift = await shiftFutureEvents(svc, dayEvents, nowHHMM, mins); });
     await reload();
+    if (!ok || !shift) return;
+    const { moved, skipped, prior } = shift;
+    if (moved === 0) return;
     showToast({
       message: `Shifted ${moved} ${moved === 1 ? "event" : "events"} by ${mins === 60 ? "an hour" : mins + " minutes"}${skipped ? ` (${skipped} repeating left in place)` : ""}`,
       actionLabel: "Undo",
-      onAction: async () => { await restoreShift(svc, prior); await reload(); },
+      onAction: async () => { await attemptWrite(() => restoreShift(svc, prior)); await reload(); },
     });
   };
 

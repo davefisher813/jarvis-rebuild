@@ -101,20 +101,24 @@ export class SupabaseAdapter implements DataAdapter {
     if (error) throw error;
   }
 
-  async listForUser(_ownerId: string): Promise<Item[]> {
-    // RLS restricts the result to the signed-in user's rows.
+  async listForUser(_ownerId: string, entityType?: string): Promise<Item[]> {
+    // RLS restricts the result to the signed-in user's rows. When a type is
+    // given the filter runs in SQL (corrections pack 2026-08-14 item 4); the
+    // (owner_id, entity_type) index from migration 0001 covers it, so a
+    // service list is never a full scan of the user's account.
     //
     // PostgREST caps a response at max-rows (1000 by default), and it does so
-    // SILENTLY: you get a short array, not an error. Every app service reads
-    // the whole item table through here, so past that cap a user's tasks or
-    // events would simply start disappearing with nothing in the logs. Page
-    // explicitly with range() until a short page proves the end.
+    // SILENTLY: you get a short array, not an error. Past that cap a user's
+    // tasks or events would simply start disappearing with nothing in the
+    // logs. Page explicitly with range() until a short page proves the end.
     const PAGE = 1000;
     const out: Item[] = [];
     for (let from = 0; ; from += PAGE) {
-      const { data: rows, error } = await this.db
+      let q = this.db
         .from("item")
-        .select("id, owner_id, entity_type, data, updated_at")
+        .select("id, owner_id, entity_type, data, updated_at");
+      if (entityType !== undefined) q = q.eq("entity_type", entityType);
+      const { data: rows, error } = await q
         .order("id", { ascending: true })
         .range(from, from + PAGE - 1);
       if (error) throw error;
