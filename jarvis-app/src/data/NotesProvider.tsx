@@ -13,6 +13,7 @@ import { MoneyService } from "../money/MoneyService";
 import { BackupService } from "../backup/BackupService";
 import { RoutineService } from "../routine/RoutineService";
 import { GymService } from "../gym/GymService";
+import { LearnedRulesService } from "../rules/LearnedRulesService";
 import { makeStore } from "./store";
 import { emit } from "../events";
 
@@ -31,6 +32,7 @@ const GoalContext = createContext<GoalService | null>(null);
 const ProjectContext = createContext<ProjectsService | null>(null);
 const MoneyContext = createContext<MoneyService | null>(null);
 const GymContext = createContext<GymService | null>(null);
+const RulesContext = createContext<LearnedRulesService | null>(null);
 const BackupContext = createContext<BackupService | null>(null);
 const RoutineContext = createContext<RoutineService | null>(null);
 // The Supabase access token, for callers that hit privileged endpoints (e.g.
@@ -46,9 +48,10 @@ export function NotesProvider({
   accessToken?: string;
   children: ReactNode;
 }) {
-  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym } = useMemo(() => {
+  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, rules } = useMemo(() => {
     const store = makeStore(accessToken);
     return {
+      rules: new LearnedRulesService(store, userId),
       notes: new NotesService(store, userId, (e) => emit(e)),
       tasks: new TasksService(store, userId, (e) => emit(e)),
       schedule: new ScheduleService(store, userId, (e) => emit(e)),
@@ -80,7 +83,9 @@ export function NotesProvider({
                       <MoneyContext.Provider value={money}>
                       <BackupContext.Provider value={backup}>
                       <RoutineContext.Provider value={routine}>
-                      <GymContext.Provider value={gym}>{children}</GymContext.Provider>
+                      <GymContext.Provider value={gym}>
+                      <RulesContext.Provider value={rules}>{children}</RulesContext.Provider>
+                      </GymContext.Provider>
                       </RoutineContext.Provider>
                       </BackupContext.Provider>
                       </MoneyContext.Provider>
@@ -190,6 +195,18 @@ export function useMoney(): MoneyService {
   const s = useContext(MoneyContext);
   if (!s) throw new Error("useMoney must be used inside NotesProvider");
   return s;
+}
+
+export function useRules(): LearnedRulesService {
+  const s = useContext(RulesContext);
+  if (!s) throw new Error("useRules must be used inside NotesProvider");
+  return s;
+}
+
+// Rules are an enhancement at decision points; outside NotesProvider they
+// simply do not exist (same principle as useOptionalTasks).
+export function useOptionalRules(): LearnedRulesService | null {
+  return useContext(RulesContext) ?? null;
 }
 
 export function useGym(): GymService {

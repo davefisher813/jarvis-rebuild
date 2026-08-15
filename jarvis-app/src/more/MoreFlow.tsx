@@ -16,6 +16,7 @@ import CategoriesFlow from "../categories/CategoriesFlow";
 import ConnectionsPage from "../connections/ConnectionsPage";
 import EditTabsPage from "./EditTabsPage";
 import AIControlPage from "../settings/AIControlPage";
+import LearnedRulesPage from "../settings/LearnedRulesPage";
 import type { Destination } from "../shell/destinations";
 // Admin is a hidden owner-only surface; its chunk loads on first open.
 const AdminPanel = lazy(() => import("../admin/AdminPanel"));
@@ -56,7 +57,7 @@ export default function MoreFlow({
   const DEPTH: Record<string, number> = {
     hub: 0,
     settings: 1,
-    appearance: 2, categories: 2, connections: 2, edittabs: 2, account: 2, notifsettings: 2, about: 2, advanced: 2, backup: 2, aicontrol: 2,
+    appearance: 2, categories: 2, connections: 2, edittabs: 2, account: 2, notifsettings: 2, about: 2, advanced: 2, backup: 2, aicontrol: 2, learned: 2,
     profile: 3, terms: 3, privacy: 3, support: 3, admin: 3,
   };
   const pushCls = usePushDepth(DEPTH[route] ?? 1);
@@ -71,6 +72,7 @@ export default function MoreFlow({
   if (route === "account") return <AccountPage onBack={() => setRoute("settings")} onEditProfile={() => setRoute("profile")} onSignOut={onSignOut} />;
   if (route === "notifsettings") return <NotificationsPage onBack={() => setRoute("settings")} />;
   if (route === "aicontrol") return <AIControlPage onBack={() => setRoute("settings")} />;
+  if (route === "learned") return <LearnedRulesPage onBack={() => setRoute("settings")} />;
   if (route === "about") return <AboutPage onBack={() => setRoute("settings")} onTerms={() => setRoute("terms")} onPrivacy={() => setRoute("privacy")} onSupport={() => setRoute("support")} onSecret={canAdmin ? () => setRoute("admin") : undefined} />;
   if (route === "admin") return <Suspense fallback={<div className="screen" />}><AdminPanel isAdmin={canAdmin} source={adminSource} onBack={() => setRoute("settings")} /></Suspense>;
   if (route === "terms") return <TermsPage onBack={() => setRoute("about")} />;
