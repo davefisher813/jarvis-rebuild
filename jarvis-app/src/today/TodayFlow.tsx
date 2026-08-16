@@ -407,8 +407,12 @@ export default function TodayFlow({
     });
   };
 
-  if (loading) return <SkeletonScreen />;
-
+  // NOTE (hotfix 2026-08-15): the loading return must sit BELOW every hook.
+  // It briefly lived here, above the Day Loop effects, which is a hooks-order
+  // violation (React #310): the first render bailed early, the second ran
+  // more hooks, and the error boundary swallowed the whole app. The return
+  // now lives after the last effect; everything between here and there is
+  // pure derivation that is safe on empty loading-state data.
   const nhm = nowHHMM(now);
   // Evening posture (Phase 2 follow-on): after the workday (or 6 PM), Today
   // recaps instead of pushing, and the check-in leads.
@@ -564,6 +568,8 @@ export default function TodayFlow({
     void runReflow();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, evening, slippedCount, dayDraft]);
+
+  if (loading) return <SkeletonScreen />;
 
   // GROUP B (items 10-11): the Now line and the gap offer, derived fresh
   // every render (and the minute tick keeps renders coming).

@@ -159,12 +159,6 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote }: { 
 
   // Finishing something big earns a moment. Only on the TRANSITION into done:
   // saving an already-finished project must not re-congratulate anyone.
-  if (payoff) {
-    return (
-      <Payoff kind={payoff.kind} title={payoff.title} line={payoff.line || undefined} onDone={() => setPayoff(null)} />
-    );
-  }
-
   const saveProject = async (d: ProjectData) => {
     const was = sheet.kind === "editProject" ? projects.find((p) => p.id === sheet.id)?.data.status : undefined;
     if (sheet.kind === "newProject") await projectsSvc.create(d);
@@ -216,6 +210,17 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote }: { 
     if (!goalDetail) return null;
     return relatedProjectsForGoal(goalDetail, projects).find((p) => !isLinkDismissed(goalDetail.id, p.id)) ?? null;
   }, [goalDetail, projects, dismissTick]);
+
+  // The payoff takeover renders BELOW every hook (hotfix 2026-08-15): it
+  // briefly sat above the two hooks up top, which meant completing a project
+  // or goal rendered fewer hooks, and dismissing the payoff rendered more:
+  // React #310, app-wide crash. Same class as the TodayFlow loading return;
+  // both are now pinned by the rules-of-hooks lint gate.
+  if (payoff) {
+    return (
+      <Payoff kind={payoff.kind} title={payoff.title} line={payoff.line || undefined} onDone={() => setPayoff(null)} />
+    );
+  }
 
   const linkSuggestion = async (projectId: string) => {
     if (!goalDetail) return;
