@@ -20,6 +20,7 @@ import { firstStepPrompt, parseFirstStep } from "./firstStep";
 import { localParse } from "../ai/capture";
 import { emit } from "../events";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "./momentum";
+import { RowIcon } from "../shared/anatomy";
 import { touchActivity, recordSpot } from "../restore/whereYouWere";
 
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
@@ -393,6 +394,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
           afterId: momentum.afterId,
           el: (
             <div className="row momentum-slot">
+              <RowIcon kind="task" />
               <div className="row-stack">
                 <div className="eyebrow">Keep Going</div>
                 <div className="conn-name">{momentum.task.data.text}</div>
@@ -401,7 +403,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
                 )}
               </div>
               <div className="momentum-actions">
-                <button className="btn-sm" onClick={() => { const id = momentum.task.id; setMomentum(null); openEdit(id); }}>Start</button>
+                <button className="btn btn-primary btn-sm" onClick={() => { const id = momentum.task.id; setMomentum(null); openEdit(id); }}>Start</button>
                 <button className="btn-sm" onClick={() => { dismissChain(today); setMomentum(null); }}>Not Now</button>
               </div>
             </div>

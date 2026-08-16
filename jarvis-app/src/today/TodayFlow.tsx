@@ -38,6 +38,7 @@ import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
 import { readDraft, writeDraft, draftDay, reflowDay, type DayDraft } from "../dayloop/dayLoop";
 import { madeBy } from "../shared/provenance";
+import { RowIcon, StatTiles } from "../shared/anatomy";
 import { effectiveLevel } from "../ai/aiGate";
 import { getAIControl } from "../ai/levelStore";
 import { lazy, Suspense } from "react";
@@ -51,6 +52,10 @@ const SPARK_ICO = (
 );
 const CLOCK_ICO = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+);
+// Double chevrons: things carried forward (sweep, slip, re-flow).
+const SWEEP_ICO = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="13 17 18 12 13 7" /><polyline points="6 17 11 12 6 7" /></svg>
 );
 const UpNextFlow = lazy(() => import("../upnext/UpNextFlow"));
 const FreshStartFlow = lazy(() => import("../upnext/FreshStartFlow"));
@@ -585,27 +590,52 @@ export default function TodayFlow({
         (cat) => estimates[cat] ?? 45,
       );
 
+  // Approved V2 anatomy (preview 2026-08-15): the free window reads as two
+  // stat tiles (sky until, green open); inside an event the event tile leads;
+  // the gap task carries its blue type tile and an accent Start.
+  const shortSpan = (min: number): string => {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    if (h === 0) return `${m}m`;
+    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  };
   const nowSection = !evening && (
     <>
       <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-orange">{CLOCK_ICO}</div><div className="sec-title">Now</div></div></div>
       <div className="pad-x"><div className="card">
-        <div className="row">
-          <div className="row-stack">
-            <div className="conn-name">{nowCtx.line.split(" · ")[0]}</div>
-            {nowCtx.gapMin !== null && <div className="conn-meta">{fmtSpan(nowCtx.gapMin)} open</div>}
+        {nowCtx.gapMin !== null && nowCtx.nextStart ? (
+          <div className="now-stats">
+            <StatTiles stats={[
+              { num: `${fmtTime(nowCtx.nextStart).time} ${fmtTime(nowCtx.nextStart).ap}`, label: "free until", tint: "sky" },
+              { num: shortSpan(nowCtx.gapMin), label: "open", tint: "good" },
+            ]} />
           </div>
-          {nowCtx.nextStart && nowCtx.gapMin !== null && (
-            <span className="urgency urgency-muted">{fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</span>
-          )}
-        </div>
+        ) : (
+          <div className="row">
+            <RowIcon kind="event" />
+            <div className="row-stack">
+              {(() => {
+                const at = nowCtx.line.lastIndexOf(" until ");
+                if (at < 0) return <div className="conn-name">{nowCtx.line}</div>;
+                return (
+                  <>
+                    <div className="conn-name">{nowCtx.line.slice(0, at)}</div>
+                    <div className="conn-meta">{nowCtx.line.slice(at + 1)}</div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        )}
         {gapPick && (
           <div className="row">
+            <RowIcon kind="task" />
             <div className="row-stack">
               <div className="conn-name">{gapPick.text}</div>
               <div className="conn-meta">About {gapPick.estimateMin} min · fits this gap</div>
             </div>
             <div className="momentum-actions">
-              <button className="btn-sm" onClick={() => void onOpenTask(gapPick.id)}>Start</button>
+              <button className="btn btn-primary btn-sm" onClick={() => void onOpenTask(gapPick.id)}>Start</button>
               <button className="btn-sm" onClick={() => setGapDismissed(gapKey)}>Not Now</button>
             </div>
           </div>
@@ -622,6 +652,7 @@ export default function TodayFlow({
       <div className="pad-x"><div className="card">
         {dayDraft.blocks.map((b) => (
           <div className="row" key={b.taskId}>
+            <RowIcon kind="task" />
             <div className="row-grow"><div className="conn-name truncate">{b.text}</div></div>
             <span className="urgency urgency-muted">{fmtTime(b.start).time} {fmtTime(b.start).ap}</span>
           </div>
@@ -643,8 +674,14 @@ export default function TodayFlow({
   // Slippage stated out loud below Everything; automatic (receipted) at it.
   const reflowSection = !evening && dayDraft?.accepted && slippedCount > 0 && effectiveLevel(getAIControl()) !== "everything" && (
     <div className="pad-x">
-      <div className="sweep-receipt">
-        <div className="row-grow"><div className="restore-title">{slippedCount} {slippedCount === 1 ? "block" : "blocks"} slipped</div></div>
+      <div className="sweep-receipt banner-warn">
+        <div className="banner-line">
+          <div className="row-ico nav-tile-orange">{SWEEP_ICO}</div>
+          <div className="row-stack">
+            <div className="restore-title">Slipped<span className="count-pill">{slippedCount}</span></div>
+            <div className="restore-meta">{slippedCount === 1 ? "a block" : "blocks"} behind the clock</div>
+          </div>
+        </div>
         <div className="momentum-actions">
           <button className="btn-sm" onClick={() => void runReflow()}>Re-Flow</button>
         </div>
@@ -654,9 +691,13 @@ export default function TodayFlow({
 
   const overflowSection = overflowOffer && (
     <div className="pad-x">
-      <div className="sweep-receipt">
-        <div className="row-grow">
-          <div className="restore-title">{overflowOffer.title} · no room left today</div>
+      <div className="sweep-receipt banner-warn">
+        <div className="banner-line">
+          <RowIcon kind="task" />
+          <div className="row-stack">
+            <div className="restore-title">{overflowOffer.title}</div>
+            <div className="restore-meta"><span className="slip-warn">no room left today</span></div>
+          </div>
         </div>
         <div className="momentum-actions">
           <button className="btn-sm" onClick={() => void (async () => {
@@ -685,16 +726,20 @@ export default function TodayFlow({
       {sweepReceipt && sweepReceipt.failed && (
         <div className="pad-x">
           <div className="sweep-receipt sweep-error" role="button" tabIndex={0} onClick={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}>
+            <div className="row-ico nav-tile-orange">{SWEEP_ICO}</div>
             <div className="row-grow"><div className="restore-title">Couldn't move yesterday's tasks · tap to retry</div></div>
           </div>
         </div>
       )}
       {sweepReceipt && !sweepReceipt.failed && sweepReceipt.moved.length > 0 && (
         <div className="pad-x">
-          <div className="sweep-receipt">
-            <div className="row-grow">
-              <div className="restore-title">Moved {sweepReceipt.moved.length} unfinished {sweepReceipt.moved.length === 1 ? "task" : "tasks"} to today</div>
-              {sweepCand && <div className="restore-meta">{sweepCand.text} · moved {sweepCand.slips} days running</div>}
+          <div className="sweep-receipt banner-warn">
+            <div className="banner-line">
+              <div className="row-ico nav-tile-orange">{SWEEP_ICO}</div>
+              <div className="row-stack">
+                <div className="restore-title">Moved to today<span className="count-pill">{sweepReceipt.moved.length}</span></div>
+                {sweepCand && <div className="restore-meta">{sweepCand.text} · <span className="slip-warn">moved {sweepCand.slips} days running</span></div>}
+              </div>
             </div>
             <div className="momentum-actions">
               {sweepCand && (
@@ -714,6 +759,7 @@ export default function TodayFlow({
       {spot && (
         <div className="pad-x">
           <div className="restore-banner" role="button" tabIndex={0} onClick={() => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); }}>
+            <RowIcon kind={spot.kind} />
             <div className="row-grow">
               <div className="restore-title">Pick up where you left off</div>
               <div className="restore-meta">{spotMeta(spot)}</div>

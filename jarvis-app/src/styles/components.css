@@ -1091,6 +1091,21 @@ button {
 .sweep-receipt.sweep-error { border-left: 3px solid var(--warn); background: var(--warn-tint); cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .restore-banner, .sweep-receipt, .momentum-slot { animation: none; } }
 
+/* BANNER ANATOMY V2 (approved preview 2026-08-15, LOCKED-CSS CHANGE FLAGGED).
+   Dave: the Now stack read as identical gray rows. Every banner now carries
+   the V2 vocabulary: a type tile up front, tint + left bar for its meaning
+   (amber = pushed/slipped, accent = an offer), counts as pills, and the
+   repeat-offender line in warn. Composes with .sweep-receipt/.restore-banner. */
+.banner-warn { border-left: 3px solid var(--warn); background: var(--warn-tint); }
+.banner-line { display: flex; align-items: center; gap: var(--s-2h); }
+.banner-line .row-stack { flex: 1; min-width: 0; }
+.count-pill { display: inline-block; background: var(--warn); color: #000; font-weight: var(--w-bold);
+  font-size: 12px; line-height: 18px; border-radius: var(--r-pill); padding: 0 8px; margin-left: var(--s-1h);
+  vertical-align: middle; }
+.slip-warn { color: var(--warn); font-weight: var(--w-semi); }
+/* The Now card's stat strip: same tiles as everywhere, padded for card top. */
+.now-stats { padding: var(--s-3) var(--s-3h) var(--s-2); }
+
 /* V2 INFORMATION ANATOMY (approved 2026-08-15, LOCKED-CSS CHANGE FLAGGED).
    Dave: lists must read at a glance. Numbers become tinted stat tiles, rows
    lead with a TYPE icon tile (what it IS before you read a word; the user's
