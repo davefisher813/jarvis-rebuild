@@ -147,7 +147,7 @@ export default function ChatFlow() {
           );
           await say("jarvis", raw.trim(), { kind: "ai" });
         } catch {
-          await say("jarvis", "Couldn't reach the AI · try again", { kind: "records" });
+          await say("jarvis", "Couldn't reach the AI · Try again", { kind: "records" });
         }
         return;
       }

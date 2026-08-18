@@ -358,6 +358,9 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
           <button className="btn btn-primary" onClick={onAdd}>Record a Decision</button>
         </div>
       )}
+      {/* Universal sectioning law: rows always sit under an sh2 head. No
+          count here: a count of decisions is a guilt metric (spec law). */}
+      {live.length > 0 && <div className="sh2"><span className="t">All Decisions</span></div>}
       {live.length > 0 && live.map((r) => (
         <div className="lib-row" key={r.id} role="button" tabIndex={0} onClick={() => onOpen(r.id)}>
           <div className={"lib-ico " + glyphClass(r, projCat)}>{DECISION_ICO}</div>

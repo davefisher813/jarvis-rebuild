@@ -225,9 +225,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
           </div>
         );
       })}
-      <div className="row ob-addrow" role="button" tabIndex={0} onClick={() => setBillSheet({ kind: "new" })}>
-        <div className="sec-ico ico-accent">{PLUS}</div><div className="row-grow"><div className="conn-name">Add Bill</div></div>
-      </div>
+      <button className="row row-act" onClick={() => setBillSheet({ kind: "new" })}>Add Bill</button>
       {isPersonal && !payday && bills.length > 0 && (
         <div className="row" role="button" tabIndex={0} onClick={() => setPaydayOpen(true)}>
           <div className="row-grow"><div className="conn-name">Set Up Payday</div></div>
@@ -303,10 +301,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
                     </div>
                   </div>
                 ) : (
-                  <div className="row ob-addrow" role="button" tabIndex={0} onClick={() => setEnvOpen(true)}>
-                    <div className="sec-ico ico-accent">{PLUS}</div>
-                    <div className="row-grow"><div className="conn-name">Set Money Aside</div></div>
-                  </div>
+                  <button className="row row-act" onClick={() => setEnvOpen(true)}>Set Money Aside</button>
                 )}
               </div>
               {envelopes.length === 0 && (
@@ -346,16 +341,14 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               const m = ACCOUNT_META[a.data.kind];
               return (
                 <div className="proj-row" role="button" tabIndex={0} key={a.id} onClick={() => setSheet({ kind: "edit", id: a.id })}>
-                  <div className={"proj-icon cat-bg-" + m.slot}>{initialOf(a.data.name)}</div>
-                  <div className="proj-meta"><div className="proj-tag">{m.label}</div><div className="proj-title">{a.data.name}</div></div>
+                  <div className={"row-glyph cat-fg-" + m.slot}>{WALLET}</div>
+                  <div className="proj-meta"><div className="proj-title">{a.data.name}</div><div className="bp-sub">{m.label}</div></div>
                   <span className="money-amt">{formatMoney(a.data.balance)}</span>
                   {CHEV}
                 </div>
               );
             })}
-            <div className="proj-row" role="button" tabIndex={0} onClick={() => setSheet({ kind: "new" })}>
-              <div className="sec-ico ico-accent">{PLUS}</div><div className="row-grow"><div className="conn-name">Add Account</div></div>
-            </div>
+            <button className="row row-act" onClick={() => setSheet({ kind: "new" })}>Add Account</button>
           </div>
           <div className="screen-foot" />
         </>

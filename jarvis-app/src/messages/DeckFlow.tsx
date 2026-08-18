@@ -247,7 +247,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
           ) : plan?.kind === "bill" && plan.bill ? (
             <div className="deck-prep">
               <div className="eyebrow">Bill prepped for Money</div>
-              <div className="deck-prep-text">{plan.bill.name} · ${plan.bill.amount}{plan.bill.due ? " · due " + plan.bill.due : ""}</div>
+              <div className="deck-prep-text">{plan.bill.name} · ${plan.bill.amount}{plan.bill.due ? " · Due " + plan.bill.due : ""}</div>
             </div>
           ) : plan?.kind === "event" && plan.event ? (
             <div className="deck-prep">
@@ -257,7 +257,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
           ) : plan?.kind === "task" && plan.task ? (
             <div className="deck-prep">
               <div className="eyebrow">Task prepped</div>
-              <div className="deck-prep-text">{plan.task.title}{plan.task.due ? " · due " + plan.task.due : ""}</div>
+              <div className="deck-prep-text">{plan.task.title}{plan.task.due ? " · Due " + plan.task.due : ""}</div>
             </div>
           ) : null}
 

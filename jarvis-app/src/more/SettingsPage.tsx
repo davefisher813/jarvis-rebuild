@@ -22,6 +22,10 @@ const Chev = () => (
 );
 
 interface Item { label: string; route: MoreRoute; tile: string; icon: ReactNode; group: number; }
+// SECTIONS ARE LABELED, ALWAYS (universal sectioning law, Dave 2026-08-18:
+// "I want universal rules"). These groups used to be whitespace clusters;
+// whitespace is never the group label. Same sh2 anatomy as More and Notes.
+const GROUP_LABELS = ["Your Account", "Preferences", "App"];
 const ITEMS: Item[] = [
   { label: "Account", route: "account", tile: "ico-blue", icon: <User />, group: 0 },
   { label: "Notifications", route: "notifsettings", tile: "cat-bg-red", icon: <Bell />, group: 1 },
@@ -65,7 +69,8 @@ export default function SettingsPage({ onNavigate, onBack }: { onNavigate: (r: M
         <div className="pad-x settings-search"><div className="search-bar"><Mag /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" /></div></div>
       </PageHeader>
       {groups.map((items, gi) => items.length > 0 && (
-        <div className="settings-group" key={gi}>
+        <div key={gi}>
+          <div className="sh2 sh2-caps"><span className="t">{GROUP_LABELS[gi]}</span></div>
           {items.map((i) => <SettingRow key={i.route} item={i} onClick={() => onNavigate(i.route)} />)}
         </div>
       ))}

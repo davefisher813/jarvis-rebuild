@@ -11,10 +11,14 @@ const CATS: BrainCategory[] = [
 ];
 
 describe("BrainPage", () => {
-  it("renders the static sections plus a dynamic Your Categories section", () => {
+  // SPEC MOVED (Catalog V4, 2026-08-18): Brain is a headerless nav list with
+  // ONE mini-caps boundary label (Your Categories). The three section titles
+  // are retired.
+  it("renders the flat nav list plus the one Your Categories boundary", () => {
     render(<BrainPage onOpen={() => {}} categories={CATS} />);
-    ["Who You Know", "How You Think", "How You Live", "Your Categories"].forEach((t) =>
-      expect(screen.getByText(t)).toBeInTheDocument(),
+    expect(screen.getByText("Your Categories")).toBeInTheDocument();
+    ["Who You Know", "How You Think", "How You Live"].forEach((t) =>
+      expect(screen.queryByText(t)).not.toBeInTheDocument(),
     );
     // Setup was removed 2026-08-03: its rows were Settings wearing a Brain
     // costume, and both dead-ended in "coming soon" screens.
@@ -33,17 +37,16 @@ describe("BrainPage", () => {
     expect(screen.queryByText("Your Categories")).not.toBeInTheDocument();
   });
 
-  // SPEC MOVED (Catalog V3.1, 2026-08-18): Brain is a library list now, the
-  // Apple Music form. Bare colored glyphs (lib-ico + cat-fg-*), no tiles;
-  // color still systemic, never grey.
-  it("renders every row with a colored (non-grey) library glyph", () => {
+  // SPEC MOVED (Catalog V4, 2026-08-18): nav rows wear the FILLED brand-red
+  // glyph (lib-ico-brand); category rows keep their systemic colors. Never
+  // grey, never mixed states in one block.
+  it("nav rows are brand red, category rows keep their colors", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
     const glyphs = container.querySelectorAll(".lib-ico");
-    // SPEC MOVED (2026-08-18): 6 static rows + 3 category rows. Decisions
-    // joined How You Think (Decision Record, brainstorm shipment 1).
-    expect(glyphs.length).toBe(9);
+    expect(glyphs.length).toBe(9); // 6 nav rows + 3 category rows
+    expect(container.querySelectorAll(".lib-ico.lib-ico-brand").length).toBe(6);
     expect(container.querySelectorAll(".lib-ico.lib-ico-neutral").length).toBe(0);
-    glyphs.forEach((t) => expect(t.className).toMatch(/cat-fg-/));
+    expect(container.querySelectorAll('.lib-ico[class*="cat-fg-"]').length).toBe(3);
   });
 
   it("colors each category glyph with its own slot", () => {
@@ -70,17 +73,19 @@ describe("BrainPage", () => {
   });
 });
 
-describe("BrainPage category grouping (2026-08-05)", () => {
-  it("groups categories by kind with a label per group, when more than one kind is present", () => {
+describe("BrainPage categories (V4 flat block)", () => {
+  // SPEC MOVED (Catalog V4, 2026-08-18): the per-kind sub-labels are retired;
+  // kinds only ORDER the flat block. Every row still present.
+  it("renders one flat block with no kind sub-labels", () => {
     const cats: BrainCategory[] = [
       { id: "c1", name: "Work", color: "blue", icon: "briefcase", kind: "org" },
       { id: "c2", name: "Elite Squad", color: "red", icon: "folder", kind: "org" },
       { id: "c4", name: "Personal", color: "sand", icon: "folder", kind: "plain" },
     ];
-    render(<BrainPage onOpen={() => {}} categories={cats} />);
-    expect(screen.getByText("Orgs")).toBeInTheDocument();
-    expect(screen.getByText("General")).toBeInTheDocument();
-    // every row still present, nothing hidden or merged away
+    const { container } = render(<BrainPage onOpen={() => {}} categories={cats} />);
+    expect(screen.queryByText("Orgs")).not.toBeInTheDocument();
+    expect(screen.queryByText("General")).not.toBeInTheDocument();
+    expect(container.querySelectorAll(".cat-group-label").length).toBe(0);
     ["Work", "Elite Squad", "Personal"].forEach((n) => expect(screen.getByText(n)).toBeInTheDocument());
   });
 
@@ -114,10 +119,9 @@ describe("BrainPage category grouping (2026-08-05)", () => {
     // small lie ("here's your stuff" over nothing).
     expect(screen.queryByText("Your Categories")).not.toBeInTheDocument();
     expect(screen.queryByText("Money")).not.toBeInTheDocument();
-    expect(screen.queryByText("General")).not.toBeInTheDocument();
   });
 
-  it("skips the group label when every category is the same kind, so it never states the obvious", () => {
+  it("never renders kind labels regardless of mix", () => {
     const cats: BrainCategory[] = [
       { id: "c1", name: "Work", color: "blue", icon: "briefcase", kind: "org" },
       { id: "c2", name: "Business", color: "green", icon: "briefcase", kind: "org" },
@@ -128,17 +132,16 @@ describe("BrainPage category grouping (2026-08-05)", () => {
     expect(screen.getByText("Business")).toBeInTheDocument();
   });
 
-  it("a category with no kind set defaults to General, not dropped", () => {
+  it("a category with no kind set still renders (defaults to plain)", () => {
     const cats: BrainCategory[] = [
       { id: "c1", name: "Work", color: "blue", icon: "briefcase", kind: "org" },
       { id: "c2", name: "Whatever", color: "sand", icon: "folder" },
     ];
     render(<BrainPage onOpen={() => {}} categories={cats} />);
-    expect(screen.getByText("General")).toBeInTheDocument();
     expect(screen.getByText("Whatever")).toBeInTheDocument();
   });
 
-  it("orders groups Orgs, Health, People, General regardless of input order (Money never appears)", () => {
+  it("orders the flat block org, health, people, plain (Money never appears)", () => {
     const cats: BrainCategory[] = [
       { id: "c1", name: "Personal", color: "sand", icon: "folder", kind: "plain" },
       { id: "c2", name: "Health", color: "green", icon: "dumbbell", kind: "health" },
@@ -147,7 +150,8 @@ describe("BrainPage category grouping (2026-08-05)", () => {
       { id: "c5", name: "Work", color: "blue", icon: "briefcase", kind: "org" },
     ];
     const { container } = render(<BrainPage onOpen={() => {}} categories={cats} />);
-    const labels = Array.from(container.querySelectorAll(".cat-group-label")).map((n) => n.textContent);
-    expect(labels).toEqual(["Orgs", "Health", "People", "General"]);
+    const names = Array.from(container.querySelectorAll(".lib-name")).map((n) => n.textContent);
+    const catNames = names.filter((n) => ["Personal", "Health", "Family", "Money", "Work"].includes(n ?? ""));
+    expect(catNames).toEqual(["Work", "Health", "Family", "Personal"]);
   });
 });

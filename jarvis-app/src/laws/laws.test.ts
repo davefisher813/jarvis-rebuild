@@ -195,6 +195,46 @@ describe("LAW: Apple HIG casing", () => {
     expect(bad).toEqual([]);
   });
 
+  // Sectioning law, V4 revision (Dave 2026-08-18): CONTENT lists label every
+  // group; NAV lists are headerless by design (More entirely; Brain carries
+  // exactly one mini-caps boundary label where user content begins). The nav
+  // allowlist is explicit so a new lib-row surface must either label its
+  // groups or be consciously registered as a nav list here.
+  it("every lib-row surface carries section heads or is a registered nav list", () => {
+    const NAV_NO_HEAD = new Set(["more/MorePage.tsx"]);
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const src = read(f);
+      if (NAV_NO_HEAD.has(rel(f))) {
+        if (src.includes('className="sh2"')) bad.push(rel(f) + " [nav list grew a head]");
+        continue;
+      }
+      if (src.includes('className="lib-row"') && !src.includes('"sh2')) bad.push(rel(f));
+    }
+    expect(bad).toEqual([]);
+  });
+
+  // V4: nav glyphs are the FILLED brand-red state, drawn as filled shapes.
+  // More and Brain nav rows must use lib-ico-brand + the filledIcon set;
+  // auto-filling stroke icons is the compass-blob bug and stays banned.
+  it("nav lists wear the filled brand glyph state", () => {
+    for (const f of ["more/MorePage.tsx", "brain/BrainPage.tsx"]) {
+      const src = read(join(SRC, f));
+      expect(src, f).toContain("lib-ico-brand");
+      expect(src, f).toContain("filledIcon(");
+    }
+    const filled = read(join(SRC, "shared/filledIcons.tsx"));
+    expect(filled).toContain('fill="currentColor"');
+  });
+
+  it("the retired whitespace-cluster class never returns", () => {
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      if (read(f).includes("settings-group")) bad.push(rel(f));
+    }
+    expect(bad).toEqual([]);
+  });
+
   it("ALL CAPS never appears in a source string, only via CSS", () => {
     const bad: string[] = [];
     for (const f of COMPONENTS) {

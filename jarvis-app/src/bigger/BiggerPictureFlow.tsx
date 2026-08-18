@@ -135,22 +135,28 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
     setDismissTick((n) => n + 1);
     emit({ type: "suggestion.dismissed", props: { kind: "proj_step" } });
   };
+  // Catalog V4: banners are promo cards. Amber badge = stalled work.
   const stalledOffer = stalled ? (
     <div className="pad-x">
-      <div className="card pad">
-        <div className="conn-name">&ldquo;{stalled.data.title}&rdquo; has nothing moving.</div>
+      <div className="promo-card">
+        <div className="promo-head">
+          <div className="promo-badge b-amber">
+            <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></svg>
+          </div>
+          <div className="promo-body">
+            <div className="promo-title">{stalled.data.title}</div>
+            <div className="promo-sub">{projStep && projStep.projectId === stalled.id ? <>Start with: {projStep.step}</> : "Nothing is moving here."}</div>
+          </div>
+        </div>
         {projStep && projStep.projectId === stalled.id ? (
-          <>
-            <div className="conn-meta">Start with: {projStep.step}</div>
-            <div className="offer-row">
-              <button className="btn btn-primary" onClick={() => void projStepAccept()}>Add This Step</button>
-              <button className="quiet-action" onClick={projStepDismiss}>Not Now</button>
-            </div>
-          </>
+          <div className="promo-acts">
+            <button className="promo-pill quiet" onClick={projStepDismiss}>Not Now</button>
+            <button className="promo-pill" onClick={() => void projStepAccept()}>Add This Step</button>
+          </div>
         ) : (
-          <div className="offer-row">
-            <button className="btn btn-primary" onClick={() => void projStepAsk()} disabled={projStepBusy}>{projStepBusy ? "Thinking..." : "First Step"}</button>
-            <button className="quiet-action" onClick={projStepDismiss}>Not Now</button>
+          <div className="promo-acts">
+            <button className="promo-pill quiet" onClick={projStepDismiss}>Not Now</button>
+            <button className="promo-pill" onClick={() => void projStepAsk()} disabled={projStepBusy}>{projStepBusy ? "Thinking..." : "First Step"}</button>
           </div>
         )}
       </div>

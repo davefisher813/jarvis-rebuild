@@ -1,11 +1,7 @@
-import type { ReactNode } from "react";
 import type { Destination } from "../shell/destinations";
 import PageHeader from "../shared/PageHeader";
+import { filledIcon } from "../shared/filledIcons";
 
-const svg = (children: ReactNode) => (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{children}</svg>
-);
-const Gear = () => svg(<><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></>);
 const Chev = () => (
   <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
 );
@@ -28,51 +24,27 @@ export type MoreRoute = "settings" | "profile" | "appearance" | "categories" | "
 //    reserved for the app. The one exception is brand red, which the category
 //    palette genuinely excludes (COLOR_SLOTS), which is what makes rule 1 hold.
 //
-// One stable hue per destination, loosely mnemonic: paper-yellow notes,
-// money-green, sunrise-orange today. Anything unmapped falls back to neutral.
-// Catalog V3.1 library form (approved 2026-08-18): content navigation renders
-// as the Apple Music list, bare colored glyphs instead of tiles, each keeping
-// its section hue. Chat is the one red glyph: it IS JARVIS, so the brand mark
-// is honest there (the old no-red rule was about red meaning nothing when
-// navigation borrowed it; chat is not borrowing).
-const EXTRA_FG: Record<string, string> = {
-  today: "cat-fg-orange",
-  tasks: "cat-fg-blue",
-  schedule: "cat-fg-sky",
-  brain: "cat-fg-purple",
-  notes: "cat-fg-yellow",
-  bigger: "cat-fg-indigo",
-  messages: "cat-fg-teal",
-  notifications: "lib-ico-neutral",
-  money: "cat-fg-green",
-  chat: "cat-fg-red",
-};
-
+// CATALOG V4 (approved 2026-08-18): More is a NAV LIST, the Apple Music
+// Library form exactly. One flat headerless list, every glyph the brand red
+// in the FILLED state (drawn filled, never auto-filled strokes). Settings is
+// the trailing system cluster, separated by the one legal unlabeled gap.
 export default function MorePage({ extras, onOpenExtra, onNavigate }: {
   extras: Destination[]; onOpenExtra: (key: string) => void; onNavigate: (route: MoreRoute) => void;
 }) {
   return (
     <div className="screen">
-      {/* Library chassis (Design 2, approved 2026-08-18): sticky condensing
-          bar, full-bleed rows, cards retired from navigation. */}
       <PageHeader title="More" />
 
-      {extras.length > 0 && (
-        <>
-          <div className="sh2"><span className="t">Your Stuff</span></div>
-          {extras.map((d) => (
-            <div className="lib-row" role="button" tabIndex={0} key={d.key} onClick={() => onOpenExtra(d.key)}>
-              <div className={"lib-ico " + (EXTRA_FG[d.key] ?? "lib-ico-neutral")}><d.Icon className="ic" /></div>
-              <div className="lib-name">{d.label}</div>
-              <Chev />
-            </div>
-          ))}
-        </>
-      )}
+      {extras.map((d) => (
+        <div className="lib-row" role="button" tabIndex={0} key={d.key} onClick={() => onOpenExtra(d.key)}>
+          <div className="lib-ico lib-ico-brand">{filledIcon(d.key)}</div>
+          <div className="lib-name">{d.label}</div>
+          <Chev />
+        </div>
+      ))}
 
-      <div className="sh2"><span className="t">App</span></div>
-      <div className="lib-row" role="button" tabIndex={0} onClick={() => onNavigate("settings")}>
-        <div className="lib-ico lib-ico-neutral"><Gear /></div>
+      <div className="lib-row lib-gap" role="button" tabIndex={0} onClick={() => onNavigate("settings")}>
+        <div className="lib-ico lib-ico-brand">{filledIcon("settings")}</div>
         <div className="lib-name">Settings</div>
         <Chev />
       </div>

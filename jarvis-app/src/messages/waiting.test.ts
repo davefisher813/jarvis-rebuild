@@ -53,12 +53,12 @@ describe("waitingLine", () => {
   const row = { threadId: "t", to: "Sarah", toEmail: "s@y.com", subject: "LLC", waitingDays: 4, lastMsgId: "m" };
   it("no open signal: states the wait, never claims 'not opened'", () => {
     const line = waitingLine(row, null);
-    // SPEC MOVED (short copy, 2026-08-15)
-    expect(line).toBe("4 days · no reply");
+    // SPEC MOVED (V4 capitals law, 2026-08-18): segments start capital.
+    expect(line).toBe("4 days · No reply");
     expect(line.toLowerCase()).not.toContain("not opened");
   });
   it("a real open shows the date", () => {
-    expect(waitingLine(row, "2026-08-02T10:00:00Z")).toMatch(/^Opened Aug 2 · no reply$/);
+    expect(waitingLine(row, "2026-08-02T10:00:00Z")).toMatch(/^Opened Aug 2 · No reply$/);
   });
 });
 

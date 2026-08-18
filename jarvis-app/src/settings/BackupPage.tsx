@@ -33,7 +33,7 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
       setLastExport(stamp);
       try { localStorage.setItem("jarvis.backup.lastExport", stamp); } catch { /* cosmetic */ }
     } catch {
-      setStatus("Export failed · try again");
+      setStatus("Export failed · Try again");
     } finally {
       setBusy(false);
     }
@@ -62,7 +62,7 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
     setBusy(true);
     try {
       const n = await backup.importBundle(pending.bundle as Parameters<typeof backup.importBundle>[0]);
-      setStatus(n === 0 ? "Nothing new · all already here" : `Imported ${n} ${n === 1 ? "item" : "items"} · duplicates skipped`);
+      setStatus(n === 0 ? "Nothing new · All already here" : `Imported ${n} ${n === 1 ? "item" : "items"} · Duplicates skipped`);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Import failed.");
     } finally {

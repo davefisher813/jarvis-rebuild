@@ -61,10 +61,7 @@ export default function CategoriesPage({
         </div>
         )}
         <div className="card conn-action">
-          <div className="row ob-addrow" role="button" tabIndex={0} onClick={onAdd}>
-            <div className="sec-ico ico-accent">{PLUS}</div>
-            <div className="row-grow"><div className="conn-name">Add Category</div></div>
-          </div>
+          <button className="row row-act" onClick={onAdd}>Add Category</button>
         </div>
       </div>
     </div>

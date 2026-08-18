@@ -125,7 +125,7 @@ function Checklist({
       {onAddItem && (
         <button className="check-add" onClick={() => onAddItem(block.id)}>
           <Plus className="ic" />
-          <span>Add item</span>
+          <span>Add Item</span>
         </button>
       )}
     </>
@@ -346,12 +346,7 @@ export default function NoteEditor({
         </div>
       )}
 
-      <div className="pad-x">
-        <button className="add-block" onClick={onAddBlock}>
-          <Plus className="ic" />
-          Add
-        </button>
-      </div>
+      <button className="row row-act" onClick={onAddBlock}>Add Block</button>
     </div>
   );
 }

@@ -140,7 +140,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
       setImporting(false);
       const remaining = importPreview.fresh.slice(added);
       setImportPreview({ fresh: remaining, dupes: importPreview.dupes, bad: false });
-      setImportError(`Stopped at ${added} of ${n} · saved so far · tap to finish`);
+      setImportError(`Stopped at ${added} of ${n} · Saved so far · Tap to finish`);
       await reload();
     }
   };

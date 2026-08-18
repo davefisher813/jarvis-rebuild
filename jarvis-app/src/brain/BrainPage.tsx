@@ -1,24 +1,19 @@
 import type { ReactNode } from "react";
 import type { CategoryKind } from "../categories/types";
 import PageHeader from "../shared/PageHeader";
+import { filledIcon } from "../shared/filledIcons";
 
 // Inline icons so the build matches the approved preview exactly (no icon-name drift).
 const svg = (children: ReactNode) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{children}</svg>
 );
-const Users = () => svg(<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>);
-const Heart = () => svg(<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z" />);
-const Compass = () => svg(<><circle cx="12" cy="12" r="10" /><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" /></>);
-const Pen = () => svg(<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></>);
-const Flag = () => svg(<><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></>);
-const Clock = () => svg(<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>);
-// A fork with one path taken: the Decision Record mark (matches anatomy.tsx).
-const Fork = () => svg(<><line x1="6" y1="3" x2="6" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></>);
 const Chev = () => (
   <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
 );
 
 // Icons a category may carry (from the template defaults). Falls back to a tag.
+const Heart = () => svg(<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5l7 7Z" />);
+const Users = () => svg(<><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>);
 const Briefcase = () => svg(<><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></>);
 const Dumbbell = () => svg(<><path d="m6.5 6.5 11 11" /><path d="m21 21-1-1" /><path d="m3 3 1 1" /><path d="m18 22 4-4" /><path d="m2 6 4-4" /><path d="m3 10 7-7" /><path d="m14 21 7-7" /></>);
 const Wallet = () => svg(<><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" /><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" /></>);
@@ -37,25 +32,17 @@ const CAT_ICON: Record<string, () => ReactNode> = {
 };
 
 interface BrainRow { key: string; name: string; icon: ReactNode; color: string; status?: string }
-const TOP_SECTIONS: { title: string; rows: BrainRow[] }[] = [
-  // ONE people row (2026-08-03). Inner Circle and Adversarial were cut: a
-  // list only earns a row when a feature acts on membership, and neither did.
-  // The facts they organized (register, handle-with-care) live on each person
-  // and keep driving how JARVIS writes. They return only as the surface of a
-  // feature that uses them (staying-in-touch nudges, game plans).
-  { title: "Who You Know", rows: [
-    { key: "contacts", name: "Contacts", icon: <Users />, color: "ico-blue" },
-  ] },
-  { title: "How You Think", rows: [
-    // Decision Record (brainstorm shipment 1): why you chose this, kept.
-    { key: "decisions", name: "Decisions", icon: <Fork />, color: "cat-bg-purple" },
-    { key: "philosophy", name: "Life Philosophy", icon: <Compass />, color: "cat-bg-blue" },
-    { key: "writing", name: "How You Write", icon: <Pen />, color: "cat-bg-green" },
-    { key: "values", name: "Values", icon: <Flag />, color: "cat-bg-yellow" },
-  ] },
-  { title: "How You Live", rows: [
-    { key: "routine", name: "Your Routine", icon: <Clock />, color: "cat-bg-teal" },
-  ] },
+// CATALOG V4 (Dave 2026-08-18, "the brain has way too many sections"): the
+// three labeled sections collapsed into ONE flat headerless nav list, glyphs
+// filled brand red (Apple Music Library form). ONE people row survives from
+// 2026-08-03 (Inner Circle / Adversarial stay cut).
+const NAV_ROWS: BrainRow[] = [
+  { key: "contacts", name: "Contacts", icon: filledIcon("contacts"), color: "lib-ico-brand" },
+  { key: "decisions", name: "Decisions", icon: filledIcon("decisions"), color: "lib-ico-brand" },
+  { key: "philosophy", name: "Life Philosophy", icon: filledIcon("philosophy"), color: "lib-ico-brand" },
+  { key: "writing", name: "How You Write", icon: filledIcon("writing"), color: "lib-ico-brand" },
+  { key: "values", name: "Values", icon: filledIcon("values"), color: "lib-ico-brand" },
+  { key: "routine", name: "Your Routine", icon: filledIcon("routine"), color: "lib-ico-brand" },
 ];
 // The Setup section (Onboarding, Backup) was removed 2026-08-03: both rows
 // were Settings wearing a Brain costume, and both dead-ended in "coming soon"
@@ -79,10 +66,9 @@ export interface BrainCategory { id: string; name: string; color: string; icon?:
 // untouched: it still exists, still tags tasks and bills, still shows up in
 // Settings -> Categories to rename or recolor. It just is not ALSO a
 // destination here, because it is not a destination, it is the Money tab.
+// V4: the per-kind sub-labels (Orgs/Health/People/General) are retired; the
+// glyph color already says it. Kinds still ORDER the flat list so orgs lead.
 type BrainGroupKind = Exclude<CategoryKind, "money">;
-const KIND_GROUP_LABEL: Record<BrainGroupKind, string> = {
-  org: "Orgs", health: "Health", people: "People", plain: "General",
-};
 const KIND_GROUP_ORDER: BrainGroupKind[] = ["org", "health", "people", "plain"];
 
 export default function BrainPage({
@@ -98,16 +84,10 @@ export default function BrainPage({
   const fgOf = (color: string) => color.replace(/^cat-bg-/, "cat-fg-").replace(/^ico-/, "cat-fg-");
   const Row = (r: BrainRow) => (
     <div className="lib-row" key={r.key} role="button" tabIndex={0} onClick={() => onOpen(r.key, r.name)}>
-      <div className={"lib-ico " + fgOf(r.color)}>{r.icon}</div>
+      <div className={"lib-ico " + (r.color === "lib-ico-brand" ? r.color : fgOf(r.color))}>{r.icon}</div>
       <div className="lib-name">{r.name}</div>
       {r.status && <span className="row-status fg-good">{r.status}</span>}
       <Chev />
-    </div>
-  );
-  const Section = (title: string, rows: BrainRow[]) => (
-    <div key={title}>
-      <div className="sh2"><span className="t">{title}</span></div>
-      {rows.map(Row)}
     </div>
   );
 
@@ -117,27 +97,21 @@ export default function BrainPage({
     color: "cat-bg-" + c.color,
     icon: (CAT_ICON[c.icon ?? ""] ?? Tag)(),
   });
-  const groups = KIND_GROUP_ORDER
-    .map((kind) => ({ kind, rows: categories.filter((c) => (c.kind ?? "plain") === kind).map(catRow) }))
-    .filter((g) => g.rows.length > 0);
-  // A single kind present reads as noise (a lone sub-label saying what the
-  // list already shows); the grouping only earns its keep once it is
-  // actually distinguishing something.
-  const showGroupLabels = groups.length > 1;
+  // One flat categories block, ordered by kind (orgs first), no sub-labels.
+  const catRows = KIND_GROUP_ORDER
+    .flatMap((kind) => categories.filter((c) => (c.kind ?? "plain") === kind))
+    .map(catRow);
 
   return (
     <div className="screen">
       <PageHeader title="Brain" />
-      {TOP_SECTIONS.map((sec) => Section(sec.title, sec.rows))}
-      {groups.length > 0 && (
+      {NAV_ROWS.map(Row)}
+      {catRows.length > 0 && (
         <div>
-          <div className="sh2"><span className="t">Your Categories</span><span className="n">{categories.length}</span></div>
-          {groups.map((g) => (
-            <div className="cat-group" key={g.kind}>
-              {showGroupLabels && <div className="cat-group-label eyebrow">{KIND_GROUP_LABEL[g.kind]}</div>}
-              {g.rows.map(Row)}
-            </div>
-          ))}
+          {/* The one mini-caps boundary label (Brain 4, Dave's pick): it
+              marks where user content begins in a nav list. */}
+          <div className="sh2 sh2-caps"><span className="t">Your Categories</span><span className="n">{categories.length}</span></div>
+          {catRows.map(Row)}
         </div>
       )}
       <div className="screen-foot" />

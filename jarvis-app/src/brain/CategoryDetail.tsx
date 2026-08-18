@@ -422,10 +422,7 @@ export default function CategoryDetail({
               );
             })}
             {onOpenContacts && (
-              <div className="row ob-addrow" role="button" tabIndex={0} onClick={onOpenContacts}>
-                <div className="sec-ico ico-accent">{PLUS}</div>
-                <div className="row-grow"><div className="conn-name">Open Contacts</div></div>
-              </div>
+              <button className="row row-act" onClick={onOpenContacts}>Open Contacts</button>
             )}
           </div></div>
         </>
@@ -499,10 +496,7 @@ export default function CategoryDetail({
                 </div>
               );
             })}
-            <div className="row ob-addrow" role="button" tabIndex={0} onClick={() => setSheet({ kind: "project" })}>
-              <div className="sec-ico ico-accent">{PLUS}</div>
-              <div className="row-grow"><div className="conn-name">Add Project</div></div>
-            </div>
+            <button className="row row-act" onClick={() => setSheet({ kind: "project" })}>Add Project</button>
           </div></div>
         </>
       )}
@@ -539,10 +533,7 @@ export default function CategoryDetail({
             </div>
           );
         })}
-        <div className="row ob-addrow" role="button" tabIndex={0} onClick={() => setSheet({ kind: "task" })}>
-          <div className="sec-ico ico-accent">{PLUS}</div>
-          <div className="row-grow"><div className="conn-name">Add Task</div></div>
-        </div>
+        <button className="row row-act" onClick={() => setSheet({ kind: "task" })}>Add Task</button>
       </div></div>
 
       {notes.length > 0 && (

@@ -273,10 +273,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
                 {CHEV}
               </div>
             ))}
-            <div className="row ob-addrow" role="button" tabIndex={0} onClick={() => setSheet({ kind: "exercise", dayId: openDay.id })}>
-              <div className="sec-ico ico-accent">{PLUS}</div>
-              <div className="row-grow"><div className="conn-name">Add Exercise</div></div>
-            </div>
+            <button className="row row-act" onClick={() => setSheet({ kind: "exercise", dayId: openDay.id })}>Add Exercise</button>
           </div></div>
           {openDay.exercises.length > 0 && (
             <div className="pad-x gym-log">
@@ -394,10 +391,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
                   {CHEV}
                 </div>
               ))}
-              <div className="row ob-addrow" role="button" tabIndex={0} onClick={() => setSheet({ kind: "day" })}>
-                <div className="sec-ico ico-accent">{PLUS}</div>
-                <div className="row-grow"><div className="conn-name">Add Day</div></div>
-              </div>
+              <button className="row row-act" onClick={() => setSheet({ kind: "day" })}>Add Day</button>
               {ai.available && (
                 <div className="row" role="button" tabIndex={0} onClick={() => setUploadOpen(true)}>
                   <div className="row-grow"><div className="conn-name">Upload a Program</div></div>

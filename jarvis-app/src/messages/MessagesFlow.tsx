@@ -1216,7 +1216,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="empty-title">{results !== null ? "No matches" : "Inbox empty"}</div>
           </div></div></div>
         ) : (
-          <div className="pad-x"><div className="card">{listRows.map((r) => threadRow(r))}</div></div>
+          <div><div className="list-flat">{listRows.map((r) => threadRow(r))}</div></div>
         )
       ) : (
         <>
@@ -1237,7 +1237,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {waiting.length > 0 && (
             <>
               <div className="sh2"><span className="t">Waiting On</span></div>
-              <div className="pad-x"><div className="card">
+              <div><div className="list-flat">
                 {waiting.map((w) => (
                   <div className="row" role="button" tabIndex={0} key={w.threadId} onClick={() => void startNudge(w)}>
                     <div className="row-grow">

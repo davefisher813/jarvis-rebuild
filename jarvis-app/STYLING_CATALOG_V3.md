@@ -1,3 +1,21 @@
+# JARVIS Styling Catalog V4.0 (The Branded Library, 2026-08-18)
+
+## V4 revision (Dave's picks, 2026-08-18). Supersedes conflicting V3 rules.
+
+1. EIGHT SURFACE KINDS cover every screen: A nav list · B content list · C settings tree · H hero (Today only) · D detail/record · S sheet · O overlay · K canvas. A screen that fits none is a design bug and gets restructured.
+2. NAV LISTS (More, Brain) are HEADERLESS: one flat list, every glyph the brand red in the FILLED state. Brain carries exactly ONE mini-caps boundary label (Your Categories + count) where user content begins; More separates the trailing Settings cluster with the one legal unlabeled gap (.lib-gap, 32px). Nav rows are name-only.
+3. FILLED GLYPHS ARE DRAWN AS FILLED SHAPES (shared/filledIcons.tsx), detail cut out in the page black. Pouring fill into stroke icons makes blobs and is banned. Outline stays the content-row state; one list never mixes states. Law-tested.
+4. BRAIN REORG: Contacts, Decisions, Life Philosophy, How You Write, Values, Your Routine as one flat nav list; categories as one flat block ordered org → health → people → plain; the per-kind sub-labels are retired.
+5. SETTINGS wears the SAME sectioning as everything else: mini-caps labels (.sh2-caps) over flat full-bleed rows. The inset-card treatment was never approved and is dead.
+6. MINI-CAPS (.sh2-caps) is the ONE small-label style: nav boundaries and Settings groups. CONTENT lists keep bold sh2 heads with counts (Decisions never counts).
+7. DETAIL PAGES ride a static condensed bar: the .nav-bar is now sticky glass with a centered inline title (the iOS push-page form), consistent with the chassis without per-file rewrites.
+8. NO FLOATING ADD ROWS: every in-list create action is a centered accent row (.row-act: Add Project, Add Goal, Add Account, Add Category, Add Block). The red plus tiles are retired.
+9. LETTER TILES are retired from list rows: content rows lead with the bare type glyph in the category/slot color (projects folder, accounts wallet). Detail-page heroes may keep their identity tile.
+10. CAPS QUALIFIERS leave section counts ("4 ACTIVE" → 4). Capitals lead every middle-dot segment in composed metas too ("55 days · No reply").
+11. BANNERS: every offer is a promo card (the stalled-project First Step included).
+
+Everything below is the V3.3 base that still stands, minus rules superseded above.
+
 # JARVIS Styling Catalog V3.3 (APPROVED 2026-08-18, Library edition)
 
 ## K. The iOS label ramp and the promo card (V3.3 revision, approved 2026-08-18)
@@ -14,6 +32,8 @@
 Approved by Dave 2026-08-18 with the Library chassis (Design 2 + the red energy line) applied app-wide.
 
 ## J. The Library chassis (Design 2, LAW for every page)
+
+0. SECTIONS ARE LABELED, ALWAYS (universal sectioning law, Dave 2026-08-18): every group of rows sits under an sh2 head, bold Title Case at the left edge. Whitespace is never the group label; unlabeled gapped clusters are a review-blocking violation. The sh2 right slot carries a count or See All on CONTENT lists only (All Notes · 2); nav and settings sections leave it empty; Decisions never counts (guilt-metric law). One list chassis on every page: same row height, same glyph column, same divider inset. Search lives under the large title on lists that exceed a screen or hold user content; small nav hubs do not get one.
 
 1. Every page carries the sticky bar (shared/PageHeader): transparent at rest; the moment the large title scrolls under it, it condenses into glass with the centered page title, a hairline, and the red energy line. Page actions are circular accent buttons IN the bar, never floating. Back buttons ride the bar.
 2. Large titles and search live in the scroll, always in the same slots. Nothing ever collides with the status bar.

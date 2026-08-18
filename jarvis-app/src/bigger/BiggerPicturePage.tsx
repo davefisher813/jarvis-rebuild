@@ -3,7 +3,7 @@ import PageHeader from "../shared/PageHeader";
 import type { Goal } from "../life/types";
 import type { ProjectRow, Progress } from "./progress";
 import { progressLabel } from "./progress";
-import { catColor, catName } from "../shared/categories";
+import { catColor } from "../shared/categories";
 import SkeletonRows from "../shared/SkeletonRows";
 
 // Bigger Picture (roadmap v2, Session 6): Goals and Projects on one surface,
@@ -12,10 +12,8 @@ import SkeletonRows from "../shared/SkeletonRows";
 // Leads with what is moving, because that is the useful half.
 
 const CHEV = <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>;
-const PLUS = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
 const TARGET = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></svg>;
-
-const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
+const FOLDER = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></svg>;
 
 function Bar({ p }: { p: Progress }) {
   return <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, p.pct) + "%" }} /></div>;
@@ -64,15 +62,16 @@ export default function BiggerPicturePage({
 
       {offer}
 
-      <div className="sh2"><span className="t">Moving Now</span>{projectRows.length > 0 && <span className="n">{projectRows.filter((r) => r.project.data.status === "active").length} ACTIVE</span>}</div>
+      {/* V4: plain count in the head (caps qualifier retired); rows lead with
+          the bare folder glyph in the category color (letter tiles retired);
+          the per-row category kicker is gone, the color says it. */}
+      <div className="sh2"><span className="t">Moving Now</span>{projectRows.length > 0 && <span className="n">{projectRows.filter((r) => r.project.data.status === "active").length}</span>}</div>
       <div><div className="list-flat">
         {projectRows.map(({ project, progress, stalled }) => {
-          const tag = project.data.category ? catName(project.data.category) : "";
           return (
             <div className="proj-row" role="button" tabIndex={0} key={project.id} onClick={() => onOpenProject(project.id)}>
-              <div className={"proj-icon cat-bg-" + catColor(project.data.category ?? "")}>{initialOf(tag || project.data.title)}</div>
+              <div className={"row-glyph cat-fg-" + catColor(project.data.category ?? "")}>{FOLDER}</div>
               <div className="proj-meta">
-                {tag && <div className="proj-tag">{tag}</div>}
                 <div className="proj-title">{project.data.title}</div>
                 <div className={"bp-sub" + (stalled ? " bp-stalled" : "")}>{progressLabel(progress, stalled)}</div>
                 {/* The one thing that would move this project (Session 6.6).
@@ -85,10 +84,7 @@ export default function BiggerPicturePage({
             </div>
           );
         })}
-        <div className="proj-row ob-addrow" role="button" tabIndex={0} onClick={onAddProject}>
-          <div className="sec-ico ico-accent">{PLUS}</div>
-          <div className="row-grow"><div className="conn-name">Add Project</div></div>
-        </div>
+        <button className="row row-act" onClick={onAddProject}>Add Project</button>
       </div></div>
 
       <div className="sh2"><span className="t">Working Toward</span></div>
@@ -97,6 +93,7 @@ export default function BiggerPicturePage({
           const p = goalProgressOf(g.id);
           return (
             <div className="row bp-goal" role="button" tabIndex={0} key={g.id} onClick={() => onOpenGoal(g.id)}>
+              <div className="row-glyph cat-fg-purple">{TARGET}</div>
               <div className="row-grow">
                 <div className="conn-name">{g.data.title}</div>
                 <div className="bp-sub">{p ? `${p.done} of ${p.total} done` : "No projects yet"}</div>
@@ -106,10 +103,7 @@ export default function BiggerPicturePage({
             </div>
           );
         })}
-        <div className="row ob-addrow" role="button" tabIndex={0} onClick={onAddGoal}>
-          <div className="sec-ico ico-accent">{PLUS}</div>
-          <div className="row-grow"><div className="conn-name">Add Goal</div></div>
-        </div>
+        <button className="row row-act" onClick={onAddGoal}>Add Goal</button>
       </div></div>
       <div className="screen-foot" />
     </div>

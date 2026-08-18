@@ -421,8 +421,8 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .nav-bar + .nav-large { padding-top: var(--s-1); }
 .settings-search { margin-top: var(--s-1); margin-bottom: var(--s-3); }
 .settings-search .search-bar .ic { width: 18px; height: 18px; color: var(--tx-3); flex-shrink: 0; }
-.settings-group { margin-top: var(--s-5); }
-.settings-group:first-of-type { margin-top: 0; }
+/* .settings-group retired 2026-08-18: whitespace clusters are illegal under
+   the universal sectioning law; Settings groups now carry sh2 heads. */
 
 /* Visual audit: classes referenced in TSX but previously unstyled. */
 .person-hero { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); padding: var(--s-6) var(--s-4); }
@@ -1376,3 +1376,23 @@ button {
 .dec-why { font-size: var(--t-body); color: var(--tx-2); line-height: var(--lh-relaxed); }
 .dec-old { font-size: var(--t-body); color: var(--tx-3); text-decoration: line-through; }
 .dec-meta { font-size: var(--t-meta); color: var(--tx-3); }
+
+/* CATALOG V4 (The Branded Library, Dave 2026-08-18). Flagged block. */
+/* Filled brand glyphs on nav lists: red is the wash, filled is the state. */
+.lib-ico-brand { color: var(--accent); }
+/* Mini-caps section label (Brain 4 pick): the ONE small-label style. Used at
+   the nav-list content boundary and on Settings groups. Same slot as sh2. */
+.sh2.sh2-caps .t { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--tx-3); }
+/* The one legal unlabeled gap: a trailing system cluster on a nav list
+   (More 2 pick: Settings sits below a quiet 32px break). */
+.lib-gap { margin-top: var(--s-8); }
+/* Detail pages ride a STATIC condensed bar (iOS push-page inline title):
+   sticky glass, centered title, hairline. The 25 nav-bar surfaces become
+   chassis-consistent without per-file rewrites. */
+.nav-bar { position: sticky; top: 0; z-index: 40; background: rgba(12,12,14,0.82);
+  -webkit-backdrop-filter: saturate(1.6) blur(18px); backdrop-filter: saturate(1.6) blur(18px);
+  border-bottom: 0.5px solid var(--divider); padding-top: calc(var(--s-1) + var(--safe-top, env(safe-area-inset-top, 0px))); }
+[data-theme="light"] .nav-bar { background: rgba(246,246,248,0.85); }
+.nav-bar .nav-title { position: absolute; left: 0; right: 0; text-align: center; pointer-events: none;
+  font-size: var(--t-body); font-weight: var(--w-semi); }

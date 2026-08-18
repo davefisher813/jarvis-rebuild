@@ -44,8 +44,8 @@ export default function PeopleListPage({
   const shown = searchPeople(people, q).filter((p) => !pendingIds.has(p.id));
 
   const importRow = onImportFile && (
-    <div className="row ob-addrow" role="button" tabIndex={0} onClick={() => fileRef.current?.click()}>
-      <div className="sec-ico ico-blue">{UPLOAD}</div>
+    <div className="row" role="button" tabIndex={0} onClick={() => fileRef.current?.click()}>
+      <div className="row-glyph cat-fg-blue">{UPLOAD}</div>
       <div className="row-grow">
         <div className="conn-name">Import from File</div>
         <div className="conn-meta">.vcf from your phone · .csv with a Name column</div>
@@ -125,10 +125,7 @@ export default function PeopleListPage({
               {CHEV}
             </div>
           ))}
-          <div className="row ob-addrow" role="button" tabIndex={0} onClick={onAdd}>
-            <div className="sec-ico ico-accent">{PLUS}</div>
-            <div className="row-grow"><div className="conn-name">Add Person</div></div>
-          </div>
+          <button className="row row-act" onClick={onAdd}>Add Person</button>
           {importRow}
         </div></div>
         </>

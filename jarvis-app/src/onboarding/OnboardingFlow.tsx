@@ -296,10 +296,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
               <button className="ob-x" aria-label={"Remove " + s.name} onClick={() => removeSeed(i)}>{X}</button>
             </div>
           ))}
-          <div className="row ob-addrow" role="button" tabIndex={0} onClick={addSeed}>
-            <span className="sec-ico ico-accent"><svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg></span>
-            <div className="row-grow"><div className="conn-name">Add Category</div></div>
-          </div>
+          <button className="row row-act" onClick={addSeed}>Add Category</button>
         </div></div>
         <div className="convo-foot"><button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>Continue</button></div>
       </>

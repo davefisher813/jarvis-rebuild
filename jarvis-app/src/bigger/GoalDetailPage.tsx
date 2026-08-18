@@ -99,10 +99,7 @@ export default function GoalDetailPage({
                 <div className="row-grow"><div className="conn-name">{formatMoney(e.amount)}</div><div className="eyebrow">{monthDay(e.d)}</div></div>
               </div>
             ))}
-            <div className="row ob-addrow" role="button" tabIndex={0} onClick={() => { setSavingsAmt(""); setSavingsOpen(true); }}>
-              <div className="sec-ico ico-accent">{PLUS}</div>
-              <div className="row-grow"><div className="conn-name">Add to Savings</div></div>
-            </div>
+            <button className="row row-act" onClick={() => { setSavingsAmt(""); setSavingsOpen(true); }}>Add to Savings</button>
           </div></div>
         </>
       )}
@@ -123,10 +120,7 @@ export default function GoalDetailPage({
             </div>
           );
         })}
-        <div className="row ob-addrow" role="button" tabIndex={0} onClick={onAddProject}>
-          <div className="sec-ico ico-accent">{PLUS}</div>
-          <div className="row-grow"><div className="conn-name">Add Project</div></div>
-        </div>
+        <button className="row row-act" onClick={onAddProject}>Add Project</button>
       </div></div>
 
       {suggestion && onLinkSuggestion && onDismissSuggestion && (

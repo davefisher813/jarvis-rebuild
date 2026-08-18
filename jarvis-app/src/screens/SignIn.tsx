@@ -26,7 +26,7 @@ export default function SignIn() {
       if (mode === "signup") await signUpWithPassword(email.trim(), password);
       else await signInWithPassword(email.trim(), password);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong · try again");
+      setError(e instanceof Error ? e.message : "Something went wrong · Try again");
     } finally {
       setBusy(false);
     }

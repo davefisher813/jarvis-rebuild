@@ -139,7 +139,7 @@ export default function ExerciseSheet({ mode, initial, onSave, onDelete, onCance
                 <div className="row" key={f.key}>
                   <div className="row-grow">
                     <div className="conn-name">{f.label}</div>
-                    {(f.key === "w" || f.key === "v") && unit && <div className="eyebrow">{unit} · tap number to type</div>}
+                    {(f.key === "w" || f.key === "v") && unit && <div className="eyebrow">{unit} · Tap number to type</div>}
                     {f.key === "t" && <div className="eyebrow">{timeUnit}</div>}
                   </div>
                   <Stepper value={target[f.key] ?? 0} step={f.step} onChange={(n) => setTarget((t) => ({ ...t, [f.key]: n }))} />
