@@ -31,13 +31,31 @@ export async function seedDemoNotes(svc: NotesService, cats: Category[]) {
       await svc.addChecklist(training, ["Tuesday tempo run", "Thursday intervals", "Sunday long run"]);
     }
 
-    const home = await svc.createNote("Home Projects", id("Family"));
-    if (home) await svc.applyTemplate(home, "todo");
+    // His actual working notes, as they appear on his phone.
+    const rob = await svc.createNote("Rob Bridge", id("Family"));
+    if (rob) {
+      await svc.addBlock(rob, { type: "bulleted_list", items: [
+        "What position",
+        "Need board member",
+        "10k give get",
+        "Need official partnerships/sponsorships",
+        "Other sports",
+        "Grant writer",
+        "MLB",
+      ] });
+    }
 
-    const outreach = await svc.createNote("Outreach List", id("Friends"));
-    if (outreach) await svc.applyTemplate(outreach, "brief");
-
-    await svc.createNote("Standup Notes", id("Work"));
+    const invitational = await svc.createNote("Bridge Invitational Item List", id("Family"));
+    if (invitational) {
+      await svc.addChecklist(invitational, [
+        "Tents and tables",
+        "Sponsor banners",
+        "Raffle prizes",
+        "Registration sheets",
+        "Water coolers",
+        "First aid kit",
+      ]);
+    }
   } catch {
     showToast({ message: "Couldn't save · Check your connection" });
   }

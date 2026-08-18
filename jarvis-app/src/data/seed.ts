@@ -40,29 +40,26 @@ export async function seedDemoData(
 
   if ((await schedule.listEvents()).length === 0) {
     await schedule.createEvent("Morning Standup", { date: today, start: "08:30", category: cat("Work") });
-    await schedule.createEvent("Client Call", { date: today, start: "10:00", category: cat("Work"), location: "Zoom" });
-    await schedule.createEvent("Lunch With Sam", { date: today, start: "12:30", category: cat("Friends"), location: "Blue Bottle, Ferry Building" });
-    await schedule.createEvent("Team Sync", { date: today, start: "14:30", category: cat("Work") });
-    await schedule.createEvent("Gym Session", { date: today, start: "16:30", category: cat("Health") });
-    await schedule.createEvent("Evening Run", { date: today, start: "18:00", category: cat("Health") });
-    await schedule.createEvent("Dentist", { date: addDays(today, 1), start: "09:00", category: cat("Health"), location: "200 Market St" });
-    await schedule.createEvent("Call With Alex", { date: addDays(today, 1), start: "15:00", category: cat("Friends") });
-    await schedule.createEvent("Coffee Catch-up", { date: addDays(today, 2), start: "09:30", category: cat("Friends"), location: "Sightglass Coffee" });
-    await schedule.createEvent("Project Demo", { date: addDays(today, 2), start: "13:00", category: cat("Work") });
+    await schedule.createEvent("Call With Wei", { date: today, start: "10:00", category: cat("Work"), location: "Zoom" });
+    await schedule.createEvent("Fall Clinic Walkthrough", { date: today, start: "15:30", category: cat("Family"), location: "Tucci Fields" });
+    await schedule.createEvent("Gym Session", { date: today, start: "17:30", category: cat("Health") });
+    await schedule.createEvent("Board Call · Rob Bridge", { date: addDays(today, 1), start: "09:00", category: cat("Family") });
+    await schedule.createEvent("Sponsor Pitch · Nike Strength", { date: addDays(today, 1), start: "14:00", category: cat("Work") });
+    await schedule.createEvent("Coach Onboarding Demo", { date: addDays(today, 2), start: "11:00", category: cat("Work") });
+    await schedule.createEvent("Fisher v JAT Prep", { date: addDays(today, 2), start: "16:00", category: cat("Money"), location: "Pareres Office" });
     await schedule.createEvent("Budget Review", { date: addDays(today, 3), start: "11:00", category: cat("Money") });
-    await schedule.createEvent("Family Dinner", { date: addDays(today, 4), start: "19:00", category: cat("Family"), location: "Mom's house" });
+    await schedule.createEvent("Bridge Summer Cookout Planning", { date: addDays(today, 4), start: "18:30", category: cat("Family") });
   }
 
   if ((await tasks.listTasks()).length === 0) {
-    await tasks.createTask("Pay rent", { category: cat("Money"), due: addDays(today, -1) });
-    await tasks.createTask("Reply to Sam re: Proposal", { category: cat("Work"), due: addDays(today, -2) });
-    await tasks.createTask("Send Invoice", { category: cat("Money"), due: today });
-    await tasks.createTask("Submit Expense Report", { category: cat("Money"), due: today });
-    await tasks.createTask("Book Flights", { category: cat("Family"), due: addDays(today, 3) });
-    await tasks.createTask("Coffee With Alex", { category: cat("Friends"), due: addDays(today, 5) });
-    await tasks.createTask("Plan weekend trip", { category: cat("Family"), due: addDays(today, 6) });
-    const d1 = await tasks.createTask("Email the team", { category: cat("Work"), due: addDays(today, -1) });
-    const d2 = await tasks.createTask("Renew gym membership", { category: cat("Health"), due: addDays(today, -3) });
+    await tasks.createTask("Create Bridge Invoice", { category: cat("Money"), due: today });
+    await tasks.createTask("Pay Ticket", { category: cat("Money"), due: addDays(today, -2) });
+    await tasks.createTask("Reply to Wei re: Invoice", { category: cat("Work"), due: today });
+    await tasks.createTask("Nudge Pareres on Fisher v JAT", { category: cat("Work"), due: addDays(today, 1) });
+    await tasks.createTask("Book PG 17U Travel", { category: cat("Family"), due: addDays(today, 3) });
+    await tasks.createTask("Chase Nike Strength Order #D2565", { category: cat("Money"), due: addDays(today, 2) });
+    const d1 = await tasks.createTask("Send Waiver to Tucci", { category: cat("Family"), due: addDays(today, -1) });
+    const d2 = await tasks.createTask("Post Clinic Recap", { category: cat("Work"), due: addDays(today, -3) });
     if (d1) await tasks.toggleDone(d1);
     if (d2) await tasks.toggleDone(d2);
   }
@@ -85,30 +82,37 @@ export async function seedDemoData(
 
   if ((await projects.list()).length === 0) {
     const launchGoal = (await goals.list()).find((g) => g.data.title === "Ship the App Store Launch");
-    const q3 = await projects.create({ title: "App Store Launch", status: "active", category: cat("Work"), goalId: launchGoal?.id });
-    const site = await projects.create({ title: "Website Redesign", status: "active", category: cat("Work"), goalId: launchGoal?.id });
-    const golf = await projects.create({ title: "Bridge Golf Classic", status: "active", category: cat("Family") });
+    const golf = await projects.create({ title: "Bridge Golf Event", status: "active", category: cat("Family") });
+    const rebuild = await projects.create({ title: "Rebuild Bridge App", status: "active", category: cat("Work"), goalId: launchGoal?.id });
+    const site = await projects.create({ title: "Remodel Bridge Website", status: "active", category: cat("Work") });
+    const cookout = await projects.create({ title: "Bridge Summer Cookout", status: "active", category: cat("Family") });
     await projects.create({ title: "Tax Filing", status: "on_hold", category: cat("Money") });
-    await projects.create({ title: "2025 Retro", status: "done", category: cat("Work") });
     // Linked tasks so progress bars, counts, and Next lines all populate.
-    if (q3) {
-      const a = await tasks.createTask("Draft the coach onboarding email", { category: cat("Work"), due: today, projectId: q3 });
-      const b = await tasks.createTask("Confirm Apple enrollment fee", { category: cat("Money"), due: addDays(today, 1), projectId: q3 });
-      const c = await tasks.createTask("Record the demo walkthrough", { category: cat("Work"), due: addDays(today, 2), projectId: q3 });
-      const done1 = await tasks.createTask("Reserve the App Store name", { category: cat("Work"), due: addDays(today, -3), projectId: q3 });
-      if (done1) await tasks.toggleDone(done1);
-      void a; void b; void c;
+    if (golf) {
+      const g1 = await tasks.createTask("Lock the Pavilion Date", { category: cat("Family"), due: addDays(today, -6), projectId: golf });
+      const g2 = await tasks.createTask("Order Sponsor Banners", { category: cat("Family"), due: addDays(today, -3), projectId: golf });
+      const g3 = await tasks.createTask("Collect Raffle Prizes", { category: cat("Family"), due: addDays(today, -1), projectId: golf });
+      const g4 = await tasks.createTask("Send Thank-You Notes", { category: cat("Family"), due: addDays(today, 2), projectId: golf });
+      for (const g of [g1, g2, g3]) if (g) await tasks.toggleDone(g);
+      void g4;
+    }
+    if (rebuild) {
+      const r1 = await tasks.createTask("Draft the Coach Onboarding Email", { category: cat("Work"), due: today, projectId: rebuild });
+      const r2 = await tasks.createTask("Confirm Apple Enrollment Fee", { category: cat("Money"), due: addDays(today, 1), projectId: rebuild });
+      const r3 = await tasks.createTask("Record the Demo Walkthrough", { category: cat("Work"), due: addDays(today, 2), projectId: rebuild });
+      const r4 = await tasks.createTask("Reserve the App Store Name", { category: cat("Work"), due: addDays(today, -3), projectId: rebuild });
+      if (r4) await tasks.toggleDone(r4);
+      void r1; void r2; void r3;
     }
     if (site) {
-      const d1 = await tasks.createTask("Ship the new landing hero", { category: cat("Work"), due: addDays(today, -1), projectId: site });
-      const d2 = await tasks.createTask("Swap testimonial quotes", { category: cat("Work"), due: addDays(today, 4), projectId: site });
-      if (d1) await tasks.toggleDone(d1);
-      void d2;
+      const w1 = await tasks.createTask("Ship the New Landing Hero", { category: cat("Work"), due: addDays(today, -1), projectId: site });
+      const w2 = await tasks.createTask("Swap Testimonial Quotes", { category: cat("Work"), due: addDays(today, 4), projectId: site });
+      if (w1) await tasks.toggleDone(w1);
+      void w2;
     }
-    if (golf) {
-      const g1 = await tasks.createTask("Lock the pavilion date", { category: cat("Family"), due: addDays(today, 2), projectId: golf });
-      const g2 = await tasks.createTask("Order sponsor banners", { category: cat("Family"), due: addDays(today, 5), projectId: golf });
-      void g1; void g2;
+    if (cookout) {
+      const c1 = await tasks.createTask("Reserve the Park Shelter", { category: cat("Family"), due: addDays(today, 5), projectId: cookout });
+      void c1;
     }
   }
 
@@ -120,13 +124,11 @@ export async function seedDemoData(
   }
 
   if ((await people.list()).length === 0) {
-    await people.create({ name: "Sam Rivera", group: "contacts", relationship: "Colleague" });
-    await people.create({ name: "Alex Chen", group: "contacts", relationship: "Client" });
-    await people.create({ name: "Jordan Lee", group: "contacts", relationship: "Neighbor" });
-    await people.create({ name: "Maria Diaz", group: "inner_circle", relationship: "Sister" });
-    await people.create({ name: "Chris Park", group: "inner_circle", relationship: "Best friend" });
-    await people.create({ name: "Dad", group: "inner_circle", relationship: "Family" });
-    await people.create({ name: "Rival Corp", group: "adversarial", relationship: "Competitor" });
+    await people.create({ name: "Rob Bridge", group: "contacts", relationship: "Board" });
+    await people.create({ name: "Wei Zhang", group: "contacts", relationship: "BFFSA" });
+    await people.create({ name: "Joseph T. Pareres", group: "contacts", relationship: "Attorney" });
+    await people.create({ name: "Tucci", group: "contacts", relationship: "Fields" });
+    await people.create({ name: "Sam Rivera", group: "contacts", relationship: "Coach" });
   }
 
   // Bills are recurring money tasks; two due soon so the Money page and the

@@ -53,10 +53,10 @@ describe("integration: demo seed feeds Today", () => {
     const ev = await schedule.eventsOn(today);
     const tk = await tasks.listTasks();
     const sum = daySummary(ev, tk, today);
-    expect(sum.events).toBe(6);
-    expect(sum.overdue).toBe(2);
+    expect(sum.events).toBe(4);
+    expect(sum.overdue).toBe(1);
     expect(sum.due).toBe(2);
-    expect(todaysTasks(tk, today).length).toBe(4);
+    expect(todaysTasks(tk, today).length).toBe(3);
   });
 
   it("seeding is idempotent (no duplicates on a second run)", async () => {
@@ -65,7 +65,7 @@ describe("integration: demo seed feeds Today", () => {
     const cats = await categories.list();
     await seedDemoData(tasks, schedule, cats);
     await seedDemoData(tasks, schedule, cats);
-    expect((await schedule.listEvents()).length).toBe(12);
-    expect((await tasks.listTasks()).length).toBe(9);
+    expect((await schedule.listEvents()).length).toBe(10);
+    expect((await tasks.listTasks()).length).toBe(8);
   });
 });
