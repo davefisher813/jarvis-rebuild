@@ -727,7 +727,7 @@ export default function TodayFlow({
         <div className="pad-x">
           <div className="sweep-receipt sweep-error" role="button" tabIndex={0} onClick={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}>
             <div className="row-ico nav-tile-orange">{SWEEP_ICO}</div>
-            <div className="row-grow"><div className="restore-title">Couldn't move yesterday's tasks · tap to retry</div></div>
+            <div className="row-grow"><div className="restore-title">Couldn't Move Yesterday's Tasks · Tap to Retry</div></div>
           </div>
         </div>
       )}
@@ -737,7 +737,7 @@ export default function TodayFlow({
             <div className="banner-line">
               <div className="row-ico nav-tile-orange">{SWEEP_ICO}</div>
               <div className="row-stack">
-                <div className="restore-title">Moved to today<span className="count-pill">{sweepReceipt.moved.length}</span></div>
+                <div className="restore-title">Moved to Today<span className="count-pill">{sweepReceipt.moved.length}</span></div>
                 {sweepCand && <div className="restore-meta">{sweepCand.text} · <span className="slip-warn">moved {sweepCand.slips} days running</span></div>}
               </div>
             </div>
@@ -761,7 +761,7 @@ export default function TodayFlow({
           <div className="restore-banner" role="button" tabIndex={0} onClick={() => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); }}>
             <RowIcon kind={spot.kind} />
             <div className="row-grow">
-              <div className="restore-title">Pick up where you left off</div>
+              <div className="restore-title">Pick Up Where You Left Off</div>
               <div className="restore-meta">{spotMeta(spot)}</div>
             </div>
             <div className="chev" />

@@ -148,7 +148,7 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
         <Burst show={bursting} />
       </div>
       {mode === "next" && (
-        <button className="upnext-skip" onClick={skip}>Not this one</button>
+        <button className="upnext-skip" onClick={skip}>Not This One</button>
       )}
     </div>
   );

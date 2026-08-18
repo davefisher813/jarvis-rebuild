@@ -76,9 +76,9 @@ function PaydaySheet({ initial, onSave, onRemove, onCancel }: {
           <div className="field"><div className="input-label">Paycheck (USD)</div>
             <input className={"input" + (touched && !valid ? " input-error" : "")} inputMode="numeric" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
             {touched && !valid && <div className="input-error">Enter the amount and the next payday.</div>}</div>
-          <div className="field"><div className="input-label">Next payday</div>
+          <div className="field"><div className="input-label">Next Payday</div>
             <input type="date" className="input" value={next} onChange={(e) => setNext(e.target.value)} /></div>
-          <div className="field"><div className="input-label">How often</div>
+          <div className="field"><div className="input-label">How Often</div>
             <div className="segmented">
               <button type="button" className={"seg" + (freq === "weekly" ? " active" : "")} onClick={() => setFreq("weekly")}>Weekly</button>
               <button type="button" className={"seg" + (freq === "biweekly" ? " active" : "")} onClick={() => setFreq("biweekly")}>Every 2 Weeks</button>
@@ -240,7 +240,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
     <div className="screen">
       <div className="nav-bar"><div className="nav-large">Money</div></div>
       {accounts.length === 0 && bills.length === 0 && tagged.length === 0 ? (
-        <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No accounts yet</div>
+        <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No Accounts Yet</div>
           <button className="btn btn-primary" onClick={() => setSheet({ kind: "new" })}>Add an Account</button>
           <button className="btn btn-secondary" onClick={() => setBillSheet({ kind: "new" })}>Add a Bill</button></div>
       ) : (

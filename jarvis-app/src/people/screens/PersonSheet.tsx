@@ -81,7 +81,7 @@ export default function PersonSheet({
             {touched && !valid && <div className="input-error">Add a name.</div>}
           </div>
           <div className="field">
-            <div className="input-label">Who they are to you</div>
+            <div className="input-label">Who They Are to You</div>
             {/* Chips first, typing second: the label field existed for months
                 and stayed empty because it was a blank box. One universal set
                 for v1; kind-aware sets arrive when category kinds exist. */}
@@ -94,7 +94,7 @@ export default function PersonSheet({
             <input className="input" placeholder="Or say it your way" value={(LABEL_CHIPS as readonly string[]).includes(relationship) ? "" : relationship} onChange={(e) => setRelationship(e.target.value)} />
           </div>
           <div className="field">
-            <div className="input-label">How JARVIS writes to them</div>
+            <div className="input-label">How JARVIS Writes to Them</div>
             {/* Register, deliberately NOT closeness: nobody taps "Not really"
                 about their mother. Unset = unknown = clean prose. Ordered as a
                 looseness scale; "Close Friend" (not "Friend") so the segment

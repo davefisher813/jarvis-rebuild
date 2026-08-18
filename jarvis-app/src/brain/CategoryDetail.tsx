@@ -307,7 +307,7 @@ export default function CategoryDetail({
       {paused && (
         <div className="pad-x"><div className="card">
           <div className="row">
-            <div className="row-grow"><div className="conn-name">Paused for now</div></div>
+            <div className="row-grow"><div className="conn-name">Paused for Now</div></div>
             <button className="btn-sm" onClick={async () => { await catsSvc.update(categoryId, { season: undefined }); onChanged?.(); await reload(); }}>Wake Up</button>
           </div>
         </div></div>
@@ -387,7 +387,7 @@ export default function CategoryDetail({
             {catPeople.length === 0 && (
               <div className="row">
                 <div className="row-grow">
-                  <div className="conn-name">No people here yet</div>
+                  <div className="conn-name">No People Here Yet</div>
                   <div className="eyebrow">Open someone in Contacts and tag them {cat.data.name}</div>
                 </div>
               </div>

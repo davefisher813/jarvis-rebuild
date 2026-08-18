@@ -29,16 +29,22 @@ export type MoreRoute = "settings" | "profile" | "appearance" | "categories" | "
 //
 // One stable hue per destination, loosely mnemonic: paper-yellow notes,
 // money-green, sunrise-orange today. Anything unmapped falls back to neutral.
-const EXTRA_TILE: Record<string, string> = {
-  today: "nav-tile-orange",
-  tasks: "nav-tile-blue",
-  schedule: "nav-tile-sky",
-  brain: "nav-tile-purple",
-  notes: "nav-tile-yellow",
-  bigger: "nav-tile-indigo",
-  messages: "nav-tile-teal",
-  notifications: "nav-tile-graphite",
-  money: "nav-tile-green",
+// Catalog V3.1 library form (approved 2026-08-18): content navigation renders
+// as the Apple Music list, bare colored glyphs instead of tiles, each keeping
+// its section hue. Chat is the one red glyph: it IS JARVIS, so the brand mark
+// is honest there (the old no-red rule was about red meaning nothing when
+// navigation borrowed it; chat is not borrowing).
+const EXTRA_FG: Record<string, string> = {
+  today: "cat-fg-orange",
+  tasks: "cat-fg-blue",
+  schedule: "cat-fg-sky",
+  brain: "cat-fg-purple",
+  notes: "cat-fg-yellow",
+  bigger: "cat-fg-indigo",
+  messages: "cat-fg-teal",
+  notifications: "lib-ico-neutral",
+  money: "cat-fg-green",
+  chat: "cat-fg-red",
 };
 
 export default function MorePage({ extras, onOpenExtra, onNavigate }: {
@@ -49,9 +55,9 @@ export default function MorePage({ extras, onOpenExtra, onNavigate }: {
       <div className="nav-bar"><div className="nav-large">More</div></div>
 
       <div className="pad-x"><div className="card">
-        <div className="row" role="button" tabIndex={0} onClick={() => onNavigate("settings")}>
-          <div className="sec-ico ico-surface"><Gear /></div>
-          <div className="row-grow"><div className="conn-name">Settings</div></div>
+        <div className="lib-row" role="button" tabIndex={0} onClick={() => onNavigate("settings")}>
+          <div className="lib-ico lib-ico-neutral"><Gear /></div>
+          <div className="lib-name">Settings</div>
           <Chev />
         </div>
       </div></div>
@@ -61,9 +67,9 @@ export default function MorePage({ extras, onOpenExtra, onNavigate }: {
           <div className="grp"><div className="eyebrow">Your Stuff</div></div>
           <div className="pad-x"><div className="card">
             {extras.map((d) => (
-              <div className="row" role="button" tabIndex={0} key={d.key} onClick={() => onOpenExtra(d.key)}>
-                <div className={"sec-ico " + (EXTRA_TILE[d.key] ?? "ico-surface")}><d.Icon className="ic" /></div>
-                <div className="row-grow"><div className="conn-name">{d.label}</div></div>
+              <div className="lib-row" role="button" tabIndex={0} key={d.key} onClick={() => onOpenExtra(d.key)}>
+                <div className={"lib-ico " + (EXTRA_FG[d.key] ?? "lib-ico-neutral")}><d.Icon className="ic" /></div>
+                <div className="lib-name">{d.label}</div>
                 <Chev />
               </div>
             ))}

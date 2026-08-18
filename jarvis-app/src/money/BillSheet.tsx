@@ -63,7 +63,7 @@ export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }:
             {touched && !valid && <div className="input-error">Add a name and an amount.</div>}
           </div>
           <div className="field">
-            <div className="input-label">Next due</div>
+            <div className="input-label">Next Due</div>
             <input type="date" className="input" value={due} onChange={(e) => setDue(e.target.value)} />
           </div>
           <div className="field">
@@ -84,7 +84,7 @@ export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }:
             </div>
           </div>
           <div className="field">
-            <div className="input-label">Pay link</div>
+            <div className="input-label">Pay Link</div>
             <input type="url" className="input" placeholder="Where you pay it (optional)" value={payUrl} onChange={(e) => setPayUrl(e.target.value)} />
           </div>
         </div>

@@ -54,6 +54,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
   const [tabKeys, setTabKeys] = useState<string[]>(DEFAULT_TABS);
   const [active, setActive] = useState<string>("today");
+  // Deep-link into a More subpage (Email's Open Connections, Catalog V3.1).
+  const [moreRoute, setMoreRoute] = useState<"connections" | null>(null);
   // One-shot deep-link target inside the Brain tab (e.g. open the routine
   // editor from the Plan sheet). Cleared after it is consumed.
   const [brainIntent, setBrainIntent] = useState<string | undefined>(undefined);
@@ -182,7 +184,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
         
         {active === "bigger" && <BiggerPictureFlow openId={projectIntent} openGoalId={goalIntent} onOpenNote={navigateToNote} />}
-        {active === "messages" && <MessagesFlow ai={ai} />}
+        {active === "messages" && <MessagesFlow ai={ai} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
         {active === "notifications" && <NotificationsFlow />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} />}
         {active === "chat" && <ChatFlow />}
@@ -195,6 +197,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             onToggleTab={toggleTab}
             onReorderTabs={reorderTabs}
             onSignOut={backendConfigured ? signOut : undefined}
+            openRoute={moreRoute}
+            onRouteConsumed={() => setMoreRoute(null)}
           />
         )}
         </div>

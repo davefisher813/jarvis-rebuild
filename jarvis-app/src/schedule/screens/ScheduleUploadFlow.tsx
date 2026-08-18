@@ -259,7 +259,7 @@ export default function ScheduleUploadFlow({
             {busy ? "Reading..." : "Photo or Screenshot"}
           </button>
           <div className="field">
-            <div className="input-label">Or paste it</div>
+            <div className="input-label">Or Paste It</div>
             <textarea className="input input-multiline" rows={5} placeholder="Paste the schedule text from a message or email" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
           <button className="btn btn-secondary btn-block" disabled={busy || !text.trim()}

@@ -1,3 +1,4 @@
+// SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
@@ -18,6 +19,6 @@ describe("LinkPicker", () => {
   });
   it("shows an empty state when nothing to link", () => {
     render(<LinkPicker events={[]} tasks={[]} onPick={vi.fn()} />);
-    expect(screen.getByText("Nothing to link yet")).toBeTruthy();
+    expect(screen.getByText("Nothing to Link Yet")).toBeTruthy();
   });
 });

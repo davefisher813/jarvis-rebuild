@@ -103,7 +103,7 @@ export default function PeopleListPage({
         <>
           <div className="empty-state empty-compact">
             <div className="empty-icon">{PEOPLE}</div>
-            <div className="empty-title">No one here yet</div>
+            <div className="empty-title">No One Here Yet</div>
             <button className="btn btn-primary" onClick={onAdd}>Add Person</button>
           </div>
           {importRow && <div className="pad-x"><div className="card">{importRow}</div></div>}

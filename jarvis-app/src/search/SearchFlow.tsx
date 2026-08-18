@@ -68,7 +68,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
   return (
     <div className="search-overlay">
       <div className="search-top">
-        <div className="search-bar">{MAG}<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search everything" autoFocus /></div>
+        <div className="search-bar">{MAG}<input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search Everything" autoFocus /></div>
         <button className="search-cancel" onClick={close}>Cancel</button>
       </div>
 
@@ -94,7 +94,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             </div></div>
           </>
         )}
-        {empty && recents.length === 0 && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">Search everything</div></div>}
+        {empty && recents.length === 0 && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">Search Everything</div></div>}
         {none && <div className="empty-state"><div className="empty-icon">{MAG}</div><div className="empty-title">No matches for &ldquo;{q.trim()}&rdquo;</div></div>}
 
         {results && !empty && results.events.length > 0 && (

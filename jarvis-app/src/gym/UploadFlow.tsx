@@ -72,7 +72,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
           {/* Derived and conditional: this line changes what the user does
               (check before saving), so it earns its place. */}
           <div className="pad-x"><div className="card pad">
-            <div className="conn-name">What I read · tap to fix</div>
+            <div className="conn-name">What I Read · Tap to Fix</div>
           </div></div>
           {draft.days.map((day, di) => (
             <div key={day.id}>
@@ -138,7 +138,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
             {busy ? "Reading..." : "Photo or Screenshot"}
           </button>
           <div className="field">
-            <div className="input-label">Or paste it</div>
+            <div className="input-label">Or Paste It</div>
             <textarea className="input input-multiline" rows={5} placeholder="Paste the program text from a message or spreadsheet" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
           <button className="btn btn-secondary btn-block" disabled={busy || !text.trim()}

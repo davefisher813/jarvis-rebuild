@@ -1,3 +1,4 @@
+// SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -31,7 +32,7 @@ describe("ConnectionsPage", () => {
 
   it("shows an honest setup-required state and disables connect when unconfigured", () => {
     render(wrap(<ConnectionsPage configured={false} />));
-    expect(screen.getByText("Google setup required")).toBeInTheDocument();
+    expect(screen.getByText("Google Setup Required")).toBeInTheDocument();
     expect((screen.getByText("Connect Google") as HTMLButtonElement).disabled).toBe(true);
   });
   it("connects the first account, imports calendar, lists the account with its controls", async () => {
@@ -51,6 +52,6 @@ describe("ConnectionsPage", () => {
     // Armed two-tap (2026-08-09): first tap only arms.
     fireEvent.click(screen.getByText("Tap again"));
     await waitFor(() => expect(screen.getByText("me@example.com disconnected.")).toBeInTheDocument());
-    expect(screen.getByText("No accounts yet")).toBeInTheDocument();
+    expect(screen.getByText("No Accounts Yet")).toBeInTheDocument();
   });
 });

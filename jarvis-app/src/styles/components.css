@@ -1139,3 +1139,89 @@ button {
 .chat-prov { margin-top: var(--s-1); font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--tx-3); }
 .chat-inputbar { display: flex; gap: var(--s-2); padding: var(--s-2h) var(--s-4); padding-bottom: calc(var(--s-2h) + var(--s-safe-b)); }
 .chat-inputbar .input { flex: 1; }
+
+/* === CATALOG V3.1 (approved 2026-08-18, LOCKED-CSS CHANGE FLAGGED) ===
+   Dave's four asks, as CSS law. 1 FULL PALETTE: nav-tile-* expands to all 15
+   category slots so no type tile is ever gray. 2 ALIGNMENT GRID: dividers
+   inset to the card's text edge (never full-bleed through a tile), numbers
+   tabular wherever they stack, steppers one width. 3 cleaner visuals: stat
+   numerals bigger and tabular with a hairline top light, hero daypart wash,
+   press compression on tappable rows, stronger primary glow. 4 the Apple
+   Music patterns in JARVIS red: .lib-row (bare accent glyph library list)
+   and .tip-banner (glyph + Title Case + gray sub + X). */
+
+/* 1 · full tile palette */
+.nav-tile-red { background: var(--cat-red); }
+.nav-tile-coral { background: var(--cat-coral); }
+.nav-tile-sand { background: var(--cat-sand); color: var(--on-fill-dark); }
+.nav-tile-lime { background: var(--cat-lime); color: var(--on-fill-dark); }
+.nav-tile-magenta { background: var(--cat-magenta); }
+.nav-tile-pink { background: var(--cat-pink); }
+
+/* 2 · alignment grid */
+.card .row + .row, .card .task-row + .task-row { border-top: 0; position: relative; }
+.card .row + .row::before, .card .task-row + .task-row::before {
+  content: ""; position: absolute; left: var(--s-4); right: 0; top: 0; height: 0.5px; background: var(--divider); }
+.card .row:has(.row-ico) + .row::before, .card .row + .row:has(.row-ico)::before {
+  left: calc(var(--s-4) + 28px + var(--s-3)); }
+.card .task-row:has(.task-check) + .task-row::before {
+  left: calc(var(--s-4) + 22px + var(--s-3)); }
+.urgency, .stat-num, .money-amt, .row-value, .sched-time, .cal-cell, .count-pill,
+.stepper .val { font-variant-numeric: tabular-nums; }
+.stepper .val { min-width: 44px; text-align: center; }
+
+/* 3 · cleaner visuals */
+.stat-tile { background-image: linear-gradient(180deg, rgba(255,255,255,0.05), transparent 55%);
+  box-shadow: inset 0 0.5px 0 rgba(255,255,255,0.09); }
+[data-theme="light"] .stat-tile { background-image: none; box-shadow: none; }
+.stat-num { letter-spacing: -0.5px; }
+[data-theme="dark"] .today-hero.hero-morning {
+  background: linear-gradient(160deg, rgba(255,31,48,0.13), rgba(255,120,40,0.06) 45%, transparent 80%); }
+[data-theme="dark"] .today-hero.hero-evening {
+  background: linear-gradient(160deg, rgba(94,120,255,0.12), rgba(140,90,255,0.05) 45%, transparent 80%); }
+.day-ring .fill { stroke: url(#ringGrad); filter: drop-shadow(0 0 5px rgba(255,60,40,0.45)); }
+.row[role="button"]:active, .lib-row:active, .tip-banner .tip-x:active {
+  background: var(--press-3); }
+.row[role="button"]:active { transform: scale(0.985); border-radius: var(--r-md); }
+[data-theme="dark"] .btn-primary { box-shadow: 0 0 16px rgba(255,31,48,0.38), 0 4px 14px rgba(255,31,48,0.22); }
+
+/* 3b · the Today workload pills (tappable, colored, rolling numbers) */
+.day-pills { display: flex; gap: var(--s-2); margin-top: var(--s-2h); flex-wrap: wrap; }
+.day-pill { display: inline-flex; align-items: center; border-radius: var(--r-pill);
+  padding: var(--s-1h) var(--s-3); font-size: var(--t-meta); font-weight: var(--w-bold);
+  cursor: pointer; font-variant-numeric: tabular-nums; }
+.day-pill:active { opacity: 0.7; }
+.dp-sky { background: rgba(90,200,250,0.16); color: var(--cat-sky, #5AC8FA); }
+.dp-blue { background: rgba(94,155,255,0.16); color: var(--cat-blue, #5E9BFF); }
+.dp-red { background: var(--red-tint); color: var(--red); }
+
+/* 4a · library list (Apple Music form, JARVIS red) */
+.lib-row { display: flex; align-items: center; gap: var(--s-3h); padding: var(--s-3) var(--s-4);
+  cursor: pointer; transition: background var(--dur-fast) var(--ease-out); }
+/* Color comes from the row's systemic class (cat-fg-* or lib-ico-neutral);
+   the accent is only the zero-specificity fallback so it never wins over
+   a systemic color (the all-red More bug, caught in preview). */
+.lib-row .lib-ico { width: 30px; display: flex; justify-content: center; flex-shrink: 0; }
+:where(.lib-ico) { color: var(--accent); }
+.lib-row .lib-ico .ic { width: 25px; height: 25px; }
+.lib-name { flex: 1; font-size: var(--t-h2); font-weight: var(--w-normal); color: var(--tx-1); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-ico-neutral { color: var(--tx-2); }
+.lib-row + .lib-row { position: relative; }
+.lib-row + .lib-row::before { content: ""; position: absolute; top: 0; height: 0.5px; background: var(--divider);
+  left: calc(var(--s-4) + 30px + var(--s-3h)); right: 0; }
+
+/* 4b · tip banner (dismissible offer: glyph, Title Case, gray sub, X) */
+.tip-banner { display: flex; align-items: flex-start; gap: var(--s-3); margin-bottom: var(--s-3);
+  padding: var(--s-3h); border-radius: var(--r-xl); background: var(--press-2, var(--press-3));
+  animation: restoreIn var(--dur-normal) var(--ease-out); }
+.tip-ico { color: var(--accent); flex-shrink: 0; margin-top: 1px; }
+.tip-ico .ic { width: 26px; height: 26px; }
+.tip-body { flex: 1; min-width: 0; }
+.tip-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
+.tip-sub { margin-top: 2px; font-size: var(--t-body); color: var(--tx-3); line-height: var(--lh-default); }
+.tip-acts { display: flex; gap: var(--s-2); margin-top: var(--s-2h); }
+.tip-x { width: 30px; height: 30px; border-radius: var(--r-circle); background: var(--press-3);
+  border: 0; color: var(--tx-3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tip-x .ic { width: 16px; height: 16px; }
+@media (prefers-reduced-motion: reduce) { .tip-banner { animation: none; } }

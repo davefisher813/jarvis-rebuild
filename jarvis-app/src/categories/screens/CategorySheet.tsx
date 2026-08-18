@@ -80,7 +80,7 @@ export default function CategorySheet({
           </div>
 
           <div className="field">
-            <div className="input-label">What kind of category</div>
+            <div className="input-label">What Kind of Category</div>
             <div className="chip-row chip-wrap-row">
               {CATEGORY_KINDS.map((k) => (
                 <div key={k} className={"chip" + (kind === k ? " active" : "")} role="button" tabIndex={0} aria-pressed={kind === k}
@@ -101,7 +101,7 @@ export default function CategorySheet({
                 </div>
               </div>
               <div className="field">
-                <div className="input-label">Work hours</div>
+                <div className="input-label">Work Hours</div>
                 <div className="segmented">
                   <button type="button" className={"seg" + (!workHours ? " active" : "")} onClick={() => setWorkHours(false)}>Off</button>
                   <button type="button" className={"seg" + (workHours ? " active" : "")} onClick={() => setWorkHours(true)}>Follows my work hours</button>

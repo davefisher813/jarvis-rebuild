@@ -1,3 +1,4 @@
+// SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { useEffect, useState } from "react";
@@ -106,7 +107,7 @@ describe("CategoryDetail people kind (2026-08-10)", () => {
     }
     const onOpenContacts = vi.fn();
     render(<NotesProvider userId="pk3"><SeededEmpty onOpenContacts={onOpenContacts} /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("No people here yet")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("No People Here Yet")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Open Contacts"));
     expect(onOpenContacts).toHaveBeenCalled();
   });

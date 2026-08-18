@@ -41,10 +41,12 @@ describe("TodayPage", () => {
     const { container } = render(<TodayPage {...base} />);
     expect(screen.getByText("Good Morning")).toBeInTheDocument();
     expect(screen.getByText("Wednesday, May 20")).toBeInTheDocument();
+    // SPEC MOVED (Catalog V3.1, 2026-08-18): the workload line is tappable
+    // colored pills, not floating text; overdue rides the red pill.
     const summary = container.querySelector(".today-summary")!;
     expect(summary).toHaveTextContent("2 events");
-    expect(summary).toHaveTextContent("1 task due");
-    expect(summary.querySelector(".fg-red")).toHaveTextContent("1 overdue");
+    expect(summary).toHaveTextContent("1 due");
+    expect(summary.querySelector(".day-pill.dp-red")).toHaveTextContent("1 overdue");
   });
 
   it("renders Up Next with STANDARD task rows (identical to every list)", () => {

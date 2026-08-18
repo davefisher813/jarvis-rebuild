@@ -118,7 +118,7 @@ export default function ExerciseSheet({ mode, initial, onSave, onDelete, onCance
           </div>
 
           <div className="field">
-            <div className="input-label">What you track</div>
+            <div className="input-label">What You Track</div>
             <div className="chip-row chip-wrap-row">
               {MEASURE_KINDS.map((k) => (
                 <div key={k} className={"chip" + (kind === k ? " active" : "")} role="button" tabIndex={0} aria-pressed={kind === k}

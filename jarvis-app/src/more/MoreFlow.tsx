@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import MorePage, { type MoreRoute } from "./MorePage";
 import { usePushDepth } from "../shared/pushNav";
 import ProfilePage from "../settings/ProfilePage";
@@ -36,6 +36,8 @@ export default function MoreFlow({
   onToggleTab,
   onReorderTabs,
   onSignOut,
+  openRoute,
+  onRouteConsumed,
 }: {
   extras: Destination[];
   onOpenExtra: (key: string) => void;
@@ -43,6 +45,10 @@ export default function MoreFlow({
   onToggleTab: (key: string) => void;
   onReorderTabs?: (next: string[]) => void;
   onSignOut?: () => void;
+  // Deep-link intent from elsewhere in the shell (e.g. Email's Open
+  // Connections button). Consumed once.
+  openRoute?: MoreRoute | null;
+  onRouteConsumed?: () => void;
 }) {
   const isAdmin = useIsAdmin();
   const { session } = useAuth();
@@ -51,6 +57,11 @@ export default function MoreFlow({
     ? createAdminApi(session?.access_token || "")
     : makeSampleAdminSource();
   const [route, setRoute] = useState<"hub" | MoreRoute | "terms" | "privacy" | "support" | "admin">("hub");
+
+  useEffect(() => {
+    if (openRoute) { setRoute(openRoute); onRouteConsumed?.(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRoute]);
 
   // Stack depth per route, so navigation animates as an iOS push going deeper
   // and a pop coming back, whatever path led here.

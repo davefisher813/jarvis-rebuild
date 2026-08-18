@@ -31,7 +31,7 @@ export default function LearnedRulesPage({ onBack }: { onBack: () => void }) {
       <LargeTitleNav title="What JARVIS Learned" back="Settings" onBack={onBack} />
       <div className="pad-x">
         {loaded && rules.length === 0 && (
-          <div className="empty-state"><div className="empty-title">Nothing learned yet</div></div>
+          <div className="empty-state"><div className="empty-title">Nothing Learned Yet</div></div>
         )}
         {rules.length > 0 && (
           <div className="card">

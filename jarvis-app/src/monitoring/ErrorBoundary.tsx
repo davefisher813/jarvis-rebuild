@@ -19,7 +19,7 @@ export default class ErrorBoundary extends Component<{ children: ReactNode }, { 
       return (
         <div className="screen">
           <div className="empty-state">
-            <div className="empty-title">Something went wrong</div>
+            <div className="empty-title">Something Went Wrong</div>
             <div className="empty-sub">Unexpected error · reload fixes it</div>
             <button className="btn btn-primary" onClick={() => location.reload()}>Reload</button>
           </div>

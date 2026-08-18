@@ -33,21 +33,24 @@ describe("BrainPage", () => {
     expect(screen.queryByText("Your Categories")).not.toBeInTheDocument();
   });
 
-  it("renders every row with a colored (non-grey) icon tile", () => {
+  // SPEC MOVED (Catalog V3.1, 2026-08-18): Brain is a library list now, the
+  // Apple Music form. Bare colored glyphs (lib-ico + cat-fg-*), no tiles;
+  // color still systemic, never grey.
+  it("renders every row with a colored (non-grey) library glyph", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
-    const tiles = container.querySelectorAll(".sec-ico");
+    const glyphs = container.querySelectorAll(".lib-ico");
     // 5 static rows + 3 category rows (Setup's 2 rows and the Inner Circle /
     // Adversarial rows all removed 2026-08-03)
-    expect(tiles.length).toBe(8);
-    expect(container.querySelectorAll(".sec-ico.ico-surface").length).toBe(0);
-    tiles.forEach((t) => expect(t.className).toMatch(/ico-blue|ico-accent|ico-good|cat-bg-/));
+    expect(glyphs.length).toBe(8);
+    expect(container.querySelectorAll(".lib-ico.lib-ico-neutral").length).toBe(0);
+    glyphs.forEach((t) => expect(t.className).toMatch(/cat-fg-/));
   });
 
-  it("colors each category tile with its own slot", () => {
+  it("colors each category glyph with its own slot", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
-    expect(container.querySelector(".sec-ico.cat-bg-blue")).toBeTruthy();
-    expect(container.querySelector(".sec-ico.cat-bg-pink")).toBeTruthy();
-    expect(container.querySelector(".sec-ico.cat-bg-green")).toBeTruthy();
+    expect(container.querySelector(".lib-ico.cat-fg-blue")).toBeTruthy();
+    expect(container.querySelector(".lib-ico.cat-fg-pink")).toBeTruthy();
+    expect(container.querySelector(".lib-ico.cat-fg-green")).toBeTruthy();
   });
 
   it("has no dead-end Setup rows (Onboarding/Backup live in Settings)", () => {

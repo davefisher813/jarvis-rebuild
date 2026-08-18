@@ -35,7 +35,7 @@ export default function NotificationsFlow() {
     <div className="screen">
       <div className="nav-bar"><div className="nav-large">Notifications</div></div>
       {feed.length === 0 ? (
-        <div className="empty-state"><div className="empty-icon">{BELL}</div><div className="empty-title">You're all caught up</div>
+        <div className="empty-state"><div className="empty-icon">{BELL}</div><div className="empty-title">You're All Caught Up</div>
           <div className="empty-sub">Overdue · today's events · at-risk goals</div></div>
       ) : (
         <div className="pad-x"><div className="card">

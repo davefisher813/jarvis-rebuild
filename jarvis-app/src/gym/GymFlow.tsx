@@ -367,7 +367,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
         {!program ? (
           <div className="empty-state">
             <div className="empty-icon">{DUMBBELL}</div>
-            <div className="empty-title">No program yet</div>
+            <div className="empty-title">No Program Yet</div>
             <button className="btn btn-primary" onClick={() => setSheet({ kind: "program" })}>Create a Program</button>
             {ai.available && <button className="btn btn-secondary" onClick={() => setUploadOpen(true)}>Upload One Instead</button>}
           </div>

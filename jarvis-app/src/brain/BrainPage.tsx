@@ -87,10 +87,14 @@ export default function BrainPage({
   onOpen: (key: string, name: string) => void;
   categories?: BrainCategory[];
 }) {
+  // Catalog V3.1 library form (approved 2026-08-18, the Apple Music look):
+  // bare colored glyphs, large names, inset hairlines. Each glyph keeps its
+  // systemic color; the tile background goes, the color stays.
+  const fgOf = (color: string) => color.replace(/^cat-bg-/, "cat-fg-").replace(/^ico-/, "cat-fg-");
   const Row = (r: BrainRow) => (
-    <div className="row" key={r.key} role="button" tabIndex={0} onClick={() => onOpen(r.key, r.name)}>
-      <div className={"sec-ico " + r.color}>{r.icon}</div>
-      <div className="row-grow"><div className="conn-name truncate">{r.name}</div></div>
+    <div className="lib-row" key={r.key} role="button" tabIndex={0} onClick={() => onOpen(r.key, r.name)}>
+      <div className={"lib-ico " + fgOf(r.color)}>{r.icon}</div>
+      <div className="lib-name">{r.name}</div>
       {r.status && <span className="row-status fg-good">{r.status}</span>}
       <Chev />
     </div>

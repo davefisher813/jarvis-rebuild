@@ -96,13 +96,21 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
         </div></div>
       )}
 
-      {status && <div className="page-explainer">{status}</div>}
+      {/* Catalog V3.1: the import receipt is a card row, not floating text. */}
+      {status && (
+        <div className="pad-x"><div className="card">
+          <div className="row"><div className="row-stack"><div className="conn-meta">{status}</div></div></div>
+        </div></div>
+      )}
 
       <div className="grp"><div className="eyebrow">Account Sync</div></div>
+      {/* Catalog V3.1: the explainer paragraph became three short card rows. */}
       <div className="pad-x"><div className="card">
-        <div className="row"><div className="row-grow"><div className="conn-name">iCloud / account sync</div></div><span className="row-value">Off</span></div>
+        <div className="row"><div className="row-grow"><div className="conn-name">iCloud / Account Sync</div></div><span className="row-value">Off</span></div>
+        <div className="row"><div className="row-stack"><div className="conn-name">Data Lives on This Device</div><div className="conn-meta">export keeps your own copy</div></div></div>
+        <div className="row"><div className="row-stack"><div className="conn-name">Import Adds, Never Removes</div><div className="conn-meta">duplicates skipped · nothing overwritten</div></div></div>
+        <div className="row"><div className="row-stack"><div className="conn-name">Sync Follows Your Account</div><div className="conn-meta">turns on with a synced sign-in</div></div></div>
       </div></div>
-      <div className="page-explainer">Your data lives on this device. Export keeps your own copy; import adds items from a backup file (it does not remove anything already here). Account sync turns on when you sign in with a synced account.</div>
 
       <input ref={fileRef} className="visually-hidden-input" type="file" accept="application/json,.json" onChange={onFile} />
     </div>

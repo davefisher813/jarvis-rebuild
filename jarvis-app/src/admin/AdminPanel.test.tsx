@@ -1,3 +1,4 @@
+// SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -8,7 +9,7 @@ import { makeSampleAdminSource, type AdminService } from "./AdminService";
 describe("AdminPanel", () => {
   it("blocks non-admins", () => {
     render(<AdminPanel isAdmin={false} source={makeSampleAdminSource()} />);
-    expect(screen.getByText("Not authorized")).toBeInTheDocument();
+    expect(screen.getByText("Not Authorized")).toBeInTheDocument();
   });
 
   it("renders usage, billing and users for an admin", async () => {
@@ -41,6 +42,6 @@ describe("AdminPanel", () => {
       async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
     };
     render(<AdminPanel isAdmin source={src} />);
-    expect(screen.getAllByText("Live data needs the admin server").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Live Data Needs the Admin Server").length).toBeGreaterThan(0);
   });
 });

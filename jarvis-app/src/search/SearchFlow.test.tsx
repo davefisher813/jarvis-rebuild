@@ -1,3 +1,4 @@
+// SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -16,8 +17,8 @@ function Seeded() {
 describe("SearchFlow", () => {
   it("prompts when empty, then finds a seeded task", async () => {
     render(<NotesProvider userId="u1"><Seeded /></NotesProvider>);
-    expect(await screen.findByText(/Search everything/)).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText("Search everything"), { target: { value: "sam" } });
+    expect(await screen.findByText(/Search Everything/)).toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("Search Everything"), { target: { value: "sam" } });
     await waitFor(() => expect(screen.getByText("Email Sam")).toBeInTheDocument());
   });
   it("Cancel calls onClose", () => {

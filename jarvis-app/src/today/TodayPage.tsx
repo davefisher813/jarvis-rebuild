@@ -168,10 +168,24 @@ export default function TodayPage({
   daypart?: "morning" | "evening" | null;
   birthdays?: { id: string; name: string }[]; // today's only; absent is the normal state
 }) {
-  const parts: JSX.Element[] = [];
-  parts.push(<span key="e"><RollingNumber value={summary.events} /> {summary.events === 1 ? "event" : "events"}</span>);
-  parts.push(<span key="d"> &middot; <RollingNumber value={summary.due} /> {summary.due === 1 ? "task due" : "tasks due"}</span>);
-  if (summary.overdue > 0) parts.push(<span key="o"> &middot; <span className="fg-red"><RollingNumber value={summary.overdue} /> overdue</span></span>);
+  // Catalog V3.1 (approved 2026-08-18): the workload line is tappable pills,
+  // not floating text. Sky events land on Schedule, blue due and red overdue
+  // land on Tasks. Rolling numbers kept.
+  const parts = (
+    <div className="day-pills">
+      <span className="day-pill dp-sky" role="button" tabIndex={0} onClick={onSeeAllSchedule}>
+        <RollingNumber value={summary.events} />&nbsp;{summary.events === 1 ? "event" : "events"}
+      </span>
+      <span className="day-pill dp-blue" role="button" tabIndex={0} onClick={onSeeAllTasks}>
+        <RollingNumber value={summary.due} />&nbsp;due
+      </span>
+      {summary.overdue > 0 && (
+        <span className="day-pill dp-red" role="button" tabIndex={0} onClick={onSeeAllTasks}>
+          <RollingNumber value={summary.overdue} />&nbsp;overdue
+        </span>
+      )}
+    </div>
+  );
 
   // Evening posture: recap instead of workload, Tonight instead of Your Day,
   // Tomorrow promoted above the (softened) open tasks. Same page, same data.

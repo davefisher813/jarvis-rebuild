@@ -72,7 +72,7 @@ export default function ConnectionsPage({
       {!configured && (
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><Link2 className="ic" /></div>
-          <div className="empty-title">Google setup required</div>
+          <div className="empty-title">Google Setup Required</div>
           <div className="empty-sub">Needs Google setup first</div>
         </div></div></div>
       )}
@@ -81,7 +81,7 @@ export default function ConnectionsPage({
       {g.accounts.length === 0 ? (
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><Mail className="ic" /></div>
-          <div className="empty-title">No accounts yet</div>
+          <div className="empty-title">No Accounts Yet</div>
         </div></div></div>
       ) : (
         <div className="pad-x"><div className="card">
@@ -139,7 +139,7 @@ export default function ConnectionsPage({
         <div className="pad-x"><div className="card"><div className="row">
           <div className="proj-icon cat-bg-sky"><CalendarDays className="ic" /></div>
           <div className="row-grow">
-            <div className="conn-name">Calendar import</div>
+            <div className="conn-name">Calendar Import</div>
             <div className="conn-meta">Events flow into Schedule</div>
           </div>
         </div></div></div>
@@ -148,14 +148,14 @@ export default function ConnectionsPage({
       {g.accounts.some((a) => a.mail) && (
         <div className="pad-x"><div className="card"><div className="row">
           <div className="row-grow">
-            <div className="conn-name">Know when your email is opened</div>
+            <div className="conn-name">Know When Your Email Is Opened</div>
             <div className="conn-meta">Read receipts on sent mail · powers Opened</div>
           </div>
           <button
             className={"switch" + (trackOpens ? "" : " off")}
             role="switch"
             aria-checked={trackOpens}
-            aria-label="Know when your email is opened"
+            aria-label="Know When Your Email Is Opened"
             onClick={async () => { const next = !trackOpens; setTrackOpens(next); await profile.save({ trackOpens: next }); }}
           />
         </div></div></div>

@@ -35,7 +35,7 @@ export default function LinkPicker({
 
       {empty && (
         <div className="pad-x"><div className="card"><div className="empty-state">
-          <div className="empty-title">Nothing to link yet</div>
+          <div className="empty-title">Nothing to Link Yet</div>
           <div className="empty-sub">Create something first · link it here</div>
         </div></div></div>
       )}

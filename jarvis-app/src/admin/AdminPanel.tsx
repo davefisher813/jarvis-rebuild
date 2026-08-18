@@ -42,7 +42,7 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
         <div className="nav-bar"><button className="nav-back" onClick={onBack}>Back</button><div className="nav-large">Admin</div></div>
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><ShieldAlert className="ic" /></div>
-          <div className="empty-title">Not authorized</div>
+          <div className="empty-title">Not Authorized</div>
           <div className="empty-sub">Master account only</div>
         </div></div></div>
       </div>
@@ -51,7 +51,7 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
 
   const serverNote = (
     <div className="pad-x"><div className="card"><div className="empty-state">
-      <div className="empty-title">Live data needs the admin server</div>
+      <div className="empty-title">Live Data Needs the Admin Server</div>
       <div className="empty-sub">Usage + billing · wired at launch</div>
     </div></div></div>
   );
@@ -84,7 +84,7 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
 
       <div className="grp"><div className="eyebrow">Users{users.length ? " (" + users.length + ")" : ""}</div></div>
       {!source.available ? serverNote : users.length === 0 ? (
-        <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">No users yet</div></div></div></div>
+        <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">No Users Yet</div></div></div></div>
       ) : (
         <div className="pad-x"><div className="card">
           {users.map((u) => (

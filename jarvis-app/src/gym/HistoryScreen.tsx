@@ -37,7 +37,7 @@ export default function HistoryScreen({ workouts, onBack }: { workouts: Workout[
       </div>
 
       {rows.length === 0 ? (
-        <div className="empty-state"><div className="empty-title">No numbers yet</div></div>
+        <div className="empty-state"><div className="empty-title">No Numbers Yet</div></div>
       ) : (
         <div className="pad-x"><div className="card">
           {rows.map((r) => {

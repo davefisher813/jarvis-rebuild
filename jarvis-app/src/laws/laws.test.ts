@@ -118,6 +118,41 @@ describe("LAW: Apple HIG casing", () => {
     expect(bad).toEqual([]);
   });
 
+  // Catalog V3.1 (Dave 2026-08-18): Title Case EVERYWHERE. Row names, library
+  // rows, empty-state titles, field labels, tip titles, and button labels all
+  // join the law. Only pure literals are checkable statically; dynamic content
+  // is the user's words and exempt by nature.
+  it("row names, labels, empty titles, and buttons are Title Case", () => {
+    // Exemptions, each principled: onboarding is a conversational surface
+    // (sentence case by catalog); interrogative strings are talk wherever
+    // they appear; brand words carry their own casing.
+    const TALK_FILES = new Set(["onboarding/OnboardingFlow.tsx"]);
+    const BRAND = /^(iCloud|iPhone|iPad|iOS|iMessage|macOS|kg|lb|min|hr)$/;
+    const passes = (t: string) => {
+      if (t.includes("?")) return true; // interrogative talk
+      const words = t.split(/\s+/).filter(Boolean);
+      return words.every((w, i) =>
+        BRAND.test(w.replace(/[^A-Za-z]/g, "")) || !/^[a-z]/.test(w) ||
+        (i > 0 && i < words.length - 1 && SMALL.has(w.toLowerCase())));
+    };
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      if (TALK_FILES.has(rel(f))) continue;
+      const src = read(f);
+      for (const cls of ["conn-name", "lib-name", "empty-title", "input-label", "tip-title", "restore-title"]) {
+        for (const m of src.matchAll(new RegExp('className="' + cls + '(?: [a-z-]+)*"[^>]*>\\s*([^<>{}\\n]{3,60}?)\\s*<', "g"))) {
+          const t = m[1]!.trim();
+          if (t.split(/\s+/).length > 1 && !passes(t)) bad.push(rel(f) + " [" + cls + "]: " + t);
+        }
+      }
+      for (const m of src.matchAll(/<button[^>]*>\s*([A-Za-z][^<>{}\n]{2,40}?)\s*<\/button>/g)) {
+        const t = m[1]!.trim();
+        if (t.split(/\s+/).length > 1 && !passes(t)) bad.push(rel(f) + " [button]: " + t);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
   it("ALL CAPS never appears in a source string, only via CSS", () => {
     const bad: string[] = [];
     for (const f of COMPONENTS) {

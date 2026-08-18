@@ -95,7 +95,7 @@ function fmtWhen(ms: number): string {
 // so junk is never opened. The headline counts what needs Dave, never unread.
 // Threads are the unit throughout; search is server-side over the whole
 // mailbox. Without AI the tab is an honest threaded list, no fake triage.
-export default function MessagesFlow({ ai, configured = googleConfigured(), token }: { ai: AIService; configured?: boolean; token?: string }) {
+export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections }: { ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void }) {
   const g = useGoogle();
   const tasks = useOptionalTasks();
   const people = useOptionalPeople();
@@ -181,7 +181,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   //
   // The first version sent every thread in one request with no timeout. With a
   // real inbox that request is huge and slow, and if it never came back the
-  // calm "Reading your inbox" screen sat there forever, a nicer looking wall
+  // calm "Reading Your Inbox" screen sat there forever, a nicer looking wall
   // is still a wall. Now: 12 threads per request, 20s ceiling each, one silent
   // retry per batch, and the sorted view appears as soon as the FIRST batch
   // lands instead of waiting for the whole inbox.
@@ -807,7 +807,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="nav-bar"><div className="nav-large">Email</div></div>
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="deck-dead-burst"><Burst show /></div>
-          <div className="empty-title">Inbox: dead</div>
+          <div className="empty-title">Inbox: Dead</div>
           <div className="empty-sub">
             {deadStats.ms % 60000 === 0 && deadStats.ms >= 60000
               ? drainReceipt(deadStats.n, deadStats.ms / 60000)
@@ -876,20 +876,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     return (
       <div className={"screen " + pushCls} key="connect">
         <div className="nav-bar"><div className="nav-large">Email</div></div>
+        {/* Catalog V3.1: the empty state carries its action. Directions to a
+            button somewhere else are illegal; the button is here. */}
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-icon"><Mail className="ic" /></div>
-          <div className="empty-title">{configured ? "Connect your email" : "Email setup required"}</div>
-          <div className="empty-sub">
-            {configured
-              ? "Connect Google for email"
-              : "Needs Google setup · Settings, Connections"}
-          </div>
+          <div className="empty-title">Connect Your Email</div>
         </div></div></div>
-        {configured && (
-          <div className="pad-x conn-action">
-            <button className="btn btn-primary btn-block" onClick={connect}>Connect Google</button>
-          </div>
-        )}
+        <div className="pad-x conn-action">
+          {configured
+            ? <button className="btn btn-primary btn-block" onClick={connect}>Connect Google</button>
+            : <button className="btn btn-primary btn-block" onClick={onOpenConnections}>Open Connections</button>}
+        </div>
         {error && <div className="pad-x conn-error">{error}</div>}
       </div>
     );
@@ -1176,7 +1173,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         ) : drafts.length === 0 ? (
           <div className="pad-x"><div className="card"><div className="empty-state">
             <div className="empty-icon"><Mail className="ic" /></div>
-            <div className="empty-title">No drafts</div>
+            <div className="empty-title">No Drafts</div>
           </div></div></div>
         ) : (
           <div className="pad-x"><div className="card">
@@ -1197,7 +1194,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         triageState === "failed" ? (
           <div className="pad-x"><div className="card"><div className="empty-state">
             <div className="empty-icon"><Mail className="ic" /></div>
-            <div className="empty-title">Couldn’t sort your mail</div>
+            <div className="empty-title">Couldn’t Sort Your Mail</div>
             <div className="empty-sub">Nothing lost · all still here</div>
             {triageWhy && <div className="msg-guard">{triageWhy}</div>}
             <div className="conn-action">
@@ -1207,7 +1204,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         ) : (
           <div className="pad-x"><div className="card"><div className="empty-state">
             <div className="empty-icon"><Mail className="ic" /></div>
-            <div className="empty-title">Reading your inbox</div>
+            <div className="empty-title">Reading Your Inbox</div>
             <div className="empty-sub">Sorting your mail</div>
             {/* Never trapped: the way out is on screen the whole time. */}
             <button className="quiet-action" onClick={() => setFilter("all")}>Show all mail instead</button>
@@ -1228,7 +1225,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {rows.length === 0 && (
             <div className="pad-x"><div className="card"><div className="empty-state">
               <div className="empty-icon"><Mail className="ic" /></div>
-              <div className="empty-title">Inbox is quiet</div>
+              <div className="empty-title">Inbox Is Quiet</div>
             </div></div></div>
           )}
           {needsYou.length > 0 && (
@@ -1269,7 +1266,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="card">
                 <div className="row" role="button" tabIndex={0} onClick={() => setRestOpen(!restOpen)}>
                   <div className="row-grow">
-                    <div className="conn-name">The rest</div>
+                    <div className="conn-name">The Rest</div>
                     <div className="conn-meta msg-gist">
                       {restOpen ? "Tap to fold away" : "Nothing waiting on you"}
                     </div>

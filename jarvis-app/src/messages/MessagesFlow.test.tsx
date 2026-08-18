@@ -1,3 +1,4 @@
+// SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -91,12 +92,12 @@ describe("MessagesFlow (threads)", () => {
     expect(screen.getByText(/Tucci needs the waiver by Friday/)).toBeInTheDocument();
     // THE FOLD: everything that does not need him is one line, not a section.
     // SPEC MOVED (V2 anatomy, 2026-08-15): the count is a pill beside the line.
-    expect(screen.getByText("The rest")).toBeInTheDocument();
+    expect(screen.getByText("The Rest")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
     expect(screen.queryByText("Noise")).toBeNull();
     expect(screen.queryByText("1 automated email")).toBeNull();
     // It expands in place, and noise inside it is still collapsed to a count.
-    fireEvent.click(screen.getByText("The rest"));
+    fireEvent.click(screen.getByText("The Rest"));
     expect(screen.getByText("Noise")).toBeInTheDocument();
     expect(screen.getByText("1 automated email")).toBeInTheDocument();
     expect(screen.queryByText(/DoorDash promo/)).toBeNull();
@@ -112,7 +113,7 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={ai} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
     // SPEC MOVED (V2 anatomy, 2026-08-15): fold count now rides as a pill.
-    fireEvent.click(await screen.findByText("The rest"));
+    fireEvent.click(await screen.findByText("The Rest"));
     fireEvent.click(await screen.findByText("Archive All"));
     await waitFor(() => expect(archived).toEqual(["t2"]));
     expect(screen.getByText("1 conversation archived")).toBeInTheDocument();
@@ -166,7 +167,7 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     // The law: a failed sort must not dump the raw list back on him.
-    expect(await screen.findByText("Couldn’t sort your mail")).toBeInTheDocument();
+    expect(await screen.findByText("Couldn’t Sort Your Mail")).toBeInTheDocument();
     expect(screen.queryByText("Tucci")).toBeNull();
     expect(screen.queryByText("Needs You")).toBeNull();
     expect(screen.queryByText("Noise")).toBeNull();
@@ -183,7 +184,7 @@ describe("MessagesFlow (threads)", () => {
     });
     render(wrap(<MessagesFlow ai={hanging} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("Reading your inbox");
+    await screen.findByText("Reading Your Inbox");
     // The exit is on screen while it is still trying, not only after failure.
     fireEvent.click(screen.getByText("Show all mail instead"));
     expect(await screen.findByText("Tucci")).toBeInTheDocument();
@@ -197,7 +198,7 @@ describe("MessagesFlow (threads)", () => {
     });
     render(wrap(<MessagesFlow ai={pending} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    expect(await screen.findByText("Reading your inbox")).toBeInTheDocument();
+    expect(await screen.findByText("Reading Your Inbox")).toBeInTheDocument();
     expect(screen.queryByText("Tucci")).toBeNull();
     expect(screen.queryByText("DoorDash")).toBeNull();
   });
@@ -223,7 +224,7 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     // SPEC MOVED (V2 anatomy, 2026-08-15): fold count now rides as a pill.
-    expect(await screen.findByText("The rest")).toBeInTheDocument();
+    expect(await screen.findByText("The Rest")).toBeInTheDocument();
     // SPEC MOVED (short copy, 2026-08-15)
     expect(screen.queryByText(/now tasks/)).toBeNull();
   });
@@ -278,7 +279,7 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     // SPEC MOVED (V2 anatomy, 2026-08-15): fold count now rides as a pill.
-    fireEvent.click(await screen.findByText("The rest"));
+    fireEvent.click(await screen.findByText("The Rest"));
     fireEvent.click(await screen.findByText("Archive All"));
     // SPEC MOVED (short copy, 2026-08-15)
     expect(await screen.findByText(/archived unread 4 times/)).toBeInTheDocument();
@@ -326,7 +327,7 @@ describe("MessagesFlow (threads)", () => {
 
   it("shows an honest setup state when unconfigured", () => {
     render(wrap(<MessagesFlow ai={noAI} configured={false} />));
-    expect(screen.getByText("Email setup required")).toBeInTheDocument();
+    expect(screen.getByText("Connect Your Email")).toBeInTheDocument();
   });
 
   it("lists drafts, opens one prefilled, and deletes it after sending", async () => {
