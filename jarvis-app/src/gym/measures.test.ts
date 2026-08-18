@@ -76,7 +76,9 @@ describe("volume is only claimed where it is real", () => {
 
 describe("deviation fields", () => {
   it("offers exactly the steppers each kind needs, and none for Done", () => {
-    expect(fieldsFor("weight_reps").map((f) => f.key)).toEqual(["w", "r"]);
+    // SPEC MOVED (Dave 2026-08-15): reps before weight, so every surface
+    // reads Sets, Reps, Weight in speaking order.
+    expect(fieldsFor("weight_reps").map((f) => f.key)).toEqual(["r", "w"]);
     expect(fieldsFor("distance_time").map((f) => f.key)).toEqual(["v", "t"]);
     expect(fieldsFor("done")).toEqual([]);
   });

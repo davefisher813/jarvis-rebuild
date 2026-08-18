@@ -116,7 +116,9 @@ export function beats(kind: MeasureKind, candidate: SetLog, best: SetLog): boole
 export function fieldsFor(kind: MeasureKind): { key: "w" | "r" | "v" | "t"; label: string; step: number }[] {
   switch (kind) {
     case "weight_reps":
-      return [{ key: "w", label: "Weight", step: 5 }, { key: "r", label: "Reps", step: 1 }];
+      // Reps before weight: the sheet reads Sets, Reps, Weight, the way a
+      // plan is said out loud (Dave, 2026-08-15).
+      return [{ key: "r", label: "Reps", step: 1 }, { key: "w", label: "Weight", step: 5 }];
     case "reps":
       return [{ key: "r", label: "Reps", step: 1 }];
     case "rounds":
