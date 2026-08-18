@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import PageHeader from "../shared/PageHeader";
 import type { Goal } from "../life/types";
 import type { ProjectRow, Progress } from "./progress";
 import { progressLabel } from "./progress";
@@ -37,7 +38,7 @@ export default function BiggerPicturePage({
   if (loading) {
     return (
       <div className="screen">
-        <div className="nav-bar"><div className="nav-large">Bigger Picture</div></div>
+        <PageHeader title="Bigger Picture" />
         <SkeletonRows />
       </div>
     );
@@ -46,7 +47,7 @@ export default function BiggerPicturePage({
   if (goals.length === 0 && projectRows.length === 0) {
     return (
       <div className="screen">
-        <div className="nav-bar"><div className="nav-large">Bigger Picture</div></div>
+        <PageHeader title="Bigger Picture" />
         <div className="empty-state">
           <div className="empty-icon">{TARGET}</div>
           <div className="empty-title">Nothing Here Yet</div>
@@ -59,7 +60,7 @@ export default function BiggerPicturePage({
 
   return (
     <div className="screen">
-      <div className="nav-bar"><div className="nav-large">Bigger Picture</div></div>
+      <PageHeader title="Bigger Picture" />
 
       {offer}
 

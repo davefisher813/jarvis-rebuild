@@ -319,7 +319,7 @@ describe("MessagesFlow (threads)", () => {
   it("composes and sends", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    fireEvent.click(await screen.findByLabelText("New message"));
+    fireEvent.click(await screen.findByLabelText("New Message"));
     fireEvent.change(screen.getByPlaceholderText("To"), { target: { value: "a@b.com" } });
     fireEvent.click(screen.getByText("Send"));
     await waitFor(() => expect(screen.getByText("Sent")).toBeInTheDocument());

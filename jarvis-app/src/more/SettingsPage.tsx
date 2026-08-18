@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import type { MoreRoute } from "./MorePage";
+import PageHeader from "../shared/PageHeader";
 
 const svg = (children: ReactNode) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{children}</svg>
@@ -35,11 +36,19 @@ const ITEMS: Item[] = [
   { label: "About", route: "about", tile: "ico-surface", icon: <Info />, group: 2 },
 ];
 
+// Library form (Design 2, approved 2026-08-18): bare colored glyphs, full
+// bleed. The tile color maps to its glyph color; neutral stays neutral.
+const fgOf = (tile: string) =>
+  tile.startsWith("cat-bg-") ? tile.replace("cat-bg-", "cat-fg-")
+  : tile === "ico-blue" ? "cat-fg-blue"
+  : tile === "ico-good" ? "cat-fg-green"
+  : "lib-ico-neutral";
+
 function SettingRow({ item, onClick }: { item: Item; onClick: () => void }) {
   return (
-    <div className="row settings-row" role="button" tabIndex={0} onClick={onClick}>
-      <div className={"sec-ico " + item.tile}>{item.icon}</div>
-      <div className="row-grow"><div className="conn-name">{item.label}</div></div>
+    <div className="lib-row" role="button" tabIndex={0} onClick={onClick}>
+      <div className={"lib-ico " + fgOf(item.tile)}>{item.icon}</div>
+      <div className="lib-name">{item.label}</div>
       <Chev />
     </div>
   );
@@ -52,13 +61,13 @@ export default function SettingsPage({ onNavigate, onBack }: { onNavigate: (r: M
   const anyMatch = groups.some((g) => g.length > 0);
   return (
     <div className="screen">
-      <div className="nav-bar"><button className="nav-back" onClick={onBack}>More</button></div>
-      <div className="nav-large">Settings</div>
-      <div className="pad-x settings-search"><div className="search-bar"><Mag /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" /></div></div>
+      <PageHeader title="Settings" back="More" onBack={onBack}>
+        <div className="pad-x settings-search"><div className="search-bar"><Mag /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" /></div></div>
+      </PageHeader>
       {groups.map((items, gi) => items.length > 0 && (
-        <div className="pad-x settings-group" key={gi}><div className="card">
+        <div className="settings-group" key={gi}>
           {items.map((i) => <SettingRow key={i.route} item={i} onClick={() => onNavigate(i.route)} />)}
-        </div></div>
+        </div>
       ))}
       {!anyMatch && <div className="empty-state"><div className="empty-title">No settings match "{q}"</div></div>}
     </div>

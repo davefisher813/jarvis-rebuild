@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
+import PageHeader, { BarAction } from "../../shared/PageHeader";
 import { ChevronLeft, ChevronRight, Plus, Camera } from "lucide-react";
 import type { EventItem } from "../types";
 import { monthMatrix, fmtTime, fmtRange, openSlots, minToHHMM } from "../calendar";
@@ -129,13 +130,10 @@ export default function SchedulePage({
 
   return (
     <div className="screen">
-      <div className="nav-bar">
-        <div className="nav-large">Schedule</div>
-        <div className="nav-actions">
-          {onUpload && <button className="nav-action" onClick={onUpload} aria-label="Upload a schedule"><Camera className="ic" /></button>}
-          <button className="nav-action" onClick={onNew} aria-label="New event"><Plus className="ic" /></button>
-        </div>
-      </div>
+      <PageHeader title="Schedule" actions={<>
+        {onUpload && <BarAction label="Upload a Schedule" onClick={onUpload}><Camera className="ic" /></BarAction>}
+        <BarAction label="New Event" onClick={onNew}><Plus className="ic" /></BarAction>
+      </>} />
 
       <div className="sched-seg"><div className="segmented">
         {(["day", "week", "month"] as Mode[]).map((m) => (
@@ -217,7 +215,7 @@ export default function SchedulePage({
         <div className="empty-state"><div className="t-body">No events</div><button className="btn btn-primary" onClick={onNew}>New Event</button></div>
       ) : (
         <>
-        <div className="pad-x"><div className={"card" + (mode === "day" && drag?.over ? " drop-target" : "")} ref={gridZoneRef}>
+        <div className={"sched-list" + (mode === "day" && drag?.over ? " drop-target" : "")} ref={gridZoneRef}>
           {entries.map((en, i) =>
             en.kind === "locked" ? (
               <div
@@ -252,7 +250,7 @@ export default function SchedulePage({
               </div>
             ),
           )}
-        </div></div>
+        </div>
         {slots.length > 0 && onPickSlot && (
           <div className="pad-x sched-open-list">
             {slots.slice(0, 4).map((sl, i) => (

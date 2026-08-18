@@ -50,6 +50,26 @@ export function RowIcon({ kind }: { kind: RowKind }) {
   return <div className={"row-ico " + TILE[kind]}>{ICON[kind]}</div>;
 }
 
+// Library form (Design 2, approved 2026-08-18): the same type icon as a BARE
+// colored glyph, no tile behind it. Same color system, more air. List
+// surfaces use this; the tile survives on stat-adjacent and banner surfaces.
+const FG: Record<RowKind, string> = {
+  task: "cat-fg-blue",
+  event: "cat-fg-sky",
+  note: "cat-fg-yellow",
+  money: "cat-fg-green",
+  person: "cat-fg-teal",
+  project: "cat-fg-indigo",
+  goal: "cat-fg-purple",
+  gym: "cat-fg-orange",
+  insight: "cat-fg-purple",
+  mail: "cat-fg-teal",
+};
+
+export function RowGlyph({ kind }: { kind: RowKind }) {
+  return <div className={"row-glyph " + FG[kind]}>{ICON[kind]}</div>;
+}
+
 export interface Stat {
   num: string | number;
   label: string;

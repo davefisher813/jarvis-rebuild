@@ -10,6 +10,7 @@ import type { DaySummary } from "./todayData";
 import RollingNumber from "../shared/RollingNumber";
 import YourDay from "./YourDay";
 import DayRing from "./DayRing";
+import { useCondensed } from "../shared/PageHeader";
 import { Burst, useBurst } from "../shared/Burst";
 import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats, type WeekRecap } from "./evening";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
@@ -290,9 +291,14 @@ export default function TodayPage({
     </>
   );
 
+  // Library chassis (Design 2, approved 2026-08-18): the JARVIS bar is the
+  // sticky glass bar; it condenses over the hero with the red energy line
+  // once the greeting scrolls away. Nothing collides with the clock.
+  const [condProbe, condensed] = useCondensed();
   return (
     <div className="screen">
-      <div className="today-bar">
+      <div className={"pagebar today-pagebar" + (condensed ? " on" : "")}>
+      <div className="today-bar pagebar-row">
         <button className="today-av" aria-label="Account" onClick={onProfile}>
           <div className="av av-32 av-accent">{avatar}</div>
         </button>
@@ -302,6 +308,7 @@ export default function TodayPage({
             <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
           </button>
         ) : <div className="today-av" aria-hidden="true" />}
+      </div>
       </div>
       <div className={"today-hero" + (daypart === "morning" ? " hero-morning" : daypart === "evening" ? " hero-evening" : "")}>
         <div className="today-hero-row">
@@ -316,6 +323,7 @@ export default function TodayPage({
           {ring && <DayRing done={ring.done} total={ring.total} />}
         </div>
       </div>
+      <div ref={condProbe} />
 
       {banners}
 

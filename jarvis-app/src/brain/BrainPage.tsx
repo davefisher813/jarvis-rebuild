@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { CategoryKind } from "../categories/types";
+import PageHeader from "../shared/PageHeader";
 
 // Inline icons so the build matches the approved preview exactly (no icon-name drift).
 const svg = (children: ReactNode) => (
@@ -101,8 +102,8 @@ export default function BrainPage({
   );
   const Section = (title: string, rows: BrainRow[]) => (
     <div key={title}>
-      <div className="sec-head"><div className="sec-title">{title}</div></div>
-      <div className="pad-x"><div className="card">{rows.map(Row)}</div></div>
+      <div className="sh2"><span className="t">{title}</span></div>
+      {rows.map(Row)}
     </div>
   );
 
@@ -122,15 +123,15 @@ export default function BrainPage({
 
   return (
     <div className="screen">
-      <div className="nav-bar"><div className="nav-large">Brain</div></div>
+      <PageHeader title="Brain" />
       {TOP_SECTIONS.map((sec) => Section(sec.title, sec.rows))}
       {groups.length > 0 && (
         <div>
-          <div className="sec-head"><div className="sec-title">Your Categories</div></div>
+          <div className="sh2"><span className="t">Your Categories</span><span className="n">{categories.length}</span></div>
           {groups.map((g) => (
-            <div className="pad-x cat-group" key={g.kind}>
+            <div className="cat-group" key={g.kind}>
               {showGroupLabels && <div className="cat-group-label eyebrow">{KIND_GROUP_LABEL[g.kind]}</div>}
-              <div className="card">{g.rows.map(Row)}</div>
+              {g.rows.map(Row)}
             </div>
           ))}
         </div>

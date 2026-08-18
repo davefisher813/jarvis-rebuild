@@ -1248,3 +1248,63 @@ button {
 @media (prefers-reduced-motion: reduce) {
   .restore-banner, .sweep-receipt, .tip-banner, .boot-stagger .card > * { animation: none; }
 }
+
+/* === LIBRARY CHASSIS (Design 2, approved 2026-08-18, LOCKED-CSS FLAGGED) ===
+   One header for every page. The bar is sticky and TRANSPARENT at rest; the
+   moment the large title scrolls away it condenses: glass, centered title,
+   hairline, and the red energy line (the one brand moment in the chrome).
+   Large titles and search live in the scroll. Nothing collides with the
+   clock, on any page, ever again. */
+.pagebar { position: sticky; top: 0; z-index: 40; padding-top: var(--safe-top, env(safe-area-inset-top, 0px));
+  pointer-events: none; transition: background var(--dur-fast) var(--ease-out); }
+.pagebar-row { height: 44px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 var(--s-3); position: relative; }
+.pagebar-row > * { pointer-events: auto; }
+.pagebar-title { position: absolute; left: 60px; right: 60px; text-align: center; font-size: var(--t-h3);
+  font-weight: var(--w-bold); color: var(--tx-1); opacity: 0; transition: opacity var(--dur-fast) var(--ease-out);
+  pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pagebar-acts { display: flex; gap: var(--s-2); }
+.pagebar.on { background: rgba(12,12,14,0.82); backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%); box-shadow: 0 0.5px 0 var(--divider); }
+[data-theme="light"] .pagebar.on { background: rgba(249,249,251,0.86); }
+.pagebar.on .pagebar-title { opacity: 1; }
+.pagebar.on::after { content: ""; position: absolute; left: var(--s-4); bottom: 0; height: 2px; width: 64px;
+  border-radius: 2px; background: linear-gradient(90deg, var(--accent), rgba(255,31,48,0)); }
+.pagehead-title { padding: var(--s-1) var(--s-4) 0; font-size: 34px; font-weight: var(--w-bold); letter-spacing: -0.03em; }
+.barbtn { width: 32px; height: 32px; border-radius: var(--r-circle); background: var(--press-3); border: 0;
+  display: flex; align-items: center; justify-content: center; color: var(--accent); flex-shrink: 0; }
+.barbtn .ic { width: 17px; height: 17px; }
+
+/* Library rows go FULL BLEED: dividers live on the rows themselves (inset to
+   the text edge), cards retire from navigation and plain lists. The generic
+   adjacent-row divider moves out of cards too: same law everywhere. */
+.row + .row, .task-row + .task-row, .sched-row + .sched-row, .conn-row + .conn-row,
+.msg-row + .msg-row, .proj-row + .proj-row, .suggestion-row + .suggestion-row {
+  border-top: 0; position: relative; }
+.row + .row::before, .task-row + .task-row::before, .sched-row + .sched-row::before,
+.conn-row + .conn-row::before, .msg-row + .msg-row::before, .proj-row + .proj-row::before,
+.suggestion-row + .suggestion-row::before {
+  content: ""; position: absolute; left: var(--s-4); right: 0; top: 0; height: 0.5px; background: var(--divider); }
+.row:has(.row-ico) + .row::before, .row + .row:has(.row-ico)::before {
+  left: calc(var(--s-4) + 28px + var(--s-3)); }
+.task-row:has(.task-check) + .task-row::before {
+  left: calc(var(--s-4) + 22px + var(--s-3)); }
+.sched-row + .sched-row::before { left: calc(var(--s-4) + 48px + var(--s-3)); }
+.lib-row + .lib-row::before { left: calc(var(--s-4) + 30px + var(--s-3h)); }
+
+/* Bare colored glyph column (replaces the tile on library surfaces). */
+.row-glyph { width: 30px; display: flex; justify-content: center; flex-shrink: 0; }
+.row-glyph .ic { width: 24px; height: 24px; }
+.lib-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: 1px; }
+.lib-amt { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
+.lib-amt.neg { color: var(--red); }
+/* Section heads in the library form: bold, at 16, count at -16. */
+.sh2 { display: flex; align-items: baseline; justify-content: space-between;
+  padding: var(--s-4h, 18px) var(--s-4) var(--s-1h); }
+.sh2 .t { font-size: var(--t-h2); font-weight: var(--w-bold); color: var(--tx-1); }
+.sh2 .n { font-size: var(--t-eyebrow); font-weight: var(--w-bold); color: var(--tx-3); letter-spacing: var(--track-caps); }
+/* Today's brand bar rides the same chassis: sticky, glass on condense. */
+.today-pagebar .today-bar { padding-top: 0; height: 44px; width: 100%; }
+.sched-list.drop-target { outline: 2px solid var(--red); outline-offset: -2px; border-radius: var(--r-md); }
+.pagehead { position: relative; }
+.lib-stack { flex: 1; min-width: 0; }

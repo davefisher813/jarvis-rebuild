@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import PageHeader, { BarAction } from "../shared/PageHeader";
 import { createPortal } from "react-dom";
 import { useMoney, useTasks, useProfile, useCategories } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
@@ -188,7 +189,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
   const balanceAsOf = accounts.map((a) => a.data.asOf).filter((d): d is string => !!d).sort().pop();
 
   const billRows = (
-    <div className="card">
+    <div>
       {anchor && (
         <div className="row" role="button" tabIndex={0} onClick={() => setPaydayOpen(true)}>
           <div className="row-grow">
@@ -238,7 +239,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
 
   return (
     <div className="screen">
-      <div className="nav-bar"><div className="nav-large">Money</div></div>
+      <PageHeader title="Money" />
       {accounts.length === 0 && bills.length === 0 && tagged.length === 0 ? (
         <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No Accounts Yet</div>
           <button className="btn btn-primary" onClick={() => setSheet({ kind: "new" })}>Add an Account</button>
@@ -271,8 +272,8 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
                 )}
               </div></div>
 
-              <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green">{DOLLAR}</div><div className="sec-title">Set Aside</div></div></div>
-              <div className="pad-x"><div className="card">
+              <div className="sh2"><span className="t">Set Aside</span></div>
+              <div>
                 {envelopes.map((e) => (
                   <div className="row" key={e.id}>
                     <div className="row-grow"><div className="conn-name truncate">{e.name}</div></div>
@@ -307,7 +308,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
                     <div className="row-grow"><div className="conn-name">Set Money Aside</div></div>
                   </div>
                 )}
-              </div></div>
+              </div>
               {envelopes.length === 0 && (
                 <div className="pad-x"><div className="input-help">
                   Reserved · not spendable · a plan
@@ -324,23 +325,23 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               <div className="money-hero-label">As you last entered it{balanceAsOf ? ` · ${monthDay(balanceAsOf)}` : ""}</div>
             </div></div>
           )}
-          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green">{DOLLAR}</div><div className="sec-title">Bills</div></div></div>
-          <div className="pad-x">{billRows}</div>
+          <div className="sh2"><span className="t">Bills</span></div>
+          <div>{billRows}</div>
           {tagged.length > 0 && (
             <>
-              <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green">{DOLLAR}</div><div className="sec-title">Also Tagged Money</div></div></div>
-              <div className="pad-x"><div className="card">
+              <div className="sh2"><span className="t">Also Tagged Money</span></div>
+              <div>
                 {tagged.map((t) => (
                   <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => onOpenTask?.(t.id)}>
                     <div className="row-grow"><div className="conn-name truncate">{t.data.text}</div></div>
                     {CHEV}
                   </div>
                 ))}
-              </div></div>
+              </div>
             </>
           )}
-          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green">{WALLET}</div><div className="sec-title">Accounts</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2"><span className="t">Accounts</span><span className="n">{accounts.length}</span></div>
+          <div>
             {accounts.map((a) => {
               const m = ACCOUNT_META[a.data.kind];
               return (
@@ -355,7 +356,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
             <div className="proj-row" role="button" tabIndex={0} onClick={() => setSheet({ kind: "new" })}>
               <div className="sec-ico ico-accent">{PLUS}</div><div className="row-grow"><div className="conn-name">Add Account</div></div>
             </div>
-          </div></div>
+          </div>
           <div className="screen-foot" />
         </>
       )}

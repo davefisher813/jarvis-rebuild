@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import PageHeader, { BarAction } from "../shared/PageHeader";
 import { useChat, useTasks, useSchedule, useNotes, useCategories } from "../data/NotesProvider";
 import { useAI } from "../ai/useAI";
 import { useAIContext, todayISO } from "../ai/useAIContext";
@@ -184,7 +185,7 @@ export default function ChatFlow() {
 
   return (
     <div className="screen">
-      <div className="nav-bar"><div className="nav-large">JARVIS</div></div>
+      <PageHeader title="Chat" hero={<div className="pagehead-title">JARVIS</div>} />
       <div className="chat-thread">
         {msgs.map((m) => (
           <div key={m.id} className={"chat-bubble " + (m.data.role === "user" ? "chat-user" : "chat-jarvis")}>

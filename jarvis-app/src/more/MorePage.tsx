@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Destination } from "../shell/destinations";
+import PageHeader from "../shared/PageHeader";
 
 const svg = (children: ReactNode) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{children}</svg>
@@ -52,30 +53,29 @@ export default function MorePage({ extras, onOpenExtra, onNavigate }: {
 }) {
   return (
     <div className="screen">
-      <div className="nav-bar"><div className="nav-large">More</div></div>
-
-      <div className="pad-x"><div className="card">
-        <div className="lib-row" role="button" tabIndex={0} onClick={() => onNavigate("settings")}>
-          <div className="lib-ico lib-ico-neutral"><Gear /></div>
-          <div className="lib-name">Settings</div>
-          <Chev />
-        </div>
-      </div></div>
+      {/* Library chassis (Design 2, approved 2026-08-18): sticky condensing
+          bar, full-bleed rows, cards retired from navigation. */}
+      <PageHeader title="More" />
 
       {extras.length > 0 && (
         <>
-          <div className="grp"><div className="eyebrow">Your Stuff</div></div>
-          <div className="pad-x"><div className="card">
-            {extras.map((d) => (
-              <div className="lib-row" role="button" tabIndex={0} key={d.key} onClick={() => onOpenExtra(d.key)}>
-                <div className={"lib-ico " + (EXTRA_FG[d.key] ?? "lib-ico-neutral")}><d.Icon className="ic" /></div>
-                <div className="lib-name">{d.label}</div>
-                <Chev />
-              </div>
-            ))}
-          </div></div>
+          <div className="sh2"><span className="t">Your Stuff</span></div>
+          {extras.map((d) => (
+            <div className="lib-row" role="button" tabIndex={0} key={d.key} onClick={() => onOpenExtra(d.key)}>
+              <div className={"lib-ico " + (EXTRA_FG[d.key] ?? "lib-ico-neutral")}><d.Icon className="ic" /></div>
+              <div className="lib-name">{d.label}</div>
+              <Chev />
+            </div>
+          ))}
         </>
       )}
+
+      <div className="sh2"><span className="t">App</span></div>
+      <div className="lib-row" role="button" tabIndex={0} onClick={() => onNavigate("settings")}>
+        <div className="lib-ico lib-ico-neutral"><Gear /></div>
+        <div className="lib-name">Settings</div>
+        <Chev />
+      </div>
     </div>
   );
 }

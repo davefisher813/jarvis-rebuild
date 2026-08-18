@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import PageHeader, { BarAction } from "../shared/PageHeader";
 import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward } from "lucide-react";
 import type { AIService } from "../ai/AIService";
 import { useGoogle } from "../connections/google/GoogleSession";
@@ -804,7 +805,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   if (view === "dead" && deadStats) {
     return (
       <div className={"screen " + pushCls} key="dead">
-        <div className="nav-bar"><div className="nav-large">Email</div></div>
+        <PageHeader title="Email" />
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="deck-dead-burst"><Burst show /></div>
           <div className="empty-title">Inbox: Dead</div>
@@ -875,7 +876,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   if (view === "list" && (!configured || !g.hasToken)) {
     return (
       <div className={"screen " + pushCls} key="connect">
-        <div className="nav-bar"><div className="nav-large">Email</div></div>
+        <PageHeader title="Email" />
         {/* Catalog V3.1: the empty state carries its action. Directions to a
             button somewhere else are illegal; the button is here. */}
         <div className="pad-x"><div className="card"><div className="empty-state">
@@ -1096,10 +1097,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   return (
     <div className={"screen " + pushCls} key="list">
-      <div className="nav-bar">
-        <div className="nav-large">Email</div>
-        <button className="nav-action" onClick={startCompose} aria-label="New message"><Plus className="ic" /></button>
-      </div>
+      <PageHeader title="Email" actions={<BarAction label="New Message" onClick={startCompose}><Plus className="ic" /></BarAction>} />
       {showTriage && <div className="pad-x msg-headline">{headline(needsYou.length, visibleRows.length)}</div>}
       {showTriage && needsYou.length > 0 && (
         <div className="pad-x deck-cta">

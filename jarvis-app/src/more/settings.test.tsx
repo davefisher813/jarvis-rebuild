@@ -36,12 +36,14 @@ describe("Settings", () => {
         </AuthProvider>
       </AppearanceProvider>,
     );
-    expect(screen.getByText("More")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Settings"));
+    // SPEC MOVED (Library chassis 2026-08-18): every page title renders twice
+    // (large title + condensed bar title), so queries pick the large one.
+    expect(screen.getAllByText("More").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getAllByText("Settings")[0]!);
     await waitFor(() => expect(screen.getByText("Categories")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Categories"));
     await waitFor(() => expect(screen.getByText("Add Category")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Settings"));
+    fireEvent.click(screen.getAllByText("Settings")[0]!);
     await waitFor(() => expect(screen.getByText("Edit Tabs")).toBeInTheDocument());
   });
 

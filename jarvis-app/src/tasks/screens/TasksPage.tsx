@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import PageHeader, { BarAction } from "../../shared/PageHeader";
 import { Plus, Trash2, Clock, ListChecks } from "lucide-react";
 import SkeletonRows from "../../shared/SkeletonRows";
 import { Burst } from "../../shared/Burst";
@@ -176,12 +177,7 @@ export default function TasksPage({
   const [qa, setQa] = useState("");
   return (
     <div className="screen">
-      <div className="nav-bar">
-        <div className="nav-large">Tasks</div>
-        <button className="nav-action" onClick={onNew} aria-label="New task">
-          <Plus className="ic" />
-        </button>
-      </div>
+      <PageHeader title="Tasks" actions={<BarAction label="New Task" onClick={onNew}><Plus className="ic" /></BarAction>} />
 
       <div className="chip-row">
         {FILTERS.map((f) => (
@@ -240,17 +236,17 @@ export default function TasksPage({
               that is only allowed one. */}
         </div>
       ) : (
-        <div className="pad-x">
-          <div className="card">
-            {items.map((it) => (
-              <React.Fragment key={it.id}>
-                <Row item={it} today={today} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDeleteTask} onSnooze={onSnoozeTask} />
-                {/* Momentum Chain (addendum item 7): the suggestion slides
-                    into the just-finished slot, right below its row. */}
-                {momentum?.afterId === it.id && momentum.el}
-              </React.Fragment>
-            ))}
-          </div>
+        <div>
+          {/* Library form (Design 2, approved 2026-08-18): full-bleed rows,
+              dividers inset past the checkbox, no card. */}
+          {items.map((it) => (
+            <React.Fragment key={it.id}>
+              <Row item={it} today={today} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDeleteTask} onSnooze={onSnoozeTask} />
+              {/* Momentum Chain (addendum item 7): the suggestion slides
+                  into the just-finished slot, right below its row. */}
+              {momentum?.afterId === it.id && momentum.el}
+            </React.Fragment>
+          ))}
         </div>
       )}
     </div>

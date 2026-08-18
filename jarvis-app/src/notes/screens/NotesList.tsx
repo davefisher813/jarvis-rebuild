@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PageHeader, { BarAction } from "../../shared/PageHeader";
 import { FileText, PenLine, Search } from "lucide-react";
 import { catColor } from "../../shared/categories";
 
@@ -29,41 +30,32 @@ export default function NotesList({
   const shown = query ? notes.filter((n) => n.title.toLowerCase().includes(query)) : notes;
   return (
     <div className="screen">
-      <div className="nav-bar">
-        <span></span>
-        <button className="nav-action" onClick={onNewNote} aria-label="New note">
-          <PenLine className="ic" />
-        </button>
-      </div>
-      <div className="nav-large">Notes</div>
-
-      <div className="sub-bar">
-        <div className="search-bar">
-          <Search className="ic" />
-          <input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+      {/* Library chassis (Design 2, approved 2026-08-18): pencil rides the
+          bar, search under the title, notes as full-bleed library rows with
+          the category color on a bare glyph. */}
+      <PageHeader title="Notes" actions={<BarAction label="New Note" onClick={onNewNote}><PenLine className="ic" /></BarAction>}>
+        <div className="sub-bar">
+          <div className="search-bar">
+            <Search className="ic" />
+            <input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
         </div>
-      </div>
+      </PageHeader>
 
-      {/* V2 anatomy: the section carries the yellow note tile; each row's
-          category tile is its leading visual, so no RowIcon on rows. */}
-      <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-yellow"><FileText className="ic" /></div><div className="sec-title">All Notes</div></div></div>
-      <div className="pad-x">
-        <div className="card">
-          {shown.map((n) => (
-            <div className="row" key={n.id} onClick={() => onOpen?.(n.id)}>
-              <div className={"proj-icon cat-bg-" + catColor(n.category)}>
-                <FileText className="ic" />
-              </div>
-              <div className="conn-name truncate">{n.title}</div>
-              <div className="conn-meta">{n.date}</div>
-              <div className="chev"></div>
-            </div>
-          ))}
-          {query && shown.length === 0 && (
-            <div className="row"><div className="conn-name">No notes match &ldquo;{q.trim()}&rdquo;</div></div>
-          )}
+      <div className="sh2"><span className="t">All Notes</span><span className="n">{shown.length}</span></div>
+      {shown.map((n) => (
+        <div className="lib-row" role="button" tabIndex={0} key={n.id} onClick={() => onOpen?.(n.id)}>
+          <div className={"lib-ico cat-fg-" + catColor(n.category)}><FileText className="ic" /></div>
+          <div className="lib-stack">
+            <div className="lib-name">{n.title}</div>
+            <div className="lib-sub">{n.date}</div>
+          </div>
+          <div className="chev"></div>
         </div>
-      </div>
+      ))}
+      {query && shown.length === 0 && (
+        <div className="lib-row"><div className="lib-name">No notes match &ldquo;{q.trim()}&rdquo;</div></div>
+      )}
     </div>
   );
 }
