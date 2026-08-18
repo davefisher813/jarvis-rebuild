@@ -42,7 +42,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
       setDirty(false);
       setSaved(true);
     } catch {
-      showToast({ message: "Couldn't save · check your connection" });
+      showToast({ message: "Couldn't save · Check your connection" });
     }
   };
 
@@ -61,7 +61,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
       setDirty(true);
       setSaved(false);
     } catch {
-      showToast({ message: "Couldn't read that photo · try clearer" });
+      showToast({ message: "Couldn't read that photo · Try clearer" });
     } finally {
       setReading(false);
     }

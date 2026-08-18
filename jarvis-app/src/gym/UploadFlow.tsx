@@ -39,12 +39,12 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
       const out = await ai.complete([message], JARVIS_VOICE);
       const parsed = parseProgramExtract(out);
       if (!parsed) {
-        showToast({ message: "Couldn't read that · try a clearer photo" });
+        showToast({ message: "Couldn't read that · Try a clearer photo" });
         return;
       }
       setDraft(parsed);
     } catch {
-      showToast({ message: "Couldn't reach JARVIS · try again" });
+      showToast({ message: "Couldn't reach JARVIS · Try again" });
     } finally {
       setBusy(false);
     }

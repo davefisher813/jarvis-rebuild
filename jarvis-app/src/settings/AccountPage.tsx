@@ -47,7 +47,7 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
         }}>
           <div className="row-grow">
             <div className="conn-name">{redoArmed ? "Tap again to redo setup" : "Redo Setup"}</div>
-            {redoArmed && <div className="conn-meta">Your data stays · intake runs again</div>}
+            {redoArmed && <div className="conn-meta">Your data stays · Intake runs again</div>}
           </div>
           <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
         </div>

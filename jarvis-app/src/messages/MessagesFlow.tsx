@@ -1193,7 +1193,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="pad-x"><div className="card"><div className="empty-state">
             <div className="empty-icon"><Mail className="ic" /></div>
             <div className="empty-title">Couldn’t Sort Your Mail</div>
-            <div className="empty-sub">Nothing lost · all still here</div>
+            <div className="empty-sub">Nothing lost · All still here</div>
             {triageWhy && <div className="msg-guard">{triageWhy}</div>}
             <div className="conn-action">
               <button className="btn btn-secondary btn-block" onClick={() => setFilter("all")}>Show All Mail</button>

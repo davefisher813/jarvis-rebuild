@@ -24,7 +24,7 @@ export default function AdvancedPage({ onBack, onExport }: { onBack: () => void;
       const n = await chat.clearAll();
       showToast({ message: n === 0 ? "No chat history" : `Deleted ${n} ${n === 1 ? "message" : "messages"}` });
     });
-    if (!ok) showToast({ message: "Couldn't delete · try again" });
+    if (!ok) showToast({ message: "Couldn't delete · Try again" });
     setChatBusy(false);
   };
   return (

@@ -198,7 +198,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     setFsHidden(true);
     emit({ type: "suggestion.accepted", props: { kind: "first_step" } });
     await reload();
-    showToast({ message: "First step on Today · big one waits" });
+    showToast({ message: "First step on Today · Big one waits" });
   };
 
   const fsDismiss = () => {

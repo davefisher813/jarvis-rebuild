@@ -107,9 +107,9 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
       {/* Catalog V3.1: the explainer paragraph became three short card rows. */}
       <div className="pad-x"><div className="card">
         <div className="row"><div className="row-grow"><div className="conn-name">iCloud / Account Sync</div></div><span className="row-value">Off</span></div>
-        <div className="row"><div className="row-stack"><div className="conn-name">Data Lives on This Device</div><div className="conn-meta">export keeps your own copy</div></div></div>
-        <div className="row"><div className="row-stack"><div className="conn-name">Import Adds, Never Removes</div><div className="conn-meta">duplicates skipped · nothing overwritten</div></div></div>
-        <div className="row"><div className="row-stack"><div className="conn-name">Sync Follows Your Account</div><div className="conn-meta">turns on with a synced sign-in</div></div></div>
+        <div className="row"><div className="row-stack"><div className="conn-name">Data Lives on This Device</div><div className="conn-meta">Export keeps your own copy</div></div></div>
+        <div className="row"><div className="row-stack"><div className="conn-name">Import Adds, Never Removes</div><div className="conn-meta">Duplicates skipped · Nothing overwritten</div></div></div>
+        <div className="row"><div className="row-stack"><div className="conn-name">Sync Follows Your Account</div><div className="conn-meta">Turns on with a synced sign-in</div></div></div>
       </div></div>
 
       <input ref={fileRef} className="visually-hidden-input" type="file" accept="application/json,.json" onChange={onFile} />

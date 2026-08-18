@@ -114,7 +114,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
       setDirty(false);
       setSaved(true);
     } catch {
-      showToast({ message: "Couldn't save · check your connection" });
+      showToast({ message: "Couldn't save · Check your connection" });
     }
   };
 
@@ -208,7 +208,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
             <div className="row">
               <div className="row-grow">
                 <div className="conn-name">Flexible</div>
-                <div className="conn-meta">Kept clear when possible · off means never</div>
+                <div className="conn-meta">Kept clear when possible · Off means never</div>
               </div>
               <button
                 className={"switch" + (form.soft ? "" : " off")}

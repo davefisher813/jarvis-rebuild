@@ -706,7 +706,7 @@ export default function TodayFlow({
             });
             setOverflowOffer(null);
             await reload();
-            if (ok) showToast({ message: "Set aside · keeps its place" });
+            if (ok) showToast({ message: "Set aside · Keeps its place" });
           })()}>Set Aside</button>
           <button className="promo-pill" onClick={() => setOverflowOffer(null)}>Leave It</button>
       </div>
@@ -749,7 +749,7 @@ export default function TodayFlow({
                 const ok = await attemptWrite(() => tasks.setAside([sweepCand.id]));
                 setSweepReceipt(readReceipt(today));
                 await reload();
-                if (ok) showToast({ message: "Set aside · keeps its place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
+                if (ok) showToast({ message: "Set aside · Keeps its place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
               })()}>Set Aside</button>
             )}
             <button className="promo-pill" onClick={() => void (async () => { await attemptWrite(() => undoSweep(tasks, sweepReceipt)); setSweepReceipt(null); await reload(); })()}>Undo</button>

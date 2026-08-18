@@ -233,21 +233,21 @@ export default function PlanDaySheet({
               {ranges.focus.map((b) => (
                 <div className="row" key={"f" + b.s}>
                   <span className="cat-dot cat-bg-blue" />
-                  <div className="row-stack"><div className="conn-name">{b.label}</div><div className="conn-meta">Focus · picks land here</div></div>
+                  <div className="row-stack"><div className="conn-name">{b.label}</div><div className="conn-meta">Focus · Picks land here</div></div>
                   <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
                 </div>
               ))}
               {ranges.hard.map((b) => (
                 <div className="row" key={"h" + b.s}>
                   <span className="cat-dot cat-bg-graphite" />
-                  <div className="row-stack"><div className="conn-name">{b.label}</div><div className="conn-meta">Protected · routed around</div></div>
+                  <div className="row-stack"><div className="conn-name">{b.label}</div><div className="conn-meta">Protected · Routed around</div></div>
                   <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
                 </div>
               ))}
               {ranges.soft.map((b) => (
                 <div className="row" key={"s" + b.s}>
                   <span className="cat-dot cat-bg-teal" />
-                  <div className="row-stack"><div className="conn-name">{b.label}</div><div className="conn-meta">Flexible · used when tight</div></div>
+                  <div className="row-stack"><div className="conn-name">{b.label}</div><div className="conn-meta">Flexible · Used when tight</div></div>
                   <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
                 </div>
               ))}

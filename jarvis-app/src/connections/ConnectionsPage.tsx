@@ -96,7 +96,7 @@ export default function ConnectionsPage({
                     account used to silently drop its mail from the unified
                     inbox with no reconnect anywhere; Reconnect All only
                     appeared when EVERY account was out. */}
-                {signedOut && <div className="conn-meta">Signed out · reconnect for mail + events</div>}
+                {signedOut && <div className="conn-meta">Signed out · Reconnect for mail + events</div>}
                 <div className="msg-chips conn-acct-chips">
                   {signedOut && (
                     <button className="chip on" disabled={busy}
@@ -149,7 +149,7 @@ export default function ConnectionsPage({
         <div className="pad-x"><div className="card"><div className="row">
           <div className="row-grow">
             <div className="conn-name">Know When Your Email Is Opened</div>
-            <div className="conn-meta">Read receipts on sent mail · powers Opened</div>
+            <div className="conn-meta">Read receipts on sent mail · Powers Opened</div>
           </div>
           <button
             className={"switch" + (trackOpens ? "" : " off")}

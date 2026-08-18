@@ -164,6 +164,37 @@ describe("LAW: Apple HIG casing", () => {
     expect(bad).toEqual([]);
   });
 
+  // V3.3 addendum (Dave 2026-08-18): anything starting a line, and anything
+  // after a middle-dot section break, starts with a capital. Applies to sub
+  // and meta literals and to toast receipts; dynamic segments are exempt by
+  // nature (only pure literals are scanned).
+  it("line starts and dot-break segments start capital", () => {
+    const segsOk = (t: string) =>
+      t.split("·").every((seg) => {
+        const first = seg.trim().match(/[A-Za-z]/)?.[0];
+        // Only judge the leading character of the segment; a digit lead
+        // ("20 minutes ago") is fine, so find the FIRST char, not first letter.
+        const lead = seg.trim()[0];
+        if (!lead) return true;
+        return !/[a-z]/.test(lead) || first !== lead;
+      });
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const src = read(f);
+      for (const cls of ["conn-meta", "lib-sub", "promo-sub", "restore-meta", "tip-sub", "empty-sub"]) {
+        for (const m of src.matchAll(new RegExp('className="' + cls + '(?: [a-z-]+)*"[^>]*>\\s*([^<>{}\\n]{3,80}?)\\s*<', "g"))) {
+          const t = m[1]!.trim();
+          if (!segsOk(t)) bad.push(rel(f) + " [" + cls + "]: " + t);
+        }
+      }
+      for (const m of src.matchAll(/message:\s*"([^"{}]{3,80}?)"/g)) {
+        const t = m[1]!.trim();
+        if (!segsOk(t)) bad.push(rel(f) + " [toast]: " + t);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
   it("ALL CAPS never appears in a source string, only via CSS", () => {
     const bad: string[] = [];
     for (const f of COMPONENTS) {

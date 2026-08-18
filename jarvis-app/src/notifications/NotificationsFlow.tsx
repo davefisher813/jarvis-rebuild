@@ -37,7 +37,7 @@ export default function NotificationsFlow() {
       <PageHeader title="Notifications" />
       {feed.length === 0 ? (
         <div className="empty-state"><div className="empty-icon">{BELL}</div><div className="empty-title">You're All Caught Up</div>
-          <div className="empty-sub">Overdue · today's events · at-risk goals</div></div>
+          <div className="empty-sub">Overdue · Today's events · At-risk goals</div></div>
       ) : (
         <div>
           {feed.map((n) => {

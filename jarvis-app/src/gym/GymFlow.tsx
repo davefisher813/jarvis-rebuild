@@ -110,7 +110,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
       await svc.createProgram({ name: p.name, days: p.days });
     }
     await reload();
-    showToast({ message: "Program saved · check days once" });
+    showToast({ message: "Program saved · Check days once" });
   };
 
   const saveDays = async (days: ProgramDay[]) => {
@@ -172,7 +172,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
       await flushPending((w) => svc.saveWorkout(w));
       setReceipt({ receipt: r, dayName: live.dayName });
     } else {
-      showToast({ message: "Nothing logged · nothing saved" });
+      showToast({ message: "Nothing logged · Nothing saved" });
     }
     await reload();
   };

@@ -353,7 +353,7 @@ export default function TodayPage({
             <div className="row" role="button" tabIndex={0} onClick={freshStart}>
               <div className="row-grow">
                 <div className="conn-name">Rough day? Fresh start.</div>
-                <div className="conn-meta">Re-plan what's left · nothing lost</div>
+                <div className="conn-meta">Re-plan what's left · Nothing lost</div>
               </div>
               <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
             </div>

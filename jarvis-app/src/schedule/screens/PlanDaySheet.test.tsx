@@ -151,7 +151,7 @@ describe("PlanDaySheet (redesigned 2026-08-06)", () => {
     render(
       <PlanDaySheet events={[]} tasks={TASKS} startMin={START} endMin={END} blocked={blocked} onCommit={() => {}} onClose={() => {}} />,
     );
-    expect(screen.getByText(/Protected · routed around/)).toBeInTheDocument();
+    expect(screen.getByText(/Protected · Routed around/)).toBeInTheDocument();
     expect(screen.getByText(/Lunch/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Return package"));
@@ -267,10 +267,10 @@ describe("PlanDaySheet focus zones", () => {
         blocked={BLOCKED} onCommit={() => {}} onClose={() => {}}
       />,
     );
-    expect(screen.getByText(/Focus · picks land here/)).toBeInTheDocument();
-    expect(screen.getByText(/Flexible · used when tight/)).toBeInTheDocument();
+    expect(screen.getByText(/Focus · Picks land here/)).toBeInTheDocument();
+    expect(screen.getByText(/Flexible · Used when tight/)).toBeInTheDocument();
     // Deep Work never appears under Protected (there are no hard blocks here).
-    expect(screen.queryByText(/Protected · routed around/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Protected · Routed around/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Return package"));
     // The morning is wide open, but the pick lands at 1:00 PM, inside the zone.
     expect(document.querySelector(".p3-time")!.textContent).toBe("1:00 PM");

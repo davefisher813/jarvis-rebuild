@@ -13,7 +13,7 @@
 
 import { showToast } from "./toast";
 
-export const WRITE_FAILED_MESSAGE = "Couldn't save · check your connection";
+export const WRITE_FAILED_MESSAGE = "Couldn't save · Check your connection";
 
 // Run a write (or a sequence of writes that succeed or fail as one action).
 // Resolves true on success. On failure: standard toast, resolves false,

@@ -51,7 +51,7 @@ export default function BiggerPicturePage({
         <div className="empty-state">
           <div className="empty-icon">{TARGET}</div>
           <div className="empty-title">Nothing Here Yet</div>
-          <div className="empty-sub">Add a project · progress fills itself</div>
+          <div className="empty-sub">Add a project · Progress fills itself</div>
           <button className="btn btn-primary" onClick={onAddProject}>Add a Project</button>
         </div>
       </div>

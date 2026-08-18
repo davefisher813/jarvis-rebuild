@@ -166,7 +166,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
     // The refusal now SAYS so (2026-08-09): a control that eats taps in
     // silence reads as broken, not protective.
     if (state === "paid" && b.data.recurrence) {
-      showToast({ message: "Already paid · next rolls in" });
+      showToast({ message: "Already paid · Next rolls in" });
       return;
     }
     await tasksSvc.toggleDone(b.id);

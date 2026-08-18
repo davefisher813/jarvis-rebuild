@@ -80,12 +80,12 @@ export default function ScheduleUploadFlow({
       const out = await ai.complete([message], JARVIS_VOICE);
       const found = parseScheduleExtract(out);
       if (!found) {
-        showToast({ message: "Couldn't read that · try a clearer photo" });
+        showToast({ message: "Couldn't read that · Try a clearer photo" });
         return;
       }
       afterExtract(found, year);
     } catch {
-      showToast({ message: "Couldn't reach JARVIS · try again" });
+      showToast({ message: "Couldn't reach JARVIS · Try again" });
     } finally {
       setBusy(false);
     }
