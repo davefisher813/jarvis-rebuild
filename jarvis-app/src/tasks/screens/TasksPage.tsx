@@ -123,7 +123,7 @@ function Row({
         </div>
         <div className="row-stack" role="button" tabIndex={0} onClick={() => onOpen?.(item.id)}>
           <div className="conn-name truncate">{t.text}</div>
-          <div className="eyebrow">{catName(t.category)}{t.recurrence ? " \u00b7 " + t.recurrence : ""}</div>
+          <div className={"eyebrow cat-fg-" + catColor(t.category)}>{catName(t.category)}{t.recurrence ? " \u00b7 " + t.recurrence : ""}</div>
           {/* Provenance Line (addendum item 8): auto-created rows say where
               they came from; hand-made rows render nothing here. */}
           <Provenance source={t.source} />

@@ -329,7 +329,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    carries black text at 10.2:1 where it only manages 2.1:1 with white. */
 .sched-act { width: 88px; border: 0; background: var(--warn); color: var(--on-fill-dark); font-size: var(--t-meta); font-weight: var(--w-semi); font-family: var(--f); }
 .sched-act-quiet { background: var(--press-5); color: var(--tx-1); }
-.sched-swipe-wrap .sched-row { position: relative; background: var(--surface-2); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
+.sched-swipe-wrap .sched-row { position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
 /* Announces the swipe actions, and is the ONLY way to reach them without a
    touchscreen: the gesture is bound to touch events only. Quiet enough not to
    compete with the event title, big enough to hit on a phone. */
@@ -689,7 +689,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .task-del .ic { width: 22px; height: 22px; }
 .task-snooze { position: absolute; top: 0; right: 88px; bottom: 0; width: 88px; border: 0; background: var(--warn); color: var(--on-fill-dark); display: flex; align-items: center; justify-content: center; }
 .task-snooze .ic { width: 22px; height: 22px; }
-.task-row { position: relative; background: var(--surface-2); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
+/* V4 full-bleed law (Dave 2026-08-18, "revise the email visuals... layout"):
+   swipeable rows sit on the PAGE background, not a grey band; the opaque bg
+   still hides the swipe reveal. Lists read as one surface again. */
+.task-row { position: relative; background: var(--bg); transition: transform 0.28s cubic-bezier(0.32,0.72,0,1); touch-action: pan-y; }
 .task-row.swiping { transition: none; }
 .task-check-tap { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
   flex-shrink: 0; margin: -8px 0; cursor: pointer; }
@@ -1396,3 +1399,32 @@ button {
 [data-theme="light"] .nav-bar { background: rgba(246,246,248,0.85); }
 .nav-bar .nav-title { position: absolute; left: 0; right: 0; text-align: center; pointer-events: none;
   font-size: var(--t-body); font-weight: var(--w-semi); }
+
+
+/* V4 EMAIL ANATOMY (Dave 2026-08-18): reserved dot column so read and unread
+   rows share one text edge; actions are compact grey pills with accent text;
+   display names never show their transport quotes. */
+.msg-dot.off { background: transparent; }
+.pill-act { flex-shrink: 0; align-self: center; background: rgba(255,255,255,0.08); border: 0; border-radius: var(--r-pill);
+  color: var(--accent); font-family: var(--f); font-size: 13px; font-weight: var(--w-semi); padding: 6px 12px; }
+
+
+/* V4 WRITING CANVAS (Dave 2026-08-18: "feel like an actual writing app...
+   sleeker, smoother, JARVIS style"). The editor reads as a document: a real
+   document title, book-ish body measure and leading, generous block rhythm,
+   and block chrome that stays invisible until the block is yours. */
+.doc { padding: var(--s-5) var(--s-6) var(--s-8); }
+.doc > * + * { margin-top: var(--s-2h); }
+.doc-title { font-size: 27px; font-weight: var(--w-bold); letter-spacing: -0.015em; line-height: var(--lh-snug);
+  color: var(--tx-1); margin-top: var(--s-2); }
+.doc .t-body { font-size: 17px; line-height: 1.6; color: var(--tx-1); padding: 2px 0; min-height: 27px; }
+.doc .block-h { font-size: 21px; font-weight: var(--w-semi); letter-spacing: -0.01em; margin-top: var(--s-4); }
+.doc [contenteditable] { caret-color: var(--accent); outline: none; }
+/* Block chrome only when the block is active: writing first, controls second. */
+.block-row .block-menu-btn { opacity: 0; transition: opacity var(--dur-fast) var(--ease-out); }
+.block-row:focus-within .block-menu-btn, .block-row:hover .block-menu-btn { opacity: 1; }
+/* The compose bar rides the bottom of the editor, always in reach. */
+.editor-bar { position: sticky; bottom: 0; padding: var(--s-3) var(--s-4) calc(var(--s-3) + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  background: linear-gradient(180deg, rgba(0,0,0,0), var(--bg) 38%); display: flex; justify-content: center; }
+[data-theme="light"] .editor-bar { background: linear-gradient(180deg, rgba(242,242,247,0), var(--bg) 38%); }
+.editor-bar .btn { min-width: 200px; }

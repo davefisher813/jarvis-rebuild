@@ -283,9 +283,9 @@ export default function NoteEditor({
           <div className={"proj-icon cat-bg-" + catColor(note.category)}>
             <FileText className="ic" />
           </div>
-          <span className="eyebrow">{note.eyebrow}</span>
+          <span className={"eyebrow cat-fg-" + catColor(note.category)}>{note.eyebrow}</span>
         </div>
-        <InlineEdit tag="div" className="t-h2" value={note.title} onSave={onEditTitle} />
+        <InlineEdit tag="div" className="doc-title" value={note.title} placeholder="Untitled" onSave={onEditTitle} />
 
         {inline.map((b, idx) => {
           let content: React.ReactNode = null;
@@ -346,7 +346,9 @@ export default function NoteEditor({
         </div>
       )}
 
-      <button className="row row-act" onClick={onAddBlock}>Add Block</button>
+      <div className="editor-bar">
+        <button className="btn btn-secondary" onClick={onAddBlock}>Add Block</button>
+      </div>
     </div>
   );
 }

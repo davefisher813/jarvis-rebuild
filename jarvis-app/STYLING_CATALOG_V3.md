@@ -14,6 +14,17 @@
 10. CAPS QUALIFIERS leave section counts ("4 ACTIVE" → 4). Capitals lead every middle-dot segment in composed metas too ("55 days · No reply").
 11. BANNERS: every offer is a promo card (the stalled-project First Step included).
 
+## L. Page order, hierarchy, and flow (V4, Dave 2026-08-18: "the pages right now don't make sense")
+
+1. ONE VERTICAL GRAMMAR on every page, top to bottom: bar → large title (+search) → alerts → primary offer → sections → trailing actions. A page never interleaves these bands; a thing in the wrong band moves, it doesn't get restyled.
+2. ALERT DISCIPLINE (the landing-page chaos fix): alert cards render in one fixed priority order (decision revisit > failed automation > automation receipt > where-you-were) and AT MOST TWO show per open. The rest wait for the next open; nothing is lost because every card is also reachable from its home surface. Offers (weather connect) yield when the alert budget is spent.
+3. TODAY's canonical order: hero (date, greeting, summary, ring) → alerts (≤2) → day-draft proposal → re-flow and overflow responses → Now → Check In or suggestions → Money line → Your Day → Tonight → Tomorrow. Nothing else may insert itself.
+4. EMAIL's canonical order: bar (compose) → title → search → account and filter chips → the one Needs-You promo card (Deal With It · drain) → Needs You → Waiting On → The Rest fold. The floating headline sentence is retired; the sections say it.
+5. LIST PAGES (B): title (+bar action) → search when earned → content sections. NAV PAGES (A): title → flat rows → boundary label → user content → gap → system cluster. Detail pages (D): static bar → identity block → fact blocks → chain blocks → provenance → actions (change above delete, delete always armed).
+6. FUNCTIONALITY BAND: a page's ONE primary action lives in the bar (create) or the one promo card (triage); in-list creates are trailing .row-act rows at the END of their section, never floating mid-list. Destructive actions are the LAST thing on a page.
+7. FLOW LAW: every list row opens its record in one tap; every record reaches its parent list in one back; every alert card resolves in at most two taps and never navigates away without the action completing. Search results open the exact record. No screen dead-ends: an empty state always carries its action.
+8. THE WRITING CANVAS (notes): document title, 17px body at 1.6 leading, block chrome invisible until the block has focus, compose bar sticky at the bottom. Writing surfaces put words first and controls second.
+
 Everything below is the V3.3 base that still stands, minus rules superseded above.
 
 # JARVIS Styling Catalog V3.3 (APPROVED 2026-08-18, Library edition)

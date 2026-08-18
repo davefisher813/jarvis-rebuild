@@ -224,7 +224,11 @@ describe("LAW: Apple HIG casing", () => {
       expect(src, f).toMatch(/filled(Settings)?Icon\(/);
     }
     const filled = read(join(SRC, "shared/filledIcons.tsx"));
-    expect(filled).toContain('fill="currentColor"');
+    // Quality law (Dave: "make sure all red icons are improved"): the filled
+    // set comes from the professionally drawn Phosphor FILL weight; a return
+    // to hand-poured fills fails here.
+    expect(filled).toContain('@phosphor-icons/react');
+    expect(filled).toContain('weight: "fill"');
   });
 
   it("the retired whitespace-cluster class never returns", () => {

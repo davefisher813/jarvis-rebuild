@@ -34,26 +34,21 @@ export default function Templates({
       </div>
       <div className="nav-large">New Note</div>
 
-      <div className="grp">
-        <div className="eyebrow">Templates</div>
-      </div>
-
-      <div className="pad-x">
-        <div className="card">
-          {TEMPLATES_LIST.map(({ key, name, desc, cat, Icon }) => (
-            <div className="row" key={key} onClick={() => onSelect?.(key)}>
-              <div className={"proj-icon cat-bg-" + cat}>
-                <Icon className="ic" />
-              </div>
-              <div className="row-stack">
-                <div className="conn-name">{name}</div>
-                <div className="t-meta">{desc}</div>
-              </div>
-              <div className="chev"></div>
-            </div>
-          ))}
+      {/* V4: templates are a content list, the Library form. Bare colored
+          glyphs, flat rows, one mini-caps label. */}
+      <div className="sh2 sh2-caps"><span className="t">Templates</span></div>
+      {TEMPLATES_LIST.map(({ key, name, desc, cat, Icon }) => (
+        <div className="lib-row" key={key} role="button" tabIndex={0} onClick={() => onSelect?.(key)}>
+          <div className={"lib-ico cat-fg-" + cat}>
+            <Icon className="ic" />
+          </div>
+          <div className="lib-stack">
+            <div className="lib-name">{name}</div>
+            <div className="lib-sub">{desc}</div>
+          </div>
+          <div className="chev"></div>
         </div>
-      </div>
+      ))}
     </div>
   );
 }

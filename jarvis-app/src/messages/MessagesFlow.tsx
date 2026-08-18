@@ -10,7 +10,7 @@ import {
 } from "../connections/google/map";
 import {
   loadTriageCache, saveTriageCache, triageDelta, buildTriageInput, parseTriage,
-  fillSkipped, splitByBucket, headline, noiseLine, sortByDeadline, byRank, type TriageMap, type Bucket,
+  fillSkipped, splitByBucket, noiseLine, sortByDeadline, byRank, type TriageMap, type Bucket,
 } from "./triage";
 import { loadRules, saveRule, clearRule, applyRules, type SenderRules } from "./rules";
 import DeckFlow from "./DeckFlow";
@@ -59,6 +59,10 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error("Sorting took too long.")), ms)),
   ]);
 }
+// Transport quotes around display names ("Joseph T. Pareres") are wire
+// format, not UI. Strip them everywhere a sender renders (V4 email pass).
+const displayName = (n: string) => n.replace(/^"+|"+$/g, "").trim();
+
 const BUCKET_LABEL: Record<Bucket, string> = { needs_you: "Needs You", worth_knowing: "Worth Knowing", noise: "Noise" };
 
 function fmtDuration(ms: number): string {
@@ -1078,10 +1082,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       onDelete={() => trashThread(r.id, r.account)}
     >
     <div className="row" role="button" tabIndex={0} onClick={() => void openThread(r.id)}>
-      {r.unread && <span className="msg-dot" aria-label="unread"></span>}
+      {/* Reserved column: read and unread rows share one text edge. */}
+      <span className={"msg-dot" + (r.unread ? "" : " off")} aria-label={r.unread ? "unread" : undefined}></span>
       <div className="row-grow">
         <div className="msg-line">
-          <span className={"conn-name truncate" + (r.unread ? " msg-strong" : "")}>{r.from}</span>
+          <span className={"conn-name truncate" + (r.unread ? " msg-strong" : "")}>{displayName(r.from)}</span>
           {effTriage[r.id]?.by
             ? <span className={"msg-due" + (byRank(effTriage[r.id]!.by) >= 900 ? " soft" : "")}>{effTriage[r.id]!.by}</span>
             : <span className="msg-when">{fmtWhen(r.dateMs)}</span>}
@@ -1098,41 +1103,6 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   return (
     <div className={"screen " + pushCls} key="list">
       <PageHeader title="Email" actions={<BarAction label="New Message" onClick={startCompose}><Plus className="ic" /></BarAction>} />
-      {showTriage && <div className="pad-x msg-headline">{headline(needsYou.length, visibleRows.length)}</div>}
-      {showTriage && needsYou.length > 0 && (
-        <div className="pad-x deck-cta">
-          <button className="btn btn-primary btn-block" onClick={() => { setDeckRows(needsYou); setView("deck"); }}>
-            Deal With It · {needsYou.length}
-          </button>
-          {/* The drain: he picks the number, always. */}
-          {!drainOpen ? (
-            <button className="quiet-action" onClick={() => setDrainOpen(true)}>Only have a few minutes?</button>
-          ) : (
-            <div className="drain-pick">
-              <div className="eyebrow">Give Me</div>
-              <div className="msg-chips">
-                {PRESETS.map((m) => (
-                  <button key={m} className={"chip" + (minutes === m ? " on" : "")}
-                    onClick={() => setMinutes(saveMinutes(m))}>{m} min</button>
-                ))}
-                <input
-                  className="msg-input drain-input" type="number" min={1} max={60} value={minutes}
-                  aria-label="Minutes"
-                  onChange={(e) => setMinutes(clampMinutes(parseInt(e.target.value, 10)))}
-                  onBlur={() => setMinutes(saveMinutes(minutes))}
-                />
-              </div>
-              <button className="btn btn-secondary btn-block" onClick={() => {
-                saveMinutes(minutes);
-                setDrainMs(minutes * 60000);
-                setDeckRows(needsYou);
-                setDrainOpen(false);
-                setView("deck");
-              }}>Start the drain</button>
-            </div>
-          )}
-        </div>
-      )}
       <div className="pad-x">
         <input
           className="msg-input msg-search" placeholder="Search All Mail" value={search}
@@ -1162,6 +1132,50 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           Drafts {draftsLoaded && drafts.length > 0 ? "(" + drafts.length + ")" : ""}
         </button>
       </div>
+      {showTriage && needsYou.length > 0 && (
+        <div className="pad-x deck-cta">
+          <div className="promo-card">
+            <div className="promo-head">
+              <div className="promo-badge b-red"><svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg></div>
+              <div className="promo-body">
+                <div className="promo-title">{needsYou.length === 1 ? "1 Thread Needs You" : `${needsYou.length} Threads Need You`}</div>
+                <div className="promo-sub">Everything else is filed below.</div>
+              </div>
+            </div>
+            {!drainOpen ? (
+              <div className="promo-acts">
+                <button className="promo-pill quiet" onClick={() => setDrainOpen(true)}>Only have a few minutes?</button>
+                <button className="promo-pill" onClick={() => { setDeckRows(needsYou); setView("deck"); }}>Deal With It</button>
+              </div>
+            ) : (
+              <div className="drain-pick">
+                <div className="eyebrow">Give Me</div>
+                <div className="msg-chips">
+                  {PRESETS.map((m) => (
+                    <button key={m} className={"chip" + (minutes === m ? " on" : "")}
+                      onClick={() => setMinutes(saveMinutes(m))}>{m} min</button>
+                  ))}
+                  <input
+                    className="msg-input drain-input" type="number" min={1} max={60} value={minutes}
+                    aria-label="Minutes"
+                    onChange={(e) => setMinutes(clampMinutes(parseInt(e.target.value, 10)))}
+                    onBlur={() => setMinutes(saveMinutes(minutes))}
+                  />
+                </div>
+                <div className="promo-acts">
+                  <button className="promo-pill" onClick={() => {
+                    saveMinutes(minutes);
+                    setDrainMs(minutes * 60000);
+                    setDeckRows(needsYou);
+                    setDrainOpen(false);
+                    setView("deck");
+                  }}>Start the Drain</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {error && <div className="pad-x conn-error">{error}</div>}
       {searching && <div className="pad-x conn-status">Searching everything...</div>}
 
@@ -1240,10 +1254,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div><div className="list-flat">
                 {waiting.map((w) => (
                   <div className="row" role="button" tabIndex={0} key={w.threadId} onClick={() => void startNudge(w)}>
+                    <span className="msg-dot off"></span>
                     <div className="row-grow">
                       <div className="msg-line">
-                        <span className="conn-name truncate">{w.to}</span>
-                        <span className="msg-when">{nudging === w.threadId ? "Drafting..." : "Nudge"}</span>
+                        <span className="conn-name truncate">{displayName(w.to)}</span>
+                        <span className="pill-act">{nudging === w.threadId ? "Drafting..." : "Nudge"}</span>
                       </div>
                       <div className="conn-meta msg-gist">
                         {w.subject} · {waitingLine(w, opens[w.threadId] ?? null)}

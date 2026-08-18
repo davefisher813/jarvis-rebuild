@@ -87,8 +87,9 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     expect(await screen.findByText("Needs You")).toBeInTheDocument();
-    // SPEC MOVED (short copy, 2026-08-15)
-    expect(screen.getByText("1 needs you · rest handled")).toBeInTheDocument();
+    // SPEC MOVED (V4 page order, 2026-08-18): the floating headline sentence
+    // is retired; the Needs-You promo card carries the count instead.
+    expect(screen.getByText("1 Thread Needs You")).toBeInTheDocument();
     expect(screen.getByText(/Tucci needs the waiver by Friday/)).toBeInTheDocument();
     // THE FOLD: everything that does not need him is one line, not a section.
     // SPEC MOVED (V2 anatomy, 2026-08-15): the count is a pill beside the line.

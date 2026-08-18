@@ -116,6 +116,7 @@ export default function TodayPage({
   onSeeAllTasks,
   suggestions,
   banners,
+  offersQuiet,
   onSearch,
   onProfile,
   evening,
@@ -161,6 +162,8 @@ export default function TodayPage({
   suggestions?: ReactNode;
   // Group A banners (Where You Were, Auto-Sweep receipt), above the day.
   banners?: ReactNode;
+  // V4 alert discipline: when two alert cards already rendered, offers wait.
+  offersQuiet?: boolean;
   onSearch?: () => void;
   onProfile?: () => void;
   evening?: EveningStats;
@@ -308,7 +311,7 @@ export default function TodayPage({
 
       {/* Weather's one-time connect moment: a single row, once, gone forever
           on decline (same doctrine as the gym page's Health row). */}
-      <WeatherOfferRow />
+      {!offersQuiet && <WeatherOfferRow />}
 
       {/* Bills where the eyes are (2026-08-09): one quiet line when money is
           due within three days. Not tappable to nowhere: it only becomes a

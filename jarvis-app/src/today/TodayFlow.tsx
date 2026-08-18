@@ -753,78 +753,87 @@ export default function TodayFlow({
     ...catsFull.filter((c) => effectiveKind(c.data) === "org").map((c) => ({ type: "org" as const, id: c.id, label: c.data.name })),
   ];
 
-  const banners = (
-    <>
-      {revisit && (
-        <div className="promo-card">
-          <div className="promo-head">
-            <div className="promo-badge b-purple">{FORK_ICO}</div>
-            <div className="promo-body">
-              <div className="promo-title">{revisit.data.decision}</div>
-              <div className="promo-sub">You wanted to revisit this today.</div>
-            </div>
-          </div>
-          <div className="promo-acts">
-            <button className="promo-pill quiet" onClick={() => setRevisitSheet(true)}>Change It</button>
-            <button className="promo-pill" onClick={() => void stillGood(revisit)}>Still Good</button>
+  // CATALOG V4 L (page order, Dave 2026-08-18 "the landing page is chaos"):
+  // alerts render in ONE fixed priority order and at most TWO show per open.
+  // The rest wait for the next open; every card is also actionable away.
+  // Order: revisit > failed sweep > sweep receipt > where-you-were.
+  const alertCards = [
+    revisit ? (
+      <div className="promo-card" key="revisit">
+        <div className="promo-head">
+          <div className="promo-badge b-purple">{FORK_ICO}</div>
+          <div className="promo-body">
+            <div className="promo-title">{revisit.data.decision}</div>
+            <div className="promo-sub">You wanted to revisit this today.</div>
           </div>
         </div>
-      )}
+        <div className="promo-acts">
+          <button className="promo-pill quiet" onClick={() => setRevisitSheet(true)}>Change It</button>
+          <button className="promo-pill" onClick={() => void stillGood(revisit)}>Still Good</button>
+        </div>
+      </div>
+    ) : null,
+    sweepReceipt && sweepReceipt.failed ? (
+      <div className="promo-card" key="sweepfail" role="button" tabIndex={0} onClick={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}>
+        <div className="promo-head">
+          <div className="promo-badge b-red">{SWEEP_ICO}</div>
+          <div className="promo-body">
+            <div className="promo-title">Couldn't Move Yesterday's Tasks</div>
+            <div className="promo-sub">Tap to retry.</div>
+          </div>
+        </div>
+      </div>
+    ) : null,
+    sweepReceipt && !sweepReceipt.failed && sweepReceipt.moved.length > 0 ? (
+      <div className="promo-card" key="sweep">
+        <button className="promo-x" aria-label="Dismiss" onClick={() => setSweepReceipt(null)}>
+          <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+        </button>
+        <div className="promo-head">
+          <div className="promo-badge b-amber">{SWEEP_ICO}</div>
+          <div className="promo-body">
+            <div className="promo-title">{sweepReceipt.moved.length === 1 ? "Moved 1 Task to Today" : `Moved ${sweepReceipt.moved.length} Tasks to Today`}</div>
+            {sweepCand && <div className="promo-sub">{sweepCand.text} has moved <span className="fact-warn">{sweepCand.slips} days running</span>.</div>}
+          </div>
+        </div>
+        <div className="promo-acts">
+          {sweepCand && (
+            <button className="promo-pill quiet" onClick={() => void (async () => {
+              markOffered(sweepCand.id);
+              const ok = await attemptWrite(() => tasks.setAside([sweepCand.id]));
+              setSweepReceipt(readReceipt(today));
+              await reload();
+              if (ok) showToast({ message: "Set aside · Keeps its place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
+            })()}>Set Aside</button>
+          )}
+          <button className="promo-pill" onClick={() => void (async () => { await attemptWrite(() => undoSweep(tasks, sweepReceipt)); setSweepReceipt(null); await reload(); })()}>Undo</button>
+        </div>
+      </div>
+    ) : null,
+    spot ? (
+      <div className="promo-card" key="spot" role="button" tabIndex={0} onClick={() => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); }}>
+        <div className="promo-head">
+          <div className="promo-badge b-yellow">
+            <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+          </div>
+          <div className="promo-body">
+            <div className="promo-title">Pick Up Where You Left Off</div>
+            <div className="promo-sub">{spotMeta(spot)}</div>
+          </div>
+          <div className="chev promo-chev" />
+        </div>
+      </div>
+    ) : null,
+  ].filter(Boolean);
+  const alertsShown = alertCards.slice(0, 2);
+
+  const banners = (
+    <>
+      {alertsShown}
       {draftSection}
       {reflowSection}
       {overflowSection}
       {nowSection}
-      {sweepReceipt && sweepReceipt.failed && (
-        <div className="promo-card" role="button" tabIndex={0} onClick={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}>
-          <div className="promo-head">
-            <div className="promo-badge b-red">{SWEEP_ICO}</div>
-            <div className="promo-body">
-              <div className="promo-title">Couldn't Move Yesterday's Tasks</div>
-              <div className="promo-sub">Tap to retry.</div>
-            </div>
-          </div>
-        </div>
-      )}
-      {sweepReceipt && !sweepReceipt.failed && sweepReceipt.moved.length > 0 && (
-        <div className="promo-card">
-          <button className="promo-x" aria-label="Dismiss" onClick={() => setSweepReceipt(null)}>
-            <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-          </button>
-          <div className="promo-head">
-            <div className="promo-badge b-amber">{SWEEP_ICO}</div>
-            <div className="promo-body">
-              <div className="promo-title">{sweepReceipt.moved.length === 1 ? "Moved 1 Task to Today" : `Moved ${sweepReceipt.moved.length} Tasks to Today`}</div>
-              {sweepCand && <div className="promo-sub">{sweepCand.text} has moved <span className="fact-warn">{sweepCand.slips} days running</span>.</div>}
-            </div>
-          </div>
-          <div className="promo-acts">
-            {sweepCand && (
-              <button className="promo-pill quiet" onClick={() => void (async () => {
-                markOffered(sweepCand.id);
-                const ok = await attemptWrite(() => tasks.setAside([sweepCand.id]));
-                setSweepReceipt(readReceipt(today));
-                await reload();
-                if (ok) showToast({ message: "Set aside · Keeps its place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
-              })()}>Set Aside</button>
-            )}
-            <button className="promo-pill" onClick={() => void (async () => { await attemptWrite(() => undoSweep(tasks, sweepReceipt)); setSweepReceipt(null); await reload(); })()}>Undo</button>
-          </div>
-        </div>
-      )}
-      {spot && (
-        <div className="promo-card" role="button" tabIndex={0} onClick={() => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); }}>
-          <div className="promo-head">
-            <div className="promo-badge b-yellow">
-              <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-            </div>
-            <div className="promo-body">
-              <div className="promo-title">Pick Up Where You Left Off</div>
-              <div className="promo-sub">{spotMeta(spot)}</div>
-            </div>
-            <div className="chev promo-chev" />
-          </div>
-        </div>
-      )}
     </>
   );
 
@@ -864,6 +873,7 @@ export default function TodayFlow({
       onEditRoutine={onEditRoutine}
       today={today}
       banners={banners}
+      offersQuiet={alertCards.length >= 2}
       suggestions={<><CheckIn onChanged={() => { void reload(); }} /><TodaySuggestions ai={ai} /></>}
       onSearch={onSearch}
       onProfile={onProfile}
