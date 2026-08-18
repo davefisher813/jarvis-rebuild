@@ -43,3 +43,24 @@ export const FILLED_FALLBACK: ReactNode = f(<circle cx="12" cy="12" r="9" fill="
 export function filledIcon(key: string): ReactNode {
   return FILLED[key] ?? FILLED_FALLBACK;
 }
+
+// ---- Settings hub rows (Dave 2026-08-18: "settings in all red too") ----
+// Line-built icons (link, sliders) take the filled state as bold 2.6 strokes,
+// same treatment as the decisions fork; solid shapes fill with cutouts.
+export const FILLED_SETTINGS: Record<string, ReactNode> = {
+  account: f(<><circle cx="12" cy="7" r="4.2" fill="currentColor" /><path d="M3.5 21c0-4 3.8-6.4 8.5-6.4s8.5 2.4 8.5 6.4z" fill="currentColor" /></>),
+  notifsettings: f(<><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" fill="currentColor" /><path d="M13.73 21a2 2 0 0 1-3.46 0z" fill="currentColor" /></>),
+  appearance: f(<><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.504 5.555-5.555C21.965 6.012 17.461 2 12 2z" fill="currentColor" /><circle cx="13.5" cy="6.5" r="1" fill={CUT} /><circle cx="8.5" cy="7.5" r="1" fill={CUT} /><circle cx="6.5" cy="12.5" r="1" fill={CUT} /></>),
+  categories: f(<><path d="M10.9 2h2.2l.5 2.4 1.9.8 2-1.3 1.6 1.6-1.3 2 .8 1.9 2.4.5v2.2l-2.4.5-.8 1.9 1.3 2-1.6 1.6-2-1.3-1.9.8-.5 2.4h-2.2l-.5-2.4-1.9-.8-2 1.3-1.6-1.6 1.3-2-.8-1.9L2 13.1v-2.2l2.4-.5.8-1.9-1.3-2 1.6-1.6 2 1.3 1.9-.8z" fill="currentColor" /><circle cx="12" cy="12" r="3.2" fill={CUT} /></>),
+  edittabs: f(<><rect x="3" y="3" width="18" height="18" rx="3" fill="currentColor" /><line x1="3" y1="15" x2="21" y2="15" stroke={CUT} strokeWidth={1.8} /><line x1="9" y1="15" x2="9" y2="21" stroke={CUT} strokeWidth={1.8} /><line x1="15" y1="15" x2="15" y2="21" stroke={CUT} strokeWidth={1.8} /></>),
+  connections: f(<><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" /></>),
+  aicontrol: f(<path d="M12 2.5l2 5.3 5.3 2-5.3 2-2 5.3-2-5.3-5.3-2 5.3-2zM19 14.5l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1z" fill="currentColor" />),
+  learned: f(<><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.4 1 2.3h6c0-.9.4-1.8 1-2.3A7 7 0 0 0 12 2z" fill="currentColor" /><line x1="9" y1="19.2" x2="15" y2="19.2" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" /><line x1="10" y1="22" x2="14" y2="22" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" /></>),
+  backup: f(<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" fill="currentColor" />),
+  advanced: f(<><line x1="4" y1="21" x2="4" y2="14" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" /><line x1="4" y1="10" x2="4" y2="3" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" /><line x1="12" y1="21" x2="12" y2="12" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" /><line x1="12" y1="8" x2="12" y2="3" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" /><line x1="20" y1="21" x2="20" y2="16" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" /><line x1="20" y1="12" x2="20" y2="3" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" /><line x1="1" y1="14" x2="7" y2="14" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" /><line x1="9" y1="8" x2="15" y2="8" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" /><line x1="17" y1="16" x2="23" y2="16" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" /></>),
+  about: f(<><circle cx="12" cy="12" r="10" fill="currentColor" /><line x1="12" y1="16.5" x2="12" y2="11.5" stroke={CUT} strokeWidth={2.4} strokeLinecap="round" /><circle cx="12" cy="8" r="1.3" fill={CUT} /></>),
+};
+
+export function filledSettingsIcon(route: string): ReactNode {
+  return FILLED_SETTINGS[route] ?? FILLED_FALLBACK;
+}

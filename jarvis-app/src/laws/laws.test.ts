@@ -218,10 +218,10 @@ describe("LAW: Apple HIG casing", () => {
   // More and Brain nav rows must use lib-ico-brand + the filledIcon set;
   // auto-filling stroke icons is the compass-blob bug and stays banned.
   it("nav lists wear the filled brand glyph state", () => {
-    for (const f of ["more/MorePage.tsx", "brain/BrainPage.tsx"]) {
+    for (const f of ["more/MorePage.tsx", "brain/BrainPage.tsx", "more/SettingsPage.tsx"]) {
       const src = read(join(SRC, f));
       expect(src, f).toContain("lib-ico-brand");
-      expect(src, f).toContain("filledIcon(");
+      expect(src, f).toMatch(/filled(Settings)?Icon\(/);
     }
     const filled = read(join(SRC, "shared/filledIcons.tsx"));
     expect(filled).toContain('fill="currentColor"');
