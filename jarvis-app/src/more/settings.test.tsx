@@ -21,7 +21,7 @@ describe("Settings", () => {
 
   it("Profile saves the name", async () => {
     render(<NotesProvider userId="u1"><ProfilePage onBack={() => {}} /></NotesProvider>);
-    fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "Alex" } });
+    fireEvent.change(screen.getByPlaceholderText("Your Name"), { target: { value: "Alex" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
   });

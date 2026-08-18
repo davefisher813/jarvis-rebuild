@@ -139,7 +139,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
           </button>
           <div className="field">
             <div className="input-label">Or Paste It</div>
-            <textarea className="input input-multiline" rows={5} placeholder="Paste the program text from a message or spreadsheet" value={text} onChange={(e) => setText(e.target.value)} />
+            <textarea className="input input-multiline" rows={5} placeholder="Paste the Program · a message or spreadsheet works" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
           <button className="btn btn-secondary btn-block" disabled={busy || !text.trim()}
             onClick={() => void extract({ role: "user", content: EXTRACT_PROMPT + "\n\nCONTENT:\n" + text.trim().slice(0, 12000) })}>

@@ -77,7 +77,7 @@ export default function PersonSheet({
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Name</div>
-            <input className={"input" + (touched && !valid ? " input-error" : "")} placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} />
+            <input className={"input" + (touched && !valid ? " input-error" : "")} placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} />
             {touched && !valid && <div className="input-error">Add a name.</div>}
           </div>
           <div className="field">
@@ -91,7 +91,7 @@ export default function PersonSheet({
                   onClick={() => setRelationship(relationship === l ? "" : l)}>{l}</div>
               ))}
             </div>
-            <input className="input" placeholder="Or say it your way" value={(LABEL_CHIPS as readonly string[]).includes(relationship) ? "" : relationship} onChange={(e) => setRelationship(e.target.value)} />
+            <input className="input" placeholder="Or Say It Your Way" value={(LABEL_CHIPS as readonly string[]).includes(relationship) ? "" : relationship} onChange={(e) => setRelationship(e.target.value)} />
           </div>
           <div className="field">
             <div className="input-label">How JARVIS Writes to Them</div>
@@ -140,7 +140,7 @@ export default function PersonSheet({
           </div>
           <div className="field">
             <div className="input-label">Notes</div>
-            <textarea className="input input-multiline" rows={3} placeholder="What JARVIS should remember" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <textarea className="input input-multiline" rows={3} placeholder="What JARVIS Should Remember" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
         <div className="pad-x sheet-actions">

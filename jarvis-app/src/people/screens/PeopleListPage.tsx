@@ -78,7 +78,7 @@ export default function PeopleListPage({
         <div className="pad-x list-search">
           <div className="search-bar">
             {SEARCH}
-            <input placeholder="Search people" aria-label="Search people" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input placeholder="Search People" aria-label="Search people" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
         </div>
       )}

@@ -216,7 +216,7 @@ export default function PlanDaySheet({
           <div className="chip-row">
             <div className="chip">{sizing.maxBlocks != null ? `Pick up to ${sizing.maxBlocks}` : "Pick freely"}</div>
             <div className="chip">Before {label(fromMin(endMin))}</div>
-            {!routineConfigured && <div className="chip">Default hours</div>}
+            {!routineConfigured && <div className="chip">Default Hours</div>}
           </div>
           {!routineConfigured && onEditRoutine && (
             <div className="plan-sub"><button type="button" className="note-fix" onClick={onEditRoutine}>Set Your Routine</button></div>

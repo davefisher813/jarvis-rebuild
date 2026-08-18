@@ -312,7 +312,7 @@ export default function EventSheet({
 
           <div className="field">
             <label className="input-label">Location</label>
-            <input className="input" placeholder="Place or address (optional)" value={location} onChange={(e) => setLocation(e.target.value)} />
+            <input className="input" placeholder="Place or Address · optional" value={location} onChange={(e) => setLocation(e.target.value)} />
             {locSugs.length > 0 && (
               <div className="chip-row mem-row">
                 {locSugs.map((l) => (

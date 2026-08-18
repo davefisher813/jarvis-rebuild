@@ -85,7 +85,7 @@ export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }:
           </div>
           <div className="field">
             <div className="input-label">Pay Link</div>
-            <input type="url" className="input" placeholder="Where you pay it (optional)" value={payUrl} onChange={(e) => setPayUrl(e.target.value)} />
+            <input type="url" className="input" placeholder="Pay Link · optional" value={payUrl} onChange={(e) => setPayUrl(e.target.value)} />
           </div>
         </div>
         <div className="pad-x sheet-actions">

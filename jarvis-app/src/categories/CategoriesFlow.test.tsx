@@ -14,7 +14,7 @@ describe("CategoriesFlow", () => {
     );
     fireEvent.click(screen.getByText("Add Category"));
     expect(screen.getByText("New Category")).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText("Category name"), { target: { value: "Travel" } });
+    fireEvent.change(screen.getByPlaceholderText("Category Name"), { target: { value: "Travel" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(screen.getByText("Travel")).toBeInTheDocument());
   });

@@ -51,7 +51,7 @@ function ListBlock({
           <InlineEdit
             tag="span"
             value={it}
-            placeholder="List item"
+            placeholder="List Item"
             focused={focusBlockId === block.id + ":" + j}
             onSave={onItems ? (t) => { const items = block.items.slice(); items[j] = t; onItems(block.id, items, null); } : undefined}
             onEnter={onItems || onExit ? (t) => {
@@ -116,7 +116,7 @@ function Checklist({
           <InlineEdit
             tag="span"
             value={it.text}
-            placeholder="List item"
+            placeholder="List Item"
             // On blur, an item left blank is removed so no empty checkbox lingers.
             onSave={onEditItem ? (t) => { if (t.trim()) onEditItem(block.id, i, t); else onDeleteItem?.(block.id, i); } : undefined}
           />
@@ -296,7 +296,7 @@ export default function NoteEditor({
               onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
               onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
           else if (b.type === "text")
-            content = <InlineEdit tag="div" className="t-body" value={b.text} placeholder="Write something"
+            content = <InlineEdit tag="div" className="t-body" value={b.text} placeholder="Write Something"
               focused={focusBlockId === b.id}
               onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
               onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}

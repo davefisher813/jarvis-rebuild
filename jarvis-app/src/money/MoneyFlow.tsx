@@ -285,7 +285,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
                 {envOpen ? (
                   <div className="row">
                     <div className="row-grow budget-add">
-                      <input className="input" placeholder="What for" value={envName} onChange={(ev) => setEnvName(ev.target.value)} />
+                      <input className="input" placeholder="What For" value={envName} onChange={(ev) => setEnvName(ev.target.value)} />
                       <input className="input budget-amt" inputMode="numeric" placeholder="0" value={envAmt}
                         onChange={(ev) => setEnvAmt(ev.target.value)} />
                       <button className="btn btn-primary btn-sm" onClick={() => {

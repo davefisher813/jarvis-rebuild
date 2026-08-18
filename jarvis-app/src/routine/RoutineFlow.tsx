@@ -186,7 +186,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
             </div>
             <div className="field">
               <label className="input-label">Name</label>
-              <input className="input" placeholder="Gym, Lunch, Deep work..." value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
+              <input className="input" placeholder="Gym · Lunch · Deep Work" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
             </div>
             <div className="field-row">
               <div className="field"><label className="input-label">From</label><input type="time" className="input" value={toHHMM(form.startMin)} onChange={(e) => setForm({ ...form, startMin: fromHHMM(e.target.value) })} /></div>
@@ -203,7 +203,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
             </div>
             <div className="field">
               <label className="input-label">Where (optional)</label>
-              <input className="input" placeholder="Cortland YMCA, home office..." value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+              <input className="input" placeholder="Cortland YMCA · home office" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
             </div>
             <div className="row">
               <div className="row-grow">

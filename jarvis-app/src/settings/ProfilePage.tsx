@@ -35,7 +35,7 @@ export default function ProfilePage({ onBack }: { onBack: () => void }) {
       <div className="pad-x sheet-form">
         <div className="field">
           <div className="input-label">Name</div>
-          <input className="input" value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} placeholder="Your name" />
+          <input className="input" value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} placeholder="Your Name" />
         </div>
         <div className="field">
           <div className="input-label">Template</div>

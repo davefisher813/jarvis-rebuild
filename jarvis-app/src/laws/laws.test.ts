@@ -139,7 +139,10 @@ describe("LAW: Apple HIG casing", () => {
     for (const f of COMPONENTS) {
       if (TALK_FILES.has(rel(f))) continue;
       const src = read(f);
-      for (const cls of ["conn-name", "lib-name", "empty-title", "input-label", "tip-title", "restore-title"]) {
+      // Apple Music casing EVERYWHERE (Dave 2026-08-18): section heads (sh2
+      // "t" spans), library names, fold heads, day dividers, and chips join
+      // the scan alongside the original set.
+      for (const cls of ["conn-name", "lib-name", "empty-title", "input-label", "tip-title", "restore-title", "t", "sec-title", "msg-fold-head", "day-divide", "chip"]) {
         for (const m of src.matchAll(new RegExp('className="' + cls + '(?: [a-z-]+)*"[^>]*>\\s*([^<>{}\\n]{3,60}?)\\s*<', "g"))) {
           const t = m[1]!.trim();
           if (t.split(/\s+/).length > 1 && !passes(t)) bad.push(rel(f) + " [" + cls + "]: " + t);
@@ -148,6 +151,14 @@ describe("LAW: Apple HIG casing", () => {
       for (const m of src.matchAll(/<button[^>]*>\s*([A-Za-z][^<>{}\n]{2,40}?)\s*<\/button>/g)) {
         const t = m[1]!.trim();
         if (t.split(/\s+/).length > 1 && !passes(t)) bad.push(rel(f) + " [button]: " + t);
+      }
+      // Placeholders carry the same casing when they are labels. Example-
+      // carrying placeholders (a middle dot or "e.g.") are content, not
+      // labels, and stay exempt.
+      for (const m of src.matchAll(/placeholder="([^"{}]{3,60}?)"/g)) {
+        const t = m[1]!.trim();
+        if (t.includes("·") || /e\.g\./.test(t)) continue;
+        if (t.split(/\s+/).length > 1 && !passes(t)) bad.push(rel(f) + " [placeholder]: " + t);
       }
     }
     expect(bad).toEqual([]);

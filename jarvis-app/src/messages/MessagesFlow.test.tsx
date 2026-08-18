@@ -153,12 +153,12 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
     await screen.findByText("Tucci");
-    fireEvent.change(screen.getByPlaceholderText("Search all mail"), { target: { value: "llc" } });
-    fireEvent.keyDown(screen.getByPlaceholderText("Search all mail"), { key: "Enter" });
+    fireEvent.change(screen.getByPlaceholderText("Search All Mail"), { target: { value: "llc" } });
+    fireEvent.keyDown(screen.getByPlaceholderText("Search All Mail"), { key: "Enter" });
     expect(await screen.findByText("Sarah")).toBeInTheDocument();
     expect(q).toBe("llc");
     expect(screen.queryByText("Tucci")).toBeNull(); // results replace the list
-    fireEvent.change(screen.getByPlaceholderText("Search all mail"), { target: { value: "" } });
+    fireEvent.change(screen.getByPlaceholderText("Search All Mail"), { target: { value: "" } });
     expect(await screen.findByText("Tucci")).toBeInTheDocument(); // clearing restores
   });
 

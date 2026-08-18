@@ -16,7 +16,7 @@ describe("PeopleFlow", () => {
     expect(screen.getByText("No One Here Yet")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Add Person"));
     expect(screen.getByText(/New Person/)).toBeInTheDocument();
-    fireEvent.change(screen.getByPlaceholderText("Full name"), { target: { value: "Sam Rivera" } });
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "Sam Rivera" } });
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(screen.getByText("Sam Rivera")).toBeInTheDocument());
   });

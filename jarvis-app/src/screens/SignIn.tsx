@@ -46,7 +46,7 @@ export default function SignIn() {
           </div>
           <div className="field">
             <div className="input-label">Password</div>
-            <input className="input" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder="At least 6 characters" value={password} onChange={(e) => setPassword(e.target.value)} />
+            <input className="input" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder="At Least 6 Characters" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
           {error && <div className="input-error">{error}</div>}
           <button className="btn btn-primary btn-block btn-lg" onClick={submit} disabled={busy}>

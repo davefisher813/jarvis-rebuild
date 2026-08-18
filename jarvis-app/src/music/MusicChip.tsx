@@ -57,7 +57,7 @@ export default function MusicChip({ context }: { context: MusicContext }) {
       {pasting && (
         <input
           className="input music-paste"
-          placeholder="Playlist link"
+          placeholder="Playlist Link"
           value={pasted}
           autoFocus
           onChange={(e) => setPasted(e.target.value)}

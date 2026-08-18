@@ -207,7 +207,7 @@ export default function TasksPage({
           <input
             className="input"
             aria-label="Add a task"
-            placeholder="Add a task"
+            placeholder="Add a Task"
             value={qa}
             onChange={(e) => setQa(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && qa.trim()) { onQuickAdd(qa); setQa(""); } }}

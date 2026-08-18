@@ -1135,7 +1135,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       )}
       <div className="pad-x">
         <input
-          className="msg-input msg-search" placeholder="Search all mail" value={search}
+          className="msg-input msg-search" placeholder="Search All Mail" value={search}
           onChange={(e) => {
             setSearch(e.target.value);
             if (!e.target.value.trim()) setResults(null);

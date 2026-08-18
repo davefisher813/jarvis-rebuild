@@ -260,7 +260,7 @@ export default function ScheduleUploadFlow({
           </button>
           <div className="field">
             <div className="input-label">Or Paste It</div>
-            <textarea className="input input-multiline" rows={5} placeholder="Paste the schedule text from a message or email" value={text} onChange={(e) => setText(e.target.value)} />
+            <textarea className="input input-multiline" rows={5} placeholder="Paste the Schedule · a message or email works" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
           <button className="btn btn-secondary btn-block" disabled={busy || !text.trim()}
             onClick={() => void runExtract({ role: "user", content: SCHEDULE_EXTRACT_PROMPT + "\n\nCONTENT:\n" + text.trim().slice(0, 12000) })}>

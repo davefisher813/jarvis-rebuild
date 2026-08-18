@@ -72,7 +72,7 @@ export default function CategorySheet({
             <div className="input-label">Name</div>
             <input
               className={"input" + (touched && !valid ? " input-error" : "")}
-              placeholder="Category name"
+              placeholder="Category Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
