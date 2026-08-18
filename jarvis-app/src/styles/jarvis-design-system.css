@@ -82,7 +82,11 @@
   --surface-1: #17171E; --surface-2: #1F1F27; --surface-3: #2A2A32;
   --card-bd: rgba(255,255,255,0.12); --divider: rgba(255,255,255,0.06);
   --press-1: rgba(255,255,255,0.04); --press-3: rgba(255,255,255,0.06); --press-5: rgba(255,255,255,0.14);
-  --tx-1: #FFFFFF; --tx-2: rgba(255,255,255,0.92); --tx-3: rgba(255,255,255,0.76); --tx-4: rgba(255,255,255,0.50);
+  /* iOS label ramp (approved 2026-08-18): titles pure white, secondary at
+     the system 60% (EBEBF5 like UIKit's secondaryLabel), tertiary at 30%.
+     The old 0.76 white meta sat too close to titles and killed hierarchy;
+     recede comes from this ramp plus 15px meta size, not from casing. */
+  --tx-1: #FFFFFF; --tx-2: rgba(235,235,245,0.82); --tx-3: rgba(235,235,245,0.60); --tx-4: rgba(235,235,245,0.30);
   --red: #FF1F30; --sys-red: #FF453A; --warn: #FF9F0A; --good: #34D572; --blue: #5E9BFF;
   --yellow: #FFCC00; --teal: #5AC8FA; --mint: #4FE0BE; --pink: #FF85B8;
   /* --tint is the colour of things that are tappable but are not buttons: the
@@ -113,7 +117,8 @@
      the capture hint, empty-state subtext, AM/PM. One token accounted for 16
      of the 19 light-theme failures. 0.76 is the lowest value that clears both
      backgrounds (4.98:1 on page, 5.31:1 on card) without going near black. */
-  --tx-1: #000000; --tx-2: rgba(60,60,67,0.86); --tx-3: rgba(60,60,67,0.76); --tx-4: rgba(60,60,67,0.40);
+  /* Light mirrors the iOS light label ramp (3C3C43 at 60% / 30%). */
+  --tx-1: #000000; --tx-2: rgba(60,60,67,0.82); --tx-3: rgba(60,60,67,0.60); --tx-4: rgba(60,60,67,0.30);
   --red: #FF3B30; --sys-red: #FF3B30; --warn: #FF9500; --good: #34C759; --blue: #007AFF;
   --yellow: #FFCC00; --teal: #5AC8FA; --mint: #4FE0BE; --pink: #FF85B8;
   /* Red in light theme too (Dave, 2026-08-02), but a darker red than dark

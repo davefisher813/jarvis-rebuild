@@ -673,34 +673,31 @@ export default function TodayFlow({
 
   // Slippage stated out loud below Everything; automatic (receipted) at it.
   const reflowSection = !evening && dayDraft?.accepted && slippedCount > 0 && effectiveLevel(getAIControl()) !== "everything" && (
-    <div className="pad-x">
-      <div className="sweep-receipt banner-warn">
-        <div className="banner-line">
-          <div className="row-ico nav-tile-orange">{SWEEP_ICO}</div>
-          <div className="row-stack">
-            <div className="restore-title">Slipped<span className="count-pill">{slippedCount}</span></div>
-            <div className="restore-meta">{slippedCount === 1 ? "a block" : "blocks"} behind the clock</div>
-          </div>
+    <div className="promo-card">
+      <div className="promo-head">
+        <div className="promo-badge b-amber">{SWEEP_ICO}</div>
+        <div className="promo-body">
+          <div className="promo-title">{slippedCount === 1 ? "1 Block Slipped" : `${slippedCount} Blocks Slipped`}</div>
+          <div className="promo-sub">The plan is behind the clock.</div>
         </div>
-        <div className="momentum-actions">
-          <button className="btn-sm" onClick={() => void runReflow()}>Re-Flow</button>
-        </div>
+      </div>
+      <div className="promo-acts">
+        <button className="promo-pill" onClick={() => void runReflow()}>Re-Flow</button>
       </div>
     </div>
   );
 
   const overflowSection = overflowOffer && (
-    <div className="pad-x">
-      <div className="sweep-receipt banner-warn">
-        <div className="banner-line">
-          <RowIcon kind="task" />
-          <div className="row-stack">
-            <div className="restore-title">{overflowOffer.title}</div>
-            <div className="restore-meta"><span className="slip-warn">no room left today</span></div>
-          </div>
+    <div className="promo-card">
+      <div className="promo-head">
+        <div className="promo-badge b-amber">{SWEEP_ICO}</div>
+        <div className="promo-body">
+          <div className="promo-title">{overflowOffer.title}</div>
+          <div className="promo-sub">No room left today.</div>
         </div>
-        <div className="momentum-actions">
-          <button className="btn-sm" onClick={() => void (async () => {
+      </div>
+      <div className="promo-acts">
+          <button className="promo-pill quiet" onClick={() => void (async () => {
             const ev = todayEvents.find((e) => e.id === overflowOffer.eventId);
             const taskId = ev?.data.sourceTaskId;
             const ok = await attemptWrite(async () => {
@@ -711,8 +708,7 @@ export default function TodayFlow({
             await reload();
             if (ok) showToast({ message: "Set aside · keeps its place" });
           })()}>Set Aside</button>
-          <button className="btn-sm" onClick={() => setOverflowOffer(null)}>Leave It</button>
-        </div>
+          <button className="promo-pill" onClick={() => setOverflowOffer(null)}>Leave It</button>
       </div>
     </div>
   );
@@ -724,47 +720,53 @@ export default function TodayFlow({
       {overflowSection}
       {nowSection}
       {sweepReceipt && sweepReceipt.failed && (
-        <div className="pad-x">
-          <div className="sweep-receipt sweep-error" role="button" tabIndex={0} onClick={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}>
-            <div className="row-ico nav-tile-orange">{SWEEP_ICO}</div>
-            <div className="row-grow"><div className="restore-title">Couldn't Move Yesterday's Tasks · Tap to Retry</div></div>
+        <div className="promo-card" role="button" tabIndex={0} onClick={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}>
+          <div className="promo-head">
+            <div className="promo-badge b-red">{SWEEP_ICO}</div>
+            <div className="promo-body">
+              <div className="promo-title">Couldn't Move Yesterday's Tasks</div>
+              <div className="promo-sub">Tap to retry.</div>
+            </div>
           </div>
         </div>
       )}
       {sweepReceipt && !sweepReceipt.failed && sweepReceipt.moved.length > 0 && (
-        <div className="pad-x">
-          <div className="sweep-receipt banner-warn">
-            <div className="banner-line">
-              <div className="row-ico nav-tile-orange">{SWEEP_ICO}</div>
-              <div className="row-stack">
-                <div className="restore-title">Moved to Today<span className="count-pill">{sweepReceipt.moved.length}</span></div>
-                {sweepCand && <div className="restore-meta">{sweepCand.text} · <span className="slip-warn">moved {sweepCand.slips} days running</span></div>}
-              </div>
+        <div className="promo-card">
+          <button className="promo-x" aria-label="Dismiss" onClick={() => setSweepReceipt(null)}>
+            <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+          </button>
+          <div className="promo-head">
+            <div className="promo-badge b-amber">{SWEEP_ICO}</div>
+            <div className="promo-body">
+              <div className="promo-title">{sweepReceipt.moved.length === 1 ? "Moved 1 Task to Today" : `Moved ${sweepReceipt.moved.length} Tasks to Today`}</div>
+              {sweepCand && <div className="promo-sub">{sweepCand.text} has moved <span className="fact-warn">{sweepCand.slips} days running</span>.</div>}
             </div>
-            <div className="momentum-actions">
-              {sweepCand && (
-                <button className="btn-sm" onClick={() => void (async () => {
-                  markOffered(sweepCand.id);
-                  const ok = await attemptWrite(() => tasks.setAside([sweepCand.id]));
-                  setSweepReceipt(readReceipt(today));
-                  await reload();
-                  if (ok) showToast({ message: "Set aside · keeps its place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
-                })()}>Set Aside</button>
-              )}
-              <button className="btn-sm" onClick={() => void (async () => { await attemptWrite(() => undoSweep(tasks, sweepReceipt)); setSweepReceipt(null); await reload(); })()}>Undo</button>
-            </div>
+          </div>
+          <div className="promo-acts">
+            {sweepCand && (
+              <button className="promo-pill quiet" onClick={() => void (async () => {
+                markOffered(sweepCand.id);
+                const ok = await attemptWrite(() => tasks.setAside([sweepCand.id]));
+                setSweepReceipt(readReceipt(today));
+                await reload();
+                if (ok) showToast({ message: "Set aside · keeps its place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
+              })()}>Set Aside</button>
+            )}
+            <button className="promo-pill" onClick={() => void (async () => { await attemptWrite(() => undoSweep(tasks, sweepReceipt)); setSweepReceipt(null); await reload(); })()}>Undo</button>
           </div>
         </div>
       )}
       {spot && (
-        <div className="pad-x">
-          <div className="restore-banner" role="button" tabIndex={0} onClick={() => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); }}>
-            <RowIcon kind={spot.kind} />
-            <div className="row-grow">
-              <div className="restore-title">Pick Up Where You Left Off</div>
-              <div className="restore-meta">{spotMeta(spot)}</div>
+        <div className="promo-card" role="button" tabIndex={0} onClick={() => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); }}>
+          <div className="promo-head">
+            <div className="promo-badge b-yellow">
+              <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
             </div>
-            <div className="chev" />
+            <div className="promo-body">
+              <div className="promo-title">Pick Up Where You Left Off</div>
+              <div className="promo-sub">{spotMeta(spot)}</div>
+            </div>
+            <div className="chev promo-chev" />
           </div>
         </div>
       )}

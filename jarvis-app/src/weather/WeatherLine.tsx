@@ -66,23 +66,25 @@ export function WeatherOfferRow() {
       dismiss,
     );
   };
-  // Catalog V3.1 tip banner (approved 2026-08-18): glyph, Title Case title,
-  // gray sub, X to dismiss, Allow as the one primary action.
+  // Option C promo card (approved 2026-08-18): circular gradient badge,
+  // white title, secondary-grey sentence sub, X, full-width pill action.
   return (
-    <div className="tip-banner">
-      <div className="tip-ico">
-        <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 14.9" /></svg>
-      </div>
-      <div className="tip-body">
-        <div className="tip-title">Add Weather to Your Day</div>
-        <div className="tip-sub">One line each morning · only when it matters</div>
-        <div className="tip-acts">
-          <button className="btn btn-primary btn-sm" onClick={grant}>Allow</button>
-        </div>
-      </div>
-      <button className="tip-x" aria-label="Dismiss" onClick={dismiss}>
+    <div className="promo-card">
+      <button className="promo-x" aria-label="Dismiss" onClick={dismiss}>
         <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
       </button>
+      <div className="promo-head">
+        <div className="promo-badge b-sky">
+          <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 14.9" /></svg>
+        </div>
+        <div className="promo-body">
+          <div className="promo-title">Add Weather to Your Day</div>
+          <div className="promo-sub">One line each morning, only when it matters.</div>
+        </div>
+      </div>
+      <div className="promo-acts">
+        <button className="promo-pill" onClick={grant}>Allow</button>
+      </div>
     </div>
   );
 }

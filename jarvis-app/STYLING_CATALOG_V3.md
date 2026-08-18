@@ -1,4 +1,13 @@
-# JARVIS Styling Catalog V3.2 (APPROVED 2026-08-18, Library edition)
+# JARVIS Styling Catalog V3.3 (APPROVED 2026-08-18, Library edition)
+
+## K. The iOS label ramp and the promo card (V3.3 revision, approved 2026-08-18)
+
+1. TEXT HIERARCHY is the iOS label ramp: titles pure white; secondary text EBEBF5 at 60% (the system secondaryLabel); tertiary at 30%. Light theme mirrors 3C3C43 at 60/30. Meta is 15px. Recede comes from color and size, never from casing.
+2. META CASING: sentence case with proper nouns kept ("Apple Music Hip-Hop"), middle dots divide facts, a single trailing period is legal in promo subs. Forced-lowercase meta is retired.
+3. COLORED HIERARCHY SLOTS: one colored fact inside a grey sub (.fact-warn/.fact-good/.fact-red/.fact-sky/.fact-purple, semibold), kickers may take a systemic color, values keep intent colors. One colored fact per sub, no more.
+4. BANNERS are the PROMO CARD (Option C, Dave's pick from Apple Music's Find Concerts card): elevated #1C1C1E card, circular gradient icon badge (amber = moved or slipped, yellow = restore, sky = weather, red = failure), white nowrap title, grey sentence sub, X where dismissible, actions as full-width grey pills with accent text (quiet variant grey text). Tint washes and left color bars are retired from banners.
+5. THE NO-WRAP LAW: titles never wrap, they ellipsize (conn-name, lib-name, sched-title, task-title, promo-title, sh2, empty-title, page titles). Subs clamp at two lines. Copy is written to fit.
+
 
 Approved by Dave 2026-08-18 with the Library chassis (Design 2 + the red energy line) applied app-wide.
 

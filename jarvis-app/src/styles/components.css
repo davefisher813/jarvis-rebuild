@@ -1311,3 +1311,55 @@ button {
 /* Library phase 2: a list wrapper with the card chrome removed. Keeps the
    DOM shape of the old pad-x + card pair, renders full bleed. */
 .list-flat { background: none; }
+
+/* === OPTION C + HIERARCHY (approved 2026-08-18, LOCKED-CSS FLAGGED) ===
+   Banners become the Apple promo-card anatomy Dave picked from his own
+   Apple Music screenshots: elevated flat card, circular gradient icon
+   badge, white title, secondary-grey sentence sub, X, and actions as
+   full-width grey pills with colored text. All tint washes and left bars
+   retire from banners; meaning lives in the badge.
+   Plus the no-wrap law (titles never wrap, they ellipsize; subs clamp to
+   two lines) and the colored hierarchy slots (.fact-*, colored kickers). */
+.promo-card { background: #1C1C1E; border-radius: var(--r-xl); margin: 0 var(--s-4) var(--s-3);
+  padding: var(--s-4); position: relative; animation: restoreIn var(--dur-slow) var(--ease-spring); }
+[data-theme="light"] .promo-card { background: #FFFFFF; box-shadow: var(--shadow-card); border: 0.5px solid var(--card-bd); }
+.promo-head { display: flex; gap: var(--s-3h); align-items: center; }
+.promo-badge { width: 52px; height: 52px; border-radius: var(--r-circle); display: flex; align-items: center;
+  justify-content: center; flex-shrink: 0; color: #fff; }
+.promo-badge .ic { width: 24px; height: 24px; }
+.b-amber { background: linear-gradient(180deg, #FFB340, #E08700); }
+.b-yellow { background: linear-gradient(180deg, #FFE14D, #E0A800); color: #2a1f00; }
+.b-sky { background: linear-gradient(180deg, #6AD1FF, #1E9BD7); }
+.b-red { background: linear-gradient(180deg, #FF6259, #D91F2E); }
+.b-green { background: linear-gradient(180deg, #5DE58A, #1FA24D); }
+.promo-body { flex: 1; min-width: 0; }
+.promo-title { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--tx-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.promo-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: 2px; line-height: 1.4;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.promo-acts { display: flex; gap: var(--s-2h); margin-top: var(--s-3h); }
+.promo-pill { flex: 1; height: 44px; border-radius: 22px; border: 0; background: rgba(255,255,255,0.08);
+  font-family: var(--f); font-size: 16px; font-weight: var(--w-semi); color: var(--accent); }
+[data-theme="light"] .promo-pill { background: rgba(0,0,0,0.05); }
+.promo-pill.quiet { color: var(--tx-2); }
+.promo-x { position: absolute; top: var(--s-3h); right: var(--s-3h); width: 28px; height: 28px;
+  border-radius: var(--r-circle); background: rgba(255,255,255,0.08); border: 0; color: var(--tx-3);
+  display: flex; align-items: center; justify-content: center; }
+.promo-x .ic { width: 14px; height: 14px; }
+.promo-chev { color: var(--tx-4); flex-shrink: 0; }
+@media (prefers-reduced-motion: reduce) { .promo-card { animation: none; } }
+
+/* THE NO-WRAP LAW: titles ellipsize, never wrap. Subs clamp at two lines. */
+.conn-name, .lib-name, .sched-title, .task-title, .restore-title, .tip-title,
+.sh2 .t, .empty-title, .msg-name, .proj-title, .pagebar-title, .pagehead-title {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conn-meta, .lib-sub, .msg-preview {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* COLORED HIERARCHY SLOTS: one colored fact inside a grey sub, and kickers
+   that may take a systemic color. Weight carries them over the 60% grey. */
+.fact-warn { color: var(--warn); font-weight: var(--w-semi); }
+.fact-good { color: var(--good); font-weight: var(--w-semi); }
+.fact-red { color: var(--red); font-weight: var(--w-semi); }
+.fact-sky { color: var(--cat-sky, #5AC8FA); font-weight: var(--w-semi); }
+.fact-purple { color: var(--cat-purple, #BF5AF2); font-weight: var(--w-semi); }

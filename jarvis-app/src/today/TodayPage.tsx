@@ -308,7 +308,7 @@ export default function TodayPage({
 
       {/* Weather's one-time connect moment: a single row, once, gone forever
           on decline (same doctrine as the gym page's Health row). */}
-      <div className="pad-x"><WeatherOfferRow /></div>
+      <WeatherOfferRow />
 
       {/* Bills where the eyes are (2026-08-09): one quiet line when money is
           due within three days. Not tappable to nowhere: it only becomes a
