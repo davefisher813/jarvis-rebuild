@@ -1,6 +1,10 @@
 // Day progress ring for the Today hero (RDB, Dave 2026-07-29): due-today
 // tasks completed over due-today total. Fills as the day progresses, pops
 // once full. Renders nothing on days with no due tasks, so it never nags.
+// Catalog V3.1: reaching 100% fires the completion burst (the app's one
+// celebration primitive) on top of the ring pop.
+import { Burst } from "../shared/Burst";
+
 const R = 19;
 const C = 2 * Math.PI * R;
 
@@ -22,6 +26,7 @@ export default function DayRing({ done, total }: { done: number; total: number }
         <circle className="fill" cx="22" cy="22" r={R} strokeWidth="4" stroke="url(#ringGrad)" strokeDasharray={C} strokeDashoffset={C * (1 - Math.min(1, done / total))} />
       </svg>
       <div className="count">{done}/{total}</div>
+      {full && <Burst show />}
     </div>
   );
 }

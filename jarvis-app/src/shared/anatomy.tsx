@@ -12,6 +12,7 @@
 // A surface that hand-rolls any of these is drifting; use these.
 
 import type { ReactNode } from "react";
+import RollingNumber from "./RollingNumber";
 
 export type RowKind = "task" | "event" | "note" | "money" | "person" | "project" | "goal" | "gym" | "insight" | "mail";
 
@@ -61,7 +62,9 @@ export function StatTiles({ stats }: { stats: Stat[] }) {
     <div className="stat-row">
       {stats.map((s) => (
         <div key={s.label} className={"stat-tile stat-" + (s.tint ?? "plain")}>
-          <div className="stat-num">{s.num}</div>
+          {/* Catalog V3.1 motion: numeric values roll to their new value
+              (reduced-motion snaps); formatted strings render as-is. */}
+          <div className="stat-num">{typeof s.num === "number" ? <RollingNumber value={s.num} /> : s.num}</div>
           <div className="stat-label">{s.label}</div>
         </div>
       ))}

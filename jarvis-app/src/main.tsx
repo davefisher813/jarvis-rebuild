@@ -14,6 +14,14 @@ import "./styles/uniformity.css";
 import "./styles/components.css";
 
 initMonitoring();
+
+// Catalog V3.1 motion: lists stagger on FIRST PAINT only. The class lives on
+// body for the boot moment and is gone before any tab switch, so switches
+// stay instant per the standing law (Dave 2026-07-29).
+if (typeof document !== "undefined") {
+  document.body.classList.add("boot-stagger");
+  setTimeout(() => document.body.classList.remove("boot-stagger"), 1400);
+}
 emit({ type: "app.opened" });
 // Durable event pipeline (Session 6.5): connects the Supabase sink (null in
 // demo mode = queue-only), backfills Time Sense once, scores yesterday's plan.

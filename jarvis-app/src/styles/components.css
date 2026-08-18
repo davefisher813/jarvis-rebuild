@@ -1225,3 +1225,26 @@ button {
   border: 0; color: var(--tx-3); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .tip-x .ic { width: 16px; height: 16px; }
 @media (prefers-reduced-motion: reduce) { .tip-banner { animation: none; } }
+
+/* 5 · MOTION (Catalog V3.1 H3). One spring for every arriving surface:
+   banners and tips ride the same curve the sheets already use. Lists
+   stagger ONLY on boot (body.boot-stagger, removed by main.tsx ~1.4s in),
+   so tab switches stay instant per the standing law. Numbers roll via
+   RollingNumber in StatTiles; the day ring bursts at 100%. */
+.restore-banner, .sweep-receipt, .tip-banner { animation: restoreIn var(--dur-slow) var(--ease-spring); }
+@keyframes rowIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.boot-stagger .card > *:nth-child(-n+8) { animation: rowIn 300ms var(--ease-out) backwards; }
+.boot-stagger .card > *:nth-child(1) { animation-delay: 0ms; }
+.boot-stagger .card > *:nth-child(2) { animation-delay: 30ms; }
+.boot-stagger .card > *:nth-child(3) { animation-delay: 60ms; }
+.boot-stagger .card > *:nth-child(4) { animation-delay: 90ms; }
+.boot-stagger .card > *:nth-child(5) { animation-delay: 120ms; }
+.boot-stagger .card > *:nth-child(6) { animation-delay: 150ms; }
+.boot-stagger .card > *:nth-child(7) { animation-delay: 180ms; }
+.boot-stagger .card > *:nth-child(8) { animation-delay: 210ms; }
+/* Glass chrome: the bar keeps its blur and gains saturation so color under
+   it stays alive (solid --nav-bg remains the fallback tint). */
+.tab-bar { backdrop-filter: blur(22px) saturate(160%); -webkit-backdrop-filter: blur(22px) saturate(160%); }
+@media (prefers-reduced-motion: reduce) {
+  .restore-banner, .sweep-receipt, .tip-banner, .boot-stagger .card > * { animation: none; }
+}
