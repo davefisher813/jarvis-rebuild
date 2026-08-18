@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useTasks, useSchedule, useNotes, usePeople, useProjects, useMoney, useGoals, useCategories } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, usePeople, useProjects, useMoney, useGoals, useCategories, useDecisions } from "../data/NotesProvider";
 import { runSearch, totalHits, buildSuggestionIndex, suggest, type SearchInput } from "./search";
 import { personInitials, slotForName } from "../people/types";
 import { RowIcon } from "../shared/anatomy";
@@ -20,20 +20,21 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
   const money = useMoney();
   const goals = useGoals();
   const categories = useCategories();
+  const decisions = useDecisions();
   const [data, setData] = useState<SearchInput | null>(null);
   const [q, setQ] = useState("");
 
   useEffect(() => {
     let on = true;
     (async () => {
-      const [t, e, n, p, pr, ac, g, c] = await Promise.all([
+      const [t, e, n, p, pr, ac, g, c, dec] = await Promise.all([
         tasks.listTasks(), schedule.listEvents(), notes.listNotes(), people.list(),
-        projects.list(), money.list(), goals.list(), categories.list(),
+        projects.list(), money.list(), goals.list(), categories.list(), decisions.list(),
       ]);
-      if (on) setData({ tasks: t, events: e, notes: n, people: p, projects: pr, accounts: ac, goals: g, categories: c });
+      if (on) setData({ tasks: t, events: e, notes: n, people: p, projects: pr, accounts: ac, goals: g, categories: c, decisions: dec });
     })();
     return () => { on = false; };
-  }, [tasks, schedule, notes, people, projects, money, goals, categories]);
+  }, [tasks, schedule, notes, people, projects, money, goals, categories, decisions]);
 
   const results = useMemo(() => (data ? runSearch(q, data) : null), [q, data]);
   const empty = q.trim() === "";
@@ -157,6 +158,17 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
             <div><div className="list-flat">
               {results.goals.map((g) => (
                 <div className="row" role="button" tabIndex={0} key={g.id} onClick={() => open("goal", g.id)}><RowIcon kind="goal" /><div className="row-grow"><div className="conn-name">{g.title}</div></div><div className="chev"></div></div>
+              ))}
+            </div></div>
+          </>
+        )}
+
+        {results && !empty && results.decisions.length > 0 && (
+          <>
+            <div className="sh2"><span className="t">Decisions</span></div>
+            <div><div className="list-flat">
+              {results.decisions.map((d) => (
+                <div className="row" role="button" tabIndex={0} key={d.id} onClick={() => open("decision", d.id)}><RowIcon kind="decision" /><div className="row-grow"><div className="conn-name">{d.decision}</div></div><div className="chev"></div></div>
               ))}
             </div></div>
           </>

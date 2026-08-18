@@ -71,12 +71,19 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // Person deep-link: BrainFlow opens Contacts, PeopleFlow opens the person.
   const [personIntent, setPersonIntent] = useState<{ groupKey: string; id: string } | undefined>(undefined);
   const [noteIntent, setNoteIntent] = useState<string | undefined>(undefined);
+  // Decision deep-link: BrainFlow opens Decisions, DecisionsFlow opens the record.
+  const [decisionIntent, setDecisionIntent] = useState<string | undefined>(undefined);
   const navigateToNote = (id: string) => { setNoteIntent(id); setActive("notes"); };
   const navigateToEntity = async (kind: string, targetId: string) => {
     if (kind === "task") { setTaskIntent(targetId); setActive("tasks"); }
     else if (kind === "project") { setProjectIntent(targetId); setActive("bigger"); }
     else if (kind === "event") { setEventIntent(targetId); setActive("schedule"); }
     else if (kind === "goal") { setGoalIntent(targetId); setActive("bigger"); }
+    else if (kind === "decision") {
+      setDecisionIntent(targetId);
+      setBrainIntent("decisions");
+      setActive("brain");
+    }
     else if (kind === "person") {
       const p = await people.get(targetId);
       if (!p) return; // deleted person: the link goes nowhere, quietly
@@ -180,10 +187,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); setActive("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={() => setActive("messages")} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") setActive("brain"); else void navigateToEntity(kind, id); }} />}
         {active === "tasks" && <TasksFlow openId={taskIntent} openFilter={taskFilterIntent} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
-        {active === "brain" && <BrainFlow openKey={brainIntent} personOpenId={personIntent?.id} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenMoney={() => setActive("money")} />}
+        {active === "brain" && <BrainFlow openKey={brainIntent} personOpenId={personIntent?.id} decisionOpenId={decisionIntent} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenMoney={() => setActive("money")} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
         
-        {active === "bigger" && <BiggerPictureFlow openId={projectIntent} openGoalId={goalIntent} onOpenNote={navigateToNote} />}
+        {active === "bigger" && <BiggerPictureFlow openId={projectIntent} openGoalId={goalIntent} onOpenNote={navigateToNote} onOpenDecision={(id) => void navigateToEntity("decision", id)} />}
         {active === "messages" && <MessagesFlow ai={ai} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
         {active === "notifications" && <NotificationsFlow />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} />}
@@ -208,7 +215,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       {showDock && (
         <>
           <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} />
-          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setTaskFilterIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
+          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setTaskFilterIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setDecisionIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
         </>
       )}
       {captureOpen && <Suspense fallback={null}><QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} /></Suspense>}

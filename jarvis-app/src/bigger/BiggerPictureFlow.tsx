@@ -34,7 +34,7 @@ type Sheet =
 // openGoalId (2026-08-09): goal deep-links used to be set by the shell and
 // then dropped on the floor here, so tapping a linked goal landed on the
 // list instead of the goal.
-export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote }: { openId?: string; openGoalId?: string; onOpenNote?: (id: string) => void } = {}) {
+export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOpenDecision }: { openId?: string; openGoalId?: string; onOpenNote?: (id: string) => void; onOpenDecision?: (id: string) => void } = {}) {
   const projectsSvc = useProjects();
   const goalsSvc = useGoals();
   const catsSvc = useCategories();
@@ -244,6 +244,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote }: { 
           project={detail}
           linkedNotes={linkedNotes}
           onOpenNote={onOpenNote}
+          onOpenDecision={onOpenDecision}
           onBack={() => setDetailId(null)}
           onEdit={() => setSheet({ kind: "editProject", id: detail.id })}
         />

@@ -39,9 +39,9 @@ describe("BrainPage", () => {
   it("renders every row with a colored (non-grey) library glyph", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
     const glyphs = container.querySelectorAll(".lib-ico");
-    // 5 static rows + 3 category rows (Setup's 2 rows and the Inner Circle /
-    // Adversarial rows all removed 2026-08-03)
-    expect(glyphs.length).toBe(8);
+    // SPEC MOVED (2026-08-18): 6 static rows + 3 category rows. Decisions
+    // joined How You Think (Decision Record, brainstorm shipment 1).
+    expect(glyphs.length).toBe(9);
     expect(container.querySelectorAll(".lib-ico.lib-ico-neutral").length).toBe(0);
     glyphs.forEach((t) => expect(t.className).toMatch(/cat-fg-/));
   });

@@ -5,6 +5,7 @@ import PeopleFlow from "../people/PeopleFlow";
 import BrainDocPage from "./docs/BrainDocPage";
 import CategoryDetail from "./CategoryDetail";
 import RoutineFlow from "../routine/RoutineFlow";
+import DecisionsFlow from "../decisions/DecisionsFlow";
 import { usePushDepth } from "../shared/pushNav";
 import { effectiveKind } from "../categories/kinds";
 
@@ -17,7 +18,7 @@ const DOC_TOPIC: Record<string, string> = {
 // The Brain tab. The hub is built. Contacts opens the one people list (the
 // Inner Circle / Adversarial rows were cut 2026-08-03); the doc rows open a
 // lightweight placeholder for now. "Your Categories" is populated live.
-export default function BrainFlow({ openKey, personOpenId, onOpenNote, onOpenProject, onOpenMoney }: { openKey?: string; personOpenId?: string; onOpenNote?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenMoney?: () => void } = {}) {
+export default function BrainFlow({ openKey, personOpenId, decisionOpenId, onOpenNote, onOpenProject, onOpenMoney }: { openKey?: string; personOpenId?: string; decisionOpenId?: string; onOpenNote?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenMoney?: () => void } = {}) {
   const cats = useCategories();
   const [categories, setCategories] = useState<BrainCategory[]>([]);
   const [open, setOpen] = useState<{ key: string; name: string } | null>(
@@ -58,6 +59,9 @@ export default function BrainFlow({ openKey, personOpenId, onOpenNote, onOpenPro
     if (!open) return null;
     if (open.key === "routine") {
       return <RoutineFlow onBack={() => setOpen(null)} />;
+    }
+    if (open.key === "decisions") {
+      return <DecisionsFlow openId={decisionOpenId} onBack={() => setOpen(null)} />;
     }
     if (open.key === "contacts") {
       return <PeopleFlow openId={personOpenId ?? personId} onOpenNote={onOpenNote} onBack={() => { setPersonId(undefined); setOpen(null); }} />;

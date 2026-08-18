@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals } from "../data/NotesProvider";
-import { pausedCategoryIds } from "../categories/kinds";
+import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions } from "../data/NotesProvider";
+import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
 import { goalTitleOf, workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
@@ -34,6 +34,8 @@ import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, spotMeta, type WorkSpot } from "../restore/whereYouWere";
+import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCaptureSheet";
+import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
 import { readDraft, writeDraft, draftDay, reflowDay, type DayDraft } from "../dayloop/dayLoop";
@@ -56,6 +58,10 @@ const CLOCK_ICO = (
 // Double chevrons: things carried forward (sweep, slip, re-flow).
 const SWEEP_ICO = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="13 17 18 12 13 7" /><polyline points="6 17 11 12 6 7" /></svg>
+);
+// A fork with one path taken: the Decision Record mark (matches anatomy.tsx).
+const FORK_ICO = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="6" y1="3" x2="6" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></svg>
 );
 const UpNextFlow = lazy(() => import("../upnext/UpNextFlow"));
 const FreshStartFlow = lazy(() => import("../upnext/FreshStartFlow"));
@@ -129,6 +135,23 @@ export default function TodayFlow({
     })();
     // Once, at open: the sweep is a first-open-of-the-day event by definition.
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Revisit Day (Decision Record, Screen 07): appears once, on the date set,
+  // above the day. At most one per day, oldest first. Days that passed
+  // unanswered expire first and never render again: ignored means gone.
+  const decisionsSvc = useDecisions();
+  const [revisit, setRevisit] = useState<DecisionRecord | null>(null);
+  const [revisitSheet, setRevisitSheet] = useState(false);
+  const loadRevisit = useCallback(async () => {
+    try {
+      await decisionsSvc.expirePastRevisits(todayISO());
+      const due = await decisionsSvc.getRevisitsDue(todayISO());
+      const first = due[0] ?? null;
+      setRevisit(first);
+      if (first && first.data.revisitState === "pending") await decisionsSvc.update(first.id, { revisitState: "shown" });
+    } catch { /* the revisit card is an enhancement; a failed read stays quiet */ }
+  }, [decisionsSvc]);
+  useEffect(() => { void loadRevisit(); }, [loadRevisit]);
   const cats = useCategories();
   useEffect(() => {
     let on = true;
@@ -713,8 +736,40 @@ export default function TodayFlow({
     </div>
   );
 
+  // Revisit Day handlers (Screen 07). Still Good stamps a confirmed date and
+  // clears the card, with undo. Change It opens the capture sheet prefilled
+  // as a replacement, which lands on the supersede chain.
+  const stillGood = async (rec: DecisionRecord) => {
+    const ok = await attemptWrite(() => decisionsSvc.confirmRevisit(rec.id));
+    setRevisit(null);
+    if (ok) showToast({ message: "Kept, revisit cleared", actionLabel: "Undo", onAction: () => void (async () => {
+      await attemptWrite(() => decisionsSvc.unconfirmRevisit(rec.id));
+      await loadRevisit();
+    })() });
+  };
+  const decisionAttachOptions: AttachOption[] = [
+    ...projList.filter((p) => p.data.status !== "done").map((p) => ({ type: "project" as const, id: p.id, label: p.data.title })),
+    ...goalList.filter((g) => g.data.state !== "achieved").map((g) => ({ type: "goal" as const, id: g.id, label: g.data.title })),
+    ...catsFull.filter((c) => effectiveKind(c.data) === "org").map((c) => ({ type: "org" as const, id: c.id, label: c.data.name })),
+  ];
+
   const banners = (
     <>
+      {revisit && (
+        <div className="promo-card">
+          <div className="promo-head">
+            <div className="promo-badge b-purple">{FORK_ICO}</div>
+            <div className="promo-body">
+              <div className="promo-title">{revisit.data.decision}</div>
+              <div className="promo-sub">You wanted to revisit this today.</div>
+            </div>
+          </div>
+          <div className="promo-acts">
+            <button className="promo-pill quiet" onClick={() => setRevisitSheet(true)}>Change It</button>
+            <button className="promo-pill" onClick={() => void stillGood(revisit)}>Still Good</button>
+          </div>
+        </div>
+      )}
       {draftSection}
       {reflowSection}
       {overflowSection}
@@ -831,6 +886,28 @@ export default function TodayFlow({
         onCommit={onPlanCommit}
         onAIPlan={onAIPlan}
         onClose={() => { setPlanOpen(false); setPlanTarget("today"); }}
+      />
+    )}
+    {revisitSheet && revisit && (
+      <DecisionCaptureSheet
+        mode="supersede"
+        initial={{ ruledOut: revisit.data.ruledOut, linkedType: revisit.data.linkedType, linkedId: revisit.data.linkedId, linkedLabel: revisit.data.linkedLabel }}
+        attachOptions={decisionAttachOptions}
+        onSave={(draft) => void (async () => {
+          const rec = revisit;
+          let newId: string | null = null;
+          const ok = await attemptWrite(async () => { newId = await decisionsSvc.supersede(rec.id, draft); });
+          setRevisitSheet(false);
+          setRevisit(null);
+          if (ok && newId) {
+            const created = newId;
+            showToast({ message: "Decision replaced", actionLabel: "Undo", onAction: () => void (async () => {
+              await attemptWrite(() => decisionsSvc.undoSupersede(created));
+              await loadRevisit();
+            })() });
+          }
+        })()}
+        onCancel={() => setRevisitSheet(false)}
       />
     )}
     {sheet && (

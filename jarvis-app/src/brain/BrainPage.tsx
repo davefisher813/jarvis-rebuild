@@ -12,6 +12,8 @@ const Compass = () => svg(<><circle cx="12" cy="12" r="10" /><polygon points="16
 const Pen = () => svg(<><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></>);
 const Flag = () => svg(<><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" y1="22" x2="4" y2="15" /></>);
 const Clock = () => svg(<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>);
+// A fork with one path taken: the Decision Record mark (matches anatomy.tsx).
+const Fork = () => svg(<><line x1="6" y1="3" x2="6" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></>);
 const Chev = () => (
   <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
 );
@@ -45,6 +47,8 @@ const TOP_SECTIONS: { title: string; rows: BrainRow[] }[] = [
     { key: "contacts", name: "Contacts", icon: <Users />, color: "ico-blue" },
   ] },
   { title: "How You Think", rows: [
+    // Decision Record (brainstorm shipment 1): why you chose this, kept.
+    { key: "decisions", name: "Decisions", icon: <Fork />, color: "cat-bg-purple" },
     { key: "philosophy", name: "Life Philosophy", icon: <Compass />, color: "cat-bg-blue" },
     { key: "writing", name: "How You Write", icon: <Pen />, color: "cat-bg-green" },
     { key: "values", name: "Values", icon: <Flag />, color: "cat-bg-yellow" },

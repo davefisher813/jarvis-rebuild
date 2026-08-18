@@ -7,6 +7,7 @@ import type { Project } from "../projects/types";
 import type { Account } from "../money/types";
 import type { Goal } from "../life/types";
 import type { Category } from "../categories/types";
+import type { DecisionRecord } from "../decisions/types";
 
 export interface SearchResults {
   events: { id: string; title: string; start: string }[];
@@ -17,6 +18,7 @@ export interface SearchResults {
   accounts: { id: string; name: string }[];
   goals: { id: string; title: string }[];
   categories: { id: string; name: string }[];
+  decisions: { id: string; decision: string }[];
 }
 
 export interface SearchInput {
@@ -28,9 +30,12 @@ export interface SearchInput {
   accounts: Account[];
   goals: Goal[];
   categories: Category[];
+  // Live decisions only: a superseded record is reachable through its
+  // successor's Replaces block, not through search.
+  decisions?: DecisionRecord[];
 }
 
-const EMPTY: SearchResults = { events: [], tasks: [], people: [], notes: [], projects: [], accounts: [], goals: [], categories: [] };
+const EMPTY: SearchResults = { events: [], tasks: [], people: [], notes: [], projects: [], accounts: [], goals: [], categories: [], decisions: [] };
 
 // Client-side full-text match across everything the user owns. Case-insensitive
 // substring on the human-facing field of each type.
@@ -61,11 +66,13 @@ export function runSearch(query: string, data: SearchInput): SearchResults {
     accounts: data.accounts.filter((a) => has(a.data.name)).map((a) => ({ id: a.id, name: a.data.name })),
     goals: data.goals.filter((g) => has(g.data.title)).map((g) => ({ id: g.id, title: g.data.title })),
     categories: data.categories.filter((c) => has(c.data.name)).map((c) => ({ id: c.id, name: c.data.name })),
+    // Decision text and the reason both match: the reason is the payoff.
+    decisions: (data.decisions ?? []).filter((d) => has(d.data.decision) || has(d.data.why)).map((d) => ({ id: d.id, decision: d.data.decision })),
   };
 }
 
 export function totalHits(r: SearchResults): number {
-  return r.events.length + r.tasks.length + r.people.length + r.notes.length + r.projects.length + r.accounts.length + r.goals.length + r.categories.length;
+  return r.events.length + r.tasks.length + r.people.length + r.notes.length + r.projects.length + r.accounts.length + r.goals.length + r.categories.length + r.decisions.length;
 }
 
 // ---- Type-ahead ------------------------------------------------------------
@@ -85,6 +92,7 @@ export function buildSuggestionIndex(data: SearchInput): string[] {
   for (const a of data.accounts) eat(a.data.name);
   for (const g of data.goals) eat(g.data.title);
   for (const c of data.categories) eat(c.data.name);
+  for (const d of data.decisions ?? []) { eat(d.data.decision); eat(d.data.why); }
   for (const n of data.notes) {
     const d = n.data as unknown as NoteData;
     eat(d.title);

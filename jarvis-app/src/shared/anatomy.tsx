@@ -14,7 +14,7 @@
 import type { ReactNode } from "react";
 import RollingNumber from "./RollingNumber";
 
-export type RowKind = "task" | "event" | "note" | "money" | "person" | "project" | "goal" | "gym" | "insight" | "mail";
+export type RowKind = "task" | "event" | "note" | "money" | "person" | "project" | "goal" | "gym" | "insight" | "mail" | "decision";
 
 const TILE: Record<RowKind, string> = {
   task: "nav-tile-blue",
@@ -27,6 +27,7 @@ const TILE: Record<RowKind, string> = {
   gym: "nav-tile-orange",
   insight: "nav-tile-purple",
   mail: "nav-tile-teal",
+  decision: "nav-tile-purple",
 };
 
 const svg = (children: ReactNode) => (
@@ -44,6 +45,8 @@ const ICON: Record<RowKind, ReactNode> = {
   gym: svg(<path d="M6.5 6.5h11v11h-11zM2 12h2m16 0h2M12 2v2m0 16v2" />),
   insight: svg(<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" />),
   mail: svg(<><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></>),
+  // A fork with one path taken: the Decision Record type mark.
+  decision: svg(<><line x1="6" y1="3" x2="6" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></>),
 };
 
 export function RowIcon({ kind }: { kind: RowKind }) {
@@ -64,6 +67,7 @@ const FG: Record<RowKind, string> = {
   gym: "cat-fg-orange",
   insight: "cat-fg-purple",
   mail: "cat-fg-teal",
+  decision: "cat-fg-purple",
 };
 
 export function RowGlyph({ kind }: { kind: RowKind }) {
