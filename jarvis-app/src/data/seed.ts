@@ -144,7 +144,7 @@ export async function seedDemoData(
   // renders), one plain, and one superseded chain (so Replaces renders).
   const dec = extras.decisions;
   if (dec && (await dec.listAll()).length === 0) {
-    const launch = (await projects.list()).find((p) => p.data.title === "App Store Launch");
+    const launch = (await projects.list()).find((p) => p.data.title === "Rebuild Bridge App");
     await dec.create({
       decision: "Student template ships first",
       why: "BFFSA gives 60 warm leads on day one",

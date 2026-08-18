@@ -31,6 +31,10 @@ const Chev = () => (
 const NO_REASON = "No reason recorded";
 
 // "August 12" from a local ISO date or an ISO datetime.
+// "Aug 12" for the list's trailing date column.
+const fmtShort = (iso: string) =>
+  new Date(iso.length === 10 ? iso + "T00:00:00" : iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
 export const fmtDay = (iso: string) =>
   new Date(iso.length === 10 ? iso + "T00:00:00" : iso).toLocaleDateString("en-US", { month: "long", day: "numeric" });
 
@@ -38,7 +42,9 @@ export const fmtDay = (iso: string) =>
 // decision stands alone.
 function glyphClass(rec: DecisionRecord, projectCat: (id: string) => string | undefined): string {
   const t = rec.data.linkedType;
-  if (!t || !rec.data.linkedId) return "lib-ico-neutral";
+  // V4 styling pass: an unlinked decision wears the decision type color
+  // (purple), never grey; nothing with an identity is grey.
+  if (!t || !rec.data.linkedId) return "cat-fg-purple";
   if (t === "project") {
     const cat = projectCat(rec.data.linkedId);
     return cat ? "cat-fg-" + catColor(cat) : "cat-fg-indigo";
@@ -365,8 +371,14 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
         <div className="lib-row" key={r.id} role="button" tabIndex={0} onClick={() => onOpen(r.id)}>
           <div className={"lib-ico " + glyphClass(r, projCat)}>{DECISION_ICO}</div>
           <div className="lib-stack">
-            <div className="lib-name">{r.data.decision}</div>
-            <div className="lib-sub">{r.data.why ? "Because " + r.data.why : NO_REASON}</div>
+            <div className="msg-line">
+              <span className="lib-name conn-name truncate">{r.data.decision}</span>
+              <span className="dec-when">{fmtShort(r.data.createdAt)}</span>
+            </div>
+            <div className="lib-sub">
+              {r.data.why ? "Because " + r.data.why : NO_REASON}
+              {r.data.linkedLabel && <> · <span className={"fact-link " + glyphClass(r, projCat)}>{r.data.linkedLabel}</span></>}
+            </div>
           </div>
           <Chev />
         </div>

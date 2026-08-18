@@ -3,6 +3,7 @@ import PageHeader, { BarAction } from "../shared/PageHeader";
 import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward } from "lucide-react";
 import type { AIService } from "../ai/AIService";
 import { useGoogle } from "../connections/google/GoogleSession";
+import DemoMail from "./DemoMail";
 import { googleConfigured } from "../connections/google/config";
 import {
   mapThread, mapThreadFull, mapGmailFull, buildReply, encodeEmail,
@@ -100,7 +101,7 @@ function fmtWhen(ms: number): string {
 // so junk is never opened. The headline counts what needs Dave, never unread.
 // Threads are the unit throughout; search is server-side over the whole
 // mailbox. Without AI the tab is an honest threaded list, no fake triage.
-export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections }: { ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void }) {
+export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections , demoMail = false }: { demoMail?: boolean; ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void }) {
   const g = useGoogle();
   const tasks = useOptionalTasks();
   const people = useOptionalPeople();
@@ -878,6 +879,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   }
 
   if (view === "list" && (!configured || !g.hasToken)) {
+    // Demo build: show the real anatomy with fixture mail so previews and
+    // the App Store demo read as a working inbox. Off unless the shell says
+    // this session is the seeded demo (tests and real builds keep the honest
+    // connect state).
+    if (demoMail) {
+      return <div className={pushCls} key="demo"><DemoMail onConnect={configured ? connect : onOpenConnections} /></div>;
+    }
     return (
       <div className={"screen " + pushCls} key="connect">
         <PageHeader title="Email" />

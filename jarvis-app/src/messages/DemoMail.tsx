@@ -1,0 +1,113 @@
+// DEMO MAIL (Dave 2026-08-18: "I need to see what a populated email page
+// will actually look like"). The demo build has no Gmail behind it, so this
+// renders the REAL email anatomy with fixture threads shaped like his inbox.
+// Rows toast instead of opening; the moment a real account connects,
+// MessagesFlow renders live data and this component never mounts.
+
+import PageHeader, { BarAction } from "../shared/PageHeader";
+import { showToast } from "../shared/toast";
+import { Plus } from "lucide-react";
+
+interface DemoRow { from: string; sub: string; when: string; unread?: boolean; due?: string }
+interface DemoWait { to: string; sub: string }
+
+const NEEDS: DemoRow[] = [
+  { from: "Supabase", sub: "Security advisories flagged in two projects", when: "2:55 PM", unread: true, due: "Today" },
+  { from: "Wei Zhang", sub: "Invoice attached · Net 15 starts Monday", when: "11:20 AM", unread: true },
+  { from: "Apple Developer", sub: "Action needed: complete your enrollment", when: "9:04 AM" },
+];
+const WAITING: DemoWait[] = [
+  { to: "nikestrength", sub: "Missing Items From Order #D2565 · 55 days · No reply" },
+  { to: "Joseph T. Pareres", sub: "Fisher v JAT · 55 days · No reply" },
+  { to: "wei@bffsa.org", sub: "Invoice · 50 days · No reply" },
+  { to: "Elieserhenry0", sub: "Reservation Receipt · 46 days · No reply" },
+];
+
+const MAIL_ICO = (
+  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
+);
+
+const demoTap = () => showToast({ message: "Demo mail · Connect Google for the real thing" });
+
+export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
+  return (
+    <div className="screen">
+      <PageHeader title="Email" actions={<BarAction label="New Message" onClick={demoTap}><Plus className="ic" /></BarAction>} />
+      <div className="pad-x">
+        <input className="msg-input msg-search" placeholder="Search All Mail" onFocus={demoTap} readOnly />
+      </div>
+      <div className="pad-x msg-chips">
+        <button className="chip on" onClick={demoTap}>For You</button>
+        <button className="chip" onClick={demoTap}>All</button>
+        <button className="chip" onClick={demoTap}>Drafts</button>
+      </div>
+
+      <div className="pad-x deck-cta">
+        <div className="promo-card">
+          <div className="promo-head">
+            <div className="promo-badge b-red">{MAIL_ICO}</div>
+            <div className="promo-body">
+              <div className="promo-title">3 Threads Need You</div>
+              <div className="promo-sub">Everything else is filed below.</div>
+            </div>
+          </div>
+          <div className="promo-acts">
+            <button className="promo-pill quiet" onClick={demoTap}>Only have a few minutes?</button>
+            <button className="promo-pill" onClick={demoTap}>Deal With It</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="sh2"><span className="t">Needs You</span></div>
+      <div><div className="list-flat">
+        {NEEDS.map((r) => (
+          <div className="row" role="button" tabIndex={0} key={r.from} onClick={demoTap}>
+            <span className={"msg-dot" + (r.unread ? "" : " off")}></span>
+            <div className="row-grow">
+              <div className="msg-line">
+                <span className={"conn-name truncate" + (r.unread ? " msg-strong" : "")}>{r.from}</span>
+                {r.due ? <span className="msg-due">{r.due}</span> : <span className="msg-when">{r.when}</span>}
+              </div>
+              <div className="conn-meta msg-gist">{r.sub}</div>
+            </div>
+          </div>
+        ))}
+      </div></div>
+
+      <div className="sh2"><span className="t">Waiting On</span></div>
+      <div><div className="list-flat">
+        {WAITING.map((w) => (
+          <div className="row" role="button" tabIndex={0} key={w.to} onClick={demoTap}>
+            <span className="msg-dot off"></span>
+            <div className="row-grow">
+              <div className="msg-line">
+                <span className="conn-name truncate">{w.to}</span>
+                <span className="pill-act">Nudge</span>
+              </div>
+              <div className="conn-meta msg-gist">{w.sub}</div>
+            </div>
+          </div>
+        ))}
+      </div></div>
+
+      <div className="pad-x msg-fold">
+        <div className="card">
+          <div className="row" role="button" tabIndex={0} onClick={demoTap}>
+            <div className="row-grow">
+              <div className="conn-name">The Rest</div>
+              <div className="conn-meta msg-gist">Nothing waiting on you</div>
+            </div>
+            <span className="pill pill-subdued">14</span>
+          </div>
+        </div>
+      </div>
+
+      {onConnect && (
+        <div className="pad-x conn-action">
+          <button className="btn btn-primary btn-block" onClick={onConnect}>Connect Google</button>
+        </div>
+      )}
+      <div className="screen-foot" />
+    </div>
+  );
+}

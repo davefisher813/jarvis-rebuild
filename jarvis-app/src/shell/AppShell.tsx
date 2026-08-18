@@ -192,7 +192,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
         
         {active === "bigger" && <BiggerPictureFlow openId={projectIntent} openGoalId={goalIntent} onOpenNote={navigateToNote} onOpenDecision={(id) => void navigateToEntity("decision", id)} />}
-        {active === "messages" && <MessagesFlow ai={ai} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
+        {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
         {active === "notifications" && <NotificationsFlow />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} />}
         {active === "chat" && <ChatFlow />}

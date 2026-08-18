@@ -219,6 +219,7 @@ export default function NoteEditor({
   onBack,
   onConnections,
   onAddBlock,
+  onAddTyped,
   onEditTitle,
   onEditBlockText,
   onToggleCheck,
@@ -246,6 +247,7 @@ export default function NoteEditor({
   onListItems?: (blockId: string, items: string[], focusKey: string | null) => void;
   onListExit?: (blockId: string, remaining: string[]) => void;
   onAddBlock?: () => void;
+  onAddTyped?: (type: "text" | "heading" | "bulleted_list" | "checklist") => void;
   onEditTitle?: (text: string) => void;
   onEditBlockText?: (blockId: string, text: string) => void;
   onToggleCheck?: (blockId: string, index: number) => void;
@@ -262,7 +264,7 @@ export default function NoteEditor({
   );
 
   return (
-    <div className="screen">
+    <div className="screen screen-editor">
       <div className="nav-bar">
         <button className="nav-back" onClick={onBack}>Notes</button>
         <span className="nav-title"></span>
@@ -346,8 +348,15 @@ export default function NoteEditor({
         </div>
       )}
 
-      <div className="editor-bar">
-        <button className="btn btn-secondary" onClick={onAddBlock}>Add Block</button>
+      {/* THE WRITING TOOLBAR (Dave 2026-08-18, "real writing features"):
+          one tap drops the block and puts the caret in it; More opens the
+          full palette (tables, photos, files). Always in reach. */}
+      <div className="editor-bar editor-toolbar">
+        <button className="chip" onClick={() => onAddTyped?.("text")}>Text</button>
+        <button className="chip" onClick={() => onAddTyped?.("heading")}>Heading</button>
+        <button className="chip" onClick={() => onAddTyped?.("bulleted_list")}>List</button>
+        <button className="chip" onClick={() => onAddTyped?.("checklist")}>Checklist</button>
+        <button className="chip chip-accent" onClick={onAddBlock}>More</button>
       </div>
     </div>
   );

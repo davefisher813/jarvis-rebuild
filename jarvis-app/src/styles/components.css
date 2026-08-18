@@ -1428,3 +1428,18 @@ button {
   background: linear-gradient(180deg, rgba(0,0,0,0), var(--bg) 38%); display: flex; justify-content: center; }
 [data-theme="light"] .editor-bar { background: linear-gradient(180deg, rgba(242,242,247,0), var(--bg) 38%); }
 .editor-bar .btn { min-width: 200px; }
+
+/* Decision list styling pass (Dave 2026-08-18): the linked home renders as a
+   colored fact inside the sub; the recorded date is the quiet right column. */
+.fact-link { font-weight: var(--w-semi); }
+.dec-when { font-size: 13px; color: var(--tx-4); flex-shrink: 0; align-self: center; font-variant-numeric: tabular-nums; }
+/* The writing toolbar: chips row pinned to the bottom of the screen. It
+   scrolls sideways rather than clipping when the chip set outgrows a phone. */
+.editor-toolbar { gap: var(--s-2); justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
+.editor-toolbar::-webkit-scrollbar { display: none; }
+.editor-toolbar .chip { flex-shrink: 0; }
+/* Pin the toolbar to the viewport bottom; the tab bar is hidden while
+   writing, so the bar owns that edge. The doc reserves room above it. */
+.screen-editor .editor-bar { position: fixed; left: 0; right: 0; bottom: 0; }
+.screen-editor .doc { padding-bottom: 96px; }
+.chip-accent { color: var(--accent); font-weight: var(--w-semi); }

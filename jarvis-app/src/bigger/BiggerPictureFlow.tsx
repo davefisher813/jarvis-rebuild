@@ -251,6 +251,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
           linkedNotes={linkedNotes}
           onOpenNote={onOpenNote}
           onOpenDecision={onOpenDecision}
+          onChanged={() => void reload()}
           onBack={() => setDetailId(null)}
           onEdit={() => setSheet({ kind: "editProject", id: detail.id })}
         />

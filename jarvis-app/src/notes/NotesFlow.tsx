@@ -251,9 +251,12 @@ export default function NotesFlow({
 
   const addBlock = async (type: BlockType) => {
     if (!currentId) return;
-    await attemptWrite(() => svc.addBlock(currentId, starterBlock(type)));
+    let newId: string | null = null;
+    await attemptWrite(async () => { newId = await svc.addBlock(currentId, starterBlock(type)); });
     setAddBlockOpen(false);
     await loadCurrent(currentId);
+    // Writing toolbar (V4): the caret lands in the block you just added.
+    if (newId) setFocusBlockId(newId);
   };
 
   const runCreateTasks = async () => {
@@ -431,6 +434,7 @@ export default function NotesFlow({
             });
           }}
           onAddBlock={() => setAddBlockOpen(true)}
+          onAddTyped={(t) => void addBlock(t)}
           onEditTitle={editTitle}
           onEditBlockText={editBlockText}
           onToggleCheck={toggleCheck}
