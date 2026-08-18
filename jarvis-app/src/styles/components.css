@@ -1308,3 +1308,6 @@ button {
 .sched-list.drop-target { outline: 2px solid var(--red); outline-offset: -2px; border-radius: var(--r-md); }
 .pagehead { position: relative; }
 .lib-stack { flex: 1; min-width: 0; }
+/* Library phase 2: a list wrapper with the card chrome removed. Keeps the
+   DOM shape of the old pad-x + card pair, renders full bleed. */
+.list-flat { background: none; }

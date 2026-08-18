@@ -1,6 +1,15 @@
-# JARVIS Styling Catalog V3.1 (DRAFT · pending Dave's approval 2026-08-18)
+# JARVIS Styling Catalog V3.2 (APPROVED 2026-08-18, Library edition)
 
-Revised per Dave: full 15-color palette, alignment grid law, Title Case everywhere with an extended law test, cleaner visuals with the approved polish set.
+Approved by Dave 2026-08-18 with the Library chassis (Design 2 + the red energy line) applied app-wide.
+
+## J. The Library chassis (Design 2, LAW for every page)
+
+1. Every page carries the sticky bar (shared/PageHeader): transparent at rest; the moment the large title scrolls under it, it condenses into glass with the centered page title, a hairline, and the red energy line. Page actions are circular accent buttons IN the bar, never floating. Back buttons ride the bar.
+2. Large titles and search live in the scroll, always in the same slots. Nothing ever collides with the status bar.
+3. Navigation and plain lists are FULL BLEED: bare colored glyphs (RowGlyph / lib-row), large names, hairlines inset to the text edge. Cards are retired from lists.
+4. Cards survive ONLY for: stat strips and heroes (money, Now), banners and tips, sheets and overlays, and the day-draft proposal card. That scarcity is what makes them read.
+5. Section heads are the bold sh2 form: Title Case at 16, count or See All at -16. Type tiles no longer lead sections.
+6. Data rows stay full bleed with their own leading column: checkbox (tasks), time column (schedule), colored glyph (everything else), category dots where the category is the datum.
 
 Supersedes the old 25 catalog files as the styling rulebook. Visual truth stays jarvis-design-system.css + uniformity.css + components.css (flagged sections). This document is the rules layer: what every screen must do with those pieces. Once approved, every new screen and every rebuilt screen is gated against this.
 

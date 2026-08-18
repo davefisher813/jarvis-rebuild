@@ -72,10 +72,11 @@ describe("TodayPage", () => {
     expect(screen.getByText("Birthday")).toBeInTheDocument();
     expect(screen.getByText("Mike Torres")).toBeInTheDocument();
     expect(screen.getByText("Turns a year older today")).toBeInTheDocument();
-    // people-pink tile, never red (colour audit law)
-    expect(container.querySelector(".sec-ico.cat-bg-pink")).toBeTruthy();
+    // SPEC MOVED (Library phase 2, 2026-08-18): section heads are the bold
+    // sh2 form; the birthday avatar keeps people-pink (never red).
+    expect(container.querySelector(".av.cat-bg-pink")).toBeTruthy();
     // section order: Birthday section head precedes Up Next's
-    const heads = [...container.querySelectorAll(".sec-title")].map((e) => e.textContent);
+    const heads = [...container.querySelectorAll(".sh2 .t")].map((e) => e.textContent);
     expect(heads.indexOf("Birthday")).toBeLessThan(heads.indexOf("Up Next"));
     // absent = the normal state, and the plural title only with 2+
     rerender(<TodayPage {...base} birthdays={[]} />);

@@ -39,7 +39,7 @@ export default function HistoryScreen({ workouts, onBack }: { workouts: Workout[
       {rows.length === 0 ? (
         <div className="empty-state"><div className="empty-title">No Numbers Yet</div></div>
       ) : (
-        <div className="pad-x"><div className="card">
+        <div><div className="list-flat">
           {rows.map((r) => {
             const key = r.name + r.kind;
             const isOpen = open === key;

@@ -831,7 +831,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="nav-bar"><button className="nav-back" onClick={() => setView("list")}>Email</button>
           <span className="nav-title">Standing Rules</span><span className="nav-action"></span></div>
         <div className="grp"><div className="eyebrow">Senders You Filed</div></div>
-        <div className="pad-x"><div className="card">
+        <div><div className="list-flat">
           {filed.length === 0 ? (
             <div className="row"><div className="row-grow"><div className="conn-meta">Nothing filed yet.</div></div></div>
           ) : filed.map(([sender, bucket]) => (
@@ -847,7 +847,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           ))}
         </div></div>
         <div className="grp"><div className="eyebrow">Muted Threads</div></div>
-        <div className="pad-x"><div className="card">
+        <div><div className="list-flat">
           {muted.length === 0 ? (
             <div className="row"><div className="row-grow"><div className="conn-meta">Nothing muted.</div></div></div>
           ) : muted.map((id) => {
@@ -1174,7 +1174,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="empty-title">No Drafts</div>
           </div></div></div>
         ) : (
-          <div className="pad-x"><div className="card">
+          <div><div className="list-flat">
             {drafts.map((d) => (
               <div className="row" role="button" tabIndex={0} key={d.id} onClick={() => void openDraft(d.id)}>
                 <div className="row-grow">
@@ -1228,16 +1228,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           )}
           {needsYou.length > 0 && (
             <>
-              {/* V2 anatomy: mail sections carry the teal mail tile. */}
-              <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-teal"><Mail className="ic" /></div><div className="sec-title">Needs You</div></div></div>
-              <div className="pad-x"><div className="card">
+              <div className="sh2"><span className="t">Needs You</span></div>
+              <div><div className="list-flat">
                 {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist))}
               </div></div>
             </>
           )}
           {waiting.length > 0 && (
             <>
-              <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-teal"><Mail className="ic" /></div><div className="sec-title">Waiting On</div></div></div>
+              <div className="sh2"><span className="t">Waiting On</span></div>
               <div className="pad-x"><div className="card">
                 {waiting.map((w) => (
                   <div className="row" role="button" tabIndex={0} key={w.threadId} onClick={() => void startNudge(w)}>

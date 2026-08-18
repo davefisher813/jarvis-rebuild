@@ -201,14 +201,9 @@ export default function TodayPage({
   // never red. The year is untrusted (contact imports), so no age is claimed.
   const birthdaySection = birthdays && birthdays.length > 0 && (
     <>
-      <div className="sec-head">
-        <div className="sec-left">
-          <div className="sec-ico cat-bg-pink"><GiftIcon /></div>
-          <div className="sec-title">{birthdays.length === 1 ? "Birthday" : "Birthdays"}</div>
-        </div>
-      </div>
-      <div className="pad-x">
-        <div className="card">
+      <div className="sh2"><span className="t">{birthdays.length === 1 ? "Birthday" : "Birthdays"}</span></div>
+      <div>
+        <div>
           {birthdays.map((b) => (
             <div className="row" key={b.id}>
               <div className="av av-32 cat-bg-pink">{b.name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</div>
@@ -225,15 +220,9 @@ export default function TodayPage({
 
   const upNextSection = !evening && upNext && upNext.length > 0 && (
     <>
-      <div className="sec-head">
-        <div className="sec-left">
-          <div className="sec-ico ico-accent"><NextIcon /></div>
-          <div className="sec-title">Up Next</div>
-        </div>
-        {onSeeAllUpNext && <button className="see-all" onClick={onSeeAllUpNext}>See All</button>}
-      </div>
-      <div className="pad-x">
-        <div className="card">
+      <div className="sh2"><span className="t">Up Next</span>{onSeeAllUpNext && <button className="see-all" onClick={onSeeAllUpNext}>See All</button>}</div>
+      <div>
+        <div>
           {upNext.map((t) => (
             <TaskRow key={t.id} t={t} u={urgencyFor(t.data, today)} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
           ))}
@@ -244,15 +233,9 @@ export default function TodayPage({
 
   const tasksSection = tasks.length > 0 && (
     <>
-      <div className="sec-head">
-        <div className="sec-left">
-          <div className="sec-ico ico-good"><CheckIcon /></div>
-          <div className="sec-title">{evening ? "Still Open" : "Today’s Tasks"}</div>
-        </div>
-        <button className="see-all" onClick={onSeeAllTasks}>See All</button>
-      </div>
-      <div className="pad-x">
-        <div className="card">
+      <div className="sh2"><span className="t">{evening ? "Still Open" : "Today’s Tasks"}</span><button className="see-all" onClick={onSeeAllTasks}>See All</button></div>
+      <div>
+        <div>
           {tasks.map((t) => (
             <TaskRow key={t.id} t={t} u={evening ? null : urgencyFor(t.data, today)} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
           ))}
@@ -264,15 +247,9 @@ export default function TodayPage({
 
   const tomorrowSection = (tomorrowEvents.length > 0 || tomorrowTasks.length > 0) && (
     <>
-      <div className="sec-head">
-        <div className="sec-left">
-          <div className="sec-ico ico-blue"><SunIcon /></div>
-          <div className="sec-title">Tomorrow</div>
-        </div>
-        <button className="see-all" onClick={onSeeAllSchedule}>{tomorrowDate}</button>
-      </div>
-      <div className="pad-x">
-        <div className="card">
+      <div className="sh2"><span className="t">Tomorrow</span><button className="see-all" onClick={onSeeAllSchedule}>{tomorrowDate}</button></div>
+      <div>
+        <div>
           {tomorrowEvents.map((ev) => <SchedRow ev={ev} key={ev.id} />)}
           {/* Weeklies/monthlies surface on their day only; the day before gets
               this one quiet heads-up row (roadmap v2 dailies weaving). */}
@@ -338,19 +315,11 @@ export default function TodayPage({
           row-button when a Money destination exists. */}
       {billLine && (
         <>
-          <div className="sec-head">
-            <div className="sec-left">
-              <div className="sec-ico ico-good"><DollarSign className="ic" /></div>
-              <div className="sec-title">Money</div>
-            </div>
-          </div>
-          <div className="pad-x">
-            <div className="card">
-              <div className="row">
-                <div className="row-grow">
-                  <div className="conn-name">{billLine}</div>
-                </div>
-              </div>
+          <div className="sh2"><span className="t">Money</span></div>
+          <div className="row">
+            <div className="row-glyph cat-fg-green"><DollarSign className="ic" /></div>
+            <div className="row-grow">
+              <div className="conn-name">{billLine}</div>
             </div>
           </div>
         </>
@@ -361,12 +330,7 @@ export default function TodayPage({
           {/* Icon lives in the SECTION HEADER beside the title, like Up Next
               and every other section. Inside the card it read as a row badge
               and broke the one pattern this page has. */}
-          <div className="sec-head">
-            <div className="sec-left">
-              <div className="sec-ico ico-blue"><Mail className="ic" /></div>
-              <div className="sec-title">Email</div>
-            </div>
-          </div>
+          <div className="sh2"><span className="t">Email</span></div>
           <div className="pad-x">
             <div className="card">
               <div className="row" role="button" tabIndex={0} onClick={onOpenEmail}>
@@ -419,12 +383,7 @@ export default function TodayPage({
           this is what the Insights page folds into (roadmap v2). */}
       {evening && weekly && (
         <>
-          <div className="sec-head">
-            <div className="sec-left">
-              <div className="sec-ico ico-blue"><SunIcon /></div>
-              <div className="sec-title">Your Week</div>
-            </div>
-          </div>
+          <div className="sh2"><span className="t">Your Week</span></div>
           <div className="pad-x"><div className="card">
             <div className="week-recap">
               <div className="t-body">

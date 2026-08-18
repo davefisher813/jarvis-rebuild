@@ -171,10 +171,9 @@ export default function YourDay({
   ) : null;
 
   const header = (
-    <div className="sec-head">
-      <div className="sec-left">
-        <div className="sec-ico ico-blue"><CalIcon /></div>
-        <div className="sec-title">{title}</div>
+    <div className="sh2">
+      <span className="t">{title}</span>
+      <span className="sec-left">
         {overflow && (
           <button
             className={"ticker-toggle" + (paused ? " paused" : "")}
@@ -185,8 +184,8 @@ export default function YourDay({
             <svg className="icon-play" viewBox="0 0 24 24"><polygon points="7,5 19,12 7,19" /></svg>
           </button>
         )}
-      </div>
       <button className="see-all" onClick={onSeeAll}>Schedule</button>
+      </span>
     </div>
   );
 
@@ -220,10 +219,8 @@ export default function YourDay({
       <div>
         {header}
         {planButton}
-        <div className="pad-x">
-          <div className="card">
-            <div ref={measureRef}><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} /></div>
-          </div>
+        <div>
+          <div ref={measureRef}><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} /></div>
         </div>
       </div>
     );

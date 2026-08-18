@@ -106,14 +106,14 @@ export default function PeopleListPage({
             <div className="empty-title">No One Here Yet</div>
             <button className="btn btn-primary" onClick={onAdd}>Add Person</button>
           </div>
-          {importRow && <div className="pad-x"><div className="card">{importRow}</div></div>}
+          {importRow && <div><div className="list-flat">{importRow}</div></div>}
         </>
       ) : (
         <>
         {/* V2 anatomy: the section carries the teal people tile; each row's
             avatar IS its type, so rows never double up with a RowIcon. */}
-        <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-teal">{PEOPLE}</div><div className="sec-title">Your People</div></div></div>
-        <div className="pad-x"><div className="card">
+        <div className="sh2"><span className="t">Your People</span></div>
+        <div><div className="list-flat">
           {shown.map((p) => (
             <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onOpen(p.id)}>
               <div className={"av av-40 " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div>

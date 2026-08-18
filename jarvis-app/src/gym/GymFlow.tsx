@@ -194,7 +194,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
           <span className="nav-action"></span>
         </div>
         <div className="grp"><div className="eyebrow">{monthDay(w.data.date)} · {mins} min</div></div>
-        <div className="pad-x"><div className="card">
+        <div><div className="list-flat">
           {w.data.exercises.map((e) => (
             <div className="row" key={e.exerciseId}>
               <div className="row-grow">
@@ -262,8 +262,8 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
             <div className="nav-title truncate">{openDay.name}</div>
             <button className="nav-action-text" onClick={() => setSheet({ kind: "day", dayId: openDay.id })}>Edit</button>
           </div>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Exercises</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2"><span className="t">Exercises</span></div>
+          <div><div className="list-flat">
             {openDay.exercises.map((e) => (
               <div className="row" role="button" tabIndex={0} key={e.id} onClick={() => setSheet({ kind: "exercise", dayId: openDay.id, exId: e.id })}>
                 <div className="row-grow">
@@ -383,8 +383,8 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
               </div></div>
             )}
 
-            <div className="sec-head"><div className="sec-left"><div className="sec-title">Days</div></div></div>
-            <div className="pad-x"><div className="card">
+            <div className="sh2"><span className="t">Days</span></div>
+            <div><div className="list-flat">
               {program.data.days.map((d) => (
                 <div className="row" role="button" tabIndex={0} key={d.id} onClick={() => setOpenDayId(d.id)}>
                   <div className="row-grow">
@@ -408,11 +408,8 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
 
             {recent.length > 0 && (
               <>
-                <div className="sec-head">
-                  <div className="sec-left"><div className="sec-title">Recent</div></div>
-                  <button className="see-all" onClick={() => setHistoryOpen(true)}>History</button>
-                </div>
-                <div className="pad-x"><div className="card">
+                <div className="sh2"><span className="t">Recent</span><button className="see-all" onClick={() => setHistoryOpen(true)}>History</button></div>
+                <div><div className="list-flat">
                   {recent.map((w) => {
                     const logged = w.data.exercises.filter((e) => e.sets.some((s) => !s.skipped)).length;
                     const total = w.data.exercises.length;

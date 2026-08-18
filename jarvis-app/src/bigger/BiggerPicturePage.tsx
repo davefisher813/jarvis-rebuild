@@ -64,11 +64,8 @@ export default function BiggerPicturePage({
 
       {offer}
 
-      <div className="sec-head">
-        <div className="sec-left"><div className="sec-title">Moving Now</div></div>
-        {projectRows.length > 0 && <div className="eyebrow">{projectRows.filter((r) => r.project.data.status === "active").length} Active</div>}
-      </div>
-      <div className="pad-x"><div className="card">
+      <div className="sh2"><span className="t">Moving Now</span>{projectRows.length > 0 && <span className="n">{projectRows.filter((r) => r.project.data.status === "active").length} ACTIVE</span>}</div>
+      <div><div className="list-flat">
         {projectRows.map(({ project, progress, stalled }) => {
           const tag = project.data.category ? catName(project.data.category) : "";
           return (
@@ -94,8 +91,8 @@ export default function BiggerPicturePage({
         </div>
       </div></div>
 
-      <div className="sec-head"><div className="sec-left"><div className="sec-title">Working Toward</div></div></div>
-      <div className="pad-x"><div className="card">
+      <div className="sh2"><span className="t">Working Toward</span></div>
+      <div><div className="list-flat">
         {goals.map((g) => {
           const p = goalProgressOf(g.id);
           return (

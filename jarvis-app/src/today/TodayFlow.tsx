@@ -601,7 +601,7 @@ export default function TodayFlow({
   };
   const nowSection = !evening && (
     <>
-      <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-orange">{CLOCK_ICO}</div><div className="sec-title">Now</div></div></div>
+      <div className="sh2"><span className="t">Now</span></div>
       <div className="pad-x"><div className="card">
         {nowCtx.gapMin !== null && nowCtx.nextStart ? (
           <div className="now-stats">
@@ -648,7 +648,7 @@ export default function TodayFlow({
   // JARVIS-made proposal, not yet the user's plan.
   const draftSection = !evening && dayDraft && !dayDraft.accepted && !dayDraft.dismissed && dayDraft.blocks.length > 0 && (
     <>
-      <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-purple">{SPARK_ICO}</div><div className="sec-title">Your Day, Drafted</div></div></div>
+      <div className="sh2"><span className="t">Your Day, Drafted</span><span className="cat-fg-purple">{SPARK_ICO}</span></div>
       <div className="pad-x"><div className="card">
         {dayDraft.blocks.map((b) => (
           <div className="row" key={b.taskId}>
