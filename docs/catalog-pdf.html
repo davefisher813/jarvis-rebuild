@@ -1,0 +1,293 @@
+<!doctype html>
+<html data-theme="dark">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/src/styles/jarvis-design-system.css">
+<link rel="stylesheet" href="/src/styles/uniformity.css">
+<link rel="stylesheet" href="/src/styles/components.css">
+<style>
+ * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+ html, body { margin: 0; padding: 0; background: #000; }
+ .page { width: 794px; height: 1122px; background: #000; page-break-after: always; overflow: hidden;
+   position: relative; font-family: var(--f); box-sizing: border-box; padding: 56px 64px; }
+ .col { max-width: 480px; }
+ .kick { color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+ .h1 { color: #fff; font-size: 44px; font-weight: 800; letter-spacing: -1px; margin: 8px 0 4px; }
+ .h2 { color: #fff; font-size: 24px; font-weight: 800; margin: 26px 0 6px; }
+ .sub { color: #98989f; font-size: 14px; line-height: 1.55; max-width: 560px; }
+ .rule { color: #d5d5da; font-size: 13.5px; line-height: 1.6; max-width: 600px; }
+ .rule b { color: #fff; }
+ .redline-lg { height: 3px; width: 84px; border-radius: 3px; margin-top: 14px;
+   background: linear-gradient(90deg, var(--accent), rgba(255,31,48,0)); }
+ .pnum { position: absolute; bottom: 28px; right: 64px; color: #5a5a60; font-size: 11px; font-weight: 700; letter-spacing: .1em; }
+ .foot { position: absolute; bottom: 28px; left: 64px; color: #5a5a60; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+ .pal { display: grid; grid-template-columns: repeat(5, 1fr); gap: 18px 12px; max-width: 560px; margin: 14px 0; }
+ .sw { width: 64px; height: 64px; border-radius: 15px; }
+ .swl { color: #98989f; font-size: 11px; margin-top: 5px; }
+ .zrow { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 10px 0; }
+ .demo { width: 560px; }
+ .two { display: flex; gap: 28px; }
+ .lawlist { margin: 10px 0 0; padding: 0; list-style: none; }
+ .lawlist li { color: #d5d5da; font-size: 13.5px; line-height: 1.6; margin: 7px 0; padding-left: 18px; position: relative; max-width: 600px; }
+ .lawlist li::before { content: ""; position: absolute; left: 0; top: 8px; width: 7px; height: 7px; border-radius: 2px; background: var(--accent); }
+ .ic { stroke-width: 2; }
+ .mockbar { border-radius: 14px; overflow: hidden; border: 0.5px solid rgba(255,255,255,0.09); }
+</style>
+</head>
+<body>
+
+<!-- COVER -->
+<div class="page" style="display: flex; flex-direction: column; justify-content: center;">
+  <div class="kick">JARVIS · Track 3</div>
+  <div style="color: #fff; font-size: 64px; font-weight: 800; letter-spacing: -2px; line-height: 1.05; margin: 14px 0 10px;">Styling<br>Catalog</div>
+  <div style="color: var(--accent); font-size: 22px; font-weight: 800;">V3.2 · The Library Edition</div>
+  <div class="redline-lg"></div>
+  <div class="sub" style="margin-top: 26px;">Approved and locked 2026-08-18. One visual system for every screen: the Apple Music library form in JARVIS red, enforced by law tests on every build. This document is the reference; the laws are the gate.</div>
+  <div class="foot">JARVIS Styling Catalog V3.2</div>
+</div>
+
+<!-- COLORS -->
+<div class="page">
+  <div class="kick">01</div>
+  <div class="h1">Color Is Systemic</div>
+  <div class="sub">Fifteen colors. A category picks one and wears it everywhere it appears. Type glyphs are fixed. Red is rationed: primary actions, the current tab, Chat, negative money, overdue. Grey exists only for secondary text and dividers.</div>
+  <div class="pal">
+    <div><div class="sw cat-bg-red"></div><div class="swl">red</div></div>
+    <div><div class="sw cat-bg-coral"></div><div class="swl">coral</div></div>
+    <div><div class="sw cat-bg-orange"></div><div class="swl">orange</div></div>
+    <div><div class="sw cat-bg-sand"></div><div class="swl">sand</div></div>
+    <div><div class="sw cat-bg-yellow"></div><div class="swl">yellow</div></div>
+    <div><div class="sw cat-bg-lime"></div><div class="swl">lime</div></div>
+    <div><div class="sw cat-bg-green"></div><div class="swl">green</div></div>
+    <div><div class="sw cat-bg-teal"></div><div class="swl">teal</div></div>
+    <div><div class="sw cat-bg-sky"></div><div class="swl">sky</div></div>
+    <div><div class="sw cat-bg-blue"></div><div class="swl">blue</div></div>
+    <div><div class="sw cat-bg-indigo"></div><div class="swl">indigo</div></div>
+    <div><div class="sw cat-bg-purple"></div><div class="swl">purple</div></div>
+    <div><div class="sw cat-bg-magenta"></div><div class="swl">magenta</div></div>
+    <div><div class="sw cat-bg-pink"></div><div class="swl">pink</div></div>
+    <div><div class="sw cat-bg-graphite"></div><div class="swl">graphite</div></div>
+  </div>
+  <div class="h2">Type Glyphs · Fixed Assignments</div>
+  <div class="rule">Task <b>blue</b> · Event <b>sky</b> · Note <b>yellow</b> · Money <b>green</b> · Person <b>teal</b> · Project <b>indigo</b> · Goal <b>purple</b> · Gym and Time <b>orange</b> · Insight <b>purple</b> · Mail <b>teal</b> · Chat and JARVIS-made <b>red</b></div>
+  <div class="h2">Intent</div>
+  <div class="zrow">
+    <span class="pill" style="background: var(--good-tint); color: var(--good);">GOOD</span>
+    <span class="pill" style="background: var(--warn-tint); color: var(--warn);">PUSHED · SLIPPED</span>
+    <span class="pill" style="background: var(--red-tint); color: var(--red);">ERROR · OVERDUE</span>
+    <span class="pill" style="background: rgba(90,200,250,0.16); color: #5AC8FA;">INFO</span>
+  </div>
+  <div class="pnum">02</div><div class="foot">JARVIS Styling Catalog V3.2</div>
+</div>
+
+<!-- CHASSIS -->
+<div class="page">
+  <div class="kick">02</div>
+  <div class="h1">The Library Chassis</div>
+  <div class="sub">Every page shares one header system. The bar is sticky and invisible at rest; the moment the large title scrolls beneath it, it condenses into glass: centered title, hairline, red energy line. Actions live in the bar. Nothing ever touches the clock.</div>
+  <div class="two" style="margin-top: 18px;">
+    <div>
+      <div class="rule" style="margin-bottom: 8px;"><b>At rest</b> · transparent</div>
+      <div class="mockbar" style="width: 330px; background: #050506;">
+        <div style="height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px;">
+          <span></span>
+          <div class="barbtn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div>
+        </div>
+        <div style="color: #fff; font-size: 30px; font-weight: 800; padding: 2px 14px 16px;">Brain</div>
+      </div>
+    </div>
+    <div>
+      <div class="rule" style="margin-bottom: 8px;"><b>Condensed</b> · glass + red line</div>
+      <div class="mockbar" style="width: 330px;">
+        <div style="height: 40px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; background: rgba(24,24,28,0.97); position: relative;">
+          <span style="color: var(--accent); font-size: 15px;">More</span>
+          <div style="position: absolute; left: 0; right: 0; text-align: center; color: #fff; font-weight: 700; font-size: 15px;">Brain</div>
+          <div class="barbtn" style="position: relative; z-index: 1;"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></div>
+          <div style="position: absolute; left: 14px; bottom: 0; height: 2px; width: 56px; border-radius: 2px; background: linear-gradient(90deg, var(--accent), transparent);"></div>
+        </div>
+        <div style="height: 44px; background: #050506; opacity: 0.5; display: flex; align-items: center; padding: 0 14px; color: #d5d5da;">content slides beneath</div>
+      </div>
+    </div>
+  </div>
+  <ul class="lawlist" style="margin-top: 22px;">
+    <li>Large title and search live in the scroll, always in the same slots.</li>
+    <li>Page actions are circular accent buttons in the bar, never floating in the page.</li>
+    <li>Back buttons ride the bar and stay tappable at every scroll position.</li>
+    <li>Lists are full bleed. Cards survive only for stats and heroes, banners and tips, sheets, and the day-draft proposal. Scarcity is what makes a card mean something.</li>
+    <li>Section heads: bold Title Case at the left edge, count or See All at the right edge.</li>
+  </ul>
+  <div class="pnum">03</div><div class="foot">JARVIS Styling Catalog V3.2</div>
+</div>
+
+<!-- ROWS -->
+<div class="page">
+  <div class="kick">03</div>
+  <div class="h1">Rows &amp; Alignment</div>
+  <div class="sub">Four locked columns: margin 16 · leading glyph · text edge · trailing -16. Dividers inset to the text edge. Numbers are tabular so columns stay straight. One text edge per list, never mixed.</div>
+  <div class="demo" style="margin-top: 16px;">
+    <div class="sh2" style="padding-left: 0; padding-right: 0;"><span class="t">Library Row</span></div>
+    <div class="lib-row" style="padding-left: 0;">
+      <div class="lib-ico cat-fg-purple"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
+      <div class="lib-stack"><div class="lib-name">Bigger Picture</div><div class="lib-sub">2 active · 1 stalled</div></div>
+      <div class="chev"></div>
+    </div>
+    <div class="sh2" style="padding-left: 0; padding-right: 0;"><span class="t">Task Row</span></div>
+    <div class="task-row" style="padding-left: 0;">
+      <div class="task-check cat-bd-blue"></div>
+      <div class="task-title" style="flex: 1; color: #fff;">Create Bridge Invoice</div>
+      <span class="urgency urgency-warn">TODAY</span>
+    </div>
+    <div class="task-row" style="padding-left: 0;">
+      <div class="task-check cat-bd-yellow"></div>
+      <div class="task-title" style="flex: 1; color: #fff;">Pay Ticket</div>
+      <span class="urgency urgency-red">2 DAYS LATE</span>
+    </div>
+    <div class="sh2" style="padding-left: 0; padding-right: 0;"><span class="t">Event Row</span></div>
+    <div class="sched-row" style="padding-left: 0;">
+      <div class="sched-time">8:30<span class="ampm">AM</span></div>
+      <div class="sched-body"><div class="sched-title">Morning Standup</div>
+      <div class="sched-cat"><span class="cat-dot cat-bg-blue"></span>Work</div></div>
+    </div>
+    <div class="sh2" style="padding-left: 0; padding-right: 0;"><span class="t">Money Row</span></div>
+    <div class="lib-row" style="padding-left: 0;">
+      <div class="lib-ico cat-fg-green"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg></div>
+      <div class="lib-stack"><div class="lib-name">Checking</div><div class="lib-sub">cash</div></div>
+      <span class="lib-amt">$4,821</span>
+    </div>
+    <div class="day-divide" style="padding-left: 0;">Thursday</div>
+    <div class="rule">The day is said once above a group, never repeated per row.</div>
+  </div>
+  <div class="pnum">04</div><div class="foot">JARVIS Styling Catalog V3.2</div>
+</div>
+
+<!-- ATOMS -->
+<div class="page">
+  <div class="kick">04</div>
+  <div class="h1">Atoms</div>
+  <div class="sub">Actions are buttons. Choices are chips. Counts are pills. Numbers you set are steppers, and tapping the number opens the keypad. One primary action per surface, in accent, with the glow.</div>
+  <div class="h2">Buttons</div>
+  <div class="zrow">
+    <button class="btn btn-primary">Accept the Day</button>
+    <button class="btn btn-secondary">Edit</button>
+    <button class="btn btn-danger">Tap Again to Confirm</button>
+    <button class="btn btn-primary btn-sm">Start</button>
+    <button class="btn-sm">Not Now</button>
+  </div>
+  <div class="h2">Chips &amp; Pills</div>
+  <div class="zrow">
+    <div class="chip active">Today · 3</div>
+    <div class="chip">Overdue · 2</div>
+    <div class="chip">All · 14</div>
+    <span class="pill pill-good">PAID</span>
+    <span class="pill pill-warn">DUE</span>
+    <span style="color:#fff; font-weight:700; font-size: 14px;">Moved to Today<span class="count-pill">3</span></span>
+  </div>
+  <div class="h2">Controls</div>
+  <div class="zrow">
+    <div class="stepper"><button>&minus;</button><div class="sep"></div><div class="val">3</div><div class="sep"></div><button>+</button></div>
+    <div class="stepper"><button>&minus;</button><div class="sep"></div><input class="val stepper-edit" value="185"><div class="sep"></div><button>+</button></div>
+    <div class="segmented" style="min-width: 190px;"><button class="seg active">Day</button><button class="seg">Week</button><button class="seg">Month</button></div>
+    <div class="switch"></div>
+    <div class="switch off"></div>
+  </div>
+  <div class="h2">Stat Tiles</div>
+  <div class="stat-row demo">
+    <div class="stat-tile stat-sky"><div class="stat-num">8 PM</div><div class="stat-label">free until</div></div>
+    <div class="stat-tile stat-good"><div class="stat-num">6:54</div><div class="stat-label">open</div></div>
+    <div class="stat-tile stat-warn"><div class="stat-num">2</div><div class="stat-label">pushed</div></div>
+    <div class="stat-tile stat-plain"><div class="stat-num">3</div><div class="stat-label">sets</div></div>
+  </div>
+  <div class="rule" style="margin-top: 10px;">Tabular numerals, hairline top light, tint carries meaning. Values roll when they change.</div>
+  <div class="pnum">05</div><div class="foot">JARVIS Styling Catalog V3.2</div>
+</div>
+
+<!-- BANNERS -->
+<div class="page">
+  <div class="kick">05</div>
+  <div class="h1">Banners &amp; Feedback</div>
+  <div class="sub">Amber means work moved without you. The accent bar is an offer. Tips are a glyph, a Title Case title, a gray sub, and an X. Every mutation gets a receipt with Undo. Destructive actions arm with a second tap.</div>
+  <div class="demo" style="margin-top: 16px;">
+    <div class="sweep-receipt banner-warn" style="animation: none;">
+      <div class="banner-line">
+        <div class="row-ico nav-tile-orange"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></div>
+        <div class="row-stack"><div class="restore-title">Moved to Today<span class="count-pill">3</span></div>
+        <div class="restore-meta">Pay Ticket · <span class="slip-warn">moved 3 days running</span></div></div>
+      </div>
+      <div class="momentum-actions"><button class="btn-sm">Set Aside</button><button class="btn-sm">Undo</button></div>
+    </div>
+    <div class="restore-banner" style="animation: none; margin-top: 12px;">
+      <div class="row-ico nav-tile-yellow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+      <div class="row-grow"><div class="restore-title">Pick Up Where You Left Off</div><div class="restore-meta">Brain dump · 20 min ago</div></div>
+      <div class="chev"></div>
+    </div>
+    <div class="tip-banner" style="animation: none; margin-top: 12px;">
+      <div class="tip-ico"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 14.9"/></svg></div>
+      <div class="tip-body">
+        <div class="tip-title">Add Weather to Your Day</div>
+        <div class="tip-sub">One line each morning · only when it matters</div>
+        <div class="tip-acts"><button class="btn btn-primary btn-sm">Allow</button></div>
+      </div>
+      <button class="tip-x"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="toast" style="position: static; margin-top: 12px;"><span class="toast-msg">Moved to tomorrow</span><button class="toast-action">Undo</button></div>
+    <div class="zrow" style="margin-top: 12px;">
+      <div class="chip">Call the Bank</div><div class="chip">Call Mom</div><div class="chip">Never Mind</div>
+    </div>
+    <div class="rule" style="margin-top: 4px;">A bounded chooser: the tap is both the answer and the action, capped at four, with an escape.</div>
+  </div>
+  <div class="pnum">06</div><div class="foot">JARVIS Styling Catalog V3.2</div>
+</div>
+
+<!-- TEXT LAWS -->
+<div class="page">
+  <div class="kick">06</div>
+  <div class="h1">Text Laws</div>
+  <div class="h2">Every String Has a Role</div>
+  <div class="rule">Page title · eyebrow · section head · row name and meta · urgency · pill · stat tile · day divider · banner · empty state. A string that fits none of these gets restructured, never styled in place. Legal pages and conversation are the only prose surfaces.</div>
+  <div class="h2">Title Case, Everywhere</div>
+  <ul class="lawlist">
+    <li><b>Title Case</b>: page titles, section heads, row names, buttons, chips, sheet titles, tab labels, placeholders that are labels. Small words stay down: a, an, the, to, of, in, with, for.</li>
+    <li><b>ALL CAPS</b> is rationed: eyebrows, kickers, pills, urgency. Nothing else.</li>
+    <li><b>Meta stays lowercase</b>: fragments with middle dots · like this one.</li>
+    <li><b>Conversation is sentence case</b>: onboarding, chat, check-ins, and any question.</li>
+    <li><b>No sentences in the UI</b>: no period-then-capital in a rendered string. Middle dots divide clauses.</li>
+    <li><b>No em dashes anywhere.</b></li>
+  </ul>
+  <div class="h2">Everything Actionable Is a Control</div>
+  <ul class="lawlist">
+    <li>Copy that names an action IS the button. Directions to a button elsewhere are illegal.</li>
+    <li>Empty states carry their action button, not an address.</li>
+    <li>Counts are pills. Figures are stat tiles. Never prose.</li>
+  </ul>
+  <div class="pnum">07</div><div class="foot">JARVIS Styling Catalog V3.2</div>
+</div>
+
+<!-- MOTION + ENFORCEMENT -->
+<div class="page">
+  <div class="kick">07</div>
+  <div class="h1">Motion &amp; Enforcement</div>
+  <div class="h2">Motion Rules</div>
+  <ul class="lawlist">
+    <li>One spring curve, shared by banners, sheets, and chips.</li>
+    <li>Lists stagger on first paint only, 30ms apart. Tab switches are instant, always.</li>
+    <li>Numbers roll to their new value. Reduced motion snaps.</li>
+    <li>Rows compress under the thumb. Primary buttons carry the red glow.</li>
+    <li>The day ring is a red-orange gradient arc with a soft glow; it bursts at 100%.</li>
+    <li>Completion fires the micro-burst and the native haptic.</li>
+  </ul>
+  <div class="h2">The Gate</div>
+  <ul class="lawlist">
+    <li>Laws as tests: em dash, short copy, casing on every surface, CSS class existence, versioned keys, typed queries, AI gate, editing primitives. A violation fails the build.</li>
+    <li>Lint gate: rules-of-hooks at error. tsc, vitest, and the production build run on every commit.</li>
+    <li>Preview discipline: visual changes ship 390x844 previews for approval before code.</li>
+    <li>New CSS lands only in the flagged blocks of components.css, citing its approval.</li>
+  </ul>
+  <div style="margin-top: 40px; padding-top: 18px; border-top: 0.5px solid rgba(255,255,255,0.14); max-width: 600px;">
+    <div class="rule"><b>Locked 2026-08-18.</b> Changes to this catalog require a new approved revision. The in-repo copy (jarvis-app/STYLING_CATALOG_V3.md) is the source of truth; this PDF is its visual record.</div>
+    <div class="redline-lg"></div>
+  </div>
+  <div class="pnum">08</div><div class="foot">JARVIS Styling Catalog V3.2</div>
+</div>
+
+</body>
+</html>
