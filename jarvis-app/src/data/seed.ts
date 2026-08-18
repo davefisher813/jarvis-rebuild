@@ -9,6 +9,7 @@ import type { GoalService } from "../life/GoalService";
 import type { ProjectsService } from "../projects/ProjectsService";
 import type { MoneyService } from "../money/MoneyService";
 import type { PeopleService } from "../people/PeopleService";
+import type { DecisionService } from "../decisions/DecisionService";
 import type { Category } from "../categories/types";
 import { todayISO } from "../schedule/calendar";
 
@@ -24,6 +25,7 @@ interface Extras {
   projects: ProjectsService;
   money: MoneyService;
   people: PeopleService;
+  decisions?: DecisionService;
 }
 
 export async function seedDemoData(
@@ -75,18 +77,39 @@ export async function seedDemoData(
     const fin = await areas.create({ name: "Finances", state: "drifting" });
     const growth = await areas.create({ name: "Growth", state: "steady" });
     await goals.create({ title: "Run three times a week", state: "on_track", areaId: health ?? undefined });
-    await goals.create({ title: "Ship the new release", state: "steady", areaId: career ?? undefined });
+    await goals.create({ title: "Ship the App Store Launch", state: "steady", areaId: career ?? undefined });
     await goals.create({ title: "Weekly date night", state: "on_track", areaId: rel ?? undefined });
     await goals.create({ title: "Build a six-month runway", state: "at_risk", areaId: fin ?? undefined });
     await goals.create({ title: "Read twelve books", state: "steady", areaId: growth ?? undefined });
   }
 
   if ((await projects.list()).length === 0) {
-    await projects.create({ title: "Q3 Launch", status: "active", category: cat("Work") });
-    await projects.create({ title: "Website Redesign", status: "active", category: cat("Work") });
+    const launchGoal = (await goals.list()).find((g) => g.data.title === "Ship the App Store Launch");
+    const q3 = await projects.create({ title: "App Store Launch", status: "active", category: cat("Work"), goalId: launchGoal?.id });
+    const site = await projects.create({ title: "Website Redesign", status: "active", category: cat("Work"), goalId: launchGoal?.id });
+    const golf = await projects.create({ title: "Bridge Golf Classic", status: "active", category: cat("Family") });
     await projects.create({ title: "Tax Filing", status: "on_hold", category: cat("Money") });
-    await projects.create({ title: "Home Renovation", status: "on_hold", category: cat("Family") });
-    await projects.create({ title: "2024 Retro", status: "done", category: cat("Work") });
+    await projects.create({ title: "2025 Retro", status: "done", category: cat("Work") });
+    // Linked tasks so progress bars, counts, and Next lines all populate.
+    if (q3) {
+      const a = await tasks.createTask("Draft the coach onboarding email", { category: cat("Work"), due: today, projectId: q3 });
+      const b = await tasks.createTask("Confirm Apple enrollment fee", { category: cat("Money"), due: addDays(today, 1), projectId: q3 });
+      const c = await tasks.createTask("Record the demo walkthrough", { category: cat("Work"), due: addDays(today, 2), projectId: q3 });
+      const done1 = await tasks.createTask("Reserve the App Store name", { category: cat("Work"), due: addDays(today, -3), projectId: q3 });
+      if (done1) await tasks.toggleDone(done1);
+      void a; void b; void c;
+    }
+    if (site) {
+      const d1 = await tasks.createTask("Ship the new landing hero", { category: cat("Work"), due: addDays(today, -1), projectId: site });
+      const d2 = await tasks.createTask("Swap testimonial quotes", { category: cat("Work"), due: addDays(today, 4), projectId: site });
+      if (d1) await tasks.toggleDone(d1);
+      void d2;
+    }
+    if (golf) {
+      const g1 = await tasks.createTask("Lock the pavilion date", { category: cat("Family"), due: addDays(today, 2), projectId: golf });
+      const g2 = await tasks.createTask("Order sponsor banners", { category: cat("Family"), due: addDays(today, 5), projectId: golf });
+      void g1; void g2;
+    }
   }
 
   if ((await money.list()).length === 0) {
@@ -104,5 +127,45 @@ export async function seedDemoData(
     await people.create({ name: "Chris Park", group: "inner_circle", relationship: "Best friend" });
     await people.create({ name: "Dad", group: "inner_circle", relationship: "Family" });
     await people.create({ name: "Rival Corp", group: "adversarial", relationship: "Competitor" });
+  }
+
+  // Bills are recurring money tasks; two due soon so the Money page and the
+  // Today money line both populate.
+  const existingTasks = await tasks.listTasks();
+  if (!existingTasks.some((t) => t.data.bill)) {
+    await tasks.createTask("Rent", { category: cat("Money"), due: addDays(today, 2), recurrence: "monthly", bill: { amount: 2200 } });
+    await tasks.createTask("Internet", { category: cat("Money"), due: addDays(today, 6), recurrence: "monthly", bill: { amount: 89, autopay: true } });
+    await tasks.createTask("Car Insurance", { category: cat("Money"), due: addDays(today, 12), recurrence: "monthly", bill: { amount: 148 } });
+  }
+
+  // Decision Records: one live with a revisit due TODAY (so the Today card
+  // renders), one plain, and one superseded chain (so Replaces renders).
+  const dec = extras.decisions;
+  if (dec && (await dec.listAll()).length === 0) {
+    const launch = (await projects.list()).find((p) => p.data.title === "App Store Launch");
+    await dec.create({
+      decision: "Student template ships first",
+      why: "BFFSA gives 60 warm leads on day one",
+      ruledOut: ["Personal first", "Business first", "All three at once"],
+      linkedType: launch ? "project" : undefined,
+      linkedId: launch?.id,
+      linkedLabel: launch?.data.title,
+      revisitOn: today,
+    });
+    await dec.create({
+      decision: "No free tier at launch",
+      why: "AI cost per user is unbounded without a gate",
+    });
+    const oldCall = await dec.create({
+      decision: "Weekly clinics run Sundays",
+      why: "Fields were open before the Tucci schedule landed",
+    });
+    if (oldCall) {
+      await dec.supersede(oldCall, {
+        decision: "Fall clinics run Saturdays only",
+        why: "Tucci fields are locked Sundays through November",
+        ruledOut: ["Sundays", "Both days"],
+      });
+    }
   }
 }

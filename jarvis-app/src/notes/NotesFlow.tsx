@@ -11,6 +11,7 @@ import AddBlockSheet from "./screens/AddBlockSheet";
 import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
 import { showToast } from "../shared/toast";
+import { seedDemoNotes } from "../data/seedNotes";
 import { attemptWrite } from "../shared/guard";
 import { recordSpot } from "../restore/whereYouWere";
 import CreateTasks from "./screens/CreateTasks";
@@ -448,29 +449,3 @@ export default function NotesFlow({
 }
 
 // seeds a few generic notes so the demo build is not empty, tagged by category id
-async function seedDemoNotes(svc: ReturnType<typeof useNotes>, cats: Category[]) {
-  const id = (n: string) => cats.find((c) => c.data.name === n)?.id ?? cats[0]?.id ?? "";
-
-  // Demo-only writes, guarded as one action: a failed seed toasts once and
-  // leaves whatever landed (the demo reseeds on next empty open anyway).
-  try {
-    const plan = await svc.createNote("Quarterly Planning", id("Work"));
-    if (plan) await svc.applyTemplate(plan, "meeting");
-
-    const training = await svc.createNote("Training Plan", id("Health"));
-    if (training) {
-      await svc.addBlock(training, { type: "heading", text: "This Week" });
-      await svc.addChecklist(training, ["Tuesday tempo run", "Thursday intervals", "Sunday long run"]);
-    }
-
-    const home = await svc.createNote("Home Projects", id("Family"));
-    if (home) await svc.applyTemplate(home, "todo");
-
-    const outreach = await svc.createNote("Outreach List", id("Friends"));
-    if (outreach) await svc.applyTemplate(outreach, "brief");
-
-    await svc.createNote("Standup Notes", id("Work"));
-  } catch {
-    showToast({ message: "Couldn't save · Check your connection" });
-  }
-}

@@ -9,7 +9,7 @@ import BrainFlow from "../brain/BrainFlow";
 import { dismissSplash } from "../shared/splash";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
-import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople } from "../data/NotesProvider";
+import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions } from "../data/NotesProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { useAI } from "../ai/useAI";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
@@ -49,6 +49,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const projects = useProjects();
   const money = useMoney();
   const people = usePeople();
+  const decisions = useDecisions();
   const { signOut, backendConfigured } = useAuth();
   const ai = useAI();
 
@@ -110,7 +111,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       const cats = await categories.list();
       if (!on) return;
       setCategoryRegistry(cats.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));
-      if (seedDemo) await seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people });
+      if (seedDemo) await seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people, decisions });
       if (!on) return;
       const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
       setTabKeys(keys);
@@ -118,7 +119,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       setReady(true);
     })();
     return () => { on = false; };
-  }, [seedDemo, tasks, schedule, categories, profile, areas, goals, projects, money, people]);
+  }, [seedDemo, tasks, schedule, categories, profile, areas, goals, projects, money, people, decisions]);
 
   // Keep the category name/color resolver in sync when a category is created,
   // renamed, recolored, or deleted, so edits reflect live everywhere (schedule,

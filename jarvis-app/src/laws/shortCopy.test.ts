@@ -18,6 +18,8 @@ import { join, relative } from "node:path";
 const SRC = join(__dirname, "..");
 
 const EXEMPT_FILES = new Set([
+  // Demo seed prose is simulated USER content for previews, not UI copy.
+  "data/seedNotes.ts",
   "settings/PrivacyPage.tsx",
   "settings/TermsPage.tsx",
   "settings/SupportPage.tsx",
