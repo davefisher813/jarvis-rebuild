@@ -35,6 +35,7 @@ function toEditorNote(data: NoteData): EditorNote {
       switch (b.type) {
         case "heading": return { id: b.id, type: "heading", text: b.text ?? "" };
         case "text": return { id: b.id, type: "text", text: b.text ?? "" };
+        case "meta": return { id: b.id, type: "meta", text: b.text ?? "" };
         case "checklist":
           return {
             id: b.id,
@@ -68,6 +69,7 @@ function starterBlock(type: BlockType): Omit<Block, "id"> {
     // keystroke is the writer's, not a delete of ours (deep writing pass).
     case "heading": return { type, text: "" };
     case "text": return { type, text: "" };
+    case "meta": return { type, text: "" };
     case "checklist": return { type, items: [{ text: "", done: false }] };
     case "bulleted_list": return { type, items: [""] };
     case "numbered_list": return { type, items: [""] };
@@ -152,7 +154,7 @@ export default function NotesFlow({
     if (!currentId || !current) return;
     await snap();
     const idx = current.blocks.findIndex((b) => b.id === blockId);
-    const prev = [...current.blocks.slice(0, idx)].reverse().find((b) => b.type === "text" || b.type === "heading");
+    const prev = [...current.blocks.slice(0, idx)].reverse().find((b) => b.type === "text" || b.type === "heading" || b.type === "meta");
     await attemptWrite(() => svc.deleteBlock(currentId, blockId));
     await loadCurrent(currentId);
     setFocusBlockId(prev?.id ?? null);

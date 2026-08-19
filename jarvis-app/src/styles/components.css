@@ -1473,6 +1473,8 @@ button {
 .doc { padding-top: var(--s-3); }
 .doc > * + * { margin-top: var(--s-1h); }
 .doc .doc-title { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 2px; }
+/* The meta line (the mock's grey context row, now a real block type). */
+.doc .block-meta { font-size: 14.5px; line-height: 1.5; color: var(--tx-3); min-height: 22px; }
 .doc .t-body { font-size: 16.5px; line-height: 1.6; min-height: 24px; }
 .screen-editor .doc { padding-bottom: 84px; }
 .hwrap { display: flex; align-items: baseline; gap: 9px; counter-increment: doch; margin-top: var(--s-6); margin-bottom: 2px; }

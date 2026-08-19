@@ -16,6 +16,7 @@ export async function seedDemoNotes(svc: NotesService, cats: Category[]) {
     // document, not a stub.
     const plan = await svc.createNote("Coach Onboarding Plan", id("Work"));
     if (plan) {
+      await svc.addBlock(plan, { type: "meta", text: "Aug 19 · Wei, Sam Rivera" });
       await svc.addBlock(plan, { type: "heading", text: "Why This Matters" });
       await svc.addBlock(plan, { type: "text", text: "**BFFSA hands us 60 warm leads on day one.** Every coach who finishes onboarding in *under ten minutes* becomes a referral engine for their whole roster. ==Wei intro email is the unlock.==" });
       await svc.addBlock(plan, { type: "heading", text: "The Sequence" });

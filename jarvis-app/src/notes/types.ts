@@ -8,6 +8,7 @@ export const ENTITY_TASK = "task";
 export type BlockType =
   | "heading"
   | "text"
+  | "meta"
   | "bulleted_list"
   | "numbered_list"
   | "checklist"

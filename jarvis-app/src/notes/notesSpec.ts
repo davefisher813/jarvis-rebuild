@@ -150,7 +150,7 @@ export const STEPS: Step[] = [
       // V4.2 meeting shape: dated attendee line, then agenda / decisions /
       // action items structure (deep template pass, 2026-08-19).
       const heads = bl.filter((b) => b.type === "heading").map((b) => b.text);
-      const ok = okApply && bl[0]!.type === "text" && heads.join(",") === "Agenda,Decisions,Action Items";
+      const ok = okApply && bl[0]!.type === "meta" && heads.join(",") === "Agenda,Decisions,Action Items";
       return { ok, msg: ok ? "Template seeded blocks." : "Template failed." };
     },
   },

@@ -144,7 +144,7 @@ export class NotesService {
     // The dated pieces a static template can't carry: a meeting opens with
     // its date and attendee line; a journal opens with today's first entry.
     const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
-    if (key === "meeting") blocks.unshift({ id: genId("b"), type: "text", text: today + " · Attendees" });
+    if (key === "meeting") blocks.unshift({ id: genId("b"), type: "meta", text: today + " · Attendees" });
     if (key === "journal") blocks.push({ id: genId("b"), type: "heading", text: today }, { id: genId("b"), type: "text", text: "" });
     await this.store.update(this.ownerId, id, { blocks } as unknown as ItemData);
     return true;

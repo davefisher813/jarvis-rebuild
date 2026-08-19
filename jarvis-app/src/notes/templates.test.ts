@@ -16,7 +16,7 @@ const make = async (svc: NotesService, key: "meeting" | "tracker" | "journal" | 
 describe("law: templates deliver what their card promises", () => {
   it("Meeting Notes opens dated, then agenda, decisions, action items", async () => {
     const { note: n } = await make(rig(), "meeting");
-    expect(n.blocks[0]!.type).toBe("text");
+    expect(n.blocks[0]!.type).toBe("meta");
     expect(n.blocks[0]!.text).toMatch(/^[A-Z][a-z]{2} \d{1,2} · Attendees$/);
     const heads = n.blocks.filter((b) => b.type === "heading").map((b) => b.text);
     expect(heads).toEqual(["Agenda", "Decisions", "Action Items"]);

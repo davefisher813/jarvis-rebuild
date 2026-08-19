@@ -14,6 +14,7 @@ type ChecklistItem = { text: string; done?: boolean };
 type EditorBlock =
   | { id: string; type: "heading"; text: string }
   | { id: string; type: "text"; text: string }
+  | { id: string; type: "meta"; text: string }
   | { id: string; type: "checklist"; items: ChecklistItem[] }
   | { id: string; type: "bulleted_list"; items: string[] }
   | { id: string; type: "numbered_list"; items: string[] }
@@ -403,7 +404,7 @@ export default function NoteEditor({
   const inline = note.blocks.filter((b) => b.type !== "file" && b.type !== "photo");
   const words = countWords(
     note.blocks.flatMap((b) =>
-      b.type === "text" || b.type === "heading" ? [b.text]
+      b.type === "text" || b.type === "heading" || b.type === "meta" ? [b.text]
       : b.type === "checklist" ? b.items.map((i) => i.text)
       : b.type === "bulleted_list" || b.type === "numbered_list" ? b.items
       : []),
@@ -486,6 +487,15 @@ export default function NoteEditor({
                   onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />
               </div>
             );
+          else if (b.type === "meta")
+            // The meta line (Dave 2026-08-19, "add the meta block"): quiet
+            // grey context under the title: date, attendees, whatever frames
+            // the document. Same editing mechanics as text, styled down.
+            content = <InlineEdit tag="div" className="block-meta" value={b.text} placeholder="Date · Attendees" bid={b.id}
+              focused={focusBlockId === b.id}
+              onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
+              onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
+              onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
           else if (b.type === "text")
             content = <InlineEdit tag="div" className="t-body" value={b.text} placeholder="Write Something" bid={b.id} rich
               focused={focusBlockId === b.id}
