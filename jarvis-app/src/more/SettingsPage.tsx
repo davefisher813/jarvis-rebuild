@@ -14,8 +14,6 @@ const Mag = () => svg(<><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2
 interface Item { label: string; route: MoreRoute; group: number; }
 // SECTIONS ARE LABELED, ALWAYS (universal sectioning law, Dave 2026-08-18:
 // "I want universal rules"). These groups used to be whitespace clusters;
-// whitespace is never the group label. Same sh2 anatomy as More and Notes.
-const GROUP_LABELS = ["Your Account", "Preferences", "App"];
 const ITEMS: Item[] = [
   { label: "Account", route: "account", group: 0 },
   { label: "Notifications", route: "notifsettings", group: 1 },
@@ -46,19 +44,16 @@ function SettingRow({ item, onClick }: { item: Item; onClick: () => void }) {
 export default function SettingsPage({ onNavigate, onBack }: { onNavigate: (r: MoreRoute) => void; onBack: () => void }) {
   const [q, setQ] = useState("");
   const ql = q.trim().toLowerCase();
-  const groups = [0, 1, 2].map((g) => ITEMS.filter((i) => i.group === g && (!ql || i.label.toLowerCase().includes(ql))));
-  const anyMatch = groups.some((g) => g.length > 0);
+  // Flat list (Dave 2026-08-19: "Settings doesn't need all of those sub
+  // headers, just list the settings"). Group order still drives row order.
+  const rows = [0, 1, 2].flatMap((g) => ITEMS.filter((i) => i.group === g && (!ql || i.label.toLowerCase().includes(ql))));
+  const anyMatch = rows.length > 0;
   return (
     <div className="screen">
       <PageHeader title="Settings" back="More" onBack={onBack}>
         <div className="pad-x settings-search"><div className="search-bar"><Mag /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" /></div></div>
       </PageHeader>
-      {groups.map((items, gi) => items.length > 0 && (
-        <div key={gi}>
-          <div className="sh2 sh2-caps"><span className="t">{GROUP_LABELS[gi]}</span></div>
-          {items.map((i) => <SettingRow key={i.route} item={i} onClick={() => onNavigate(i.route)} />)}
-        </div>
-      ))}
+      {rows.map((i) => <SettingRow key={i.route} item={i} onClick={() => onNavigate(i.route)} />)}
       {!anyMatch && <div className="empty-state"><div className="empty-title">No settings match "{q}"</div></div>}
     </div>
   );

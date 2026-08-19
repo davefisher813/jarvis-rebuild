@@ -201,7 +201,7 @@ describe("LAW: Apple HIG casing", () => {
   // allowlist is explicit so a new lib-row surface must either label its
   // groups or be consciously registered as a nav list here.
   it("every lib-row surface carries section heads or is a registered nav list", () => {
-    const NAV_NO_HEAD = new Set(["more/MorePage.tsx"]);
+    const NAV_NO_HEAD = new Set(["more/MorePage.tsx", "more/SettingsPage.tsx"]);
     const bad: string[] = [];
     for (const f of COMPONENTS) {
       const src = read(f);
