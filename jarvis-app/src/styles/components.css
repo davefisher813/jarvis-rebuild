@@ -1304,11 +1304,16 @@ button {
 .lib-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: 1px; }
 .lib-amt { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); font-variant-numeric: tabular-nums; }
 .lib-amt.neg { color: var(--red); }
-/* Section heads in the library form: bold, at 16, count at -16. */
-.sh2 { display: flex; align-items: baseline; justify-content: space-between;
+/* STEEL SECTION HEADS, APP-WIDE (Dave 2026-08-19, "Proceed"): every
+   section head in the app is the writing canvas's head: red mini-caps,
+   dotted leader to the margin, count quiet at the right. One law, no
+   per-page variants. The leader rides ::after between title and count. */
+.sh2 { display: flex; align-items: baseline; gap: 9px;
   padding: var(--s-4h, 18px) var(--s-4) var(--s-1h); }
-.sh2 .t { font-size: var(--t-h2); font-weight: var(--w-bold); color: var(--tx-1); }
-.sh2 .n { font-size: var(--t-eyebrow); font-weight: var(--w-bold); color: var(--tx-3); letter-spacing: var(--track-caps); }
+.sh2 .t { order: 0; font-size: 12px; font-weight: var(--w-bold); letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--accent); }
+.sh2::after { content: ""; order: 1; flex: 1; border-top: 1px dotted rgba(255, 43, 60, 0.35); align-self: center; }
+.sh2 .n { order: 2; font-size: var(--t-eyebrow); font-weight: var(--w-bold); color: var(--tx-3); letter-spacing: var(--track-caps); }
 /* Today's brand bar rides the same chassis: sticky, glass on condense. */
 .today-pagebar .today-bar { padding-top: 0; height: 44px; width: 100%; }
 .sched-list.drop-target { outline: 2px solid var(--red); outline-offset: -2px; border-radius: var(--r-md); }
@@ -1383,10 +1388,17 @@ button {
 /* CATALOG V4 (The Branded Library, Dave 2026-08-18). Flagged block. */
 /* Filled brand glyphs on nav lists: red is the wash, filled is the state. */
 .lib-ico-brand { color: var(--accent); }
-/* Mini-caps section label (Brain 4 pick): the ONE small-label style. Used at
-   the nav-list content boundary and on Settings groups. Same slot as sh2. */
-.sh2.sh2-caps .t { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--tx-3); }
+/* sh2-caps (Brain 4 pick) is absorbed by the app-wide steel head: one
+   small-label style everywhere means the variant adds nothing. Kept as a
+   no-op selector so existing markup stays legal. */
+.sh2.sh2-caps .t { color: var(--accent); }
+/* Detail-page group labels ride the same steel: Decided, Because, Details,
+   Ruled Out. Scoped to .grp so category kicker eyebrows keep their colors. */
+.grp .eyebrow { display: flex; align-items: baseline; gap: 9px; color: var(--accent); letter-spacing: 0.14em; }
+.grp .eyebrow::after { content: ""; flex: 1; border-top: 1px dotted rgba(255, 43, 60, 0.35); align-self: center; }
+/* Sheets keep their quiet labels: a bottom sheet is a form, not a page. */
+.sheet-scrim .grp .eyebrow { color: var(--tx-3); letter-spacing: var(--track-caps); }
+.sheet-scrim .grp .eyebrow::after { content: none; }
 /* The one legal unlabeled gap: a trailing system cluster on a nav list
    (More 2 pick: Settings sits below a quiet 32px break). */
 .lib-gap { margin-top: var(--s-8); }
