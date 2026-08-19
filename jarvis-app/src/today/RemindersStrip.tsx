@@ -1,4 +1,4 @@
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, CalendarPlus } from "lucide-react";
 import { Burst } from "../shared/Burst";
 import { useRef, useState } from "react";
 import type { ReminderView } from "../tasks/reminders";
@@ -17,12 +17,14 @@ export default function RemindersStrip({
   onSnooze,
   onAdd,
   onOpen,
+  onAddAllToCalendar,
 }: {
   items: ReminderView[];
   onTick?: (id: string, done: boolean) => void;
   onSnooze?: (id: string) => void;
   onAdd?: () => void;
   onOpen?: (id: string) => void;
+  onAddAllToCalendar?: () => void;
 }) {
   const [burstId, setBurstId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -74,6 +76,14 @@ export default function RemindersStrip({
         {items.length === 0 && onAdd && (
           <button className="row row-act" onClick={onAdd}>
             <Plus className="ic" />Add a Reminder
+          </button>
+        )}
+        {/* Trailing in-list action (button law O4). One tap hands every
+            reminder to iOS Calendar, which is the only thing on the phone
+            that can actually make them go off. */}
+        {items.length > 0 && onAddAllToCalendar && (
+          <button className="row row-act" onClick={onAddAllToCalendar}>
+            <CalendarPlus className="ic" />Add All to Calendar
           </button>
         )}
       </div></div>

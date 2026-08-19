@@ -12,12 +12,14 @@ export default function ReminderSheet({
   mode = "new",
   onSave,
   onDelete,
+  onAddToCalendar,
   onCancel,
 }: {
   initial?: { text: string; reminder: ReminderInfo };
   mode?: "new" | "edit";
   onSave: (text: string, r: ReminderInfo) => void;
   onDelete?: () => void;
+  onAddToCalendar?: () => void;
   onCancel: () => void;
 }) {
   const [text, setText] = useState(initial?.text ?? "");
@@ -71,6 +73,16 @@ export default function ReminderSheet({
         </div>
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-block" onClick={save}>Save</button>
+          {/* THE HONEST LINE (2026-08-19). A web app cannot fire its own
+              alarm on iOS, so rather than let a reminder look like it will
+              ping and quietly not, JARVIS says so and hands the job to the
+              scheduler already on the phone. */}
+          {mode === "edit" && onAddToCalendar && (
+            <>
+              <button className="btn btn-secondary btn-block" onClick={onAddToCalendar}>Add to iPhone Calendar</button>
+              <div className="input-help">JARVIS can't send alerts on the web yet. Your Calendar can, and it works offline.</div>
+            </>
+          )}
           {mode === "edit" && onDelete && (
             <button className="btn btn-danger btn-block" onClick={onDelete}>Delete Reminder</button>
           )}

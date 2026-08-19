@@ -206,6 +206,8 @@ Positions are law: head actions right, in-list creates last, destructive actions
 4. ONE PLACE PER SCREEN. The strip is the reminder surface on Today. A missed reminder does NOT also get a Heads Up card: the same item twice on one screen is the floating-notification problem this app just spent a round removing.
 5. TWO TAPS TO MAKE ONE: name, time, cadence. No category, no duration, no end date, no project. Every field the task sheet has and this one does not is deliberate.
 6. SNOOZE IS SAME-DAY ONLY, stored with its date and clamped inside the day, so last night's snooze cannot move this morning's ping.
+7. THE CALENDAR HANDOFF (Dave 2026-08-19: "whatever you can within the iOS"). A web app cannot fire its own alarm: the Notification Triggers API was abandoned and ships in no browser, and iOS web push needs a Home Screen install plus a server awake at the right minute. So JARVIS does not pretend. It says so in plain words on the reminder sheet and hands the job to the scheduler already on the phone: an iCalendar file with an RRULE and a VALARM, which iOS fires forever, offline, with JARVIS closed. Times are FLOATING (no Z, no TZID) so 8am meds stay 8am in a new timezone. UIDs are stable so re-adding updates instead of duplicating. Every reminder ships in ONE file so adding them all is one tap.
+8. NEVER LET A REMINDER LOOK LIKE IT WILL PING WHEN IT WILL NOT. Any surface that creates a reminder must either deliver the alert or say, in the same breath, that it cannot and offer the thing that can.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
