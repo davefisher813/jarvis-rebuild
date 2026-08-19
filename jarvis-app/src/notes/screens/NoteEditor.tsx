@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { MoreHorizontal, FileText, Image, Check, Plus, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
+import { MoreHorizontal, FileText, Image, Check, Plus, ArrowUp, ArrowDown, Trash2, Undo2, Redo2, Type, List as ListIcon, CheckSquare, Heading1, Bold, Italic, Strikethrough, Highlighter } from "lucide-react";
+import { wrapRange, countWords } from "../richtext";
 import { catColor } from "../../shared/categories";
 import { Burst } from "../../shared/Burst";
 import InlineEdit from "../../shared/InlineEdit";
@@ -165,17 +166,21 @@ function NoteTable({ block }: { block: Extract<EditorBlock, { type: "table" }> }
 // Uses a menu rather than drag (drag fights scroll in a web view).
 function BlockRow({
   blockId,
+  blockType,
   isFirst,
   isLast,
   onMove,
   onDelete,
+  onTurnInto,
   children,
 }: {
   blockId: string;
+  blockType?: string;
   isFirst: boolean;
   isLast: boolean;
   onMove?: (blockId: string, dir: -1 | 1) => void;
   onDelete?: (blockId: string) => void;
+  onTurnInto?: (blockId: string, type: "text" | "heading" | "bulleted_list" | "checklist") => void;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -192,6 +197,26 @@ function BlockRow({
         <>
           <div className="block-menu-scrim" onClick={() => setOpen(false)} />
           <div className="block-menu">
+            {onTurnInto && (blockType === "text" || blockType === "heading") && (
+              <>
+                {blockType !== "text" && (
+                  <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "text"); setOpen(false); }}>
+                    <Type className="ic" /> Turn into text
+                  </button>
+                )}
+                {blockType !== "heading" && (
+                  <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "heading"); setOpen(false); }}>
+                    <Heading1 className="ic" /> Turn into heading
+                  </button>
+                )}
+                <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "bulleted_list"); setOpen(false); }}>
+                  <ListIcon className="ic" /> Turn into list
+                </button>
+                <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "checklist"); setOpen(false); }}>
+                  <CheckSquare className="ic" /> Turn into checklist
+                </button>
+              </>
+            )}
             {onMove && !isFirst && (
               <button className="block-menu-item" onClick={() => { onMove(blockId, -1); setOpen(false); }}>
                 <ArrowUp className="ic" /> Move up
@@ -214,6 +239,54 @@ function BlockRow({
   );
 }
 
+// THE SELECTION BAR (deep writing pass): select text in a text block and a
+// floating format bar appears above the selection: bold, italic, strike,
+// highlight. Tapping a format keeps the selection's block focused (mousedown
+// is swallowed) and re-applying the same format removes it.
+function SelectionBar({ onApply }: { onApply: (bid: string, start: number, end: number, marker: string) => void }) {
+  const [st, setSt] = useState<{ top: number; left: number; bid: string; start: number; end: number } | null>(null);
+  useEffect(() => {
+    const h = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) { setSt(null); return; }
+      if (sel.anchorNode !== sel.focusNode) { setSt(null); return; }
+      const node = sel.anchorNode;
+      const host = (node instanceof Element ? node : node?.parentElement)?.closest?.('[data-bid][contenteditable]');
+      if (!host || !host.classList.contains("t-body")) { setSt(null); return; }
+      const start = Math.min(sel.anchorOffset, sel.focusOffset);
+      const end = Math.max(sel.anchorOffset, sel.focusOffset);
+      if (start === end) { setSt(null); return; }
+      const rect = sel.getRangeAt(0).getBoundingClientRect();
+      setSt({
+        top: Math.max(8, rect.top - 52),
+        left: Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - 208)),
+        bid: (host as HTMLElement).dataset.bid!,
+        start,
+        end,
+      });
+    };
+    document.addEventListener("selectionchange", h);
+    return () => document.removeEventListener("selectionchange", h);
+  }, []);
+  if (!st) return null;
+  const btn = (marker: string, label: string, icon: React.ReactNode) => (
+    <button
+      className="selbar-btn"
+      aria-label={label}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => { onApply(st.bid, st.start, st.end, marker); setSt(null); }}
+    >{icon}</button>
+  );
+  return (
+    <div className="sel-bar" style={{ top: st.top, left: st.left }}>
+      {btn("**", "Bold", <Bold className="ic" />)}
+      {btn("*", "Italic", <Italic className="ic" />)}
+      {btn("~~", "Strikethrough", <Strikethrough className="ic" />)}
+      {btn("==", "Highlight", <Highlighter className="ic" />)}
+    </div>
+  );
+}
+
 export default function NoteEditor({
   note,
   onBack,
@@ -228,6 +301,11 @@ export default function NoteEditor({
   onDeleteCheckItem,
   onMoveBlock,
   onDeleteBlock,
+  onTurnInto,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   onDeleteNote,
   focusBlockId,
   onEnterAt,
@@ -256,8 +334,40 @@ export default function NoteEditor({
   onDeleteCheckItem?: (blockId: string, index: number) => void;
   onMoveBlock?: (blockId: string, dir: -1 | 1) => void;
   onDeleteBlock?: (blockId: string) => void;
+  onTurnInto?: (blockId: string, type: "text" | "heading" | "bulleted_list" | "checklist") => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
 }) {
   const inline = note.blocks.filter((b) => b.type !== "file" && b.type !== "photo");
+  const words = countWords(
+    note.blocks.flatMap((b) =>
+      b.type === "text" || b.type === "heading" ? [b.text]
+      : b.type === "checklist" ? b.items.map((i) => i.text)
+      : b.type === "bulleted_list" || b.type === "numbered_list" ? b.items
+      : []),
+  );
+  // Selection formatting: wrap the selected raw range and persist. The raw
+  // source is the LIVE DOM text, not the last-saved block, because the
+  // selection exists mid-edit, before any blur has saved. The DOM is updated
+  // in place and the caret lands after the wrapped run.
+  const applyFormat = (bid: string, start: number, end: number, marker: string) => {
+    const el = document.querySelector(`[data-bid="${bid}"]`);
+    if (!el) return;
+    const raw = el.textContent ?? "";
+    const { text, caret } = wrapRange(raw, start, end, marker);
+    el.textContent = text;
+    const node = el.firstChild;
+    if (node && node.nodeType === Node.TEXT_NODE) {
+      const range = document.createRange();
+      range.setStart(node, Math.min(caret, text.length));
+      range.collapse(true);
+      const sel = window.getSelection();
+      if (sel) { sel.removeAllRanges(); sel.addRange(range); }
+    }
+    onEditBlockText?.(bid, text);
+  };
   const attachments = note.blocks.filter(
     (b): b is Extract<EditorBlock, { type: "file" | "photo" }> =>
       b.type === "file" || b.type === "photo",
@@ -269,6 +379,16 @@ export default function NoteEditor({
         <button className="nav-back" onClick={onBack}>Notes</button>
         <span className="nav-title"></span>
         <div className="nav-actions">
+          {onUndo && (
+            <button className="nav-action" onClick={onUndo} disabled={!canUndo} aria-label="Undo">
+              <Undo2 className="ic" />
+            </button>
+          )}
+          {onRedo && (
+            <button className="nav-action" onClick={onRedo} disabled={!canRedo} aria-label="Redo">
+              <Redo2 className="ic" />
+            </button>
+          )}
           <button className="nav-action" onClick={onConnections} aria-label="Connections">
             <MoreHorizontal className="ic" />
           </button>
@@ -292,13 +412,13 @@ export default function NoteEditor({
         {inline.map((b, idx) => {
           let content: React.ReactNode = null;
           if (b.type === "heading")
-            content = <InlineEdit tag="div" className="block-h" value={b.text} placeholder="Heading"
+            content = <InlineEdit tag="div" className="block-h" value={b.text} placeholder="Heading" bid={b.id}
               focused={focusBlockId === b.id}
               onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
               onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
               onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
           else if (b.type === "text")
-            content = <InlineEdit tag="div" className="t-body" value={b.text} placeholder="Write Something"
+            content = <InlineEdit tag="div" className="t-body" value={b.text} placeholder="Write Something" bid={b.id} rich
               focused={focusBlockId === b.id}
               onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
               onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
@@ -317,10 +437,12 @@ export default function NoteEditor({
             <BlockRow
               key={b.id}
               blockId={b.id}
+              blockType={b.type}
               isFirst={idx === 0}
               isLast={idx === inline.length - 1}
               onMove={onMoveBlock}
               onDelete={onDeleteBlock}
+              onTurnInto={onTurnInto}
             >
               {content}
             </BlockRow>
@@ -347,6 +469,10 @@ export default function NoteEditor({
           </div>
         </div>
       )}
+
+      {words > 0 && <div className="doc-count">{words} words</div>}
+
+      <SelectionBar onApply={applyFormat} />
 
       {/* THE WRITING TOOLBAR (Dave 2026-08-18, "real writing features"):
           one tap drops the block and puts the caret in it; More opens the

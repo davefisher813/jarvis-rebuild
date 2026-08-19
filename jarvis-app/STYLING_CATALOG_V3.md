@@ -30,7 +30,17 @@
 1. THE WRITING TOOLBAR: every note pins a chip toolbar to the viewport bottom (the tab bar is hidden while writing, so the toolbar owns that edge): Text · Heading · List · Checklist · More (accent). Each chip creates its block and drops the caret in it. The chip row scrolls sideways, never clips. Markdown shortcuts ("# ", "- ", "[] ", "1. ") are law on text blocks.
 2. DECISION LIST ANATOMY: colored glyph (category color when linked, purple when free-standing) → name line (decision sentence, wraps to two lines max, never one-line ellipsis) with the recorded date quiet at the right → sub line "Because {why}" with the linked home as a colored semibold fact. No counts anywhere in Decisions (spec law).
 3. PROJECT LINKING: Area and Goal are chip pickers on the project detail page itself, saved inline through attemptWrite. Linking never requires the edit sheet.
-4. DEMO MAIL: demo builds render the email anatomy from a fixture component (DemoMail) gated by an explicit demoMail prop, never by environment sniffing. The fixture mirrors rule L4's canonical order exactly; when it drifts from the real MessagesFlow layout, the fixture is the one that's wrong.
+4. DEMO MAIL: demo builds render the email anatomy from a fixture component (DemoMail) gated by an explicit demoMail prop, never by environment sniffing. The fixture mirrors rule L4's canonical order exactly; when it drifts from the real MessagesFlow layout, the fixture is the one that's wrong. Its compose is a real typing surface (To, Subject, Message all work); only Send explains itself.
+
+## N. The writing system (V4.2, Dave 2026-08-19: "dig deeper with the writing features")
+
+1. INLINE RICH TEXT: storage stays plain text with markers everyone knows: **bold**, *italic*, ==highlight==, ~~strike~~. Blocks render formatted when read, raw when edited. A tap on formatted text drops the caret at the tapped character, mapped through the markers. No HTML in the data model, ever.
+2. THE SELECTION BAR: select text in a text block and a floating bar appears above the selection: bold, italic, strike, highlight. Re-applying a format removes it. The bar never steals focus from the canvas.
+3. UNDO AND REDO ride the editor's nav bar. Every block mutation snapshots first (50 deep); undo restores wholesale. Disabled arrows show at 30% opacity.
+4. TURN INTO lives in the block menu: any text or heading converts to text, heading, list, or checklist in place, keeping its words.
+5. EMPTY STARTERS: toolbar-created text and heading blocks start empty with a placeholder; the first keystroke is the writer's.
+6. THE QUIET WORD COUNT sits centered under the last block in the muted meta ramp.
+7. EVERY LONG-FORM SURFACE IS THE CANVAS: brain docs (Philosophy, Writing, Values, Routine) write on the same borderless page as notes: 17px at 1.6, accent caret, no boxed input. A boxed textarea on a writing page is a violation. Form sheets (task, event, decision, person) stay forms: labels, boxed inputs, segments.
 
 Everything below is the V3.3 base that still stands, minus rules superseded above.
 

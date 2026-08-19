@@ -64,8 +64,10 @@ function toEditorNote(data: NoteData): EditorNote {
 // a starter block for each add-block type
 function starterBlock(type: BlockType): Omit<Block, "id"> {
   switch (type) {
-    case "heading": return { type, text: "Heading" };
-    case "text": return { type, text: "New text" };
+    // Empty starters: the placeholder does the explaining and the first
+    // keystroke is the writer's, not a delete of ours (deep writing pass).
+    case "heading": return { type, text: "" };
+    case "text": return { type, text: "" };
     case "checklist": return { type, items: [{ text: "New item", done: false }] };
     case "bulleted_list": return { type, items: ["Item"] };
     case "numbered_list": return { type, items: ["Item"] };
@@ -101,8 +103,43 @@ export default function NotesFlow({
   const [currentId, setCurrentId] = useState<string | null>(null);
   // Canvas typing flow: which block should hold the caret after a mutation.
   const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
+  // Undo/redo (2026-08-19, deep writing pass): every block mutation snapshots
+  // the blocks array first. Undo restores wholesale; a new edit clears redo.
+  const history = useRef<Block[][]>([]);
+  const redoStack = useRef<Block[][]>([]);
+  const [histTick, setHistTick] = useState(0);
+  const snap = async () => {
+    if (!currentId) return;
+    const d = await svc.note(currentId);
+    if (!d) return;
+    history.current.push(JSON.parse(JSON.stringify(d.blocks)) as Block[]);
+    if (history.current.length > 50) history.current.shift();
+    redoStack.current = [];
+    setHistTick((t) => t + 1);
+  };
+  const undo = async () => {
+    if (!currentId) return;
+    const prev = history.current.pop();
+    if (!prev) return;
+    const d = await svc.note(currentId);
+    if (d) redoStack.current.push(JSON.parse(JSON.stringify(d.blocks)) as Block[]);
+    await attemptWrite(() => svc.setBlocks(currentId, prev));
+    await loadCurrent(currentId);
+    setHistTick((t) => t + 1);
+  };
+  const redo = async () => {
+    if (!currentId) return;
+    const next = redoStack.current.pop();
+    if (!next) return;
+    const d = await svc.note(currentId);
+    if (d) history.current.push(JSON.parse(JSON.stringify(d.blocks)) as Block[]);
+    await attemptWrite(() => svc.setBlocks(currentId, next));
+    await loadCurrent(currentId);
+    setHistTick((t) => t + 1);
+  };
   const enterAt = async (blockId: string, text: string) => {
     if (!currentId) return;
+    await snap();
     let newId: string | null = null;
     await attemptWrite(async () => {
       await svc.editBlock(currentId, blockId, { text });
@@ -113,6 +150,7 @@ export default function NotesFlow({
   };
   const backspaceAt = async (blockId: string) => {
     if (!currentId || !current) return;
+    await snap();
     const idx = current.blocks.findIndex((b) => b.id === blockId);
     const prev = [...current.blocks.slice(0, idx)].reverse().find((b) => b.type === "text" || b.type === "heading");
     await attemptWrite(() => svc.deleteBlock(currentId, blockId));
@@ -121,6 +159,7 @@ export default function NotesFlow({
   };
   const transformAt = async (blockId: string, prefix: "#" | "[]" | "-" | "1.", rest: string) => {
     if (!currentId) return;
+    await snap();
     await attemptWrite(async () => {
       if (prefix === "#") await svc.editBlock(currentId, blockId, { type: "heading", text: rest });
       else if (prefix === "[]") await svc.editBlock(currentId, blockId, { type: "checklist", text: undefined, items: [{ text: rest, done: false }] });
@@ -132,12 +171,14 @@ export default function NotesFlow({
   };
   const listItems = async (blockId: string, items: string[], focusKey: string | null) => {
     if (!currentId) return;
+    await snap();
     await attemptWrite(() => svc.editBlock(currentId, blockId, { items }));
     await loadCurrent(currentId);
     setFocusBlockId(focusKey);
   };
   const listExit = async (blockId: string, remaining: string[]) => {
     if (!currentId) return;
+    await snap();
     if (remaining.length === 0) {
       await attemptWrite(() => svc.editBlock(currentId, blockId, { type: "text", text: "", items: undefined }));
       await loadCurrent(currentId);
@@ -225,6 +266,9 @@ export default function NotesFlow({
   }, [schedSvc, tasksSvc, projSvc, goalSvc, peopleSvc]);
 
   const openNote = async (id: string) => {
+    history.current = [];
+    redoStack.current = [];
+    setHistTick((t) => t + 1);
     setCurrentId(id);
     await loadCurrent(id);
     setScreen("editor");
@@ -251,6 +295,7 @@ export default function NotesFlow({
 
   const addBlock = async (type: BlockType) => {
     if (!currentId) return;
+    await snap();
     let newId: string | null = null;
     await attemptWrite(async () => { newId = await svc.addBlock(currentId, starterBlock(type)); });
     setAddBlockOpen(false);
@@ -272,6 +317,7 @@ export default function NotesFlow({
   };
   const editBlockText = async (blockId: string, text: string) => {
     if (!currentId) return;
+    await snap();
     await attemptWrite(() => svc.editBlock(currentId, blockId, { text }));
     await loadCurrent(currentId);
   };
@@ -282,21 +328,25 @@ export default function NotesFlow({
   };
   const editCheckItem = async (blockId: string, index: number, text: string) => {
     if (!currentId) return;
+    await snap();
     await attemptWrite(() => svc.setChecklistItemText(currentId, blockId, index, text));
     await loadCurrent(currentId);
   };
   const addCheckItem = async (blockId: string) => {
     if (!currentId) return;
+    await snap();
     await attemptWrite(() => svc.addChecklistItem(currentId, blockId));
     await loadCurrent(currentId);
   };
   const deleteCheckItem = async (blockId: string, index: number) => {
     if (!currentId) return;
+    await snap();
     await attemptWrite(() => svc.deleteChecklistItem(currentId, blockId, index));
     await loadCurrent(currentId);
   };
   const moveBlockDir = async (blockId: string, dir: -1 | 1) => {
     if (!currentId || !current) return;
+    await snap();
     const blocks = current.blocks;
     const i = blocks.findIndex((b) => b.id === blockId);
     if (i < 0) return;
@@ -307,7 +357,24 @@ export default function NotesFlow({
   };
   const deleteBlock = async (blockId: string) => {
     if (!currentId) return;
+    await snap();
     await attemptWrite(() => svc.deleteBlock(currentId, blockId));
+    await loadCurrent(currentId);
+  };
+
+  // Turn Into (deep writing pass): a text or heading block converts to any
+  // simple type in place; its words become the first item where items rule.
+  const turnInto = async (blockId: string, type: "text" | "heading" | "bulleted_list" | "checklist") => {
+    if (!currentId || !current) return;
+    const b = current.blocks.find((x) => x.id === blockId);
+    if (!b || (b.type !== "text" && b.type !== "heading")) return;
+    const words = ("text" in b ? b.text : "") ?? "";
+    await snap();
+    await attemptWrite(async () => {
+      if (type === "text" || type === "heading") await svc.editBlock(currentId, blockId, { type, text: words, items: undefined });
+      else if (type === "checklist") await svc.editBlock(currentId, blockId, { type, text: undefined, items: [{ text: words, done: false }] });
+      else await svc.editBlock(currentId, blockId, { type, text: undefined, items: [words] });
+    });
     await loadCurrent(currentId);
   };
 
@@ -443,6 +510,11 @@ export default function NotesFlow({
           onDeleteCheckItem={deleteCheckItem}
           onMoveBlock={moveBlockDir}
           onDeleteBlock={deleteBlock}
+          onTurnInto={(id, t) => void turnInto(id, t)}
+          onUndo={() => void undo()}
+          onRedo={() => void redo()}
+          canUndo={histTick >= 0 && history.current.length > 0}
+          canRedo={histTick >= 0 && redoStack.current.length > 0}
         />
       )}
       {addBlockOpen && (

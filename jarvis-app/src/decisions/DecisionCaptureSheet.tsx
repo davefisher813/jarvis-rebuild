@@ -123,8 +123,8 @@ export default function DecisionCaptureSheet({
             <div className="input-label">Revisit</div>
             <div className="segmented">
               <div className={"seg" + (revisitMode === "none" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit("")}>None</div>
-              <div className={"seg" + (revisitMode === "week" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDaysISO(today, 7))}>1 Week</div>
-              <div className={"seg" + (revisitMode === "month" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDaysISO(today, 30))}>1 Month</div>
+              <div className={"seg" + (revisitMode === "week" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDaysISO(today, 7))}>Week</div>
+              <div className={"seg" + (revisitMode === "month" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDaysISO(today, 30))}>Month</div>
               <div className={"seg" + (revisitMode === "pick" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(revisitMode === "pick" && revisit ? revisit : addDaysISO(today, 14))}>Pick</div>
             </div>
             {revisitMode === "pick" && (

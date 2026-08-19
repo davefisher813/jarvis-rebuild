@@ -1444,4 +1444,23 @@ button {
    writing, so the bar owns that edge. The doc reserves room above it. */
 .screen-editor .editor-bar { position: fixed; left: 0; right: 0; bottom: 0; }
 .screen-editor .doc { padding-bottom: 96px; }
+
+/* DEEP WRITING PASS (2026-08-19): inline rich text, the selection bar, the
+   quiet word count, and the brain-doc canvas. */
+.t-b { font-weight: var(--w-bold); }
+.t-i { font-style: italic; }
+.t-strike { text-decoration: line-through; color: var(--tx-3); }
+.t-hl { background: rgba(255, 214, 10, 0.28); border-radius: 3px; padding: 0 1px; }
+[data-theme="light"] .t-hl { background: rgba(255, 214, 10, 0.45); }
+.sel-bar { position: fixed; z-index: 60; display: flex; background: var(--surface-3); border: 1px solid var(--card-bd); border-radius: var(--r-md); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55); overflow: hidden; }
+.selbar-btn { display: flex; align-items: center; justify-content: center; width: 48px; height: 44px; background: transparent; border: 0; color: var(--tx-1); }
+.selbar-btn:active { background: var(--surface-2); }
+.selbar-btn .ic { width: 18px; height: 18px; }
+.doc-count { text-align: center; font-size: var(--t-meta); color: var(--tx-4); padding: var(--s-2) 0 96px; font-variant-numeric: tabular-nums; }
+.screen-editor .doc-count { padding-bottom: 0; }
+.nav-action:disabled { opacity: 0.3; }
+/* Brain docs write on the same canvas as notes: no boxed input, document
+   typography, the accent caret. The page is the page you write on. */
+.doc-textarea { width: 100%; min-height: 55vh; background: transparent; border: 0; outline: none; resize: none; font-family: var(--f); font-size: 17px; line-height: 1.6; color: var(--tx-1); caret-color: var(--accent); padding: var(--s-2) 0 0; }
+.doc-textarea::placeholder { color: var(--tx-4); }
 .chip-accent { color: var(--accent); font-weight: var(--w-semi); }

@@ -103,6 +103,16 @@ export class NotesService {
     return true;
   }
 
+  // Undo support (2026-08-19): a note's blocks are one array, so undo is a
+  // wholesale restore of a prior snapshot. The flow owns the history stack.
+  async setBlocks(id: string, blocks: Block[]): Promise<boolean> {
+    const note = await this.getNote(id);
+    if (!note) return false;
+    await this.store.update(this.ownerId, id, { blocks } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
+    return true;
+  }
+
   async moveBlock(id: string, from: number, to: number): Promise<boolean> {
     const note = await this.getNote(id);
     if (!note) return false;

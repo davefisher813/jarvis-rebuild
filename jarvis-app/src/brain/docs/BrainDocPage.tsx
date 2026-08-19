@@ -74,9 +74,11 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
         <div className="nav-title">{meta?.title ?? "Note"}</div>
         <button className="nav-action-text" onClick={save} disabled={!dirty}>{loaded && !dirty ? "Saved" : "Save"}</button>
       </div>
+      {/* Deep writing pass (2026-08-19): brain docs write on the notes
+          canvas, not in a boxed form field. Same typography, same caret. */}
       <div className="pad-x sheet-form">
         <textarea
-          className="input input-doc"
+          className="doc-textarea"
           placeholder={meta?.placeholder}
           value={text}
           onChange={(e) => { setText(e.target.value); setDirty(true); setSaved(false); }}

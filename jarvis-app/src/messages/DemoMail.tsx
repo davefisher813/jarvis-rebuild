@@ -4,6 +4,7 @@
 // Rows toast instead of opening; the moment a real account connects,
 // MessagesFlow renders live data and this component never mounts.
 
+import { useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { showToast } from "../shared/toast";
 import { Plus } from "lucide-react";
@@ -30,9 +31,33 @@ const MAIL_ICO = (
 const demoTap = () => showToast({ message: "Demo mail · Connect Google for the real thing" });
 
 export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
+  // The compose surface is real typing even in the demo: the fields work,
+  // only Send explains itself. Dave sees the page, nothing pretends to mail.
+  const [composing, setComposing] = useState(false);
+  const [draft, setDraft] = useState({ to: "", subject: "", body: "" });
+
+  if (composing) {
+    return (
+      <div className="screen">
+        <div className="nav-bar">
+          <button className="nav-back" onClick={() => setComposing(false)}>Cancel</button>
+          <span className="nav-title">New Message</span>
+          <div className="nav-actions">
+            <button className="nav-action-text" onClick={demoTap}>Send</button>
+          </div>
+        </div>
+        <div className="pad-x sheet-form">
+          <input className="msg-input" placeholder="To" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} />
+          <input className="msg-input" placeholder="Subject" value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
+          <textarea className="msg-textarea" placeholder="Message" value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="screen">
-      <PageHeader title="Email" actions={<BarAction label="New Message" onClick={demoTap}><Plus className="ic" /></BarAction>} />
+      <PageHeader title="Email" actions={<BarAction label="New Message" onClick={() => setComposing(true)}><Plus className="ic" /></BarAction>} />
       <div className="pad-x">
         <input className="msg-input msg-search" placeholder="Search All Mail" onFocus={demoTap} readOnly />
       </div>
