@@ -1467,9 +1467,15 @@ button {
    "5 with 4's numbering"): red counter number, red mini-caps heading,
    dotted leader to the margin. Editorial's big title and airy body stay. */
 .doc { counter-reset: doch; }
-.doc .doc-title { font-size: 30px; letter-spacing: -0.02em; }
-.doc .t-body { line-height: 1.65; }
-.hwrap { display: flex; align-items: baseline; gap: 9px; counter-increment: doch; margin-top: var(--s-5); }
+/* Faithful to the Option 5 mock ("5 looked different"): 26px title,
+   16.5px body at 1.6, and the mock's TIGHT vertical rhythm. The airy
+   editorial spacing read as a different design; density is the design. */
+.doc { padding-top: var(--s-3); }
+.doc > * + * { margin-top: var(--s-1h); }
+.doc .doc-title { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 2px; }
+.doc .t-body { font-size: 16.5px; line-height: 1.6; min-height: 24px; }
+.screen-editor .doc { padding-bottom: 84px; }
+.hwrap { display: flex; align-items: baseline; gap: 9px; counter-increment: doch; margin-top: var(--s-6); margin-bottom: 2px; }
 .hwrap .hnum::before { content: counter(doch, decimal-leading-zero); }
 .hwrap .hnum { font-size: 12px; font-weight: var(--w-bold); color: var(--accent); font-variant-numeric: tabular-nums; opacity: 0.65; }
 .doc .hwrap .block-h { margin-top: 0; min-width: 40px; max-width: 76%; font-size: 12px; font-weight: var(--w-bold); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
