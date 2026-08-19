@@ -37,7 +37,7 @@ export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts,
   mode = "month", onMode, weekCells = [], loading,
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload,
-  locked = [], now, onEditRoutine, onPush15, onPushTomorrow, onRunningLate,
+  locked = [], now, onEditRoutine, onShift, onMoveTo, onSkipToday, onPushTomorrow, onRunningLate,
   anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {},
   windowStartMin, windowEndMin,
 }: {
@@ -47,7 +47,10 @@ export default function SchedulePage({
   onPrev?: () => void; onNext?: () => void; onSelect?: (date: string) => void;
   onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void; onUpload?: () => void;
   locked?: LockedRange[]; now?: string | null; onEditRoutine?: () => void;
-  onPush15?: (id: string) => void; onPushTomorrow?: (id: string) => void;
+  onShift?: (id: string, mins: number) => void;
+  onMoveTo?: (id: string, start: string) => void;
+  onSkipToday?: (id: string) => void;
+  onPushTomorrow?: (id: string) => void;
   onRunningLate?: (mins: number) => void;
   anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string) => void;
   attachMap?: Record<string, AttachInfo>;
@@ -276,7 +279,9 @@ export default function SchedulePage({
                   isPast={isToday ? (en.e.data.end ? toMin(en.e.data.end) : toMin(en.e.data.start) + 60) < nowMin : false}
                   now={isToday ? now! : null}
                   onOpen={() => onOpenEvent?.(en.e.id)}
-                  onPush15={onPush15 ? () => onPush15(en.e.id) : undefined}
+                  onShift={onShift ? (m) => onShift(en.e.id, m) : undefined}
+                  onMoveTo={onMoveTo ? (t) => onMoveTo(en.e.id, t) : undefined}
+                  onSkipToday={onSkipToday ? () => onSkipToday(en.e.id) : undefined}
                   onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.e.id) : undefined}
                 />
               </div>

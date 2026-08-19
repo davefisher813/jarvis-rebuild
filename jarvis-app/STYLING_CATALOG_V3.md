@@ -189,6 +189,15 @@ Every tappable action renders as exactly ONE of these, chosen by its slot. A bar
 
 Positions are law: head actions right, in-list creates last, destructive actions last on the page (L6). The old icon-tile section head (sec-ico + sec-title) is retired from Today; JARVIS Noticed is a steel head like everything else.
 
+## P. The Schedule (V4.5, Dave 2026-08-19: "still way too difficult to move things around")
+
+1. EVERY EVENT IS MOVABLE, INCLUDING REPEATING ONES. Repeating events used to be excluded from every quick action, which is exactly why "locked in" things felt welded to the calendar. Moving a SERIES by accident is the danger; moving ONE DAY of it is not. A move on a repeating event splits that occurrence off (addExdate + a standalone copy), says "just today" in the toast, and leaves the series untouched.
+2. MOVEMENT GOES BOTH WAYS. Until this pass nothing in the app could move an event EARLIER: every control only pushed later. The rail is −15m · +15m · +1h · (Tomorrow, or Skip today when repeating).
+3. SKIP IS NOT DELETE. A repeating thing you are not doing today gets skipped for the day from the row itself; the series never notices, and Undo restores it.
+4. THE CATEGORY BAR: every event row on every surface (Schedule day list, Today's Your Day, Today's Tomorrow) carries a 4px category-colored bar at its left. The dot on the meta line stays because it carries the NAME; the bar carries the signal you read without reading. A new event row without the bar is a bug.
+5. TAP THE TIME, CHANGE THE TIME. The time on a row is its own control and opens a time input in place. Changing when something happens must never cost the whole editor.
+6. EVERY MOVE IS UNDOABLE. Shift, move-to, skip, push-to-tomorrow: each returns one Undo that restores the exact prior state, including un-splitting a repeating occurrence. Moving things is only relaxing if getting it wrong is free.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

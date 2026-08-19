@@ -38,6 +38,13 @@ export function addMinutes(hhmm: string, mins: number): string {
 }
 
 // "13:00","14:30" -> "1:00 - 2:30 PM" (shares the meridiem when both match).
+// Minutes from one HH:MM to another, same day. Used to preserve an event's
+// length when it moves (2026-08-19).
+export function minutesBetween(from: string, to: string): number {
+  const m = (t: string) => { const p = t.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
+  return m(to) - m(from);
+}
+
 export function fmtRange(start: string, end?: string): string {
   const s = fmtTime(start);
   if (!end) return `${s.time} ${s.ap}`;

@@ -13,6 +13,10 @@ function Row({ ev, past, dist, onOpen }: { ev: EventItem; past: boolean; dist: s
   const t = fmtTime(ev.data.start);
   return (
     <div className={"sched-row" + (past ? " past" : "")} role="button" tabIndex={0} onClick={onOpen}>
+      {/* Category at a glance (Dave 2026-08-19): the dot on the line below is
+          still there, but the bar is what you actually see, and it survives
+          the scrolling ticker where the dot used to get clipped away. */}
+      <span className={"sched-bar cat-bg-" + catColor(ev.data.category)} />
       <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
       <div className="sched-body">
         <div className="sched-title">{ev.data.title}{dist && <span className="sched-dist">{dist}</span>}</div>

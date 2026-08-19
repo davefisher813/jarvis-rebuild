@@ -7,6 +7,11 @@ import type { EventItem } from "../types";
 
 // The swipe actions on this row had NO test coverage at all before 2026-08-07,
 // which is part of how they stayed touch-only and invisible for so long.
+//
+// 2026-08-19 (Dave: "locked in stuff should be moveable with no issue"):
+// repeating events used to be excluded from the actions entirely. They are
+// not any more, and these tests pin that, plus the shift controls that
+// finally let an event move EARLIER.
 
 const ev = (over: Partial<EventItem["data"]> = {}): EventItem => ({
   id: "e1",
@@ -14,14 +19,17 @@ const ev = (over: Partial<EventItem["data"]> = {}): EventItem => ({
 } as EventItem);
 
 const render1 = (over: Partial<EventItem["data"]> = {}, props: Record<string, unknown> = {}) => {
-  const onPush15 = vi.fn();
+  const onShift = vi.fn();
+  const onMoveTo = vi.fn();
+  const onSkipToday = vi.fn();
   const onPushTomorrow = vi.fn();
   const onOpen = vi.fn();
   render(
     <DayRow e={ev(over)} conflict={false} isNext={false} isPast={false} now={null}
-      onOpen={onOpen} onPush15={onPush15} onPushTomorrow={onPushTomorrow} {...props} />,
+      onOpen={onOpen} onShift={onShift} onMoveTo={onMoveTo} onSkipToday={onSkipToday}
+      onPushTomorrow={onPushTomorrow} {...props} />,
   );
-  return { onPush15, onPushTomorrow, onOpen };
+  return { onShift, onMoveTo, onSkipToday, onPushTomorrow, onOpen };
 };
 
 describe("DayRow quick actions", () => {
@@ -32,12 +40,19 @@ describe("DayRow quick actions", () => {
     expect(grip).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("reveals and fires Push 15 without any touch event, which the swipe could not", () => {
-    const { onPush15 } = render1();
+  it("reveals and fires a forward shift without any touch event, which the swipe could not", () => {
+    const { onShift } = render1();
     fireEvent.click(screen.getByLabelText("Quick actions"));
     expect(screen.getByLabelText("Hide quick actions")).toHaveAttribute("aria-expanded", "true");
-    fireEvent.click(screen.getByText("+15 min"));
-    expect(onPush15).toHaveBeenCalled();
+    fireEvent.click(screen.getByText("+15m"));
+    expect(onShift).toHaveBeenCalledWith(15);
+  });
+
+  it("can move an event EARLIER, which nothing in the app could do before", () => {
+    const { onShift } = render1();
+    fireEvent.click(screen.getByLabelText("Quick actions"));
+    fireEvent.click(screen.getByText("−15m"));
+    expect(onShift).toHaveBeenCalledWith(-15);
   });
 
   it("reaches Tomorrow the same way", () => {
@@ -56,13 +71,19 @@ describe("DayRow quick actions", () => {
     expect(screen.getByLabelText("Quick actions")).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("stays out of the way where the swipe was already refused: recurring series", () => {
-    render1({ recurrence: "weekly" });
-    expect(screen.queryByLabelText("Quick actions")).not.toBeInTheDocument();
+  it("LAW: a repeating event is movable, and offers Skip today instead of Tomorrow", () => {
+    const { onShift, onSkipToday } = render1({ recurrence: "weekly" });
+    fireEvent.click(screen.getByLabelText("Quick actions"));
+    fireEvent.click(screen.getByText("+15m"));
+    expect(onShift).toHaveBeenCalledWith(15);
+    // Tomorrow would move the whole series' anchor; skipping one day cannot.
+    expect(screen.queryByText("Tomorrow")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Skip today"));
+    expect(onSkipToday).toHaveBeenCalled();
   });
 
-  it("and on past events", () => {
-    render(<DayRow e={ev()} conflict={false} isNext={false} isPast now={null} onOpen={() => {}} onPush15={() => {}} onPushTomorrow={() => {}} />);
+  it("stays out of the way on past events", () => {
+    render(<DayRow e={ev()} conflict={false} isNext={false} isPast now={null} onOpen={() => {}} onShift={() => {}} onPushTomorrow={() => {}} />);
     expect(screen.queryByLabelText("Quick actions")).not.toBeInTheDocument();
   });
 
@@ -75,5 +96,13 @@ describe("DayRow quick actions", () => {
     const { onOpen } = render1();
     fireEvent.click(screen.getByText("Client Call"));
     expect(onOpen).toHaveBeenCalled();
+  });
+
+  it("tapping the TIME changes just the time, without opening the editor", () => {
+    const { onMoveTo, onOpen } = render1();
+    fireEvent.click(screen.getByLabelText("Change time, currently 10:00 AM"));
+    expect(onOpen).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("New time"), { target: { value: "14:30" } });
+    expect(onMoveTo).toHaveBeenCalledWith("14:30");
   });
 });

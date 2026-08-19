@@ -78,6 +78,10 @@ function SchedRow({ ev }: { ev: EventItem }) {
   const t = fmtTime(ev.data.start);
   return (
     <div className="sched-row">
+      {/* Same category bar as every other event row (Dave 2026-08-19): the
+          Tomorrow rows are a separate component and would have been the one
+          place the signal went missing. */}
+      <span className={"sched-bar cat-bg-" + catColor(ev.data.category)} />
       <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
       <div className="sched-body">
         <div className="sched-title">{ev.data.title}</div>

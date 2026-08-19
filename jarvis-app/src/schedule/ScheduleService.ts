@@ -73,6 +73,14 @@ export class ScheduleService {
     const exdates = Array.from(new Set([...(e.exdates ?? []), date]));
     return this.patch(id, { exdates });
   }
+  // Put a skipped occurrence back. Undo for "skip this one" and for the
+  // occurrence split that a one-day move performs (2026-08-19).
+  async removeExdate(id: string, date: string): Promise<boolean> {
+    const e = await this.get(id);
+    if (!e) return false;
+    const exdates = (e.exdates ?? []).filter((d) => d !== date);
+    return this.patch(id, { exdates: exdates.length ? exdates : undefined });
+  }
   moveDay(id: string, date: string): Promise<boolean> {
     return this.patch(id, { date });
   }

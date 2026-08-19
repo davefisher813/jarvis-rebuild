@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { EventItem } from "../types";
 import { useSwipe } from "../../shared/useSwipe";
 import { fmtTime, fmtDistance } from "../calendar";
@@ -26,7 +27,9 @@ export default function DayRow({
   isPast,
   now,
   onOpen,
-  onPush15,
+  onShift,
+  onMoveTo,
+  onSkipToday,
   onPushTomorrow,
 }: {
   e: EventItem;
@@ -36,7 +39,9 @@ export default function DayRow({
   isPast: boolean;
   now: string | null; // "HH:MM" when viewing today, else null
   onOpen?: () => void;
-  onPush15?: () => void;
+  onShift?: (mins: number) => void;
+  onMoveTo?: (start: string) => void;
+  onSkipToday?: () => void;
   onPushTomorrow?: () => void;
 }) {
   const t = fmtTime(e.data.start);
@@ -47,8 +52,14 @@ export default function DayRow({
   // The one shared swipe controller, so every list feels the same. (The old
   // local copy's dx-ref lesson from audit 2026-08-07 lives inside useSwipe
   // now: release always judges the position the finger actually reached.)
-  const swipeable = !rep && !isPast && (onPush15 || onPushTomorrow);
-  const { dx, open, dragging, handlers, closeThen, toggle } = useSwipe({ revealW: 176, enabled: !!swipeable });
+  // REPEATING EVENTS ARE MOVABLE (Dave 2026-08-19, "locked in stuff should be
+  // moveable with no issue"). They used to be excluded from this line
+  // entirely, which is exactly why they felt welded to the calendar. What is
+  // dangerous is moving a SERIES by accident, and the flow handles that by
+  // moving one day only and saying so in the toast.
+  const swipeable = !isPast && (onShift || onPushTomorrow || onSkipToday);
+  const { dx, open, dragging, handlers, closeThen, toggle } = useSwipe({ revealW: rep ? 268 : 232, enabled: !!swipeable });
+  const [picking, setPicking] = useState(false);
 
   return (
     <div className="sched-swipe-wrap">
@@ -57,8 +68,14 @@ export default function DayRow({
         // still-focusable children is an ARIA violation, and it let keyboard
         // users tab into buttons that were visually absent.
         <div className="sched-actions" aria-hidden={!open}>
-          <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(onPush15)}>+15 min</button>
-          <button className="sched-act sched-act-quiet" tabIndex={open ? 0 : -1} onClick={() => closeThen(onPushTomorrow)}>Tomorrow</button>
+          {/* Back 15 exists because until now nothing in the app could move
+              an event EARLIER: every control only ever pushed later. */}
+          {onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(-15))}>&minus;15m</button>}
+          {onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(15))}>+15m</button>}
+          {onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(60))}>+1h</button>}
+          {rep
+            ? onSkipToday && <button className="sched-act sched-act-quiet" tabIndex={open ? 0 : -1} onClick={() => closeThen(onSkipToday)}>Skip today</button>
+            : onPushTomorrow && <button className="sched-act sched-act-quiet" tabIndex={open ? 0 : -1} onClick={() => closeThen(onPushTomorrow)}>Tomorrow</button>}
         </div>
       )}
       <div
@@ -69,7 +86,20 @@ export default function DayRow({
         onClick={() => (open ? closeThen() : onOpen?.())}
         {...handlers}
       >
-        <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
+        {/* THE CATEGORY BAR (Dave 2026-08-19, "doesn't show which category
+            things are tied to"): the dot on the third line was there but read
+            as absent. This is the same fact at a glance, no reading. */}
+        <span className={"sched-bar cat-bg-" + catColor(e.data.category)} />
+        {onMoveTo ? (
+          <button
+            type="button"
+            className="sched-time sched-time-btn"
+            aria-label={"Change time, currently " + t.time + " " + t.ap}
+            onClick={(ev) => { ev.stopPropagation(); setPicking(true); }}
+          >{t.time}<span className="ampm">{t.ap}</span></button>
+        ) : (
+          <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
+        )}
         <div className="sched-body">
           <div className="sched-title">
             {e.data.title}
@@ -107,6 +137,21 @@ export default function DayRow({
           </button>
         )}
       </div>
+      {/* TAP THE TIME (M3): a time change should not cost the whole editor. */}
+      {picking && onMoveTo && (
+        <>
+          <div className="time-pop-scrim" onClick={() => setPicking(false)} />
+          <div className="time-pop">
+            <input
+              className="input time-pop-input"
+              type="time"
+              aria-label="New time"
+              defaultValue={e.data.start}
+              onChange={(ev) => { const v = ev.target.value; if (v) { setPicking(false); onMoveTo(v); } }}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }

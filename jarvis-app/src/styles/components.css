@@ -1402,6 +1402,31 @@ button {
 .sched-gap.past { opacity: 0.4; }
 .sched-gap:active { background: var(--press-1); }
 
+/* SCHEDULE WAVE 1 (Dave 2026-08-19: "the schedule is still way too difficult
+   to move things around ... doesn't show which category things are tied to").
+
+   The category bar. The dot on the meta line stays (it carries the name), but
+   this is the signal you read without reading. Rows are align-items:flex-start
+   so the bar stretches via absolute positioning rather than fighting that. */
+.sched-row { position: relative; }
+.sched-bar { position: absolute; left: var(--s-1h); top: var(--s-2); bottom: var(--s-2);
+  width: 4px; border-radius: 3px; }
+.sched-row.past .sched-bar { opacity: 0.4; }
+
+/* Tapping the time is its own action, so it needs its own hit area and needs
+   to not look like the row is one big button. */
+.sched-time-btn { background: 0; border: 0; font-family: var(--f); text-align: left;
+  padding: 1px 0 0; margin: 0; cursor: pointer; }
+.sched-time-btn:active { color: var(--accent); }
+.time-pop-scrim { position: fixed; inset: 0; z-index: 60; }
+.time-pop { position: absolute; left: var(--s-4); top: 50%; transform: translateY(-50%);
+  z-index: 61; background: var(--surface-3); border: 1px solid var(--card-bd);
+  border-radius: var(--r-md); padding: var(--s-2); box-shadow: 0 10px 34px rgba(0,0,0,0.6); }
+.time-pop-input { width: 150px; height: 40px; }
+
+/* Four actions need more rail than two did. */
+.sched-actions .sched-act { padding: 0 var(--s-2h); }
+
 /* THE DECISION KILLERS (Dave 2026-08-19, ADHD round): Pick One is the Tasks
    page's one primary and sits above the filters, because reading the filters
    is already the work it exists to skip. */

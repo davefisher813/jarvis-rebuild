@@ -8,7 +8,7 @@ import type { Goal } from "../life/types";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import ScheduleUploadFlow from "./screens/ScheduleUploadFlow";
-import { todayISO, weekOf, addDays, addMinutes, eventsForDate, findConflicts, nextFreeSlot, fmtRange } from "./calendar";
+import { todayISO, weekOf, addDays, addMinutes, minutesBetween, fmtTime, eventsForDate, findConflicts, nextFreeSlot, fmtRange } from "./calendar";
 import { planDay } from "./planDay";
 import { anytimeTasksForDay } from "./anytime";
 import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
@@ -418,17 +418,99 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // --- Roadmap v2 schedule basics ---
   const nowHHMM = (() => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; })();
 
-  // Swipe: push one event 15 minutes (start and end shift together).
-  const onPush15 = async (id: string) => {
+  // MOVING IS THE WHOLE FEATURE (Dave 2026-08-19: "the schedule is still way
+  // too difficult to move things around. Locked in stuff should be moveable
+  // with no issue").
+  //
+  // Every move goes through here, including repeating events. A repeating
+  // event used to be excluded from every quick action outright, which is why
+  // "locked in" things felt immovable: the only way to shift one was the full
+  // editor. Blocking was never the right answer. Moving a SERIES from a swipe
+  // is the footgun; moving ONE DAY of it is not, and the split-one-occurrence
+  // path the editor already uses does exactly that. So:
+  //   one-off   -> edit the times in place
+  //   repeating -> exclude this date and drop a standalone copy at the new
+  //                time, labelled "just today", with the series untouched
+  // Both paths return a single Undo that restores the world exactly.
+  const moveEvent = async (id: string, toStart: string, label: string) => {
     const e = await svc.event(id);
     if (!e) return;
+    const repeating = (e.recurrence ?? "none") !== "none";
+    const dur = e.end ? minutesBetween(e.start, e.end) : null;
+    const newEnd = dur !== null ? addMinutes(toStart, dur) : undefined;
+
+    if (!repeating) {
+      const ok = await attemptWrite(async () => {
+        await svc.editTime(id, toStart);
+        if (e.end) await svc.editEnd(id, newEnd!);
+      });
+      await reload();
+      if (!ok) return;
+      showToast({
+        message: label,
+        actionLabel: "Undo",
+        onAction: async () => {
+          await attemptWrite(async () => { await svc.editTime(id, e.start); if (e.end) await svc.editEnd(id, e.end); });
+          await reload();
+        },
+      });
+      return;
+    }
+
+    // Repeating: split just this day off the series.
+    let copyId: string | null = null;
     const ok = await attemptWrite(async () => {
-      await svc.editTime(id, addMinutes(e.start, 15));
-      if (e.end) await svc.editEnd(id, addMinutes(e.end, 15));
+      await svc.addExdate(id, selected);
+      copyId = await svc.createEvent(e.title, {
+        date: selected, start: toStart, end: newEnd,
+        category: e.category || undefined, location: e.location || undefined,
+      });
     });
     await reload();
     if (!ok) return;
-    showToast({ message: "Pushed 15 minutes", actionLabel: "Undo", onAction: async () => { await attemptWrite(async () => { await svc.editTime(id, e.start); if (e.end) await svc.editEnd(id, e.end); }); await reload(); } });
+    showToast({
+      message: label + " · just today",
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => {
+          if (copyId) await svc.deleteEvent(copyId);
+          await svc.removeExdate(id, selected);
+        });
+        await reload();
+      },
+    });
+  };
+
+  // Shift by a relative amount: the quick actions. Negative shifts exist
+  // because until now nothing in the app could move an event EARLIER.
+  const onShift = async (id: string, mins: number) => {
+    const e = await svc.event(id);
+    if (!e) return;
+    const word = mins < 0
+      ? `Back ${Math.abs(mins) === 60 ? "1 hr" : Math.abs(mins) + " min"}`
+      : `Forward ${mins === 60 ? "1 hr" : mins + " min"}`;
+    await moveEvent(id, addMinutes(e.start, mins), word);
+  };
+
+  // Move to an exact time (the time tap, and later the drag drop).
+  const onMoveTo = async (id: string, start: string) => {
+    const t = fmtTime(start);
+    await moveEvent(id, start, `Moved to ${t.time} ${t.ap}`);
+  };
+
+  // SKIP JUST THIS ONE: a repeating thing you are not doing today should not
+  // need deleting or an editor visit. The series never notices.
+  const onSkipToday = async (id: string) => {
+    const e = await svc.event(id);
+    if (!e) return;
+    const ok = await attemptWrite(() => svc.addExdate(id, selected));
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: "Skipped today",
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => svc.removeExdate(id, selected)); await reload(); },
+    });
   };
 
   // Swipe: push one event to tomorrow, same time.
@@ -485,7 +567,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         windowEndMin={planWindow.endMin}
         now={selected === today ? nowHHMM : null}
         onEditRoutine={onEditRoutine}
-        onPush15={onPush15}
+        onShift={onShift}
+        onMoveTo={onMoveTo}
+        onSkipToday={onSkipToday}
         onPushTomorrow={onPushTomorrow}
         onRunningLate={onRunningLate}
         anytimeItems={anytimeItems}
