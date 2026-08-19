@@ -168,6 +168,20 @@ Title Case: page titles, section heads, row names, buttons, chips, sheet titles,
 - Preview discipline: any visual change ships previews at 390x844 first; Dave approves before code.
 - The five no-floating-text rules (section B, C) are the sweep checklist for every existing and future screen.
 
+## O. The Button Law (V4.3, Dave 2026-08-19: "buttons are not rendering as buttons")
+
+Every tappable action renders as exactly ONE of these, chosen by its slot. A bare unstyled <button> is a design bug.
+
+1. BAR ACTION (.barbtn / .nav-action): icon or text in the nav bar. Page-level create and back live here.
+2. PAGE PRIMARY (.btn.btn-primary): the one big red pill. One per screen, max.
+3. PROMO PILL (.promo-pill / .promo-pill.quiet): actions inside a promo card only.
+4. IN-LIST CREATE (.row-act): centered accent row at the END of its section.
+5. ROW PILL (.pill-act): grey pill, accent text, inline in a list row (Nudge).
+6. SMALL PILL (.btn-sm): the one small doing-button (Add to Today, Link, Not Now). Always has a pill body: press-3 background, accent semibold text, 34px. Text-only small buttons are illegal; that's the head action's job.
+7. HEAD ACTION (.see-all inside .sh2): accent semibold 13px text at the head's FAR RIGHT, after the dotted leader, never mid-head. An action cluster on a head (.sec-left: pause + Schedule) rides the same slot. The quiet variant (dismiss ×) is tx-3.
+
+Positions are law: head actions right, in-list creates last, destructive actions last on the page (L6). The old icon-tile section head (sec-ico + sec-title) is retired from Today; JARVIS Noticed is a steel head like everything else.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

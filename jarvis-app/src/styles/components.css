@@ -1392,6 +1392,28 @@ button {
    small-label style everywhere means the variant adds nothing. Kept as a
    no-op selector so existing markup stays legal. */
 .sh2.sh2-caps .t { color: var(--accent); }
+
+/* THE BUTTON LAW (Dave 2026-08-19: "buttons are not rendering as buttons").
+   Every button in the app is one of these, styled by its slot:
+   bar action (.barbtn/.nav-action) · page primary (.btn.btn-primary) ·
+   promo pill (.promo-pill) · in-list create (.row-act) · row pill
+   (.pill-act) · small pill (.btn-sm) · head action (.see-all in .sh2).
+   A bare <button> with none of these classes is a design bug. */
+/* Head action: accent text at the head's far right, after the leader. */
+.see-all { font-size: 13px; font-weight: var(--w-semi); color: var(--accent);
+  background: 0; border: 0; font-family: var(--f); letter-spacing: 0.02em;
+  min-height: var(--tap-min); display: inline-flex; align-items: center; }
+.sh2 .see-all { order: 2; margin: -13px 0; flex-shrink: 0; }
+/* An action CLUSTER on a head (YourDay's pause + Schedule) rides the same
+   far-right slot as a lone action: after the leader, never mid-head. */
+.sh2 .sec-left { order: 2; display: inline-flex; align-items: center; gap: var(--s-2); margin: -13px 0; flex-shrink: 0; }
+.sh2 .see-all.quiet-action { color: var(--tx-3); font-size: 17px; }
+/* Small pill: the one small doing-button (Add to Today, Link, Not Now).
+   It always has a body; text-only small buttons are the head action's job. */
+.btn-sm { height: 34px; font-size: var(--t-meta); padding: 0 var(--s-3h);
+  background: var(--press-3); color: var(--accent); border: 0;
+  border-radius: var(--r-pill); font-weight: var(--w-semi); font-family: var(--f);
+  display: inline-flex; align-items: center; flex-shrink: 0; }
 /* Detail-page group labels ride the same steel: Decided, Because, Details,
    Ruled Out. Scoped to .grp so category kicker eyebrows keep their colors. */
 .grp .eyebrow { display: flex; align-items: baseline; gap: 9px; color: var(--accent); letter-spacing: 0.14em; }

@@ -12,10 +12,6 @@ import type { ProtectedBlock } from "../routine/types";
 import { emit } from "../events";
 import { rankOpen } from "../upnext/upnext";
 
-const ZAP = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
-);
-
 // Proactive nudges on Today, made actionable and polite:
 // - one AI call per day (cached on device), so no burn on every open
 // - yesterday's and today's suggestions are passed back as "do not repeat"
@@ -144,11 +140,10 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
 
   return (
     <>
-      <div className="sec-head">
-        <div className="sec-left">
-          <div className="sec-ico ico-good">{ZAP}</div>
-          <div className="sec-title">JARVIS Noticed</div>
-        </div>
+      {/* Steel head like every other section (Dave 2026-08-19: the icon-tile
+          head was the last of the old style). Dismiss rides the action slot. */}
+      <div className="sh2">
+        <span className="t">JARVIS Noticed</span>
         <button
           className="see-all quiet-action"
           aria-label="Dismiss"
