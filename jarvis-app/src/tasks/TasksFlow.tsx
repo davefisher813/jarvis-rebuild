@@ -18,6 +18,8 @@ import { useAIContext } from "../ai/useAIContext";
 import { identityToText } from "../ai/context";
 import { firstStepPrompt, parseFirstStep } from "./firstStep";
 import { localParse } from "../ai/capture";
+import { rankOpen } from "../upnext/upnext";
+import { breakdownPrompt, parseBreakdown } from "./breakdown";
 import { emit } from "../events";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "./momentum";
 import { RowIcon } from "../shared/anatomy";
@@ -376,9 +378,96 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     </div>
   ) : null;
 
+  // JUST PICK ONE FOR ME (Dave 2026-08-19): the same ranking Up Next uses,
+  // taken down to one and opened. The point is that he never reads a list:
+  // one tap goes from "Tasks" straight to a task that is already open.
+  const pickOne = () => {
+    const best = rankOpen(parts.all, today)[0];
+    if (!best) { showToast({ message: "Nothing open · Enjoy it" }); return; }
+    openEdit(best.id);
+  };
+
+  // MOVE ALL TO TODAY: an overdue pile is where the shame lives. One tap
+  // resets it, with a single Undo that puts every original date back.
+  const moveAllToToday = async () => {
+    const stuck = parts.overdue;
+    if (stuck.length === 0) return;
+    const before = stuck.map((t) => ({ id: t.id, due: t.data.due ?? null }));
+    const ok = await attemptWrite(async () => {
+      for (const t of stuck) await svc.setDue(t.id, today);
+    });
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: `${stuck.length} ${stuck.length === 1 ? "task" : "tasks"} moved to today`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => {
+          for (const b of before) await svc.setDue(b.id, b.due);
+        });
+        await reload();
+      },
+    });
+  };
+
+  // BREAK IT DOWN: one big task becomes three or four startable ones. The
+  // original is replaced by its steps (keeping both would mean the scary
+  // version still sits in the list), and one Undo puts it back and removes
+  // them. toggleDone is deliberately NOT used to retire the original: on a
+  // recurring task it would roll the due date forward instead of closing it.
+  const breakDown = async (text: string) => {
+    const editingId = sheet?.mode === "edit" ? sheet.id : null;
+    setSheet(null);
+    showToast({ message: "Breaking it down..." });
+    let steps: string[] = [];
+    try {
+      const identity = await gatherContext().then(identityToText).catch(() => "");
+      const p = breakdownPrompt(text, identity);
+      steps = parseBreakdown(await ai.complete([{ role: "user", content: p.user }], p.system));
+    } catch {
+      steps = [];
+    }
+    if (steps.length === 0) { showToast({ message: "Couldn't reach JARVIS" }); return; }
+    const original = editingId ? parts.all.find((t) => t.id === editingId) ?? null : null;
+    if (!original && editingId) { showToast({ message: "Couldn't find that task" }); return; }
+    const made: string[] = [];
+    const ok = await attemptWrite(async () => {
+      for (const step of steps) {
+        const id = await svc.createTask(step, {
+          category: original?.data.category ?? "",
+          due: original?.data.due ?? today,
+          projectId: original?.data.projectId,
+          source: { type: "chat", ts: Date.now() },
+        });
+        if (id) made.push(id);
+      }
+      if (editingId) await svc.deleteTask(editingId);
+    });
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: `Split into ${made.length} ${made.length === 1 ? "step" : "steps"}`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => {
+          for (const id of made) await svc.deleteTask(id);
+          if (original) await svc.createTask(original.data.text, {
+            category: original.data.category,
+            due: original.data.due ?? null,
+            recurrence: original.data.recurrence,
+            projectId: original.data.projectId,
+          });
+        });
+        await reload();
+      },
+    });
+  };
+
   return (
     <>
       <TasksPage
+        onPickOne={pickOne}
+        onMoveAllToToday={() => void moveAllToToday()}
         filter={filter}
         counts={counts}
         items={byCategory(parts[filter], catFilter)}
@@ -430,6 +519,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
           categories={categories}
           onSave={onSave}
           onSchedule={sheet.mode === "edit" ? onScheduleTask : undefined}
+          onBreakDown={sheet.mode === "edit" && ai.available ? (t) => void breakDown(t) : undefined}
           onDelete={sheet.mode === "edit" ? onDelete : undefined}
           onCancel={() => setSheet(null)}
         />

@@ -1393,6 +1393,20 @@ button {
    no-op selector so existing markup stays legal. */
 .sh2.sh2-caps .t { color: var(--accent); }
 
+/* A GAP IS A ROW (Dave 2026-08-19): open time renders in the timeline at the
+   hour it falls, dashed so it reads as absence, tappable so it becomes a
+   plan. Full row width and the same time gutter as every other sched row. */
+.sched-gap { width: 100%; text-align: left; background: transparent; border: 0;
+  font-family: var(--f); border-top: 1px dashed var(--divider); border-bottom: 1px dashed var(--divider); }
+.sched-gap .sched-gap-title { display: flex; align-items: center; gap: var(--s-1h); color: var(--tx-2); }
+.sched-gap.past { opacity: 0.4; }
+.sched-gap:active { background: var(--press-1); }
+
+/* THE DECISION KILLERS (Dave 2026-08-19, ADHD round): Pick One is the Tasks
+   page's one primary and sits above the filters, because reading the filters
+   is already the work it exists to skip. */
+.pick-one { padding-top: var(--s-2); padding-bottom: var(--s-1); }
+
 /* HEADS UP stream (Dave 2026-08-19): cards in the notice stream carry their
    own kicker instead of a page-level head, and any card can host a corner
    dismiss. .card is the positioning context for it. */

@@ -153,6 +153,8 @@ export default function TasksPage({
   onCatFilter,
   banner,
   momentum,
+  onPickOne,
+  onMoveAllToToday,
 }: {
   filter: TaskFilter;
   counts: Record<TaskFilter, number>;
@@ -173,11 +175,22 @@ export default function TasksPage({
   banner?: React.ReactNode;
   // Momentum Chain: a suggestion element pinned under the row it follows.
   momentum?: { afterId: string; el: React.ReactNode } | null;
+  // THE DECISION KILLERS (Dave 2026-08-19, ADHD round). Pick One opens the
+  // single best task for right now so the list never has to be read; Move
+  // All resets an overdue pile in one tap instead of one tap per shame.
+  onPickOne?: () => void;
+  onMoveAllToToday?: () => void;
 }) {
   const [qa, setQa] = useState("");
   return (
     <div className="screen">
       <PageHeader title="Tasks" actions={<BarAction label="New Task" onClick={onNew}><Plus className="ic" /></BarAction>} />
+
+      {onPickOne && counts.all > 0 && (
+        <div className="pad-x pick-one">
+          <button className="btn btn-primary btn-block btn-lg" onClick={onPickOne}>Just Pick One For Me</button>
+        </div>
+      )}
 
       <div className="chip-row">
         {FILTERS.map((f) => (
@@ -216,6 +229,14 @@ export default function TasksPage({
       )}
 
       {banner}
+
+      {filter === "overdue" && items.length > 0 && onMoveAllToToday && (
+        <div className="sh2">
+          <span className="t">Overdue</span>
+          <span className="n">{items.length}</span>
+          <button className="see-all" onClick={onMoveAllToToday}>Move All to Today</button>
+        </div>
+      )}
 
       {filter === "done" && counts.done > 0 && onClearDone && (
         <div className="pad-x clear-done">

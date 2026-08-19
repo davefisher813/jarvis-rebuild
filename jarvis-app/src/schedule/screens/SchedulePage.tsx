@@ -55,6 +55,13 @@ export default function SchedulePage({
   // real day instead of a hardcoded 8 AM to 9 PM (2026-08-10).
   windowStartMin?: number; windowEndMin?: number;
 }) {
+  // "1h 48m" / "45m": a gap states its size, because the size is what
+  // decides whether it is worth anything.
+  const gapLabel = (mins: number) => {
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return h > 0 ? (m > 0 ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
+  };
+
   const cells = monthMatrix(year, month);
   const n = dayEvents.length;
   const slots = openSlots(
@@ -113,10 +120,20 @@ export default function SchedulePage({
   const isToday = selected === todayDate && !!now;
   // Merge events + protected blocks into one time-ordered list, so the routine
   // is REAL on the calendar (roadmap v2), not an invisible wall.
-  type Entry = { kind: "event"; e: EventItem; s: number } | { kind: "locked"; l: LockedRange; s: number };
+  // GAPS LIVE IN THE TIMELINE (Dave 2026-08-19, ADHD round): open time used
+  // to render as a trailing list under the day, so "2 hours free at 1pm" sat
+  // visually below 9pm and read as dead space. A gap is a time of day; it
+  // belongs in time order, tappable where it actually falls.
+  type Entry =
+    | { kind: "event"; e: EventItem; s: number }
+    | { kind: "locked"; l: LockedRange; s: number }
+    | { kind: "gap"; start: string; end: string; s: number };
   const entries: Entry[] = [
     ...dayEvents.map((e): Entry => ({ kind: "event", e, s: toMin(e.data.start) })),
     ...locked.map((l): Entry => ({ kind: "locked", l, s: l.s })),
+    ...(mode === "day" && onPickSlot
+      ? slots.map((sl): Entry => ({ kind: "gap", start: sl.start, end: sl.end, s: toMin(sl.start) }))
+      : []),
   ].sort((a, b) => a.s - b.s);
   const nowMin = now ? toMin(now) : 0;
   const nextId = isToday ? dayEvents.filter((e) => toMin(e.data.start) >= nowMin).sort((a, b) => toMin(a.data.start) - toMin(b.data.start))[0]?.id : undefined;
@@ -211,13 +228,28 @@ export default function SchedulePage({
 
       {loading ? (
         <SkeletonRows />
-      ) : entries.length === 0 ? (
+      ) : entries.every((en) => en.kind === "gap") ? (
         <div className="empty-state"><div className="t-body">No events</div><button className="btn btn-primary" onClick={onNew}>New Event</button></div>
       ) : (
         <>
         <div className={"sched-list" + (mode === "day" && drag?.over ? " drop-target" : "")} ref={gridZoneRef}>
           {entries.map((en, i) =>
-            en.kind === "locked" ? (
+            en.kind === "gap" ? (
+              <button
+                className={"sched-row sched-gap" + (isToday && toMin(en.end) <= nowMin ? " past" : "")}
+                key={"gap-" + i}
+                onClick={() => onPickSlot?.(en.start)}
+              >
+                <div className="sched-time">{fmtTime(en.start).time}<span className="ampm">{fmtTime(en.start).ap}</span></div>
+                <div className="sched-body">
+                  <div className="sched-title sched-gap-title">
+                    <span className="sched-open-plus">+</span>
+                    {gapLabel(toMin(en.end) - toMin(en.start))} open
+                  </div>
+                  <div className="sched-cat">Until {fmtTime(en.end).time} {fmtTime(en.end).ap} &middot; tap to fill it</div>
+                </div>
+              </button>
+            ) : en.kind === "locked" ? (
               <div
                 className={"sched-row sched-locked" + (isToday && en.l.e <= nowMin ? " past" : "")}
                 key={"lock-" + i}
@@ -251,7 +283,10 @@ export default function SchedulePage({
             ),
           )}
         </div>
-        {slots.length > 0 && onPickSlot && (
+        {/* The trailing "Open ..." list is retired: those rows are in the
+            timeline now, at the hour they belong to. Week and month views,
+            which have no timeline, keep the list. */}
+        {mode !== "day" && slots.length > 0 && onPickSlot && (
           <div className="pad-x sched-open-list">
             {slots.slice(0, 4).map((sl, i) => (
               <button key={i} className="sched-open" onClick={() => onPickSlot(sl.start)}>

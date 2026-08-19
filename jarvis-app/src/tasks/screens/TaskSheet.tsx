@@ -28,6 +28,7 @@ export default function TaskSheet({
   source,
   onSave,
   onSchedule,
+  onBreakDown,
   onDelete,
   onCancel,
 }: {
@@ -40,6 +41,9 @@ export default function TaskSheet({
   source?: Source;
   onSave: (draft: TaskDraft) => void;
   onSchedule?: () => void;
+  // Break It Down: hands the current text back so the flow can split it into
+  // real tasks. Absent when AI is off, so the button never promises nothing.
+  onBreakDown?: (text: string) => void;
   onDelete?: () => void;
   onCancel: () => void;
 }) {
@@ -147,6 +151,11 @@ export default function TaskSheet({
           <button className="btn btn-primary btn-block" onClick={save}>Save</button>
           {mode === "edit" && onSchedule && (
             <button className="btn btn-secondary btn-block" onClick={onSchedule}>Add to Schedule</button>
+          )}
+          {/* The task is big and he is looking at it: the moment to offer
+              splitting it is here, not on some other screen (2026-08-19). */}
+          {mode === "edit" && onBreakDown && text.trim() && (
+            <button className="btn btn-secondary btn-block" onClick={() => onBreakDown(text.trim())}>Break It Down</button>
           )}
           {mode === "edit" && onDelete && (
             <button className="btn btn-danger btn-block" onClick={onDelete}>Delete Task</button>
