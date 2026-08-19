@@ -147,7 +147,10 @@ export const STEPS: Step[] = [
       c.id2 = (await s.createNote("Team Sync", "sky")) ?? undefined;
       const okApply = await s.applyTemplate(c.id2!, "meeting");
       const bl = data(await s.note(c.id2!)).blocks;
-      const ok = okApply && bl.length === 3 && bl[0]!.type === "heading";
+      // V4.2 meeting shape: dated attendee line, then agenda / decisions /
+      // action items structure (deep template pass, 2026-08-19).
+      const heads = bl.filter((b) => b.type === "heading").map((b) => b.text);
+      const ok = okApply && bl[0]!.type === "text" && heads.join(",") === "Agenda,Decisions,Action Items";
       return { ok, msg: ok ? "Template seeded blocks." : "Template failed." };
     },
   },

@@ -41,6 +41,8 @@
 5. EMPTY STARTERS: toolbar-created text and heading blocks start empty with a placeholder; the first keystroke is the writer's.
 6. THE QUIET WORD COUNT sits centered under the last block in the muted meta ramp.
 7. EVERY LONG-FORM SURFACE IS THE CANVAS: brain docs (Philosophy, Writing, Values, Routine) write on the same borderless page as notes: 17px at 1.6, accent caret, no boxed input. A boxed textarea on a writing page is a violation. Form sheets (task, event, decision, person) stay forms: labels, boxed inputs, segments.
+8. TEMPLATES DELIVER WHAT THEIR CARD PROMISES (law-tested): Meeting Notes opens dated ("Aug 19 · Attendees") with Agenda / Decisions / Action Items; Project Brief carries Objective / Key Dates / Tasks / Notes; Journal opens with today's first entry ready to write; Tracker opens with an editable row.
+9. THE TRACKER IS A LIVING TABLE: every cell edits in place, Add Row grows it downward, the header's + adds a column, and a column whose cells are all numbers (or money) sums itself in the bold sum row. The sum is computed at render, never stored, so it can't go stale. Table writes are serialized through one queue reading fresh state, because a cell's blur-save and an Add Row tap land back-to-back.
 
 Everything below is the V3.3 base that still stands, minus rules superseded above.
 

@@ -97,19 +97,32 @@ export type TemplateKey =
   | "journal";
 
 // Mirrors the locked Templates screen.
+// Templates create the structure their card promises (Dave 2026-08-19,
+// "I meant all of these"): Meeting Notes really has agenda, decisions, and
+// action items; Brief really has objective, key dates, tasks, notes. Dated
+// pieces (meeting date line, journal's first entry) are added by
+// applyTemplate, because a template literal can't know today.
 export const TEMPLATES: Record<TemplateKey, Omit<Block, "id">[]> = {
   blank: [],
   meeting: [
-    { type: "heading", text: "Meeting Notes" },
-    { type: "text", text: "Date, attendees" },
+    { type: "heading", text: "Agenda" },
+    { type: "bulleted_list", items: [""] },
+    { type: "heading", text: "Decisions" },
+    { type: "text", text: "" },
+    { type: "heading", text: "Action Items" },
     { type: "checklist", items: [] },
   ],
   todo: [{ type: "checklist", items: [] }],
-  tracker: [{ type: "table", columns: ["", ""], rows: [] }],
+  tracker: [{ type: "table", columns: ["", ""], rows: [["", ""]] }],
   brief: [
     { type: "heading", text: "Objective" },
     { type: "text", text: "" },
+    { type: "heading", text: "Key Dates" },
+    { type: "bulleted_list", items: [""] },
+    { type: "heading", text: "Tasks" },
     { type: "checklist", items: [] },
+    { type: "heading", text: "Notes" },
+    { type: "text", text: "" },
   ],
   journal: [{ type: "heading", text: "Log" }],
 };

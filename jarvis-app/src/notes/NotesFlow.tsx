@@ -68,10 +68,10 @@ function starterBlock(type: BlockType): Omit<Block, "id"> {
     // keystroke is the writer's, not a delete of ours (deep writing pass).
     case "heading": return { type, text: "" };
     case "text": return { type, text: "" };
-    case "checklist": return { type, items: [{ text: "New item", done: false }] };
-    case "bulleted_list": return { type, items: ["Item"] };
-    case "numbered_list": return { type, items: ["Item"] };
-    case "table": return { type, columns: ["Col 1", "Col 2"], rows: [["", ""]] };
+    case "checklist": return { type, items: [{ text: "", done: false }] };
+    case "bulleted_list": return { type, items: [""] };
+    case "numbered_list": return { type, items: [""] };
+    case "table": return { type, columns: ["", ""], rows: [["", ""]] };
     case "photo": return { type, name: "Photo", size: "" };
     case "file": return { type, name: "Attachment", size: "" };
   }
@@ -378,6 +378,58 @@ export default function NotesFlow({
     await loadCurrent(currentId);
   };
 
+  // The Tracker's table edits (deep template pass): cells patch in place,
+  // Add Row grows downward, Add Column grows sideways. Row -1 is the header.
+  // Every table op runs through one queue and reads the FRESH note inside
+  // it, because a cell's blur-save and an Add Row tap fire back-to-back and
+  // two stale read-modify-writes would clobber each other (found live).
+  const tableQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const enqueueTable = (fn: () => Promise<void>): Promise<void> => {
+    const next = tableQueue.current.then(fn, fn);
+    tableQueue.current = next.catch(() => {});
+    return next;
+  };
+  const freshTable = async (blockId: string) => {
+    if (!currentId) return null;
+    const d = await svc.note(currentId);
+    const b = d?.blocks.find((x) => x.id === blockId);
+    if (!b || b.type !== "table") return null;
+    return { columns: (b.columns ?? []).slice(), rows: (b.rows ?? []).map((r) => r.slice()) };
+  };
+  const tableEdit = (blockId: string, row: number, col: number, text: string) => enqueueTable(async () => {
+    if (!currentId) return;
+    const t = await freshTable(blockId);
+    if (!t) return;
+    await snap();
+    await attemptWrite(async () => {
+      if (row === -1) {
+        t.columns[col] = text;
+        await svc.editBlock(currentId, blockId, { columns: t.columns });
+      } else {
+        while (t.rows.length <= row) t.rows.push(Array<string>(t.columns.length).fill(""));
+        t.rows[row]![col] = text;
+        await svc.editBlock(currentId, blockId, { rows: t.rows });
+      }
+    });
+    await loadCurrent(currentId);
+  });
+  const tableAddRow = (blockId: string) => enqueueTable(async () => {
+    if (!currentId) return;
+    const t = await freshTable(blockId);
+    if (!t) return;
+    await snap();
+    await attemptWrite(() => svc.editBlock(currentId, blockId, { rows: [...t.rows, Array<string>(t.columns.length).fill("")] }));
+    await loadCurrent(currentId);
+  });
+  const tableAddColumn = (blockId: string) => enqueueTable(async () => {
+    if (!currentId) return;
+    const t = await freshTable(blockId);
+    if (!t) return;
+    await snap();
+    await attemptWrite(() => svc.editBlock(currentId, blockId, { columns: [...t.columns, ""], rows: t.rows.map((r) => [...r, ""]) }));
+    await loadCurrent(currentId);
+  });
+
   // Stack depth per screen: list is root, editor and templates sit above it,
   // connections above the editor, its two pickers above that.
   const NOTE_DEPTH: Record<Screen, number> = { list: 0, editor: 1, templates: 1, connections: 2, linkPicker: 3, createTasks: 3 };
@@ -511,6 +563,9 @@ export default function NotesFlow({
           onMoveBlock={moveBlockDir}
           onDeleteBlock={deleteBlock}
           onTurnInto={(id, t) => void turnInto(id, t)}
+          onTableEdit={(id, r, c, t) => void tableEdit(id, r, c, t)}
+          onTableAddRow={(id) => void tableAddRow(id)}
+          onTableAddColumn={(id) => void tableAddColumn(id)}
           onUndo={() => void undo()}
           onRedo={() => void redo()}
           canUndo={histTick >= 0 && history.current.length > 0}

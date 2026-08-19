@@ -133,32 +133,84 @@ function Checklist({
   );
 }
 
-function NoteTable({ block }: { block: Extract<EditorBlock, { type: "table" }> }) {
+// A cell is numeric-looking when it is money or a bare number; a column
+// where at least two body cells are numeric (and none are words) earns a
+// computed sum row. The sum is display-only: it recomputes from the cells,
+// so it can never go stale (deep template pass, 2026-08-19).
+const NUM_RE = /^-?\$?\s?\d[\d,]*\.?\d*$/;
+function columnSums(rows: string[][], cols: number): (string | null)[] {
+  return Array.from({ length: cols }, (_, i) => {
+    const vals = rows.map((r) => (r[i] ?? "").trim()).filter((v) => v !== "");
+    if (vals.length < 2 || !vals.every((v) => NUM_RE.test(v))) return null;
+    const total = vals.reduce((a, v) => a + parseFloat(v.replace(/[$,\s]/g, "")), 0);
+    const money = vals.some((v) => v.includes("$"));
+    const out = Number.isInteger(total) ? String(total) : total.toFixed(2);
+    return money ? "$" + out : out;
+  });
+}
+
+// THE TRACKER IS A REAL TABLE (Dave 2026-08-19, "I meant all of these"):
+// every cell edits in place through the one InlineEdit primitive, Add Row
+// grows it downward, the header's + grows it sideways, and numeric columns
+// sum themselves.
+function NoteTable({
+  block,
+  onEditCell,
+  onAddRow,
+  onAddColumn,
+}: {
+  block: Extract<EditorBlock, { type: "table" }>;
+  onEditCell?: (blockId: string, row: number, col: number, text: string) => void;
+  onAddRow?: (blockId: string) => void;
+  onAddColumn?: (blockId: string) => void;
+}) {
   const numCol = block.numCol ?? -1;
+  const sums = columnSums(block.rows, block.header.length);
+  const showSums = !block.sum && sums.some((s) => s !== null);
   return (
-    <table className="ntable">
-      <tbody>
-        <tr>
-          {block.header.map((h, i) => (
-            <th key={i} className={i === numCol ? "num" : undefined}>{h}</th>
+    <div className="ntable-wrap">
+      <table className="ntable">
+        <tbody>
+          <tr>
+            {block.header.map((h, i) => (
+              <th key={i} className={i === numCol ? "num" : undefined}>
+                <InlineEdit tag="span" className="tcell" value={h} placeholder="Column"
+                  onSave={onEditCell ? (t) => onEditCell(block.id, -1, i, t) : undefined} />
+              </th>
+            ))}
+            {onAddColumn && (
+              <th className="tcol-add">
+                <button className="tcol-add-btn" aria-label="Add Column" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddColumn(block.id)}><Plus className="ic" /></button>
+              </th>
+            )}
+          </tr>
+          {block.rows.map((row, r) => (
+            <tr key={r}>
+              {block.header.map((_, i) => (
+                <td key={i} className={i === numCol ? "num" : undefined}>
+                  <InlineEdit tag="span" className="tcell" value={row[i] ?? ""}
+                    onSave={onEditCell ? (t) => onEditCell(block.id, r, i, t) : undefined} />
+                </td>
+              ))}
+              {onAddColumn && <td className="tcol-add" />}
+            </tr>
           ))}
-        </tr>
-        {block.rows.map((row, r) => (
-          <tr key={r}>
-            {row.map((cell, i) => (
-              <td key={i} className={i === numCol ? "num" : undefined}>{cell}</td>
-            ))}
-          </tr>
-        ))}
-        {block.sum && (
-          <tr className="sum">
-            {block.sum.map((cell, i) => (
-              <td key={i} className={i === numCol ? "num" : undefined}>{cell}</td>
-            ))}
-          </tr>
-        )}
-      </tbody>
-    </table>
+          {(block.sum || showSums) && (
+            <tr className="sum">
+              {block.header.map((_, i) => (
+                <td key={i} className={i === numCol ? "num" : undefined}>{block.sum ? block.sum[i] : sums[i] ?? ""}</td>
+              ))}
+              {onAddColumn && <td className="tcol-add" />}
+            </tr>
+          )}
+        </tbody>
+      </table>
+      {/* mousedown is swallowed so a tap right after typing a cell can't be
+          eaten by the blur-save re-render swapping this button mid-click. */}
+      {onAddRow && (
+        <button className="trow-add" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddRow(block.id)}>Add Row</button>
+      )}
+    </div>
   );
 }
 
@@ -302,6 +354,9 @@ export default function NoteEditor({
   onMoveBlock,
   onDeleteBlock,
   onTurnInto,
+  onTableEdit,
+  onTableAddRow,
+  onTableAddColumn,
   onUndo,
   onRedo,
   canUndo,
@@ -335,6 +390,9 @@ export default function NoteEditor({
   onMoveBlock?: (blockId: string, dir: -1 | 1) => void;
   onDeleteBlock?: (blockId: string) => void;
   onTurnInto?: (blockId: string, type: "text" | "heading" | "bulleted_list" | "checklist") => void;
+  onTableEdit?: (blockId: string, row: number, col: number, text: string) => void;
+  onTableAddRow?: (blockId: string) => void;
+  onTableAddColumn?: (blockId: string) => void;
   onUndo?: () => void;
   onRedo?: () => void;
   canUndo?: boolean;
@@ -431,7 +489,7 @@ export default function NoteEditor({
           else if (b.type === "numbered_list")
             content = <ListBlock block={b} focusBlockId={focusBlockId} onItems={onListItems} onExit={onListExit} />;
           else if (b.type === "table")
-            content = <NoteTable block={b} />;
+            content = <NoteTable block={b} onEditCell={onTableEdit} onAddRow={onTableAddRow} onAddColumn={onTableAddColumn} />;
           else return null;
           return (
             <BlockRow

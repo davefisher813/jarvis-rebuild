@@ -1463,4 +1463,13 @@ button {
    typography, the accent caret. The page is the page you write on. */
 .doc-textarea { width: 100%; min-height: 55vh; background: transparent; border: 0; outline: none; resize: none; font-family: var(--f); font-size: 17px; line-height: 1.6; color: var(--tx-1); caret-color: var(--accent); padding: var(--s-2) 0 0; }
 .doc-textarea::placeholder { color: var(--tx-4); }
+/* The Tracker's living table (deep template pass): cells edit in place,
+   Add Row grows it, the header + adds a column, numeric columns sum. */
+.ntable-wrap { margin: var(--s-2) 0; }
+.tcell { display: block; min-width: 40px; min-height: 22px; outline: none; caret-color: var(--accent); }
+.tcell[data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--tx-4); text-transform: none; letter-spacing: normal; }
+.ntable .tcol-add { width: 40px; border-top: 0; padding: 0; text-align: center; }
+.tcol-add-btn { background: transparent; border: 0; color: var(--tx-4); width: 40px; height: 34px; display: inline-flex; align-items: center; justify-content: center; }
+.tcol-add-btn .ic { width: 16px; height: 16px; }
+.trow-add { display: block; width: 100%; background: transparent; border: 0; color: var(--accent); font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-semi); padding: var(--s-2h) 0; text-align: center; }
 .chip-accent { color: var(--accent); font-weight: var(--w-semi); }
