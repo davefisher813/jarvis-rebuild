@@ -140,12 +140,11 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
 
   return (
     <>
-      {/* Steel head like every other section (Dave 2026-08-19: the icon-tile
-          head was the last of the old style). Dismiss rides the action slot. */}
-      <div className="sh2">
-        <span className="t">JARVIS Noticed</span>
+      {/* No head of its own: this is one card in the Heads Up stream now
+          (Dave 2026-08-19). Dismiss rides the card's own corner. */}
+      <div className="pad-x"><div className="card">
         <button
-          className="see-all quiet-action"
+          className="promo-x"
           aria-label="Dismiss"
           onClick={() => {
             haptics.selection();
@@ -155,8 +154,6 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
         >
           &times;
         </button>
-      </div>
-      <div className="pad-x"><div className="card">
         {pattern ? (
           <div className="suggestion-row" key={"pattern-" + pattern.id}>
             <div className="sug-title">{pattern.text}</div>

@@ -930,8 +930,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <button className="nav-back" onClick={() => setView("list")}>Email</button>
           <span className="nav-title"></span>
           <div className="nav-actions">
-            <button onClick={() => trashThread(thread.id)} aria-label="Delete"><Trash2 className="ic" /></button>
-            <button onClick={() => archiveThread(thread.id)} aria-label="Archive"><Archive className="ic" /></button>
+            <button className="nav-action danger" onClick={() => trashThread(thread.id)} aria-label="Delete"><Trash2 className="ic" /></button>
+            <button className="nav-action" onClick={() => archiveThread(thread.id)} aria-label="Archive"><Archive className="ic" /></button>
           </div>
         </div>
         <div className="pad-x">

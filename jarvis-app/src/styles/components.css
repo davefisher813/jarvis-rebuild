@@ -1393,6 +1393,15 @@ button {
    no-op selector so existing markup stays legal. */
 .sh2.sh2-caps .t { color: var(--accent); }
 
+/* HEADS UP stream (Dave 2026-08-19): cards in the notice stream carry their
+   own kicker instead of a page-level head, and any card can host a corner
+   dismiss. .card is the positioning context for it. */
+.card { position: relative; }
+.draft-kick { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2h) var(--s-3h) 0;
+  font-size: var(--t-eyebrow); font-weight: var(--w-bold); letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--tx-3); }
+.draft-kick .ic { width: 15px; height: 15px; }
+
 /* THE BUTTON LAW (Dave 2026-08-19: "buttons are not rendering as buttons").
    Every button in the app is one of these, styled by its slot:
    bar action (.barbtn/.nav-action) · page primary (.btn.btn-primary) ·
@@ -1409,8 +1418,11 @@ button {
 .sh2 .sec-left { order: 2; display: inline-flex; align-items: center; gap: var(--s-2); margin: -13px 0; flex-shrink: 0; }
 .sh2 .see-all.quiet-action { color: var(--tx-3); font-size: 17px; }
 /* Small pill: the one small doing-button (Add to Today, Link, Not Now).
-   It always has a body; text-only small buttons are the head action's job. */
-.btn-sm { height: 34px; font-size: var(--t-meta); padding: 0 var(--s-3h);
+   It always has a body; text-only small buttons are the head action's job.
+   A small button that is ALSO a primary/danger keeps that fill: the
+   :not() guard stops this rule from bleaching the red one. */
+.btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
+  height: 34px; font-size: var(--t-meta); padding: 0 var(--s-3h);
   background: var(--press-3); color: var(--accent); border: 0;
   border-radius: var(--r-pill); font-weight: var(--w-semi); font-family: var(--f);
   display: inline-flex; align-items: center; flex-shrink: 0; }

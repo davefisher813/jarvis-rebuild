@@ -7,15 +7,17 @@ import { AIService } from "../ai/AIService";
 import TodaySuggestions from "./TodaySuggestions";
 import { emit, eventLog } from "../events";
 
-// "JARVIS Noticed": at most ONE row, never echoing a visible Up Next task.
+// The suggestion card: at most ONE row, never echoing a visible Up Next
+// task. It renders headless inside Today's Heads Up stream (2026-08-19),
+// so presence is asserted on the row itself and on its dismiss control.
 
 describe("TodaySuggestions", () => {
   it("renders nothing when AI is off and no pattern exists", () => {
     render(<NotesProvider userId="u1"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
-    expect(screen.queryByText("JARVIS Noticed")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Dismiss")).not.toBeInTheDocument();
   });
 
-  it("shows exactly one AI row, dismissible from the header", async () => {
+  it("shows exactly one AI row, dismissible from its corner", async () => {
     const fetchImpl = vi.fn(async () => ({
       ok: true,
       status: 200,
@@ -24,10 +26,10 @@ describe("TodaySuggestions", () => {
     })) as unknown as typeof fetch;
     render(<NotesProvider userId="u2"><TodaySuggestions ai={new AIService({ available: true, getToken: () => "t", fetchImpl })} /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Email Sam the Q3 plan")).toBeInTheDocument());
-    expect(screen.getByText("JARVIS Noticed")).toBeInTheDocument();
+    expect(screen.getByLabelText("Dismiss")).toBeInTheDocument();
     // one row at a time: the second suggestion waits its turn
     expect(screen.queryByText("Reach out to Maya")).not.toBeInTheDocument();
-    // dismissing from the header reveals the next candidate
+    // dismissing from the corner reveals the next candidate
     fireEvent.click(screen.getByLabelText("Dismiss"));
     await waitFor(() => expect(screen.queryByText("Email Sam the Q3 plan")).not.toBeInTheDocument());
   });
@@ -41,7 +43,7 @@ describe("TodaySuggestions planning pattern (Brain Personalization Phase 2, 2026
       emit({ type: "plan.duration_corrected", entityType: "task", entityId: `t${i}`, props: { category: "work", n: 20 } });
     }
     render(<NotesProvider userId="u3"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("JARVIS Noticed")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText("Dismiss")).toBeInTheDocument());
     expect(screen.getByText(/work tasks run 20 min long/)).toBeInTheDocument();
     fireEvent.click(screen.getByText("Remember This"));
     await waitFor(() => expect(screen.queryByText(/Your work tasks/)).not.toBeInTheDocument());
@@ -50,7 +52,7 @@ describe("TodaySuggestions planning pattern (Brain Personalization Phase 2, 2026
   it("shows nothing from a single correction, not enough evidence for a pattern", () => {
     emit({ type: "plan.duration_corrected", entityType: "task", entityId: "t1", props: { category: "work", n: 20 } });
     render(<NotesProvider userId="u4"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
-    expect(screen.queryByText("JARVIS Noticed")).not.toBeInTheDocument();
+    expect(screen.queryByText("Dismiss")).not.toBeInTheDocument();
   });
 });
 

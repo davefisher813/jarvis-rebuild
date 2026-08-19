@@ -115,7 +115,8 @@ export default function TodayPage({
   onEditRoutine,
   onSeeAllTasks,
   suggestions,
-  banners,
+  nowCard,
+  notices = [],
   offersQuiet,
   onSearch,
   onProfile,
@@ -160,8 +161,12 @@ export default function TodayPage({
   onEditRoutine?: () => void;
   onSeeAllTasks: () => void;
   suggestions?: ReactNode;
-  // Group A banners (Where You Were, Auto-Sweep receipt), above the day.
-  banners?: ReactNode;
+  // The Now card (what is happening this minute) rides at the very top:
+  // the page reads in the order the day happens (Dave 2026-08-19).
+  nowCard?: ReactNode;
+  // Every notice JARVIS has for him, in priority order, rendered under the
+  // one Heads Up head instead of floating loose down the page.
+  notices?: ReactNode[];
   // V4 alert discipline: when two alert cards already rendered, offers wait.
   offersQuiet?: boolean;
   onSearch?: () => void;
@@ -248,9 +253,20 @@ export default function TodayPage({
     </>
   );
 
+  const tomorrowEmpty = tomorrowEvents.length === 0 && tomorrowTasks.length === 0 && onPlanTomorrow && (
+    <>
+      <div className="sh2"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span></div>
+      <div className="pad-x"><button className="row row-act" onClick={onPlanTomorrow}>Plan Tomorrow</button></div>
+    </>
+  );
+
   const tomorrowSection = (tomorrowEvents.length > 0 || tomorrowTasks.length > 0) && (
     <>
-      <div className="sh2"><span className="t">Tomorrow</span><button className="see-all" onClick={onSeeAllSchedule}>{tomorrowDate}</button></div>
+      {/* The date was styled as a tappable action but only opened Schedule,
+          which the head already offers elsewhere. It reads as the fact it is
+          now, and the action is the one that helps: set tomorrow up. */}
+      <div className="sh2"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span>
+        {onPlanTomorrow && <button className="see-all" onClick={onPlanTomorrow}>Plan It</button>}</div>
       <div>
         <div>
           {tomorrowEvents.map((ev) => <SchedRow ev={ev} key={ev.id} />)}
@@ -275,6 +291,45 @@ export default function TodayPage({
   // sticky glass bar; it condenses over the hero with the red energy line
   // once the greeting scrolls away. Nothing collides with the clock.
   const [condProbe, condensed] = useCondensed();
+  // Everything JARVIS noticed, in one stream: the priority cards from the
+  // flow first, then the standing facts (money, email), then the quiet
+  // offers. Each is one tap from resolved; nothing here is a dead end.
+  const headsUp: ReactNode[] = [
+    ...notices,
+    billLine ? (
+      <div className="pad-x" key="money"><div className="card">
+        <div className="row">
+          <div className="row-glyph cat-fg-green"><DollarSign className="ic" /></div>
+          <div className="row-grow"><div className="conn-name">{billLine}</div></div>
+        </div>
+      </div></div>
+    ) : null,
+    emailLine ? (
+      <div className="pad-x" key="email"><div className="card">
+        <div className="row" role="button" tabIndex={0} onClick={onOpenEmail}>
+          <div className="row-grow">
+            <div className="conn-name">{emailLine}</div>
+            <div className="conn-meta">Deal with it here</div>
+          </div>
+          <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+        </div>
+      </div></div>
+    ) : null,
+    suggestions ?? null,
+    freshStart ? (
+      <div className="pad-x" key="fresh"><div className="card">
+        <div className="row" role="button" tabIndex={0} onClick={freshStart}>
+          <div className="row-grow">
+            <div className="conn-name">Rough day? Fresh start.</div>
+            <div className="conn-meta">Re-plan what's left · Nothing lost</div>
+          </div>
+          <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+        </div>
+      </div></div>
+    ) : null,
+    !offersQuiet ? <WeatherOfferRow key="weather" /> : null,
+  ].filter(Boolean);
+
   return (
     <div className="screen">
       <div className={"pagebar today-pagebar" + (condensed ? " on" : "")}>
@@ -305,66 +360,29 @@ export default function TodayPage({
       </div>
       <div ref={condProbe} />
 
-      {banners}
-
-      {birthdaySection}
-
-      {/* Weather's one-time connect moment: a single row, once, gone forever
-          on decline (same doctrine as the gym page's Health row). */}
-      {!offersQuiet && <WeatherOfferRow />}
-
-      {/* Bills where the eyes are (2026-08-09): one quiet line when money is
-          due within three days. Not tappable to nowhere: it only becomes a
-          row-button when a Money destination exists. */}
-      {billLine && (
+      {/* THE DAY'S OWN ORDER (Dave 2026-08-19: "the order should have the
+          same flow as the day"): Now → Heads Up → Up Next → Your Day →
+          Tomorrow. Nothing about this minute sits below tomorrow. */}
+      {!evening && nowCard && (
         <>
-          <div className="sh2"><span className="t">Money</span></div>
-          <div className="row">
-            <div className="row-glyph cat-fg-green"><DollarSign className="ic" /></div>
-            <div className="row-grow">
-              <div className="conn-name">{billLine}</div>
-            </div>
-          </div>
+          <div className="sh2"><span className="t">Now</span></div>
+          {nowCard}
         </>
       )}
 
-      {emailLine && (
+      {birthdaySection}
+
+      {/* HEADS UP: the one notice stream. Every card, row, and offer JARVIS
+          wants him to see lives here under one head, so the page has a
+          single place to look instead of nine floating interruptions. */}
+      {headsUp.length > 0 && (
         <>
-          {/* Icon lives in the SECTION HEADER beside the title, like Up Next
-              and every other section. Inside the card it read as a row badge
-              and broke the one pattern this page has. */}
-          <div className="sh2"><span className="t">Email</span></div>
-          <div className="pad-x">
-            <div className="card">
-              <div className="row" role="button" tabIndex={0} onClick={onOpenEmail}>
-                <div className="row-grow">
-                  <div className="conn-name">{emailLine}</div>
-                  <div className="conn-meta">Deal with it here</div>
-                </div>
-                <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-              </div>
-            </div>
-          </div>
+          <div className="sh2"><span className="t">Heads Up</span></div>
+          {headsUp}
         </>
       )}
 
       {upNextSection}
-
-      {freshStart && (
-        <div className="pad-x">
-          <div className="card">
-            <div className="row" role="button" tabIndex={0} onClick={freshStart}>
-              <div className="row-grow">
-                <div className="conn-name">Rough day? Fresh start.</div>
-                <div className="conn-meta">Re-plan what's left · Nothing lost</div>
-              </div>
-              <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {suggestions}
 
       <YourDay
         events={dayEvents}
@@ -401,9 +419,9 @@ export default function TodayPage({
 
       {/* Daytime: Up Next (top of page) replaces the old task list; evening
           keeps the softened Still Open recap. */}
-      {evening && tomorrowSection}
+      {evening && (tomorrowSection || tomorrowEmpty)}
       {evening && tasksSection}
-      {!evening && tomorrowSection}
+      {!evening && (tomorrowSection || tomorrowEmpty)}
 
       <div className="screen-foot" />
     </div>

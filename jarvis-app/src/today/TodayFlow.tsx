@@ -624,7 +624,6 @@ export default function TodayFlow({
   };
   const nowSection = !evening && (
     <>
-      <div className="sh2"><span className="t">Now</span></div>
       <div className="pad-x"><div className="card">
         {nowCtx.gapMin !== null && nowCtx.nextStart ? (
           <div className="now-stats">
@@ -650,7 +649,7 @@ export default function TodayFlow({
             </div>
           </div>
         )}
-        {gapPick && (
+        {gapPick ? (
           <div className="row">
             <RowIcon kind="task" />
             <div className="row-stack">
@@ -662,6 +661,16 @@ export default function TodayFlow({
               <button className="btn-sm" onClick={() => setGapDismissed(gapKey)}>Not Now</button>
             </div>
           </div>
+        ) : (
+          // NO DEAD ENDS IN NOW (Dave 2026-08-19, "the more I can do without
+          // thinking, the better"): when nothing is teed up, Now still hands
+          // him the one-tap way in instead of stating the time and stopping.
+          <div className="row">
+            <div className="momentum-actions">
+              <button className="btn btn-primary btn-sm" onClick={() => setUpNextOpen(true)}>Pick Something</button>
+              <button className="btn-sm" onClick={() => void openPlan("today")}>Plan My Day</button>
+            </div>
+          </div>
         )}
       </div></div>
     </>
@@ -671,8 +680,8 @@ export default function TodayFlow({
   // JARVIS-made proposal, not yet the user's plan.
   const draftSection = !evening && dayDraft && !dayDraft.accepted && !dayDraft.dismissed && dayDraft.blocks.length > 0 && (
     <>
-      <div className="sh2"><span className="t">Your Day, Drafted</span><span className="cat-fg-purple">{SPARK_ICO}</span></div>
       <div className="pad-x"><div className="card">
+        <div className="draft-kick"><span className="cat-fg-purple">{SPARK_ICO}</span><span>Your Day, Drafted</span></div>
         {dayDraft.blocks.map((b) => (
           <div className="row" key={b.taskId}>
             <RowIcon kind="task" />
@@ -825,17 +834,11 @@ export default function TodayFlow({
       </div>
     ) : null,
   ].filter(Boolean);
-  const alertsShown = alertCards.slice(0, 2);
-
-  const banners = (
-    <>
-      {alertsShown}
-      {draftSection}
-      {reflowSection}
-      {overflowSection}
-      {nowSection}
-    </>
-  );
+  // ONE NOTICE STREAM (Dave 2026-08-19: "there's a ton of notifications
+  // floating around, put them all under one thing"). Everything JARVIS
+  // noticed lands in one labeled section on the page, in priority order.
+  // The draft leads: accepting the day resolves most of the rest.
+  const notices = [draftSection, ...alertCards, reflowSection, overflowSection].filter(Boolean);
 
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
   const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "JV";
@@ -872,8 +875,9 @@ export default function TodayFlow({
       onOpenEvent={onOpenEvent}
       onEditRoutine={onEditRoutine}
       today={today}
-      banners={banners}
-      offersQuiet={alertCards.length >= 2}
+      nowCard={nowSection}
+      notices={notices}
+      offersQuiet={notices.length >= 2}
       suggestions={<><CheckIn onChanged={() => { void reload(); }} /><TodaySuggestions ai={ai} /></>}
       onSearch={onSearch}
       onProfile={onProfile}

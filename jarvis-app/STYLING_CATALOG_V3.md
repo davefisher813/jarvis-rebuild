@@ -18,7 +18,8 @@
 
 1. ONE VERTICAL GRAMMAR on every page, top to bottom: bar → large title (+search) → alerts → primary offer → sections → trailing actions. A page never interleaves these bands; a thing in the wrong band moves, it doesn't get restyled.
 2. ALERT DISCIPLINE (the landing-page chaos fix): alert cards render in one fixed priority order (decision revisit > failed automation > automation receipt > where-you-were) and AT MOST TWO show per open. The rest wait for the next open; nothing is lost because every card is also reachable from its home surface. Offers (weather connect) yield when the alert budget is spent.
-3. TODAY's canonical order: hero (date, greeting, summary, ring) → alerts (≤2) → day-draft proposal → re-flow and overflow responses → Now → Check In or suggestions → Money line → Your Day → Tonight → Tomorrow. Nothing else may insert itself.
+3. TODAY FOLLOWS THE DAY (V4.4, Dave 2026-08-19: "the order should have the same flow as the day"): hero → NOW (this minute, always first, always carrying an action) → HEADS UP (the one notice stream) → UP NEXT (what's next) → YOUR DAY / TONIGHT (the schedule) → TOMORROW. Nothing about this minute may sit below tomorrow, and nothing else may insert itself.
+3a. ONE NOTICE STREAM: every alert, receipt, offer, standing fact, and suggestion renders under the single "Heads Up" head, in fixed priority order (day draft > decision revisit > failed automation > automation receipt > re-flow > overflow > where-you-were > money > email > AI suggestion > fresh start > weather offer). Loose promo cards floating between sections are banned; a new notice joins the stream or it does not ship.
 4. EMAIL's canonical order: bar (compose) → title → search → account and filter chips → the one Needs-You promo card (Deal With It · drain) → Needs You → Waiting On → The Rest fold. The floating headline sentence is retired; the sections say it.
 5. LIST PAGES (B): title (+bar action) → search when earned → content sections. NAV PAGES (A): title → flat rows → boundary label → user content → gap → system cluster. Detail pages (D): static bar → identity block → fact blocks → chain blocks → provenance → actions (change above delete, delete always armed).
 6. FUNCTIONALITY BAND: a page's ONE primary action lives in the bar (create) or the one promo card (triage); in-list creates are trailing .row-act rows at the END of their section, never floating mid-list. Destructive actions are the LAST thing on a page.
@@ -179,6 +180,9 @@ Every tappable action renders as exactly ONE of these, chosen by its slot. A bar
 5. ROW PILL (.pill-act): grey pill, accent text, inline in a list row (Nudge).
 6. SMALL PILL (.btn-sm): the one small doing-button (Add to Today, Link, Not Now). Always has a pill body: press-3 background, accent semibold text, 34px. Text-only small buttons are illegal; that's the head action's job.
 7. HEAD ACTION (.see-all inside .sh2): accent semibold 13px text at the head's FAR RIGHT, after the dotted leader, never mid-head. An action cluster on a head (.sec-left: pause + Schedule) rides the same slot. The quiet variant (dismiss ×) is tx-3.
+
+8. NO DEAD-END SURFACES (the ADHD rule, Dave 2026-08-19: "the more I can do and feel like I didn't have to think, the better"): any card or section that states a fact must also carry the tap that acts on it. Now offers Pick Something / Plan My Day when nothing is teed up; Tomorrow offers Plan It (and Plan Tomorrow when empty); every empty state carries its action (L7). A screen that tells him something and gives him nowhere to go is a bug.
+9. A DATE IS NOT A BUTTON: facts render as facts (.n, quiet meta). If a slot is styled like an action it must do the thing its words say.
 
 Positions are law: head actions right, in-list creates last, destructive actions last on the page (L6). The old icon-tile section head (sec-ico + sec-title) is retired from Today; JARVIS Noticed is a steel head like everything else.
 
