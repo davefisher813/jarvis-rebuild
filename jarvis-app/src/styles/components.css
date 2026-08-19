@@ -1463,15 +1463,13 @@ button {
    typography, the accent caret. The page is the page you write on. */
 .doc-textarea { width: 100%; min-height: 55vh; background: transparent; border: 0; outline: none; resize: none; font-family: var(--f); font-size: 17px; line-height: 1.6; color: var(--tx-1); caret-color: var(--accent); padding: var(--s-2) 0 0; }
 .doc-textarea::placeholder { color: var(--tx-4); }
-/* THE 4/5 BLEND (Dave 2026-08-19, "Mix of 4/5"): Editorial's numbered
-   kickers and big type, Black Steel's red and steel table. */
-.doc { counter-reset: doch; }
+/* BLACK STEEL HEADINGS (Dave 2026-08-19, "I want it closer to 5"):
+   headings are red mini-caps with a dotted leader to the margin. The
+   editorial numbers are gone; Editorial's big title and airy body stay. */
 .doc .doc-title { font-size: 30px; letter-spacing: -0.02em; }
 .doc .t-body { line-height: 1.65; }
-.hwrap { display: flex; align-items: baseline; gap: 10px; counter-increment: doch; margin-top: var(--s-5); }
-.hwrap .hnum::before { content: counter(doch, decimal-leading-zero); }
-.hwrap .hnum { font-size: 13px; font-weight: var(--w-bold); color: var(--accent); font-variant-numeric: tabular-nums; }
-.hwrap .block-h { margin-top: 0; min-width: 40px; max-width: 78%; }
+.hwrap { display: flex; align-items: baseline; gap: 8px; margin-top: var(--s-5); }
+.doc .hwrap .block-h { margin-top: 0; min-width: 40px; max-width: 82%; font-size: 12px; font-weight: var(--w-bold); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
 .hwrap::after { content: ""; flex: 1; border-top: 1px dotted rgba(255, 43, 60, 0.35); align-self: center; }
 
 /* The Tracker's living table (deep template pass): cells edit in place,

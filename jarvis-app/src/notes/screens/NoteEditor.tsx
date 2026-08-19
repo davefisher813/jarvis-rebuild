@@ -472,12 +472,11 @@ export default function NoteEditor({
         {inline.map((b, idx) => {
           let content: React.ReactNode = null;
           if (b.type === "heading")
-            // The 4/5 blend (Dave 2026-08-19): every heading wears an
-            // editorial number in brand red and a dotted leader to the
-            // margin. The number is a CSS counter, so it renumbers itself.
+            // Closer to Black Steel (Dave 2026-08-19, "I want it closer
+            // to 5"): headings are red mini-caps with a dotted leader
+            // running to the margin. No numbers; the red carries the row.
             content = (
               <div className="hwrap">
-                <span className="hnum" aria-hidden="true"></span>
                 <InlineEdit tag="div" className="block-h" value={b.text} placeholder="Heading" bid={b.id}
                   focused={focusBlockId === b.id}
                   onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
