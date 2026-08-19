@@ -198,7 +198,9 @@ function NoteTable({
           {(block.sum || showSums) && (
             <tr className="sum">
               {block.header.map((_, i) => (
-                <td key={i} className={i === numCol ? "num" : undefined}>{block.sum ? block.sum[i] : sums[i] ?? ""}</td>
+                <td key={i} className={i === numCol ? "num" : undefined}>
+                  {block.sum ? block.sum[i] : i === 0 && sums[0] === null ? "Total" : sums[i] ?? ""}
+                </td>
               ))}
               {onAddColumn && <td className="tcol-add" />}
             </tr>
@@ -470,11 +472,19 @@ export default function NoteEditor({
         {inline.map((b, idx) => {
           let content: React.ReactNode = null;
           if (b.type === "heading")
-            content = <InlineEdit tag="div" className="block-h" value={b.text} placeholder="Heading" bid={b.id}
-              focused={focusBlockId === b.id}
-              onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
-              onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
-              onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
+            // The 4/5 blend (Dave 2026-08-19): every heading wears an
+            // editorial number in brand red and a dotted leader to the
+            // margin. The number is a CSS counter, so it renumbers itself.
+            content = (
+              <div className="hwrap">
+                <span className="hnum" aria-hidden="true"></span>
+                <InlineEdit tag="div" className="block-h" value={b.text} placeholder="Heading" bid={b.id}
+                  focused={focusBlockId === b.id}
+                  onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
+                  onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
+                  onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />
+              </div>
+            );
           else if (b.type === "text")
             content = <InlineEdit tag="div" className="t-body" value={b.text} placeholder="Write Something" bid={b.id} rich
               focused={focusBlockId === b.id}
