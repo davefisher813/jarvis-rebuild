@@ -331,6 +331,12 @@ describe("MessagesFlow (threads)", () => {
     expect(screen.getByText("Connect Your Email")).toBeInTheDocument();
   });
 
+  it("renders the demo fixture instead of the setup state when demoMail is set", async () => {
+    render(wrap(<MessagesFlow ai={noAI} configured={false} demoMail />));
+    expect(await screen.findByText("3 Threads Need You")).toBeInTheDocument();
+    expect(screen.queryByText("Connect Your Email")).not.toBeInTheDocument();
+  });
+
   it("lists drafts, opens one prefilled, and deletes it after sending", async () => {
     let deleted: string | null = null;
     const api = makeApi({

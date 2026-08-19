@@ -1432,7 +1432,9 @@ button {
 /* Decision list styling pass (Dave 2026-08-18): the linked home renders as a
    colored fact inside the sub; the recorded date is the quiet right column. */
 .fact-link { font-weight: var(--w-semi); }
-.dec-when { font-size: 13px; color: var(--tx-4); flex-shrink: 0; align-self: center; font-variant-numeric: tabular-nums; }
+.dec-when { font-size: 13px; color: var(--tx-4); flex-shrink: 0; align-self: flex-start; margin-top: 4px; font-variant-numeric: tabular-nums; }
+/* Decisions are sentences; two lines beats an ellipsis (Dave critique fix). */
+.dec-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* The writing toolbar: chips row pinned to the bottom of the screen. It
    scrolls sideways rather than clipping when the chip set outgrows a phone. */
 .editor-toolbar { gap: var(--s-2); justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }

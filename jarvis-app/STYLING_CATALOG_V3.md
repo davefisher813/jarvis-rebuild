@@ -25,6 +25,13 @@
 7. FLOW LAW: every list row opens its record in one tap; every record reaches its parent list in one back; every alert card resolves in at most two taps and never navigates away without the action completing. Search results open the exact record. No screen dead-ends: an empty state always carries its action.
 8. THE WRITING CANVAS (notes): document title, 17px body at 1.6 leading, block chrome invisible until the block has focus, compose bar sticky at the bottom. Writing surfaces put words first and controls second.
 
+## M. Populated-round anatomy (V4.1, Dave 2026-08-18 populated previews)
+
+1. THE WRITING TOOLBAR: every note pins a chip toolbar to the viewport bottom (the tab bar is hidden while writing, so the toolbar owns that edge): Text · Heading · List · Checklist · More (accent). Each chip creates its block and drops the caret in it. The chip row scrolls sideways, never clips. Markdown shortcuts ("# ", "- ", "[] ", "1. ") are law on text blocks.
+2. DECISION LIST ANATOMY: colored glyph (category color when linked, purple when free-standing) → name line (decision sentence, wraps to two lines max, never one-line ellipsis) with the recorded date quiet at the right → sub line "Because {why}" with the linked home as a colored semibold fact. No counts anywhere in Decisions (spec law).
+3. PROJECT LINKING: Area and Goal are chip pickers on the project detail page itself, saved inline through attemptWrite. Linking never requires the edit sheet.
+4. DEMO MAIL: demo builds render the email anatomy from a fixture component (DemoMail) gated by an explicit demoMail prop, never by environment sniffing. The fixture mirrors rule L4's canonical order exactly; when it drifts from the real MessagesFlow layout, the fixture is the one that's wrong.
+
 Everything below is the V3.3 base that still stands, minus rules superseded above.
 
 # JARVIS Styling Catalog V3.3 (APPROVED 2026-08-18, Library edition)

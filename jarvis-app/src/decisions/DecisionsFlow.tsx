@@ -372,7 +372,7 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
           <div className={"lib-ico " + glyphClass(r, projCat)}>{DECISION_ICO}</div>
           <div className="lib-stack">
             <div className="msg-line">
-              <span className="lib-name conn-name truncate">{r.data.decision}</span>
+              <span className="lib-name conn-name dec-name">{r.data.decision}</span>
               <span className="dec-when">{fmtShort(r.data.createdAt)}</span>
             </div>
             <div className="lib-sub">
