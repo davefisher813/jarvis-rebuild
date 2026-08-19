@@ -28,6 +28,12 @@ export type Partitioned = Record<TaskFilter, TaskItem[]>;
 export function partition(items: TaskItem[], today: string = todayISO()): Partitioned {
   const p: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
   for (const it of items) {
+    // REMINDERS ARE NOT TASKS (2026-08-19). They ride the task entity for
+    // storage, but a reminder in a task list is exactly the clutter that made
+    // "just remind me to take my meds" unusable: it would show as due, then
+    // as overdue, forever. They live on their own strip and are filtered out
+    // here, at the one chokepoint every task list goes through.
+    if (it.data.reminder) continue;
     p[filterOf(it.data, today)].push(it);
     if (it.data.recurrence === "daily" && !it.data.done) p.daily.push(it);
   }

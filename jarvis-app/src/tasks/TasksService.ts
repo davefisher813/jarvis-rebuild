@@ -1,6 +1,6 @@
 import type { Store, Item, ItemData } from "@core";
 import type { EventInput } from "../events";
-import { ENTITY_TASK, type TaskData, type Recurrence, type BillInfo } from "../notes/types";
+import { ENTITY_TASK, type TaskData, type Recurrence, type BillInfo, type ReminderInfo } from "../notes/types";
 import { groupFor, todayISO, nextDue, type TaskGroup } from "./grouping";
 import { nextStreak } from "./lifecycle";
 import { recordCompletion } from "../shared/timeSense";
@@ -38,7 +38,7 @@ export class TasksService {
 
   async createTask(
     text: string,
-    opts: { category?: string; due?: string | null; fromNote?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; source?: import("../shared/provenance").Source } = {},
+    opts: { category?: string; due?: string | null; fromNote?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source } = {},
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
     const data: TaskData = { text: text.trim(), category: opts.category ?? "", done: false };
@@ -47,6 +47,7 @@ export class TasksService {
     if (opts.recurrence) data.recurrence = opts.recurrence;
     if (opts.projectId) data.projectId = opts.projectId;
     if (opts.bill) data.bill = opts.bill;
+    if (opts.reminder) data.reminder = opts.reminder;
     if (opts.source) data.source = opts.source;
     const id = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_TASK, entityId: id });
@@ -146,6 +147,38 @@ export class TasksService {
     await this.store.update(this.ownerId, id, { text: text.trim() });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
+  }
+
+  // --- Reminders (2026-08-19). A reminder is a task wearing reminder facts;
+  // these are the only writes that touch them, so the shape stays honest.
+  async createReminder(text: string, r: ReminderInfo, category = ""): Promise<string | null> {
+    return this.createTask(text, { category, reminder: r });
+  }
+
+  private async patchReminder(id: string, patch: Partial<ReminderInfo>): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t?.reminder) return false;
+    const next: ReminderInfo = { ...t.reminder, ...patch };
+    // undefined survives a spread, so strip cleared keys rather than storing
+    // an explicit undefined the adapter would have to reason about.
+    (Object.keys(next) as (keyof ReminderInfo)[]).forEach((k) => { if (next[k] === undefined) delete next[k]; });
+    await this.store.update(this.ownerId, id, { reminder: next } as unknown as ItemData);
+    return true;
+  }
+
+  // Ticking is a date write, never a boolean: done-ness is derived, so the
+  // reminder resets itself at midnight with nothing scheduled to do it.
+  tickReminder(id: string, today: string): Promise<boolean> {
+    return this.patchReminder(id, { lastDone: today });
+  }
+  untickReminder(id: string): Promise<boolean> {
+    return this.patchReminder(id, { lastDone: undefined });
+  }
+  snoozeReminder(id: string, to: string, today: string): Promise<boolean> {
+    return this.patchReminder(id, { snoozedTo: to, snoozeDate: today });
+  }
+  editReminder(id: string, patch: Partial<ReminderInfo>): Promise<boolean> {
+    return this.patchReminder(id, patch);
   }
 
   async setDue(id: string, due: string | null): Promise<boolean> {

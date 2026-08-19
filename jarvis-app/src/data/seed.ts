@@ -134,6 +134,15 @@ export async function seedDemoData(
   // Bills are recurring money tasks; two due soon so the Money page and the
   // Today money line both populate.
   const existingTasks = await tasks.listTasks();
+
+  // Reminders (2026-08-19): the meds case, so the strip is populated in the
+  // demo. Morning is already ticked; the afternoon one is still open.
+  if (!existingTasks.some((t) => t.data.reminder)) {
+    await tasks.createTask("Morning Meds", { category: cat("Health"), reminder: { time: "08:00", lastDone: today } });
+    await tasks.createTask("Vitamin D", { category: cat("Health"), reminder: { time: "13:00" } });
+    await tasks.createTask("Night Meds", { category: cat("Health"), reminder: { time: "21:00" } });
+  }
+
   if (!existingTasks.some((t) => t.data.bill)) {
     await tasks.createTask("Rent", { category: cat("Money"), due: addDays(today, 2), recurrence: "monthly", bill: { amount: 2200 } });
     await tasks.createTask("Internet", { category: cat("Money"), due: addDays(today, 6), recurrence: "monthly", bill: { amount: 89, autopay: true } });

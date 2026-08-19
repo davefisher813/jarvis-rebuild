@@ -32,6 +32,10 @@ import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
+import RemindersStrip from "./RemindersStrip";
+import ReminderSheet from "../tasks/screens/ReminderSheet";
+import { todaysReminders, snoozeTime } from "../tasks/reminders";
+import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, spotMeta, type WorkSpot } from "../restore/whereYouWere";
 import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCaptureSheet";
@@ -597,6 +601,9 @@ export default function TodayFlow({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, evening, slippedCount, dayDraft]);
 
+  // Hook order is unconditional: this must sit ABOVE the loading return.
+  const [remSheet, setRemSheet] = useState<{ mode: "new" } | { mode: "edit"; id: string; text: string; reminder: ReminderInfo } | null>(null);
+
   if (loading) return <SkeletonScreen />;
 
   // GROUP B (items 10-11): the Now line and the gap offer, derived fresh
@@ -834,10 +841,51 @@ export default function TodayFlow({
       </div>
     ) : null,
   ].filter(Boolean);
+  // --- Reminders (2026-08-19). Everything here writes a date, never a
+  // boolean, so a reminder resets itself at midnight with nothing scheduled.
+  const reminders = todaysReminders(taskItems, today, nhm);
+
+  const onTickReminder = async (id: string, done: boolean) => {
+    await attemptWrite(() => (done ? tasks.tickReminder(id, today) : tasks.untickReminder(id)));
+    await reload();
+  };
+  const onSnoozeReminder = async (id: string) => {
+    const v = reminders.find((r) => r.id === id);
+    if (!v) return;
+    const to = snoozeTime(v.time, 10);
+    await attemptWrite(() => tasks.snoozeReminder(id, to, today));
+    await reload();
+    showToast({ message: "Snoozed to " + to });
+  };
+  const onSaveReminder = async (text: string, r: ReminderInfo) => {
+    const sheet = remSheet;
+    setRemSheet(null);
+    if (!sheet) return;
+    if (sheet.mode === "new") await attemptWrite(() => tasks.createReminder(text, r));
+    else await attemptWrite(async () => { await tasks.editText(sheet.id, text); await tasks.editReminder(sheet.id, r); });
+    await reload();
+  };
+  const onDeleteReminder = async () => {
+    const sheet = remSheet;
+    setRemSheet(null);
+    if (!sheet || sheet.mode !== "edit") return;
+    await attemptWrite(() => tasks.deleteTask(sheet.id));
+    await reload();
+    showToast({ message: "Reminder deleted" });
+  };
+  const openReminder = (id: string) => {
+    const t = taskItems.find((x) => x.id === id);
+    if (t?.data.reminder) setRemSheet({ mode: "edit", id, text: t.data.text, reminder: t.data.reminder });
+  };
+
   // ONE NOTICE STREAM (Dave 2026-08-19: "there's a ton of notifications
   // floating around, put them all under one thing"). Everything JARVIS
   // noticed lands in one labeled section on the page, in priority order.
   // The draft leads: accepting the day resolves most of the rest.
+  // A missed reminder does NOT get its own notice card. The strip is on this
+  // same screen, so a card here would show the identical reminder twice, and
+  // duplicated notices are precisely what "there's a ton of notifications
+  // floating around" meant. The strip carries the missed state itself.
   const notices = [draftSection, ...alertCards, reflowSection, overflowSection].filter(Boolean);
 
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
@@ -876,6 +924,15 @@ export default function TodayFlow({
       onEditRoutine={onEditRoutine}
       today={today}
       nowCard={nowSection}
+      reminders={
+        <RemindersStrip
+          items={reminders}
+          onTick={(id, done) => void onTickReminder(id, done)}
+          onSnooze={(id) => void onSnoozeReminder(id)}
+          onAdd={() => setRemSheet({ mode: "new" })}
+          onOpen={openReminder}
+        />
+      }
       notices={notices}
       offersQuiet={notices.length >= 2}
       suggestions={<><CheckIn onChanged={() => { void reload(); }} /><TodaySuggestions ai={ai} /></>}
@@ -961,6 +1018,15 @@ export default function TodayFlow({
           onDone={() => { void reload(); }}
         />
       </Suspense>
+    )}
+    {remSheet && (
+      <ReminderSheet
+        mode={remSheet.mode}
+        initial={remSheet.mode === "edit" ? { text: remSheet.text, reminder: remSheet.reminder } : undefined}
+        onSave={(text, r) => void onSaveReminder(text, r)}
+        onDelete={remSheet.mode === "edit" ? () => void onDeleteReminder() : undefined}
+        onCancel={() => setRemSheet(null)}
+      />
     )}
     </>
   );

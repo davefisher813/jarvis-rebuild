@@ -1402,6 +1402,17 @@ button {
 .sched-gap.past { opacity: 0.4; }
 .sched-gap:active { background: var(--press-1); }
 
+/* REMINDERS (Dave 2026-08-19: "taking meds should just be a set reminder").
+   A reminder row is deliberately quieter than a task row: no category kicker,
+   no urgency colour, no overdue red. A missed one greys, it never shouts. */
+.rem-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) 0; min-height: var(--tap-min); }
+.rem-row + .rem-row { border-top: 1px solid var(--divider); }
+.rem-time { font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 46px; }
+.rem-name { font-size: var(--t-h3); color: var(--tx-1); }
+.rem-row.missed .rem-time { color: var(--tx-1); font-weight: var(--w-semi); }
+.rem-row.done .rem-name { color: var(--tx-4); text-decoration: line-through; }
+.rem-row.done .rem-time { color: var(--tx-4); }
+
 /* SCHEDULE WAVE 1 (Dave 2026-08-19: "the schedule is still way too difficult
    to move things around ... doesn't show which category things are tied to").
 

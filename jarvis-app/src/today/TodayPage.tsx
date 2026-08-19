@@ -121,6 +121,7 @@ export default function TodayPage({
   suggestions,
   nowCard,
   notices = [],
+  reminders,
   offersQuiet,
   onSearch,
   onProfile,
@@ -171,6 +172,9 @@ export default function TodayPage({
   // Every notice JARVIS has for him, in priority order, rendered under the
   // one Heads Up head instead of floating loose down the page.
   notices?: ReactNode[];
+  // The reminders strip. Its own band under Heads Up: reminders are neither
+  // notices (they are not news) nor tasks (they are not work).
+  reminders?: ReactNode;
   // V4 alert discipline: when two alert cards already rendered, offers wait.
   offersQuiet?: boolean;
   onSearch?: () => void;
@@ -385,6 +389,8 @@ export default function TodayPage({
           {headsUp}
         </>
       )}
+
+      {reminders}
 
       {upNextSection}
 

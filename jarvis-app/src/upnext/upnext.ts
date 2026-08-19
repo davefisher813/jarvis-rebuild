@@ -18,7 +18,10 @@ export function rankOpen(tasks: TaskItem[], today: string): TaskItem[] {
   // Weeklies and monthlies surface on their day only (roadmap v2): a recurring
   // task due later never enters the deck early. It has a day; it will come.
   const open = tasks.filter(
-    (t) => !t.data.done && !(t.data.recurrence && t.data.due && daysBetween(today, t.data.due) > 0),
+    // Reminders never enter the deck (2026-08-19): "take your meds" is not a
+    // candidate for what to work on next, and Up Next is a work queue.
+    (t) => !t.data.done && !t.data.reminder
+      && !(t.data.recurrence && t.data.due && daysBetween(today, t.data.due) > 0),
   );
   const key = (t: TaskItem): string => {
     const due = t.data.due;

@@ -68,6 +68,28 @@ export interface BillInfo {
   payUrl?: string;
 }
 
+// REMINDERS (Dave 2026-08-19: "taking meds should just be a set reminder").
+//
+// A reminder is a task wearing reminder facts, the same trick bills use, and
+// for the same reason: riding the task entity needs no registry migration and
+// inherits every sync path that already works. What makes it NOT a task is
+// behavioural, and enforced everywhere `reminder` is checked: it never enters
+// a task list, never counts toward the day's numbers, and is never "overdue".
+// It pings, you tap it, it comes back tomorrow.
+export interface ReminderInfo {
+  // When it pings, "HH:MM".
+  time: string;
+  // Weekdays it runs on, 0=Sun..6=Sat. Absent means every day.
+  days?: number[];
+  // The last date it was ticked. Done-ness is DERIVED from this against
+  // today, so a reminder resets itself at midnight with no write and no job.
+  lastDone?: string;
+  // Pushed later within today only. The date is stored alongside so a snooze
+  // set last night cannot silently move this morning's ping.
+  snoozedTo?: string;
+  snoozeDate?: string;
+}
+
 export interface TaskData {
   text: string;
   category: string;
@@ -87,6 +109,7 @@ export interface TaskData {
   runLen?: number; // recurring: current run length
   bestRun?: number; // recurring: best run ever (never shrinks)
   bill?: BillInfo; // Money v1: this task is a bill (see BillInfo)
+  reminder?: ReminderInfo; // this task is a reminder (see ReminderInfo)
 }
 
 export type TemplateKey =

@@ -198,6 +198,15 @@ Positions are law: head actions right, in-list creates last, destructive actions
 5. TAP THE TIME, CHANGE THE TIME. The time on a row is its own control and opens a time input in place. Changing when something happens must never cost the whole editor.
 6. EVERY MOVE IS UNDOABLE. Shift, move-to, skip, push-to-tomorrow: each returns one Undo that restores the exact prior state, including un-splitting a repeating occurrence. Moving things is only relaxing if getting it wrong is free.
 
+## Q. Reminders (V4.6, Dave 2026-08-19: "taking meds should just be a set reminder")
+
+1. A REMINDER IS NOT A TASK. It rides the task entity for storage (the bill trick, no registry migration), but behaviourally it is its own thing: it never enters a task list, never enters Up Next, never counts toward the day, and is never "overdue". Presence of `reminder` is the one switch every carve-out checks, filtered at `partition()` and `rankOpen()`.
+2. DONE IS DERIVED, NEVER STORED. A reminder holds the last date it was ticked; done means that date is today. Nothing runs at midnight, no job resets anything, and a device asleep for three days wakes showing the truth. A stored boolean would need a resetter, and a resetter that never runs is how a med tracker silently lies.
+3. MISSED IS NOT LATE. A reminder whose time has passed marks its TIME, never the row, never red, never a count, and never a second notice card. It is information, not an accusation.
+4. ONE PLACE PER SCREEN. The strip is the reminder surface on Today. A missed reminder does NOT also get a Heads Up card: the same item twice on one screen is the floating-notification problem this app just spent a round removing.
+5. TWO TAPS TO MAKE ONE: name, time, cadence. No category, no duration, no end date, no project. Every field the task sheet has and this one does not is deliberate.
+6. SNOOZE IS SAME-DAY ONLY, stored with its date and clamped inside the day, so last night's snooze cannot move this morning's ping.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).
