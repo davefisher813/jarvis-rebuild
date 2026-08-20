@@ -226,6 +226,17 @@ describe("LAW: Apple HIG casing", () => {
     expect(bad).toEqual([]);
   });
 
+  // THE STREAM HAS RHYTHM (2026-08-20). Dave spotted the cards were stacked
+  // flush: converting everything to one anatomy dropped the bottom margin the
+  // promo card used to carry, and what read as separation was only the
+  // rounded corners against black. Measured at 0px between every card.
+  // A stacked surface must declare its own spacing.
+  it("the notice card declares vertical spacing", () => {
+    const css = read(SRC + "/styles/components.css");
+    const rule = css.match(/\.notice-swipe\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(rule).toMatch(/margin/);
+  });
+
   // THE RETIRED SECTION HEAD (catalog L). Today's icon-tile head, sec-ico
   // plus sec-title, was retired in favour of the steel head. It survived in
   // the check-in, which meant the one card in the Heads Up stream that was

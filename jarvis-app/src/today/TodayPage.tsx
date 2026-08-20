@@ -120,6 +120,7 @@ export default function TodayPage({
   onEditRoutine,
   onSeeAllTasks,
   suggestions,
+  checkIn,
   nowCard,
   notices = [],
   reminders,
@@ -168,6 +169,8 @@ export default function TodayPage({
   onEditRoutine?: () => void;
   onSeeAllTasks: () => void;
   suggestions?: ReactNode;
+  // The evening mood question. Its own notice: it is not a suggestion.
+  checkIn?: ReactNode;
   // The Now card (what is happening this minute) rides at the very top:
   // the page reads in the order the day happens (Dave 2026-08-19).
   nowCard?: ReactNode;
@@ -318,6 +321,7 @@ export default function TodayPage({
       />
     ) : null,
     mail ?? null,
+    checkIn ?? null,
     suggestions ?? null,
     freshStart ? (
       <NoticeCard

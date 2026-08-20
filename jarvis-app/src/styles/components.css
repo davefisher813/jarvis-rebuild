@@ -1614,7 +1614,15 @@ button {
    glyph, words, exactly one control on the visible line. Dismiss and any
    alternate choice ride the swipe reveal, so nothing can ever stack on a
    tap target again. The corner × is banned inside this stream. */
-.notice-swipe { position: relative; overflow: hidden; border-radius: var(--r-lg); }
+/* The stream has RHYTHM. The promo card this replaced carried a bottom
+   margin; converting everything to one anatomy dropped it, and the cards
+   have been stacked flush ever since. What looked like separation was only
+   the rounded corners against black. */
+.notice-swipe { position: relative; overflow: hidden; border-radius: var(--r-lg); margin-bottom: var(--s-3); }
+/* NO :last-child RESET HERE. Every card is the ONLY child of its own .pad-x
+   wrapper, so every one of them matches :last-child and the reset zeroed the
+   entire stream. The trailing margin is absorbed by the next section head,
+   which carries its own top spacing. */
 /* The card rides ABOVE its own reveal and is opaque: the glass .card is
    translucent, so without this the Dismiss button showed straight through
    the row and read as two labels stacked on one tap target. */

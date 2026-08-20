@@ -1213,7 +1213,12 @@ export default function TodayFlow({
       }
       notices={notices}
       offersQuiet={notices.length >= 2}
-      suggestions={<><CheckIn onChanged={() => { void reload(); }} /><TodaySuggestions ai={ai} /></>}
+      // TWO notices, not one glued pair. Bundling them into a single slot
+      // put an AI suggestion immediately under the check-in's mood chips with
+      // nothing between them, so the suggestion read as part of the question.
+      // They are unrelated: one asks how today felt, the other proposes work.
+      checkIn={<CheckIn onChanged={() => { void reload(); }} />}
+      suggestions={<TodaySuggestions ai={ai} />}
       onSearch={onSearch}
       onProfile={onProfile}
       onSeeAllSchedule={onGoSchedule}
