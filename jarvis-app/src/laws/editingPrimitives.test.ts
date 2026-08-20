@@ -51,7 +51,16 @@ describe("law: one drag controller", () => {
     // is the primitive; SchedulePage's task-to-grid drop zone predates the
     // map and is pinned here so a NEW drag cannot ship outside the primitive
     // without failing this law and being looked at.
-    const SANCTIONED = new Set(["shared/ReorderList.tsx", "schedule/screens/SchedulePage.tsx"]);
+    // PlanStrip (2026-08-20) is the third and last: dragging a block along a
+    // proportional TIMELINE is not list reordering. There is no list, no
+    // sibling order, and no drop index; there is one axis mapping x to a
+    // minute. Forcing it through the reorder primitive would mean teaching
+    // that primitive about time, which is how a primitive stops being one.
+    const SANCTIONED = new Set([
+      "shared/ReorderList.tsx",
+      "schedule/screens/SchedulePage.tsx",
+      "schedule/screens/PlanStrip.tsx",
+    ]);
     const offenders = FILES.filter(
       (f) => !SANCTIONED.has(rel(f)) && /setPointerCapture|releasePointerCapture/.test(read(f)),
     ).map(rel);

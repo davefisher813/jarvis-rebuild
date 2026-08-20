@@ -87,7 +87,11 @@ export function resolvePendingPlans(
         type: "plan.outcome",
         entityType: "task",
         entityId: taskId,
-        props: { n: i + 1, flag: doneSameDay },
+        // The DAY rides along (2026-08-20). Without it a plan.outcome cannot
+        // be traced back to the plan it came from, so nothing downstream can
+        // ask "did that shape of day actually work". Older events lack it and
+        // every reader treats a missing day as unscoreable rather than zero.
+        props: { n: i + 1, flag: doneSameDay, day: plan.day },
       });
       resolved++;
     });

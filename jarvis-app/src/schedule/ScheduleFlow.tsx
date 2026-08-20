@@ -134,7 +134,8 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const realToday = todayISO();
   const plannedTaskIds = new Set(dayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
   const planCandidates = taskItems
-    .filter((t) => !t.data.done && !plannedTaskIds.has(t.id) && (!t.data.due || (t.data.due as string) <= selected))
+    // A reminder is not a task (catalog Q1): never a plan candidate.
+    .filter((t) => !t.data.done && !t.data.reminder && !plannedTaskIds.has(t.id) && (!t.data.due || (t.data.due as string) <= selected))
     // Season pause: paused categories are not offered; bills are exempt.
     .filter((t) => !pausedCats.has(t.data.category ?? "") || !!t.data.bill)
     .map((t) => {
@@ -583,6 +584,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           tasks={planCandidates}
           startMin={planStart}
           endMin={planEnd}
+          date={selected}
+          dayLabel={selected === todayISO() ? "Today" : new Date(selected + "T12:00:00").toLocaleDateString([], { weekday: "long" })}
+          alreadyPlanned={dayEvents.filter((e) => !!e.data.sourceTaskId).map((e) => e.data.title)}
           routineConfigured={routineSet}
           blocked={blocked}
           onEditRoutine={onEditRoutine ? () => { setPlanOpen(false); onEditRoutine(); } : undefined}

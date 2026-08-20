@@ -37,7 +37,7 @@ describe("PlanDaySheet soft work-hours windows", () => {
   it("evening planning spills a work task into the evening, labeled, instead of No room", () => {
     // Planning window 7:00 PM to 11:00 PM; the work window ended at 5:00 PM.
     render(
-      <PlanDaySheet events={[]} tasks={WORK_TASK} startMin={1140} endMin={1380} onCommit={() => {}} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={WORK_TASK} startMin={1140} endMin={1380} onCommit={() => {}} onClose={() => {}} />,
     );
     fireEvent.click(screen.getByText("Send sponsor recap"));
     expect(screen.queryByText("No room")).not.toBeInTheDocument();
@@ -48,7 +48,7 @@ describe("PlanDaySheet soft work-hours windows", () => {
 
   it("draws the day strip: picks, events, and protected time as proportional segments", () => {
     render(
-      <PlanDaySheet
+      <PlanDaySheet date="2026-08-20" dayLabel="Today"
         events={[{ id: "e1", data: { title: "Standup", date: "2026-08-09", start: "09:00", end: "09:30", category: "" } }]}
         tasks={WORK_TASK}
         startMin={420} endMin={1260}
@@ -69,13 +69,14 @@ describe("PlanDaySheet soft work-hours windows", () => {
 
   it("tap-to-place: arm a pick's time chip, tap the strip, the pick lands there", () => {
     render(
-      <PlanDaySheet
+      <PlanDaySheet date="2026-08-20" dayLabel="Today"
         events={[{ id: "e1", data: { title: "Standup", date: "2026-08-09", start: "09:00", end: "09:30", category: "" } }]}
         tasks={NONE_SUGGESTED} startMin={420} endMin={1260}
         onCommit={() => {}} onClose={() => {}}
       />,
     );
     fireEvent.click(screen.getByText("Return package"));
+    fireEvent.click(screen.getByLabelText("Return package: adjust"));
     fireEvent.click(screen.getByLabelText("Return package: place on the day"));
     expect(screen.getByText(/Tap where/)).toBeInTheDocument();
     const bar = document.querySelector(".plan-strip-bar") as HTMLElement;
@@ -88,7 +89,7 @@ describe("PlanDaySheet soft work-hours windows", () => {
 
   it("inside its window there is no label: the preference only speaks when broken", () => {
     render(
-      <PlanDaySheet events={[]} tasks={WORK_TASK} startMin={420} endMin={1260} onCommit={() => {}} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={WORK_TASK} startMin={420} endMin={1260} onCommit={() => {}} onClose={() => {}} />,
     );
     fireEvent.click(screen.getByText("Send sponsor recap"));
     expect(screen.getByText("9:00 AM")).toBeInTheDocument();
@@ -99,7 +100,7 @@ describe("PlanDaySheet soft work-hours windows", () => {
 describe("PlanDaySheet (redesigned 2026-08-06)", () => {
   it("has no cap on how many tasks can be picked", () => {
     render(
-      <PlanDaySheet events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onCommit={() => {}} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onCommit={() => {}} onClose={() => {}} />,
     );
     NONE_SUGGESTED.forEach((t) => fireEvent.click(screen.getByText(t.text)));
     // All five picked and numbered 1-5, nothing silently rejected past three.
@@ -110,7 +111,7 @@ describe("PlanDaySheet (redesigned 2026-08-06)", () => {
   it("still respects a lighter day's cap from sizing.maxBlocks", () => {
     const light: DaySizing = { light: true, maxBlocks: 2, extraSlackMin: 10, note: "lighter" };
     render(
-      <PlanDaySheet events={[]} tasks={TASKS} startMin={START} endMin={END} sizing={light} onCommit={() => {}} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={TASKS} startMin={START} endMin={END} sizing={light} onCommit={() => {}} onClose={() => {}} />,
     );
     // Two tasks were pre-picked (suggested, capped at maxBlocks); a third tap
     // is a no-op rather than bumping one of the first two out.
@@ -120,25 +121,29 @@ describe("PlanDaySheet (redesigned 2026-08-06)", () => {
     expect(screen.getByText("Add my two")).toBeInTheDocument();
   });
 
-  it("shows a length stepper per pick that adjusts the duration", () => {
+  // P6 (Dave 2026-08-20): the stepper became chips. 45m to 2h was five taps.
+  it("shows length chips per pick that set the duration in one tap", () => {
     render(
-      <PlanDaySheet events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onCommit={() => {}} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onCommit={() => {}} onClose={() => {}} />,
     );
     fireEvent.click(screen.getByText("Return package"));
-    expect(screen.getByText("45m")).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Return package: longer"));
-    expect(screen.getByText("60m")).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Return package: shorter"));
-    fireEvent.click(screen.getByLabelText("Return package: shorter"));
-    expect(screen.getByText("30m")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Return package: adjust"));
+    const chip = (m: number) => screen.getByLabelText(`Return package: ${m} minutes`);
+    expect(chip(45).className).toContain("chip-on");
+    fireEvent.click(chip(120));
+    expect(chip(120).className).toContain("chip-on");
+    expect(chip(45).className).not.toContain("chip-on");
+    fireEvent.click(chip(30));
+    expect(chip(30).className).toContain("chip-on");
   });
 
   it("lets a pick's time be set by hand, and offers a way back to Auto", () => {
     render(
-      <PlanDaySheet events={[]} tasks={TASKS} startMin={START} endMin={END} onCommit={() => {}} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={TASKS} startMin={START} endMin={END} onCommit={() => {}} onClose={() => {}} />,
     );
     fireEvent.click(screen.getByText("Return package"));
     expect(screen.queryByText("Auto")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Return package: adjust"));
     fireEvent.change(screen.getByLabelText("Return package: time"), { target: { value: "13:00" } });
     expect(screen.getByText(label("13:00"))).toBeInTheDocument();
     expect(screen.getByText("Auto")).toBeInTheDocument();
@@ -149,14 +154,19 @@ describe("PlanDaySheet (redesigned 2026-08-06)", () => {
   it("honors a hand-set time even inside a protected range, and shows protected ranges as context", () => {
     const blocked: PlanBlocked[] = [{ s: 12 * 60, e: 13 * 60, label: "Lunch" }];
     render(
-      <PlanDaySheet events={[]} tasks={TASKS} startMin={START} endMin={END} blocked={blocked} onCommit={() => {}} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={TASKS} startMin={START} endMin={END} blocked={blocked} onCommit={() => {}} onClose={() => {}} />,
     );
+    // B2 (Dave 2026-08-20): the routine folded to one line. Five rows, three
+    // of them telling him when he eats, ate half the sheet.
+    expect(screen.queryByText(/Protected · Routed around/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Around Lunch/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Show"));
     expect(screen.getByText(/Protected · Routed around/)).toBeInTheDocument();
-    expect(screen.getByText(/Lunch/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByText("Return package"));
     // 12:15 falls inside the 12:00-13:00 protected range; a hand-set time
     // overrides it on purpose rather than getting bounced elsewhere.
+    fireEvent.click(screen.getByLabelText("Return package: adjust"));
     fireEvent.change(screen.getByLabelText("Return package: time"), { target: { value: "12:15" } });
     expect(screen.getByText(label("12:15"))).toBeInTheDocument();
   });
@@ -166,7 +176,7 @@ describe("PlanDaySheet (redesigned 2026-08-06)", () => {
     // Not suggested, so it starts unpicked (t1/t2 are pre-picked by default
     // and this test wants a clean single toggle-on).
     render(
-      <PlanDaySheet events={[]} tasks={[TASKS[2]!]} startMin={START} endMin={END} blocked={blocked} onCommit={() => {}} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={[TASKS[2]!]} startMin={START} endMin={END} blocked={blocked} onCommit={() => {}} onClose={() => {}} />,
     );
     fireEvent.click(screen.getByText("Return package"));
     // No open time anywhere in the window, so it comes back honestly unplaced
@@ -177,13 +187,16 @@ describe("PlanDaySheet (redesigned 2026-08-06)", () => {
   it("commits the planned blocks, including hand-set times, on Add", () => {
     const onCommit = vi.fn();
     render(
-      <PlanDaySheet events={[]} tasks={TASKS} startMin={START} endMin={END} onCommit={onCommit} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={TASKS} startMin={START} endMin={END} onCommit={onCommit} onClose={() => {}} />,
     );
     // t1/t2 are pre-picked (suggested); deselect them so only the one
     // deliberate pick below is in the committed plan.
     fireEvent.click(screen.getByText("Email vendor"));
     fireEvent.click(screen.getByText("Book flights"));
     fireEvent.click(screen.getByText("Return package"));
+    // Adjusting a pick lives behind its time chip now, so the list stays a
+    // list instead of six hundred pixels of chrome (2026-08-20).
+    fireEvent.click(screen.getByLabelText("Return package: adjust"));
     fireEvent.change(screen.getByLabelText("Return package: time"), { target: { value: "14:00" } });
     fireEvent.click(screen.getByText(/^Add /));
     expect(onCommit).toHaveBeenCalledTimes(1);
@@ -195,17 +208,17 @@ describe("PlanDaySheet (redesigned 2026-08-06)", () => {
 describe("PlanDaySheet Estimate with AI (Brain Personalization Phase 1, 2026-08-06)", () => {
   it("is not shown when there is no onAIPlan", () => {
     render(
-      <PlanDaySheet events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onCommit={() => {}} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onCommit={() => {}} onClose={() => {}} />,
     );
     fireEvent.click(screen.getByText("Return package"));
-    expect(screen.queryByText("Estimate with AI")).not.toBeInTheDocument();
+    expect(screen.queryByText("Re-Estimate Lengths")).not.toBeInTheDocument();
   });
 
   it("is not shown until at least one task is picked", () => {
     render(
-      <PlanDaySheet events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onAIPlan={vi.fn()} onCommit={() => {}} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onAIPlan={vi.fn()} onCommit={() => {}} onClose={() => {}} />,
     );
-    expect(screen.queryByText("Estimate with AI")).not.toBeInTheDocument();
+    expect(screen.queryByText("Re-Estimate Lengths")).not.toBeInTheDocument();
   });
 
   it("passes the current picks and window, then reorders picks and fills in durations from the result", async () => {
@@ -214,13 +227,13 @@ describe("PlanDaySheet Estimate with AI (Brain Personalization Phase 1, 2026-08-
       { id: "t3", minutes: 20 },
     ]);
     render(
-      <PlanDaySheet events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onAIPlan={onAIPlan} onCommit={() => {}} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onAIPlan={onAIPlan} onCommit={() => {}} onClose={() => {}} />,
     );
     fireEvent.click(screen.getByText("Return package")); // t3, picked first
     fireEvent.click(screen.getByText("File taxes")); // t5, picked second
-    fireEvent.click(screen.getByText("Estimate with AI"));
+    fireEvent.click(screen.getByText("Re-Estimate Lengths"));
 
-    await screen.findByText("90m");
+    await screen.findByText("File taxes");
     expect(onAIPlan).toHaveBeenCalledWith(
       [
         { id: "t3", text: "Return package", category: "home", overdue: false },
@@ -229,7 +242,12 @@ describe("PlanDaySheet Estimate with AI (Brain Personalization Phase 1, 2026-08-
       START,
       END,
     );
-    expect(screen.getByText("20m")).toBeInTheDocument();
+    // The AI's lengths landed: 90 for t5 (a chip can say it), 20 for t3 (no
+    // chip can, so the readout does).
+    fireEvent.click(screen.getByLabelText("File taxes: adjust"));
+    expect(screen.getByLabelText("File taxes: 90 minutes").className).toContain("chip-on");
+    fireEvent.click(screen.getByLabelText("Return package: adjust"));
+    expect(document.querySelector(".plan-dur")!.textContent).toBe("20m");
     // Reordered by the AI's priority order: File taxes now #1, Return package #2.
     const t3Num = screen.getByText("Return package").closest(".p3-row")?.querySelector(".p3-num");
     const t5Num = screen.getByText("File taxes").closest(".p3-row")?.querySelector(".p3-num");
@@ -240,14 +258,16 @@ describe("PlanDaySheet Estimate with AI (Brain Personalization Phase 1, 2026-08-
   it("shows an inline error and leaves existing state alone when the AI call fails", async () => {
     const onAIPlan = vi.fn().mockRejectedValue(new Error("boom"));
     render(
-      <PlanDaySheet events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onAIPlan={onAIPlan} onCommit={() => {}} onClose={() => {}} />,
+      <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onAIPlan={onAIPlan} onCommit={() => {}} onClose={() => {}} />,
     );
     fireEvent.click(screen.getByText("Return package"));
-    fireEvent.click(screen.getByText("Estimate with AI"));
+    fireEvent.click(screen.getByText("Re-Estimate Lengths"));
 
     await screen.findByText(/Couldn.t reach the AI/);
-    // The stepper's default duration is untouched; nothing crashed or cleared.
-    expect(screen.getByText("45m")).toBeInTheDocument();
+    // The default duration is untouched; nothing crashed or cleared. 45 is a
+    // chip, so the chip is the readout.
+    fireEvent.click(screen.getByLabelText("Return package: adjust"));
+    expect(screen.getByLabelText("Return package: 45 minutes").className).toContain("chip-on");
   });
 });
 
@@ -262,11 +282,14 @@ describe("PlanDaySheet focus zones", () => {
 
   it("announces focus time, pulls the pick into it, and keeps lunch flexible", () => {
     render(
-      <PlanDaySheet
+      <PlanDaySheet date="2026-08-20" dayLabel="Today"
         events={[]} tasks={NONE_SUGGESTED} startMin={510} endMin={1410}
         blocked={BLOCKED} onCommit={() => {}} onClose={() => {}}
       />,
     );
+    // The fold's own line names the focus zone without being opened.
+    expect(screen.getByText(/Picks Land in Deep Work/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Show"));
     expect(screen.getByText(/Focus · Picks land here/)).toBeInTheDocument();
     expect(screen.getByText(/Flexible · Used when tight/)).toBeInTheDocument();
     // Deep Work never appears under Protected (there are no hard blocks here).
@@ -278,7 +301,7 @@ describe("PlanDaySheet focus zones", () => {
 
   it("draws the zone as an outlined invitation, not a wall", () => {
     render(
-      <PlanDaySheet
+      <PlanDaySheet date="2026-08-20" dayLabel="Today"
         events={[]} tasks={NONE_SUGGESTED} startMin={510} endMin={1410}
         blocked={BLOCKED} onCommit={() => {}} onClose={() => {}}
       />,

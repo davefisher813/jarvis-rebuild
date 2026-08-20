@@ -337,7 +337,11 @@ export default function TodayFlow({
   const candidatesFor = (dateISO: string, evts: EventItem[]) => {
     const plannedTaskIds = new Set(evts.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
     return taskItems
-      .filter((t) => !t.data.done && !plannedTaskIds.has(t.id) && (!t.data.due || (t.data.due as string) <= dateISO))
+      // A REMINDER IS NOT A TASK (catalog Q1). It rides the task entity for
+      // storage only: it never enters a task list, Up Next, or a plan. This
+      // filter was missing, so "Morning Meds" sat in the planner under
+      // Anytime asking to be given 45 minutes of deep work.
+      .filter((t) => !t.data.done && !t.data.reminder && !plannedTaskIds.has(t.id) && (!t.data.due || (t.data.due as string) <= dateISO))
       // Season pause: a paused category's tasks are not offered. Bills are
       // EXEMPT: pausing Money in a low moment cannot silence rent.
       .filter((t) => !pausedCats.has(t.data.category ?? "") || !!t.data.bill)
@@ -389,6 +393,34 @@ export default function TodayFlow({
         gentle: sizing.light,
       })
     : undefined;
+  const minLabel = (m: number) => {
+    const t = fmtTime(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+    return `${t.time} ${t.ap}`;
+  };
+
+  // P7 (2026-08-20): make a task without leaving the planner. It lands on the
+  // day being planned, so it is a candidate the instant it exists.
+  const addPlanTask = async (text: string) => {
+    let made: string | null = null;
+    const ok = await attemptWrite(async () => { made = await tasks.createTask(text, { due: planDate }); });
+    if (!ok || !made) return null;
+    await reload();
+    return { id: made as string, text, category: "", suggested: false, overdue: false, due: planDate };
+  };
+
+  // P15: protect time from here instead of leaving for Routine and losing
+  // your place. It writes a real routine block on the target day's weekday,
+  // which is what "protected" means everywhere else in the app.
+  const addProtectedBlock = async (label: string, s: number, e: number) => {
+    const r = await routine.get();
+    const day = new Date(planDate + "T12:00:00").getDay();
+    const ok = await attemptWrite(() => routine.save({
+      protectedBlocks: [...(r.protectedBlocks ?? []), { id: "pb-" + label.toLowerCase().replace(/\s+/g, "-") + "-" + s, label, startMin: s, endMin: e, days: [day] }],
+    }));
+    if (ok) { await reload(); showToast({ message: label + " protected · " + minLabel(s) + " to " + minLabel(e) });  }
+    return !!ok;
+  };
+
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
     const ids: string[] = [];
     const ok = await attemptWrite(async () => {
@@ -983,10 +1015,18 @@ export default function TodayFlow({
         tasks={candidatesFor(planDate, planEvents)}
         startMin={planStart}
         endMin={planEnd}
+        date={planDate}
+        dayLabel={planningTomorrow ? new Date(tomorrow + "T12:00:00").toLocaleDateString([], { weekday: "long" }) : "Today"}
+        target={planTarget}
+        onTarget={(t) => void openPlan(t)}
+        alreadyPlanned={planEvents.filter((e) => !!e.data.sourceTaskId).map((e) => e.data.title)}
+        peak={energy ? { s: energy.peakStartMin, e: energy.peakEndMin } : undefined}
         routineConfigured={routineSet}
         blocked={blocked}
         sizing={sizing}
         onEditRoutine={onEditRoutine ? () => { setPlanOpen(false); onEditRoutine(); } : undefined}
+        onAddTask={addPlanTask}
+        onProtect={addProtectedBlock}
         onCommit={onPlanCommit}
         onAIPlan={onAIPlan}
         onClose={() => { setPlanOpen(false); setPlanTarget("today"); }}

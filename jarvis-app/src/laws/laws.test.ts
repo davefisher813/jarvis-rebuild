@@ -195,6 +195,24 @@ describe("LAW: Apple HIG casing", () => {
     expect(bad).toEqual([]);
   });
 
+  // A REMINDER IS NOT A TASK (catalog Q1). It rides the task entity for
+  // storage, so every list that offers WORK has to carve it out by hand. The
+  // planner did not, and "Morning Meds" turned up under Anytime asking for a
+  // 45-minute block. Any new list of offerable tasks must check this too.
+  it("no list of offerable work forgets to carve reminders out", () => {
+    const OFFERS = [
+      "tasks/filters.ts", "upnext/upnext.ts",
+      "today/TodayFlow.tsx", "schedule/ScheduleFlow.tsx",
+    ];
+    const bad: string[] = [];
+    for (const r of OFFERS) {
+      const f = SOURCES.find((x) => rel(x) === r);
+      if (!f) { bad.push(r + " (missing)"); continue; }
+      if (!/data\.reminder/.test(read(f))) bad.push(r);
+    }
+    expect(bad).toEqual([]);
+  });
+
   // THE NOTICE LAW (A1, Dave 2026-08-20). Every card in the Heads Up stream
   // is built one way: glyph, words, exactly ONE control on the visible line.
   // Dismiss is a swipe. The corner × is banned: on a one-row card the corner

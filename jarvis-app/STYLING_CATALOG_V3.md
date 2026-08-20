@@ -243,6 +243,32 @@ He was right. "14 emails need you → Deal with it here" was a number and a link
 3. MEASUREMENTS ARE EXEMPT. `135 kg × 8` stays lowercase; a capitalized unit is wrong, not stylish.
 4. The rule lives in `shared/casing.ts` and is applied by the STRING BUILDERS, never at render. Magic in a wrapper component cannot be tested and drifts the moment the same string renders somewhere else. Enforced by law test.
 
+## U. Plan My Day (V4.8, Dave 2026-08-20: "look at how limited this still is")
+
+Three things in it were plainly broken, and the rest made him do the planner's job.
+
+**The bugs.**
+
+1. IT LIED ABOUT WHICH DAY IT WAS PLANNING. The eyebrow and the question were hardcoded to today while every input behind them flipped to tomorrow, so Plan Tomorrow at 10:54 PM offered a 1 PM slot and read as a bug. The sheet is now TOLD which day it is filling (`date`, `dayLabel`, `target`) and says so, and Today/Tomorrow is a visible control in the sheet rather than hidden state chosen a screen earlier.
+2. FIVE ROUTINE ROWS BECAME ONE. Three of them existed to say when he eats. The fold names the focus zone and summarises the rest; the detail is one tap away.
+3. THE PLAN HE ALREADY MADE WAS INVISIBLE. The list correctly drops anything already scheduled and said nothing about it, so a planned day looked like an empty one. `alreadyPlanned` names them.
+
+**The laws.**
+
+4. THE SHEET SAYS HOW FULL THE DAY IS, BEFORE HE COMMITS. Open minutes, picked minutes, and the over-run, derived from the same inputs the planner used so the number can never disagree with the plan. A focus block counts as OPEN (it is where picks are meant to go) and meals count as open (saying "you have no time" because dinner exists is a lie).
+5. WHEN IT DOES NOT FIT, IT SAYS SO WHERE THE PICKING HAPPENS, with the fix in the same breath. It used to appear as grey text at the very bottom after the damage was done. Dropping takes the LAST picks, never the first: pick order is priority order everywhere else in this sheet.
+6. NO STAT WITHOUT A HANDLE. "Lately · 2 of 7 picks done same-day" told him he was failing, directly above the thing he was about to fail at again. The same measurement pointed forward is a setting: "You Finish About Two a Day · Want me to plan for two?"
+7. THE PRIMARY IS NEVER A CHORE. It said "Pick your tasks", which is the app telling him to do the work it exists to do. Nothing picked now means one tap plans the whole day: **Plan It For Me** selects, sizes, orders and places, then hands back Accept / Change It. The old AI button only estimated LENGTHS for tasks already picked by hand, and picking is the hard part.
+8. SILENT INTELLIGENCE READS AS NO INTELLIGENCE. The planner has always used his chronotype and peak window without ever saying so. It says so now.
+9. ONE PICK SHOWS ITS CONTROLS AT A TIME. Length chips plus a time field under every pick turned three picks into six hundred pixels of chrome. Tapping the row picks or unpicks (one tap either way, so "no, not that one" never costs two); tapping the time chip opens that pick's controls.
+10. UTILITY CONTROLS SIT BELOW THE LIST. Above it, Done By and Add pushed the actual tasks off the bottom of a 390px phone: a planning sheet whose main job you had to scroll to reach.
+11. LENGTH IS CHIPS, NOT A STEPPER (45m to 2h was five taps), and the chips WRAP rather than scroll. The live number shows only when no chip can say it, since a learned or AI length is any number of minutes.
+12. A THREE-HOUR TASK IS NOT A THREE-HOUR SITTING. Anything past two hours is offered as two sittings; the split rides synthetic ids (`taskId#2`) and collapses back to the real id at commit, so it adds no new placement path.
+13. A DAY THAT WORKED CAN BE REUSED, RHYTHM ONLY. Shapes are recorded at COMMIT from the blocks that actually committed. "Worked" means MEASURED: only a day whose own outcomes say every pick landed is offered as one that worked; anything else is offered by its weekday and named as such. `plan.outcome` now carries its day so this can be asked at all.
+14. PICK BY FEEL. Something Quick, The Hard One, Moves a Goal. Deterministic (tapping twice is not a slot machine), never returns something already picked, and a button that would do nothing is not shown.
+15. A DEAD DAY SAYS SO. Under an hour left and the sheet stops asking "what fits today?" and points at tomorrow.
+16. A REMINDER IS NEVER A PLAN CANDIDATE (catalog Q1, violated here since reminders shipped). "Morning Meds" sat under Anytime asking for a 45-minute block. Now enforced by law test across every list that offers work.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

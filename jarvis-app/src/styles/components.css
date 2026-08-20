@@ -734,7 +734,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* Compact time field for a per-pick placement override (Plan My Day, 2026-08-06):
    the shared .input is a full-width 44px form control, too wide for an inline
    row of controls next to the length stepper. */
-.plan-controls .input-compact { width: 108px; height: 34px; padding: 0 var(--s-2); font-size: var(--t-meta); flex-shrink: 0; }
+.plan-controls .input-compact { width: 128px; height: 34px; padding: 0 var(--s-2); font-size: var(--t-meta); flex-shrink: 0; }
 .plan-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
 .plan-cta { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); background: var(--accent); border: 0; border-radius: var(--r-pill); padding: var(--s-1h) var(--s-3); color: #fff; font-size: var(--t-meta); font-weight: var(--w-semi); flex-shrink: 0; }
 .plan-cta svg { width: 18px; height: 18px; flex-shrink: 0; }
@@ -1636,3 +1636,48 @@ button {
    an extra line costs less than a card he has to open to understand. */
 .notice-card .conn-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .notice-card .conn-meta { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* PLAN MY DAY, rebuilt (catalog U, Dave 2026-08-20: "look at how limited
+   this still is"). Every control here exists to remove a decision, so each
+   one is a full-width row or a chip: nothing competes with a task name for
+   its line. */
+/* An armed chip: a length, a day, a feel. Reads like the selected state of a
+   segmented control because that is what a chip row is. */
+.chip.chip-on { background: var(--accent); color: #fff; }
+.chip-act { color: var(--accent); }
+/* The load line under the strip. Amber only when the day says no; a neutral
+   day must never look like a warning. */
+.plan-load { font-size: var(--t-meta); color: var(--tx-3); padding: 2px var(--s-1) var(--s-2); font-variant-numeric: tabular-nums; }
+.plan-load.over { color: var(--amber, #FF9F0A); font-weight: var(--w-semi); }
+/* Length chips wrap; the live number rides in front of them so an AI or
+   learned length that no chip can express is still legible. */
+/* Length chips WRAP rather than scroll. A scrolling row hid the live length
+   behind the container's left edge and half the chips behind its right one;
+   six short chips fit two rows on a phone and every option stays visible. */
+.plan-durs { align-items: center; gap: var(--s-1h); flex-wrap: wrap; overflow-x: visible; }
+.plan-durs .plan-dur { min-width: 42px; }
+/* The controls under a pick stack. Length chips plus a time field plus a
+   split button on ONE line clipped the chips and slid the time input under
+   them; a pick's controls are a block, not a row. */
+.plan-controls { flex-direction: column; align-items: stretch; gap: var(--s-1); }
+.plan-controls .chip-row { margin: 0; }
+/* Done By is a labelled field, not a bare input: without the label holding
+   its side, the time control took the whole width and the row said nothing. */
+.plan-doneby .row-grow, .plan-doneby > .row-grow { flex: 1; }
+.plan-doneby .input-compact, .plan-add .input-compact, .plan-protect .input-compact { height: 34px; font-size: var(--t-meta); }
+.plan-doneby .input-compact { width: 118px; flex: 0 0 auto; }
+.plan-protect .input-compact { min-width: 0; }
+.plan-when { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-2); }
+.plan-doneby, .plan-add, .plan-protect { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) 0; }
+.plan-add .input, .plan-protect .input { flex: 1; min-width: 0; }
+.plan-feel { margin: var(--s-1) 0 var(--s-2); }
+/* A pick on the strip can be dragged along the timeline (P10). The cursor
+   and the touch-action are the whole affordance; the block itself is already
+   the picture of the block. */
+.strip-draggable { cursor: grab; touch-action: none; }
+.strip-draggable:active { cursor: grabbing; }
+.plan-strip-bar.strip-drag { touch-action: pan-y; }
+/* A task name in the planner gets two lines. "Draft the Coach Onboarding
+   Email" truncated to "Draft the Coach On..." is the sheet hiding the one
+   thing you need to decide on. */
+.p3-name.truncate { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
