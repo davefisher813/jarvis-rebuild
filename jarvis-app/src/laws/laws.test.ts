@@ -310,4 +310,19 @@ describe("LAW: stored shapes are versioned", () => {
     }
     expect([...bad]).toEqual([]);
   });
+
+  // THE CHEVRON IS DRAWN, NOT DRAWN TWICE (Dave 2026-08-19, from a screenshot
+  // of a mangled one on Today). `.chev` is a 7x12 box with two borders rotated
+  // 45deg, so it only renders correctly on an EMPTY element. Twenty-one call
+  // sites had put the class on an <svg> that already contained its own arrow:
+  // the CSS then drew a rotated bordered box AROUND a second arrow, which is
+  // the clipped smudge he photographed. Half the app was right and half was
+  // wrong for months because nothing checked.
+  it("the chevron class is never put on an svg", () => {
+    const bad: string[] = [];
+    for (const f of SOURCES) {
+      if (/<svg[^>]*className="chev/.test(read(f))) bad.push(rel(f));
+    }
+    expect(bad).toEqual([]);
+  });
 });

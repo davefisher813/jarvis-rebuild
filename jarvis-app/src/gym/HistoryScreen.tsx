@@ -4,12 +4,10 @@ import { exerciseHistory, trendLine } from "./history";
 import { monthDay } from "../money/bills";
 import { DayDivide } from "../shared/anatomy";
 
-const CHEV_DOWN = (
-  <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
-);
-const CHEV = (
-  <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
-);
+// A disclosure pair: right when collapsed, down when open. Both are the one
+// drawn .chev arrow, rotated; neither is an svg (see the chevron law).
+const CHEV = <div className="chev" />;
+const CHEV_DOWN = <div className="chev chev-down" />;
 
 // V2 anatomy: one day label per group of receipts, not a date repeated on
 // every row (same shape as CategoryDetail's Record).

@@ -3,7 +3,7 @@ import PageHeader from "../shared/PageHeader";
 import { filledIcon } from "../shared/filledIcons";
 
 const Chev = () => (
-  <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+  <div className="chev" />
 );
 
 export type MoreRoute = "settings" | "profile" | "appearance" | "categories" | "edittabs" | "account" | "notifsettings" | "about" | "advanced" | "backup" | "connections" | "aicontrol" | "learned";

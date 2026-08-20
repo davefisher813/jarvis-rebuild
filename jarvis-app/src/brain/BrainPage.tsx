@@ -8,7 +8,7 @@ const svg = (children: ReactNode) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{children}</svg>
 );
 const Chev = () => (
-  <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+  <div className="chev" />
 );
 
 // Icons a category may carry (from the template defaults). Falls back to a tag.

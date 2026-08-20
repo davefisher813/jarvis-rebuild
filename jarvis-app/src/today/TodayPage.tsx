@@ -319,7 +319,7 @@ export default function TodayPage({
             <div className="conn-name">{emailLine}</div>
             <div className="conn-meta">Deal with it here</div>
           </div>
-          <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+          <div className="chev" />
         </div>
       </div></div>
     ) : null,
@@ -331,7 +331,7 @@ export default function TodayPage({
             <div className="conn-name">Rough day? Fresh start.</div>
             <div className="conn-meta">Re-plan what's left · Nothing lost</div>
           </div>
-          <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+          <div className="chev" />
         </div>
       </div></div>
     ) : null,

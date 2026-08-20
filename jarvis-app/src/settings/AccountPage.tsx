@@ -35,7 +35,7 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
         {onEditProfile && (
           <div className="row" role="button" tabIndex={0} onClick={onEditProfile}>
             <div className="row-grow"><div className="conn-name">Edit Profile</div></div>
-            <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+            <div className="chev" />
           </div>
         )}
         <div className="row"><div className="row-grow"><div className="conn-name">Template</div></div><span className="row-value">{tmpl}</span></div>
@@ -49,7 +49,7 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
             <div className="conn-name">{redoArmed ? "Tap again to redo setup" : "Redo Setup"}</div>
             {redoArmed && <div className="conn-meta">Your data stays · Intake runs again</div>}
           </div>
-          <svg className="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+          <div className="chev" />
         </div>
       </div></div>
       {onSignOut && <div className="pad-x"><div className="card"><button className="row row-signout" onClick={onSignOut}>Sign Out</button></div></div>}

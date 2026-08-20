@@ -187,6 +187,9 @@ Every tappable action renders as exactly ONE of these, chosen by its slot. A bar
 
 9. A DATE IS NOT A BUTTON: facts render as facts (.n, quiet meta). If a slot is styled like an action it must do the thing its words say.
 
+10. THE CHEVRON IS A DRAWN ARROW, NOT AN ICON. `.chev` is a 7x12 box with two borders rotated 45deg and only renders correctly on an EMPTY element. Putting the class on an `<svg>` draws a rotated bordered box around a second arrow. Twenty-one call sites were doing exactly that. `<div className="chev" />` is the only legal form; `.chev-down` is the disclosure variant. Law-tested.
+11. NO TWO CONTROLS IN ONE CORNER. A card with an absolutely-positioned dismiss and a one-row body puts the row's trailing control and the X in the same place. Any card carrying a `.promo-x` reserves the room for it on every row inside, so tap targets can never stack.
+
 Positions are law: head actions right, in-list creates last, destructive actions last on the page (L6). The old icon-tile section head (sec-ico + sec-title) is retired from Today; JARVIS Noticed is a steel head like everything else.
 
 ## P. The Schedule (V4.5, Dave 2026-08-19: "still way too difficult to move things around")

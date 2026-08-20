@@ -1402,6 +1402,23 @@ button {
 .sched-gap.past { opacity: 0.4; }
 .sched-gap:active { background: var(--press-1); }
 
+/* THE CHEVRON IS A DRAWN ARROW, NOT AN ICON (Dave 2026-08-19, from a
+   screenshot of a mangled one). `.chev` is a 7x12 box with two borders
+   rotated 45deg: it only works on an EMPTY element. 21 places had put the
+   class on an <svg> that already contained its own arrow, so the CSS drew a
+   rotated bordered box around a second arrow. All converted to <div>; this
+   variant covers the one disclosure chevron that points down. */
+.chev-down { transform: rotate(135deg); }
+
+/* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).
+   A card with an absolutely-positioned corner dismiss and a one-row body puts
+   the row's trailing control and the X in the same place, so they overlap and
+   you tap the wrong one. Any card carrying a .promo-x reserves the room for
+   it, on every row inside. */
+.card:has(> .promo-x) .row,
+.card:has(> .promo-x) .suggestion-row,
+.card:has(> .promo-x) .rem-row { padding-right: 34px; }
+
 /* REMINDERS (Dave 2026-08-19: "taking meds should just be a set reminder").
    A reminder row is deliberately quieter than a task row: no category kicker,
    no urgency colour, no overdue red. A missed one greys, it never shouts. */
