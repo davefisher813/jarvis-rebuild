@@ -36,6 +36,14 @@ export interface MailThread {
   gist: string;
   by?: string;      // the answer-by the SENDER stated, never one we invented
   account?: string;
+  // U1/U2 (2026-08-20): enough to answer WITHOUT opening the thread. The
+  // snippet is what the reply is drafted from; the replies are the quick
+  // answers the Email tab already generated for this thread, reused rather
+  // than regenerated. Absent means the card falls back to opening the thread,
+  // which is exactly what it did before.
+  snippet?: string;
+  lastMsgId?: string;
+  replies?: string[];
 }
 export interface MailWaiting { threadId: string; to: string; subject: string; days: number }
 export interface MailPromise { threadId: string; text: string; due?: string }

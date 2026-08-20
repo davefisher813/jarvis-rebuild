@@ -438,6 +438,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         gist: map[r.id]?.gist ?? r.snippet ?? "",
         by: map[r.id]?.by,
         account: (r as ThreadRow & { account?: string }).account,
+        snippet: r.snippet ?? "",
+        lastMsgId: r.lastMsgId,
+        // Reuse the quick replies this thread already has. Regenerating them
+        // for the home page would be a second AI call for an answer we own.
+        replies: briefFor(r.lastMsgId)?.replies,
       })),
       waiting: waiting.slice(0, 3).map((w) => ({
         threadId: w.threadId, to: displayName(w.to), subject: w.subject, days: w.waitingDays,

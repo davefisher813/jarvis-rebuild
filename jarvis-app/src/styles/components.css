@@ -1681,3 +1681,19 @@ button {
    Email" truncated to "Draft the Coach On..." is the sheet hiding the one
    thing you need to decide on. */
 .p3-name.truncate { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* EMAIL THAT FINISHES ON THE HOME PAGE (U1/U2/U3/U5, Dave 2026-08-20).
+   The card stopped being a signpost and started being the desk. */
+/* The morning sentence: what the whole inbox is, before a card is read. */
+.mail-sentence { font-size: var(--t-meta); color: var(--tx-3); padding: 0 var(--s-1) var(--s-2); }
+/* Quick answers ride the card's own second line. Each chip is a WHOLE reply,
+   so they sit apart from the row's one control rather than beside it. */
+.mail-chips { gap: var(--s-2); flex-wrap: wrap; padding-top: 0; }
+/* A draft, before it goes out over his name. Editable: a draft you cannot
+   change is a draft you have to leave the page to fix. */
+.mail-draft { padding: 0 var(--s-3h) var(--s-3); }
+.mail-draft-text { width: 100%; min-height: 76px; background: var(--press-3); border: 0; border-radius: var(--r-md);
+  padding: var(--s-2h); color: var(--tx-1); font-family: var(--f); font-size: var(--t-meta); line-height: 1.45;
+  resize: none; outline: none; caret-color: var(--accent); }
+.mail-draft-text:disabled { opacity: 0.55; }
+.mail-draft-acts { gap: var(--s-2); padding: var(--s-2) 0 0; }

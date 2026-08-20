@@ -32,6 +32,10 @@ import { readSamples } from "../shared/timeSense";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
+import { useGoogle } from "../connections/google/GoogleSession";
+import { mapThreadFull, buildReply, encodeEmail } from "../connections/google/map";
+import { cardReplyPrompt, cardNudgePrompt, parseCardDraft } from "../messages/cardDraft";
+import { loadMailSnapshot } from "../messages/home";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
@@ -95,6 +99,7 @@ export default function TodayFlow({
   onRestoreSpot?: (kind: "note" | "task" | "event" | "gym", id: string) => void;
 }) {
   const ai = useAI();
+  const google = useGoogle();
   const schedule = useSchedule();
   const tasks = useTasks();
   const profile = useProfile();
@@ -922,6 +927,60 @@ export default function TodayFlow({
     if (t?.data.reminder) setRemSheet({ mode: "edit", id, text: t.data.text, reminder: t.data.reminder });
   };
 
+  // U1/U3 (2026-08-20): the home card drafts and sends. Before this it named
+  // the email that needed him and then handed him a trip to another tab,
+  // which is the same trip the count line used to make him take.
+  //
+  // Both paths are honest about failure: no account, no thread, or an
+  // unusable model reply all return empty, and the card opens the thread
+  // instead of inventing something to send over his name.
+  const mailApiFor = (threadId: string) => {
+    const snap = loadMailSnapshot();
+    const t = snap.threads.find((x) => x.id === threadId);
+    const list = google.apis("mail");
+    if (list.length === 0) return null;
+    const match = t?.account ? list.find((a) => a.email === t.account) : undefined;
+    return (match ?? list[0])!.api;
+  };
+
+  const draftForCard = async (n: { kind: string; threadId: string; title: string; sub: string }): Promise<string> => {
+    if (!ai.available) return "";
+    try {
+      const snap = loadMailSnapshot();
+      if (n.kind === "nudge") {
+        const w = snap.waiting.find((x) => x.threadId === n.threadId);
+        if (!w) return "";
+        const p = cardNudgePrompt(w.to, w.subject, w.days);
+        return parseCardDraft(await ai.complete([{ role: "user", content: p.user }], p.system));
+      }
+      const t = snap.threads.find((x) => x.id === n.threadId);
+      if (!t) return "";
+      const p = cardReplyPrompt(t.from, t.subject, t.gist, t.snippet ?? t.gist ?? "");
+      return parseCardDraft(await ai.complete([{ role: "user", content: p.user }], p.system));
+    } catch {
+      return "";
+    }
+  };
+
+  const sendFromCard = async (n: { kind: string; threadId: string }, body: string): Promise<boolean> => {
+    const api = mailApiFor(n.threadId);
+    if (!api) return false;
+    try {
+      const full = mapThreadFull(await api.getThread(n.threadId));
+      const last = full.messages[full.messages.length - 1];
+      if (!last) return false;
+      // A nudge goes to whoever the last message was addressed TO; a reply
+      // goes back to whoever wrote it. Getting this backwards would send his
+      // follow-up to himself, so it is derived, never assumed.
+      const reply = buildReply(last, body);
+      const to = n.kind === "nudge" ? (last.to || reply.to) : reply.to;
+      await api.sendMessage(encodeEmail({ to, subject: reply.subject, body, inReplyTo: reply.inReplyTo }), full.id);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   // Email that finishes on Today. A deadline a sender named, or a promise he
   // made, becomes a real task right here: the whole point is that he never
   // has to open the inbox to deal with what the inbox produced.
@@ -972,6 +1031,9 @@ export default function TodayFlow({
         <MailNotices
           key="mail"
           today={today}
+          nowHHMM={nhm}
+          onDraft={ai.available ? draftForCard : undefined}
+          onSend={google.hasToken ? sendFromCard : undefined}
           onAddTask={addTaskFromMail}
           onOpenThread={onGoEmail ? (id) => onGoEmail(id) : undefined}
           onOpenEmail={onGoEmail ? () => onGoEmail() : undefined}

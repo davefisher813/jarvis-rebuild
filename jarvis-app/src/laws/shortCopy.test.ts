@@ -39,6 +39,7 @@ const EXEMPT_FILES = new Set([
   "messages/deck.ts",
   "messages/waiting.ts",
   "messages/sentSweep.ts",
+  "messages/cardDraft.ts",
   "messages/brief.ts",
   "messages/handoff.ts",
   "messages/commitments.ts",
