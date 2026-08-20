@@ -258,13 +258,17 @@ export default function TodayFlow({
   // task belonged to a project it says which project it just advanced and
   // how close that project now is. When it was the LAST one, the toast stops
   // being a receipt and becomes the offer to finish the thing.
-  const movedByTask = (t: { projectId?: string } | null): { moved: Moved; projectId: string } | null => {
+  // Counts the tick that JUST happened. React state is still the pre-toggle
+  // snapshot inside this handler, so counting only `done` reports the project
+  // one task behind: ticking the last one said "One left". Counting the id
+  // explicitly is correct whether the list is stale or fresh.
+  const movedByTask = (t: { projectId?: string } | null, justDoneId: string): { moved: Moved; projectId: string } | null => {
     const pid = t?.projectId;
     if (!pid) return null;
     const proj = projList.find((p) => p.id === pid);
     if (!proj || proj.data.status === "done") return null;
     const mine = taskItems.filter((x) => x.data.projectId === pid);
-    const done = mine.filter((x) => x.data.done).length;
+    const done = mine.filter((x) => x.data.done || x.id === justDoneId).length;
     const moved = movedBy(proj.data.title, done, mine.length);
     return moved ? { moved, projectId: pid } : null;
   };
@@ -275,7 +279,7 @@ export default function TodayFlow({
     const ok = await attemptWrite(() => tasks.toggleDone(id));
     await reload();
     if (!ok) return;
-    const advanced = before && !before.done ? movedByTask(before) : null;
+    const advanced = before && !before.done ? movedByTask(before, id) : null;
     if (comeback) {
       showToast({ message: comeback });
     } else if (advanced?.moved.cleared) {

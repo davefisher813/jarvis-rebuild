@@ -45,6 +45,7 @@ import { closeCandidates, closeLine, closeReceipt, closeDue, markClosed, lastClo
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
 import { attachOffer } from "./attachmentKind";
 import { HOLD_SECONDS } from "./outbox";
+import { loadWindows, saveWindows, isOpenNow, closedLine, hourLabel, WINDOW_MINUTES } from "./batching";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
 import { saidQuery, saidPrompt, parseSaid, saidEmpty, SAID_SYSTEM } from "./saidWhat";
 import { shouldAutoReply, autoReplyBody, loadAutoState, markAutoReplied, AUTO_REPLY_EXPLAINER } from "./autoReply";
@@ -728,6 +729,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   };
 
+  // EMAIL WINDOWS. A curtain, never a lock: one tap opens it anyway, with no
+  // friction and no scolding. "Peeked" lasts for this visit only, so the
+  // habit re-forms next time rather than being permanently switched off by
+  // one impatient moment.
+  const [windows, setWindows] = useState(() => loadWindows());
+  const [peeked, setPeeked] = useState(false);
+  const setWindowsOn = (on: boolean) => {
+    const next = { ...windows, on };
+    setWindows(next);
+    saveWindows(next);
+    if (!on) setPeeked(false);
+  };
+  const curtained = windows.on && !peeked && !isOpenNow(windows, new Date());
+
   const [held, setHeld] = useState<{ at: number; timer: ReturnType<typeof setTimeout> } | null>(null);
   const heldRef = useRef<typeof held>(null);
   useEffect(() => { heldRef.current = held; }, [held]);
@@ -1327,6 +1342,44 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     );
   }
 
+  // THE CURTAIN. An early return, the same shape as the not-connected screen:
+  // outside a window the Email tab simply is not an inbox. One tap opens it
+  // anyway, because an app that refuses to show a man his own email is a toy.
+  if (view === "list" && curtained) {
+    return (
+      <div className="screen">
+        <PageHeader title="Email" />
+        <div className="pad-x">
+          <div className="card mail-curtain">
+            <div className="row">
+              <div className="row-glyph cat-fg-teal"><Mail className="ic" /></div>
+              <div className="row-grow">
+                {/* WHEN, never how many. A count here would reintroduce the
+                    exact guilt this feature exists to remove. */}
+                <div className="conn-name">{closedLine(windows, new Date())}</div>
+                <div className="conn-meta">Email is closed right now, on purpose</div>
+              </div>
+            </div>
+            <div className="row row-acts">
+              <button className="btn btn-primary btn-sm" onClick={() => setPeeked(true)}>Open Anyway</button>
+              <button className="btn-sm" onClick={() => setWindowsOn(false)}>Turn Off</button>
+            </div>
+          </div>
+        </div>
+        <div className="grp"><div className="eyebrow">Your Windows</div></div>
+        <div className="pad-x"><div className="card">
+          {windows.hours.map((h) => (
+            <div className="row" key={h}>
+              <div className="row-grow"><div className="conn-name">{hourLabel(h)}</div></div>
+              <span className="row-value">{WINDOW_MINUTES} min</span>
+            </div>
+          ))}
+        </div></div>
+        <div className="screen-foot" />
+      </div>
+    );
+  }
+
   if (view === "list" && (!configured || !g.hasToken)) {
     // Demo build: show the real anatomy with fixture mail so previews and
     // the App Store demo read as a working inbox. Off unless the shell says
@@ -1687,6 +1740,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           reachable, and honest about what is happening: the message has NOT
           gone yet, and Undo puts him back in the composer where he was. */}
       {held && <SendHold startedAt={held.at} onUndo={undoSend} onNow={sendNow} />}
+      {!windows.on && (
+        <div className="pad-x">
+          <button className="row-act" onClick={() => setWindowsOn(true)}>Open Email on a Schedule</button>
+        </div>
+      )}
       <div className="pad-x">
         <input
           className="msg-input msg-search" placeholder="Search All Mail" value={search}

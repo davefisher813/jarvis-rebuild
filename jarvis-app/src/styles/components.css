@@ -1839,3 +1839,5 @@ button {
 /* THE SEND HOLD (undo send, 2026-08-20). Loud on purpose: a toast that fades
    while he is still deciding is the same as not offering undo at all. */
 .send-hold { border: 1px solid rgba(10,132,255,0.35); }
+/* The email curtain: a calm surface, not an error. */
+.mail-curtain { border: 1px solid rgba(100,210,255,0.28); }

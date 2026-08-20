@@ -4,6 +4,7 @@ import { pausedCategoryIds, offHoursCategoryIds } from "../categories/kinds";
 import TasksPage from "./screens/TasksPage";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
 import { useProjects } from "../data/NotesProvider";
+import { movedBy, celebrationLine, type Moved } from "../shared/completion";
 import type { Project } from "../projects/types";
 import { partition, byCategory, filterOf, FILTERS, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
 import type { Recurrence, TaskData } from "../notes/types";
@@ -136,6 +137,23 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     done: parts.done.length,
   };
 
+  // Which project this tick just moved, and how close it now is. Mirrors
+  // TodayFlow exactly; the shared judgement lives in shared/completion.
+  // Counts the tick that JUST happened. React state is still the pre-toggle
+  // snapshot inside this handler, so counting only `done` reports the project
+  // one task behind: ticking the last one said "One left". Counting the id
+  // explicitly is correct whether the list is stale or fresh.
+  const movedByTask = (t: { projectId?: string } | null, justDoneId: string): { moved: Moved; projectId: string } | null => {
+    const pid = t?.projectId;
+    if (!pid) return null;
+    const proj = projects.find((x) => x.id === pid);
+    if (!proj || proj.data.status === "done") return null;
+    const mine = allItems.filter((x) => x.data.projectId === pid);
+    const done = mine.filter((x) => x.data.done || x.id === justDoneId).length;
+    const moved = movedBy(proj.data.title, done, mine.length);
+    return moved ? { moved, projectId: pid } : null;
+  };
+
   const onToggle = async (id: string) => {
     const before = await svc.task(id);
     // Back On Track: completing a recurring task after a real gap gets the
@@ -154,8 +172,28 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
         setMomentum(next ? { afterId: id, task: next } : null);
       }
     }
+    // The progress toast is UNIVERSAL, not a Today-page trick. A tick means
+    // the same thing whichever screen it happened on, and a reward that only
+    // appears on one surface teaches nothing.
+    const advanced = before && !before.done ? movedByTask(before, id) : null;
     if (comeback) {
       showToast({ message: comeback });
+    } else if (advanced?.moved.cleared) {
+      // Delayed rewards are the ones ADHD discounts hardest, so finishing the
+      // project is one tap from HERE rather than four taps through a form.
+      showToast({
+        message: advanced.moved.projectTitle + " · " + advanced.moved.line,
+        actionLabel: "Finish It",
+        onAction: async () => {
+          const proj = projects.find((x) => x.id === advanced.projectId);
+          if (!proj) return;
+          await attemptWrite(() => projectsSvc.update(proj.id, { ...proj.data, status: "done" }));
+          await reload();
+          showToast({ message: celebrationLine("project", proj.id) + " · " + proj.data.title });
+        },
+      });
+    } else if (advanced) {
+      showToast({ message: advanced.moved.projectTitle + " · " + advanced.moved.line, actionLabel: "Undo", onAction: async () => { await attemptWrite(() => svc.toggleDone(id)); await reload(); } });
     } else if (before && !before.done) {
       showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => svc.toggleDone(id)); await reload(); } });
     }
