@@ -226,6 +226,26 @@ describe("LAW: Apple HIG casing", () => {
     expect(bad).toEqual([]);
   });
 
+  // THE RETIRED SECTION HEAD (catalog L). Today's icon-tile head, sec-ico
+  // plus sec-title, was retired in favour of the steel head. It survived in
+  // the check-in, which meant the one card in the Heads Up stream that was
+  // not a card, sitting directly under three that were. That reads as "why
+  // is this sectioned off differently", which is the note Dave has written
+  // more times than any other.
+  it("nothing on Today uses the retired icon-tile section head", () => {
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const r = rel(f);
+      if (!r.startsWith("today/") && !r.startsWith("weather/")) continue;
+      // Comments explaining WHY it was retired are not uses of it.
+      const src = read(f)
+        .replace(/\/\*[\s\S]*?\*\//g, " ")
+        .split("\n").filter((l) => !/^\s*(\/\/|\*)/.test(l)).join("\n");
+      if (/className="[^"]*sec-(ico|title)/.test(src)) bad.push(r);
+    }
+    expect(bad).toEqual([]);
+  });
+
   // EVERY CSS VARIABLE MUST EXIST (2026-08-20). An undefined custom property
   // does not error and does not warn: the declaration is simply dropped, and
   // the element silently renders with nothing. This has now shipped twice,

@@ -1,6 +1,7 @@
 import { JARVIS_VOICE } from "./voice";
 import type { AIContext } from "./context";
 import { contextToText } from "./context";
+import { titleCase } from "../shared/casing";
 
 // Asks the model for up to two short, grounded nudges for the user's day.
 export function suggestionsSystemPrompt(ctx: AIContext, today: string, avoid: string[] = []): string {
@@ -35,11 +36,16 @@ export function noDashes(s: string): string {
 }
 
 export function scrubStyle(s: string): string {
-  return s
+  const cleaned = s
     .replace(/\s*\u2014\s*/g, ": ")
     .replace(/\s*--\s*/g, ": ")
     .replace(/[.\u3002]+$/g, "")
     .trim();
+  // The prompt asks for Title Case and models over-apply it, capitalising the
+  // small words too ("Push The Rob Proposal Forward This Afternoon"). The app
+  // has one Title Case implementation and it knows the small-word rule, so
+  // the model's answer is NORMALISED here rather than trusted.
+  return titleCase(cleaned);
 }
 
 export interface Suggestion { text: string; task: string | null }

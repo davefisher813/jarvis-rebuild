@@ -43,7 +43,11 @@ export default function RemindersStrip({
     <>
       <div className="sh2">
         <span className="t">Reminders</span>
-        {onAdd && <button className="see-all" onClick={onAdd}>Add</button>}
+        {/* One Add, never two. An empty strip shows the LABELLED in-list create
+            (which is discoverable); a populated one shows the head action
+            (which is out of the way). Both at once is two controls for one
+            job, six pixels apart. */}
+        {onAdd && items.length > 0 && <button className="see-all" onClick={onAdd}>Add</button>}
       </div>
       <div className="pad-x"><div className="card">
         {items.map((r) => (

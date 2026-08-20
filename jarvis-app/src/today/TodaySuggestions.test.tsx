@@ -21,17 +21,17 @@ describe("TodaySuggestions", () => {
     const fetchImpl = vi.fn(async () => ({
       ok: true,
       status: 200,
-      json: async () => ({ text: '["Email Sam the Q3 plan","Reach out to Maya"]' }),
+      json: async () => ({ text: '["Email Sam the Q3 Plan","Reach out to Maya"]' }),
       text: async () => "",
     })) as unknown as typeof fetch;
     render(<NotesProvider userId="u2"><TodaySuggestions ai={new AIService({ available: true, getToken: () => "t", fetchImpl })} /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Email Sam the Q3 plan")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Email Sam the Q3 Plan")).toBeInTheDocument());
     expect(screen.getByText("Dismiss")).toBeInTheDocument();
     // one row at a time: the second suggestion waits its turn
     expect(screen.queryByText("Reach out to Maya")).not.toBeInTheDocument();
     // dismissing from the corner reveals the next candidate
     fireEvent.click(screen.getByText("Dismiss"));
-    await waitFor(() => expect(screen.queryByText("Email Sam the Q3 plan")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Email Sam the Q3 Plan")).not.toBeInTheDocument());
   });
 });
 

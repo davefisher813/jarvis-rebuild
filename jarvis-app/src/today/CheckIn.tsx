@@ -3,6 +3,7 @@ import { useProfile } from "../data/NotesProvider";
 import { todayISO } from "../schedule/calendar";
 import { haptics } from "../shared/haptics";
 import type { ProfileData } from "../profile/types";
+import NoticeCard from "./NoticeCard";
 
 // The evening check-in: ONE question, every answer a single tap, dismissing is
 // guilt-free and gone for the day. The morning "one thing" and "still on for"
@@ -54,18 +55,23 @@ export default function CheckIn({ onChanged }: { onChanged?: () => void }) {
   }
   if (!show) return null;
 
+  // THE NOTICE LAW (catalog R). This lives in the Heads Up stream, so it is
+  // built like everything else in it: one card, one glyph, one control on the
+  // visible line. It was the last surviving user of the retired icon-tile
+  // section head (sec-ico + sec-title), which meant the one card in the
+  // stream that was not a card. That is exactly the "why is this sectioned
+  // off differently" Dave has rejected every time it has appeared.
+  //
+  // The three moods are ANSWERS, not competing actions, so they ride the
+  // card's foot rather than fighting the dismiss for the visible line.
   return (
-    <>
-      <div className="sec-head">
-        <div className="sec-left">
-          <div className="sec-ico ico-blue">{SPARK}</div>
-          <div className="sec-title">Check In</div>
-        </div>
-        <button className="see-all quiet-action" onClick={async () => { await saveDay({ addSkip: "mood" }); haptics.selection(); setShow(false); }}>Not Now</button>
-      </div>
-      <div className="pad-x sec-question">How did today feel?</div>
-      <div className="pad-x"><div className="card">
-        <div className="row">
+    <NoticeCard
+      icon={SPARK}
+      tone="cat-fg-blue"
+      title="How Did Today Feel?"
+      onDismiss={async () => { await saveDay({ addSkip: "mood" }); haptics.selection(); setShow(false); }}
+      foot={
+        <div className="row check-moods">
           {[["fire", "🔥 Flow"], ["meh", "😐 Meh"], ["under", "🌊 Underwater"]].map(([v, label]) => (
             <div className="chip" role="button" tabIndex={0} key={v} onClick={async () => {
               await saveDay({ mood: v });
@@ -77,7 +83,7 @@ export default function CheckIn({ onChanged }: { onChanged?: () => void }) {
             }}>{label}</div>
           ))}
         </div>
-      </div></div>
-    </>
+      }
+    />
   );
 }
