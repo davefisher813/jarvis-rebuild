@@ -226,6 +226,58 @@ describe("LAW: Apple HIG casing", () => {
     expect(bad).toEqual([]);
   });
 
+  // EVERY CSS VARIABLE MUST EXIST (2026-08-20). An undefined custom property
+  // does not error and does not warn: the declaration is simply dropped, and
+  // the element silently renders with nothing. This has now shipped twice,
+  // once as an invisible progress arc drawn in var(--green) when the token is
+  // called --good, and once as a card whose background never applied. Both
+  // passed every other gate, because tests do not look at pixels.
+  it("no stylesheet references a custom property that was never defined", () => {
+    const css = ["jarvis-design-system.css", "uniformity.css", "components.css"]
+      .map((f) => read(SRC + "/styles/" + f)).join("\n");
+    const defined = new Set([...css.matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((m) => m[1]!));
+    // Fallback forms, var(--x, something), are safe by construction.
+    const used = [...css.matchAll(/var\(\s*(--[a-z0-9-]+)\s*\)/gi)].map((m) => m[1]!);
+    const missing = [...new Set(used.filter((v) => !defined.has(v)))].sort();
+    expect(missing).toEqual([]);
+  });
+
+  // C2 · THE THREE-SECOND CAPTURE (Dave 2026-08-20, from the research).
+  //
+  // Capture has to take about three seconds or working memory drops the
+  // thought before it lands. That is the whole reason the capture bar exists,
+  // and it is exactly the kind of thing that erodes: someone adds a category
+  // picker "just to make it tidy" and the feature quietly stops working.
+  //
+  // So the rule is a test. The quick capture surface may ask for ONE thing.
+  it("quick capture never grows a second required field", () => {
+    const src = read(SRC + "/capture/QuickCapture.tsx");
+    const required = [...src.matchAll(/input-req/g)].length;
+    expect(required).toBeLessThanOrEqual(1);
+    // And it never gains a picker that has to be answered before saving.
+    expect(/required\s*(=|:)\s*(\{?\s*true)/.test(src)).toBe(false);
+  });
+
+  // E2 · DEFAULTS OVER CONFIGURATION. The abandonment research is blunt: the
+  // apps people quit are the ones that ask instead of deciding. A sheet may
+  // require the ONE thing it cannot invent (a task needs its text, an event
+  // needs a time). Anything past that is the app making its homework his.
+  it("no sheet asks for more than the thing it cannot invent", () => {
+    const LIMIT: Record<string, number> = {
+      // An event genuinely cannot be placed without a title, a date and a
+      // start; every other field on that sheet defaults.
+      "schedule/screens/EventSheet.tsx": 3,
+    };
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const r = rel(f);
+      const n = [...read(f).matchAll(/input-req/g)].length;
+      const cap = LIMIT[r] ?? 1;
+      if (n > cap) bad.push(`${r}: ${n} required fields`);
+    }
+    expect(bad).toEqual([]);
+  });
+
   // THE NUMBER-LEAD CAPITAL (Dave 2026-08-20, caught on "14 emails need
   // you"). When a number leads a line, the first word behind it that can
   // carry a capital gets one. The rule lives in shared/casing; a builder that

@@ -41,6 +41,9 @@ import { clearChase } from "../messages/followUp";
 import { planFromBlock } from "../tasks/ifThen";
 import { acceptBody } from "../messages/meetingTimes";
 import { welcomeBack, loadLastSeen, markSeen } from "./welcomeBack";
+import TimeArc from "./TimeArc";
+import { proposeFirstMove, nextStart, endsAt, ritualIsReady, whyNotReady, LENGTHS, DEFAULT_MINUTES, type Ritual } from "../tasks/startRitual";
+import RitualSheet from "../tasks/screens/RitualSheet";
 import { loadMailSnapshot } from "../messages/home";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -703,6 +706,16 @@ export default function TodayFlow({
   // Hook order is unconditional: this must sit ABOVE the loading return.
   const [remSheet, setRemSheet] = useState<{ mode: "new" } | { mode: "edit"; id: string; text: string; reminder: ReminderInfo } | null>(null);
 
+  // EVERY HOOK SITS ABOVE THE EARLY RETURN. React counts hooks by call order,
+  // so one declared below `if (loading) return` runs on some renders and not
+  // others, and the app dies with error #310 the moment loading flips. This
+  // has bitten three times now. The guard is eslint's rules-of-hooks, which
+  // reports it as an ERROR, and the commit gate is eslint at zero errors, so
+  // it cannot ship. Do not move these down to be near what uses them.
+  const gapTotalRef = useRef<number>(0);
+  const gapKeyRef = useRef<string>("");
+  const [ritual, setRitual] = useState<Ritual | null>(null);
+
   if (loading) return <SkeletonScreen />;
 
   // GROUP B (items 10-11): the Now line and the gap offer, derived fresh
@@ -728,15 +741,36 @@ export default function TodayFlow({
     if (h === 0) return `${m}m`;
     return m === 0 ? `${h}h` : `${h}h ${m}m`;
   };
+  // The gap as it was when this gap BEGAN, so the arc empties against a real
+  // span rather than re-basing itself every minute and never appearing to
+  // move. Reset whenever the next thing changes, which is a new gap.
+  if (gapKeyRef.current !== gapKey) {
+    gapKeyRef.current = gapKey;
+    gapTotalRef.current = nowCtx.gapMin ?? 0;
+  }
+  if ((nowCtx.gapMin ?? 0) > gapTotalRef.current) gapTotalRef.current = nowCtx.gapMin ?? 0;
+
   const nowSection = !evening && (
     <>
       <div className="pad-x"><div className="card">
         {nowCtx.gapMin !== null && nowCtx.nextStart ? (
-          <div className="now-stats">
-            <StatTiles stats={[
-              { num: `${fmtTime(nowCtx.nextStart).time} ${fmtTime(nowCtx.nextStart).ap}`, label: "free until", tint: "sky" },
-              { num: shortSpan(nowCtx.gapMin), label: "open", tint: "good" },
-            ]} />
+          // B2 (2026-08-20): the gap as a SHAPE. Two big digits told him a
+          // number he then had to convert into a feeling, and converting is
+          // the step this app exists to remove. The arc empties against the
+          // whole gap, so watching it means something.
+          <div className="now-sweep">
+            <TimeArc
+              leftMin={nowCtx.gapMin}
+              totalMin={gapTotalRef.current}
+              label={shortSpan(nowCtx.gapMin)}
+              sub="open"
+            />
+            <div className="row-stack">
+              <div className="conn-name">Free until {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</div>
+              {/* What the gap ENDS with, not the same sentence again. The
+                  arc says how much; the name says why it stops. */}
+              {nowCtx.nextTitle && <div className="conn-meta">Then {nowCtx.nextTitle}</div>}
+            </div>
           </div>
         ) : (
           <div className="row">
@@ -770,6 +804,16 @@ export default function TodayFlow({
             <div className="row row-acts">
               <div className="momentum-actions">
                 <button className="btn btn-primary btn-sm" onClick={() => void onOpenTask(gapPick.id)}>Start</button>
+                {/* C1 · THE START RITUAL. Not a focus timer: a timer starts
+                    when you are already working, which is the problem
+                    solved. This is for the minute before. */}
+                <button className="btn-sm" onClick={() => setRitual({
+                  taskId: gapPick.id,
+                  text: gapPick.text,
+                  firstMove: proposeFirstMove(gapPick.text),
+                  startHHMM: nextStart(nhm),
+                  minutes: DEFAULT_MINUTES,
+                })}>Set a Start</button>
                 <button className="btn-sm" onClick={() => setGapDismissed(gapKey)}>Not Now</button>
               </div>
             </div>
@@ -1260,6 +1304,26 @@ export default function TodayFlow({
           onDone={() => { void reload(); }}
         />
       </Suspense>
+    )}
+    {ritual && (
+      <RitualSheet
+        initial={ritual}
+        onCancel={() => setRitual(null)}
+        onSet={(r) => {
+          setRitual(null);
+          // The container is a real block on the real day, not an app-only
+          // timer: it has to survive him closing JARVIS, which is precisely
+          // when starting goes wrong.
+          void (async () => {
+            const ok = await attemptWrite(() => schedule.createEvent(r.text, {
+              date: today, start: r.startHHMM, end: endsAt(r),
+              sourceTaskId: r.taskId,
+            }));
+            await reload();
+            if (ok) showToast({ message: `Starts ${r.startHHMM} · ${r.firstMove}` });
+          })();
+        }}
+      />
     )}
     {remSheet && (
       <ReminderSheet

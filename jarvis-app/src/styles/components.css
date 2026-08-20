@@ -232,7 +232,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 
 /* All bottom sheets render the same: capped to the screen, body scrolls, actions
    stay pinned and visible. Applies to Task, Event and Category sheets uniformly. */
-.sheet-scrim > .card { max-height: 100%; display: flex; flex-direction: column; border-radius: var(--r) var(--r) 0 0; }
+.sheet-scrim > .card { max-height: 100%; display: flex; flex-direction: column; border-radius: var(--r-xl) var(--r-xl) 0 0; }
 .sheet-scrim .sheet-handle, .sheet-scrim .grp { flex-shrink: 0; }
 .sheet-scrim .grp { padding-top: var(--s-2); padding-bottom: var(--s-1h); }
 .sheet-scrim .sheet-actions { padding-bottom: max(var(--s-4), env(safe-area-inset-bottom)); }
@@ -612,7 +612,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
 /* RULE-9: Messages tab. Most rows reuse .row/.card/.conn-name/.conn-meta. */
 .msg-dot { width: 8px; height: 8px; border-radius: var(--r-circle); background: var(--accent); flex-shrink: 0; align-self: center; }
-.msg-strong { font-weight: var(--w-semibold); }
+.msg-strong { font-weight: var(--w-semi); }
 .msg-chips { display: flex; gap: var(--s-2); margin-bottom: var(--s-2); }
 .msg-detail-head { padding: var(--s-2) 0 var(--s-3); }
 .msg-detail-subj { font-size: var(--t-h3); font-weight: var(--w-bold); }
@@ -652,7 +652,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .msg-turn { padding: var(--s-3) 0; border-bottom: 0.5px solid var(--card-bd); }
 .msg-turn:last-of-type { border-bottom: 0; }
 .msg-turn-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s-2); margin-bottom: var(--s-1); }
-.msg-turn-from { font-size: var(--t-body); font-weight: var(--w-semibold); }
+.msg-turn-from { font-size: var(--t-body); font-weight: var(--w-semi); }
 
 /* THE FOLD (relief track). Everything that does not need him collapses to a
    single quiet line. It reads as furniture, not as a pile: same card, dimmer
@@ -682,7 +682,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 
 /* Multi-account (2026-08-04): the account tag is quiet metadata, never a
    second subject line; account chips in Connections sit inside the row. */
-.msg-acct { display: inline-block; font-size: 10px; font-weight: var(--w-semibold); letter-spacing: 0.04em; text-transform: uppercase; border: 0.5px solid var(--card-bd); border-radius: 5px; padding: 1px 5px; color: var(--tx-3); margin-left: var(--s-2); vertical-align: 1px; }
+.msg-acct { display: inline-block; font-size: 10px; font-weight: var(--w-semi); letter-spacing: 0.04em; text-transform: uppercase; border: 0.5px solid var(--card-bd); border-radius: 5px; padding: 1px 5px; color: var(--tx-3); margin-left: var(--s-2); vertical-align: 1px; }
 .conn-acct-chips { margin: var(--s-1h) 0 0; }
 
 /* RULE-9: Tasks - large completion target + swipe-to-delete. */
@@ -1020,7 +1020,7 @@ button {
 .budget-math { margin-top: var(--s-3); border-top: 0.5px solid var(--card-bd); padding-top: var(--s-2h); }
 .budget-row { display: flex; justify-content: space-between; align-items: baseline; padding: var(--s-1h) 0;
   font-size: var(--t-body); color: var(--tx-2); }
-.budget-total { color: var(--tx-1); font-weight: var(--w-semibold); border-top: 0.5px solid var(--card-bd); margin-top: var(--s-1); padding-top: var(--s-2); }
+.budget-total { color: var(--tx-1); font-weight: var(--w-semi); border-top: 0.5px solid var(--card-bd); margin-top: var(--s-1); padding-top: var(--s-2); }
 .budget-add { display: flex; gap: var(--s-2); align-items: center; }
 .budget-amt { width: 6rem; flex-shrink: 0; }
 
@@ -1632,8 +1632,12 @@ button {
 /* An action line inside a card: the buttons own the width instead of
    competing with a title for it. Used by Now and anywhere a row's controls
    would otherwise truncate the one thing the row is there to say. */
-.row-acts .momentum-actions { flex: 1; }
-.row-acts .btn-sm, .row-acts .btn { flex: 1; justify-content: center; }
+.row-acts .momentum-actions { flex: 1; gap: var(--s-2); }
+/* Size to content, never to an equal share: three equal columns on a 390px
+   phone wrapped "Set a Start" onto two lines, which is the same truncation
+   bug the Now card already had once. */
+.row-acts .btn-sm, .row-acts .btn { flex: 0 1 auto; justify-content: center; white-space: nowrap; }
+.row-acts .btn-sm { padding: 0 var(--s-3); }
 /* A notice title gets two lines. Truncating "Complete Your Enrollment" to
    "Complete Your Enr..." throws away the one thing the card exists to say;
    an extra line costs less than a card he has to open to understand. */
@@ -1855,7 +1859,7 @@ button {
    missing a day. Deliberately calm; a reward bar that shouts is a streak. */
 .auto-line { padding: var(--s-3) 0 var(--s-1); }
 .auto-bar { height: 4px; border-radius: 999px; background: var(--press-3); overflow: hidden; }
-.auto-bar span { display: block; height: 100%; border-radius: 999px; background: var(--green);
+.auto-bar span { display: block; height: 100%; border-radius: 999px; background: var(--good);
   transition: width var(--dur-normal) var(--ease-out); }
 .auto-text { margin-top: var(--s-2); font-size: var(--t-meta); color: var(--tx-3); }
 
@@ -1863,3 +1867,21 @@ button {
    must never look alike, or the pad quietly becomes a fact. */
 .plan-est-note { font-size: var(--t-eyebrow); letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--tx-4); margin-top: var(--s-2); }
+
+/* B2 · THE SWEEP. The remaining gap as a shape, because an arc is read at a
+   glance and a digital readout has to be computed first. The number stays
+   inside it: removing it would trade one illegibility for another. */
+.time-arc { position: relative; display: flex; align-items: center; justify-content: center;
+  width: 82px; height: 82px; flex-shrink: 0; }
+.time-arc svg { position: absolute; inset: 0; }
+.time-arc-text { position: relative; text-align: center; line-height: 1.1; }
+/* The label has to FIT the circle. "1h 45m" is a third wider than "4h", so
+   the size steps down rather than spilling over the ring. */
+.time-arc-num { font-size: 19px; font-weight: var(--w-bold); letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums; }
+.time-arc.long .time-arc-num { font-size: 15px; }
+.time-arc-sub { font-size: 10px; font-weight: var(--w-bold); letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--tx-4); margin-top: 2px; }
+/* The Now card pairs the sweep with the facts beside it. */
+.now-sweep { display: flex; align-items: center; gap: var(--s-4); padding: var(--s-4) var(--s-4) var(--s-3); }
+.now-sweep .row-stack { flex: 1; min-width: 0; }
