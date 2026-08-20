@@ -1841,3 +1841,25 @@ button {
 .send-hold { border: 1px solid rgba(10,132,255,0.35); }
 /* The email curtain: a calm surface, not an error. */
 .mail-curtain { border: 1px solid rgba(100,210,255,0.28); }
+
+/* A1 · THE CUE ON A ROW. Quiet but present: the trigger is the half that has
+   to be recognisable in the moment, and it earns one line under the name. */
+.task-cue { font-size: var(--t-meta); color: var(--tx-3); margin-top: 1px; }
+.task-cue::before { content: "\2192  "; color: var(--tx-4); }
+/* The whole if-then sentence, read back under the fields while he writes it,
+   so he sees the plan he is actually making. */
+.input-hint { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); font-style: italic; }
+
+/* D1 · THE AUTOMATICITY LINE. A progress bar toward the thing being
+   automatic, not a streak: it has no cliff, so there is nothing to lose by
+   missing a day. Deliberately calm; a reward bar that shouts is a streak. */
+.auto-line { padding: var(--s-3) 0 var(--s-1); }
+.auto-bar { height: 4px; border-radius: 999px; background: var(--press-3); overflow: hidden; }
+.auto-bar span { display: block; height: 100%; border-radius: 999px; background: var(--green);
+  transition: width var(--dur-normal) var(--ease-out); }
+.auto-text { margin-top: var(--s-2); font-size: var(--t-meta); color: var(--tx-3); }
+
+/* B3 · WHERE THE ESTIMATE CAME FROM. A padded guess and a measured median
+   must never look alike, or the pad quietly becomes a fact. */
+.plan-est-note { font-size: var(--t-eyebrow); letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--tx-4); margin-top: var(--s-2); }

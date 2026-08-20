@@ -129,10 +129,13 @@ describe("PlanDaySheet (redesigned 2026-08-06)", () => {
     fireEvent.click(screen.getByText("Return package"));
     fireEvent.click(screen.getByLabelText("Return package: adjust"));
     const chip = (m: number) => screen.getByLabelText(`Return package: ${m} minutes`);
-    expect(chip(45).className).toContain("chip-on");
+    // B3 (2026-08-20): with no history for this category the default is
+    // PADDED, because a flat default is exactly where the underestimate
+    // lives. 45 padded lands on the 60 chip.
+    expect(chip(60).className).toContain("chip-on");
     fireEvent.click(chip(120));
     expect(chip(120).className).toContain("chip-on");
-    expect(chip(45).className).not.toContain("chip-on");
+    expect(chip(60).className).not.toContain("chip-on");
     fireEvent.click(chip(30));
     expect(chip(30).className).toContain("chip-on");
   });
@@ -201,7 +204,7 @@ describe("PlanDaySheet (redesigned 2026-08-06)", () => {
     fireEvent.click(screen.getByText(/^Add /));
     expect(onCommit).toHaveBeenCalledTimes(1);
     const blocks = onCommit.mock.calls[0]![0];
-    expect(blocks).toEqual([{ taskId: "t3", text: "Return package", category: "home", start: "14:00", end: "14:45" }]);
+    expect(blocks).toEqual([{ taskId: "t3", text: "Return package", category: "home", start: "14:00", end: "15:00" }]);
   });
 });
 
@@ -264,10 +267,11 @@ describe("PlanDaySheet Estimate with AI (Brain Personalization Phase 1, 2026-08-
     fireEvent.click(screen.getByText("Re-Estimate Lengths"));
 
     await screen.findByText(/Couldn.t reach the AI/);
-    // The default duration is untouched; nothing crashed or cleared. 45 is a
-    // chip, so the chip is the readout.
+    // The default duration is untouched; nothing crashed or cleared. With no
+    // history the default is the padded 60 (B3), and 60 is a chip, so the
+    // chip is the readout.
     fireEvent.click(screen.getByLabelText("Return package: adjust"));
-    expect(screen.getByLabelText("Return package: 45 minutes").className).toContain("chip-on");
+    expect(screen.getByLabelText("Return package: 60 minutes").className).toContain("chip-on");
   });
 });
 

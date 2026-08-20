@@ -88,6 +88,12 @@ export interface ReminderInfo {
   // set last night cannot silently move this morning's ping.
   snoozedTo?: string;
   snoozeDate?: string;
+  // D1 (2026-08-20): how many times this has actually been enacted, and the
+  // day last counted so ticking twice cannot farm it. This is the honest
+  // version of a streak: nothing ever resets, so a gap costs one day rather
+  // than the whole run.
+  doneCount?: number;
+  lastCounted?: string;
 }
 
 export interface TaskData {
@@ -110,6 +116,11 @@ export interface TaskData {
   bestRun?: number; // recurring: best run ever (never shrinks)
   bill?: BillInfo; // Money v1: this task is a bill (see BillInfo)
   reminder?: ReminderInfo; // this task is a reminder (see ReminderInfo)
+  // A1 (2026-08-20): the if-then plan. "If [cue], then I'll [≤5 words]."
+  // Rides the task entity like bill and reminder do, so no registry
+  // migration. Optional and additive: a task without one behaves exactly as
+  // it always has.
+  plan?: import("../tasks/ifThen").IfThen;
 }
 
 export type TemplateKey =

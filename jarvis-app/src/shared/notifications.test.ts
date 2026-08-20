@@ -60,15 +60,29 @@ import { buildEventReminders, EVENT_REMINDER_BASE, EVENT_REMINDER_CAP } from "./
 describe("buildEventReminders", () => {
   const NOW = new Date("2026-08-09T08:00:00").getTime();
 
-  it("fires the lead ahead of the start, with the location riding along", () => {
-    const [r] = buildEventReminders([{ date: "2026-08-09", start: "09:20", title: "ES Game", location: "188 Clinton Ave" }], NOW);
-    expect(r!.at).toEqual(new Date("2026-08-09T09:05:00"));
-    expect(r!.title).toBe("ES Game");
-    expect(r!.body).toBe("Starts in 15 minutes · 188 Clinton Ave");
+  // B1 (2026-08-20): a ladder now, not one ping. NOW is 08:00, so a 09:20
+  // event is 80 minutes out and earns all four rungs, soonest fired last.
+  it("fires a ladder ahead of the start, with the location riding along", () => {
+    const rs = buildEventReminders([{ date: "2026-08-09", start: "09:20", title: "ES Game", location: "188 Clinton Ave" }], NOW);
+    expect(rs.map((r) => r.at)).toEqual([
+      new Date("2026-08-09T08:20:00"),
+      new Date("2026-08-09T08:50:00"),
+      new Date("2026-08-09T09:05:00"),
+      new Date("2026-08-09T09:15:00"),
+    ]);
+    expect(rs[0]!.title).toBe("ES Game");
+    expect(rs[0]!.body).toBe("In an hour · 188 Clinton Ave");
+    expect(rs[3]!.body).toBe("Leave what you're doing · 188 Clinton Ave");
   });
 
-  it("skips anything whose reminder moment already passed", () => {
-    expect(buildEventReminders([{ date: "2026-08-09", start: "08:10", title: "Too soon" }], NOW)).toHaveLength(0);
+  it("skips rungs that have already passed rather than stacking them", () => {
+    // 08:10 is ten minutes out: only the 5-minute rung is still ahead.
+    const rs = buildEventReminders([{ date: "2026-08-09", start: "08:10", title: "Soon" }], NOW);
+    expect(rs.map((r) => r.at)).toEqual([new Date("2026-08-09T08:05:00")]);
+  });
+
+  it("skips anything whose every rung already passed", () => {
+    expect(buildEventReminders([{ date: "2026-08-09", start: "08:02", title: "Too soon" }], NOW)).toHaveLength(0);
   });
 
   it("skips junk instead of scheduling nonsense", () => {

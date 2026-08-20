@@ -18,6 +18,7 @@ import { pickByFeel, feelAvailable, FEEL_LABEL, type Feel } from "../pickByFeel"
 import { dayClock } from "../planClock";
 import { capAfterNumber } from "../../shared/casing";
 import { loadShapes, dayScores, planCount, shapeOffer, applyShape, saveShape } from "../dayShape";
+import { estimateFor, padNote, learnedNote } from "../padding";
 
 const BUFFER = 10;
 const DEFAULT_DUR = 45;
@@ -151,7 +152,12 @@ export default function PlanDaySheet({
   const clock = target === "today" ? dayClock(startMin, effEnd) : null;
 
   const catOf = (id: string) => allTasks.find((t) => t.id === realId(id))?.category ?? "";
-  const durFor = (id: string) => durations[id] ?? learned[catOf(id)] ?? DEFAULT_DUR;
+  // B3 (2026-08-20): an unlearned category gets a PADDED default, because a
+  // flat default is exactly where the underestimate lives. A measurement
+  // always beats a pad, and the pad is labelled so it is never mistaken for
+  // one. An explicit stepper edit still wins over both.
+  const estFor = (id: string) => estimateFor(catOf(id), learned, DEFAULT_DUR, DUR_CHOICES);
+  const durFor = (id: string) => durations[id] ?? estFor(id).minutes;
   const setDur = (id: string, next: number) => setDurations((prev) => ({ ...prev, [id]: Math.max(DUR_MIN, Math.min(DUR_MAX, next)) }));
   const setOverride = (id: string, hhmmStr: string) => setOverrides((prev) => {
     if (!hhmmStr) { const n = { ...prev }; delete n[id]; return n; }

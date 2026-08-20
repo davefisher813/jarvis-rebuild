@@ -4,6 +4,8 @@ import { ENTITY_TASK, type TaskData, type Recurrence, type BillInfo, type Remind
 import { groupFor, todayISO, nextDue, type TaskGroup } from "./grouping";
 import { nextStreak } from "./lifecycle";
 import { recordCompletion } from "../shared/timeSense";
+import { countEnactment } from "./automaticity";
+import { isUsable, type IfThen } from "./ifThen";
 
 export interface TaskItem {
   id: string;
@@ -38,7 +40,7 @@ export class TasksService {
 
   async createTask(
     text: string,
-    opts: { category?: string; due?: string | null; fromNote?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source } = {},
+    opts: { category?: string; due?: string | null; fromNote?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen } = {},
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
     const data: TaskData = { text: text.trim(), category: opts.category ?? "", done: false };
@@ -49,6 +51,7 @@ export class TasksService {
     if (opts.bill) data.bill = opts.bill;
     if (opts.reminder) data.reminder = opts.reminder;
     if (opts.source) data.source = opts.source;
+    if (opts.plan && isUsable(opts.plan)) data.plan = opts.plan;
     const id = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_TASK, entityId: id });
     return id;
@@ -168,8 +171,14 @@ export class TasksService {
 
   // Ticking is a date write, never a boolean: done-ness is derived, so the
   // reminder resets itself at midnight with nothing scheduled to do it.
-  tickReminder(id: string, today: string): Promise<boolean> {
-    return this.patchReminder(id, { lastDone: today });
+  // D1: a tick is also an ENACTMENT, counted once per day. Untick clears the
+  // done date but NEVER decrements the count: what he did, he did, and a
+  // count that can be walked backwards is a streak wearing a disguise.
+  async tickReminder(id: string, today: string): Promise<boolean> {
+    const t = await this.getTask(id);
+    const prev = t?.reminder;
+    const counted = countEnactment(prev?.doneCount, prev?.lastCounted, today);
+    return this.patchReminder(id, { lastDone: today, doneCount: counted.doneCount, lastCounted: counted.lastCounted });
   }
   untickReminder(id: string): Promise<boolean> {
     return this.patchReminder(id, { lastDone: undefined });
@@ -220,6 +229,18 @@ export class TasksService {
     const t = await this.getTask(id);
     if (!t) return false;
     await this.store.update(this.ownerId, id, { projectId: projectId ?? null });
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
+  // A1: the if-then plan. Null clears it; an unusable one is never stored,
+  // because a plan that will not work is worse than no plan (it feels like
+  // one and carries no effect).
+  async setPlan(id: string, plan: IfThen | null): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t) return false;
+    const next = plan && isUsable(plan) ? plan : null;
+    await this.store.update(this.ownerId, id, { plan: next } as unknown as ItemData);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }

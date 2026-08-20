@@ -38,7 +38,9 @@ import { mapThreadFull, buildReply, encodeEmail } from "../connections/google/ma
 import { cardReplyPrompt, cardNudgePrompt, parseCardDraft } from "../messages/cardDraft";
 import { ladderFor, loadNudgeCounts, countNudge } from "../messages/escalate";
 import { clearChase } from "../messages/followUp";
+import { planFromBlock } from "../tasks/ifThen";
 import { acceptBody } from "../messages/meetingTimes";
+import { welcomeBack, loadLastSeen, markSeen } from "./welcomeBack";
 import { loadMailSnapshot } from "../messages/home";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -470,12 +472,25 @@ export default function TodayFlow({
     return !!ok;
   };
 
+  // Read ONCE per mount, before the stamp is rewritten, or the return card
+  // could never fire: marking today as seen would erase the gap it detects.
+  const lastSeenRef = useRef<string | null>(loadLastSeen());
+  useEffect(() => { markSeen(today); }, [today]);
+
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
     const ids: string[] = [];
     const ok = await attemptWrite(async () => {
       for (const b of blocks) {
         const id = await schedule.createEvent(b.text, { date: planDate, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId });
         if (id) ids.push(id);
+        // A2 (2026-08-20): committing a plan already decides the WHEN, so the
+        // if-then costs nothing to write. Gollwitzer and Sheeran put this at
+        // d = 0.65; this is the cheapest possible way to buy it. Never
+        // overwrites a plan he wrote himself.
+        const existing = taskItems.find((t) => t.id === b.taskId);
+        if (b.taskId && existing && !existing.data.plan) {
+          await tasks.setPlan(b.taskId, planFromBlock(b.text, b.start));
+        }
       }
     });
     setPlanOpen(false);
@@ -860,7 +875,22 @@ export default function TodayFlow({
   const DOC_ICO = (
     <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
   );
+  // E1 · DESIGNING FOR THE RETURN (2026-08-20). You will stop using this for
+  // two weeks at some point; everyone does. The apps that punish you for it
+  // are the ones you never open again. No count of the pile, what is still
+  // true, and one thing to start with.
+  const back = welcomeBack(lastSeenRef.current, today, sweepReceipt?.moved.length ?? 0);
   const alertCards = [
+    back ? (
+      <NoticeCard
+        key="back"
+        icon={SWEEP_ICO}
+        tone="cat-fg-teal"
+        title={back.title}
+        sub={back.sub}
+        action={{ label: "Show Me", onClick: () => setUpNextOpen(true) }}
+      />
+    ) : null,
     revisit ? (
       <NoticeCard
         key="revisit"

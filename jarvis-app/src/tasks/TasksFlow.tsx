@@ -26,6 +26,8 @@ import { chainQuietToday, dismissChain, nextBest, chainReason } from "./momentum
 import { RowIcon } from "../shared/anatomy";
 import { touchActivity, recordSpot } from "../restore/whereYouWere";
 import { capAfterNumber } from "../shared/casing";
+import { loadOverwhelmed, setOverwhelmed as setOverwhelmedFlag, theOneThing } from "./overwhelmed";
+import { haptics } from "../shared/haptics";
 
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
@@ -40,6 +42,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   const tomorrow = (() => { const d = new Date(today + "T00:00:00"); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
   const [parts, setParts] = useState<Partitioned>(EMPTY);
   const [allItems, setAllItems] = useState<TaskItem[]>([]);
+  const [overwhelmed, setOverwhelmed] = useState(() => loadOverwhelmed(todayISO()));
   const [filter, setFilter] = useState<TaskFilter>(
     openFilter && (FILTERS as string[]).includes(openFilter) ? (openFilter as TaskFilter) : "today",
   );
@@ -314,7 +317,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
-      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId }));
+      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, plan: draft.plan }));
     } else if (sheet?.mode === "edit") {
       saved = await attemptWrite(async () => {
         await svc.editText(sheet.id, draft.text);
@@ -322,6 +325,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
         await svc.setDue(sheet.id, draft.due || null);
         await svc.setProject(sheet.id, draft.projectId ?? null);
         await svc.setRecurrence(sheet.id, rec || null);
+        await svc.setPlan(sheet.id, draft.plan ?? null);
       });
     }
     const wasNew = sheet?.mode === "new" && saved;
@@ -506,10 +510,17 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     <>
       <TasksPage
         onPickOne={pickOne}
+        overwhelmed={overwhelmed}
+        onOverwhelmed={() => { haptics.selection(); setOverwhelmed(setOverwhelmedFlag(true, today)); }}
+        onCalm={() => { haptics.selection(); setOverwhelmed(setOverwhelmedFlag(false, today)); }}
         onMoveAllToToday={() => void moveAllToToday()}
         filter={filter}
         counts={counts}
-        items={byCategory(parts[filter], catFilter)}
+        items={overwhelmed
+          // F1: the list IS the one thing. Nothing is deleted, deferred or
+          // rescheduled; this is a view, and everything returns on one tap.
+          ? [theOneThing(allItems, () => 30)].filter((t): t is TaskItem => !!t)
+          : byCategory(parts[filter], catFilter)}
         banner={fsBanner}
         categories={categories}
         catFilter={catFilter}
@@ -557,6 +568,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
           source={sheet.mode === "edit" ? sheet.source : undefined}
           categories={categories}
           onSave={onSave}
+          otherPlans={allItems.map((t) => ({ id: t.id, text: t.data.text, plan: t.data.plan }))}
           onSchedule={sheet.mode === "edit" ? onScheduleTask : undefined}
           onBreakDown={sheet.mode === "edit" && ai.available ? (t) => void breakDown(t) : undefined}
           onDelete={sheet.mode === "edit" ? onDelete : undefined}

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { DAY_PRESETS } from "../reminders";
 import type { ReminderInfo } from "../../notes/types";
+import { automaticityOf, automaticityLine } from "../automaticity";
 
 // TWO TAPS (Dave 2026-08-19). A reminder needs a name, a time, and how often.
 // That is the entire form. No category, no duration, no end date, no project,
@@ -24,6 +25,8 @@ export default function ReminderSheet({
 }) {
   const [text, setText] = useState(initial?.text ?? "");
   const [time, setTime] = useState(initial?.reminder.time ?? "08:00");
+  const auto = automaticityOf(initial?.reminder.doneCount ?? 0);
+  const autoLine = automaticityLine(auto);
   const [days, setDays] = useState<number[] | undefined>(initial?.reminder.days);
   const [err, setErr] = useState(false);
 
@@ -71,6 +74,20 @@ export default function ReminderSheet({
             </div>
           </div>
         </div>
+        {/* D1 · REPETITIONS, NOT STREAKS (2026-08-20). Keller et al. 2021:
+            what predicted automaticity was how often the plan was actually
+            enacted, median 59 days among those who formed the habit. So this
+            counts what he DID. Nothing resets, there is no run to lose, and
+            it never mentions misses. */}
+        {autoLine && (
+          <div className="pad-x">
+            <div className="auto-line">
+              <div className="auto-bar"><span style={{ width: Math.round(auto.progress * 100) + "%" }} /></div>
+              <div className="auto-text">{autoLine}</div>
+            </div>
+          </div>
+        )}
+
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-block" onClick={save}>Save</button>
           {/* THE HONEST LINE (2026-08-19). A web app cannot fire its own

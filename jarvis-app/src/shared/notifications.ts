@@ -11,6 +11,7 @@
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import type { RoutineData } from "../routine/types";
+import { LADDER, ladderBody, type Rung } from "../schedule/countdown";
 
 export interface CheckinNotification {
   id: number;
@@ -112,7 +113,8 @@ export async function cancelCheckinNotifications(): Promise<void> {
 // own block so re-scheduling can never touch the check-in pair.
 
 export const EVENT_REMINDER_BASE = 9100;
-export const EVENT_REMINDER_CAP = 40; // two days of events is nowhere near this
+// Four rungs per event now, so the cap has to hold four times the events.
+export const EVENT_REMINDER_CAP = 120;
 export const EVENT_REMINDER_LEAD_MIN = 15;
 
 export interface ReminderInput { date: string; start: string; title: string; location?: string }
@@ -124,20 +126,30 @@ export interface EventReminder { id: number; title: string; body: string; at: Da
 export function buildEventReminders(
   events: ReminderInput[],
   nowMs: number,
-  leadMin: number = EVENT_REMINDER_LEAD_MIN,
+  // B1 (2026-08-20): a LADDER, not a ping. One alert fifteen minutes out is a
+  // single moment you can be mid-something and miss; 60/30/15/5 builds the
+  // event into something real before it lands. Rungs whose lead has already
+  // passed are skipped, never stacked, so a thing happening in twenty minutes
+  // never claims to be an hour away.
+  ladder: readonly number[] = LADDER,
 ): EventReminder[] {
   const out: EventReminder[] = [];
   for (const e of events) {
     if (!e.title.trim() || !/^\d{2}:\d{2}$/.test(e.start)) continue;
-    const at = new Date(`${e.date}T${e.start}:00`);
-    at.setMinutes(at.getMinutes() - leadMin);
-    if (at.getTime() <= nowMs) continue;
-    out.push({
-      id: 0, // assigned after sorting
-      title: e.title.trim(),
-      body: `Starts in ${leadMin} minutes${e.location?.trim() ? ` · ${e.location.trim()}` : ""}`,
-      at,
-    });
+    const startMs = new Date(`${e.date}T${e.start}:00`).getTime();
+    if (!Number.isFinite(startMs)) continue;
+    const minutesUntil = (startMs - nowMs) / 60000;
+    for (const lead of ladder) {
+      if (lead >= minutesUntil) continue; // already past this rung
+      const at = new Date(startMs - lead * 60000);
+      if (at.getTime() <= nowMs) continue;
+      out.push({
+        id: 0, // assigned after sorting
+        title: e.title.trim(),
+        body: ladderBody(lead as Rung, e.location),
+        at,
+      });
+    }
   }
   out.sort((a, b) => a.at.getTime() - b.at.getTime());
   return out.slice(0, EVENT_REMINDER_CAP).map((r, i) => ({ ...r, id: EVENT_REMINDER_BASE + i }));

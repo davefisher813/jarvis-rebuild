@@ -11,6 +11,8 @@ import type { SheetCategory } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
 import Provenance from "../../shared/Provenance";
 import { capAfterNumber } from "../../shared/casing";
+import { cueLine } from "../ifThen";
+import { OVERWHELM_EXIT } from "../overwhelmed";
 
 // Tasks page. Two-line rows with a large (44pt) completion target on the left
 // and swipe-left-to-delete, so completing or removing a task is one easy action.
@@ -125,6 +127,10 @@ function Row({
         <div className="row-stack" role="button" tabIndex={0} onClick={() => onOpen?.(item.id)}>
           <div className="conn-name truncate">{t.text}</div>
           <div className={"eyebrow cat-fg-" + catColor(t.category)}>{catName(t.category)}{t.recurrence ? " \u00b7 " + t.recurrence : ""}</div>
+          {/* A1: the cue, where he will see it while scanning. The whole
+              sentence is on the sheet; the row carries the trigger, which is
+              the half that has to be recognisable in the moment. */}
+          {t.plan && <div className="task-cue">{cueLine(t.plan)}</div>}
           {/* Provenance Line (addendum item 8): auto-created rows say where
               they came from; hand-made rows render nothing here. */}
           <Provenance source={t.source} />
@@ -155,6 +161,9 @@ export default function TasksPage({
   banner,
   momentum,
   onPickOne,
+  onOverwhelmed,
+  onCalm,
+  overwhelmed = false,
   onMoveAllToToday,
 }: {
   filter: TaskFilter;
@@ -180,6 +189,10 @@ export default function TasksPage({
   // single best task for right now so the list never has to be read; Move
   // All resets an overdue pile in one tap instead of one tap per shame.
   onPickOne?: () => void;
+  // F1: hide everything but the one smallest thing. A view, never a write.
+  onOverwhelmed?: () => void;
+  onCalm?: () => void;
+  overwhelmed?: boolean;
   onMoveAllToToday?: () => void;
 }) {
   const [qa, setQa] = useState("");
@@ -187,10 +200,27 @@ export default function TasksPage({
     <div className="screen">
       <PageHeader title="Tasks" actions={<BarAction label="New Task" onClick={onNew}><Plus className="ic" /></BarAction>} />
 
-      {onPickOne && counts.all > 0 && (
+      {/* F1 · I'M OVERWHELMED. When it is on, the page IS the one thing:
+          everything else is hidden, nothing is moved, and one tap brings it
+          all back. The research is specific that the cut has to be to one,
+          because three is still a decision. */}
+      {overwhelmed ? (
         <div className="pad-x pick-one">
-          <button className="btn btn-primary btn-block btn-lg" onClick={onPickOne}>Just Pick One For Me</button>
+          <button className="btn btn-block" onClick={onCalm}>{OVERWHELM_EXIT}</button>
         </div>
+      ) : (
+        <>
+          {onPickOne && counts.all > 0 && (
+            <div className="pad-x pick-one">
+              <button className="btn btn-primary btn-block btn-lg" onClick={onPickOne}>Just Pick One For Me</button>
+            </div>
+          )}
+          {onOverwhelmed && counts.all > 2 && (
+            <div className="pad-x pick-one">
+              <button className="btn btn-block" onClick={onOverwhelmed}>I'm Overwhelmed</button>
+            </div>
+          )}
+        </>
       )}
 
       <div className="chip-row">
