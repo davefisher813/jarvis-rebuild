@@ -269,6 +269,27 @@ Three things in it were plainly broken, and the rest made him do the planner's j
 15. A DEAD DAY SAYS SO. Under an hour left and the sheet stops asking "what fits today?" and points at tomorrow.
 16. A REMINDER IS NEVER A PLAN CANDIDATE (catalog Q1, violated here since reminders shipped). "Morning Meds" sat under Anytime asking for a 45-minute block. Now enforced by law test across every list that offers work.
 
+## V. Email, Everything (V4.9, Dave 2026-08-20: "build all of it")
+
+U1–U5 and N1–N15. Fifteen pure modules, 71 tests. The laws that govern them:
+
+**On the card.** U1 drafts the reply in his voice ON the card, editable in place, sent from there: a draft you cannot change is a draft you have to leave the page to fix. U2 reuses the quick replies the Email tab already generated (never a second AI call for an answer we own); each chip is a WHOLE reply, capped at three, and a chip that asks HIM something is dropped because he cannot send that blind. U3 nudges the same way, deriving the recipient from who the last message was addressed to, never assuming, or the follow-up goes to himself. U4 snoozes to a TIME: same-day only, clamped inside the day, never offering a time that has passed. U5 says what the whole inbox IS from what the app actually knows, never characterising what senders "want".
+
+**Every failure path is the same.** No account, no thread, or an unusable model reply all end with the card saying so and opening the thread. Nothing is ever fabricated over his name; a refusal or an over-long answer is treated as no draft at all.
+
+1. NOTHING IS INVENTED, ANYWHERE. Meeting times come from what the sender wrote (N1). Money never comes from a filename (N2/N6). A quote is refused unless it is verbatim in what he actually sent (N11). Deadlines, promises and waits are all derived. An unreadable answer produces nothing, never a guess.
+2. ONE AUTO-SEND, MAXIMUM GUARDS. N8 is the only thing in this app that sends without a tap. Every gate lives in one function so "should this send" is one answer with one reason: off by default, VIPs only, once per person per focus block, never a machine, never himself, never a thread he already answered. The body is deterministic and names a real time he is back, because a model improvising over his name while he is not looking is not a feature.
+3. ORDER MATTERS WHEN TWO WRITES CAN DISAGREE. N1 writes the CALENDAR before it sends the reply: an accepted invitation with nothing in the diary is the failure the feature exists to remove, and a booked slot with an unsent reply is recoverable.
+4. BULK ACTIONS EARN TRUST BY WHAT THEY REFUSE. The Sunday close (N14) never sweeps needs-you, whatever its age; never sweeps a VIP; and never sweeps UNSORTED mail, because not having read something is not evidence about it. It archives, never deletes, and its receipt names senders so it is checkable rather than a number to trust.
+5. NEVER CLAIM IT WORKED. The unsubscribe sweep (N9) says "asked them to stop", because some senders ignore the header and a false receipt is worse than no receipt. mailto is sent; https is OPENED, since without List-Unsubscribe-Post a URL may be a page needing a click.
+6. THE TONE ESCALATES; THE BLAME NEVER DOES. The ladder (N13) climbs on the derived wait and on nudges actually SENT, so it cannot be gamed. No rung may reference the history of the request. The last rung changes CHANNEL rather than raising its voice: three ignored emails is evidence email is not working.
+7. COLLAPSING IS PRESENTATION, NEVER FILING. N5 groups only NOISE, never anything needing him, and expanding shows exactly the rows that were always there.
+8. A LINK IS A VIEW, NOT A MUTATION. N7 writes nothing to Gmail and nothing to the project, so unlinking leaves no trace. One home per thread.
+9. NEVER READ A BODY ALOUD. N12 speaks senders and gists only: a private message read out in a car with other people in it is a real harm, and nothing here is worth that.
+10. OFFER ONLY WHAT HE ALREADY HAS. N15 points at a file he owns, by name, and never attaches anything itself.
+11. ASK ONCE. Stale drafts (N10), sweep senders (N9), tossed senders, and netted threads are each offered exactly once, ever. A daily reminder about the same unsent email is nagging, and nagging is what this app removes.
+12. EXPENSIVE PASSES ARE GATED ON CHEAP EVIDENCE. N1 runs only on mail that needs him, only on words a proposal actually uses, at most twice per load. The promise sweep runs only when new mail has gone out. Almost no mail proposes a time, and the mail that does always says so.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).

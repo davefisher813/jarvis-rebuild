@@ -113,6 +113,10 @@ export function NotesProvider({
   );
 }
 
+// Optional, for tabs that render without the provider above them (the same
+// shape every other optional service here uses).
+export function useOptionalNotes(): NotesService | null { return useContext(NotesContext) ?? null; }
+
 export function useNotes(): NotesService {
   const s = useContext(NotesContext);
   if (!s) throw new Error("useNotes must be used inside NotesProvider");

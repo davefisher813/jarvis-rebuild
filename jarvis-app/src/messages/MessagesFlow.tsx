@@ -17,7 +17,7 @@ import { loadRules, saveRule, clearRule, applyRules, type SenderRules } from "./
 import DeckFlow from "./DeckFlow";
 import MailSwipe from "./MailSwipe";
 import { loadMuted, mute, unmute, dropMuted } from "./mute";
-import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY } from "./unsubscribe";
+import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY, type Unsub } from "./unsubscribe";
 import { BRIEF_SYSTEM, briefPrompt, parseBrief, briefFor, saveBrief } from "./brief";
 import { emit } from "../events";
 import { usePushDepth } from "../shared/pushNav";
@@ -30,12 +30,28 @@ import { madeBy } from "../shared/provenance";
 import { effectiveLevel } from "../ai/aiGate";
 import { getAIControl } from "../ai/levelStore";
 import { cleanBody, isLong, leadIn, wordCount } from "./bodyText";
-import { recordToss, markAsked, tossOffer, tossLine } from "./selfClean";
+import { recordToss, markAsked, tossOffer, tossLine, loadTossed, loadAsked } from "./selfClean";
+import { sweepCandidates, sweepTitle, sweepSub, sweepReceipt, type SweepCandidate } from "./unsubSweep";
 import { PRESETS, loadMinutes, saveMinutes, clampMinutes, drainReceipt } from "./drain";
 import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, handoffLine, type HandoffTarget } from "./handoff";
 import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, markPromised, commitmentLine, loadPromised } from "./commitments";
-import { saveMailSnapshot, type MailMeeting } from "./home";
-import { dueChases, loadChases } from "./followUp";
+import { saveMailSnapshot, mailNotices, loadMailSnapshot, type MailMeeting } from "./home";
+import { inboxSentence } from "./inboxBrief";
+import { dueChases, loadChases, clearChase, setChase, CHASE_DAYS, CHASE_DEFAULT } from "./followUp";
+import { loadVips, toggleVip, isVip, applyVips } from "./vip";
+import { collapseNoise, collapseLine } from "./collapse";
+import { ladderFor, loadNudgeCounts, countNudge } from "./escalate";
+import { closeCandidates, closeLine, closeReceipt, closeDue, markClosed, lastClose } from "./weeklyClose";
+import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
+import { attachOffer } from "./attachmentKind";
+import { loadLinks, linkThread, type LinkMap } from "./threadLink";
+import { saidQuery, saidPrompt, parseSaid, saidEmpty, SAID_SYSTEM } from "./saidWhat";
+import { shouldAutoReply, autoReplyBody, loadAutoState, markAutoReplied, AUTO_REPLY_EXPLAINER } from "./autoReply";
+import { protectedRangesFor, isFocusRange } from "../routine/types";
+import { fmtTime } from "../schedule/calendar";
+
+const AUTOREPLY_KEY = "jarvis.mail.autoreply.on.v1";
+import { suggestAttachment, suggestLine, type AttachSuggestion, type Candidate } from "./attachSuggest";
 import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
 import { mightProposeTimes, meetingPrompt, parseMeetingTimes, optionsAgainst, firstFree, meetingLine, MEETING_SYSTEM } from "./meetingTimes";
 import { sweepPrompt, parseSweep, needsSweep, liveSweep, loadSweep, saveSweep, SWEEP_SYSTEM, type SentItem } from "./sentSweep";
@@ -43,7 +59,7 @@ import { laterTaskTitle } from "./deck";
 import { noDashes } from "../ai/suggestions";
 import { useOptionalAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
-import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile } from "../data/NotesProvider";
+import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile, useOptionalNotes, useOptionalProjects, useOptionalRoutine } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
 import { capAfterNumber } from "../shared/casing";
 
@@ -111,6 +127,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const g = useGoogle();
   const tasks = useOptionalTasks();
   const scheduleSvc = useOptionalSchedule();
+  const notesSvc = useOptionalNotes();
+  const projectsSvc = useOptionalProjects();
+  const routineSvc = useOptionalRoutine();
   const people = useOptionalPeople();
   const session = useOptionalSession();
   // Phase 3: anything drafted here goes out over the user's name, so it gets
@@ -173,6 +192,29 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [sweepTick, setSweepTick] = useState(0);
   // N1: meetings with at least one open slot, found by one gated AI pass.
   const [meetings, setMeetings] = useState<MailMeeting[]>([]);
+  const [vips, setVips] = useState<string[]>(() => loadVips());
+  const [noiseGroups, setNoiseGroups] = useState<Record<string, boolean>>({});
+  const [closeDone, setCloseDone] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [attachDone, setAttachDone] = useState(false);
+  const [nudgeCounts, setNudgeCounts] = useState<Record<string, number>>(() => loadNudgeCounts());
+  const [chaseDays, setChaseDays] = useState<number>(CHASE_DEFAULT);
+  // N15: what he actually owns, by name. Loaded once when compose opens, so
+  // the suggestion can only ever point at a real file.
+  const [myFiles, setMyFiles] = useState<Candidate[]>([]);
+  // N9: senders he has repeatedly binned unread, with whether they published
+  // a machine-readable way to stop. Computed when the inbox loads.
+  const [sweep, setSweep] = useState<SweepCandidate[]>([]);
+  const [unsubbable, setUnsubbable] = useState<Record<string, Unsub>>({});
+  const [links, setLinks] = useState<LinkMap>(() => loadLinks());
+  const [projects, setProjects] = useState<{ id: string; title: string; category?: string }[]>([]);
+  const [said, setSaid] = useState<{ quote: string; dateISO: string; subject: string; threadId: string }[] | null>(null);
+  const [saidBusy, setSaidBusy] = useState(false);
+  // N8: the ONLY thing in this app that sends without a tap, so it is opt-in,
+  // per-device, and off until he says otherwise.
+  const [autoReplyOn, setAutoReplyOn] = useState<boolean>(() => {
+    try { return localStorage.getItem(AUTOREPLY_KEY) === "on"; } catch { return false; }
+  });
   const [opens, setOpens] = useState<Record<string, string>>({}); // threadId -> first-open ISO
   const [nudging, setNudging] = useState<string | null>(null);
   const [acctFilter, setAcctFilter] = useState<string | null>(null);
@@ -410,8 +452,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       let body = "";
       if (ai.available) {
         try {
+          // N13 (2026-08-20): 55 days deserves a different tone than 3, and
+          // the last rung changes CHANNEL rather than raising its voice.
+          // The tone escalates; the blame never does.
+          const rung = ladderFor(row.waitingDays, loadNudgeCounts()[row.threadId] ?? 0);
           const p = nudgePrompt(row, await voiceText());
-          body = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system, { tier: "write" })).trim());
+          body = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system + "\n" + rung.instruction, { tier: "write" })).trim());
         } catch { body = ""; }
       }
       setEditingDraftId(null);
@@ -595,9 +641,98 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   };
 
+  // HEADS-DOWN AUTO-REPLY (N8, 2026-08-20).
+  //
+  // Every guard lives in shouldAutoReply, so "should this send" is one answer
+  // with one reason rather than a chain of ifs spread across a component:
+  // off by default, VIPs only, once per person per block, never a machine,
+  // never himself, never a thread he already answered. The body is
+  // deterministic and names a REAL time he is back, because a model
+  // improvising over his name while he is not looking is not a feature.
+  useEffect(() => {
+    if (!autoReplyOn || !routineSvc || rows.length === 0 || vips.length === 0) return;
+    void (async () => {
+      try {
+        const r = await routineSvc.get();
+        const now = new Date();
+        const min = now.getHours() * 60 + now.getMinutes();
+        const block = protectedRangesFor(r, now.getDay())
+          .find((b) => isFocusRange(b) && min >= b.s && min < b.e);
+        if (!block) return; // no focus block running: nothing auto-sends, ever
+        const blockId = `${now.toISOString().slice(0, 10)}:${block.s}`;
+        const me = (g.accounts[0]?.email ?? "").toLowerCase();
+        const backAt = fmtTime(`${String(Math.floor(block.e / 60)).padStart(2, "0")}:${String(block.e % 60).padStart(2, "0")}`);
+        for (const row of rows.filter((x) => x.unread)) {
+          const state = loadAutoState(blockId);
+          if (!shouldAutoReply({
+            enabled: autoReplyOn, fromEmail: row.fromEmail, myEmail: me, vips,
+            state, alreadyRepliedThread: !!waiting.find((w) => w.threadId === row.id),
+          })) continue;
+          const api = apiFor(accountOfThread(row.id));
+          if (!api) continue;
+          const full = mapThreadFull(await api.getThread(row.id));
+          const last = full.messages[full.messages.length - 1];
+          if (!last) continue;
+          const reply = buildReply(last, "");
+          await api.sendMessage(encodeEmail({
+            to: reply.to, subject: reply.subject,
+            body: autoReplyBody(`${backAt.time} ${backAt.ap}`, (await profileSvc?.get())?.name ?? ""),
+            inReplyTo: reply.inReplyTo,
+          }), full.id);
+          markAutoReplied(blockId, row.fromEmail);
+          emit({ type: "action", props: { name: "email.autoreply" } });
+        }
+      } catch { /* an auto-reply that fails is silent; it is a courtesy, not a job */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoReplyOn, rows, vips, routineSvc]);
+
+  // N11 (2026-08-20): "what did I tell Wei about the invoice". Before a call
+  // the question is never "show me the thread"; it is the sentence he wrote.
+  //
+  // It QUOTES him. The parser refuses any quote that is not verbatim in what
+  // he actually sent, because a paraphrased commitment is how you walk into a
+  // call wrong, and no match is a real answer rather than a failure to hide.
+  const askWhatISaid = async () => {
+    const question = search.trim();
+    const list = g.apis("mail");
+    if (!question || list.length === 0 || !ai.available || saidBusy) return;
+    setSaidBusy(true);
+    setSaid(null);
+    try {
+      const metas = await list[0]!.api.searchThreads(saidQuery("", question), 8).catch(() => []);
+      const items = metas
+        .map((m) => {
+          const full = mapThreadFull(m as unknown as Parameters<typeof mapThreadFull>[0]);
+          const mine = full.messages[full.messages.length - 1];
+          if (!mine) return null;
+          return {
+            subject: full.subject,
+            dateISO: (mine.date ? new Date(mine.date) : new Date()).toISOString().slice(0, 10),
+            threadId: full.id,
+            body: cleanBody(mine.body),
+          };
+        })
+        .filter((x): x is NonNullable<typeof x> => x !== null);
+      if (items.length === 0) { setSaid([]); return; }
+      const raw = await ai.complete(
+        [{ role: "user", content: saidPrompt(question, items.map((i) => ({ subject: i.subject, dateISO: i.dateISO, body: i.body }))) }],
+        SAID_SYSTEM,
+      );
+      setSaid(parseSaid(raw, items));
+    } catch {
+      setSaid([]);
+    } finally {
+      setSaidBusy(false);
+    }
+  };
+
   const openThread = async (id: string) => {
     const api = apiFor(accountOfThread(id));
     if (!api) return;
+    // A new thread gets a fresh attachment offer; the last one's dismissal
+    // must not silence this one.
+    setAttachDone(false);
     setSummary(null);
     setReplies(DEFAULT_REPLIES);
     try {
@@ -605,6 +740,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (full.messages.length === 0) return;
       setThread(full);
       setView("detail");
+      // Remember who CAN be unsubscribed from, for the batch sweep. Read off
+      // a thread already fetched; the sweep never triggers a fetch of its own.
+      const um = full.messages[full.messages.length - 1];
+      if (um?.fromEmail) {
+        const u = parseUnsub(um.listUnsubscribe, um.listUnsubscribePost);
+        if (u) setUnsubbable((prev) => (prev[um.fromEmail.toLowerCase()] ? prev : { ...prev, [um.fromEmail.toLowerCase()]: u }));
+      }
       setRows((rs) => rs.map((r) => (r.id === id ? { ...r, unread: false } : r)));
       api.modifyThread(id, [], ["UNREAD"]).catch(() => {});
       // ONE call for the summary and the replies, cached against the latest
@@ -703,6 +845,32 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     say(unsubLine(m.from));
   };
 
+  // N9: one sender's unsubscribe, without opening their mail. Same two forms
+  // and the same honesty as doUnsub: mailto is sent, https is OPENED, because
+  // without List-Unsubscribe-Post a URL may be a page needing a click and
+  // pretending otherwise is a false receipt.
+  const requestUnsub = async (u: Unsub) => {
+    if (u.kind === "mailto") {
+      const api = g.apis("mail")[0]?.api;
+      if (!api) return;
+      await api.sendMessage(encodeEmail({ to: u.target, subject: u.subject || UNSUB_SUBJECT, body: UNSUB_BODY })).catch(() => {});
+    } else {
+      window.open(u.target, "_blank", "noopener,noreferrer");
+    }
+    emit({ type: "action", props: { name: "email.unsubscribe", kind: u.kind } });
+  };
+
+  // Which of the binned senders published a machine-readable way to stop.
+  // Read off the threads already in hand: no extra fetches for an offer.
+  useEffect(() => {
+    if (rows.length === 0) return;
+    const names: Record<string, string> = {};
+    for (const r of rows) if (r.fromEmail) names[r.fromEmail.toLowerCase()] = r.from;
+    const cands = sweepCandidates(loadTossed(), loadAsked(), names, Object.keys(unsubbable));
+    setSweep(cands);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, unsubbable]);
+
   // Archive from the list. Same effect as the detail-view archive, without
   // making him open something he already knows he is done with.
   // Every reversible action goes through here so the offer to undo is never
@@ -793,7 +961,35 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [triaged, autoNoise, rows, triage, rules]);
 
+  // N15: only ever something he ALREADY has. Nothing is generated, nothing is
+  // guessed at, and nothing is attached without him.
+  useEffect(() => {
+    if (view !== "compose" || !notesSvc || myFiles.length > 0) return;
+    void notesSvc.listNotes()
+      .then((ns) => setMyFiles(ns.slice(0, 60).map((n) => ({ id: n.id, name: String(n.data.title ?? ""), kind: "note" })).filter((c) => c.name.trim() !== "")))
+      .catch(() => setMyFiles([]));
+  }, [view, notesSvc, myFiles.length]);
+
+  // N7: the open projects a thread can belong to. Read once; a tab that
+  // renders without the provider simply offers nothing, same as every other
+  // optional service here.
+  useEffect(() => {
+    if (!projectsSvc || projects.length > 0) return;
+    void projectsSvc.list()
+      .then((ps) => setProjects(ps
+        .filter((p) => p.data.status !== "done")
+        .slice(0, 8)
+        .map((p) => ({ id: p.id, title: String(p.data.title ?? ""), category: p.data.category as string | undefined }))
+        .filter((p) => p.title.trim() !== "")))
+      .catch(() => setProjects([]));
+  }, [projectsSvc, projects.length]);
+
   const lastMsg = (t: ThreadFull): MailFull => t.messages[t.messages.length - 1]!;
+
+  const attachHint: AttachSuggestion | null =
+    view === "compose" && thread && thread.messages.length > 0
+      ? suggestAttachment(cleanBody(lastMsg(thread).body), draft.body, myFiles)
+      : null;
 
   const startReply = (t: ThreadFull) => {
     const r = buildReply(lastMsg(t), "");
@@ -905,6 +1101,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // Commitment catcher: if he just promised something, it becomes a task
       // with the date HE named. Once per thread, and never for a hand-off note
       // (the promise there is the other person's).
+      // N13: the ladder climbs on what was actually SENT to someone who owes
+      // him, so it cannot be gamed by opening the drafter and closing it.
+      if (draft.threadId && chaseDays > 0) {
+        setChase({
+          threadId: draft.threadId, to: draft.to, subject: draft.subject,
+          setISO: new Date().toISOString().slice(0, 10), days: chaseDays,
+        });
+      }
+      const nudged = draft.threadId && waiting.some((w) => w.threadId === draft.threadId);
+      if (nudged) setNudgeCounts(countNudge(draft.threadId!));
+      // N3: a chase he set retires the moment he acts on it.
+      if (draft.threadId) clearChase(draft.threadId);
       const threadForPromise = draft.threadId || sent.threadId;
       if (tasks && ai.available && !draft.handoffTo && threadForPromise && !alreadyPromised(threadForPromise)) {
         const today = new Date().toISOString().slice(0, 10);
@@ -952,7 +1160,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // untouched in Gmail.
   const unmutedRows = dropMuted(rows, muted);
   const visibleRows = acctFilter ? unmutedRows.filter((r) => r.account === acctFilter) : unmutedRows;
-  const effTriage = applyRules(triage, rows, rules);
+  // N4 (2026-08-20): VIPs come LAST, because a VIP is the one rule allowed to
+  // overrule both the model and his own filing. Mail from his attorney
+  // surfaces the moment it lands whatever anything else thinks.
+  const effTriage = applyVips(applyRules(triage, rows, rules), rows, vips);
 
   if (view === "deck") {
     if (!g.hasToken || !deckRows || deckRows.length === 0) { setView("list"); return null; }
@@ -1026,6 +1237,29 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             </div>
           ))}
         </div></div>
+        {/* N8 (2026-08-20). The ONLY thing in this app that sends without a
+            tap, so the promise and the guard are the same sentence and it
+            lives OFF until he turns it on. */}
+        <div className="grp"><div className="eyebrow">Heads-Down Auto-Reply</div></div>
+        <div><div className="list-flat">
+          <div className="row">
+            <div className="row-grow">
+              <div className="conn-name">{autoReplyOn ? "On During Focus Blocks" : "Off"}</div>
+              <div className="conn-meta">{AUTO_REPLY_EXPLAINER}</div>
+            </div>
+            <button className="pill-act" onClick={() => {
+              const next = !autoReplyOn;
+              setAutoReplyOn(next);
+              try { localStorage.setItem(AUTOREPLY_KEY, next ? "on" : "off"); } catch { /* private mode */ }
+            }}>{autoReplyOn ? "Turn Off" : "Turn On"}</button>
+          </div>
+          {vips.length === 0 && (
+            <div className="row"><div className="row-grow">
+              <div className="conn-meta">Nobody is a VIP yet, so nothing would send. Mark someone from their thread.</div>
+            </div></div>
+          )}
+        </div></div>
+
         <div className="grp"><div className="eyebrow">Muted Threads</div></div>
         <div><div className="list-flat">
           {muted.length === 0 ? (
@@ -1092,6 +1326,43 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <input className="msg-input" placeholder="To" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} />
           <input className="msg-input" placeholder="Subject" value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
           <textarea className="msg-textarea" placeholder="Message" value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
+
+          {/* N15 (2026-08-20): they asked for the waiver, he has a waiver.
+              Every mail client waits until Send and then asks if he forgot;
+              none of them offers the file he actually owns. Only ever
+              something he ALREADY has, by name, and never attached on its
+              own. */}
+          {attachHint && (
+            <div className="card"><div className="row">
+              <div className="row-grow">
+                <div className="conn-name">You Have That File</div>
+                <div className="conn-meta">{suggestLine(attachHint)}</div>
+              </div>
+              <button className="pill-act" onClick={() => {
+                setDraft((d) => ({ ...d, body: d.body + "\n\n(" + attachHint.candidate.name + ")" }));
+                setToast("Named it in the message · Attach it from your phone");
+                setTimeout(() => setToast(null), 4000);
+              }}>Mention It</button>
+            </div></div>
+          )}
+
+          {/* N3: set the chase when he SENDS, which is the only moment he
+              remembers he is owed anything. It cancels itself the instant
+              they write back. */}
+          {draft.threadId && (
+            <div className="card"><div className="row">
+              <div className="row-grow">
+                <div className="conn-name">Chase If No Reply</div>
+                <div className="conn-meta">{chaseDays === 0 ? "Off · Waiting On will still find it eventually" : `In ${chaseDays} days`}</div>
+              </div>
+              <div className="msg-chips">
+                <button className={"chip" + (chaseDays === 0 ? " on" : "")} onClick={() => setChaseDays(0)}>Off</button>
+                {CHASE_DAYS.map((d) => (
+                  <button key={d} className={"chip" + (chaseDays === d ? " on" : "")} onClick={() => setChaseDays(d)}>{d}d</button>
+                ))}
+              </div>
+            </div></div>
+          )}
           {error && <div className="conn-error">{error}</div>}
         </div>
       </div>
@@ -1238,6 +1509,90 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               </div>
             </div>
           )}
+          {/* N7 (2026-08-20): he asked for this on the projects page rounds
+              ago. The link lives on THIS device and is a VIEW, not a
+              mutation: nothing is written to Gmail and nothing is written to
+              the project, so unlinking leaves no trace anywhere. One home
+              per thread, because a thread in two projects is in neither. */}
+          {projects.length > 0 && (
+            <div className="msg-filed">
+              <span className="conn-meta">{links[thread.id] ? "Part of " + links[thread.id]!.label : "Not linked to anything"}</span>
+              <div className="msg-chips">
+                {projects.slice(0, 4).map((p) => (
+                  <button
+                    key={p.id}
+                    className={"chip" + (links[thread.id]?.id === p.id ? " on" : "")}
+                    onClick={() => {
+                      const on = links[thread.id]?.id === p.id;
+                      setLinks(linkThread(thread.id, on ? null : { type: "project", id: p.id, label: p.title, category: p.category }));
+                      setToast(on ? "Unlinked" : "Filed under " + p.title);
+                      setTimeout(() => setToast(null), 2500);
+                    }}
+                  >{p.title}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* N4 (2026-08-20): the one rule allowed to overrule the model AND
+              his own filing. Short on purpose: a VIP list with twenty people
+              on it is an inbox with extra steps. */}
+          <div className="msg-filed">
+            <span className="conn-meta">{isVip(lastMsg(thread).fromEmail, vips) ? "Always gets through" : "Everyone else waits for the drain"}</span>
+            <div className="msg-chips">
+              <button
+                className={"chip" + (isVip(lastMsg(thread).fromEmail, vips) ? " on" : "")}
+                onClick={() => {
+                  const next = toggleVip(lastMsg(thread).fromEmail);
+                  setVips(next);
+                  setToast(isVip(lastMsg(thread).fromEmail, next)
+                    ? displayName(lastMsg(thread).from) + " always gets through now"
+                    : displayName(lastMsg(thread).from) + " is back to normal");
+                  setTimeout(() => setToast(null), 2500);
+                }}
+              >VIP</button>
+            </div>
+          </div>
+
+          {/* N2 and N6: a file in an inbox is a chore in a costume. An
+              invoice with a real amount becomes a bill; a .ics becomes
+              events; anything else he has to deal with becomes a task.
+              Money is never guessed from a filename. */}
+          {(() => {
+            const m = lastMsg(thread);
+            const offer = attachOffer({ from: displayName(m.from), subject: thread.subject, body: cleanBody(m.body), attachments: m.attachments });
+            if (!offer || attachDone) return null;
+            return (
+              <div className="pad-x"><div className="card"><div className="row">
+                <div className="row-grow">
+                  <div className="conn-name">{offer.title}</div>
+                  <div className="conn-meta">{offer.sub}</div>
+                </div>
+                <button className="pill-act" onClick={() => void (async () => {
+                  if (offer.kind === "calendar") {
+                    // The .ics goes to the phone's own calendar, which is the
+                    // same handoff reminders already use and the only thing
+                    // that can actually fire an alarm on iOS.
+                    setToast("Open the attachment to add it · Your Calendar handles .ics");
+                    setTimeout(() => setToast(null), 4000);
+                    setAttachDone(true);
+                    return;
+                  }
+                  if (!tasks) return;
+                  if (offer.kind === "bill" && offer.amount != null) {
+                    await tasks.createTask(offer.title, { bill: { amount: offer.amount }, source: madeBy("email", thread.id) });
+                    setToast("Added to Money · $" + offer.amount.toLocaleString());
+                  } else {
+                    await tasks.createTask(offer.title, { source: madeBy("email", thread.id) });
+                    setToast("Added to your tasks");
+                  }
+                  setAttachDone(true);
+                  setTimeout(() => setToast(null), 3000);
+                })()}>{offer.action}</button>
+              </div></div></div>
+            );
+          })()}
+
           {toast && <div className="conn-status">{toast}</div>}
         </div>
       </div>
@@ -1270,6 +1625,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       <div className="row-grow">
         <div className="msg-line">
           <span className={"conn-name truncate" + (r.unread ? " msg-strong" : "")}>{displayName(r.from)}</span>
+          {/* N4: a VIP is marked where he reads, not buried in a setting. */}
+          {isVip(r.fromEmail, vips) && <span className="msg-vip" aria-label="Always gets through">★</span>}
           {effTriage[r.id]?.by
             ? <span className={"msg-due" + (byRank(effTriage[r.id]!.by) >= 900 ? " soft" : "")}>{effTriage[r.id]!.by}</span>
             : <span className="msg-when">{fmtWhen(r.dateMs)}</span>}
@@ -1295,7 +1652,30 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           }}
           onKeyDown={(e) => { if (e.key === "Enter") void runSearch(); }}
         />
+        {/* N11 (2026-08-20): the same box answers a different question. Search
+            finds threads; this finds the sentence HE wrote, with the date. */}
+        {search.trim() && ai.available && (
+          <button className="row-act" disabled={saidBusy} onClick={() => void askWhatISaid()}>
+            {saidBusy ? "Reading your sent mail…" : "What Did I Say About This?"}
+          </button>
+        )}
       </div>
+      {said !== null && (
+        <div className="pad-x"><div className="card">
+          {said.length === 0 ? (
+            <div className="row"><div className="row-grow"><div className="conn-meta">{saidEmpty("")}</div></div></div>
+          ) : said.map((h, i) => (
+            <div className="row" role="button" tabIndex={0} key={h.threadId + i} onClick={() => void openThread(h.threadId)}>
+              <div className="row-grow">
+                <div className="conn-name">&ldquo;{h.quote}&rdquo;</div>
+                <div className="conn-meta">{h.dateISO} · {h.subject}</div>
+              </div>
+              <div className="chev" />
+            </div>
+          ))}
+          <button className="row-act" onClick={() => setSaid(null)}>Clear</button>
+        </div></div>
+      )}
       {g.accounts.length > 1 && (
         <div className="pad-x msg-chips">
           <button className={"chip" + (acctFilter === null ? " on" : "")} onClick={() => setAcctFilter(null)}>All Accounts</button>
@@ -1423,6 +1803,50 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="empty-title">Inbox Is Quiet</div>
             </div></div></div>
           )}
+          {/* N12 (2026-08-20): thirty seconds of speech for the car or the gym.
+              It says the SAME things the cards say, and never reads a body
+              aloud: a private message read out with other people in the car
+              is a real harm and nothing here is worth it. */}
+          {needsYou.length > 0 && canSpeak() && (
+            <div className="pad-x"><div className="card"><div className="row">
+              <div className="row-grow">
+                <div className="conn-name">Read It to Me</div>
+                <div className="conn-meta">Senders and gists only · Never the message</div>
+              </div>
+              <button className="pill-act" onClick={() => {
+                if (speaking) { stopSpeaking(); setSpeaking(false); return; }
+                const notices = mailNotices(loadMailSnapshot(), new Date().toISOString().slice(0, 10));
+                setSpeaking(speak(speakable(notices, inboxSentence(notices, loadMailSnapshot()))));
+              }}>{speaking ? "Stop" : "Play"}</button>
+            </div></div></div>
+          )}
+
+          {/* N14: once a week, everything nobody chased. Needs-you is NEVER
+              in the set, whatever its age, and neither is unsorted mail:
+              not having read something is not evidence about it. */}
+          {(() => {
+            if (closeDone || !closeDue(new Date().toISOString().slice(0, 10), lastClose())) return null;
+            const set = closeCandidates(unmutedRows, effTriage, vips, Date.now());
+            if (set.count === 0) return null;
+            return (
+              <div className="pad-x"><div className="card"><div className="row">
+                <div className="row-grow">
+                  <div className="conn-name">{closeLine(set)}</div>
+                  <div className="conn-meta">Older than a fortnight · Archive, never delete</div>
+                </div>
+                <button className="pill-act" onClick={() => void (async () => {
+                  const ids = set.ids;
+                  setRows((rs) => rs.filter((r) => !ids.includes(r.id)));
+                  markClosed(new Date().toISOString().slice(0, 10));
+                  setCloseDone(true);
+                  await Promise.all(ids.map((id) => apiFor(accountOfThread(id))?.modifyThread(id, [], ["INBOX"]).catch(() => {})));
+                  setToast(closeReceipt(set));
+                  setTimeout(() => setToast(null), 4000);
+                })()}>Close It Out</button>
+              </div></div></div>
+            );
+          })()}
+
           {needsYou.length > 0 && (
             <>
               <div className="sh2"><span className="t">Needs You</span></div>
@@ -1441,10 +1865,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     <div className="row-grow">
                       <div className="msg-line">
                         <span className="conn-name truncate">{displayName(w.to)}</span>
-                        <span className="pill-act">{nudging === w.threadId ? "Drafting..." : "Nudge"}</span>
+                        <span className="pill-act">{nudging === w.threadId ? "Drafting..." : ladderFor(w.waitingDays, nudgeCounts[w.threadId] ?? 0).label}</span>
                       </div>
                       <div className="conn-meta msg-gist">
-                        {w.subject} · {waitingLine(w, opens[w.threadId] ?? null)}
+                        {w.subject} · {waitingLine(w, opens[w.threadId] ?? null)} · {ladderFor(w.waitingDays, nudgeCounts[w.threadId] ?? 0).note}
                         {g.accounts.length > 1 && w.account && <span className="msg-acct">{acctLabel(w.account)}</span>}
                       </div>
                     </div>
@@ -1489,7 +1913,31 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                             <div className="conn-meta msg-gist">{noiseLine(noise)}</div>
                           </div>
                         </div>
-                        {noiseOpen && noise.map((r) => threadRow(r, effTriage[r.id]?.gist))}
+                        {/* N5 (2026-08-20): a sender who writes six times a
+                            week about things he will never act on is not six
+                            decisions. It is one, repeated. Collapsing is
+                            presentation only: nothing is archived or filed,
+                            and only NOISE ever collapses. */}
+                        {noiseOpen && (() => {
+                          const { groups, loose } = collapseNoise(noise);
+                          return (
+                            <>
+                              {groups.map((g) => (
+                                <div key={g.key}>
+                                  <div className="row" role="button" tabIndex={0} onClick={() => setNoiseGroups((s) => ({ ...s, [g.key]: !s[g.key] }))}>
+                                    <div className="row-grow">
+                                      <div className="conn-name">{g.from}</div>
+                                      <div className="conn-meta msg-gist">{collapseLine(g)}</div>
+                                    </div>
+                                    <button className="pill-act" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(g.rows); }}>Archive All</button>
+                                  </div>
+                                  {noiseGroups[g.key] && g.rows.map((r) => threadRow(r, effTriage[r.id]?.gist))}
+                                </div>
+                              ))}
+                              {loose.map((r) => threadRow(r, effTriage[r.id]?.gist))}
+                            </>
+                          );
+                        })()}
                       </>
                     )}
                   </>
@@ -1503,7 +1951,39 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {/* ONE offer at a time. Three stacked offers is a form, and the law
               is one line, one action, one quiet dismiss. Self-cleaning wins
               because it ends a sender for good. */}
-          {toss ? (
+          {/* N9 (2026-08-20): the BATCH version of self-cleaning, and it does
+              the better thing. Filing hides mail; unsubscribing ends it. Only
+              senders he has already thrown away by hand, asked once each,
+              and it NEVER claims it worked: some senders ignore the header,
+              and a false receipt is worse than no receipt. */}
+          {sweep.length > 1 && !toss ? (
+            <div className="pad-x offer-row">
+              <div className="card"><div className="row"><div className="row-grow">
+                <div className="conn-name">{sweepTitle(sweep)}</div>
+                <div className="conn-meta msg-offer-line">{sweepSub(sweep)}</div>
+              </div></div></div>
+              <button
+                className="btn btn-primary btn-block"
+                onClick={() => {
+                  let ended = 0;
+                  let filed = 0;
+                  for (const c of sweep) {
+                    markAsked(c.sender);
+                    if (c.canUnsub) {
+                      const u = unsubbable[c.sender];
+                      if (u) { void requestUnsub(u); ended++; continue; }
+                    }
+                    setRules(saveRule(c.sender, "noise"));
+                    filed++;
+                  }
+                  setSweep([]);
+                  setToast(sweepReceipt(ended, filed));
+                  setTimeout(() => setToast(null), 4000);
+                }}
+              >{sweepSub(sweep)}</button>
+              <button className="quiet-action" onClick={() => { sweep.forEach((c) => markAsked(c.sender)); setSweep([]); }}>Leave them</button>
+            </div>
+          ) : toss ? (
             <div className="pad-x offer-row">
               <div className="card"><div className="row"><div className="row-grow">
                 <div className="conn-meta msg-offer-line">{tossLine(toss.sender, toss.n)}</div>

@@ -1697,3 +1697,7 @@ button {
   resize: none; outline: none; caret-color: var(--accent); }
 .mail-draft-text:disabled { opacity: 0.55; }
 .mail-draft-acts { gap: var(--s-2); padding: var(--s-2) 0 0; }
+/* N4 (2026-08-20): a VIP is marked where he READS, not buried in a setting.
+   The star sits with the name because that is where the question "does this
+   person always get through" actually gets asked. */
+.msg-vip { color: var(--yellow, #FFD60A); font-size: 12px; line-height: 1; flex-shrink: 0; margin-left: 2px; }
