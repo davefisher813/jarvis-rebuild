@@ -40,6 +40,13 @@ const EXEMPT_FILES = new Set([
   "messages/waiting.ts",
   "messages/sentSweep.ts",
   "messages/cardDraft.ts",
+  // Prompt files, plus the bodies of messages the user SENDS. An outgoing
+  // email is prose by nature; the short-copy law governs UI labels.
+  "messages/meetingTimes.ts",
+  "messages/saidWhat.ts",
+  "messages/escalate.ts",
+  "messages/autoReply.ts",
+  "messages/attachSuggest.ts",
   "messages/brief.ts",
   "messages/handoff.ts",
   "messages/commitments.ts",

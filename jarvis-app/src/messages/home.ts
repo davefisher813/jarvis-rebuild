@@ -47,6 +47,15 @@ export interface MailThread {
 }
 export interface MailWaiting { threadId: string; to: string; subject: string; days: number }
 export interface MailPromise { threadId: string; text: string; due?: string }
+// N1 (2026-08-20): times a sender OFFERED, already checked against the real
+// calendar by the Email tab. Only threads where at least one option is open
+// travel here; "you're busy for all of them" is a card the tab shows, not a
+// home-page interruption.
+export interface MailMeeting { threadId: string; from: string; label: string; date: string; start: string; end: string; line: string }
+// N3: a chase he set at send time that has come due.
+export interface MailChase { threadId: string; to: string; subject: string }
+// N10: a draft he started and never sent.
+export interface MailDraftRow { id: string; threadId: string; to: string; subject: string; line: string }
 
 export interface MailSnapshot {
   ts: number;
@@ -54,9 +63,12 @@ export interface MailSnapshot {
   threads: MailThread[];      // needs-you threads, deadline order
   waiting: MailWaiting[];     // longest wait first
   promises: MailPromise[];
+  meetings?: MailMeeting[];
+  chases?: MailChase[];
+  drafts?: MailDraftRow[];
 }
 
-export type MailKind = "deadline" | "reply" | "promised" | "nudge";
+export type MailKind = "deadline" | "reply" | "promised" | "nudge" | "meeting" | "chase" | "draft";
 
 export interface MailNotice {
   key: string;
@@ -76,7 +88,7 @@ const KEY = "jarvis.mail.home.v1";
 // rather than telling him about an inbox from last week.
 export const SNAPSHOT_MAX_AGE_MS = 36 * 3600e3;
 
-export const EMPTY: MailSnapshot = { ts: 0, needsYou: 0, threads: [], waiting: [], promises: [] };
+export const EMPTY: MailSnapshot = { ts: 0, needsYou: 0, threads: [], waiting: [], promises: [], meetings: [], chases: [], drafts: [] };
 
 export function saveMailSnapshot(snap: MailSnapshot, storage: Pick<Storage, "setItem"> = localStorage): void {
   try { storage.setItem(KEY, JSON.stringify(snap)); } catch { /* private mode */ }
@@ -97,6 +109,9 @@ export function loadMailSnapshot(
       threads: Array.isArray(p.threads) ? p.threads : [],
       waiting: Array.isArray(p.waiting) ? p.waiting : [],
       promises: Array.isArray(p.promises) ? p.promises : [],
+      meetings: Array.isArray(p.meetings) ? p.meetings : [],
+      chases: Array.isArray(p.chases) ? p.chases : [],
+      drafts: Array.isArray(p.drafts) ? p.drafts : [],
     };
   } catch {
     return EMPTY;
@@ -167,6 +182,47 @@ function promiseNotice(p: MailPromise, todayISO: string): MailNotice {
   };
 }
 
+// N1: the sender offered times and at least one is open. One tap takes it,
+// which books it, replies, and blocks the slot: three decisions become none.
+function meetingNotice(m: MailMeeting): MailNotice {
+  return {
+    key: "meeting:" + m.threadId,
+    kind: "meeting",
+    threadId: m.threadId,
+    title: m.from + " Wants a Time",
+    sub: m.line,
+    action: "Take " + m.label,
+    tone: "cat-fg-sky",
+  };
+}
+
+// N3: a chase HE set, come due, and still unanswered.
+function chaseNotice(c: MailChase): MailNotice {
+  return {
+    key: "chase:" + c.threadId,
+    kind: "chase",
+    threadId: c.threadId,
+    title: "Chase " + c.to,
+    sub: capAfterNumber(c.subject + " · You asked me to"),
+    action: "Nudge",
+    tone: "cat-fg-orange",
+  };
+}
+
+// N10: a draft sitting for days is not a draft, it is a decision he is
+// avoiding wearing the costume of work in progress.
+function draftNotice(d: MailDraftRow): MailNotice {
+  return {
+    key: "draft:" + d.id,
+    kind: "draft",
+    threadId: d.threadId || d.id,
+    title: d.subject.trim() ? "Unsent: " + d.subject.trim() : "An Unsent Draft",
+    sub: d.line,
+    action: "Finish It",
+    tone: "cat-fg-magenta",
+  };
+}
+
 function nudgeNotice(w: MailWaiting): MailNotice {
   return {
     key: "nudge:" + w.threadId,
@@ -200,8 +256,16 @@ export function mailNotices(
     .sort((a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999"))
     .map((p) => promiseNotice(p, todayISO));
   const nudges = [...snap.waiting].sort((a, b) => b.days - a.days).map(nudgeNotice);
+  const meetings = (snap.meetings ?? []).map(meetingNotice);
+  const chases = (snap.chases ?? []).map(chaseNotice);
+  const drafts = (snap.drafts ?? []).map(draftNotice);
 
-  const lanes = [deadlines, replies, promises, nudges].map((l) => l.filter((n) => !skip.has(n.key)));
+  // Lane order IS priority order. A meeting he can book in one tap and a
+  // deadline someone named beat everything: both are other people's clocks.
+  // Drafts go last, because an unsent draft is the only thing on this list
+  // that is nobody's problem but his.
+  const lanes = [meetings, deadlines, replies, chases, promises, nudges, drafts]
+    .map((l) => l.filter((n) => !skip.has(n.key)));
   const out: MailNotice[] = [];
   for (let round = 0; out.length < max; round++) {
     let took = false;

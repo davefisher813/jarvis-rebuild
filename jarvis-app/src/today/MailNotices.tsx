@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, Clock, CalendarClock, CornerUpLeft } from "lucide-react";
+import { Mail, Clock, CalendarClock, CornerUpLeft, CalendarCheck, BellRing, PenLine } from "lucide-react";
 import NoticeCard from "./NoticeCard";
 import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
@@ -28,6 +28,9 @@ const ICON: Record<MailKind, React.ReactNode> = {
   reply: <CornerUpLeft className="ic" />,
   promised: <Clock className="ic" />,
   nudge: <Mail className="ic" />,
+  meeting: <CalendarCheck className="ic" />,
+  chase: <BellRing className="ic" />,
+  draft: <PenLine className="ic" />,
 };
 
 export interface MailDraft { text: string; sending: boolean }
@@ -40,6 +43,7 @@ export default function MailNotices({
   onOpenEmail,
   onDraft,
   onSend,
+  onTakeMeeting,
   max = 3,
 }: {
   today: string;
@@ -55,6 +59,9 @@ export default function MailNotices({
   onDraft?: (n: MailNotice) => Promise<string>;
   // U1/U2/U3: send it. Returns true only on a real send.
   onSend?: (n: MailNotice, body: string) => Promise<boolean>;
+  // N1: book the slot, accept it in writing, and block the time. One tap for
+  // what is otherwise three decisions.
+  onTakeMeeting?: (threadId: string) => Promise<boolean>;
   max?: number;
 }) {
   const [hidden, setHidden] = useState<string[]>(() => loadDismissed(today));
@@ -71,7 +78,7 @@ export default function MailNotices({
   const choices = snoozeChoices(nowHHMM);
 
   const canWrite = !!onDraft && !!onSend;
-  const writable = (n: MailNotice) => canWrite && (n.kind === "reply" || n.kind === "nudge");
+  const writable = (n: MailNotice) => canWrite && (n.kind === "reply" || n.kind === "nudge" || n.kind === "chase");
 
   const finish = (n: MailNotice, message: string) => {
     setDone((d) => [...d, n.key]);
@@ -86,6 +93,18 @@ export default function MailNotices({
         const ok = await onAddTask(n.task!.text, n.task!.due);
         if (!ok) return;
         finish(n, n.task?.due ? "Added to your tasks · Due " + n.task.due : "Added to your tasks");
+      })();
+      return;
+    }
+    if (n.kind === "meeting" && onTakeMeeting) {
+      haptics.selection();
+      setBusy(n.key);
+      void (async () => {
+        const ok = await onTakeMeeting(n.threadId);
+        setBusy(null);
+        if (ok) finish(n, "Booked and replied");
+        else showToast({ message: "Couldn't book it · Opening the thread" });
+        if (!ok) onOpenThread?.(n.threadId);
       })();
       return;
     }
@@ -147,7 +166,9 @@ export default function MailNotices({
             title={n.title}
             sub={draft ? undefined : n.sub}
             action={{
-              label: loading ? "Writing…" : writable(n) && !draft ? (n.kind === "nudge" ? "Nudge" : "Draft It") : n.action,
+              label: loading
+                ? (n.kind === "meeting" ? "Booking…" : "Writing…")
+                : writable(n) && !draft ? (n.kind === "reply" ? "Draft It" : "Nudge") : n.action,
               onClick: () => act(n),
             }}
             // U4: "not right now" is not "not today". A snooze names a time

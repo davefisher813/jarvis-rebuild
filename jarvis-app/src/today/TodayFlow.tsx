@@ -35,6 +35,9 @@ import { useAI } from "../ai/useAI";
 import { useGoogle } from "../connections/google/GoogleSession";
 import { mapThreadFull, buildReply, encodeEmail } from "../connections/google/map";
 import { cardReplyPrompt, cardNudgePrompt, parseCardDraft } from "../messages/cardDraft";
+import { ladderFor, loadNudgeCounts, countNudge } from "../messages/escalate";
+import { clearChase } from "../messages/followUp";
+import { acceptBody } from "../messages/meetingTimes";
 import { loadMailSnapshot } from "../messages/home";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -947,11 +950,20 @@ export default function TodayFlow({
     if (!ai.available) return "";
     try {
       const snap = loadMailSnapshot();
-      if (n.kind === "nudge") {
+      if (n.kind === "nudge" || n.kind === "chase") {
         const w = snap.waiting.find((x) => x.threadId === n.threadId);
-        if (!w) return "";
-        const p = cardNudgePrompt(w.to, w.subject, w.days);
-        return parseCardDraft(await ai.complete([{ role: "user", content: p.user }], p.system));
+        const c = (snap.chases ?? []).find((x) => x.threadId === n.threadId);
+        const to = w?.to ?? c?.to;
+        const subject = w?.subject ?? c?.subject;
+        if (!to || !subject) return "";
+        // N13: fifty-five days deserves a different tone than three, and a
+        // chase he set himself starts gentle whatever the clock says.
+        const rung = ladderFor(w?.days ?? 0, loadNudgeCounts()[n.threadId] ?? 0);
+        const p = cardNudgePrompt(to, subject, w?.days ?? 0);
+        return parseCardDraft(await ai.complete(
+          [{ role: "user", content: p.user }],
+          p.system + "\n" + rung.instruction,
+        ));
       }
       const t = snap.threads.find((x) => x.id === n.threadId);
       if (!t) return "";
@@ -975,10 +987,33 @@ export default function TodayFlow({
       const reply = buildReply(last, body);
       const to = n.kind === "nudge" ? (last.to || reply.to) : reply.to;
       await api.sendMessage(encodeEmail({ to, subject: reply.subject, body, inReplyTo: reply.inReplyTo }), full.id);
+      // The ladder climbs on what was actually SENT, so it cannot be gamed
+      // by opening the drafter and closing it again. A chase he set retires
+      // itself the moment it is answered.
+      if (n.kind !== "reply") countNudge(n.threadId);
+      if (n.kind === "chase") clearChase(n.threadId);
       return true;
     } catch {
       return false;
     }
+  };
+
+  // N1: one tap books the slot, replies accepting it in his own words, and
+  // blocks the time. Order matters: the CALENDAR write happens first, because
+  // an accepted invitation with nothing in the diary is the exact failure
+  // this feature exists to remove. A failed send leaves the event, which is
+  // recoverable; a failed event after a sent yes is not.
+  const takeMeeting = async (threadId: string): Promise<boolean> => {
+    const snap = loadMailSnapshot();
+    const m = (snap.meetings ?? []).find((x) => x.threadId === threadId);
+    if (!m) return false;
+    const made = await attemptWrite(() =>
+      schedule.createEvent("Call With " + m.from, { date: m.date, start: m.start, end: m.end }));
+    if (!made) return false;
+    await reload();
+    const sent = await sendFromCard({ kind: "reply", threadId }, acceptBody({ ...m, free: true }));
+    if (!sent) showToast({ message: "Booked · Couldn't send the reply" });
+    return true;
   };
 
   // Email that finishes on Today. A deadline a sender named, or a promise he
@@ -1033,6 +1068,7 @@ export default function TodayFlow({
           today={today}
           nowHHMM={nhm}
           onDraft={ai.available ? draftForCard : undefined}
+          onTakeMeeting={google.hasToken ? takeMeeting : undefined}
           onSend={google.hasToken ? sendFromCard : undefined}
           onAddTask={addTaskFromMail}
           onOpenThread={onGoEmail ? (id) => onGoEmail(id) : undefined}

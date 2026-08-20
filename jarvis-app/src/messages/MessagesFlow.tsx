@@ -34,18 +34,21 @@ import { recordToss, markAsked, tossOffer, tossLine } from "./selfClean";
 import { PRESETS, loadMinutes, saveMinutes, clampMinutes, drainReceipt } from "./drain";
 import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, handoffLine, type HandoffTarget } from "./handoff";
 import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, markPromised, commitmentLine, loadPromised } from "./commitments";
-import { saveMailSnapshot } from "./home";
+import { saveMailSnapshot, type MailMeeting } from "./home";
+import { dueChases, loadChases } from "./followUp";
+import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
+import { mightProposeTimes, meetingPrompt, parseMeetingTimes, optionsAgainst, firstFree, meetingLine, MEETING_SYSTEM } from "./meetingTimes";
 import { sweepPrompt, parseSweep, needsSweep, liveSweep, loadSweep, saveSweep, SWEEP_SYSTEM, type SentItem } from "./sentSweep";
 import { laterTaskTitle } from "./deck";
 import { noDashes } from "../ai/suggestions";
 import { useOptionalAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
-import { useOptionalTasks, useOptionalPeople, useOptionalProfile } from "../data/NotesProvider";
+import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
 import { capAfterNumber } from "../shared/casing";
 
 type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string };
-type DraftRow = { id: string; to: string; subject: string; snippet: string };
+type DraftRow = { id: string; to: string; subject: string; snippet: string; dateMs?: number; threadId?: string };
 type View = "list" | "detail" | "compose" | "deck" | "dead" | "rules";
 type Filter = "triage" | "all" | "drafts";
 type TriageState = "idle" | "pending" | "ready" | "failed";
@@ -107,6 +110,7 @@ function fmtWhen(ms: number): string {
 export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections , demoMail = false, openThreadId }: { demoMail?: boolean; ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void; openThreadId?: string }) {
   const g = useGoogle();
   const tasks = useOptionalTasks();
+  const scheduleSvc = useOptionalSchedule();
   const people = useOptionalPeople();
   const session = useOptionalSession();
   // Phase 3: anything drafted here goes out over the user's name, so it gets
@@ -167,6 +171,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [waiting, setWaiting] = useState<(WaitingRow & { account?: string })[]>([]);
   // Bumps when the promise sweep finishes, so the home snapshot picks it up.
   const [sweepTick, setSweepTick] = useState(0);
+  // N1: meetings with at least one open slot, found by one gated AI pass.
+  const [meetings, setMeetings] = useState<MailMeeting[]>([]);
   const [opens, setOpens] = useState<Record<string, string>>({}); // threadId -> first-open ISO
   const [nudging, setNudging] = useState<string | null>(null);
   const [acctFilter, setAcctFilter] = useState<string | null>(null);
@@ -273,6 +279,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       void runTriage(mapped);
       void loadWaiting();
       void runSweep();
+      void findMeetings(splitByBucket(mapped, loadTriageCache()).needsYou);
     } catch (e) {
       setError((e as Error).message || "Could not load mail");
     } finally {
@@ -280,6 +287,53 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [g, runTriage]);
+
+  // PICK A TIME, FROM THE REAL CALENDAR (N1, 2026-08-20).
+  //
+  // An email proposing times is three decisions wearing a hat: read the
+  // options, remember your week, pick one, write back, remember to put it in.
+  // JARVIS owns the calendar, so it can do all four.
+  //
+  // Gated hard on cost: only threads that NEED him, only ones whose words
+  // look like a proposal at all, and at most two calls per load. Almost no
+  // mail proposes a time, and the mail that does always says so.
+  const findMeetings = async (needsYou: ThreadRow[]) => {
+    if (!ai.available || !scheduleSvc) { setMeetings([]); return; }
+    const candidates = needsYou
+      .filter((r) => mightProposeTimes((r.subject || "") + " " + (r.snippet || "")))
+      .slice(0, 2);
+    if (candidates.length === 0) { setMeetings([]); return; }
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const out: MailMeeting[] = [];
+    for (const r of candidates) {
+      try {
+        const api = apiFor(accountOfThread(r.id));
+        if (!api) continue;
+        const full = mapThreadFull(await api.getThread(r.id));
+        const last = full.messages[full.messages.length - 1];
+        if (!last) continue;
+        const raw = await ai.complete(
+          [{ role: "user", content: meetingPrompt(displayName(r.from), full.subject, cleanBody(last.body), todayIso) }],
+          MEETING_SYSTEM,
+        );
+        const times = parseMeetingTimes(raw, todayIso);
+        if (times.length === 0) continue;
+        // Every day the sender named, checked against what is actually there.
+        const days = [...new Set(times.map((t) => t.date))];
+        const events = (await Promise.all(days.map((d) => scheduleSvc.eventsOn(d)))).flat();
+        const options = optionsAgainst(times, events);
+        const free = firstFree(options);
+        // No open slot means no home-page card. It is a real answer, but it
+        // is not a ONE-TAP answer, so it stays in the tab.
+        if (!free) continue;
+        out.push({
+          threadId: r.id, from: displayName(r.from), label: free.label,
+          date: free.date, start: free.start, end: free.end, line: meetingLine(options),
+        });
+      } catch { /* one unreadable thread never stops the rest */ }
+    }
+    setMeetings(out);
+  };
 
   // THE PROMISE SWEEP (E5). The commitment catcher already handles anything
   // sent FROM this app. This is the rest: promises he made in the Gmail web
@@ -387,7 +441,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setLoading(true);
     try {
       const per = await Promise.all(list.map(async ({ api }) => api.listDrafts(25).catch(() => [])));
-      setDrafts(per.flat().map((d) => ({ id: d.id, to: header(d.message, "To"), subject: header(d.message, "Subject"), snippet: d.message.snippet || "" })));
+      setDrafts(per.flat().map((d) => ({
+        id: d.id,
+        to: header(d.message, "To"),
+        subject: header(d.message, "Subject"),
+        snippet: d.message.snippet || "",
+        // N10 needs an age. internalDate is Gmail's own receive/save stamp,
+        // which is the only honest answer to "how long has this sat".
+        dateMs: Number((d.message as { internalDate?: string }).internalDate || 0),
+        threadId: (d.message as { threadId?: string }).threadId,
+      })));
       setDraftsLoaded(true);
     } catch (e) {
       setError((e as Error).message || "Could not load drafts");
@@ -424,6 +487,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // messages/home.ts for what the home page does with it.
   useEffect(() => {
     if (!triaged || rows.length === 0) return;
+    const todayIso = new Date().toISOString().slice(0, 10);
+    // A thread whose last message is no longer HIS has answered itself, which
+    // is the same derivation Waiting On uses, so the two can never disagree.
+    const answeredThreads = rows.filter((r) => !waiting.some((w) => w.threadId === r.id)).map((r) => r.id);
     const map = applyRules(triage, rows, rules);
     const { needsYou } = splitByBucket(rows, map);
     const ordered = sortByDeadline(needsYou, map);
@@ -448,8 +515,24 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         threadId: w.threadId, to: displayName(w.to), subject: w.subject, days: w.waitingDays,
       })),
       promises: liveSweep(loadSweep(), loadPromised()).slice(0, 3),
+      // N1: only meetings with an open slot travel to the home page. "You're
+      // busy for all of them" is a real answer, but it is not a one-tap one,
+      // so it stays in the tab rather than becoming an interruption.
+      meetings: meetings.slice(0, 2),
+      // N3: chases HE set, come due, and still unanswered. A thread whose
+      // last message is no longer his has answered itself out of the list.
+      chases: dueChases(loadChases(), todayIso, answeredThreads).slice(0, 2).map((c) => ({
+        threadId: c.threadId, to: c.to, subject: c.subject,
+      })),
+      // N10: drafts he started and never sent, offered once each.
+      drafts: staleDrafts(drafts.filter((d) => !!d.dateMs).map((d) => ({
+        id: d.id, to: d.to, subject: d.subject, snippet: d.snippet, dateMs: d.dateMs!,
+      })), Date.now(), loadOffered()).slice(0, 1).map((d) => ({
+        id: d.id, threadId: (drafts.find((x) => x.id === d.id)?.threadId) || "", to: d.to, subject: d.subject,
+        line: staleLine(d, Date.now()),
+      })),
     });
-  }, [triaged, rows, triage, rules, waiting, sweepTick]);
+  }, [triaged, rows, triage, rules, waiting, sweepTick, meetings, drafts]);
 
   // Nothing-slips net: anything that has needed Dave for 3+ days becomes a
   // task, exactly once. This is what earns the right to fold the rest away.
