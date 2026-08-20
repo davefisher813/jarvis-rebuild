@@ -31,6 +31,9 @@
 /* groups header action buttons on the right (e.g. connections + delete) */
 .nav-actions { display: flex; align-items: center; gap: var(--s-1); }
 .nav-action.danger { color: var(--sys-red); }
+/* A bar action that is a MODE, not a verb: it stays lit while the mode is on,
+   so the editorial layout announces itself in the one place he looks. */
+.nav-action.on { color: var(--accent); }
 .nav-back .ic { width: 24px; height: 24px; }
 .tab .ic { width: 26px; height: 26px; }
 
@@ -1715,3 +1718,124 @@ button {
 .burst-big i:nth-child(6) { --bx: -51px; --by: 51px; }
 .burst-big i:nth-child(7) { --bx: -72px; --by: 0px; }
 .burst-big i:nth-child(8) { --bx: -51px; --by: -51px; }
+
+/* ============================================================
+   EDITORIAL MODE (Dave 2026-08-20: "an editorial feature in notes that
+   looks much more like an actual editorial writing option. use lines and
+   all that for a layout").
+
+   The canvas becomes a manuscript page: ruled baselines, a red margin rule,
+   numbered lines, serif body. Everything here is a LAYER over the same
+   blocks, never a different editor: the text, the rich marks, the block
+   menu and the selection bar all behave identically, so switching modes
+   can never lose or reformat a word.
+
+   The rules must land ON the baseline or the whole thing reads as broken
+   paper, so the body line-height is locked in PIXELS and the rule period is
+   the same number. Change one and you change both.
+   ============================================================ */
+.doc-editorial {
+  --ed-line: 30px;                 /* the baseline grid AND the rule period */
+  --ed-margin: 46px;               /* the red rule sits here, text starts after */
+  --ed-rule: rgba(255,255,255,0.07);
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  padding-left: calc(var(--ed-margin) + var(--s-3));
+  padding-right: var(--s-4);
+  /* Only the margin rule lives on the page. The BASELINE rules live on each
+     block, because a page-level grid drifts the moment any element is not an
+     exact multiple of the period, and a ruled page whose rules miss the text
+     reads as broken paper rather than as a manuscript. Putting them on the
+     block means they are drawn from the same line-height the text uses, so
+     they cannot disagree with it. */
+  background-image: linear-gradient(90deg,
+    transparent var(--ed-margin),
+    rgba(255,43,60,0.30) var(--ed-margin), rgba(255,43,60,0.30) calc(var(--ed-margin) + 1px),
+    transparent calc(var(--ed-margin) + 1px));
+  background-attachment: local;
+}
+[data-theme="light"] .doc-editorial { --ed-rule: rgba(0,0,0,0.10); }
+
+/* The rules, drawn under the text they belong to. The offset puts the rule
+   just below the baseline of an 18px face on a 30px line. */
+.doc-editorial .block-row {
+  background-image: repeating-linear-gradient(180deg,
+    transparent 0, transparent calc(var(--ed-line) - 1px),
+    var(--ed-rule) calc(var(--ed-line) - 1px), var(--ed-rule) var(--ed-line));
+  background-position: 0 5px;
+}
+
+/* Body copy sits on the grid. A serif at a book measure, not UI text in a
+   different font: the point is that it reads like a page, not a form. */
+.doc-editorial .t-body,
+.doc-editorial .doc-textarea {
+  font-family: inherit;
+  font-size: 18px;
+  line-height: var(--ed-line);
+  min-height: var(--ed-line);
+  padding: 0;
+  letter-spacing: 0.005em;
+}
+.doc-editorial > * + * { margin-top: 0; }
+.doc-editorial .block-row { margin-top: 0; }
+
+/* The title is the piece's title: display serif, its own air, and it takes
+   whole grid rows so nothing below it drifts off the rules. */
+.doc-editorial .doc-title {
+  font-family: inherit;
+  font-size: 30px;
+  line-height: calc(var(--ed-line) * 1.4);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--ed-line);
+}
+
+/* Headings keep the steel numbering they already have, restyled to serif and
+   snapped to whole grid rows so the rules stay true underneath them. */
+.doc-editorial .hwrap { margin-top: var(--ed-line); }
+.doc-editorial .block-h {
+  font-family: inherit;
+  font-size: 21px;
+  line-height: var(--ed-line);
+  letter-spacing: 0.04em;
+}
+
+/* LINE NUMBERS, the manuscript convention. They live in the margin gutter,
+   count themselves with a CSS counter, and are aria-hidden: they are a
+   printing convention, not content, and a screen reader announcing "one,
+   two, three" over every paragraph would be unusable. */
+.doc-editorial { counter-reset: doch edline; }
+.doc-editorial .block-row { position: relative; counter-increment: edline; }
+.doc-editorial .block-row::before {
+  content: counter(edline);
+  position: absolute;
+  left: calc((var(--ed-margin) + var(--s-3)) * -1);
+  width: var(--ed-margin);
+  padding-right: 10px;
+  text-align: right;
+  font-family: var(--f);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: var(--ed-line);
+  color: var(--tx-4);
+  pointer-events: none;
+}
+
+/* The running foot: title on the left, count on the right, a hairline above.
+   The word count already existed as a lonely centred number; on a manuscript
+   page it becomes the colophon it always wanted to be. */
+.doc-colophon {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3);
+  margin: var(--s-5) var(--s-4) 0;
+  padding-top: var(--s-2);
+  border-top: 0.5px solid var(--divider);
+  font-family: var(--f);
+  font-size: var(--t-meta);
+  color: var(--tx-4);
+}
+.doc-colophon .ed-name { font-weight: var(--w-semi); color: var(--tx-3); letter-spacing: 0.02em; }
+.doc-colophon .ed-count { font-variant-numeric: tabular-nums; }
+.screen-editor .doc-colophon { margin-bottom: 96px; }
+
+/* THE SEND HOLD (undo send, 2026-08-20). Loud on purpose: a toast that fades
+   while he is still deciding is the same as not offering undo at all. */
+.send-hold { border: 1px solid rgba(10,132,255,0.35); }

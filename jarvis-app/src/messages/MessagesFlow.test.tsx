@@ -323,6 +323,11 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByLabelText("New Message"));
     fireEvent.change(screen.getByPlaceholderText("To"), { target: { value: "a@b.com" } });
     fireEvent.click(screen.getByText("Send"));
+    // Undo send (2026-08-20): nothing leaves during the hold. That IS the
+    // feature, so the test asserts the hold exists and then releases it,
+    // rather than asserting the old fire-and-pray behaviour.
+    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Send Now"));
     await waitFor(() => expect(screen.getByText("Sent")).toBeInTheDocument());
   });
 
@@ -354,6 +359,10 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Hello draft"));
     expect(((await screen.findByPlaceholderText("To")) as HTMLInputElement).value).toBe("z@x.com");
     fireEvent.click(screen.getByText("Send"));
+    // The draft is only cleaned up once the message ACTUALLY leaves, which is
+    // after the hold. Deleting it during the hold would destroy the draft the
+    // user can still pull back to.
+    fireEvent.click(await screen.findByText("Send Now"));
     await waitFor(() => expect(deleted).toBe("d1"));
   });
 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward } from "lucide-react";
+import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send } from "lucide-react";
 import type { AIService } from "../ai/AIService";
 import { useGoogle } from "../connections/google/GoogleSession";
 import DemoMail from "./DemoMail";
@@ -44,6 +44,7 @@ import { ladderFor, loadNudgeCounts, countNudge } from "./escalate";
 import { closeCandidates, closeLine, closeReceipt, closeDue, markClosed, lastClose } from "./weeklyClose";
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
 import { attachOffer } from "./attachmentKind";
+import { HOLD_SECONDS } from "./outbox";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
 import { saidQuery, saidPrompt, parseSaid, saidEmpty, SAID_SYSTEM } from "./saidWhat";
 import { shouldAutoReply, autoReplyBody, loadAutoState, markAutoReplied, AUTO_REPLY_EXPLAINER } from "./autoReply";
@@ -727,6 +728,36 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   };
 
+  const [held, setHeld] = useState<{ at: number; timer: ReturnType<typeof setTimeout> } | null>(null);
+  const heldRef = useRef<typeof held>(null);
+  useEffect(() => { heldRef.current = held; }, [held]);
+  // Fire the send if the app is torn down mid-hold. Losing a message the user
+  // believes they sent is far worse than sending one they meant to catch.
+  useEffect(() => () => { if (heldRef.current) void doSend(); /* eslint-disable-line */ }, []);
+
+  const send = () => {
+    if (!draft.to.trim()) { setError("Add a recipient"); return; }
+    if (held) return;
+    setError(null);
+    setView("list");
+    const timer = setTimeout(() => { setHeld(null); void doSend(); }, HOLD_SECONDS * 1000);
+    setHeld({ at: Date.now(), timer });
+  };
+
+  const undoSend = () => {
+    if (!held) return;
+    clearTimeout(held.timer);
+    setHeld(null);
+    setView("compose");
+  };
+
+  const sendNow = () => {
+    if (!held) return;
+    clearTimeout(held.timer);
+    setHeld(null);
+    void doSend();
+  };
+
   const openThread = async (id: string) => {
     const api = apiFor(accountOfThread(id));
     if (!api) return;
@@ -1069,7 +1100,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   };
 
-  const send = async () => {
+  // UNDO SEND (2026-08-20, from the complaint research). Send is the only
+  // irreversible button in this app; everything else can be archived back or
+  // untrashed. That asymmetry is why "undo send" tops every email survey and
+  // why Apple finally shipped it in Mail. So nothing leaves immediately.
+  //
+  // The hold is REAL: during it the message has not been handed to Gmail, so
+  // Undo genuinely un-sends rather than asking the recipient nicely. The
+  // composer's state is kept intact for the whole window, so Undo puts him
+  // back exactly where he was, mid-sentence if that is where he was.
+  const doSend = async () => {
     const api = apiFor(draft.account);
     if (!api || !draft.to.trim()) {
       setError(!draft.to.trim() ? "Add a recipient" : "Not connected");
@@ -1643,6 +1683,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   return (
     <div className={"screen " + pushCls} key="list">
       <PageHeader title="Email" actions={<BarAction label="New Message" onClick={startCompose}><Plus className="ic" /></BarAction>} />
+      {/* The hold. It is the whole point of undo-send that this is loud,
+          reachable, and honest about what is happening: the message has NOT
+          gone yet, and Undo puts him back in the composer where he was. */}
+      {held && <SendHold startedAt={held.at} onUndo={undoSend} onNow={sendNow} />}
       <div className="pad-x">
         <input
           className="msg-input msg-search" placeholder="Search All Mail" value={search}
@@ -2022,6 +2066,34 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       {(Object.keys(rules).length > 0 || muted.length > 0) && (
         <div className="pad-x"><button className="quiet-action" onClick={() => setView("rules")}>Standing Rules</button></div>
       )}
+    </div>
+  );
+}
+
+// The send hold, counting down. Deliberately a bar and not a toast: a toast
+// that vanishes while he is still deciding is the same as not offering undo.
+function SendHold({ startedAt, onUndo, onNow }: { startedAt: number; onUndo: () => void; onNow: () => void }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, []);
+  const left = Math.max(0, Math.ceil((startedAt + HOLD_SECONDS * 1000 - now) / 1000));
+  return (
+    <div className="pad-x">
+      <div className="card send-hold">
+        <div className="row">
+          <div className="row-glyph cat-fg-blue"><Send className="ic" /></div>
+          <div className="row-grow">
+            <div className="conn-name">{left > 0 ? "Sending in " + left : "Sending"}</div>
+            <div className="conn-meta">Nothing has left yet</div>
+          </div>
+          <button className="pill-act" onClick={onUndo}>Undo</button>
+        </div>
+        <div className="row row-acts">
+          <button className="btn-sm" onClick={onNow}>Send Now</button>
+        </div>
+      </div>
     </div>
   );
 }

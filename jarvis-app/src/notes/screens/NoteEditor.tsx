@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { MoreHorizontal, FileText, Image, Check, Plus, ArrowUp, ArrowDown, Trash2, Undo2, Redo2, Type, List as ListIcon, CheckSquare, Heading1, Bold, Italic, Strikethrough, Highlighter } from "lucide-react";
+import { MoreHorizontal, FileText, Image, Check, Plus, ArrowUp, ArrowDown, Trash2, Undo2, Redo2, Type, List as ListIcon, CheckSquare, Heading1, Bold, Italic, Strikethrough, Highlighter, Pilcrow } from "lucide-react";
 import { wrapRange, countWords } from "../richtext";
 import { catColor } from "../../shared/categories";
 import { Burst } from "../../shared/Burst";
 import InlineEdit from "../../shared/InlineEdit";
+
+// Editorial layout is a way of writing, not a property of one note, so the
+// choice is global and remembered.
+import { capAfterNumber } from "../../shared/casing";
+
+const EDITORIAL_KEY = "jarvis.notes.editorial.v1";
 
 // Matches locked frame #47 "Editor / Blocks", now editable in place. Tapping a
 // checkbox toggles it; title, text, headings, and checklist item text are
@@ -402,6 +408,24 @@ export default function NoteEditor({
   canRedo?: boolean;
 }) {
   const inline = note.blocks.filter((b) => b.type !== "file" && b.type !== "photo");
+  // EDITORIAL MODE (Dave 2026-08-20). A layer over the same blocks, never a
+  // second editor: ruled baselines, a red margin rule, numbered lines and a
+  // serif face. Because it is only a class, every writing feature already
+  // built (rich marks, the selection bar, the block menu, undo) keeps working
+  // untouched, and switching modes cannot reformat or lose a single word.
+  // The choice is global and remembered: it is a way of writing, not a
+  // property of one note.
+  const [editorial, setEditorial] = useState<boolean>(() => {
+    try { return localStorage.getItem(EDITORIAL_KEY) === "1"; } catch { return false; }
+  });
+  const toggleEditorial = () => {
+    setEditorial((on) => {
+      const next = !on;
+      try { localStorage.setItem(EDITORIAL_KEY, next ? "1" : "0"); } catch { /* private mode */ }
+      return next;
+    });
+  };
+
   const words = countWords(
     note.blocks.flatMap((b) =>
       b.type === "text" || b.type === "heading" || b.type === "meta" ? [b.text]
@@ -450,6 +474,14 @@ export default function NoteEditor({
               <Redo2 className="ic" />
             </button>
           )}
+          <button
+            className={"nav-action" + (editorial ? " on" : "")}
+            onClick={toggleEditorial}
+            aria-pressed={editorial}
+            aria-label={editorial ? "Leave editorial layout" : "Editorial layout"}
+          >
+            <Pilcrow className="ic" />
+          </button>
           <button className="nav-action" onClick={onConnections} aria-label="Connections">
             <MoreHorizontal className="ic" />
           </button>
@@ -461,7 +493,7 @@ export default function NoteEditor({
         </div>
       </div>
 
-      <div className="doc">
+      <div className={"doc" + (editorial ? " doc-editorial" : "")}>
         <div className="inline-dot">
           <div className={"proj-icon cat-bg-" + catColor(note.category)}>
             <FileText className="ic" />
@@ -549,7 +581,14 @@ export default function NoteEditor({
         </div>
       )}
 
-      {words > 0 && <div className="doc-count">{words} words</div>}
+      {words > 0 && (editorial ? (
+        <div className="doc-colophon">
+          <span className="ed-name">{note.title || "Untitled"}</span>
+          <span className="ed-count">{capAfterNumber(words === 1 ? "1 word" : words + " words")}</span>
+        </div>
+      ) : (
+        <div className="doc-count">{words} words</div>
+      ))}
 
       <SelectionBar onApply={applyFormat} />
 
