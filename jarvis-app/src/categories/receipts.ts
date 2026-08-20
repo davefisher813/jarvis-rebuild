@@ -1,4 +1,5 @@
 import type { CompletionSample } from "../shared/timeSense";
+import { capAfterNumber } from "../shared/casing";
 
 // The This Week receipt (2026-08-03): the category page reports what actually
 // HAPPENED, derived from real completions (Time Sense samples) and real
@@ -49,11 +50,11 @@ export function receiptLine(r: WeekReceipt): string | null {
   const parts: string[] = [];
   if (r.done > 0) parts.push(`${r.done} ${r.done === 1 ? "thing" : "things"} done`);
   if (r.events > 0) parts.push(`${r.events} ${r.events === 1 ? "event" : "events"}`);
-  return parts.length ? parts.join(" · ") : null;
+  return parts.length ? capAfterNumber(parts.join(" · ")) : null;
 }
 
 /** The after-hours sub-line; null unless work hours are on and it happened. */
 export function afterHoursLine(r: WeekReceipt): string | null {
   if (r.afterHours <= 0) return null;
-  return `${r.afterHours} ${r.afterHours === 1 ? "event" : "events"} after work hours`;
+  return capAfterNumber(`${r.afterHours} ${r.afterHours === 1 ? "event" : "events"} after work hours`);
 }

@@ -96,11 +96,11 @@ describe("MessagesFlow (threads)", () => {
     expect(screen.getByText("The Rest")).toBeInTheDocument();
     expect(screen.getByText("1")).toBeInTheDocument();
     expect(screen.queryByText("Noise")).toBeNull();
-    expect(screen.queryByText("1 automated email")).toBeNull();
+    expect(screen.queryByText("1 Automated email")).toBeNull();
     // It expands in place, and noise inside it is still collapsed to a count.
     fireEvent.click(screen.getByText("The Rest"));
     expect(screen.getByText("Noise")).toBeInTheDocument();
-    expect(screen.getByText("1 automated email")).toBeInTheDocument();
+    expect(screen.getByText("1 Automated email")).toBeInTheDocument();
     expect(screen.queryByText(/DoorDash promo/)).toBeNull();
   });
 
@@ -117,7 +117,7 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("The Rest"));
     fireEvent.click(await screen.findByText("Archive All"));
     await waitFor(() => expect(archived).toEqual(["t2"]));
-    expect(screen.getByText("1 conversation archived")).toBeInTheDocument();
+    expect(screen.getByText("1 Conversation archived")).toBeInTheDocument();
     expect(screen.queryByText("Noise")).toBeNull();
     expect(screen.getByText(/Tucci/)).toBeInTheDocument(); // needs_you untouched
   });

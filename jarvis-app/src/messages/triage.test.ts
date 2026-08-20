@@ -107,8 +107,8 @@ describe("presentation", () => {
     // SPEC MOVED (short copy, 2026-08-15)
     expect(headline(0, 0)).toBe("Inbox is quiet");
     expect(headline(0, 12)).toBe("Nothing needs you");
-    expect(headline(1, 12)).toBe("1 needs you · rest handled");
-    expect(headline(3, 12)).toBe("3 need you · rest handled");
+    expect(headline(1, 12)).toBe("1 Needs you · Rest handled");
+    expect(headline(3, 12)).toBe("3 Need you · Rest handled");
   });
 
   it("noiseLine names senders without listing forever", () => {

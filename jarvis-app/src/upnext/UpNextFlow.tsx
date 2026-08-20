@@ -178,7 +178,7 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
       <div className="upnext-body pad-x">
         {!loaded ? null : winsOver ? (
           <div className="card pad upnext-card">
-            <div className="upnext-task">{winsDone > 0 ? `${winsDone} down.` : "The deck's still here."}</div>
+            <div className="upnext-task">{winsDone > 0 ? `${winsDone} Down.` : "The deck's still here."}</div>
             <div className="conn-meta">
               {winsDone >= Math.min(QUICK_WINS_COUNT, winsDeck.length) && winsDeck.length > 0
                 ? "A clean sweep."

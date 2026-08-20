@@ -27,7 +27,7 @@ const ChatFlow = lazy(() => import("../chat/ChatFlow"));
 
 const QuickCapture = lazy(() => import("../capture/QuickCapture"));
 const SearchFlow = lazy(() => import("../search/SearchFlow"));
-import { seedDemoData } from "../data/seed";
+import { seedDemoData, seedDemoMail } from "../data/seed";
 import { setCategoryRegistry } from "../shared/categories";
 import ToastHost from "../shared/ToastHost";
 import { bus } from "../events";
@@ -72,6 +72,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // Person deep-link: BrainFlow opens Contacts, PeopleFlow opens the person.
   const [personIntent, setPersonIntent] = useState<{ groupKey: string; id: string } | undefined>(undefined);
   const [noteIntent, setNoteIntent] = useState<string | undefined>(undefined);
+  // A home-page email notice opens THE THREAD, never the inbox. Landing in a
+  // list he then has to search is the trip the old count line made him take.
+  const [mailIntent, setMailIntent] = useState<string | undefined>(undefined);
   // Decision deep-link: BrainFlow opens Decisions, DecisionsFlow opens the record.
   const [decisionIntent, setDecisionIntent] = useState<string | undefined>(undefined);
   const navigateToNote = (id: string) => { setNoteIntent(id); setActive("notes"); };
@@ -111,7 +114,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       const cats = await categories.list();
       if (!on) return;
       setCategoryRegistry(cats.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));
-      if (seedDemo) await seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people, decisions });
+      if (seedDemo) { await seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people, decisions }); seedDemoMail(); }
       if (!on) return;
       const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
       setTabKeys(keys);
@@ -185,14 +188,14 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             are instant, like native iOS (RDB, Dave 2026-07-29) */}
         <Suspense fallback={<SkeletonScreen hero={false} />}>
         <div key={active}>
-        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); setActive("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={() => setActive("messages")} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") setActive("brain"); else void navigateToEntity(kind, id); }} />}
+        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); setActive("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string) => { setMailIntent(threadId); setActive("messages"); }} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") setActive("brain"); else void navigateToEntity(kind, id); }} />}
         {active === "tasks" && <TasksFlow openId={taskIntent} openFilter={taskFilterIntent} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
         {active === "brain" && <BrainFlow openKey={brainIntent} personOpenId={personIntent?.id} decisionOpenId={decisionIntent} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenMoney={() => setActive("money")} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
         
         {active === "bigger" && <BiggerPictureFlow openId={projectIntent} openGoalId={goalIntent} onOpenNote={navigateToNote} onOpenDecision={(id) => void navigateToEntity("decision", id)} />}
-        {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
+        {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
         {active === "notifications" && <NotificationsFlow />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} />}
         {active === "chat" && <ChatFlow />}

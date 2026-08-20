@@ -23,9 +23,9 @@ function ago(iso: string | undefined): string | null {
   const days = Math.floor(ms / 86400000);
   if (days === 0) return "today";
   if (days === 1) return "yesterday";
-  if (days < 30) return `${days} days ago`;
+  if (days < 30) return `${days} Days ago`;
   const months = Math.floor(days / 30);
-  return months === 1 ? "a month ago" : `${months} months ago`;
+  return months === 1 ? "A month ago" : `${months} Months ago`;
 }
 
 export default function CallPrepSheet({

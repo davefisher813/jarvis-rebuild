@@ -1,4 +1,5 @@
 import { formatMoney } from "./types";
+import { capAfterNumber } from "../shared/casing";
 
 // BUDGETING, the honest kind.
 //
@@ -99,5 +100,5 @@ export function perDayLine(l: Left, days: number): string {
   if (l.amount <= 0 || days <= 1) return "";
   const per = Math.floor(l.amount / days);
   if (per <= 0) return "";
-  return days + " days, about " + formatMoney(per) + " a day";
+  return capAfterNumber(days + " days, about " + formatMoney(per) + " a day");
 }

@@ -3,6 +3,7 @@
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { partition } from "../tasks/filters";
+import { capAfterNumber } from "../shared/casing";
 
 const DAY = 86400000;
 
@@ -50,13 +51,17 @@ export function isPast(ev: EventItem, now: string): boolean {
 // its due date; Today said nothing until one became an overdue task. One
 // deterministic line for anything due in the next three days, because bills
 // are the category where a missed day costs actual money.
-export function billsLine(tasks: TaskItem[], today: string): string | null {
+export function billsDueSoon(tasks: TaskItem[], today: string): TaskItem[] {
   const horizon = new Date(today + "T00:00:00");
   horizon.setDate(horizon.getDate() + 3);
   const cutoff = horizon.toISOString().slice(0, 10);
-  const due = tasks
+  return tasks
     .filter((t) => !t.data.done && !!t.data.bill && !!t.data.due && (t.data.due as string) >= today && (t.data.due as string) <= cutoff)
     .sort((a, b) => ((a.data.due as string) || "").localeCompare((b.data.due as string) || ""));
+}
+
+export function billsLine(tasks: TaskItem[], today: string): string | null {
+  const due = billsDueSoon(tasks, today);
   if (due.length === 0) return null;
 
   const when = (iso: string): string => {
@@ -73,5 +78,5 @@ export function billsLine(tasks: TaskItem[], today: string): string | null {
     const amt = t.data.bill?.amount;
     return `${name(t)}${amt ? ` ($${amt})` : ""} due ${when(t.data.due as string)}`;
   }
-  return `${due.length} bills due soon · ${due.map(name).join(", ")}`;
+  return capAfterNumber(`${due.length} bills due soon`) + ` · ${due.map(name).join(", ")}`;
 }

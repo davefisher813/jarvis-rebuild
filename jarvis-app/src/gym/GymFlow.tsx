@@ -15,6 +15,7 @@ import HistoryScreen from "./HistoryScreen";
 import { usePushDepth } from "../shared/pushNav";
 import { showToast } from "../shared/toast";
 import { useAI } from "../ai/useAI";
+import { capAfterNumber } from "../shared/casing";
 
 const CHEV = (
   <div className="chev" />
@@ -417,7 +418,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
                           <div className="conn-name truncate">{w.data.dayName}</div>
                           {/* Partial work is stated as the fact it is: never a
                               percentage, never a shortfall. */}
-                          <div className="eyebrow">{monthDay(w.data.date)} · {mins} min · {logged === total ? `${total} ${total === 1 ? "exercise" : "exercises"}` : `${logged} of ${total} exercises`}</div>
+                          <div className="eyebrow">{monthDay(w.data.date)} · {mins} min · {logged === total ? capAfterNumber(`${total} ${total === 1 ? "exercise" : "exercises"}`) : capAfterNumber(`${logged} of ${total} exercises`)}</div>
                         </div>
                         {CHEV}
                       </div>

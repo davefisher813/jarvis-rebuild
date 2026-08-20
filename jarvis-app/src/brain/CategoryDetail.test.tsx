@@ -148,7 +148,7 @@ describe("CategoryDetail org health (2026-08-10)", () => {
     // as a lowercase fragment.
     expect(screen.getByText("Moving")).toBeInTheDocument();
     expect(screen.getByText(/next: Email sponsors/)).toBeInTheDocument();
-    expect(screen.getByText(/1 overdue · Moves Grow the league/)).toBeInTheDocument();
+    expect(screen.getByText(/1 Overdue · Moves Grow the league/)).toBeInTheDocument();
   });
 
   it("a project with no open task says Stalled out loud", async () => {

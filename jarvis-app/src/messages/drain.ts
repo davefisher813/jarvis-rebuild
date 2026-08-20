@@ -1,4 +1,5 @@
 // The drain: "give me N minutes", and N is the USER'S number, always.
+import { capAfterNumber } from "../shared/casing";
 //
 // Dave's explicit requirement: he sets the timer. Presets exist because
 // picking from three is faster than typing, not because the app knows better.
@@ -40,6 +41,6 @@ export function fmtClock(msLeft: number): string {
 
 // What got handled, and nothing else. No remainder, no percentage, no "but".
 export function drainReceipt(handled: number, minutes: number): string {
-  const what = handled === 1 ? "1 handled" : handled + " handled";
+  const what = capAfterNumber(handled === 1 ? "1 handled" : handled + " handled");
   return what + " in " + minutes + (minutes === 1 ? " minute" : " minutes");
 }

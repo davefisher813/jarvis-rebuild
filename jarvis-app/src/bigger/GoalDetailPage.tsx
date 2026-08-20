@@ -6,6 +6,7 @@ import type { Progress } from "./progress";
 import { savingsLine, savingsPct, savedNewestFirst, savedTotal } from "./savings";
 import { formatMoney } from "../money/types";
 import { monthDay } from "../money/bills";
+import { capAfterNumber } from "../shared/casing";
 
 // Session 6.6: a goal is a PLACE, not an edit form. One glance answers "is
 // this moving, and what happens next": an aggregate progress line in the hero
@@ -84,7 +85,7 @@ export default function GoalDetailPage({
           </>
         ) : (
           <>
-            <div className="bp-sub">{progress ? `${progress.done} of ${progress.total} tasks done` : "No tasks yet"}</div>
+            <div className="bp-sub">{progress ? capAfterNumber(`${progress.done} of ${progress.total} tasks done`) : "No tasks yet"}</div>
             {progress && <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, progress.pct) + "%" }} /></div>}
           </>
         )}

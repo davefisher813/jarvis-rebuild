@@ -130,7 +130,7 @@ describe("the drain", () => {
 
   it("reports what got done and nothing about the remainder", () => {
     const r = drainReceipt(4, 5);
-    expect(r).toBe("4 handled in 5 minutes");
+    expect(r).toBe("4 Handled in 5 minutes");
     expect(r).not.toMatch(/left|remaining|still|other/i);
   });
 });

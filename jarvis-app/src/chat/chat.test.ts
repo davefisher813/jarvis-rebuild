@@ -31,7 +31,7 @@ const snap = (over: Partial<AnswerSnapshot> = {}): AnswerSnapshot => ({
 describe("chat deterministic Q&A", () => {
   it("answers what's today with counts from records", () => {
     const a = answerQuestion("What's today?", snap());
-    expect(a?.text).toBe("2 events · 1 task due");
+    expect(a?.text).toBe("2 Events · 1 Task due");
     expect(a?.provenance.kind).toBe("records");
   });
 
@@ -130,9 +130,9 @@ describe("ChatService", () => {
   it("appends and lists in time order with provenance intact", async () => {
     const s = rig();
     await s.append({ role: "user", text: "hi" });
-    await s.append({ role: "jarvis", text: "2 events · 1 task due", provenance: { kind: "records" } });
+    await s.append({ role: "jarvis", text: "2 Events · 1 Task due", provenance: { kind: "records" } });
     const msgs = await s.list();
-    expect(msgs.map((m) => m.data.text)).toEqual(["hi", "2 events · 1 task due"]);
+    expect(msgs.map((m) => m.data.text)).toEqual(["hi", "2 Events · 1 Task due"]);
     expect(msgs[1]?.data.provenance?.kind).toBe("records");
   });
 

@@ -33,13 +33,16 @@ import { cleanBody, isLong, leadIn, wordCount } from "./bodyText";
 import { recordToss, markAsked, tossOffer, tossLine } from "./selfClean";
 import { PRESETS, loadMinutes, saveMinutes, clampMinutes, drainReceipt } from "./drain";
 import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, handoffLine, type HandoffTarget } from "./handoff";
-import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, markPromised, commitmentLine } from "./commitments";
+import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, markPromised, commitmentLine, loadPromised } from "./commitments";
+import { saveMailSnapshot } from "./home";
+import { sweepPrompt, parseSweep, needsSweep, liveSweep, loadSweep, saveSweep, SWEEP_SYSTEM, type SentItem } from "./sentSweep";
 import { laterTaskTitle } from "./deck";
 import { noDashes } from "../ai/suggestions";
 import { useOptionalAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
 import { useOptionalTasks, useOptionalPeople, useOptionalProfile } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
+import { capAfterNumber } from "../shared/casing";
 
 type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string };
 type DraftRow = { id: string; to: string; subject: string; snippet: string };
@@ -101,7 +104,7 @@ function fmtWhen(ms: number): string {
 // so junk is never opened. The headline counts what needs Dave, never unread.
 // Threads are the unit throughout; search is server-side over the whole
 // mailbox. Without AI the tab is an honest threaded list, no fake triage.
-export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections , demoMail = false }: { demoMail?: boolean; ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void }) {
+export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections , demoMail = false, openThreadId }: { demoMail?: boolean; ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void; openThreadId?: string }) {
   const g = useGoogle();
   const tasks = useOptionalTasks();
   const people = useOptionalPeople();
@@ -162,6 +165,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // email nobody decided on is this feature's worst failure.
   const [deckRows, setDeckRows] = useState<ThreadRow[] | null>(null);
   const [waiting, setWaiting] = useState<(WaitingRow & { account?: string })[]>([]);
+  // Bumps when the promise sweep finishes, so the home snapshot picks it up.
+  const [sweepTick, setSweepTick] = useState(0);
   const [opens, setOpens] = useState<Record<string, string>>({}); // threadId -> first-open ISO
   const [nudging, setNudging] = useState<string | null>(null);
   const [acctFilter, setAcctFilter] = useState<string | null>(null);
@@ -267,6 +272,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setTriage(loadTriageCache());
       void runTriage(mapped);
       void loadWaiting();
+      void runSweep();
     } catch (e) {
       setError((e as Error).message || "Could not load mail");
     } finally {
@@ -274,6 +280,45 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [g, runTriage]);
+
+  // THE PROMISE SWEEP (E5). The commitment catcher already handles anything
+  // sent FROM this app. This is the rest: promises he made in the Gmail web
+  // client, on his phone, or before JARVIS existed. One capped AI pass, and
+  // only when new mail has actually gone out since the last one.
+  const runSweep = async () => {
+    if (!ai.available) return;
+    try {
+      const list = g.apis("mail");
+      if (list.length === 0) return;
+      const items: SentItem[] = [];
+      let head = "";
+      for (const { api } of list) {
+        const metas = await api.searchThreads("in:sent -in:chats", 8).catch(() => []);
+        for (const meta of metas) {
+          const full = mapThreadFull(meta as unknown as Parameters<typeof mapThreadFull>[0]);
+          const last = full.messages[full.messages.length - 1];
+          if (!last) continue;
+          if (!head) head = last.id;
+          if (alreadyPromised(full.id)) continue;
+          items.push({
+            threadId: full.id,
+            to: displayName(header(last as never, "to")),
+            subject: full.subject,
+            body: cleanBody(last.body),
+            msgId: last.id,
+          });
+        }
+      }
+      if (!needsSweep(head)) return;
+      if (items.length === 0) { saveSweep({ head, promises: [] }); setSweepTick((n) => n + 1); return; }
+      const raw = await ai.complete(
+        [{ role: "user", content: sweepPrompt(items.slice(0, 8), new Date().toISOString().slice(0, 10)) }],
+        SWEEP_SYSTEM,
+      );
+      saveSweep({ head, promises: parseSweep(raw, items) });
+      setSweepTick((n) => n + 1);
+    } catch { /* a missed promise is silent; a wrong task is not */ }
+  };
 
   // Waiting On is a bonus layer: it loads after the inbox and fails to
   // nothing. Opens are looked up only for threads we actually tracked.
@@ -358,6 +403,48 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   useEffect(() => {
     if (g.hasToken && filter === "drafts" && !draftsLoaded) void loadDrafts();
   }, [g.hasToken, filter, draftsLoaded, loadDrafts]);
+
+  // Arriving from a home-page notice: open that exact thread once the inbox
+  // has loaded. Once only, so backing out of the thread does not bounce him
+  // straight back into it.
+  const jumped = useRef<string | null>(null);
+  useEffect(() => {
+    if (!openThreadId || rows.length === 0) return;
+    if (jumped.current === openThreadId) return;
+    if (!rows.some((r) => r.id === openThreadId)) return;
+    jumped.current = openThreadId;
+    void openThread(openThreadId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openThreadId, rows]);
+
+  // THE HOME SNAPSHOT (Dave 2026-08-20). Today must render instantly, so it
+  // never touches Gmail: the Email tab leaves behind everything the home page
+  // needs the moment it knows it. Sender, subject, gist and the deadline the
+  // sender stated, plus who owes him a reply and what he promised. See
+  // messages/home.ts for what the home page does with it.
+  useEffect(() => {
+    if (!triaged || rows.length === 0) return;
+    const map = applyRules(triage, rows, rules);
+    const { needsYou } = splitByBucket(rows, map);
+    const ordered = sortByDeadline(needsYou, map);
+    saveMailSnapshot({
+      ts: Date.now(),
+      needsYou: needsYou.length,
+      threads: ordered.slice(0, 6).map((r) => ({
+        id: r.id,
+        from: displayName(r.from),
+        fromEmail: r.fromEmail,
+        subject: r.subject,
+        gist: map[r.id]?.gist ?? r.snippet ?? "",
+        by: map[r.id]?.by,
+        account: (r as ThreadRow & { account?: string }).account,
+      })),
+      waiting: waiting.slice(0, 3).map((w) => ({
+        threadId: w.threadId, to: displayName(w.to), subject: w.subject, days: w.waitingDays,
+      })),
+      promises: liveSweep(loadSweep(), loadPromised()).slice(0, 3),
+    });
+  }, [triaged, rows, triage, rules, waiting, sweepTick]);
 
   // Nothing-slips net: anything that has needed Dave for 3+ days becomes a
   // task, exactly once. This is what earns the right to fold the rest away.
@@ -582,7 +669,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
     }
     if (counts) setToss(tossOffer(counts));
-    const what = noise.length === 1 ? "1 conversation archived" : noise.length + " conversations archived";
+    const what = capAfterNumber(noise.length === 1 ? "1 conversation archived" : noise.length + " conversations archived");
     // Undo (2026-08-09): this was the one archive without it, and it is the
     // one that takes the most at once, including when the opt-in auto-clear
     // runs it unattended.
@@ -1310,7 +1397,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         </div>
                         <div className="row" role="button" tabIndex={0} onClick={() => setNoiseOpen(!noiseOpen)}>
                           <div className="row-grow">
-                            <div className="conn-name">{noise.length === 1 ? "1 automated email" : noise.length + " automated emails"}</div>
+                            <div className="conn-name">{capAfterNumber(noise.length === 1 ? "1 automated email" : noise.length + " automated emails")}</div>
                             <div className="conn-meta msg-gist">{noiseLine(noise)}</div>
                           </div>
                         </div>

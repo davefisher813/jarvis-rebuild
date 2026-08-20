@@ -1,5 +1,6 @@
 import type { EventItem } from "./types";
 import type { TaskItem } from "../tasks/TasksService";
+import { capAfterNumber } from "../shared/casing";
 
 // Event-task attachments (roadmap v2, Session 4 connections). Pure helpers;
 // storage and UI belong to the callers. Links live on the event and die with
@@ -23,8 +24,8 @@ export function attachInfo(e: EventItem, tasks: TaskItem[]): AttachInfo | null {
 
 // One line of meta for the day row. Sentence case: meta talks, it never names.
 export function attachLabel(info: AttachInfo): string {
-  if (info.done === 0) return `${info.total} ${info.total === 1 ? "task" : "tasks"} attached`;
-  return `${info.done} of ${info.total} ${info.total === 1 ? "task" : "tasks"} done`;
+  if (info.done === 0) return capAfterNumber(`${info.total} ${info.total === 1 ? "task" : "tasks"} attached`);
+  return capAfterNumber(`${info.done} of ${info.total} ${info.total === 1 ? "task" : "tasks"} done`);
 }
 
 function toMin(hhmm: string): number {

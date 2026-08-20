@@ -17,11 +17,11 @@ describe("attachInfo + attachLabel", () => {
     const e = evt({ taskIds: ["a", "b", "gone"] });
     const info = attachInfo(e, [task("a", true), task("b")]);
     expect(info).toEqual({ total: 2, done: 1 });
-    expect(attachLabel(info!)).toBe("1 of 2 tasks done");
+    expect(attachLabel(info!)).toBe("1 of 2 Tasks done");
   });
   it("labels the none-done case without shame math", () => {
-    expect(attachLabel({ total: 2, done: 0 })).toBe("2 tasks attached");
-    expect(attachLabel({ total: 1, done: 0 })).toBe("1 task attached");
+    expect(attachLabel({ total: 2, done: 0 })).toBe("2 Tasks attached");
+    expect(attachLabel({ total: 1, done: 0 })).toBe("1 Task attached");
   });
   it("returns null with no surviving attachments", () => {
     expect(attachInfo(evt(), [])).toBeNull();

@@ -148,7 +148,7 @@ export default function SessionScreen({
           <div className={"row" + (i === idx ? " ob-addrow" : "")} role="button" tabIndex={0} key={e.exerciseId + i} onClick={() => onMove(i)}>
             <div className="row-grow">
               <div className="conn-name truncate">{e.name}</div>
-              <div className="eyebrow">{e.skipped ? "Skipped" : e.sets.length > 0 ? `${e.sets.length} logged` : "Not started"}</div>
+              <div className="eyebrow">{e.skipped ? "Skipped" : e.sets.length > 0 ? `${e.sets.length} Logged` : "Not started"}</div>
             </div>
             {CHEV}
           </div>

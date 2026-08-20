@@ -54,7 +54,7 @@ describe("waitingLine", () => {
   it("no open signal: states the wait, never claims 'not opened'", () => {
     const line = waitingLine(row, null);
     // SPEC MOVED (V4 capitals law, 2026-08-18): segments start capital.
-    expect(line).toBe("4 days · No reply");
+    expect(line).toBe("4 Days · No reply");
     expect(line.toLowerCase()).not.toContain("not opened");
   });
   it("a real open shows the date", () => {

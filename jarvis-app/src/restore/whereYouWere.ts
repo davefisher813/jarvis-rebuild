@@ -77,6 +77,6 @@ export function clearSpot(): void {
 export function spotMeta(spot: WorkSpot, now: () => number = Date.now): string {
   const noun = spot.kind === "note" ? "note" : spot.kind === "task" ? "task" : spot.kind === "event" ? "event" : "gym session";
   const mins = Math.round((now() - spot.ts) / 60_000);
-  const when = mins < 60 ? `${mins} min ago` : `${Math.round(mins / 60)} ${Math.round(mins / 60) === 1 ? "hour" : "hours"} ago`;
+  const when = mins < 60 ? `${mins} Min ago` : `${Math.round(mins / 60)} ${Math.round(mins / 60) === 1 ? "Hour" : "Hours"} ago`;
   return `${spot.label} ${noun} · ${when}`;
 }

@@ -51,7 +51,7 @@ describe("thresholds gate every line", () => {
 
   it("heat and cold speak only past the gates", () => {
     const hot = Array(24).fill(72); hot[14] = 91;
-    expect(morningLine(snap({ tempF: hot }), TODAY, now)).toMatch(/91 at the peak/);
+    expect(morningLine(snap({ tempF: hot }), TODAY, now)).toMatch(/91 At the peak/);
     const brisk = Array(24).fill(72); brisk[14] = 84.9;
     expect(morningLine(snap({ tempF: brisk }), TODAY, now)).toBeNull();
   });

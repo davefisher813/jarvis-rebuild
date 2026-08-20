@@ -10,6 +10,7 @@ import { catColor, catName } from "../../shared/categories";
 import type { SheetCategory } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
 import Provenance from "../../shared/Provenance";
+import { capAfterNumber } from "../../shared/casing";
 
 // Tasks page. Two-line rows with a large (44pt) completion target on the left
 // and swipe-left-to-delete, so completing or removing a task is one easy action.
@@ -41,7 +42,7 @@ const EMPTY_TITLE: Record<TaskFilter, string> = {
 // otherwise reads as "you are done" when the opposite is true.
 function emptySub(filter: TaskFilter, counts: Record<TaskFilter, number>): string | null {
   if (filter === "today" && counts.overdue > 0) {
-    return `${counts.overdue} overdue waiting`;
+    return capAfterNumber(`${counts.overdue} overdue waiting`);
   }
   return null;
 }

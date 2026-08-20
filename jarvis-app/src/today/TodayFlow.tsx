@@ -9,9 +9,11 @@ import { todayISO, fmtTime } from "../schedule/calendar";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { greetingFor, longDate, shortDate } from "./greeting";
-import { tomorrowISO, nowHHMM, daySummary, todaysTasks, billsLine } from "./todayData";
+import { tomorrowISO, nowHHMM, daySummary, todaysTasks, billsLine, billsDueSoon } from "./todayData";
 import TodayPage from "./TodayPage";
-import { todayEmailLine, needsYouCount } from "../messages/triage";
+import MailNotices from "./MailNotices";
+import NoticeCard from "./NoticeCard";
+import { capAfterNumber } from "../shared/casing";
 import { birthdaysOn, type BirthdayHit } from "../people/birthdays";
 import TodaySuggestions from "./TodaySuggestions";
 import CheckIn from "./CheckIn";
@@ -85,7 +87,7 @@ export default function TodayFlow({
   onGoSchedule: () => void;
   onGoTasks: () => void;
   onGoTasksAll?: () => void;
-  onGoEmail?: () => void;
+  onGoEmail?: (threadId?: string) => void;
   onSearch?: () => void;
   onProfile?: () => void;
   onEditRoutine?: () => void;
@@ -658,17 +660,24 @@ export default function TodayFlow({
           </div>
         )}
         {gapPick ? (
-          <div className="row">
-            <RowIcon kind="task" />
-            <div className="row-stack">
-              <div className="conn-name">{gapPick.text}</div>
-              <div className="conn-meta">About {gapPick.estimateMin} min · fits this gap</div>
+          // The task name and its buttons do NOT share a line. On a 390px
+          // phone two pills plus a title truncated the title to "Create B...",
+          // which is the one piece of information the card exists to carry.
+          <>
+            <div className="row">
+              <RowIcon kind="task" />
+              <div className="row-stack">
+                <div className="conn-name">{gapPick.text}</div>
+                <div className="conn-meta">About {gapPick.estimateMin} min · Fits this gap</div>
+              </div>
             </div>
-            <div className="momentum-actions">
-              <button className="btn btn-primary btn-sm" onClick={() => void onOpenTask(gapPick.id)}>Start</button>
-              <button className="btn-sm" onClick={() => setGapDismissed(gapKey)}>Not Now</button>
+            <div className="row row-acts">
+              <div className="momentum-actions">
+                <button className="btn btn-primary btn-sm" onClick={() => void onOpenTask(gapPick.id)}>Start</button>
+                <button className="btn-sm" onClick={() => setGapDismissed(gapKey)}>Not Now</button>
+              </div>
             </div>
-          </div>
+          </>
         ) : (
           // NO DEAD ENDS IN NOW (Dave 2026-08-19, "the more I can do without
           // thinking, the better"): when nothing is teed up, Now still hands
@@ -698,7 +707,7 @@ export default function TodayFlow({
           </div>
         ))}
         {dayDraft.anytime.length > 0 && (
-          <div className="row"><div className="conn-meta">{dayDraft.anytime.length} more in Anytime</div></div>
+          <div className="row"><div className="conn-meta">{capAfterNumber(`${dayDraft.anytime.length} more in Anytime`)}</div></div>
         )}
         <div className="row">
           <div className="momentum-actions">
@@ -713,44 +722,37 @@ export default function TodayFlow({
 
   // Slippage stated out loud below Everything; automatic (receipted) at it.
   const reflowSection = !evening && dayDraft?.accepted && slippedCount > 0 && effectiveLevel(getAIControl()) !== "everything" && (
-    <div className="promo-card">
-      <div className="promo-head">
-        <div className="promo-badge b-amber">{SWEEP_ICO}</div>
-        <div className="promo-body">
-          <div className="promo-title">{slippedCount === 1 ? "1 Block Slipped" : `${slippedCount} Blocks Slipped`}</div>
-          <div className="promo-sub">The plan is behind the clock.</div>
-        </div>
-      </div>
-      <div className="promo-acts">
-        <button className="promo-pill" onClick={() => void runReflow()}>Re-Flow</button>
-      </div>
-    </div>
+    <NoticeCard
+      icon={SWEEP_ICO}
+      tone="cat-fg-orange"
+      title={slippedCount === 1 ? "1 Block Slipped" : `${slippedCount} Blocks Slipped`}
+      sub="The plan is behind the clock"
+      action={{ label: "Re-Flow", onClick: () => void runReflow() }}
+    />
   );
 
   const overflowSection = overflowOffer && (
-    <div className="promo-card">
-      <div className="promo-head">
-        <div className="promo-badge b-amber">{SWEEP_ICO}</div>
-        <div className="promo-body">
-          <div className="promo-title">{overflowOffer.title}</div>
-          <div className="promo-sub">No room left today.</div>
-        </div>
-      </div>
-      <div className="promo-acts">
-          <button className="promo-pill quiet" onClick={() => void (async () => {
-            const ev = todayEvents.find((e) => e.id === overflowOffer.eventId);
-            const taskId = ev?.data.sourceTaskId;
-            const ok = await attemptWrite(async () => {
-              await schedule.deleteEvent(overflowOffer.eventId);
-              if (taskId) await tasks.setAside([taskId]);
-            });
-            setOverflowOffer(null);
-            await reload();
-            if (ok) showToast({ message: "Set aside · Keeps its place" });
-          })()}>Set Aside</button>
-          <button className="promo-pill" onClick={() => setOverflowOffer(null)}>Leave It</button>
-      </div>
-    </div>
+    <NoticeCard
+      icon={SWEEP_ICO}
+      tone="cat-fg-orange"
+      title={overflowOffer.title}
+      sub="No room left today"
+      action={{ label: "Leave It", onClick: () => setOverflowOffer(null) }}
+      alt={{
+        label: "Set Aside",
+        onClick: () => void (async () => {
+          const ev = todayEvents.find((e) => e.id === overflowOffer.eventId);
+          const taskId = ev?.data.sourceTaskId;
+          const ok = await attemptWrite(async () => {
+            await schedule.deleteEvent(overflowOffer.eventId);
+            if (taskId) await tasks.setAside([taskId]);
+          });
+          setOverflowOffer(null);
+          await reload();
+          if (ok) showToast({ message: "Set aside · Keeps its place" });
+        })(),
+      }}
+    />
   );
 
   // Revisit Day handlers (Screen 07). Still Good stamps a confirmed date and
@@ -774,72 +776,67 @@ export default function TodayFlow({
   // alerts render in ONE fixed priority order and at most TWO show per open.
   // The rest wait for the next open; every card is also actionable away.
   // Order: revisit > failed sweep > sweep receipt > where-you-were.
+  const DOC_ICO = (
+    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+  );
   const alertCards = [
     revisit ? (
-      <div className="promo-card" key="revisit">
-        <div className="promo-head">
-          <div className="promo-badge b-purple">{FORK_ICO}</div>
-          <div className="promo-body">
-            <div className="promo-title">{revisit.data.decision}</div>
-            <div className="promo-sub">You wanted to revisit this today.</div>
-          </div>
-        </div>
-        <div className="promo-acts">
-          <button className="promo-pill quiet" onClick={() => setRevisitSheet(true)}>Change It</button>
-          <button className="promo-pill" onClick={() => void stillGood(revisit)}>Still Good</button>
-        </div>
-      </div>
+      <NoticeCard
+        key="revisit"
+        icon={FORK_ICO}
+        tone="cat-fg-purple"
+        title={revisit.data.decision}
+        sub="You wanted to revisit this today"
+        action={{ label: "Still Good", onClick: () => void stillGood(revisit) }}
+        alt={{ label: "Change It", onClick: () => setRevisitSheet(true) }}
+      />
     ) : null,
     sweepReceipt && sweepReceipt.failed ? (
-      <div className="promo-card" key="sweepfail" role="button" tabIndex={0} onClick={() => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })()}>
-        <div className="promo-head">
-          <div className="promo-badge b-red">{SWEEP_ICO}</div>
-          <div className="promo-body">
-            <div className="promo-title">Couldn't Move Yesterday's Tasks</div>
-            <div className="promo-sub">Tap to retry.</div>
-          </div>
-        </div>
-      </div>
+      <NoticeCard
+        key="sweepfail"
+        icon={SWEEP_ICO}
+        tone="cat-fg-red"
+        title="Couldn't Move Yesterday's Tasks"
+        sub="Nothing was lost · Try again"
+        action={{
+          label: "Retry",
+          onClick: () => void (async () => { setSweepReceipt(await retrySweep(tasks, today)); await reload(); })(),
+        }}
+      />
     ) : null,
     sweepReceipt && !sweepReceipt.failed && sweepReceipt.moved.length > 0 ? (
-      <div className="promo-card" key="sweep">
-        <button className="promo-x" aria-label="Dismiss" onClick={() => setSweepReceipt(null)}>
-          <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-        </button>
-        <div className="promo-head">
-          <div className="promo-badge b-amber">{SWEEP_ICO}</div>
-          <div className="promo-body">
-            <div className="promo-title">{sweepReceipt.moved.length === 1 ? "Moved 1 Task to Today" : `Moved ${sweepReceipt.moved.length} Tasks to Today`}</div>
-            {sweepCand && <div className="promo-sub">{sweepCand.text} has moved <span className="fact-warn">{sweepCand.slips} days running</span>.</div>}
-          </div>
-        </div>
-        <div className="promo-acts">
-          {sweepCand && (
-            <button className="promo-pill quiet" onClick={() => void (async () => {
-              markOffered(sweepCand.id);
-              const ok = await attemptWrite(() => tasks.setAside([sweepCand.id]));
-              setSweepReceipt(readReceipt(today));
-              await reload();
-              if (ok) showToast({ message: "Set aside · Keeps its place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
-            })()}>Set Aside</button>
-          )}
-          <button className="promo-pill" onClick={() => void (async () => { await attemptWrite(() => undoSweep(tasks, sweepReceipt)); setSweepReceipt(null); await reload(); })()}>Undo</button>
-        </div>
-      </div>
+      <NoticeCard
+        key="sweep"
+        icon={SWEEP_ICO}
+        tone="cat-fg-orange"
+        title={sweepReceipt.moved.length === 1 ? "Moved 1 Task to Today" : `Moved ${sweepReceipt.moved.length} Tasks to Today`}
+        sub={sweepCand ? `${sweepCand.text} has moved ${sweepCand.slips} days running` : undefined}
+        action={{
+          label: "Undo",
+          onClick: () => void (async () => { await attemptWrite(() => undoSweep(tasks, sweepReceipt)); setSweepReceipt(null); await reload(); })(),
+        }}
+        alt={sweepCand ? {
+          label: "Set Aside",
+          onClick: () => void (async () => {
+            markOffered(sweepCand.id);
+            const ok = await attemptWrite(() => tasks.setAside([sweepCand.id]));
+            setSweepReceipt(readReceipt(today));
+            await reload();
+            if (ok) showToast({ message: "Set aside · Keeps its place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
+          })(),
+        } : undefined}
+        onDismiss={() => setSweepReceipt(null)}
+      />
     ) : null,
     spot ? (
-      <div className="promo-card" key="spot" role="button" tabIndex={0} onClick={() => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); }}>
-        <div className="promo-head">
-          <div className="promo-badge b-yellow">
-            <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-          </div>
-          <div className="promo-body">
-            <div className="promo-title">Pick Up Where You Left Off</div>
-            <div className="promo-sub">{spotMeta(spot)}</div>
-          </div>
-          <div className="chev promo-chev" />
-        </div>
-      </div>
+      <NoticeCard
+        key="spot"
+        icon={DOC_ICO}
+        tone="cat-fg-yellow"
+        title="Pick Up Where You Left Off"
+        sub={spotMeta(spot)}
+        onOpen={() => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); }}
+      />
     ) : null,
   ].filter(Boolean);
   // --- Reminders (2026-08-19). Everything here writes a date, never a
@@ -893,6 +890,15 @@ export default function TodayFlow({
     if (t?.data.reminder) setRemSheet({ mode: "edit", id, text: t.data.text, reminder: t.data.reminder });
   };
 
+  // Email that finishes on Today. A deadline a sender named, or a promise he
+  // made, becomes a real task right here: the whole point is that he never
+  // has to open the inbox to deal with what the inbox produced.
+  const addTaskFromMail = async (text: string, due?: string): Promise<boolean> => {
+    const ok = await attemptWrite(() => tasks.createTask(text, { due: due ?? today }));
+    if (ok) await reload();
+    return !!ok;
+  };
+
   // ONE NOTICE STREAM (Dave 2026-08-19: "there's a ton of notifications
   // floating around, put them all under one thing"). Everything JARVIS
   // noticed lands in one labeled section on the page, in priority order.
@@ -930,9 +936,20 @@ export default function TodayFlow({
       onUpNext={() => setUpNextOpen(true)}
       upNext={upNextRows}
       onSeeAllUpNext={onGoTasksAll ?? onGoTasks}
-      emailLine={todayEmailLine(needsYouCount(), 0)}
-      onOpenEmail={onGoEmail}
+      mail={
+        <MailNotices
+          key="mail"
+          today={today}
+          onAddTask={addTaskFromMail}
+          onOpenThread={onGoEmail ? (id) => onGoEmail(id) : undefined}
+          onOpenEmail={onGoEmail ? () => onGoEmail() : undefined}
+        />
+      }
       billLine={billsLine(taskItems, today) ?? undefined}
+      onPayBill={() => {
+        const next = billsDueSoon(taskItems, today)[0];
+        if (next) void onToggleTask(next.id);
+      }}
       freshStart={offTrack ? () => setFreshOpen(true) : undefined}
       locked={blocked}
       onOpenEvent={onOpenEvent}

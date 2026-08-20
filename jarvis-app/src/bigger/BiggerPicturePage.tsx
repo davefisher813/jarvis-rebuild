@@ -5,6 +5,7 @@ import type { ProjectRow, Progress } from "./progress";
 import { progressLabel } from "./progress";
 import { catColor } from "../shared/categories";
 import SkeletonRows from "../shared/SkeletonRows";
+import { capAfterNumber } from "../shared/casing";
 
 // Bigger Picture (roadmap v2, Session 6): Goals and Projects on one surface,
 // replacing the separate Life Map and Projects pages. Every number shown is
@@ -96,7 +97,7 @@ export default function BiggerPicturePage({
               <div className="row-glyph cat-fg-purple">{TARGET}</div>
               <div className="row-grow">
                 <div className="conn-name">{g.data.title}</div>
-                <div className="bp-sub">{p ? `${p.done} of ${p.total} done` : "No projects yet"}</div>
+                <div className="bp-sub">{p ? capAfterNumber(`${p.done} of ${p.total} done`) : "No projects yet"}</div>
                 {p && <Bar p={p} />}
               </div>
               {CHEV}

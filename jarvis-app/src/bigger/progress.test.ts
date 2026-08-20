@@ -69,8 +69,8 @@ describe("rankProjects", () => {
 
 describe("progressLabel", () => {
   it("speaks plainly and flags a stall only when told to", () => {
-    expect(progressLabel({ done: 3, total: 7, pct: 43 }, false)).toBe("3 of 7 done");
-    expect(progressLabel({ done: 3, total: 7, pct: 43 }, true)).toBe("3 of 7 done · Stalled");
+    expect(progressLabel({ done: 3, total: 7, pct: 43 }, false)).toBe("3 of 7 Done");
+    expect(progressLabel({ done: 3, total: 7, pct: 43 }, true)).toBe("3 of 7 Done · Stalled");
     expect(progressLabel({ done: 4, total: 4, pct: 100 }, false)).toBe("All 4 done");
   });
 });

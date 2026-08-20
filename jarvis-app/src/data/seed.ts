@@ -12,6 +12,7 @@ import type { PeopleService } from "../people/PeopleService";
 import type { DecisionService } from "../decisions/DecisionService";
 import type { Category } from "../categories/types";
 import { todayISO } from "../schedule/calendar";
+import { saveMailSnapshot } from "../messages/home";
 
 const DAY = 86400000;
 function addDays(iso: string, n: number): string {
@@ -179,4 +180,30 @@ export async function seedDemoData(
       });
     }
   }
+}
+
+// The home-page email snapshot, for the demo only. The real app gets this
+// from the Email tab the moment it loads live mail; in a demo there is no
+// Gmail behind it, so the preview writes the same shape so the Heads Up
+// stream shows what the feature actually looks like.
+export function seedDemoMail(): void {
+  const today = todayISO();
+  const day = (n: number): string => {
+    const t = new Date(new Date(today + "T12:00:00").getTime() + n * DAY);
+    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  };
+  saveMailSnapshot({
+    ts: Date.now(),
+    needsYou: 7,
+    threads: [
+      { id: "demo-1", from: "Apple Developer", fromEmail: "no-reply@apple.com", subject: "complete your enrollment", gist: "Enrollment closes and the app cannot ship", by: "today" },
+      { id: "demo-2", from: "Wei Zhang", fromEmail: "wei@bffsa.org", subject: "Invoice attached", gist: "Wants it signed before Net 15 starts Monday" },
+      { id: "demo-3", from: "Supabase", fromEmail: "alerts@supabase.io", subject: "Security advisories flagged", gist: "Two projects need a version bump" },
+    ],
+    waiting: [
+      { threadId: "demo-w1", to: "nikestrength", subject: "Order #D2565", days: 55 },
+      { threadId: "demo-w2", to: "Joseph T. Pareres", subject: "Fisher v JAT", days: 55 },
+    ],
+    promises: [{ threadId: "demo-p1", text: "send rob the deck", due: day(1) }],
+  });
 }

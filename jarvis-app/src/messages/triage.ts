@@ -1,5 +1,6 @@
 import type { ThreadRow } from "../connections/google/map";
 import { noDashes } from "../ai/suggestions";
+import { capAfterNumber } from "../shared/casing";
 
 // Triage (email 1): one AI pass sorts the inbox into what needs Dave, what is
 // worth knowing, and noise, with a one-line gist per thread so junk never has
@@ -148,7 +149,7 @@ export function splitByBucket(rows: ThreadRow[], map: TriageMap): {
 export function headline(needsYou: number, total: number): string {
   if (total === 0) return "Inbox is quiet";
   if (needsYou === 0) return "Nothing needs you";
-  return needsYou === 1 ? "1 needs you · rest handled" : needsYou + " need you · rest handled";
+  return capAfterNumber(needsYou === 1 ? "1 needs you · Rest handled" : needsYou + " need you · Rest handled");
 }
 
 // "DoorDash, LinkedIn +3 more", enough to trust Archive All without opening.
@@ -201,7 +202,7 @@ export function sortByDeadline(rows: ThreadRow[], map: TriageMap, now = new Date
 // you" is still a thing to read.
 export function todayEmailLine(needsYou: number, replied: number): string {
   if (needsYou <= 0) return "";
-  const who = needsYou === 1 ? "1 email needs you" : needsYou + " emails need you";
+  const who = capAfterNumber(needsYou === 1 ? "1 email needs you" : needsYou + " emails need you");
   if (replied >= needsYou && needsYou > 0) {
     return who + " · " + (needsYou === 1 ? "reply written" : "replies written");
   }

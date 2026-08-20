@@ -33,6 +33,7 @@ import CategorySheet, { type CategoryDraft } from "../categories/screens/Categor
 import GymFlow from "../gym/GymFlow";
 import { useGym } from "../data/NotesProvider";
 import type { Program } from "../gym/types";
+import { capAfterNumber } from "../shared/casing";
 
 const CHEV = (
   <div className="chev" />
@@ -474,7 +475,7 @@ export default function CategoryDetail({
               // moving/paused), the week's count rides as a pill, goal link
               // stays a short fact.
               const bits: string[] = [];
-              if (overdue > 0) bits.push(overdue === 1 ? "1 overdue" : `${overdue} overdue`);
+              if (overdue > 0) bits.push(capAfterNumber(overdue === 1 ? "1 overdue" : `${overdue} overdue`));
               if (goal) bits.push(`Moves ${goal}`);
               const state = p.data.status === "on_hold"
                 ? { cls: "urgency-muted", label: "Paused" }

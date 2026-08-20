@@ -24,6 +24,7 @@ import { emit } from "../events";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "./momentum";
 import { RowIcon } from "../shared/anatomy";
 import { touchActivity, recordSpot } from "../restore/whereYouWere";
+import { capAfterNumber } from "../shared/casing";
 
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
@@ -399,7 +400,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     await reload();
     if (!ok) return;
     showToast({
-      message: `${stuck.length} ${stuck.length === 1 ? "task" : "tasks"} moved to today`,
+      message: capAfterNumber(`${stuck.length} ${stuck.length === 1 ? "task" : "tasks"} moved to today`),
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => {

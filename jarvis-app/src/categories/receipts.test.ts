@@ -52,10 +52,10 @@ describe("weekReceipt", () => {
 
 describe("lines", () => {
   it("omits zero parts and handles singulars", () => {
-    expect(receiptLine({ done: 5, events: 3, afterHours: 0 })).toBe("5 things done · 3 events");
-    expect(receiptLine({ done: 1, events: 0, afterHours: 0 })).toBe("1 thing done");
-    expect(receiptLine({ done: 0, events: 1, afterHours: 0 })).toBe("1 event");
-    expect(afterHoursLine({ done: 0, events: 2, afterHours: 1 })).toBe("1 event after work hours");
+    expect(receiptLine({ done: 5, events: 3, afterHours: 0 })).toBe("5 Things done · 3 Events");
+    expect(receiptLine({ done: 1, events: 0, afterHours: 0 })).toBe("1 Thing done");
+    expect(receiptLine({ done: 0, events: 1, afterHours: 0 })).toBe("1 Event");
+    expect(afterHoursLine({ done: 0, events: 2, afterHours: 1 })).toBe("1 Event after work hours");
     expect(afterHoursLine({ done: 0, events: 2, afterHours: 0 })).toBeNull();
   });
 });

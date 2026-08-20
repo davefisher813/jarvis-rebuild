@@ -21,22 +21,10 @@ export interface ParsedEntity {
 }
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-const SMALL_WORDS = new Set(["a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
-
-// Title Case per the app convention: small words stay lowercase mid-title,
-// first and last word always capitalized. Existing capitals inside a word are
-// kept (AA1187 stays AA1187, JARVIS stays JARVIS).
-export function titleCase(text: string): string {
-  const words = text.trim().split(/\s+/);
-  return words
-    .map((w, i) => {
-      const isEdge = i === 0 || i === words.length - 1;
-      const lower = w.toLowerCase();
-      if (!isEdge && SMALL_WORDS.has(lower)) return lower;
-      return w.charAt(0).toUpperCase() + w.slice(1);
-    })
-    .join(" ");
-}
+// Title Case is one implementation for the whole app; the number rule lives
+// there too (Dave 2026-08-20). Re-exported so existing importers keep working.
+import { titleCase } from "../shared/casing";
+export { titleCase };
 
 function iso(d: Date): string {
   const y = d.getFullYear();

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { Mail, DollarSign } from "lucide-react";
+import { DollarSign, RotateCcw } from "lucide-react";
+import NoticeCard from "./NoticeCard";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { fmtTime } from "../schedule/calendar";
@@ -130,17 +131,18 @@ export default function TodayPage({
   ring,
   daypart,
   birthdays,
-  emailLine,
+  mail,
   billLine,
-  onOpenEmail,
+  onPayBill,
 }: {
   greeting: string;
   dateLong: string;
-  // Email as a LINE, not a destination. Empty means nothing needs him, and
-  // then nothing renders: a card saying "0 emails need you" is still homework.
-  emailLine?: string;
+  // Email as WORK, not a count (Dave 2026-08-20: the old "14 emails need you
+  // → deal with it here" line "serves absolutely no purpose"). The flow hands
+  // this in already built; nothing needing him means nothing renders.
+  mail?: ReactNode;
   billLine?: string; // bills due within 3 days, from billsLine (2026-08-09)
-  onOpenEmail?: () => void;
+  onPayBill?: () => void; // marks the SOONEST due bill paid, with undo
   summary: DaySummary;
   todayEvents: EventItem[];
   now: string;
@@ -305,35 +307,27 @@ export default function TodayPage({
   const headsUp: ReactNode[] = [
     ...notices,
     billLine ? (
-      <div className="pad-x" key="money"><div className="card">
-        <div className="row">
-          <div className="row-glyph cat-fg-green"><DollarSign className="ic" /></div>
-          <div className="row-grow"><div className="conn-name">{billLine}</div></div>
-        </div>
-      </div></div>
+      <NoticeCard
+        key="money"
+        icon={<DollarSign className="ic" />}
+        tone="cat-fg-green"
+        title={billLine}
+        // A bill card with no button is the same dead end the old email line
+        // was: it tells him he owes money and stops. One tap marks it paid.
+        action={onPayBill ? { label: "Mark Paid", onClick: onPayBill } : undefined}
+      />
     ) : null,
-    emailLine ? (
-      <div className="pad-x" key="email"><div className="card">
-        <div className="row" role="button" tabIndex={0} onClick={onOpenEmail}>
-          <div className="row-grow">
-            <div className="conn-name">{emailLine}</div>
-            <div className="conn-meta">Deal with it here</div>
-          </div>
-          <div className="chev" />
-        </div>
-      </div></div>
-    ) : null,
+    mail ?? null,
     suggestions ?? null,
     freshStart ? (
-      <div className="pad-x" key="fresh"><div className="card">
-        <div className="row" role="button" tabIndex={0} onClick={freshStart}>
-          <div className="row-grow">
-            <div className="conn-name">Rough day? Fresh start.</div>
-            <div className="conn-meta">Re-plan what's left · Nothing lost</div>
-          </div>
-          <div className="chev" />
-        </div>
-      </div></div>
+      <NoticeCard
+        key="fresh"
+        icon={<RotateCcw className="ic" />}
+        tone="cat-fg-teal"
+        title="Rough Day? Fresh Start."
+        sub="Re-plan what's left · Nothing lost"
+        action={{ label: "Re-plan", onClick: freshStart }}
+      />
     ) : null,
     !offersQuiet ? <WeatherOfferRow key="weather" /> : null,
   ].filter(Boolean);

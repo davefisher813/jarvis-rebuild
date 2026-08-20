@@ -72,7 +72,7 @@ describe("per day", () => {
   });
 
   it("offers a daily number only when it is real", () => {
-    expect(perDayLine(leftToSpend(2102, 1240, 450), 14)).toBe("14 days, about $29 a day");
+    expect(perDayLine(leftToSpend(2102, 1240, 450), 14)).toBe("14 Days, about $29 a day");
     expect(perDayLine(leftToSpend(2102, 1240, 450), 1)).toBe("");
     expect(perDayLine(leftToSpend(1000, 1200, 0), 14)).toBe("");   // never divide a shortfall
     expect(perDayLine(leftToSpend(1005, 1000, 0), 30)).toBe("");   // under a dollar a day says nothing

@@ -1,6 +1,7 @@
 import type { GoogleApi } from "../connections/google/api";
 import { mapThread, type ThreadRow } from "../connections/google/map";
 import { JARVIS_VOICE } from "../ai/voice";
+import { capAfterNumber } from "../shared/casing";
 
 // Waiting On (email 3): the loops running the OTHER way, emails the user
 // sent that expect a reply and have not gotten one. Derived, never guessed:
@@ -65,7 +66,7 @@ export async function findWaiting(
 // The absence of an open says NOTHING (image blockers read invisibly), so the
 // line never claims "not opened".
 export function waitingLine(row: WaitingRow, openedISO: string | null): string {
-  const wait = row.waitingDays === 1 ? "1 day · No reply" : row.waitingDays + " days · No reply";
+  const wait = row.waitingDays === 1 ? "1 Day · No reply" : capAfterNumber(row.waitingDays + " days · No reply");
   if (!openedISO) return wait;
   const d = new Date(openedISO);
   const when = d.toLocaleDateString([], { month: "short", day: "numeric" });

@@ -195,6 +195,57 @@ describe("LAW: Apple HIG casing", () => {
     expect(bad).toEqual([]);
   });
 
+  // THE NOTICE LAW (A1, Dave 2026-08-20). Every card in the Heads Up stream
+  // is built one way: glyph, words, exactly ONE control on the visible line.
+  // Dismiss is a swipe. The corner × is banned: on a one-row card the corner
+  // and the row's right edge are the same place, and two tap targets stacked
+  // on each other is how you hit the wrong one.
+  it("no card carries a corner dismiss", () => {
+    const bad: string[] = [];
+    for (const f of SOURCES) {
+      if (/promo-x/.test(read(f))) bad.push(rel(f));
+    }
+    expect(bad).toEqual([]);
+  });
+
+  // THE NUMBER-LEAD CAPITAL (Dave 2026-08-20, caught on "14 emails need
+  // you"). When a number leads a line, the first word behind it that can
+  // carry a capital gets one. The rule lives in shared/casing; a builder that
+  // opens a line with a count must route through capAfterNumber.
+  it("a line that leads with a number capitalizes the word behind it", () => {
+    // Measurements are exempt: the word after the number is a unit ("135 kg
+    // x 8"), and a capitalized unit is wrong, not stylish.
+    // Exempt, each for a stated reason: measurement strings (the word after
+    // the number is a unit), the rule's own source and tests, spec documents
+    // (prose about the app, not app copy), and onboarding (conversational).
+    const UNITS = new Set([
+      "gym/measures.ts", "shared/casing.ts", "shared/Payoff.tsx", "gym/ReceiptSheet.tsx",
+      "notes/notesSpec.ts", "tasks/tasksSpec.ts", "onboarding/steps.ts",
+      "schedule/ScheduleFlow.tsx", "schedule/screens/SchedulePage.tsx",
+    ]);
+    // Names that hold a count. Only these open a line as a number.
+    const COUNTY = /(^|\.)(length|count|total|done|overdue|days|mins|minutes|hours|months|weeks|years|n)$|^Math\./;
+    const strip = (src: string) =>
+      src.replace(/\/\*[\s\S]*?\*\//g, " ").split("\n").filter((l) => !/^\s*(\/\/|\*)/.test(l)).join("\n");
+    const bad: string[] = [];
+    for (const f of SOURCES) {
+      const r = rel(f);
+      if (UNITS.has(r)) continue;
+      // aria-labels are read aloud, not read: casing is inaudible there.
+      const src = strip(read(f)).replace(/aria-label=\{?`[^`]*`\}?/g, " ");
+      // A file that routes its lines through the rule is trusted: its
+      // literals are inputs to capAfterNumber, not final copy.
+      if (src.includes("capAfterNumber")) continue;
+      for (const m of src.matchAll(/"(\d[\d.,]*\s+[a-z][A-Za-z]*(?:\s|·|"))/g)) {
+        bad.push(r + " [literal]: " + m[1]!.trim());
+      }
+      for (const m of src.matchAll(/`\$\{([^}]{1,60})\}\s+[a-z]/g)) {
+        if (COUNTY.test((m[1] ?? "").trim())) bad.push(r + " [built]: " + m[0]);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
   // Sectioning law, V4 revision (Dave 2026-08-18): CONTENT lists label every
   // group; NAV lists are headerless by design (More entirely; Brain carries
   // exactly one mini-caps boundary label where user content begins). The nav

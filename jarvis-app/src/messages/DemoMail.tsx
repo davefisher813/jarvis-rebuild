@@ -4,10 +4,11 @@
 // Rows toast instead of opening; the moment a real account connects,
 // MessagesFlow renders live data and this component never mounts.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { showToast } from "../shared/toast";
 import { Plus } from "lucide-react";
+import { saveMailSnapshot } from "./home";
 
 interface DemoRow { from: string; sub: string; when: string; unread?: boolean; due?: string }
 interface DemoWait { to: string; sub: string }
@@ -31,6 +32,32 @@ const MAIL_ICO = (
 const demoTap = () => showToast({ message: "Demo mail · Connect Google for the real thing" });
 
 export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
+  // The home page reads a snapshot the Email tab leaves behind. In the demo
+  // there is no Gmail, so the fixtures leave the same snapshot: Dave sees the
+  // real home-page email anatomy instead of an empty stream. Demo only; the
+  // moment an account connects, MessagesFlow writes the real one.
+  useEffect(() => {
+    saveMailSnapshot({
+      ts: Date.now(),
+      needsYou: NEEDS.length + 4,
+      threads: NEEDS.map((r, i) => ({
+        id: "demo-" + i,
+        from: r.from,
+        fromEmail: r.from.toLowerCase().replace(/\s+/g, "") + "@example.com",
+        subject: r.sub,
+        gist: r.sub,
+        by: r.due ? r.due.toLowerCase() : undefined,
+      })),
+      waiting: WAITING.slice(0, 3).map((w, i) => ({
+        threadId: "demo-w" + i,
+        to: w.to,
+        subject: w.sub.split(" · ")[0] ?? w.sub,
+        days: [55, 55, 50][i] ?? 30,
+      })),
+      promises: [{ threadId: "demo-p0", text: "send rob the deck", due: "2026-08-21" }],
+    });
+  }, []);
+
   // The compose surface is real typing even in the demo: the fields work,
   // only Send explains itself. Dave sees the page, nothing pretends to mail.
   const [composing, setComposing] = useState(false);

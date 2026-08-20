@@ -1,6 +1,7 @@
 import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
+import { capAfterNumber } from "../shared/casing";
 
 // Bigger Picture (roadmap v2, Session 6). "What you're working toward and what
 // is ACTUALLY moving." The word actually is the whole design: every number here
@@ -110,5 +111,5 @@ export function rankProjects(
 export function progressLabel(p: Progress | null, stalled: boolean): string {
   if (!p) return "No tasks yet";
   if (p.done === p.total) return `All ${p.total} done`;
-  return `${p.done} of ${p.total} done${stalled ? " · Stalled" : ""}`;
+  return capAfterNumber(`${p.done} of ${p.total} done`) + (stalled ? " · Stalled" : "");
 }

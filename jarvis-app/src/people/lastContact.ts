@@ -92,13 +92,13 @@ export function checkinPrompt(name: string, gapLabel: string, voice = ""): { sys
   };
 }
 
-// "today" / "yesterday" / "6 days ago" / "3 weeks ago" / "2 months ago".
+// "today" / "yesterday" / "6 Days ago" / "3 Weeks ago" / "2 Months ago".
 // Sentence-ready lowercase; callers prefix "Last talked ".
 export function agoLabel(ms: number, now: number): string {
   const days = Math.floor((now - ms) / 86400000);
   if (days <= 0) return "today";
   if (days === 1) return "yesterday";
-  if (days < 14) return `${days} days ago`;
-  if (days < 61) return `${Math.floor(days / 7)} weeks ago`;
-  return `${Math.floor(days / 30)} months ago`;
+  if (days < 14) return `${days} Days ago`;
+  if (days < 61) return `${Math.floor(days / 7)} Weeks ago`;
+  return `${Math.floor(days / 30)} Months ago`;
 }

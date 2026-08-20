@@ -11,6 +11,8 @@ import { routineBlockCandidate } from "./routinePatterns";
 import type { ProtectedBlock } from "../routine/types";
 import { emit } from "../events";
 import { rankOpen } from "../upnext/upnext";
+import { Lightbulb } from "lucide-react";
+import NoticeCard from "./NoticeCard";
 
 // Proactive nudges on Today, made actionable and polite:
 // - one AI call per day (cached on device), so no burn on every open
@@ -138,60 +140,56 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
     if (cache) persist({ ...cache, dismissed: [...cache.dismissed, idx] });
   };
 
+  const dismissThis = () => {
+    haptics.selection();
+    if (pattern) { dismissPattern(pattern.id, today); setPattern(null); emit({ type: "suggestion.dismissed", props: { kind: "pattern" } }); }
+    else if (aiPick) dismiss(aiPick.i);
+  };
+
+  const acceptPattern = async () => {
+    // Explicit tap only, never silent, both paths. A habit row writes the
+    // Brain doc every AI feature reads; a routine row (2026-08-09) appends
+    // the learned block to the routine, so the planner starts honoring it
+    // the next time it runs.
+    if (!pattern) return;
+    haptics.selection();
+    if (pattern.routineBlock) {
+      const r = await routineSvc.get();
+      await routineSvc.save({ protectedBlocks: [...(r.protectedBlocks ?? []), pattern.routineBlock] });
+      emit({ type: "suggestion.accepted", props: { kind: "routine" } });
+      showToast({ message: "Added to your routine" });
+    } else {
+      const cur = await docs.get("habits");
+      await docs.save("habits", appendHabit(cur, pattern.text, today));
+      emit({ type: "suggestion.accepted", props: { kind: "pattern" } });
+      showToast({ message: "Saved to your Brain" });
+    }
+    dismissPattern(pattern.id, today);
+    setPattern(null);
+  };
+
+  // THE NOTICE LAW (A1, 2026-08-20): one anatomy, one visible control,
+  // dismiss on the swipe. The corner × used to land on top of the row's own
+  // button, which is how you tap the wrong one.
+  if (pattern) {
+    return (
+      <NoticeCard
+        icon={<Lightbulb className="ic" />}
+        tone="cat-fg-yellow"
+        title={pattern.text}
+        action={{ label: pattern.routineBlock ? "Add to Routine" : "Remember This", onClick: () => void acceptPattern() }}
+        onDismiss={dismissThis}
+      />
+    );
+  }
+  if (!aiPick) return null;
   return (
-    <>
-      {/* No head of its own: this is one card in the Heads Up stream now
-          (Dave 2026-08-19). Dismiss rides the card's own corner. */}
-      <div className="pad-x"><div className="card">
-        <button
-          className="promo-x"
-          aria-label="Dismiss"
-          onClick={() => {
-            haptics.selection();
-            if (pattern) { dismissPattern(pattern.id, today); setPattern(null); emit({ type: "suggestion.dismissed", props: { kind: "pattern" } }); }
-            else if (aiPick) dismiss(aiPick.i);
-          }}
-        >
-          &times;
-        </button>
-        {pattern ? (
-          <div className="suggestion-row" key={"pattern-" + pattern.id}>
-            <div className="sug-title">{pattern.text}</div>
-            <button
-              className="btn-sm"
-              onClick={async () => {
-                // Explicit tap only, never silent, both paths. A habit row
-                // writes the Brain doc every AI feature reads; a routine row
-                // (2026-08-09) appends the learned block to the routine, so
-                // the planner starts honoring it the next time it runs.
-                haptics.selection();
-                if (pattern.routineBlock) {
-                  const r = await routineSvc.get();
-                  await routineSvc.save({ protectedBlocks: [...(r.protectedBlocks ?? []), pattern.routineBlock] });
-                  emit({ type: "suggestion.accepted", props: { kind: "routine" } });
-                  showToast({ message: "Added to your routine" });
-                } else {
-                  const cur = await docs.get("habits");
-                  await docs.save("habits", appendHabit(cur, pattern.text, today));
-                  emit({ type: "suggestion.accepted", props: { kind: "pattern" } });
-                  showToast({ message: "Saved to your Brain" });
-                }
-                dismissPattern(pattern.id, today);
-                setPattern(null);
-              }}
-            >
-              {pattern.routineBlock ? "Add to Routine" : "Remember This"}
-            </button>
-          </div>
-        ) : aiPick ? (
-          <div className="suggestion-row" key={aiPick.i}>
-            <div className="sug-title">{aiPick.s.text}</div>
-            {aiPick.s.task ? (
-              <button className="btn-sm" onClick={() => addToToday(aiPick.i, aiPick.s.task!)}>Add to Today</button>
-            ) : null}
-          </div>
-        ) : null}
-      </div></div>
-    </>
+    <NoticeCard
+      icon={<Lightbulb className="ic" />}
+      tone="cat-fg-yellow"
+      title={aiPick.s.text}
+      action={aiPick.s.task ? { label: "Add to Today", onClick: () => void addToToday(aiPick.i, aiPick.s.task!) } : undefined}
+      onDismiss={dismissThis}
+    />
   );
 }

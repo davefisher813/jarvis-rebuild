@@ -5,6 +5,7 @@
 // guess: a fuzzy title match below the floor is a null, not a shrug.
 
 import type { ChatProvenance } from "./types";
+import { capAfterNumber } from "../shared/casing";
 
 export interface AnswerSnapshot {
   today: string;
@@ -56,7 +57,7 @@ export function answerQuestion(raw: string, snap: AnswerSnapshot): ChatAnswer | 
     const evs = snap.events.filter((e) => e.date === snap.today);
     const due = snap.tasks.filter((t) => !t.done && t.due === snap.today);
     return {
-      text: `${evs.length} ${evs.length === 1 ? "event" : "events"} · ${due.length} ${due.length === 1 ? "task" : "tasks"} due`,
+      text: capAfterNumber(`${evs.length} ${evs.length === 1 ? "event" : "events"} · ${due.length} ${due.length === 1 ? "task" : "tasks"} due`),
       provenance: { kind: "records" },
     };
   }

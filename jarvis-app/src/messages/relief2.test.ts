@@ -111,9 +111,9 @@ describe("today line", () => {
 
   it("counts people, and mentions the prepared replies when they exist", () => {
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(todayEmailLine(1, 0)).toBe("1 email needs you");
-    expect(todayEmailLine(2, 2)).toBe("2 emails need you · replies written");
-    expect(todayEmailLine(1, 1)).toBe("1 email needs you · reply written");
+    expect(todayEmailLine(1, 0)).toBe("1 Email needs you");
+    expect(todayEmailLine(2, 2)).toBe("2 Emails need you · replies written");
+    expect(todayEmailLine(1, 1)).toBe("1 Email needs you · reply written");
   });
 
   it("reads the count straight off the cache so Today never waits", () => {

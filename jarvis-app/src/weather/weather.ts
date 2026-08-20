@@ -168,7 +168,7 @@ export function morningLine(snap: WeatherSnapshot, todayIso: string, now: () => 
   const temps = idx.map(({ i }) => hourly.tempF[i] ?? 70);
   const hi = Math.max(...temps);
   const lo = Math.min(...temps);
-  if (hi >= HOT_F) return `${Math.round(hi)} at the peak` + stale;
+  if (hi >= HOT_F) return `${Math.round(hi)} At the peak` + stale;
   if (lo <= COLD_F) return `Down to ${Math.round(lo)}` + stale;
 
   const wind = Math.max(...idx.map(({ i }) => hourly.windMph[i] ?? 0));
@@ -188,8 +188,8 @@ export function eventLine(snap: WeatherSnapshot, dateIso: string, startHHMM: str
   const t = snap.hourly.tempF[i];
   const w = snap.hourly.windMph[i] ?? 0;
   if (p >= RAIN_PROB_MIN) return `Rain likely at start` + stale;
-  if (t !== undefined && t >= HOT_F) return `${Math.round(t)} at start` + stale;
-  if (t !== undefined && t <= COLD_F) return `${Math.round(t)} at start` + stale;
+  if (t !== undefined && t >= HOT_F) return `${Math.round(t)} At start` + stale;
+  if (t !== undefined && t <= COLD_F) return `${Math.round(t)} At start` + stale;
   if (w >= WINDY_MPH) return `Wind to ${Math.round(w)} mph at start` + stale;
   return null;
 }

@@ -69,9 +69,9 @@ describe("agoLabel and isQuiet", () => {
   it("renders human distances", () => {
     expect(agoLabel(NOW - 3600e3, NOW)).toBe("today");
     expect(agoLabel(NOW - 1 * 86400000, NOW)).toBe("yesterday");
-    expect(agoLabel(NOW - 6 * 86400000, NOW)).toBe("6 days ago");
-    expect(agoLabel(NOW - 21 * 86400000, NOW)).toBe("3 weeks ago");
-    expect(agoLabel(NOW - 90 * 86400000, NOW)).toBe("3 months ago");
+    expect(agoLabel(NOW - 6 * 86400000, NOW)).toBe("6 Days ago");
+    expect(agoLabel(NOW - 21 * 86400000, NOW)).toBe("3 Weeks ago");
+    expect(agoLabel(NOW - 90 * 86400000, NOW)).toBe("3 Months ago");
   });
 
   it("quiet means silent past the shared threshold, and never for unknowns", () => {
@@ -83,15 +83,15 @@ describe("agoLabel and isQuiet", () => {
 
 describe("checkinPrompt", () => {
   it("carries the no-guilt guardrail, the gap, and the user's voice", () => {
-    const p = checkinPrompt("Mom", "2 months ago", "short sentences, warm");
+    const p = checkinPrompt("Mom", "2 Months ago", "short sentences, warm");
     expect(p.system).toContain("Zero guilt about the gap");
     expect(p.system).toContain("short sentences, warm");
     expect(p.user).toContain("Mom");
-    expect(p.user).toContain("2 months ago");
+    expect(p.user).toContain("2 Months ago");
   });
 
   it("builds without a voice, for tests and failed context gathering", () => {
-    const p = checkinPrompt("Sam", "3 weeks ago");
+    const p = checkinPrompt("Sam", "3 Weeks ago");
     expect(p.system).not.toContain("Write it as this person");
   });
 });

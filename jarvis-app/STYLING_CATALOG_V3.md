@@ -212,6 +212,37 @@ Positions are law: head actions right, in-list creates last, destructive actions
 7. THE CALENDAR HANDOFF (Dave 2026-08-19: "whatever you can within the iOS"). A web app cannot fire its own alarm: the Notification Triggers API was abandoned and ships in no browser, and iOS web push needs a Home Screen install plus a server awake at the right minute. So JARVIS does not pretend. It says so in plain words on the reminder sheet and hands the job to the scheduler already on the phone: an iCalendar file with an RRULE and a VALARM, which iOS fires forever, offline, with JARVIS closed. Times are FLOATING (no Z, no TZID) so 8am meds stay 8am in a new timezone. UIDs are stable so re-adding updates instead of duplicating. Every reminder ships in ONE file so adding them all is one tap.
 8. NEVER LET A REMINDER LOOK LIKE IT WILL PING WHEN IT WILL NOT. Any surface that creates a reminder must either deliver the alert or say, in the same breath, that it cannot and offer the thing that can.
 
+## R. The Notice Law (V4.7, A1 approved by Dave 2026-08-20)
+
+Every card in Heads Up is built ONE way. This exists because the stream had drifted into nine shapes: promo cards with two pills, plain rows with a chevron, a suggestion row with a corner ×, and a money line with nothing at all.
+
+1. THE ANATOMY: colored glyph, the words, and EXACTLY ONE control on the visible line. The control is a `.pill-act` when the notice does something, or a `.chev` when the whole row opens a screen. Nothing else sits on that line, ever.
+2. DISMISS IS A SWIPE. The corner × is gone app-wide, enforced by law test (`no card carries a corner dismiss`). On a one-row card the corner and the row's right edge are the same place; two tap targets stacked on each other is worse than ugly, it makes you hit the wrong one.
+3. THE SECOND PATH RIDES THE SWIPE. When a notice genuinely offers two choices (Still Good / Change It, Undo / Set Aside), the primary is the one you can see and tap without deciding. The alternate sits on the reveal beside Dismiss.
+4. NO DEAD ENDS. A notice with no control is a statement you can only read. The bill card got Mark Paid for exactly this reason. If JARVIS is going to interrupt, it brings the way out with it.
+5. THE CARD IS OPAQUE AND ABOVE ITS OWN REVEAL (`z-index: 1`, solid `--surface-1`). The glass `.card` is translucent; without this the hidden Dismiss button prints straight through the row and reads as two labels on one target.
+6. TITLES GET TWO LINES. "Complete Your Enrollment" truncated to "Complete Your Enr..." throws away the one thing the card exists to say. A second line is cheaper than a card he has to open to understand.
+7. ONE COMPONENT, `today/NoticeCard.tsx`. A notice hand-built out of divs is a review-blocking violation; that is how the drift happened the first time.
+
+## S. Email on the Home Page (V4.7, Dave 2026-08-20: "it serves absolutely no purpose")
+
+He was right. "14 emails need you → Deal with it here" was a number and a link to somewhere else. It told him he was behind and then made him travel to find out what about. A guilt counter, not a feature.
+
+1. THE COUNT IS NOT THE HEADLINE. It survives as a footnote at the bottom of the stream ("5 More Emails in Your Inbox · Nothing in there is urgent") and nowhere else.
+2. FOUR DIFFERENT JOBS, NEVER THE SAME JOB THREE TIMES. `deadline` (a sender named a date and the date is now → Add Task) · `reply` (the single thread that most needs an answer → Reply) · `promised` (something HE said he would do, in his own sent mail → Add Task) · `nudge` (someone who owes HIM, and has for days → Nudge). One of each before a second of any.
+3. TWO OF THE FOUR FINISH ON TODAY. Add Task writes the task and the card clears. No navigation, no inbox, no second decision. The other two open EXACTLY the thread, never the inbox he would then have to search.
+4. NOTHING IS INVENTED. Deadlines come from what the sender wrote (`by`, never a guess), promises from his own outgoing words, waits from a thread whose last message is his. An unreadable AI reply means no notice, not a fabricated one.
+5. TODAY NEVER WAITS ON THE NETWORK. The Email tab leaves a snapshot behind; Today reads it instantly. A snapshot older than 36 hours is dropped rather than shown as current.
+6. DISMISSALS LAST THE DAY, NOT FOREVER. A swiped notice is "not now", and the email is still sitting there tomorrow.
+7. THE PROMISE SWEEP is the half the commitment catcher could not reach: promises made in the Gmail web client, on his phone, or before JARVIS existed. One capped AI pass, and only when new mail has actually gone out since the last one.
+
+## T. The Number-Lead Capital (V4.7, Dave 2026-08-20, caught on "14 emails need you")
+
+1. When a number leads a line, the first word behind it that can carry a capital gets one. `14 Emails Need You`, `55 Days · No reply`, `3 More in Anytime`.
+2. ONE EXCEPTION: a small connecting word sitting BETWEEN two numbers is part of a compound quantity, not a sentence start. `2 of 5 Done`, not `2 Of 5 done`.
+3. MEASUREMENTS ARE EXEMPT. `135 kg × 8` stays lowercase; a capitalized unit is wrong, not stylish.
+4. The rule lives in `shared/casing.ts` and is applied by the STRING BUILDERS, never at render. Magic in a wrapper component cannot be tested and drifts the moment the same string renders somewhere else. Enforced by law test.
+
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
 1. Today header counts become tappable pills (sky events → Schedule, blue due → Tasks, red overdue → Tasks overdue).
