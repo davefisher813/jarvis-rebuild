@@ -8,6 +8,7 @@ import BiggerPicturePage from "./BiggerPicturePage";
 import Payoff, { payoffLine } from "../shared/Payoff";
 import ProjectSheet from "../projects/ProjectSheet";
 import ProjectDetailPage from "../projects/ProjectDetailPage";
+import { attemptWrite } from "../shared/guard";
 import GoalSheet from "../life/GoalSheet";
 import { rankProjects, goalProgress } from "./progress";
 import GoalDetailPage from "./GoalDetailPage";
@@ -254,6 +255,18 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
           onChanged={() => void reload()}
           onBack={() => setDetailId(null)}
           onEdit={() => setSheet({ kind: "editProject", id: detail.id })}
+          onFinish={async () => {
+            const p = detail;
+            await attemptWrite(() => projectsSvc.update(p.id, { ...p.data, status: "done" }));
+            await reload();
+            const mine = tasks.filter((t) => (t.data as { projectId?: string }).projectId === p.id);
+            setDetailId(null);
+            setPayoff({
+              kind: "project",
+              title: p.data.title,
+              line: payoffLine({ tasksDone: mine.filter((t) => (t.data as { done?: boolean }).done).length }),
+            });
+          }}
         />
         {sheet.kind === "editProject" && (
           <ProjectSheet

@@ -3,10 +3,13 @@ import { useRef, useState } from "react";
 // The completion micro-burst: 8 good-green dots radiating from the checkbox
 // for 420ms (RDB, Dave 2026-07-29). Render <Burst show={bursting} /> inside a
 // .task-check-tap; directions and timing live in components.css.
-export function Burst({ show }: { show: boolean }) {
+// The moment scales with what it was (dopamine layer, 2026-08-20): ticking a
+// loose task and clearing the last task of a six-month project are not the
+// same event, so they must not feel the same. Same 8 dots, further and longer.
+export function Burst({ show, size = "small" }: { show: boolean; size?: "small" | "big" }) {
   if (!show) return null;
   return (
-    <span className="burst" aria-hidden="true">
+    <span className={"burst" + (size === "big" ? " burst-big" : "")} aria-hidden="true">
       <i /><i /><i /><i /><i /><i /><i /><i />
     </span>
   );

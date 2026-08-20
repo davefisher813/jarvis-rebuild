@@ -14,6 +14,7 @@ import TodayPage from "./TodayPage";
 import MailNotices from "./MailNotices";
 import NoticeCard from "./NoticeCard";
 import { capAfterNumber } from "../shared/casing";
+import { movedBy, celebrationLine, type Moved } from "../shared/completion";
 import { birthdaysOn, type BirthdayHit } from "../people/birthdays";
 import TodaySuggestions from "./TodaySuggestions";
 import CheckIn from "./CheckIn";
@@ -250,16 +251,52 @@ export default function TodayFlow({
 
   useEffect(() => { reload(); }, [reload]);
 
+  // WHAT THE TICK MOVED (dopamine layer, 2026-08-20). The strongest finding
+  // in the motivation literature is Amabile's: nothing drives people like
+  // seeing progress in work that matters to them, and small wins move it a
+  // lot. So a tick no longer says "Task completed" into the void; when the
+  // task belonged to a project it says which project it just advanced and
+  // how close that project now is. When it was the LAST one, the toast stops
+  // being a receipt and becomes the offer to finish the thing.
+  const movedByTask = (t: { projectId?: string } | null): { moved: Moved; projectId: string } | null => {
+    const pid = t?.projectId;
+    if (!pid) return null;
+    const proj = projList.find((p) => p.id === pid);
+    if (!proj || proj.data.status === "done") return null;
+    const mine = taskItems.filter((x) => x.data.projectId === pid);
+    const done = mine.filter((x) => x.data.done).length;
+    const moved = movedBy(proj.data.title, done, mine.length);
+    return moved ? { moved, projectId: pid } : null;
+  };
+
   const onToggleTask = async (id: string) => {
     const before = await tasks.task(id);
     const comeback = before ? backOnTrackMessage(before, today) : null;
     const ok = await attemptWrite(() => tasks.toggleDone(id));
     await reload();
     if (!ok) return;
+    const advanced = before && !before.done ? movedByTask(before) : null;
     if (comeback) {
       showToast({ message: comeback });
+    } else if (advanced?.moved.cleared) {
+      // The moment, offered at the moment. Delayed rewards are the ones ADHD
+      // discounts hardest, so finishing the project is one tap from here
+      // rather than four taps through a form later.
+      showToast({
+        message: advanced.moved.projectTitle + " · " + advanced.moved.line,
+        actionLabel: "Finish It",
+        onAction: async () => {
+          const proj = projList.find((p) => p.id === advanced.projectId);
+          if (!proj) return;
+          await attemptWrite(() => projectsSvc.update(proj.id, { ...proj.data, status: "done" }));
+          await reload();
+          showToast({ message: celebrationLine("project", proj.id) + " · " + proj.data.title });
+        },
+      });
+    } else if (advanced) {
+      showToast({ message: advanced.moved.projectTitle + " · " + advanced.moved.line });
     } else if (before && !before.done) {
-      showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.toggleDone(id)); await reload(); } });
+      showToast({ message: celebrationLine("task", id), actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.toggleDone(id)); await reload(); } });
     }
   };
 

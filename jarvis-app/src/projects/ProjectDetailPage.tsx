@@ -20,7 +20,7 @@ const FORK = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="6" y1="3" x2="6" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></svg>
 );
 
-export default function ProjectDetailPage({ project, onBack, onEdit, linkedNotes = [], onOpenNote, onOpenDecision, onChanged }: { project: Project; onBack: () => void; onEdit: () => void; linkedNotes?: { id: string; title: string; category: string }[]; onOpenNote?: (id: string) => void; onOpenDecision?: (id: string) => void; onChanged?: () => void }) {
+export default function ProjectDetailPage({ project, onBack, onEdit, linkedNotes = [], onOpenNote, onOpenDecision, onChanged, onFinish }: { project: Project; onBack: () => void; onEdit: () => void; linkedNotes?: { id: string; title: string; category: string }[]; onOpenNote?: (id: string) => void; onOpenDecision?: (id: string) => void; onChanged?: () => void; onFinish?: () => void }) {
   // SEAMLESS LINKING (Dave 2026-08-18): Area and Goal are chip-pickers IN
   // the detail card, the one-tap in-place edit from the editing law. Local
   // copy so the change reads instantly; onChanged refreshes the list behind.
@@ -115,6 +115,17 @@ export default function ProjectDetailPage({ project, onBack, onEdit, linkedNotes
             ))}
           </div></div>
         </>
+      )}
+      {/* FINISHING IT, WHERE IT LIVES (Dave 2026-08-20: "ability to complete
+          projects and goals"). Until now the only way to finish a project was
+          to open the edit sheet, find the status segmented control, tap Done,
+          and Save: four taps through a form for the best moment the app has.
+          Goals already had this button on their own page; projects had
+          nothing. Hidden once done, because finishing is not a toggle. */}
+      {onFinish && data.status !== "done" && (
+        <div className="pad-x conn-action">
+          <button className="btn btn-primary btn-block" onClick={onFinish}>Mark Done</button>
+        </div>
       )}
       <div className="screen-foot" />
     </div>

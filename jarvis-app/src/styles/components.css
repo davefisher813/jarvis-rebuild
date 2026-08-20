@@ -1701,3 +1701,17 @@ button {
    The star sits with the name because that is where the question "does this
    person always get through" actually gets asked. */
 .msg-vip { color: var(--yellow, #FFD60A); font-size: 12px; line-height: 1; flex-shrink: 0; margin-left: 2px; }
+
+/* THE ESCALATED BURST (dopamine layer, 2026-08-20). The evidence says the
+   reward has to land ON the action and has to scale with what the action
+   actually was. Same eight dots, thrown twice as far over twice as long, so
+   clearing a project reads as a bigger event than ticking a loose task. */
+.burst-big i { width: 9px; height: 9px; animation-duration: 760ms; }
+.burst-big i:nth-child(1) { --bx: 0px;   --by: -72px; }
+.burst-big i:nth-child(2) { --bx: 51px;  --by: -51px; }
+.burst-big i:nth-child(3) { --bx: 72px;  --by: 0px; }
+.burst-big i:nth-child(4) { --bx: 51px;  --by: 51px; }
+.burst-big i:nth-child(5) { --bx: 0px;   --by: 72px; }
+.burst-big i:nth-child(6) { --bx: -51px; --by: 51px; }
+.burst-big i:nth-child(7) { --bx: -72px; --by: 0px; }
+.burst-big i:nth-child(8) { --bx: -51px; --by: -51px; }
