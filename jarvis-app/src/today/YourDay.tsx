@@ -6,6 +6,8 @@ import { isPast } from "./todayData";
 import { EventWeatherLine } from "../weather/WeatherLine";
 
 const WINDOW = 252; // ticker viewport height (px), matches .sched-ticker
+// Pausing the day ticker survives leaving Today and coming back.
+const TICKER_KEY = "jarvis.today.ticker.v1";
 
 export interface LockedRange { s: number; e: number; label: string }
 
@@ -133,7 +135,25 @@ export default function YourDay({
 }) {
   const measureRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);
-  const [paused, setPaused] = useState(false);
+  // PAUSING IS A PREFERENCE, NOT A CHORE (Dave, 2026-08-21: "make the
+  // scrolling schedule still an option. If you want to make pausing it
+  // easier or something that's fine").
+  //
+  // The ticker stays. What was hard was stopping it: pause was component
+  // state, so every return to Today started it moving again and he had to
+  // find the same small button and press it again. Pausing it once now means
+  // it is paused, the way turning something off means it is off.
+  //
+  // The other half is in CSS: touching or hovering the ticker stops it for
+  // as long as you are on it. Reaching for a button to read a line you are
+  // already looking at is the wrong shape for the problem.
+  const [paused, setPaused] = useState(() => {
+    try { return localStorage.getItem(TICKER_KEY) === "off"; } catch { return false; }
+  });
+  const setPausedSticky = (next: boolean) => {
+    setPaused(next);
+    try { localStorage.setItem(TICKER_KEY, next ? "off" : "on"); } catch { /* private mode */ }
+  };
 
   useEffect(() => {
     const el = measureRef.current;
@@ -182,7 +202,7 @@ export default function YourDay({
           <button
             className={"ticker-toggle" + (paused ? " paused" : "")}
             aria-label={paused ? "Resume auto-scroll" : "Pause auto-scroll"}
-            onClick={() => setPaused((p) => !p)}
+            onClick={() => setPausedSticky(!paused)}
           >
             <svg className="icon-pause" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></svg>
             <svg className="icon-play" viewBox="0 0 24 24"><polygon points="7,5 19,12 7,19" /></svg>

@@ -197,3 +197,25 @@ describe("N5 · fix the overlap", () => {
     expect(durationOf(ev("x", { start: "09:00" }).data)).toBe(60);
   });
 });
+
+// C3 (audit 2026-08-21). gapsOn and dropInto were written, tested, and never
+// called by any screen: dragging an Anytime task onto the 3pm gap and onto
+// the 8am gap did the identical thing, because the drop threw away the
+// position and asked the planner. A test proves a function works; it never
+// proves a screen reaches it.
+describe("a dropped task lands where it was dropped", () => {
+  it("snaps into the gap it was dropped on", () => {
+    // 14:00-15:30 open, an hour-long task: it starts at 14:00.
+    expect(dropInto([{ s: 14 * 60, e: 15 * 60 + 30 }], 14 * 60, 60)).toBe("14:00");
+  });
+
+  it("pulls back so the task fits instead of hanging off the end", () => {
+    // Dropped at 15:00 in a gap that ends at 15:30: an hour does not fit
+    // from there, so it starts at 14:30 and ENDS on the boundary.
+    expect(dropInto([{ s: 14 * 60, e: 15 * 60 + 30 }], 15 * 60, 60)).toBe("14:30");
+  });
+
+  it("refuses a gap too small to hold it", () => {
+    expect(dropInto([{ s: 14 * 60, e: 14 * 60 + 30 }], 14 * 60, 60)).toBeNull();
+  });
+});

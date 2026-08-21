@@ -2,6 +2,7 @@ import type { Person } from "../types";
 import { personInitials, avatarClass } from "../types";
 import { FileText } from "lucide-react";
 import { catColor } from "../../shared/categories";
+import { RowGlyph } from "../../shared/anatomy";
 
 const BACK = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -29,6 +30,8 @@ export default function PersonDetail({
   onCallPrep,
   onMessage,
   categoryNames = [],
+  openWith = [],
+  onOpenItem,
 }: {
   person: Person;
   onEdit: () => void;
@@ -44,6 +47,12 @@ export default function PersonDetail({
   // Names of the categories this person belongs to (resolved by the caller,
   // since this screen has no service access on purpose).
   categoryNames?: string[];
+  // B1 (audit 2026-08-21): the card was a business card. Everything the app
+  // knew that involved this person -- the task with their name in it, the
+  // meeting on Thursday -- lived one tab away with nothing connecting them.
+  // Resolved by the caller, same as the notes and the categories.
+  openWith?: import("../mentions").MentionItem[];
+  onOpenItem?: (kind: "task" | "event", id: string) => void;
 }) {
   const { name, relationship, birthday, notes, color, email, phone, register, flagged } = person.data;
   const hasAttrs = relationship || birthday || flagged || register || categoryNames.length > 0;
@@ -118,6 +127,29 @@ export default function PersonDetail({
         <>
           <div className="grp"><div className="eyebrow">Notes</div></div>
           <div className="pad-x"><div className="card"><div className="note-body">{notes}</div></div></div>
+        </>
+      )}
+      {/* What is STILL between you, not a history: open tasks with their name
+          in them and time still ahead. Done work and past meetings are left
+          out on purpose; a list of everything you ever did together is a
+          scrapbook, and he opened this card to know what he owes. */}
+      {openWith.length > 0 && (
+        <>
+          <div className="grp"><div className="eyebrow">Still Open</div></div>
+          <div className="pad-x"><div className="card">
+            {openWith.map((m) => (
+              <div className="row" key={m.kind + m.id}
+                role={onOpenItem ? "button" : undefined} tabIndex={onOpenItem ? 0 : undefined}
+                onClick={onOpenItem ? () => onOpenItem(m.kind, m.id) : undefined}>
+                <RowGlyph kind={m.kind} />
+                <div className="row-grow">
+                  <div className="conn-name">{m.title}</div>
+                  {m.sub && <div className="conn-meta">{m.sub}</div>}
+                </div>
+                {onOpenItem && <div className="chev"></div>}
+              </div>
+            ))}
+          </div></div>
         </>
       )}
       {linkedNotes.length > 0 && (

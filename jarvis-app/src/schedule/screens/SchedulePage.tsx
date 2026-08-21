@@ -10,6 +10,10 @@ import DayRow from "./DayRow";
 import AnytimeRow from "./AnytimeRow";
 import type { TaskItem } from "../../tasks/TasksService";
 import type { AttachInfo } from "../attachments";
+import { dropInto } from "../dayEdit";
+
+// A dropped task gets an hour, the same hour the tap-to-fill path gives it.
+const DROP_MINUTES = 60;
 
 // A protected block from Your Routine, rendered on the day it applies.
 export interface LockedRange { s: number; e: number; label: string; soft?: boolean; kind?: string }
@@ -63,7 +67,7 @@ export default function SchedulePage({
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
   onRunningLate?: (mins: number) => void;
-  anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string) => void;
+  anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string, startHHMM?: string) => void;
   attachMap?: Record<string, AttachInfo>;
   // BLENDING (Dave, 2026-08-21). One confident offer per block, keyed by
   // event id: the task that fits this block well enough that adding it is a
@@ -102,6 +106,17 @@ export default function SchedulePage({
     const r = gridZoneRef.current?.getBoundingClientRect();
     return !!r && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
   };
+  // Which gap the finger was over, snapped so the task FITS inside it rather
+  // than hanging off the end. Null when the drop was on an event rather than
+  // on open time, which falls back to the old behaviour on purpose: dropping
+  // onto a busy hour is not a request to double-book it.
+  const gapUnder = (x: number, y: number): string | null => {
+    const el = document.elementFromPoint(x, y)?.closest("[data-gap-start]") as HTMLElement | null;
+    if (!el) return null;
+    const start = el.dataset.gapStart, end = el.dataset.gapEnd;
+    if (!start || !end) return null;
+    return dropInto([{ s: toMin(start), e: toMin(end) }], toMin(start), DROP_MINUTES);
+  };
   const beginDrag = (id: string, label: string, e: RPointerEvent) => {
     if (!onScheduleTask) return;
     const startX = e.clientX, startY = e.clientY;
@@ -124,8 +139,11 @@ export default function SchedulePage({
     };
     const up = (ev: PointerEvent) => {
       const dropped = active && overGrid(ev.clientX, ev.clientY);
+      // Read the gap BEFORE cleanup: cleanup drops the ghost and the drag
+      // class, and elementFromPoint stops seeing what was under the finger.
+      const at = dropped ? gapUnder(ev.clientX, ev.clientY) : null;
       cleanup();
-      if (dropped) onScheduleTask(id);
+      if (dropped) onScheduleTask(id, at ?? undefined);
     };
     timer = window.setTimeout(() => {
       active = true;
@@ -245,6 +263,12 @@ export default function SchedulePage({
         </div>
       )}
 
+      {/* A3 (audit 2026-08-21): everything below here is the DAY, and it was
+          rendering under Repeats too. The repeats view is a list of what
+          stands on the calendar forever; the day it happens to be showing
+          underneath is a different question, glued to the bottom of the
+          answer. Four modes, one of which has no day list. */}
+      {mode !== "repeats" && (<>
       <div className="grp"><div className="plan-head">
         {/* Date lives in the nav above; repeating it here wrapped the row (no-repetition law). */}
         <div className="eyebrow">{n} {n === 1 ? "Event" : "Events"}</div>
@@ -301,6 +325,12 @@ export default function SchedulePage({
               <button
                 className={"sched-row sched-gap" + (isToday && toMin(en.end) <= nowMin ? " past" : "")}
                 key={"gap-" + i}
+                /* C3 (audit 2026-08-21): a dropped task used to land wherever
+                   nextFreeSlot said, no matter which gap you dropped it on,
+                   which made the drag a long-winded way to press a button.
+                   The gap carries its own window so the drop can read it. */
+                data-gap-start={en.start}
+                data-gap-end={en.end}
                 onClick={() => onPickSlot?.(en.start)}
               >
                 <div className="sched-time">{fmtTime(en.start).time}<span className="ampm">{fmtTime(en.start).ap}</span></div>
@@ -377,6 +407,7 @@ export default function SchedulePage({
         )}
         </>
       )}
+      </>)}
 
       {drag && (
         <div className="anytime-ghost" style={{ left: drag.x, top: drag.y }}>{drag.label}</div>

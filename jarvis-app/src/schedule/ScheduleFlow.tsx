@@ -433,9 +433,21 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
 
   // Tap the name: give the task a time. Drops a 60-minute block at the next open
   // slot, carrying the task id so the strip and grid stay in sync. Undo removes it.
-  const onScheduleTask = async (id: string) => {
+  const onScheduleTask = async (id: string, droppedAt?: string) => {
     const t = await tasksSvc.task(id);
     if (!t) return;
+    // C3 (audit 2026-08-21): a drag that ignores WHERE you dropped is a
+    // long-winded way to press a button. When the finger landed on real open
+    // time, that IS the answer and the planner does not get a vote.
+    if (droppedAt) {
+      const okDrop = await attemptWrite(() => svc.createEvent(t.text, {
+        date: selected, start: droppedAt, end: addMinutes(droppedAt, 60),
+        category: t.category || undefined, sourceTaskId: id,
+      }));
+      await reload();
+      if (okDrop) showToast({ message: `Scheduled ${fmtTime(droppedAt).time}${fmtTime(droppedAt).ap}` });
+      return;
+    }
     // Land the block through the SAME ladder Plan My Day uses (2026-08-10),
     // so one tapped task behaves exactly like a planned pick: focus zones
     // first, then open time, routing around events and protected blocks,

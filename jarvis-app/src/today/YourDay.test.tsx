@@ -82,3 +82,30 @@ describe("YourDay evening and recovery actions", () => {
     expect(screen.queryByText("Running Late?")).not.toBeInTheDocument();
   });
 });
+
+// PAUSING IS A PREFERENCE, NOT A CHORE (Dave, 2026-08-21). Before this, pause
+// was component state: every return to Today started the day moving again and
+// he had to find the same small button and press it again.
+describe("the ticker remembers that it was turned off", () => {
+  // Own the overflow mock rather than relying on an earlier describe's,
+  // whose afterEach only restores when the descriptor existed on
+  // HTMLElement.prototype (it lives on Element.prototype, so it does not).
+  beforeEach(() => {
+    localStorage.clear();
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", { configurable: true, get: () => 999 });
+  });
+
+  it("starts paused when it was paused last time", () => {
+    localStorage.setItem("jarvis.today.ticker.v1", "off");
+    const { container } = render(<YourDay events={many} locked={[]} now="09:00" nowLabel="Now" onSeeAll={() => {}} />);
+    expect(container.querySelector(".sched-ticker")!.classList.contains("paused")).toBe(true);
+  });
+
+  it("writes the choice down when it is toggled", () => {
+    const { container } = render(<YourDay events={many} locked={[]} now="09:00" nowLabel="Now" onSeeAll={() => {}} />);
+    fireEvent.click(container.querySelector(".ticker-toggle") as HTMLElement);
+    expect(localStorage.getItem("jarvis.today.ticker.v1")).toBe("off");
+    fireEvent.click(container.querySelector(".ticker-toggle") as HTMLElement);
+    expect(localStorage.getItem("jarvis.today.ticker.v1")).toBe("on");
+  });
+});

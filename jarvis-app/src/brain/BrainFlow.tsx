@@ -18,7 +18,7 @@ const DOC_TOPIC: Record<string, string> = {
 // The Brain tab. The hub is built. Contacts opens the one people list (the
 // Inner Circle / Adversarial rows were cut 2026-08-03); the doc rows open a
 // lightweight placeholder for now. "Your Categories" is populated live.
-export default function BrainFlow({ openKey, personOpenId, decisionOpenId, onOpenNote, onOpenProject, onOpenMoney }: { openKey?: string; personOpenId?: string; decisionOpenId?: string; onOpenNote?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenMoney?: () => void } = {}) {
+export default function BrainFlow({ openKey, personOpenId, decisionOpenId, onOpenNote, onOpenProject, onOpenMoney, onOpenEntity }: { openKey?: string; personOpenId?: string; decisionOpenId?: string; onOpenNote?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenMoney?: () => void; onOpenEntity?: (kind: string, id: string) => void } = {}) {
   const cats = useCategories();
   const [categories, setCategories] = useState<BrainCategory[]>([]);
   const [open, setOpen] = useState<{ key: string; name: string } | null>(
@@ -64,7 +64,7 @@ export default function BrainFlow({ openKey, personOpenId, decisionOpenId, onOpe
       return <DecisionsFlow openId={decisionOpenId} onBack={() => setOpen(null)} />;
     }
     if (open.key === "contacts") {
-      return <PeopleFlow openId={personOpenId ?? personId} onOpenNote={onOpenNote} onBack={() => { setPersonId(undefined); setOpen(null); }} />;
+      return <PeopleFlow openId={personOpenId ?? personId} onOpenNote={onOpenNote} onOpenItem={onOpenEntity} onBack={() => { setPersonId(undefined); setOpen(null); }} />;
     }
     const topic = DOC_TOPIC[open.key];
     if (topic) {
@@ -82,6 +82,7 @@ export default function BrainFlow({ openKey, personOpenId, decisionOpenId, onOpe
           onOpenProject={onOpenProject}
           onOpenPerson={(id) => { setPersonId(id); setOpen({ key: "contacts", name: "Contacts" }); }}
           onOpenContacts={() => { setPersonId(undefined); setOpen({ key: "contacts", name: "Contacts" }); }}
+          onOpenTask={onOpenEntity ? (id) => onOpenEntity("task", id) : undefined}
           onChanged={() => void loadCats()}
         />
       );

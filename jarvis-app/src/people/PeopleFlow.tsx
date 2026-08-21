@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { usePeople, useNotes, useCategories } from "../data/NotesProvider";
+import { usePeople, useNotes, useCategories, useTasks, useSchedule } from "../data/NotesProvider";
+import { openWith as openWithPerson, type MentionItem } from "./mentions";
+import { todayISO } from "../tasks/grouping";
 import type { Person } from "./types";
 import { needsAdversarialReview, extractEmailFromNotes } from "./views";
 import type { SheetCategoryOpt } from "./screens/PersonSheet";
@@ -16,7 +18,7 @@ import { createPortal } from "react-dom";
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
-export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }: { onBack: () => void; openId?: string; onOpenNote?: (id: string) => void }) {
+export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, onOpenItem }: { onBack: () => void; openId?: string; onOpenNote?: (id: string) => void; onOpenItem?: (kind: string, id: string) => void }) {
   const people = usePeople();
   const notesSvc = useNotes();
   const catsSvc = useCategories();
@@ -33,6 +35,12 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
   const [prepOpen, setPrepOpen] = useState(false);
   const [msgOpen, setMsgOpen] = useState(false);
   const ai = useAI();
+  // B1: the open work and the time still ahead that name this person. Loaded
+  // only while a card is open, because it is a property of THAT person and
+  // not of the list.
+  const tasksSvc = useTasks();
+  const schedSvc = useSchedule();
+  const [still, setStill] = useState<MentionItem[]>([]);
 
   // ONE list, everyone (the Inner Circle / Adversarial lists were removed
   // 2026-08-03; the facts they claimed to organize live on each person).
@@ -53,6 +61,28 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
   }, [openId, notesSvc]);
 
   const current = openId ? list.find((p) => p.id === openId) ?? null : null;
+
+  // B1: what is still open with this person. Best effort and additive; a
+  // failure here leaves the card exactly as it was before.
+  const currentName = current?.data.name;
+  useEffect(() => {
+    if (!currentName) { setStill([]); return; }
+    let on = true;
+    void (async () => {
+      try {
+        const [ts, evs] = await Promise.all([tasksSvc.listTasks(), schedSvc.listEvents()]);
+        if (!on) return;
+        setStill(openWithPerson(
+          { name: currentName },
+          ts.map((t) => ({ id: t.id, text: t.data.text, done: t.data.done, due: t.data.due ?? null })),
+          evs.map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, start: e.data.start, location: e.data.location })),
+          todayISO(),
+        ));
+      } catch { if (on) setStill([]); }
+    })();
+    return () => { on = false; };
+  }, [currentName, tasksSvc, schedSvc]);
+
   const pushCls = usePushDepth(current ? 1 : 0);
   const editing = sheet.kind === "edit" ? list.find((p) => p.id === sheet.id) : undefined;
 
@@ -205,7 +235,9 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote }
         <PersonDetail person={current} onEdit={() => setSheet({ kind: "edit", id: current.id })} onBack={() => setOpenId(null)} linkedNotes={linkedNotes} onOpenNote={onOpenNote}
           onCallPrep={current.data.phone ? () => setPrepOpen(true) : undefined}
           onMessage={current.data.phone ? () => setMsgOpen(true) : undefined}
-          categoryNames={(current.data.categoryIds ?? []).map((id) => categories.find((c) => c.id === id)?.name).filter((n): n is string => !!n)} />
+          categoryNames={(current.data.categoryIds ?? []).map((id) => categories.find((c) => c.id === id)?.name).filter((n): n is string => !!n)}
+          openWith={still}
+          onOpenItem={onOpenItem ? (kind, id) => onOpenItem(kind, id) : undefined} />
         {prepOpen && (
           <CallPrepSheet
             person={current}

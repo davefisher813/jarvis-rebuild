@@ -124,6 +124,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-ticker::after { bottom: 0; background: linear-gradient(0deg, var(--surface-1) 0%, transparent 100%); }
 .ticker-track { animation: tickerScroll 40s linear infinite; will-change: transform; }
 .sched-ticker.paused .ticker-track { animation-play-state: paused; }
+/* Touching it stops it, for as long as you are on it (2026-08-21). Reaching
+   for a button to read a line you are already looking at is the wrong shape
+   for the problem; the button stays for turning it off for good. */
+.sched-ticker:active .ticker-track, .sched-ticker:hover .ticker-track { animation-play-state: paused; }
 @keyframes tickerScroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
 @media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; } }
 .ticker-toggle { width: 26px; height: 26px; border-radius: var(--r-circle); background: var(--press-3); border: 0; color: var(--tx-2); display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; cursor: pointer; }
@@ -687,6 +691,10 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .proj-step.completed .conn-name { color: var(--tx-3); text-decoration: line-through; }
 .proj-finish-note { margin-top: var(--s-2); text-align: center; }
 .proj-guess .conn-name { color: var(--tint); }
+.notif-scope { margin-top: var(--s-3); }
+.chat-starters { padding: var(--s-6) 0 0; }
+.chat-starter-head { padding: 0 var(--s-4) var(--s-2); font-size: var(--t-eyebrow); font-weight: var(--w-bold);
+  letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3); }
 
 /* BLENDING (2026-08-21). The offer tucks UNDER the block it belongs to,
    indented to the block's text edge, because the indent is what says "this

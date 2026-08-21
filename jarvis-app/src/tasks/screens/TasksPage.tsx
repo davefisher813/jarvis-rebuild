@@ -56,6 +56,7 @@ function Row({
   onOpen,
   onDelete,
   onSnooze,
+  onStart,
 }: {
   item: TaskItem;
   today: string;
@@ -63,6 +64,11 @@ function Row({
   onOpen?: (id: string) => void;
   onDelete?: (id: string) => void;
   onSnooze?: (id: string) => void;
+  // A2 (audit 2026-08-21): the Tasks tab could not START anything. Every
+  // task in the app lived here, and the one thing an ADHD app exists to help
+  // with -- getting going -- was only reachable from a card on Today that
+  // showed one task. Same pill, same behaviour, same place in the row.
+  onStart?: (id: string) => void;
 }) {
   const t = item.data;
   const u = urgencyFor(t, today);
@@ -135,7 +141,13 @@ function Row({
               they came from; hand-made rows render nothing here. */}
           <Provenance source={t.source} />
         </div>
-        {u && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
+        {/* The urgency label steps aside for Start, exactly as it does on
+            Today: knowing a thing is due is worth less than a way to begin
+            it, and two pills on one row is the clutter that made the audit
+            flag this list in the first place. */}
+        {onStart && !shownDone
+          ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(item.id); }}>Start</button>
+          : u && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
       </div>
     </div>
   );
@@ -152,6 +164,7 @@ export default function TasksPage({
   onOpenTask,
   onDeleteTask,
   onSnoozeTask,
+  onStartTask,
   onNew,
   onQuickAdd,
   onClearDone,
@@ -176,6 +189,7 @@ export default function TasksPage({
   onOpenTask?: (id: string) => void;
   onDeleteTask?: (id: string) => void;
   onSnoozeTask?: (id: string) => void;
+  onStartTask?: (id: string) => void;
   onNew?: () => void;
   onQuickAdd?: (text: string) => void;
   onClearDone?: () => void;
@@ -293,7 +307,7 @@ export default function TasksPage({
               dividers inset past the checkbox, no card. */}
           {items.map((it) => (
             <React.Fragment key={it.id}>
-              <Row item={it} today={today} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDeleteTask} onSnooze={onSnoozeTask} />
+              <Row item={it} today={today} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} />
               {/* Momentum Chain (addendum item 7): the suggestion slides
                   into the just-finished slot, right below its row. */}
               {momentum?.afterId === it.id && momentum.el}

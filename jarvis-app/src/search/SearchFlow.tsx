@@ -84,7 +84,15 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
       <div className="search-results">
         {empty && recents.length > 0 && (
           <>
-            <div className="sh2"><span className="t">Recent</span></div>
+            {/* A history you cannot clear is a history you have to live
+                with. One tap, no confirmation: nothing is lost that was not
+                already typed once. */}
+            <div className="sh2"><span className="t">Recent</span>
+              <button className="see-all quiet-action" onClick={() => {
+                setRecents([]);
+                try { localStorage.removeItem(RECENTS_KEY); } catch { /* private mode */ }
+              }}>Clear</button>
+            </div>
             <div><div className="list-flat">
               {recents.map((r) => (
                 <div className="row" role="button" tabIndex={0} key={r} onClick={() => setQ(r)}>

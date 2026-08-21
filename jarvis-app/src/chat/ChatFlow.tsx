@@ -187,6 +187,30 @@ export default function ChatFlow() {
     <div className="screen">
       <PageHeader title="Chat" hero={<div className="pagehead-title">JARVIS</div>} />
       <div className="chat-thread">
+        {/* B4 (audit 2026-08-21): Chat opened on a blank wall with a text
+            field, which asks the person with the initiation problem to think
+            up the first move. Four chips, each one a thing this screen
+            actually does -- ask the records, run a command, capture -- so
+            nothing here promises a capability it does not have. They fill
+            the field rather than sending, because a chip that fires
+            immediately is a button that lies about being a suggestion. */}
+        {msgs.length === 0 && (
+          <div className="chat-starters">
+            <div className="chat-starter-head">Try</div>
+            <div className="chip-row">
+              {[
+                { label: "What's on today?", fill: "What's on today?" },
+                { label: "What's next?", fill: "What's next?" },
+                // These two teach the grammar rather than firing it: the chip
+                // leaves the cursor exactly where the missing word goes.
+                { label: "Complete…", fill: "Complete " },
+                { label: "Move… to tomorrow", fill: "Move " },
+              ].map((c) => (
+                <div className="chip" role="button" tabIndex={0} key={c.label} onClick={() => setDraft(c.fill)}>{c.label}</div>
+              ))}
+            </div>
+          </div>
+        )}
         {msgs.map((m) => (
           <div key={m.id} className={"chat-bubble " + (m.data.role === "user" ? "chat-user" : "chat-jarvis")}>
             <div className="chat-text">{m.data.text}</div>

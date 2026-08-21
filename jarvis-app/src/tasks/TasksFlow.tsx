@@ -20,6 +20,7 @@ import { identityToText } from "../ai/context";
 import { firstStepPrompt, parseFirstStep } from "./firstStep";
 import { localParse } from "../ai/capture";
 import { rankOpen } from "../upnext/upnext";
+import { FIFTEEN } from "./rightNow";
 import { breakdownPrompt, parseBreakdown } from "./breakdown";
 import { emit } from "../events";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "./momentum";
@@ -393,6 +394,23 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     if (ok) showToast({ message: "Added to schedule" });
   };
 
+  // A2 (audit 2026-08-21): the Tasks tab could not start anything. Same move
+  // as Today's Start pill, deliberately identical: fifteen minutes, right
+  // now, as a REAL block on the real day. Not an in-app timer, because a
+  // timer dies when he closes JARVIS, which is exactly the moment starting
+  // goes wrong.
+  const onStartTask = async (id: string) => {
+    const t = await svc.task(id);
+    if (!t) return;
+    const now = new Date();
+    const start = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const ok = await attemptWrite(() => schedule.createEvent(t.text, {
+      date: today, start, end: addMinutes(start, FIFTEEN),
+      category: t.category || undefined, sourceTaskId: id,
+    }));
+    if (ok) { haptics.selection(); showToast({ message: `Fifteen minutes on ${t.text}` }); }
+  };
+
   // One offer, one line, one action. The subtitle used to read "Want the
   // smallest possible first step?", which is helper text describing the button
   // sitting under it, and the dismiss was a full-weight secondary button
@@ -529,6 +547,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
         onFilter={setFilter}
         onToggle={onToggle}
         onOpenTask={openEdit}
+        onStartTask={(id) => void onStartTask(id)}
         momentum={momentum && {
           afterId: momentum.afterId,
           el: (

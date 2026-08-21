@@ -83,6 +83,7 @@ export default function CategoryDetail({
   onOpenProject,
   onOpenPerson,
   onOpenContacts,
+  onOpenTask,
   onChanged,
 }: {
   categoryId: string;
@@ -91,6 +92,7 @@ export default function CategoryDetail({
   onOpenProject?: (id: string) => void;
   onOpenPerson?: (id: string) => void;
   onOpenContacts?: () => void;
+  onOpenTask?: (id: string) => void;
   onChanged?: () => void;
 }) {
   const tasksSvc = useTasks();
@@ -527,10 +529,16 @@ export default function CategoryDetail({
               <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={() => void toggle(t.id)}>
                 <div className={"task-check cat-bd-" + cat.data.color} />
               </div>
-              <div className="row-grow">
+              {/* B3 (audit 2026-08-21): these rows could ONLY be ticked. A
+                  task you can finish but cannot open is a task you cannot
+                  reschedule, edit, or read the rest of, and every other list
+                  in the app opens on the body tap. */}
+              <div className="row-grow" role={onOpenTask ? "button" : undefined} tabIndex={onOpenTask ? 0 : undefined}
+                onClick={onOpenTask ? () => onOpenTask(t.id) : undefined}>
                 <div className="conn-name truncate">{t.data.text}</div>
                 {due && <div className="eyebrow">{due}</div>}
               </div>
+              {onOpenTask && CHEV}
             </div>
           );
         })}
