@@ -1439,8 +1439,12 @@ button {
 
 /* Tapping the time is its own action, so it needs its own hit area and needs
    to not look like the row is one big button. */
-.sched-time-btn { background: 0; border: 0; font-family: var(--f); text-align: left;
+.sched-time-btn { position: relative; background: 0; border: 0; font-family: var(--f); text-align: left;
   padding: 1px 0 0; margin: 0; cursor: pointer; }
+/* Tapping the time opens the time editor, and the time renders at 19px. Same
+   rule as .pill-act: expand the hit area past the paint so the control meets
+   --tap-min without the type getting fatter. */
+.sched-time-btn::after { content: ""; position: absolute; inset: -13px -8px; }
 .sched-time-btn:active { color: var(--accent); }
 .time-pop-scrim { position: fixed; inset: 0; z-index: 60; }
 .time-pop { position: absolute; left: var(--s-4); top: 50%; transform: translateY(-50%);
@@ -1514,8 +1518,14 @@ button {
    rows share one text edge; actions are compact grey pills with accent text;
    display names never show their transport quotes. */
 .msg-dot.off { background: transparent; }
-.pill-act { flex-shrink: 0; align-self: center; background: rgba(255,255,255,0.08); border: 0; border-radius: var(--r-pill);
+.pill-act { position: relative; flex-shrink: 0; align-self: center; background: rgba(255,255,255,0.08); border: 0; border-radius: var(--r-pill);
   color: var(--accent); font-family: var(--f); font-size: 13px; font-weight: var(--w-semi); padding: 6px 12px; }
+/* THE 44px RULE. The visible pill is 27px, which reads correctly beside a
+   two-line row, but 27px is a bad target on a phone and the app's own
+   standard (--tap-min, which .see-all already meets) is 44. The hit area is
+   expanded past the paint rather than the pill being made fatter, so the
+   design is unchanged and the thumb gets what Apple asks for. */
+.pill-act::after { content: ""; position: absolute; inset: -9px 0; }
 
 
 /* V4 WRITING CANVAS (Dave 2026-08-18: "feel like an actual writing app...
@@ -1614,11 +1624,13 @@ button {
    glyph, words, exactly one control on the visible line. Dismiss and any
    alternate choice ride the swipe reveal, so nothing can ever stack on a
    tap target again. The corner × is banned inside this stream. */
-/* The stream has RHYTHM. The promo card this replaced carried a bottom
-   margin; converting everything to one anatomy dropped it, and the cards
-   have been stacked flush ever since. What looked like separation was only
-   the rounded corners against black. */
-.notice-swipe { position: relative; overflow: hidden; border-radius: var(--r-lg); margin-bottom: var(--s-3); }
+.notice-swipe { position: relative; overflow: hidden; border-radius: var(--r-lg); }
+
+/* THE STREAM HAS RHYTHM, and it belongs to the STREAM. It was on the notice
+   card, which meant the one member that is deliberately not a notice card
+   (the day-draft plan preview) still sat flush. Spacing between siblings is
+   the container's job; a card should not have to know it has neighbours. */
+.heads-up-stream > * + * { margin-top: var(--s-3); }
 /* NO :last-child RESET HERE. Every card is the ONLY child of its own .pad-x
    wrapper, so every one of them matches :last-child and the reset zeroed the
    entire stream. The trailing margin is absorbed by the next section head,
@@ -1897,3 +1909,26 @@ button {
 /* The check-in's three moods are ANSWERS, not competing actions, so they sit
    on the card's foot rather than fighting the dismiss for the visible line. */
 .check-moods { gap: var(--s-2); flex-wrap: wrap; padding-top: 0; }
+
+/* A NOTIFICATION TITLE IS A SENTENCE, NOT A NAME. The email list clips
+   .msg-name on purpose, because a sender is a name and one line is right.
+   Here the same class carries "Draft the Coach Onboarding Email" and was
+   clipping it by twelve pixels to save nothing. Same treatment the decision
+   list and the notice card already use. */
+.notif-row .msg-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* A TASK NAME IS THE ONE THING THE ROW EXISTS TO SAY. It was clipping
+   "Draft the Coach Onboarding Email" to fit beside the urgency column, which
+   is the row hiding its own subject. Two lines, the same treatment the
+   decision list, the project sheet and the notice card already use, and only
+   the rows that need the second line take it. */
+.task-row .conn-name.truncate, .row .conn-name.truncate {
+  white-space: normal; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* The location on a schedule row opens Maps, so it is a real target, and it
+   renders at 20px of meta type. Same treatment as .pill-act and the time
+   button: expand the hit area past the paint. */
+.sched-loc { position: relative; }
+.sched-loc::after { content: ""; position: absolute; inset: -12px -8px; }

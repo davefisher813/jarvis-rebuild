@@ -384,7 +384,11 @@ export default function TodayPage({
       {headsUp.length > 0 && (
         <>
           <div className="sh2"><span className="t">Heads Up</span></div>
-          {headsUp}
+          {/* Spacing is a property of the STREAM, not of one card type. It
+              lived on .notice-swipe, so the day-draft card, the one member
+              that is deliberately not a NoticeCard, sat flush against the
+              rest. Anything placed here now gets the rhythm. */}
+          <div className="heads-up-stream">{headsUp}</div>
         </>
       )}
 

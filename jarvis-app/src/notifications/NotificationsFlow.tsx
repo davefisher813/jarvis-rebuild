@@ -42,7 +42,7 @@ export default function NotificationsFlow() {
         <div>
           {feed.map((n) => {
             return (
-              <div className="msg-row" key={n.id}>
+              <div className="msg-row notif-row" key={n.id}>
                 <RowGlyph kind={KIND[n.kind]} />
                 <div className="msg-body">
                   <div className="msg-head"><div className="msg-name">{n.title}</div>{n.when && <div className="msg-time">{n.when}</div>}</div>

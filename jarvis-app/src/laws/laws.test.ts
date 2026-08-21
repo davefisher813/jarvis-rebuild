@@ -231,10 +231,21 @@ describe("LAW: Apple HIG casing", () => {
   // promo card used to carry, and what read as separation was only the
   // rounded corners against black. Measured at 0px between every card.
   // A stacked surface must declare its own spacing.
-  it("the notice card declares vertical spacing", () => {
+  it("the notice stream declares the spacing between its members", () => {
     const css = read(SRC + "/styles/components.css");
-    const rule = css.match(/\.notice-swipe\s*\{[^}]*\}/)?.[0] ?? "";
-    expect(rule).toMatch(/margin/);
+    // On the STREAM, not on one card type: the day-draft card is deliberately
+    // not a notice card, and when the margin lived on .notice-swipe it sat
+    // flush against everything else.
+    expect(css).toMatch(/\.heads-up-stream\s*>\s*\*\s*\+\s*\*\s*\{[^}]*margin/);
+  });
+
+  // THE 44px TAP TARGET (Apple HIG). The app already has --tap-min and
+  // .see-all already meets it; .pill-act shipped at 27px, which is every
+  // action button in the notice stream. A row action must expand its hit
+  // area past its paint rather than be pleasant to look at and hard to hit.
+  it("the row action pill expands its hit area to the tap minimum", () => {
+    const css = read(SRC + "/styles/components.css");
+    expect(css).toMatch(/\.pill-act::after\s*\{[^}]*inset/);
   });
 
   // THE RETIRED SECTION HEAD (catalog L). Today's icon-tile head, sec-ico

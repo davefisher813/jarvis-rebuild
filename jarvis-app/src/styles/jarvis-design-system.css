@@ -319,7 +319,11 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 .sched-loc { font-size: var(--t-meta); color: var(--tx-3); }
 
 .proj-icon { width: 32px; height: 32px; border-radius: var(--r-sm); display: flex; align-items: center; justify-content: center; font-size: var(--t-meta); font-weight: var(--w-bold); color: #fff; flex-shrink: 0; }
-.proj-meta { display: flex; flex-direction: column; flex: 1; }
+/* min-width: 0 is not optional on a flex text column. Without it the item
+   keeps its intrinsic content width and refuses to shrink, so at 375px the
+   disclosure chevron beside it was pushed 8px off the screen. Every other
+   flex:1 text container in the app already carries this; this one did not. */
+.proj-meta { display: flex; flex-direction: column; flex: 1; min-width: 0; }
 .proj-tag { font-size: var(--t-eyebrow); color: var(--tx-3); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); }
 .proj-title { font-size: var(--t-h3); }
 

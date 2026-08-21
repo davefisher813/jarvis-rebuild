@@ -8,7 +8,8 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "audit:visual": "node tools/visual-audit.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.4.1",
