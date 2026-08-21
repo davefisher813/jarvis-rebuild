@@ -6,6 +6,7 @@ import type { EventRecurrence } from "../types";
 import { addMinutes, fmtTime, minToHHMM, addDays } from "../calendar";
 import type { TitleSuggestion } from "../memory";
 import { catColor } from "../../shared/categories";
+import { untilError } from "../repeats";
 
 export type { SheetCategory };
 
@@ -29,6 +30,9 @@ export interface EventDraft {
   category: string;
   location: string;
   recurrence: EventRecurrence;
+  // N3: the last day the series runs, inclusive. "" means forever, which is
+  // what every repeat used to be.
+  until?: string;
   taskIds?: string[]; // attached tasks (Session 4 connections)
 }
 
@@ -51,6 +55,7 @@ export default function EventSheet({
   suggestSlot,
   onSave,
   onDelete,
+  onDuplicate,
   onMoveToAnytime,
   onCancel,
   suggestTitles,
@@ -65,6 +70,8 @@ export default function EventSheet({
   suggestSlot?: (date: string) => string;
   onSave: (draft: EventDraft, scope?: "this" | "series") => void;
   onDelete?: (scope?: "this" | "series") => void;
+  // E2: copy this event as a new one-off on the same day.
+  onDuplicate?: () => void;
   onMoveToAnytime?: () => void;
   onCancel: () => void;
   // Memory layer (Session 3): past events offered whole while typing a title,
@@ -84,6 +91,8 @@ export default function EventSheet({
   const [category, setCategory] = useState(initial?.category ?? categories[0]?.id ?? "");
   const [location, setLocation] = useState(initial?.location ?? "");
   const [recurrence, setRecurrence] = useState<EventRecurrence>(initial?.recurrence ?? "none");
+  const [until, setUntil] = useState(initial?.until ?? "");
+  const untilBad = recurrence !== "none" ? untilError(date, until) : null;
   const [scope, setScope] = useState<"this" | "series">("series");
   const [err, setErr] = useState(false);
 
@@ -104,7 +113,7 @@ export default function EventSheet({
       setErr(true);
       return;
     }
-    const draft = { title: title.trim(), date, start, end, category, location: location.trim(), recurrence, taskIds: recurrence === "none" ? taskIds : [] };
+    const draft = { title: title.trim(), date, start, end, category, location: location.trim(), recurrence, until: recurrence === "none" ? "" : until, taskIds: recurrence === "none" ? taskIds : [] };
     recurringEdit ? onSave(draft, scope) : onSave(draft);
   };
 
@@ -262,6 +271,23 @@ export default function EventSheet({
                 <div key={val} className={"seg" + (recurrence === val ? " active" : "")} role="button" tabIndex={0} onClick={() => setRecurrence(val)}>{label}</div>
               ))}
             </div>
+            {/* N3 (2026-08-21): a repeat can END. Until now every repeating
+                event ran forever, so "fall clinics through November" could not
+                be said: it either ran into next year or had to be deleted by
+                hand, occurrence by occurrence. */}
+            {recurrence !== "none" && (
+              <>
+                <div className="input-label field-gap">Until</div>
+                <div className="segmented">
+                  <div className={"seg" + (until === "" ? " active" : "")} role="button" tabIndex={0} onClick={() => setUntil("")}>Forever</div>
+                  <div className={"seg" + (until !== "" ? " active" : "")} role="button" tabIndex={0} onClick={() => setUntil(until || date)}>Pick a Date</div>
+                </div>
+                {until !== "" && (
+                  <input type="date" className="input field-gap" value={until} onChange={(e) => setUntil(e.target.value)} />
+                )}
+                {untilBad && <div className="input-error">{untilBad}</div>}
+              </>
+            )}
           </div>
 
           {recurringEdit && (
@@ -343,6 +369,12 @@ export default function EventSheet({
           <button className="btn btn-primary btn-block" onClick={save}>Save</button>
           {mode === "edit" && onMoveToAnytime && recurrence === "none" && (
             <button className="btn btn-secondary btn-block" onClick={onMoveToAnytime}>Move to Anytime</button>
+          )}
+          {/* E2 (2026-08-21): most new events are a near-copy of one that
+              already exists. A copy is always a ONE-OFF, never a second
+              member of a series. */}
+          {mode === "edit" && onDuplicate && (
+            <button className="btn btn-secondary btn-block" onClick={onDuplicate}>Duplicate</button>
           )}
           {mode === "edit" && onDelete && (
             <button className="btn btn-danger btn-block" onClick={() => (recurringEdit ? onDelete?.(scope) : onDelete?.())}>Delete Event</button>

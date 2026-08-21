@@ -24,7 +24,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; gcalId?: string; sourceTaskId?: string; taskIds?: string[]; source?: import("../shared/provenance").Source },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; sourceTaskId?: string; taskIds?: string[]; source?: import("../shared/provenance").Source },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -35,6 +35,9 @@ export class ScheduleService {
     };
     if (opts.end) data.end = opts.end;
     if (opts.recurrence && opts.recurrence !== "none") data.recurrence = opts.recurrence;
+    // An end date only means something on a series, and only when it is not
+    // before the start; anything else is dropped rather than stored as a lie.
+    if (data.recurrence && opts.until && opts.until >= opts.date) data.until = opts.until;
     if (opts.location && opts.location.trim()) data.location = opts.location.trim();
     if (opts.gcalId) data.gcalId = opts.gcalId;
     if (opts.sourceTaskId) data.sourceTaskId = opts.sourceTaskId;
@@ -64,7 +67,18 @@ export class ScheduleService {
     return this.patch(id, { end: end || undefined });
   }
   editRecurrence(id: string, recurrence: EventRecurrence): Promise<boolean> {
-    return this.patch(id, { recurrence: recurrence === "none" ? undefined : recurrence });
+    // Clearing the repeat clears its end date too: an end on a one-off is a
+    // dangling fact that would come back the moment it repeated again.
+    return this.patch(id, recurrence === "none"
+      ? { recurrence: undefined, until: undefined }
+      : { recurrence });
+  }
+  // N3: set or clear the series end. Empty clears it back to forever, and an
+  // end before the start is refused rather than stored as a lie.
+  async editUntil(id: string, until: string | null): Promise<boolean> {
+    const e = await this.get(id);
+    if (!e) return false;
+    return this.patch(id, { until: until && until >= e.date ? until : undefined });
   }
   // Remove a single occurrence date from a recurring series.
   async addExdate(id: string, date: string): Promise<boolean> {

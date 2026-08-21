@@ -12,6 +12,12 @@ export interface EventData {
   end?: string;
   location?: string;
   recurrence?: EventRecurrence; // repeats from `date` forward
+  // N3 (2026-08-21): the last day the series runs, inclusive. Absent means
+  // forever, which is what every repeating event used to be: "fall clinics
+  // through November" could not be said, so it either ran into next year or
+  // had to be deleted by hand. Stored as YYYY-MM-DD on the event itself, so
+  // no migration and no second entity.
+  until?: string;
   exdates?: string[]; // occurrence dates removed/overridden from the series
   gcalId?: string; // Google Calendar event id, when imported (dedupe key)
   sourceTaskId?: string; // task this block was generated from, via Plan my day

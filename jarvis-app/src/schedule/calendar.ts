@@ -65,6 +65,10 @@ export function occursOn(e: EventData, date: string): boolean {
   const rec = e.recurrence;
   if (!rec || rec === "none") return false;
   if (date < e.date) return false;
+  // N3: a series can END. `until` is inclusive, and it never hides the first
+  // occurrence: an end date before the start is a mistake in the data, not a
+  // reason to make the event vanish entirely.
+  if (e.until && date > e.until) return false;
   const base = new Date(e.date + "T00:00:00");
   const day = new Date(date + "T00:00:00");
   if (rec === "daily") return true;

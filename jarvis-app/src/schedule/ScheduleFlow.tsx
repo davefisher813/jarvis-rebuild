@@ -26,6 +26,9 @@ import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
 import type { TaskItem } from "../tasks/TasksService";
+import { repeatRows } from "./repeats";
+import { overlapsOn, fixOverlap, overlapLine, copyDay, duplicateOf, type Overlap } from "./dayEdit";
+import { capAfterNumber } from "../shared/casing";
 
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: EventDraft } | null;
 
@@ -52,7 +55,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   }, [projectsSvc, goalsSvc]);
   const [sheet, setSheet] = useState<SheetState>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [mode, setMode] = useState<"day" | "week" | "month">("month");
+  const [mode, setMode] = useState<"day" | "week" | "month" | "repeats">("month");
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const tasksSvc = useTasks();
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
@@ -241,7 +244,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     let newEventDate: string | null = null;
     if (sheet?.mode === "new") {
       const created = await attemptWrite(async () => {
-        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, taskIds: draft.taskIds });
+        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, until: draft.until || undefined, taskIds: draft.taskIds });
       });
       if (!created) newEventId = null;
       newEventDate = draft.date;
@@ -261,6 +264,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           await svc.editTime(id, draft.start);
           await svc.editEnd(id, draft.end);
           await svc.editRecurrence(id, draft.recurrence);
+          await svc.editUntil(id, draft.until || null);
           await svc.editCategory(id, draft.category);
           await svc.editLocation(id, draft.location);
           await svc.editTaskIds(id, draft.taskIds ?? []);
@@ -541,6 +545,74 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     });
   };
 
+  // N5: the worst collision on the selected day. Worst, not first: if two
+  // things clash by five minutes and two clash by an hour, the hour is the
+  // one he actually needs told about.
+  const worstOverlap = [...overlapsOn(allEvents, selected)].sort((a, b) => b.byMin - a.byMin)[0] ?? null;
+
+  const applyOverlapFix = async (o: Overlap) => {
+    const before = { start: o.b.data.start, end: o.b.data.end };
+    const fix = fixOverlap(o);
+    const ok = await attemptWrite(async () => {
+      await svc.editTime(fix.id, fix.start);
+      if (fix.end) await svc.editEnd(fix.id, fix.end);
+    });
+    await reload();
+    if (ok) showToast({
+      message: `${o.b.data.title} moved to ${fix.start}`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => {
+          await svc.editTime(fix.id, before.start);
+          if (before.end) await svc.editEnd(fix.id, before.end);
+        });
+        await reload();
+      },
+    });
+  };
+
+  // N7: yesterday's one-offs, on today. Repeats are left alone: they already
+  // appear here by themselves and copying one would double it.
+  // E2: duplicate this event as a fresh one-off.
+  const duplicateEvent = async (id: string) => {
+    const src = allEvents.find((e) => e.id === id);
+    if (!src) return;
+    const d = duplicateOf(src.data, selected);
+    let made: string | null = null;
+    const ok = await attemptWrite(async () => {
+      made = await svc.createEvent(d.title, { date: d.date, start: d.start, end: d.end, category: d.category || undefined, location: d.location });
+    });
+    setSheet(null);
+    await reload();
+    if (ok && made) showToast({
+      message: "Duplicated",
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => svc.deleteEvent(made!)); await reload(); },
+    });
+  };
+
+  const copyYesterday = async () => {
+    const prev = addDays(selected, -1);
+    const copies = copyDay(allEvents, prev, selected);
+    if (copies.length === 0) { showToast({ message: "Nothing to copy from yesterday" }); return; }
+    const made: string[] = [];
+    const ok = await attemptWrite(async () => {
+      for (const c of copies) {
+        const id = await svc.createEvent(c.title, { date: c.date, start: c.start, end: c.end, category: c.category || undefined, location: c.location });
+        if (id) made.push(id);
+      }
+    });
+    await reload();
+    if (ok) showToast({
+      message: capAfterNumber(`${made.length} ${made.length === 1 ? "event" : "events"} copied`),
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => { for (const id of made) await svc.deleteEvent(id); });
+        await reload();
+      },
+    });
+  };
+
   return (
     <>
       <SchedulePage
@@ -554,6 +626,10 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         loading={loading}
         mode={mode}
         onMode={setMode}
+        repeats={repeatRows(allEvents)}
+        overlap={worstOverlap ? { line: overlapLine(worstOverlap) } : null}
+        onFixOverlap={worstOverlap ? () => void applyOverlapFix(worstOverlap) : undefined}
+        onCopyDay={() => void copyYesterday()}
         weekCells={weekCells}
         onPrev={onPrev}
         onNext={onNext}
@@ -625,6 +701,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           suggestSlot={suggestSlot}
           onSave={onSave}
           onDelete={sheet.mode === "edit" ? onDelete : undefined}
+          onDuplicate={sheet.mode === "edit" ? () => void duplicateEvent(sheet.id) : undefined}
           onMoveToAnytime={sheet.mode === "edit" ? () => { const id = sheet.id; setSheet(null); onUnschedule(id); } : undefined}
           onCancel={() => { setSheet(null); setNewStart(null); }}
           suggestTitles={(typed) => suggestTitles(allEvents, typed)}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
-import { ChevronLeft, ChevronRight, Plus, Camera } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Camera, AlertTriangle } from "lucide-react";
 import type { EventItem } from "../types";
 import { monthMatrix, fmtTime, fmtRange, openSlots, minToHHMM } from "../calendar";
 import { isFocusRange } from "../../routine/types";
@@ -19,7 +19,9 @@ const WD = ["S", "M", "T", "W", "T", "F", "S"];
 const WK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const WKLONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-type Mode = "day" | "week" | "month";
+// W1 (2026-08-21): "repeats" is a fourth view, not a settings page. What
+// stands on your calendar forever belongs beside the calendar.
+type Mode = "day" | "week" | "month" | "repeats";
 interface WeekCell { date: string; day: number; colors: string[]; }
 
 function fullDay(iso: string): string {
@@ -35,7 +37,7 @@ function weekRange(cells: WeekCell[]): string {
 
 export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts,
-  mode = "month", onMode, weekCells = [], loading,
+  mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, onCopyDay,
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload,
   locked = [], now, onEditRoutine, onShift, onMoveTo, onSkipToday, onPushTomorrow, onRunningLate,
   anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {},
@@ -44,6 +46,13 @@ export default function SchedulePage({
   year: number; month: number; selected: string; todayDate: string;
   dots: Record<number, string[]>; dayEvents: EventItem[]; conflicts?: Set<string>;
   mode?: Mode; onMode?: (m: Mode) => void; weekCells?: WeekCell[]; loading?: boolean;
+  // W1: the repeating series, already derived by the flow.
+  repeats?: import("../repeats").RepeatRow[];
+  // N5: the worst collision on this day, and the one-tap fix.
+  overlap?: { line: string } | null;
+  onFixOverlap?: () => void;
+  // N7: yesterday's shape, reused.
+  onCopyDay?: () => void;
   onPrev?: () => void; onNext?: () => void; onSelect?: (date: string) => void;
   onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void; onUpload?: () => void;
   locked?: LockedRange[]; now?: string | null; onEditRoutine?: () => void;
@@ -156,7 +165,7 @@ export default function SchedulePage({
       </>} />
 
       <div className="sched-seg"><div className="segmented">
-        {(["day", "week", "month"] as Mode[]).map((m) => (
+        {(["day", "week", "month", "repeats"] as Mode[]).map((m) => (
           <button key={m} className={"seg" + (mode === m ? " active" : "")} onClick={() => onMode?.(m)}>{m[0]!.toUpperCase() + m.slice(1)}</button>
         ))}
       </div></div>
@@ -188,6 +197,29 @@ export default function SchedulePage({
         </div>
       )}
 
+      {/* W1: everything standing on the calendar, and when it stops. The
+          endless ones are called out, because a repeat with no end date is
+          the thing nobody notices until it is still going in March. */}
+      {mode === "repeats" && (
+        repeats.length === 0 ? (
+          <div className="empty-state"><div className="empty-title">Nothing Repeats Yet</div>
+            <div className="empty-sub">Anything set to repeat will be listed here.</div></div>
+        ) : (
+          <div className="pad-x"><div className="card">
+            {repeats.map((r) => (
+              <div className="row" role="button" tabIndex={0} key={r.id} onClick={() => onOpenEvent?.(r.id)}>
+                <span className={"sched-bar cat-bg-" + catColor(r.category)} />
+                <div className="row-grow">
+                  <div className="conn-name">{r.title}</div>
+                  <div className="conn-meta">{r.cadence} · {r.ends}{r.skipped > 0 ? ` · ${r.skipped} skipped` : ""}</div>
+                </div>
+                {r.endless && <span className="pill pill-subdued">No End</span>}
+              </div>
+            ))}
+          </div></div>
+        )
+      )}
+
       {mode === "week" && (
         <div className="week-strip">
           {weekCells.map((c, i) => {
@@ -210,9 +242,27 @@ export default function SchedulePage({
           {hasFuture && onRunningLate && (
             <button className={"plan-cta plan-cta-ghost" + (lateOpen ? " late-armed" : "")} onClick={() => setLateOpen((v) => !v)}>Running Late?</button>
           )}
+          {/* N7: most days are a variation on a day you already had. */}
+          {mode === "day" && onCopyDay && n === 0 && (
+            <button className="plan-cta plan-cta-ghost" onClick={onCopyDay}>Copy Yesterday</button>
+          )}
           {onPlanDay && <button className="plan-cta" onClick={onPlanDay}>Plan My Day</button>}
         </div>
       </div></div>
+      {/* N5: the day says when it does not fit, WHERE it does not fit, and
+          offers the fix in the same breath. Before this the overlap was
+          something you discovered by being late to the second thing. */}
+      {mode === "day" && overlap && onFixOverlap && (
+        <div className="pad-x"><div className="card"><div className="row">
+          <div className="row-glyph cat-fg-orange"><AlertTriangle className="ic" /></div>
+          <div className="row-grow">
+            <div className="conn-name">Two Things Collide</div>
+            <div className="conn-meta">{overlap.line}</div>
+          </div>
+          <button className="pill-act" onClick={onFixOverlap}>Fix It</button>
+        </div></div></div>
+      )}
+
       {lateOpen && onRunningLate && (
         <div className="pad-x late-chips">
           <div className="segmented">
