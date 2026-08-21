@@ -58,8 +58,29 @@
      defined with the slot classes in components.css. */
   --on-fill-dark: #000000; /* on-color for light category fills (money, friends); theme-constant per RDB-001/003 */
 
-  /* ACCENT = JARVIS red. Primary actions and app chrome ONLY (see below). */
+  /* ACCENT = JARVIS red. Primary actions and app chrome ONLY (see below).
+     ONE red, THREE jobs, because the same hex cannot do all three legibly.
+     Measured 2026-08-21 when the visual auditor first ran a WCAG contrast
+     pass in light theme and at 320 wide.
+
+       --accent       the brand red. Glyphs, rules, dots, bars, the energy
+                      line: anything with no text on or in it. Unchanged, so
+                      the app still reads as JARVIS red at a glance.
+       --accent-fill  the red that carries WHITE text. #FF2B3C is 3.71:1
+                      under white and the badge red is 3.41:1, both under
+                      the 4.5:1 Apple checks. The red channel is the whole
+                      problem: ANY colour with r=255 has a relative
+                      luminance above 0.21 before green and blue are even
+                      counted, so no #FF____ can carry white text at 4.5:1.
+                      #DC1E2A is the least-darkened red that clears it
+                      (4.93:1), and side by side with #FF2B3C the difference
+                      is barely perceptible.
+       --accent-tx    the red DRAWN AS text on a surface. Per theme below,
+                      because a red readable on black is not readable on
+                      #F2F2F7 and the reverse. */
   --accent: #FF2B3C;
+  --accent-fill: #DC1E2A;
+  --accent-tx: #FF2B3C;
 
   /* SELECTION (2026-08-02). One treatment for "this one is picked", used by
      every selectable control in the app: chips, segmented controls, radios,
@@ -95,6 +116,15 @@
      meaning with the theme (Dave, 2026-08-02: "red in both themes"). Now one
      value in both. 5.49:1 on black, 4.66:1 on the light page. */
   --tint: #FF1F30;
+  /* Red text on the dark card surfaces: #FF2B3C is 4.81:1 on --surface-1 but
+     only 3.84:1 on --surface-3, and section heads, pill actions and small
+     buttons all sit on the darker one. #FF5A66 cleared surface-3 by 0.18 and
+     then landed exactly ON the 4.5 line against the raised promo surfaces,
+     which is not a margin. #FF6570 is the closest value to the brand red that
+     clears every dark surface with room to spare: 6.24:1 on surface-1,
+     4.98:1 on surface-3, 4.74:1 on the lightest raised card. Every step
+     further from #FF2B3C costs brand and buys nothing. */
+  --accent-tx: #FF6570;
   --red-tint: rgba(255,31,48,0.16); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(52,213,114,0.16);
   --glass-bg: rgba(28,28,32,0.55);
   /* rim raised 0.14 -> 0.20 so glass edges catch light on OLED (RDB, Dave 2026-07-29) */
@@ -128,6 +158,10 @@
      --on-light-red in components.css, 5.71:1, which the light theme already
      uses everywhere a red has to sit on white. */
   --tint: #C81E2B;
+  /* Same reason as --tint, same value: 5.12:1 on the page, 5.71:1 on a white
+     card. #FF2B3C here is 3.32:1, which is the single biggest source of
+     unreadable text in the light theme. */
+  --accent-tx: #C81E2B;
   --red-tint: rgba(255,59,48,0.12); --warn-tint: rgba(255,149,0,0.14); --good-tint: rgba(52,199,89,0.14);
   --glass-bg: rgba(255,255,255,0.72);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);
@@ -198,7 +232,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 /* Primary keeps the flat brand fill; the soft glow gives it presence on OLED
    dark (RDB, Dave 2026-07-29: glow yes, gradient no). Dark theme only: a red
    halo reads as a smudge on light surfaces. */
-.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary { background: var(--accent-fill); color: #fff; }
 [data-theme="dark"] .btn-primary { box-shadow: 0 4px 16px rgba(255,31,48,0.28); }
 .btn-secondary { background: var(--press-3); color: var(--tx-1); }
 .btn-tertiary { background: transparent; color: var(--tint); }
@@ -264,7 +298,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 /* TAB BAR */
 .tab-bar { display: flex; background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 0.5px solid var(--divider); padding: var(--s-1h) 0 calc(var(--s-3) + env(safe-area-inset-bottom, 0)); }
 .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: var(--s-1) 0; color: var(--tx-4); font-size: 10px; font-weight: var(--w-medium); position: relative; }
-.tab.active { color: var(--accent); }
+.tab.active { color: var(--accent-tx); }
 .tab .badge { position: absolute; top: 0; right: calc(50% - 20px); background: var(--sys-red); color: #fff; font-size: 10px; font-weight: var(--w-semi); min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
 
 /* NAV BAR */

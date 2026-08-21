@@ -284,6 +284,51 @@ describe("LAW: Apple HIG casing", () => {
     expect(missing).toEqual([]);
   });
 
+  // ONE RED, THREE JOBS (2026-08-21). The first contrast sweep found 236
+  // unreadable strings, and 160 of them were one mistake repeated: the brand
+  // red used for a job it cannot do.
+  //
+  //   --accent      the brand red. Anything with no text on or in it.
+  //   --accent-fill the red that carries WHITE text (#FF2B3C is 3.71:1).
+  //   --accent-tx   the red drawn AS text (3.32:1 on the light page).
+  //
+  // The visual auditor catches a regression here, but only on a screen it
+  // walks, only for text that is on screen at the moment it looks. This
+  // catches it at the declaration, which is where it is actually made.
+  it("the brand red is never used for a job it cannot do", () => {
+    const files = ["jarvis-design-system.css", "uniformity.css", "components.css"];
+    const bad: string[] = [];
+    for (const f of files) {
+      const css = read(SRC + "/styles/" + f);
+      for (const [i, line] of css.split("\n").entries()) {
+        // The token definitions themselves are the one legitimate place the
+        // raw value and the word "color" appear together.
+        if (/--accent(-tx|-fill)?\s*:/.test(line)) continue;
+        if (/(?<![-\w])color:\s*var\(--accent\)/.test(line)) {
+          bad.push(`${f}:${i + 1} accent as TEXT (use --accent-tx)`);
+        }
+        if (/background(-color)?:\s*var\(--accent\)/.test(line) && /color:\s*(#fff|#ffffff|white)/i.test(line)) {
+          bad.push(`${f}:${i + 1} white text on accent FILL (use --accent-fill)`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  // EVERY CATEGORY FILL CARRIES DARK TEXT (2026-08-21). This used to be a
+  // hand-kept list of "light" slots, and white failed on all fifteen of them
+  // (best 3.82:1, worst 1.51:1) while dark clears every one. A list nobody
+  // remembers to update when a slot is added is not a rule; this is.
+  it("every category fill declares its on-colour", () => {
+    const css = read(SRC + "/styles/components.css");
+    const slots = [...css.matchAll(/--cat-([a-z]+)\s*:/g)].map((m) => m[1]!);
+    const missing = [...new Set(slots)].filter((slot) => {
+      const rule = css.match(new RegExp("\\.cat-bg-" + slot + "\\s*\\{[^}]*\\}"));
+      return !rule || !/color:\s*var\(--on-fill-dark\)/.test(rule[0]);
+    });
+    expect(missing).toEqual([]);
+  });
+
   // C2 · THE THREE-SECOND CAPTURE (Dave 2026-08-20, from the research).
   //
   // Capture has to take about three seconds or working memory drops the

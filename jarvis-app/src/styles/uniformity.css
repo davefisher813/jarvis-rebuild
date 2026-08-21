@@ -57,7 +57,7 @@
    pending Dave (open item G2, RULE 17). Tokens only; no new token. */
 .voice-bar { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2) var(--s-3) var(--s-2) var(--s-2);
   background: var(--surface-3); border-radius: var(--r-pill); }
-.voice-mic { width: 36px; height: 36px; border-radius: var(--r-circle); background: var(--accent);
+.voice-mic { width: 36px; height: 36px; border-radius: var(--r-circle); background: var(--accent-fill);
   color: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .voice-name { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--tx-1); }
 .voice-hint { font-size: var(--t-meta); color: var(--tx-3); margin-left: auto; }
@@ -171,7 +171,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .profile-name { font-size: var(--t-h2); font-weight: var(--w-semi); }
 .profile-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-1); }
 .app-icon { width:64px; height:64px; border-radius:var(--r-lg); margin:0 auto var(--s-3);
-  display:flex; align-items:center; justify-content:center; background:var(--accent); color:#fff;
+  display:flex; align-items:center; justify-content:center; background:var(--accent-fill); color:#fff;
   font-size:var(--t-h1); font-weight:var(--w-bold); }
 .destructive-row { justify-content:center; color:var(--red); font-weight:var(--w-semi); }
 .swatch { width:24px; height:24px; border-radius:var(--r-circle); flex-shrink:0; }
@@ -186,7 +186,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
    .voice-bar). Tokens only.
    ============================================================ */
 .voice-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--s-5); padding:var(--s-9) var(--s-5); min-height:100%; text-align:center; }
-.voice-orb { width:120px; height:120px; border-radius:var(--r-circle); background:var(--accent); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.voice-orb { width:120px; height:120px; border-radius:var(--r-circle); background:var(--accent-fill); color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .voice-orb .ic { width:46px; height:46px; }
 .voice-orb.listening { box-shadow: 0 0 0 8px var(--red-tint), 0 0 0 20px var(--press-3); }
 .voice-prompt { font-size:var(--t-h2); font-weight:var(--w-semi); }
@@ -195,7 +195,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .chip-wrap { display:flex; flex-wrap:wrap; gap:var(--s-2); justify-content:center; }
 .convo { display:flex; flex-direction:column; gap:var(--s-3); padding:var(--s-4) var(--s-5); }
 .bubble { padding:var(--s-3) var(--s-3h); border-radius:var(--r-lg); font-size:var(--t-body); max-width:82%; line-height:var(--lh-relaxed); }
-.bubble-user { background:var(--accent); color:#fff; align-self:flex-end; border-bottom-right-radius:var(--r-xs); }
+.bubble-user { background:var(--accent-fill); color:#fff; align-self:flex-end; border-bottom-right-radius:var(--r-xs); }
 .bubble-ai { background:var(--surface-3); color:var(--tx-1); align-self:flex-start; border-bottom-left-radius:var(--r-xs); }
 .convo-actions { display:flex; gap:var(--s-2); padding:var(--s-4) var(--s-5); }
 .convo-actions .btn { flex:1; }
@@ -288,7 +288,7 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .xport { display:flex; align-items:center; justify-content:center; gap:var(--s-8); padding:var(--s-3) 0 var(--s-2); }
 .xport button { background:0; border:0; color:var(--tx-1); display:flex; align-items:center; justify-content:center; min-width:var(--tap-min); min-height:var(--tap-min); font-family:var(--f); }
 .xport .ic { width:30px; height:30px; }
-.xport .play { color:var(--accent); }
+.xport .play { color: var(--accent-tx); }
 .xport .play .ic { width:50px; height:50px; }
 .volume { display:flex; align-items:center; gap:var(--s-2); padding:var(--s-1) var(--s-5) var(--s-2); color:var(--tx-4); }
 .volume .ic { width:16px; height:16px; flex-shrink:0; }
