@@ -1,0 +1,10 @@
+# Root-level ignores. jarvis-app/ has its own; this covers the repo root,
+# where an npm run from the wrong directory used to leave stray files that
+# got committed by accident (a vitest cache landed in git this way).
+node_modules/
+dist/
+*.log
+
+# Sandbox scratch: staging tarballs and bundles are transport, never source.
+*.tar.gz
+*.bundle
