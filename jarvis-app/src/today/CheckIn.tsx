@@ -55,12 +55,15 @@ export default function CheckIn({ onChanged }: { onChanged?: () => void }) {
   }
   if (!show) return null;
 
-  // THE NOTICE LAW (catalog R). This lives in the Heads Up stream, so it is
-  // built like everything else in it: one card, one glyph, one control on the
-  // visible line. It was the last surviving user of the retired icon-tile
-  // section head (sec-ico + sec-title), which meant the one card in the
-  // stream that was not a card. That is exactly the "why is this sectioned
-  // off differently" Dave has rejected every time it has appeared.
+  // THE NOTICE LAW (catalog R). One card, one glyph, one control on the
+  // visible line, same as everything else in the app. It was the last
+  // surviving user of the retired icon-tile section head (sec-ico +
+  // sec-title), which is exactly the "why is this sectioned off differently"
+  // Dave has rejected every time it has appeared.
+  //
+  // It no longer lives in the Heads Up stream (Dave, 2026-08-21). It renders
+  // at the FOOT of Today, because it is the end-of-day question and Heads Up
+  // is the list of things to act on now.
   //
   // The three moods are ANSWERS, not competing actions, so they ride the
   // card's foot rather than fighting the dismiss for the visible line.

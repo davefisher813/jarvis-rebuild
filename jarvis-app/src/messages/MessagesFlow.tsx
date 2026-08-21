@@ -16,6 +16,7 @@ import {
 import { loadRules, saveRule, clearRule, applyRules, type SenderRules } from "./rules";
 import DeckFlow from "./DeckFlow";
 import MailSwipe from "./MailSwipe";
+import LetGoSwipe from "./LetGoSwipe";
 import { loadMuted, mute, unmute, dropMuted } from "./mute";
 import { parseUnsub, unsubLabel, unsubLine, UNSUB_SUBJECT, UNSUB_BODY, type Unsub } from "./unsubscribe";
 import { BRIEF_SYSTEM, briefPrompt, parseBrief, briefFor, saveBrief } from "./brief";
@@ -41,6 +42,8 @@ import { dueChases, loadChases, clearChase, setChase, CHASE_DAYS, CHASE_DEFAULT 
 import { loadVips, toggleVip, isVip, applyVips } from "./vip";
 import { collapseNoise, collapseLine } from "./collapse";
 import { ladderFor, loadNudgeCounts, countNudge } from "./escalate";
+import { phoneBook, phoneFor, telLink, type PhoneBook } from "./reachBy";
+import { loadLetGo, letGo, undoLetGo } from "./letGo";
 import { closeCandidates, closeLine, closeReceipt, closeDue, markClosed, lastClose } from "./weeklyClose";
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
 import { attachOffer } from "./attachmentKind";
@@ -224,6 +227,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     try { return localStorage.getItem(AUTOREPLY_KEY) === "on"; } catch { return false; }
   });
   const [opens, setOpens] = useState<Record<string, string>>({}); // threadId -> first-open ISO
+  // Phones for the people who owe replies, so the top rung can actually dial
+  // instead of promising a call and opening a compose window.
+  const [book, setBook] = useState<PhoneBook>({ byEmail: {}, byName: {} });
   const [nudging, setNudging] = useState<string | null>(null);
   const [acctFilter, setAcctFilter] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
@@ -432,8 +438,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const rows = await findWaiting(api, Date.now()).catch(() => []);
         return rows.map((r) => ({ ...r, account: email }));
       }));
-      const w = per.flat().sort((a, b) => b.waitingDays - a.waitingDays).slice(0, 5);
+      // A thread he let go stops counting days. Filter BEFORE the slice, or
+      // letting one go just promotes the next dead one into its seat.
+      const dropped = loadLetGo();
+      const w = per.flat()
+        .filter((r) => !dropped.includes(r.threadId))
+        .sort((a, b) => b.waitingDays - a.waitingDays)
+        .slice(0, 5);
       setWaiting(w);
+      // Best effort: no phones just means no Call buttons, never an error.
+      if (people) {
+        try { setBook(phoneBook(await people.list())); } catch { /* no phones, no Call */ }
+      }
       const tracks = loadTracks();
       const pairs = w
         .map((row) => ({ threadId: row.threadId, trackId: trackForThread(row.threadId, tracks) }))
@@ -450,6 +466,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // Tap a Waiting On row: JARVIS drafts the nudge, the user gets it in
   // compose. It never auto-sends: a nudge is a relationship move.
   const startNudge = async (row: WaitingRow & { account?: string }) => {
+    // The label promised a phone call; honour it. Dialing is the whole point
+    // of the top rung, and drafting a sixth email is what made these buttons
+    // useless in the first place.
+    const phone = phoneFor(book, row.toEmail, row.to);
+    if (phone && ladderFor(row.waitingDays, nudgeCounts[row.threadId] ?? 0, { hasPhone: true }).channel === "call") {
+      window.location.href = telLink(phone);
+      return;
+    }
     const api = apiFor(row.account);
     if (!api || nudging) return;
     setNudging(row.threadId);
@@ -1971,28 +1995,64 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               </div></div>
             </>
           )}
-          {waiting.length > 0 && (
+          {waiting.length > 0 && (() => {
+            // Dave, 2026-08-21: "Email buttons suck. Make them useful."
+            // They were useless for two reasons, both visible here.
+            //
+            // One: every thread in a real inbox is weeks old, so every row
+            // hit the top rung and five rows wore the same button. Now the
+            // top rung splits on whether a phone number exists, so a Call
+            // dials and an Ask To Call admits it is writing an email.
+            //
+            // Two: the reason ("Email isn't working here") was printed on
+            // every row. A sentence that is true of the whole section is
+            // said once, by the section.
+            const rungs = waiting.map((w) => ({
+              w,
+              l: ladderFor(w.waitingDays, nudgeCounts[w.threadId] ?? 0, {
+                hasPhone: !!phoneFor(book, w.toEmail, w.to),
+              }),
+            }));
+            const allTop = rungs.every((r) => r.l.rung === "switch");
+            const dropRow = (threadId: string) => {
+              setWaiting((ws) => ws.filter((x) => x.threadId !== threadId));
+              letGo(threadId);
+              say("Stopped tracking", { label: "Undo", run: () => {
+                undoLetGo(threadId);
+                void loadWaiting();
+              } });
+            };
+            return (
             <>
               <div className="sh2"><span className="t">Waiting On</span></div>
+              {allTop && (
+                <div className="pad-x conn-meta wait-why">
+                  All of these are past the point where another email helps. Swipe any of them away to stop counting.
+                </div>
+              )}
               <div><div className="list-flat">
-                {waiting.map((w) => (
-                  <div className="row" role="button" tabIndex={0} key={w.threadId} onClick={() => void startNudge(w)}>
+                {rungs.map(({ w, l }) => (
+                  <LetGoSwipe key={w.threadId} onLetGo={() => dropRow(w.threadId)}>
+                  <div className="row" role="button" tabIndex={0} onClick={() => void startNudge(w)}>
                     <span className="msg-dot off"></span>
                     <div className="row-grow">
                       <div className="msg-line">
                         <span className="conn-name truncate">{displayName(w.to)}</span>
-                        <span className="pill-act">{nudging === w.threadId ? "Drafting..." : ladderFor(w.waitingDays, nudgeCounts[w.threadId] ?? 0).label}</span>
+                        <span className="pill-act">{nudging === w.threadId ? "Drafting..." : l.label}</span>
                       </div>
                       <div className="conn-meta msg-gist">
-                        {w.subject} · {waitingLine(w, opens[w.threadId] ?? null)} · {ladderFor(w.waitingDays, nudgeCounts[w.threadId] ?? 0).note}
+                        {w.subject} · {waitingLine(w, opens[w.threadId] ?? null)}
+                        {!allTop && l.rung === "switch" ? " · " + l.note : ""}
                         {g.accounts.length > 1 && w.account && <span className="msg-acct">{acctLabel(w.account)}</span>}
                       </div>
                     </div>
                   </div>
+                  </LetGoSwipe>
                 ))}
               </div></div>
             </>
-          )}
+            );
+          })()}
           {/* THE FOLD. Everything that does not need Dave collapses to one
               line. Worth Knowing and Noise live behind it and expand in
               place, so the tab is never a scroll of mail he did not ask for. */}

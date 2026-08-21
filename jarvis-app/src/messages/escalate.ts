@@ -15,11 +15,18 @@
 
 export type Rung = "gentle" | "direct" | "switch";
 
+// What tapping the button actually DOES. Added 2026-08-21 because the top
+// rung said "Try Calling" and opened a compose window: the button was lying
+// about its own channel, five times in a row, in a list where every row was
+// at the top rung. A label may only promise what the handler performs.
+export type Channel = "email" | "call";
+
 export interface Ladder {
   rung: Rung;
+  channel: Channel;   // what the tap does, not what the tap suggests
   label: string;      // what the button says
   instruction: string; // what the drafter is told
-  note: string;       // what the card says under it
+  note: string;       // why this rung, said ONCE at section level
 }
 
 export const RUNG_AT = { direct: 7, switch: 21 };
@@ -30,12 +37,29 @@ export function rungFor(waitingDays: number, nudgesSent = 0): Rung {
   return "gentle";
 }
 
-export function ladderFor(waitingDays: number, nudgesSent = 0): Ladder {
+export interface LadderOpts {
+  // A phone number we actually hold for the person who owes the reply. With
+  // one, the top rung dials. Without one, the top rung is honest about being
+  // an email that ASKS for a call.
+  hasPhone?: boolean;
+}
+
+export function ladderFor(waitingDays: number, nudgesSent = 0, opts: LadderOpts = {}): Ladder {
   const rung = rungFor(waitingDays, nudgesSent);
   if (rung === "switch") {
+    if (opts.hasPhone) {
+      return {
+        rung,
+        channel: "call",
+        label: "Call",
+        instruction: "Write two sentences that offer a call instead, and give a concrete window this week. Do not restate the original question and do not reference the history of this request.",
+        note: "Email isn't working here",
+      };
+    }
     return {
       rung,
-      label: "Try Calling",
+      channel: "email",
+      label: "Ask To Call",
       instruction: "Write two sentences that offer a call instead, and give a concrete window this week. Do not restate the original question and do not reference the history of this request.",
       note: "Email isn't working here",
     };
@@ -43,6 +67,7 @@ export function ladderFor(waitingDays: number, nudgesSent = 0): Ladder {
   if (rung === "direct") {
     return {
       rung,
+      channel: "email",
       label: "Nudge Firmly",
       instruction: "One or two sentences, direct and specific. Name exactly what you need and by when. Stay warm. Do not reference the history of this request at all.",
       note: "Direct, still warm",
@@ -50,6 +75,7 @@ export function ladderFor(waitingDays: number, nudgesSent = 0): Ladder {
   }
   return {
     rung,
+    channel: "email",
     label: "Nudge",
     instruction: "One or two sentences. Light and easy to answer. Assume they are busy.",
     note: "Light touch",

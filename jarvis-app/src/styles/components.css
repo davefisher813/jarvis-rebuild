@@ -658,6 +658,17 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    single quiet line. It reads as furniture, not as a pile: same card, dimmer
    title, no count badge anywhere. The guard line under it is the receipt that
    makes folding safe, so it sits outside the card, small and calm. */
+/* THE END-OF-DAY CARD. Moved out of the Heads Up stream to the page foot
+   2026-08-21: Heads Up is what JARVIS wants acted on NOW, and "how did today
+   feel" is the opposite of now. :empty matters because the check-in renders
+   nothing before 6pm, and a margin on an empty box is a gap with no cause. */
+.today-checkin { margin-top: var(--s-6); }
+.today-checkin:empty { display: none; margin: 0; }
+
+/* The section says the reason ONCE. Five rows each repeating "email isn't
+   working here" is one sentence shouted five times (2026-08-21). */
+.wait-why { margin: calc(var(--s-2) * -1) 0 var(--s-2); color: var(--tx-3); }
+
 .msg-fold { margin-top: var(--s-3); }
 .msg-fold .conn-name { color: var(--tx-2); font-weight: var(--w-regular); }
 .msg-fold-head {

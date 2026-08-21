@@ -226,8 +226,23 @@ describe("the escalation ladder", () => {
   });
 
   it("the last rung changes channel rather than raising its voice", () => {
-    expect(ladderFor(55).label).toBe("Try Calling");
+    expect(ladderFor(55).label).toBe("Ask To Call");
     expect(ladderFor(55).instruction).toMatch(/call/i);
+    // THE BUTTON MAY ONLY PROMISE WHAT THE HANDLER DOES (2026-08-21).
+    // "Try Calling" opened a compose window. With a phone the top rung
+    // dials; without one it admits it is writing an email that asks.
+    expect(ladderFor(55, 0, { hasPhone: true }).label).toBe("Call");
+    expect(ladderFor(55, 0, { hasPhone: true }).channel).toBe("call");
+    expect(ladderFor(55).channel).toBe("email");
+    for (const d of [0, 3, 9, 55]) {
+      for (const hasPhone of [false, true]) {
+        const l = ladderFor(d, 0, { hasPhone });
+        // Only a label that IS the word Call may dial, and a dialing rung
+        // must be labelled Call.
+        expect(l.channel === "call").toBe(l.label === "Call");
+        expect(l.label).not.toBe("Try Calling");
+      }
+    }
   });
 
   it("never tells the drafter to shame anyone", () => {

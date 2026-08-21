@@ -340,7 +340,6 @@ export default function TodayPage({
       />
     ) : null,
     mail ?? null,
-    checkIn ?? null,
     suggestions ?? null,
     freshStart ? (
       <NoticeCard
@@ -453,6 +452,15 @@ export default function TodayPage({
       {evening && (tomorrowSection || tomorrowEmpty)}
       {evening && tasksSection}
       {!evening && (tomorrowSection || tomorrowEmpty)}
+
+      {/* HOW DID TODAY GO lives at the BOTTOM (Dave, 2026-08-21: "it should
+          be down at the bottom of the page somewhere because it's the end of
+          the day"). It sat inside Heads Up, which is the stream of things
+          JARVIS noticed and wants acted on NOW. A reflection question is the
+          opposite of that: it is the last thing on the page because it is
+          the last thing in the day, and it reads as a close-out instead of
+          an interruption. */}
+      {checkIn && <div className="today-checkin">{checkIn}</div>}
 
       <div className="screen-foot" />
     </div>
