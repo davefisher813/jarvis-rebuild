@@ -41,6 +41,10 @@ const DEMO_ONLY = [
 
 describe("LAW: the real build contains no demo data", () => {
   const files = allFiles(DIST);
+  // A demo build marks itself (see vite.config.ts). Judging one as if it were
+  // the real build would fail every time someone built a preview locally,
+  // which is how a law gets ignored.
+  const isDemoBuild = existsSync(join(DIST, "DEMO_BUILD"));
 
   it("has a build to inspect", () => {
     // Skipped rather than silently passing when dist is absent: a test that
@@ -52,7 +56,7 @@ describe("LAW: the real build contains no demo data", () => {
   });
 
   it("ships none of the demo names", () => {
-    if (files.length === 0) return;
+    if (files.length === 0 || isDemoBuild) return;
     const hits: string[] = [];
     for (const f of files) {
       const src = readFileSync(f, "utf8");
@@ -64,7 +68,7 @@ describe("LAW: the real build contains no demo data", () => {
   });
 
   it("emits no chunk built from a demo module", () => {
-    if (files.length === 0) return;
+    if (files.length === 0 || isDemoBuild) return;
     const bad = files.filter((f) => /DemoMail|seedNotes|(^|\/)seed-/.test(f));
     expect(bad.map((f) => f.slice(DIST.length + 1))).toEqual([]);
   });

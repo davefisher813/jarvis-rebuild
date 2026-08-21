@@ -31,7 +31,7 @@ const URGENCY_CLASS: Record<UrgencyKind, string> = {
 // Completion is optimistic: the check flips and the burst plays immediately,
 // and the real toggle (which reloads the list and removes the row) is held
 // for 600ms so the animation is actually visible before the row leaves.
-function TaskRow({ t, u, onToggle, onOpen }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; onToggle?: () => void; onOpen?: () => void }) {
+function TaskRow({ t, u, onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
   const [bursting, fireBurst] = useBurst();
   const [localDone, setLocalDone] = useState(false);
   const pending = useRef(false);
@@ -51,7 +51,13 @@ function TaskRow({ t, u, onToggle, onOpen }: { t: TaskItem; u: { kind: UrgencyKi
         <Burst show={bursting} />
       </div>
       <div className="task-title" role="button" tabIndex={0} onClick={onOpen}>{t.data.text}</div>
-      {u && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
+      {/* The urgency label steps aside for Start: knowing a thing is due is
+          not the problem, beginning it is. Done rows keep the label. */}
+      {onStart && !done ? (
+        <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(); }}>Start</button>
+      ) : u ? (
+        <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>
+      ) : null}
     </div>
   );
 }
@@ -119,6 +125,7 @@ export default function TodayPage({
   onOpenEvent,
   onEditRoutine,
   onSeeAllTasks,
+  onStartTask,
   suggestions,
   checkIn,
   nowCard,
@@ -168,6 +175,8 @@ export default function TodayPage({
   onOpenEvent?: (id: string) => void;
   onEditRoutine?: () => void;
   onSeeAllTasks: () => void;
+  // Fifteen minutes on this one, starting now.
+  onStartTask?: (id: string) => void;
   suggestions?: ReactNode;
   // The evening mood question. Its own notice: it is not a suggestion.
   checkIn?: ReactNode;
@@ -245,7 +254,17 @@ export default function TodayPage({
       <div>
         <div>
           {upNext.map((t) => (
-            <TaskRow key={t.id} t={t} u={urgencyFor(t.data, today)} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
+            <TaskRow
+              key={t.id}
+              t={t}
+              u={urgencyFor(t.data, today)}
+              onToggle={() => onToggleTask?.(t.id)}
+              onOpen={() => onOpenTask?.(t.id)}
+              // Start on EVERY row, not just the one the Now card happened to
+              // pick. Reading a list and then travelling somewhere else to
+              // begin is the friction that empties these apps.
+              onStart={onStartTask ? () => onStartTask(t.id) : undefined}
+            />
           ))}
         </div>
       </div>

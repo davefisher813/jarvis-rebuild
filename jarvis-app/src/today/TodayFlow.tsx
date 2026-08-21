@@ -39,6 +39,7 @@ import { cardReplyPrompt, cardNudgePrompt, parseCardDraft } from "../messages/ca
 import { ladderFor, loadNudgeCounts, countNudge } from "../messages/escalate";
 import { clearChase } from "../messages/followUp";
 import { planFromBlock } from "../tasks/ifThen";
+import { endOf, FIFTEEN } from "../tasks/rightNow";
 import { acceptBody } from "../messages/meetingTimes";
 import { welcomeBack, loadLastSeen, markSeen } from "./welcomeBack";
 import TimeArc from "./TimeArc";
@@ -1134,6 +1135,19 @@ export default function TodayFlow({
   // Email that finishes on Today. A deadline a sender named, or a promise he
   // made, becomes a real task right here: the whole point is that he never
   // has to open the inbox to deal with what the inbox produced.
+  // Just Fifteen, from any Up Next row. Same container the What Now sheet
+  // makes: a real block on the real day, starting on the tap, because a
+  // delayed commitment is the one that does not happen.
+  const startFifteen = async (t: TaskItem) => {
+    const start = nhm;
+    const id = await attemptWrite(() => schedule.createEvent(t.data.text, {
+      date: today, start, end: endOf(start, FIFTEEN),
+      category: t.data.category || undefined, sourceTaskId: t.id,
+    }));
+    await reload();
+    if (id) showToast({ message: `Fifteen minutes on ${t.data.text}` });
+  };
+
   const addTaskFromMail = async (text: string, due?: string): Promise<boolean> => {
     const ok = await attemptWrite(() => tasks.createTask(text, { due: due ?? today }));
     if (ok) await reload();
@@ -1177,6 +1191,10 @@ export default function TodayFlow({
       onUpNext={() => setUpNextOpen(true)}
       upNext={upNextRows}
       onSeeAllUpNext={onGoTasksAll ?? onGoTasks}
+      onStartTask={(id) => {
+        const t = taskItems.find((x) => x.id === id);
+        if (t) void startFifteen(t);
+      }}
       mail={
         <MailNotices
           key="mail"

@@ -35,6 +35,9 @@ import { ENTITY_CATEGORY } from "../categories/types";
 import { ENTITY_TASK } from "../notes/types";
 import { partition } from "../tasks/filters";
 import { todayISO } from "../tasks/grouping";
+import RightNowSheet from "../tasks/screens/RightNowSheet";
+import { rightNow, endOf, type RightNow } from "../tasks/rightNow";
+import { showToast } from "../shared/toast";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
 // decides which pages are tabs; everything else lives in More. Any page can be
@@ -101,6 +104,38 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [ready, setReady] = useState(false);
   const [, bumpCatVer] = useState(0);
   const [taskBadge, setTaskBadge] = useState(0);
+
+  // WHAT NOW / JUST FIFTEEN. Global, because being stuck happens wherever you
+  // are, not on the Today screen. See tasks/rightNow.ts for the reasoning.
+  const [whatNow, setWhatNow] = useState<RightNow | null>(null);
+  const [skipped, setSkipped] = useState<string[]>([]);
+
+  const openWhatNow = async (skip: string[] = skipped) => {
+    const all = await tasks.listTasks();
+    const pick = rightNow(all.filter((t) => !skip.includes(t.id)), () => 30);
+    if (!pick) { showToast({ message: "Nothing open right now" }); setWhatNow(null); return; }
+    setWhatNow(pick);
+  };
+
+  // The container starts on the TAP. ADHD discounts delayed commitments
+  // steeply, so "later" is where this one would die: Set a Start is the tool
+  // for planning a day, and this is the tool for beginning right now.
+  const startFifteen = async (pick: RightNow) => {
+    setWhatNow(null);
+    const id = await schedule.createEvent(pick.task.data.text, {
+      date: todayISO(),
+      start: pick.startHHMM,
+      end: endOf(pick.startHHMM, pick.minutes),
+      category: pick.task.data.category || undefined,
+      sourceTaskId: pick.task.id,
+    });
+    showToast({
+      message: `Fifteen minutes on ${pick.task.data.text}`,
+      actionLabel: id ? "Undo" : undefined,
+      onAction: id ? async () => { await schedule.deleteEvent(id); } : undefined,
+    });
+  };
+
   const [captureOpen, setCaptureOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -224,9 +259,20 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       <ToastHost />
       {showDock && (
         <>
-          <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} />
+          <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={() => void openWhatNow()} />
           <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setTaskFilterIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setDecisionIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
         </>
+      )}
+      {whatNow && (
+        <RightNowSheet
+          pick={whatNow}
+          onCancel={() => setWhatNow(null)}
+          // "Something Else" hides this one for the session and offers the
+          // next smallest. Hiding, never deferring: nothing is written, so a
+          // task he skipped past is exactly where it was tomorrow.
+          onOther={() => { const next = [...skipped, whatNow.task.id]; setSkipped(next); void openWhatNow(next); }}
+          onStart={() => void startFifteen(whatNow)}
+        />
       )}
       {captureOpen && <Suspense fallback={null}><QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} /></Suspense>}
       {searchOpen && <Suspense fallback={null}><SearchFlow onClose={() => setSearchOpen(false)} onOpen={(kind, id) => {

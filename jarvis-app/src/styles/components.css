@@ -1938,3 +1938,9 @@ button {
    how many: a count would be one more number to read on a glanceable strip. */
 .wk-rep { width: 14px; height: 2px; border-radius: 999px; background: var(--tx-4); margin: 3px auto 0; }
 .wk-cell.sel .wk-rep { background: var(--accent); }
+
+/* WHAT NOW. The one thing, large enough to be the only thing on the sheet. */
+.rn-title { font-size: 21px; font-weight: var(--w-semi); letter-spacing: -0.01em; line-height: var(--lh-snug); }
+.rn-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); }
+/* The bolt sits beside search in the one bar that is on every tab. */
+.voice-now { color: var(--accent); }
