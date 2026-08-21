@@ -2,6 +2,7 @@ import type { Store, Item, ItemData } from "@core";
 import type { EventInput } from "../events";
 import { ENTITY_EVENT, type EventData, type EventItem, type EventRecurrence } from "./types";
 import { eventsForDate, dotsForMonth } from "./calendar";
+import { planDuplicateIds, supersededPlanEventIds } from "./planDedupe";
 
 // The Schedule feature, backed by the engine Store. Each event is a Store item
 // of entity type "event". onEvent feeds the gaming event bus (no-op in tests).
@@ -113,6 +114,44 @@ export class ScheduleService {
   async deleteEvent(id: string): Promise<void> {
     await this.store.delete(this.ownerId, id);
     this.onEvent({ type: "entity.deleted", entityType: ENTITY_EVENT, entityId: id });
+  }
+
+  // THE ONLY WAY A PLAN LANDS ON THE CALENDAR (hotfix 2026-08-21). Every
+  // placement pass (Plan My Day, Plan Tomorrow, the Today day-draft card,
+  // tap-to-schedule) commits through here, and the commit REPLACES: any prior
+  // plan event for the same task on the same day is deleted in the same pass,
+  // against a fresh read, never the caller's possibly-stale state. Re-running
+  // a plan can therefore move a task's block but never multiply it.
+  async commitPlan(
+    date: string,
+    blocks: { taskId: string; text: string; category: string; start: string; end: string }[],
+    source?: import("../shared/provenance").Source,
+  ): Promise<{ created: string[]; replaced: number }> {
+    const existing = eventsForDate(await this.listEvents(), date);
+    const superseded = supersededPlanEventIds(existing, blocks.map((b) => b.taskId));
+    for (const id of superseded) await this.deleteEvent(id);
+    const created: string[] = [];
+    for (const b of blocks) {
+      const id = await this.createEvent(b.text, {
+        date, start: b.start, end: b.end,
+        category: b.category || undefined,
+        sourceTaskId: b.taskId,
+        ...(source ? { source } : {}),
+      });
+      if (id) created.push(id);
+    }
+    return { created, replaced: superseded.length };
+  }
+
+  // Self-healing sweep at the read boundary (same pattern as the gcal import
+  // sweep and the projects backfill): collapse any (task, day) group holding
+  // more than one plan event, first-upcoming wins. Acts only on duplicates
+  // visible in one consistent read, so a cold read deletes nothing. Returns
+  // how many extra copies were removed.
+  async healPlanDuplicates(date: string, nowMin: number | null = null): Promise<number> {
+    const ids = planDuplicateIds(eventsForDate(await this.listEvents(), date), nowMin);
+    for (const id of ids) await this.deleteEvent(id);
+    return ids.length;
   }
 
   async listEvents(): Promise<EventItem[]> {

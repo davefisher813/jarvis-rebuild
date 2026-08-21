@@ -61,7 +61,7 @@ import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCa
 import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
-import { readDraft, writeDraft, draftDay, reflowDay, type DayDraft } from "../dayloop/dayLoop";
+import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, type DayDraft } from "../dayloop/dayLoop";
 import { madeBy } from "../shared/provenance";
 import { RowIcon, StatTiles } from "../shared/anatomy";
 import { effectiveLevel } from "../ai/aiGate";
@@ -237,6 +237,12 @@ export default function TodayFlow({
   }, [peopleSvc, today]);
 
   const reload = useCallback(async () => {
+    // Self-healing dedupe (hotfix 2026-08-21): one plan event per task per
+    // day, first-upcoming wins. Acts only on duplicates this read can see,
+    // so a cold read heals nothing rather than deleting on absence.
+    const dNow = new Date();
+    await schedule.healPlanDuplicates(today, dNow.getHours() * 60 + dNow.getMinutes());
+    await schedule.healPlanDuplicates(tmrw, null);
     const [te, tm, tk, prof, all] = await Promise.all([
       schedule.eventsOn(today),
       schedule.eventsOn(tmrw),
@@ -484,11 +490,12 @@ export default function TodayFlow({
   useEffect(() => { markSeen(today); }, [today]);
 
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
-    const ids: string[] = [];
+    // Replace, never add (hotfix 2026-08-21): commitPlan sweeps each task's
+    // prior plan event on this day before writing, against a fresh read.
+    let ids: string[] = [];
     const ok = await attemptWrite(async () => {
+      ids = (await schedule.commitPlan(planDate, blocks)).created;
       for (const b of blocks) {
-        const id = await schedule.createEvent(b.text, { date: planDate, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId });
-        if (id) ids.push(id);
         // A2 (2026-08-20): committing a plan already decides the WHEN, so the
         // if-then costs nothing to write. Gollwitzer and Sheeran put this at
         // d = 0.65; this is the cheapest possible way to buy it. Never
@@ -617,7 +624,12 @@ export default function TodayFlow({
   useEffect(() => {
     if (loading || evening) return;
     const existing = readDraft(today);
-    if (existing) { setDayDraft(existing); return; }
+    const nowM = (() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); })();
+    // A cached draft whose times have passed is redrafted from now, not
+    // reused: the card must never propose the past (hotfix 2026-08-21).
+    // Dismissal survives the redraft; a dismissed card stays dismissed.
+    if (existing && !draftIsStale(existing, nowM)) { setDayDraft(existing); return; }
+    if (existing?.dismissed) { setDayDraft(existing); return; }
     const cands = candidatesFor(today, todayEvents);
     if (cands.length === 0) return;
     const d = draftDay({
@@ -658,12 +670,43 @@ export default function TodayFlow({
 
   const acceptDraft = async () => {
     if (!dayDraft) return;
-    const ids: string[] = [];
-    const ok = await attemptWrite(async () => {
-      for (const b of dayDraft.blocks) {
-        const id = await schedule.createEvent(b.text, { date: today, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId, source: madeBy("plan") });
-        if (id) ids.push(id);
+    // The card sat on screen past its own times: writing it would put blocks
+    // in the past. Redraft from now, show the honest version, ask again.
+    const nowM = (() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); })();
+    if (draftIsStale(dayDraft, nowM)) {
+      const fresh = draftDay({
+        date: today,
+        candidates: candidatesFor(today, todayEvents),
+        events: todayEvents,
+        startMin: Math.max(Math.ceil(nowM / 15) * 15, todayWindow.wakeMin),
+        endMin: todayWindow.endMin,
+        blocked: todayBlocked,
+        maxBlocks: sizing.maxBlocks,
+        estimateFor: (c) => estimates[c] ?? 45,
+      });
+      // Nothing left to place (day full, or every candidate handled): the
+      // card retires quietly instead of showing an empty plan.
+      if (fresh.blocks.length === 0) {
+        const done = { ...dayDraft, dismissed: true };
+        writeDraft(done);
+        setDayDraft(done);
+        showToast({ message: "Those times had passed and nothing fits now" });
+        return;
       }
+      writeDraft(fresh);
+      setDayDraft(fresh);
+      showToast({ message: "Those times had passed · Day re-planned from now" });
+      return;
+    }
+    // Replace, never add (hotfix 2026-08-21): commitPlan sweeps each task's
+    // prior plan event on this day before writing. This card was the second
+    // duplicate machine: it committed a cached draft with no check against
+    // what the sheet had already planned.
+    let ids: string[] = [];
+    const ok = await attemptWrite(async () => {
+      ids = (await schedule.commitPlan(today, dayDraft.blocks.map((b) => ({
+        taskId: b.taskId, text: b.text, category: b.category, start: b.start, end: b.end,
+      })), madeBy("plan"))).created;
     });
     if (!ok) return;
     const next = { ...dayDraft, accepted: true, eventIds: ids };
@@ -1178,10 +1221,12 @@ export default function TodayFlow({
   // delayed commitment is the one that does not happen.
   const startFifteen = async (t: TaskItem) => {
     const start = nhm;
-    const id = await attemptWrite(() => schedule.createEvent(t.data.text, {
-      date: today, start, end: endOf(start, FIFTEEN),
-      category: t.data.category || undefined, sourceTaskId: t.id,
-    }));
+    // commitPlan: starting on it NOW supersedes any block the planner had
+    // parked later in the day; one plan event per task per day.
+    const id = await attemptWrite(() => schedule.commitPlan(today, [{
+      taskId: t.id, text: t.data.text, category: t.data.category ?? "",
+      start, end: endOf(start, FIFTEEN),
+    }]));
     await reload();
     if (id) showToast({ message: `Fifteen minutes on ${t.data.text}` });
   };

@@ -211,7 +211,11 @@ export default function PlanDaySheet({
     return [...prev, id];
   });
 
-  const planFor = (ids: string[]) => {
+  // fromMin: commit-time floor. The sheet can sit open while the clock walks
+  // past its own proposals (Dave's screenshot: an 11:30 AM pick offered at
+  // 2 PM); committing re-places auto picks from the real now. Hand-set times
+  // stay literal: overriding is deliberate, including into the past.
+  const planFor = (ids: string[], floorMin: number = startMin) => {
     const rank = new Map(ids.map((id, i) => [id, i] as const));
     const ordered = allTasks.filter((t) => ids.includes(t.id)).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
 
@@ -238,7 +242,7 @@ export default function PlanDaySheet({
     }
     const manualBusy = manual.map((b) => ({ s: toMin(b.start), e: toMin(b.end) }));
     const { hard, soft, focus } = splitProtectedRanges(blocked);
-    const autoResult = planDay(auto, events, startMin, effEnd, BUFFER + sizing.extraSlackMin, [...hard.map((b) => ({ s: b.s, e: b.e })), ...manualBusy], soft, focus);
+    const autoResult = planDay(auto, events, floorMin, effEnd, BUFFER + sizing.extraSlackMin, [...hard.map((b) => ({ s: b.s, e: b.e })), ...manualBusy], soft, focus);
     const blocks = [...manual, ...autoResult.blocks].sort((a, b) => a.start.localeCompare(b.start));
     return { blocks, unplaced: autoResult.unplaced };
   };
@@ -329,6 +333,16 @@ export default function PlanDaySheet({
 
   const commit = () => {
     const day = date;
+    // No past placements for today (invariant, hotfix 2026-08-21): if the
+    // clock has walked past any auto-placed proposal while the sheet sat
+    // open, re-place from now before writing. Manual overrides stay.
+    let committed = plan.blocks;
+    if (target === "today") {
+      const dNow = new Date();
+      const nowM = dNow.getHours() * 60 + dNow.getMinutes();
+      const stale = plan.blocks.some((b) => !overrides[realId(b.taskId)] && toMin(b.start) < nowM);
+      if (stale && nowM > startMin) committed = planFor(picks, Math.ceil(nowM / 15) * 15).blocks;
+    }
     picks.forEach((id, i) => emit({ type: "plan.picked", entityType: "task", entityId: id, props: { n: i + 1 } }));
     for (const id of picks) {
       const est = aiEstimates[id];
@@ -339,7 +353,7 @@ export default function PlanDaySheet({
       if (!category) continue;
       emit({ type: "plan.duration_corrected", entityType: "task", entityId: id, props: { category, n: delta } });
     }
-    for (const b of plan.blocks) {
+    for (const b of committed) {
       if (!b.category) continue;
       const mins = toMin(b.end) - toMin(b.start);
       if (mins > 0) emit({ type: "plan.duration_committed", entityType: "task", entityId: realId(b.taskId), props: { category: b.category, n: mins } });
@@ -349,10 +363,10 @@ export default function PlanDaySheet({
     saveShape({
       day,
       dow: new Date(day + "T12:00:00").getDay(),
-      slots: plan.blocks.map((b) => ({ startMin: toMin(b.start), min: toMin(b.end) - toMin(b.start) })),
+      slots: committed.map((b) => ({ startMin: toMin(b.start), min: toMin(b.end) - toMin(b.start) })),
     });
     recordPicks(day, picks);
-    onCommit(plan.blocks.map((b) => ({ ...b, taskId: realId(b.taskId) })));
+    onCommit(committed.map((b) => ({ ...b, taskId: realId(b.taskId) })));
   };
 
   const hide = (k: string) => setDismissed((d) => ({ ...d, [k]: true }));

@@ -52,6 +52,17 @@ export function writeDraft(d: DayDraft): void {
   try { s.setItem(KEY, JSON.stringify(d)); } catch { /* the loop redrafts */ }
 }
 
+// A draft that still proposes times already in the past is stale: showing it
+// would break "a plan never lies about time", and accepting it would write
+// past placements (hotfix 2026-08-21: an 8:30 AM draft accepted at 2 PM was
+// one of the two machines behind the duplicate-and-overlap screenshots).
+// Accepted drafts are re-flow's job, not staleness's.
+export function draftIsStale(d: DayDraft, nowMin: number): boolean {
+  if (d.accepted) return false;
+  const toM = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
+  return d.blocks.some((b) => toM(b.start) < nowMin);
+}
+
 export interface DraftInputs {
   date: string;
   candidates: { id: string; text: string; category: string; suggested: boolean; windowS?: number; windowE?: number }[];

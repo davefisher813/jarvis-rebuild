@@ -179,3 +179,67 @@ describe("invariant 5: open rows agree with the busy day (randomized)", () => {
     }
   });
 });
+
+// Invariant 6 (hotfix 2026-08-21, the "adhd nightmare" screenshots): however
+// many placement passes run, in whatever order, a task holds at most ONE
+// planner event on a day. Randomized re-plan storms against the real service.
+describe("invariant 6: no day ever holds two planner events for one task", () => {
+  it("random storms of commits and heals leave one block per task", async () => {
+    const { Store, InMemoryAdapter } = await import("@core");
+    const { ScheduleService } = await import("./ScheduleService");
+    const r = rng(61221);
+    for (let round = 0; round < 25; round++) {
+      const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+      const date = "2026-08-21";
+      const taskIds = Array.from({ length: int(r, 1, 6) }, (_, k) => "task" + k);
+      // A couple of fixed user events and one gcal import must survive intact.
+      await svc.createEvent("Dentist", { date, start: "09:00", end: "09:30" });
+      await svc.createEvent("Brief", { date, start: "07:00", gcalId: "g1" });
+      const passes = int(r, 2, 5);
+      for (let p = 0; p < passes; p++) {
+        const subset = taskIds.filter(() => r() < 0.7);
+        const blocks = subset.map((id, k) => {
+          const s = int(r, 8 * 60, 20 * 60);
+          return { taskId: id, text: "T " + id, category: "c" + k, start: hhmm(s), end: hhmm(Math.min(24 * 60 - 1, s + int(r, 15, 90))) };
+        });
+        await svc.commitPlan(date, blocks);
+        if (r() < 0.3) await svc.healPlanDuplicates(date, int(r, 0, 24 * 60 - 1));
+      }
+      await svc.healPlanDuplicates(date, null);
+      const evs = await svc.eventsOn(date);
+      const perTask = new Map<string, number>();
+      for (const e of evs) {
+        if (!e.data.sourceTaskId) continue;
+        if (e.data.gcalId) continue;
+        perTask.set(e.data.sourceTaskId, (perTask.get(e.data.sourceTaskId) ?? 0) + 1);
+      }
+      for (const [task, n] of perTask) expect(n, `round=${round} task=${task}`).toBe(1);
+      expect(evs.some((e) => e.data.title === "Dentist"), `round=${round}`).toBe(true);
+      expect(evs.some((e) => e.data.gcalId === "g1"), `round=${round}`).toBe(true);
+    }
+  });
+});
+
+// Invariant 7 (same hotfix): a plan for TODAY never proposes the past. The
+// pipeline's floor is "now"; whatever the seeds, no placed block may start
+// before the floor handed to the planner.
+describe("invariant 7: no past placements for today", () => {
+  it("blocks never start before the planning floor", () => {
+    const r = rng(72138);
+    for (let i = 0; i < 300; i++) {
+      const nowMin = int(r, 6 * 60, 22 * 60);
+      const endMin = int(r, nowMin + 30, 24 * 60 - 1);
+      const events = Array.from({ length: int(r, 0, 4) }, (_, k) => {
+        const s = int(r, 0, 24 * 60 - 60);
+        return { id: "e" + k, data: { title: "E", date: "2026-08-21", category: "", start: hhmm(s), end: hhmm(s + int(r, 15, 90)) } };
+      }) as unknown as EventItem[];
+      const tasks: PlanTask[] = Array.from({ length: int(r, 1, 5) }, (_, k) => ({
+        id: "t" + k, text: "T", category: "", durationMin: int(r, 15, 90),
+      }));
+      const plan = planDay(tasks, events, nowMin, endMin, 10);
+      for (const b of plan.blocks) {
+        expect(toMin(b.start), `i=${i}`).toBeGreaterThanOrEqual(nowMin);
+      }
+    }
+  });
+});

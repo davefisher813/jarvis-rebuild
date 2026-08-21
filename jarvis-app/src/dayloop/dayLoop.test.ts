@@ -94,3 +94,22 @@ describe("re-flow (push 16)", () => {
     expect(reflowDay(plan, [], 10 * 60, 17 * 60, [])).toEqual({ moves: [], overflow: [] });
   });
 });
+
+describe("draftIsStale (hotfix 2026-08-21)", async () => {
+  const { draftIsStale } = await import("./dayLoop");
+  const base = { date: "2026-08-21", anytime: [], accepted: false, eventIds: [], dismissed: false };
+  const blk = (start: string) => ({ taskId: "t", text: "T", category: "", start, end: "23:00" });
+
+  it("a draft whose earliest block has passed is stale", () => {
+    expect(draftIsStale({ ...base, blocks: [blk("08:30"), blk("16:00")] }, 14 * 60)).toBe(true);
+  });
+  it("[edge] all blocks still ahead: fresh", () => {
+    expect(draftIsStale({ ...base, blocks: [blk("16:00")] }, 14 * 60)).toBe(false);
+  });
+  it("an accepted draft is never stale; slippage there belongs to re-flow", () => {
+    expect(draftIsStale({ ...base, accepted: true, blocks: [blk("08:30")] }, 14 * 60)).toBe(false);
+  });
+  it("[edge] an empty draft is never stale", () => {
+    expect(draftIsStale({ ...base, blocks: [] }, 14 * 60)).toBe(false);
+  });
+});

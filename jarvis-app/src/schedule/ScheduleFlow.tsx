@@ -8,7 +8,9 @@ import type { Goal } from "../life/types";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import ScheduleUploadFlow from "./screens/ScheduleUploadFlow";
-import { todayISO, weekOf, addDays, addMinutes, minutesBetween, fmtTime, eventsForDate, findConflicts, nextFreeSlot, fmtRange } from "./calendar";
+import { todayISO, weekOf, addDays, addMinutes, minutesBetween, fmtTime, eventsForDate, nextFreeSlot, fmtRange, minToHHMM } from "./calendar";
+import { isKept, keepBoth } from "./overlapAck";
+import OverlapSheet from "./screens/OverlapSheet";
 import { planDay } from "./planDay";
 import { anytimeTasksForDay } from "./anytime";
 import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
@@ -28,7 +30,7 @@ import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
 import type { TaskItem } from "../tasks/TasksService";
 import { repeatRows, repeatDays } from "./repeats";
-import { overlapsOn, fixOverlap, overlapLine, copyDay, duplicateOf, type Overlap } from "./dayEdit";
+import { overlapsOn, overlapLine, copyDay, duplicateOf, durationOf, type Overlap } from "./dayEdit";
 import { capAfterNumber } from "../shared/casing";
 
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: EventDraft } | null;
@@ -77,6 +79,12 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const nudgedDays = useRef<Set<string>>(new Set());
 
   const reload = useCallback(async () => {
+    // Self-healing dedupe (hotfix 2026-08-21): a task never keeps two plan
+    // events on the viewed day. Runs on what this read actually sees, so a
+    // cold read heals nothing rather than deleting on absence.
+    const d = new Date();
+    const healNow = selected === todayISO() ? d.getHours() * 60 + d.getMinutes() : null;
+    await svc.healPlanDuplicates(selected, healNow);
     setDots(await svc.daysWithEvents(view.y, view.m));
     setDayEvents(await svc.eventsOn(selected));
     setAllEvents(await svc.listEvents());
@@ -127,7 +135,14 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     else { const next = addDays(selected, mode === "week" ? 7 : 1); setSelected(next); syncView(next); }
   };
 
-  const conflicts = findConflicts(dayEvents);
+  // ONE OVERLAP MODEL (hotfix 2026-08-21): the badges, the collide card, and
+  // the clash count all read this same pair list, minus the pairs Dave has
+  // deliberately kept, so no two surfaces can tell different stories about
+  // the same day. Container blocks (focus, protected) are routine ranges,
+  // not events, and are never collision partners here.
+  const dayOverlaps = overlapsOn(allEvents, selected).filter((o) => !isKept(o, selected));
+  const conflicts = new Set<string>(dayOverlaps.flatMap((o) => [o.a.id, o.b.id]));
+  const [fixing, setFixing] = useState<Overlap | null>(null);
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
   const checkConflict = (date: string, startT: string, endT: string) => {
     const others = eventsForDate(allEvents, date).filter((e) => !(sheet && sheet.mode === "edit" && e.id === sheet.id));
@@ -176,12 +191,11 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
       }
     : undefined;
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
-    const ids: string[] = [];
+    // Replace, never add (hotfix 2026-08-21): commitPlan sweeps each task's
+    // prior plan event on this day before writing, against a fresh read.
+    let ids: string[] = [];
     const ok = await attemptWrite(async () => {
-      for (const b of blocks) {
-        const id = await svc.createEvent(b.text, { date: selected, start: b.start, end: b.end, category: b.category || undefined, sourceTaskId: b.taskId });
-        if (id) ids.push(id);
-      }
+      ids = (await svc.commitPlan(selected, blocks)).created;
     });
     setPlanOpen(false);
     await reload();
@@ -440,10 +454,10 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     // long-winded way to press a button. When the finger landed on real open
     // time, that IS the answer and the planner does not get a vote.
     if (droppedAt) {
-      const okDrop = await attemptWrite(() => svc.createEvent(t.text, {
-        date: selected, start: droppedAt, end: addMinutes(droppedAt, 60),
-        category: t.category || undefined, sourceTaskId: id,
-      }));
+      const okDrop = await attemptWrite(() => svc.commitPlan(selected, [{
+        taskId: id, text: t.text, category: t.category ?? "",
+        start: droppedAt, end: addMinutes(droppedAt, 60),
+      }]));
       await reload();
       if (okDrop) showToast({ message: `Scheduled ${fmtTime(droppedAt).time}${fmtTime(droppedAt).ap}` });
       return;
@@ -462,7 +476,8 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     const end = addMinutes(start, 60);
     let evId: string | null = null;
     const ok = await attemptWrite(async () => {
-      evId = await svc.createEvent(t.text, { date: selected, start, end, category: t.category || undefined, sourceTaskId: id });
+      const r = await svc.commitPlan(selected, [{ taskId: id, text: t.text, category: t.category ?? "", start, end }]);
+      evId = r.created[0] ?? null;
     });
     await reload();
     await reloadTasks();
@@ -602,24 +617,49 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
 
   // N5: the worst collision on the selected day. Worst, not first: if two
   // things clash by five minutes and two clash by an hour, the hour is the
-  // one he actually needs told about.
-  const worstOverlap = [...overlapsOn(allEvents, selected)].sort((a, b) => b.byMin - a.byMin)[0] ?? null;
+  // one he actually needs told about. Reads the same acknowledged-filtered
+  // list as the badges.
+  const worstOverlap = [...dayOverlaps].sort((a, b) => b.byMin - a.byMin)[0] ?? null;
 
-  const applyOverlapFix = async (o: Overlap) => {
+  // Badge tap (N5 completion): open the fix sheet on the pair this event is
+  // part of. The later event of the pair is the one the sheet moves.
+  const openOverlapFix = (eventId: string) => {
+    const o = dayOverlaps.find((x) => x.a.id === eventId || x.b.id === eventId) ?? null;
+    if (o) setFixing(o);
+  };
+  // The named landing slot for Move to Next Free: the first slot that clears
+  // the collision, so the search starts where the earlier event ends (an
+  // evening clash must not be offered a morning slot). Null when the day has
+  // nothing honest to offer: nextFreeSlot's fallback re-proposes its own
+  // start, so the result is re-checked against the day before the button is
+  // allowed to promise it.
+  const overlapNextFree = (o: Overlap): string | null => {
+    const others = eventsForDate(allEvents, selected).filter((e) => e.id !== o.b.id);
+    const dur = durationOf(o.b.data);
+    const aEnd = toMin(o.a.data.start) + durationOf(o.a.data);
+    const slot = nextFreeSlot(others, selected, new Date(), dur, minToHHMM(Math.min(aEnd, 24 * 60 - 1)));
+    const s = toMin(slot);
+    const honest = s + dur <= 24 * 60 && s >= aEnd
+      && !others.some((e) => { const es = toMin(e.data.start), ee = e.data.end ? toMin(e.data.end) : es + 60; return s < ee && es < s + dur; });
+    return honest ? slot : null;
+  };
+  const overlapMoveToFree = async (o: Overlap) => {
+    const slot = overlapNextFree(o);
+    if (!slot) return;
     const before = { start: o.b.data.start, end: o.b.data.end };
-    const fix = fixOverlap(o);
+    const dur = durationOf(o.b.data);
     const ok = await attemptWrite(async () => {
-      await svc.editTime(fix.id, fix.start);
-      if (fix.end) await svc.editEnd(fix.id, fix.end);
+      await svc.editTime(o.b.id, slot);
+      if (before.end) await svc.editEnd(o.b.id, addMinutes(slot, dur));
     });
     await reload();
     if (ok) showToast({
-      message: `${o.b.data.title} moved to ${fix.start}`,
+      message: `${o.b.data.title} moved to ${fmtRange(slot, before.end ? addMinutes(slot, dur) : undefined)}`,
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => {
-          await svc.editTime(fix.id, before.start);
-          if (before.end) await svc.editEnd(fix.id, before.end);
+          await svc.editTime(o.b.id, before.start);
+          if (before.end) await svc.editEnd(o.b.id, before.end);
         });
         await reload();
       },
@@ -684,7 +724,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         repeats={repeatRows(allEvents)}
         repeatMarks={repeatDays(allEvents, weekCells.map((c) => c.date))}
         overlap={worstOverlap ? { line: overlapLine(worstOverlap) } : null}
-        onFixOverlap={worstOverlap ? () => void applyOverlapFix(worstOverlap) : undefined}
+        onFixOverlap={worstOverlap ? () => openOverlapFix(worstOverlap.b.id) : undefined}
+        clashCount={dayOverlaps.length}
+        onOverlapBadge={openOverlapFix}
         onCopyDay={() => void copyYesterday()}
         weekCells={weekCells}
         onPrev={onPrev}
@@ -711,6 +753,17 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         attachMap={attachMap}
         blendMap={blendMap}
       />
+      {fixing && (
+        <OverlapSheet
+          overlap={fixing}
+          nextFree={overlapNextFree(fixing)}
+          onNudge={(m) => { const o = fixing; setFixing(null); void onShift(o.b.id, m); }}
+          onTomorrow={() => { const o = fixing; setFixing(null); void onPushTomorrow(o.b.id); }}
+          onMoveToFree={() => { const o = fixing; setFixing(null); void overlapMoveToFree(o); }}
+          onKeepBoth={() => { keepBoth(fixing, selected); setFixing(null); }}
+          onClose={() => setFixing(null)}
+        />
+      )}
       {planOpen && (
         <PlanDaySheet
           events={dayEvents}

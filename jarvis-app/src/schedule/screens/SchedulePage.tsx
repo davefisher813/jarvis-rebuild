@@ -41,7 +41,7 @@ function weekRange(cells: WeekCell[]): string {
 
 export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts,
-  mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, onCopyDay, repeatMarks = new Set<string>(),
+  mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload,
   locked = [], now, onEditRoutine, onShift, onMoveTo, onSkipToday, onPushTomorrow, onRunningLate,
   anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {}, blendMap = {},
@@ -55,6 +55,10 @@ export default function SchedulePage({
   // N5: the worst collision on this day, and the one-tap fix.
   overlap?: { line: string } | null;
   onFixOverlap?: () => void;
+  // N5 completion (hotfix 2026-08-21): how many unacknowledged clash pairs
+  // the day holds, and the badge tap that opens the fix sheet for a row.
+  clashCount?: number;
+  onOverlapBadge?: (eventId: string) => void;
   // N7: yesterday's shape, reused.
   onCopyDay?: () => void;
   // W2: the dates in this week that carry a repeating event.
@@ -86,12 +90,18 @@ export default function SchedulePage({
 
   const cells = monthMatrix(year, month);
   const n = dayEvents.length;
+  // ONE DEFINITION OF BUSY (hotfix 2026-08-21). The planner counts a focus
+  // block as OPEN by law (planLoad.ts: it is where picks go), and these Open
+  // rows must read the same model: a "7h open" plan sheet next to a day list
+  // whose Open rows dodge Deep Work is two stories about one day. Hard and
+  // soft routine blocks stay busy here, exactly as before (2026-08-10: Open
+  // rows must never span a Protected row).
   const slots = openSlots(
     dayEvents,
     minToHHMM(windowStartMin ?? 8 * 60),
     minToHHMM(windowEndMin ?? 21 * 60),
     30,
-    locked,
+    locked.filter((l) => !isFocusRange(l)),
   );
   const navLabel = mode === "month" ? null : mode === "week" ? weekRange(weekCells) : fullDay(selected);
   const [lateOpen, setLateOpen] = useState(false);
@@ -285,8 +295,10 @@ export default function SchedulePage({
       </div></div>
       {/* N5: the day says when it does not fit, WHERE it does not fit, and
           offers the fix in the same breath. Before this the overlap was
-          something you discovered by being late to the second thing. */}
-      {mode === "day" && overlap && onFixOverlap && (
+          something you discovered by being late to the second thing.
+          At two or more clashes the card folds to one quiet summary line
+          (hotfix 2026-08-21): nine alarms taught nothing; one count does. */}
+      {mode === "day" && overlap && onFixOverlap && clashCount < 2 && (
         <div className="pad-x"><div className="card"><div className="row">
           <div className="row-glyph cat-fg-orange"><AlertTriangle className="ic" /></div>
           <div className="row-grow">
@@ -295,6 +307,14 @@ export default function SchedulePage({
           </div>
           <button className="pill-act" onClick={onFixOverlap}>Fix It</button>
         </div></div></div>
+      )}
+      {mode === "day" && onFixOverlap && clashCount >= 2 && (
+        <div className="pad-x">
+          <button type="button" className="sched-open" onClick={onFixOverlap}>
+            <span className="sched-open-plus">!</span> {clashCount} clashes today
+            <span className="sched-fix">Fix</span>
+          </button>
+        </div>
       )}
 
       {lateOpen && onRunningLate && (
@@ -364,6 +384,7 @@ export default function SchedulePage({
                 <DayRow
                   e={en.e}
                   conflict={conflicts?.has(en.e.id) ?? false}
+                  onFixOverlap={onOverlapBadge ? () => onOverlapBadge(en.e.id) : undefined}
                   attach={attachMap[en.e.id]}
                   isNext={en.e.id === nextId}
                   isPast={isToday ? (en.e.data.end ? toMin(en.e.data.end) : toMin(en.e.data.start) + 60) < nowMin : false}

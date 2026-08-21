@@ -22,6 +22,7 @@ import { attachLabel } from "../attachments";
 export default function DayRow({
   e,
   conflict,
+  onFixOverlap,
   attach,
   isNext,
   isPast,
@@ -34,6 +35,9 @@ export default function DayRow({
 }: {
   e: EventItem;
   conflict: boolean;
+  // N5 completion (hotfix 2026-08-21): the Overlaps badge stops being inert.
+  // Tapping it opens the fix sheet for this row's clash instead of the editor.
+  onFixOverlap?: () => void;
   attach?: { total: number; done: number }; // attached tasks (Session 4)
   isNext: boolean;
   isPast: boolean;
@@ -103,7 +107,16 @@ export default function DayRow({
         <div className="sched-body">
           <div className="sched-title">
             {e.data.title}
-            {conflict && <span className="sched-badge">Overlaps</span>}
+            {conflict && (onFixOverlap ? (
+              <button
+                type="button"
+                className="sched-badge sched-badge-btn"
+                aria-label="Overlaps another event, tap to fix"
+                onClick={(ev) => { ev.stopPropagation(); onFixOverlap(); }}
+              >Overlaps</button>
+            ) : (
+              <span className="sched-badge">Overlaps</span>
+            ))}
             {dist && <span className="sched-dist">{dist}</span>}
           </div>
           <div className="sched-cat">
