@@ -146,24 +146,41 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .row-grow { flex: 1; min-width: 0; }
 .row-status { font-size: var(--t-meta); color: var(--tx-3); flex-shrink: 0; }
 
-/* Neutral category color palette (slots) for the multi-user build. User categories
-   pick a slot; this replaces the old org-named keys. Same values as
-   the originals, just neutral names. Light fills carry a dark glyph for contrast. */
+/* THE APPLE PALETTE (Dave, 2026-08-21: "the exact same coloring system and
+   palette as Apple Music, for everything including our custom coloring
+   options"). The custom category slots ARE the iOS system colors now, and
+   they behave the way Apple's do: each slot has a light value and a dark
+   value, because Apple tunes every colour per appearance rather than using
+   one hex in both.
+
+   Slot names are STORAGE KEYS in user data, so they keep their names and
+   remap to the nearest system colour: sky->systemCyan, lime->systemMint,
+   sand->systemBrown, graphite->systemGray. Magenta and coral have no system
+   equivalent; they are extensions built the same way (a light/dark pair in
+   the same lightness band) rather than collapsed onto pink and orange,
+   because two of a user's categories collapsing to one colour is worse than
+   two colours Apple did not ship.
+
+   Defaults are the DARK variants (dark is the brand default); the light
+   theme overrides below. */
 :root {
-  --cat-red: #FF1F30; --cat-orange: #FF9F0A; --cat-sky: #5AC8FA; --cat-pink: #FF85B8; --cat-yellow: #FFCC00;
-  --cat-green: #34D572; --cat-blue: #5E9BFF; --cat-teal: #4FE0BE; --cat-graphite: #8E8E93;
-  /* Expanded slots (Dave 2026-07-30): fill the purple/indigo/magenta hue gap plus
-     lime, sand, coral. Lime and sand are light fills and carry a dark glyph. */
-  --cat-purple: #BF5AF2; --cat-indigo: #7D7AFF; --cat-magenta: #E85BD8;
-  --cat-lime: #B3DB4D; --cat-sand: #C7A06B; --cat-coral: #FF6E5E;
+  --cat-red: #FF453A; --cat-orange: #FF9F0A; --cat-sky: #64D2FF; --cat-pink: #FF375F; --cat-yellow: #FFD60A;
+  --cat-green: #30D158; --cat-blue: #0A84FF; --cat-teal: #40C8E0; --cat-graphite: #8E8E93;
+  --cat-purple: #BF5AF2; --cat-indigo: #5E5CE6; --cat-magenta: #DA5FC4;
+  --cat-lime: #66D4CF; --cat-sand: #AC8E68; --cat-coral: #FF7A66;
 }
-/* EVERY category fill carries DARK text (2026-08-21). It used to be a
-   hand-kept list of "light" slots -- sky, yellow, teal, lime, sand -- and
-   everything else got white by default. Measured, white text fails on ALL
-   FIFTEEN of them: the best is red at 3.82:1 and the worst is yellow at
-   1.51:1, against a 4.5:1 bar. Black clears every one (5.49:1 on red,
-   13.89:1 on yellow). One rule instead of a list nobody remembers to
-   update when a slot is added. */
+[data-theme="light"] {
+  --cat-red: #FF3B30; --cat-orange: #FF9500; --cat-sky: #32ADE6; --cat-pink: #FF2D55; --cat-yellow: #FFCC00;
+  --cat-green: #34C759; --cat-blue: #007AFF; --cat-teal: #30B0C7; --cat-graphite: #8E8E93;
+  --cat-purple: #AF52DE; --cat-indigo: #5856D6; --cat-magenta: #C838AB;
+  --cat-lime: #00C7BE; --cat-sand: #A2845E; --cat-coral: #FF6952;
+}
+/* Every category fill declares an on-colour, and the LAW verifies the
+   declaration computationally against both theme variants of the slot
+   (laws.test.ts). On the Apple palette dark text clears fourteen of the
+   fifteen; indigo is the one true dark (black is 3.7:1 on #5856D6) and
+   carries white at 5.6:1. Not a hand-kept list: a wrong on-colour fails
+   the suite. */
 .cat-bg-red { background: var(--cat-red); color: var(--on-fill-dark); } .cat-bd-red { border-color: var(--cat-red); } .cat-fg-red { color: var(--cat-red); }
 .cat-bg-orange { background: var(--cat-orange); color: var(--on-fill-dark); } .cat-bd-orange { border-color: var(--cat-orange); } .cat-fg-orange { color: var(--cat-orange); }
 .cat-bg-sky { background: var(--cat-sky); color: var(--on-fill-dark); } .cat-bd-sky { border-color: var(--cat-sky); } .cat-fg-sky { color: var(--cat-sky); }
@@ -174,36 +191,60 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cat-bg-teal { background: var(--cat-teal); color: var(--on-fill-dark); } .cat-bd-teal { border-color: var(--cat-teal); } .cat-fg-teal { color: var(--cat-teal); }
 .cat-bg-graphite { background: var(--cat-graphite); color: var(--on-fill-dark); } .cat-bd-graphite { border-color: var(--cat-graphite); } .cat-fg-graphite { color: var(--cat-graphite); }
 .cat-bg-purple { background: var(--cat-purple); color: var(--on-fill-dark); } .cat-bd-purple { border-color: var(--cat-purple); } .cat-fg-purple { color: var(--cat-purple); }
-.cat-bg-indigo { background: var(--cat-indigo); color: var(--on-fill-dark); } .cat-bd-indigo { border-color: var(--cat-indigo); } .cat-fg-indigo { color: var(--cat-indigo); }
+.cat-bg-indigo { background: var(--cat-indigo); color: #FFFFFF; } .cat-bd-indigo { border-color: var(--cat-indigo); } .cat-fg-indigo { color: var(--cat-indigo); }
 .cat-bg-magenta { background: var(--cat-magenta); color: var(--on-fill-dark); } .cat-bd-magenta { border-color: var(--cat-magenta); } .cat-fg-magenta { color: var(--cat-magenta); }
 .cat-bg-lime { background: var(--cat-lime); color: var(--on-fill-dark); } .cat-bd-lime { border-color: var(--cat-lime); } .cat-fg-lime { color: var(--cat-lime); }
 .cat-bg-sand { background: var(--cat-sand); color: var(--on-fill-dark); } .cat-bd-sand { border-color: var(--cat-sand); } .cat-fg-sand { color: var(--cat-sand); }
 .cat-bg-coral { background: var(--cat-coral); color: var(--on-fill-dark); } .cat-bd-coral { border-color: var(--cat-coral); } .cat-fg-coral { color: var(--cat-coral); }
 
-/* CATEGORY COLOURS DRAWN AS TEXT, IN LIGHT THEME (2026-08-21). The palette
-   was picked against black and every slot is unreadable on #F2F2F7: yellow
-   measures 1.35:1, teal 1.48:1, green 1.73:1. These are the same hues taken
-   down in lightness until each clears 4.6:1 on the page (and 5.1:1 on a
-   white card), so a category still looks like itself and can be read. Text
-   only. The FILLS keep the bright palette, which is the whole point of a
-   colour-coded app. */
+/* CATEGORY COLOURS DRAWN AS TEXT, IN LIGHT THEME (2026-08-21, regenerated
+   for the Apple palette). Apple's light variants are still fills, not text:
+   systemYellow on the light page is 1.35:1, mint 1.43:1, green 1.73:1.
+   Same hues taken down in lightness until each clears 4.6:1 on the page
+   (5.1:1 on a white card). Text only; the fills stay exactly Apple. */
 [data-theme="light"] {
-  --cat-tx-red: #DD0011;
-  --cat-tx-orange: #9D5F00;
-  --cat-tx-sky: #0574A7;
-  --cat-tx-pink: #D8005B;
+  --cat-tx-red: #DB0C00;
+  --cat-tx-orange: #A05D00;
+  --cat-tx-sky: #1475A1;
+  --cat-tx-pink: #DC002A;
   --cat-tx-yellow: #856A00;
-  --cat-tx-green: #1A7D40;
-  --cat-tx-blue: #0060FC;
-  --cat-tx-teal: #167B64;
+  --cat-tx-green: #217D38;
+  --cat-tx-blue: #0069DD;
+  --cat-tx-teal: #217787;
   --cat-tx-graphite: #6D6D73;
-  --cat-tx-purple: #A81FED;
-  --cat-tx-indigo: #5753FF;
-  --cat-tx-magenta: #C21BB0;
-  --cat-tx-lime: #5C7618;
-  --cat-tx-sand: #8B6735;
-  --cat-tx-coral: #D91600;
+  --cat-tx-purple: #A237D9;
+  --cat-tx-indigo: #5856D6;
+  --cat-tx-magenta: #BA349F;
+  --cat-tx-lime: #007B75;
+  --cat-tx-sand: #82694B;
+  --cat-tx-coral: #D71D00;
 }
+/* CATEGORY COLOURS DRAWN AS TEXT, IN DARK THEME (2026-08-21). New with the
+   Apple surfaces: #3A3A3C is lighter than the old #2A2A32, and nine of the
+   fifteen dark variants stop clearing 4.5:1 on it (indigo is 2.24:1, blue
+   3.11:1, red 3.33:1). Same treatment as light: the hue lifted until it
+   clears 4.6:1 on the worst surface. Slots that already clear keep the
+   exact Apple value. */
+[data-theme="dark"] {
+  --cat-dtx-red: #FF7F77;
+  --cat-dtx-pink: #FF7B95;
+  --cat-dtx-blue: #55AAFF;
+  --cat-dtx-graphite: #A5A5A9;
+  --cat-dtx-purple: #D188F6;
+  --cat-dtx-indigo: #9E9DF0;
+  --cat-dtx-magenta: #E385D2;
+  --cat-dtx-sand: #BAA282;
+  --cat-dtx-coral: #FF806C;
+}
+[data-theme="dark"] .cat-fg-red { color: var(--cat-dtx-red); }
+[data-theme="dark"] .cat-fg-pink { color: var(--cat-dtx-pink); }
+[data-theme="dark"] .cat-fg-blue { color: var(--cat-dtx-blue); }
+[data-theme="dark"] .cat-fg-graphite { color: var(--cat-dtx-graphite); }
+[data-theme="dark"] .cat-fg-purple { color: var(--cat-dtx-purple); }
+[data-theme="dark"] .cat-fg-indigo { color: var(--cat-dtx-indigo); }
+[data-theme="dark"] .cat-fg-magenta { color: var(--cat-dtx-magenta); }
+[data-theme="dark"] .cat-fg-sand { color: var(--cat-dtx-sand); }
+[data-theme="dark"] .cat-fg-coral { color: var(--cat-dtx-coral); }
 [data-theme="light"] .cat-fg-red { color: var(--cat-tx-red); }
 [data-theme="light"] .cat-fg-orange { color: var(--cat-tx-orange); }
 [data-theme="light"] .cat-fg-sky { color: var(--cat-tx-sky); }
@@ -496,7 +537,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .note-body { font-size: var(--t-body); color: var(--tx-2); line-height: 1.5; white-space: pre-wrap; padding: var(--s-3) var(--s-4); }
 .kv-val { font-size: var(--t-body); color: var(--tx-1); font-weight: var(--w-medium); }
 .brand-mark { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
-.brand-mark .j { color: var(--accent-tx); }
+.brand-mark .j { color: var(--accent-chrome); }
 .chart-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-4); }
 .chart-row + .chart-row { border-top: 0.5px solid var(--divider); }
 .chart-label { width: 76px; flex-shrink: 0; font-size: var(--t-meta); color: var(--tx-2); }
@@ -507,7 +548,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .today-bar { justify-content: space-between; }
 .today-av { background: 0; border: 0; padding: 0; display: flex; align-items: center; width: 36px; height: 36px; justify-content: center; }
 .today-brand { flex: 1; text-align: center; font-size: var(--t-h3); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
-.today-brand .j { color: var(--accent-tx); }
+.today-brand .j { color: var(--accent-chrome); }
 .sched-seg { padding: var(--s-1) var(--s-4) var(--s-2); }
 .week-strip { display: flex; gap: var(--s-1); padding: 0 var(--s-4) var(--s-2); }
 .wk-cell { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--s-1); padding: var(--s-2) 0; border-radius: var(--r-md); cursor: pointer; }
@@ -979,7 +1020,7 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
    already passes and is untouched. Verified by measuring computed styles, not
    by eye. Fills carry white text, so the fill itself is darkened. */
 [data-theme="light"] {
-  --on-light-red: #C81E2B;   /* 5.71:1 on white, and with white text on it */
+  --on-light-red: #CC051B;   /* Music hue: 5.83:1 on white, and carries white text at 5.83:1 */
   --on-light-warn: #8A5A00;  /* 5.93:1 */
   --on-light-good: #1B7A3D;  /* 5.39:1 */
 }
@@ -1272,7 +1313,7 @@ button {
 .stat-tile.stat-good { background: var(--good-tint); }
 .stat-tile.stat-good .stat-num { color: var(--good); }
 .stat-tile.stat-sky { background: rgba(90, 200, 250, 0.14); }
-.stat-tile.stat-sky .stat-num { color: var(--cat-sky, #5AC8FA); }
+.stat-tile.stat-sky .stat-num { color: var(--cat-sky, #64D2FF); }
 .stat-tile.stat-warn { background: var(--warn-tint); }
 .stat-tile.stat-warn .stat-num { color: var(--warn); }
 .stat-tile.stat-plain .stat-num { color: var(--tx-1); }
@@ -1344,8 +1385,8 @@ button {
   padding: var(--s-1h) var(--s-3); font-size: var(--t-meta); font-weight: var(--w-bold);
   cursor: pointer; font-variant-numeric: tabular-nums; }
 .day-pill:active { opacity: 0.7; }
-.dp-sky { background: rgba(90,200,250,0.16); color: var(--cat-sky, #5AC8FA); }
-.dp-blue { background: rgba(94,155,255,0.16); color: var(--cat-blue, #5E9BFF); }
+.dp-sky { background: rgba(100,210,255,0.16); color: var(--cat-sky, #64D2FF); }
+.dp-blue { background: rgba(10,132,255,0.16); color: var(--cat-blue, #0A84FF); }
 .dp-red { background: var(--red-tint); color: var(--red); }
 /* The day pills are the palette colour on a 16% tint of ITSELF. In dark that
    composites to a near-black chip and reads fine; in light it composites to a
@@ -1354,10 +1395,11 @@ button {
    text takes the light-theme variant. */
 /* A shade darker than the shared --cat-tx-* values, because these do not sit
    on the page: the chip is a 16% wash of the same hue, which is LIGHTER than
-   #F2F2F7, so a colour tuned to the page lands at 4.2:1 here. Tuned against
-   the composited chip. */
-[data-theme="light"] .dp-sky { color: #056C9A; }
-[data-theme="light"] .dp-blue { color: #0056E4; }
+   #F2F2F7, so a colour tuned to the page lands short here. Tuned against the
+   composited chip (Apple light slots: sky #32ADE6 -> chip #D3E7F4, blue
+   #007AFF -> chip #CBDFF8). */
+[data-theme="light"] .dp-sky { color: #126A93; }
+[data-theme="light"] .dp-blue { color: #005CBF; }
 [data-theme="light"] .dp-red { color: var(--on-light-red); }
 
 /* 4a · library list (Apple Music form, JARVIS red) */
@@ -1433,8 +1475,11 @@ button {
   -webkit-backdrop-filter: blur(22px) saturate(160%); box-shadow: 0 0.5px 0 var(--divider); }
 [data-theme="light"] .pagebar.on { background: rgba(249,249,251,0.86); }
 .pagebar.on .pagebar-title { opacity: 1; }
+/* The energy line takes the Apple Music icon gradient (red into its lighter
+   stop) before fading out. Pure decoration, no text near it, so the light
+   stop is safe here and nowhere else. */
 .pagebar.on::after { content: ""; position: absolute; left: var(--s-4); bottom: 0; height: 2px; width: 64px;
-  border-radius: 2px; background: linear-gradient(90deg, var(--accent), rgba(255,31,48,0)); }
+  border-radius: 2px; background: linear-gradient(90deg, #FA233B, #FB5C74 55%, rgba(251,92,116,0)); }
 .pagehead-title { padding: var(--s-1) var(--s-4) 0; font-size: 34px; font-weight: var(--w-bold); letter-spacing: -0.03em; }
 .barbtn { width: 32px; height: 32px; border-radius: var(--r-circle); background: var(--press-3); border: 0;
   display: flex; align-items: center; justify-content: center; color: var(--accent-tx); flex-shrink: 0; }
@@ -1470,8 +1515,8 @@ button {
 .sh2 { display: flex; align-items: baseline; gap: 9px;
   padding: var(--s-4h, 18px) var(--s-4) var(--s-1h); }
 .sh2 .t { order: 0; font-size: 12px; font-weight: var(--w-bold); letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--accent-tx); }
-.sh2::after { content: ""; order: 1; flex: 1; border-top: 1px dotted rgba(255, 43, 60, 0.35); align-self: center; }
+  text-transform: uppercase; color: var(--accent-chrome); }
+.sh2::after { content: ""; order: 1; flex: 1; border-top: 1px dotted rgba(250, 35, 59, 0.35); align-self: center; }
 .sh2 .n { order: 2; font-size: var(--t-eyebrow); font-weight: var(--w-bold); color: var(--tx-3); letter-spacing: var(--track-caps); }
 /* Today's brand bar rides the same chassis: sticky, glass on condense. */
 .today-pagebar .today-bar { padding-top: 0; height: 44px; width: 100%; }
@@ -1544,7 +1589,7 @@ button {
 .fact-warn { color: var(--warn); font-weight: var(--w-semi); }
 .fact-good { color: var(--good); font-weight: var(--w-semi); }
 .fact-red { color: var(--red); font-weight: var(--w-semi); }
-.fact-sky { color: var(--cat-sky, #5AC8FA); font-weight: var(--w-semi); }
+.fact-sky { color: var(--cat-sky, #64D2FF); font-weight: var(--w-semi); }
 .fact-purple { color: var(--cat-purple, #BF5AF2); font-weight: var(--w-semi); }
 
 /* DECISION RECORD (brainstorm shipment 1, built 2026-08-18 to Catalog V3.3).
@@ -1562,7 +1607,7 @@ button {
 /* sh2-caps (Brain 4 pick) is absorbed by the app-wide steel head: one
    small-label style everywhere means the variant adds nothing. Kept as a
    no-op selector so existing markup stays legal. */
-.sh2.sh2-caps .t { color: var(--accent-tx); }
+.sh2.sh2-caps .t { color: var(--accent-chrome); }
 
 /* A GAP IS A ROW (Dave 2026-08-19): open time renders in the timeline at the
    hour it falls, dashed so it reads as absence, tappable so it becomes a
@@ -1648,7 +1693,7 @@ button {
    (.pill-act) · small pill (.btn-sm) · head action (.see-all in .sh2).
    A bare <button> with none of these classes is a design bug. */
 /* Head action: accent text at the head's far right, after the leader. */
-.see-all { font-size: 13px; font-weight: var(--w-semi); color: var(--accent-tx);
+.see-all { font-size: 13px; font-weight: var(--w-semi); color: var(--accent-chrome);
   background: 0; border: 0; font-family: var(--f); letter-spacing: 0.02em;
   min-height: var(--tap-min); display: inline-flex; align-items: center; }
 .sh2 .see-all { order: 2; margin: -13px 0; flex-shrink: 0; }
@@ -1667,7 +1712,7 @@ button {
   display: inline-flex; align-items: center; flex-shrink: 0; }
 /* Detail-page group labels ride the same steel: Decided, Because, Details,
    Ruled Out. Scoped to .grp so category kicker eyebrows keep their colors. */
-.grp .eyebrow { display: flex; align-items: baseline; gap: 9px; color: var(--accent-tx); letter-spacing: 0.14em; }
+.grp .eyebrow { display: flex; align-items: baseline; gap: 9px; color: var(--accent-chrome); letter-spacing: 0.14em; }
 .grp .eyebrow::after { content: ""; flex: 1; border-top: 1px dotted rgba(255, 43, 60, 0.35); align-self: center; }
 /* Sheets keep their quiet labels: a bottom sheet is a form, not a page. */
 .sheet-scrim .grp .eyebrow { color: var(--tx-3); letter-spacing: var(--track-caps); }

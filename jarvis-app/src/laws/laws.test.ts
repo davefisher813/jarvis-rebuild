@@ -315,18 +315,72 @@ describe("LAW: Apple HIG casing", () => {
     expect(bad).toEqual([]);
   });
 
-  // EVERY CATEGORY FILL CARRIES DARK TEXT (2026-08-21). This used to be a
-  // hand-kept list of "light" slots, and white failed on all fifteen of them
-  // (best 3.82:1, worst 1.51:1) while dark clears every one. A list nobody
-  // remembers to update when a slot is added is not a rule; this is.
-  it("every category fill declares its on-colour", () => {
+  // THE PALETTE IS MEASURED, NOT TRUSTED (2026-08-21, Apple palette). Every
+  // slot has a light and a dark value, an on-colour for its fills, and text
+  // variants where the raw value cannot be read. None of that is taken on
+  // faith: this test parses the palettes out of the stylesheet and runs the
+  // WCAG maths on every combination the app can render. A wrong hex fails
+  // the suite the moment it is typed, not the next time the auditor happens
+  // to walk a screen where it is on show.
+  const srgb = (v: number) => { const c = v / 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const lum = (hex: string) => {
+    const h = hex.replace("#", "");
+    return 0.2126 * srgb(parseInt(h.slice(0, 2), 16)) + 0.7152 * srgb(parseInt(h.slice(2, 4), 16)) + 0.0722 * srgb(parseInt(h.slice(4, 6), 16));
+  };
+  const ratio = (a: string, b: string) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const palettes = () => {
     const css = read(SRC + "/styles/components.css");
-    const slots = [...css.matchAll(/--cat-([a-z]+)\s*:/g)].map((m) => m[1]!);
-    const missing = [...new Set(slots)].filter((slot) => {
+    const blocks = [...css.matchAll(/(:root|\[data-theme="light"\])\s*\{([^}]*)\}/g)];
+    const dark: Record<string, string> = {}, light: Record<string, string> = {};
+    for (const [, sel, body] of blocks) {
+      for (const [, name, hex] of body!.matchAll(/--cat-([a-z]+)\s*:\s*(#[0-9A-Fa-f]{6})/g)) {
+        if (sel === ":root") dark[name!] = hex!;
+        else light[name!] = hex!;
+      }
+    }
+    return { css, dark, light };
+  };
+
+  it("every category fill's on-colour measurably clears 4.5:1 in both themes", () => {
+    const { css, dark, light } = palettes();
+    const bad: string[] = [];
+    for (const slot of Object.keys(dark)) {
+      if (!light[slot]) { bad.push(slot + ": no light variant"); continue; }
       const rule = css.match(new RegExp("\\.cat-bg-" + slot + "\\s*\\{[^}]*\\}"));
-      return !rule || !/color:\s*var\(--on-fill-dark\)/.test(rule[0]);
-    });
-    expect(missing).toEqual([]);
+      if (!rule) { bad.push(slot + ": no fill rule"); continue; }
+      const m = rule[0].match(/color:\s*(var\(--on-fill-dark\)|#[0-9A-Fa-f]{3,6})/);
+      if (!m) { bad.push(slot + ": fill declares no on-colour"); continue; }
+      const on = m[1] === "var(--on-fill-dark)" ? "#000000" : m[1]!.length === 4 ? "#" + [...m[1]!.slice(1)].map((c) => c + c).join("") : m[1]!;
+      for (const [theme, v] of [["dark", dark[slot]!], ["light", light[slot]!]] as const) {
+        const r = ratio(on, v);
+        if (r < 4.5) bad.push(`${slot} (${theme}): ${on} on ${v} is ${r.toFixed(2)}:1`);
+      }
+    }
+    expect(Object.keys(dark).length).toBeGreaterThanOrEqual(15);
+    expect(bad).toEqual([]);
+  });
+
+  it("every category colour drawn as text clears 4.5:1 on its theme's worst surface", () => {
+    const { css, dark, light } = palettes();
+    const bad: string[] = [];
+    const txVar = (theme: string, slot: string, prefix: string) => {
+      const m = css.match(new RegExp('--cat-' + prefix + '-' + slot + '\\s*:\\s*(#[0-9A-Fa-f]{6})'));
+      return m?.[1];
+    };
+    for (const slot of Object.keys(dark)) {
+      // Dark: the override when one exists, else the raw dark value, judged
+      // against surface-3 #3A3A3C (chips, the lightest thing text sits on).
+      const d = txVar("dark", slot, "dtx") ?? dark[slot]!;
+      const rd = ratio(d, "#3A3A3C");
+      if (rd < 4.5) bad.push(`${slot} (dark text): ${d} on #3A3A3C is ${rd.toFixed(2)}:1`);
+      // Light: the tx variant is REQUIRED (no raw Apple light value survives
+      // #F2F2F7), judged against the page.
+      const l = txVar("light", slot, "tx");
+      if (!l) { bad.push(`${slot}: no --cat-tx-${slot} light text variant`); continue; }
+      const rl = ratio(l, "#F2F2F7");
+      if (rl < 4.5) bad.push(`${slot} (light text): ${l} on #F2F2F7 is ${rl.toFixed(2)}:1`);
+    }
+    expect(bad).toEqual([]);
   });
 
   // C2 · THE THREE-SECOND CAPTURE (Dave 2026-08-20, from the research).

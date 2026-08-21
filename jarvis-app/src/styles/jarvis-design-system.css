@@ -58,29 +58,38 @@
      defined with the slot classes in components.css. */
   --on-fill-dark: #000000; /* on-color for light category fills (money, friends); theme-constant per RDB-001/003 */
 
-  /* ACCENT = JARVIS red. Primary actions and app chrome ONLY (see below).
-     ONE red, THREE jobs, because the same hex cannot do all three legibly.
-     Measured 2026-08-21 when the visual auditor first ran a WCAG contrast
-     pass in light theme and at 320 wide.
+  /* ACCENT = APPLE MUSIC RED (Dave, 2026-08-21: "the exact same coloring
+     system and palette as Apple Music, for everything"). #FA233B is Apple
+     Music's brand red; #FB5C74 is the lighter stop of its icon gradient.
+     Primary actions and app chrome ONLY, same law as before.
+
+     ONE red, THREE jobs, because the same hex cannot do all three legibly
+     (measured 2026-08-21, first WCAG sweep):
 
        --accent       the brand red. Glyphs, rules, dots, bars, the energy
-                      line: anything with no text on or in it. Unchanged, so
-                      the app still reads as JARVIS red at a glance.
-       --accent-fill  the red that carries WHITE text. #FF2B3C is 3.71:1
-                      under white and the badge red is 3.41:1, both under
-                      the 4.5:1 Apple checks. The red channel is the whole
-                      problem: ANY colour with r=255 has a relative
-                      luminance above 0.21 before green and blue are even
-                      counted, so no #FF____ can carry white text at 4.5:1.
-                      #DC1E2A is the least-darkened red that clears it
-                      (4.93:1), and side by side with #FF2B3C the difference
-                      is barely perceptible.
+                      line: anything with no text on or in it.
+       --accent-fill  the red that carries WHITE text. White on #FA233B is
+                      3.91:1, under the 4.5:1 Apple checks. Any colour with
+                      a full red channel has a relative luminance above 0.21
+                      before green and blue are counted, so no #FA/#FF red
+                      can carry white text at 4.5:1. #E2051E is the
+                      least-darkened Music red that clears it (4.91:1).
        --accent-tx    the red DRAWN AS text on a surface. Per theme below,
                       because a red readable on black is not readable on
                       #F2F2F7 and the reverse. */
-  --accent: #FF2B3C;
-  --accent-fill: #DC1E2A;
-  --accent-tx: #FF2B3C;
+  --accent: #FA233B;
+  --accent-fill: #E2051E;
+  --accent-tx: #FA233B;
+  /* The Apple Music icon gradient, for pure decoration only: never under
+     text or a glyph (the light stop cannot carry either). */
+  --accent-grad: linear-gradient(180deg, #FA233B, #FB5C74);
+  /* CHROME red: the active tab, the brand J, section eyebrows -- text that
+     sits on the PAGE, never on a card. In dark the page is black, where the
+     full Music red measures 5.36:1, so the chrome keeps the saturated brand
+     red exactly as Apple Music's own tab bar does; the pastel text red is
+     only for card surfaces. Light overrides below (its page cannot carry
+     the raw red). */
+  --accent-chrome: var(--accent-tx);
 
   /* SELECTION (2026-08-02). One treatment for "this one is picked", used by
      every selectable control in the app: chips, segmented controls, radios,
@@ -90,17 +99,21 @@
      Red now means only: primary action, the current tab, a count badge, and
      capture. Everything that merely says "picked" inverts instead.
      Inversion also fixes a measured accessibility failure: white text on
-     #FF2B3C is 3.71:1, under the 4.5:1 Apple looks for. These are 21:1 dark
-     and 19.4:1 light. */
+     the Music red is 3.91:1, under the 4.5:1 Apple looks for. These are 21:1
+     dark and 19.4:1 light. */
   --sel-bg: var(--tx-1);
   --sel-fg: var(--bg);
   --scrim: rgba(0,0,0,0.40); /* modal/sheet backdrop, theme-invariant (resolves uniformity G4) */
 }
 
-/* ---------- DARK THEME (JARVIS brand, glass cards, blue secondary tint) ---------- */
+/* ---------- DARK THEME (Apple Music dark: black page, iOS elevated grays) ---------- */
 [data-theme="dark"] {
   --bg: #000000;
-  --surface-1: #17171E; --surface-2: #1F1F27; --surface-3: #2A2A32;
+  /* iOS dark system grouped surfaces, exactly: secondarySystemGroupedBackground
+     #1C1C1E, tertiary #2C2C2E, and #3A3A3C for the raised chip/control layer.
+     The old JARVIS surfaces carried a violet cast (#17171E); Apple Music's
+     carry none (Dave, 2026-08-21: the exact Apple Music system). */
+  --surface-1: #1C1C1E; --surface-2: #2C2C2E; --surface-3: #3A3A3C;
   --card-bd: rgba(255,255,255,0.12); --divider: rgba(255,255,255,0.06);
   --press-1: rgba(255,255,255,0.04); --press-3: rgba(255,255,255,0.06); --press-5: rgba(255,255,255,0.14);
   /* iOS label ramp (approved 2026-08-18): titles pure white, secondary at
@@ -108,25 +121,24 @@
      The old 0.76 white meta sat too close to titles and killed hierarchy;
      recede comes from this ramp plus 15px meta size, not from casing. */
   --tx-1: #FFFFFF; --tx-2: rgba(235,235,245,0.82); --tx-3: rgba(235,235,245,0.60); --tx-4: rgba(235,235,245,0.30);
-  --red: #FF1F30; --sys-red: #FF453A; --warn: #FF9F0A; --good: #34D572; --blue: #5E9BFF;
-  --yellow: #FFCC00; --teal: #5AC8FA; --mint: #4FE0BE; --pink: #FF85B8;
+  /* iOS system colors, DARK variants, exactly as the HIG defines them. */
+  --red: #FF453A; --sys-red: #FF453A; --warn: #FF9F0A; --good: #30D158; --blue: #0A84FF;
+  --yellow: #FFD60A; --teal: #40C8E0; --mint: #66D4CF; --pink: #FF375F;
   /* --tint is the colour of things that are tappable but are not buttons: the
      nav "+", back chevrons, links, sliders, steppers, action-sheet items.
      It was blue here and red in light theme, so the same control changed
      meaning with the theme (Dave, 2026-08-02: "red in both themes"). Now one
      value in both. 5.49:1 on black, 4.66:1 on the light page. */
-  --tint: #FF1F30;
-  /* Red text on the dark card surfaces: #FF2B3C is 4.81:1 on --surface-1 but
-     only 3.84:1 on --surface-3, and section heads, pill actions and small
-     buttons all sit on the darker one. #FF5A66 cleared surface-3 by 0.18 and
-     then landed exactly ON the 4.5 line against the raised promo surfaces,
-     which is not a margin. #FF6570 is the closest value to the brand red that
-     clears every dark surface with room to spare: 6.24:1 on surface-1,
-     4.98:1 on surface-3, 4.74:1 on the lightest raised card. Every step
-     further from #FF2B3C costs brand and buys nothing. */
-  --accent-tx: #FF6570;
-  --red-tint: rgba(255,31,48,0.16); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(52,213,114,0.16);
-  --glass-bg: rgba(28,28,32,0.55);
+  --tint: #FA233B;
+  /* Red text on the dark card surfaces. The Apple surfaces are LIGHTER than
+     the old JARVIS ones (#3A3A3C vs #2A2A32), so the text red retunes:
+     #FA233B is only 2.90:1 on surface-3. #FC828F is the closest value to
+     the Music red that clears every dark surface: 7.07:1 on surface-1,
+     5.79:1 on surface-2, 4.72:1 on surface-3. */
+  --accent-tx: #FC828F;
+  --accent-chrome: #FA233B;
+  --red-tint: rgba(250,35,59,0.16); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(48,209,88,0.16);
+  --glass-bg: rgba(28,28,30,0.55);
   /* rim raised 0.14 -> 0.20 so glass edges catch light on OLED (RDB, Dave 2026-07-29) */
   --rim-card: rgba(255,255,255,0.20); --rim-bottom: rgba(0,0,0,0.55);
   --nav-bg: rgba(0,0,0,0.65);
@@ -135,10 +147,10 @@
   color-scheme: dark;
 }
 
-/* ---------- LIGHT THEME (iOS surfaces, Apple system status colors, JARVIS red accent, solid cards) ---------- */
+/* ---------- LIGHT THEME (Apple Music light: iOS surfaces, system colors, Music red) ---------- */
 [data-theme="light"] {
   --bg: #F2F2F7;
-  --surface-1: #FFFFFF; --surface-2: #FFFFFF; --surface-3: #E8E8EC;
+  --surface-1: #FFFFFF; --surface-2: #FFFFFF; --surface-3: #E5E5EA;
   --card-bd: rgba(20,20,30,0.08); --divider: rgba(60,60,67,0.16);
   --press-1: rgba(20,20,30,0.04); --press-3: rgba(20,20,30,0.06); --press-5: rgba(20,20,30,0.10);
   /* --tx-3 raised from 0.66 to 0.76 (2026-08-02). At 0.66 every piece of
@@ -149,19 +161,20 @@
      backgrounds (4.98:1 on page, 5.31:1 on card) without going near black. */
   /* Light mirrors the iOS light label ramp (3C3C43 at 60% / 30%). */
   --tx-1: #000000; --tx-2: rgba(60,60,67,0.82); --tx-3: rgba(60,60,67,0.60); --tx-4: rgba(60,60,67,0.30);
+  /* iOS system colors, LIGHT variants, exactly as the HIG defines them. */
   --red: #FF3B30; --sys-red: #FF3B30; --warn: #FF9500; --good: #34C759; --blue: #007AFF;
-  --yellow: #FFCC00; --teal: #5AC8FA; --mint: #4FE0BE; --pink: #FF85B8;
+  --yellow: #FFCC00; --teal: #30B0C7; --mint: #00C7BE; --pink: #FF2D55;
   /* Red in light theme too (Dave, 2026-08-02), but a darker red than dark
      theme uses. --tint is drawn as TEXT in several places (toast action,
      search cancel, tertiary buttons, action-sheet items, links), and
-     #FF1F30 on this page is only 3.43:1. This is the same value as
-     --on-light-red in components.css, 5.71:1, which the light theme already
-     uses everywhere a red has to sit on white. */
-  --tint: #C81E2B;
-  /* Same reason as --tint, same value: 5.12:1 on the page, 5.71:1 on a white
-     card. #FF2B3C here is 3.32:1, which is the single biggest source of
-     unreadable text in the light theme. */
-  --accent-tx: #C81E2B;
+     #FA233B on this page is only 3.32:1, and the worst thing light-theme red
+     text sits on is not the page but a pressed chip (#E7E7EC, a 6% dark wash
+     over white). #CC051B is the closest Music red that clears the chip too:
+     4.73:1 there, 5.22:1 on the page, 5.83:1 on a white card, and it carries
+     white at 5.83:1 when a light-theme fill needs it. */
+  --tint: #CC051B;
+  /* Same reason as --tint, same value. */
+  --accent-tx: #CC051B;
   --red-tint: rgba(255,59,48,0.12); --warn-tint: rgba(255,149,0,0.14); --good-tint: rgba(52,199,89,0.14);
   --glass-bg: rgba(255,255,255,0.72);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);
@@ -298,7 +311,7 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 /* TAB BAR */
 .tab-bar { display: flex; background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 0.5px solid var(--divider); padding: var(--s-1h) 0 calc(var(--s-3) + env(safe-area-inset-bottom, 0)); }
 .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: var(--s-1) 0; color: var(--tx-4); font-size: 10px; font-weight: var(--w-medium); position: relative; }
-.tab.active { color: var(--accent-tx); }
+.tab.active { color: var(--accent-chrome); }
 .tab .badge { position: absolute; top: 0; right: calc(50% - 20px); background: var(--sys-red); color: #fff; font-size: 10px; font-weight: var(--w-semi); min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
 
 /* NAV BAR */

@@ -18,7 +18,7 @@ export default function DayRing({ done, total }: { done: number; total: number }
             (CSS drop-shadow on .fill), not a flat green stroke. */}
         <defs>
           <linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#FF1F30" />
+            <stop offset="0%" stopColor="#FA233B" />
             <stop offset="100%" stopColor="#FF7A00" />
           </linearGradient>
         </defs>
