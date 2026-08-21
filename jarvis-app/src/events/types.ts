@@ -57,6 +57,13 @@ export type EventType =
   // 30 (2026-08-09). Durable for the same reason durations were worth
   // correcting at all: the learning must survive the device.
   | "plan.duration_committed"
+  // Brain Layer 2 (queue item 04): the strand lifecycle. kind carries the
+  // derivation key, which is what makes the nod test operational: correction
+  // and deletion rates per derivation are computed from these rows, and a
+  // derivation that keeps being wrong stops surfacing (moments.ts).
+  | "strand.created"
+  | "strand.corrected"
+  | "strand.deleted"
   // escape hatch: props.name carries the specific action, no schema bump needed
   | "action";
 

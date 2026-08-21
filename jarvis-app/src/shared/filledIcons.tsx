@@ -17,6 +17,7 @@ const P = { weight: "fill" as const, className: "ic" };
 
 export const FILLED: Record<string, ReactNode> = {
   // ---- Brain hub rows ----
+  knows: <Sparkle {...P} />,
   contacts: <UsersThree {...P} />,
   decisions: <GitFork {...P} />,
   philosophy: <Compass {...P} />,

@@ -110,3 +110,48 @@ function RoutineProbe() {
   }, [routine]);
   return null;
 }
+
+// BEING-KNOWN MOMENTS (Brain Layer 2, item 04). Derivations on the durable
+// event log surface through the same one-row Noticed pipeline; accepting one
+// writes a strand with its receipts, and the moment never comes back.
+describe("TodaySuggestions being-known moments", () => {
+  beforeEach(() => { eventLog.clear(); });
+
+  const completions = (n: number, hour: number) => {
+    const base = new Date();
+    for (let i = 0; i < n; i++) {
+      const at = new Date(base.getTime() - i * 86400000);
+      at.setHours(hour, 30, 0, 0);
+      vi.setSystemTime(at);
+      emit({ type: "task.completed", entityType: "task", entityId: `c${i}`, props: { category: "work" } });
+    }
+    vi.useRealTimers();
+  };
+
+  it("says nothing on a thin log, which is most days", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    completions(4, 10);
+    render(<NotesProvider userId="b1"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
+    await waitFor(() => expect(screen.queryByText("Dismiss")).not.toBeInTheDocument());
+  });
+
+  it("surfaces the completion window once the evidence is real, with its own count", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    completions(14, 10);
+    render(<NotesProvider userId="b2"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument());
+    // The Notice law's sub line carries the receipt, so the claim is checkable
+    // before the user ever taps.
+    expect(screen.getByText(/14 Finishes there/)).toBeInTheDocument();
+    expect(screen.getByText("Remember This")).toBeInTheDocument();
+  });
+
+  it("Remember This clears the moment", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    completions(14, 10);
+    render(<NotesProvider userId="b3"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Remember This")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Remember This"));
+    await waitFor(() => expect(screen.queryByText(/Your tasks get done between/)).not.toBeInTheDocument());
+  });
+});

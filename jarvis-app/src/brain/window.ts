@@ -1,0 +1,92 @@
+import { eventLog } from "../events";
+import { localDayParts } from "../events/serverSink";
+
+// The Brain's read of the durable event log (Layer 1 -> Layer 2 boundary).
+// LAW from the design doc: the log is NEVER bulk-loaded. Reads are windowed
+// queries, most recent first, bounded. The client's RLS select-own policy
+// (migration 0015) scopes every row to the caller.
+//
+// Fallback: with no server client (demo mode, offline first paint), the same
+// window is read from the LOCAL event log, so derivations degrade to
+// this-device evidence instead of silence. Local rows are a subset of server
+// truth, never a contradiction of it: both funnels write from the same bus.
+
+export interface WindowRow {
+  type: string;
+  day: string; // local YYYY-MM-DD
+  h: number;
+  category: string | null;
+  n: number | null;
+  flag: boolean | null;
+  kind: string | null;
+}
+
+export const WINDOW_DAYS = 30;
+const WINDOW_LIMIT = 2000;
+
+// The minimal query surface the read needs; the real SupabaseClient satisfies
+// it (same pattern as SinkClient), tests hand in a fake.
+export interface WindowClient {
+  from(table: string): {
+    select(cols: string): {
+      gte(col: string, val: string): {
+        in(col: string, vals: string[]): {
+          limit(n: number): PromiseLike<{ data: unknown; error: unknown | null }>;
+        };
+      };
+    };
+  };
+}
+
+const READ_TYPES = [
+  "task.completed", "task.pushed", "plan.picked", "plan.outcome",
+  "plan.duration_corrected", "plan.duration_committed",
+  "strand.created", "strand.corrected", "strand.deleted",
+];
+
+export function windowStartISO(nowMs: number, days = WINDOW_DAYS): string {
+  return localDayParts(nowMs - days * 86400000).day;
+}
+
+function rowOk(r: unknown): r is WindowRow {
+  const o = r as Partial<WindowRow> | null;
+  return !!o && typeof o.type === "string" && typeof o.day === "string" && typeof o.h === "number";
+}
+
+export async function readWindow(client: WindowClient | null, nowMs: number): Promise<WindowRow[]> {
+  if (client) {
+    try {
+      const { data, error } = await client
+        .from("event_log")
+        .select("type,day,h,category,n,flag,kind")
+        .gte("day", windowStartISO(nowMs))
+        .in("type", READ_TYPES)
+        .limit(WINDOW_LIMIT);
+      if (!error && Array.isArray(data)) return (data as unknown[]).filter(rowOk);
+    } catch { /* fall through to local */ }
+  }
+  return localWindow(nowMs);
+}
+
+// The same window from the local log: map JarvisEvents to WindowRows through
+// the exact prop typing the server sink uses, so the two paths cannot drift.
+export function localWindow(nowMs: number): WindowRow[] {
+  const cutoff = nowMs - WINDOW_DAYS * 86400000;
+  const types = new Set(READ_TYPES);
+  return eventLog
+    .all()
+    .filter((e) => e.ts >= cutoff && types.has(e.type))
+    .map((e) => {
+      const p = e.props ?? {};
+      const { day, h } = localDayParts(e.ts);
+      return {
+        type: e.type,
+        day,
+        h,
+        category: typeof p.category === "string" ? p.category : null,
+        n: typeof p.n === "number" ? p.n : null,
+        flag: typeof p.flag === "boolean" ? p.flag : null,
+        kind: typeof p.kind === "string" ? p.kind : null,
+      };
+    });
+}

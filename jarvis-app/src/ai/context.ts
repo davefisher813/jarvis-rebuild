@@ -37,6 +37,10 @@ export interface AIContextInput {
   // can reason about real cash flow instead of a word.
   bills?: { name: string; amount: number; due?: string | null; autopay?: boolean }[];
   cashFlow?: { paycheck: number; nextPayday: string; billsOut: number; setAside: number; left: number; short: boolean } | null;
+  // Brain Layer 2 (item 04): active strands, one line each, already capped at
+  // the genome cap. The bridge until relevance scoping ships: every feature
+  // that reads the assembled context gets what JARVIS knows, unscoped.
+  strands?: string[];
 }
 
 export interface AIContext {
@@ -60,6 +64,7 @@ export interface AIContext {
   // the assembler always fills them, empty string when there is nothing.
   billsLine?: string;
   cashLine?: string;
+  strands?: string[];
 }
 
 function minTo12h(min: number): string {
@@ -109,6 +114,7 @@ export function assembleContext(input: AIContextInput): AIContext {
     billsLine: (input.bills ?? [])
       .map((b) => `${b.name} $${b.amount}${b.due ? ` due ${isoToMonthDay(b.due)}` : ""}${b.autopay ? ", autopay" : ""}`)
       .join("; "),
+    strands: (input.strands ?? []).map((s) => s.trim()).filter(Boolean),
     cashLine: input.cashFlow
       ? `Next paycheck $${input.cashFlow.paycheck} on ${isoToMonthDay(input.cashFlow.nextPayday)}; bills before then $${input.cashFlow.billsOut}; set aside $${input.cashFlow.setAside}; left to spend $${input.cashFlow.left}${input.cashFlow.short ? " (bills exceed the paycheck)" : ""}`
       : "",
@@ -166,6 +172,7 @@ export function contextToText(ctx: AIContext): string {
   if (ctx.goals?.length) lines.push(`Goals: ${ctx.goals.join("; ")}`);
   if (ctx.projects?.length) lines.push(`Projects: ${ctx.projects.join(", ")}`);
   if (ctx.patternLine) lines.push(`Patterns: ${ctx.patternLine}`);
+  if (ctx.strands?.length) lines.push(`Known about the user (watched or confirmed by them): ${ctx.strands.join("; ")}`);
   if (ctx.habits) lines.push(`Known habits: ${ctx.habits}`);
   if (ctx.moneyLine) lines.push(`Money: ${ctx.moneyLine}`);
   if (ctx.billsLine) lines.push(`Bills: ${ctx.billsLine}`);
@@ -230,6 +237,7 @@ export function identityToText(ctx: AIContext): string {
   if (ctx.projects?.length) lines.push(`Projects: ${ctx.projects.join(", ")}`);
   if (ctx.routineLine) lines.push(`Routine: ${ctx.routineLine}`);
   if (ctx.patternLine) lines.push(`Patterns: ${ctx.patternLine}`);
+  if (ctx.strands?.length) lines.push(`Known about the user (watched or confirmed by them): ${ctx.strands.join("; ")}`);
   if (ctx.habits) lines.push(`Known habits: ${ctx.habits}`);
   if (ctx.billsLine) lines.push(`Bills: ${ctx.billsLine}`);
   if (ctx.cashLine) lines.push(`Cash flow: ${ctx.cashLine}`);

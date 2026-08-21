@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseAIPlan, aiPlanDay, planDayUserMessage } from "./planDayAI";
+import { parseAIPlan, aiPlanDay, planDayUserMessage, planDaySystem } from "./planDayAI";
 
 describe("parseAIPlan", () => {
   it("parses a clean JSON array, preserving order", () => {
@@ -35,7 +35,8 @@ describe("aiPlanDay", () => {
   it("returns parsed items on success", async () => {
     const ai = { complete: async () => '[{"id":"a","minutes":30}]' } as never;
     const r = await aiPlanDay(ai, [pick("a")], [], 540, 1260);
-    expect(r).toEqual([{ id: "a", minutes: 30 }]);
+    expect(r.items).toEqual([{ id: "a", minutes: 30 }]);
+    expect(r.leanedOn).toEqual([]);
   });
 
   it("propagates errors so the sheet can fall back to the simple plan", async () => {
@@ -64,5 +65,59 @@ describe("planDayUserMessage profile line (Brain Personalization Phase 1, 2026-0
   it("omits the profile line for blank/whitespace-only profile text", () => {
     const msg = planDayUserMessage([pick("a")], [], 540, 1260, { profile: "   " });
     expect(msg).not.toContain("About this person");
+  });
+});
+
+// Brain Layer 2 (item 04): honest attribution. The model may say WHICH learned
+// facts changed its plan, and a citation survives only if it names a fact that
+// was actually offered. An invented reason is decoration, and decoration is
+// exactly what the design doc banned.
+describe("attribution", () => {
+  const STRANDS = [
+    { id: "s1", text: "Gets things done mid morning" },
+    { id: "s2", text: "Money tasks tend to slip" },
+  ];
+
+  it("offers the strands with their ids, and asks for citations", () => {
+    const msg = planDayUserMessage([pick("a")], [], 540, 1260, { strands: STRANDS });
+    expect(msg).toContain("[s1] Gets things done mid morning");
+    expect(msg).toContain("[s2] Money tasks tend to slip");
+    expect(planDaySystem()).toContain("leaned_on");
+  });
+
+  it("says nothing about facts when there are none to offer", () => {
+    expect(planDayUserMessage([pick("a")], [], 540, 1260)).not.toContain("leaned_on");
+  });
+
+  it("returns the texts of the facts the model actually cited", async () => {
+    const ai = { complete: async () => '{"items":[{"id":"a","minutes":30}],"leaned_on":["s1"]}' } as never;
+    const r = await aiPlanDay(ai, [pick("a")], [], 540, 1260, { strands: STRANDS });
+    expect(r.items).toEqual([{ id: "a", minutes: 30 }]);
+    expect(r.leanedOn).toEqual(["Gets things done mid morning"]);
+  });
+
+  it("drops a citation for a fact that was never offered", async () => {
+    const ai = { complete: async () => '{"items":[{"id":"a","minutes":30}],"leaned_on":["s9","s1"]}' } as never;
+    const r = await aiPlanDay(ai, [pick("a")], [], 540, 1260, { strands: STRANDS });
+    expect(r.leanedOn).toEqual(["Gets things done mid morning"]);
+  });
+
+  it("accepts an empty citation list as a real answer", async () => {
+    const ai = { complete: async () => '{"items":[{"id":"a","minutes":30}],"leaned_on":[]}' } as never;
+    const r = await aiPlanDay(ai, [pick("a")], [], 540, 1260, { strands: STRANDS });
+    expect(r.leanedOn).toEqual([]);
+  });
+
+  it("still plans when the model answers in the old bare-array shape", async () => {
+    const ai = { complete: async () => '[{"id":"a","minutes":30}]' } as never;
+    const r = await aiPlanDay(ai, [pick("a")], [], 540, 1260, { strands: STRANDS });
+    expect(r.items).toEqual([{ id: "a", minutes: 30 }]);
+    expect(r.leanedOn).toEqual([]);
+  });
+
+  it("de-duplicates a fact cited twice", async () => {
+    const ai = { complete: async () => '{"items":[{"id":"a","minutes":30}],"leaned_on":["s1","s1"]}' } as never;
+    const r = await aiPlanDay(ai, [pick("a")], [], 540, 1260, { strands: STRANDS });
+    expect(r.leanedOn).toEqual(["Gets things done mid morning"]);
   });
 });

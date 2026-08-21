@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals } from "../data/NotesProvider";
+import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useOptionalStrands } from "../data/NotesProvider";
 import { pausedCategoryIds } from "../categories/kinds";
 import { goalTitleOf, workWindowOf } from "./planMeta";
 import type { Category } from "../categories/types";
@@ -68,6 +68,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // planner instead of it reasoning from work hours and energy alone.
   const gatherContext = useAIContext();
   const routine = useRoutine();
+  const strandsSvc = useOptionalStrands();
   const [routineData, setRoutineData] = useState<RoutineData>(DEFAULT_ROUTINE);
   const [routineSet, setRoutineSet] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -168,10 +169,17 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const onAIPlan = ai.available
     ? async (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => {
         const ctx = await gatherContext();
+        // Strands ride with their real ids so the model can HONESTLY say
+        // which fact changed the plan (item 04 attribution). Best-effort.
+        let strandList: { id: string; text: string }[] = [];
+        try {
+          strandList = strandsSvc ? (await strandsSvc.active()).map((x) => ({ id: x.id, text: x.data.text })) : [];
+        } catch { /* a plan without attribution beats no plan */ }
         return aiPlanDay(ai, picks, dayEvents, s, e, {
           work: { startMin: routineData.workStartMin, endMin: routineData.workEndMin },
           energy,
           profile: contextToText(ctx),
+          strands: strandList,
         });
       }
     : undefined;

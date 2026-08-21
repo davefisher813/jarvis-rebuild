@@ -225,10 +225,13 @@ describe("PlanDaySheet Estimate with AI (Brain Personalization Phase 1, 2026-08-
   });
 
   it("passes the current picks and window, then reorders picks and fills in durations from the result", async () => {
-    const onAIPlan = vi.fn().mockResolvedValue([
-      { id: "t5", minutes: 90 },
-      { id: "t3", minutes: 20 },
-    ]);
+    const onAIPlan = vi.fn().mockResolvedValue({
+      items: [
+        { id: "t5", minutes: 90 },
+        { id: "t3", minutes: 20 },
+      ],
+      leanedOn: [],
+    });
     render(
       <PlanDaySheet date="2026-08-20" dayLabel="Today" events={[]} tasks={NONE_SUGGESTED} startMin={START} endMin={END} onAIPlan={onAIPlan} onCommit={() => {}} onClose={() => {}} />,
     );

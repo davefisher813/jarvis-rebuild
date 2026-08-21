@@ -1,0 +1,128 @@
+import { describe, it, expect, beforeEach } from "vitest";
+import { Store, InMemoryAdapter } from "@core";
+import { StrandsService } from "./StrandsService";
+import { STRAND_CAP_PER_CATEGORY, EVIDENCE_CAP } from "./types";
+import type { EventInput } from "../../events";
+
+const TODAY = "2026-08-21";
+const OWNER = "u1";
+
+function make(): { svc: StrandsService; events: EventInput[] } {
+  const events: EventInput[] = [];
+  const svc = new StrandsService(new Store(new InMemoryAdapter()), OWNER, (e) => events.push(e));
+  return { svc, events };
+}
+
+describe("StrandsService", () => {
+  let ctx: ReturnType<typeof make>;
+  beforeEach(() => { ctx = make(); });
+
+  it("an accepted moment becomes a watched strand carrying its receipts", async () => {
+    const id = await ctx.svc.accept("Gets things done mid morning", "energy", "completion_window", [{ day: TODAY, a: 9 }], TODAY);
+    expect(id).toBeTruthy();
+    const [s] = await ctx.svc.list();
+    expect(s!.data.source).toBe("watched");
+    expect(s!.data.strength).toBe("influence");
+    expect(s!.data.evidence).toHaveLength(1);
+  });
+
+  it("a typed strand is told-rank, because the user meant it", async () => {
+    await ctx.svc.add("Never schedule calls before 10", "work_style", TODAY);
+    const [s] = await ctx.svc.list();
+    expect(s!.data.source).toBe("told");
+    expect(s!.data.derivation).toBeUndefined();
+  });
+
+  it("never promotes an influence to a rule on its own", async () => {
+    await ctx.svc.accept("x", "energy", "completion_window", [], TODAY);
+    const [s] = await ctx.svc.list();
+    expect(s!.data.strength).toBe("influence");
+  });
+
+  it("refuses a second strand for the same derivation, so a fact never twins", async () => {
+    await ctx.svc.accept("first", "energy", "completion_window", [], TODAY);
+    expect(await ctx.svc.accept("again", "energy", "completion_window", [], TODAY)).toBeNull();
+    expect(await ctx.svc.list()).toHaveLength(1);
+  });
+
+  it("caps a category rather than growing into fifty maybes", async () => {
+    for (let i = 0; i < STRAND_CAP_PER_CATEGORY; i++) {
+      expect(await ctx.svc.add("fact " + i, "values", TODAY)).toBeTruthy();
+    }
+    expect(await ctx.svc.add("one too many", "values", TODAY)).toBeNull();
+  });
+
+  it("caps receipts so a strand cannot become a log", async () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({ day: TODAY, a: i }));
+    await ctx.svc.accept("x", "energy", "completion_window", many, TODAY);
+    const [s] = await ctx.svc.list();
+    expect(s!.data.evidence).toHaveLength(EVIDENCE_CAP);
+  });
+
+  it("refuses an empty typed strand", async () => {
+    expect(await ctx.svc.add("   ", "values", TODAY)).toBeNull();
+  });
+
+  it("active() hides paused strands, which is what the AI reads", async () => {
+    await ctx.svc.add("live one", "values", TODAY);
+    await ctx.svc.add("quiet one", "values", TODAY);
+    const all = await ctx.svc.list();
+    await ctx.svc.setStatus(all[0]!, "paused");
+    const active = await ctx.svc.active();
+    expect(active).toHaveLength(1);
+    expect(active[0]!.id).toBe(all[1]!.id);
+  });
+});
+
+describe("the accuracy record (what makes the nod test operational)", () => {
+  let ctx: ReturnType<typeof make>;
+  beforeEach(() => { ctx = make(); });
+
+  it("accepting a moment records the derivation that said it", async () => {
+    await ctx.svc.accept("x", "energy", "completion_window", [], TODAY);
+    expect(ctx.events).toEqual([
+      expect.objectContaining({ type: "strand.created", props: expect.objectContaining({ kind: "completion_window" }) }),
+    ]);
+  });
+
+  it("editing a watched strand counts against its derivation AND earns told rank", async () => {
+    await ctx.svc.accept("half right", "energy", "completion_window", [], TODAY);
+    const [s] = await ctx.svc.list();
+    await ctx.svc.edit(s!, "the way I would say it", TODAY);
+    expect(ctx.events.map((e) => e.type)).toEqual(["strand.created", "strand.corrected"]);
+    const [after] = await ctx.svc.list();
+    expect(after!.data.text).toBe("the way I would say it");
+    expect(after!.data.source).toBe("told");
+  });
+
+  it("a no-op edit is not a correction", async () => {
+    await ctx.svc.accept("same words", "energy", "completion_window", [], TODAY);
+    const [s] = await ctx.svc.list();
+    await ctx.svc.edit(s!, "same words", TODAY);
+    expect(ctx.events.map((e) => e.type)).toEqual(["strand.created"]);
+  });
+
+  it("deleting a watched strand counts against its derivation", async () => {
+    await ctx.svc.accept("wrong", "energy", "completion_window", [], TODAY);
+    const [s] = await ctx.svc.list();
+    await ctx.svc.remove(s!);
+    expect(ctx.events.map((e) => e.type)).toEqual(["strand.created", "strand.deleted"]);
+    expect(await ctx.svc.list()).toHaveLength(0);
+  });
+
+  it("editing a strand the user typed themselves is not a correction of anything", async () => {
+    await ctx.svc.add("my own words", "values", TODAY);
+    const [s] = await ctx.svc.list();
+    await ctx.svc.edit(s!, "my better words", TODAY);
+    expect(ctx.events.map((e) => e.type)).toEqual(["strand.created"]);
+  });
+
+  it("no strand event ever carries the strand's text", async () => {
+    await ctx.svc.accept("a sentence about the user", "energy", "completion_window", [], TODAY);
+    const [s] = await ctx.svc.list();
+    await ctx.svc.edit(s!, "another sentence about the user", TODAY);
+    await ctx.svc.remove(s!);
+    const dumped = JSON.stringify(ctx.events);
+    expect(dumped).not.toContain("sentence about the user");
+  });
+});

@@ -2,7 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import type { AIService } from "../ai/AIService";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import { suggestionsSystemPrompt, parseSuggestions, type Suggestion } from "../ai/suggestions";
-import { useTasks, useProfile, useBrainDocs, useSchedule, useRoutine } from "../data/NotesProvider";
+import { useTasks, useProfile, useBrainDocs, useSchedule, useRoutine, useOptionalStrands } from "../data/NotesProvider";
+import { readWindow, type WindowClient } from "../brain/window";
+import { brainMoments } from "../brain/moments";
+import type { Derived } from "../brain/derive";
+import { supabase } from "../auth/supabaseClient";
 import { haptics } from "../shared/haptics";
 import { showToast } from "../shared/toast";
 import { patternObservation, isPatternDismissed, dismissPattern, appendHabit, type PatternObservation } from "./patterns";
@@ -44,7 +48,8 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
   // write the habits doc (the original pipeline); routine rows (2026-08-09)
   // append a learned block to the routine itself. Same dismiss memory, same
   // one-row rule, different landing place for the tap.
-  const [pattern, setPattern] = useState<(PatternObservation & { routineBlock?: ProtectedBlock }) | null>(null);
+  const [pattern, setPattern] = useState<(PatternObservation & { routineBlock?: ProtectedBlock; moment?: Derived; sub?: string }) | null>(null);
+  const strandsSvc = useOptionalStrands();
   // Texts of the tasks already visible in Up Next: a suggestion that echoes
   // one of them is repetition, not value (Dave 2026-07-30), and is hidden.
   const [visibleTaskTexts, setVisibleTaskTexts] = useState<Set<string> | null>(null);
@@ -74,15 +79,30 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
       // planning-duration tip. One row, first non-dismissed candidate wins;
       // the dismiss-memory works on any observation id, unmodified.
       const routineC = routineBlockCandidate(events, routine, Date.now());
-      const candidates: (PatternObservation & { routineBlock?: ProtectedBlock })[] = [
+      // Being-known moments (Brain Layer 2): derivations on the durable
+      // event log, offered last. Mood outranks everything (wellbeing beats a
+      // tip), then learned structure, then planning, then these. Best-effort:
+      // a failed window read means no moment, never a broken Today.
+      let moments: Derived[] = [];
+      try {
+        if (strandsSvc) {
+          const [rows, strands] = await Promise.all([
+            readWindow(supabase as unknown as WindowClient | null, Date.now()),
+            strandsSvc.list(),
+          ]);
+          moments = brainMoments(rows, strands);
+        }
+      } catch { /* silence beats a guess, and definitely beats a crash */ }
+      const candidates: (PatternObservation & { routineBlock?: ProtectedBlock; moment?: Derived; sub?: string })[] = [
         ...(patternObservation(prof?.checkin, today) ? [patternObservation(prof?.checkin, today)!] : []),
         ...(routineC ? [{ id: routineC.id, text: routineC.text, routineBlock: routineC.block }] : []),
         ...(planningPatternObservation(readDurationCorrections(), Date.now()) ? [planningPatternObservation(readDurationCorrections(), Date.now())!] : []),
+        ...moments.map((m) => ({ id: "brain-" + m.derivation, text: m.title, sub: m.sub, moment: m })),
       ];
       setPattern(candidates.find((c) => !isPatternDismissed(c.id, today)) ?? null);
     })();
     return () => { on = false; };
-  }, [profileSvc, scheduleSvc, routineSvc, today]);
+  }, [profileSvc, scheduleSvc, routineSvc, strandsSvc, today]);
 
   useEffect(() => {
     if (!ai.available) return;
@@ -158,11 +178,40 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
       await routineSvc.save({ protectedBlocks: [...(r.protectedBlocks ?? []), pattern.routineBlock] });
       emit({ type: "suggestion.accepted", props: { kind: "routine" } });
       showToast({ message: "Added to your routine" });
+    } else if (pattern.moment && strandsSvc) {
+      // A being-known moment becomes a strand with its receipts. The commit
+      // lands with weight: this is the hit the Brain exists for.
+      const m = pattern.moment;
+      const id = await strandsSvc.accept(m.strandText, m.category, m.derivation, m.evidence, today);
+      haptics.success();
+      showToast({ message: id ? "JARVIS will remember that" : "The Brain is full · Prune it in What JARVIS Knows" });
     } else {
-      const cur = await docs.get("habits");
-      await docs.save("habits", appendHabit(cur, pattern.text, today));
-      emit({ type: "suggestion.accepted", props: { kind: "pattern" } });
-      showToast({ message: "Saved to your Brain" });
+      // Planning observations (per-task timing, the fourth launch
+      // derivation) land as strands too, receipts included, so every fact
+      // lives in one visible, deletable place. The habits doc remains the
+      // fallback when the strand store is absent or refuses (cap reached).
+      const timing = pattern.id.match(/^plan-dur-(?:long|short)-(.+)$/);
+      let landed = false;
+      if (timing && strandsSvc) {
+        const cat = timing[1]!;
+        const evidence = readDurationCorrections()
+          .filter((c) => c.category === cat)
+          .sort((a, b) => b.ts - a.ts)
+          .slice(0, 6)
+          .map((c) => ({ day: new Date(c.ts).toISOString().slice(0, 10), a: c.deltaMin }));
+        const id = await strandsSvc.accept(pattern.text, "routine", "task_timing", evidence, today);
+        if (id) {
+          landed = true;
+          haptics.success();
+          showToast({ message: "JARVIS will remember that" });
+        }
+      }
+      if (!landed) {
+        const cur = await docs.get("habits");
+        await docs.save("habits", appendHabit(cur, pattern.text, today));
+        emit({ type: "suggestion.accepted", props: { kind: "pattern" } });
+        showToast({ message: "Saved to your Brain" });
+      }
     }
     dismissPattern(pattern.id, today);
     setPattern(null);
@@ -177,6 +226,7 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
         icon={<Lightbulb className="ic" />}
         tone="cat-fg-yellow"
         title={pattern.text}
+        sub={pattern.sub}
         action={{ label: pattern.routineBlock ? "Add to Routine" : "Remember This", onClick: () => void acceptPattern() }}
         onDismiss={dismissThis}
       />

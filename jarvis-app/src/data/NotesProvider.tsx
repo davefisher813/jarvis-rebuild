@@ -16,6 +16,7 @@ import { GymService } from "../gym/GymService";
 import { LearnedRulesService } from "../rules/LearnedRulesService";
 import { ChatService } from "../chat/ChatService";
 import { DecisionService } from "../decisions/DecisionService";
+import { StrandsService } from "../brain/strands/StrandsService";
 import { makeStore } from "./store";
 import { emit } from "../events";
 
@@ -39,6 +40,7 @@ const BackupContext = createContext<BackupService | null>(null);
 const RoutineContext = createContext<RoutineService | null>(null);
 const ChatContext = createContext<ChatService | null>(null);
 const DecisionContext = createContext<DecisionService | null>(null);
+const StrandsContext = createContext<StrandsService | null>(null);
 // The Supabase access token, for callers that hit privileged endpoints (e.g.
 // the admin check). Undefined when signed out or in the local harness.
 const TokenContext = createContext<string | undefined>(undefined);
@@ -52,7 +54,7 @@ export function NotesProvider({
   accessToken?: string;
   children: ReactNode;
 }) {
-  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, rules, chat, decisions } = useMemo(() => {
+  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, rules, chat, decisions, strands } = useMemo(() => {
     const store = makeStore(accessToken);
     return {
       rules: new LearnedRulesService(store, userId),
@@ -72,6 +74,7 @@ export function NotesProvider({
       gym: new GymService(store, userId, (e) => emit(e)),
       chat: new ChatService(store, userId),
       decisions: new DecisionService(store, userId, (e) => emit(e)),
+      strands: new StrandsService(store, userId, (e) => emit(e)),
     };
   }, [userId, accessToken]);
   return (
@@ -92,7 +95,9 @@ export function NotesProvider({
                       <GymContext.Provider value={gym}>
                       <RulesContext.Provider value={rules}>
                       <ChatContext.Provider value={chat}>
-                      <DecisionContext.Provider value={decisions}>{children}</DecisionContext.Provider>
+                      <DecisionContext.Provider value={decisions}>
+                      <StrandsContext.Provider value={strands}>{children}</StrandsContext.Provider>
+                      </DecisionContext.Provider>
                       </ChatContext.Provider>
                       </RulesContext.Provider>
                       </GymContext.Provider>
@@ -258,6 +263,18 @@ export function useDecisions(): DecisionService {
 // useOptionalTasks).
 export function useOptionalDecisions(): DecisionService | null {
   return useContext(DecisionContext) ?? null;
+}
+
+export function useStrands(): StrandsService {
+  const s = useContext(StrandsContext);
+  if (!s) throw new Error("useStrands must be used inside NotesProvider");
+  return s;
+}
+
+// Strands are an enhancement everywhere they appear (context lines, plan
+// attribution); outside NotesProvider they simply do not exist.
+export function useOptionalStrands(): StrandsService | null {
+  return useContext(StrandsContext) ?? null;
 }
 
 export function useAccessToken(): string | undefined {

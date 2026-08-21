@@ -111,7 +111,7 @@ export default function PlanDaySheet({
   onProtect?: (label: string, startMin: number, endMin: number) => Promise<boolean>;
   onCommit: (blocks: PlanBlock[]) => void;
   onClose: () => void;
-  onAIPlan?: (picks: { id: string; text: string; category: string; overdue: boolean }[], startMin: number, endMin: number) => Promise<{ id: string; minutes: number }[]>;
+  onAIPlan?: (picks: { id: string; text: string; category: string; overdue: boolean }[], startMin: number, endMin: number) => Promise<{ items: { id: string; minutes: number }[]; leanedOn: string[] }>;
 }) {
   const [extra, setExtra] = useState<PlanCandidate[]>([]);
   const allTasks = useMemo(() => [...extra, ...tasks], [extra, tasks]);
@@ -168,6 +168,7 @@ export default function PlanDaySheet({
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState(false);
   const [aiEstimates, setAiEstimates] = useState<Record<string, number>>({});
+  const [leanedOn, setLeanedOn] = useState<string[]>([]);
 
   // The AI pass: reorder the given picks and size each one. Shared by the
   // explicit "Estimate with AI" action and by Plan It For Me, which runs the
@@ -181,19 +182,23 @@ export default function PlanDaySheet({
         .filter((t) => ids.includes(t.id))
         .map((t) => ({ id: t.id, text: t.text, category: t.category, overdue: t.overdue }));
       const result = await onAIPlan(picked, startMin, effEnd);
-      const order = result.map((r) => r.id).filter((id) => ids.includes(id));
+      const order = result.items.map((r) => r.id).filter((id) => ids.includes(id));
       const leftover = ids.filter((id) => !order.includes(id));
       setPicks([...order, ...leftover]);
       setDurations((prev) => {
         const next = { ...prev };
-        result.forEach((r) => { next[r.id] = r.minutes; });
+        result.items.forEach((r) => { next[r.id] = r.minutes; });
         return next;
       });
       setAiEstimates((prev) => {
         const next = { ...prev };
-        result.forEach((r) => { next[r.id] = r.minutes; });
+        result.items.forEach((r) => { next[r.id] = r.minutes; });
         return next;
       });
+      // Honest attribution (item 04): only strands the model actually cited,
+      // already verified against the offered ids. The being-known hit, in the
+      // exact place the knowing changed something.
+      setLeanedOn(result.leanedOn);
     } catch {
       setAiError(true);
     } finally {
@@ -554,6 +559,9 @@ export default function PlanDaySheet({
               </button>
               {aiError && <span>Couldn&rsquo;t reach the AI · lengths unchanged</span>}
             </div>
+          )}
+          {leanedOn.length > 0 && !aiBusy && (
+            <div className="input-note"><span>Leaning on: {leanedOn[0]}</span></div>
           )}
 
           {allTasks.length === 0 ? (
