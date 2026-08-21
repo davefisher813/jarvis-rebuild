@@ -33,7 +33,7 @@ describe("no text walls", () => {
   });
 
   it("leaves a short human email completely alone", () => {
-    const human = "Hey, can you send the roster by Friday?\n\nThanks,\nTucci";
+    const human = "Hey, can you send the roster by Friday?\n\nThanks,\nRidgeley";
     expect(cleanBody(human)).toBe(human);
     expect(isLong(human)).toBe(false);
   });

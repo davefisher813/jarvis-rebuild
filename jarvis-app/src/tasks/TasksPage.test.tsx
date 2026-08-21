@@ -8,7 +8,7 @@ import type { TaskFilter } from "./filters";
 import { setCategoryRegistry } from "../shared/categories";
 
 setCategoryRegistry([
-  { id: "tucci", name: "Tucci", color: "sky" },
+  { id: "orgB", name: "Ridgeley", color: "sky" },
   { id: "elite", name: "Elite", color: "red" },
   { id: "family", name: "Family", color: "pink" },
   { id: "money", name: "Money", color: "yellow" },
@@ -18,7 +18,7 @@ setCategoryRegistry([
 ]);
 
 
-const tk = (id: string, due: string | null, cat = "tucci"): TaskItem => ({ id, data: { text: id, category: cat, done: false, due } });
+const tk = (id: string, due: string | null, cat = "orgB"): TaskItem => ({ id, data: { text: id, category: cat, done: false, due } });
 const counts: Record<TaskFilter, number> = { all: 6, daily: 0, today: 2, overdue: 1, upcoming: 3, done: 1 };
 
 describe("TasksPage", () => {
@@ -61,7 +61,7 @@ describe("TasksPage", () => {
 
   it("un-completing fires immediately with no ceremony", () => {
     const onToggle = vi.fn();
-    const doneTask: TaskItem = { id: "d", data: { text: "d", category: "tucci", done: true, due: "2026-05-20" } };
+    const doneTask: TaskItem = { id: "d", data: { text: "d", category: "orgB", done: true, due: "2026-05-20" } };
     const { container } = render(<TasksPage filter="done" counts={counts} items={[doneTask]} today="2026-05-20" onToggle={onToggle} />);
     fireEvent.click(container.querySelector(".task-check") as HTMLElement);
     expect(onToggle).toHaveBeenCalledWith("d");

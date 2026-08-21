@@ -14,14 +14,14 @@ interface DemoRow { from: string; sub: string; when: string; unread?: boolean; d
 interface DemoWait { to: string; sub: string }
 
 const NEEDS: DemoRow[] = [
-  { from: "Supabase", sub: "Security advisories flagged in two projects", when: "2:55 PM", unread: true, due: "Today" },
-  { from: "Wei Zhang", sub: "Invoice attached · Net 15 starts Monday", when: "11:20 AM", unread: true },
-  { from: "Apple Developer", sub: "Action needed: complete your enrollment", when: "9:04 AM" },
+  { from: "Northwind Cloud", sub: "Security advisories flagged in two projects", when: "2:55 PM", unread: true, due: "Today" },
+  { from: "Nadia Brandt", sub: "Invoice attached · Net 15 starts Monday", when: "11:20 AM", unread: true },
+  { from: "App Store Team", sub: "Action needed: complete your enrollment", when: "9:04 AM" },
 ];
 const WAITING: DemoWait[] = [
-  { to: "nikestrength", sub: "Missing Items From Order #D2565 · 55 days · No reply" },
-  { to: "Joseph T. Pareres", sub: "Fisher v JAT · 55 days · No reply" },
-  { to: "wei@bffsa.org", sub: "Invoice · 50 days · No reply" },
+  { to: "summitgear", sub: "Missing Items From Order #D2565 · 55 days · No reply" },
+  { to: "Marcus Delaney", sub: "Harper v Northline · 55 days · No reply" },
+  { to: "nadia@northlake.org", sub: "Invoice · 50 days · No reply" },
   { to: "Elieserhenry0", sub: "Reservation Receipt · 46 days · No reply" },
 ];
 

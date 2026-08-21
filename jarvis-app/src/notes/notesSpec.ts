@@ -212,7 +212,7 @@ export const STEPS: Step[] = [
   {
     kind: "edge", covers: ["R17"], label: "Offline edit then reconnect",
     async run(s) {
-      const t = (await s.createNote("Sync Test", "tucci"))!;
+      const t = (await s.createNote("Sync Test", "orgB"))!;
       s.goOffline();
       await s.editTitle(t, "Sync Test Edited");
       const held = (await s.note(t))?.title === "Sync Test" && s.queueLen() === 1;

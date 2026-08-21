@@ -7,7 +7,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import NoteEditor from "./NoteEditor";
 
-const note = { category: "family", eyebrow: "Family", title: "Rob Bridge", blocks: [] };
+const note = { category: "family", eyebrow: "Family", title: "Rob Calder", blocks: [] };
 
 describe("Writing toolbar", () => {
   it("offers the four typed blocks plus More, each wired to its type", () => {

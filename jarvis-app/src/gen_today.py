@@ -27,7 +27,7 @@ PLAY='<svg class="icon-play" viewBox="0 0 24 24"><polygon points="7,5 19,12 7,19
 NOWLINE='<div class="now-line"><span class="now-label">Now 1:13</span><span class="now-rule"></span></div>'
 TOGGLE_JS="(function(b){var t=b.closest('.yourday').querySelector('.sched-ticker');t.classList.toggle('paused');b.classList.toggle('paused');})(this)"
 def dayset():
-    return (srow("11:00","AM","Morning Standup","bffsa","BFFSA Board",True)+srow("12:30","PM","Lunch With Jose","family","Cafe Rio",True)+NOWLINE+srow("2:00","PM","Goldman Partner Call","tucci","9th Ave Office")+srow("4:30","PM","Tucci Weekly Sync","tucci","Zoom")+srow("6:00","PM","Long Run, 8 Miles","health","Riverside Park"))
+    return (srow("11:00","AM","Morning Standup","orgA","Org A Board",True)+srow("12:30","PM","Lunch With Jose","family","Cafe Rio",True)+NOWLINE+srow("2:00","PM","Goldman Partner Call","orgB","9th Ave Office")+srow("4:30","PM","Ridgeley Weekly Sync","orgB","Zoom")+srow("6:00","PM","Long Run, 8 Miles","health","Riverside Park"))
 def yourday():
     head=('<div class="sec-head"><div class="sec-left"><div class="sec-ico ico-blue">'+I_CAL+'</div><div class="sec-title">Your Day</div>'
       f'<button class="ticker-toggle" onclick="{TOGGLE_JS}">{PAUSE}{PLAY}</button></div><button class="see-all">Schedule</button></div>')
@@ -39,17 +39,17 @@ def prow(letter,cat,tag,title): return f'<div class="proj-row"><div class="proj-
 def lmrow(cat,name,status,scls,pct): return f'<div class="lifemap-row"><div class="lifemap-head"><span class="cat-dot cat-bg-{cat}"></span><div class="lifemap-name">{name}</div><div class="lifemap-status {scls}">{status}</div></div><div class="lifemap-bar"><div class="lifemap-fill cat-bg-{cat}" style="width:{pct}%"></div></div></div>'
 def mrow(letter,cat,name,time,prev): return f'<div class="msg-row"><div class="av av-40 cat-bg-{cat}">{letter}</div><div class="msg-body"><div class="msg-head"><div class="msg-name">{name}</div><div class="msg-time">{time}</div></div><div class="msg-preview">{prev}</div></div></div>'
 def brow(title,meta): return f'<div class="row"><span class="cat-dot cat-bg-brain"></span><div class="row-stack"><div class="conn-name truncate">{title}</div><div class="conn-meta">{meta}</div></div></div>'
-header=('<div class="today-bar"><div class="av av-32 cat-bg-tucci">DF</div></div>'
+header=('<div class="today-bar"><div class="av av-32 cat-bg-orgB">DF</div></div>'
  '<div class="today-hero"><div class="eyebrow">Wednesday, May 20</div>'
  '<div class="today-title">Good Morning, Dave</div>'
  '<div class="today-summary">3 events &middot; 2 tasks due &middot; <span class="fg-red">1 overdue</span></div></div>')
-s1=sechead(I_SUG,"ico-accent","JARVIS Suggests","See All",False)+card(sugrow("tucci","Confirm Goldman Agenda","Urgent","red")+sugrow("money","Review Q3 Budget","Soon","warn")+sugrow("friends","Reply To Henry About Coffee","Low","muted"))
+s1=sechead(I_SUG,"ico-accent","JARVIS Suggests","See All",False)+card(sugrow("orgB","Confirm Goldman Agenda","Urgent","red")+sugrow("money","Review Q3 Budget","Soon","warn")+sugrow("friends","Reply To Henry About Coffee","Low","muted"))
 s2=yourday()
-s3=sechead(I_CHK,"ico-good","Today\u2019s Tasks","See All",True)+card(trow("tucci","Send Intro To Mike Chen","Overdue","red")+trow("money","Approve Vendor Invoice","EOD","muted")+trow_done("Sign Client Agreement"))
+s3=sechead(I_CHK,"ico-good","Today\u2019s Tasks","See All",True)+card(trow("orgB","Send Intro To Mike Chen","Overdue","red")+trow("money","Approve Vendor Invoice","EOD","muted")+trow_done("Sign Client Agreement"))
 s4=sechead(I_SUN,"ico-blue","Tomorrow","Thu, May 21",True)+card(srow("9:00","AM","Dentist","health","Dr. Patel")+srow("3:00","PM","Call With Henry","friends","Phone"))
-s5=sechead(I_PROJ,"cat-bg-elite","Active Projects","See All",False)+card(prow("T","tucci","Tucci","Q3 Financial Review")+prow("B","bffsa","BFFSA Board","Annual Gala Planning")+prow("E","elite","Elite","Partner Onboarding"))
+s5=sechead(I_PROJ,"cat-bg-elite","Active Projects","See All",False)+card(prow("T","orgB","Ridgeley","Q3 Financial Review")+prow("B","orgA","Org A Board","Annual Gala Planning")+prow("E","elite","Elite","Partner Onboarding"))
 s6=sechead(I_HEART,"cat-bg-family","Life Map","See All",False)+card(lmrow("family","Family","Drifting","drifting",45)+lmrow("friends","Friends","Slipping","slipping",28)+lmrow("health","Health","On Track","active",78))
-s7=sechead(I_MSG,"cat-bg-tucci","Recent Messages","See All",False)+card(mrow("W","tucci","Wei Chang","11:48 AM","Can we move the partner call to Thursday?")+mrow("H","friends","Henry Tolentino","11:55 AM","Coffee next week? I\u2019m around Tuesday.")+mrow("M","family","Mom","1:12 PM","Don\u2019t forget lunch on Saturday!"))
+s7=sechead(I_MSG,"cat-bg-orgB","Recent Messages","See All",False)+card(mrow("W","orgB","Wei Chang","11:48 AM","Can we move the partner call to Thursday?")+mrow("H","friends","Henry Tolentino","11:55 AM","Coffee next week? I\u2019m around Tuesday.")+mrow("M","family","Mom","1:12 PM","Don\u2019t forget lunch on Saturday!"))
 s8=sechead(I_BRAIN,"cat-bg-brain","From Your Brain","View",False)+card(brow("Goldman Pitch Deck Notes","Saved 2 days ago")+brow("Q3 Budget Assumptions","Saved last week"))
 content=header+s1+s2+s3+s4+s5+s6+s7+s8
 tabs=''.join(f'<div class="tab{" active" if k=="Today" else ""}">{i}{k}</div>' for k,i in [("Today",T_HOME),("Tasks",T_TASKS),("Schedule",I_CAL),("Brain",I_BRAIN),("More",T_MORE)])

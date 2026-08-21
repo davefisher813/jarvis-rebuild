@@ -26,8 +26,8 @@ const msg = (id: string, from: string, subject: string, snippet: string, labels:
 
 const THREADS: GmailThreadMeta[] = [
   { id: "t1", messages: [
-    msg("m1", "Tucci <t@x.com>", "Waiver", "Need the waiver by Friday", ["INBOX"], 100),
-    msg("m2", "Tucci <t@x.com>", "Re: Waiver", "Haven't seen it yet", ["INBOX", "UNREAD"], 300),
+    msg("m1", "Ridgeley <t@x.com>", "Waiver", "Need the waiver by Friday", ["INBOX"], 100),
+    msg("m2", "Ridgeley <t@x.com>", "Re: Waiver", "Haven't seen it yet", ["INBOX", "UNREAD"], 300),
   ] },
   { id: "t2", messages: [msg("m3", "DoorDash <no@dd.com>", "20% off", "Order now", ["INBOX"], 200)] },
 ];
@@ -36,9 +36,9 @@ const fullThread = {
   id: "t1",
   messages: [
     { id: "m1", threadId: "t1", snippet: "", payload: { mimeType: "text/plain", body: { data: btoa("Need the waiver by Friday") },
-      headers: [{ name: "From", value: "Tucci <t@x.com>" }, { name: "Subject", value: "Waiver" }, { name: "Date", value: "Mon" }, { name: "Message-ID", value: "<a@x>" }] } },
+      headers: [{ name: "From", value: "Ridgeley <t@x.com>" }, { name: "Subject", value: "Waiver" }, { name: "Date", value: "Mon" }, { name: "Message-ID", value: "<a@x>" }] } },
     { id: "m2", threadId: "t1", snippet: "", payload: { mimeType: "text/plain", body: { data: btoa("Haven't seen it yet") },
-      headers: [{ name: "From", value: "Tucci <t@x.com>" }, { name: "Subject", value: "Re: Waiver" }, { name: "Date", value: "Thu" }, { name: "Message-ID", value: "<b@x>" }] } },
+      headers: [{ name: "From", value: "Ridgeley <t@x.com>" }, { name: "Subject", value: "Re: Waiver" }, { name: "Date", value: "Thu" }, { name: "Message-ID", value: "<b@x>" }] } },
   ],
 };
 
@@ -64,7 +64,7 @@ describe("MessagesFlow (threads)", () => {
   it("connects and lists threads: latest sender's voice, first message's subject, count", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    expect(await screen.findByText("Tucci")).toBeInTheDocument();
+    expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
     expect(screen.getByText(/Waiver · 2/)).toBeInTheDocument(); // subject without Re:, with count
     expect(screen.getByText("DoorDash")).toBeInTheDocument();
   });
@@ -72,16 +72,16 @@ describe("MessagesFlow (threads)", () => {
   it("without AI there is no fake triage: no headline, no buckets, threads newest-first", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("Tucci");
+    await screen.findByText("Ridgeley");
     expect(screen.queryByText(/needs? you/i)).toBeNull();
     expect(screen.queryByText("Noise")).toBeNull();
-    const names = screen.getAllByText(/^(Tucci|DoorDash)$/).map((n) => n.textContent);
-    expect(names).toEqual(["Tucci", "DoorDash"]); // t1 latest msg 300 > t2 200
+    const names = screen.getAllByText(/^(Ridgeley|DoorDash)$/).map((n) => n.textContent);
+    expect(names).toEqual(["Ridgeley", "DoorDash"]); // t1 latest msg 300 > t2 200
   });
 
   it("with AI, one triage pass buckets the inbox with gists and the honest headline", async () => {
     const ai = aiReturning(JSON.stringify([
-      { id: "t1", bucket: "needs_you", gist: "Tucci needs the waiver by Friday." },
+      { id: "t1", bucket: "needs_you", gist: "Ridgeley needs the waiver by Friday." },
       { id: "t2", bucket: "noise", gist: "DoorDash promo." },
     ]));
     render(wrap(<MessagesFlow ai={ai} configured />));
@@ -90,7 +90,7 @@ describe("MessagesFlow (threads)", () => {
     // SPEC MOVED (V4 page order, 2026-08-18): the floating headline sentence
     // is retired; the Needs-You promo card carries the count instead.
     expect(screen.getByText("1 Thread Needs You")).toBeInTheDocument();
-    expect(screen.getByText(/Tucci needs the waiver by Friday/)).toBeInTheDocument();
+    expect(screen.getByText(/Ridgeley needs the waiver by Friday/)).toBeInTheDocument();
     // THE FOLD: everything that does not need him is one line, not a section.
     // SPEC MOVED (V2 anatomy, 2026-08-15): the count is a pill beside the line.
     expect(screen.getByText("The Rest")).toBeInTheDocument();
@@ -119,7 +119,7 @@ describe("MessagesFlow (threads)", () => {
     await waitFor(() => expect(archived).toEqual(["t2"]));
     expect(screen.getByText("1 Conversation archived")).toBeInTheDocument();
     expect(screen.queryByText("Noise")).toBeNull();
-    expect(screen.getByText(/Tucci/)).toBeInTheDocument(); // needs_you untouched
+    expect(screen.getByText(/Ridgeley/)).toBeInTheDocument(); // needs_you untouched
   });
 
   it("opens a thread: every message shown, thread marked read", async () => {
@@ -127,7 +127,7 @@ describe("MessagesFlow (threads)", () => {
     const api = makeApi({ modifyThread: async (id, _a, remove) => { if (remove.includes("UNREAD")) readCleared = id; } });
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
-    fireEvent.click(await screen.findByText("Tucci"));
+    fireEvent.click(await screen.findByText("Ridgeley"));
     expect(await screen.findByText("Need the waiver by Friday")).toBeInTheDocument();
     expect(screen.getByText("Haven't seen it yet")).toBeInTheDocument();
     expect(screen.getByText("2 messages")).toBeInTheDocument();
@@ -137,7 +137,7 @@ describe("MessagesFlow (threads)", () => {
   it("reply targets the LAST message in the thread", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    fireEvent.click(await screen.findByText("Tucci"));
+    fireEvent.click(await screen.findByText("Ridgeley"));
     fireEvent.click(await screen.findByText("Reply"));
     expect(((await screen.findByPlaceholderText("To")) as HTMLInputElement).value).toBe("t@x.com");
     expect((screen.getByPlaceholderText("Subject") as HTMLInputElement).value).toBe("Re: Waiver"); // already Re:, not stacked
@@ -153,14 +153,14 @@ describe("MessagesFlow (threads)", () => {
     });
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("Tucci");
+    await screen.findByText("Ridgeley");
     fireEvent.change(screen.getByPlaceholderText("Search All Mail"), { target: { value: "llc" } });
     fireEvent.keyDown(screen.getByPlaceholderText("Search All Mail"), { key: "Enter" });
     expect(await screen.findByText("Sarah")).toBeInTheDocument();
     expect(q).toBe("llc");
-    expect(screen.queryByText("Tucci")).toBeNull(); // results replace the list
+    expect(screen.queryByText("Ridgeley")).toBeNull(); // results replace the list
     fireEvent.change(screen.getByPlaceholderText("Search All Mail"), { target: { value: "" } });
-    expect(await screen.findByText("Tucci")).toBeInTheDocument(); // clearing restores
+    expect(await screen.findByText("Ridgeley")).toBeInTheDocument(); // clearing restores
   });
 
   it("triage failure lands on a calm state, never the wall and never an invented sort", async () => {
@@ -169,12 +169,12 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     // The law: a failed sort must not dump the raw list back on him.
     expect(await screen.findByText("Couldn’t Sort Your Mail")).toBeInTheDocument();
-    expect(screen.queryByText("Tucci")).toBeNull();
+    expect(screen.queryByText("Ridgeley")).toBeNull();
     expect(screen.queryByText("Needs You")).toBeNull();
     expect(screen.queryByText("Noise")).toBeNull();
     // One way out, and he chooses it.
     fireEvent.click(screen.getByText("Show All Mail"));
-    expect(await screen.findByText("Tucci")).toBeInTheDocument();
+    expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
   });
 
   it("a triage request that hangs is not allowed to trap the user", async () => {
@@ -188,7 +188,7 @@ describe("MessagesFlow (threads)", () => {
     await screen.findByText("Reading Your Inbox");
     // The exit is on screen while it is still trying, not only after failure.
     fireEvent.click(screen.getByText("Show all mail instead"));
-    expect(await screen.findByText("Tucci")).toBeInTheDocument();
+    expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
   });
 
   it("while triage is still running, For You is a calm state and never the wall", async () => {
@@ -200,7 +200,7 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={pending} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     expect(await screen.findByText("Reading Your Inbox")).toBeInTheDocument();
-    expect(screen.queryByText("Tucci")).toBeNull();
+    expect(screen.queryByText("Ridgeley")).toBeNull();
     expect(screen.queryByText("DoorDash")).toBeNull();
   });
 
@@ -209,7 +209,7 @@ describe("MessagesFlow (threads)", () => {
     // absorbs the backlog instead of dumping it into the task list.
     localStorage.setItem("jarvis.mail.netted.seeded.v1", "1");
     const ai = aiReturning(JSON.stringify([
-      { id: "t1", bucket: "needs_you", gist: "Tucci needs the waiver by Friday." },
+      { id: "t1", bucket: "needs_you", gist: "Ridgeley needs the waiver by Friday." },
       { id: "t2", bucket: "noise", gist: "DoorDash promo." },
     ]));
     const { unmount } = render(wrap(<MessagesFlow ai={ai} configured />));
@@ -240,19 +240,19 @@ describe("MessagesFlow (threads)", () => {
     } as Parameters<typeof makeApi>[0]);
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
-    fireEvent.click(await screen.findByText("Tucci"));
+    fireEvent.click(await screen.findByText("Ridgeley"));
     fireEvent.click(await screen.findByLabelText("Delete"));
     await waitFor(() => expect(trashed).toEqual(["t1"]));
     expect(permanentDeleteCalled).toBe(false);
     // SPEC MOVED (short copy, 2026-08-15)
     expect(await screen.findByText(/in trash 30 days/)).toBeInTheDocument();
-    expect(screen.queryByText("Tucci")).toBeNull(); // gone from the list too
+    expect(screen.queryByText("Ridgeley")).toBeNull(); // gone from the list too
   });
 
   it("swipe actions exist on every mail row: archive and delete", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("Tucci");
+    await screen.findByText("Ridgeley");
     // Two rows, each with its own pair of actions.
     expect(screen.getAllByLabelText("Archive")).toHaveLength(2);
     expect(screen.getAllByLabelText("Delete")).toHaveLength(2);
@@ -263,10 +263,10 @@ describe("MessagesFlow (threads)", () => {
     const api = makeApi({ modifyThread: async (id, _a, remove) => { if (remove.includes("INBOX")) archived.push(id); } });
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("Tucci");
+    await screen.findByText("Ridgeley");
     fireEvent.click(screen.getAllByLabelText("Archive")[0]!);
     await waitFor(() => expect(archived).toEqual(["t1"]));
-    expect(screen.queryByText("Tucci")).toBeNull();
+    expect(screen.queryByText("Ridgeley")).toBeNull();
   });
 
   it("only one offer can be on screen at a time", async () => {
@@ -295,26 +295,26 @@ describe("MessagesFlow (threads)", () => {
     } });
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
-    await screen.findByText("Tucci");
+    await screen.findByText("Ridgeley");
     fireEvent.click(screen.getAllByLabelText("Archive")[0]!);
     await waitFor(() => expect(calls).toContain("archive:t1"));
-    expect(screen.queryByText("Tucci")).toBeNull();
+    expect(screen.queryByText("Ridgeley")).toBeNull();
     fireEvent.click(screen.getByText("Undo"));
     await waitFor(() => expect(calls).toContain("restore:t1"));
-    expect(await screen.findByText("Tucci")).toBeInTheDocument();
+    expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
   });
 
   it("a muted thread never comes back, and the rules screen can unmute it", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    fireEvent.click(await screen.findByText("Tucci"));
+    fireEvent.click(await screen.findByText("Ridgeley"));
     fireEvent.click(await screen.findByText("Mute this thread"));
-    await waitFor(() => expect(screen.queryByText("Tucci")).toBeNull());
+    await waitFor(() => expect(screen.queryByText("Ridgeley")).toBeNull());
     expect(screen.getByText("DoorDash")).toBeInTheDocument(); // only that thread
     fireEvent.click(screen.getByText("Standing Rules"));
     fireEvent.click(await screen.findByText("Unmute"));
     fireEvent.click(screen.getByText("Email"));
-    expect(await screen.findByText("Tucci")).toBeInTheDocument();
+    expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
   });
 
   it("composes and sends", async () => {

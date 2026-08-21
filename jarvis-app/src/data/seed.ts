@@ -41,25 +41,25 @@ export async function seedDemoData(
 
   if ((await schedule.listEvents()).length === 0) {
     await schedule.createEvent("Morning Standup", { date: today, start: "08:30", category: cat("Work") });
-    await schedule.createEvent("Call With Wei", { date: today, start: "10:00", category: cat("Work"), location: "Zoom" });
-    await schedule.createEvent("Fall Clinic Walkthrough", { date: today, start: "15:30", category: cat("Family"), location: "Tucci Fields" });
+    await schedule.createEvent("Call With Nadia", { date: today, start: "10:00", category: cat("Work"), location: "Zoom" });
+    await schedule.createEvent("Fall Clinic Walkthrough", { date: today, start: "15:30", category: cat("Family"), location: "Ridgeline Fields" });
     await schedule.createEvent("Gym Session", { date: today, start: "17:30", category: cat("Health") });
-    await schedule.createEvent("Board Call · Rob Bridge", { date: addDays(today, 1), start: "09:00", category: cat("Family") });
-    await schedule.createEvent("Sponsor Pitch · Nike Strength", { date: addDays(today, 1), start: "14:00", category: cat("Work") });
+    await schedule.createEvent("Board Call · Rob Calder", { date: addDays(today, 1), start: "09:00", category: cat("Family") });
+    await schedule.createEvent("Sponsor Pitch · Summit Gear", { date: addDays(today, 1), start: "14:00", category: cat("Work") });
     await schedule.createEvent("Coach Onboarding Demo", { date: addDays(today, 2), start: "11:00", category: cat("Work") });
-    await schedule.createEvent("Fisher v JAT Prep", { date: addDays(today, 2), start: "16:00", category: cat("Money"), location: "Pareres Office" });
+    await schedule.createEvent("Harper v Northline Prep", { date: addDays(today, 2), start: "16:00", category: cat("Money"), location: "Delaney Office" });
     await schedule.createEvent("Budget Review", { date: addDays(today, 3), start: "11:00", category: cat("Money") });
-    await schedule.createEvent("Bridge Summer Cookout Planning", { date: addDays(today, 4), start: "18:30", category: cat("Family") });
+    await schedule.createEvent("Calder Summer Cookout Planning", { date: addDays(today, 4), start: "18:30", category: cat("Family") });
   }
 
   if ((await tasks.listTasks()).length === 0) {
-    await tasks.createTask("Create Bridge Invoice", { category: cat("Money"), due: today });
+    await tasks.createTask("Create Calder Invoice", { category: cat("Money"), due: today });
     await tasks.createTask("Pay Ticket", { category: cat("Money"), due: addDays(today, -2) });
-    await tasks.createTask("Reply to Wei re: Invoice", { category: cat("Work"), due: today });
-    await tasks.createTask("Nudge Pareres on Fisher v JAT", { category: cat("Work"), due: addDays(today, 1) });
+    await tasks.createTask("Reply to Nadia re: Invoice", { category: cat("Work"), due: today });
+    await tasks.createTask("Nudge Delaney on Harper v Northline", { category: cat("Work"), due: addDays(today, 1) });
     await tasks.createTask("Book PG 17U Travel", { category: cat("Family"), due: addDays(today, 3) });
-    await tasks.createTask("Chase Nike Strength Order #D2565", { category: cat("Money"), due: addDays(today, 2) });
-    const d1 = await tasks.createTask("Send Waiver to Tucci", { category: cat("Family"), due: addDays(today, -1) });
+    await tasks.createTask("Chase Summit Gear Order #D2565", { category: cat("Money"), due: addDays(today, 2) });
+    const d1 = await tasks.createTask("Send Waiver to Ridgeline", { category: cat("Family"), due: addDays(today, -1) });
     const d2 = await tasks.createTask("Post Clinic Recap", { category: cat("Work"), due: addDays(today, -3) });
     if (d1) await tasks.toggleDone(d1);
     if (d2) await tasks.toggleDone(d2);
@@ -83,10 +83,10 @@ export async function seedDemoData(
 
   if ((await projects.list()).length === 0) {
     const launchGoal = (await goals.list()).find((g) => g.data.title === "Ship the App Store Launch");
-    const golf = await projects.create({ title: "Bridge Golf Event", status: "active", category: cat("Family") });
-    const rebuild = await projects.create({ title: "Rebuild Bridge App", status: "active", category: cat("Work"), goalId: launchGoal?.id });
-    const site = await projects.create({ title: "Remodel Bridge Website", status: "active", category: cat("Work") });
-    const cookout = await projects.create({ title: "Bridge Summer Cookout", status: "active", category: cat("Family") });
+    const golf = await projects.create({ title: "Calder Golf Event", status: "active", category: cat("Family") });
+    const rebuild = await projects.create({ title: "Rebuild Calder App", status: "active", category: cat("Work"), goalId: launchGoal?.id });
+    const site = await projects.create({ title: "Remodel Calder Website", status: "active", category: cat("Work") });
+    const cookout = await projects.create({ title: "Calder Summer Cookout", status: "active", category: cat("Family") });
     await projects.create({ title: "Tax Filing", status: "on_hold", category: cat("Money") });
     // Linked tasks so progress bars, counts, and Next lines all populate.
     if (golf) {
@@ -125,11 +125,11 @@ export async function seedDemoData(
   }
 
   if ((await people.list()).length === 0) {
-    await people.create({ name: "Rob Bridge", group: "contacts", relationship: "Board" });
-    await people.create({ name: "Wei Zhang", group: "contacts", relationship: "BFFSA" });
-    await people.create({ name: "Joseph T. Pareres", group: "contacts", relationship: "Attorney" });
-    await people.create({ name: "Tucci", group: "contacts", relationship: "Fields" });
-    await people.create({ name: "Sam Rivera", group: "contacts", relationship: "Coach" });
+    await people.create({ name: "Rob Calder", group: "contacts", relationship: "Board" });
+    await people.create({ name: "Nadia Brandt", group: "contacts", relationship: "Northlake" });
+    await people.create({ name: "Marcus Delaney", group: "contacts", relationship: "Attorney" });
+    await people.create({ name: "Ridgeline", group: "contacts", relationship: "Fields" });
+    await people.create({ name: "Sam Okafor", group: "contacts", relationship: "Coach" });
   }
 
   // Bills are recurring money tasks; two due soon so the Money page and the
@@ -154,10 +154,10 @@ export async function seedDemoData(
   // renders), one plain, and one superseded chain (so Replaces renders).
   const dec = extras.decisions;
   if (dec && (await dec.listAll()).length === 0) {
-    const launch = (await projects.list()).find((p) => p.data.title === "Rebuild Bridge App");
+    const launch = (await projects.list()).find((p) => p.data.title === "Rebuild Calder App");
     await dec.create({
       decision: "Student template ships first",
-      why: "BFFSA gives 60 warm leads on day one",
+      why: "Northlake gives 60 warm leads on day one",
       ruledOut: ["Personal first", "Business first", "All three at once"],
       linkedType: launch ? "project" : undefined,
       linkedId: launch?.id,
@@ -170,12 +170,12 @@ export async function seedDemoData(
     });
     const oldCall = await dec.create({
       decision: "Weekly clinics run Sundays",
-      why: "Fields were open before the Tucci schedule landed",
+      why: "Fields were open before the Ridgeline schedule landed",
     });
     if (oldCall) {
       await dec.supersede(oldCall, {
         decision: "Fall clinics run Saturdays only",
-        why: "Tucci fields are locked Sundays through November",
+        why: "Ridgeline fields are locked Sundays through November",
         ruledOut: ["Sundays", "Both days"],
       });
     }
@@ -196,13 +196,13 @@ export function seedDemoMail(): void {
     ts: Date.now(),
     needsYou: 7,
     threads: [
-      { id: "demo-1", from: "Apple Developer", fromEmail: "no-reply@apple.com", subject: "complete your enrollment", gist: "Enrollment closes and the app cannot ship", by: "today" },
-      { id: "demo-2", from: "Wei Zhang", fromEmail: "wei@bffsa.org", subject: "Invoice attached", gist: "Wants it signed before Net 15 starts Monday" },
-      { id: "demo-3", from: "Supabase", fromEmail: "alerts@supabase.io", subject: "Security advisories flagged", gist: "Two projects need a version bump" },
+      { id: "demo-1", from: "App Store Team", fromEmail: "no-reply@apple.com", subject: "complete your enrollment", gist: "Enrollment closes and the app cannot ship", by: "today" },
+      { id: "demo-2", from: "Nadia Brandt", fromEmail: "nadia@northlake.org", subject: "Invoice attached", gist: "Wants it signed before Net 15 starts Monday" },
+      { id: "demo-3", from: "Northwind Cloud", fromEmail: "alerts@supabase.io", subject: "Security advisories flagged", gist: "Two projects need a version bump" },
     ],
     waiting: [
-      { threadId: "demo-w1", to: "nikestrength", subject: "Order #D2565", days: 55 },
-      { threadId: "demo-w2", to: "Joseph T. Pareres", subject: "Fisher v JAT", days: 55 },
+      { threadId: "demo-w1", to: "summitgear", subject: "Order #D2565", days: 55 },
+      { threadId: "demo-w2", to: "Marcus Delaney", subject: "Harper v Northline", days: 55 },
     ],
     promises: [{ threadId: "demo-p1", text: "send rob the deck", due: day(1) }],
   });

@@ -20,7 +20,7 @@ describe("Schedule behavior contract (approved harness)", () => {
     expect((await svc.listEvents()).length).toBe(0);
   });
   it("create an event today, lands on the day + timeline", async () => {
-    ids.board = (await svc.createEvent("Board Prep Call", { date: TODAY, start: "10:00", category: "tucci" }))!;
+    ids.board = (await svc.createEvent("Board Prep Call", { date: TODAY, start: "10:00", category: "orgB" }))!;
     const day = await svc.eventsOn(TODAY);
     expect(day.length).toBe(1);
     expect(day[0]!.data.title).toBe("Board Prep Call");
@@ -40,8 +40,8 @@ describe("Schedule behavior contract (approved harness)", () => {
     expect((await svc.eventsOn(TODAY)).map((e) => e.data.title)).toEqual(["Lunch with Mom", "Board Prep Call"]);
   });
   it("edit an event title", async () => {
-    await svc.editTitle(ids.board!, "BFFSA Board Prep");
-    expect((await svc.event(ids.board!))!.title).toBe("BFFSA Board Prep");
+    await svc.editTitle(ids.board!, "Northlake Board Prep");
+    expect((await svc.event(ids.board!))!.title).toBe("Northlake Board Prep");
   });
   it("delete an event", async () => {
     await svc.deleteEvent(ids.lunch!);
@@ -96,10 +96,10 @@ describe("calendar helpers", () => {
   });
   it("dotsForMonth maps day to categories", () => {
     const items: EventItem[] = [
-      { id: "1", data: { title: "x", date: "2026-05-20", start: "10:00", category: "tucci" } },
+      { id: "1", data: { title: "x", date: "2026-05-20", start: "10:00", category: "orgB" } },
       { id: "2", data: { title: "y", date: "2026-05-20", start: "11:00", category: "health" } },
     ];
-    expect(dotsForMonth(items, 2026, 4)[20]).toEqual(["tucci", "health"]);
+    expect(dotsForMonth(items, 2026, 4)[20]).toEqual(["orgB", "health"]);
   });
   it("todayISO formats YYYY-MM-DD", () => {
     expect(todayISO(new Date("2026-05-20T12:00:00"))).toBe("2026-05-20");

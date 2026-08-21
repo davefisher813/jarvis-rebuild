@@ -6,11 +6,11 @@ import type { TaskItem } from "../tasks/TasksService";
 
 const ev = (id: string, start: string): EventItem => ({
   id,
-  data: { title: id, date: "2026-05-20", start, category: "tucci" },
+  data: { title: id, date: "2026-05-20", start, category: "orgB" },
 });
 const tk = (id: string, due: string | null, done = false): TaskItem => ({
   id,
-  data: { text: id, category: "tucci", done, due },
+  data: { text: id, category: "orgB", done, due },
 });
 
 describe("greeting", () => {

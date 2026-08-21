@@ -44,7 +44,7 @@ export const COMMITMENT_SYSTEM =
   "said THEY would do. Only their own promises, never someone else's. " +
   'Reply with ONLY JSON: {"text":"...","due":"YYYY-MM-DD"} or {"text":""} when they promised nothing. ' +
   "text is an action starting with a verb, under 60 characters, in their own terms " +
-  '("Send Tucci the roster"). Include "due" ONLY if they named a day; never guess one.';
+  '("Send the coach the roster"). Include "due" ONLY if they named a day; never guess one.';
 
 export function commitmentPrompt(body: string, todayISO: string): string {
   return "Today is " + todayISO + ".\nThe user wrote:\n" + body.slice(0, 1500);

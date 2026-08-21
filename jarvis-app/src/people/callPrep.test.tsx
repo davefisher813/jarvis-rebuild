@@ -19,7 +19,7 @@ function svc() {
 
 const person = (data: Partial<PersonData>): Person => ({
   id: "p1",
-  data: { name: "Tony Tucci", group: "contacts", ...data },
+  data: { name: "Tony Ridgeley", group: "contacts", ...data },
 });
 
 describe("call attempt logging", () => {

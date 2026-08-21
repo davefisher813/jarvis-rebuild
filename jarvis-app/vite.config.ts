@@ -8,6 +8,15 @@ import { resolve } from "node:path";
 // (used for the demo build); normal builds are unaffected.
 export default defineConfig({
   plugins: [react(), ...(process.env.SINGLEFILE ? [viteSingleFile()] : [])],
+  // DEMO DATA NEVER SHIPS TO THE REAL BUILD (Dave: "why would we keep demo
+  // data in the real build? that's only for previews"). Every seed and
+  // fixture is reached through a dynamic import behind this constant, so
+  // when it is false Rollup drops those modules from the bundle entirely
+  // rather than merely never running them. Verified by grepping dist, and
+  // held by a test.
+  define: {
+    __DEMO_SEED__: JSON.stringify(!!process.env.SINGLEFILE || !!process.env.DEMO),
+  },
   resolve: {
     alias: { "@core": resolve(__dirname, "../jarvis-core/src/index.ts") },
     // The engine (jarvis-core) imports npm packages but its own node_modules is

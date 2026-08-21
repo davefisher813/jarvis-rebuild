@@ -5,7 +5,7 @@ import "@testing-library/jest-dom";
 import YourDay from "./YourDay";
 import type { EventItem } from "../schedule/types";
 
-const ev = (id: string, start: string): EventItem => ({ id, data: { title: id, date: "2026-05-20", start, category: "tucci" } });
+const ev = (id: string, start: string): EventItem => ({ id, data: { title: id, date: "2026-05-20", start, category: "orgB" } });
 const many = Array.from({ length: 8 }, (_, i) => ev("e" + i, String(8 + i).padStart(2, "0") + ":00"));
 
 describe("YourDay", () => {

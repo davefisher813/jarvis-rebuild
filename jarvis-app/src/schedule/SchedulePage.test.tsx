@@ -7,7 +7,7 @@ import type { EventItem } from "./types";
 import { setCategoryRegistry } from "../shared/categories";
 
 setCategoryRegistry([
-  { id: "tucci", name: "Tucci", color: "sky" },
+  { id: "orgB", name: "Ridgeley", color: "sky" },
   { id: "elite", name: "Elite", color: "red" },
   { id: "family", name: "Family", color: "pink" },
   { id: "money", name: "Money", color: "yellow" },
@@ -17,13 +17,13 @@ setCategoryRegistry([
 ]);
 
 
-const ev = (id: string, start: string): EventItem => ({ id, data: { title: id, date: "2026-05-20", start, category: "tucci" } });
+const ev = (id: string, start: string): EventItem => ({ id, data: { title: id, date: "2026-05-20", start, category: "orgB" } });
 const base = {
   year: 2026,
   month: 4, // May (0-based)
   selected: "2026-05-20",
   todayDate: "2026-05-20",
-  dots: { 20: ["tucci"] } as Record<number, string[]>,
+  dots: { 20: ["orgB"] } as Record<number, string[]>,
   dayEvents: [ev("a", "09:00")],
 };
 

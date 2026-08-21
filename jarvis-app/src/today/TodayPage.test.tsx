@@ -8,7 +8,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import { setCategoryRegistry } from "../shared/categories";
 
 setCategoryRegistry([
-  { id: "tucci", name: "Tucci", color: "sky" },
+  { id: "orgB", name: "Ridgeley", color: "sky" },
   { id: "elite", name: "Elite", color: "red" },
   { id: "family", name: "Family", color: "pink" },
   { id: "money", name: "Money", color: "yellow" },
@@ -18,8 +18,8 @@ setCategoryRegistry([
 ]);
 
 
-const ev = (id: string, start: string, cat = "tucci"): EventItem => ({ id, data: { title: id, date: "2026-05-20", start, category: cat } });
-const tk = (id: string, due: string | null, cat = "tucci", done = false): TaskItem => ({ id, data: { text: id, category: cat, done, due } });
+const ev = (id: string, start: string, cat = "orgB"): EventItem => ({ id, data: { title: id, date: "2026-05-20", start, category: cat } });
+const tk = (id: string, due: string | null, cat = "orgB", done = false): TaskItem => ({ id, data: { text: id, category: cat, done, due } });
 
 const base = {
   greeting: "Good Morning",

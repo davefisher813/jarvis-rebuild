@@ -9,15 +9,15 @@ import type { TriageMap } from "./triage";
 const THREAD: ThreadFull = {
   id: "t1", subject: "Waiver",
   messages: [{
-    id: "m1", from: "Tucci", fromEmail: "t@x.com", to: "d@x.com", date: "Mon",
+    id: "m1", from: "Ridgeley", fromEmail: "t@x.com", to: "d@x.com", date: "Mon",
     subject: "Waiver", snippet: "", body: "Need the waiver by Friday", threadId: "t1", messageId: "<a@x>", attachments: [], listUnsubscribe: "", listUnsubscribePost: "",
   }],
 };
 
 describe("parseDeckPlan", () => {
   it("parses each kind and keeps only the matching payload", () => {
-    expect(parseDeckPlan(JSON.stringify({ kind: "reply", why: "Tucci wants the waiver.", reply: "On it tonight." })))
-      .toEqual({ kind: "reply", why: "Tucci wants the waiver.", reply: "On it tonight." });
+    expect(parseDeckPlan(JSON.stringify({ kind: "reply", why: "Ridgeley wants the waiver.", reply: "On it tonight." })))
+      .toEqual({ kind: "reply", why: "Ridgeley wants the waiver.", reply: "On it tonight." });
     expect(parseDeckPlan(JSON.stringify({ kind: "bill", why: "w", bill: { name: "Geico", amount: 214, due: "2026-08-12" } })))
       .toEqual({ kind: "bill", why: "w", bill: { name: "Geico", amount: 214, due: "2026-08-12" } });
     expect(parseDeckPlan(JSON.stringify({ kind: "event", why: "w", event: { title: "Dr. Patel", date: "2026-08-08", start: "14:30" } })))
@@ -112,7 +112,7 @@ describe("buildPlanPrompt", () => {
 
 describe("voiceExamples", () => {
   it("cleanSentBody drops quoted history and signatures, keeps the user's words", () => {
-    expect(cleanSentBody("On it, sending tonight.\n\nOn Mon, Tucci wrote:\n> where is it")).toBe("On it, sending tonight.");
+    expect(cleanSentBody("On it, sending tonight.\n\nOn Mon, Ridgeley wrote:\n> where is it")).toBe("On it, sending tonight.");
     expect(cleanSentBody("Sounds good.\n--\nDave Fisher")).toBe("Sounds good.");
     expect(cleanSentBody("> all quoted")).toBe("");
   });
@@ -129,7 +129,7 @@ describe("voiceExamples", () => {
         id: "s1",
         messages: [
           { id: "a", threadId: "s1", snippet: "", payload: { mimeType: "text/plain", body: { data: btoa("where is the waiver") },
-            headers: [{ name: "From", value: "Tucci <t@x.com>" }] } },
+            headers: [{ name: "From", value: "Ridgeley <t@x.com>" }] } },
           { id: "b", threadId: "s1", snippet: "", payload: { mimeType: "text/plain", body: { data: btoa("My bad, sending it tonight") },
             headers: [{ name: "From", value: "Dave <d@x.com>" }] } },
         ],

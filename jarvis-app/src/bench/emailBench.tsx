@@ -22,10 +22,10 @@ const NOW = Date.now();
 const H = 3600e3;
 
 const THREADS: GmailThreadMeta[] = [
-  { id: "t_tucci", messages: [
-    msg("m1", "Coach Tucci <tucci@bffsa.org>", "Marcus - waiver for Saturday", "Attached the waiver, need it back before the 9th", ["INBOX"], NOW - 60 * H),
+  { id: "t_orgB", messages: [
+    msg("m1", "Coach Ridgeley <coach@northlake.org>", "Marcus - waiver for Saturday", "Attached the waiver, need it back before the 9th", ["INBOX"], NOW - 60 * H),
     msg("m2", "Dave <dave@x.com>", "Re: Marcus - waiver for Saturday", "On it, sending tomorrow", [], NOW - 40 * H),
-    msg("m3", "Coach Tucci <tucci@bffsa.org>", "Re: Marcus - waiver for Saturday", "Hey Dave, haven't seen it yet - Friday's the cutoff", ["INBOX", "UNREAD"], NOW - 2 * H),
+    msg("m3", "Coach Ridgeley <coach@northlake.org>", "Re: Marcus - waiver for Saturday", "Hey Dave, haven't seen it yet - Friday's the cutoff", ["INBOX", "UNREAD"], NOW - 2 * H),
   ] },
   { id: "t_geico", messages: [
     msg("m4", "GEICO <no-reply@geico.com>", "Your policy renews soon", "Your auto policy renews Aug 12. Amount due: $214.00", ["INBOX", "UNREAD"], NOW - 20 * H),
@@ -33,8 +33,8 @@ const THREADS: GmailThreadMeta[] = [
   { id: "t_patel", messages: [
     msg("m5", "Dr. Patel's Office <front@patelmed.com>", "Appointment reminder", "Please confirm your appointment Aug 8 at 2:30 PM", ["INBOX", "UNREAD"], NOW - 26 * H),
   ] },
-  { id: "t_bffsa", messages: [
-    msg("m6", "BFFSA <news@bffsa.org>", "Fall registration opens Monday", "Registration for the fall season opens Monday. Nothing due yet.", ["INBOX"], NOW - 30 * H),
+  { id: "t_orgA", messages: [
+    msg("m6", "Northlake <news@northlake.org>", "Fall registration opens Monday", "Registration for the fall season opens Monday. Nothing due yet.", ["INBOX"], NOW - 30 * H),
   ] },
   { id: "t_vercel", messages: [
     msg("m7", "Vercel <notifications@vercel.com>", "Deployment succeeded", "jarvis-rebuild deployed to production", ["INBOX"], NOW - 5 * H),
@@ -65,18 +65,18 @@ const full = (id: string, parts: { from: string; subject: string; date: string; 
 });
 
 const FULLS: Record<string, GmailThreadFull> = {
-  t_tucci: full("t_tucci", [
-    { from: "Coach Tucci <tucci@bffsa.org>", subject: "Marcus - waiver for Saturday", date: "Mon", body: "Dave - attached the medical waiver. Need it signed and back before the 9th or Marcus can't dress Saturday." },
+  t_orgB: full("t_orgB", [
+    { from: "Coach Ridgeley <coach@northlake.org>", subject: "Marcus - waiver for Saturday", date: "Mon", body: "Dave - attached the medical waiver. Need it signed and back before the 9th or Marcus can't dress Saturday." },
     { from: "Dave <dave@x.com>", subject: "Re: Marcus - waiver for Saturday", date: "Tue", body: "On it, sending tomorrow." },
-    { from: "Coach Tucci <tucci@bffsa.org>", subject: "Re: Marcus - waiver for Saturday", date: "7:41 AM", body: "Hey Dave, haven't seen it yet - Friday's the cutoff." },
+    { from: "Coach Ridgeley <coach@northlake.org>", subject: "Re: Marcus - waiver for Saturday", date: "7:41 AM", body: "Hey Dave, haven't seen it yet - Friday's the cutoff." },
   ]),
   t_geico: full("t_geico", [{ from: "GEICO <no-reply@geico.com>", subject: "Your policy renews soon", date: "Yesterday", body: "Your auto policy renews Aug 12. Amount due: $214.00. No action is needed if autopay is enabled." }]),
   t_patel: full("t_patel", [{ from: "Dr. Patel's Office <front@patelmed.com>", subject: "Appointment reminder", date: "Yesterday", body: "Please confirm your appointment on Aug 8 at 2:30 PM. Reply CONFIRM or call us." }]),
 };
 
-// The waiver form rides the first Tucci message as a real attachment part.
+// The waiver form rides the first Ridgeley message as a real attachment part.
 {
-  const first = FULLS.t_tucci?.messages?.[0] as { payload?: { parts?: unknown[] } } | undefined;
+  const first = FULLS.t_orgB?.messages?.[0] as { payload?: { parts?: unknown[] } } | undefined;
   if (first?.payload) {
     first.payload.parts = [
       { filename: "waiver.pdf", mimeType: "application/pdf", body: { attachmentId: "att1" } },
@@ -132,10 +132,10 @@ const api = makeFakeGoogleApi({
 
 // Scripted AI: answers by recognizing which prompt MessagesFlow sent.
 const TRIAGE_REPLY = JSON.stringify([
-  { id: "t_tucci", bucket: "needs_you", gist: "Tucci needs the signed waiver by Friday or Marcus sits Saturday.", by: "Friday" },
+  { id: "t_orgB", bucket: "needs_you", gist: "Ridgeley needs the signed waiver by Friday or Marcus sits Saturday.", by: "Friday" },
   { id: "t_geico", bucket: "needs_you", gist: "Auto policy renews Aug 12, $214.", by: "Aug 12" },
   { id: "t_patel", bucket: "needs_you", gist: "Confirm the Aug 8, 2:30 PM appointment.", by: "today" },
-  { id: "t_bffsa", bucket: "worth_knowing", gist: "Fall registration opens Monday. Nothing due yet." },
+  { id: "t_orgA", bucket: "worth_knowing", gist: "Fall registration opens Monday. Nothing due yet." },
   { id: "t_vercel", bucket: "worth_knowing", gist: "Deploy succeeded. FYI only." },
   { id: "t_dd", bucket: "noise", gist: "DoorDash promo." },
   { id: "t_li", bucket: "noise", gist: "LinkedIn notifications." },
@@ -149,7 +149,7 @@ const fetchImpl = (async (_url: RequestInfo | URL, init?: RequestInit) => {
   else if (body.includes("prepare ONE decision")) {
     // Deck plans, one per needs-you thread, keyed by content.
     if (body.includes("waiver")) {
-      text = JSON.stringify({ kind: "reply", why: "Tucci needs the signed waiver by Friday or Marcus sits.", reply: "My bad Tucci, got buried. Signing it tonight, you'll have it by morning. Marcus plays Saturday." });
+      text = JSON.stringify({ kind: "reply", why: "Ridgeley needs the signed waiver by Friday or Marcus sits.", reply: "My bad Ridgeley, got buried. Signing it tonight, you'll have it by morning. Marcus plays Saturday." });
     } else if (body.includes("policy renews")) {
       text = JSON.stringify({ kind: "bill", why: "Auto policy renews Aug 12, $214.", bill: { name: "Geico", amount: 214, due: "2026-08-12" } });
     } else if (body.includes("Patel")) {
@@ -167,12 +167,12 @@ const fetchImpl = (async (_url: RequestInfo | URL, init?: RequestInit) => {
   // {"summary" never appears.
   else if (body.includes("Read this email conversation")) {
     text = JSON.stringify({
-      summary: "Tucci needs the signed waiver by Friday. He has followed up twice and the blank form is on the first message.",
+      summary: "Ridgeley needs the signed waiver by Friday. He has followed up twice and the blank form is on the first message.",
       replies: ["Sending it tonight", "Done by morning", "Call you at noon"],
     });
   }
-  else if (body.includes("forwarding note")) text = "Jen, can you take this one? Tucci needs the waiver signed before Friday. Thanks.";
-  else if (body.includes("commitment they made")) text = JSON.stringify({ text: "Send Tucci the waiver", due: "" });
+  else if (body.includes("forwarding note")) text = "Jen, can you take this one? Ridgeley needs the waiver signed before Friday. Thanks.";
+  else if (body.includes("commitment they made")) text = JSON.stringify({ text: "Send Ridgeley the waiver", due: "" });
   return { ok: true, status: 200, json: async () => ({ text }), text: async () => "" };
 }) as unknown as typeof fetch;
 

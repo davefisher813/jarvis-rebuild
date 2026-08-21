@@ -104,8 +104,8 @@ describe("contacts matching: identity or nothing", () => {
   });
 
   it("an exact email match fills the missing phone", () => {
-    const people: KnownPerson[] = [{ id: "p1", name: "Tucci", email: "Tucci@Example.com" }];
-    const c = contact({ emails: ["tucci@example.com"], phones: ["555-987-6543"] });
+    const people: KnownPerson[] = [{ id: "p1", name: "Ridgeley", email: "Ridgeley@Example.com" }];
+    const c = contact({ emails: ["ridgeley@example.com"], phones: ["555-987-6543"] });
     const patches = enrichPeople([c], people);
     expect(patches).toEqual([{ personId: "p1", contactId: "c1", fill: { phone: "555-987-6543" } }]);
   });

@@ -11,7 +11,7 @@ import AddBlockSheet from "./screens/AddBlockSheet";
 import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
 import { showToast } from "../shared/toast";
-import { seedDemoNotes } from "../data/seedNotes";
+
 import { attemptWrite } from "../shared/guard";
 import { recordSpot } from "../restore/whereYouWere";
 import CreateTasks from "./screens/CreateTasks";
@@ -238,7 +238,10 @@ export default function NotesFlow({
       if (seed && !seeded.current) {
         seeded.current = true;
         const existing = await svc.listNotes();
-        if (existing.length === 0) await seedDemoNotes(svc, cl);
+        if (__DEMO_SEED__ && existing.length === 0) {
+          const { seedDemoNotes } = await import("../data/seedNotes");
+          await seedDemoNotes(svc, cl);
+        }
       }
       await loadList();
     })();

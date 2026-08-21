@@ -17,7 +17,7 @@ describe("DemoMail fixture", () => {
     expect(screen.getByText("The Rest")).toBeInTheDocument();
     // The promo count matches the fixture rows, so the numbers can't drift.
     expect(screen.getAllByText("Nudge").length).toBeGreaterThan(0);
-    expect(screen.getByText("Supabase")).toBeInTheDocument();
+    expect(screen.getByText("Northwind Cloud")).toBeInTheDocument();
   });
 
   it("shows Connect Google only when a connect handler exists", () => {

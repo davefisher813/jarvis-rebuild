@@ -4,8 +4,8 @@ import { parseVCard, parseContactsCSV, parseContactsFile } from "./importContact
 const VCF = [
   "BEGIN:VCARD",
   "VERSION:3.0",
-  "N:Tucci;Mike;;;",
-  "FN:Mike Tucci",
+  "N:Ridgeley;Mike;;;",
+  "FN:Mike Ridgeley",
   "TEL;TYPE=CELL:+1 555 0100",
   "EMAIL:mike@elitesquad.org",
   "BDAY:1985-04-20",
@@ -22,7 +22,7 @@ describe("parseVCard", () => {
     const c = parseVCard(VCF);
     expect(c).toHaveLength(2);
     // Person pass (2026-08-03): EMAIL/TEL land in real fields, not note lines.
-    expect(c[0]).toEqual({ name: "Mike Tucci", birthday: "1985-04-20", email: "mike@elitesquad.org", phone: "+1 555 0100", notes: "Elite Squad" });
+    expect(c[0]).toEqual({ name: "Mike Ridgeley", birthday: "1985-04-20", email: "mike@elitesquad.org", phone: "+1 555 0100", notes: "Elite Squad" });
     expect(c[1]).toEqual({ name: "Sarah Lee", birthday: "1990-01-01" });
   });
 
@@ -44,9 +44,9 @@ describe("parseVCard", () => {
 
 describe("parseContactsCSV", () => {
   it("reads name/birthday/phone columns", () => {
-    const c = parseContactsCSV("Name,Birthday,Phone\nMike Tucci,1985-04-20,555-0100\nSarah Lee,,\n");
+    const c = parseContactsCSV("Name,Birthday,Phone\nMike Ridgeley,1985-04-20,555-0100\nSarah Lee,,\n");
     expect(c).toEqual([
-      { name: "Mike Tucci", birthday: "1985-04-20", notes: "555-0100" },
+      { name: "Mike Ridgeley", birthday: "1985-04-20", notes: "555-0100" },
       { name: "Sarah Lee" },
     ]);
   });

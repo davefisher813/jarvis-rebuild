@@ -18,7 +18,7 @@ const snap = (over: Partial<MailSnapshot> = {}): MailSnapshot => ({
 });
 
 const thread = (id: string, over: Partial<MailSnapshot["threads"][0]> = {}) => ({
-  id, from: "Wei Zhang", fromEmail: "wei@bffsa.org",
+  id, from: "Nadia Brandt", fromEmail: "wei@northlake.org",
   subject: "invoice attached", gist: "Wants the invoice signed", ...over,
 });
 
@@ -32,7 +32,7 @@ describe("the home email surface", () => {
     const n = mailNotices(snap({ needsYou: 1, threads: [thread("t1")] }), TODAY, NOW);
     expect(n).toHaveLength(1);
     expect(n[0]!.kind).toBe("reply");
-    expect(n[0]!.title).toBe("Wei Zhang");
+    expect(n[0]!.title).toBe("Nadia Brandt");
     expect(n[0]!.sub).toBe("Wants the invoice signed");
     expect(n[0]!.action).toBe("Reply");
   });
@@ -63,9 +63,9 @@ describe("the home email surface", () => {
   });
 
   it("nudges whoever owes him, and says how long without shaming him", () => {
-    const n = mailNotices(snap({ waiting: [{ threadId: "w1", to: "nikestrength", subject: "Order #D2565", days: 55 }] }), TODAY, NOW);
+    const n = mailNotices(snap({ waiting: [{ threadId: "w1", to: "summitgear", subject: "Order #D2565", days: 55 }] }), TODAY, NOW);
     expect(n[0]!.kind).toBe("nudge");
-    expect(n[0]!.title).toBe("nikestrength Hasn't Replied");
+    expect(n[0]!.title).toBe("summitgear Hasn't Replied");
     expect(n[0]!.sub).toBe("Order #D2565 · 55 Days");
   });
 

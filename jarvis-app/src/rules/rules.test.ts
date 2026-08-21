@@ -46,11 +46,11 @@ describe("law: two identical corrections make a rule, one does not", () => {
   it("a differing correction resets the pattern instead of averaging it", async () => {
     const { svc } = rig();
     await svc.recordCorrection("alias", "capture.category", "practice", "elite-squad", "e1");
-    const made = await svc.recordCorrection("alias", "capture.category", "practice", "bffsa", "e2");
+    const made = await svc.recordCorrection("alias", "capture.category", "practice", "orgA", "e2");
     expect(made).toBeNull();
     expect(await svc.resolve("capture.category", "practice")).toBeNull();
     // The new signal needs its own pair.
-    const second = await svc.recordCorrection("alias", "capture.category", "practice", "bffsa", "e3");
+    const second = await svc.recordCorrection("alias", "capture.category", "practice", "orgA", "e3");
     expect(second).not.toBeNull();
   });
 });
@@ -78,7 +78,7 @@ describe("law: rules announce once, die on one contradiction, and delete cleanly
   it("one contradicting correction kills the rule instantly", async () => {
     const { svc } = rig();
     await makeRule(svc);
-    await svc.recordCorrection("alias", "capture.category", "practice", "bffsa", "contradiction");
+    await svc.recordCorrection("alias", "capture.category", "practice", "orgA", "contradiction");
     expect(await svc.resolve("capture.category", "practice")).toBeNull();
   });
 

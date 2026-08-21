@@ -88,7 +88,7 @@ describe("law: no long sentences in the UI", () => {
           // Abbreviation-shaped false positives stay legal: "e.g. Rent",
           // version-ish "v2. X" does not occur in copy.
           if (/\b(e\.g|i\.e|vs|etc)\. [A-Z]/.test(m[1]!)) continue;
-          // Middle initials in names ("Joseph T. Pareres") are not sentences.
+          // Middle initials in names ("Marcus Delaney") are not sentences.
           if (/\b[A-Z]\. [A-Z]/.test(m[1]!)) continue;
           offenders.push(`${r}:${i + 1} :: ${m[1]!.slice(0, 70)}`);
         }

@@ -6,7 +6,7 @@ import {
 
 const NOW = new Date("2026-08-20T10:00:00").getTime();
 const item = (over: Partial<OutboxItem> = {}): OutboxItem => ({
-  id: "o1", to: "wei@bffsa.org", subject: "Invoice", body: "hi",
+  id: "o1", to: "wei@northlake.org", subject: "Invoice", body: "hi",
   dueMs: NOW + 12000, scheduled: false, state: "held", ...over,
 });
 

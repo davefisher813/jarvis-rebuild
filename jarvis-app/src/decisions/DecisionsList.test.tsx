@@ -14,7 +14,7 @@ function Seed() {
   useEffect(() => {
     void svc.create({
       decision: "Student template ships before the other two are even started",
-      why: "BFFSA gives 60 warm leads on day one",
+      why: "Northlake gives 60 warm leads on day one",
       linkedType: "project",
       linkedId: "p1",
       linkedLabel: "Rebuild Bridge App",

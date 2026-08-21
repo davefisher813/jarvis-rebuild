@@ -27,7 +27,7 @@ const ChatFlow = lazy(() => import("../chat/ChatFlow"));
 
 const QuickCapture = lazy(() => import("../capture/QuickCapture"));
 const SearchFlow = lazy(() => import("../search/SearchFlow"));
-import { seedDemoData, seedDemoMail } from "../data/seed";
+
 import { setCategoryRegistry } from "../shared/categories";
 import ToastHost from "../shared/ToastHost";
 import { bus } from "../events";
@@ -114,7 +114,13 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       const cats = await categories.list();
       if (!on) return;
       setCategoryRegistry(cats.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));
-      if (seedDemo) { await seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people, decisions }); seedDemoMail(); }
+      // Dynamic, and behind the build constant, so the real bundle never
+      // contains the seed module at all (see vite.config.ts).
+      if (__DEMO_SEED__ && seedDemo) {
+        const seed = await import("../data/seed");
+        await seed.seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people, decisions });
+        seed.seedDemoMail();
+      }
       if (!on) return;
       const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
       setTabKeys(keys);

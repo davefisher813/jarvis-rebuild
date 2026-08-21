@@ -143,7 +143,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .row-status { font-size: var(--t-meta); color: var(--tx-3); flex-shrink: 0; }
 
 /* Neutral category color palette (slots) for the multi-user build. User categories
-   pick a slot; this replaces the org-named keys (tucci/elite/bffsa). Same values as
+   pick a slot; this replaces the old org-named keys. Same values as
    the originals, just neutral names. Light fills carry a dark glyph for contrast. */
 :root {
   --cat-red: #FF1F30; --cat-orange: #FF9F0A; --cat-sky: #5AC8FA; --cat-pink: #FF85B8; --cat-yellow: #FFCC00;

@@ -96,7 +96,7 @@ describe("attachments become things", () => {
   });
 
   it("offers the calendar file first: it is the most actionable thing there", () => {
-    const o = attachOffer({ from: "Tucci", subject: "Fall clinics", body: "", attachments: [att("c.ics", "text/calendar"), att("i.pdf", "application/pdf")] });
+    const o = attachOffer({ from: "Ridgeley", subject: "Fall clinics", body: "", attachments: [att("c.ics", "text/calendar"), att("i.pdf", "application/pdf")] });
     expect(o).toMatchObject({ kind: "calendar", action: "Add" });
   });
 
@@ -166,14 +166,14 @@ describe("VIPs", () => {
 
   it("overrules triage, which is the entire point", () => {
     const map = { t1: { bucket: "noise" as const, gist: "g", lastMsgId: "m" } };
-    const rows = [{ id: "t1", fromEmail: "Wei@bffsa.org" }];
-    expect(applyVips(map, rows, ["wei@bffsa.org"]).t1!.bucket).toBe("needs_you");
+    const rows = [{ id: "t1", fromEmail: "Wei@northlake.org" }];
+    expect(applyVips(map, rows, ["wei@northlake.org"]).t1!.bucket).toBe("needs_you");
     expect(applyVips(map, rows, []).t1!.bucket).toBe("noise");
   });
 
   it("knows a VIP whatever case the header used", () => {
-    expect(isVip("WEI@bffsa.org", ["wei@bffsa.org"])).toBe(true);
-    expect(isVip(undefined, ["wei@bffsa.org"])).toBe(false);
+    expect(isVip("WEI@northlake.org", ["wei@northlake.org"])).toBe(true);
+    expect(isVip(undefined, ["wei@northlake.org"])).toBe(false);
   });
 
   it("says what the list does, even when it is empty", () => {
@@ -302,8 +302,8 @@ describe("drafts you never sent", () => {
 // ---------------------------------------------------------------- N8
 describe("heads-down auto-reply", () => {
   const base = {
-    enabled: true, fromEmail: "wei@bffsa.org", myEmail: "dave@x.com",
-    vips: ["wei@bffsa.org"], state: { blockId: "b1", repliedTo: [] }, alreadyRepliedThread: false,
+    enabled: true, fromEmail: "wei@northlake.org", myEmail: "dave@x.com",
+    vips: ["wei@northlake.org"], state: { blockId: "b1", repliedTo: [] }, alreadyRepliedThread: false,
   };
 
   it("is off unless it is explicitly on", () => {
@@ -321,7 +321,7 @@ describe("heads-down auto-reply", () => {
   });
 
   it("answers each person once per block", () => {
-    expect(shouldAutoReply({ ...base, state: { blockId: "b1", repliedTo: ["wei@bffsa.org"] } })).toBe(false);
+    expect(shouldAutoReply({ ...base, state: { blockId: "b1", repliedTo: ["wei@northlake.org"] } })).toBe(false);
   });
 
   it("stays quiet on a thread he already answered himself", () => {
@@ -335,8 +335,8 @@ describe("heads-down auto-reply", () => {
 
   it("forgets everyone when the block changes", () => {
     const st = mem();
-    markAutoReplied("b1", "wei@bffsa.org", st);
-    expect(loadAutoState("b1", st).repliedTo).toEqual(["wei@bffsa.org"]);
+    markAutoReplied("b1", "wei@northlake.org", st);
+    expect(loadAutoState("b1", st).repliedTo).toEqual(["wei@northlake.org"]);
     expect(loadAutoState("b2", st).repliedTo).toEqual([]);
   });
 });
@@ -364,7 +364,7 @@ describe("what did I tell them", () => {
   });
 
   it("searches his sent mail, scoped to the person when there is one", () => {
-    expect(saidQuery("wei@bffsa.org", "invoice")).toBe("in:sent to:wei@bffsa.org invoice");
+    expect(saidQuery("wei@northlake.org", "invoice")).toBe("in:sent to:wei@northlake.org invoice");
     expect(saidQuery("", "")).toBe("in:sent");
   });
 
@@ -381,8 +381,8 @@ describe("read me the inbox", () => {
     ({ key: kind, kind, threadId: "t", title, sub, action: "A", tone: "t" });
 
   it("says the same things the cards say", () => {
-    const out = speakable([n("reply", "Wei Zhang", "Wants the invoice signed")], "One needs an answer");
-    expect(out).toBe("One needs an answer. Wei Zhang is waiting on an answer. Wants the invoice signed.");
+    const out = speakable([n("reply", "Nadia Brandt", "Wants the invoice signed")], "One needs an answer");
+    expect(out).toBe("One needs an answer. Nadia Brandt is waiting on an answer. Wants the invoice signed.");
   });
 
   it("has no dot separators to read out loud", () => {
@@ -396,7 +396,7 @@ describe("read me the inbox", () => {
   });
 
   it("reads a nudge as a person, not a headline", () => {
-    expect(speakable([n("nudge", "nikestrength Hasn't Replied")], "")).toBe("nikestrength still hasn't replied.");
+    expect(speakable([n("nudge", "summitgear Hasn't Replied")], "")).toBe("summitgear still hasn't replied.");
   });
 });
 
@@ -423,8 +423,8 @@ describe("the Sunday close", () => {
   });
 
   it("never sweeps a VIP", () => {
-    const { rows, buckets } = build([old("1", "noise", "Wei", "wei@bffsa.org")]);
-    expect(closeCandidates(rows, buckets, ["wei@bffsa.org"], NOW).ids).toEqual([]);
+    const { rows, buckets } = build([old("1", "noise", "Wei", "wei@northlake.org")]);
+    expect(closeCandidates(rows, buckets, ["wei@northlake.org"], NOW).ids).toEqual([]);
   });
 
   it("leaves recent mail alone", () => {
@@ -485,7 +485,7 @@ describe("the unsubscribe sweep", () => {
 
 // ---------------------------------------------------------------- N15
 describe("the attachment you meant to send", () => {
-  const files = [{ id: "n1", name: "Tucci Waiver 2026", kind: "note" }];
+  const files = [{ id: "n1", name: "Ridgeley Waiver 2026", kind: "note" }];
 
   it("hears the ask in their words", () => {
     expect(asksIn("Can you send me the waiver when you get a sec?")).toContain("waiver");
@@ -513,6 +513,6 @@ describe("the attachment you meant to send", () => {
 
   it("names both sides so he can see why it is offering", () => {
     const s = suggestAttachment("please send the waiver", "Attached", files)!;
-    expect(suggestLine(s)).toBe('They asked for the waiver. You have "Tucci Waiver 2026".');
+    expect(suggestLine(s)).toBe('They asked for the waiver. You have "Ridgeley Waiver 2026".');
   });
 });

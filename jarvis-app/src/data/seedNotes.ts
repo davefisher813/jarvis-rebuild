@@ -16,13 +16,13 @@ export async function seedDemoNotes(svc: NotesService, cats: Category[]) {
     // document, not a stub.
     const plan = await svc.createNote("Coach Onboarding Plan", id("Work"));
     if (plan) {
-      await svc.addBlock(plan, { type: "meta", text: "Aug 19 · Wei, Sam Rivera" });
+      await svc.addBlock(plan, { type: "meta", text: "Aug 19 · Wei, Sam Okafor" });
       await svc.addBlock(plan, { type: "heading", text: "Why This Matters" });
-      await svc.addBlock(plan, { type: "text", text: "**BFFSA hands us 60 warm leads on day one.** Every coach who finishes onboarding in *under ten minutes* becomes a referral engine for their whole roster. ==Wei intro email is the unlock.==" });
+      await svc.addBlock(plan, { type: "text", text: "**Northlake hands us 60 warm leads on day one.** Every coach who finishes onboarding in *under ten minutes* becomes a referral engine for their whole roster. ==Wei intro email is the unlock.==" });
       await svc.addBlock(plan, { type: "heading", text: "The Sequence" });
       await svc.addBlock(plan, { type: "bulleted_list", items: ["Welcome email the moment they sign", "One-tap roster import from the league export", "First win inside five minutes: their schedule, filled"] });
       await svc.addBlock(plan, { type: "heading", text: "Open Questions" });
-      await svc.addChecklist(plan, ["Confirm Wei owns the BFFSA intro email", "Price the assistant-coach seat", "Draft the day-30 check-in"]);
+      await svc.addChecklist(plan, ["Confirm Wei owns the Northlake intro email", "Price the assistant-coach seat", "Draft the day-30 check-in"]);
     }
 
     const training = await svc.createNote("Training Plan", id("Health"));
@@ -33,7 +33,7 @@ export async function seedDemoNotes(svc: NotesService, cats: Category[]) {
     }
 
     // His actual working notes, as they appear on his phone.
-    const rob = await svc.createNote("Rob Bridge", id("Family"));
+    const rob = await svc.createNote("Rob Calder", id("Family"));
     if (rob) {
       await svc.addBlock(rob, { type: "bulleted_list", items: [
         "What position",

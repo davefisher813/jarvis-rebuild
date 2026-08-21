@@ -10,7 +10,7 @@ const row = (id: string, from: string, subject: string, snippet = "", lastMsgId 
   ({ id, from, fromEmail: from.toLowerCase() + "@x.com", subject, snippet, unread: true, inInbox: true, dateMs: 1, count: 1, lastMsgId });
 
 const ROWS = [
-  row("t1", "Tucci", "Waiver", "Need the signed waiver by Friday"),
+  row("t1", "Ridgeley", "Waiver", "Need the signed waiver by Friday"),
   row("t2", "Geico", "Renewal", "Your policy renews Aug 12 for $214"),
   row("t3", "DoorDash", "20% off", "Order now"),
 ];
@@ -18,11 +18,11 @@ const ROWS = [
 describe("parseTriage", () => {
   it("parses a clean reply and keys the cache by latest message id", () => {
     const raw = JSON.stringify([
-      { id: "t1", bucket: "needs_you", gist: "Tucci needs the waiver by Friday." },
+      { id: "t1", bucket: "needs_you", gist: "Ridgeley needs the waiver by Friday." },
       { id: "t3", bucket: "noise", gist: "DoorDash promo." },
     ]);
     const map = parseTriage(raw, ROWS)!;
-    expect(map.t1).toEqual({ bucket: "needs_you", gist: "Tucci needs the waiver by Friday.", lastMsgId: "t1_m1" });
+    expect(map.t1).toEqual({ bucket: "needs_you", gist: "Ridgeley needs the waiver by Friday.", lastMsgId: "t1_m1" });
     expect(map.t3!.bucket).toBe("noise");
   });
 

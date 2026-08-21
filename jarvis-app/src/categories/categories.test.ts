@@ -26,11 +26,11 @@ describe("CategoriesService", () => {
   it("renames, recolors, and sets icon by id", async () => {
     const svc = new CategoriesService(new Store(new InMemoryAdapter()), "u1");
     const id = (await svc.create("Work", "blue"))!;
-    expect(await svc.rename(id, "Tucci")).toBe(true);
+    expect(await svc.rename(id, "Ridgeley")).toBe(true);
     expect(await svc.recolor(id, "sky")).toBe(true);
     expect(await svc.setIcon(id, "building")).toBe(true);
     const c = await svc.get(id);
-    expect(c?.data).toMatchObject({ name: "Tucci", color: "sky", icon: "building" });
+    expect(c?.data).toMatchObject({ name: "Ridgeley", color: "sky", icon: "building" });
   });
 
   it("rename rejects empty and unknown id", async () => {

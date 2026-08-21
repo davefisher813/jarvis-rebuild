@@ -89,18 +89,18 @@ describe("standing rules are undoable", () => {
 
 describe("no em dash survives an AI answer", () => {
   const row: ThreadRow = {
-    id: "t1", from: "Tucci", fromEmail: "t@x.com", subject: "Waiver", snippet: "",
+    id: "t1", from: "Ridgeley", fromEmail: "t@x.com", subject: "Waiver", snippet: "",
     unread: true, inInbox: true, dateMs: 1, count: 1, lastMsgId: "m1",
   };
 
   it("replaces the dash without eating the sentence", () => {
-    expect(noDashes("Pay Tucci — by Friday")).toBe("Pay Tucci, by Friday");
+    expect(noDashes("Pay Ridgeley — by Friday")).toBe("Pay Ridgeley, by Friday");
     expect(noDashes("Send it — today.")).toBe("Send it, today."); // period survives
     expect(noDashes("no dashes here")).toBe("no dashes here");
   });
 
   it("scrubs a triage gist", () => {
-    const m = parseTriage('[{"id":"t1","bucket":"needs_you","gist":"Tucci wants it — by Friday"}]', [row]);
+    const m = parseTriage('[{"id":"t1","bucket":"needs_you","gist":"Ridgeley wants it — by Friday"}]', [row]);
     expect(m!["t1"]!.gist).not.toContain("—");
   });
 

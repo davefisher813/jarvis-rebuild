@@ -69,8 +69,8 @@ describe("commitment catcher", () => {
   beforeEach(() => localStorage.clear());
 
   it("takes the promise and the day he named", () => {
-    const c = parseCommitment('{"text":"Send Tucci the roster","due":"2026-08-14"}', "2026-08-05");
-    expect(c).toEqual({ text: "Send Tucci the roster", due: "2026-08-14" });
+    const c = parseCommitment('{"text":"Send Ridgeley the roster","due":"2026-08-14"}', "2026-08-05");
+    expect(c).toEqual({ text: "Send Ridgeley the roster", due: "2026-08-14" });
   });
 
   it("keeps the promise but drops a date in the past, which is a misread", () => {

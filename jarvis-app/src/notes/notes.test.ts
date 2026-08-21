@@ -60,7 +60,7 @@ describe("Notes permanent guard: tombstone (R12)", () => {
 describe("Notes permanent guard: sync loss (R17)", () => {
   it("an offline title edit is held then applied on reconnect", async () => {
     const svc = freshService();
-    const id = (await svc.createNote("before", "tucci"))!;
+    const id = (await svc.createNote("before", "orgB"))!;
     svc.goOffline();
     await svc.editTitle(id, "after");
     expect(svc.queueLen()).toBe(1);

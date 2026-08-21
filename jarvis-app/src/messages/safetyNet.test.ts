@@ -8,7 +8,7 @@ const NOW = 1785900000000;
 
 function row(id: string, ageDays: number): ThreadRow {
   return {
-    id, from: "Tucci", fromEmail: "t@x.com", subject: "Waiver", snippet: "",
+    id, from: "Ridgeley", fromEmail: "t@x.com", subject: "Waiver", snippet: "",
     unread: true, inInbox: true, dateMs: NOW - ageDays * DAY, count: 1, lastMsgId: id + "m",
   };
 }

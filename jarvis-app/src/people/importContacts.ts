@@ -28,7 +28,7 @@ function unfold(text: string): string[] {
   return out;
 }
 
-// "FN;CHARSET=UTF-8:Mike Tucci" -> { prop: "FN", value: "Mike Tucci" }
+// "FN;CHARSET=UTF-8:Mike Ridgeley" -> { prop: "FN", value: "Mike Ridgeley" }
 function vLine(line: string): { prop: string; value: string } | null {
   const colon = line.indexOf(":");
   if (colon < 0) return null;

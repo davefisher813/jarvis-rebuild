@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, lazy, Suspense } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send } from "lucide-react";
 import type { AIService } from "../ai/AIService";
 import { useGoogle } from "../connections/google/GoogleSession";
-import DemoMail from "./DemoMail";
+
 import { googleConfigured } from "../connections/google/config";
 import {
   mapThread, mapThreadFull, mapGmailFull, buildReply, encodeEmail,
@@ -58,6 +58,12 @@ import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
 import { mightProposeTimes, meetingPrompt, parseMeetingTimes, optionsAgainst, firstFree, meetingLine, MEETING_SYSTEM } from "./meetingTimes";
 import { sweepPrompt, parseSweep, needsSweep, liveSweep, loadSweep, saveSweep, SWEEP_SYSTEM, type SentItem } from "./sentSweep";
 import { laterTaskTitle } from "./deck";
+
+// Demo fixtures never reach a real build (see vite.config.ts). The constant
+// has to guard the IMPORT, not just the render: a lazy import that is always
+// constructed still emits a fetchable chunk, so the fixtures would sit on the
+// server for anyone who knew the filename.
+const DemoMail = __DEMO_SEED__ ? lazy(() => import("./DemoMail")) : null;
 import { noDashes } from "../ai/suggestions";
 import { useOptionalAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
@@ -84,7 +90,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error("Sorting took too long.")), ms)),
   ]);
 }
-// Transport quotes around display names ("Joseph T. Pareres") are wire
+// Transport quotes around display names ("Marcus Delaney") are wire
 // format, not UI. Strip them everywhere a sender renders (V4 email pass).
 const displayName = (n: string) => n.replace(/^"+|"+$/g, "").trim();
 
@@ -95,7 +101,7 @@ function fmtDuration(ms: number): string {
   return s < 60 ? s + "s" : Math.floor(s / 60) + "m " + (s % 60) + "s";
 }
 
-// "bffsa.org" for work-style domains, "gmail" for the big ones: the shortest
+// "northlake.org" for work-style domains, "gmail" for the big ones: the shortest
 // string that still tells the accounts apart.
 function acctLabel(email: string): string {
   const domain = email.split("@")[1] || email;
@@ -1386,7 +1392,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // this session is the seeded demo (tests and real builds keep the honest
     // connect state).
     if (demoMail) {
-      return <div className={pushCls} key="demo"><DemoMail onConnect={configured ? connect : onOpenConnections} /></div>;
+      // Lazy AND behind the build constant: the fixtures live in that module,
+      // so a static import would ship them to every real user.
+      return DemoMail ? (
+        <div className={pushCls} key="demo">
+          <Suspense fallback={null}>
+            <DemoMail onConnect={configured ? connect : onOpenConnections} />
+          </Suspense>
+        </div>
+      ) : null;
     }
     return (
       <div className={"screen " + pushCls} key="connect">

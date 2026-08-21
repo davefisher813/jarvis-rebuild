@@ -46,7 +46,7 @@ export interface AttachSuggestion {
 }
 
 // Match the ask to something he owns. Whole-word containment both ways, so
-// "waiver" finds "Tucci Waiver 2026" and "Tucci Waiver 2026" is found by
+// "waiver" finds "Ridgeline Waiver 2026" and "Ridgeline Waiver 2026" is found by
 // "waiver", but "invoice" never matches "voice memo".
 export function suggestAttachment(
   incomingBody: string,

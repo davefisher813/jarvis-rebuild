@@ -47,7 +47,7 @@ describe("suggestLocations", () => {
 });
 
 describe("suggestCategory", () => {
-  const hist = [evt("Send invoice to BFFSA", { category: "money" }), evt("Team standup", { category: "work" })];
+  const hist = [evt("Send invoice to Northlake", { category: "money" }), evt("Team standup", { category: "work" })];
   const tasks = [{ text: "Chase invoice payment", category: "money" }];
   it("uses an exact title match first", () => {
     expect(suggestCategory(hist, [], "team standup")).toBe("work");
