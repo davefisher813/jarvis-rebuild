@@ -1,6 +1,8 @@
 # JARVIS — Visual Design Audit
 **Aug 21, 2026 · layout, type, color, containers, buttons, spacing, hierarchy · 390×844 · both themes**
 
+*Revised: every finding re-derived against Apple's published semantic colors, the iOS type ramp, and Apple Music's own conventions. Two findings were withdrawn as wrong; the grey-scale verdict changed completely.*
+
 This is the craft audit, not the behaviour one. Everything below is measured from **computed style on the rendered page**, not read out of the stylesheet — a design system that lives in CSS variables but isn't what the browser paints is not a design system.
 
 Method: 30 pages walked, every text run measured by its **ink position** (`Range.getBoundingClientRect`, not the element box — element boxes include padding and report edges that aren't visible, which is how you get a false alignment finding).
@@ -50,12 +52,14 @@ That is a measurement correction, not a regression. The failures were always on 
 
 **Tokens define 6 sizes. The app paints 12.** Across the pages sampled: 34, 32, 21, 20, 17, 16, 15, 14, 13, 12, 11, 10 — with **24 distinct size/weight pairs**. 37 hardcoded `font-size` declarations sit alongside 245 tokenised ones.
 
-**Two screen titles, 2px apart, both weight 800:**
+**Two screen titles, 2px apart, both weight 800 — and Apple settles which one wins.**
 
-- `.pagehead-title` = **34px/800** (hardcoded — the token `--t-h1` is 32px, and this ignores it)
-- `.today-title` = **32px/800**
+- `.pagehead-title` = **34px** hardcoded
+- `.today-title` = **32px** from `--t-h1`
 
-Today's hero and every other page's title are different sizes for a difference no one can perceive as intentional. Pick one.
+iOS `largeTitle` is **34pt**. 32 is not a step on Apple's ramp at all, so the hardcoded 34 was right and the token was wrong. **Fixed:** `--t-h1: 32px → 34px`. Both titles now sit on Apple's largeTitle, and the off-ramp value is gone.
+
+Measured against the full iOS ramp (34 largeTitle · 28 title1 · 22 title2 · 20 title3 · 17 headline/body · 16 callout · 15 subhead · 13 footnote · 12 caption1 · 11 caption2 · 10 tab), JARVIS's sizes are mostly already Apple's. Only **21px** (`.rn-title`, wants 22) and **14px** (`.blend-plus`, wants 13 or 15) remain off-ramp.
 
 **Three eyebrow treatments for one role:**
 
@@ -77,19 +81,26 @@ Same job, three specs. On Today you can see 12/800 "Heads Up" directly above 11/
 
 ## Color
 
-### Red is spent 96 times against a law that allows four
+### Red: the law is broken, but by about a tenth as much as I first said
 
 The app's own comment in `jarvis-design-system.css` states it:
 
 > Red now means only: primary action, the current tab, a count badge, and capture.
 
-Actual count: **64 rules colour text red, 32 fill red.** Red is currently doing: back buttons and nav actions, "see all" links, section eyebrows, the textarea caret and body text, progress fill, slider fill, avatars, message dots, week cells, the focused input ring — and **location metadata**:
+Counted: 64 rules colour text red, 32 fill red. **But raw counts were the wrong measure, and two of my earlier calls were simply wrong.**
 
-```css
-.sched-loc { color: var(--tint); }   /* components.css:516 */
-```
+Apple's own guidance draws the line precisely: *"if you use your brand color to indicate that a borderless button is interactive, using the same or similar color to stylize noninteractive text is confusing."* Under iOS convention, `tintColor` on **any** interactive text — back buttons, links, "See All" — is correct, not a leak.
 
-That paints "Zoom" and "Ridgeline Fields" in full brand red on the Schedule. A place name is not an action. When everything urgent is red and the venue is also red, red stops meaning urgent.
+Re-classified against that line, the 64 red-text rules split roughly 20 interactive / 23 static / the rest brand or state.
+
+**Two corrections to my first pass:**
+
+- `.sched-loc` is not a leak. It is a real `<a href="https://maps.apple.com/?q=…">` (`DayRow.tsx:135`). A tappable place name in tint is exactly iOS behaviour.
+- "Body text in the note editor is red" was wrong. `.doc-textarea` sets `caret-color: var(--accent)` — the cursor, not the text. Text is `--tx-1`. A tinted caret is standard iOS.
+
+**What genuinely paints red on noninteractive text:** `.sh2 .t` (every section header), `.grp .eyebrow`, `.now-line .now-label`, `.capture-kind`, `.tcell`, `.proj-guess .conn-name`, `.fg-tint`. About eight rules, not ninety-six.
+
+**Decision made:** Dave reviewed a rendered A/B of white section headers (the Apple Music treatment — Music puts section titles in label colour and reserves red for the "See All" beside them) and **chose to keep the red headers.** They are the JARVIS signature and the brand outranks the convention here. Recorded so it is not re-litigated: this is a deliberate divergence from Apple Music, not an oversight.
 
 **Red load above the fold, counted per screen:** Tasks 14 red-ish elements, Today 12, What Now 11, Contacts 8 (five identical red avatar discs in a column).
 
@@ -188,11 +199,12 @@ The counter-example is in the app already: **Focus / Up Next** is one card, one 
 
 | # | fix | effort |
 |---|---|---|
-| 1 | Light-theme `--tx-3` → 0.75 (218 contrast failures) | token, but see the flatness trade-off |
-| 2 | `--tx-4` off the inactive tab labels (2.25:1 nav) | token |
+| ~~1~~ | ~~Light `--tx-3`~~ → **done**, as an Apple increased-contrast variant rather than a base change | shipped |
+| ~~2~~ | ~~`--tx-4` off the tab labels~~ → **done**, repointed to systemGray | shipped |
 | 3 | `.btn.btn-block` gets a visible container | one rule |
-| 4 | `.sched-loc` off red; audit the other 90 red rules against the four-use law | small, high impact |
-| 5 | Collapse two titles → one; three eyebrows → one | small |
+| 4 | ~~`.sched-loc`~~ (correct as-is). Remaining: ~8 static-text reds, minus section headers, which Dave has kept by decision | small |
+| ~~5a~~ | ~~two titles → one~~ → **done** via `--t-h1: 34` | shipped |
+| 5 | Three eyebrow specs → one | small |
 | 6 | Fixed-width icon slot so list text shares one rail | small |
 | 7 | Pick one container language for lists (card vs bare row) | medium |
 | 8 | Collapse 6 button heights → 4; `.seg` radius 7 → 8 | medium |
@@ -205,4 +217,5 @@ Bundle size still untouched per your standing instruction.
 
 - `tools/design-metrics.mjs` — type/color/spacing/radius/button/hierarchy measurement from computed style
 - `tools/design-overlay.mjs` — draws every text rail and sub-44px target onto a screenshot
-- `tools/visual-audit.mjs` — **alpha compositing bug fixed**; contrast numbers are now real
+- `tools/visual-audit.mjs` — **two blind spots fixed.** (1) alpha compositing: `rgba` text was scored as opaque. (2) leaf-only walking: it skipped any element with children, so every tab-bar label — text sitting beside an `<svg>` — was outside the audit entirely. True total went 0 → 218 → **412**.
+- `tools/verify-contrast-mode.mjs` — measures the same elements with `prefers-contrast` off and on, so the increased-contrast variant is proven rather than asserted.

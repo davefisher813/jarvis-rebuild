@@ -10,7 +10,9 @@
 
   /* TYPE SCALE (7-tier) */
   --t-display: 56px;  /* hero numbers only */
-  --t-h1: 32px;       /* screen titles */
+  --t-h1: 34px;       /* screen titles = iOS largeTitle (34pt). Was 32,
+                         which is not a step on Apple's ramp and left
+                         .pagehead-title's hardcoded 34 disagreeing with it. */
   --t-h2: 20px;       /* card / section titles */
   --t-h3: 17px;       /* row primary text */
   --t-body: 15px;     /* body */
@@ -122,6 +124,7 @@
      recede comes from this ramp plus 15px meta size, not from casing. */
   --tx-1: #FFFFFF; --tx-2: rgba(235,235,245,0.82); --tx-3: rgba(235,235,245,0.60); --tx-4: rgba(235,235,245,0.30);
   /* iOS system colors, DARK variants, exactly as the HIG defines them. */
+  --sys-gray: #8E8E93;   /* iOS systemGray, identical in both themes */
   --red: #FF453A; --sys-red: #FF453A; --warn: #FF9F0A; --good: #30D158; --blue: #0A84FF;
   --yellow: #FFD60A; --teal: #40C8E0; --mint: #66D4CF; --pink: #FF375F;
   /* --tint is the colour of things that are tappable but are not buttons: the
@@ -168,6 +171,7 @@
   /* Light mirrors the iOS light label ramp (3C3C43 at 60% / 30%). */
   --tx-1: #000000; --tx-2: rgba(60,60,67,0.82); --tx-3: rgba(60,60,67,0.60); --tx-4: rgba(60,60,67,0.30);
   /* iOS system colors, LIGHT variants, exactly as the HIG defines them. */
+  --sys-gray: #8E8E93;
   --red: #FF3B30; --sys-red: #FF3B30; --warn: #FF9500; --good: #34C759; --blue: #007AFF;
   --yellow: #FFCC00; --teal: #30B0C7; --mint: #00C7BE; --pink: #FF2D55;
   /* Red in light theme too (Dave, 2026-08-02), but a darker red than dark
@@ -323,7 +327,14 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 
 /* TAB BAR */
 .tab-bar { display: flex; background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 0.5px solid var(--divider); padding: var(--s-1h) 0 calc(var(--s-3) + env(safe-area-inset-bottom, 0)); }
-.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: var(--s-1) 0; color: var(--tx-4); font-size: 10px; font-weight: var(--w-medium); position: relative; }
+/* Unselected tab labels ride systemGray, not tertiaryLabel. tertiaryLabel
+   is Apple's colour for text that has been deliberately de-emphasised
+   INSIDE content; iOS tab bars use the opaque grey, because the tab bar is
+   navigation and has to stay readable. At --tx-4 these measured 2.25:1 --
+   the app's primary navigation at half of the 4.5:1 Apple itself asks for
+   in the App Store accessibility criteria. systemGray takes them to 6.44:1
+   on the dark bar. */
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: var(--s-1) 0; color: var(--sys-gray); font-size: 10px; font-weight: var(--w-medium); position: relative; }
 .tab.active { color: var(--accent-chrome); }
 .tab .badge { position: absolute; top: 0; right: calc(50% - 20px); background: var(--sys-red); color: #fff; font-size: 10px; font-weight: var(--w-semi); min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
 
@@ -495,3 +506,43 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 /* Use .hit44 to extend a small control's touch area without changing its look. */
 .hit44 { position: relative; }
 .hit44::after { content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); min-width: var(--tap-min); min-height: var(--tap-min); width: 100%; height: 100%; }
+
+/* ── INCREASED CONTRAST ───────────────────────────────────────────────────
+   The label greys in this file are Apple's semantic label colours, exactly:
+   secondaryLabel is rgba(*,0.6) and tertiaryLabel is rgba(*,0.3) in both
+   themes. Measured against WCAG they do not clear 4.5:1 -- light
+   secondaryLabel lands at 3.1-3.4:1 and tertiaryLabel at 1.7:1 -- which is
+   a property of Apple's system, not a mistake in this app's copy of it.
+
+   iOS resolves that with the Increase Contrast setting, which shifts every
+   semantic colour. The HIG asks custom colours to do the same: "custom
+   colors should include an increased contrast option for each variant". On
+   the web that setting arrives as prefers-contrast, so this block is the
+   app's half of that contract. Alphas are the lowest that clear 4.5:1 on
+   the WORST surface in each theme (light 0.75 -> 4.52:1 over a pressed
+   chip; dark 0.60 -> 4.59:1 over surface-3), so nothing is over-darkened.
+
+   The default palette above stays Apple-exact on purpose. Anyone who needs
+   more contrast asks the OS once and every screen answers. */
+@media (prefers-contrast: more) {
+  :root, :root[data-theme="light"] {
+    --tx-2: rgba(60, 60, 67, 0.92);
+    --tx-3: rgba(60, 60, 67, 0.75);
+    --tx-4: rgba(60, 60, 67, 0.75);
+    --sys-gray: #6D6D72;
+  }
+  :root[data-theme="dark"] {
+    --tx-2: rgba(235, 235, 245, 0.92);
+    --tx-3: rgba(235, 235, 245, 0.60);
+    --tx-4: rgba(235, 235, 245, 0.60);
+    --sys-gray: #A2A2A8;
+  }
+}
+@media (prefers-contrast: more) and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --tx-2: rgba(235, 235, 245, 0.92);
+    --tx-3: rgba(235, 235, 245, 0.60);
+    --tx-4: rgba(235, 235, 245, 0.60);
+    --sys-gray: #A2A2A8;
+  }
+}

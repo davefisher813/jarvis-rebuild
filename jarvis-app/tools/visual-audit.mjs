@@ -215,9 +215,18 @@ const AUDIT = () => {
     return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
   };
   for (const e of all) {
-    if (e.children.length > 0) continue;
-    const txt = (e.textContent || "").trim();
-    if (!txt) continue;
+    // "Leaf elements only" missed every label that shares a parent with an
+    // icon -- which is every tab in the tab bar, where the word sits as a
+    // text node beside an <svg>. The tab bar is the app's primary
+    // navigation and it was outside the audit entirely. The right test is
+    // not "has no children" but "owns text of its own".
+    const own = [...e.childNodes]
+      .filter((n) => n.nodeType === 3)
+      .map((n) => n.textContent.trim())
+      .join(" ")
+      .trim();
+    if (!own) continue;
+    const txt = own;
     const cs = getComputedStyle(e);
     const back = bgOf(e);
     const fg = lum(cs.color), bg = lum(back);

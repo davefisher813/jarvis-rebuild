@@ -226,85 +226,90 @@ footer{margin-top:64px; padding-top:22px; border-top:1px solid var(--rule);
 
 <header class="mast">
   <p class="kicker">Visual Design Teardown · 21 Aug 2026</p>
-  <h1>The grey scale was never measured.</h1>
-  <p class="dek">A craft audit of JARVIS — type, color, containers, buttons, spacing, hierarchy — measured from computed style on the rendered page rather than read out of the stylesheet. It opens with a bug in the tool that was supposed to be checking this.</p>
+  <h1>The greys were Apple's all along.</h1>
+  <p class="dek">A craft audit of JARVIS — type, color, containers, buttons, spacing, hierarchy — measured from computed style, then re-derived against Apple's published semantic colors and the iOS type ramp. Two findings were withdrawn as wrong. The grey-scale verdict reversed entirely.</p>
   <div class="meta">
     <span><b>30</b> pages walked</span>
     <span><b>390×844</b> · both themes</span>
     <span><b>24</b> type pairs painted</span>
-    <span><b>96</b> red rules</span>
+    <span><b>412</b> true contrast findings</span>
   </div>
 </header>
 
 <section>
-  <h2>The auditor was scoring transparent text as opaque</h2>
-  <p class="sub">Yesterday's contrast pass reported zero findings. That number was an artifact of a one-line bug, not a clean bill of health.</p>
+  <h2>The auditor had two blind spots</h2>
+  <p class="sub">Yesterday's contrast pass reported zero findings. That number was an artifact of two bugs in the tool, not a clean bill of health.</p>
 
-  <p>The <code>rel()</code> helper in <code>visual-audit.mjs</code> matched all the digits in a color string and used the first three. Given <code>rgba(235, 235, 245, 0.3)</code> it measured solid <code>#EBEBF5</code> — and every <code>--tx-*</code> grey in JARVIS is <code>rgba</code>. The entire secondary and tertiary text layer was checked as if it were pure white.</p>
+  <p><b>One: alpha was ignored.</b> The <code>rel()</code> helper matched all the digits in a color string and used the first three. Given <code>rgba(235, 235, 245, 0.3)</code> it measured solid <code>#EBEBF5</code> — and every <code>--tx-*</code> grey in JARVIS is <code>rgba</code>, so the whole secondary and tertiary text layer was checked as if it were pure white.</p>
 
-  <p>The ratio now composites the text color over its real backdrop first. Same seven passes, same thirteen screens per pass:</p>
+  <p><b>Two: it only walked leaf elements.</b> Any element with children was skipped — which is every tab in the tab bar, where the label sits as a text node beside an <code>&lt;svg&gt;</code>. The app's primary navigation was outside the audit entirely.</p>
 
   <div class="tbl"><table>
-    <thead><tr><th>Theme</th><th>Reported before</th><th>Actual</th></tr></thead>
+    <thead><tr><th>Contrast findings</th><th>Dark</th><th>Light</th><th>Total</th></tr></thead>
     <tbody>
-      <tr><td>Dark</td><td class="num">0</td><td class="num"><span class="tag t-warn">26</span></td></tr>
-      <tr><td>Light</td><td class="num">0</td><td class="num"><span class="tag t-fail">192</span></td></tr>
-      <tr><td><b>Total</b></td><td class="num">0</td><td class="num"><span class="tag t-fail">218</span></td></tr>
+      <tr><td>as reported</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+      <tr><td>with alpha fixed</td><td class="num">26</td><td class="num">192</td><td class="num">218</td></tr>
+      <tr><td>with both fixed</td><td class="num"><span class="tag t-warn">67</span></td><td class="num"><span class="tag t-fail">345</span></td><td class="num"><span class="tag t-fail">412</span></td></tr>
     </tbody>
   </table></div>
   <p class="caption">A measurement correction, not a regression. These were always on screen.</p>
+</section>
 
-  <div class="verdict">
-    <div class="n">2.25<small>Nav labels</small></div>
-    <p>Your inactive tab labels — <b>Tasks</b>, <b>Schedule</b>, <b>More</b> — render at 2.25:1. That is the app's primary navigation at half the AA threshold, and below even the 3:1 floor for non-text. Apple's own inactive tab grey sits at 4.6:1.</p>
+<section>
+  <h2>But the greys are Apple's, exactly</h2>
+  <p class="sub">Checked against Apple's published semantic colors, the values in JARVIS are not approximations of the iOS palette. They are the iOS palette.</p>
+
+  <div class="tbl"><table>
+    <thead><tr><th>JARVIS token</th><th>Value</th><th>Apple</th></tr></thead>
+    <tbody>
+      <tr><td><code>--tx-3</code></td><td class="num">rgba(·,0.60)</td><td><span class="tag t-pass">secondaryLabel — exact</span></td></tr>
+      <tr><td><code>--tx-4</code></td><td class="num">rgba(·,0.30)</td><td><span class="tag t-pass">tertiaryLabel — exact</span></td></tr>
+      <tr><td><code>--surface-1/2/3</code></td><td class="num">#1C1C1E · #2C2C2E · #3A3A3C</td><td><span class="tag t-pass">systemGray6 / 5 / 4 — exact</span></td></tr>
+      <tr><td><code>--tx-2</code></td><td class="num">rgba(·,0.82)</td><td><span class="tag t-warn">no Apple equivalent</span></td></tr>
+    </tbody>
+  </table></div>
+
+  <p>So the 412 findings are not a JARVIS mistake. They are a property of Apple's system: <code>secondaryLabel</code> on white measures 3.4:1, and Apple ships it anyway.</p>
+
+  <p><b>How Apple resolves it — and what was missing here.</b> iOS has an <i>Increase Contrast</i> setting that shifts every semantic color, and the HIG asks custom palettes to do the same: <i>"custom colors should include an increased contrast option for each variant."</i> Apple's own App Store accessibility criteria then expects 4.5:1. JARVIS shipped Apple's base values with no increased-contrast variant, so the setting did nothing.</p>
+
+  <div class="verdict" style="border-left-color:var(--pass)">
+    <div class="n" style="color:var(--pass)">4.52<small>was 3.14</small></div>
+    <p><b>Fixed.</b> <code>@media (prefers-contrast: more)</code> now carries the elevated alphas — the lowest that clear 4.5:1 on the <i>worst</i> surface in each theme, so nothing is over-darkened. The default palette stays Apple-exact.</p>
   </div>
 
-  <h3>Where the scale actually lands</h3>
+  <h3>Measured, setting off then on</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Element</th><th>Theme</th><th>Default</th><th>contrast: more</th></tr></thead>
+    <tbody>
+      <tr><td><code>.voice-hint</code></td><td>light</td><td class="num"><span class="tag t-fail">3.14</span></td><td class="num"><span class="tag t-pass">4.52</span></td></tr>
+      <tr><td><code>.conn-meta</code></td><td>light</td><td class="num"><span class="tag t-fail">3.44</span></td><td class="num"><span class="tag t-pass">5.16</span></td></tr>
+      <tr><td><code>.sched-cat</code></td><td>light</td><td class="num"><span class="tag t-fail">3.44</span></td><td class="num"><span class="tag t-pass">5.16</span></td></tr>
+      <tr><td>all three</td><td>dark</td><td class="num"><span class="tag t-pass">4.59–6.36</span></td><td class="num">unchanged</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>The one genuine bug: the tab bar</h3>
+  <p><code>--tx-4</code> is <code>tertiaryLabel</code> — Apple's color for text deliberately de-emphasised <i>inside content</i>. iOS tab bars use opaque <code>systemGray</code>, because navigation has to stay readable. JARVIS had the content color on its navigation.</p>
   <div class="chips">
-    <div class="chip" style="background:#FFFFFF;border-color:rgba(0,0,0,.12)">
-      <span class="sample" style="color:rgba(60,60,67,.6)">Then Deep Work</span>
-      <span class="ratio" style="color:#D01026">3.44</span>
-      <span class="lbl" style="color:#3C3C43">tx-3 · light card</span>
-    </div>
-    <div class="chip" style="background:#E5E5EA;border-color:rgba(0,0,0,.12)">
-      <span class="sample" style="color:rgba(60,60,67,.6)">Tap to capture</span>
-      <span class="ratio" style="color:#D01026">3.14</span>
-      <span class="lbl" style="color:#3C3C43">tx-3 · light chip</span>
-    </div>
-    <div class="chip" style="background:#FFFFFF;border-color:rgba(0,0,0,.12)">
-      <span class="sample" style="color:rgba(60,60,67,.3)">Next: Swap Quotes</span>
-      <span class="ratio" style="color:#D01026">1.73</span>
-      <span class="lbl" style="color:#3C3C43">tx-4 · light card</span>
-    </div>
-    <div class="chip" style="background:#000000;border-color:rgba(255,255,255,.16)">
-      <span class="sample" style="color:rgba(235,235,245,.6)">Then Deep Work</span>
-      <span class="ratio" style="color:#4ADE80">6.36</span>
-      <span class="lbl" style="color:#EBEBF5">tx-3 · dark page</span>
-    </div>
-    <div class="chip" style="background:#3A3A3C;border-color:rgba(255,255,255,.16)">
-      <span class="sample" style="color:rgba(235,235,245,.6)">Then Deep Work</span>
-      <span class="ratio" style="color:#FBBF24">4.59</span>
-      <span class="lbl" style="color:#EBEBF5">tx-3 · dark raised</span>
-    </div>
-    <div class="chip" style="background:#000000;border-color:rgba(255,255,255,.16)">
+    <div class="chip" style="background:#000;border-color:rgba(255,255,255,.16)">
       <span class="sample" style="color:rgba(235,235,245,.3)">Tasks · Schedule</span>
-      <span class="ratio" style="color:#D01026">2.25</span>
-      <span class="lbl" style="color:#EBEBF5">tx-4 · dark page</span>
+      <span class="ratio" style="color:#FF5C6B">2.25</span><span class="lbl" style="color:#EBEBF5">before · tertiaryLabel</span>
+    </div>
+    <div class="chip" style="background:#000;border-color:rgba(255,255,255,.16)">
+      <span class="sample" style="color:#8E8E93">Tasks · Schedule</span>
+      <span class="ratio" style="color:#4ADE80">6.44</span><span class="lbl" style="color:#EBEBF5">after · systemGray</span>
+    </div>
+    <div class="chip" style="background:#F9F9FB;border-color:rgba(0,0,0,.12)">
+      <span class="sample" style="color:rgba(60,60,67,.3)">Tasks · Schedule</span>
+      <span class="ratio" style="color:#D01026">1.71</span><span class="lbl" style="color:#3C3C43">light · before</span>
+    </div>
+    <div class="chip" style="background:#F9F9FB;border-color:rgba(0,0,0,.12)">
+      <span class="sample" style="color:#8E8E93">Tasks · Schedule</span>
+      <span class="ratio" style="color:#A66300">3.10</span><span class="lbl" style="color:#3C3C43">light · after (4.61 boosted)</span>
     </div>
   </div>
-  <p class="caption">Live swatches — those are the real alpha values over the real surfaces.</p>
-
-  <p><b>Root cause:</b> one grey scale was authored once and reused across two themes whose surfaces have opposite luminance. Dark got away with it at <code>tx-3</code>; light did not. The alphas that hold on every surface in their own theme:</p>
-
-  <div class="spec" style="background:var(--sunk)">
-<pre style="margin:0;font-family:'IBM Plex Mono',monospace;font-size:12.5px;line-height:1.85;color:var(--ink);overflow-x:auto"><code style="background:0;border:0;padding:0">[data-theme="light"] { --tx-3: rgba(60,60,67,0.75);   /* was .60 */
-                       --tx-4: rgba(60,60,67,0.75); }
-[data-theme="dark"]  { --tx-3: rgba(235,235,245,0.60); /* already ok */
-                       --tx-4: rgba(235,235,245,0.60); }</code></pre>
-  </div>
-  <p class="caption">Not applied. This is a design decision, not a bug fix — see below.</p>
-
-  <p>Bringing <code>tx-4</code> up to AA means it stops being a third grey; it collapses into <code>tx-3</code> and you lose a tier of visual quiet. The alternative is to keep <code>tx-4</code> dim and put only decoration in it, never words — which means the inactive tab labels have to move to <code>tx-3</code> regardless. <b>Your call, so I left the tokens alone.</b></p>
+  <p class="caption">Light tab bars still sit under AA at rest — so do Apple's. That is what the increase-contrast path is for.</p>
 </section>
 
 <section>
@@ -336,7 +341,8 @@ footer{margin-top:64px; padding-top:22px; border-top:1px solid var(--rule);
   <p class="caption">Rendered at the exact values the browser paints. Scroll the block if it clips.</p>
 
   <h3>Three things to fix</h3>
-  <p><b>Two screen titles, two pixels apart, both weight 800.</b> <code>.pagehead-title</code> is a hardcoded 34px; <code>.today-title</code> is 32px from the token. Nobody can perceive that as intentional — pick one.</p>
+  <p><b>Two screen titles, two pixels apart — and Apple settles which one wins.</b> iOS <code>largeTitle</code> is <b>34pt</b>. 32 is not a step on Apple's ramp at all, so the hardcoded 34 was right and the token was wrong. <b>Fixed:</b> <code>--t-h1: 32px &rarr; 34px</code>. Both titles now sit on largeTitle.</p>
+  <p>Measured against the full iOS ramp — 34 largeTitle · 28 title1 · 22 title2 · 20 title3 · 17 headline/body · 16 callout · 15 subhead · 13 footnote · 12 caption1 · 11 caption2 · 10 tab — JARVIS's sizes are mostly already Apple's. Only <b>21px</b> (<code>.rn-title</code>, wants 22) and <b>14px</b> (<code>.blend-plus</code>) remain off-ramp.</p>
   <p><b>Three eyebrow specs for one role.</b> On Today you can see 12/800 "Heads Up" sitting directly above 11/800 "Your Day, Drafted", with 11/700 "Events" elsewhere. Same job, three treatments.</p>
   <p><b>Five weights at 15px.</b> Five near-identical treatments at one size isn't a hierarchy — the reader can't decode it. <code>15/500</code> is used by exactly one class, which means it was typed, not chosen. Same for <code>14/400</code>, <code>21px</code>, <code>19px</code>, <code>26px</code> and <code>27px</code>.</p>
   <p><b>A closed set that covers everything above:</b> 32/800 title · 20/700 section · 17/400 row · 17/700 button · 15/400 meta · 15/700 emphasis · 11/700 eyebrow · 10/600 tab. Eight pairs, down from twenty-four.</p>
@@ -351,17 +357,18 @@ footer{margin-top:64px; padding-top:22px; border-top:1px solid var(--rule);
     <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--ink-3)">— jarvis-design-system.css</span>
   </blockquote>
 
-  <p>Counted in the stylesheets: <b>64 rules colour text red, 32 fill red.</b> Here is what red is actually doing:</p>
+  <p>Counted: 64 rules colour text red, 32 fill red. <b>Raw counts were the wrong measure, and two of my first-pass calls were simply wrong.</b></p>
+
+  <p>Apple draws the line precisely: <i>"if you use your brand color to indicate that a borderless button is interactive, using the same or similar color to stylize noninteractive text is confusing."</i> Under iOS convention, tint on <b>any</b> interactive text — back buttons, links, "See All" — is correct, not a leak.</p>
 
   <div class="ledger">
-    <div class="led allowed"><span class="what">Primary action, current tab, count badge, capture<em>the four permitted uses</em></span><span class="tag t-pass">by law</span></div>
-    <div class="led leak"><span class="what">Location metadata<em>.sched-loc { color: var(--tint) } — “Zoom”, “Ridgeline Fields”</em></span><span class="tag t-fail">leak</span></div>
-    <div class="led leak"><span class="what">Back buttons and nav actions<em>.nav-back, .nav-action, .nav-action-text</em></span><span class="tag t-fail">leak</span></div>
-    <div class="led leak"><span class="what">Section eyebrows and “see all” links<em>.grp .eyebrow, .see-all, .sec-head .see-all</em></span><span class="tag t-fail">leak</span></div>
-    <div class="led leak"><span class="what">Body text in the note editor<em>.doc-textarea, .doc[contenteditable]</em></span><span class="tag t-fail">leak</span></div>
-    <div class="led leak"><span class="what">Progress fill, slider fill, avatars, message dots, week cells<em>.progress-fill, .slider-fill, .av-accent, .msg-dot, .wk-cell.sel</em></span><span class="tag t-fail">leak</span></div>
+    <div class="led allowed"><span class="what">Interactive text in tint<em>~20 rules — buttons, back, See All, row actions. Standard iOS.</em></span><span class="tag t-pass">correct</span></div>
+    <div class="led allowed"><span class="what"><s>Location metadata</s> — withdrawn<em>.sched-loc is a real &lt;a href="maps.apple.com"&gt; (DayRow.tsx:135). A tappable place name in tint is iOS behaviour.</em></span><span class="tag t-pass">I was wrong</span></div>
+    <div class="led allowed"><span class="what"><s>Body text in the note editor</s> — withdrawn<em>.doc-textarea sets caret-color, not color. The cursor is tinted; the text is --tx-1. Standard iOS.</em></span><span class="tag t-pass">I was wrong</span></div>
+    <div class="led allowed"><span class="what">Section headers — kept by decision<em>.sh2 .t, .grp .eyebrow, .now-line .now-label. Apple Music uses label colour here; Dave reviewed a rendered A/B and kept the red. Deliberate divergence, not an oversight.</em></span><span class="tag t-pass">brand wins</span></div>
+    <div class="led leak"><span class="what">Remaining static-text reds<em>.capture-kind, .tcell, .proj-guess .conn-name, .fg-tint</em></span><span class="tag t-fail">~4 rules</span></div>
   </div>
-  <p class="caption">A place name is not an action. When the venue is the same red as the thing you must do, red stops meaning anything.</p>
+  <p class="caption">About four static-text reds once the header decision is honoured — not ninety-six.</p>
 
   <h3>Red load, counted above the fold</h3>
   <div class="tbl"><table>
@@ -508,11 +515,11 @@ footer{margin-top:64px; padding-top:22px; border-top:1px solid var(--rule);
   <h2>Order of work</h2>
   <p class="sub">Ranked by damage per unit of effort. This one is a real sequence, so it gets real numbers.</p>
   <ol class="pri">
-    <li><span>Light <code>--tx-3</code> → 0.75 — clears 218 contrast failures<span class="eff" style="display:block;margin-top:4px"></span></span><span class="eff">token · decide first</span></li>
-    <li><span><code>--tx-4</code> off the inactive tab labels — 2.25:1 navigation</span><span class="eff">token</span></li>
+    <li><span><s>Light <code>--tx-3</code></s> — done as an Apple increased-contrast variant, not a base change</span><span class="eff">shipped</span></li>
+    <li><span><s><code>--tx-4</code> off the tab labels</s> — done, repointed to systemGray</span><span class="eff">shipped</span></li>
     <li><span><code>.btn.btn-block</code> gets a visible container</span><span class="eff">one rule</span></li>
-    <li><span><code>.sched-loc</code> off red; audit the other 90 red rules against the four-use law</span><span class="eff">small</span></li>
-    <li><span>Two titles → one. Three eyebrows → one.</span><span class="eff">small</span></li>
+    <li><span>Remaining ~4 static-text reds (headers excluded by decision)</span><span class="eff">small</span></li>
+    <li><span><s>Two titles → one</s> done via <code>--t-h1: 34</code>. Three eyebrow specs → one, still open.</span><span class="eff">small</span></li>
     <li><span>Fixed-width icon slot so list text shares one rail</span><span class="eff">small</span></li>
     <li><span>Pick one container language for lists — card or bare row</span><span class="eff">medium</span></li>
     <li><span>Six button heights → four; <code>.seg</code> radius 7 → 8</span><span class="eff">medium</span></li>
@@ -524,7 +531,8 @@ footer{margin-top:64px; padding-top:22px; border-top:1px solid var(--rule);
 <footer>
   Measured from computed style on the rendered page · 30 pages · 390×844 · dark and light<br>
   Text positions measured by ink (Range.getBoundingClientRect), not element boxes — element boxes include padding and report edges that aren't visible<br>
-  Tooling: design-metrics.mjs · design-overlay.mjs · visual-audit.mjs (alpha compositing fixed)<br>
+  Findings re-derived against Apple&rsquo;s published semantic colors, the iOS type ramp and Apple Music convention<br>
+  Tooling: design-metrics.mjs · design-overlay.mjs · verify-contrast-mode.mjs · visual-audit.mjs (alpha + leaf-walk bugs fixed)<br>
   Bundle size untouched, per standing instruction
 </footer>
 
