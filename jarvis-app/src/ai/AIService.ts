@@ -52,6 +52,11 @@ export class AIService {
   // tier "write": words that go out in the user's voice route to the stronger
   // model server-side (AI_MODEL_WRITE). Everything else stays on the default.
   //
+  // schema (item 12): a JSON schema makes the proxy force a tool call, so the
+  // returned text is guaranteed-valid JSON matching it. Callers keep their
+  // tolerant parsers; the schema removes the reason those parsers ever fired
+  // their fallbacks.
+  //
   // AI Control (addendum items 18-21): every call declares what it is.
   // kind: a short slug for What Ran ("triage", "capture", "plan", ...).
   // background: true for anything the user did not just ask for (pre-generation).
@@ -62,7 +67,7 @@ export class AIService {
   async complete(
     messages: AIMessage[],
     system?: string,
-    opts?: { tier?: "write"; kind?: string; background?: boolean; pin?: AIPinKey },
+    opts?: { tier?: "write"; kind?: string; background?: boolean; pin?: AIPinKey; schema?: Record<string, unknown> },
   ): Promise<string> {
     if (!this.available) throw new Error("AI is not configured in this build.");
     const level = effectiveLevel(getAIControl(), opts?.pin);
@@ -81,6 +86,7 @@ export class AIService {
         ...(opts?.tier ? { tier: opts.tier } : {}),
         ...(opts?.kind ? { kind: opts.kind } : {}),
         ...(background ? { background: true } : {}),
+        ...(opts?.schema ? { schema: opts.schema } : {}),
       }),
     });
     if (!res.ok) {

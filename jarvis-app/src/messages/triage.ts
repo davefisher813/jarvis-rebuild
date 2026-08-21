@@ -46,6 +46,30 @@ Reply with ONLY a JSON array, one object per thread: [{"id":"...","bucket":"need
 THREADS:
 `;
 
+// Structured-output schema (item 12). The tool input must be an object, so
+// the array rides under "threads"; parseTriage already hunts for the first
+// "[" and last "]" in the reply, which lands exactly on that array, so the
+// tolerant parser keeps working unchanged on the guaranteed shape.
+export const TRIAGE_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    threads: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          bucket: { type: "string", enum: ["needs_you", "worth_knowing", "noise"] },
+          gist: { type: "string", description: "one sentence, under 15 words, who wants what by when" },
+          by: { type: "string", description: "sender's stated deadline in their words, or empty" },
+        },
+        required: ["id", "bucket", "gist", "by"],
+      },
+    },
+  },
+  required: ["threads"],
+};
+
 export function buildTriageInput(rows: ThreadRow[]): string {
   return TRIAGE_PROMPT + JSON.stringify(
     rows.map((r) => ({ id: r.id, from: r.from, subject: r.subject, snippet: r.snippet.slice(0, 200) })),

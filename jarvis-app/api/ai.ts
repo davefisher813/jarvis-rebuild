@@ -22,6 +22,8 @@
 export const config = { runtime: "edge" };
 
 import { aiCallAllowed, normalizeLevel, refusalMessage, DEFAULT_AI_LEVEL } from "../src/ai/aiGate";
+import { schemaOk, toolPayload, extractText } from "../src/ai/structured";
+import { tokenRow } from "../src/ai/tokenLog";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = process.env.AI_MODEL || "claude-sonnet-4-6";
@@ -59,11 +61,18 @@ export default async function handler(req: Request): Promise<Response> {
   const maxInput = parseInt(process.env.AI_MAX_INPUT_BYTES || "32768", 10);
   const maxVision = parseInt(process.env.AI_MAX_VISION_BYTES || "600000", 10);
   if (raw.length > maxVision) return json({ error: "Request too large" }, 413);
-  let body: { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown };
+  let body: { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown; schema?: unknown };
   try {
-    body = JSON.parse(raw) as { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown };
+    body = JSON.parse(raw) as { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown; schema?: unknown };
   } catch {
     return json({ error: "Bad request" }, 400);
+  }
+  // Structured outputs (item 12): a caller-supplied JSON schema turns the
+  // upstream request into a forced tool call, so the reply is valid JSON by
+  // construction. A malformed schema is a client bug and gets a loud 400, not
+  // a silent fall back to prose the caller will then fail to parse.
+  if (body.schema !== undefined && !schemaOk(body.schema)) {
+    return json({ error: "Bad schema" }, 400);
   }
   const messages = Array.isArray(body.messages) ? body.messages : [];
   if (messages.length === 0) return json({ error: "No messages" }, 400);
@@ -182,6 +191,7 @@ export default async function handler(req: Request): Promise<Response> {
       model: body.tier === "write" ? WRITE_MODEL : MODEL,
       max_tokens: MAX_TOKENS,
       ...(typeof body.system === "string" ? { system: body.system } : {}),
+      ...(schemaOk(body.schema) ? toolPayload(body.schema) : {}),
       messages,
     }),
   });
@@ -189,13 +199,31 @@ export default async function handler(req: Request): Promise<Response> {
     const detail = await upstream.text().catch(() => "");
     return json({ error: "Upstream error", detail }, 502);
   }
-  const data = (await upstream.json()) as { content?: { type: string; text?: string }[] };
-  const text = (data.content ?? [])
-    .filter((b) => b.type === "text")
-    .map((b) => b.text ?? "")
-    .join("");
+  const data = (await upstream.json()) as {
+    content?: { type: string; text?: string; name?: string; input?: unknown }[];
+    usage?: { input_tokens?: unknown; output_tokens?: unknown };
+  };
 
-  return json({ text });
+  // Token accounting (item 12): record what this call actually cost, into
+  // ai_tokens (migration 0026), service-role only, best effort. A failed or
+  // impossible accounting write never blocks a served reply; until 0026 runs
+  // this insert 404s quietly and the app behaves exactly as before.
+  try {
+    const model = body.tier === "write" ? WRITE_MODEL : MODEL;
+    const row = tokenRow(me.id, kind, model, data.usage);
+    if (row && serviceKey) {
+      await fetch(`${supaUrl}/rest/v1/ai_tokens`, {
+        method: "POST",
+        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "content-type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify(row),
+      });
+    }
+  } catch { /* accounting must never break the reply */ }
+
+  // extractText returns the forced tool call's input stringified when a
+  // schema rode along, and the joined text blocks otherwise: the { text }
+  // envelope every existing client parses stays exactly the same shape.
+  return json({ text: extractText(data.content) });
 }
 
 function json(obj: unknown, status = 200): Response {

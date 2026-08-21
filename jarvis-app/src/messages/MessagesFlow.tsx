@@ -10,7 +10,7 @@ import {
   type ThreadRow, type ThreadFull, type MailFull,
 } from "../connections/google/map";
 import {
-  loadTriageCache, saveTriageCache, triageDelta, buildTriageInput, parseTriage,
+  loadTriageCache, saveTriageCache, triageDelta, buildTriageInput, parseTriage, TRIAGE_SCHEMA,
   fillSkipped, splitByBucket, noiseLine, sortByDeadline, byRank, type TriageMap, type Bucket,
 } from "./triage";
 import { loadRules, saveRule, clearRule, applyRules, type SenderRules } from "./rules";
@@ -283,6 +283,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               ai.complete(
                 [{ role: "user", content: buildTriageInput(batch) }],
                 "You output only a JSON array, nothing else.",
+                { kind: "triage", schema: TRIAGE_SCHEMA },
               ),
               TRIAGE_TIMEOUT_MS,
             );
