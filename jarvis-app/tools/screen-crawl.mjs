@@ -23,6 +23,7 @@
 import { chromium } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { measure } from "./adhd-metrics.mjs";
+import { measureDesign } from "./design-metrics.mjs";
 
 const OUT = process.env.OUT || "/tmp/crawl";
 const THEME = process.env.THEME || "dark";
@@ -229,7 +230,13 @@ async function capture(page, label, path, errs) {
       }
     }
   });
-  screens.push({ n, label, path, files, segments: files.length, errs: [...errs], metrics: merged });
+  // Design metrics are measured at the TOP of the screen: layout, hierarchy
+  // and type scale are judged on what greets you, not on the scroll tail.
+  await page.evaluate(`(()=>{const s=[...document.querySelectorAll("*")].filter((e)=>{const c=getComputedStyle(e);return /auto|scroll/.test(c.overflowY)&&e.scrollHeight>e.clientHeight+40&&e.clientHeight>200}).sort((a,b)=>b.scrollHeight-a.scrollHeight)[0];if(s)s.scrollTop=0})()`);
+  await page.waitForTimeout(260);
+  let design = null;
+  try { design = await measureDesign(page); } catch (e) { design = { error: String(e).slice(0, 90) }; }
+  screens.push({ n, label, path, files, segments: files.length, errs: [...errs], metrics: merged, design });
   return true;
 }
 

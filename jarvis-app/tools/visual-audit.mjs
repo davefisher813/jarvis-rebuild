@@ -196,8 +196,21 @@ const AUDIT = () => {
     if (!m) return null;
     return 0.2126 * srgb(+m[0]) + 0.7152 * srgb(+m[1]) + 0.0722 * srgb(+m[2]);
   };
+  // ALPHA MATTERS. rel() reads only the first three numbers, so an rgba()
+  // text colour was being scored as if it were opaque: every --tx-* grey in
+  // this app is rgba, which meant the whole grey scale was measured as pure
+  // #EBEBF5 and passed every check it should have failed. Composite the text
+  // colour over its actual backdrop first, then measure.
+  const parts = (c) => { const m = (c || "").match(/[\d.]+/g); return m ? m.map(Number) : null; };
+  const over = (fg, bg) => {
+    const f = parts(fg), b = parts(bg);
+    if (!f || !b) return fg;
+    const a = f.length > 3 ? f[3] : 1;
+    if (a >= 1) return fg;
+    return `rgb(${f[0] * a + b[0] * (1 - a)}, ${f[1] * a + b[1] * (1 - a)}, ${f[2] * a + b[2] * (1 - a)})`;
+  };
   const ratio = (a, b) => {
-    const x = rel(a), y = rel(b);
+    const x = rel(over(a, b)), y = rel(b);
     if (x === null || y === null) return null;
     return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
   };
