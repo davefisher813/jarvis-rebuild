@@ -5,6 +5,10 @@ import { catColor, catName } from "../shared/categories";
 import { isPast } from "./todayData";
 import { EventWeatherLine } from "../weather/WeatherLine";
 
+// One confident blend offer per block, keyed by event id. Built by the flow;
+// this screen only draws it.
+export type BlendMap = Record<string, { text: string; why: string; onAdd: () => void }>;
+
 const WINDOW = 252; // ticker viewport height (px), matches .sched-ticker
 // Pausing the day ticker survives leaving Today and coming back.
 const TICKER_KEY = "jarvis.today.ticker.v1";
@@ -59,7 +63,7 @@ function LockedRow({ l, past, onOpen }: { l: LockedRange; past: boolean; onOpen?
 
 // One full pass of the day: events + protected blocks in time order, with the
 // Now line inserted at the right spot and time-as-distance on the next event.
-function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine }: { events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void; onEditRoutine?: () => void }) {
+function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {} }: { events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void; onEditRoutine?: () => void; blendMap?: BlendMap }) {
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
   const nowMin = toMin(now);
   const nextId = events.filter((e) => toMin(e.data.start) >= nowMin).sort((a, b) => toMin(a.data.start) - toMin(b.data.start))[0]?.id;
@@ -75,6 +79,22 @@ function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine
     if (!nowPlaced && en.s >= nowMin) { out.push(<NowLine key="now" label={nowLabel} />); nowPlaced = true; }
     if (en.kind === "event") {
       out.push(<Row key={en.ev.id} ev={en.ev} past={isPast(en.ev, now)} dist={en.ev.id === nextId ? fmtDistance(en.ev.data.start, now) : null} onOpen={onOpenEvent ? () => onOpenEvent(en.ev.id) : undefined} />);
+      // BLENDING ON TODAY (2026-08-21). Same offer, same anatomy, same one
+      // tap as the Schedule tab. It belongs here MORE than there: Today is
+      // the page he is on when the drive is forty minutes away.
+      const b = blendMap[en.ev.id];
+      if (b && !isPast(en.ev, now)) {
+        out.push(
+          <div className="blend-tuck blend-tuck-today" key={"blend-" + en.ev.id} role="button" tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); b.onAdd(); }}>
+            <span className="blend-plus" aria-hidden>+</span>
+            <div className="row-grow">
+              <div className="blend-text truncate">{b.text}</div>
+              <div className="blend-why">{b.why}</div>
+            </div>
+          </div>,
+        );
+      }
     } else {
       out.push(<LockedRow key={"lock-" + i} l={en.l} past={en.l.e <= nowMin} onOpen={onEditRoutine} />);
     }
@@ -118,6 +138,7 @@ export default function YourDay({
   onEditRoutine,
   title = "Your Day",
   emptyText = "Nothing scheduled today",
+  blendMap = {},
 }: {
   events: EventItem[];
   locked?: LockedRange[];
@@ -132,6 +153,7 @@ export default function YourDay({
   onEditRoutine?: () => void;
   title?: string;
   emptyText?: string;
+  blendMap?: BlendMap;
 }) {
   const measureRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);
@@ -244,7 +266,7 @@ export default function YourDay({
         {header}
         {planButton}
         <div>
-          <div ref={measureRef}><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} /></div>
+          <div ref={measureRef}><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} /></div>
         </div>
       </div>
     );
@@ -258,8 +280,8 @@ export default function YourDay({
       <div className="pad-x">
         <div className={"card sched-ticker" + (paused ? " paused" : "")}>
           <div className="ticker-track">
-            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} />
-            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} />
+            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} />
+            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} />
           </div>
         </div>
       </div>

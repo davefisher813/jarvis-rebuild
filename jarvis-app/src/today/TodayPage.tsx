@@ -128,6 +128,7 @@ export default function TodayPage({
   onStartTask,
   suggestions,
   checkIn,
+  blendMap,
   nowCard,
   notices = [],
   reminders,
@@ -180,6 +181,8 @@ export default function TodayPage({
   suggestions?: ReactNode;
   // The evening mood question. Its own notice: it is not a suggestion.
   checkIn?: ReactNode;
+  // Blend offers for today's blocks (see YourDay). Built by the flow.
+  blendMap?: import("./YourDay").BlendMap;
   // The Now card (what is happening this minute) rides at the very top:
   // the page reads in the order the day happens (Dave 2026-08-19).
   nowCard?: ReactNode;
@@ -426,6 +429,7 @@ export default function TodayPage({
         onFocus={evening ? undefined : onUpNext}
         onOpenEvent={onOpenEvent}
         onEditRoutine={onEditRoutine}
+        blendMap={blendMap}
         title={evening ? "Tonight" : "Your Day"}
         emptyText={evening ? "Nothing else tonight" : "Nothing scheduled today"}
       />

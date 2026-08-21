@@ -719,6 +719,9 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    between them rather than accepting one. */
 .blend-offers { display: flex; flex-direction: column; }
 .blend-row { gap: var(--s-2h); }
+/* Today's day card indents to ITS text edge, which sits further left than
+   the Schedule tab's (no time gutter of the same width). */
+.blend-tuck-today { padding-left: 68px; padding-right: var(--s-4); }
 
 /* THE END-OF-DAY CARD. Moved out of the Heads Up stream to the page foot
    2026-08-21: Heads Up is what JARVIS wants acted on NOW, and "how did today

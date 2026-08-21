@@ -45,6 +45,8 @@ import { welcomeBack, loadLastSeen, markSeen } from "./welcomeBack";
 import TimeArc from "./TimeArc";
 import { proposeFirstMove, nextStart, endsAt, ritualIsReady, whyNotReady, LENGTHS, DEFAULT_MINUTES, type Ritual } from "../tasks/startRitual";
 import RitualSheet from "../tasks/screens/RitualSheet";
+import { bestPerBlock, blockKind, recordBlend, loadBlendMemory } from "../schedule/blend";
+import type { BlendMap } from "./YourDay";
 import { loadMailSnapshot } from "../messages/home";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -557,6 +559,42 @@ export default function TodayFlow({
   const offTrack = !freshSkipped && !isEvening(nowMin, routineData) && isOffTrack(taskItems, today, nowMin);
   // Up Next section: the deck's top 3, rendered as standard task rows.
   const upNextRows = rankOpen(taskItems, today).slice(0, 3);
+
+  // BLENDING ON TODAY (2026-08-21). The same offer the Schedule tab makes,
+  // on the page he is actually on when the drive is forty minutes away. One
+  // per block, one per task, only when the fit is clearly best.
+  const blendMap: BlendMap = {};
+  {
+    const open = todayEvents.filter((e) => (e.data.taskIds ?? []).length === 0);
+    const byEvent = bestPerBlock(
+      open,
+      taskItems.map((t) => ({
+        id: t.id, text: t.data.text, category: t.data.category ?? "",
+        done: t.data.done, due: t.data.due ?? null, projectId: t.data.projectId,
+      })),
+      loadBlendMemory(),
+    );
+    for (const e of open) {
+      const fit = byEvent[e.id];
+      if (!fit) continue;
+      blendMap[e.id] = {
+        text: fit.task.text,
+        why: fit.why,
+        onAdd: () => void (async () => {
+          const prior = e.data.taskIds ?? [];
+          const ok = await attemptWrite(() => schedule.editTaskIds(e.id, [...prior, fit.task.id]));
+          if (!ok) return;
+          recordBlend(blockKind(e.data), fit.task.category);
+          await reload();
+          showToast({
+            message: "Added to " + e.data.title,
+            actionLabel: "Undo",
+            onAction: async () => { await attemptWrite(() => schedule.editTaskIds(e.id, prior)); await reload(); },
+          });
+        })(),
+      };
+    }
+  }
   // Close-out (Session 5): Time Sense knows every completion today, not just
   // the due-today ones. The weekly recap card speaks on Sunday evenings only.
   const samples = readSamples();
@@ -1190,6 +1228,7 @@ export default function TodayFlow({
       onRunningLate={onRunningLate}
       onUpNext={() => setUpNextOpen(true)}
       upNext={upNextRows}
+      blendMap={blendMap}
       onSeeAllUpNext={onGoTasksAll ?? onGoTasks}
       onStartTask={(id) => {
         const t = taskItems.find((x) => x.id === id);
