@@ -33,7 +33,7 @@
 .nav-action.danger { color: var(--sys-red); }
 /* A bar action that is a MODE, not a verb: it stays lit while the mode is on,
    so the editorial layout announces itself in the one place he looks. */
-.nav-action.on { color: var(--accent-tx); }
+.nav-action.on { color: var(--accent-chrome); }
 .nav-back .ic { width: 24px; height: 24px; }
 .tab .ic { width: 26px; height: 26px; }
 
@@ -140,7 +140,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .ticker-toggle.paused .icon-play { display: block; }
 .ticker-toggle.paused .icon-pause { display: none; }
 .now-line { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-1) var(--s-4); }
-.now-line .now-label { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--accent-tx); flex-shrink: 0; }
+.now-line .now-label { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--accent-chrome); flex-shrink: 0; }
 .now-line .now-rule { height: 2px; background: var(--accent); flex: 1; border-radius: 1px; opacity: 0.5; }
 .sched-row.past { opacity: 0.45; }
 .screen-foot { height: var(--s-8); }
@@ -372,8 +372,8 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .test-summary { font-size: var(--t-h3); font-weight: var(--w-semi); padding: 0 var(--s-4) var(--s-3); }
 .test-ico { width: 18px; height: 18px; flex-shrink: 0; }
 .test-ok { color: var(--good); }
-.test-bad { color: var(--accent-tx); }
-.test-err { color: var(--accent-tx); font-size: var(--t-meta); margin-top: var(--s-1); }
+.test-bad { color: var(--red); }
+.test-err { color: var(--red); font-size: var(--t-meta); margin-top: var(--s-1); }
 .test-runbar { padding: 0 var(--s-4) var(--s-3); }
 .bench-btns { display: flex; flex-wrap: wrap; gap: var(--s-2); padding: 0 0 var(--s-2); }
 .bench-act { background: var(--press-3); border: 0; border-radius: var(--r-pill); padding: var(--s-2h) var(--s-3h); font-weight: var(--w-semi); font-size: var(--t-meta); color: var(--tx-1); font-family: var(--f); }
@@ -916,7 +916,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* The label is two or three short words; never let it stack into a column. */
 .plan-cta { white-space: nowrap; }
 .plan-divider { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-3); padding: var(--s-2) 0 var(--s-1); }
-.plan-overdue { margin-left: var(--s-2); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent-tx); flex-shrink: 0; }
+.plan-overdue { margin-left: var(--s-2); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--red); flex-shrink: 0; }
 
 /* === Roadmap v2: Anytime strip (Schedule day view) ===
    Tasks with no time, shown above the timed grid. Same check + category color
@@ -1307,7 +1307,7 @@ button {
 .now-stats { padding: var(--s-3) var(--s-3h) var(--s-2); }
 /* Stepper value taps open the keypad (approved preview 2026-08-15). */
 .stepper .stepper-tap { cursor: pointer; }
-.stepper .stepper-edit { width: 56px; background: var(--press-3); border: 0; color: var(--accent-tx);
+.stepper .stepper-edit { width: 56px; background: var(--accent-chip); border: 0; color: var(--accent-chip-tx);
   font: inherit; font-weight: var(--w-bold); text-align: center; border-radius: 6px; padding: 2px 0; }
 
 /* V2 INFORMATION ANATOMY (approved 2026-08-15, LOCKED-CSS CHANGE FLAGGED).
@@ -1713,7 +1713,7 @@ button {
    :not() guard stops this rule from bleaching the red one. */
 .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
   height: 34px; font-size: var(--t-meta); padding: 0 var(--s-3h);
-  background: var(--press-3); color: var(--accent-tx); border: 0;
+  background: var(--accent-chip); color: var(--accent-chip-tx); border: 0;
   border-radius: var(--r-pill); font-weight: var(--w-semi); font-family: var(--f);
   display: inline-flex; align-items: center; flex-shrink: 0; }
 /* Detail-page group labels ride the same steel: Decided, Because, Details,
@@ -1741,8 +1741,8 @@ button {
    rows share one text edge; actions are compact grey pills with accent text;
    display names never show their transport quotes. */
 .msg-dot.off { background: transparent; }
-.pill-act { position: relative; flex-shrink: 0; align-self: center; background: rgba(255,255,255,0.08); border: 0; border-radius: var(--r-pill);
-  color: var(--accent-tx); font-family: var(--f); font-size: 13px; font-weight: var(--w-semi); padding: 6px 12px; }
+.pill-act { position: relative; flex-shrink: 0; align-self: center; background: var(--accent-chip); border: 0; border-radius: var(--r-pill);
+  color: var(--accent-chip-tx); font-family: var(--f); font-size: 13px; font-weight: var(--w-semi); padding: 6px 12px; }
 /* THE 44px RULE. The visible pill is 27px, which reads correctly beside a
    two-line row, but 27px is a bad target on a phone and the app's own
    standard (--tap-min, which .see-all already meets) is 44. The hit area is
@@ -1869,7 +1869,7 @@ button {
   font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi);
   display: flex; align-items: center; justify-content: center; }
 .notice-dismiss { right: 0; background: var(--press-3); color: var(--tx-2); }
-.notice-alt { right: 0; background: rgba(255,255,255,0.06); color: var(--accent-tx); }
+.notice-alt { right: 0; background: var(--accent-chip); color: var(--accent-chip-tx); }
 .notice-alt.beside-dismiss { right: 88px; }
 
 /* An action line inside a card: the buttons own the width instead of

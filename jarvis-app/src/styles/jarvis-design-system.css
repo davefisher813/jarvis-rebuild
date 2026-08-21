@@ -130,13 +130,19 @@
      meaning with the theme (Dave, 2026-08-02: "red in both themes"). Now one
      value in both. 5.49:1 on black, 4.66:1 on the light page. */
   --tint: #FA233B;
-  /* Red text on the dark card surfaces. The Apple surfaces are LIGHTER than
-     the old JARVIS ones (#3A3A3C vs #2A2A32), so the text red retunes:
-     #FA233B is only 2.90:1 on surface-3. #FC828F is the closest value to
-     the Music red that clears every dark surface: 7.07:1 on surface-1,
-     5.79:1 on surface-2, 4.72:1 on surface-3. */
-  --accent-tx: #FC828F;
+  /* Accent text on the dark card surfaces is WHITE, not a lightened red.
+     Any red that clears 4.5:1 on #3A3A3C is forced light enough to read
+     salmon (Dave rejected #FC828F on sight, 2026-08-21: "I don't like this
+     salmon color"). Apple Music makes the same call: its chip text is
+     white, and red appears only as chrome and fills. The red meaning on
+     chip-shaped controls now comes from --accent-chip below instead. */
+  --accent-tx: #FFFFFF;
   --accent-chrome: #FA233B;
+  /* The iOS tinted-button treatment (Dave's pick, 2026-08-21): a red-tint
+     wash behind white text. 18% system red over #2C2C2E composites to
+     roughly #4B2A2A; white on it is 9.8:1. */
+  --accent-chip: rgba(255, 69, 58, 0.18);
+  --accent-chip-tx: #FFFFFF;
   --red-tint: rgba(250,35,59,0.16); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(48,209,88,0.16);
   --glass-bg: rgba(28,28,30,0.55);
   /* rim raised 0.14 -> 0.20 so glass edges catch light on OLED (RDB, Dave 2026-07-29) */
@@ -175,6 +181,13 @@
   --tint: #CC051B;
   /* Same reason as --tint, same value. */
   --accent-tx: #CC051B;
+  /* Light theme's tinted button: the iOS light treatment is a pale red
+     wash under red text (white text cannot live on a pale wash). The worst
+     seat is the wash over a pressed chip (#E7E7EC), compositing to
+     #E7D4D7, where #CC051B is only 4.1:1. #B80417 clears it at 4.82:1 and
+     reads as the same deep red. */
+  --accent-chip: rgba(255, 59, 48, 0.10);
+  --accent-chip-tx: #B80417;
   --red-tint: rgba(255,59,48,0.12); --warn-tint: rgba(255,149,0,0.14); --good-tint: rgba(52,199,89,0.14);
   --glass-bg: rgba(255,255,255,0.72);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);
