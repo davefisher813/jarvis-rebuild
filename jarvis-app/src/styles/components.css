@@ -1932,3 +1932,9 @@ button {
    button: expand the hit area past the paint. */
 .sched-loc { position: relative; }
 .sched-loc::after { content: ""; position: absolute; inset: -12px -8px; }
+
+/* W2 · THE STANDING MARK. A day that carries a repeating event gets a small
+   bar under its dots. It says "there is a fixture here" and deliberately not
+   how many: a count would be one more number to read on a glanceable strip. */
+.wk-rep { width: 14px; height: 2px; border-radius: 999px; background: var(--tx-4); margin: 3px auto 0; }
+.wk-cell.sel .wk-rep { background: var(--accent); }

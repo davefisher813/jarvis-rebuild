@@ -37,7 +37,7 @@ function weekRange(cells: WeekCell[]): string {
 
 export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts,
-  mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, onCopyDay,
+  mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, onCopyDay, repeatMarks = new Set<string>(),
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload,
   locked = [], now, onEditRoutine, onShift, onMoveTo, onSkipToday, onPushTomorrow, onRunningLate,
   anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {},
@@ -53,6 +53,8 @@ export default function SchedulePage({
   onFixOverlap?: () => void;
   // N7: yesterday's shape, reused.
   onCopyDay?: () => void;
+  // W2: the dates in this week that carry a repeating event.
+  repeatMarks?: ReadonlySet<string>;
   onPrev?: () => void; onNext?: () => void; onSelect?: (date: string) => void;
   onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void; onUpload?: () => void;
   locked?: LockedRange[]; now?: string | null; onEditRoutine?: () => void;
@@ -229,6 +231,10 @@ export default function SchedulePage({
                 <div className="wk-wd">{WK[i]}</div>
                 <div className="wk-day">{c.day}</div>
                 <div className="cal-dots">{c.colors.map((col, j) => <div className={"cal-dot cat-bg-" + catColor(col)} key={j} />)}</div>
+                {/* W2: a day carrying something STANDING gets a mark. Not a
+                    count: the mark says "there is a fixture here", and a
+                    number would be one more thing to read. */}
+                {repeatMarks.has(c.date) && <div className="wk-rep" aria-label="Has a repeating event" />}
               </div>
             );
           })}
