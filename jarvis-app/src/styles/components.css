@@ -2173,3 +2173,18 @@ button {
 .rn-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); }
 /* The bolt sits beside search in the one bar that is on every tab. */
 .voice-now { color: var(--accent-tx); }
+
+/* WHAT JARVIS KNOWS (Brain Layer 2). The genome made visible: one row per
+   strand, its origin in the eyebrow, its receipts in the sheet. A paused
+   strand dims rather than hides, because a fact you switched off is still a
+   fact you should be able to find. */
+.strand-eyebrow {
+  font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-caps); text-transform: uppercase; color: var(--tx-3);
+}
+.strand-row.paused { opacity: 0.45; }
+.strand-head { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: var(--track-h2); margin-bottom: var(--s-1); }
+.strand-receipt { display: flex; gap: var(--s-3); padding: var(--s-2h) 0; border-bottom: 1px solid var(--divider); }
+.strand-receipt:last-child { border-bottom: 0; }
+.strand-receipt .r-what { flex: 1; min-width: 0; }
+.btn-danger-text { color: var(--accent-tx); }

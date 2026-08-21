@@ -6,6 +6,7 @@ import BrainDocPage from "./docs/BrainDocPage";
 import CategoryDetail from "./CategoryDetail";
 import RoutineFlow from "../routine/RoutineFlow";
 import DecisionsFlow from "../decisions/DecisionsFlow";
+import StrandsPage from "./strands/StrandsPage";
 import { usePushDepth } from "../shared/pushNav";
 import { effectiveKind } from "../categories/kinds";
 
@@ -57,6 +58,9 @@ export default function BrainFlow({ openKey, personOpenId, decisionOpenId, onOpe
 
   const detail = (() => {
     if (!open) return null;
+    if (open.key === "knows") {
+      return <StrandsPage onBack={() => setOpen(null)} />;
+    }
     if (open.key === "routine") {
       return <RoutineFlow onBack={() => setOpen(null)} />;
     }

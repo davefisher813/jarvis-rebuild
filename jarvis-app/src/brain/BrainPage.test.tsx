@@ -43,8 +43,8 @@ describe("BrainPage", () => {
   it("nav rows are brand red, category rows keep their colors", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
     const glyphs = container.querySelectorAll(".lib-ico");
-    expect(glyphs.length).toBe(9); // 6 nav rows + 3 category rows
-    expect(container.querySelectorAll(".lib-ico.lib-ico-brand").length).toBe(6);
+    expect(glyphs.length).toBe(10); // 7 nav rows + 3 category rows
+    expect(container.querySelectorAll(".lib-ico.lib-ico-brand").length).toBe(7);
     expect(container.querySelectorAll(".lib-ico.lib-ico-neutral").length).toBe(0);
     expect(container.querySelectorAll('.lib-ico[class*="cat-fg-"]').length).toBe(3);
   });

@@ -23,6 +23,20 @@ export interface AIPlanOpts {
   gentle?: boolean;
   profile?: string;
   timeoutMs?: number;
+  // Brain Layer 2 (item 04): the user's strands, each with its real id. When
+  // present the model must say WHICH facts changed its plan (leaned_on), and
+  // only cited ids that exist survive the parse. Honest attribution became
+  // possible the day outputs were forced structured (item 12); before that,
+  // asking a model for its reasons produced decoration, which is why the
+  // design doc banned faking them.
+  strands?: { id: string; text: string }[];
+}
+
+export interface AIPlanResult {
+  items: AIPlanItem[];
+  // Texts of the strands the model says it leaned on, verified against the
+  // ids it was given. Empty when no strands were sent or none were used.
+  leanedOn: string[];
 }
 
 function label(hhmm: string): string { const t = fmtTime(hhmm); return `${t.time} ${t.ap}`; }
@@ -39,10 +53,28 @@ export function planDaySystem(): string {
     "- Estimate honest durations from each task's wording. Quick admin, messages, or errands are short (10-20 min). Focused, creative, or writing work is longer (45-90 min). Do not be optimistic; people underestimate.",
     "- Durations must be whole multiples of 5, no less than 10 and no more than 180.",
     "- Include every task id you are given, exactly once. Do not invent ids.",
-    "- Reply with ONLY a JSON array, no prose and no code fences, in priority order:",
-    '  [{"id":"THE_ID","minutes":45}]',
+    "- If facts about this person are listed with ids in brackets, and any fact changed your order or a duration, cite that fact's id in leaned_on. Cite only facts you actually used; an empty list is a fine answer.",
+    "- Reply with ONLY JSON, no prose and no code fences, items in priority order:",
+    '  {"items":[{"id":"THE_ID","minutes":45}],"leaned_on":[]}',
   ].join("\n");
 }
+
+// Forced shape for the plan reply (item 12 structured outputs).
+export const PLAN_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: { id: { type: "string" }, minutes: { type: "integer" } },
+        required: ["id", "minutes"],
+      },
+    },
+    leaned_on: { type: "array", items: { type: "string" }, description: "ids of the listed personal facts that changed the plan; empty when none did" },
+  },
+  required: ["items"],
+};
 
 export function planDayUserMessage(picks: PlanPick[], events: EventItem[], startMin: number, endMin: number, opts: AIPlanOpts = {}): string {
   const { work, energy, gentle, profile } = opts;
@@ -54,6 +86,9 @@ export function planDayUserMessage(picks: PlanPick[], events: EventItem[], start
         .map((e) => `- ${label(e.data.start)}${e.data.end ? `-${label(e.data.end)}` : ""} ${e.data.title}`)
     : ["- (nothing scheduled yet)"];
   const profileLine = profile?.trim() ? `About this person, from their JARVIS profile:\n${profile.trim()}` : "";
+  const strandLines = opts.strands?.length
+    ? `Facts JARVIS has learned about this person (cite an id in leaned_on ONLY if the fact changed your plan):\n${opts.strands.map((s) => `- [${s.id}] ${s.text}`).join("\n")}`
+    : "";
   const workLine = work
     ? `Work hours are ${label(fromMin(work.startMin))} to ${label(fromMin(work.endMin))}. Schedule focused, deep, or work-category tasks inside work hours (deep work earlier, admin midday) and personal tasks outside them.`
     : "";
@@ -66,6 +101,7 @@ export function planDayUserMessage(picks: PlanPick[], events: EventItem[], start
   return [
     `Plan the window ${label(fromMin(startMin))} to ${label(fromMin(endMin))} today.`,
     ...(profileLine ? [profileLine] : []),
+    ...(strandLines ? [strandLines] : []),
     ...(workLine ? [workLine] : []),
     ...(energyLine ? [energyLine] : []),
     ...(gentleLine ? [gentleLine] : []),
@@ -78,32 +114,50 @@ export function planDayUserMessage(picks: PlanPick[], events: EventItem[], start
   ].join("\n");
 }
 
-// Tolerant parser: strips fences, keeps only known ids (once each), clamps
-// minutes to 5-min steps within 10-180, and appends any task the model dropped
-// so every chosen task always gets planned.
-export function parseAIPlan(raw: string, validIds: string[]): AIPlanItem[] {
+// Tolerant parser: strips fences, accepts the structured object shape or the
+// legacy bare array, keeps only known ids (once each), clamps minutes to
+// 5-min steps within 10-180, and appends any task the model dropped so every
+// chosen task always gets planned. leaned_on survives ONLY for strand ids
+// that were actually offered: an invented citation is not attribution, it is
+// decoration, and it dies here.
+export function parsePlanReply(raw: string, validIds: string[], strandIds: string[] = []): { items: AIPlanItem[]; leanedOnIds: string[] } {
   const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
   const valid = new Set(validIds);
   const seen = new Set<string>();
   const out: AIPlanItem[] = [];
+  let leanedOnIds: string[] = [];
   try {
-    const arr = JSON.parse(cleaned);
-    if (Array.isArray(arr)) {
-      for (const it of arr) {
-        const id = typeof it?.id === "string" ? it.id : "";
-        if (!valid.has(id) || seen.has(id)) continue;
-        let m = Math.round(Number(it?.minutes) / 5) * 5;
-        if (!Number.isFinite(m) || m <= 0) m = 45;
-        m = Math.max(10, Math.min(180, m));
-        out.push({ id, minutes: m });
-        seen.add(id);
-      }
+    const parsed: unknown = JSON.parse(cleaned);
+    const arr = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray((parsed as { items?: unknown })?.items)
+        ? (parsed as { items: unknown[] }).items
+        : [];
+    for (const it of arr) {
+      const rec = it as { id?: unknown; minutes?: unknown };
+      const id = typeof rec?.id === "string" ? rec.id : "";
+      if (!valid.has(id) || seen.has(id)) continue;
+      let m = Math.round(Number(rec?.minutes) / 5) * 5;
+      if (!Number.isFinite(m) || m <= 0) m = 45;
+      m = Math.max(10, Math.min(180, m));
+      out.push({ id, minutes: m });
+      seen.add(id);
+    }
+    const cited = (parsed as { leaned_on?: unknown })?.leaned_on;
+    if (Array.isArray(cited)) {
+      const offered = new Set(strandIds);
+      leanedOnIds = [...new Set(cited.filter((c): c is string => typeof c === "string" && offered.has(c)))];
     }
   } catch {
     /* not JSON; fall through to defaults */
   }
   for (const id of validIds) if (!seen.has(id)) out.push({ id, minutes: 45 });
-  return out;
+  return { items: out, leanedOnIds };
+}
+
+// Legacy shape, kept for existing callers and tests.
+export function parseAIPlan(raw: string, validIds: string[]): AIPlanItem[] {
+  return parsePlanReply(raw, validIds).items;
 }
 
 export const AI_PLAN_TIMEOUT_MS = 20000;
@@ -115,14 +169,20 @@ export async function aiPlanDay(
   startMin: number,
   endMin: number,
   opts: AIPlanOpts = {},
-): Promise<AIPlanItem[]> {
+): Promise<AIPlanResult> {
   const timeoutMs = opts.timeoutMs ?? AI_PLAN_TIMEOUT_MS;
   const messages: AIMessage[] = [{ role: "user", content: planDayUserMessage(picks, events, startMin, endMin, opts) }];
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_res, rej) => { timer = setTimeout(() => rej(new Error("AI planning timed out")), timeoutMs); });
   try {
-    const text = await Promise.race([ai.complete(messages, planDaySystem()), timeout]);
-    return parseAIPlan(text, picks.map((p) => p.id));
+    const text = await Promise.race([
+      ai.complete(messages, planDaySystem(), { kind: "plan", schema: PLAN_SCHEMA }),
+      timeout,
+    ]);
+    const strandIds = (opts.strands ?? []).map((s) => s.id);
+    const { items, leanedOnIds } = parsePlanReply(text, picks.map((p) => p.id), strandIds);
+    const textOf = new Map((opts.strands ?? []).map((s) => [s.id, s.text]));
+    return { items, leanedOn: leanedOnIds.map((id) => textOf.get(id)!).filter(Boolean) };
   } finally {
     if (timer) clearTimeout(timer);
   }

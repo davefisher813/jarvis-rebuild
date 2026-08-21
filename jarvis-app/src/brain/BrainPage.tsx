@@ -37,6 +37,9 @@ interface BrainRow { key: string; name: string; icon: ReactNode; color: string; 
 // filled brand red (Apple Music Library form). ONE people row survives from
 // 2026-08-03 (Inner Circle / Adversarial stay cut).
 const NAV_ROWS: BrainRow[] = [
+  // Brain Layer 2 (item 04): the genome made visible. One row, keeping the
+  // hub's one-flat-list law; the strands live on their own page behind it.
+  { key: "knows", name: "What JARVIS Knows", icon: filledIcon("knows"), color: "lib-ico-brand" },
   { key: "contacts", name: "Contacts", icon: filledIcon("contacts"), color: "lib-ico-brand" },
   { key: "decisions", name: "Decisions", icon: filledIcon("decisions"), color: "lib-ico-brand" },
   { key: "philosophy", name: "Life Philosophy", icon: filledIcon("philosophy"), color: "lib-ico-brand" },

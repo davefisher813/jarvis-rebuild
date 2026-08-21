@@ -6,7 +6,7 @@
 // (locked principle 1, minimum taps).
 
 import type { AIService } from "../ai/AIService";
-import { captureSystemPrompt, parseCapture, applyCapture, type CaptureResult } from "../ai/capture";
+import { captureSystemPrompt, parseCapture, applyCapture, CAPTURE_SCHEMA, type CaptureResult } from "../ai/capture";
 import type { AIContext } from "../ai/context";
 import type { TasksService } from "../tasks/TasksService";
 import type { ScheduleService } from "../schedule/ScheduleService";
@@ -54,7 +54,7 @@ async function aiImprove(line: string, deps: PasteDeps): Promise<CaptureResult |
     const raw = await deps.ai.complete(
       [{ role: "user", content: line }],
       captureSystemPrompt(ctx, deps.today),
-      { kind: "paste", pin: "pasteFallback" },
+      { kind: "paste", pin: "pasteFallback", schema: CAPTURE_SCHEMA },
     );
     const parsed = parseCapture(raw);
     if (!parsed) return null;

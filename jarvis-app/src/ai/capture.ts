@@ -17,6 +17,22 @@ export interface CaptureResult {
   notes?: string;
 }
 
+// Structured-output schema (item 12): sent with the capture call so the proxy
+// forces a tool reply in exactly this shape. parseCapture stays as the belt to
+// this suspender: it still validates and still applies noDashes.
+export const CAPTURE_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    kind: { type: "string", enum: ["task", "event", "note"] },
+    title: { type: "string" },
+    date: { type: "string", description: "yyyy-mm-dd" },
+    start: { type: "string", description: "HH:MM 24h" },
+    category: { type: "string", description: "category NAME from the provided list" },
+    notes: { type: "string" },
+  },
+  required: ["kind", "title"],
+};
+
 // System prompt: route a quick note to task/event/note, return ONLY JSON.
 export function captureSystemPrompt(ctx: AIContext, today: string): string {
   const cats = ctx.categories.length ? ctx.categories.join(", ") : "none";

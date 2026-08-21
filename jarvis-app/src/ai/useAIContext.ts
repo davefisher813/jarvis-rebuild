@@ -3,7 +3,9 @@ import {
   useProfile, usePeople, useBrainDocs, useTasks, useSchedule, useCategories, useRoutine, useGoals, useProjects, useMoney,
   useOptionalProfile, useOptionalPeople, useOptionalBrainDocs, useOptionalTasks, useOptionalSchedule,
   useOptionalCategories, useOptionalRoutine, useOptionalGoals, useOptionalProjects, useOptionalMoney,
+  useOptionalStrands,
 } from "../data/NotesProvider";
+import type { StrandsService } from "../brain/strands/StrandsService";
 import { assembleContext, type AIContext } from "./context";
 import { routineToText } from "../routine/types";
 import { readSamples } from "../shared/timeSense";
@@ -27,6 +29,9 @@ interface ContextServices {
   goals: ReturnType<typeof useGoals>;
   projects: ReturnType<typeof useProjects>;
   money: ReturnType<typeof useMoney>;
+  // Optional on purpose: strands are an enhancement (Brain Layer 2 bridge);
+  // a context assembled without them is thinner, never broken.
+  strands?: StrandsService | null;
 }
 
 // Session 5: the ONE assembler behind every AI feature. Routine, goals,
@@ -51,6 +56,12 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
     s.money.list(),
     s.docs.get("habits"),
   ]);
+  // What JARVIS knows (Brain Layer 2 bridge): active strands, one line each.
+  // Best-effort; a strand read failure must never cost the user their prompt.
+  let strandLines: string[] = [];
+  try {
+    strandLines = s.strands ? (await s.strands.active()).map((x) => x.data.text) : [];
+  } catch { /* thinner context, never a broken one */ }
   // The full money picture (2026-08-10): bills with amounts and due dates,
   // and the same cash-flow derivation the Money tab shows (payday, bills
   // before it, envelopes, left to spend). Same helpers, so the AI can never
@@ -98,6 +109,7 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
       ...(b.data.bill?.autopay ? { autopay: true } : {}),
     })),
     cashFlow,
+    strands: strandLines,
   });
 }
 
@@ -113,10 +125,11 @@ export function useAIContext(): () => Promise<AIContext> {
   const goals = useGoals();
   const projects = useProjects();
   const money = useMoney();
+  const strands = useOptionalStrands();
 
   return useCallback(
-    () => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money }),
-    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money],
+    () => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands }),
+    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands],
   );
 }
 
@@ -136,9 +149,10 @@ export function useOptionalAIContext(): () => Promise<AIContext | null> {
   const goals = useOptionalGoals();
   const projects = useOptionalProjects();
   const money = useOptionalMoney();
+  const strands = useOptionalStrands();
 
   return useCallback(async () => {
     if (!profile || !people || !docs || !tasks || !schedule || !cats || !routine || !goals || !projects || !money) return null;
-    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money });
-  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money]);
+    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands });
+  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands]);
 }

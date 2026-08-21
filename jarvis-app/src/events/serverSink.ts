@@ -52,6 +52,9 @@ const PERSISTED: ReadonlySet<string> = new Set([
   "plan.duration_corrected",
   "email.deck_sent",
   "plan.duration_committed",
+  "strand.created",
+  "strand.corrected",
+  "strand.deleted",
 ]);
 
 // Storage seam (same pattern as LocalEventLog) so tests run without a browser.
