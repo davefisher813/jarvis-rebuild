@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
 import type { ColorSlot } from "../../categories/types";
+import { suggestFor, loadBlendMemory, blockKind, type Fit } from "../blend";
 import type { SheetCategory } from "../../tasks/screens/TaskSheet";
 import type { EventRecurrence } from "../types";
 import { addMinutes, fmtTime, minToHHMM, addDays } from "../calendar";
@@ -62,6 +63,7 @@ export default function EventSheet({
   suggestLocations,
   attachTasks,
   onToggleTask,
+  onBlend,
 }: {
   mode: "new" | "edit";
   initial?: Partial<EventDraft>;
@@ -82,6 +84,9 @@ export default function EventSheet({
   // task completes it everywhere; the caller owns persistence.
   attachTasks?: AttachableTask[];
   onToggleTask?: (id: string) => void;
+  // Every blend he actually makes is a vote that this category belongs in
+  // this kind of block. The caller persists the vote.
+  onBlend?: (kind: ReturnType<typeof blockKind>, categoryId: string) => void;
 }) {
   const [taskIds, setTaskIds] = useState<string[]>(initial?.taskIds ?? []);
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -122,7 +127,22 @@ export default function EventSheet({
   const canAttach = recurrence === "none" && !!attachTasks;
   const byId = new Map((attachTasks ?? []).map((t) => [t.id, t] as const));
   const attached = canAttach ? taskIds.map((id) => byId.get(id)).filter((t): t is AttachableTask => !!t) : [];
-  const attachable = canAttach ? (attachTasks ?? []).filter((t) => !t.done && !taskIds.includes(t.id)).slice(0, 4) : [];
+  // BLENDING (2026-08-21). This used to be the first four undone tasks in
+  // whatever order the list happened to be in, which is the same as random.
+  // Now it is ranked by how well the task fits THIS block, each with the one
+  // reason it is being offered, and a task that must not go here (answering
+  // email while driving) is not offered at all.
+  const blendMem = canAttach ? loadBlendMemory() : {};
+  const offers: Fit[] = canAttach
+    ? suggestFor({ title, location, category, taskIds }, attachTasks ?? [], blendMem, 4)
+    : [];
+  // Anything left over, so a deliberate attach is never blocked by the
+  // ranking having an opinion.
+  const rest = canAttach
+    ? (attachTasks ?? [])
+      .filter((t) => !t.done && !taskIds.includes(t.id) && !offers.some((o) => o.task.id === t.id))
+      .slice(0, 4)
+    : [];
 
   const slot = (c: SheetCategory): ColorSlot => c.color;
   const reps: [EventRecurrence, string][] = [["none", "None"], ["daily", "Daily"], ["weekly", "Weekly"], ["monthly", "Monthly"]];
@@ -300,7 +320,7 @@ export default function EventSheet({
             </div>
           )}
 
-          {canAttach && (attached.length > 0 || attachable.length > 0) && (
+          {canAttach && (attached.length > 0 || offers.length > 0 || rest.length > 0) && (
             <div className="field">
               <div className="input-label">Attached Tasks</div>
               {attached.length > 0 && (
@@ -324,10 +344,28 @@ export default function EventSheet({
                   ))}
                 </div>
               )}
-              {attachable.length > 0 && (
+              {offers.length > 0 && (
+                <div className="blend-offers">
+                  {offers.map((o) => (
+                    <div key={o.task.id} className="row blend-row" role="button" tabIndex={0}
+                      onClick={() => { setTaskIds((ids) => [...ids, o.task.id]); onBlend?.(blockKind({ title, location }), o.task.category); }}>
+                      <span className={"cat-dot cat-bg-" + catColor(o.task.category)} />
+                      <div className="row-grow">
+                        <div className="conn-name truncate">{o.task.text}</div>
+                        {/* One reason, in words. Never a percentage: a
+                            confidence number is a thing you argue with. */}
+                        <div className="conn-meta">{o.why}</div>
+                      </div>
+                      <span className="pill-act">Add</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {rest.length > 0 && (
                 <div className="chip-row cat-pick">
-                  {attachable.map((t) => (
-                    <div key={t.id} className="chip" role="button" tabIndex={0} onClick={() => setTaskIds((ids) => [...ids, t.id])}>
+                  {rest.map((t) => (
+                    <div key={t.id} className="chip" role="button" tabIndex={0}
+                      onClick={() => { setTaskIds((ids) => [...ids, t.id]); onBlend?.(blockKind({ title, location }), t.category); }}>
                       <span className={"cat-dot cat-bg-" + catColor(t.category)} />{t.text}
                     </div>
                   ))}

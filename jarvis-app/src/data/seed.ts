@@ -40,10 +40,18 @@ export async function seedDemoData(
     categories.find((c) => c.data.name === name)?.id ?? categories[0]?.id ?? "";
 
   if ((await schedule.listEvents()).length === 0) {
-    await schedule.createEvent("Morning Standup", { date: today, start: "08:30", category: cat("Work") });
+    // B2 (audit 2026-08-21): the demo never once demonstrated a repeat, so a
+    // reviewer could use the whole app and never learn it repeats anything.
+    // Standup is daily; the gym runs weekly and ENDS, which is the half of
+    // repeating that nothing anywhere was showing.
+    await schedule.createEvent("Morning Standup", { date: today, start: "08:30", category: cat("Work"), recurrence: "daily" });
     await schedule.createEvent("Call With Nadia", { date: today, start: "10:00", category: cat("Work"), location: "Zoom" });
+    // Deep Work and the drive exist so BLENDING has something to demonstrate:
+    // a drive is a block you sit through, and a call rides along with it.
+    await schedule.createEvent("Deep Work", { date: today, start: "13:00", end: "14:30", category: cat("Work") });
+    await schedule.createEvent("Drive to Ridgeline", { date: today, start: "14:45", end: "15:30", category: cat("Family") });
     await schedule.createEvent("Fall Clinic Walkthrough", { date: today, start: "15:30", category: cat("Family"), location: "Ridgeline Fields" });
-    await schedule.createEvent("Gym Session", { date: today, start: "17:30", category: cat("Health") });
+    await schedule.createEvent("Gym Session", { date: today, start: "17:30", category: cat("Health"), recurrence: "weekly", until: addDays(today, 56) });
     await schedule.createEvent("Board Call · Rob Calder", { date: addDays(today, 1), start: "09:00", category: cat("Family") });
     await schedule.createEvent("Sponsor Pitch · Summit Gear", { date: addDays(today, 1), start: "14:00", category: cat("Work") });
     await schedule.createEvent("Coach Onboarding Demo", { date: addDays(today, 2), start: "11:00", category: cat("Work") });
@@ -58,6 +66,7 @@ export async function seedDemoData(
     await tasks.createTask("Reply to Nadia re: Invoice", { category: cat("Work"), due: today });
     await tasks.createTask("Nudge Delaney on Harper v Northline", { category: cat("Work"), due: addDays(today, 1) });
     await tasks.createTask("Book PG 17U Travel", { category: cat("Family"), due: addDays(today, 3) });
+    await tasks.createTask("Call Ridgeline About the Field", { category: cat("Family"), due: today });
     await tasks.createTask("Chase Summit Gear Order #D2565", { category: cat("Money"), due: addDays(today, 2) });
     const d1 = await tasks.createTask("Send Waiver to Ridgeline", { category: cat("Family"), due: addDays(today, -1) });
     const d2 = await tasks.createTask("Post Clinic Recap", { category: cat("Work"), due: addDays(today, -3) });

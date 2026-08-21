@@ -340,6 +340,13 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-grip .ic { width: 18px; height: 18px; transition: transform var(--dur-fast) var(--ease-out); }
 .sched-grip.open .ic { transform: rotate(180deg); }
 .sched-swipe-wrap .sched-row.swiping { transition: none; }
+/* A swipe row must stay OPAQUE in every state. The shared hover rule paints
+   rgba(255,255,255,0.06) over the row, and a translucent row sitting on top
+   of amber swipe actions shows the amber straight through: a resting row
+   looked mid-swipe (caught on screen 2026-08-21). Same failure family as the
+   notice cards. Opaque surface, not a wash. */
+.sched-swipe-wrap .sched-row:hover { background: var(--surface-1); }
+.task-swipe .task-row:hover { background: var(--surface-1); }
 .plan-head-acts { display: flex; align-items: center; gap: var(--s-2); }
 /* The plan as a picture (2026-08-09): one proportional bar for the planning
    window. Events are fixed gray, protected time is dim (soft ones dimmer and
@@ -658,6 +665,30 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    single quiet line. It reads as furniture, not as a pile: same card, dimmer
    title, no count badge anywhere. The guard line under it is the receipt that
    makes folding safe, so it sits outside the card, small and calm. */
+/* BLENDING (2026-08-21). The offer tucks UNDER the block it belongs to,
+   indented to the block's text edge, because the indent is what says "this
+   goes inside that". Quieter than a row and louder than a hint: it is a
+   real tap target (44 tall) but it never competes with the event above it. */
+.blend-tuck {
+  display: flex; align-items: center; gap: var(--s-2h);
+  min-height: 44px; padding: var(--s-1h) var(--s-4) var(--s-2h) 74px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.blend-tuck:active { opacity: 0.6; }
+.blend-plus {
+  flex-shrink: 0; width: 20px; height: 20px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px dashed var(--tx-3); color: var(--tx-3);
+  font-size: 14px; line-height: 1;
+}
+.blend-text { font-size: var(--t-meta); color: var(--tx-2); }
+.blend-why { font-size: var(--t-eyebrow); color: var(--tx-3); }
+
+/* In the editor the same offers are full rows, because there he is choosing
+   between them rather than accepting one. */
+.blend-offers { display: flex; flex-direction: column; }
+.blend-row { gap: var(--s-2h); }
+
 /* THE END-OF-DAY CARD. Moved out of the Heads Up stream to the page foot
    2026-08-21: Heads Up is what JARVIS wants acted on NOW, and "how did today
    feel" is the opposite of now. :empty matters because the check-in renders

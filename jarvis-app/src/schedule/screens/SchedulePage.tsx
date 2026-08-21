@@ -40,7 +40,7 @@ export default function SchedulePage({
   mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, onCopyDay, repeatMarks = new Set<string>(),
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload,
   locked = [], now, onEditRoutine, onShift, onMoveTo, onSkipToday, onPushTomorrow, onRunningLate,
-  anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {},
+  anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {}, blendMap = {},
   windowStartMin, windowEndMin,
 }: {
   year: number; month: number; selected: string; todayDate: string;
@@ -65,6 +65,10 @@ export default function SchedulePage({
   onRunningLate?: (mins: number) => void;
   anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string) => void;
   attachMap?: Record<string, AttachInfo>;
+  // BLENDING (Dave, 2026-08-21). One confident offer per block, keyed by
+  // event id: the task that fits this block well enough that adding it is a
+  // shortcut rather than a gamble. Computed by the flow, rendered here.
+  blendMap?: Record<string, { text: string; why: string; onAdd: () => void }>;
   // The routine-derived planning window (minutes). Open rows honor the user's
   // real day instead of a hardcoded 8 AM to 9 PM (2026-08-10).
   windowStartMin?: number; windowEndMin?: number;
@@ -340,6 +344,21 @@ export default function SchedulePage({
                   onSkipToday={onSkipToday ? () => onSkipToday(en.e.id) : undefined}
                   onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.e.id) : undefined}
                 />
+                {/* The blend offer. It sits UNDER the block it belongs to,
+                    because that is the sentence it is making: this task goes
+                    in that block. One tap attaches it; there is no sheet, no
+                    picker, and no confirmation, which is the entire point of
+                    "just make it very easy to do things like that". */}
+                {blendMap[en.e.id] && (
+                  <div className="blend-tuck" role="button" tabIndex={0}
+                    onClick={() => blendMap[en.e.id]!.onAdd()}>
+                    <span className="blend-plus" aria-hidden>+</span>
+                    <div className="row-grow">
+                      <div className="blend-text truncate">{blendMap[en.e.id]!.text}</div>
+                      <div className="blend-why">{blendMap[en.e.id]!.why}</div>
+                    </div>
+                  </div>
+                )}
               </div>
             ),
           )}

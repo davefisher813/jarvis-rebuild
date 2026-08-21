@@ -13,6 +13,7 @@ import { planDay } from "./planDay";
 import { anytimeTasksForDay } from "./anytime";
 import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
 import { attachInfo, followUpCandidate, type AttachInfo } from "./attachments";
+import { bestPerBlock, blockKind, recordBlend, loadBlendMemory } from "./blend";
 import type { EventItem, EventData } from "./types";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
@@ -320,8 +321,50 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   }
   const attachableTasks = taskItems
     .filter((t) => !t.data.done || dayEvents.some((e) => e.data.taskIds?.includes(t.id)))
-    .map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done }));
+    .map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done, due: t.data.due ?? null, projectId: t.data.projectId }));
   const onToggleAttached = async (id: string) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reloadTasks(); };
+
+  // BLENDING (Dave, 2026-08-21). Attaching a task to a block already worked;
+  // it was just buried six fields deep in an editor. The offer now comes to
+  // the block, on the day list, one tap, no sheet.
+  //
+  // Only ONE offer per block and only when it is clearly the best fit. A
+  // suggestion that is a coin flip between two tasks is worse than silence,
+  // because tapping it stops being a shortcut and starts being a gamble.
+  const blendMem = loadBlendMemory();
+  const blendTap = async (e: EventItem, taskId: string, categoryId: string) => {
+    const prior = e.data.taskIds ?? [];
+    const ok = await attemptWrite(() => svc.editTaskIds(e.id, [...prior, taskId]));
+    if (!ok) return;
+    // The vote is only cast when the blend actually lands. Learning from an
+    // attach that failed to write would teach the app a habit he never had.
+    recordBlend(blockKind(e.data), categoryId);
+    await reload();
+    showToast({
+      message: "Added to " + e.data.title,
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(() => svc.editTaskIds(e.id, prior));
+        await reload();
+      },
+    });
+  };
+  const blendMap: Record<string, { text: string; why: string; onAdd: () => void }> = {};
+  {
+    // A block that already holds something is not asking for more. One
+    // suggestion at a time, or the day list turns into a second to-do list.
+    const open = dayEvents.filter((e) => (e.data.taskIds ?? []).length === 0);
+    const byEvent = bestPerBlock(open, attachableTasks, blendMem);
+    for (const e of open) {
+      const fit = byEvent[e.id];
+      if (!fit) continue;
+      blendMap[e.id] = {
+        text: fit.task.text,
+        why: fit.why,
+        onAdd: () => { void blendTap(e, fit.task.id, fit.task.category); },
+      };
+    }
+  }
 
   // "N tasks were attached. Any done?": once per event, ever. Asked ids live in
   // localStorage so the question never comes back.
@@ -654,6 +697,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onToggleTask={onToggleTask}
         onScheduleTask={onScheduleTask}
         attachMap={attachMap}
+        blendMap={blendMap}
       />
       {planOpen && (
         <PlanDaySheet
@@ -709,6 +753,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           suggestLocations={(t) => suggestLocations(allEvents, t)}
           attachTasks={attachableTasks}
           onToggleTask={onToggleAttached}
+          onBlend={(kind, categoryId) => recordBlend(kind, categoryId)}
         />
       )}
       {guard && (

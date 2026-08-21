@@ -53,10 +53,13 @@ describe("integration: demo seed feeds Today", () => {
     const ev = await schedule.eventsOn(today);
     const tk = await tasks.listTasks();
     const sum = daySummary(ev, tk, today);
-    expect(sum.events).toBe(4);
+    // Six today: standup, Nadia, Deep Work, the drive, the clinic, the gym.
+    // Deep Work and the drive were added 2026-08-21 so blending has something
+    // to demonstrate; the blend offer is only as real as a block to put it in.
+    expect(sum.events).toBe(6);
     expect(sum.overdue).toBe(1);
-    expect(sum.due).toBe(2);
-    expect(todaysTasks(tk, today).length).toBe(3);
+    expect(sum.due).toBe(3);
+    expect(todaysTasks(tk, today).length).toBe(4);
   });
 
   it("seeding is idempotent (no duplicates on a second run)", async () => {
@@ -65,7 +68,7 @@ describe("integration: demo seed feeds Today", () => {
     const cats = await categories.list();
     await seedDemoData(tasks, schedule, cats);
     await seedDemoData(tasks, schedule, cats);
-    expect((await schedule.listEvents()).length).toBe(10);
-    expect((await tasks.listTasks()).length).toBe(8);
+    expect((await schedule.listEvents()).length).toBe(12);
+    expect((await tasks.listTasks()).length).toBe(9);
   });
 });
