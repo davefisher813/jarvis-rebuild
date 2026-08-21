@@ -255,7 +255,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    alarm). Decision Record's Change It is the first tenant. */
 .row-act { justify-content: center; width: 100%; background: transparent; border: 0; color: var(--accent); font-weight: var(--w-semi); font-size: var(--t-body); }
 .input-multiline { height: auto; min-height: 88px; padding-top: var(--s-2h); resize: none; line-height: var(--lh-relaxed); font-family: inherit; }
-.nav-action-text { background: transparent; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-body); padding: 0 var(--s-1); }
+/* A text bar action is 18px of glyph. It needs a hit area like everything
+   else does (audit 2026-08-21: "Edit" measured 41x18 against a 24 minimum,
+   on every screen with a text action in the bar, which is most of them).
+   ::after so the expansion costs no layout and nothing shifts. */
+.nav-action-text { position: relative; background: transparent; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-body); padding: 0 var(--s-1); }
+.nav-action-text::after { content: ""; position: absolute; inset: -13px -8px; }
 /* Disabled must LOOK disabled: tx-3 (76% white) read as active next to the
    blue tint, which made an at-rest Save feel broken (audit 2026-07-30). */
 .nav-action-text:disabled { color: var(--tx-4); }
@@ -665,6 +670,24 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    single quiet line. It reads as furniture, not as a pile: same card, dimmer
    title, no count badge anywhere. The guard line under it is the receipt that
    makes folding safe, so it sits outside the card, small and calm. */
+/* THE PROJECT'S OWN WORK (2026-08-21). A project page that did not show the
+   project's tasks was a filing card. Progress is a COUNT, not a percentage:
+   "5 of 9" is a fact you can act on, "56%" is a fact you can only feel. */
+.proj-prog { width: 100%; margin-top: var(--s-3); }
+.proj-prog-bar {
+  height: 4px; border-radius: 2px; background: var(--press-3);
+  overflow: hidden; margin-bottom: var(--s-1h);
+}
+.proj-prog-bar > span { display: block; height: 100%; background: var(--good); border-radius: 2px; }
+.proj-step { align-items: flex-start; }
+.proj-add-step { gap: var(--s-2); }
+.proj-step-input { flex: 1; min-width: 0; }
+.proj-done-fold { margin-top: var(--s-2); display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; }
+.proj-done-fold .card { width: 100%; }
+.proj-step.completed .conn-name { color: var(--tx-3); text-decoration: line-through; }
+.proj-finish-note { margin-top: var(--s-2); text-align: center; }
+.proj-guess .conn-name { color: var(--tint); }
+
 /* BLENDING (2026-08-21). The offer tucks UNDER the block it belongs to,
    indented to the block's text edge, because the indent is what says "this
    goes inside that". Quieter than a row and louder than a hint: it is a
@@ -1390,8 +1413,12 @@ button {
 .b-green { background: linear-gradient(180deg, #5DE58A, #1FA24D); }
 .b-purple { background: linear-gradient(180deg, #D28BFF, #9B34D9); }
 .promo-body { flex: 1; min-width: 0; }
+/* Two lines, not one. A decision record's whole reason for existing is that
+   you read the decision six weeks later; "Student template ships first" was
+   losing a quarter of itself to an ellipsis (audit 2026-08-21). A headline
+   that clips is a headline that has to be tapped to be read. */
 .promo-title { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--tx-1);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .promo-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: 2px; line-height: 1.4;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .promo-acts { display: flex; gap: var(--s-2h); margin-top: var(--s-3h); }

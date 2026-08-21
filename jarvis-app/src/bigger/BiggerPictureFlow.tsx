@@ -255,6 +255,19 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
           onChanged={() => void reload()}
           onBack={() => setDetailId(null)}
           onEdit={() => setSheet({ kind: "editProject", id: detail.id })}
+          steps={tasks
+            .filter((t) => t.data.projectId === detail.id)
+            .map((t) => ({ id: t.id, text: t.data.text, done: !!t.data.done, due: t.data.due ?? null, category: t.data.category }))}
+          onToggleStep={async (id) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reload(); }}
+          onAddStep={async (text) => {
+            // The step is born into the project AND its area, because a task
+            // created from inside a project already answered both questions.
+            await attemptWrite(() => tasksSvc.createTask(text, {
+              projectId: detail.id,
+              category: detail.data.category || undefined,
+            }));
+            await reload();
+          }}
           onFinish={async () => {
             const p = detail;
             await attemptWrite(() => projectsSvc.update(p.id, { ...p.data, status: "done" }));

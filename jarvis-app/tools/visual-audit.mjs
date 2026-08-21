@@ -260,6 +260,33 @@ for (const r of rows) {
   await page.waitForTimeout(700);
   try { await page.click(`text="${r}"`, { timeout: 2500 }); } catch { continue; }
   results.push(await auditScreen(page, "More > " + r));
+  // DETAIL DIVE (2026-08-21). Every audit before this one stopped at the
+  // top of each section, which meant the pages where the app actually holds
+  // its content -- a project, a goal, a person, a category -- were never
+  // looked at once. "How can we do it so you don't miss anything" has to
+  // include the screens that are one tap further in.
+  // Click by ELEMENT, not by text. Text selectors match the first thing on
+  // the page that happens to say the same words, which on these screens is
+  // usually a heading rather than the row.
+  const SEL = '.row[role="button"], .proj-row, .lm-row, .cat-row, .settings-row, .conn-row, .person-row';
+  const count = Math.min(3, await page.locator(SEL).count());
+  for (let i = 0; i < count; i++) {
+    const before = page.url() + "|" + await page.evaluate(() => document.querySelector(".nav-title, .pagebar-title, .pagehead-title")?.textContent || "");
+    const row = page.locator(SEL).nth(i);
+    let label = "";
+    try {
+      label = ((await row.textContent()) || "").trim().split("\n")[0].slice(0, 34);
+      await row.click({ timeout: 2000 });
+    } catch { continue; }
+    await page.waitForTimeout(800);
+    const after = page.url() + "|" + await page.evaluate(() => document.querySelector(".nav-title, .pagebar-title, .pagehead-title")?.textContent || "");
+    // A row that opened nothing is not a screen; auditing the same screen
+    // three times is how a report gets padded instead of thorough.
+    if (after === before) continue;
+    results.push(await auditScreen(page, "More > " + r + " > " + label));
+    await page.click(".nav-back, .pagebar-back").catch(() => {});
+    await page.waitForTimeout(600);
+  }
 }
 
 writeFileSync("/tmp/audit.json", JSON.stringify({ results, consoleErrs }, null, 1));
