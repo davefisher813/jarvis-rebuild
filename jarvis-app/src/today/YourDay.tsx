@@ -4,6 +4,18 @@ import { fmtTime, fmtDistance, minToHHMM } from "../schedule/calendar";
 import { catColor, catName } from "../shared/categories";
 import { isPast } from "./todayData";
 import { EventWeatherLine } from "../weather/WeatherLine";
+import ProposedRow from "../schedule/screens/ProposedRow";
+import type { PlanBlock } from "../schedule/planDay";
+
+// A standing proposal for this day, plus the handlers that edit it. Absent
+// when nothing is drafted, which is most of the time.
+export interface ProposedDay {
+  blocks: PlanBlock[];
+  openId: string | null;
+  onToggle: (taskId: string) => void;
+  onDuration: (taskId: string, minutes: number) => void;
+  onDrop: (taskId: string) => void;
+}
 
 // One confident blend offer per block, keyed by event id. Built by the flow;
 // this screen only draws it.
@@ -63,14 +75,22 @@ function LockedRow({ l, past, onOpen }: { l: LockedRange; past: boolean; onOpen?
 
 // One full pass of the day: events + protected blocks in time order, with the
 // Now line inserted at the right spot and time-as-distance on the next event.
-function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {} }: { events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void; onEditRoutine?: () => void; blendMap?: BlendMap }) {
+function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {}, proposed }: { events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void; onEditRoutine?: () => void; blendMap?: BlendMap; proposed?: ProposedDay }) {
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
   const nowMin = toMin(now);
+  // The distance label ("in 40 minutes") counts down to a COMMITMENT. A
+  // proposal is not one yet, so it never wears it.
   const nextId = events.filter((e) => toMin(e.data.start) >= nowMin).sort((a, b) => toMin(a.data.start) - toMin(b.data.start))[0]?.id;
-  type Entry = { kind: "event"; ev: EventItem; s: number } | { kind: "locked"; l: LockedRange; s: number };
+  type Entry =
+    | { kind: "event"; ev: EventItem; s: number }
+    | { kind: "locked"; l: LockedRange; s: number }
+    | { kind: "proposed"; b: PlanBlock; s: number };
   const entries: Entry[] = [
     ...events.map((ev): Entry => ({ kind: "event", ev, s: toMin(ev.data.start) })),
     ...locked.map((l): Entry => ({ kind: "locked", l, s: l.s })),
+    // Proposals join the SAME sort, not a separate list below the day. That
+    // is the whole point: one schedule, in time order.
+    ...(proposed?.blocks ?? []).map((b): Entry => ({ kind: "proposed", b, s: toMin(b.start) })),
   ].sort((a, b) => a.s - b.s);
   // Insert the Now line by minutes, simple and correct with locked rows mixed in.
   const out: JSX.Element[] = [];
@@ -95,6 +115,18 @@ function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine
           </div>,
         );
       }
+    } else if (en.kind === "proposed") {
+      // Keys are prefixed because event ids and task ids share this list.
+      out.push(
+        <ProposedRow
+          key={"prop-" + en.b.taskId}
+          block={en.b}
+          open={proposed!.openId === en.b.taskId}
+          onToggle={() => proposed!.onToggle(en.b.taskId)}
+          onDuration={(m) => proposed!.onDuration(en.b.taskId, m)}
+          onDrop={() => proposed!.onDrop(en.b.taskId)}
+        />,
+      );
     } else {
       out.push(<LockedRow key={"lock-" + i} l={en.l} past={en.l.e <= nowMin} onOpen={onEditRoutine} />);
     }
@@ -139,6 +171,8 @@ export default function YourDay({
   title = "Your Day",
   emptyText = "Nothing scheduled today",
   blendMap = {},
+  proposed,
+  footer,
 }: {
   events: EventItem[];
   locked?: LockedRange[];
@@ -154,6 +188,10 @@ export default function YourDay({
   title?: string;
   emptyText?: string;
   blendMap?: BlendMap;
+  // A standing proposal for this day, rendered inline among the real rows.
+  proposed?: ProposedDay;
+  // Accept / Not Today, owned by the flow and drawn under the day.
+  footer?: React.ReactNode;
 }) {
   const measureRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);
@@ -235,7 +273,10 @@ export default function YourDay({
     </div>
   );
 
-  if (events.length === 0) {
+  // A day with five proposals and no meetings is not an empty day. The
+  // emptiness test counts what is on screen, not just what is committed.
+  const proposedCount = proposed?.blocks.length ?? 0;
+  if (events.length === 0 && proposedCount === 0) {
     // Actionable empty state: an icon, one warm line, and the obvious next
     // tap, instead of a grey sentence (RDB, Dave 2026-07-29).
     return (
@@ -259,15 +300,20 @@ export default function YourDay({
     );
   }
 
-  // Not overflowing: a plain static card (no animation, no toggle).
-  if (!overflow) {
+  // YOU CANNOT EDIT A MOVING TARGET (blend, 2026-08-22). The ticker renders
+  // the day TWICE inside a scrolling track, so an editable proposal would
+  // exist in two copies, keyed the same, sliding past the thumb. While a
+  // proposal stands, the day holds still; it starts moving again once the
+  // day is accepted and there is nothing left to decide.
+  if (!overflow || proposedCount > 0) {
     return (
       <div>
         {header}
         {planButton}
         <div>
-          <div ref={measureRef}><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} /></div>
+          <div ref={measureRef}><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} proposed={proposed} /></div>
         </div>
+        {footer}
       </div>
     );
   }

@@ -133,12 +133,13 @@ export default function TodayFlow({
   // text (Dave 2026-08-22: "this should be a button"); now it discloses the
   // actual tasks in place, same pattern as the email fold.
   const [draftMoreOpen, setDraftMoreOpen] = useState(false);
-  // EDIT IN PLACE (merge phase 2). `editing` is the mode; `tuning` is the one
-  // row whose editor is open; `preEdit` is what the draft looked like when he
-  // tapped Edit, so Cancel has something to restore.
-  const [editing, setEditing] = useState(false);
+  // THERE IS NO EDIT MODE ANY MORE (blend, 2026-08-22). A proposal is a
+  // proposal: it is always editable, so the mode flag and its Cancel
+  // snapshot went with the card. Undo is better without them -- a block
+  // moved off the day lands in Anytime with an Add beside it, which is a
+  // real way back rather than a modal that discards everything at once.
+  // `tuning` is just which row has its editor open.
   const [tuning, setTuning] = useState<string | null>(null);
-  const [preEdit, setPreEdit] = useState<DayDraft | null>(null);
   // Whether the Email band has anything to show. Reported BY MailNotices, so
   // the head and the content can never disagree about being empty.
   const [mailEmpty, setMailEmpty] = useState(true);
@@ -1037,119 +1038,49 @@ export default function TodayFlow({
 
   // The Day Loop card: the whole day, drafted, one Accept. Purple spark: a
   // JARVIS-made proposal, not yet the user's plan.
-  // EDIT IN PLACE (merge phase 2, 2026-08-22). Edit no longer pushes a
-  // different-looking surface: the rows he is already looking at become the
-  // editable ones, hosting the plan sheet's OWN row editor so the two cannot
-  // drift apart. The sheet stays behind More Options for the jobs the card
-  // should not try to hold: picking from the whole task list, sittings, and
-  // a one-day end time. Cramming those in here is the "cramped sheet inside
-  // a card" the design doc warned about.
-  const draftSection = !evening && dayDraft && !dayDraft.accepted && !dayDraft.dismissed && dayDraft.blocks.length > 0 && (
+  // ONE SCHEDULE ON TODAY (blend, 2026-08-22). Dave: "what's the point of
+  // having two different schedule formats on the home page?" None, and the
+  // drafted card was the wrong half to keep. The proposal is penciled into
+  // Your Day among the real rows now (see ProposedRow); what survives here
+  // is the one decision it asks for, drawn under the day.
+  const draftStanding = !evening && dayDraft && !dayDraft.accepted && !dayDraft.dismissed && dayDraft.blocks.length > 0;
+
+  const proposedDay = draftStanding ? {
+    blocks: dayDraft.blocks,
+    openId: tuning,
+    onToggle: (id: string) => setTuning((t) => (t === id ? null : id)),
+    onDuration: (id: string, minutes: number) => applyEdit({ minutes: { [id]: minutes } }),
+    onDrop: (id: string) => { setTuning(null); applyEdit({ drop: id }); },
+  } : undefined;
+
+  const draftFooter = draftStanding ? (
     <>
-      <div className="pad-x"><div className={"card" + (editing ? " draft-editing" : "")}>
-        <div className="draft-kick">
-          <span className="cat-fg-purple">{SPARK_ICO}</span><span>Your Day, Drafted</span>
-          {editing && (
-            <button className="see-all" onClick={() => { setEditing(false); setTuning(null); void openPlan("today"); }}>
-              More Options
+      {dayDraft.anytime.length > 0 && (
+        <>
+          <div className="row">
+            <button className="draft-more" aria-expanded={draftMoreOpen} onClick={() => setDraftMoreOpen((o) => !o)}>
+              <span className="t">{capAfterNumber(`${dayDraft.anytime.length} more in Anytime`)}</span>
+              <div className={"chev chev-down" + (draftMoreOpen ? " chev-open" : "")} />
             </button>
-          )}
-        </div>
-        {dayDraft.blocks.map((b) => (
-          <div key={b.taskId}>
-            <div
-              className={"row" + (editing ? " row-edit" : "")}
-              role={editing ? "button" : undefined}
-              tabIndex={editing ? 0 : undefined}
-              aria-expanded={editing ? tuning === b.taskId : undefined}
-              onClick={editing ? () => setTuning((t) => (t === b.taskId ? null : b.taskId)) : undefined}
-            >
+          </div>
+          {draftMoreOpen && dayDraft.anytime.map((a) => (
+            <div className="row" key={a.id}>
               <RowIcon kind="task" />
-              <div className="row-grow"><div className="conn-name truncate">{b.text}</div></div>
-              <span className={"urgency urgency-muted draft-row-time" + (tuning === b.taskId ? " on" : "")}>
-                {fmtTime(b.start).time} {fmtTime(b.start).ap}
-              </span>
+              <div className="row-grow"><div className="conn-name truncate">{a.text}</div></div>
+              <button className="pill-act" onClick={() => applyEdit({ add: a.id })}>Add</button>
             </div>
-            {editing && tuning === b.taskId && (
-              <div className="draft-edit-body" onClick={(e) => e.stopPropagation()}>
-                <div className="plan-controls">
-                  <div className="chip-row plan-durs">
-                    {DRAFT_DURS.map((d) => (
-                      <button
-                        key={d}
-                        type="button"
-                        className={"chip" + (draftMinutes(dayDraft, b.taskId) === d ? " chip-on" : "")}
-                        aria-label={`${b.text}: ${d} minutes`}
-                        onClick={() => applyEdit({ minutes: { [b.taskId]: d } })}
-                      >
-                        {d < 60 ? `${d}m` : d % 60 === 0 ? `${d / 60}h` : `${Math.floor(d / 60)}h ${d % 60}m`}
-                      </button>
-                    ))}
-                  </div>
-                  {/* NOT DESTRUCTIVE, AND IT SAYS SO. Taking a block off the
-                      plan hands the task back to Anytime; it deletes nothing.
-                      A red "Remove" would claim otherwise, and the swipe law
-                      already reserves red for delete. The app's own verb for
-                      this move is Move to Anytime (EventSheet), so it wears
-                      that and the neutral capsule. */}
-                  <div className="plan-when">
-                    <button
-                      type="button"
-                      className="btn-sm"
-                      onClick={() => { setTuning(null); applyEdit({ drop: b.taskId }); }}
-                    >
-                      Move to Anytime
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
-        {dayDraft.anytime.length > 0 && (
-          <>
-            <div className="row">
-              <button className="draft-more" aria-expanded={draftMoreOpen} onClick={() => setDraftMoreOpen((o) => !o)}>
-                <span className="t">{capAfterNumber(`${dayDraft.anytime.length} more in Anytime`)}</span>
-                <div className={"chev chev-down" + (draftMoreOpen ? " chev-open" : "")} />
-              </button>
-            </div>
-            {draftMoreOpen && dayDraft.anytime.map((a) => (
-              <div className="row" key={a.id}>
-                <RowIcon kind="task" />
-                <div className="row-grow"><div className="conn-name truncate">{a.text}</div></div>
-                {editing && (
-                  <button className="pill-act" onClick={() => applyEdit({ add: a.id })}>Add</button>
-                )}
-              </div>
-            ))}
-          </>
-        )}
-        <div className="row">
-          <div className="momentum-actions">
-            {editing ? (
-              <>
-                <button className="btn btn-primary btn-sm" onClick={() => { setEditing(false); setTuning(null); setPreEdit(null); }}>Done</button>
-                {/* Cancel restores the draft as it stood when Edit was tapped:
-                    edits apply live, so without the snapshot there would be
-                    nothing to go back to. */}
-                <button className="btn-sm" onClick={() => {
-                  if (preEdit) { writeDraft(preEdit); setDayDraft(preEdit); }
-                  setEditing(false); setTuning(null); setPreEdit(null);
-                }}>Cancel</button>
-              </>
-            ) : (
-              <>
-                <button className="btn btn-primary btn-sm" onClick={() => void acceptDraft()}>Accept the Day</button>
-                <button className="btn-sm" onClick={() => { setPreEdit(dayDraft); setEditing(true); }}>Edit</button>
-                <button className="btn-sm" onClick={dismissDraft}>Not Today</button>
-              </>
-            )}
-          </div>
-        </div>
-      </div></div>
+          ))}
+        </>
+      )}
+      {/* Two buttons, not three: Your Day already carries Plan My Day above
+          the list, and a More Options here would be a second door to the
+          same sheet on one screen. */}
+      <div className="day-foot">
+        <button className="btn btn-primary btn-sm" onClick={() => void acceptDraft()}>Accept the Day</button>
+        <button className="btn-sm" onClick={dismissDraft}>Not Today</button>
+      </div>
     </>
-  );
+  ) : null;
 
   // Slippage stated out loud below Everything; automatic (receipted) at it.
   const reflowSection = !evening && dayDraft?.accepted && slippedCount > 0 && effectiveLevel(getAIControl()) !== "everything" && (
@@ -1549,7 +1480,8 @@ export default function TodayFlow({
       onEditRoutine={onEditRoutine}
       today={today}
       nowCard={nowSection}
-      dayDraft={draftSection || undefined}
+      proposedDay={proposedDay}
+      dayFooter={draftFooter}
       reminders={
         <RemindersStrip
           items={reminders}

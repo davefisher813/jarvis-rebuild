@@ -21,7 +21,7 @@ import { showToast } from "../shared/toast";
 import { catColor } from "../shared/categories";
 import { attemptWrite } from "../shared/guard";
 import PlanDaySheet from "./screens/PlanDaySheet";
-import { readDraft, writeDraft, acceptInto, seedFrom } from "../dayloop/dayLoop";
+import { readDraft, writeDraft, acceptInto, seedFrom, editDraft } from "../dayloop/dayLoop";
 import { aiPlanDay } from "./planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, splitProtectedRanges, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "./energy";
@@ -65,6 +65,11 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const tasksSvc = useTasks();
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
   const [planOpen, setPlanOpen] = useState(false);
+  // ONE SCHEDULE (blend, 2026-08-22). The standing proposal for the selected
+  // date is drawn among this day's real rows, editable here exactly as on
+  // Today, over the SAME stored draft.
+  const [proposalDraft, setProposalDraft] = useState(() => readDraft(todayISO()));
+  const [tuning, setTuning] = useState<string | null>(null);
   const ai = useAI();
   // Brain Personalization Phase 1 (2026-08-06): the same assembled context
   // every other AI feature already reads (Life Philosophy, Values, How You
@@ -82,6 +87,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const nudgedDays = useRef<Set<string>>(new Set());
 
   const reload = useCallback(async () => {
+    setProposalDraft(readDraft(selected));
     // Self-healing dedupe (hotfix 2026-08-21): a task never keeps two plan
     // events on the viewed day. Runs on what this read actually sees, so a
     // cold read heals nothing rather than deleting on absence.
@@ -183,6 +189,45 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const chrono = chronotypeFor(routineData);
   const peak = peakWindowFor(routineData, chrono);
   const energy = chrono !== "neutral" ? { chronotype: chrono, peakStartMin: peak.s, peakEndMin: peak.e } : undefined;
+  // The proposal for the day being LOOKED AT. A draft is stored per date, so
+  // browsing to another day simply finds none, which is the honest answer.
+  const standingDraft = proposalDraft && proposalDraft.date === selected
+    && !proposalDraft.accepted && !proposalDraft.dismissed && proposalDraft.blocks.length > 0
+    ? proposalDraft : null;
+
+  const applyProposalEdit = (op: { minutes?: Record<string, number>; drop?: string; add?: string }) => {
+    setProposalDraft((cur) => {
+      if (!cur) return cur;
+      const ids = cur.blocks.map((b) => b.taskId);
+      const m = (hhmm: string) => { const q = hhmm.split(":"); return Number(q[0] ?? 0) * 60 + Number(q[1] ?? 0); };
+      const minutes: Record<string, number> = {};
+      for (const b of cur.blocks) minutes[b.taskId] = m(b.end) - m(b.start);
+      let next = ids;
+      if (op.drop) next = ids.filter((id) => id !== op.drop);
+      if (op.add && !ids.includes(op.add)) next = [...ids, op.add];
+      Object.assign(minutes, op.minutes ?? {});
+      const edited = editDraft(cur, {
+        ids: next, minutes,
+        pool: planCandidates.map((c) => ({ id: c.id, text: c.text, category: c.category })),
+        events: dayEvents,
+        startMin: planStart,
+        endMin: planEnd,
+        blocked,
+        estimateFor: () => 45,
+      });
+      writeDraft(edited);
+      return edited;
+    });
+  };
+
+  const standingProposal = standingDraft ? {
+    blocks: standingDraft.blocks,
+    openId: tuning,
+    onToggle: (id: string) => setTuning((t) => (t === id ? null : id)),
+    onDuration: (id: string, minutes: number) => applyProposalEdit({ minutes: { [id]: minutes } }),
+    onDrop: (id: string) => { setTuning(null); applyProposalEdit({ drop: id }); },
+  } : undefined;
+
   const onAIPlan = ai.available
     ? async (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => {
         const ctx = await gatherContext();
@@ -212,7 +257,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     // still be showing a card for a day this tab has already written.
     if (ok) {
       const resolved = acceptInto(readDraft(selected), selected, blocks, ids);
-      if (resolved) writeDraft(resolved);
+      if (resolved) { writeDraft(resolved); setProposalDraft(resolved); }
     }
     setPlanOpen(false);
     await reload();
@@ -760,6 +805,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   return (
     <>
       <SchedulePage
+        proposed={standingProposal}
         year={view.y}
         month={view.m}
         selected={selected}

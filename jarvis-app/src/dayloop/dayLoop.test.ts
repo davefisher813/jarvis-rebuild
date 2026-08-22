@@ -287,3 +287,57 @@ describe("editDraft", async () => {
     expect(out.date).toBe("2026-08-22");
   });
 });
+
+// THE BLEND (2026-08-22). Proposals render inside the schedule, so the rules
+// about what a proposal IS have to hold as plainly as the placement ones.
+describe("a proposal is not a commitment", async () => {
+  const { plannedTaskIds, acceptInto, editDraft } = await import("./dayLoop");
+  const blk = (taskId: string, start = "09:00", end = "09:45") => ({ taskId, text: taskId, category: "", start, end });
+  const base = {
+    date: "2026-08-22", blocks: [blk("t1"), blk("t2", "10:00", "10:45")],
+    anytime: [], accepted: false, eventIds: [], dismissed: false,
+  };
+
+  // The row is drawn from draft.blocks while unaccepted, and from real events
+  // once accepted. If acceptInto did not flip the flag, every accepted task
+  // would draw twice: once solid, once dashed.
+  it("accepting flips the flag the renderer gates on, so no dashed twin survives", () => {
+    const out = acceptInto(base, "2026-08-22", base.blocks, ["e1", "e2"]);
+    expect(out!.accepted).toBe(true);
+  });
+
+  it("a dismissed proposal claims nothing, so the day stops drawing it", () => {
+    expect(plannedTaskIds({ ...base, dismissed: true }).size).toBe(0);
+  });
+
+  // Schedule feeds proposals into openSlots as busy. That is only honest if
+  // the blocks carry real ends, which the engine always writes.
+  it("every proposal carries a real end, so it can be counted as busy time", () => {
+    const pool = [{ id: "t1", text: "One", category: "" }, { id: "t2", text: "Two", category: "" }];
+    const out = editDraft(base, {
+      ids: ["t1", "t2"], minutes: { t1: 60, t2: 30 }, pool, events: [],
+      startMin: 9 * 60, endMin: 17 * 60, blocked: [], estimateFor: () => 45,
+    });
+    for (const b of out.blocks) {
+      expect(b.end).toMatch(/^\d{2}:\d{2}$/);
+      expect(b.end > b.start).toBe(true);
+    }
+  });
+
+  it("proposals never overlap each other, so the day cannot show two at one time", () => {
+    const pool = [
+      { id: "t1", text: "One", category: "" },
+      { id: "t2", text: "Two", category: "" },
+      { id: "t3", text: "Three", category: "" },
+    ];
+    const out = editDraft(base, {
+      ids: ["t1", "t2", "t3"], minutes: { t1: 120, t2: 90, t3: 60 }, pool, events: [],
+      startMin: 9 * 60, endMin: 20 * 60, blocked: [], estimateFor: () => 45,
+    });
+    const m = (t: string) => { const p = t.split(":"); return Number(p[0]) * 60 + Number(p[1]); };
+    const sorted = [...out.blocks].sort((a, b) => m(a.start) - m(b.start));
+    for (let i = 1; i < sorted.length; i++) {
+      expect(m(sorted[i]!.start) >= m(sorted[i - 1]!.end)).toBe(true);
+    }
+  });
+});

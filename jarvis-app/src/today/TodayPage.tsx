@@ -129,7 +129,8 @@ export default function TodayPage({
   onSeeAllTasks,
   onStartTask,
   suggestions,
-  dayDraft,
+  proposedDay,
+  dayFooter,
   checkIn,
   blendMap,
   nowCard,
@@ -187,7 +188,10 @@ export default function TodayPage({
   // Fifteen minutes on this one, starting now.
   onStartTask?: (id: string) => void;
   suggestions?: ReactNode;
-  dayDraft?: ReactNode;
+  // The standing proposal and the one decision it asks for. Both go to
+  // YourDay: there is one schedule on this page now, not two.
+  proposedDay?: import("./YourDay").ProposedDay;
+  dayFooter?: ReactNode;
   // The evening mood question. Its own notice: it is not a suggestion.
   checkIn?: ReactNode;
   // Blend offers for today's blocks (see YourDay). Built by the flow.
@@ -415,7 +419,6 @@ export default function TodayPage({
           Ranked with the stream it fell to the default weight and sank
           BELOW two verb rows on Dave's screenshot -- the most important
           block on the page, under trivia. It renders first, always. */}
-      {dayDraft}
       {headsUp.length > 0 && (() => {
         // FORM FOLLOWS DECISION (Law 3E). The stream ranks its members:
         // the heaviest becomes THE headliner, everything else drops to a
@@ -464,6 +467,8 @@ export default function TodayPage({
 
       <YourDay
         events={dayEvents}
+        proposed={proposedDay}
+        footer={dayFooter}
         locked={locked}
         now={now}
         nowLabel={nowLabel}

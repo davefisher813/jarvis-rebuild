@@ -8,6 +8,7 @@ import { catColor } from "../../shared/categories";
 import SkeletonRows from "../../shared/SkeletonRows";
 import DayRow from "./DayRow";
 import AnytimeRow from "./AnytimeRow";
+import ProposedRow from "./ProposedRow";
 import type { TaskItem } from "../../tasks/TasksService";
 import type { AttachInfo } from "../attachments";
 import { dropInto } from "../dayEdit";
@@ -44,6 +45,7 @@ export default function SchedulePage({
   mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload,
   locked = [], now, onEditRoutine, onFillBlock, onShift, onMoveTo, onSkipToday, onPushTomorrow, onRunningLate,
+  proposed, dayFooter,
   anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {}, blendMap = {},
   windowStartMin, windowEndMin,
 }: {
@@ -66,6 +68,9 @@ export default function SchedulePage({
   onPrev?: () => void; onNext?: () => void; onSelect?: (date: string) => void;
   onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void; onUpload?: () => void;
   locked?: LockedRange[]; now?: string | null; onEditRoutine?: () => void;
+  // The standing proposal for THIS date, drawn among the real rows.
+  proposed?: import("../../today/YourDay").ProposedDay;
+  dayFooter?: import("react").ReactNode;
   // Drop a task straight into a holding block (2026-08-21).
   onFillBlock?: (startMin: number, endMin: number) => void;
   onShift?: (id: string, mins: number) => void;
@@ -98,12 +103,19 @@ export default function SchedulePage({
   // whose Open rows dodge Deep Work is two stories about one day. Hard and
   // soft routine blocks stay busy here, exactly as before (2026-08-10: Open
   // rows must never span a Protected row).
+  // A PROPOSAL IS BUSY TIME (blend, 2026-08-22). openSlots built its Open
+  // rows from committed events only, so a proposal filling 11:00-11:45 would
+  // sit INSIDE a row still calling that time open, and a drag would drop onto
+  // it. Two stories about one day, which is the exact failure the definition
+  // above exists to prevent. Proposals join the busy set while they stand.
+  const hhmmToMin = (hhmm: string) => { const q = hhmm.split(":"); return Number(q[0] ?? 0) * 60 + Number(q[1] ?? 0); };
+  const proposedBusy = (proposed?.blocks ?? []).map((b) => ({ s: hhmmToMin(b.start), e: hhmmToMin(b.end) }));
   const slots = openSlots(
     dayEvents,
     minToHHMM(windowStartMin ?? 8 * 60),
     minToHHMM(windowEndMin ?? 21 * 60),
     30,
-    locked.filter((l) => !isFocusRange(l)),
+    [...locked.filter((l) => !isFocusRange(l)).map((l) => ({ s: l.s, e: l.e })), ...proposedBusy],
   );
   const navLabel = mode === "month" ? null : mode === "week" ? weekRange(weekCells) : fullDay(selected);
   const [lateOpen, setLateOpen] = useState(false);
@@ -175,7 +187,8 @@ export default function SchedulePage({
   type Entry =
     | { kind: "event"; e: EventItem; s: number }
     | { kind: "locked"; l: LockedRange; s: number }
-    | { kind: "gap"; start: string; end: string; s: number };
+    | { kind: "gap"; start: string; end: string; s: number }
+    | { kind: "proposed"; b: import("../planDay").PlanBlock; s: number };
   // NESTING (2026-08-21, Dave: "why are blocks greyed out... we were supposed
   // to have blending options and the ability to do tasks in events").
   // A block that HOLDS tasks says "tasks land here" and they do land there,
@@ -203,6 +216,10 @@ export default function SchedulePage({
     ...(mode === "day" && onPickSlot
       ? slots.map((sl): Entry => ({ kind: "gap", start: sl.start, end: sl.end, s: toMin(sl.start) }))
       : []),
+    // NOT mode-gated. The day list renders under the month grid too, and
+    // gating the ROWS on day-mode while the count line counted regardless
+    // produced "6 Events · 5 Proposed" above a list showing none of them.
+    ...(proposed?.blocks ?? []).map((b): Entry => ({ kind: "proposed", b, s: toMin(b.start) })),
   ].sort((a, b) => a.s - b.s);
   const nowMin = now ? toMin(now) : 0;
   const nextId = isToday ? dayEvents.filter((e) => toMin(e.data.start) >= nowMin).sort((a, b) => toMin(a.data.start) - toMin(b.data.start))[0]?.id : undefined;
@@ -304,7 +321,13 @@ export default function SchedulePage({
       {mode !== "repeats" && (<>
       <div className="grp"><div className="plan-head">
         {/* Date lives in the nav above; repeating it here wrapped the row (no-repetition law). */}
-        <div className="eyebrow">{n} {n === 1 ? "Event" : "Events"}</div>
+        {/* It must not read "0 Events" over a day full of proposals. The
+            count says what is committed and, separately, what is proposed;
+            neither number pretends to be the other. */}
+        <div className="eyebrow">
+          {n} {n === 1 ? "Event" : "Events"}
+          {proposedBusy.length > 0 && ` \u00b7 ${proposedBusy.length} Proposed`}
+        </div>
         <div className="plan-head-acts">
           {hasFuture && onRunningLate && (
             <button className={"plan-cta plan-cta-ghost" + (lateOpen ? " late-armed" : "")} onClick={() => setLateOpen((v) => !v)}>Running Late?</button>
@@ -385,6 +408,16 @@ export default function SchedulePage({
                   <div className="sched-cat">Until {fmtTime(en.end).time} {fmtTime(en.end).ap} &middot; Tap to fill it</div>
                 </div>
               </button>
+            ) : en.kind === "proposed" ? (
+              // Penciled into the day among the real rows, never below it.
+              <ProposedRow
+                key={"prop-" + en.b.taskId}
+                block={en.b}
+                open={proposed!.openId === en.b.taskId}
+                onToggle={() => proposed!.onToggle(en.b.taskId)}
+                onDuration={(m) => proposed!.onDuration(en.b.taskId, m)}
+                onDrop={() => proposed!.onDrop(en.b.taskId)}
+              />
             ) : en.kind === "locked" ? (() => {
               const held = heldBy.get(en.l.label + "@" + en.l.s) ?? [];
               const m = modeOf(en.l);
