@@ -1278,6 +1278,26 @@ button {
 /* Who the sheet is about, said once at the top instead of down every row. */
 .more-head { padding-bottom: var(--s-2); }
 
+/* The windows editor (2026-08-22). Day chips are squares-worth of tap in a
+   single row; window rows stack their controls so four length chips never
+   fight a time input for 390px. */
+.win-days { flex-wrap: nowrap; gap: var(--s-1); }
+.win-day { min-width: 34px; padding: 4px 0; text-align: center; justify-content: center; }
+/* Two lines per window, exactly: the time and its Remove share the first,
+   the length chips take the second. Order beats DOM order here so Remove
+   never drifts to a lonely third line. */
+.win-row { flex-wrap: wrap; row-gap: var(--s-2); }
+.win-row .input-compact { width: 110px; flex: 0 0 auto; }
+.win-lens { flex: 1 1 100%; margin: 0; order: 2; }
+.win-x { margin-left: auto; }
+
+/* While a pick is being placed, the strip pins to the top of the scrolling
+   sheet so the tap target is on screen. The old sheet entered Place mode
+   with the strip scrolled away, which is a mode whose target you cannot
+   see. Opaque backing, or the list scrolls through it. */
+.strip-pinned { position: sticky; top: calc(-1 * var(--s-2)); z-index: 6;
+  background: var(--surface-2); padding: var(--s-1) 0; }
+
 /* Undo lives in the toast, because the moment right after the action is the
    only moment anyone wants it. */
 .msg-toast { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }

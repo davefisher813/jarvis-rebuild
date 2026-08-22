@@ -2,7 +2,6 @@ import { describe, it, expect } from "vitest";
 import { openMinutes, loadOf, loadLine, dropToFit, dropLine, hhmm, autoSelect } from "./planLoad";
 import { capOffer, finishRate } from "./planCap";
 import { splitSittings, splitLine } from "./splitSitting";
-import { pickByFeel, feelAvailable } from "./pickByFeel";
 import { dayClock } from "./planClock";
 import { saveShape, loadShapes, dayScores, planCount, shapeOffer, applyShape, type DayShape } from "./dayShape";
 import type { EventItem } from "./types";
@@ -122,50 +121,6 @@ describe("splitting a long sitting", () => {
   });
 });
 
-describe("picking by feel", () => {
-  const tasks: PlanCandidate[] = [
-    { id: "q", text: "Quick", category: "c", suggested: false, overdue: false },
-    { id: "h", text: "Hard", category: "c", suggested: false, overdue: false },
-    { id: "g", text: "Goal", category: "c", suggested: false, overdue: false, goal: "Ship It" },
-  ];
-  const dur = (id: string) => ({ q: 15, h: 120, g: 45 }[id] ?? 45);
-
-  it("quick gives the shortest, hard gives the longest", () => {
-    expect(pickByFeel(tasks, "quick", [], dur)).toBe("q");
-    expect(pickByFeel(tasks, "hard", [], dur)).toBe("h");
-  });
-
-  it("goal gives something that actually moves one", () => {
-    expect(pickByFeel(tasks, "goal", [], dur)).toBe("g");
-  });
-
-  it("never returns something already picked", () => {
-    expect(pickByFeel(tasks, "quick", ["q"], dur)).toBe("g");
-  });
-
-  it("is deterministic: tapping twice is not a slot machine", () => {
-    expect(pickByFeel(tasks, "quick", [], dur)).toBe(pickByFeel(tasks, "quick", [], dur));
-  });
-
-  it("overdue breaks the tie", () => {
-    const t2: PlanCandidate[] = [
-      { id: "a", text: "A", category: "c", suggested: false, overdue: false },
-      { id: "b", text: "B", category: "c", suggested: false, overdue: true },
-    ];
-    expect(pickByFeel(t2, "quick", [], () => 30)).toBe("b");
-  });
-
-  it("hides a button that would do nothing", () => {
-    const noGoals = tasks.filter((t) => !t.goal);
-    expect(feelAvailable(noGoals, "goal", [])).toBe(false);
-    expect(feelAvailable(noGoals, "quick", [])).toBe(true);
-    expect(feelAvailable(tasks, "quick", ["q", "h", "g"])).toBe(false);
-  });
-
-  it("says nothing rather than claiming a goal it cannot find", () => {
-    expect(pickByFeel(tasks.filter((t) => !t.goal), "goal", [], dur)).toBeNull();
-  });
-});
 
 describe("the clock check", () => {
   it("says nothing while the day still holds something real", () => {

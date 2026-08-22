@@ -9,7 +9,7 @@ import {
   mapThread, mapThreadFull, mapGmailFull, buildReply, encodeEmail,
   type ThreadRow, type ThreadFull, type MailFull,
 } from "../connections/google/map";
-import {
+import { selfBlankGuard,
   loadTriageCache, saveTriageCache, triageDelta, buildTriageInput, parseTriage, TRIAGE_SCHEMA,
   fillSkipped, splitByBucket, noiseLine, sortByDeadline, byRank, type TriageMap, type Bucket,
 } from "./triage";
@@ -51,7 +51,8 @@ import { closeCandidates, closeLine, closeReceipt, closeDue, markClosed, lastClo
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
 import { attachOffer, amountIn } from "./attachmentKind";
 import { HOLD_SECONDS } from "./outbox";
-import { loadWindows, saveWindows, isOpenNow, closedLine, hourLabel, WINDOW_MINUTES } from "./batching";
+import { loadWindows, saveWindows, isOpenNow, closedLine, type WindowSettings } from "./batching";
+import WindowsSheet from "./WindowsSheet";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
 import { saidQuery, saidPrompt, parseSaid, saidEmpty, SAID_SYSTEM } from "./saidWhat";
 import { shouldAutoReply, autoReplyBody, loadAutoState, markAutoReplied, AUTO_REPLY_EXPLAINER } from "./autoReply";
@@ -730,7 +731,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // A thread whose last message is no longer HIS has answered itself, which
     // is the same derivation Waiting On uses, so the two can never disagree.
     const answeredThreads = rows.filter((r) => !waiting.some((w) => w.threadId === r.id)).map((r) => r.id);
-    const map = applyRules(triage, rows, rules);
+    const map = selfBlankGuard(
+      applyRules(triage, rows, rules),
+      rows,
+      g.accounts.map((a) => a.email),
+    );
     const { needsYou } = splitByBucket(rows, map);
     const ordered = sortByDeadline(needsYou, map);
     saveMailSnapshot({
@@ -926,11 +931,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // one impatient moment.
   const [windows, setWindows] = useState(() => loadWindows());
   const [peeked, setPeeked] = useState(false);
-  const setWindowsOn = (on: boolean) => {
-    const next = { ...windows, on };
+  const [editWindows, setEditWindows] = useState(false);
+  const applyWindows = (next: WindowSettings) => {
     setWindows(next);
     saveWindows(next);
-    if (!on) setPeeked(false);
+    setEditWindows(false);
+    if (!next.on) setPeeked(false);
   };
   const curtained = windows.on && !peeked && !isOpenNow(windows, new Date());
 
@@ -1537,6 +1543,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // outside a window the Email tab simply is not an inbox. One tap opens it
   // anyway, because an app that refuses to show a man his own email is a toy.
   if (view === "list" && curtained) {
+    // A VIP is never behind the curtain (the feature's own second law, which
+    // v1 broke: the early return hid EVERYTHING). Unread VIP threads show
+    // through, alone; tapping one opens exactly that thread.
+    const vipRows = rows.filter((r) => r.unread && isVip(r.fromEmail, vips)).slice(0, 3);
     return (
       <div className="screen">
         <PageHeader title="Email" />
@@ -1546,26 +1556,40 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="row-glyph cat-fg-teal"><Mail className="ic" /></div>
               <div className="row-grow">
                 {/* WHEN, never how many. A count here would reintroduce the
-                    exact guilt this feature exists to remove. */}
+                    exact guilt this feature exists to remove. And it says WHO
+                    closed it: Dave found this screen and did not recognise it
+                    as his own choice, which is the failure the sub repairs. */}
                 <div className="conn-name">{closedLine(windows, new Date())}</div>
-                <div className="conn-meta">Email is closed right now, on purpose</div>
+                <div className="conn-meta">You close email outside your windows</div>
               </div>
             </div>
             <div className="row row-acts">
               <button className="btn btn-primary btn-sm" onClick={() => setPeeked(true)}>Open Anyway</button>
-              <button className="btn-sm" onClick={() => setWindowsOn(false)}>Turn Off</button>
+              <button className="btn-sm" onClick={() => setEditWindows(true)}>Adjust</button>
             </div>
           </div>
         </div>
-        <div className="grp"><div className="eyebrow">Your Windows</div></div>
-        <div className="pad-x"><div className="card">
-          {windows.hours.map((h) => (
-            <div className="row" key={h}>
-              <div className="row-grow"><div className="conn-name">{hourLabel(h)}</div></div>
-              <span className="row-value">{WINDOW_MINUTES} min</span>
-            </div>
-          ))}
-        </div></div>
+        {vipRows.length > 0 && (
+          <div className="pad-x"><div className="card">
+            {vipRows.map((r) => (
+              <div className="row" role="button" tabIndex={0} key={r.id} onClick={() => { setPeeked(true); void openThread(r.id); }}>
+                <div className="row-grow">
+                  <div className="conn-name truncate">{displayName(r.from)}</div>
+                  <div className="conn-meta truncate">VIP · {r.subject}</div>
+                </div>
+                <span className="pill-act">Open It</span>
+              </div>
+            ))}
+          </div></div>
+        )}
+        {editWindows && (
+          <WindowsSheet
+            initial={windows}
+            onSave={applyWindows}
+            onTurnOff={() => applyWindows({ ...windows, on: false })}
+            onClose={() => setEditWindows(false)}
+          />
+        )}
         <div className="screen-foot" />
       </div>
     );
@@ -1939,10 +1963,23 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           reachable, and honest about what is happening: the message has NOT
           gone yet, and Undo puts him back in the composer where he was. */}
       {held && <SendHold startedAt={held.at} onUndo={undoSend} onNow={sendNow} />}
-      {!windows.on && (
-        <div className="pad-x">
-          <button className="row-act" onClick={() => setWindowsOn(true)}>Open Email on a Schedule</button>
-        </div>
+      {/* The tripwire, defused (2026-08-22): this row used to TURN THE
+          FEATURE ON, one stray tap and the tab starts closing with no
+          explanation. It opens the editor now; nothing closes until Start
+          is tapped inside it, with every window on screen. When windows are
+          already on, the same editor is one tap away for adjusting. */}
+      <div className="pad-x">
+        <button className="row-act" onClick={() => setEditWindows(true)}>
+          {windows.on ? "Email Windows" : "Open Email on a Schedule"}
+        </button>
+      </div>
+      {editWindows && !curtained && (
+        <WindowsSheet
+          initial={windows}
+          onSave={applyWindows}
+          onTurnOff={windows.on ? () => applyWindows({ ...windows, on: false }) : undefined}
+          onClose={() => setEditWindows(false)}
+        />
       )}
       <div className="pad-x">
         <input

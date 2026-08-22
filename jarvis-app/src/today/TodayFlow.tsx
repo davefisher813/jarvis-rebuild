@@ -476,19 +476,6 @@ export default function TodayFlow({
     return { id: made as string, text, category: "", suggested: false, overdue: false, due: planDate };
   };
 
-  // P15: protect time from here instead of leaving for Routine and losing
-  // your place. It writes a real routine block on the target day's weekday,
-  // which is what "protected" means everywhere else in the app.
-  const addProtectedBlock = async (label: string, s: number, e: number) => {
-    const r = await routine.get();
-    const day = new Date(planDate + "T12:00:00").getDay();
-    const ok = await attemptWrite(() => routine.save({
-      protectedBlocks: [...(r.protectedBlocks ?? []), { id: "pb-" + label.toLowerCase().replace(/\s+/g, "-") + "-" + s, label, startMin: s, endMin: e, days: [day] }],
-    }));
-    if (ok) { await reload(); showToast({ message: label + " protected · " + minLabel(s) + " to " + minLabel(e) });  }
-    return !!ok;
-  };
-
   // Read ONCE per mount, before the stamp is rewritten, or the return card
   // could never fire: marking today as seen would erase the gap it detects.
   const lastSeenRef = useRef<string | null>(loadLastSeen());
@@ -1422,13 +1409,11 @@ export default function TodayFlow({
         target={planTarget}
         onTarget={(t) => void openPlan(t)}
         alreadyPlanned={planEvents.filter((e) => !!e.data.sourceTaskId).map((e) => e.data.title)}
-        peak={energy ? { s: energy.peakStartMin, e: energy.peakEndMin } : undefined}
         routineConfigured={routineSet}
         blocked={blocked}
         sizing={sizing}
         onEditRoutine={onEditRoutine ? () => { setPlanOpen(false); onEditRoutine(); } : undefined}
         onAddTask={addPlanTask}
-        onProtect={addProtectedBlock}
         onCommit={onPlanCommit}
         onAIPlan={onAIPlan}
         onClose={() => { setPlanOpen(false); setPlanTarget("today"); }}

@@ -106,6 +106,27 @@ export function parseTriage(raw: string, rows: ThreadRow[]): TriageMap | null {
   return Object.keys(out).length ? out : null;
 }
 
+// A BLANK EMAIL FROM YOURSELF NEVER NEEDS YOU (2026-08-22, from Dave's
+// screenshot: "David Fisher emailed with no subject or content" ranked under
+// Needs You). The model, given nothing, wrote a gist about the nothing and
+// called it urgent. Deterministic guard, applied after triage: your own
+// address plus an empty subject plus an empty snippet is a stray tap on
+// Send, not a task. It stays visible in Worth Knowing, because deciding a
+// user's own mail is garbage is not this app's call to make.
+export function selfBlankGuard(map: TriageMap, rows: ThreadRow[], myEmails: string[]): TriageMap {
+  const mine = new Set(myEmails.map((e) => e.trim().toLowerCase()).filter(Boolean));
+  if (mine.size === 0) return map;
+  const out = { ...map };
+  for (const r of rows) {
+    if (!mine.has(r.fromEmail.trim().toLowerCase())) continue;
+    if (r.subject.trim() !== "" || r.snippet.trim() !== "") continue;
+    const cur = out[r.id];
+    if (!cur || cur.bucket !== "needs_you") continue;
+    out[r.id] = { ...cur, bucket: "worth_knowing", gist: "A blank note from you" };
+  }
+  return out;
+}
+
 // A skipped thread is surfaced, not hidden: worth_knowing with its snippet.
 export function fillSkipped(map: TriageMap, rows: ThreadRow[]): TriageMap {
   const out = { ...map };

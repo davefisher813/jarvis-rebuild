@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { EventItem } from "../types";
 import { planDay, type PlanBlock } from "../planDay";
 import { fmtTime } from "../calendar";
@@ -9,16 +9,14 @@ import { emit, eventLog } from "../../events";
 import { recordPicks, planRecord } from "../../events/planOutcome";
 import { learnedDurations, readCommittedDurations } from "../learnedDurations";
 import PlanStrip from "./PlanStrip";
-import { todayISO } from "../../tasks/grouping";
 import { splitProtectedRanges, type BlockKind } from "../../routine/types";
 import { openMinutes, loadOf, loadLine, dropToFit, dropLine, hhmm, autoSelect } from "../planLoad";
 import { capOffer } from "../planCap";
 import { splitSittings, splitLine, SITTING_MAX } from "../splitSitting";
-import { pickByFeel, feelAvailable, FEEL_LABEL, type Feel } from "../pickByFeel";
 import { dayClock } from "../planClock";
+import { saveShape, planCount } from "../dayShape";
+import { estimateFor } from "../padding";
 import { capAfterNumber } from "../../shared/casing";
-import { loadShapes, dayScores, planCount, shapeOffer, applyShape, saveShape } from "../dayShape";
-import { estimateFor, padNote, learnedNote } from "../padding";
 
 const BUFFER = 10;
 const DEFAULT_DUR = 45;
@@ -29,15 +27,9 @@ const DUR_MAX = 240;
 const DUR_CHOICES = [15, 30, 45, 60, 90, 120];
 
 // A protected range shown in the plan: gym, meals, deep work. Fed to the planner
-// as busy time so proposed blocks route around it. Phase 2.
-// soft (2026-08-09): rides in from the routine's hard/soft split. Hard blocks
-// are walls the auto-placer routes around; soft ones are preferences it uses
-// only when the day is tight, and the sheet says so per pick.
-// kind (2026-08-10): focus blocks flip the whole relationship: they are time
-// set aside FOR tasks, so picks land inside them first instead of around them.
+// as busy time so proposed blocks route around it. soft ranges are preferences
+// used only when the day is tight; focus ranges pull picks IN.
 export interface PlanBlocked { s: number; e: number; label: string; soft?: boolean; kind?: BlockKind }
-// goal (6.7): the goal this task moves, shown under the name so picking a
-// task is also picking what it advances. windowS/E: work-hours placement.
 export interface PlanCandidate { id: string; text: string; category: string; suggested: boolean; overdue: boolean; goal?: string | null; windowS?: number; windowE?: number; due?: string }
 
 function fromMin(t: number) {
@@ -53,17 +45,28 @@ function label(hhmmStr: string) { const t = fmtTime(hhmmStr); return `${t.time} 
 // downstream of the planner speaks the real id again.
 const realId = (id: string) => id.split("#")[0] ?? id;
 
-// Plan My Day, rebuilt 2026-08-20. Dave, on a screenshot: "look at how limited
-// this still is." He was right, and three things in it were plainly broken:
-// the sheet never said WHICH day it was planning (so Plan Tomorrow offered
-// tomorrow's 1 PM at 10:54 PM tonight and read as a bug), three of five
-// routine rows existed only to say when he eats, and the task list silently
-// drops anything already scheduled, so a planned day looked like an empty one.
+// PLAN MY DAY, rebuilt around one decision (2026-08-22).
 //
-// Beyond the fixes, the sheet stopped making him do the planner's job:
-// "Plan It For Me" picks, sizes, orders and places the whole day in one tap,
-// and every number it was already computing in silence (open time, over-run,
-// his real finish rate, his peak hours) now says itself out loud.
+// Dave, with a screenshot of the previous sheet: "the plan my day page is the
+// worst thing in the app. It's confusing, buttons don't work, logic sucks."
+// The audit agreed. Twenty-odd control systems in one scroll; chips that were
+// statements dressed as buttons; a Place mode whose target sat scrolled
+// off-screen; taps at the cap that did nothing, silently; and a sheet that
+// opened by asking HIM to do the planning it exists to do.
+//
+// The engine underneath was never the problem, so it stays. The sheet now:
+//   - OPENS ALREADY PLANNED. autoSelect picks a day the moment it mounts,
+//     deterministically; the first render is a finished plan and one primary
+//     button. The AI pass refines lengths in the background and is never
+//     waited on.
+//   - ONE QUIET LINE says how it fits, where the coach cards used to stack.
+//     His finish rate steers the auto-pick silently and the line says
+//     "Your usual" instead of a card asking him to approve his own average.
+//   - NO SILENT CAPS. Any tap picks; the fit line and the Won't Fit card
+//     push back where pushing back is honest.
+//   - PLACING YOU CAN SEE. While placing, the strip pins to the top of the
+//     sheet so the target is on screen. Drag is gone; a tap places.
+//   - TWO FOOTER BUTTONS, always. The primary and Cancel.
 export default function PlanDaySheet({
   events,
   tasks,
@@ -77,10 +80,8 @@ export default function PlanDaySheet({
   routineConfigured = true,
   blocked = [],
   sizing = FULL_DAY,
-  peak,
   onEditRoutine,
   onAddTask,
-  onProtect,
   onCommit,
   onClose,
   onAIPlan,
@@ -90,25 +91,19 @@ export default function PlanDaySheet({
   startMin: number;
   endMin: number;
   // B1 (2026-08-20): the sheet is told which day it is filling, and says so.
-  // Every input already flipped for tomorrow; only the words did not.
   date: string;
   dayLabel: string;
   target?: "today" | "tomorrow";
   onTarget?: (t: "today" | "tomorrow") => void;
-  // B3: what is ALREADY on this day from a previous plan. The list drops
-  // these (correctly, they are placed) and used to say nothing about them.
+  // What is ALREADY on this day from a previous plan. The list drops these
+  // (correctly, they are placed) and the fit line says so.
   alreadyPlanned?: string[];
   routineConfigured?: boolean;
   blocked?: PlanBlocked[];
   sizing?: DaySizing;
-  // P5: the peak window the planner has always quietly used. Silent
-  // intelligence reads as no intelligence.
-  peak?: { s: number; e: number };
   onEditRoutine?: () => void;
   // P7: make a task without leaving the sheet.
   onAddTask?: (text: string) => Promise<PlanCandidate | null>;
-  // P15: protect time from here instead of going to Routine and losing your place.
-  onProtect?: (label: string, startMin: number, endMin: number) => Promise<boolean>;
   onCommit: (blocks: PlanBlock[]) => void;
   onClose: () => void;
   onAIPlan?: (picks: { id: string; text: string; category: string; overdue: boolean }[], startMin: number, endMin: number) => Promise<{ items: { id: string; minutes: number }[]; leanedOn: string[] }>;
@@ -116,46 +111,26 @@ export default function PlanDaySheet({
   const [extra, setExtra] = useState<PlanCandidate[]>([]);
   const allTasks = useMemo(() => [...extra, ...tasks], [extra, tasks]);
 
-  // Pre-pick the top suggested tasks: capped on a light day (sizing.maxBlocks),
-  // otherwise just a sane starter set; picking more is always available.
-  const [picks, setPicks] = useState<string[]>(() => {
-    const suggested = tasks.filter((t) => t.suggested).map((t) => t.id);
-    const seedCap = sizing.maxBlocks ?? 3;
-    return suggested.slice(0, seedCap);
-  });
   const [durations, setDurations] = useState<Record<string, number>>({});
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   // P13: how many sittings a pick is broken into. 1 unless he says otherwise.
   const [sittings, setSittings] = useState<Record<string, number>>({});
   // P11: a one-day end time. The routine's window is the default, not a cage.
   const [doneBy, setDoneBy] = useState<string>("");
-  // P4: the finish-rate offer, once taken, caps the picks like a light day.
-  const [capTaken, setCapTaken] = useState<number | null>(null);
-  // P1: true once a one-tap plan has been generated and is waiting on Accept.
-  const [autoPlanned, setAutoPlanned] = useState(false);
-  const [expandRoutine, setExpandRoutine] = useState(false);
+  const [doneByOpen, setDoneByOpen] = useState(false);
   const [adding, setAdding] = useState("");
-  const [protecting, setProtecting] = useState<{ label: string; s: string; e: string } | null>(null);
+  const [expandRoutine, setExpandRoutine] = useState(false);
   const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
 
   const effEnd = doneBy ? Math.min(endMin, toMin(doneBy)) : endMin;
-  const effCap = capTaken ?? sizing.maxBlocks;
 
   const learned = useMemo(() => learnedDurations(readCommittedDurations(), Date.now()), []);
   const log = useMemo(() => eventLog.all(), []);
   const record = useMemo(() => planRecord(log, Date.now()), [log]);
   const cap = useMemo(() => capOffer(record, planCount(log)), [record, log]);
-  const shape = useMemo(
-    () => shapeOffer(loadShapes(), new Date(date + "T12:00:00").getDay(), date, dayScores(log)),
-    [date, log],
-  );
   const clock = target === "today" ? dayClock(startMin, effEnd) : null;
 
   const catOf = (id: string) => allTasks.find((t) => t.id === realId(id))?.category ?? "";
-  // B3 (2026-08-20): an unlearned category gets a PADDED default, because a
-  // flat default is exactly where the underestimate lives. A measurement
-  // always beats a pad, and the pad is labelled so it is never mistaken for
-  // one. An explicit stepper edit still wins over both.
   const estFor = (id: string) => estimateFor(catOf(id), learned, DEFAULT_DUR, DUR_CHOICES);
   const durFor = (id: string) => durations[id] ?? estFor(id).minutes;
   const setDur = (id: string, next: number) => setDurations((prev) => ({ ...prev, [id]: Math.max(DUR_MIN, Math.min(DUR_MAX, next)) }));
@@ -165,69 +140,87 @@ export default function PlanDaySheet({
   });
   const clearOverride = (id: string) => setOverrides((prev) => { const n = { ...prev }; delete n[id]; return n; });
 
+  const open = useMemo(() => openMinutes(events, blocked, startMin, effEnd), [events, blocked, startMin, effEnd]);
+
+  // IT OPENS ALREADY PLANNED. Deterministic, instant, and capped at his real
+  // finish rate when the log knows one: planning six for a man who finishes
+  // three is planning three failures. Picking more is one tap, never gated.
+  const seededRef = useRef(false);
+  const [picks, setPicks] = useState<string[]>([]);
+  const [usedUsual, setUsedUsual] = useState(false);
+  if (!seededRef.current) {
+    seededRef.current = true;
+    const seedCap = cap?.n ?? sizing.maxBlocks ?? 3;
+    const chosen = autoSelect(allTasks, open, durFor, seedCap);
+    if (chosen.length > 0) {
+      setPicks(chosen);
+      if (cap?.n != null && chosen.length === cap.n) setUsedUsual(true);
+    }
+  }
+
   const [aiBusy, setAiBusy] = useState(false);
-  const [aiError, setAiError] = useState(false);
   const [aiEstimates, setAiEstimates] = useState<Record<string, number>>({});
   const [leanedOn, setLeanedOn] = useState<string[]>([]);
 
-  // The AI pass: reorder the given picks and size each one. Shared by the
-  // explicit "Estimate with AI" action and by Plan It For Me, which runs the
-  // selection first and then hands the result through here.
+  // The AI pass refines lengths in the BACKGROUND. It is launched once, on
+  // mount, and its result applies only to ids still picked when it lands: he
+  // may have repicked while it ran, and a reply must never undo his hands.
+  // No spinner, no error surface: a failed refine leaves the learned
+  // estimates, which are already honest.
+  const launchedFor = useRef<string[]>([]);
   const runAI = async (ids: string[]) => {
-    if (!onAIPlan || ids.length === 0) return;
+    if (!onAIPlan || ids.length === 0 || aiBusy) return;
+    launchedFor.current = ids;
     setAiBusy(true);
-    setAiError(false);
     try {
       const picked = allTasks
         .filter((t) => ids.includes(t.id))
         .map((t) => ({ id: t.id, text: t.text, category: t.category, overdue: t.overdue }));
       const result = await onAIPlan(picked, startMin, effEnd);
-      const order = result.items.map((r) => r.id).filter((id) => ids.includes(id));
-      const leftover = ids.filter((id) => !order.includes(id));
-      setPicks([...order, ...leftover]);
-      setDurations((prev) => {
-        const next = { ...prev };
-        result.items.forEach((r) => { next[r.id] = r.minutes; });
-        return next;
+      setPicks((current) => {
+        const stillMine = launchedFor.current.join("|") === ids.join("|");
+        const order = result.items.map((r) => r.id).filter((id) => current.includes(id));
+        const leftover = current.filter((id) => !order.includes(id));
+        setDurations((prev) => {
+          const next = { ...prev };
+          result.items.forEach((r) => { if (current.includes(r.id) && prev[r.id] == null) next[r.id] = r.minutes; });
+          return next;
+        });
+        setAiEstimates((prev) => {
+          const next = { ...prev };
+          result.items.forEach((r) => { next[r.id] = r.minutes; });
+          return next;
+        });
+        setLeanedOn(result.leanedOn);
+        // Reorder only when his picks are untouched since launch.
+        return stillMine && order.length === current.length ? [...order, ...leftover] : current;
       });
-      setAiEstimates((prev) => {
-        const next = { ...prev };
-        result.items.forEach((r) => { next[r.id] = r.minutes; });
-        return next;
-      });
-      // Honest attribution (item 04): only strands the model actually cited,
-      // already verified against the offered ids. The being-known hit, in the
-      // exact place the knowing changed something.
-      setLeanedOn(result.leanedOn);
-    } catch {
-      setAiError(true);
-    } finally {
+    } catch { /* refine is best-effort by design */ } finally {
       setAiBusy(false);
     }
   };
-  const estimateWithAI = () => { if (!aiBusy) void runAI(picks); };
+  const aiLaunched = useRef(false);
+  useEffect(() => {
+    if (aiLaunched.current || picks.length === 0) return;
+    aiLaunched.current = true;
+    void runAI(picks);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [picks]);
 
-  // Tapping the row picks or unpicks it, one tap either way. Adjusting a
-  // pick is a different intent and lives behind the time chip, so "no, not
-  // that one" never costs two taps.
+  // Tapping a row picks or unpicks it. NO silent cap: the fit line and the
+  // Won't Fit card push back honestly instead of a tap doing nothing.
   const toggle = (id: string) => setPicks((prev) => {
     if (prev.includes(id)) { setTuning((t) => (t === id ? null : t)); return prev.filter((x) => x !== id); }
-    if (effCap != null && prev.length >= effCap) return prev;
+    setUsedUsual(false);
     return [...prev, id];
   });
 
-  // fromMin: commit-time floor. The sheet can sit open while the clock walks
-  // past its own proposals (Dave's screenshot: an 11:30 AM pick offered at
-  // 2 PM); committing re-places auto picks from the real now. Hand-set times
-  // stay literal: overriding is deliberate, including into the past.
+  // Commit-time floor: the sheet can sit open while the clock walks past its
+  // own proposals; committing re-places auto picks from the real now.
+  // Hand-set times stay literal: overriding is deliberate.
   const planFor = (ids: string[], floorMin: number = startMin) => {
     const rank = new Map(ids.map((id, i) => [id, i] as const));
     const ordered = allTasks.filter((t) => ids.includes(t.id)).sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
-
-    // Hand-set times are placed literally first (they're deliberate, per Dave:
-    // "you can schedule anything during those times"), then everything else
-    // auto-places around events, protected time, AND those manual picks, so
-    // two picks never land on top of each other.
     const manual: PlanBlock[] = [];
     const auto: { id: string; text: string; category: string; durationMin: number; windowS?: number; windowE?: number }[] = [];
     for (const t of ordered) {
@@ -254,7 +247,6 @@ export default function PlanDaySheet({
 
   const plan = useMemo(() => planFor(picks), [picks, allTasks, events, startMin, effEnd, blocked, sizing, durations, overrides, sittings]);
   const ranges = useMemo(() => splitProtectedRanges(blocked), [blocked]);
-  const open = useMemo(() => openMinutes(events, blocked, startMin, effEnd), [events, blocked, startMin, effEnd]);
   const load = useMemo(() => loadOf(plan.blocks, plan.unplaced, open), [plan, open]);
   const overflow = useMemo(
     () => (load.fits ? [] : dropToFit(picks, durFor, load.overMin)),
@@ -263,30 +255,6 @@ export default function PlanDaySheet({
   const blockFor = (id: string) => plan.blocks.find((b) => realId(b.taskId) === id);
   const timeFor = (id: string) => blockFor(id)?.start ?? null;
 
-  // P1: pick, size, order and place the whole day in one tap. The selection
-  // step is what the old "Estimate with AI" button never did, and picking is
-  // the hard part.
-  const planItForMe = async () => {
-    const chosen = autoSelect(allTasks, open, durFor, effCap ?? null);
-    if (chosen.length === 0) return;
-    setPicks(chosen);
-    setOverrides({});
-    setAutoPlanned(true);
-    if (onAIPlan) await runAI(chosen);
-  };
-
-  const takeFeel = (feel: Feel) => {
-    const id = pickByFeel(allTasks, feel, picks, durFor);
-    if (id) setPicks((p) => (effCap != null && p.length >= effCap ? p : [...p, id]));
-  };
-
-  const takeShape = () => {
-    if (!shape) return;
-    const { overrides: o, durations: d } = applyShape(shape.shape, picks, startMin, effEnd);
-    setOverrides(o);
-    setDurations((prev) => ({ ...prev, ...d }));
-  };
-
   const addTask = async () => {
     const text = adding.trim();
     if (!text || !onAddTask) return;
@@ -294,24 +262,13 @@ export default function PlanDaySheet({
     const made = await onAddTask(text);
     if (!made) return;
     setExtra((prev) => [made, ...prev]);
-    setPicks((p) => (effCap != null && p.length >= effCap ? p : [...p, made.id]));
+    setUsedUsual(false);
+    setPicks((p) => [...p, made.id]);
   };
 
-  const saveProtect = async () => {
-    if (!protecting || !onProtect) return;
-    const { label: l, s, e } = protecting;
-    if (!l.trim() || !s || !e || toMin(e) <= toMin(s)) return;
-    setProtecting(null);
-    await onProtect(l.trim(), toMin(s), toMin(e));
-  };
-
-  // Only ONE pick shows its controls at a time. Rendering a length chip row
-  // and a time field under every pick turned three picks into six hundred
-  // pixels of chrome, which is the opposite of the point: the list has to
-  // stay readable as a LIST. Tapping a picked row opens its controls.
+  // Only ONE pick shows its controls at a time; the list stays a list.
   const [tuning, setTuning] = useState<string | null>(null);
   const [placing, setPlacing] = useState<string | null>(null);
-  const placingTask = placing ? allTasks.find((t) => t.id === placing) : null;
   const placeAt = (min: number) => {
     if (!placing) return;
     const dur = durFor(placing);
@@ -321,10 +278,17 @@ export default function PlanDaySheet({
   };
 
   const count = plan.blocks.length;
-  const countLabel = count === 1 ? "my one" : count === 2 ? "my two" : count === 3 ? "my three" : `these ${count}`;
+  const pickCount = picks.length;
 
-  // P8: three labeled groups with counts. It was one flat sorted list, so
-  // overdue and someday looked identical.
+  // ONE QUIET LINE where the coach cards used to stack. Everything on it is
+  // true of THIS plan; nothing on it asks a question.
+  const quiet = [
+    loadLine(load, pickCount),
+    usedUsual ? "Your usual" : "",
+    alreadyPlanned.length > 0 ? capAfterNumber(`${alreadyPlanned.length} already planned`) : "",
+  ].filter(Boolean).join(" · ");
+
+  // P8: three labeled groups with counts, not one flat list.
   const groups = useMemo(() => {
     const overdue = allTasks.filter((t) => t.overdue);
     const dueToday = allTasks.filter((t) => !t.overdue && !!t.due);
@@ -338,9 +302,7 @@ export default function PlanDaySheet({
 
   const commit = () => {
     const day = date;
-    // No past placements for today (invariant, hotfix 2026-08-21): if the
-    // clock has walked past any auto-placed proposal while the sheet sat
-    // open, re-place from now before writing. Manual overrides stay.
+    // No past placements for today (invariant, hotfix 2026-08-21).
     let committed = plan.blocks;
     if (target === "today") {
       const dNow = new Date();
@@ -363,8 +325,7 @@ export default function PlanDaySheet({
       const mins = toMin(b.end) - toMin(b.start);
       if (mins > 0) emit({ type: "plan.duration_committed", entityType: "task", entityId: realId(b.taskId), props: { category: b.category, n: mins } });
     }
-    // P12: the rhythm he actually committed, kept so a future day can be
-    // planned like this one. Shape only, never the tasks.
+    // P12: the rhythm he actually committed. Shape only, never the tasks.
     saveShape({
       day,
       dow: new Date(day + "T12:00:00").getDay(),
@@ -375,6 +336,10 @@ export default function PlanDaySheet({
   };
 
   const hide = (k: string) => setDismissed((d) => ({ ...d, [k]: true }));
+  // "By 9:30 PM", not "Done by 9:30 PM": the long form pushed the chip row
+  // past 390 and the row scrolled, which clipped Today half off the left
+  // edge (measured 395 in a 356 slot).
+  const doneByLabel = "By " + label(fromMin(effEnd));
 
   return createPortal(
     <div className="sheet-scrim" onClick={onClose}>
@@ -383,8 +348,9 @@ export default function PlanDaySheet({
         <div className="grp"><div className="eyebrow">{target === "tomorrow" ? "Plan Tomorrow" : "Plan My Day"}</div></div>
         <div className="pad-x sheet-form">
           <div className="p3-q">What fits {dayLabel.toLowerCase() === "today" ? "today" : dayLabel}?</div>
-          {/* B1: the date is a fact on the sheet now, never a thing you infer
-              from which button you tapped a screen ago. */}
+          {/* Every chip on this row is a CONTROL. The old row mixed working
+              chips with statements dressed as chips, which is where "buttons
+              don't work" started being true. */}
           <div className="chip-row">
             {onTarget ? (
               <>
@@ -392,16 +358,23 @@ export default function PlanDaySheet({
                 <button type="button" className={"chip" + (target === "tomorrow" ? " chip-on" : "")} onClick={() => onTarget("tomorrow")}>Tomorrow</button>
               </>
             ) : null}
-            <div className="chip">{effCap != null ? `Pick up to ${effCap}` : "Pick freely"}</div>
-            <div className="chip">Before {label(fromMin(effEnd))}</div>
-            {!routineConfigured && <div className="chip">Default Hours</div>}
+            <button type="button" className={"chip" + (doneBy ? " chip-on" : "")} onClick={() => setDoneByOpen((v) => !v)}>
+              {doneByLabel}
+            </button>
           </div>
+          {doneByOpen && (
+            <div className="row plan-doneby">
+              <div className="row-grow"><div className="conn-name">Done By</div></div>
+              <input type="time" className="input input-compact" aria-label="Done by" value={doneBy || fromMin(effEnd)} onChange={(e) => setDoneBy(e.target.value)} />
+              {doneBy && <button type="button" className="plan-drop" onClick={() => { setDoneBy(""); setDoneByOpen(false); }}>Clear</button>}
+            </div>
+          )}
           {!routineConfigured && onEditRoutine && (
             <div className="plan-sub"><button type="button" className="note-fix" onClick={onEditRoutine}>Set Your Routine</button></div>
           )}
 
-          {/* R4: he opened this at 10:54 PM. Planning "today" then is planning
-              a dead day, and the sheet used to ask cheerfully anyway. */}
+          {/* R4: planning "today" at 10:54 PM is planning a dead day, and the
+              sheet used to ask cheerfully anyway. */}
           {clock && onTarget && !dismissed.clock && (
             <div className="card"><div className="row">
               <div className="row-stack">
@@ -412,29 +385,25 @@ export default function PlanDaySheet({
             </div></div>
           )}
 
+          {/* While placing, the strip PINS so the thing being aimed at is on
+              screen. The old sheet entered a mode whose target sat scrolled
+              away above. */}
           {(events.length > 0 || blocked.length > 0 || plan.blocks.length > 0) && (
-            <PlanStrip
-              startMin={startMin}
-              endMin={effEnd}
-              events={events}
-              blocked={blocked}
-              blocks={plan.blocks}
-              onTapMin={placing ? placeAt : undefined}
-              onDragBlock={(taskId, min) => {
-                const id = realId(taskId);
-                const dur = durFor(id);
-                setOverride(id, fromMin(Math.max(startMin, Math.min(effEnd - dur, min))));
-              }}
-            />
+            <div className={placing ? "strip-pinned" : undefined}>
+              <PlanStrip
+                startMin={startMin}
+                endMin={effEnd}
+                events={events}
+                blocked={blocked}
+                blocks={plan.blocks}
+                onTapMin={placing ? placeAt : undefined}
+              />
+            </div>
           )}
-          {/* P2: how full the day is, said before he commits rather than after. */}
-          <div className={"plan-load" + (load.fits ? "" : " over")}>{loadLine(load, picks.length)}</div>
-          {placingTask && (
-            <div className="plan-sub">Tap where &ldquo;{placingTask.text}&rdquo; goes</div>
-          )}
+          <div className={"plan-load" + (load.fits ? "" : " over")}>{quiet}</div>
 
-          {/* P3: the day says no where the picking happens, with the fix in
-              the same breath. It used to appear as grey text at the bottom. */}
+          {/* The day says no where the picking happens, with the fix in the
+              same breath. */}
           {overflow.length > 0 && (
             <div className="card"><div className="row">
               <div className="row-stack">
@@ -447,19 +416,9 @@ export default function PlanDaySheet({
             </div></div>
           )}
 
-          {/* B3: the plan he already made, which the list correctly drops and
-              wrongly never mentioned. */}
-          {alreadyPlanned.length > 0 && (
-            <div className="card"><div className="row">
-              <div className="row-stack">
-                <div className="conn-name">{alreadyPlanned.length === 1 ? "1 Already Planned" : `${alreadyPlanned.length} Already Planned`}</div>
-                <div className="conn-meta truncate">{alreadyPlanned.join(", ")}</div>
-              </div>
-            </div></div>
-          )}
-
-          {/* B2: five rows became one. Three of them existed to tell him when
-              he eats. The detail is a tap away, it just stops shouting. */}
+          {/* B2: the routine as ONE collapsed row; Edit Routine is the door
+              to changing it. The inline protect form is gone with the rest
+              of the sheet's second jobs. */}
           {(ranges.focus.length > 0 || ranges.hard.length > 0 || ranges.soft.length > 0) && (
             <div className="card">
               <div className="row" role="button" tabIndex={0} onClick={() => setExpandRoutine((v) => !v)}>
@@ -472,7 +431,7 @@ export default function PlanDaySheet({
                   <div className="conn-meta">
                     {[
                       ranges.hard.length > 0 ? "Around " + ranges.hard.map((b) => b.label).join(", ") : "",
-                      ranges.soft.length > 0 ? capAfterNumber(`${ranges.soft.length} flexible if it's tight`) : "",
+                      ranges.soft.length > 0 ? capAfterNumber(`${ranges.soft.length} flexible`) : "",
                     ].filter(Boolean).join(" · ")}
                   </div>
                 </div>
@@ -501,81 +460,12 @@ export default function PlanDaySheet({
                       <span className="urgency urgency-muted">{label(fromMin(b.s))}–{label(fromMin(b.e))}</span>
                     </div>
                   ))}
+                  {onEditRoutine && (
+                    <button type="button" className="row-act" onClick={onEditRoutine}>Edit Routine</button>
+                  )}
                 </>
               )}
-              {onProtect && (
-                protecting ? (
-                  <div className="row plan-protect">
-                    <input className="input input-compact" placeholder="What to Protect" value={protecting.label} onChange={(e) => setProtecting({ ...protecting, label: e.target.value })} />
-                    <input type="time" className="input input-compact" aria-label="Protect from" value={protecting.s} onChange={(e) => setProtecting({ ...protecting, s: e.target.value })} />
-                    <input type="time" className="input input-compact" aria-label="Protect until" value={protecting.e} onChange={(e) => setProtecting({ ...protecting, e: e.target.value })} />
-                    <button type="button" className="pill-act" onClick={() => void saveProtect()}>Save</button>
-                  </div>
-                ) : (
-                  <button type="button" className="row-act" onClick={() => setProtecting({ label: "", s: fromMin(startMin), e: fromMin(Math.min(effEnd, startMin + 60)) })}>Protect Time</button>
-                )
-              )}
             </div>
-          )}
-
-          {/* P5: JARVIS has always planned around his chronotype and never
-              said so. Silent intelligence reads as no intelligence. */}
-          {peak && !dismissed.peak && (
-            <div className="card"><div className="row">
-              <span className="cat-dot cat-bg-yellow" />
-              <div className="row-stack">
-                <div className="conn-name">Your Best Hours Are {label(fromMin(peak.s))}–{label(fromMin(peak.e))}</div>
-                <div className="conn-meta">Hard things go there · Admin goes after</div>
-              </div>
-            </div></div>
-          )}
-
-          {/* P4: "2 of 7 picks done same-day" told him he was failing, sitting
-              directly above the thing he was about to fail at again. The same
-              number pointed forward is a setting. */}
-          {cap && capTaken === null && !dismissed.cap && (
-            <div className="card"><div className="row">
-              <div className="row-stack">
-                <div className="conn-name">{cap.title}</div>
-                <div className="conn-meta">{cap.sub}</div>
-              </div>
-              <button type="button" className="pill-act" onClick={() => { setCapTaken(cap.n); setPicks((p) => p.slice(0, cap.n)); }}>Do That</button>
-            </div></div>
-          )}
-
-          {/* P12: the rhythm of a day that worked, poured over today's picks. */}
-          {shape && picks.length > 0 && !dismissed.shape && (
-            <div className="card"><div className="row">
-              <div className="row-stack">
-                <div className="conn-name">{shape.title}</div>
-                <div className="conn-meta">{shape.sub}</div>
-              </div>
-              <button type="button" className="pill-act" onClick={() => { hide("shape"); takeShape(); }}>Use It</button>
-            </div></div>
-          )}
-
-          {/* P9: some days the list IS the problem. Three buttons that each
-              add one task with no reading required. */}
-          {allTasks.length > 0 && (
-            <div className="chip-row plan-feel">
-              {(["quick", "hard", "goal"] as Feel[])
-                .filter((f) => feelAvailable(allTasks, f, picks))
-                .map((f) => (
-                  <button key={f} type="button" className="chip chip-act" onClick={() => takeFeel(f)}>{FEEL_LABEL[f]}</button>
-                ))}
-            </div>
-          )}
-
-          {onAIPlan && picks.length > 0 && (
-            <div className="input-note">
-              <button type="button" className="note-fix" disabled={aiBusy} onClick={estimateWithAI}>
-                {aiBusy ? "Estimating…" : "Re-Estimate Lengths"}
-              </button>
-              {aiError && <span>Couldn&rsquo;t reach the AI · lengths unchanged</span>}
-            </div>
-          )}
-          {leanedOn.length > 0 && !aiBusy && (
-            <div className="input-note"><span>Leaning on: {leanedOn[0]}</span></div>
           )}
 
           {allTasks.length === 0 ? (
@@ -622,17 +512,9 @@ export default function PlanDaySheet({
                         </div>
                         {on && tuning === t.id && (
                           <div className="plan-controls" onClick={(e) => e.stopPropagation()}>
-                            {/* P6: chips, not a stepper. 45m to 2h was five taps.
-                                The readout stays: a learned or AI-estimated
-                                length is any number of minutes, and the six
-                                chips cannot represent all of them. Hiding the
-                                real value behind an unlit chip row would be
-                                the sheet knowing something and not saying it. */}
+                            {/* P6: chips, not a stepper. The readout survives
+                                only when no chip can say the real number. */}
                             <div className="chip-row plan-durs">
-                              {/* Only when no chip can say it: a learned or
-                                  AI length is any number of minutes, and an
-                                  unlit chip row would hide the real value.
-                                  When a chip matches, the chip IS the readout. */}
                               {!DUR_CHOICES.includes(dur) && <span className="plan-dur">{dur}m</span>}
                               {DUR_CHOICES.map((d) => (
                                 <button
@@ -660,7 +542,7 @@ export default function PlanDaySheet({
                                 aria-label={`${t.text}: place on the day`}
                                 onClick={() => setPlacing((p) => (p === t.id ? null : t.id))}
                               >
-                                {placing === t.id ? "Tap the Strip" : "Place"}
+                                {placing === t.id ? "Placing" : "Place"}
                               </button>
                               {overrides[t.id] && (
                                 <button type="button" className="plan-drop" onClick={() => clearOverride(t.id)}>Auto</button>
@@ -685,19 +567,9 @@ export default function PlanDaySheet({
               ))}
             </div>
           )}
-          {/* Utility controls sit BELOW the list. Above it they pushed the
-              actual tasks off the bottom of a 390px phone, which made a
-              planning sheet whose main job you had to scroll to reach. */}
-          {/* P11: one field that reshapes the day. The routine window was the
-              only end time and could not be changed for a single day. */}
-          <div className="row plan-doneby">
-            <div className="row-grow"><div className="conn-name">Done By</div></div>
-            <input type="time" className="input input-compact" aria-label="Done by" value={doneBy} onChange={(e) => setDoneBy(e.target.value)} />
-            {doneBy && <button type="button" className="plan-drop" onClick={() => setDoneBy("")}>Clear</button>}
-          </div>
 
-          {/* P7: if the thing he actually wants to do is not already a task,
-              he had to close the sheet, go make it, and come back. */}
+          {/* P7: if the thing he wants to do is not a task yet, it becomes
+              one here, picked, without leaving the sheet. */}
           {onAddTask && (
             <div className="row plan-add">
               <input
@@ -710,28 +582,33 @@ export default function PlanDaySheet({
               <button type="button" className="pill-act" disabled={!adding.trim()} onClick={() => void addTask()}>Add</button>
             </div>
           )}
+          {leanedOn.length > 0 && !aiBusy && (
+            <div className="input-note"><span>Leaning on: {leanedOn[0]}</span></div>
+          )}
 
         </div>
         <div className="pad-x sheet-actions">
-          {/* R5 + P1: the primary was "Pick your tasks", which is the app
-              telling him to go do the work it exists to do. Nothing picked
-              now means one tap plans the whole day. */}
+          {/* TWO BUTTONS, always. With nothing picked the primary replans;
+              with picks it commits. Cancel is Cancel. */}
           {count === 0 ? (
-            <button className="btn btn-primary btn-block" disabled={allTasks.length === 0 || aiBusy} onClick={() => void planItForMe()}>
-              {aiBusy ? "Planning…" : "Plan It For Me"}
+            <button
+              className="btn btn-primary btn-block"
+              disabled={allTasks.length === 0}
+              onClick={() => {
+                const chosen = autoSelect(allTasks, open, durFor, cap?.n ?? sizing.maxBlocks ?? 3);
+                if (chosen.length === 0) return;
+                setPicks(chosen);
+                setOverrides({});
+                if (cap?.n != null && chosen.length === cap.n) setUsedUsual(true);
+                void runAI(chosen);
+              }}
+            >
+              Plan It For Me
             </button>
           ) : (
             <button className="btn btn-primary btn-block" onClick={commit}>
-              {autoPlanned ? `Accept ${countLabel === "these 1" ? "It" : "the Plan"}` : `Add ${countLabel}`}
+              {count === 1 ? "Add This One" : `Add These ${count}`}
             </button>
-          )}
-          {count > 0 && !autoPlanned && allTasks.length > picks.length && (
-            <button className="btn btn-secondary btn-block" disabled={aiBusy} onClick={() => void planItForMe()}>
-              {aiBusy ? "Planning…" : "Plan It For Me"}
-            </button>
-          )}
-          {count > 0 && autoPlanned && (
-            <button className="btn btn-secondary btn-block" onClick={() => setAutoPlanned(false)}>Change It</button>
           )}
           <button className="btn btn-tertiary btn-block" onClick={onClose}>Cancel</button>
         </div>

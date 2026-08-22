@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
+import { selfBlankGuard,
   buildTriageInput, parseTriage, fillSkipped, triageDelta,
   loadTriageCache, saveTriageCache, splitByBucket, headline, noiseLine,
   type TriageMap,
@@ -125,5 +125,36 @@ describe("presentation", () => {
     expect(input).toContain('"id":"t9"');
     expect(input).not.toContain("y".repeat(201));
     expect(input).toContain("y".repeat(200));
+  });
+});
+
+describe("a blank email from yourself never needs you", () => {
+  const row = (id: string, fromEmail: string, subject: string, snippet: string) =>
+    ({ id, from: "David Fisher", fromEmail, subject, snippet, unread: true, inInbox: true, dateMs: 1, count: 1, lastMsgId: "m" + id });
+  const needs = (id: string) => ({ [id]: { bucket: "needs_you" as const, gist: "David Fisher emailed with no subject or content.", lastMsgId: "m" + id } });
+
+  it("demotes it to worth knowing with an honest gist", () => {
+    const r = row("a", "dfisher2424@icloud.com", "", "  ");
+    const out = selfBlankGuard(needs("a"), [r as never], ["DFisher2424@icloud.com"]);
+    expect(out.a!.bucket).toBe("worth_knowing");
+    expect(out.a!.gist).toBe("A blank note from you");
+  });
+
+  it("[edge] a blank email from someone ELSE is untouched: silence can be a signal", () => {
+    const r = row("b", "wei@bffsa.org", "", "");
+    const out = selfBlankGuard(needs("b"), [r as never], ["dfisher2424@icloud.com"]);
+    expect(out.b!.bucket).toBe("needs_you");
+  });
+
+  it("[edge] your own mail WITH content is untouched", () => {
+    const r = row("c", "dfisher2424@icloud.com", "Waiver", "");
+    const out = selfBlankGuard(needs("c"), [r as never], ["dfisher2424@icloud.com"]);
+    expect(out.c!.bucket).toBe("needs_you");
+  });
+
+  it("[edge] no known addresses means no guessing", () => {
+    const r = row("d", "dfisher2424@icloud.com", "", "");
+    const out = selfBlankGuard(needs("d"), [r as never], []);
+    expect(out.d!.bucket).toBe("needs_you");
   });
 });
