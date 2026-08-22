@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { DollarSign, RotateCcw } from "lucide-react";
 import NoticeCard from "./NoticeCard";
+import { rankStream, WAITING, NEW } from "./stream";
+import { cloneElement } from "react";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { fmtTime } from "../schedule/calendar";
@@ -339,6 +341,7 @@ export default function TodayPage({
     billLine ? (
       <NoticeCard
         key="money"
+        weight={WAITING}
         icon={<DollarSign className="ic" />}
         tone="cat-fg-green"
         title={billLine}
@@ -351,6 +354,7 @@ export default function TodayPage({
     freshStart ? (
       <NoticeCard
         key="fresh"
+        weight={NEW}
         icon={<RotateCcw className="ic" />}
         tone="cat-fg-teal"
         title="Rough Day? Fresh Start."
@@ -406,16 +410,24 @@ export default function TodayPage({
       {/* HEADS UP: the one notice stream. Every card, row, and offer JARVIS
           wants him to see lives here under one head, so the page has a
           single place to look instead of nine floating interruptions. */}
-      {headsUp.length > 0 && (
-        <>
-          <div className="sh2"><span className="t">Heads Up</span></div>
-          {/* Spacing is a property of the STREAM, not of one card type. It
-              lived on .notice-swipe, so the day-draft card, the one member
-              that is deliberately not a NoticeCard, sat flush against the
-              rest. Anything placed here now gets the rhythm. */}
-          <div className="heads-up-stream">{headsUp}</div>
-        </>
-      )}
+      {headsUp.length > 0 && (() => {
+        // FORM FOLLOWS DECISION (Law 3E). The stream ranks its members:
+        // the heaviest becomes THE headliner, everything else drops to a
+        // one-line verb row, and receipts collapse to the quiet line. The
+        // producers only declare weight; form is decided here, in one
+        // place, so no card can promote itself.
+        const ranked = rankStream(headsUp);
+        return (
+          <>
+            <div className="sh2"><span className="t">Heads Up</span></div>
+            <div className="heads-up-stream">
+              {ranked.headliner && cloneElement(ranked.headliner, { form: "headliner" })}
+              {ranked.rows.map((r) => cloneElement(r, { form: "row" }))}
+              {ranked.receipts}
+            </div>
+          </>
+        );
+      })()}
 
       {/* EMAIL IS ITS OWN BAND (2026-08-21, Dave: "emails should be sectioned
           off"). Three of the six rows on his Heads Up were mail wearing the

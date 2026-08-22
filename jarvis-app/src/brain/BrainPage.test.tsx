@@ -40,20 +40,23 @@ describe("BrainPage", () => {
   // SPEC MOVED (Catalog V4, 2026-08-18): nav rows wear the FILLED brand-red
   // glyph (lib-ico-brand); category rows keep their systemic colors. Never
   // grey, never mixed states in one block.
-  it("nav rows are brand red, category rows keep their colors", () => {
+  // ICON LAW (2026-08-22): in a list, filled. Brand rows keep the filled red
+  // glyph; category rows wear a disc in their own color, white glyph.
+  it("nav rows are filled brand red, category rows are color discs", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
     const glyphs = container.querySelectorAll(".lib-ico");
     expect(glyphs.length).toBe(10); // 7 nav rows + 3 category rows
     expect(container.querySelectorAll(".lib-ico.lib-ico-brand").length).toBe(7);
-    expect(container.querySelectorAll(".lib-ico.lib-ico-neutral").length).toBe(0);
-    expect(container.querySelectorAll('.lib-ico[class*="cat-fg-"]').length).toBe(3);
+    expect(container.querySelectorAll(".lib-ico.lib-disc").length).toBe(3);
+    // No outline color-glyph state left in a nav list.
+    expect(container.querySelectorAll('.lib-ico[class*="cat-fg-"]').length).toBe(0);
   });
 
-  it("colors each category glyph with its own slot", () => {
+  it("each disc carries its category's own fill", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
-    expect(container.querySelector(".lib-ico.cat-fg-blue")).toBeTruthy();
-    expect(container.querySelector(".lib-ico.cat-fg-pink")).toBeTruthy();
-    expect(container.querySelector(".lib-ico.cat-fg-green")).toBeTruthy();
+    expect(container.querySelector(".lib-disc.cat-bg-blue")).toBeTruthy();
+    expect(container.querySelector(".lib-disc.cat-bg-pink")).toBeTruthy();
+    expect(container.querySelector(".lib-disc.cat-bg-green")).toBeTruthy();
   });
 
   it("has no dead-end Setup rows (Onboarding/Backup live in Settings)", () => {

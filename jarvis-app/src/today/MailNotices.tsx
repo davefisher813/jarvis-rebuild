@@ -7,7 +7,6 @@ import {
   loadMailSnapshot, mailNotices, residualLine, loadDismissed, dismissNotice,
   type MailKind, type MailNotice,
 } from "../messages/home";
-import { inboxSentence } from "../messages/inboxBrief";
 import { loadSnoozes, snoozeNotice, sleepingNow, snoozeChoices } from "../messages/snoozeNotice";
 import { quickAnswers } from "../messages/quickAnswers";
 
@@ -81,7 +80,6 @@ export default function MailNotices({
   // state while rendering is how a render loop starts.
   const isEmpty = notices.length === 0 && !residual;
   useEffect(() => { onEmptyChange?.(isEmpty); }, [isEmpty, onEmptyChange]);
-  const sentence = inboxSentence(notices, snap);
   const choices = snoozeChoices(nowHHMM);
 
   const canWrite = !!onDraft && !!onSend;
@@ -160,9 +158,10 @@ export default function MailNotices({
 
   return (
     <>
-      {/* U5: what the whole inbox IS, before a single card is read. */}
-      {sentence && <div className="pad-x"><div className="mail-sentence">{sentence}</div></div>}
-
+      {/* Law 3E (2026-08-22): the band's summary sentence is gone. "One
+          needs an answer and someone has been waiting 59 days on you" was a
+          paragraph ABOUT the rows sitting directly above the rows; the rows
+          say it themselves now, in one line each. */}
       {notices.map((n) => {
         const draft = drafts[n.key];
         const loading = busy === n.key;
@@ -170,13 +169,18 @@ export default function MailNotices({
         // reply; nothing here is a fragment he has to finish.
         const thread = snap.threads.find((t) => t.id === n.threadId);
         const chips = n.kind === "reply" && canWrite ? quickAnswers(thread?.replies) : [];
+        // The wait's own thresholds put heat on the age: the same rungs the
+        // Email tab's ladder always used.
+        const days = snap.waiting.find((w) => w.threadId === n.threadId)?.days ?? 0;
         return (
           <NoticeCard
             key={n.key}
+            form={draft || (chips.length > 0 && n.kind === "reply") ? "card" : "row"}
             icon={ICON[n.kind]}
             tone={n.tone}
             title={n.title}
             sub={draft ? undefined : n.sub}
+            heat={n.kind === "nudge" ? (days >= 21 ? "hot" : days >= 7 ? "warm" : null) : null}
             action={{
               label: loading
                 ? (n.kind === "meeting" ? "Booking…" : "Writing…")
@@ -231,14 +235,11 @@ export default function MailNotices({
         );
       })}
 
+      {/* The rest of the inbox is a receipt: it reports, it does not ask. */}
       {residual && (
-        <NoticeCard
-          icon={<Mail className="ic" />}
-          tone="cat-fg-graphite"
-          title={residual}
-          sub="Nothing in there is urgent"
-          onOpen={onOpenEmail}
-        />
+        <button data-receipt className="receipt-line" onClick={onOpenEmail}>
+          {residual} · Nothing urgent
+        </button>
       )}
     </>
   );

@@ -142,7 +142,9 @@ describe("TodaySuggestions being-known moments", () => {
     await waitFor(() => expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument());
     // The Notice law's sub line carries the receipt, so the claim is checkable
     // before the user ever taps.
-    expect(screen.getByText(/14 Finishes there/)).toBeInTheDocument();
+    // The quiet line wraps the figure in its own bright span (Law 3E), so the
+    // match reads the composed line rather than one text node.
+    expect(screen.getByText((_, el) => el?.className === "conn-meta" && /14 Finishes there/.test(el.textContent ?? ""))).toBeInTheDocument();
     expect(screen.getByText("Remember This")).toBeInTheDocument();
   });
 

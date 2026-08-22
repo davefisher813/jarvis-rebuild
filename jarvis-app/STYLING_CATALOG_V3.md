@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.10 (2026-08-21)
+# JARVIS Styling Catalog V4.11 (2026-08-22)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -315,6 +315,28 @@ The rule that produced the bug: a button's words came from HOW LONG the thread h
 **W6. A SWIPE REVEALS THE OUTER SLOT FIRST.** 88px per action, filled from `right:0` outward. A one-action reveal must use `right:0`; a button parked at `right:88px` behind an 88px reveal is invisible, which is exactly what happened to Let It Go for its whole life on the device. Geometry is verifiable, so it gets verified in a browser, not reasoned about.
 
 **W7. ROUTING AROUND SOMEBODY STARTS A NEW CONVERSATION.** Ask X Instead composes to the colleague OUTSIDE the old thread. Threading it would drop them into a chain they were never part of and show the silent person the whole history. Offered only when we know exactly one other person at that domain, and never on a free mail domain, because everyone at gmail.com is not a colleague of everyone else at gmail.com.
+
+## X. The Capsule Law (V4.11, Dave 2026-08-22: "buttons need to look like buttons not text")
+
+A button is a SHAPE, never bare words. Filled red for the one primary per screen (unchanged); the Apple Music capsule -- dim fill, red label -- for every other action; the faintest fill and a gray label for the quiet tier. Bare-text buttons cease to exist as a category. The one sanctioned exception: the section-head trailing link (See All in an sh2), because Apple Music itself writes that as text. Enforced centrally: .row-act, .quiet-action, .note-fix, and the bare .btn-sm are capsules BY CLASS, so a producer cannot opt out by accident. (The bare .btn-sm had been riding --accent-chip, which O.5 made transparent; that collateral is what put floating words on Dave's screenshots.)
+
+## Y. The Icon Law (V4.11, Dave 2026-08-22)
+
+Two axes, one rule. COLOR SAYS WHOSE IT IS: JARVIS red for the app's own features, the category's color for the user's content. SHAPE SAYS WHERE IT LIVES: filled in nav lists (the brand rows' filled glyphs; a category becomes a color disc with a white glyph -- .lib-disc), bare outlined glyphs inside cards and containers. A nav list never shows an outline; a card interior never shows a tile.
+
+## Z. The Stream (V4.11, Law 3E: "form follows decision")
+
+A notice's SHAPE is earned by the decision it carries, and the STREAM decides form, never the producer:
+
+- **THE HEADLINER.** Exactly one per visit: the highest-weight notice, big type (.hl-title), its verbs as real capsules on their own line, alt visible beside the primary. No leading glyph: at that size the words are the identity.
+- **VERB ROWS.** Every other actionable notice: ONE line, fact plus capsule (.notice-vrow). A row is a fact wearing its verb, not a paragraph wearing a pill. Tapping the body expands to the full card where there is more (chips, a draft, an alt); a row with only an opener opens.
+- **THE RECEIPT LINE.** A notice that asks nothing collapses to one quiet line (.receipt-line). Facts without decisions do not get furniture.
+
+Weights are bands, and the bands are doctrine: FAILING (90) beats WAITING (70) beats NEW (50) beats RESUME (40). Ties keep the producer's order. rankStream is pure and law-tested.
+
+**Z2. THE QUIET LINE.** Words whisper, data pops: subs render words small and dim, every datum bright and tabular in the app's time face (.qd), units fused to their figure (59d, 6/17, 9h -- never "59 days"). Heat (amber .qd-warm, red .qd-hot) lands on the DATA only, and only when the producer's own thresholds say so; presentation never invents a threshold. The band explainer sentence is dead as a genre: a sentence true of the rows belongs to the rows.
+
+**Z3. THE CARD GRAMMAR** (under all forms). The title names the thing. The sub is evidence: one fragment, one dot-break, numbers first. The BUTTON carries the verdict -- copy never explains what the verb already says ("usually means it is too big" died for Break It Down).
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 

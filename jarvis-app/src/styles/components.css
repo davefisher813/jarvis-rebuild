@@ -97,7 +97,10 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-badge-btn::after { content: ""; position: absolute; inset: -8px; }
 .sched-row-warn { box-shadow: inset 2px 0 0 var(--accent); }
 .input-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: var(--t-meta); color: var(--tx-2); margin-top: var(--s-1); }
-.note-fix { background: 0; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-meta); padding: 0; }
+/* Capsule law: the inline fix offer wears the smallest capsule. */
+.note-fix { background: var(--press-3); border: 0; color: var(--tint); font-weight: var(--w-semi);
+  font-size: var(--t-meta); padding: 0 var(--s-2h); min-height: 28px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; }
 
 /* Today section header: Title Case section title + trailing See All link
    (RULE 9; the dashboard needs a header-with-action the other screens don't). */
@@ -383,9 +386,15 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .input-static { display: flex; align-items: center; color: var(--tx-2); }
 .switch-locked { opacity: 0.4; }
 .row-signout { justify-content: center; width: 100%; background: transparent; border: 0; color: var(--red); font-weight: var(--w-semi); font-size: var(--t-body); }
-/* The non-destructive sibling: a centered in-card action row (accent, not
-   alarm). Decision Record's Change It is the first tenant. */
-.row-act { justify-content: center; width: 100%; background: transparent; border: 0; color: var(--accent-tx); font-weight: var(--w-semi); font-size: var(--t-body); }
+/* THE CAPSULE LAW (Dave 2026-08-22: "buttons need to look like buttons not
+   text"). A button is a shape, never bare words. The in-card action row now
+   draws itself as Apple Music's own secondary: dim capsule, red label,
+   centered in its card. Width comes from the label; the centering works in
+   both block and flex-column parents. */
+.row-act { justify-content: center; width: auto; align-self: center; margin: var(--s-1) auto;
+  background: var(--press-3); border: 0; color: var(--tint); font-weight: var(--w-semi);
+  font-size: var(--t-body); height: 40px; padding: 0 var(--s-5); border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; }
 .input-multiline { height: auto; min-height: 88px; padding-top: var(--s-2h); resize: none; line-height: var(--lh-relaxed); font-family: inherit; }
 /* A text bar action is 18px of glyph. It needs a hit area like everything
    else does (audit 2026-08-21: "Edit" measured 41x18 against a 24 minimum,
@@ -444,9 +453,11 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    full secondary button, which gave "Not Now" the same visual weight as the
    thing being offered and made a two-line card read as four elements. Today's
    Check In already dismissed this way. */
-.quiet-action { background: 0; border: 0; font-family: var(--f); font-size: var(--t-meta);
-  font-weight: var(--w-medium); color: var(--tx-4); min-height: var(--tap-min);
-  display: inline-flex; align-items: center; padding: 0 var(--s-2); }
+/* Capsule law: even the quiet tier is a shape. The faintest fill the system
+   has, gray label, pill. Quiet means muted, not invisible. */
+.quiet-action { background: var(--press-1); border: 0; font-family: var(--f); font-size: var(--t-meta);
+  font-weight: var(--w-medium); color: var(--tx-2); min-height: 32px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; padding: 0 var(--s-3); }
 /* An offer inside a card: primary action sized to its label, quiet dismiss
    beside it. Not .field-row, which stretches its children to fill. */
 .offer-row { display: flex; align-items: center; gap: var(--s-2); margin-top: var(--s-3); }
@@ -1311,6 +1322,34 @@ button {
 .rail-stops { display: flex; flex-direction: column; gap: var(--s-4); min-width: 0; flex: 1; }
 .rail-stop .conn-meta { margin-top: 1px; }
 
+/* FORM FOLLOWS DECISION (Law 3E, 2026-08-22). Three forms, one stream. */
+/* The headliner: the one notice most worth the next tap. Big type; its
+   verbs are real capsules on their own line, not a pill squeezed beside a
+   paragraph. */
+.notice-hl { display: flex; gap: var(--s-3); align-items: flex-start; }
+.notice-hl .row-glyph { margin-top: 3px; }
+.hl-title { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.02em;
+  color: var(--tx-1); line-height: 1.15; }
+.notice-hl + .hl-acts, .hl-acts { display: flex; gap: var(--s-2); padding-top: var(--s-2); }
+/* Verb rows: one line, fact plus capsule. The card slims down so a stack of
+   rows reads as a list, not a pile of cards. */
+.notice-card-row { padding-top: 2px; padding-bottom: 2px; }
+.notice-vrow { min-height: 44px; }
+.vrow-line { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
+.vrow-fact { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vrow-sub { flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+/* The receipt line: facts that need nothing collapse into one quiet mono
+   line under the stream. Furniture is for decisions. */
+.receipt-line { font-size: var(--t-eyebrow); letter-spacing: 0.02em;
+  color: var(--tx-4); padding: var(--s-1) var(--s-4) 0; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; background: none; border: 0; width: 100%; text-align: left; }
+/* The quiet line: words whisper, data pops. Bright tabular data in the time
+   face; heat only where a producer's own thresholds say so. */
+.qd { font-variant-numeric: tabular-nums;
+  color: var(--tx-1); font-weight: var(--w-medium); }
+.qd-warm { color: var(--warn); }
+.qd-hot { color: var(--sys-red); }
+
 /* Undo lives in the toast, because the moment right after the action is the
    only moment anyone wants it. */
 .msg-toast { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
@@ -1548,6 +1587,13 @@ button {
 .lib-name { flex: 1; font-size: var(--t-h2); font-weight: var(--w-normal); color: var(--tx-1); min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-ico-neutral { color: var(--tx-2); }
+/* ICON LAW (2026-08-22): a category in a nav list is a filled color disc
+   with a white glyph -- the same fill weight as the brand rows beside it,
+   in the category's own color. CategoriesPage's .sec-ico proved the white-
+   on-category-fill contrast; this is that tile, made round for lists. */
+.lib-disc { width: 30px; height: 30px; border-radius: var(--r-circle); display: flex;
+  align-items: center; justify-content: center; color: #fff; }
+.lib-row .lib-disc .ic { width: 17px; height: 17px; }
 .lib-row + .lib-row { position: relative; }
 .lib-row + .lib-row::before { content: ""; position: absolute; top: 0; height: 0.5px; background: var(--divider);
   left: calc(var(--s-4) + 30px + var(--s-3h)); right: 0; }
@@ -1838,14 +1884,21 @@ button {
 /* An action CLUSTER on a head (YourDay's pause + Schedule) rides the same
    far-right slot as a lone action: after the leader, never mid-head. */
 .sh2 .sec-left { order: 2; display: inline-flex; align-items: center; gap: var(--s-2); margin: -13px 0; flex-shrink: 0; }
-.sh2 .see-all.quiet-action { color: var(--tx-3); font-size: 17px; }
+/* The ONE sanctioned bare-text action: the section-head trailing link,
+   because Apple Music itself writes See All as text there. Everything else
+   is a capsule, no exceptions. */
+.sh2 .see-all.quiet-action { color: var(--tx-3); font-size: 17px; background: transparent; padding: 0 var(--s-2); }
 /* Small pill: the one small doing-button (Add to Today, Link, Not Now).
    It always has a body; text-only small buttons are the head action's job.
    A small button that is ALSO a primary/danger keeps that fill: the
    :not() guard stops this rule from bleaching the red one. */
+/* Capsule law: the small sibling button is the Music capsule. It was riding
+   --accent-chip, which the one-red wave made transparent for row pills, and
+   that collateral is exactly why Set a Start and Not Today read as floating
+   words on Dave's screenshots. Its fill is its own now. */
 .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
   height: 34px; font-size: var(--t-meta); padding: 0 var(--s-3h);
-  background: var(--accent-chip); color: var(--accent-chip-tx); border: 0;
+  background: var(--press-3); color: var(--tint); border: 0;
   border-radius: var(--r-pill); font-weight: var(--w-semi); font-family: var(--f);
   display: inline-flex; align-items: center; flex-shrink: 0; }
 /* Detail-page group labels ride the same steel: Decided, Because, Details,
@@ -2302,3 +2355,10 @@ button {
 .strand-receipt:last-child { border-bottom: 0; }
 .strand-receipt .r-what { flex: 1; min-width: 0; }
 .btn-danger-text { color: var(--accent-tx); }
+
+/* Law 3E override, placed after the notice card's 2-line clamps: inside a
+   VERB ROW one line IS the form's contract, so the clamps that serve full
+   cards must not stack the fact or the sub. Ellipsis carries the overflow. */
+.notice-card .vrow-fact, .notice-card .vrow-sub {
+  display: block; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

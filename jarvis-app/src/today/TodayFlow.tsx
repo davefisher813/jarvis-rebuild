@@ -13,6 +13,7 @@ import { tomorrowISO, nowHHMM, daySummary, todaysTasks, billsLine, billsDueSoon 
 import TodayPage from "./TodayPage";
 import MailNotices from "./MailNotices";
 import NoticeCard from "./NoticeCard";
+import { FAILING, WAITING, NEW, RESUME } from "./stream";
 import { capAfterNumber } from "../shared/casing";
 import { movedBy, celebrationLine, type Moved } from "../shared/completion";
 import { birthdaysOn, type BirthdayHit } from "../people/birthdays";
@@ -56,7 +57,7 @@ import { todaysReminders, snoozeTime } from "../tasks/reminders";
 import { remindersToIcs, downloadIcs } from "../tasks/ics";
 import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, type SweepReceipt } from "../tasks/autoSweep";
-import { restorableSpot, clearSpot, spotMeta, type WorkSpot } from "../restore/whereYouWere";
+import { restorableSpot, clearSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
 import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCaptureSheet";
 import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
@@ -977,6 +978,7 @@ export default function TodayFlow({
   // Slippage stated out loud below Everything; automatic (receipted) at it.
   const reflowSection = !evening && dayDraft?.accepted && slippedCount > 0 && effectiveLevel(getAIControl()) !== "everything" && (
     <NoticeCard
+      weight={WAITING}
       icon={SWEEP_ICO}
       tone="cat-fg-orange"
       title={slippedCount === 1 ? "1 Block Slipped" : `${slippedCount} Blocks Slipped`}
@@ -987,6 +989,7 @@ export default function TodayFlow({
 
   const overflowSection = overflowOffer && (
     <NoticeCard
+      weight={FAILING}
       icon={SWEEP_ICO}
       tone="cat-fg-orange"
       title={overflowOffer.title}
@@ -1039,19 +1042,17 @@ export default function TodayFlow({
   // true, and one thing to start with.
   const back = welcomeBack(lastSeenRef.current, today, sweepReceipt?.moved.length ?? 0);
   const alertCards = [
+    // The welcome-back recap is a RECEIPT: it reports, it does not ask.
+    // One quiet line; tapping it opens the pile it describes.
     back ? (
-      <NoticeCard
-        key="back"
-        icon={SWEEP_ICO}
-        tone="cat-fg-teal"
-        title={back.title}
-        sub={back.sub}
-        action={{ label: "Show Me", onClick: () => setUpNextOpen(true) }}
-      />
+      <button key="back" data-receipt className="receipt-line" onClick={() => setUpNextOpen(true)}>
+        {back.title} · {back.sub}
+      </button>
     ) : null,
     revisit ? (
       <NoticeCard
         key="revisit"
+        weight={WAITING}
         icon={FORK_ICO}
         tone="cat-fg-purple"
         title={revisit.data.decision}
@@ -1063,6 +1064,7 @@ export default function TodayFlow({
     sweepReceipt && sweepReceipt.failed ? (
       <NoticeCard
         key="sweepfail"
+        weight={FAILING}
         icon={SWEEP_ICO}
         tone="cat-fg-red"
         title="Couldn't Move Yesterday's Tasks"
@@ -1076,10 +1078,11 @@ export default function TodayFlow({
     sweepReceipt && !sweepReceipt.failed && sweepReceipt.moved.length > 0 ? (
       <NoticeCard
         key="sweep"
+        weight={NEW}
         icon={SWEEP_ICO}
         tone="cat-fg-orange"
-        title={sweepReceipt.moved.length === 1 ? "Moved 1 Task to Today" : `Moved ${sweepReceipt.moved.length} Tasks to Today`}
-        sub={sweepReceipt.moved.length > 1 ? "None of them have a time" : undefined}
+        title={sweepReceipt.moved.length === 1 ? "1 Moved to Today" : `${sweepReceipt.moved.length} Moved to Today`}
+        sub={sweepReceipt.moved.length > 1 ? "No times yet" : undefined}
         action={{
           // PLAN THEM (2026-08-21). Seven untimed tasks arriving at once is
           // exactly how a day turns into the one Dave photographed. The list
@@ -1109,10 +1112,12 @@ export default function TodayFlow({
     sweepCand && sweepCand.slips >= 3 && ai.available ? (
       <NoticeCard
         key="slide"
+        weight={FAILING}
         icon={SWEEP_ICO}
         tone="cat-fg-orange"
-        title={`${sweepCand.text} Keeps Sliding`}
-        sub={`Moved ${sweepCand.slips} days running · usually means it is too big`}
+        title={sweepCand.text}
+        sub={`Slid ${sweepCand.slips}d`}
+        heat="warm"
         action={{
           label: "Break It Down",
           onClick: () => { markOffered(sweepCand.id); void breakDownTask(sweepCand.id); },
@@ -1123,11 +1128,12 @@ export default function TodayFlow({
     spot ? (
       <NoticeCard
         key="spot"
+        weight={RESUME}
         icon={DOC_ICO}
         tone="cat-fg-yellow"
-        title="Pick Up Where You Left Off"
-        sub={spotMeta(spot)}
-        onOpen={() => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); }}
+        title={spot.label}
+        sub={spotAgo(spot)}
+        action={{ label: "Resume", onClick: () => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); } }}
       />
     ) : null,
   ].filter(Boolean);

@@ -1,21 +1,27 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useSwipe } from "../shared/useSwipe";
+import { Quiet, type Heat } from "./quiet";
 
-// THE NOTICE LAW (A1, approved by Dave 2026-08-20).
+// THE NOTICE LAW (A1, 2026-08-20), extended by FORM FOLLOWS DECISION
+// (Law 3E, approved 2026-08-22).
 //
-// Every card in Heads Up is built exactly one way, so the stream can never
-// drift into nine different shapes again:
+// Every notice is still built exactly one way -- colored glyph, the words,
+// exactly one visible control -- but it now renders in one of three FORMS,
+// and the STREAM decides which, never the producer:
 //
-//   colored glyph · the words · EXACTLY ONE control on the visible line
+//   card       the classic anatomy (default; used outside ranked streams)
+//   headliner  the one notice most worth the next tap: big type, its verbs
+//              as real capsules on their own line
+//   row        every other actionable notice: ONE line, fact plus capsule
 //
-// The control is a pill when the notice does something, or a chevron when the
-// whole row opens a screen. Dismiss is a swipe, never a corner ×: on a
-// one-row card the corner and the row's right edge are the same place, and
-// two tap targets stacked on each other is how you hit the wrong one.
+// A row is a fact wearing its verb, not a paragraph wearing a pill. Tapping
+// a row's body expands it to the full card in place (progressive
+// disclosure), which is where alt actions, feet, and onOpen live. Dismiss
+// stays a swipe in every form: on a one-line row a corner x and the capsule
+// are the same place.
 //
-// An alternate choice (Still Good / Change It) rides the same reveal as
-// Dismiss. The primary is always the one you can see and tap without
-// deciding, which is the entire point of the button work.
+// Subs render through the quiet line: words whisper, data pops, heat only
+// where the producer says so.
 
 export interface NoticeAction {
   label: string;
@@ -27,38 +33,140 @@ export default function NoticeCard({
   tone,
   title,
   sub,
+  heat = null,
   action,
   alt,
   onDismiss,
   onOpen,
   foot,
+  form = "card",
+  // Read by the stream's ranker, not by this component; declared so the
+  // props are typed at every call site.
+  weight,
+  receipt,
 }: {
   icon: ReactNode;
   // A cat-fg-* class. Color is the notice's category, never decoration.
   tone?: string;
   title: ReactNode;
   sub?: ReactNode;
+  // Heat on the sub's data, when the producer's own thresholds say so.
+  heat?: Heat;
   // The one visible control. Omit it and the row opens (chevron) instead.
   action?: NoticeAction;
-  // The second path, on the swipe reveal beside Dismiss.
+  // The second path: a capsule beside the primary on a headliner, on the
+  // swipe reveal elsewhere.
   alt?: NoticeAction;
   onDismiss?: () => void;
   onOpen?: () => void;
   // Extra rows below the main line, inside the same card (the email stack).
   foot?: ReactNode;
+  form?: "card" | "headliner" | "row";
+  weight?: number;
+  receipt?: boolean;
 }) {
-  const acts = (alt ? 1 : 0) + (onDismiss ? 1 : 0);
+  void weight; void receipt;
+  const [expanded, setExpanded] = useState(false);
+  const effForm = form === "row" && expanded ? "card" : form;
+  // Headliners show alt beside the primary, so the swipe carries only
+  // Dismiss there; other forms keep alt on the reveal.
+  const altOnReveal = effForm === "headliner" ? undefined : alt;
+  const acts = (altOnReveal ? 1 : 0) + (onDismiss ? 1 : 0);
   const swipe = useSwipe({ revealW: acts * 88, enabled: acts > 0 });
+
+  const subNode = sub != null && (typeof sub === "string" ? <Quiet s={sub} heat={heat} /> : sub);
+
+  const inner =
+    effForm === "headliner" ? (
+      <>
+        <div className="notice-hl">
+          <div className="row-grow">
+            <div className="hl-title">{title}</div>
+            {subNode && <div className="conn-meta">{subNode}</div>}
+          </div>
+        </div>
+        {(action || alt || onOpen) && (
+          <div className="hl-acts">
+            {action && (
+              <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
+                {action.label}
+              </button>
+            )}
+            {alt && (
+              <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); alt.onClick(); }}>
+                {alt.label}
+              </button>
+            )}
+            {!action && onOpen && <div className="chev" />}
+          </div>
+        )}
+        {foot}
+      </>
+    ) : effForm === "row" ? (
+      <div
+        className="row notice-vrow"
+        role="button"
+        tabIndex={0}
+        onClick={() => { if (foot || alt) setExpanded(true); else if (onOpen) onOpen(); }}
+      >
+        <div className={"row-glyph " + (tone ?? "cat-fg-red")}>{icon}</div>
+        <div className="row-grow vrow-line">
+          <span className="conn-name vrow-fact">{title}</span>
+          {subNode && <span className="conn-meta vrow-sub">{subNode}</span>}
+        </div>
+        {action ? (
+          <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
+            {action.label}
+          </button>
+        ) : (
+          <div className="chev" />
+        )}
+      </div>
+    ) : (
+      <>
+        <div
+          className="row"
+          role={onOpen ? "button" : undefined}
+          tabIndex={onOpen ? 0 : undefined}
+          onClick={onOpen}
+        >
+          <div className={"row-glyph " + (tone ?? "cat-fg-red")}>{icon}</div>
+          <div className="row-grow">
+            <div className="conn-name">{title}</div>
+            {subNode && <div className="conn-meta">{subNode}</div>}
+          </div>
+          {action ? (
+            <button
+              className="pill-act"
+              onClick={(e) => { e.stopPropagation(); action.onClick(); }}
+            >
+              {action.label}
+            </button>
+          ) : onOpen ? (
+            <div className="chev" />
+          ) : null}
+        </div>
+        {alt && effForm === "card" && form === "row" && (
+          /* An expanded row surfaces its alt as a visible second capsule:
+             the swipe reveal exists, but the whole point of expanding was
+             to see the rest. */
+          <div className="hl-acts">
+            <button className="btn btn-sm" onClick={alt.onClick}>{alt.label}</button>
+          </div>
+        )}
+        {foot}
+      </>
+    );
 
   return (
     <div className="pad-x">
       <div className="notice-swipe">
-        {alt && (
+        {altOnReveal && (
           <button
             className={"notice-alt" + (onDismiss ? " beside-dismiss" : "")}
-            onClick={() => swipe.closeThen(alt.onClick)}
+            onClick={() => swipe.closeThen(altOnReveal.onClick)}
           >
-            {alt.label}
+            {altOnReveal.label}
           </button>
         )}
         {onDismiss && (
@@ -67,33 +175,11 @@ export default function NoticeCard({
           </button>
         )}
         <div
-          className={"card notice-card" + (swipe.dragging ? " swiping" : "")}
+          className={"card notice-card" + (effForm === "row" ? " notice-card-row" : "") + (swipe.dragging ? " swiping" : "")}
           style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
           {...swipe.handlers}
         >
-          <div
-            className="row"
-            role={onOpen ? "button" : undefined}
-            tabIndex={onOpen ? 0 : undefined}
-            onClick={onOpen}
-          >
-            <div className={"row-glyph " + (tone ?? "cat-fg-red")}>{icon}</div>
-            <div className="row-grow">
-              <div className="conn-name">{title}</div>
-              {sub && <div className="conn-meta">{sub}</div>}
-            </div>
-            {action ? (
-              <button
-                className="pill-act"
-                onClick={(e) => { e.stopPropagation(); action.onClick(); }}
-              >
-                {action.label}
-              </button>
-            ) : onOpen ? (
-              <div className="chev" />
-            ) : null}
-          </div>
-          {foot}
+          {inner}
         </div>
       </div>
     </div>

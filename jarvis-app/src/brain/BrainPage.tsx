@@ -82,12 +82,16 @@ export default function BrainPage({
   categories?: BrainCategory[];
 }) {
   // Catalog V3.1 library form (approved 2026-08-18, the Apple Music look):
-  // bare colored glyphs, large names, inset hairlines. Each glyph keeps its
-  // systemic color; the tile background goes, the color stays.
-  const fgOf = (color: string) => color.replace(/^cat-bg-/, "cat-fg-").replace(/^ico-/, "cat-fg-");
+  // ICON LAW (Dave 2026-08-22): in a list, an icon is FILLED, and color says
+  // whose it is. JARVIS's own rows wear the filled brand-red glyph exactly as
+  // before; a category row wears a disc in ITS color with a white glyph --
+  // the same fill language, aimed at his content. Outline glyphs are the
+  // inside-a-card state and no longer appear in nav lists.
   const Row = (r: BrainRow) => (
     <div className="lib-row" key={r.key} role="button" tabIndex={0} onClick={() => onOpen(r.key, r.name)}>
-      <div className={"lib-ico " + (r.color === "lib-ico-brand" ? r.color : fgOf(r.color))}>{r.icon}</div>
+      {r.color === "lib-ico-brand"
+        ? <div className="lib-ico lib-ico-brand">{r.icon}</div>
+        : <div className={"lib-ico lib-disc " + r.color}>{r.icon}</div>}
       <div className="lib-name">{r.name}</div>
       {r.status && <span className="row-status fg-good">{r.status}</span>}
       <Chev />

@@ -80,3 +80,12 @@ export function spotMeta(spot: WorkSpot, now: () => number = Date.now): string {
   const when = mins < 60 ? `${mins} Min ago` : `${Math.round(mins / 60)} ${Math.round(mins / 60) === 1 ? "Hour" : "Hours"} ago`;
   return `${spot.label} ${noun} · ${when}`;
 }
+
+// The quiet-line form of the age (Law 3E, 2026-08-22): fused units, no noun.
+// "Left 9h ago" -- the row's title already names the thing, so repeating its
+// kind here was the old sub's padding.
+export function spotAgo(spot: WorkSpot, now: () => number = Date.now): string {
+  const mins = Math.max(1, Math.round((now() - spot.ts) / 60_000));
+  const span = mins < 60 ? `${mins}m` : `${Math.round(mins / 60)}h`;
+  return `Left ${span} ago`;
+}
