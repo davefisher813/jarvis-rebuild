@@ -70,6 +70,46 @@ describe("the three forms", () => {
     expect(alt).toHaveBeenCalled();
   });
 
+  // THE TIGHT HEADLINER (2026-08-22). Its height came from the sub sitting
+  // on a line of its own under the title; the title's own line is the part
+  // that earns its keep, because it is what stops a real task title
+  // truncating beside its verb.
+  it("headliner: the title owns its line, the sub rides beside the verb", () => {
+    render(cloneElement(
+      <NoticeCard icon={<span />} tone="cat-fg-orange" title="Check on Bridge Admin Costs" sub="Slid 4d"
+        action={{ label: "Break It Down", onClick: () => {} }} />,
+      { form: "headliner" },
+    ));
+    // The title is alone in the top band: no sub, no verb sharing its line.
+    const top = document.querySelector(".notice-hl")!;
+    expect(top.querySelector(".hl-title")!.textContent).toBe("Check on Bridge Admin Costs");
+    expect(top.querySelector(".conn-meta")).toBeNull();
+    expect(top.querySelector("button")).toBeNull();
+    // The foot carries both: sub on the left, verb on the right.
+    const foot = document.querySelector(".hl-acts")!;
+    expect(foot.querySelector(".hl-sub")!.textContent).toContain("Slid");
+    expect(foot.querySelector("button")!.textContent).toBe("Break It Down");
+  });
+
+  it("headliner: the lead wears the category tile the rows wear", () => {
+    render(cloneElement(
+      <NoticeCard icon={<span />} tone="cat-fg-orange" title="A Thing" sub="x"
+        action={{ label: "Go", onClick: () => {} }} />,
+      { form: "headliner" },
+    ));
+    // The tone is a foreground class everywhere else; the tile fills with it.
+    expect(document.querySelector(".hl-tile")!.className).toContain("cat-bg-orange");
+  });
+
+  it("[edge] a headliner with no sub still renders its verb", () => {
+    render(cloneElement(
+      <NoticeCard icon={<span />} title="No Sub Here" action={{ label: "Go", onClick: () => {} }} />,
+      { form: "headliner" },
+    ));
+    expect(document.querySelector(".hl-sub")).toBeNull();
+    expect(document.querySelector(".hl-acts button")!.textContent).toBe("Go");
+  });
+
   it("row: one line, fact plus capsule; the sub rides inline", () => {
     render(cloneElement(
       <NoticeCard icon={<span />} title="10 Moved to Today" sub="No times yet"

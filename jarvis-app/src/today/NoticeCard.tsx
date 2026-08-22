@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useSwipe } from "../shared/useSwipe";
 import { Quiet, type Heat } from "./quiet";
 
@@ -68,6 +68,35 @@ export default function NoticeCard({
   void weight; void receipt;
   const [expanded, setExpanded] = useState(false);
   const effForm = form === "row" && expanded ? "card" : form;
+
+  // A SHREDDED SUB IS WORSE THAN NO SUB (Dave 2026-08-22, measured off his
+  // screenshot). On a verb row the line is whatever the button leaves: with
+  // a 13-character verb that is 143px for fact AND sub together, so both
+  // ellipsed and "2 Blocks Slip... Behi..." told him nothing twice. The
+  // FACT is the row's reason for existing and the sub only supports it, so
+  // the sub is what yields. The law is the STREAM's, not the row's: a sub
+  // renders whole or not at all, in a row and in the headliner's foot
+  // alike. (The plain card form is exempt: there the sub owns a full line
+  // under the title and wrapping to two lines is the design.)
+  //
+  // Two ways a row runs out of line, and the sub loses both: the fact is
+  // clipped (the sub is stealing room the fact needs), or the sub itself
+  // cannot finish (a mail gist ending at "...starts Mon" is furniture
+  // pretending to be information).
+  //
+  // Measured, not predicted: a character budget would have to guess the
+  // font, and Dynamic Type moves it. The latch is one-way per mounted
+  // notice -- dropping the sub only ever gives the fact more room, so it
+  // cannot oscillate -- and producers key their notices, so new content
+  // arrives as a new instance with a fresh measurement.
+  const factRef = useRef<HTMLSpanElement>(null);
+  const subRef = useRef<HTMLSpanElement>(null);
+  const [subDropped, setSubDropped] = useState(false);
+  useLayoutEffect(() => {
+    if ((effForm !== "row" && effForm !== "headliner") || subDropped) return;
+    const over = (el: HTMLElement | null) => !!el && el.scrollWidth > el.clientWidth + 1;
+    if (over(factRef.current) || over(subRef.current)) setSubDropped(true);
+  });
   // Headliners show alt beside the primary, so the swipe carries only
   // Dismiss there; other forms keep alt on the reveal.
   const altOnReveal = effForm === "headliner" ? undefined : alt;
@@ -78,26 +107,41 @@ export default function NoticeCard({
 
   const inner =
     effForm === "headliner" ? (
+      // THE HEADLINER PAYS RENT (Dave 2026-08-22, twice in one day: "why is
+      // this rendering so large and with so much wasted space").
+      //
+      // The title still owns a full line, because that is the only thing
+      // stopping a real task title ("Check on Bridge Admin Costs") from
+      // truncating to "Check ..." beside its verb -- measured, 143px is all
+      // a row leaves for fact plus sub next to a 13-character button. What
+      // was wasted was the SUB sitting on a line of its own: it moves down
+      // to ride beside the verb, which recovers a whole line. The lead also
+      // gains the category tile, so it wears the same anatomy as the rows
+      // under it instead of being the one notice with no icon at all.
+      // 129px -> 85px, nothing truncated.
       <>
         <div className="notice-hl">
-          <div className="row-grow">
-            <div className="hl-title">{title}</div>
-            {subNode && <div className="conn-meta">{subNode}</div>}
-          </div>
+          <div className={"hl-tile " + (tone ?? "cat-fg-red").replace("cat-fg-", "cat-bg-")}>{icon}</div>
+          <div className="row-grow"><div className="hl-title">{title}</div></div>
         </div>
-        {(action || alt || onOpen) && (
+        {((subNode && !subDropped) || action || alt || onOpen) && (
           <div className="hl-acts">
-            {action && (
-              <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
-                {action.label}
-              </button>
+            {subNode && !subDropped && <span className="conn-meta hl-sub" ref={subRef}>{subNode}</span>}
+            {(action || alt || onOpen) && (
+              <span className="hl-verbs">
+                {action && (
+                  <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
+                    {action.label}
+                  </button>
+                )}
+                {alt && (
+                  <button className="pill-act" onClick={(e) => { e.stopPropagation(); alt.onClick(); }}>
+                    {alt.label}
+                  </button>
+                )}
+                {!action && onOpen && <div className="chev" />}
+              </span>
             )}
-            {alt && (
-              <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); alt.onClick(); }}>
-                {alt.label}
-              </button>
-            )}
-            {!action && onOpen && <div className="chev" />}
           </div>
         )}
         {foot}
@@ -111,8 +155,8 @@ export default function NoticeCard({
       >
         <div className={"row-glyph " + (tone ?? "cat-fg-red")}>{icon}</div>
         <div className="row-grow vrow-line">
-          <span className="conn-name vrow-fact">{title}</span>
-          {subNode && <span className="conn-meta vrow-sub">{subNode}</span>}
+          <span className="conn-name vrow-fact" ref={factRef}>{title}</span>
+          {subNode && !subDropped && <span className="conn-meta vrow-sub" ref={subRef}>{subNode}</span>}
         </div>
         {action ? (
           <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>

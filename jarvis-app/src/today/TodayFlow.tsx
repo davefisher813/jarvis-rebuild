@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions } from "../data/NotesProvider";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
 import { goalTitleOf, workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
@@ -62,7 +62,7 @@ import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCa
 import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
-import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, type DayDraft } from "../dayloop/dayLoop";
+import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, plannedTaskIds, type DayDraft } from "../dayloop/dayLoop";
 import { breakdownPrompt, parseBreakdown } from "../tasks/breakdown";
 import { madeBy } from "../shared/provenance";
 import { RowIcon, StatTiles } from "../shared/anatomy";
@@ -838,6 +838,20 @@ export default function TodayFlow({
   // has bitten three times now. The guard is eslint's rules-of-hooks, which
   // reports it as an ERROR, and the commit gate is eslint at zero errors, so
   // it cannot ship. Do not move these down to be near what uses them.
+  // THE DAY'S PLAN ALREADY ANSWERED IT (Dave 2026-08-22, from his own
+  // screenshot: "Finish Jarvis Visuals" sat in the drafted day at 12:00 PM
+  // and simultaneously headlined Heads Up as "Slid 3d · Break It Down").
+  // That is the same task twice on one screen, which the locked law "no
+  // repetition on any page" forbids, and the nag is the weaker of the two:
+  // the card above has already given the task a time. A notice about a task
+  // the plan holds is suppressed while that plan stands. A dismissed draft
+  // holds nothing, so the notices come back.
+  const planned = useMemo(() => plannedTaskIds(dayDraft), [dayDraft]);
+  const unplannedMoved = useMemo(
+    () => (sweepReceipt?.moved ?? []).filter((m) => !planned.has(m.id)),
+    [sweepReceipt, planned],
+  );
+
   const [ritual, setRitual] = useState<Ritual | null>(null);
 
   if (loading) return <SkeletonScreen />;
@@ -1092,14 +1106,17 @@ export default function TodayFlow({
         }}
       />
     ) : null,
-    sweepReceipt && !sweepReceipt.failed && sweepReceipt.moved.length > 0 ? (
+    sweepReceipt && !sweepReceipt.failed && unplannedMoved.length > 0 ? (
       <NoticeCard
         key="sweep"
         weight={NEW}
         icon={SWEEP_ICO}
         tone="cat-fg-orange"
-        title={sweepReceipt.moved.length === 1 ? "1 Moved to Today" : `${sweepReceipt.moved.length} Moved to Today`}
-        sub={sweepReceipt.moved.length > 1 ? "No times yet" : undefined}
+        // The count is of what still needs a time, not of what moved: the
+        // plan card above already holds the rest, and "5 Moved to Today"
+        // beside a card that has timed four of them is a false alarm.
+        title={unplannedMoved.length === 1 ? "1 Moved to Today" : `${unplannedMoved.length} Moved to Today`}
+        sub={unplannedMoved.length > 1 ? "No times yet" : undefined}
         action={{
           // PLAN THEM (2026-08-21). Seven untimed tasks arriving at once is
           // exactly how a day turns into the one Dave photographed. The list
@@ -1108,7 +1125,7 @@ export default function TodayFlow({
           label: "Plan Them",
           onClick: () => void openPlan("today"),
         }}
-        alt={sweepCand ? {
+        alt={sweepCand && !planned.has(sweepCand.id) ? {
           label: "Set Aside",
           onClick: () => void (async () => {
             markOffered(sweepCand.id);
@@ -1126,7 +1143,7 @@ export default function TodayFlow({
     // is not being avoided out of laziness: it is too vague or too big to
     // start, which is what Break It Down exists for (catalog O.10). Gated on
     // the AI, so the button never promises something it cannot do.
-    sweepCand && sweepCand.slips >= 3 && ai.available ? (
+    sweepCand && sweepCand.slips >= 3 && ai.available && !planned.has(sweepCand.id) ? (
       <NoticeCard
         key="slide"
         weight={FAILING}

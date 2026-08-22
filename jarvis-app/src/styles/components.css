@@ -1335,11 +1335,30 @@ button {
    carried the card's inset, and without this the big title printed at the
    card's clipped left edge (Dave's 2:31 AM screenshot, the letter F half
    gone). */
-.notice-hl { display: flex; gap: var(--s-3); align-items: flex-start;
-  padding: var(--s-4) var(--s-4) 0; }
-.hl-title { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.02em;
-  color: var(--tx-1); line-height: 1.15; }
-.hl-acts { display: flex; gap: var(--s-2); padding: var(--s-2h) var(--s-4) var(--s-4); }
+/* THE HEADLINER, TIGHTENED (2026-08-22). The title keeps its own full line
+   -- that is what stops a real task title truncating -- and the sub gives
+   up its line to ride beside the verb. The lead wears a filled category
+   tile so it matches the rows below instead of being the one notice with
+   no icon. Measured 129px -> 85px at 390px wide. */
+.notice-hl { display: flex; gap: 10px; align-items: center;
+  padding: var(--s-3) var(--s-4) 0; }
+.hl-tile { width: 28px; height: 28px; border-radius: var(--r-sm);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.hl-tile .ic { width: 17px; height: 17px; }
+.hl-title { font-size: 17px; font-weight: var(--w-semi); letter-spacing: -0.01em;
+  color: var(--tx-1); line-height: 1.25; }
+/* The foot indents past the tile so the sub hangs under the title, not
+   under the icon: 16px padding + 28px tile + 10px gap. */
+.hl-acts { display: flex; align-items: center; justify-content: space-between;
+  gap: var(--s-3); padding: 6px var(--s-4) var(--s-3) 54px; }
+/* Specificity note: `.notice-card .conn-meta` (two-line clamp, white-space
+   normal) is declared LATER in this file and matches at the same weight, so
+   an equal-specificity rule here silently loses and the sub wraps inside the
+   foot -- which is exactly what shipped to the walk. Three classes deep wins
+   regardless of order. */
+.notice-card .hl-acts .hl-sub { display: block; flex: 1 1 auto; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hl-verbs { display: flex; gap: var(--s-2); flex-shrink: 0; }
 /* Verb rows: one line, fact plus capsule. The card slims down so a stack of
    rows reads as a list, not a pile of cards. */
 .notice-card-row { padding-top: 2px; padding-bottom: 2px; }

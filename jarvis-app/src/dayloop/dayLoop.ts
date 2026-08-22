@@ -63,6 +63,21 @@ export function draftIsStale(d: DayDraft, nowMin: number): boolean {
   return d.blocks.some((b) => toM(b.start) < nowMin);
 }
 
+// THE PLAN ALREADY ANSWERED IT (Dave 2026-08-22). His screenshot had
+// "Finish Jarvis Visuals" placed at 12:00 PM by the drafted day AND
+// headlining Heads Up as "Slid 3d · Break It Down": the same task twice on
+// one screen, which the locked law "no repetition on any page" forbids. Of
+// the two the notice is the weaker, because the card above has already
+// given the task a time. Producers ask this before they nag.
+//
+// An accepted draft still holds its tasks, so the quiet lasts through the
+// day. A DISMISSED draft holds nothing -- he threw the plan away, so the
+// notices are news again. Pure, so the law is testable.
+export function plannedTaskIds(draft: DayDraft | null | undefined): Set<string> {
+  if (!draft || draft.dismissed) return new Set<string>();
+  return new Set(draft.blocks.map((b) => b.taskId));
+}
+
 export interface DraftInputs {
   date: string;
   candidates: { id: string; text: string; category: string; suggested: boolean; windowS?: number; windowE?: number }[];

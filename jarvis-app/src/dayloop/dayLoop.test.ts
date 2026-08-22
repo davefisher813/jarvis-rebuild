@@ -113,3 +113,34 @@ describe("draftIsStale (hotfix 2026-08-21)", async () => {
     expect(draftIsStale({ ...base, blocks: [] }, 14 * 60)).toBe(false);
   });
 });
+
+// NO REPETITION ON ANY PAGE (Dave 2026-08-22, from his own screenshot).
+describe("plannedTaskIds", async () => {
+  const { plannedTaskIds } = await import("./dayLoop");
+  const base = { date: "2026-08-22", anytime: [], accepted: false, eventIds: [], dismissed: false };
+  const blk = (taskId: string) => ({ taskId, text: taskId, category: "", start: "12:00", end: "12:45" });
+
+  it("a task the draft placed is claimed, so no notice may nag about it", () => {
+    const ids = plannedTaskIds({ ...base, blocks: [blk("t1"), blk("t2")] });
+    expect(ids.has("t1")).toBe(true);
+    expect(ids.has("t2")).toBe(true);
+    expect(ids.has("t3")).toBe(false);
+  });
+
+  it("an accepted plan keeps its claim: the quiet lasts all day", () => {
+    expect(plannedTaskIds({ ...base, accepted: true, blocks: [blk("t1")] }).has("t1")).toBe(true);
+  });
+
+  it("a DISMISSED draft claims nothing: he threw the plan away, so it is news again", () => {
+    expect(plannedTaskIds({ ...base, dismissed: true, blocks: [blk("t1")] }).size).toBe(0);
+  });
+
+  it("[edge] no draft at all claims nothing", () => {
+    expect(plannedTaskIds(null).size).toBe(0);
+    expect(plannedTaskIds(undefined).size).toBe(0);
+  });
+
+  it("[edge] a draft with no blocks claims nothing", () => {
+    expect(plannedTaskIds({ ...base, blocks: [] }).size).toBe(0);
+  });
+});
