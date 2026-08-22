@@ -393,11 +393,24 @@ describe("LAW: Apple HIG casing", () => {
       const rd = ratio(d, "#3A3A3C");
       if (rd < 4.5) bad.push(`${slot} (dark text): ${d} on #3A3A3C is ${rd.toFixed(2)}:1`);
       // Light: the tx variant is REQUIRED (no raw Apple light value survives
-      // #F2F2F7), judged against the page.
+      // #F2F2F7), judged against the page AND against its own kicker chip.
+      // The chip (Daylight parity pass, 2026-08-22) is an 18% wash of the
+      // ink over whatever is behind it, which is DARKER than the page, so
+      // it is the worst surface a kicker ever sits on: the first vivid ink
+      // set passed the page check while quietly reading 3.9-4.3 on-chip.
+      // The mix here mirrors components.css exactly (color-mix in srgb,
+      // currentColor 18%); change the wash there and this recomputes.
       const l = txVar("light", slot, "tx");
       if (!l) { bad.push(`${slot}: no --cat-tx-${slot} light text variant`); continue; }
       const rl = ratio(l, "#F2F2F7");
       if (rl < 4.5) bad.push(`${slot} (light text): ${l} on #F2F2F7 is ${rl.toFixed(2)}:1`);
+      const ch = (i: number) => Math.round(
+        parseInt(l.slice(1 + 2 * i, 3 + 2 * i), 16) * 0.18 +
+        parseInt("F2F2F7".slice(2 * i, 2 * i + 2), 16) * 0.82,
+      );
+      const chip = "#" + [ch(0), ch(1), ch(2)].map((v) => v.toString(16).padStart(2, "0")).join("");
+      const rc = ratio(l, chip);
+      if (rc < 4.5) bad.push(`${slot} (light text on own chip): ${l} on ${chip} is ${rc.toFixed(2)}:1`);
     }
     expect(bad).toEqual([]);
   });

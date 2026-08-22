@@ -220,39 +220,41 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cat-bg-olive { background: var(--cat-olive); color: var(--on-fill-dark); } .cat-bd-olive { border-color: var(--cat-olive); } .cat-fg-olive { color: var(--cat-olive); }
 .cat-bg-slate { background: var(--cat-slate); color: var(--on-fill-dark); } .cat-bd-slate { border-color: var(--cat-slate); } .cat-fg-slate { color: var(--cat-slate); }
 
-/* CATEGORY COLOURS DRAWN AS TEXT, IN LIGHT THEME (Daylight, 2026-08-22).
-   The 08-21 set was derived by darkening until contrast passed, and
-   contrast math kills chroma: yellow arrived as mustard, teal as swamp,
-   and Dave called the result "dull and depressing." This set is derived
-   the other way: each hue held at its most saturated and darkened ONLY to
-   the bar (>=4.6:1 on the Daylight page #F3F4F9, >=5.1:1 on a white card,
-   verified computationally, 2026-08-22). Yellow is the one hue text alone
-   cannot save; its chip (below) restores the identity its ink cannot. */
+/* CATEGORY COLOURS DRAWN AS TEXT, IN LIGHT THEME (Daylight parity pass,
+   2026-08-22, Dave: "make sure they are rendering with the same quality as
+   the dark version"). Light ink physically cannot glow the way dark's
+   luminous text does, so the CHIP carries the vibrancy and the ink carries
+   the weight: the chip background is a strong 18% wash of the slot's own
+   colour, and each ink is that hue's chroma-max value darkened until it
+   clears 4.6:1 ON ITS OWN CHIP as the chip renders over the page (the chip
+   is the worst surface a kicker ever sits on now, not the page; at the old
+   12% wash the first vivid set quietly read 3.9-4.3 on-chip). Derived and
+   verified computationally; the law below checks the same formula. */
 [data-theme="light"] {
-  --cat-tx-amber: #8A5A00;
-  --cat-tx-rust: #C43D00;
-  --cat-tx-rose: #DC0040;
-  --cat-tx-plum: #B518AC;
+  --cat-tx-amber: #805400;
+  --cat-tx-rust: #A73400;
+  --cat-tx-rose: #B20034;
+  --cat-tx-plum: #9F1597;
   --cat-tx-violet: #6C2BE0;
-  --cat-tx-cyan: #007799;
-  --cat-tx-mint: #007D56;
-  --cat-tx-olive: #5C7600;
-  --cat-tx-slate: #46709F;
-  --cat-tx-red: #DC000F;
-  --cat-tx-orange: #BA4B00;
-  --cat-tx-sky: #0072A8;
-  --cat-tx-pink: #D9003A;
-  --cat-tx-yellow: #8A5A00;
-  --cat-tx-green: #1C7E35;
-  --cat-tx-blue: #0061D6;
-  --cat-tx-teal: #00788E;
-  --cat-tx-graphite: #63636A;
-  --cat-tx-purple: #8C1FD9;
+  --cat-tx-cyan: #006481;
+  --cat-tx-mint: #006A49;
+  --cat-tx-olive: #4E6400;
+  --cat-tx-slate: #3B5F87;
+  --cat-tx-red: #B2000C;
+  --cat-tx-orange: #9C3F00;
+  --cat-tx-sky: #006290;
+  --cat-tx-pink: #B20030;
+  --cat-tx-yellow: #805400;
+  --cat-tx-green: #186B2D;
+  --cat-tx-blue: #0057C1;
+  --cat-tx-teal: #006679;
+  --cat-tx-graphite: #5D5D64;
+  --cat-tx-purple: #851DCE;
   --cat-tx-indigo: #4B49CF;
-  --cat-tx-magenta: #BC0085;
-  --cat-tx-lime: #00756B;
-  --cat-tx-sand: #7D5F3B;
-  --cat-tx-coral: #CD3000;
+  --cat-tx-magenta: #A90078;
+  --cat-tx-lime: #00685F;
+  --cat-tx-sand: #745837;
+  --cat-tx-coral: #AC2800;
 }
 /* CATEGORY COLOURS DRAWN AS TEXT, IN DARK THEME (2026-08-21). New with the
    Apple surfaces: #3A3A3C is lighter than the old #2A2A32, and nine of the
@@ -2478,7 +2480,11 @@ button {
 [data-theme="light"] .eyebrow[class*="cat-fg-"] {
   display: inline-flex; align-items: center; width: fit-content;
   padding: 2px 7px; border-radius: 6px; margin-top: 2px;
-  background: color-mix(in srgb, currentColor 12%, transparent);
+  /* 18%, not the first pass's 12% (Dave: same quality as dark). The chip
+     is where light carries the saturation dark carries in its text; the
+     ink set above is derived against exactly this wash. Change one and
+     you must re-derive the other -- the palette law computes the pair. */
+  background: color-mix(in srgb, currentColor 18%, transparent);
 }
 /* 3 · MAIL GLYPHS JOIN THE FAMILY. The purple envelope was the dark
    theme's mail tone surviving into daylight, where it clashed with
