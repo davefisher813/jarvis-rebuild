@@ -70,9 +70,12 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
             <div className="nav-title truncate">{draft.name}</div>
           </div>
           {/* Derived and conditional: this line changes what the user does
-              (check before saving), so it earns its place. */}
+              (check before saving), so the NUDGE earns its place -- but it
+              names the job, not the gesture (Dave 2026-08-22: no directions
+              in the app unless essential). Editability shows through the
+              rows themselves. */}
           <div className="pad-x"><div className="card pad">
-            <div className="conn-name">What I Read · Tap to Fix</div>
+            <div className="conn-name">What I Read · Fix Anything</div>
           </div></div>
           {draft.days.map((day, di) => (
             <div key={day.id}>

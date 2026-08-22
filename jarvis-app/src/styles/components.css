@@ -1442,7 +1442,7 @@ button {
    inset to the card's text edge (never full-bleed through a tile), numbers
    tabular wherever they stack, steppers one width. 3 cleaner visuals: stat
    numerals bigger and tabular with a hairline top light, hero daypart wash,
-   press compression on tappable rows, stronger primary glow. 4 the Apple
+   press compression on tappable rows. 4 the Apple
    Music patterns in JARVIS red: .lib-row (bare accent glyph library list)
    and .tip-banner (glyph + Title Case + gray sub + X). */
 
@@ -1479,7 +1479,6 @@ button {
 .row[role="button"]:active, .lib-row:active, .tip-banner .tip-x:active {
   background: var(--press-3); }
 .row[role="button"]:active { transform: scale(0.985); border-radius: var(--r-md); }
-[data-theme="dark"] .btn-primary { box-shadow: 0 0 16px rgba(255,31,48,0.38), 0 4px 14px rgba(255,31,48,0.22); }
 
 /* 3b · the Today workload pills (tappable, colored, rolling numbers) */
 .day-pills { display: flex; gap: var(--s-2); margin-top: var(--s-2h); flex-wrap: wrap; }

@@ -13,7 +13,7 @@ export default function VoiceBar({ onTap, onSearch, onWhatNow }: { onTap?: () =>
       <button className="voice-bar" onClick={onTap} aria-label="Quick capture">
         <div className="voice-mic"><Sparkles className="ic" /></div>
         <div className="voice-name">JARVIS</div>
-        <div className="voice-hint">Tap to capture</div>
+        <div className="voice-hint">Add anything</div>
       </button>
       {/* WHAT NOW (button round, kept after the research). This bar is the one
           piece of chrome on every tab, which is the entire reason the button

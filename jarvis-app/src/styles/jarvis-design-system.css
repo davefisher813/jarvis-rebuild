@@ -263,11 +263,11 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 
 /* BUTTONS */
 .btn { display: inline-flex; align-items: center; justify-content: center; font-family: var(--f); font-size: var(--t-h3); font-weight: var(--w-semi); height: 50px; padding: 0 var(--s-6); border-radius: var(--r-pill); border: 0; letter-spacing: var(--track-default); min-width: var(--tap-min); cursor: pointer; }
-/* Primary keeps the flat brand fill; the soft glow gives it presence on OLED
-   dark (RDB, Dave 2026-07-29: glow yes, gradient no). Dark theme only: a red
-   halo reads as a smudge on light surfaces. */
+/* Primary is the flat brand fill, full stop. The OLED glow it wore from
+   2026-07-29 to 2026-08-22 is gone (Dave: "get rid of the glow effect") --
+   on his phone it read as a smear around every primary button, and a fill
+   that needs a halo to feel primary is a fill that is not doing its job. */
 .btn-primary { background: var(--accent-fill); color: #fff; }
-[data-theme="dark"] .btn-primary { box-shadow: 0 4px 16px rgba(255,31,48,0.28); }
 .btn-secondary { background: var(--press-3); color: var(--tx-1); }
 .btn-tertiary { background: transparent; color: var(--tint); }
 .btn-danger { background: var(--sys-red); color: #fff; }

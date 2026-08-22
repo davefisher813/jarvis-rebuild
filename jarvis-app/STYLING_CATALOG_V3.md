@@ -166,7 +166,7 @@ Title Case: page titles, section heads, row names, buttons, chips, sheet titles,
 1. Depth tokens: one hairline top light and one card shadow token; cards and stat tiles use them, nothing hand-rolled.
 2. Stat tile numerals bigger, tabular, tighter letter-spacing.
 3. Hero light: daypart gradient wash on Today; day ring becomes a gradient arc with a soft glow, bursts at 100%.
-4. Touch: rows compress on press; primary buttons carry the accent glow; native haptic on completion.
+4. Touch: rows compress on press; native haptic on completion. (REVISED 2026-08-22, Dave: "get rid of the glow effect" -- primary buttons are the flat brand fill with no halo, in both themes.)
 5. Glass chrome: tab bar and large-title nav translucent with real blur, solid fallback for older devices.
 6. Motion: one spring token shared by banners, sheets, chips; lists stagger on first paint only; numbers roll on change.
 

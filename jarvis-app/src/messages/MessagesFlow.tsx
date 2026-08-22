@@ -2185,7 +2185,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="sh2"><span className="t">Waiting On</span></div>
               {allTop && (
                 <div className="pad-x conn-meta wait-why">
-                  All of these are past the point where another email helps. Swipe any of them away to stop counting.
+                  All of these are past the point where another email helps.
                 </div>
               )}
               <div><div className="list-flat">
@@ -2256,7 +2256,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <div className="row-grow">
                     <div className="conn-name">The Rest</div>
                     <div className="conn-meta msg-gist">
-                      {restOpen ? "Tap to fold away" : "Nothing waiting on you"}
+                      {"Nothing waiting on you"}
                     </div>
                   </div>
                   {/* V2 anatomy: the count is a pill, never buried in the line. */}
