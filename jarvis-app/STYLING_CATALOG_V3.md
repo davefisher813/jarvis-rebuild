@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.13 (2026-08-22)
+# JARVIS Styling Catalog V4.14 (2026-08-22)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -369,6 +369,16 @@ The Second Sun's architecture stands (paper ground, borderless white cards, two-
 - Card and float shadows deepen one notch (ambient 0.09 / 0.13, float spread 16/36) so white lifts off the brighter ground.
 - Hero washes strengthen (0.14 lead) so the daypart weather survives the brighter page.
 - MAIL NOTICES ARE ALWAYS THE STACKED CARD FORM, never the one-line verb row: a sender is any length the world chooses; the vrow's one-line contract is for short fused data subs only (laws.test.ts pins it).
+
+## L4. Light red, and glyphs are not text (V4.14, Dave 2026-08-22: "the yellow in some spots it's terrible and the red still isn't Jarvis red")
+
+**GLYPHS ARE CHROME, NOT TEXT** (the 08-21 law, now enforced in light too). An icon carries no words, so it is held to the **3:1 non-text bar**, never 4.5:1. Icons were inheriting `--cat-tx-*`, the contrast-darkened TEXT ink, and arriving as mud: the Today chevrons and the Checklist document icon photographed as olive. Glyphs now take their own `--cat-ic-*` set, applied to `.row-glyph` and `.lib-ico` in light. **Fifteen of the twenty-four keep Apple's light fill EXACTLY**; only the nine that miss 3:1 on the page are darkened, and only to the bar. Yellow: `#805400` (text ink) -> `#A78600` (glyph ink).
+
+**KICKER CHIPS MIX THE FILL, NOT THE INK.** `color-mix(... currentColor 18% ...)` washed the already-darkened ink, so a MONEY chip was olive text on an olive wash. Each chip is now `color-mix(in srgb, var(--cat-{slot}) 18%, transparent)` -- the vivid Apple fill -- which also makes the chip LIGHTER, leaving the ink room to stay saturated. The palette law computes the pair from the fill.
+
+**ONE LIGHT RED.** Light was carrying three unrelated reds (`#E2051E` fills, `#CC051B` tint, `#B80417` capsule labels), two of them Music-hue rather than brand-hue: exactly the muddying the one-red law exists to stop. Now one: **`#DA0012`**, the brand hue taken down only as far as the worst surface red text actually meets (the tinted capsule, 4.52:1), leaving 4.79:1 on the page, 5.26:1 on a white card, and 5.26:1 carrying white where it is a fill.
+
+**RED IS ROUTED BY JOB, NOT FLATTENED.** Red text cannot be brighter than `#DA0012` on a light ground -- the red channel alone puts `#FF2B3C` at 3.38:1 on the page -- but that is a limit on LETTERING, not on the brand. Anything with no words in or on it takes the real `#FF2B3C` under the 3:1 bar: mail glyphs, and the wordmark J (a logotype, which WCAG exempts from the text bar outright, and the most identity-carrying red on the screen). The purple slot drawn as a GLYPH means "JARVIS's own, not a user category" (mail notices, free-standing goals) and wears the brand red in light; purple as a category kicker stays purple.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
