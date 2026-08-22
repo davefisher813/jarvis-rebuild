@@ -197,3 +197,59 @@ describe("the AI refine runs in the background", () => {
     expect(screen.queryByText(/Couldn/)).not.toBeInTheDocument();
   });
 });
+
+// ONE PROPOSED DAY (planning merge, phase 1, 2026-08-22). The sheet used to
+// run its own autoSelect on mount, which meant Edit on the drafted card
+// opened a SECOND planner and silently discarded the card's plan.
+describe("seeded from the standing draft", () => {
+  it("opens on the draft's picks, in the draft's order, not its own", () => {
+    render(sheet({ seed: { ids: ["t5", "t3"], minutes: { t5: 60, t3: 30 } } }));
+    // autoSelect would have led with the suggested t1/t2; the draft wins.
+    expect(screen.getByText("File taxes")).toBeInTheDocument();
+    expect(screen.getByText("Return package")).toBeInTheDocument();
+    const picked = [...document.querySelectorAll(".plan-strip-row, .p3-row.on")].length;
+    expect(picked).toBeGreaterThan(0);
+  });
+
+  // TIME-DEPENDENT BY NATURE: commit re-places from NOW (the 2026-08-21
+  // commit-time floor), so a sandbox clock past 5 PM commits nothing at all
+  // and the assertion would fail for a reason that has nothing to do with
+  // seeding. The clock is pinned inside the day's own window.
+  it("uses the draft's lengths, so what commits matches the card behind it", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-20T06:00:00"));
+    const onCommit = vi.fn();
+    try {
+      render(sheet({ seed: { ids: ["t5"], minutes: { t5: 120 } }, onCommit }));
+      fireEvent.click(screen.getByText("Add This One"));
+    // 120 minutes from 9:00 ends at 11:00. A re-derived estimate (45m by
+    // default) would commit 09:45, so this is the draft's own length.
+      expect(onCommit).toHaveBeenCalled();
+      const blocks = onCommit.mock.calls[0]![0] as { taskId: string; start: string; end: string }[];
+      // 120 minutes from 9:00 ends at 11:00. A re-derived estimate (45m by
+      // default) would commit 09:45, so this is the draft's own length.
+      expect(blocks.find((b) => b.taskId === "t5")).toMatchObject({ start: "09:00", end: "11:00" });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the AI refine stands down on a seeded sheet: the plan was already made", async () => {
+    const onAIPlan = vi.fn().mockResolvedValue({ items: [], leanedOn: [] });
+    render(sheet({ seed: { ids: ["t1"], minutes: { t1: 45 } }, onAIPlan }));
+    await act(async () => { await Promise.resolve(); });
+    expect(onAIPlan).not.toHaveBeenCalled();
+  });
+
+  it("[edge] no seed: the sheet still plans for itself", async () => {
+    const onAIPlan = vi.fn().mockResolvedValue({ items: [], leanedOn: [] });
+    render(sheet({ seed: null, onAIPlan }));
+    await act(async () => { await Promise.resolve(); });
+    expect(onAIPlan).toHaveBeenCalled();
+  });
+
+  it("[edge] an empty seed falls back to planning for itself", () => {
+    render(sheet({ seed: { ids: [], minutes: {} } }));
+    expect(screen.getByText("Email vendor")).toBeInTheDocument();
+  });
+});

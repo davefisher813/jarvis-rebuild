@@ -21,6 +21,7 @@ import { showToast } from "../shared/toast";
 import { catColor } from "../shared/categories";
 import { attemptWrite } from "../shared/guard";
 import PlanDaySheet from "./screens/PlanDaySheet";
+import { readDraft, writeDraft, acceptInto, seedFrom } from "../dayloop/dayLoop";
 import { aiPlanDay } from "./planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, splitProtectedRanges, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "./energy";
@@ -206,6 +207,13 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     const ok = await attemptWrite(async () => {
       ids = (await svc.commitPlan(selected, blocks)).created;
     });
+    // ONE PROPOSED DAY (merge phase 1). Schedule commits through the same
+    // door, so it resolves the same standing draft; otherwise Today would
+    // still be showing a card for a day this tab has already written.
+    if (ok) {
+      const resolved = acceptInto(readDraft(selected), selected, blocks, ids);
+      if (resolved) writeDraft(resolved);
+    }
     setPlanOpen(false);
     await reload();
     if (!ok) return;
@@ -840,6 +848,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           date={selected}
           dayLabel={selected === todayISO() ? "Today" : new Date(selected + "T12:00:00").toLocaleDateString([], { weekday: "long" })}
           alreadyPlanned={dayEvents.filter((e) => !!e.data.sourceTaskId).map((e) => e.data.title)}
+          // Plan My Day opens the standing draft for this date, not a
+          // competing pick (merge phase 1).
+          seed={seedFrom(readDraft(selected), planCandidates.map((c) => c.id))}
           routineConfigured={routineSet}
           blocked={blocked}
           onEditRoutine={onEditRoutine ? () => { setPlanOpen(false); onEditRoutine(); } : undefined}

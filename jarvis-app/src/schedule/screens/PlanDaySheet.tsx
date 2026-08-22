@@ -77,6 +77,7 @@ export default function PlanDaySheet({
   target = "today",
   onTarget,
   alreadyPlanned = [],
+  seed = null,
   routineConfigured = true,
   blocked = [],
   sizing = FULL_DAY,
@@ -98,6 +99,9 @@ export default function PlanDaySheet({
   // What is ALREADY on this day from a previous plan. The list drops these
   // (correctly, they are placed) and the fit line says so.
   alreadyPlanned?: string[];
+  // The standing draft's picks and lengths (merge phase 1). When present the
+  // sheet EDITS that proposal instead of making a competing one.
+  seed?: { ids: string[]; minutes: Record<string, number> } | null;
   routineConfigured?: boolean;
   blocked?: PlanBlocked[];
   sizing?: DaySizing;
@@ -148,13 +152,28 @@ export default function PlanDaySheet({
   const seededRef = useRef(false);
   const [picks, setPicks] = useState<string[]>([]);
   const [usedUsual, setUsedUsual] = useState(false);
+  // Seeded from a standing draft rather than from autoSelect: the AI refine
+  // stands down in that case (below), so the sheet cannot renumber a plan
+  // the card already showed him.
+  const fromDraft = useRef(false);
   if (!seededRef.current) {
     seededRef.current = true;
-    const seedCap = cap?.n ?? sizing.maxBlocks ?? 3;
-    const chosen = autoSelect(allTasks, open, durFor, seedCap);
-    if (chosen.length > 0) {
-      setPicks(chosen);
-      if (cap?.n != null && chosen.length === cap.n) setUsedUsual(true);
+    // ONE PROPOSED DAY (merge phase 1). If a draft is standing for this day,
+    // THAT is the proposal and the sheet opens editing it. Running
+    // autoSelect here as well was the second auto-planner: it re-picked from
+    // scratch, so "Edit" silently discarded the card's plan.
+    if (seed && seed.ids.length > 0) {
+      fromDraft.current = true;
+      setPicks(seed.ids);
+      // The card showed these lengths. The sheet opens agreeing with it.
+      setDurations(seed.minutes);
+    } else {
+      const seedCap = cap?.n ?? sizing.maxBlocks ?? 3;
+      const chosen = autoSelect(allTasks, open, durFor, seedCap);
+      if (chosen.length > 0) {
+        setPicks(chosen);
+        if (cap?.n != null && chosen.length === cap.n) setUsedUsual(true);
+      }
     }
   }
 
@@ -201,6 +220,11 @@ export default function PlanDaySheet({
   };
   const aiLaunched = useRef(false);
   useEffect(() => {
+    // A draft-seeded sheet is already a plan he has been shown, with times
+    // on the card behind it. Refining it would move those lengths and the
+    // two surfaces would disagree again -- and it would spend a call to
+    // re-answer a question the deterministic engine already answered.
+    if (fromDraft.current) return;
     if (aiLaunched.current || picks.length === 0) return;
     aiLaunched.current = true;
     void runAI(picks);

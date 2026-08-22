@@ -144,3 +144,78 @@ describe("plannedTaskIds", async () => {
     expect(plannedTaskIds({ ...base, blocks: [] }).size).toBe(0);
   });
 });
+
+// ONE PROPOSED DAY (planning merge, phase 1, 2026-08-22).
+describe("acceptInto", async () => {
+  const { acceptInto } = await import("./dayLoop");
+  const blk = (taskId: string, start = "12:00", end = "12:45") => ({ taskId, text: taskId, category: "", start, end });
+  const base = {
+    date: "2026-08-22",
+    blocks: [blk("t1"), blk("t2")],
+    anytime: [{ id: "t3", text: "Left over" }, { id: "t4", text: "Also left" }],
+    accepted: false, eventIds: [], dismissed: false,
+  };
+
+  it("a commit resolves the standing draft: accepted, holding what was written", () => {
+    const out = acceptInto(base, "2026-08-22", [blk("t1", "09:00", "10:00")], ["e1"]);
+    expect(out!.accepted).toBe(true);
+    expect(out!.eventIds).toEqual(["e1"]);
+    expect(out!.blocks.map((b) => b.start)).toEqual(["09:00"]);
+  });
+
+  it("what just got a time leaves the Anytime pool", () => {
+    const out = acceptInto(base, "2026-08-22", [blk("t3")], ["e1"]);
+    expect(out!.anytime.map((a) => a.id)).toEqual(["t4"]);
+  });
+
+  // The overwrite this exists to stop: without it the card stayed up after a
+  // sheet commit, and Accept swept the new blocks and wrote the old ones back.
+  it("[edge] a commit for another date leaves the draft alone", () => {
+    expect(acceptInto(base, "2026-08-23", [blk("t1")], ["e1"])).toBeNull();
+  });
+
+  it("[edge] a dismissed draft is not resurrected by a commit", () => {
+    expect(acceptInto({ ...base, dismissed: true }, "2026-08-22", [blk("t1")], ["e1"])).toBeNull();
+  });
+
+  it("[edge] no standing draft: the commit is its own thing", () => {
+    expect(acceptInto(null, "2026-08-22", [blk("t1")], ["e1"])).toBeNull();
+  });
+});
+
+describe("seedFrom", async () => {
+  const { seedFrom } = await import("./dayLoop");
+  const blk = (taskId: string, start: string, end: string) => ({ taskId, text: taskId, category: "", start, end });
+  const base = {
+    date: "2026-08-22",
+    blocks: [blk("t1", "09:00", "10:00"), blk("t2", "10:30", "11:15")],
+    anytime: [], accepted: false, eventIds: [], dismissed: false,
+  };
+
+  it("the sheet opens on the draft's own picks, in the draft's order", () => {
+    expect(seedFrom(base, ["t2", "t1"])!.ids).toEqual(["t1", "t2"]);
+  });
+
+  it("lengths come from the draft, so the sheet agrees with the card", () => {
+    expect(seedFrom(base, ["t1", "t2"])!.minutes).toEqual({ t1: 60, t2: 45 });
+  });
+
+  it("a task the list no longer offers is dropped, never seeded as a phantom", () => {
+    const out = seedFrom(base, ["t1"]);
+    expect(out!.ids).toEqual(["t1"]);
+    expect(out!.minutes.t2).toBeUndefined();
+  });
+
+  it("[edge] every pick gone means no seed, so the sheet plans fresh", () => {
+    expect(seedFrom(base, [])).toBeNull();
+  });
+
+  it("[edge] a dismissed or empty draft seeds nothing", () => {
+    expect(seedFrom({ ...base, dismissed: true }, ["t1"])).toBeNull();
+    expect(seedFrom({ ...base, blocks: [] }, ["t1"])).toBeNull();
+  });
+
+  it("[edge] an accepted draft still seeds: re-opening the plan shows the plan", () => {
+    expect(seedFrom({ ...base, accepted: true }, ["t1", "t2"])!.ids).toEqual(["t1", "t2"]);
+  });
+});

@@ -78,6 +78,66 @@ export function plannedTaskIds(draft: DayDraft | null | undefined): Set<string> 
   return new Set(draft.blocks.map((b) => b.taskId));
 }
 
+// ONE PROPOSED DAY (planning merge, phase 1, 2026-08-22).
+//
+// There were two auto-planners. The Day Loop drafted the day and cached it;
+// the plan sheet ran its own autoSelect the moment it mounted and held the
+// result in component state. Tapping Edit on the drafted card therefore did
+// not open that draft -- it opened a second planner that re-picked from
+// scratch, and committing there left the first proposal standing. The card
+// then still offered "Accept the Day" for a plan that was already committed,
+// and accepting it swept the blocks he had just made and wrote the OLD ones
+// back. Same failure family as the duplicate machine of 2026-08-21: more
+// than one thing believed it owned the day.
+//
+// The draft is the one proposal now. The sheet seeds from it, and a commit
+// through any surface RESOLVES it: same object, marked accepted, holding
+// what actually got written. Pure, so the law is testable.
+export function acceptInto(
+  standing: DayDraft | null,
+  date: string,
+  blocks: PlanBlock[],
+  eventIds: string[],
+): DayDraft | null {
+  // Nothing standing for this date, or he threw it away: the commit is its
+  // own thing and there is no card to reconcile.
+  if (!standing || standing.date !== date || standing.dismissed) return null;
+  const placed = new Set(blocks.map((b) => b.taskId));
+  return {
+    ...standing,
+    blocks,
+    // What just got a time leaves the honest leftovers pool.
+    anytime: standing.anytime.filter((a) => !placed.has(a.id)),
+    accepted: true,
+    eventIds,
+  };
+}
+
+// The picks and lengths a sheet should open with, taken from the standing
+// draft rather than re-derived. Ids the task list no longer offers (finished
+// or deleted since the draft was cut) are dropped: seeding a pick for a task
+// that is not in the list would show a phantom row.
+export function seedFrom(
+  standing: DayDraft | null,
+  known: Iterable<string>,
+): { ids: string[]; minutes: Record<string, number> } | null {
+  if (!standing || standing.dismissed || standing.blocks.length === 0) return null;
+  const have = new Set(known);
+  const toMin = (hhmm: string) => {
+    const p = hhmm.split(":");
+    return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0);
+  };
+  const ids: string[] = [];
+  const minutes: Record<string, number> = {};
+  for (const b of standing.blocks) {
+    if (!have.has(b.taskId)) continue;
+    ids.push(b.taskId);
+    const len = toMin(b.end) - toMin(b.start);
+    if (len > 0) minutes[b.taskId] = len;
+  }
+  return ids.length > 0 ? { ids, minutes } : null;
+}
+
 export interface DraftInputs {
   date: string;
   candidates: { id: string; text: string; category: string; suggested: boolean; windowS?: number; windowE?: number }[];

@@ -62,7 +62,7 @@ import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCa
 import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
-import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, plannedTaskIds, type DayDraft } from "../dayloop/dayLoop";
+import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, plannedTaskIds, acceptInto, seedFrom, type DayDraft } from "../dayloop/dayLoop";
 import { breakdownPrompt, parseBreakdown } from "../tasks/breakdown";
 import { madeBy } from "../shared/provenance";
 import { RowIcon, StatTiles } from "../shared/anatomy";
@@ -550,6 +550,19 @@ export default function TodayFlow({
         }
       }
     });
+    // ONE PROPOSED DAY (merge phase 1). The commit RESOLVES the standing
+    // draft instead of leaving it up beside the plan it just replaced.
+    // Before this, editing the drafted day and committing left the card
+    // offering "Accept the Day" for the superseded proposal, and accepting
+    // it swept the blocks he had just written and put the old ones back.
+    // Read fresh: another surface may have moved it while the sheet was open.
+    if (ok) {
+      const resolved = acceptInto(readDraft(planDate), planDate, blocks, ids);
+      if (resolved) {
+        writeDraft(resolved);
+        if (planDate === today) setDayDraft(resolved);
+      }
+    }
     setPlanOpen(false);
     setPlanTarget("today");
     await reload();
@@ -714,6 +727,18 @@ export default function TodayFlow({
 
   const acceptDraft = async () => {
     if (!dayDraft) return;
+    // SOMEONE ELSE MAY HAVE ANSWERED IT (merge phase 1). Schedule commits
+    // through the same door and resolves the same draft, but this tab's copy
+    // in state does not hear about it. Accepting a copy that the store has
+    // already marked accepted would sweep the blocks that commit wrote and
+    // put this stale proposal back -- the same overwrite the sheet path had.
+    // Adopt the store's answer and stop; nothing to commit.
+    const stored = readDraft(today);
+    if (stored?.accepted) {
+      setDayDraft(stored);
+      await reload();
+      return;
+    }
     // The card sat on screen past its own times: writing it would put blocks
     // in the past. Redraft from now, show the honest version, ask again.
     const nowM = (() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); })();
@@ -1442,6 +1467,8 @@ export default function TodayFlow({
         target={planTarget}
         onTarget={(t) => void openPlan(t)}
         alreadyPlanned={planEvents.filter((e) => !!e.data.sourceTaskId).map((e) => e.data.title)}
+        // Edit opens THE draft, not a second planner (merge phase 1).
+        seed={seedFrom(readDraft(planDate), candidatesFor(planDate, planEvents).map((c) => c.id))}
         routineConfigured={routineSet}
         blocked={blocked}
         sizing={sizing}
