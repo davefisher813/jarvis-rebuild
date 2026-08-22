@@ -770,6 +770,22 @@ describe("LAW: stored shapes are versioned", () => {
     expect(bad).toEqual([]);
   });
 
+  // THE HAND-DRAWN RATCHET (Dave 2026-08-22, sending examples of icons that
+  // were still outline in light: the Today double-chevron, the Checklist
+  // document, the note files). Not every icon came from a library -- 43
+  // shapes were drawn inline as raw SVG, invisible to the icon pairing, and
+  // they would have stayed outline in light while everything around them
+  // filled. The 24 that NAME a thing were paired in shared/glyphs.tsx. What
+  // is left is controls, which are supposed to stay outline. This number may
+  // fall, never rise: a new hand-drawn glyph is a new icon with no filled
+  // twin, and the mixed state comes straight back.
+  it("hand-drawn icon SVGs do not multiply", () => {
+    const n = SOURCES
+      .filter((f) => rel(f) !== "shared/glyphs.tsx")
+      .reduce((acc, f) => acc + [...read(f).matchAll(/<svg className="ic/g)].length, 0);
+    expect(n).toBeLessThanOrEqual(43);
+  });
+
   // Fill is for glyphs that NAME a thing. A control is operated WITH, and
   // Phosphor's fill weight turns those into blobs: a filled magnifier is a
   // disc, a filled "..." is a badge. Those stay outline in both themes.

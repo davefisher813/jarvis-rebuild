@@ -7,6 +7,7 @@ import { savingsLine, savingsPct, savedNewestFirst, savedTotal } from "./savings
 import { formatMoney } from "../money/types";
 import { monthDay } from "../money/bills";
 import { capAfterNumber } from "../shared/casing";
+import { TargetGlyph } from "../shared/glyphs";
 
 // Session 6.6: a goal is a PLACE, not an edit form. One glance answers "is
 // this moving, and what happens next": an aggregate progress line in the hero
@@ -21,7 +22,7 @@ const PLUS = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
 );
 const TARGET = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></svg>
+  <TargetGlyph />
 );
 
 export default function GoalDetailPage({

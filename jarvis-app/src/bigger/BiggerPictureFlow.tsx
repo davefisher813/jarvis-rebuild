@@ -23,6 +23,7 @@ import { identityToText } from "../ai/context";
 import { firstStepPrompt, parseFirstStep } from "../tasks/firstStep";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
+import { TargetGlyph } from "../shared/glyphs";
 
 type Sheet =
   | { kind: "closed" }
@@ -150,7 +151,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       <div className="promo-card">
         <div className="promo-head">
           <div className="promo-badge b-amber">
-            <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></svg>
+            <TargetGlyph />
           </div>
           <div className="promo-body">
             <div className="promo-title">{stalled.data.title}</div>

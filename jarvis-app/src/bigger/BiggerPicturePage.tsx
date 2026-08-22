@@ -6,6 +6,7 @@ import { progressLabel } from "./progress";
 import { catColor } from "../shared/categories";
 import SkeletonRows from "../shared/SkeletonRows";
 import { capAfterNumber } from "../shared/casing";
+import { FolderOpenGlyph, TargetGlyph } from "../shared/glyphs";
 
 // Bigger Picture (roadmap v2, Session 6): Goals and Projects on one surface,
 // replacing the separate Life Map and Projects pages. Every number shown is
@@ -13,8 +14,8 @@ import { capAfterNumber } from "../shared/casing";
 // Leads with what is moving, because that is the useful half.
 
 const CHEV = <div className="chev" />;
-const TARGET = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></svg>;
-const FOLDER = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></svg>;
+const TARGET = <TargetGlyph />;
+const FOLDER = <FolderOpenGlyph />;
 
 function Bar({ p }: { p: Progress }) {
   return <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, p.pct) + "%" }} /></div>;

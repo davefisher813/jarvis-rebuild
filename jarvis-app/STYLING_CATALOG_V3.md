@@ -388,6 +388,8 @@ The Second Sun's architecture stands (paper ground, borderless white cards, two-
 
 **ONE ICON DOOR.** No file imports `lucide-react` except `shared/icons.tsx` (law-tested). An icon imported directly would have no filled twin and would simply vanish in light, since the stylesheet hides `.ic-out` there.
 
+**HAND-DRAWN GLYPHS ARE PAIRED TOO.** Not every icon came from a library: 43 shapes were drawn inline as raw SVG and were invisible to the icon pairing, so they would have stayed outline in light while everything around them filled. The 24 that NAME a thing now live in `shared/glyphs.tsx`, where the OUTLINE half is the exact markup that was already in the file, character for character, so dark cannot move. A ratchet law pins the remaining inline count: it may fall, never rise.
+
 **FILL IS FOR NOUNS; CONTROLS STAY OUTLINE IN BOTH THEMES.** A glyph that NAMES a thing fills (house, envelope, wallet, calendar, brain). A control is operated WITH, and the fill weight turns those into blobs: a filled magnifier is a disc, a filled "..." is a badge, a filled chevron is a triangle. Apple never fills them either. The outline-always set is the navigation and manipulation controls (search, ellipsis, chevrons, plus, X, check, arrows, send, paperclip, trash, drag handle) plus the note editor's formatting marks (bold, italic, heading, lists, table, link), and it is law-tested on the six most visible.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
