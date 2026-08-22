@@ -1,6 +1,6 @@
 import type { Person } from "../types";
 import { personInitials, avatarClass } from "../types";
-import { FileText } from "lucide-react";
+import { FileText } from "../../shared/icons";
 import { catColor } from "../../shared/categories";
 import { RowGlyph } from "../../shared/anatomy";
 

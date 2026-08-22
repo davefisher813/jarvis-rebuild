@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Brain, Mail } from "lucide-react";
+import { Brain, Mail } from "../shared/icons";
 import { useAuth } from "../auth/AuthProvider";
 import { dismissSplash } from "../shared/splash";
 

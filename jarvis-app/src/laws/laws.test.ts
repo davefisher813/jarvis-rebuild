@@ -757,6 +757,29 @@ describe("LAW: stored shapes are versioned", () => {
     expect(bad).toEqual([]);
   });
 
+  // ONE ICON DOOR (Dave 2026-08-22: "on the light version filled in icons
+  // look MUCH better"). Light wears Phosphor's FILL weight, dark keeps the
+  // lucide outline, and the pairing lives in shared/icons.tsx. A file that
+  // imports lucide-react directly gets an icon with no filled twin, which
+  // vanishes in light (the stylesheet hides .ic-out there) or, worse, stays
+  // outline while everything around it fills. So there is exactly one door.
+  it("nothing imports lucide-react except the icon module", () => {
+    const bad = SOURCES
+      .filter((f) => rel(f) !== "shared/icons.tsx" && /from "lucide-react"/.test(read(f)))
+      .map(rel);
+    expect(bad).toEqual([]);
+  });
+
+  // Fill is for glyphs that NAME a thing. A control is operated WITH, and
+  // Phosphor's fill weight turns those into blobs: a filled magnifier is a
+  // disc, a filled "..." is a badge. Those stay outline in both themes.
+  it("controls are never given a filled twin", () => {
+    const src = read(SRC + "/shared/icons.tsx");
+    for (const c of ["Search", "Ellipsis", "MoreHorizontal", "ChevronRight", "Plus", "X"]) {
+      expect(src, `${c} must stay outline`).toMatch(new RegExp(`export const ${c} = [^;]*outline\\(`));
+    }
+  });
+
   // A SENDER OWNS ITS LINE (Dave's 10:30 screenshot, 2026-08-22). Mail
   // notices once took the one-line verb row, where the sender and the
   // subject split ~180px with the capsule and his phone rendered

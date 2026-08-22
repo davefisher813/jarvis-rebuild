@@ -2790,6 +2790,17 @@ button {
   /* The wash itself is per-slot (it mixes the FILL, not the ink) and lives
      with the palette above. Geometry only here. */
 }
+/* 4 · LIGHT WEARS THE FILLED GLYPH (Dave 2026-08-22: "on the light version
+   filled in icons look MUCH better. Can we fill those in exclusively on the
+   light version?"). Every icon ships as a PAIR from shared/icons.tsx -- the
+   lucide outline and Phosphor's fill-weight twin -- because a stroke icon
+   cannot be filled by CSS without becoming the compass blob the 08-18 law
+   banned. The stylesheet picks one. Dark keeps its lucide drawings exactly,
+   so this is light-only by construction, not by discipline. */
+.ic-fill { display: none; }
+[data-theme="light"] .ic-out { display: none; }
+[data-theme="light"] .ic-fill { display: inline-block; }
+
 /* 3 · MAIL GLYPHS JOIN THE FAMILY. The purple envelope was the dark
    theme's mail tone surviving into daylight, where it clashed with
    everything red on the page. In light the glyph wears the brand -- and

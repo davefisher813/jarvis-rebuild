@@ -1,4 +1,4 @@
-import { Archive, Trash2 } from "lucide-react";
+import { Archive, Trash2 } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
 
 // Swipe a mail row: Archive, or Delete.

@@ -15,7 +15,7 @@ import { routineBlockCandidate } from "./routinePatterns";
 import type { ProtectedBlock } from "../routine/types";
 import { emit } from "../events";
 import { rankOpen } from "../upnext/upnext";
-import { Lightbulb } from "lucide-react";
+import { Lightbulb } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
 
 // Proactive nudges on Today, made actionable and polite:

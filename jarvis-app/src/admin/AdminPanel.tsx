@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert } from "../shared/icons";
 import type { AdminService, AdminUser, AdminUsage, AdminBilling } from "./AdminService";
 
 // The master-account panel. Gated by isAdmin for UX; the real boundary is the

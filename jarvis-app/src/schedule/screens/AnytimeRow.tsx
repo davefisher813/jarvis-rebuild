@@ -1,5 +1,5 @@
 import { useState, type PointerEvent as RPointerEvent } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp } from "../../shared/icons";
 import type { TaskItem } from "../../tasks/TasksService";
 import { catColor } from "../../shared/categories";
 

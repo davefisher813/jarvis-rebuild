@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.14 (2026-08-22)
+# JARVIS Styling Catalog V4.15 (2026-08-22)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -379,6 +379,16 @@ The Second Sun's architecture stands (paper ground, borderless white cards, two-
 **ONE LIGHT RED.** Light was carrying three unrelated reds (`#E2051E` fills, `#CC051B` tint, `#B80417` capsule labels), two of them Music-hue rather than brand-hue: exactly the muddying the one-red law exists to stop. Now one: **`#DA0012`**, the brand hue taken down only as far as the worst surface red text actually meets (the tinted capsule, 4.52:1), leaving 4.79:1 on the page, 5.26:1 on a white card, and 5.26:1 carrying white where it is a fill.
 
 **RED IS ROUTED BY JOB, NOT FLATTENED.** Red text cannot be brighter than `#DA0012` on a light ground -- the red channel alone puts `#FF2B3C` at 3.38:1 on the page -- but that is a limit on LETTERING, not on the brand. Anything with no words in or on it takes the real `#FF2B3C` under the 3:1 bar: mail glyphs, and the wordmark J (a logotype, which WCAG exempts from the text bar outright, and the most identity-carrying red on the screen). The purple slot drawn as a GLYPH means "JARVIS's own, not a user category" (mail notices, free-standing goals) and wears the brand red in light; purple as a category kicker stays purple.
+
+## L5. Light wears the filled glyph (V4.15, Dave 2026-08-22: "on the light version filled in icons look MUCH better. Can we fill those in exclusively on the light version?")
+
+**EVERY ICON SHIPS AS A PAIR.** `shared/icons.tsx` exports each icon as the lucide OUTLINE the app already used plus Phosphor's FILL-weight twin, and the stylesheet shows exactly one: `.ic-fill` is hidden by default, and `[data-theme="light"]` hides `.ic-out` instead. A stroke icon still may never be filled by CSS (the compass-blob ban of 2026-08-18 stands) -- a filled glyph is a different, professionally drawn shape, which is why the twin exists.
+
+**DARK IS UNCHANGED BY CONSTRUCTION, NOT BY DISCIPLINE.** Because the outline rendered in dark is still the same lucide drawing, dark cannot drift when light changes. Verified by pixel-diffing the dark Tasks screen before and after: zero changed pixels.
+
+**ONE ICON DOOR.** No file imports `lucide-react` except `shared/icons.tsx` (law-tested). An icon imported directly would have no filled twin and would simply vanish in light, since the stylesheet hides `.ic-out` there.
+
+**FILL IS FOR NOUNS; CONTROLS STAY OUTLINE IN BOTH THEMES.** A glyph that NAMES a thing fills (house, envelope, wallet, calendar, brain). A control is operated WITH, and the fill weight turns those into blobs: a filled magnifier is a disc, a filled "..." is a badge, a filled chevron is a triangle. Apple never fills them either. The outline-always set is the navigation and manipulation controls (search, ellipsis, chevrons, plus, X, check, arrows, send, paperclip, trash, drag handle) plus the note editor's formatting marks (bold, italic, heading, lists, table, link), and it is law-tested on the six most visible.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 

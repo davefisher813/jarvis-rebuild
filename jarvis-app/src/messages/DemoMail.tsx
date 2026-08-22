@@ -7,7 +7,7 @@
 import { useEffect, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { showToast } from "../shared/toast";
-import { Plus } from "lucide-react";
+import { Plus } from "../shared/icons";
 import { saveMailSnapshot } from "./home";
 import { decide } from "./mailAction";
 import { nameFor } from "./names";

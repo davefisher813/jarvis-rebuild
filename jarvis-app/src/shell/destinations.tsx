@@ -1,4 +1,4 @@
-import { Home, ListChecks, Calendar, Brain, FileText, Target, MessageSquare, Bell, Wallet, Sparkles, type LucideIcon } from "lucide-react";
+import { Home, ListChecks, Calendar, Brain, FileText, Target, MessageSquare, Bell, Wallet, Sparkles, type LucideIcon } from "../shared/icons";
 
 // Every page that can live in the bottom tab bar. Whatever the user does not put
 // in the bar falls into More. "More" itself is always the fixed last tab and is

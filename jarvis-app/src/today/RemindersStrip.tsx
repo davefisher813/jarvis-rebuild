@@ -1,4 +1,4 @@
-import { Check, Plus, CalendarPlus } from "lucide-react";
+import { Check, Plus, CalendarPlus } from "../shared/icons";
 import { Burst } from "../shared/Burst";
 import { useRef, useState } from "react";
 import type { ReminderView } from "../tasks/reminders";

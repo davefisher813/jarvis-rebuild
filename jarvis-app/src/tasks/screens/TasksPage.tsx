@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
-import { Plus, Trash2, Clock, ListChecks } from "lucide-react";
+import { Plus, Trash2, Clock, ListChecks } from "../../shared/icons";
 import SkeletonRows from "../../shared/SkeletonRows";
 import { Burst } from "../../shared/Burst";
 import type { TaskItem } from "../TasksService";

@@ -1,4 +1,4 @@
-import { CircleSlash, Ellipsis } from "lucide-react";
+import { CircleSlash, Ellipsis } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
 
 // Swipe a Waiting On row: More Moves, or Let It Go.

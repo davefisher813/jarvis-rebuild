@@ -3,7 +3,7 @@ import { useSchedule, useProfile } from "../data/NotesProvider";
 import { useGoogle } from "./google/GoogleSession";
 import { googleConfigured } from "./google/config";
 import { importCalendar } from "./google/sync";
-import { Mail, CalendarDays, Link2, Plus } from "lucide-react";
+import { Mail, CalendarDays, Link2, Plus } from "../shared/icons";
 
 // Settings -> Connections (multi-account, 2026-08-04). Each Google account is
 // its own row with its own feature toggles and its own disconnect. Adding an

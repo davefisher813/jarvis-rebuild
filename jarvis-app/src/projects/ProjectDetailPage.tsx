@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { PROJECT_META, type Project, type ProjectData } from "./types";
 import { catColor, catName } from "../shared/categories";
-import { FileText } from "lucide-react";
+import { FileText } from "../shared/icons";
 import { useOptionalDecisions, useOptionalProjects, useOptionalGoals, useOptionalCategories } from "../data/NotesProvider";
 import type { DecisionRecord } from "../decisions/types";
 import type { Goal } from "../life/types";

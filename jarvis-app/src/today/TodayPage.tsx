@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { DollarSign, RotateCcw } from "lucide-react";
+import { DollarSign, RotateCcw } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
 import { rankStream, WAITING, NEW } from "./stream";
 import { cloneElement } from "react";

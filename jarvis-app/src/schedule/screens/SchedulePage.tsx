@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
-import { ChevronLeft, ChevronRight, Plus, Camera, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Camera, AlertTriangle } from "../../shared/icons";
 import type { EventItem } from "../types";
 import { monthMatrix, fmtTime, openSlots, minToHHMM } from "../calendar";
 import { isFocusRange, modeOf, freeOf } from "../../routine/types";

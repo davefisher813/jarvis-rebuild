@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Tag, CalendarDays, ListChecks, ListTodo, Plus, X, FolderKanban, User, Target, Link2 as LinkIcon } from "lucide-react";
+import { Tag, CalendarDays, ListChecks, ListTodo, Plus, X, FolderKanban, User, Target, Link2 as LinkIcon } from "../../shared/icons";
 import { catColor } from "../../shared/categories";
 
 type Conn = { id: string; kind: string; label: string; targetId?: string | null };
