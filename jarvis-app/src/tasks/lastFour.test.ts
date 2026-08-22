@@ -1,26 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { arcFraction } from "../today/TimeArc";
 import {
   proposeFirstMove, ritualIsReady, whyNotReady, ritualLine, nextStart, endsAt,
   minutesUntil, DEFAULT_MINUTES, LENGTHS, type Ritual,
 } from "./startRitual";
-
-describe("B2 · the sweep", () => {
-  it("is a real fraction of a real span", () => {
-    expect(arcFraction(30, 60)).toBe(0.5);
-    expect(arcFraction(60, 60)).toBe(1);
-    expect(arcFraction(0, 60)).toBe(0);
-  });
-
-  it("never draws past full or below empty, whatever the clock does", () => {
-    expect(arcFraction(90, 60)).toBe(1);
-    expect(arcFraction(-10, 60)).toBe(0);
-  });
-
-  it("survives a zero span rather than dividing by it", () => {
-    expect(arcFraction(10, 0)).toBe(0);
-  });
-});
 
 describe("C1 · the start ritual", () => {
   const r = (over: Partial<Ritual> = {}): Ritual => ({

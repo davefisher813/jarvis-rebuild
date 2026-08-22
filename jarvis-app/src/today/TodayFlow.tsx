@@ -43,7 +43,6 @@ import { planFromBlock } from "../tasks/ifThen";
 import { endOf, FIFTEEN } from "../tasks/rightNow";
 import { acceptBody } from "../messages/meetingTimes";
 import { welcomeBack, loadLastSeen, markSeen } from "./welcomeBack";
-import TimeArc from "./TimeArc";
 import { proposeFirstMove, nextStart, endsAt, ritualIsReady, whyNotReady, LENGTHS, DEFAULT_MINUTES, type Ritual } from "../tasks/startRitual";
 import RitualSheet from "../tasks/screens/RitualSheet";
 import { bestPerBlock, blockKind, recordBlend, loadBlendMemory } from "../schedule/blend";
@@ -834,8 +833,6 @@ export default function TodayFlow({
   // has bitten three times now. The guard is eslint's rules-of-hooks, which
   // reports it as an ERROR, and the commit gate is eslint at zero errors, so
   // it cannot ship. Do not move these down to be near what uses them.
-  const gapTotalRef = useRef<number>(0);
-  const gapKeyRef = useRef<string>("");
   const [ritual, setRitual] = useState<Ritual | null>(null);
 
   if (loading) return <SkeletonScreen />;
@@ -863,35 +860,30 @@ export default function TodayFlow({
     if (h === 0) return `${m}m`;
     return m === 0 ? `${h}h` : `${h}h ${m}m`;
   };
-  // The gap as it was when this gap BEGAN, so the arc empties against a real
-  // span rather than re-basing itself every minute and never appearing to
-  // move. Reset whenever the next thing changes, which is a new gap.
-  if (gapKeyRef.current !== gapKey) {
-    gapKeyRef.current = gapKey;
-    gapTotalRef.current = nowCtx.gapMin ?? 0;
-  }
-  if ((nowCtx.gapMin ?? 0) > gapTotalRef.current) gapTotalRef.current = nowCtx.gapMin ?? 0;
-
   const nowSection = !evening && (
     <>
       <div className="pad-x"><div className="card">
         {nowCtx.gapMin !== null && nowCtx.nextStart ? (
-          // B2 (2026-08-20): the gap as a SHAPE. Two big digits told him a
-          // number he then had to convert into a feeling, and converting is
-          // the step this app exists to remove. The arc empties against the
-          // whole gap, so watching it means something.
-          <div className="now-sweep">
-            <TimeArc
-              leftMin={nowCtx.gapMin}
-              totalMin={gapTotalRef.current}
-              label={shortSpan(nowCtx.gapMin)}
-              sub="open"
-            />
-            <div className="row-stack">
-              <div className="conn-name">Free until {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</div>
-              {/* What the gap ENDS with, not the same sentence again. The
-                  arc says how much; the name says why it stops. */}
-              {nowCtx.nextTitle && <div className="conn-meta">Then {nowCtx.nextTitle}</div>}
+          // THE RAIL (Dave's pick C, 2026-08-22, replacing the green ring:
+          // "doesn't look good"). Now and the next fixed thing, joined by the
+          // same left-rail language the Schedule speaks; the gap is the space
+          // between them, which is what a gap is. No meter: a ring at 9h 26m
+          // of a 9h 30m gap was a full circle saying nothing.
+          <div className="now-rail" role="img" aria-label={`${shortSpan(nowCtx.gapMin)} open, then ${nowCtx.nextTitle ?? "your next event"} at ${fmtTime(nowCtx.nextStart).time} ${fmtTime(nowCtx.nextStart).ap}`}>
+            <div className="rail-line" aria-hidden="true">
+              <span className="rail-dot rail-now" />
+              <span className="rail-stem" />
+              <span className="rail-dot rail-next" />
+            </div>
+            <div className="rail-stops">
+              <div className="rail-stop">
+                <div className="conn-name">Now</div>
+                <div className="conn-meta">{shortSpan(nowCtx.gapMin)} open</div>
+              </div>
+              <div className="rail-stop">
+                <div className="conn-name truncate">{nowCtx.nextTitle ?? "Next Up"}</div>
+                <div className="conn-meta">{fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</div>
+              </div>
             </div>
           </div>
         ) : (
