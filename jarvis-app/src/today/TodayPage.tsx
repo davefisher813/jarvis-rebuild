@@ -129,6 +129,7 @@ export default function TodayPage({
   onSeeAllTasks,
   onStartTask,
   suggestions,
+  dayDraft,
   checkIn,
   blendMap,
   nowCard,
@@ -186,6 +187,7 @@ export default function TodayPage({
   // Fifteen minutes on this one, starting now.
   onStartTask?: (id: string) => void;
   suggestions?: ReactNode;
+  dayDraft?: ReactNode;
   // The evening mood question. Its own notice: it is not a suggestion.
   checkIn?: ReactNode;
   // Blend offers for today's blocks (see YourDay). Built by the flow.
@@ -350,7 +352,6 @@ export default function TodayPage({
         action={onPayBill ? { label: "Mark Paid", onClick: onPayBill } : undefined}
       />
     ) : null,
-    suggestions ?? null,
     freshStart ? (
       <NoticeCard
         key="fresh"
@@ -410,6 +411,11 @@ export default function TodayPage({
       {/* HEADS UP: the one notice stream. Every card, row, and offer JARVIS
           wants him to see lives here under one head, so the page has a
           single place to look instead of nine floating interruptions. */}
+      {/* THE DAY DRAFT IS A COMMITMENT, NOT A NOTICE (cleanup 2026-08-22).
+          Ranked with the stream it fell to the default weight and sank
+          BELOW two verb rows on Dave's screenshot -- the most important
+          block on the page, under trivia. It renders first, always. */}
+      {dayDraft}
       {headsUp.length > 0 && (() => {
         // FORM FOLLOWS DECISION (Law 3E). The stream ranks its members:
         // the heaviest becomes THE headliner, everything else drops to a
@@ -421,13 +427,19 @@ export default function TodayPage({
           <>
             <div className="sh2"><span className="t">Heads Up</span></div>
             <div className="heads-up-stream">
-              {ranked.headliner && cloneElement(ranked.headliner, { form: "headliner" })}
-              {ranked.rows.map((r) => cloneElement(r, { form: "row" }))}
+              {ranked.headliner && (ranked.headliner.type === NoticeCard
+                ? cloneElement(ranked.headliner, { form: "headliner" })
+                : ranked.headliner)}
+              {ranked.rows.map((r) => (r.type === NoticeCard ? cloneElement(r, { form: "row" }) : r))}
               {ranked.receipts}
             </div>
           </>
         );
       })()}
+
+      {/* The Noticed insight is a WHISPER below the stream (Law 3E's receipt
+          tier): one quiet line until tapped, the full card only on request. */}
+      {suggestions}
 
       {/* EMAIL IS ITS OWN BAND (2026-08-21, Dave: "emails should be sectioned
           off"). Three of the six rows on his Heads Up were mail wearing the

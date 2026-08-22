@@ -1326,18 +1326,26 @@ button {
 /* The headliner: the one notice most worth the next tap. Big type; its
    verbs are real capsules on their own line, not a pill squeezed beside a
    paragraph. */
-.notice-hl { display: flex; gap: var(--s-3); align-items: flex-start; }
-.notice-hl .row-glyph { margin-top: 3px; }
+/* The headliner supplies its own padding: the classic form's inner .row
+   carried the card's inset, and without this the big title printed at the
+   card's clipped left edge (Dave's 2:31 AM screenshot, the letter F half
+   gone). */
+.notice-hl { display: flex; gap: var(--s-3); align-items: flex-start;
+  padding: var(--s-4) var(--s-4) 0; }
 .hl-title { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.02em;
   color: var(--tx-1); line-height: 1.15; }
-.notice-hl + .hl-acts, .hl-acts { display: flex; gap: var(--s-2); padding-top: var(--s-2); }
+.hl-acts { display: flex; gap: var(--s-2); padding: var(--s-2h) var(--s-4) var(--s-4); }
 /* Verb rows: one line, fact plus capsule. The card slims down so a stack of
    rows reads as a list, not a pile of cards. */
 .notice-card-row { padding-top: 2px; padding-bottom: 2px; }
 .notice-vrow { min-height: 44px; }
 .vrow-line { display: flex; align-items: baseline; gap: var(--s-2); min-width: 0; }
-.vrow-fact { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vrow-sub { flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+/* The FACT owns the line. The sub yields first (4x the shrink), floors at a
+   readable stub, and the fact only truncates once the sub has given all it
+   can. Dave's screenshot had it backwards: "10 Moved to T..." beside a
+   full-length "No times yet". */
+.vrow-fact { flex: 1 1 auto; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vrow-sub { flex: 0 100 auto; min-width: 52px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* The receipt line: facts that need nothing collapse into one quiet mono
    line under the stream. Furniture is for decisions. */
 .receipt-line { font-size: var(--t-eyebrow); letter-spacing: 0.02em;
@@ -1926,8 +1934,13 @@ button {
    rows share one text edge; actions are compact grey pills with accent text;
    display names never show their transport quotes. */
 .msg-dot.off { background: transparent; }
-.pill-act { position: relative; flex-shrink: 0; align-self: center; background: var(--accent-chip); border: 1.5px solid var(--accent-chip-bd); border-radius: var(--r-pill);
-  color: var(--accent-chip-tx); font-family: var(--f); font-size: 13px; font-weight: var(--w-semi); padding: 4.5px 11px; }
+/* CAPSULE LAW X supersedes O.5's outline (2026-08-22, Dave's screenshot:
+   outlined pills beside filled capsules read as two systems fighting). The
+   row pill is the Music capsule now: neutral dim fill, red label -- one
+   button language everywhere. The hue-mismatch that outlawed fills in O.5
+   was an ACCENT wash; a press-neutral fill cannot go brown. */
+.pill-act { position: relative; flex-shrink: 0; align-self: center; background: var(--press-3); border: 0; border-radius: var(--r-pill);
+  color: var(--tint); font-family: var(--f); font-size: 13px; font-weight: var(--w-semi); padding: 6px 12.5px; }
 /* THE 44px RULE. The visible pill is 27px, which reads correctly beside a
    two-line row, but 27px is a bad target on a phone and the app's own
    standard (--tap-min, which .see-all already meets) is 44. The hit area is

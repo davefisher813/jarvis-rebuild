@@ -318,6 +318,10 @@ The rule that produced the bug: a button's words came from HOW LONG the thread h
 
 ## X. The Capsule Law (V4.11, Dave 2026-08-22: "buttons need to look like buttons not text")
 
+**X2 (cleanup, same day).** The row pill (.pill-act) joins the capsule: O.5's outline is superseded. Outlined pills beside filled capsules read as two systems fighting on one screen (Dave's 2:31 AM screenshot). O.5's original sin was an ACCENT wash whose hue drifted brown beside brand red; the capsule's press-neutral fill cannot. One button language, no exceptions but the section-head See All.
+
+**Z4 (cleanup, same day).** Three placement rules learned from the first deployed stream: the DAY DRAFT is a commitment, not a notice -- it renders above Heads Up and never ranks; rankStream re-forms only NoticeCards (custom members keep their shape); the Noticed insight is the receipt tier's whisper -- one quiet line, the card only on tap. And two form rules: the headliner owns its padding (the classic form's inner .row carried the card inset; a new form must bring its own), and in a verb row THE FACT OWNS THE LINE (sub shrinks 100x faster to a 52px floor before the fact may ellipsize).
+
 A button is a SHAPE, never bare words. Filled red for the one primary per screen (unchanged); the Apple Music capsule -- dim fill, red label -- for every other action; the faintest fill and a gray label for the quiet tier. Bare-text buttons cease to exist as a category. The one sanctioned exception: the section-head trailing link (See All in an sh2), because Apple Music itself writes that as text. Enforced centrally: .row-act, .quiet-action, .note-fix, and the bare .btn-sm are capsules BY CLASS, so a producer cannot opt out by accident. (The bare .btn-sm had been riding --accent-chip, which O.5 made transparent; that collateral is what put floating words on Dave's screenshots.)
 
 ## Y. The Icon Law (V4.11, Dave 2026-08-22)

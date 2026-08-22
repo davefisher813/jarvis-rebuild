@@ -1309,7 +1309,7 @@ export default function TodayFlow({
   // same screen, so a card here would show the identical reminder twice, and
   // duplicated notices are precisely what "there's a ton of notifications
   // floating around" meant. The strip carries the missed state itself.
-  const notices = [draftSection, ...alertCards, reflowSection, overflowSection].filter(Boolean);
+  const notices = [...alertCards, reflowSection, overflowSection].filter(Boolean);
 
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
   const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "JV";
@@ -1370,6 +1370,7 @@ export default function TodayFlow({
       onEditRoutine={onEditRoutine}
       today={today}
       nowCard={nowSection}
+      dayDraft={draftSection || undefined}
       reminders={
         <RemindersStrip
           items={reminders}

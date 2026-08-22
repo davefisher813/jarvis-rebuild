@@ -25,6 +25,9 @@ describe("TodaySuggestions", () => {
       text: async () => "",
     })) as unknown as typeof fetch;
     render(<NotesProvider userId="u2"><TodaySuggestions ai={new AIService({ available: true, getToken: () => "t", fetchImpl })} /></NotesProvider>);
+    // Law 3E: the insight is a whisper until tapped.
+    await waitFor(() => expect(screen.getByText(/Noticed · Email Sam the Q3 Plan/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Noticed · Email Sam the Q3 Plan/));
     await waitFor(() => expect(screen.getByText("Email Sam the Q3 Plan")).toBeInTheDocument());
     expect(screen.getByText("Dismiss")).toBeInTheDocument();
     // one row at a time: the second suggestion waits its turn
@@ -43,6 +46,8 @@ describe("TodaySuggestions planning pattern (Brain Personalization Phase 2, 2026
       emit({ type: "plan.duration_corrected", entityType: "task", entityId: `t${i}`, props: { category: "work", n: 20 } });
     }
     render(<NotesProvider userId="u3"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/^Noticed ·/));
     await waitFor(() => expect(screen.getByText("Dismiss")).toBeInTheDocument());
     expect(screen.getByText(/work tasks run 20 min long/)).toBeInTheDocument();
     fireEvent.click(screen.getByText("Remember This"));
@@ -87,6 +92,8 @@ describe("TodaySuggestions routine candidate", () => {
     rerender(
       <NotesProvider userId="u-routine"><RoutineProbe /><TodaySuggestions ai={ai} /></NotesProvider>,
     );
+    await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/^Noticed ·/));
     await waitFor(() => expect(screen.getByText(/Gym · around 6 AM/)).toBeInTheDocument());
     fireEvent.click(screen.getByText("Add to Routine"));
     await waitFor(() => expect(screen.queryByText(/Gym has landed/)).not.toBeInTheDocument());
@@ -139,6 +146,8 @@ describe("TodaySuggestions being-known moments", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     completions(14, 10);
     render(<NotesProvider userId="b2"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/^Noticed ·/));
     await waitFor(() => expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument());
     // The Notice law's sub line carries the receipt, so the claim is checkable
     // before the user ever taps.
@@ -152,6 +161,8 @@ describe("TodaySuggestions being-known moments", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     completions(14, 10);
     render(<NotesProvider userId="b3"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/^Noticed ·/));
     await waitFor(() => expect(screen.getByText("Remember This")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Remember This"));
     await waitFor(() => expect(screen.queryByText(/Your tasks get done between/)).not.toBeInTheDocument());

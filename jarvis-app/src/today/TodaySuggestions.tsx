@@ -141,6 +141,7 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
         .filter((x) => !hidden.has(x.i))
         .filter((x) => !x.s.task || !visibleTaskTexts?.has(x.s.task.toLowerCase()))
     : [];
+  const [open, setOpen] = useState(false);
   const aiPick = !pattern && visibleTaskTexts !== null ? nonEcho[0] ?? null : null;
   if (!pattern && !aiPick) return null;
 
@@ -217,10 +218,21 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
     setPattern(null);
   };
 
-  // THE NOTICE LAW (A1, 2026-08-20): one anatomy, one visible control,
-  // dismiss on the swipe. The corner × used to land on top of the row's own
-  // button, which is how you tap the wrong one.
+  // THE WHISPER (Law 3E receipt tier, cleanup 2026-08-22). An insight is the
+  // least urgent thing on the page, and as a full card it sat at the bottom
+  // of Dave's screenshot dressed in last week's clothes. It is one quiet
+  // line now; tapping it opens the full card (Notice law anatomy, dismiss on
+  // the swipe) only when he wants the conversation.
   if (pattern) {
+    if (!open) {
+      return (
+        <div className="pad-x">
+          <button className="receipt-line" onClick={() => setOpen(true)}>
+            Noticed · {pattern.text}
+          </button>
+        </div>
+      );
+    }
     return (
       <NoticeCard
         icon={<Lightbulb className="ic" />}
@@ -233,6 +245,15 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
     );
   }
   if (!aiPick) return null;
+  if (!open) {
+    return (
+      <div className="pad-x">
+        <button className="receipt-line" onClick={() => setOpen(true)}>
+          Noticed · {aiPick.s.text}
+        </button>
+      </div>
+    );
+  }
   return (
     <NoticeCard
       icon={<Lightbulb className="ic" />}
