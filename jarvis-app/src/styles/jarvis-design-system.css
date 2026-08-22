@@ -157,15 +157,29 @@
   --nav-bg: rgba(0,0,0,0.65);
   --skel: rgba(255,255,255,0.06); --skel-shim: rgba(255,255,255,0.12);
   --shadow-card: 0 6px 22px rgba(0,0,0,0.55);
+  --shadow-float: 0 6px 22px rgba(0,0,0,0.55);
   color-scheme: dark;
 }
 
-/* ---------- LIGHT THEME (Apple Music light: iOS surfaces, system colors, Music red) ---------- */
+/* ---------- LIGHT THEME, THE SECOND SUN (facelift 2026-08-22) ----------
+   Dave: "the visual quality of the light version is awful... make it better
+   looking than the dark version." Dark gets its depth free from OLED black;
+   light was living as a washed inversion. This block makes light its OWN
+   system: a cool paper ground a step deeper than iOS's default so white
+   cards actually lift off it, crisp two-layer elevation instead of one muddy
+   blur, press fills strong enough that a capsule reads as a capsule, and
+   selection steel softened off pure black. The measured text ramp from the
+   contrast audit is untouched. */
 [data-theme="light"] {
-  --bg: #F2F2F7;
-  --surface-1: #FFFFFF; --surface-2: #FFFFFF; --surface-3: #E5E5EA;
-  --card-bd: rgba(20,20,30,0.08); --divider: rgba(60,60,67,0.16);
-  --press-1: rgba(20,20,30,0.04); --press-3: rgba(20,20,30,0.06); --press-5: rgba(20,20,30,0.10);
+  --bg: #EEEEF3;
+  --surface-1: #FFFFFF; --surface-2: #FFFFFF; --surface-3: #F1F1F4;
+  /* The hairline serves INPUTS; cards drop their border entirely (border
+     plus shadow was the mud) and let elevation do the separating. */
+  --card-bd: rgba(20,20,30,0.07); --divider: rgba(60,60,67,0.14);
+  /* 6% dark-on-white was an anemic capsule. 8% is the lowest fill where a
+     button unmistakably has a body on both the page and a card, and the
+     red label still clears 4.5:1 on it (CC051B on #EBEBEE: 4.9:1). */
+  --press-1: rgba(20,20,30,0.05); --press-3: rgba(20,20,30,0.08); --press-5: rgba(20,20,30,0.13);
   /* --tx-3 raised from 0.66 to 0.76 (2026-08-02). At 0.66 every piece of
      secondary text in light theme measured 3.83:1 on the page and 4.02:1 on a
      card, under the 4.5:1 Apple checks: eyebrows, calendar weekday letters,
@@ -197,11 +211,20 @@
   --accent-chip-bd: #B80417;
   --accent-chip-tx: #B80417;
   --red-tint: rgba(204,5,27,0.10); --warn-tint: rgba(255,149,0,0.14); --good-tint: rgba(52,199,89,0.14);
-  --glass-bg: rgba(255,255,255,0.72);
+  --glass-bg: rgba(255,255,255,0.78);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);
-  --nav-bg: rgba(249,249,251,0.82);
+  --nav-bg: rgba(250,250,252,0.86);
   --skel: rgba(0,0,0,0.06); --skel-shim: rgba(0,0,0,0.12);
-  --shadow-card: 0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.05);
+  /* Two-layer elevation: a tight contact shadow that draws the card's edge,
+     and a soft ambient that lifts it. The old single 24px blur at 10% read
+     as smudge, not height. */
+  --shadow-card: 0 1px 2px rgba(17,18,26,0.06), 0 10px 24px rgba(17,18,26,0.08);
+  --shadow-float: 0 2px 6px rgba(17,18,26,0.08), 0 14px 32px rgba(17,18,26,0.12);
+  /* Selection steel, softened: pure black selection pills read as tar on
+     the light page. Near-black keeps the 2026-08-02 doctrine (picked is
+     neutral, never red) without the harshness. */
+  --sel-bg: #222227;
+  --sel-fg: #FFFFFF;
   color-scheme: light;
 }
 
@@ -244,8 +267,10 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 [data-theme="light"] .card {
   background: #FFFFFF;
   backdrop-filter: none; -webkit-backdrop-filter: none;
+  /* Elevation only. Border + shadow together was the mud: the hairline drew
+     a gray outline through the shadow's softest part. */
   box-shadow: var(--shadow-card);
-  border: 0.5px solid var(--card-bd);
+  border: 0;
 }
 .card.pad { padding: var(--s-4); }
 
@@ -262,7 +287,11 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 .av-online::after { content: ''; position: absolute; bottom: 0; right: 0; width: 30%; height: 30%; background: var(--good); border-radius: var(--r-circle); border: 2px solid var(--surface-1); }
 
 /* BUTTONS */
-.btn { display: inline-flex; align-items: center; justify-content: center; font-family: var(--f); font-size: var(--t-h3); font-weight: var(--w-semi); height: 50px; padding: 0 var(--s-6); border-radius: var(--r-pill); border: 0; letter-spacing: var(--track-default); min-width: var(--tap-min); cursor: pointer; }
+/* Capsule law backstop: the BASE button is already a capsule (dim fill, red
+   label), so a .btn that forgets its variant can never render as naked
+   words. Five did -- I'm Overwhelmed and every sheet's quiet sibling. */
+.btn { display: inline-flex; align-items: center; justify-content: center; font-family: var(--f); font-size: var(--t-h3); font-weight: var(--w-semi); height: 50px; padding: 0 var(--s-6); border-radius: var(--r-pill); border: 0; letter-spacing: var(--track-default); min-width: var(--tap-min); cursor: pointer;
+  background: var(--press-3); color: var(--tint); }
 /* Primary is the flat brand fill, full stop. The OLED glow it wore from
    2026-07-29 to 2026-08-22 is gone (Dave: "get rid of the glow effect") --
    on his phone it read as a smear around every primary button, and a fill

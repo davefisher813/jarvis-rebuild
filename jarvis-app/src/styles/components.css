@@ -2375,3 +2375,41 @@ button {
 .notice-card .vrow-fact, .notice-card .vrow-sub {
   display: block; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ============================================================
+   LIGHT, THE SECOND SUN (facelift 2026-08-22). Everything here is
+   light-scoped polish that tokens alone cannot carry: the hero's daypart
+   light, the floating chrome, and the pieces that melted into the page.
+   ============================================================ */
+/* The hero gets its own weather. Dark's daypart washes glow out of black;
+   these are their daylight sisters: a warm sunrise breath in the morning,
+   a cool indigo one in the evening, both fading before the first card. */
+[data-theme="light"] .today-hero.hero-morning {
+  background: linear-gradient(160deg, rgba(255,59,48,0.10), rgba(255,159,10,0.06) 45%, transparent 80%); }
+[data-theme="light"] .today-hero.hero-evening {
+  background: linear-gradient(160deg, rgba(88,86,214,0.10), rgba(120,90,255,0.05) 45%, transparent 80%); }
+
+/* The floating chrome floats. The capture bar was a gray pill on a gray
+   page; it is a white instrument on the desk now, same for its two
+   siblings. */
+[data-theme="light"] .voice-bar { background: #FFFFFF; box-shadow: var(--shadow-float); }
+[data-theme="light"] .voice-search { background: #FFFFFF; box-shadow: var(--shadow-float); }
+
+/* A draft field inside a white card sits on the paper tone, mirroring how
+   dark nests lighter-on-dark. */
+[data-theme="light"] .mail-draft-text { background: var(--surface-3); }
+
+/* Library rows become the white sheet. Dark's full-bleed rows live on
+   black; on paper they looked unfinished, like a wireframe. Contiguous rows
+   now share white and read as one grouped sheet, with the paper showing
+   between sections -- iOS grouped tables, Music's own light Library. */
+[data-theme="light"] .lib-row, [data-theme="light"] .task-row { background: var(--surface-1); }
+
+/* Selection steel, daylight grade: a raised white pill instead of a tar
+   fill. Same neutral doctrine (picked is never red), but the light page
+   selects the iOS way: lift, not ink. */
+[data-theme="light"] .chip.active, [data-theme="light"] .chip.on,
+[data-theme="light"] .segmented .seg.active {
+  background: #FFFFFF; color: var(--tx-1);
+  box-shadow: 0 1px 3px rgba(17,18,26,0.12), 0 4px 10px rgba(17,18,26,0.08);
+}

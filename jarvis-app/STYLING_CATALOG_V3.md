@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.11 (2026-08-22)
+# JARVIS Styling Catalog V4.12 (2026-08-22)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -341,6 +341,20 @@ Weights are bands, and the bands are doctrine: FAILING (90) beats WAITING (70) b
 **Z2. THE QUIET LINE.** Words whisper, data pops: subs render words small and dim, every datum bright and tabular in the app's time face (.qd), units fused to their figure (59d, 6/17, 9h -- never "59 days"). Heat (amber .qd-warm, red .qd-hot) lands on the DATA only, and only when the producer's own thresholds say so; presentation never invents a threshold. The band explainer sentence is dead as a genre: a sentence true of the rows belongs to the rows.
 
 **Z3. THE CARD GRAMMAR** (under all forms). The title names the thing. The sub is evidence: one fragment, one dot-break, numbers first. The BUTTON carries the verdict -- copy never explains what the verb already says ("usually means it is too big" died for Break It Down).
+
+## L2. Light, The Second Sun (V4.12, Dave 2026-08-22: "the visual quality of the light version is awful... make it better looking than the dark version")
+
+Light is its OWN system, never a washed inversion of dark. Dark buys depth with OLED black; light buys it with PAPER AND LIFT:
+
+- Ground: cool paper (#EEEEF3), one step deeper than iOS default, so white cards separate without borders. CARDS CARRY NO BORDER IN LIGHT -- border plus shadow was mud; elevation does the separating.
+- Elevation is two layers everywhere: a tight contact shadow that draws the edge plus a soft ambient that lifts (--shadow-card), and a stronger --shadow-float for chrome that hovers (the capture bar and its siblings are white instruments, never gray-on-gray).
+- The hero keeps its weather in daylight: warm sunrise wash mornings, indigo evenings ([data-theme=light] .hero-*).
+- Press fills are 8/13 percent: a capsule must unmistakably have a body on page AND card, and the red label still clears 4.5:1 on it.
+- Library full-bleed rows share a WHITE SHEET (.lib-row/.task-row on surface-1): iOS grouped tables, paper showing between sections.
+- Selection steel in daylight is a RAISED WHITE PILL (lift, not ink). The neutral-selection doctrine of 2026-08-02 stands; only the rendering changes per theme.
+- The measured text ramp (contrast audit) is untouched; prefers-contrast: more remains the boost contract.
+
+**L2.X capsule backstop (both themes).** The BASE .btn is a capsule (press fill, tint label): a button that forgets its variant fails safe instead of rendering naked words. Discovered because five did.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
