@@ -62,7 +62,7 @@ import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCa
 import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
-import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, plannedTaskIds, acceptInto, seedFrom, type DayDraft } from "../dayloop/dayLoop";
+import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, plannedTaskIds, acceptInto, seedFrom, editDraft, type DayDraft } from "../dayloop/dayLoop";
 import { breakdownPrompt, parseBreakdown } from "../tasks/breakdown";
 import { madeBy } from "../shared/provenance";
 import { RowIcon, StatTiles } from "../shared/anatomy";
@@ -133,6 +133,12 @@ export default function TodayFlow({
   // text (Dave 2026-08-22: "this should be a button"); now it discloses the
   // actual tasks in place, same pattern as the email fold.
   const [draftMoreOpen, setDraftMoreOpen] = useState(false);
+  // EDIT IN PLACE (merge phase 2). `editing` is the mode; `tuning` is the one
+  // row whose editor is open; `preEdit` is what the draft looked like when he
+  // tapped Edit, so Cancel has something to restore.
+  const [editing, setEditing] = useState(false);
+  const [tuning, setTuning] = useState<string | null>(null);
+  const [preEdit, setPreEdit] = useState<DayDraft | null>(null);
   // Whether the Email band has anything to show. Reported BY MailNotices, so
   // the head and the content can never disagree about being empty.
   const [mailEmpty, setMailEmpty] = useState(true);
@@ -871,6 +877,44 @@ export default function TodayFlow({
   // the card above has already given the task a time. A notice about a task
   // the plan holds is suppressed while that plan stands. A dismissed draft
   // holds nothing, so the notices come back.
+  // The lengths the card offers. Same set the plan sheet offers, because a
+  // second set of choices for the same decision is a second system.
+  const DRAFT_DURS = [15, 30, 45, 60, 90, 120];
+  const draftMinutes = (d: DayDraft, taskId: string): number => {
+    const b = d.blocks.find((x) => x.taskId === taskId);
+    if (!b) return 0;
+    const m = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
+    return m(b.end) - m(b.start);
+  };
+
+  // One door for every edit the card makes. Each edit re-places the WHOLE day
+  // through the same engine the draft was cut with, so a length change moves
+  // the times below it honestly rather than leaving the card showing a
+  // duration that disagrees with the clock beside it.
+  const applyEdit = (op: { minutes?: Record<string, number>; drop?: string; add?: string }) => {
+    setDayDraft((cur) => {
+      if (!cur) return cur;
+      const ids = cur.blocks.map((b) => b.taskId);
+      const minutes: Record<string, number> = {};
+      for (const id of ids) minutes[id] = draftMinutes(cur, id);
+      let next = ids;
+      if (op.drop) next = ids.filter((id) => id !== op.drop);
+      if (op.add && !ids.includes(op.add)) next = [...ids, op.add];
+      Object.assign(minutes, op.minutes ?? {});
+      const pool = candidatesFor(today, todayEvents);
+      const edited = editDraft(cur, {
+        ids: next, minutes, pool,
+        events: todayEvents,
+        startMin: draftStart,
+        endMin: todayWindow.endMin,
+        blocked: todayBlocked,
+        estimateFor: (c) => estimates[c] ?? 45,
+      });
+      writeDraft(edited);
+      return edited;
+    });
+  };
+
   const planned = useMemo(() => plannedTaskIds(dayDraft), [dayDraft]);
   const unplannedMoved = useMemo(
     () => (sweepReceipt?.moved ?? []).filter((m) => !planned.has(m.id)),
@@ -993,15 +1037,73 @@ export default function TodayFlow({
 
   // The Day Loop card: the whole day, drafted, one Accept. Purple spark: a
   // JARVIS-made proposal, not yet the user's plan.
+  // EDIT IN PLACE (merge phase 2, 2026-08-22). Edit no longer pushes a
+  // different-looking surface: the rows he is already looking at become the
+  // editable ones, hosting the plan sheet's OWN row editor so the two cannot
+  // drift apart. The sheet stays behind More Options for the jobs the card
+  // should not try to hold: picking from the whole task list, sittings, and
+  // a one-day end time. Cramming those in here is the "cramped sheet inside
+  // a card" the design doc warned about.
   const draftSection = !evening && dayDraft && !dayDraft.accepted && !dayDraft.dismissed && dayDraft.blocks.length > 0 && (
     <>
-      <div className="pad-x"><div className="card">
-        <div className="draft-kick"><span className="cat-fg-purple">{SPARK_ICO}</span><span>Your Day, Drafted</span></div>
+      <div className="pad-x"><div className={"card" + (editing ? " draft-editing" : "")}>
+        <div className="draft-kick">
+          <span className="cat-fg-purple">{SPARK_ICO}</span><span>Your Day, Drafted</span>
+          {editing && (
+            <button className="see-all" onClick={() => { setEditing(false); setTuning(null); void openPlan("today"); }}>
+              More Options
+            </button>
+          )}
+        </div>
         {dayDraft.blocks.map((b) => (
-          <div className="row" key={b.taskId}>
-            <RowIcon kind="task" />
-            <div className="row-grow"><div className="conn-name truncate">{b.text}</div></div>
-            <span className="urgency urgency-muted">{fmtTime(b.start).time} {fmtTime(b.start).ap}</span>
+          <div key={b.taskId}>
+            <div
+              className={"row" + (editing ? " row-edit" : "")}
+              role={editing ? "button" : undefined}
+              tabIndex={editing ? 0 : undefined}
+              aria-expanded={editing ? tuning === b.taskId : undefined}
+              onClick={editing ? () => setTuning((t) => (t === b.taskId ? null : b.taskId)) : undefined}
+            >
+              <RowIcon kind="task" />
+              <div className="row-grow"><div className="conn-name truncate">{b.text}</div></div>
+              <span className={"urgency urgency-muted draft-row-time" + (tuning === b.taskId ? " on" : "")}>
+                {fmtTime(b.start).time} {fmtTime(b.start).ap}
+              </span>
+            </div>
+            {editing && tuning === b.taskId && (
+              <div className="draft-edit-body" onClick={(e) => e.stopPropagation()}>
+                <div className="plan-controls">
+                  <div className="chip-row plan-durs">
+                    {DRAFT_DURS.map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        className={"chip" + (draftMinutes(dayDraft, b.taskId) === d ? " chip-on" : "")}
+                        aria-label={`${b.text}: ${d} minutes`}
+                        onClick={() => applyEdit({ minutes: { [b.taskId]: d } })}
+                      >
+                        {d < 60 ? `${d}m` : d % 60 === 0 ? `${d / 60}h` : `${Math.floor(d / 60)}h ${d % 60}m`}
+                      </button>
+                    ))}
+                  </div>
+                  {/* NOT DESTRUCTIVE, AND IT SAYS SO. Taking a block off the
+                      plan hands the task back to Anytime; it deletes nothing.
+                      A red "Remove" would claim otherwise, and the swipe law
+                      already reserves red for delete. The app's own verb for
+                      this move is Move to Anytime (EventSheet), so it wears
+                      that and the neutral capsule. */}
+                  <div className="plan-when">
+                    <button
+                      type="button"
+                      className="btn-sm"
+                      onClick={() => { setTuning(null); applyEdit({ drop: b.taskId }); }}
+                    >
+                      Move to Anytime
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ))}
         {dayDraft.anytime.length > 0 && (
@@ -1016,15 +1118,33 @@ export default function TodayFlow({
               <div className="row" key={a.id}>
                 <RowIcon kind="task" />
                 <div className="row-grow"><div className="conn-name truncate">{a.text}</div></div>
+                {editing && (
+                  <button className="pill-act" onClick={() => applyEdit({ add: a.id })}>Add</button>
+                )}
               </div>
             ))}
           </>
         )}
         <div className="row">
           <div className="momentum-actions">
-            <button className="btn btn-primary btn-sm" onClick={() => void acceptDraft()}>Accept the Day</button>
-            <button className="btn-sm" onClick={() => void openPlan("today")}>Edit</button>
-            <button className="btn-sm" onClick={dismissDraft}>Not Today</button>
+            {editing ? (
+              <>
+                <button className="btn btn-primary btn-sm" onClick={() => { setEditing(false); setTuning(null); setPreEdit(null); }}>Done</button>
+                {/* Cancel restores the draft as it stood when Edit was tapped:
+                    edits apply live, so without the snapshot there would be
+                    nothing to go back to. */}
+                <button className="btn-sm" onClick={() => {
+                  if (preEdit) { writeDraft(preEdit); setDayDraft(preEdit); }
+                  setEditing(false); setTuning(null); setPreEdit(null);
+                }}>Cancel</button>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-primary btn-sm" onClick={() => void acceptDraft()}>Accept the Day</button>
+                <button className="btn-sm" onClick={() => { setPreEdit(dayDraft); setEditing(true); }}>Edit</button>
+                <button className="btn-sm" onClick={dismissDraft}>Not Today</button>
+              </>
+            )}
           </div>
         </div>
       </div></div>

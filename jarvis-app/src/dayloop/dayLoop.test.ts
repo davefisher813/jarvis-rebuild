@@ -219,3 +219,71 @@ describe("seedFrom", async () => {
     expect(seedFrom({ ...base, accepted: true }, ["t1", "t2"])!.ids).toEqual(["t1", "t2"]);
   });
 });
+
+// EDIT IN PLACE (planning merge, phase 2, 2026-08-22).
+describe("editDraft", async () => {
+  const { editDraft } = await import("./dayLoop");
+  const pool = [
+    { id: "t1", text: "Call the county clerk", category: "home" },
+    { id: "t2", text: "Draft BFFSA email", category: "work" },
+    { id: "t3", text: "Mail speeding ticket", category: "money" },
+  ];
+  const standing = {
+    date: "2026-08-22",
+    blocks: [{ taskId: "t1", text: "Call the county clerk", category: "home", start: "09:00", end: "09:45" }],
+    anytime: [{ id: "t2", text: "Draft BFFSA email" }, { id: "t3", text: "Mail speeding ticket" }],
+    accepted: false, eventIds: [], dismissed: false,
+  };
+  const inp = (ids: string[], minutes: Record<string, number> = {}) => ({
+    ids, minutes, pool, events: [], startMin: 9 * 60, endMin: 17 * 60,
+    blocked: [], estimateFor: () => 45,
+  });
+
+  it("a longer block pushes what follows it, through the same engine", () => {
+    const short = editDraft(standing, inp(["t1", "t2"]));
+    const long = editDraft(standing, inp(["t1", "t2"], { t1: 120 }));
+    expect(short.blocks[0]!.end).toBe("09:45");
+    expect(long.blocks[0]!.end).toBe("11:00");
+    // The second block moved because the first grew, not because it was told to.
+    expect(long.blocks[1]!.start > short.blocks[1]!.start).toBe(true);
+  });
+
+  it("promoting from Anytime places it and takes it out of the pool", () => {
+    const out = editDraft(standing, inp(["t1", "t3"]));
+    expect(out.blocks.map((b) => b.taskId)).toEqual(["t1", "t3"]);
+    expect(out.anytime.map((a) => a.id)).toEqual(["t2"]);
+  });
+
+  it("removing a block hands it back to Anytime, never drops it", () => {
+    const out = editDraft(standing, inp([]));
+    expect(out.blocks).toEqual([]);
+    expect(out.anytime.map((a) => a.id).sort()).toEqual(["t1", "t2", "t3"]);
+  });
+
+  // The bug this shape prevents: patching the old anytime list instead of
+  // rebuilding it lets a task sit in the plan AND the leftovers at once.
+  it("no task is ever both placed and in Anytime", () => {
+    const out = editDraft(standing, inp(["t1", "t2", "t3"]));
+    const placed = new Set(out.blocks.map((b) => b.taskId));
+    expect(out.anytime.filter((a) => placed.has(a.id))).toEqual([]);
+  });
+
+  it("order is priority: the first id claims the earlier slot", () => {
+    const a = editDraft(standing, inp(["t2", "t3"]));
+    expect(a.blocks[0]!.taskId).toBe("t2");
+    const b = editDraft(standing, inp(["t3", "t2"]));
+    expect(b.blocks[0]!.taskId).toBe("t3");
+  });
+
+  it("[edge] an id the pool no longer offers is skipped, never placed as a phantom", () => {
+    const out = editDraft(standing, inp(["t1", "ghost"]));
+    expect(out.blocks.map((b) => b.taskId)).toEqual(["t1"]);
+  });
+
+  it("[edge] editing never silently accepts or dismisses the draft", () => {
+    const out = editDraft({ ...standing, accepted: false }, inp(["t1"]));
+    expect(out.accepted).toBe(false);
+    expect(out.dismissed).toBe(false);
+    expect(out.date).toBe("2026-08-22");
+  });
+});

@@ -180,6 +180,62 @@ export function draftDay(inp: DraftInputs): DayDraft {
   };
 }
 
+// EDIT IN PLACE (planning merge, phase 2, 2026-08-22).
+//
+// The card's rows become editable where they already sit: change a length,
+// drop a block, pull one up from Anytime. Each edit re-places the whole day
+// through the SAME engine the draft was cut with, so the times below an edit
+// move honestly instead of the card showing a length that disagrees with the
+// clock beside it.
+//
+// Pure, and it goes through planDay exactly like draftDay does, so an edited
+// day and a drafted day cannot be placed by two different sets of rules.
+export interface EditInputs {
+  // Ordered task ids to place. Order is priority: earlier picks claim the
+  // better slots, same as the drafter.
+  ids: string[];
+  minutes: Record<string, number>;
+  // Everything the day could hold, so a promoted Anytime task can be found
+  // and a dropped one can go back to the pool.
+  pool: { id: string; text: string; category: string; windowS?: number; windowE?: number }[];
+  events: EventItem[];
+  startMin: number;
+  endMin: number;
+  blocked: { s: number; e: number; label: string; soft?: boolean; kind?: string }[];
+  estimateFor: (category: string) => number;
+}
+
+export function editDraft(standing: DayDraft, inp: EditInputs): DayDraft {
+  const byId = new Map(inp.pool.map((c) => [c.id, c]));
+  const tasks: PlanTask[] = [];
+  for (const id of inp.ids) {
+    const c = byId.get(id);
+    if (!c) continue; // gone from the pool: never place a phantom
+    tasks.push({
+      id: c.id,
+      text: c.text,
+      category: c.category,
+      durationMin: inp.minutes[id] ?? inp.estimateFor(c.category),
+      ...(c.windowS !== undefined ? { windowS: c.windowS } : {}),
+      ...(c.windowE !== undefined ? { windowE: c.windowE } : {}),
+    });
+  }
+  const hard = inp.blocked.filter((b) => !b.soft && b.kind !== "focus").map((b) => ({ s: b.s, e: b.e }));
+  const soft = inp.blocked.filter((b) => b.soft && b.kind !== "focus").map((b) => ({ s: b.s, e: b.e, label: b.label }));
+  const focus = inp.blocked.filter((b) => b.kind === "focus").map((b) => ({ s: b.s, e: b.e }));
+  const plan = planDay(tasks, inp.events, inp.startMin, inp.endMin, 10, hard, soft, focus);
+
+  // The leftovers pool is rebuilt, not patched: anything the pool offers that
+  // did not get placed belongs in Anytime, and nothing placed may also sit
+  // there. Patching the old list is how a task ends up in both.
+  const placed = new Set(plan.blocks.map((b) => b.taskId));
+  const anytime = inp.pool
+    .filter((c) => !placed.has(c.id))
+    .map((c) => ({ id: c.id, text: c.text }));
+
+  return { ...standing, blocks: plan.blocks, anytime };
+}
+
 // Re-flow (push 16): the remainder of an ACCEPTED day, re-draped around
 // reality. A block whose start has passed without its task completing is
 // re-placed into the remaining open time; blocks that no longer fit are

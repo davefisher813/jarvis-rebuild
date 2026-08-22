@@ -1844,6 +1844,28 @@ button {
 /* An open disclosure points back up: same drawn arrow, flipped. */
 .chev-down.chev-open { transform: rotate(-45deg); }
 
+/* EDIT IN PLACE (merge phase 2, 2026-08-22). The card hosts the plan
+   sheet's own row editor, so the only rules here are the ones that make the
+   card a host: everything inside .draft-edit-body is .plan-controls, .chip
+   and .plan-drop, untouched.
+
+   The whole ROW is the tap target in edit mode, not the time: a 44px row
+   beats a 60px readout on a phone, and "tap the thing to change it" needs no
+   teaching. The time stays the quiet readout it already is and takes tint
+   only while its own editor is open -- the first attempt made every time a
+   filled red pill and turned the card into a wall of red. The plan sheet had
+   already solved this the same way (.p3-time-btn). */
+.draft-editing .row-edit { cursor: pointer; }
+.draft-editing .row-edit:active { background: var(--press-1); }
+.draft-editing .draft-row-time.on { color: var(--tint); font-weight: var(--w-semi); }
+/* No left padding of its own: .plan-controls already indents 44px to clear
+   the row glyph, and adding it here too pushed the chips 88px in. */
+.draft-edit-body { padding: 0 var(--s-4) var(--s-2); }
+.draft-edit-body .plan-when { margin-top: var(--s-1h); }
+/* The escape to the full picker rides the head, so the footer keeps the
+   two-button law the plan-sheet rebuild set. */
+.draft-kick .see-all { margin-left: auto; }
+
 /* The draft's Anytime fold (Dave 2026-08-22: the dead grey "5 More in
    Anytime" line becomes the thing you tap). A disclosure, not a verb: per
    the red law, tappable non-button text wears --tint, and the drawn chevron
