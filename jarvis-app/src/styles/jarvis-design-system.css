@@ -171,8 +171,11 @@
    selection steel softened off pure black. The measured text ramp from the
    contrast audit is untouched. */
 [data-theme="light"] {
-  --bg: #EEEEF3;
-  --surface-1: #FFFFFF; --surface-2: #FFFFFF; --surface-3: #F1F1F4;
+  /* DAYLIGHT (Dave's pick, 2026-08-22, from the four-option round). The
+     gray-blue #EEEEF3 read "overcast" on his phone; one step brighter and
+     one step cooler-clean, so white cards lift instead of blending. */
+  --bg: #F3F4F9;
+  --surface-1: #FFFFFF; --surface-2: #FFFFFF; --surface-3: #F1F2F7;
   /* The hairline serves INPUTS; cards drop their border entirely (border
      plus shadow was the mud) and let elevation do the separating. */
   --card-bd: rgba(20,20,30,0.07); --divider: rgba(60,60,67,0.14);
@@ -180,14 +183,14 @@
      button unmistakably has a body on both the page and a card, and the
      red label still clears 4.5:1 on it (CC051B on #EBEBEE: 4.9:1). */
   --press-1: rgba(20,20,30,0.05); --press-3: rgba(20,20,30,0.08); --press-5: rgba(20,20,30,0.13);
-  /* --tx-3 raised from 0.66 to 0.76 (2026-08-02). At 0.66 every piece of
-     secondary text in light theme measured 3.83:1 on the page and 4.02:1 on a
-     card, under the 4.5:1 Apple checks: eyebrows, calendar weekday letters,
-     the capture hint, empty-state subtext, AM/PM. One token accounted for 16
-     of the 19 light-theme failures. 0.76 is the lowest value that clears both
-     backgrounds (4.98:1 on page, 5.31:1 on card) without going near black. */
-  /* Light mirrors the iOS light label ramp (3C3C43 at 60% / 30%). */
-  --tx-1: #000000; --tx-2: rgba(60,60,67,0.82); --tx-3: rgba(60,60,67,0.60); --tx-4: rgba(60,60,67,0.30);
+  /* --tx-3 at 0.72 (Daylight, 2026-08-22). The Apple-exact 0.60 measured
+     3.4:1 on Dave's phone and he named it: "hard to read." 0.72 is the
+     smallest alpha that clears 4.5:1 on BOTH grounds subs actually live on
+     (4.51 on the page, 4.74 on a white card, measured as blends, not as
+     flat hex); 0.66 was tried first and still read 4.02 on card. The
+     pressed-chip case stays the prefers-contrast boost's job (0.75), and
+     the ramp keeps its order: 0.82 tx-2 > 0.72 tx-3 > 0.30 tx-4. */
+  --tx-1: #000000; --tx-2: rgba(60,60,67,0.82); --tx-3: rgba(60,60,67,0.72); --tx-4: rgba(60,60,67,0.30);
   /* iOS system colors, LIGHT variants, exactly as the HIG defines them. */
   --sys-gray: #8E8E93;
   --red: #FF3B30; --sys-red: #FF3B30; --warn: #FF9500; --good: #34C759; --blue: #007AFF;
@@ -218,8 +221,8 @@
   /* Two-layer elevation: a tight contact shadow that draws the card's edge,
      and a soft ambient that lifts it. The old single 24px blur at 10% read
      as smudge, not height. */
-  --shadow-card: 0 1px 2px rgba(17,18,26,0.06), 0 10px 24px rgba(17,18,26,0.08);
-  --shadow-float: 0 2px 6px rgba(17,18,26,0.08), 0 14px 32px rgba(17,18,26,0.12);
+  --shadow-card: 0 1px 2px rgba(17,18,26,0.06), 0 10px 24px rgba(17,18,26,0.09);
+  --shadow-float: 0 2px 6px rgba(17,18,26,0.09), 0 16px 36px rgba(17,18,26,0.13);
   /* Selection steel, softened: pure black selection pills read as tar on
      the light page. Near-black keeps the 2026-08-02 doctrine (picked is
      neutral, never red) without the harshness. */
@@ -246,7 +249,7 @@ html, body {
 }
 /* Force page background per theme so it can never fall back to the wrong theme */
 html[data-theme="dark"], html[data-theme="dark"] body { background-color: #000000 !important; }
-html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F2F7 !important; }
+html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F4F9 !important; }
 
 /* TYPOGRAPHY ROLES */
 .t-h1 { font-size: var(--t-h1); font-weight: var(--w-semi); letter-spacing: var(--track-h1); line-height: var(--lh-snug); }

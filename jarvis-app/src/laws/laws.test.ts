@@ -606,4 +606,17 @@ describe("LAW: stored shapes are versioned", () => {
     }
     expect(bad).toEqual([]);
   });
+
+  // A SENDER OWNS ITS LINE (Dave's 10:30 screenshot, 2026-08-22). Mail
+  // notices once took the one-line verb row, where the sender and the
+  // subject split ~180px with the capsule and his phone rendered
+  // "nikestrength H… Missi…": two fragments carrying less than one whole
+  // sender. The one-line contract is for producers whose sub is a short
+  // fused datum (Slid 3d, 9h ago); a sender is any length the world
+  // chooses, so mail notices are ALWAYS the stacked card form.
+  it("mail notices never take the one-line verb row", () => {
+    const src = read(SRC + "/today/MailNotices.tsx");
+    expect(/form="card"/.test(src)).toBe(true);
+    expect(/form=\{[^}]*"row"/.test(src)).toBe(false);
+  });
 });

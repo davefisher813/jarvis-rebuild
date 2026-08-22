@@ -175,7 +175,16 @@ export default function MailNotices({
         return (
           <NoticeCard
             key={n.key}
-            form={draft || (chips.length > 0 && n.kind === "reply") ? "card" : "row"}
+            /* Card, never vrow (2026-08-22). A mail notice's title is a
+               SENDER, which is any length the world chooses, and its sub is
+               a subject. On a 390px row the two shared one line with the
+               capsule and Dave's phone rendered "nikestrength H… Missi…":
+               two fragments carrying less than one whole sender. Stacked,
+               the sender owns its line and the fact sits under it in the
+               same card footprint. The vrow stays for producers whose sub
+               is a short fused datum (Slid 3d, 9h ago), which is what the
+               one-line contract was written for. */
+            form="card"
             icon={ICON[n.kind]}
             tone={n.tone}
             title={n.title}

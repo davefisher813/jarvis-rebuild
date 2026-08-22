@@ -220,36 +220,39 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cat-bg-olive { background: var(--cat-olive); color: var(--on-fill-dark); } .cat-bd-olive { border-color: var(--cat-olive); } .cat-fg-olive { color: var(--cat-olive); }
 .cat-bg-slate { background: var(--cat-slate); color: var(--on-fill-dark); } .cat-bd-slate { border-color: var(--cat-slate); } .cat-fg-slate { color: var(--cat-slate); }
 
-/* CATEGORY COLOURS DRAWN AS TEXT, IN LIGHT THEME (2026-08-21, regenerated
-   for the Apple palette). Apple's light variants are still fills, not text:
-   systemYellow on the light page is 1.35:1, mint 1.43:1, green 1.73:1.
-   Same hues taken down in lightness until each clears 4.6:1 on the page
-   (5.1:1 on a white card). Text only; the fills stay exactly Apple. */
+/* CATEGORY COLOURS DRAWN AS TEXT, IN LIGHT THEME (Daylight, 2026-08-22).
+   The 08-21 set was derived by darkening until contrast passed, and
+   contrast math kills chroma: yellow arrived as mustard, teal as swamp,
+   and Dave called the result "dull and depressing." This set is derived
+   the other way: each hue held at its most saturated and darkened ONLY to
+   the bar (>=4.6:1 on the Daylight page #F3F4F9, >=5.1:1 on a white card,
+   verified computationally, 2026-08-22). Yellow is the one hue text alone
+   cannot save; its chip (below) restores the identity its ink cannot. */
 [data-theme="light"] {
-  --cat-tx-amber: #926201;
-  --cat-tx-rust: #C04011;
-  --cat-tx-rose: #D90243;
-  --cat-tx-plum: #BC24B0;
-  --cat-tx-violet: #6F20F8;
-  --cat-tx-cyan: #04768B;
-  --cat-tx-mint: #0B7A51;
-  --cat-tx-olive: #5A7718;
-  --cat-tx-slate: #4C6F9A;
-  --cat-tx-red: #DB0C00;
-  --cat-tx-orange: #A05D00;
-  --cat-tx-sky: #1475A1;
-  --cat-tx-pink: #DC002A;
-  --cat-tx-yellow: #856A00;
-  --cat-tx-green: #217D38;
-  --cat-tx-blue: #0069DD;
-  --cat-tx-teal: #217787;
-  --cat-tx-graphite: #6D6D73;
-  --cat-tx-purple: #A237D9;
-  --cat-tx-indigo: #5856D6;
-  --cat-tx-magenta: #BA349F;
-  --cat-tx-lime: #007B75;
-  --cat-tx-sand: #82694B;
-  --cat-tx-coral: #D71D00;
+  --cat-tx-amber: #8A5A00;
+  --cat-tx-rust: #C43D00;
+  --cat-tx-rose: #DC0040;
+  --cat-tx-plum: #B518AC;
+  --cat-tx-violet: #6C2BE0;
+  --cat-tx-cyan: #007799;
+  --cat-tx-mint: #007D56;
+  --cat-tx-olive: #5C7600;
+  --cat-tx-slate: #46709F;
+  --cat-tx-red: #DC000F;
+  --cat-tx-orange: #BA4B00;
+  --cat-tx-sky: #0072A8;
+  --cat-tx-pink: #D9003A;
+  --cat-tx-yellow: #8A5A00;
+  --cat-tx-green: #1C7E35;
+  --cat-tx-blue: #0061D6;
+  --cat-tx-teal: #00788E;
+  --cat-tx-graphite: #63636A;
+  --cat-tx-purple: #8C1FD9;
+  --cat-tx-indigo: #4B49CF;
+  --cat-tx-magenta: #BC0085;
+  --cat-tx-lime: #00756B;
+  --cat-tx-sand: #7D5F3B;
+  --cat-tx-coral: #CD3000;
 }
 /* CATEGORY COLOURS DRAWN AS TEXT, IN DARK THEME (2026-08-21). New with the
    Apple surfaces: #3A3A3C is lighter than the old #2A2A32, and nine of the
@@ -2409,9 +2412,9 @@ button {
    these are their daylight sisters: a warm sunrise breath in the morning,
    a cool indigo one in the evening, both fading before the first card. */
 [data-theme="light"] .today-hero.hero-morning {
-  background: linear-gradient(160deg, rgba(255,59,48,0.10), rgba(255,159,10,0.06) 45%, transparent 80%); }
+  background: linear-gradient(160deg, rgba(255,59,48,0.14), rgba(255,159,10,0.08) 45%, transparent 80%); }
 [data-theme="light"] .today-hero.hero-evening {
-  background: linear-gradient(160deg, rgba(88,86,214,0.10), rgba(120,90,255,0.05) 45%, transparent 80%); }
+  background: linear-gradient(160deg, rgba(88,86,214,0.14), rgba(120,90,255,0.07) 45%, transparent 80%); }
 
 /* The floating chrome floats. The capture bar was a gray pill on a gray
    page; it is a white instrument on the desk now, same for its two
@@ -2437,3 +2440,47 @@ button {
   background: #FFFFFF; color: var(--tx-1);
   box-shadow: 0 1px 3px rgba(17,18,26,0.12), 0 4px 10px rgba(17,18,26,0.08);
 }
+
+/* ============================================================
+   DAYLIGHT (Dave's pick from the four-option round, 2026-08-22).
+   The failed facelift drowned light theme in gray: every action was an 8%
+   gray fill with red text, which is also iOS's grammar for DISABLED, and
+   dozens of them per screen read as dishwater. Daylight replaces
+   gray-on-gray with tint, two ways.
+   ============================================================ */
+/* 1 · ACTIONS WEAR THE BRAND. Every capsule that is not primary, danger or
+   deliberately neutral takes the iOS tinted-button form: a soft wash of
+   the JARVIS red with the deep red label on it. #B80417 on the wash is
+   5.5:1, on a white card 6.9:1. The :not() chain on .btn-sm matches the
+   capsule backstop's own specificity, or bare small buttons (Plan My Day,
+   Not Today, Edit) silently keep the gray -- proven in preview, where all
+   three sat unconverted until the chain matched. */
+[data-theme="light"] .btn,
+[data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
+  background: rgba(204,5,27,0.085); color: #B80417;
+}
+[data-theme="light"] .pill-act { background: rgba(204,5,27,0.085); color: #B80417; }
+[data-theme="light"] .note-fix { background: rgba(204,5,27,0.085); color: #B80417; }
+/* The variants the tint must NOT bleach, restated so the cascade keeps
+   them: primary stays the flat brand fill, danger stays system red,
+   neutral stays neutral, icon buttons stay furniture. */
+[data-theme="light"] .btn-primary { background: var(--accent-fill); color: #fff; }
+[data-theme="light"] .btn-danger { background: var(--sys-red); color: #fff; }
+[data-theme="light"] .btn-secondary { background: var(--press-3); color: var(--tx-1); }
+[data-theme="light"] .btn-tertiary { background: transparent; color: var(--tint); }
+[data-theme="light"] .btn-disabled { background: var(--press-1); color: var(--tx-4); }
+[data-theme="light"] .btn-icon { background: var(--press-3); color: var(--tx-1); }
+/* 2 · KICKERS BECOME CHIPS. A category eyebrow carries its hue in a tinted
+   chip of its own colour, so the hue does the identifying and the ink only
+   has to be legible. This is the one cure for the yellow family: mustard
+   text on a wheat chip reads GOLD, which no legal yellow ink can do alone.
+   color-mix keeps every chip on its own text colour with no second token. */
+[data-theme="light"] .eyebrow[class*="cat-fg-"] {
+  display: inline-flex; align-items: center; width: fit-content;
+  padding: 2px 7px; border-radius: 6px; margin-top: 2px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+/* 3 · MAIL GLYPHS JOIN THE FAMILY. The purple envelope was the dark
+   theme's mail tone surviving into daylight, where it clashed with
+   everything red on the page. In light the glyph wears the brand. */
+[data-theme="light"] .row-glyph.cat-fg-purple { color: #C7001A; }

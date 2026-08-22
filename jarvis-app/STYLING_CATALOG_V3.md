@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.12 (2026-08-22)
+# JARVIS Styling Catalog V4.13 (2026-08-22)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -355,6 +355,20 @@ Light is its OWN system, never a washed inversion of dark. Dark buys depth with 
 - The measured text ramp (contrast audit) is untouched; prefers-contrast: more remains the boost contract.
 
 **L2.X capsule backstop (both themes).** The BASE .btn is a capsule (press fill, tint label): a button that forgets its variant fails safe instead of rendering naked words. Discovered because five did.
+
+## L3. Daylight (V4.13, Dave 2026-08-22: "dull and depressing... hard to read... quality looks poor" -> picked Daylight from the four-option round)
+
+The Second Sun's architecture stands (paper ground, borderless white cards, two-layer lift, white-sheet rows, raised-white selection). What died was its COLOR: everything gray-on-gray. Daylight replaces gray with tint:
+
+- Ground brightens to #F3F4F9 (surface-3 #F1F2F7). Gray-blue #EEEEF3 read overcast on the phone.
+- ACTIONS WEAR THE BRAND. Every capsule that is not primary/danger/deliberately-neutral is the iOS tinted-button form: rgba(204,5,27,0.085) wash, #B80417 label (5.5:1 on the wash, 6.9:1 on card). Gray fill + red text was iOS's DISABLED grammar repeated forty times a screen. The light override of bare .btn-sm must match the capsule backstop's :not() chain -- `.btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary)` -- or Plan My Day, Not Today and Edit silently keep the gray (proven in preview).
+- KICKERS ARE CHIPS. `.eyebrow[class*="cat-fg-"]` takes a chip of its own colour: `color-mix(in srgb, currentColor 12%, transparent)` behind the cat-tx ink. The hue does the identifying, the ink only has to be legible; the only cure for the yellow family, where no legal ink can be vivid.
+- The light cat-tx palette is derived CHROMA-FIRST (2026-08-22): each hue held at max saturation and darkened only to the bar (>=4.6:1 on #F3F4F9, >=5.1:1 on card, verified computationally). Never derive light colors by darkening until contrast passes and calling it done: contrast math kills chroma (that is how MONEY became mustard).
+- Light tx-3 rises 0.60 -> 0.72 (his "hard to read" was 3.4:1 subs; 0.72 is the smallest alpha clearing 4.5:1 on page and card as measured BLENDS). prefers-contrast: more still boosts to 0.75; the ramp order is preserved.
+- Mail glyphs in light wear the brand (#C7001A), never the dark theme's purple.
+- Card and float shadows deepen one notch (ambient 0.09 / 0.13, float spread 16/36) so white lifts off the brighter ground.
+- Hero washes strengthen (0.14 lead) so the daypart weather survives the brighter page.
+- MAIL NOTICES ARE ALWAYS THE STACKED CARD FORM, never the one-line verb row: a sender is any length the world chooses; the vrow's one-line contract is for short fused data subs only (laws.test.ts pins it).
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
