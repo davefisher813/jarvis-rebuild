@@ -508,6 +508,9 @@ export default function SchedulePage({
             ),
           )}
         </div>
+        {/* NO DEAD ENDS. A proposal you can see and edit but not accept is
+            decoration. The same decision Today offers, under the same day. */}
+        {dayFooter}
         {/* The trailing "Open ..." list is retired: those rows are in the
             timeline now, at the hour they belong to. Week and month views,
             which have no timeline, keep the list. */}

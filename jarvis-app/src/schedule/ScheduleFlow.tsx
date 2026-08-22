@@ -21,7 +21,7 @@ import { showToast } from "../shared/toast";
 import { catColor } from "../shared/categories";
 import { attemptWrite } from "../shared/guard";
 import PlanDaySheet from "./screens/PlanDaySheet";
-import { readDraft, writeDraft, acceptInto, seedFrom, editDraft } from "../dayloop/dayLoop";
+import { readDraft, writeDraft, acceptInto, seedFrom, editDraft, plannedTaskIds as draftClaims } from "../dayloop/dayLoop";
 import { aiPlanDay } from "./planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, splitProtectedRanges, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "./energy";
@@ -219,6 +219,45 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
       return edited;
     });
   };
+
+  // ACCEPT, FROM HERE TOO. Same write door as Today (commitPlan sweeps a
+  // task's prior block before writing), same resolution (acceptInto marks
+  // the one draft), so which tab he was looking at cannot change what the
+  // day becomes.
+  const acceptProposal = async () => {
+    if (!standingDraft) return;
+    let ids: string[] = [];
+    const ok = await attemptWrite(async () => {
+      ids = (await svc.commitPlan(selected, standingDraft.blocks.map((b) => ({
+        taskId: b.taskId, text: b.text, category: b.category, start: b.start, end: b.end,
+      })))).created;
+    });
+    if (!ok) return;
+    const resolved = acceptInto(readDraft(selected), selected, standingDraft.blocks, ids);
+    if (resolved) { writeDraft(resolved); setProposalDraft(resolved); }
+    setTuning(null);
+    await reload();
+    showToast({
+      message: `Planned ${standingDraft.blocks.length} ${standingDraft.blocks.length === 1 ? "block" : "blocks"}`,
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(async () => { for (const id of ids) await svc.deleteEvent(id); }); await reload(); },
+    });
+  };
+
+  const dismissProposal = () => {
+    if (!standingDraft) return;
+    const next = { ...standingDraft, dismissed: true };
+    writeDraft(next);
+    setProposalDraft(next);
+    setTuning(null);
+  };
+
+  const proposalFooter = standingDraft ? (
+    <div className="day-foot">
+      <button className="btn btn-primary btn-sm" onClick={() => void acceptProposal()}>Accept the Day</button>
+      <button className="btn-sm" onClick={dismissProposal}>Not Today</button>
+    </div>
+  ) : null;
 
   const standingProposal = standingDraft ? {
     blocks: standingDraft.blocks,
@@ -467,7 +506,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // --- Roadmap v2 Anytime row ---
   // Tasks with no time for the selected day, shown as a strip above the grid.
   const reloadTasks = useCallback(async () => { setTaskItems(await tasksSvc.listTasks()); }, [tasksSvc]);
-  const anytimeItems = mode === "day" ? anytimeTasksForDay(taskItems, dayEvents, selected) : [];
+  const anytimeItems = mode === "day"
+    ? anytimeTasksForDay(taskItems, dayEvents, selected, draftClaims(standingDraft))
+    : [];
 
   // Tap the circle: complete the task (it leaves the strip).
   const onToggleTask = async (id: string) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reloadTasks(); };
@@ -806,6 +847,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     <>
       <SchedulePage
         proposed={standingProposal}
+        dayFooter={proposalFooter}
         year={view.y}
         month={view.m}
         selected={selected}

@@ -9,14 +9,21 @@ import type { TaskItem } from "../tasks/TasksService";
 // Anytime pool for a day is: open tasks, not yet turned into a block that day,
 // that either have no due date or are due on/before the day. Undated tasks sort
 // last; among dated ones the soonest comes first.
+// `claimed` (blend, 2026-08-22): task ids a STANDING PROPOSAL holds. A
+// proposal has no event yet, so without this a proposed task shows as a
+// dashed row in the day AND again in the Anytime strip above it -- the same
+// task twice on one screen, which the no-repetition law forbids. Committed
+// work is excluded by its event; proposed work has to be named.
 export function anytimeTasksForDay(
   tasks: TaskItem[],
   dayEvents: EventItem[],
   date: string,
+  claimed: ReadonlySet<string> = new Set(),
 ): TaskItem[] {
-  const planned = new Set(
-    dayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x),
-  );
+  const planned = new Set([
+    ...dayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x),
+    ...claimed,
+  ]);
   return tasks
     .filter(
       (t) =>

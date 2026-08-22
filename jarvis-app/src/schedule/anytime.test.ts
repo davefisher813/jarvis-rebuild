@@ -49,3 +49,27 @@ describe("anytimeTasksForDay", () => {
     expect(anytimeTasksForDay(tasks, [], DAY)).toHaveLength(0);
   });
 });
+
+// NO REPETITION ON ANY PAGE (blend phase 3, 2026-08-22). A proposal has no
+// event yet, so without the claimed set a proposed task drew as a dashed row
+// in the day AND again in the Anytime strip above it.
+describe("a proposed task leaves the Anytime strip", () => {
+  const t = (id: string, over: Record<string, unknown> = {}) =>
+    ({ id, data: { text: id, done: false, ...over } }) as never;
+
+  it("a task the proposal holds is not offered as Anytime as well", () => {
+    const out = anytimeTasksForDay([t("t1"), t("t2")], [], "2026-08-22", new Set(["t1"]));
+    expect(out.map((x) => x.id)).toEqual(["t2"]);
+  });
+
+  it("[edge] no proposal standing: nothing is withheld", () => {
+    const out = anytimeTasksForDay([t("t1"), t("t2")], [], "2026-08-22");
+    expect(out.map((x) => x.id).sort()).toEqual(["t1", "t2"]);
+  });
+
+  it("committed work is still excluded by its own event, as before", () => {
+    const ev = { id: "e1", data: { title: "x", start: "09:00", sourceTaskId: "t1" } } as never;
+    const out = anytimeTasksForDay([t("t1"), t("t2")], [ev], "2026-08-22");
+    expect(out.map((x) => x.id)).toEqual(["t2"]);
+  });
+});
