@@ -89,7 +89,7 @@ export default function TestBench() {
       <div className="pad-x"><div className="card"><div className="bench-log">{log.map((l, i) => <div className={"bench-line" + (l.startsWith("FAIL") ? " test-bad" : l.startsWith("PASS") || l.startsWith("ALL PASS") ? " test-ok" : "")} key={i}>{l}</div>)}</div></div></div>
 
       <div className="sec-head"><div className="sec-left"><div className="sec-title">Live data</div></div></div>
-      <div className="pad-x"><div className="card"><div className="row"><div className="row-grow"><div className="conn-name">tasks {snap.tasks} · events {snap.events} · notes {snap.notes} · people {snap.people} · categories {snap.cats}</div></div></div></div></div>
+      <div className="pad-x"><div className="card"><div className="row"><div className="row-grow"><div className="conn-name">Tasks {snap.tasks} · Events {snap.events} · Notes {snap.notes} · People {snap.people} · Categories {snap.cats}</div></div></div></div></div>
 
       <div className="sec-head"><div className="sec-left"><div className="sec-title">Visual FX (new)</div></div></div>
       <div className="test-summary">Tap the circle to see the completion punch + flash. Tap any row to feel press feedback. Shimmer below is the loading skeleton.</div>

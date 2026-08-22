@@ -1132,7 +1132,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // worked meant the "archived" mail quietly reappeared on the next load.
     apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {
       setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
-      say("Couldn't archive · still in inbox");
+      say("Couldn't archive · Still in inbox");
     });
     say("Archived", { label: "Undo", run: () => {
       setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
@@ -1151,7 +1151,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setView("list");
     const gone = rows.find((r) => r.id === id);
     api.trashThread(id).catch(() => {});
-    say("Deleted · in trash 30 days", { label: "Undo", run: () => {
+    say("Deleted · In trash 30 days", { label: "Undo", run: () => {
       if (gone) setRows((rs) => [gone, ...rs.filter((x) => x.id !== id)].sort((a, b) => b.dateMs - a.dateMs));
       api.untrashThread(id).catch(() => {});
     } });
@@ -1531,7 +1531,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <button className="btn btn-secondary btn-block" onClick={() => {
               try { localStorage.removeItem(AUTONOISE_KEY); } catch { /* ignore */ }
               setAutoNoise(false);
-              say("Auto-clear off · noise stays");
+              say("Auto-clear off · Noise stays");
             }}>Stop Clearing Noise Automatically</button>
           </div>
         )}
@@ -1755,7 +1755,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <button className="quiet-action" onClick={() => {
               setMuted(mute(thread.id));
               setView("list");
-              say("Muted · won't come back", { label: "Undo", run: () => setMuted(unmute(thread.id)) });
+              say("Muted · Won't come back", { label: "Undo", run: () => setMuted(unmute(thread.id)) });
             }}>Mute this thread</button>
             {sweepCount(lastMsg(thread).fromEmail) > 1 && (
               <button className="quiet-action" onClick={() => sweepSender(lastMsg(thread).fromEmail)}>
@@ -2272,7 +2272,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                             <span className="conn-name truncate">{displayName(w.to)}</span>
                             <span className="pill-act">{d.primary.label}</span>
                           </div>
-                          <div className="conn-meta msg-gist">{w.subject} · a receipt needs no reply</div>
+                          <div className="conn-meta msg-gist">{w.subject} · A receipt needs no reply</div>
                         </div>
                       </div>
                       </LetGoSwipe>

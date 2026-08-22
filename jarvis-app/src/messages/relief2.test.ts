@@ -61,7 +61,7 @@ describe("hand off", () => {
 
   it("tells him who has it now", () => {
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(handoffLine("Jen")).toBe("Sent to Jen · now in Waiting On");
+    expect(handoffLine("Jen")).toBe("Sent to Jen · Now in Waiting On");
   });
 });
 
@@ -95,7 +95,7 @@ describe("commitment catcher", () => {
   it("states the promise without a word of judgement", () => {
     const line = commitmentLine({ text: "Send the roster", due: "2026-08-14" });
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(line).toBe("Caught: Send the roster · by 2026-08-14");
+    expect(line).toBe("Caught: Send the roster · By 2026-08-14");
     for (const w of ["forgot", "remember", "don't", "again", "promised you"]) {
       expect(line.toLowerCase()).not.toContain(w);
     }

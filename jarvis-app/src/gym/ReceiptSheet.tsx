@@ -43,7 +43,7 @@ export default function ReceiptSheet({ dayName, receipt, onDone }: {
                   <div className="row" key={p.name}>
                     <div className="row-grow">
                       <div className="conn-name truncate">{p.name}</div>
-                      <div className="eyebrow">{p.text}{p.from ? ` · up from ${p.from}` : " · first time"}</div>
+                      <div className="eyebrow">{p.text}{p.from ? ` · Up from ${p.from}` : " · First time"}</div>
                     </div>
                     <span className="pill pill-good">PR</span>
                   </div>

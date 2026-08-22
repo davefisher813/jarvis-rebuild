@@ -104,7 +104,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
         try { localStorage.setItem("jarvis.setaside.last", today); } catch { /* ok */ }
         await reload();
         showToast({
-          message: `Set aside ${ids.length} quiet ${ids.length === 1 ? "task" : "tasks"} · nothing overdue`,
+          message: `Set aside ${ids.length} quiet ${ids.length === 1 ? "task" : "tasks"} · Nothing overdue`,
           actionLabel: "Undo",
           onAction: async () => { await attemptWrite(() => svc.restoreAside(ids)); await reload(); },
         });

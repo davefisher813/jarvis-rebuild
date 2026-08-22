@@ -21,7 +21,7 @@ describe("EventSheet", () => {
     render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).not.toHaveBeenCalled();
-    expect(screen.getByText("Needs title · date · start")).toBeInTheDocument();
+    expect(screen.getByText("Needs title · Date · Start")).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Standup" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith({ title: "Standup", date: "2026-05-24", start: "09:00", end: "10:00", category: "c1", location: "", recurrence: "none", until: "", taskIds: [] });

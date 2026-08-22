@@ -129,6 +129,10 @@ export default function TodayFlow({
   const [loading, setLoading] = useState(true);
   // Group C (item 14): the Day Loop's draft for today.
   const [dayDraft, setDayDraft] = useState<DayDraft | null>(null);
+  // The draft's Anytime tail, folded by default. The old line was dead grey
+  // text (Dave 2026-08-22: "this should be a button"); now it discloses the
+  // actual tasks in place, same pattern as the email fold.
+  const [draftMoreOpen, setDraftMoreOpen] = useState(false);
   // Whether the Email band has anything to show. Reported BY MailNotices, so
   // the head and the content can never disagree about being empty.
   const [mailEmpty, setMailEmpty] = useState(true);
@@ -962,7 +966,20 @@ export default function TodayFlow({
           </div>
         ))}
         {dayDraft.anytime.length > 0 && (
-          <div className="row"><div className="conn-meta">{capAfterNumber(`${dayDraft.anytime.length} more in Anytime`)}</div></div>
+          <>
+            <div className="row">
+              <button className="draft-more" aria-expanded={draftMoreOpen} onClick={() => setDraftMoreOpen((o) => !o)}>
+                <span className="t">{capAfterNumber(`${dayDraft.anytime.length} more in Anytime`)}</span>
+                <div className={"chev chev-down" + (draftMoreOpen ? " chev-open" : "")} />
+              </button>
+            </div>
+            {draftMoreOpen && dayDraft.anytime.map((a) => (
+              <div className="row" key={a.id}>
+                <RowIcon kind="task" />
+                <div className="row-grow"><div className="conn-name truncate">{a.text}</div></div>
+              </div>
+            ))}
+          </>
         )}
         <div className="row">
           <div className="momentum-actions">

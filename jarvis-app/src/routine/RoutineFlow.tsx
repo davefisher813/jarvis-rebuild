@@ -166,7 +166,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
             <input type="time" className="input" value={toHHMM(data.workEndMin)} disabled={!loaded} onChange={(e) => set({ workEndMin: fromHHMM(e.target.value) })} />
           </div>
         </div>
-        {workOutside && <div className="input-help">Work hours outside active hours · fine</div>}
+        {workOutside && <div className="input-help">Work hours outside active hours · Fine</div>}
 
         <div className="grp"><div className="eyebrow">Protected Time</div></div>
 

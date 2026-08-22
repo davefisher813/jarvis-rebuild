@@ -19,10 +19,10 @@ const LEVEL_LABEL: Record<AILevel, string> = {
 };
 
 const LEVEL_SUB: Record<AILevel, string> = {
-  everything: "Acts · receipts + undo · you send",
-  draft: "Drafts ready · nothing acts",
+  everything: "Acts · Receipts + undo · You send",
+  draft: "Drafts ready · Nothing acts",
   request: "Only when you ask",
-  off: "Zero AI calls · nothing deleted",
+  off: "Zero AI calls · Nothing deleted",
 };
 
 const PIN_LABEL: Record<AIPinKey, string> = {

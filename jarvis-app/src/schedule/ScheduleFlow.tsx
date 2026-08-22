@@ -309,7 +309,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           const WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
           const evId = newEventId;
           showToast({
-            message: `Third ${WD[cand.weekday]} running · repeat weekly?`,
+            message: `Third ${WD[cand.weekday]} running · Repeat weekly?`,
             actionLabel: "Make It Repeat",
             onAction: async () => { await attemptWrite(() => svc.editRecurrence(evId, "weekly")); await reload(); },
           });
@@ -402,7 +402,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     followUpBusy.current = true;
     try { localStorage.setItem(ASKED_KEY, JSON.stringify([...asked, cand.eventId].slice(-200))); } catch { /* private mode */ }
     showToast({
-      message: `${cand.title} · ${cand.openCount} attached ${cand.openCount === 1 ? "task" : "tasks"} · any done?`,
+      message: `${cand.title} · ${cand.openCount} attached ${cand.openCount === 1 ? "task" : "tasks"} · Any done?`,
       actionLabel: "Review",
       onAction: () => { followUpBusy.current = false; openEdit(cand.eventId); },
     });
@@ -585,7 +585,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     await reload();
     if (!ok) return;
     showToast({
-      message: label + " · just today",
+      message: label + " · Just today",
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => {

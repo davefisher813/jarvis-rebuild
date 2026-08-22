@@ -44,7 +44,7 @@ export function buildCheckinNotifications(routine: RoutineData, briefTime?: stri
     out.push({
       id: MORNING_ID,
       title: "What's your ONE thing today?",
-      body: "One thing · the rest is extra",
+      body: "One thing · The rest is extra",
       hour: Math.floor(morningMin / 60),
       minute: morningMin % 60,
     });
@@ -60,7 +60,7 @@ export function buildCheckinNotifications(routine: RoutineData, briefTime?: stri
     out.push({
       id: EVENING_ID,
       title: "How did today feel?",
-      body: "One tap · better plans",
+      body: "One tap · Better plans",
       hour: Math.floor(eveningMin / 60),
       minute: eveningMin % 60,
     });

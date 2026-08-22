@@ -30,6 +30,11 @@ const fmt12 = (hhmm: string): string => {
   return m === 0 ? `${h12} ${ap}` : `${h12}:${String(m).padStart(2, "0")} ${ap}`;
 };
 
+// Dot-break casing (V3.3): a segment after the middle dot starts capital.
+// dayWord stays lowercase because it also rides mid-segment ("Due today");
+// the caller capitalizes only when the word LEADS its segment.
+const capLead = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
 const dayWord = (iso: string, today: string): string => {
   if (iso === today) return "today";
   const diff = Math.round((Date.parse(iso + "T12:00:00") - Date.parse(today + "T12:00:00")) / 86400000);
@@ -82,7 +87,7 @@ export function answerQuestion(raw: string, snap: AnswerSnapshot): ChatAnswer | 
     if (evs.length === 1) {
       const e = evs[0]!;
       return {
-        text: `${e.title} · ${dayWord(e.date, snap.today)} ${fmt12(e.start)}`,
+        text: `${e.title} · ${capLead(dayWord(e.date, snap.today))} ${fmt12(e.start)}`,
         provenance: { kind: "records", refs: [{ kind: "event", id: e.id, label: e.title }] },
       };
     }
@@ -90,7 +95,7 @@ export function answerQuestion(raw: string, snap: AnswerSnapshot): ChatAnswer | 
     if (evs.length === 0 && ts.length === 1) {
       const t = ts[0]!;
       return {
-        text: t.due ? `${t.text} · due ${dayWord(t.due, snap.today)}` : `${t.text} · no date`,
+        text: t.due ? `${t.text} · Due ${dayWord(t.due, snap.today)}` : `${t.text} · No date`,
         provenance: { kind: "records", refs: [{ kind: "task", id: t.id, label: t.text }] },
       };
     }

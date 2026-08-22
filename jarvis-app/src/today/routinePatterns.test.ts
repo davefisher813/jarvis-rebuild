@@ -21,7 +21,7 @@ describe("routineBlockCandidate", () => {
   it("offers a block after three similar one-off events", () => {
     const c = routineBlockCandidate([gymWeek(1), gymWeek(2), gymWeek(3)], DEFAULT_ROUTINE, NOW);
     expect(c).not.toBeNull();
-    expect(c!.text).toContain("Gym · around 6 AM"); // SPEC MOVED (short copy, 2026-08-15)
+    expect(c!.text).toContain("Gym · Around 6 AM"); // SPEC MOVED (short copy, 2026-08-15)
     expect(c!.text).toContain("times this month");
     expect(c!.block).toMatchObject({ label: "Gym", startMin: 360, endMin: 420 });
     expect(c!.block.days.length).toBeGreaterThan(0);

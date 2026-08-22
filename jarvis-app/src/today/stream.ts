@@ -41,6 +41,14 @@ export function rankStream(children: ReactNode): Ranked {
     ranked.push({ el: c, w: p.weight ?? DEFAULT_WEIGHT, i: i++ });
   });
   ranked.sort((a, b) => b.w - a.w || a.i - b.i);
+  // A LONE NOTICE IS A ROW (Dave 2026-08-22, from the "Finish Jarvis
+  // Visuals" screenshot). Headliner type exists so the heaviest notice
+  // physically beats the others; with nothing to beat, big type is just a
+  // large card around one line of fact. Receipts are not competition: they
+  // whisper, so a single actionable notice above them still rows down.
+  if (ranked.length === 1) {
+    return { headliner: null, rows: [ranked[0]!.el], receipts };
+  }
   const [first, ...rest] = ranked;
   return { headliner: first?.el ?? null, rows: rest.map((r) => r.el), receipts };
 }

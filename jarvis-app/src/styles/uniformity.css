@@ -249,6 +249,11 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .block-menu-item:active { background:var(--press-3); }
 /* placeholder text for empty editable lines, so a blank line shows a cue */
 [contenteditable][data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--tx-4); pointer-events: none; }
+/* Editorial pages carry no permanent helper text (Dave 2026-08-22: the
+   "List Item" and "Write Something" ghosts read as clutter on a manuscript).
+   The placeholder appears only while the empty block is actually focused,
+   so the page shows writing or blank paper, never instructions. */
+.doc-editorial [contenteditable][data-placeholder]:empty:not(:focus)::before { content: none; }
 /* stacked title + description (template rows) */
 .row-stack { display:flex; flex-direction:column; flex:1; min-width:0; gap:2px; }
 .row-stack .conn-name { flex:none; }

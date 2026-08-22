@@ -171,7 +171,7 @@ export default function ScheduleUploadFlow({
           <div className="grp"><div className="eyebrow">What Year Is This?</div></div>
           <div className="pad-x sheet-form">
             <div className="field">
-              <div className="t-body">Schedule didn&rsquo;t say · applies to undated rows</div>
+              <div className="t-body">Schedule didn&rsquo;t say · Applies to undated rows</div>
             </div>
             <div className="field">
               <label className="input-label">Year</label>

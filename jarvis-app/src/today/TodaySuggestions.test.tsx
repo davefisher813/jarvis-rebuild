@@ -94,7 +94,7 @@ describe("TodaySuggestions routine candidate", () => {
     );
     await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
     fireEvent.click(screen.getByText(/^Noticed ·/));
-    await waitFor(() => expect(screen.getByText(/Gym · around 6 AM/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Gym · Around 6 AM/)).toBeInTheDocument());
     fireEvent.click(screen.getByText("Add to Routine"));
     await waitFor(() => expect(screen.queryByText(/Gym has landed/)).not.toBeInTheDocument());
     await waitFor(async () => {

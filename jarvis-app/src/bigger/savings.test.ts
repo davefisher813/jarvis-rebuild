@@ -18,8 +18,8 @@ describe("savings derivation", () => {
   });
 
   it("says honestly when nothing is saved yet", () => {
-    expect(savingsLine(2000, [])).toBe("Nothing saved yet · goal $2,000");
-    expect(savingsLine(2000, undefined)).toBe("Nothing saved yet · goal $2,000");
+    expect(savingsLine(2000, [])).toBe("Nothing saved yet · Goal $2,000");
+    expect(savingsLine(2000, undefined)).toBe("Nothing saved yet · Goal $2,000");
     expect(savingsLine(2000, entries)).toBe("$650 of $2,000 Saved");
   });
 

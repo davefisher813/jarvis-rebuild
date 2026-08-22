@@ -78,7 +78,7 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
       <div className="grp"><div className="eyebrow">Your Data</div></div>
       <div className="pad-x"><div className="card">
         <div className="row" role="button" tabIndex={0} aria-disabled={busy} onClick={() => !busy && onExport()}>
-          <div className="row-grow"><div className="conn-name">Export All Data</div><div className="conn-meta">{lastExport ? `Last exported ${lastExport}` : "One JSON file · everything here"}</div></div>
+          <div className="row-grow"><div className="conn-name">Export All Data</div><div className="conn-meta">{lastExport ? `Last exported ${lastExport}` : "One JSON file · Everything here"}</div></div>
         </div>
         <div className="row" role="button" tabIndex={0} aria-disabled={busy} onClick={() => !busy && onPickFile()}>
           <div className="row-grow"><div className="conn-name">Import from File</div><div className="conn-meta">Adds from a backup file</div></div>

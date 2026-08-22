@@ -59,7 +59,7 @@ describe("import hardening", () => {
         { entityType: "task", data: { text: "b" } },
         { entityType: "task", data: { text: "c" } },
       ],
-    } as never)).rejects.toThrow(/rolled back/);
+    } as never)).rejects.toThrow(/Rolled back/);
     expect((await store.listForUser("u")).length).toBe(0);
   });
 });

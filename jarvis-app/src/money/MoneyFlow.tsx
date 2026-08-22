@@ -13,6 +13,7 @@ import BillSheet, { type BillDraft } from "./BillSheet";
 import type { TaskItem } from "../tasks/TasksService";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
+import { catColor } from "../shared/categories";
 
 const CHEV = <div className="chev" />;
 const PLUS = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
@@ -306,7 +307,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               </div>
               {envelopes.length === 0 && (
                 <div className="pad-x"><div className="input-help">
-                  Reserved · not spendable · a plan
+                  Reserved · Not spendable · A plan
                 </div></div>
               )}
             </>
@@ -326,9 +327,19 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
             <>
               <div className="sh2"><span className="t">Also Tagged Money</span></div>
               <div>
+                {/* These are TASKS, so they wear the task anatomy (locked
+                    law: all task lists look identical). Bare text with a
+                    chevron read as floating words, not a row he could act
+                    on (Dave 2026-08-22). Check completes, body opens. */}
                 {tagged.map((t) => (
-                  <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => onOpenTask?.(t.id)}>
-                    <div className="row-grow"><div className="conn-name truncate">{t.data.text}</div></div>
+                  <div className="row" key={t.id}>
+                    <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Complete"
+                      onClick={(e) => { e.stopPropagation(); void (async () => { await tasksSvc.toggleDone(t.id); await reload(); })(); }}>
+                      <div className={"task-check cat-bd-" + catColor(t.data.category)} />
+                    </div>
+                    <div className="row-grow" role="button" tabIndex={0} onClick={() => onOpenTask?.(t.id)}>
+                      <div className="conn-name truncate">{t.data.text}</div>
+                    </div>
                     {CHEV}
                   </div>
                 ))}

@@ -70,5 +70,5 @@ export function forwardSubject(subject: string): string {
 // What the user is told afterwards. It names the person, because the point of
 // handing off is knowing who has it now.
 export function handoffLine(name: string): string {
-  return "Sent to " + name + " · now in Waiting On";
+  return "Sent to " + name + " · Now in Waiting On";
 }

@@ -215,7 +215,7 @@ describe("MessagesFlow (threads)", () => {
     const { unmount } = render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(await screen.findByText(/now tasks/)).toBeInTheDocument();
+    expect(await screen.findByText(/Now tasks/)).toBeInTheDocument();
     expect(JSON.parse(localStorage.getItem("jarvis.mail.netted.v1") || "[]")).toContain("t1");
     unmount();
 
@@ -227,7 +227,7 @@ describe("MessagesFlow (threads)", () => {
     // SPEC MOVED (V2 anatomy, 2026-08-15): fold count now rides as a pill.
     expect(await screen.findByText("The Rest")).toBeInTheDocument();
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(screen.queryByText(/now tasks/)).toBeNull();
+    expect(screen.queryByText(/Now tasks/)).toBeNull();
   });
 
   it("deletes a thread to Gmail's trash, never permanently", async () => {
@@ -245,7 +245,7 @@ describe("MessagesFlow (threads)", () => {
     await waitFor(() => expect(trashed).toEqual(["t1"]));
     expect(permanentDeleteCalled).toBe(false);
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(await screen.findByText(/in trash 30 days/)).toBeInTheDocument();
+    expect(await screen.findByText(/In trash 30 days/)).toBeInTheDocument();
     expect(screen.queryByText("Ridgeley")).toBeNull(); // gone from the list too
   });
 
@@ -283,7 +283,7 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("The Rest"));
     fireEvent.click(await screen.findByText("Archive All"));
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(await screen.findByText(/archived unread 4 times/)).toBeInTheDocument();
+    expect(await screen.findByText(/Archived unread 4 times/)).toBeInTheDocument();
     expect(screen.queryByText("Clear Noise Automatically From Now On")).toBeNull();
   });
 

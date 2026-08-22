@@ -153,7 +153,7 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
                   <div className="row">
                     <div className="row-stack">
                       <div className="conn-name">{s.title}</div>
-                      <div className="conn-meta">{[KIND_LABEL[s.kind], fmtWhen(s)].filter(Boolean).join(" · ")} · from your paste</div>
+                      <div className="conn-meta">{[KIND_LABEL[s.kind], fmtWhen(s)].filter(Boolean).join(" · ")} · From your paste</div>
                     </div>
                     <button className="btn-sm" onClick={() => void onUndo(s)}>Undo</button>
                   </div>

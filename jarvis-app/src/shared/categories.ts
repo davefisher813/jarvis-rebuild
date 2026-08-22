@@ -31,10 +31,22 @@ export function catColor(ref: string | undefined): ColorSlot {
   return "graphite";
 }
 
+// An opaque id: a UUID, or any long dashed hex-ish token. Never a display
+// word. Kept loose on purpose: a false positive hides a name we could not
+// have rendered readably anyway.
+const ID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // Resolve a category reference to a display name.
+//
+// The fallback capitalizes the ref so seed slugs ("family") still read as
+// words, but an id that misses the registry (deleted category, or a read
+// that beat the registry seed) must NEVER be echoed: Dave's note editor
+// printed "4D9BE8BD-CB50-..." as the eyebrow (2026-08-22). No name beats a
+// UUID wearing a name's clothes; callers already render nothing for "".
 export function catName(ref: string | undefined): string {
   if (!ref) return "";
   const hit = REGISTRY[ref];
   if (hit) return hit.name;
+  if (ID_LIKE.test(ref)) return "";
   return ref.charAt(0).toUpperCase() + ref.slice(1);
 }

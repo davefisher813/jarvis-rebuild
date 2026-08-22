@@ -124,7 +124,7 @@ export default function ChatFlow() {
           await say("jarvis", "Which one?", { kind: "records" });
           setChoice({ command: cmd, options: res.options });
         } else {
-          await say("jarvis", `Nothing matching "${cmd.query}" · nothing changed`, { kind: "records" });
+          await say("jarvis", `Nothing matching "${cmd.query}" · Nothing changed`, { kind: "records" });
         }
         return;
       }
@@ -178,7 +178,7 @@ export default function ChatFlow() {
     const p = m.data.provenance;
     if (!p) return null;
     if (p.kind === "ai") return "From your data + AI";
-    if (p.kind === "action") return "Done · undo on the toast";
+    if (p.kind === "action") return "Done · Undo on the toast";
     if (p.refs && p.refs.length > 0) return "From your records";
     return "From your records";
   };

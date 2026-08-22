@@ -86,7 +86,7 @@ export function routineBlockCandidate(
     const location = evs.map((e) => e.data.location?.trim()).find((l) => !!l);
     return {
       id: "routine-" + title.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40),
-      text: `${title} · around ${min12h(startMin)} ${daysSummary(days)} · ${evs.length} times this month`,
+      text: `${title} · Around ${min12h(startMin)} ${daysSummary(days)} · ${evs.length} times this month`,
       block: {
         id: "pb_learned_" + Math.abs(startMin * 7 + days.length) + "_" + title.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 20),
         label: title, startMin, endMin, days,

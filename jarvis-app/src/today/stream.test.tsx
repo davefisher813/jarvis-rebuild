@@ -31,12 +31,22 @@ describe("the stream ranks", () => {
     expect((r.headliner!.props as { title: string }).title).toBe("First");
   });
 
-  it("receipts never compete for the headline", () => {
+  // SPEC MOVED (Dave 2026-08-22): a lone notice no longer headlines. Big
+  // type exists to beat other notices; alone, it renders as a row. Receipts
+  // are whispers, not competition, so they do not promote a lone notice.
+  it("a lone notice is a row, not a headliner", () => {
+    const r = rankStream([card("a", FAILING, "Finish Jarvis Visuals")]);
+    expect(r.headliner).toBeNull();
+    expect(r.rows.map((x) => (x.props as { title: string }).title)).toEqual(["Finish Jarvis Visuals"]);
+  });
+
+  it("receipts never compete for the headline, and never promote one", () => {
     const r = rankStream([
       <button key="r" data-receipt className="receipt-line">Moved things</button>,
       card("a", NEW, "Actionable"),
     ]);
-    expect((r.headliner!.props as { title: string }).title).toBe("Actionable");
+    expect(r.headliner).toBeNull();
+    expect(r.rows.map((x) => (x.props as { title: string }).title)).toEqual(["Actionable"]);
     expect(r.receipts.length).toBe(1);
   });
 

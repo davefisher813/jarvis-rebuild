@@ -68,8 +68,8 @@ describe("email safety net", () => {
   it("derives the guard line, or renders nothing at all", () => {
     expect(guardLine(0)).toBe("");
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(guardLine(1)).toBe("1 Email over 3 days old · now tasks");
-    expect(guardLine(4)).toBe("4 Emails over 3 days old · now tasks");
+    expect(guardLine(1)).toBe("1 Email over 3 days old · Now tasks");
+    expect(guardLine(4)).toBe("4 Emails over 3 days old · Now tasks");
   });
 
   it("uses no shame vocabulary", () => {

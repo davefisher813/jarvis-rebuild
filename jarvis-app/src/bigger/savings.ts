@@ -18,7 +18,7 @@ export function savingsPct(target: number, entries: SavedEntry[] | undefined): n
 /** The hero line. Honest null when nothing has been logged yet. */
 export function savingsLine(target: number, entries: SavedEntry[] | undefined): string {
   const total = savedTotal(entries);
-  if (total <= 0) return `Nothing saved yet · goal ${formatMoney(target)}`;
+  if (total <= 0) return `Nothing saved yet · Goal ${formatMoney(target)}`;
   return capAfterNumber(`${formatMoney(total)} of ${formatMoney(target)} saved`);
 }
 

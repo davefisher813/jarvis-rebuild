@@ -134,8 +134,8 @@ export function staleSuffix(snap: WeatherSnapshot, now: () => number = Date.now)
   if (age > 24 * 3600e3) return null;
   if (age < 15 * 60_000) return "";
   const mins = Math.round(age / 60_000);
-  if (mins < 90) return ` · checked ${mins} min ago`;
-  return ` · checked ${Math.round(mins / 60)} hr ago`;
+  if (mins < 90) return ` · Checked ${mins} min ago`;
+  return ` · Checked ${Math.round(mins / 60)} hr ago`;
 }
 
 // The morning line: today's first rain window, or the day's extreme, or

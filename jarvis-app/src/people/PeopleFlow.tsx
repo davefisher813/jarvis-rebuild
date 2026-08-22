@@ -182,13 +182,13 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
         <div className="grp"><div className="eyebrow">Import Contacts</div></div>
         <div className="pad-x sheet-form">
           {importPreview.bad ? (
-            <div className="plan-sub">Couldn't read that file · use .vcf or .csv with names</div>
+            <div className="plan-sub">Couldn't read that file · Use .vcf or .csv with names</div>
           ) : (
             <>
               <div className="plan-sub">
                 Found {importPreview.fresh.length + importPreview.dupes} {importPreview.fresh.length + importPreview.dupes === 1 ? "person" : "people"}
-                {importPreview.dupes > 0 && ` · skipping ${importPreview.dupes} already here`}
-                {importPreview.fresh.length > 0 && ` · adding ${importPreview.fresh.length}`}
+                {importPreview.dupes > 0 && ` · Skipping ${importPreview.dupes} already here`}
+                {importPreview.fresh.length > 0 && ` · Adding ${importPreview.fresh.length}`}
               </div>
               {importPreview.fresh.length > 0 && (
                 <div className="input-help">{importPreview.fresh.slice(0, 5).map((c) => c.name).join(", ")}{importPreview.fresh.length > 5 ? ` and ${importPreview.fresh.length - 5} more` : ""}</div>

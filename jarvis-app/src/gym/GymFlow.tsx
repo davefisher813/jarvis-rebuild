@@ -374,7 +374,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
             {nextDay && nextDay.exercises.length > 0 && (
               <div className="pad-x"><div className="card pad">
                 <div className="conn-name">Next: {nextDay.name}</div>
-                <div className="bp-sub">{nextDay.exercises.length} {nextDay.exercises.length === 1 ? "exercise" : "exercises"}{recent[0] ? ` · last trained ${monthDay(recent[0].data.date)}` : ""}</div>
+                <div className="bp-sub">{nextDay.exercises.length} {nextDay.exercises.length === 1 ? "exercise" : "exercises"}{recent[0] ? ` · Last trained ${monthDay(recent[0].data.date)}` : ""}</div>
                 <div className="offer-row">
                   <button className="btn btn-primary" onClick={() => startDay(nextDay)}>Start {nextDay.name}</button>
                 </div>

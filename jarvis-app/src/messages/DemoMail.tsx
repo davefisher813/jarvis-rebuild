@@ -144,7 +144,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
                 <span className={"mail-age" + (d.tone === "firm" ? " hot" : d.tone === "direct" ? " warm" : "")}>{w.days}d</span>
                 <span className="pill-act">{d.primary.label}</span>
               </div>
-              <div className="conn-meta msg-gist">{w.sub} · no reply</div>
+              <div className="conn-meta msg-gist">{w.sub} · No reply</div>
             </div>
           </div>
           );

@@ -1817,6 +1817,18 @@ button {
    rotated bordered box around a second arrow. All converted to <div>; this
    variant covers the one disclosure chevron that points down. */
 .chev-down { transform: rotate(135deg); }
+/* An open disclosure points back up: same drawn arrow, flipped. */
+.chev-down.chev-open { transform: rotate(-45deg); }
+
+/* The draft's Anytime fold (Dave 2026-08-22: the dead grey "5 More in
+   Anytime" line becomes the thing you tap). A disclosure, not a verb: per
+   the red law, tappable non-button text wears --tint, and the drawn chevron
+   says "opens here". Expands in place, like the email fold. */
+.draft-more { background: none; border: 0; width: 100%; text-align: left; padding: 0;
+  min-height: var(--tap-min); display: flex; align-items: center; gap: 6px; font-family: var(--f); }
+.draft-more .t { color: var(--tint); font-size: var(--t-meta); font-weight: var(--w-semi); }
+.draft-more .chev { border-color: var(--tint); }
+[data-theme="light"] .draft-more .t { color: var(--on-light-red, var(--tint)); }
 
 /* NO TWO CONTROLS IN ONE CORNER (Dave 2026-08-19, from the same screenshot).
    A card with an absolutely-positioned corner dismiss and a one-row body puts
@@ -1958,6 +1970,11 @@ button {
 .doc-title { font-size: 27px; font-weight: var(--w-bold); letter-spacing: -0.015em; line-height: var(--lh-snug);
   color: var(--tx-1); margin-top: var(--s-2); }
 .doc .t-body { font-size: 17px; line-height: 1.6; color: var(--tx-1); padding: 2px 0; min-height: 27px; }
+/* List lines hang their marker: the words own the left edge, wrapped lines
+   align under words, and the marker column stays even (visual pass
+   2026-08-22). Non-interactive typography, both layouts. */
+.doc .li-line { padding-left: 24px; text-indent: -24px; }
+.doc .li-marker { display: inline-block; width: 24px; text-indent: 0; }
 .doc .block-h { font-size: 21px; font-weight: var(--w-semi); letter-spacing: -0.01em; margin-top: var(--s-4); }
 .doc [contenteditable] { caret-color: var(--accent); outline: none; }
 /* Block chrome only when the block is active: writing first, controls second. */
@@ -2188,7 +2205,9 @@ button {
 .doc-editorial {
   --ed-line: 30px;                 /* the baseline grid AND the rule period */
   --ed-margin: 46px;               /* the red rule sits here, text starts after */
-  --ed-rule: rgba(255,255,255,0.07);
+  /* 0.07 read as a form, not paper (Dave 2026-08-22: "ugly and
+     depressing"); the grid should be felt, not counted. */
+  --ed-rule: rgba(255,255,255,0.045);
   font-family: ui-serif, Georgia, "Times New Roman", serif;
   padding-left: calc(var(--ed-margin) + var(--s-3));
   padding-right: var(--s-4);
@@ -2242,6 +2261,11 @@ button {
 
 /* Headings keep the steel numbering they already have, restyled to serif and
    snapped to whole grid rows so the rules stay true underneath them. */
+/* Markers whisper on the manuscript: the ink belongs to the words. The
+   padding is restated because the editorial t-body reset zeroes it, and
+   without it the hanging marker backs into the line-number gutter. */
+.doc-editorial .t-body.li-line { padding-left: 24px; }
+.doc-editorial .li-marker { color: var(--tx-3); }
 .doc-editorial .hwrap { margin-top: var(--ed-line); }
 .doc-editorial .block-h {
   font-family: inherit;

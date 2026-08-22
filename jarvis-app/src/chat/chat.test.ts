@@ -48,12 +48,12 @@ describe("chat deterministic Q&A", () => {
 
   it("answers when is X for a unique event", () => {
     const a = answerQuestion("when is dinner with marco?", snap());
-    expect(a?.text).toBe("Dinner with Marco · today 7 PM");
+    expect(a?.text).toBe("Dinner with Marco · Today 7 PM");
   });
 
   it("answers when is X from tasks when no event matches", () => {
     const a = answerQuestion("when is call the bank", snap());
-    expect(a?.text).toBe("Call the bank · due today");
+    expect(a?.text).toBe("Call the bank · Due today");
     expect(a?.provenance.refs?.[0]?.kind).toBe("task");
   });
 

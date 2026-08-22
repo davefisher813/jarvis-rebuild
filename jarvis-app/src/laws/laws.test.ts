@@ -169,8 +169,10 @@ describe("LAW: Apple HIG casing", () => {
   // and meta literals and to toast receipts; dynamic segments are exempt by
   // nature (only pure literals are scanned).
   it("line starts and dot-break segments start capital", () => {
-    const segsOk = (t: string) =>
-      t.split("·").every((seg) => {
+    const segsOk = (raw: string) =>
+      raw.replace(/&middot;/g, "·").split("·").every((seg) => {
+        // Apple's own brand casing is not a violation: iCloud, iPhone, iOS.
+        if (/^i[A-Z]/.test(seg.trim())) return true;
         const first = seg.trim().match(/[A-Za-z]/)?.[0];
         // Only judge the leading character of the segment; a digit lead
         // ("20 minutes ago") is fine, so find the FIRST char, not first letter.
@@ -181,7 +183,12 @@ describe("LAW: Apple HIG casing", () => {
     const bad: string[] = [];
     for (const f of COMPONENTS) {
       const src = read(f);
-      for (const cls of ["conn-meta", "lib-sub", "promo-sub", "restore-meta", "tip-sub", "empty-sub"]) {
+      // Widened 2026-08-22: "Protected · until 10:00 AM" shipped because
+      // this scan covered six sub classes and nothing else. Every class
+      // that renders copy with a dot-break is on the list now.
+      for (const cls of ["conn-meta", "lib-sub", "promo-sub", "restore-meta", "tip-sub", "empty-sub",
+        "conn-name", "input-help", "input-error", "input-note", "bp-sub", "sched-cat", "plan-sub",
+        "eyebrow", "t-body", "block-meta"]) {
         for (const m of src.matchAll(new RegExp('className="' + cls + '(?: [a-z-]+)*"[^>]*>\\s*([^<>{}\\n]{3,80}?)\\s*<', "g"))) {
           const t = m[1]!.trim();
           if (!segsOk(t)) bad.push(rel(f) + " [" + cls + "]: " + t);
@@ -190,6 +197,18 @@ describe("LAW: Apple HIG casing", () => {
       for (const m of src.matchAll(/message:\s*"([^"{}]{3,80}?)"/g)) {
         const t = m[1]!.trim();
         if (!segsOk(t)) bad.push(rel(f) + " [toast]: " + t);
+      }
+      // Notification bodies and mail-deck say() receipts are copy too
+      // (2026-08-22 sweep found violations in both).
+      for (const m of src.matchAll(/body:\s*"([^"{}]{3,80}?)"/g)) {
+        const t = m[1]!.trim();
+        if (!segsOk(t)) bad.push(rel(f) + " [notification]: " + t);
+      }
+      // The space requirement skips speaker ids (say("jarvis", ...)):
+      // one-word lowercase literals there are identifiers, not copy.
+      for (const m of src.matchAll(/\bsay\(\s*"([^"{}]*?\s[^"{}]*?)"/g)) {
+        const t = m[1]!.trim();
+        if (!segsOk(t)) bad.push(rel(f) + " [say]: " + t);
       }
     }
     expect(bad).toEqual([]);

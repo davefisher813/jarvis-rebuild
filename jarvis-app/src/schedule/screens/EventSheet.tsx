@@ -387,7 +387,7 @@ export default function EventSheet({
           </div>
 
           {endInvalid && <div className="input-error">End must be after start</div>}
-          {err && !endInvalid && <div className="input-error">Needs title · date · start</div>}
+          {err && !endInvalid && <div className="input-error">Needs title · Date · Start</div>}
           {conflict && !endInvalid && (
             <div className="input-note">
               <span>Overlaps another event</span>

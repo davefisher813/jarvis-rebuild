@@ -54,8 +54,11 @@ function ListBlock({
   return (
     <div>
       {block.items.map((it, j) => (
-        <div className="t-body" key={block.id + ":" + j}>
-          <span aria-hidden="true">{marker(j) + " "}</span>
+        <div className="t-body li-line" key={block.id + ":" + j}>
+          {/* The marker hangs: wrapped lines align under the text, not under
+              the bullet, and editorial styles the marker down without
+              touching the words (visual pass 2026-08-22). */}
+          <span className="li-marker" aria-hidden="true">{marker(j)}</span>
           <InlineEdit
             tag="span"
             value={it}
@@ -498,7 +501,9 @@ export default function NoteEditor({
           <div className={"proj-icon cat-bg-" + catColor(note.category)}>
             <FileText className="ic" />
           </div>
-          <span className={"eyebrow cat-fg-" + catColor(note.category)}>{note.eyebrow}</span>
+          {/* An empty eyebrow renders nothing: catName refuses to echo an
+              id-like ref, and an empty pill-slot is better than a UUID. */}
+          {note.eyebrow && <span className={"eyebrow cat-fg-" + catColor(note.category)}>{note.eyebrow}</span>}
         </div>
         <InlineEdit tag="div" className="doc-title" value={note.title} placeholder="Untitled" onSave={onEditTitle} />
 

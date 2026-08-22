@@ -371,7 +371,7 @@ export default function CategoryDetail({
               <div className="row" key={t.id}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{t.data.text}</div>
-                  <div className="eyebrow">{t.data.runLen} in a row{(t.data.bestRun ?? 0) > (t.data.runLen ?? 0) ? ` · best ${t.data.bestRun}` : (t.data.runLen ?? 0) >= 3 ? " · your best" : ""}</div>
+                  <div className="eyebrow">{t.data.runLen} in a row{(t.data.bestRun ?? 0) > (t.data.runLen ?? 0) ? ` · Best ${t.data.bestRun}` : (t.data.runLen ?? 0) >= 3 ? " · Your best" : ""}</div>
                 </div>
               </div>
             ))}

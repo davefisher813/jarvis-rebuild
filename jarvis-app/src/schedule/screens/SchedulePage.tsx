@@ -382,14 +382,14 @@ export default function SchedulePage({
                     <span className="sched-open-plus">+</span>
                     {gapLabel(toMin(en.end) - toMin(en.start))} open
                   </div>
-                  <div className="sched-cat">Until {fmtTime(en.end).time} {fmtTime(en.end).ap} &middot; tap to fill it</div>
+                  <div className="sched-cat">Until {fmtTime(en.end).time} {fmtTime(en.end).ap} &middot; Tap to fill it</div>
                 </div>
               </button>
             ) : en.kind === "locked" ? (() => {
               const held = heldBy.get(en.l.label + "@" + en.l.s) ?? [];
               const m = modeOf(en.l);
               const kicker = m === "holds"
-                ? (held.length === 1 ? "Focus time · 1 task" : held.length ? `Focus time · ${held.length} tasks` : "Focus time · tasks land here")
+                ? (held.length === 1 ? "Focus time · 1 task" : held.length ? `Focus time · ${held.length} tasks` : "Focus time · Tasks land here")
                 : m === "blends" ? "Can blend · " + freeOf(en.l).join(" and ") + " free"
                 : "Protected";
               return (
@@ -408,7 +408,7 @@ export default function SchedulePage({
                     )}
                     {en.l.label}
                   </div>
-                  <div className="sched-cat">{kicker} &middot; until {fmtTime(minToHHMM(en.l.e)).time} {fmtTime(minToHHMM(en.l.e)).ap}</div>
+                  <div className="sched-cat">{kicker} &middot; Until {fmtTime(minToHHMM(en.l.e)).time} {fmtTime(minToHHMM(en.l.e)).ap}</div>
                   {/* The work this block is holding, at its own times. */}
                   {held.length > 0 && (
                     <div className="block-nest">

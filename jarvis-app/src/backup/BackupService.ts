@@ -70,7 +70,7 @@ export class BackupService {
       for (const id of created.reverse()) {
         try { await this.store.delete(this.ownerId, id); } catch { /* keep rolling back */ }
       }
-      throw new Error("Import failed · rolled back · nothing changed");
+      throw new Error("Import failed · Rolled back · Nothing changed");
     }
     return n;
   }
