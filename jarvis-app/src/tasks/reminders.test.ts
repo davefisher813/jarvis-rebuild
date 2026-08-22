@@ -102,3 +102,32 @@ describe("cadenceLabel", () => {
     expect(cadenceLabel({ time: "08:00", days: [3, 1] })).toBe("Mon · Wed");
   });
 });
+
+// IF YOU MISS IT (2026-08-21). A setting that surfaces nowhere is friction;
+// this one has to change what the app actually does.
+describe("onMiss", () => {
+  const mk = (onMiss?: "nag" | "let_go") => ({
+    id: "r1",
+    data: { text: "Meds", reminder: { time: "08:00", ...(onMiss ? { onMiss } : {}) } },
+  }) as unknown as Parameters<typeof viewOf>[0];
+
+  it("defaults to nagging, so every existing reminder is unchanged", () => {
+    const v = viewOf(mk(), "2026-08-21", "12:00")!;
+    expect(v.missed).toBe(true);
+    expect(v.letGo).toBe(false);
+    expect(missedReminders([mk()], "2026-08-21", "12:00").length).toBe(1);
+  });
+
+  it("let it go stops the chasing but keeps the row honest", () => {
+    const v = viewOf(mk("let_go"), "2026-08-21", "12:00")!;
+    expect(v.missed).toBe(true);   // the day really did pass it
+    expect(v.letGo).toBe(true);    // but nothing chases
+    expect(missedReminders([mk("let_go")], "2026-08-21", "12:00")).toEqual([]);
+  });
+
+  it("[edge] before its time, let-go changes nothing", () => {
+    const v = viewOf(mk("let_go"), "2026-08-21", "07:00")!;
+    expect(v.missed).toBe(false);
+    expect(v.letGo).toBe(false);
+  });
+});

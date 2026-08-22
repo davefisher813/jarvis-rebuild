@@ -1,5 +1,6 @@
 import type { Store, Item, ItemData } from "@core";
 import type { EventInput } from "../events";
+import { setCategories as setCategoriesOf } from "./categories";
 import { ENTITY_TASK, type TaskData, type Recurrence, type BillInfo, type ReminderInfo } from "../notes/types";
 import { groupFor, todayISO, nextDue, type TaskGroup } from "./grouping";
 import { nextStreak } from "./lifecycle";
@@ -40,10 +41,14 @@ export class TasksService {
 
   async createTask(
     text: string,
-    opts: { category?: string; due?: string | null; fromNote?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen } = {},
+    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen } = {},
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
     const data: TaskData = { text: text.trim(), category: opts.category ?? "", done: false };
+    // Only written when there genuinely are extras, so a single-category task
+    // stores exactly what it always did.
+    const extras = (opts.extraCategories ?? []).filter((c) => c && c !== data.category);
+    if (extras.length) data.extraCategories = [...new Set(extras)];
     if (opts.due) data.due = opts.due;
     if (opts.fromNote) data.fromNote = opts.fromNote;
     if (opts.recurrence) data.recurrence = opts.recurrence;
@@ -246,9 +251,19 @@ export class TasksService {
   }
 
   async setCategory(id: string, category: string): Promise<boolean> {
+    return this.setCategories(id, category ? [category] : []);
+  }
+
+  // MULTIPLE CATEGORIES (2026-08-21). One writer for the whole set: the
+  // primary and the tags are two halves of one fact, and writing them
+  // separately is how they drift. `extraCategories: undefined` is written
+  // explicitly on the single-category case so dropping back to one really
+  // clears the old tags instead of leaving them behind.
+  async setCategories(id: string, list: string[]): Promise<boolean> {
     const t = await this.getTask(id);
     if (!t) return false;
-    await this.store.update(this.ownerId, id, { category });
+    const { category, extraCategories } = setCategoriesOf(list);
+    await this.store.update(this.ownerId, id, { category, extraCategories } as unknown as ItemData);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }

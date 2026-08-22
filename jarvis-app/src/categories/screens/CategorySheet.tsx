@@ -1,8 +1,8 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
-import { COLOR_SLOTS, CATEGORY_KINDS, KIND_LABEL, type ColorSlot, type CategoryKind } from "../types";
+import { COLOR_GROUPS, CATEGORY_KINDS, KIND_LABEL, type ColorSlot, type CategoryKind } from "../types";
 import { suggestKind } from "../kinds";
-import { catIcon, ICON_KEYS } from "../icons";
+import { catIcon, ICON_GROUPS } from "../icons";
 
 export interface CategoryDraft {
   name: string;
@@ -112,34 +112,45 @@ export default function CategorySheet({
 
           <div className="field">
             <div className="input-label">Color</div>
-            <div className="swatch-pick">
-              {COLOR_SLOTS.map((s) => (
-                <button
-                  key={s}
-                  className={"swatch cat-bg-" + s + (s === color ? " sel" : "")}
-                  aria-label={s}
-                  aria-pressed={s === color}
-                  onClick={() => setColor(s)}
-                />
-              ))}
-            </div>
+            {/* Grouped, 2026-08-21: twenty-four in one grid is unscannable. */}
+            {COLOR_GROUPS.map((g) => (
+              <div key={g.label}>
+                <div className="pick-fam">{g.label}</div>
+                <div className="swatch-pick">
+                  {g.slots.map((s) => (
+                    <button
+                      key={s}
+                      className={"swatch cat-bg-" + s + (s === color ? " sel" : "")}
+                      aria-label={s}
+                      aria-pressed={s === color}
+                      onClick={() => setColor(s)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="field">
             <div className="input-label">Icon</div>
-            <div className="icon-pick">
-              {ICON_KEYS.map((k) => (
-                <button
-                  key={k}
-                  className={"icpick" + (k === icon ? " sel" : "")}
-                  aria-label={k}
-                  aria-pressed={k === icon}
-                  onClick={() => setIcon(k)}
-                >
-                  {catIcon(k)}
-                </button>
-              ))}
-            </div>
+            {ICON_GROUPS.map((g) => (
+              <div key={g.label}>
+                <div className="pick-fam">{g.label}</div>
+                <div className="icon-pick">
+                  {g.keys.map((k) => (
+                    <button
+                      key={k}
+                      className={"icpick" + (k === icon ? " sel" : "")}
+                      aria-label={k}
+                      aria-pressed={k === icon}
+                      onClick={() => setIcon(k)}
+                    >
+                      {catIcon(k)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

@@ -51,7 +51,7 @@ export default function RemindersStrip({
       </div>
       <div className="pad-x"><div className="card">
         {items.map((r) => (
-          <div className={"rem-row" + (r.done ? " done" : "") + (r.missed ? " missed" : "")} key={r.id}>
+          <div className={"rem-row" + (r.done ? " done" : "") + (r.missed && !r.letGo ? " missed" : "") + (r.letGo ? " let-go" : "")} key={r.id}>
             <div
               className={"cb" + (r.done ? " on" : "") + (burstId === r.id ? " just-checked" : "")}
               role="button"

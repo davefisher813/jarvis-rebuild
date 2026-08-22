@@ -1,3 +1,11 @@
+# JARVIS Styling Catalog V4.10 (2026-08-21)
+
+## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
+
+Three laws were revised deliberately, each recorded at its own rule: **A.1** (fifteen colours -> twenty-four, grouped), **O.5** (row pill: wash -> outlined), **O.11** (nesting inside a holding block). One red now serves the whole app: brand `#FF2B3C`, with every shade derived from it. The four unrelated reds that preceded it (`#FA233B` chrome, `#FF453A` chip wash, `#DC1E2A` fill, `#FF3B30` light) are why shades muddied each other.
+
+**GLYPHS ARE CHROME, NOT TEXT.** `--accent-tx` went red -> white to fix salmon text on cards, and twenty-two rules inheriting it turned their ICONS white as collateral (Dave: "I never signed off on changing the icons"). Icons take `--accent-chrome`. A token that serves two roles will eventually be changed for one of them.
+
 # JARVIS Styling Catalog V4.0 (The Branded Library, 2026-08-18)
 
 ## V4 revision (Dave's picks, 2026-08-18). Supersedes conflicting V3 rules.
@@ -79,7 +87,7 @@ Supersedes the old 25 catalog files as the styling rulebook. Visual truth stays 
 
 ## A. Color is systemic, and the palette is FULL
 
-1. FIFTEEN systemic colors: red, coral, orange, sand, yellow, lime, green, teal, sky, blue, indigo, purple, magenta, pink, graphite. The category picker offers all 15; type tiles draw from the same 15 (nav-tile-* expands to cover every one). Nothing that has an identity is ever gray.
+1. TWENTY-FOUR systemic colors, GROUPED BY FAMILY in the picker (V4.4, Dave 2026-08-21: "I need way more colors"). Warm: orange, amber, yellow, coral, rust, sand. Pink & Purple: pink, rose, magenta, plum, purple, violet. Cool: blue, indigo, sky, cyan, teal, slate. Green & Earth: green, mint, lime, olive, graphite. Twenty-four in one flat grid is a pile, not a palette; grouped, you scan to the family and pick inside it. The nine added values were DERIVED, not eyeballed: each was searched for a value that carries black on its fill and clears 4.5:1 as text on the worst surface in its theme, so all three colour laws pass without a hand-kept exception. RED IS NOT A CATEGORY COLOUR: it means primary action everywhere else, and the picker has not offered it since the Apple Music pass (legacy red categories render as orange). Type tiles draw from the same set (nav-tile-* expands to cover every one). Nothing that has an identity is ever gray.
 2. Category color follows the category everywhere it appears: tile, dot, chip, avatar accent. Same category, same color, every time.
 3. Fixed type-tile assignments stay: task blue, event sky, note yellow, money green, person teal, project indigo, goal purple, gym and time orange, insight purple, mail teal, chat and JARVIS-made red.
 4. Intent colors: good green, warn amber, error red, info sky. Status always wears its intent color.
@@ -177,13 +185,13 @@ Every tappable action renders as exactly ONE of these, chosen by its slot. A bar
 2. PAGE PRIMARY (.btn.btn-primary): the one big red pill. One per screen, max.
 3. PROMO PILL (.promo-pill / .promo-pill.quiet): actions inside a promo card only.
 4. IN-LIST CREATE (.row-act): centered accent row at the END of its section.
-5. ROW PILL (.pill-act): grey pill, accent text, inline in a list row (Nudge).
+5. ROW PILL (.pill-act): OUTLINED pill, brand-red border and brand-red text, transparent ground, inline in a list row (Nudge, Start, Escalate). V4.4 revision, Dave 2026-08-21, chosen from a rendered comparison. History worth keeping: this slot said "grey pill, accent text" until the Apple Music recolour made it a red-tint WASH with white text, mixed from SYSTEM red while every red beside it was BRAND red. That hue mismatch is why the pills read brown next to a red link, and it is what Dave reacted to. Outlined keeps the pill unmistakably red while leaving the FILLED red pill reserved for the one primary action per screen, so red still means what O.2 says it means.
 6. SMALL PILL (.btn-sm): the one small doing-button (Add to Today, Link, Not Now). Always has a pill body: press-3 background, accent semibold text, 34px. Text-only small buttons are illegal; that's the head action's job.
 7. HEAD ACTION (.see-all inside .sh2): accent semibold 13px text at the head's FAR RIGHT, after the dotted leader, never mid-head. An action cluster on a head (.sec-left: pause + Schedule) rides the same slot. The quiet variant (dismiss ×) is tx-3.
 
 8. NO DEAD-END SURFACES (the ADHD rule, Dave 2026-08-19: "the more I can do and feel like I didn't have to think, the better"): any card or section that states a fact must also carry the tap that acts on it. Now offers Pick Something / Plan My Day when nothing is teed up; Tomorrow offers Plan It (and Plan Tomorrow when empty); every empty state carries its action (L7). A screen that tells him something and gives him nowhere to go is a bug.
 10. THE DECISION KILLERS (Dave 2026-08-19, "I approve whatever you think is best"): four buttons exist purely to remove a choice, and they outrank prettiness wherever they conflict with it. Just Pick One For Me (Tasks' one primary, above the filters: opens the single best task, the list never has to be read). Move All to Today (one tap on an overdue pile, one Undo). Break It Down (splits a big task into 3-4 startable ones; the original is replaced, one Undo restores it; hidden when AI is off so the button never promises nothing). Tappable gaps (open time renders IN the timeline at its own hour, dashed, tap to fill).
-11. OPEN TIME IS A ROW, NOT A FOOTNOTE: a gap belongs at the hour it falls, in time order, in the day list. A trailing list of "Open ..." rows under the day is banned in day view (week and month, having no timeline, keep it).
+11. OPEN TIME IS A ROW, NOT A FOOTNOTE: a gap belongs at the hour it falls, in time order, in the day list. A trailing list of "Open ..." rows under the day is banned in day view (week and month, having no timeline, keep it). V4.4 extension (Dave 2026-08-21): the day list stays in time order AT THE TOP LEVEL, and a block that HOLDS tasks draws them nested inside it at their own times. A focus block that says "tasks land here" while its tasks sit beside it as unrelated rows is the same failure this rule exists to prevent, one level down. Open time keeps its row exactly as before.
 
 9. A DATE IS NOT A BUTTON: facts render as facts (.n, quiet meta). If a slot is styled like an action it must do the thing its words say.
 
@@ -289,6 +297,24 @@ U1–U5 and N1–N15. Fifteen pure modules, 71 tests. The laws that govern them:
 10. OFFER ONLY WHAT HE ALREADY HAS. N15 points at a file he owns, by name, and never attaches anything itself.
 11. ASK ONCE. Stale drafts (N10), sweep senders (N9), tossed senders, and netted threads are each offered exactly once, ever. A daily reminder about the same unsent email is nagging, and nagging is what this app removes.
 12. EXPENSIVE PASSES ARE GATED ON CHEAP EVIDENCE. N1 runs only on mail that needs him, only on words a proposal actually uses, at most twice per load. The promise sweep runs only when new mail has gone out. Almost no mail proposes a time, and the mail that does always says so.
+
+## W. The Action Model (V4.10, Dave 2026-08-21: "the email buttons are not working properly they will all say the exact same action")
+
+The rule that produced the bug: a button's words came from HOW LONG the thread had waited. Every thread in a real inbox is weeks old, so every row reached the top rung and four rows wore one button. Renaming the top rung split nothing, because the input was wrong, not the labels.
+
+**W1. THE ASK DECIDES THE ACTION; THE WAIT DECIDES THE TONE.** What you are owed is the only question with different answers per row. The wait is real information, so it survives, applied to the DRAFT instead of the label. Five asks: money owed, goods gone wrong, they named a channel, a plain answer, and nothing at all.
+
+**W2. A LABEL MAY ONLY PROMISE WHAT THE HANDLER PERFORMS.** Restated from the day "Try Calling" opened a compose window. Extended 2026-08-21 to the whole list: Call needs a stored number, Text needs the same number, Add as Task needs a task service, Add as Bill needs an amount the sender actually wrote, Block Time For It needs a real free slot. An action whose handler is missing is not offered. Enforced by a law test that walks every ask, tone, and option and fails on any key with no case behind it.
+
+**W3. TWO BUTTONS NEVER DO ONE THING.** Stop Tracking and Mark Handled both take a row off the list without touching the mail. They may never appear together; that is the original complaint wearing new words.
+
+**W4. ONE BUTTON PER ROW, THE REST ONE SWIPE AWAY.** The payoff of W1 is that reading four buttons replaces reading four emails, and that only holds at one button per row. Everything else the thread could become lives in the More Moves sheet on the swipe. Every sheet row states what the tap DOES underneath what it says: a list of verbs with no consequences attached is a quiz, and a quiz gets closed.
+
+**W5. THE REASON IS SAID ONCE, BY THE SECTION.** A sentence true of every row belongs to the band, never repeated down the rows.
+
+**W6. A SWIPE REVEALS THE OUTER SLOT FIRST.** 88px per action, filled from `right:0` outward. A one-action reveal must use `right:0`; a button parked at `right:88px` behind an 88px reveal is invisible, which is exactly what happened to Let It Go for its whole life on the device. Geometry is verifiable, so it gets verified in a browser, not reasoned about.
+
+**W7. ROUTING AROUND SOMEBODY STARTS A NEW CONVERSATION.** Ask X Instead composes to the colleague OUTSIDE the old thread. Threading it would drop them into a chain they were never part of and show the silent person the whole history. Offered only when we know exactly one other person at that domain, and never on a free mail domain, because everyone at gmail.com is not a colleague of everyone else at gmail.com.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 

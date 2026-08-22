@@ -1,3 +1,4 @@
+import { isIn } from "../tasks/categories";
 import { useCallback, useEffect, useState } from "react";
 import { useTasks, useSchedule, useNotes, useCategories, useProjects, useGoals, useRoutine, usePeople } from "../data/NotesProvider";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
@@ -149,7 +150,9 @@ export default function CategoryDetail({
     setAllCats(cs);
     setAllTasks(tk);
     setOpen(
-      tk.filter((t) => t.data.category === categoryId && !t.data.done)
+      // A tagged task belongs on this page too (2026-08-21): membership is
+      // "carries this category in any position", not "has it as primary".
+      tk.filter((t) => isIn(t.data, categoryId) && !t.data.done)
         .sort((a, b) => (a.data.due ?? "9999").localeCompare(b.data.due ?? "9999"))
         .slice(0, UP_NEXT_CAP),
     );

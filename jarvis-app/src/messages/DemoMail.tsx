@@ -9,20 +9,25 @@ import PageHeader, { BarAction } from "../shared/PageHeader";
 import { showToast } from "../shared/toast";
 import { Plus } from "lucide-react";
 import { saveMailSnapshot } from "./home";
+import { decide } from "./mailAction";
 
 interface DemoRow { from: string; sub: string; when: string; unread?: boolean; due?: string }
-interface DemoWait { to: string; sub: string }
+interface DemoWait { to: string; sub: string; days: number }
 
 const NEEDS: DemoRow[] = [
   { from: "Northwind Cloud", sub: "Security advisories flagged in two projects", when: "2:55 PM", unread: true, due: "Today" },
   { from: "Nadia Brandt", sub: "Invoice attached · Net 15 starts Monday", when: "11:20 AM", unread: true },
   { from: "App Store Team", sub: "Action needed: complete your enrollment", when: "9:04 AM" },
 ];
+// The demo runs the SAME action model as the live page (2026-08-21), so what
+// a demo shows and what the app does can never drift. Before this the demo
+// printed "Nudge" four times, which was the exact bug Dave reported on his
+// real inbox.
 const WAITING: DemoWait[] = [
-  { to: "summitgear", sub: "Missing Items From Order #D2565 · 55 days · No reply" },
-  { to: "Marcus Delaney", sub: "Harper v Northline · 55 days · No reply" },
-  { to: "nadia@northlake.org", sub: "Invoice · 50 days · No reply" },
-  { to: "Elieserhenry0", sub: "Reservation Receipt · 46 days · No reply" },
+  { to: "summitgear", sub: "Missing Items From Order #D2565", days: 55 },
+  { to: "Marcus Delaney", sub: "Harper v Northline · can you call me", days: 55 },
+  { to: "nadia@northlake.org", sub: "Invoice", days: 50 },
+  { to: "Elieserhenry0", sub: "Reservation Receipt", days: 46 },
 ];
 
 const MAIL_ICO = (
@@ -128,18 +133,22 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
 
       <div className="sh2"><span className="t">Waiting On</span></div>
       <div><div className="list-flat">
-        {WAITING.map((w) => (
+        {WAITING.map((w) => {
+          const d = decide(w.sub, "", w.days);
+          return (
           <div className="row" role="button" tabIndex={0} key={w.to} onClick={demoTap}>
             <span className="msg-dot off"></span>
             <div className="row-grow">
               <div className="msg-line">
                 <span className="conn-name truncate">{w.to}</span>
-                <span className="pill-act">Nudge</span>
+                <span className={"mail-age" + (d.tone === "firm" ? " hot" : d.tone === "direct" ? " warm" : "")}>{w.days}d</span>
+                <span className="pill-act">{d.primary.label}</span>
               </div>
-              <div className="conn-meta msg-gist">{w.sub}</div>
+              <div className="conn-meta msg-gist">{w.sub} · no reply</div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div></div>
 
       <div className="pad-x msg-fold">

@@ -36,7 +36,8 @@ import { useAI } from "../ai/useAI";
 import { useGoogle } from "../connections/google/GoogleSession";
 import { mapThreadFull, buildReply, encodeEmail } from "../connections/google/map";
 import { cardReplyPrompt, cardNudgePrompt, parseCardDraft } from "../messages/cardDraft";
-import { ladderFor, loadNudgeCounts, countNudge } from "../messages/escalate";
+import { loadNudgeCounts, countNudge } from "../messages/escalate";
+import { decide } from "../messages/mailAction";
 import { clearChase } from "../messages/followUp";
 import { planFromBlock } from "../tasks/ifThen";
 import { endOf, FIFTEEN } from "../tasks/rightNow";
@@ -62,6 +63,7 @@ import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
 import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, type DayDraft } from "../dayloop/dayLoop";
+import { breakdownPrompt, parseBreakdown } from "../tasks/breakdown";
 import { madeBy } from "../shared/provenance";
 import { RowIcon, StatTiles } from "../shared/anatomy";
 import { effectiveLevel } from "../ai/aiGate";
@@ -127,6 +129,9 @@ export default function TodayFlow({
   const [loading, setLoading] = useState(true);
   // Group C (item 14): the Day Loop's draft for today.
   const [dayDraft, setDayDraft] = useState<DayDraft | null>(null);
+  // Whether the Email band has anything to show. Reported BY MailNotices, so
+  // the head and the content can never disagree about being empty.
+  const [mailEmpty, setMailEmpty] = useState(true);
   const reflowGuard = useRef(0);
 
   // Group B (item 10): the Now line self-updates on a minute tick.
@@ -488,6 +493,54 @@ export default function TodayFlow({
   // could never fire: marking today as seen would erase the gap it detects.
   const lastSeenRef = useRef<string | null>(loadLastSeen());
   useEffect(() => { markSeen(today); }, [today]);
+
+
+  // BREAK IT DOWN, from Today (2026-08-21). The same operation Tasks already
+  // offers, reachable from the card that actually notices the problem. A task
+  // that has slid five days running is not a discipline failure; it is a task
+  // whose first step was never obvious. One Undo restores the original.
+  const breakDownTask = async (taskId: string) => {
+    const original = taskItems.find((t) => t.id === taskId);
+    if (!original || !ai.available) return;
+    showToast({ message: "Breaking it down…" });
+    let steps: string[] = [];
+    try {
+      const p = breakdownPrompt(original.data.text);
+      steps = parseBreakdown(await ai.complete([{ role: "user", content: p.user }], p.system));
+    } catch { steps = []; }
+    if (steps.length === 0) { showToast({ message: "Couldn't reach JARVIS" }); return; }
+    const made: string[] = [];
+    const ok = await attemptWrite(async () => {
+      for (const step of steps) {
+        const id = await tasks.createTask(step, {
+          category: original.data.category ?? "",
+          due: original.data.due ?? today,
+          projectId: original.data.projectId,
+          source: { type: "chat", ts: Date.now() },
+        });
+        if (id) made.push(id);
+      }
+      await tasks.deleteTask(taskId);
+    });
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: `Split into ${made.length} ${made.length === 1 ? "step" : "steps"}`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => {
+          for (const id of made) await tasks.deleteTask(id);
+          await tasks.createTask(original.data.text, {
+            category: original.data.category,
+            due: original.data.due ?? null,
+            recurrence: original.data.recurrence,
+            projectId: original.data.projectId,
+          });
+        });
+        await reload();
+      },
+    });
+  };
 
   const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
     // Replace, never add (hotfix 2026-08-21): commitPlan sweeps each task's
@@ -1047,10 +1100,14 @@ export default function TodayFlow({
         icon={SWEEP_ICO}
         tone="cat-fg-orange"
         title={sweepReceipt.moved.length === 1 ? "Moved 1 Task to Today" : `Moved ${sweepReceipt.moved.length} Tasks to Today`}
-        sub={sweepCand ? `${sweepCand.text} has moved ${sweepCand.slips} days running` : undefined}
+        sub={sweepReceipt.moved.length > 1 ? "None of them have a time" : undefined}
         action={{
-          label: "Undo",
-          onClick: () => void (async () => { await attemptWrite(() => undoSweep(tasks, sweepReceipt)); setSweepReceipt(null); await reload(); })(),
+          // PLAN THEM (2026-08-21). Seven untimed tasks arriving at once is
+          // exactly how a day turns into the one Dave photographed. The list
+          // is already assembled and the planner already takes a list, so
+          // the forward move costs nothing.
+          label: "Plan Them",
+          onClick: () => void openPlan("today"),
         }}
         alt={sweepCand ? {
           label: "Set Aside",
@@ -1062,7 +1119,26 @@ export default function TodayFlow({
             if (ok) showToast({ message: "Set aside · Keeps its place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
           })(),
         } : undefined}
-        onDismiss={() => setSweepReceipt(null)}
+        onDismiss={() => void (async () => { await attemptWrite(() => undoSweep(tasks, sweepReceipt)); setSweepReceipt(null); await reload(); })()}
+      />
+    ) : null,
+    // THE FIVE-DAY SLIDE (2026-08-21). The app already counted the slips and
+    // then offered nothing but Undo. A task that has moved five days running
+    // is not being avoided out of laziness: it is too vague or too big to
+    // start, which is what Break It Down exists for (catalog O.10). Gated on
+    // the AI, so the button never promises something it cannot do.
+    sweepCand && sweepCand.slips >= 3 && ai.available ? (
+      <NoticeCard
+        key="slide"
+        icon={SWEEP_ICO}
+        tone="cat-fg-orange"
+        title={`${sweepCand.text} Keeps Sliding`}
+        sub={`Moved ${sweepCand.slips} days running · usually means it is too big`}
+        action={{
+          label: "Break It Down",
+          onClick: () => { markOffered(sweepCand.id); void breakDownTask(sweepCand.id); },
+        }}
+        onDismiss={() => markOffered(sweepCand.id)}
       />
     ) : null,
     spot ? (
@@ -1155,11 +1231,14 @@ export default function TodayFlow({
         if (!to || !subject) return "";
         // N13: fifty-five days deserves a different tone than three, and a
         // chase he set himself starts gentle whatever the clock says.
-        const rung = ladderFor(w?.days ?? 0, loadNudgeCounts()[n.threadId] ?? 0);
+        // The WAIT sets the tone, the ASK sets what the draft is for
+        // (2026-08-21), so the card's draft matches the button the card is
+        // wearing instead of climbing a ladder the button no longer uses.
+        const dec = decide(subject, "", w?.days ?? 0, loadNudgeCounts()[n.threadId] ?? 0);
         const p = cardNudgePrompt(to, subject, w?.days ?? 0);
         return parseCardDraft(await ai.complete(
           [{ role: "user", content: p.user }],
-          p.system + "\n" + rung.instruction,
+          p.system + "\n" + (dec.primary.instruction ?? ""),
         ));
       }
       const t = snap.threads.find((x) => x.id === n.threadId);
@@ -1279,6 +1358,8 @@ export default function TodayFlow({
         const t = taskItems.find((x) => x.id === id);
         if (t) void startFifteen(t);
       }}
+      onSeeAllMail={!mailEmpty && onGoEmail ? () => onGoEmail() : undefined}
+      mailEmpty={mailEmpty}
       mail={
         <MailNotices
           key="mail"
@@ -1290,6 +1371,7 @@ export default function TodayFlow({
           onAddTask={addTaskFromMail}
           onOpenThread={onGoEmail ? (id) => onGoEmail(id) : undefined}
           onOpenEmail={onGoEmail ? () => onGoEmail() : undefined}
+          onEmptyChange={setMailEmpty}
         />
       }
       billLine={billsLine(taskItems, today) ?? undefined}

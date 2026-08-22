@@ -16,7 +16,14 @@ describe("DemoMail fixture", () => {
     expect(screen.getByText("Waiting On")).toBeInTheDocument();
     expect(screen.getByText("The Rest")).toBeInTheDocument();
     // The promo count matches the fixture rows, so the numbers can't drift.
-    expect(screen.getAllByText("Nudge").length).toBeGreaterThan(0);
+    // SPEC MOVED 2026-08-21: the demo runs the real action model, so a
+    // Waiting On row no longer wears a universal "Nudge". The contract is
+    // now the opposite one, and it is the bug Dave reported: rows that want
+    // different things must not print the same button.
+    const acts = [...document.querySelectorAll(".pill-act")].map((e) => e.textContent);
+    expect(acts.length).toBeGreaterThan(2);
+    expect(new Set(acts).size).toBeGreaterThan(1);
+    expect(acts).toContain("Stop Tracking"); // the receipt owes nothing
     expect(screen.getByText("Northwind Cloud")).toBeInTheDocument();
   });
 

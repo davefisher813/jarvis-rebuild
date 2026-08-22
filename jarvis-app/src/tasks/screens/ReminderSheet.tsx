@@ -8,6 +8,14 @@ import { automaticityOf, automaticityLine } from "../automaticity";
 // That is the entire form. No category, no duration, no end date, no project,
 // no notes: every field this sheet does NOT have is a field the task sheet has
 // and a reason "just remind me to take my meds" used to feel like paperwork.
+// The hours reminders actually land on. Meds, meals and wind-down, which is
+// what the strip is for; anything else is two taps on the field beside them.
+const QUICK_TIMES = [
+  { v: "07:00", label: "7 AM" }, { v: "08:00", label: "8 AM" },
+  { v: "12:00", label: "12 PM" }, { v: "18:00", label: "6 PM" },
+  { v: "21:00", label: "9 PM" },
+];
+
 export default function ReminderSheet({
   initial,
   mode = "new",
@@ -28,6 +36,7 @@ export default function ReminderSheet({
   const auto = automaticityOf(initial?.reminder.doneCount ?? 0);
   const autoLine = automaticityLine(auto);
   const [days, setDays] = useState<number[] | undefined>(initial?.reminder.days);
+  const [onMiss, setOnMiss] = useState<"nag" | "let_go">(initial?.reminder.onMiss ?? "nag");
   const [err, setErr] = useState(false);
 
   const sameDays = (a?: number[], b?: number[]) => {
@@ -38,7 +47,7 @@ export default function ReminderSheet({
 
   const save = () => {
     if (!text.trim()) { setErr(true); return; }
-    onSave(text.trim(), { ...initial?.reminder, time, days });
+    onSave(text.trim(), { ...initial?.reminder, time, days, onMiss });
   };
 
   return createPortal(
@@ -57,7 +66,40 @@ export default function ReminderSheet({
           />
           <div className="field">
             <div className="input-label">Time</div>
-            <input className="input" type="time" aria-label="Time" value={time} onChange={(e) => setTime(e.target.value)} />
+            {/* The native time control was full width and ate the screen for
+                a value four characters long (Dave 2026-08-21: "no need for
+                the time box to take up the whole screen"). It is now compact,
+                with the hours real reminders actually land on beside it. */}
+            <div className="rem-time-row">
+              <input className="input input-compact" type="time" aria-label="Time" value={time} onChange={(e) => setTime(e.target.value)} />
+              <div className="chip-wrap rem-quick">
+                {QUICK_TIMES.map((q) => (
+                  <div
+                    key={q.v}
+                    className={"chip" + (time === q.v ? " active" : "")}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={time === q.v}
+                    onClick={() => setTime(q.v)}
+                  >{q.label}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="field">
+            <div className="input-label">If You Miss It</div>
+            <div className="segmented">
+              {([["nag", "Ask Again in 15m"], ["let_go", "Let It Go"]] as const).map(([v, l]) => (
+                <div
+                  key={v}
+                  className={"seg" + (onMiss === v ? " active" : "")}
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={onMiss === v}
+                  onClick={() => setOnMiss(v)}
+                >{l}</div>
+              ))}
+            </div>
           </div>
           <div className="field">
             <div className="input-label">Repeat</div>

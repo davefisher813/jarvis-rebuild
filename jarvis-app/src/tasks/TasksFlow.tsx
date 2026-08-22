@@ -18,7 +18,6 @@ import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { identityToText } from "../ai/context";
 import { firstStepPrompt, parseFirstStep } from "./firstStep";
-import { localParse } from "../ai/capture";
 import { rankOpen } from "../upnext/upnext";
 import { FIFTEEN } from "./rightNow";
 import { breakdownPrompt, parseBreakdown } from "./breakdown";
@@ -253,31 +252,12 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     emit({ type: "suggestion.dismissed", props: { kind: "first_step" } });
   };
 
-  // Quick capture: create a task due today. UNTAGGED on purpose (2026-08-03):
-  // it used to default to whichever category was first in the list, which
-  // silently mis-tagged everything and poisoned every per-category number
-  // downstream. No tag is honest; the AI capture path still assigns real
-  // categories because it actually reasons about the text.
-  //
-  // Date words (2026-08-09): "call dentist friday" is one thought, and the
-  // deterministic parser the offline capture path already uses can read it.
-  // No AI call, no new grammar: today/tomorrow/weekday words set the due
-  // date, anything else lands due today exactly as before. The toast names
-  // the date so a task visibly leaving the Today filter never reads as a
-  // broken save (audit 2026-07-30 precedent).
-  const onQuickAdd = async (text: string) => {
-    if (!text.trim()) return;
-    const parsed = localParse(text.trim(), today);
-    const due = parsed.date ?? today;
-    const ok = await attemptWrite(() => svc.createTask(text.trim(), { due }));
-    await reload();
-    if (!ok) return;
-    if (due !== today) {
-      const label = new Date(due + "T00:00:00").toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
-      showToast({ message: `Due ${label}` });
-    }
-  };
-
+  // The quick-add box is GONE (2026-08-21, Dave: "the add task type box makes
+  // no sense"). It was a third way to make a task on a screen that already had
+  // the nav-bar "+" and the capture path, and a box that duplicates a button
+  // is a decision the user has to make for no gain. The date parsing it used
+  // was never the problem and was never its own: localParse lives in the
+  // capture path and is still used there.
   // Bulk-remove finished tasks from the Done list. With Undo (2026-08-09):
   // this was the ONE delete on the page without it, and it is the delete
   // that takes the most at once.
@@ -305,7 +285,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     const t = await svc.task(id);
     if (!t) return;
     recordSpot({ kind: "task", id, label: t.text }); // Where You Were
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "" }, source: t.source });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "" }, source: t.source });
   };
 
   // When arriving via a note connection, open that task once on mount.
@@ -318,11 +298,11 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
-      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, plan: draft.plan }));
+      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, plan: draft.plan }));
     } else if (sheet?.mode === "edit") {
       saved = await attemptWrite(async () => {
         await svc.editText(sheet.id, draft.text);
-        await svc.setCategory(sheet.id, draft.category);
+        await svc.setCategories(sheet.id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
         await svc.setDue(sheet.id, draft.due || null);
         await svc.setProject(sheet.id, draft.projectId ?? null);
         await svc.setRecurrence(sheet.id, rec || null);
@@ -569,7 +549,6 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
         }}
         onDeleteTask={onDeleteRow}
         onSnoozeTask={onSnooze}
-        onQuickAdd={onQuickAdd}
         onClearDone={onClearDone}
         onNew={() => setSheet({
           mode: "new",

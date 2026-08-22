@@ -141,6 +141,8 @@ export default function TodayPage({
   daypart,
   birthdays,
   mail,
+  onSeeAllMail,
+  mailEmpty,
   billLine,
   onPayBill,
 }: {
@@ -150,6 +152,9 @@ export default function TodayPage({
   // → deal with it here" line "serves absolutely no purpose"). The flow hands
   // this in already built; nothing needing him means nothing renders.
   mail?: ReactNode;
+  onSeeAllMail?: () => void;
+  // The band and its head appear together or not at all.
+  mailEmpty?: boolean;
   billLine?: string; // bills due within 3 days, from billsLine (2026-08-09)
   onPayBill?: () => void; // marks the SOONEST due bill paid, with undo
   summary: DaySummary;
@@ -342,7 +347,6 @@ export default function TodayPage({
         action={onPayBill ? { label: "Mark Paid", onClick: onPayBill } : undefined}
       />
     ) : null,
-    mail ?? null,
     suggestions ?? null,
     freshStart ? (
       <NoticeCard
@@ -412,6 +416,23 @@ export default function TodayPage({
           <div className="heads-up-stream">{headsUp}</div>
         </>
       )}
+
+      {/* EMAIL IS ITS OWN BAND (2026-08-21, Dave: "emails should be sectioned
+          off"). Three of the six rows on his Heads Up were mail wearing the
+          same clothes as a moved task and a note he left open. Replies are a
+          different kind of work from notices, and mixing them meant neither
+          could be scanned. Heads Up keeps actual news. */}
+      {/* The component must MOUNT to know whether it is empty, so it always
+          renders (it returns null when there is nothing) and only the HEAD is
+          conditional. Gating both on the same flag would mean it could never
+          report itself non-empty. */}
+      {mail && !mailEmpty && (
+        <div className="sh2">
+          <span className="t">Email</span>
+          {onSeeAllMail && <button className="see-all" onClick={onSeeAllMail}>Open Inbox</button>}
+        </div>
+      )}
+      {mail && <div className="heads-up-stream">{mail}</div>}
 
       {reminders}
 

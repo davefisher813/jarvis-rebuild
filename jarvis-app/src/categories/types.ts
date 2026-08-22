@@ -18,7 +18,16 @@ export type ColorSlot =
   | "magenta"
   | "lime"
   | "sand"
-  | "coral";
+  | "coral"
+  | "amber"
+  | "rust"
+  | "rose"
+  | "plum"
+  | "violet"
+  | "cyan"
+  | "mint"
+  | "olive"
+  | "slate";
 
 export const COLOR_SLOTS: ColorSlot[] = [
   "orange",
@@ -35,6 +44,30 @@ export const COLOR_SLOTS: ColorSlot[] = [
   "lime",
   "sand",
   "coral",
+  // Nine more, 2026-08-21. Catalog A.1 revised to twenty-four.
+  "amber",
+  "rust",
+  "rose",
+  "plum",
+  "violet",
+  "cyan",
+  "mint",
+  "olive",
+  "slate",
+];
+
+
+// THE PICKER ORDER, GROUPED BY FAMILY (2026-08-21). Twenty-four swatches in
+// one flat grid is a pile, not a palette: you cannot find "the orange one"
+// by scanning twenty-four circles. Grouped, you scan to the family first and
+// pick inside it, which is two short looks instead of one long one.
+// Red is absent on purpose: it means primary action everywhere else, and a
+// red category would compete with every button on the screen.
+export const COLOR_GROUPS: { label: string; slots: ColorSlot[] }[] = [
+  { label: "Warm", slots: ["orange", "amber", "yellow", "coral", "rust", "sand"] },
+  { label: "Pink & Purple", slots: ["pink", "rose", "magenta", "plum", "purple", "violet"] },
+  { label: "Cool", slots: ["blue", "indigo", "sky", "cyan", "teal", "slate"] },
+  { label: "Green & Earth", slots: ["green", "mint", "lime", "olive", "graphite"] },
 ];
 
 // Category kinds (2026-08-03): a lightweight kind unlocks one module block on

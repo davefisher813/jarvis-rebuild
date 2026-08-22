@@ -132,7 +132,7 @@
      It was blue here and red in light theme, so the same control changed
      meaning with the theme (Dave, 2026-08-02: "red in both themes"). Now one
      value in both. 5.49:1 on black, 4.66:1 on the light page. */
-  --tint: #FA233B;
+  --tint: #FF2B3C;
   /* Accent text on the dark card surfaces is WHITE, not a lightened red.
      Any red that clears 4.5:1 on #3A3A3C is forced light enough to read
      salmon (Dave rejected #FC828F on sight, 2026-08-21: "I don't like this
@@ -140,13 +140,17 @@
      white, and red appears only as chrome and fills. The red meaning on
      chip-shaped controls now comes from --accent-chip below instead. */
   --accent-tx: #FFFFFF;
-  --accent-chrome: #FA233B;
-  /* The iOS tinted-button treatment (Dave's pick, 2026-08-21): a red-tint
-     wash behind white text. 18% system red over #2C2C2E composites to
-     roughly #4B2A2A; white on it is 9.8:1. */
-  --accent-chip: rgba(255, 69, 58, 0.18);
-  --accent-chip-tx: #FFFFFF;
-  --red-tint: rgba(250,35,59,0.16); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(48,209,88,0.16);
+  --accent-chrome: #FF2B3C;
+  /* ROW PILL, option B (Dave's pick 2026-08-21, catalog O.5 revised).
+     The tinted wash it replaces was mixed from SYSTEM red (255,69,58) while
+     every red beside it was BRAND red, and that hue mismatch is exactly why
+     the pills read brown next to a red link. Outlined, no fill, brand red:
+     #FF2B3C on #1C1C1E is 4.62:1, and a filled red pill stays reserved for
+     the one primary action per screen. */
+  --accent-chip: transparent;
+  --accent-chip-bd: #FF2B3C;
+  --accent-chip-tx: #FF2B3C;
+  --red-tint: rgba(255,43,60,0.16); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(48,209,88,0.16);
   --glass-bg: rgba(28,28,30,0.55);
   /* rim raised 0.14 -> 0.20 so glass edges catch light on OLED (RDB, Dave 2026-07-29) */
   --rim-card: rgba(255,255,255,0.20); --rim-bottom: rgba(0,0,0,0.55);
@@ -185,14 +189,14 @@
   --tint: #CC051B;
   /* Same reason as --tint, same value. */
   --accent-tx: #CC051B;
-  /* Light theme's tinted button: the iOS light treatment is a pale red
-     wash under red text (white text cannot live on a pale wash). The worst
-     seat is the wash over a pressed chip (#E7E7EC), compositing to
-     #E7D4D7, where #CC051B is only 4.1:1. #B80417 clears it at 4.82:1 and
-     reads as the same deep red. */
-  --accent-chip: rgba(255, 59, 48, 0.10);
+  /* ROW PILL, light theme (option B, catalog O.5 revised 2026-08-21).
+     Outlined, no fill, so the same form reads in both themes. The border
+     and the text are the light-theme red the page already trusts:
+     #B80417 is 5.9:1 on the white card and 4.82:1 on a pressed chip. */
+  --accent-chip: transparent;
+  --accent-chip-bd: #B80417;
   --accent-chip-tx: #B80417;
-  --red-tint: rgba(255,59,48,0.12); --warn-tint: rgba(255,149,0,0.14); --good-tint: rgba(52,199,89,0.14);
+  --red-tint: rgba(204,5,27,0.10); --warn-tint: rgba(255,149,0,0.14); --good-tint: rgba(52,199,89,0.14);
   --glass-bg: rgba(255,255,255,0.72);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);
   --nav-bg: rgba(249,249,251,0.82);
@@ -385,7 +389,12 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F2F
 .sched-row { align-items: flex-start; }
 .sched-time { font-size: var(--t-body); color: var(--tx-2); width: 64px; flex-shrink: 0; padding-top: 1px; font-weight: var(--w-regular); font-variant-numeric: tabular-nums; }
 .sched-time .ampm { font-size: 11px; color: var(--tx-3); font-weight: var(--w-regular); margin-left: 2px; letter-spacing: 0.3px; }
-.sched-body { flex: 1; }
+/* min-width:0 is load-bearing, not tidiness (2026-08-21). A flex item will
+   not shrink below its content's min-content width without it, so a long
+   title or a nested row pushed .sched-body past the card and everything
+   inside it was silently clipped off the right edge. Measured at 303px in a
+   250px slot. This also makes the .truncate on sched titles actually work. */
+.sched-body { flex: 1; min-width: 0; }
 .sched-title { font-size: var(--t-h3); margin-bottom: 2px; }
 .sched-loc { font-size: var(--t-meta); color: var(--tx-3); }
 

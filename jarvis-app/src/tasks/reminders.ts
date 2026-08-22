@@ -29,6 +29,10 @@ export interface ReminderView {
   done: boolean;
   missed: boolean;   // its time has passed today and it is not done
   snoozed: boolean;
+  // A missed reminder set to "let it go" stops asking (2026-08-21). It still
+  // renders in the strip, quietly, because pretending it was never scheduled
+  // would be a lie about the day. It simply stops chasing.
+  letGo: boolean;
 }
 
 const toMin = (hhmm: string): number => {
@@ -72,6 +76,7 @@ export function viewOf(item: TaskItem, today: string, now: string): ReminderView
     done,
     missed: !done && toMin(now) > toMin(time),
     snoozed: time !== r.time,
+    letGo: !done && toMin(now) > toMin(time) && r.onMiss === "let_go",
   };
 }
 
@@ -87,7 +92,11 @@ export function todaysReminders(items: TaskItem[], today: string, now: string): 
 // What Heads Up should surface: missed ones only, and at most two, because a
 // list of things you did not do is the opposite of help.
 export function missedReminders(items: TaskItem[], today: string, now: string): ReminderView[] {
-  return todaysReminders(items, today, now).filter((v) => v.missed).slice(0, 2);
+  // "Let it go" means exactly that: it never reaches Heads Up. Chasing a
+  // reminder the user already told you to drop is the app arguing with its
+  // own settings, and for ADHD it is the difference between a tool and a
+  // nag.
+  return todaysReminders(items, today, now).filter((v) => v.missed && !v.letGo).slice(0, 2);
 }
 
 // Snooze target, clamped inside the day so a late-night snooze cannot silently

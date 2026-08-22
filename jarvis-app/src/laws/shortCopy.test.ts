@@ -45,6 +45,12 @@ const EXEMPT_FILES = new Set([
   "messages/meetingTimes.ts",
   "messages/saidWhat.ts",
   "messages/escalate.ts",
+  // mailAction.ts is escalate.ts's successor and inherits its exemption for
+  // the same reason: its long strings are DRAFTER INSTRUCTIONS sent to the
+  // model, never rendered. Its UI strings are the action labels, and those
+  // are covered by their own law in mailAction.test.ts, which checks every
+  // one of them for Title Case and for promising only what it performs.
+  "messages/mailAction.ts",
   "messages/autoReply.ts",
   "messages/attachSuggest.ts",
   "messages/brief.ts",

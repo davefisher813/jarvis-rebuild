@@ -94,11 +94,30 @@ export interface ReminderInfo {
   // than the whole run.
   doneCount?: number;
   lastCounted?: string;
+  // WHAT HAPPENS WHEN IT IS MISSED (2026-08-21, Dave: "improve the reminder
+  // widget, there should be more functionality"). "nag" asks once more a
+  // quarter of an hour later; "let_go" stops for the day. Absent means nag,
+  // which is what the strip already did, so every existing reminder keeps
+  // behaving exactly as it does today.
+  onMiss?: "nag" | "let_go";
 }
 
 export interface TaskData {
   text: string;
+  // THE PRIMARY CATEGORY. Still a single string, still the one that owns the
+  // dot, the colour, the work hours and the season pause, so all 192 places
+  // that read it keep working untouched.
   category: string;
+  // EXTRA CATEGORIES (2026-08-21, Dave: "make it so I can assign multiple
+  // categories to tasks"). Tags, not co-primaries: a task appears on their
+  // pages and in their filters, but exactly one category decides anything
+  // that needs a single answer. That rule is what makes this additive rather
+  // than a rewrite of the whole app.
+  //
+  // Storage note: the primary is NEVER duplicated in here. Reading code
+  // should use categoriesOf(), which returns primary-first and de-duped, so
+  // no caller has to remember the convention.
+  extraCategories?: string[];
   done: boolean;
   fromNote?: string;
   // Provenance (addendum item 8): set on every AUTO-created task, absent on

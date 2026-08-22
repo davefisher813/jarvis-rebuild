@@ -1,5 +1,6 @@
 import { byRank } from "./triage";
 import { capAfterNumber, titleCase } from "../shared/casing";
+import { decide, draftableOf } from "./mailAction";
 import { dayPhrase } from "../money/bills";
 
 // THE HOME-PAGE EMAIL SURFACE (Dave 2026-08-20: "give me ideas to make the
@@ -204,7 +205,11 @@ function chaseNotice(c: MailChase): MailNotice {
     threadId: c.threadId,
     title: "Chase " + c.to,
     sub: capAfterNumber(c.subject + " · You asked me to"),
-    action: "Nudge",
+    // A chase starts gentle whatever the clock says (N13), so the wait is 0
+    // and only the ask moves the label. Unlike a derived nudge, a chase he
+    // set himself never disappears: with nothing draftable to derive the old
+    // label stands, and it still drafts.
+    action: draftableOf(decide(c.subject ?? "", "", 0))?.label ?? "Nudge",
     tone: "cat-fg-orange",
   };
 }
@@ -223,14 +228,25 @@ function draftNotice(d: MailDraftRow): MailNotice {
   };
 }
 
-function nudgeNotice(w: MailWaiting): MailNotice {
+// THE ASK DECIDES THE ACTION, ON THIS PAGE TOO (2026-08-21).
+//
+// The Email tab stopped printing one universal button; the home page kept
+// printing "Nudge" on every waiting thread, which is the same bug on the
+// screen Dave sees first. hasPhone stays false on purpose: this card drafts,
+// it does not dial, and a label may only promise what the handler performs.
+//
+// null when nothing here can be said in an email. A receipt owes nothing, so
+// it leaves the home page exactly as it leaves Waiting On.
+function nudgeNotice(w: MailWaiting): MailNotice | null {
+  const act = draftableOf(decide(w.subject ?? "", "", w.days));
+  if (!act) return null;
   return {
     key: "nudge:" + w.threadId,
     kind: "nudge",
     threadId: w.threadId,
     title: w.to + " Hasn't Replied",
     sub: capAfterNumber(`${w.subject} · ${w.days} ${w.days === 1 ? "day" : "days"}`),
-    action: "Nudge",
+    action: act.label,
     tone: "cat-fg-purple",
   };
 }
@@ -255,7 +271,8 @@ export function mailNotices(
   const promises = [...snap.promises]
     .sort((a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999"))
     .map((p) => promiseNotice(p, todayISO));
-  const nudges = [...snap.waiting].sort((a, b) => b.days - a.days).map(nudgeNotice);
+  const nudges = [...snap.waiting].sort((a, b) => b.days - a.days)
+    .map(nudgeNotice).filter((n): n is MailNotice => n !== null);
   const meetings = (snap.meetings ?? []).map(meetingNotice);
   const chases = (snap.chases ?? []).map(chaseNotice);
   const drafts = (snap.drafts ?? []).map(draftNotice);

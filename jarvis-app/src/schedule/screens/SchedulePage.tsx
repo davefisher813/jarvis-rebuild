@@ -3,7 +3,7 @@ import PageHeader, { BarAction } from "../../shared/PageHeader";
 import { ChevronLeft, ChevronRight, Plus, Camera, AlertTriangle } from "lucide-react";
 import type { EventItem } from "../types";
 import { monthMatrix, fmtTime, fmtRange, openSlots, minToHHMM } from "../calendar";
-import { isFocusRange } from "../../routine/types";
+import { isFocusRange, modeOf, freeOf } from "../../routine/types";
 import { catColor } from "../../shared/categories";
 import SkeletonRows from "../../shared/SkeletonRows";
 import DayRow from "./DayRow";
@@ -43,7 +43,7 @@ export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts,
   mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload,
-  locked = [], now, onEditRoutine, onShift, onMoveTo, onSkipToday, onPushTomorrow, onRunningLate,
+  locked = [], now, onEditRoutine, onFillBlock, onShift, onMoveTo, onSkipToday, onPushTomorrow, onRunningLate,
   anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {}, blendMap = {},
   windowStartMin, windowEndMin,
 }: {
@@ -66,6 +66,8 @@ export default function SchedulePage({
   onPrev?: () => void; onNext?: () => void; onSelect?: (date: string) => void;
   onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void; onUpload?: () => void;
   locked?: LockedRange[]; now?: string | null; onEditRoutine?: () => void;
+  // Drop a task straight into a holding block (2026-08-21).
+  onFillBlock?: (startMin: number, endMin: number) => void;
   onShift?: (id: string, mins: number) => void;
   onMoveTo?: (id: string, start: string) => void;
   onSkipToday?: (id: string) => void;
@@ -174,8 +176,29 @@ export default function SchedulePage({
     | { kind: "event"; e: EventItem; s: number }
     | { kind: "locked"; l: LockedRange; s: number }
     | { kind: "gap"; start: string; end: string; s: number };
+  // NESTING (2026-08-21, Dave: "why are blocks greyed out... we were supposed
+  // to have blending options and the ability to do tasks in events").
+  // A block that HOLDS tasks says "tasks land here" and they do land there,
+  // but the day list drew them as four unrelated rows beside it. An event that
+  // sits wholly inside a holding block is drawn INSIDE it instead. Catalog
+  // O.11 extended: the top level stays in time order; a holder shows its own
+  // work nested at its own times.
+  const holders = locked.filter((l) => isFocusRange(l));
+  const heldBy = new Map<string, EventItem[]>();
+  const nestedIds = new Set<string>();
+  if (mode === "day") {
+    for (const e of dayEvents) {
+      const s0 = toMin(e.data.start);
+      const e0 = e.data.end ? toMin(e.data.end) : s0 + 60;
+      const h = holders.find((l) => s0 >= l.s && e0 <= l.e);
+      if (!h) continue;
+      const key = h.label + "@" + h.s;
+      heldBy.set(key, [...(heldBy.get(key) ?? []), e]);
+      nestedIds.add(e.id);
+    }
+  }
   const entries: Entry[] = [
-    ...dayEvents.map((e): Entry => ({ kind: "event", e, s: toMin(e.data.start) })),
+    ...dayEvents.filter((e) => !nestedIds.has(e.id)).map((e): Entry => ({ kind: "event", e, s: toMin(e.data.start) })),
     ...locked.map((l): Entry => ({ kind: "locked", l, s: l.s })),
     ...(mode === "day" && onPickSlot
       ? slots.map((sl): Entry => ({ kind: "gap", start: sl.start, end: sl.end, s: toMin(sl.start) }))
@@ -362,9 +385,16 @@ export default function SchedulePage({
                   <div className="sched-cat">Until {fmtTime(en.end).time} {fmtTime(en.end).ap} &middot; tap to fill it</div>
                 </div>
               </button>
-            ) : en.kind === "locked" ? (
+            ) : en.kind === "locked" ? (() => {
+              const held = heldBy.get(en.l.label + "@" + en.l.s) ?? [];
+              const m = modeOf(en.l);
+              const kicker = m === "holds"
+                ? (held.length === 1 ? "Focus time · 1 task" : held.length ? `Focus time · ${held.length} tasks` : "Focus time · tasks land here")
+                : m === "blends" ? "Can blend · " + freeOf(en.l).join(" and ") + " free"
+                : "Protected";
+              return (
               <div
-                className={"sched-row sched-locked" + (isToday && en.l.e <= nowMin ? " past" : "")}
+                className={"sched-row sched-locked" + (m === "holds" ? " sched-holds" : "") + (isToday && en.l.e <= nowMin ? " past" : "")}
                 key={"lock-" + i}
                 role="button"
                 tabIndex={0}
@@ -373,13 +403,44 @@ export default function SchedulePage({
                 <div className="sched-time">{fmtTime(minToHHMM(en.l.s)).time}<span className="ampm">{fmtTime(minToHHMM(en.l.s)).ap}</span></div>
                 <div className="sched-body">
                   <div className="sched-title sched-lock-title">
-                    <svg className="ic lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                    {m === "holds" ? null : (
+                      <svg className="ic lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                    )}
                     {en.l.label}
                   </div>
-                  <div className="sched-cat">{isFocusRange(en.l) ? "Focus time · tasks land here" : "Protected"} &middot; until {fmtTime(minToHHMM(en.l.e)).time} {fmtTime(minToHHMM(en.l.e)).ap}</div>
+                  <div className="sched-cat">{kicker} &middot; until {fmtTime(minToHHMM(en.l.e)).time} {fmtTime(minToHHMM(en.l.e)).ap}</div>
+                  {/* The work this block is holding, at its own times. */}
+                  {held.length > 0 && (
+                    <div className="block-nest">
+                      {held.map((h) => (
+                        <div
+                          className="block-held"
+                          key={h.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={(ev) => { ev.stopPropagation(); onOpenEvent?.(h.id); }}
+                        >
+                          <span className={"cat-dot cat-bg-" + catColor(h.data.category)} />
+                          <span className="block-held-t truncate">{h.data.title}</span>
+                          <span className="block-held-u">{fmtTime(h.data.start).time}{h.data.end ? "\u2013" + fmtTime(h.data.end).time : ""}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* THE HALF THAT WAS UNREACHABLE: blending only ever attached
+                      to real calendar events, so the one block built to receive
+                      tasks had no way to receive one. */}
+                  {m === "holds" && onFillBlock && (
+                    <button
+                      type="button"
+                      className="block-add"
+                      onClick={(ev) => { ev.stopPropagation(); onFillBlock(en.l.s, en.l.e); }}
+                    >+ Put a Task in This Block</button>
+                  )}
                 </div>
               </div>
-            ) : (
+              );
+            })() : (
               <div key={en.e.id} ref={en.e.id === nextId ? nextRef : undefined}>
                 <DayRow
                   e={en.e}

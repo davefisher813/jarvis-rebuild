@@ -83,14 +83,14 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cal-wd { text-align: center; font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--tx-3); letter-spacing: var(--track-caps); text-transform: uppercase; padding: var(--s-2) 0; }
 .cal-cell { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: var(--r-md); font-size: var(--t-meta); font-weight: var(--w-semi); font-feature-settings: 'tnum'; color: var(--tx-1); }
 .cal-cell.out { color: var(--tx-4); }
-.cal-cell.today { color: var(--accent-tx); font-weight: var(--w-bold); }
+.cal-cell.today { color: var(--accent-chrome); font-weight: var(--w-bold); }
 .cal-cell.sel { background: var(--sel-bg); color: var(--sel-fg); }
 .cal-dots { display: flex; gap: 2px; height: 5px; }
 .cal-dot { width: 5px; height: 5px; border-radius: var(--r-circle); }
 .sched-cat { display: flex; align-items: center; gap: var(--s-1h); font-size: var(--t-meta); color: var(--tx-3); }
 .sched-cat .cat-dot { width: 8px; height: 8px; }
 .sched-until, .sched-rep { font-size: var(--t-meta); color: var(--tx-3); }
-.sched-badge { margin-left: var(--s-1h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent-tx); border: 1px solid var(--accent); border-radius: var(--r-pill); padding: 0 var(--s-1h); vertical-align: middle; }
+.sched-badge { margin-left: var(--s-1h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent-chrome); border: 1px solid var(--accent); border-radius: var(--r-pill); padding: 0 var(--s-1h); vertical-align: middle; }
 /* N5 completion (2026-08-21): the badge as a button. Same anatomy; the
    ::after pad brings the touch target up to size without moving a pixel. */
 .sched-badge-btn { background: transparent; font-family: var(--f); position: relative; }
@@ -172,12 +172,19 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
   --cat-green: #30D158; --cat-blue: #0A84FF; --cat-teal: #40C8E0; --cat-graphite: #8E8E93;
   --cat-purple: #BF5AF2; --cat-indigo: #5E5CE6; --cat-magenta: #DA5FC4;
   --cat-lime: #66D4CF; --cat-sand: #AC8E68; --cat-coral: #FF7A66;
+  /* NINE MORE (Dave 2026-08-21: "I need way more colors"). Catalog A.1
+     revised: twenty-four systemic colours, grouped by family in the picker.
+     Derived, not eyeballed: each one was searched for a value that carries
+     black on its fill AND clears 4.5:1 as text on the worst surface in its
+     theme, so the three colour laws pass without a hand-kept exception. */
+  --cat-amber: #CC8800; --cat-rust: #D14B1A; --cat-rose: #EF064C; --cat-plum: #CF30C1; --cat-violet: #9157F4; --cat-cyan: #0CA5C0; --cat-mint: #16B67B; --cat-olive: #7EA329; --cat-slate: #5C7CA3;
 }
 [data-theme="light"] {
   --cat-red: #FF3B30; --cat-orange: #FF9500; --cat-sky: #32ADE6; --cat-pink: #FF2D55; --cat-yellow: #FFCC00;
   --cat-green: #34C759; --cat-blue: #007AFF; --cat-teal: #30B0C7; --cat-graphite: #8E8E93;
   --cat-purple: #AF52DE; --cat-indigo: #5856D6; --cat-magenta: #C838AB;
   --cat-lime: #00C7BE; --cat-sand: #A2845E; --cat-coral: #FF6952;
+  --cat-amber: #B87A00; --cat-rust: #D54815; --cat-rose: #EF0148; --cat-plum: #CF2AC2; --cat-violet: #9054F8; --cat-cyan: #0797B0; --cat-mint: #11A770; --cat-olive: #739721; --cat-slate: #577BA8;
 }
 /* Every category fill declares an on-colour, and the LAW verifies the
    declaration computationally against both theme variants of the slot
@@ -200,6 +207,15 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cat-bg-lime { background: var(--cat-lime); color: var(--on-fill-dark); } .cat-bd-lime { border-color: var(--cat-lime); } .cat-fg-lime { color: var(--cat-lime); }
 .cat-bg-sand { background: var(--cat-sand); color: var(--on-fill-dark); } .cat-bd-sand { border-color: var(--cat-sand); } .cat-fg-sand { color: var(--cat-sand); }
 .cat-bg-coral { background: var(--cat-coral); color: var(--on-fill-dark); } .cat-bd-coral { border-color: var(--cat-coral); } .cat-fg-coral { color: var(--cat-coral); }
+.cat-bg-amber { background: var(--cat-amber); color: var(--on-fill-dark); } .cat-bd-amber { border-color: var(--cat-amber); } .cat-fg-amber { color: var(--cat-amber); }
+.cat-bg-rust { background: var(--cat-rust); color: var(--on-fill-dark); } .cat-bd-rust { border-color: var(--cat-rust); } .cat-fg-rust { color: var(--cat-rust); }
+.cat-bg-rose { background: var(--cat-rose); color: var(--on-fill-dark); } .cat-bd-rose { border-color: var(--cat-rose); } .cat-fg-rose { color: var(--cat-rose); }
+.cat-bg-plum { background: var(--cat-plum); color: var(--on-fill-dark); } .cat-bd-plum { border-color: var(--cat-plum); } .cat-fg-plum { color: var(--cat-plum); }
+.cat-bg-violet { background: var(--cat-violet); color: var(--on-fill-dark); } .cat-bd-violet { border-color: var(--cat-violet); } .cat-fg-violet { color: var(--cat-violet); }
+.cat-bg-cyan { background: var(--cat-cyan); color: var(--on-fill-dark); } .cat-bd-cyan { border-color: var(--cat-cyan); } .cat-fg-cyan { color: var(--cat-cyan); }
+.cat-bg-mint { background: var(--cat-mint); color: var(--on-fill-dark); } .cat-bd-mint { border-color: var(--cat-mint); } .cat-fg-mint { color: var(--cat-mint); }
+.cat-bg-olive { background: var(--cat-olive); color: var(--on-fill-dark); } .cat-bd-olive { border-color: var(--cat-olive); } .cat-fg-olive { color: var(--cat-olive); }
+.cat-bg-slate { background: var(--cat-slate); color: var(--on-fill-dark); } .cat-bd-slate { border-color: var(--cat-slate); } .cat-fg-slate { color: var(--cat-slate); }
 
 /* CATEGORY COLOURS DRAWN AS TEXT, IN LIGHT THEME (2026-08-21, regenerated
    for the Apple palette). Apple's light variants are still fills, not text:
@@ -207,6 +223,15 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    Same hues taken down in lightness until each clears 4.6:1 on the page
    (5.1:1 on a white card). Text only; the fills stay exactly Apple. */
 [data-theme="light"] {
+  --cat-tx-amber: #926201;
+  --cat-tx-rust: #C04011;
+  --cat-tx-rose: #D90243;
+  --cat-tx-plum: #BC24B0;
+  --cat-tx-violet: #6F20F8;
+  --cat-tx-cyan: #04768B;
+  --cat-tx-mint: #0B7A51;
+  --cat-tx-olive: #5A7718;
+  --cat-tx-slate: #4C6F9A;
   --cat-tx-red: #DB0C00;
   --cat-tx-orange: #A05D00;
   --cat-tx-sky: #1475A1;
@@ -230,6 +255,17 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    clears 4.6:1 on the worst surface. Slots that already clear keep the
    exact Apple value. */
 [data-theme="dark"] {
+  /* The nine added 2026-08-21 are vivid fills, so like red/pink/blue they
+     need a lifted variant when drawn as TEXT on a chip. Derived, not guessed. */
+  --cat-dtx-amber: #E19909;
+  --cat-dtx-rust: #E78F6E;
+  --cat-dtx-rose: #F783A6;
+  --cat-dtx-plum: #DE87D7;
+  --cat-dtx-violet: #B895F4;
+  --cat-dtx-cyan: #16B8D4;
+  --cat-dtx-mint: #1FBC83;
+  --cat-dtx-olive: #8CB233;
+  --cat-dtx-slate: #95A9C1;
   --cat-dtx-red: #FF7F77;
   --cat-dtx-pink: #FF7B95;
   --cat-dtx-blue: #55AAFF;
@@ -420,7 +456,27 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* ===== Roadmap v2 schedule basics: protected blocks visible, swipe actions,
    Running Late, time-as-distance. Mirrors the task swipe pattern exactly so
    every list feels the same. Tokens only. ===== */
-.sched-locked { opacity: 0.6; }
+/* BLOCKS ARE NOT GHOSTS (2026-08-21, Dave: "why are blocks greyed out?
+   that doesn't seem to be ideal"). A blanket 0.6 on the whole row dimmed the
+   label, the time and the kicker together, so a four-hour Deep Work block --
+   the most important thing on the day -- read as the faintest. Recede comes
+   from the type ramp (the kicker is already tx-3) and from having no category
+   bar, not from fading the row. */
+.sched-locked .sched-title { color: var(--tx-2); }
+/* A block that HOLDS tasks is a container, and it looks like one: brand-red
+   spine, the faintest red wash, and its work drawn inside it. */
+/* The wash is deliberately FAINT. --red-tint (16%) is the banner strength and
+   reads as an alarm on a four-hour block; this is a container, not a warning.
+   The spine carries the identity, the wash only groups. */
+.sched-holds { background: rgba(255, 43, 60, 0.055); box-shadow: inset 3px 0 0 var(--accent-chrome); border-radius: var(--r-md); }
+[data-theme="light"] .sched-holds { background: rgba(204, 5, 27, 0.045); }
+.sched-holds .sched-title { color: var(--tx-1); font-weight: var(--w-semi); }
+.block-nest { margin: var(--s-2) 0 0; padding-left: var(--s-3); border-left: 2px dotted var(--accent-chip-bd); display: flex; flex-direction: column; }
+.block-held { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-1h) 0; background: 0; border: 0; width: 100%; text-align: left; font-family: var(--f); }
+.block-held-t { color: var(--tx-1); font-size: var(--t-body); flex: 1; min-width: 0; }
+.block-held-u { color: var(--tx-3); font-size: var(--t-meta); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.block-add { display: block; margin-top: var(--s-1h); background: 0; border: 0; padding: var(--s-1h) 0; font-family: var(--f);
+  font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent-chrome); text-align: left; }
 .sched-lock-title { display: flex; align-items: center; gap: var(--s-1h); }
 .lock-ic { width: 13px; height: 13px; color: var(--tx-3); flex-shrink: 0; }
 .sched-dist { font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--good); margin-left: var(--s-2); }
@@ -559,7 +615,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .wk-wd { font-size: var(--t-eyebrow); color: var(--tx-3); text-transform: uppercase; letter-spacing: var(--track-caps); }
 .wk-day { width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: var(--r-circle); font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
 .wk-cell.sel .wk-day { background: var(--sel-bg); color: var(--sel-fg); }
-.wk-cell.today .wk-day { color: var(--accent-tx); font-weight: var(--w-bold); }
+.wk-cell.today .wk-day { color: var(--accent-chrome); font-weight: var(--w-bold); }
 .drag-handle { color: var(--tx-3); display: flex; align-items: center; justify-content: center; min-width: 48px; min-height: 44px; margin: calc(-1 * var(--s-2)) 0; touch-action: none; cursor: grab; -webkit-user-select: none; user-select: none; }
 .drag-handle .ic { width: 24px; height: 24px; }
 .reorder-row { transition: background var(--dur-fast, 0.12s); }
@@ -881,6 +937,32 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .sched-open { display: flex; align-items: center; gap: var(--s-2); width: 100%; text-align: left; background: transparent; border: 1px dashed var(--divider); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); color: var(--tx-3); font-size: var(--t-meta); font-family: var(--f); }
 .sched-open-plus { color: var(--tint); font-weight: var(--w-semi); }
 /* N5 completion (2026-08-21): the clash summary line's trailing action. */
+/* Family label inside the colour and icon pickers (2026-08-21). */
+/* A three-way segmented control at 390px gives each segment about 100px, and
+   "Holds Tasks" wraps to two lines at body size (seen on a real 390 walk, not
+   in a test). Shrinking the type beats shortening the words: the labels are
+   what make the choice legible, and the help line under them is the backup. */
+.seg-tri .seg { font-size: var(--t-meta); white-space: nowrap; padding-inline: var(--s-1h); }
+/* AGE AS SEVERITY (2026-08-21). Fifty-eight days was already printed on the
+   row and said nothing; the same number in the right colour says "this one is
+   past saving by email" without adding a word. Amber and orange, never the
+   alarm red, because a slow reply is not an emergency. */
+/* Compact time plus its quick hours on one line (2026-08-21). */
+/* Let-go recedes rather than disappearing: the day still happened. */
+.rem-row.let-go .rem-name, .rem-row.let-go .rem-time { color: var(--tx-4); }
+/* The primary marker inside a picked category chip (2026-08-21). Uppercase
+   micro-label, not a colour: the chip is already carrying a colour that means
+   the category, and a second meaning on the same paint is how palettes rot. */
+.cat-main { margin-left: var(--s-1h); font-size: 9px; font-weight: var(--w-bold);
+  letter-spacing: .08em; text-transform: uppercase; opacity: .7; }
+.rem-time-row { display: flex; align-items: center; gap: var(--s-2h); flex-wrap: wrap; }
+.rem-time-row .input-compact { flex: 0 0 auto; width: auto; }
+.rem-quick { flex: 1; min-width: 0; padding-top: 0; }
+.mail-age { flex-shrink: 0; font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; }
+.mail-age.warm { color: var(--warn); }
+.mail-age.hot { color: var(--cat-rust); font-weight: var(--w-semi); }
+.pick-fam { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase;
+  letter-spacing: var(--track-eyebrow); color: var(--tx-3); padding: var(--s-2) 0 var(--s-1h); }
 .sched-open .sched-fix { margin-left: auto; color: var(--tint); font-weight: var(--w-semi); }
 
 .quick-add { padding-top: var(--s-1); padding-bottom: var(--s-2); }
@@ -1182,6 +1264,20 @@ button {
   background: var(--surface-3, #2c2c2e); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
 .mail-arch .ic { width: 22px; height: 22px; }
 
+/* Let It Go sits in the OUTER slot (right:0), because that is the slot a
+   swipe actually reveals. It lived at right:88px with an 88px reveal until
+   2026-08-21, which means the row opened onto an empty strip and the button
+   was never once visible. Neither action here is destructive (nothing
+   touches the mail), so neither gets the red fill; the hairline is what
+   tells them apart. */
+.mail-letgo { position: absolute; top: 0; right: 0; bottom: 0; width: 88px; border: 0;
+  background: var(--surface-3, #2c2c2e); color: var(--tx-1); display: flex; align-items: center; justify-content: center; }
+.mail-letgo .ic { width: 22px; height: 22px; }
+.mail-arch + .mail-letgo { border-left: 1px solid var(--card-bd); }
+
+/* Who the sheet is about, said once at the top instead of down every row. */
+.more-head { padding-bottom: var(--s-2); }
+
 /* Undo lives in the toast, because the moment right after the action is the
    only moment anyone wants it. */
 .msg-toast { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
@@ -1415,7 +1511,7 @@ button {
    the accent is only the zero-specificity fallback so it never wins over
    a systemic color (the all-red More bug, caught in preview). */
 .lib-row .lib-ico { width: 30px; display: flex; justify-content: center; flex-shrink: 0; }
-:where(.lib-ico) { color: var(--accent-tx); }
+:where(.lib-ico) { color: var(--accent-chrome); }
 .lib-row .lib-ico .ic { width: 25px; height: 25px; }
 .lib-name { flex: 1; font-size: var(--t-h2); font-weight: var(--w-normal); color: var(--tx-1); min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1428,7 +1524,7 @@ button {
 .tip-banner { display: flex; align-items: flex-start; gap: var(--s-3); margin-bottom: var(--s-3);
   padding: var(--s-3h); border-radius: var(--r-xl); background: var(--press-2, var(--press-3));
   animation: restoreIn var(--dur-normal) var(--ease-out); }
-.tip-ico { color: var(--accent-tx); flex-shrink: 0; margin-top: 1px; }
+.tip-ico { color: var(--accent-chrome); flex-shrink: 0; margin-top: 1px; }
 .tip-ico .ic { width: 26px; height: 26px; }
 .tip-body { flex: 1; min-width: 0; }
 .tip-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
@@ -1609,7 +1705,11 @@ button {
 
 /* CATALOG V4 (The Branded Library, Dave 2026-08-18). Flagged block. */
 /* Filled brand glyphs on nav lists: red is the wash, filled is the state. */
-.lib-ico-brand { color: var(--accent-tx); }
+/* GLYPH SWEEP (Dave 2026-08-21: "I never signed off on changing the icons").
+   --accent-tx went red -> white to fix salmon TEXT on cards, and every glyph
+   inheriting it went white as collateral. Chrome is not text: icons take
+   --accent-chrome, which is the brand red in both themes. */
+.lib-ico-brand { color: var(--accent-chrome); }
 /* sh2-caps (Brain 4 pick) is absorbed by the app-wide steel head: one
    small-label style everywhere means the variant adds nothing. Kept as a
    no-op selector so existing markup stays legal. */
@@ -1741,8 +1841,8 @@ button {
    rows share one text edge; actions are compact grey pills with accent text;
    display names never show their transport quotes. */
 .msg-dot.off { background: transparent; }
-.pill-act { position: relative; flex-shrink: 0; align-self: center; background: var(--accent-chip); border: 0; border-radius: var(--r-pill);
-  color: var(--accent-chip-tx); font-family: var(--f); font-size: 13px; font-weight: var(--w-semi); padding: 6px 12px; }
+.pill-act { position: relative; flex-shrink: 0; align-self: center; background: var(--accent-chip); border: 1.5px solid var(--accent-chip-bd); border-radius: var(--r-pill);
+  color: var(--accent-chip-tx); font-family: var(--f); font-size: 13px; font-weight: var(--w-semi); padding: 4.5px 11px; }
 /* THE 44px RULE. The visible pill is 27px, which reads correctly beside a
    two-line row, but 27px is a bad target on a phone and the app's own
    standard (--tap-min, which .see-all already meets) is 44. The hit area is

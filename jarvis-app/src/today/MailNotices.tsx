@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Mail, Clock, CalendarClock, CornerUpLeft, CalendarCheck, BellRing, PenLine } from "lucide-react";
 import NoticeCard from "./NoticeCard";
 import { showToast } from "../shared/toast";
@@ -41,6 +41,7 @@ export default function MailNotices({
   onAddTask,
   onOpenThread,
   onOpenEmail,
+  onEmptyChange,
   onDraft,
   onSend,
   onTakeMeeting,
@@ -53,6 +54,8 @@ export default function MailNotices({
   onAddTask: (text: string, due?: string) => Promise<boolean>;
   onOpenThread?: (threadId: string) => void;
   onOpenEmail?: () => void;
+  // Told to the parent so the section head can disappear with the content.
+  onEmptyChange?: (empty: boolean) => void;
   // U1/U3: draft a reply or a nudge for this notice. Empty string means the
   // model gave us nothing usable, and the card says so rather than offering
   // a blank message to send over his name.
@@ -74,6 +77,10 @@ export default function MailNotices({
   const asleep = sleepingNow(snoozed, nowHHMM);
   const notices = mailNotices(snap, today, new Date(), max, [...hidden, ...done, ...asleep]);
   const residual = residualLine(snap, notices.map((n) => n.threadId));
+  // Reported from an EFFECT, never during render: telling a parent to set
+  // state while rendering is how a render loop starts.
+  const isEmpty = notices.length === 0 && !residual;
+  useEffect(() => { onEmptyChange?.(isEmpty); }, [isEmpty, onEmptyChange]);
   const sentence = inboxSentence(notices, snap);
   const choices = snoozeChoices(nowHHMM);
 
@@ -144,7 +151,12 @@ export default function MailNotices({
     finish(n, n.kind === "nudge" ? "Nudge sent" : "Reply sent");
   };
 
-  if (notices.length === 0 && !residual) return null;
+  // EMPTINESS IS THE COMPONENT'S OWN FACT (2026-08-21). Email now sits under
+  // its own head on Today, and a head with nothing under it is exactly the
+  // dead-end surface the catalog bans. Rather than let the parent guess at
+  // this rule and drift from it, the component reports it.
+  const empty = notices.length === 0 && !residual;
+  if (empty) return null;
 
   return (
     <>
@@ -168,7 +180,7 @@ export default function MailNotices({
             action={{
               label: loading
                 ? (n.kind === "meeting" ? "Booking…" : "Writing…")
-                : writable(n) && !draft ? (n.kind === "reply" ? "Draft It" : "Nudge") : n.action,
+                : writable(n) && !draft ? (n.kind === "reply" ? "Draft It" : n.action) : n.action,
               onClick: () => act(n),
             }}
             // U4: "not right now" is not "not today". A snooze names a time

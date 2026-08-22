@@ -41,19 +41,23 @@ import { inboxSentence } from "./inboxBrief";
 import { dueChases, loadChases, clearChase, setChase, CHASE_DAYS, CHASE_DEFAULT } from "./followUp";
 import { loadVips, toggleVip, isVip, applyVips } from "./vip";
 import { collapseNoise, collapseLine } from "./collapse";
-import { ladderFor, loadNudgeCounts, countNudge } from "./escalate";
-import { phoneBook, phoneFor, telLink, type PhoneBook } from "./reachBy";
+import { loadNudgeCounts, countNudge } from "./escalate";
+import { decide, type Decision, type MailAction } from "./mailAction";
+import MailMoreSheet from "./MailMoreSheet";
+import { phoneBook, phoneFor, telLink, smsLink, colleagueBook, altFor, firstName,
+  type PhoneBook, type Colleague } from "./reachBy";
 import { loadLetGo, letGo, undoLetGo } from "./letGo";
 import { closeCandidates, closeLine, closeReceipt, closeDue, markClosed, lastClose } from "./weeklyClose";
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
-import { attachOffer } from "./attachmentKind";
+import { attachOffer, amountIn } from "./attachmentKind";
 import { HOLD_SECONDS } from "./outbox";
 import { loadWindows, saveWindows, isOpenNow, closedLine, hourLabel, WINDOW_MINUTES } from "./batching";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
 import { saidQuery, saidPrompt, parseSaid, saidEmpty, SAID_SYSTEM } from "./saidWhat";
 import { shouldAutoReply, autoReplyBody, loadAutoState, markAutoReplied, AUTO_REPLY_EXPLAINER } from "./autoReply";
 import { protectedRangesFor, isFocusRange } from "../routine/types";
-import { fmtTime } from "../schedule/calendar";
+import { fmtTime, todayISO, addDays, eventsForDate } from "../schedule/calendar";
+import { nextOpening, BOOK_MIN } from "./bookTime";
 
 const AUTOREPLY_KEY = "jarvis.mail.autoreply.on.v1";
 import { suggestAttachment, suggestLine, type AttachSuggestion, type Candidate } from "./attachSuggest";
@@ -230,6 +234,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // Phones for the people who owe replies, so the top rung can actually dial
   // instead of promising a call and opening a compose window.
   const [book, setBook] = useState<PhoneBook>({ byEmail: {}, byName: {} });
+  // Who ELSE we know at the same organisation. Fifty-three days of silence
+  // from one address is not fifty-three days of silence from the company,
+  // and routing around a quiet person is the move no other mail app can
+  // offer because no other mail app knows your people.
+  const [colleagues, setColleagues] = useState<Record<string, Colleague[]>>({});
+  // The rest of the moves for one Waiting On row, opened from its swipe.
+  const [more, setMore] = useState<{ row: WaitingRow & { account?: string }; d: Decision } | null>(null);
   const [nudging, setNudging] = useState<string | null>(null);
   const [acctFilter, setAcctFilter] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
@@ -449,7 +460,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setWaiting(w);
       // Best effort: no phones just means no Call buttons, never an error.
       if (people) {
-        try { setBook(phoneBook(await people.list())); } catch { /* no phones, no Call */ }
+        try {
+          const list = await people.list();
+          setBook(phoneBook(list));
+          setColleagues(colleagueBook(list));
+        } catch { /* no phones, no Call */ }
       }
       const tracks = loadTracks();
       const pairs = w
@@ -464,15 +479,59 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     } catch { setWaiting([]); }
   };
 
+  // ONE PLACE DECIDES (2026-08-21).
+  //
+  // The row's button, the tone of the draft behind it, and the sheet's list
+  // of alternates all have to agree, and they only agree if they are the same
+  // call with the same options. Three separate decide() calls with three
+  // different opts is how a button ends up saying Call Them while the handler
+  // opens a compose window.
+  const decideFor = useCallback((row: WaitingRow): Decision => {
+    const alt = altFor(colleagues, row.toEmail);
+    return decide(row.subject ?? "", "", row.waitingDays, nudgeCounts[row.threadId] ?? 0, {
+      hasPhone: !!phoneFor(book, row.toEmail, row.to),
+      altContact: alt ? firstName(alt.name) : null,
+      // Money only from the sender's own words, never from an order number
+      // (attachmentKind's rule, and the reason a bill for $2,565 never
+      // appears out of a subject line reading "Order #D2565").
+      billable: amountIn(row.subject ?? "") != null,
+      canTask: !!tasks,
+      canSchedule: !!scheduleSvc,
+    });
+  }, [book, colleagues, nudgeCounts, tasks, scheduleSvc]);
+
+  // A thread he let go stops counting days. Hoisted out of the Waiting On
+  // render (2026-08-21) because the swipe sheet closes rows too, and two
+  // copies of this would drift.
+  const dropRow = (threadId: string, said = "Stopped tracking") => {
+    setWaiting((ws) => ws.filter((x) => x.threadId !== threadId));
+    letGo(threadId);
+    say(said, { label: "Undo", run: () => {
+      undoLetGo(threadId);
+      void loadWaiting();
+    } });
+  };
+
   // Tap a Waiting On row: JARVIS drafts the nudge, the user gets it in
   // compose. It never auto-sends: a nudge is a relationship move.
-  const startNudge = async (row: WaitingRow & { account?: string }) => {
+  //
+  // `act` is the action the user actually chose. The row's own button passes
+  // nothing and gets the primary; the More sheet passes whichever alternate
+  // was tapped, and its instruction is what the drafter is told.
+  const startNudge = async (row: WaitingRow & { account?: string }, act?: MailAction, toOverride?: string) => {
     // The label promised a phone call; honour it. Dialing is the whole point
     // of the top rung, and drafting a sixth email is what made these buttons
     // useless in the first place.
     const phone = phoneFor(book, row.toEmail, row.to);
-    if (phone && ladderFor(row.waitingDays, nudgeCounts[row.threadId] ?? 0, { hasPhone: true }).channel === "call") {
-      window.location.href = telLink(phone);
+    const chosen = act ?? decideFor(row).primary;
+    // A label may only promise what the handler performs: if the button said
+    // Call, this dials, and if it said anything else it drafts.
+    if (chosen.channel === "call") {
+      if (phone) window.location.href = telLink(phone);
+      return;
+    }
+    if (chosen.channel === "text") {
+      if (phone) window.location.href = smsLink(phone);
       return;
     }
     const api = apiFor(row.account);
@@ -488,21 +547,27 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           // N13 (2026-08-20): 55 days deserves a different tone than 3, and
           // the last rung changes CHANNEL rather than raising its voice.
           // The tone escalates; the blame never does.
-          const rung = ladderFor(row.waitingDays, loadNudgeCounts()[row.threadId] ?? 0);
+          // The WAIT sets the tone, the ASK sets what the draft is for.
           const p = nudgePrompt(row, await voiceText());
-          body = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system + "\n" + rung.instruction, { tier: "write" })).trim());
+          body = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system + "\n" + (chosen.instruction ?? ""), { tier: "write" })).trim());
         } catch { body = ""; }
       }
       setEditingDraftId(null);
       // No thread state: a nudge starts from HOME, so compose's Cancel must
       // land back on the list, not on a detail view the user never visited.
       setThread(null);
+      // Routing around a quiet person starts a NEW conversation with somebody
+      // else, so it must not reply into the old thread: threading it would
+      // put the colleague inside a chain they were never part of, and Gmail
+      // would show the silent person the whole history.
+      const routed = !!toOverride && toOverride !== row.toEmail;
       setDraft({
-        to: row.toEmail,
-        subject: /^re:/i.test(last.subject) ? last.subject : "Re: " + last.subject,
+        to: toOverride ?? row.toEmail,
+        subject: routed
+          ? last.subject.replace(/^(re|fwd):\s*/i, "")
+          : (/^re:/i.test(last.subject) ? last.subject : "Re: " + last.subject),
         body,
-        inReplyTo: last.messageId,
-        threadId: full.id,
+        ...(routed ? {} : { inReplyTo: last.messageId, threadId: full.id }),
         account: (row as { account?: string }).account,
       });
       setView("compose");
@@ -510,6 +575,101 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setError("Couldn't open that conversation.");
     } finally {
       setNudging(null);
+    }
+  };
+
+  // THE REST OF THE MOVES, actually performed.
+  //
+  // decide() has always returned a list of alternates and nothing could
+  // reach them. This is the other half: every key it can emit has a handler
+  // here, and every handler does the thing its label promises. The two lists
+  // are kept honest by a law test (mailAction.test.ts) that walks every ask
+  // and every tone and asserts no key escapes without a case here.
+  const runAction = async (row: WaitingRow & { account?: string }, a: MailAction) => {
+    setMore(null);
+    switch (a.key) {
+      case "stop":
+        dropRow(row.threadId);
+        return;
+      case "handled":
+        dropRow(row.threadId, "Marked handled");
+        return;
+      case "quiet":
+        // Future mail from this address sorts to Noise. The thread itself is
+        // untouched, same as every other exit in this section.
+        setRules(saveRule(row.toEmail, "noise"));
+        dropRow(row.threadId, "Quieted " + displayName(row.to));
+        return;
+      case "someone_else": {
+        const alt = altFor(colleagues, row.toEmail);
+        if (alt) await startNudge(row, a, alt.email);
+        return;
+      }
+      case "forward":
+        setEditingDraftId(null);
+        setThread(null);
+        setDraft({
+          to: "",
+          subject: "Fwd: " + (row.subject ?? "").replace(/^(re|fwd):\s*/i, ""),
+          body: "",
+          account: row.account,
+        });
+        setView("compose");
+        return;
+      case "add_bill": {
+        const amount = amountIn(row.subject ?? "");
+        if (!tasks || amount == null) return;
+        await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
+          bill: { amount },
+          source: madeBy("email", row.threadId),
+        });
+        say("Added to Money · $" + amount.toLocaleString());
+        return;
+      }
+      case "add_task":
+        if (!tasks) return;
+        await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
+          due: todayISO(),
+          source: madeBy("email", row.threadId),
+        });
+        say("Added to your tasks");
+        return;
+      case "block_time": {
+        if (!scheduleSvc) return;
+        const now = new Date();
+        const today = todayISO(now);
+        const tmr = addDays(today, 1);
+        const all = await scheduleSvc.listEvents();
+        // ONE DEFINITION OF BUSY. Same rule the Schedule tab's Open rows use:
+        // events and hard routine blocks are busy, a focus block is not,
+        // because focus time is time set aside FOR work like this.
+        const busyFor = async (date: string) => {
+          const r = await routineSvc?.get().catch(() => null);
+          if (!r) return [];
+          const dow = new Date(date + "T12:00:00").getDay();
+          return protectedRangesFor(r, dow).filter((l) => !isFocusRange(l)).map((l) => ({ s: l.s, e: l.e }));
+        };
+        const slot = nextOpening(
+          { date: today, events: eventsForDate(all, today), busy: await busyFor(today) },
+          { date: tmr, events: eventsForDate(all, tmr), busy: await busyFor(tmr) },
+          now.getHours() * 60 + now.getMinutes(),
+        );
+        if (!slot) { say("No open slot in the next two days"); return; }
+        const id = await scheduleSvc.createEvent(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
+          date: slot.date,
+          start: slot.start,
+          end: slot.end,
+          source: madeBy("email", row.threadId),
+        });
+        say(id
+          ? (slot.date === today ? "Booked " : "Booked tomorrow ") + fmtTime(slot.start) + " · " + BOOK_MIN + " min"
+          : "Couldn't book that");
+        return;
+      }
+      default:
+        // Everything left is a draft or a dial, and startNudge knows the
+        // difference from the action's own channel.
+        await startNudge(row, a);
     }
   };
 
@@ -2008,21 +2168,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             // Two: the reason ("Email isn't working here") was printed on
             // every row. A sentence that is true of the whole section is
             // said once, by the section.
-            const rungs = waiting.map((w) => ({
-              w,
-              l: ladderFor(w.waitingDays, nudgeCounts[w.threadId] ?? 0, {
-                hasPhone: !!phoneFor(book, w.toEmail, w.to),
-              }),
-            }));
-            const allTop = rungs.every((r) => r.l.rung === "switch");
-            const dropRow = (threadId: string) => {
-              setWaiting((ws) => ws.filter((x) => x.threadId !== threadId));
-              letGo(threadId);
-              say("Stopped tracking", { label: "Undo", run: () => {
-                undoLetGo(threadId);
-                void loadWaiting();
-              } });
-            };
+            // THE ASK DECIDES THE ACTION (2026-08-21, Dave: "the email buttons
+            // are not working properly they will all say the exact same action
+            // instead of appropriate ones"). Every row in a real inbox is weeks
+            // old, so a ladder keyed on the WAIT put every row on the same rung
+            // and printed the same button four times. The wait now sets the
+            // tone of the draft; what you are OWED sets the button.
+            const rungs = waiting.map((w) => ({ w, d: decideFor(w) }));
+            // A receipt owes you nothing and was never a thread you are waiting
+            // on. It leaves the list rather than wearing a button that lies.
+            const owed = rungs.filter((r) => r.d.ask !== "nothing");
+            const unowed = rungs.filter((r) => r.d.ask === "nothing");
+            const allTop = owed.length > 0 && owed.every((r) => r.d.tone === "firm");
             return (
             <>
               <div className="sh2"><span className="t">Waiting On</span></div>
@@ -2032,18 +2189,25 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 </div>
               )}
               <div><div className="list-flat">
-                {rungs.map(({ w, l }) => (
-                  <LetGoSwipe key={w.threadId} onLetGo={() => dropRow(w.threadId)}>
+                {owed.map(({ w, d }) => (
+                  <LetGoSwipe
+                    key={w.threadId}
+                    onMore={d.alternates.length ? () => setMore({ row: w, d }) : undefined}
+                    onLetGo={() => dropRow(w.threadId)}
+                  >
                   <div className="row" role="button" tabIndex={0} onClick={() => void startNudge(w)}>
                     <span className="msg-dot off"></span>
                     <div className="row-grow">
                       <div className="msg-line">
                         <span className="conn-name truncate">{displayName(w.to)}</span>
-                        <span className="pill-act">{nudging === w.threadId ? "Drafting..." : l.label}</span>
+                        {/* Age as severity: the number was always there and
+                            said nothing. Past the point email helps, it reads
+                            hot. */}
+                        <span className={"mail-age" + (d.tone === "firm" ? " hot" : d.tone === "direct" ? " warm" : "")}>{w.waitingDays}d</span>
+                        <span className="pill-act">{nudging === w.threadId ? "Drafting…" : d.primary.label}</span>
                       </div>
                       <div className="conn-meta msg-gist">
                         {w.subject} · {waitingLine(w, opens[w.threadId] ?? null)}
-                        {!allTop && l.rung === "switch" ? " · " + l.note : ""}
                         {g.accounts.length > 1 && w.account && <span className="msg-acct">{acctLabel(w.account)}</span>}
                       </div>
                     </div>
@@ -2051,6 +2215,34 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   </LetGoSwipe>
                 ))}
               </div></div>
+              {/* Nothing is owed on these, so they get their own quiet band
+                  and an honest button instead of sitting in Waiting On
+                  pretending somebody is late. */}
+              {unowed.length > 0 && (
+                <>
+                  <div className="sh2"><span className="t">Nothing Owed</span><span className="n">{unowed.length}</span></div>
+                  <div><div className="list-flat">
+                    {unowed.map(({ w, d }) => (
+                      <LetGoSwipe
+                        key={w.threadId}
+                        onMore={d.alternates.length ? () => setMore({ row: w, d }) : undefined}
+                        onLetGo={() => dropRow(w.threadId)}
+                      >
+                      <div className="row" role="button" tabIndex={0} onClick={() => dropRow(w.threadId)}>
+                        <span className="msg-dot off"></span>
+                        <div className="row-grow">
+                          <div className="msg-line">
+                            <span className="conn-name truncate">{displayName(w.to)}</span>
+                            <span className="pill-act">{d.primary.label}</span>
+                          </div>
+                          <div className="conn-meta msg-gist">{w.subject} · a receipt needs no reply</div>
+                        </div>
+                      </div>
+                      </LetGoSwipe>
+                    ))}
+                  </div></div>
+                </>
+              )}
             </>
             );
           })()}
@@ -2198,6 +2390,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       {/* The standing rules live one tap from the tab that creates them. */}
       {(Object.keys(rules).length > 0 || muted.length > 0) && (
         <div className="pad-x"><button className="quiet-action" onClick={() => setView("rules")}>Standing Rules</button></div>
+      )}
+      {/* Everything else this thread could become, one swipe from the row. */}
+      {more && (
+        <MailMoreSheet
+          who={displayName(more.row.to)}
+          subject={more.row.subject ?? ""}
+          days={more.row.waitingDays}
+          decision={more.d}
+          onPick={(a) => void runAction(more.row, a)}
+          onClose={() => setMore(null)}
+        />
       )}
     </div>
   );

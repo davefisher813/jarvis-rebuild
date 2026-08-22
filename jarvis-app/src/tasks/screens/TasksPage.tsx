@@ -6,6 +6,7 @@ import { Burst } from "../../shared/Burst";
 import type { TaskItem } from "../TasksService";
 import { urgencyFor, type UrgencyKind } from "../grouping";
 import { FILTERS, FILTER_LABEL, type TaskFilter } from "../filters";
+import { categoryLine } from "../categories";
 import { catColor, catName } from "../../shared/categories";
 import type { SheetCategory } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
@@ -132,7 +133,10 @@ function Row({
         </div>
         <div className="row-stack" role="button" tabIndex={0} onClick={() => onOpen?.(item.id)}>
           <div className="conn-name truncate">{t.text}</div>
-          <div className={"eyebrow cat-fg-" + catColor(t.category)}>{catName(t.category)}{t.recurrence ? " \u00b7 " + t.recurrence : ""}</div>
+          {/* The primary keeps the colour; the tags ride the same line as
+              plain facts (2026-08-21). Colouring all of them would spend
+              three colours saying one thing. */}
+          <div className={"eyebrow cat-fg-" + catColor(t.category)}>{categoryLine(t, catName)}{t.recurrence ? " \u00b7 " + t.recurrence : ""}</div>
           {/* A1: the cue, where he will see it while scanning. The whole
               sentence is on the sheet; the row carries the trigger, which is
               the half that has to be recognisable in the moment. */}
@@ -166,7 +170,6 @@ export default function TasksPage({
   onSnoozeTask,
   onStartTask,
   onNew,
-  onQuickAdd,
   onClearDone,
   categories,
   catFilter,
@@ -191,7 +194,6 @@ export default function TasksPage({
   onSnoozeTask?: (id: string) => void;
   onStartTask?: (id: string) => void;
   onNew?: () => void;
-  onQuickAdd?: (text: string) => void;
   onClearDone?: () => void;
   categories?: SheetCategory[];
   catFilter?: string;
@@ -209,7 +211,6 @@ export default function TasksPage({
   overwhelmed?: boolean;
   onMoveAllToToday?: () => void;
 }) {
-  const [qa, setQa] = useState("");
   return (
     <div className="screen">
       <PageHeader title="Tasks" actions={<BarAction label="New Task" onClick={onNew}><Plus className="ic" /></BarAction>} />
@@ -260,18 +261,11 @@ export default function TasksPage({
         </div>
       )}
 
-      {onQuickAdd && (
-        <div className="pad-x quick-add">
-          <input
-            className="input"
-            aria-label="Add a task"
-            placeholder="Add a Task"
-            value={qa}
-            onChange={(e) => setQa(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && qa.trim()) { onQuickAdd(qa); setQa(""); } }}
-          />
-        </div>
-      )}
+      {/* THE DUPLICATE ADD BOX IS GONE (2026-08-21, Dave: "Add task type box
+          makes no sense"). It was a plain text field that parsed dates and
+          nothing else, sitting one screen above the JARVIS capture bar, which
+          does the same job and also reads categories, people and projects.
+          Two boxes, one job, and the worse one was on top. */}
 
       {banner}
 
@@ -296,10 +290,10 @@ export default function TasksPage({
           <div className="empty-icon"><ListChecks className="ic" /></div>
           <div className="empty-title">{EMPTY_TITLE[filter]}</div>
           {emptySub(filter, counts) && <div className="empty-sub">{emptySub(filter, counts)}</div>}
-          {/* No button here on purpose. The quick-add field sits directly
-              above this and the "+" is in the nav bar, so a third way to make
-              a task bought nothing and spent a second red fill on a screen
-              that is only allowed one. */}
+          {/* No button here on purpose. The "+" in the nav bar is the one way
+              to make a task from this screen, and a second red fill on a
+              screen that is only allowed one is exactly what the removed
+              quick-add box was spending. */}
         </div>
       ) : (
         <div>

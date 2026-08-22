@@ -18,6 +18,7 @@ import { attachInfo, followUpCandidate, type AttachInfo } from "./attachments";
 import { bestPerBlock, blockKind, recordBlend, loadBlendMemory } from "./blend";
 import type { EventItem, EventData } from "./types";
 import { showToast } from "../shared/toast";
+import { catColor } from "../shared/categories";
 import { attemptWrite } from "../shared/guard";
 import PlanDaySheet from "./screens/PlanDaySheet";
 import { aiPlanDay } from "./planDayAI";
@@ -498,6 +499,38 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     });
   };
 
+
+  // PUT A TASK IN THIS BLOCK (2026-08-21). Blending only ever attached to real
+  // calendar EVENTS, and a routine block is not an event, so the one block
+  // built to receive tasks was the one block a task could not be dropped into.
+  // This opens a picker of the day's unplaced tasks and lands the chosen one
+  // in the block's first free stretch, through the same planner ladder
+  // everything else uses.
+  const [filling, setFilling] = useState<{ s: number; e: number } | null>(null);
+  const onFillBlock = (s: number, e: number) => setFilling({ s, e });
+  const fillWith = async (taskId: string) => {
+    const win = filling;
+    setFilling(null);
+    if (!win) return;
+    const t = await tasksSvc.task(taskId);
+    if (!t) return;
+    // Inside the block only, around anything already in it. planStart keeps
+    // today's placements at or after now, so this never proposes the past.
+    const from = Math.max(win.s, selected === todayISO() ? planStart : win.s);
+    const drop = planDay(
+      [{ id: taskId, text: t.text, category: t.category ?? "", durationMin: 45 }],
+      eventsForDate(allEvents, selected), from, win.e, 10, [], [], [{ s: win.s, e: win.e }],
+    );
+    const block = drop.blocks[0];
+    if (!block) { showToast({ message: "That block is full" }); return; }
+    const ok = await attemptWrite(() => svc.commitPlan(selected, [{
+      taskId, text: t.text, category: t.category ?? "", start: block.start, end: block.end,
+    }]));
+    await reload();
+    await reloadTasks();
+    if (ok) showToast({ message: `${t.text} at ${fmtRange(block.start, block.end)}` });
+  };
+
   // --- Roadmap v2 schedule basics ---
   const nowHHMM = (() => { const d = new Date(); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; })();
 
@@ -755,6 +788,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onSkipToday={onSkipToday}
         onPushTomorrow={onPushTomorrow}
         onRunningLate={onRunningLate}
+        onFillBlock={onFillBlock}
         anytimeItems={anytimeItems}
         onToggleTask={onToggleTask}
         onScheduleTask={onScheduleTask}
@@ -771,6 +805,31 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           onKeepBoth={() => { keepBoth(fixing, selected); setFixing(null); }}
           onClose={() => setFixing(null)}
         />
+      )}
+      {filling && (
+        <div className="sheet-scrim" onClick={() => setFilling(null)}>
+          <div className="card" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            <div className="grp"><div className="eyebrow">Put a Task in This Block</div></div>
+            <div className="pad-x sheet-form">
+              {anytimeItems.length === 0 ? (
+                <div className="empty-state"><div className="t-body">Nothing waiting to be scheduled</div></div>
+              ) : (
+                <div className="p3-list">
+                  {anytimeItems.slice(0, 12).map((t) => (
+                    <div className="p3-row" key={t.id} role="button" tabIndex={0} onClick={() => void fillWith(t.id)}>
+                      <span className={"cat-dot cat-bg-" + catColor(t.data.category)} />
+                      <div className="row-grow"><div className="p3-name truncate">{t.data.text}</div></div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="pad-x sheet-actions">
+              <button className="btn btn-tertiary btn-block" onClick={() => setFilling(null)}>Cancel</button>
+            </div>
+          </div>
+        </div>
       )}
       {planOpen && (
         <PlanDaySheet

@@ -289,3 +289,77 @@ describe("protectedRangesFor soft flag", () => {
     expect(ranges.find((x) => x.label === "Dinner")?.soft).toBe(true);
   });
 });
+
+// ---- BLOCK BEHAVIOUR (2026-08-21, Dave: "should be able to edit any category
+// like this... some people might be fine putting tasks during eating hours") ----
+describe("block mode", () => {
+  it("defaults by kind, so nobody has to configure anything", async () => {
+    const { defaultModeFor } = await import("./types");
+    expect(defaultModeFor("focus")).toBe("holds");
+    expect(defaultModeFor("errand")).toBe("holds");
+    expect(defaultModeFor("work")).toBe("holds");
+    expect(defaultModeFor("commute")).toBe("blends");
+    expect(defaultModeFor("gym")).toBe("blends");
+    expect(defaultModeFor("meal")).toBe("protects");
+    expect(defaultModeFor("family")).toBe("protects");
+  });
+
+  it("reads the label only when no kind was ever set (pre-kinds blocks)", async () => {
+    const { defaultModeFor } = await import("./types");
+    expect(defaultModeFor(undefined, "Deep Work")).toBe("holds");
+    expect(defaultModeFor(undefined, "Errands")).toBe("holds");
+    expect(defaultModeFor(undefined, "Drive to Practice")).toBe("blends");
+    expect(defaultModeFor(undefined, "Book Club")).toBe("protects");
+    // An explicit kind is a decision and outranks the label.
+    expect(defaultModeFor("other", "Deep Work")).toBe("protects");
+  });
+
+  it("an explicit mode beats the kind default, both directions", async () => {
+    const { modeOf } = await import("./types");
+    // Dave's case: someone who is fine working through lunch.
+    expect(modeOf({ label: "Lunch", kind: "meal", mode: "holds" })).toBe("holds");
+    // And the reverse: a focus block someone wants left alone.
+    expect(modeOf({ label: "Deep Work", kind: "focus", mode: "protects" })).toBe("protects");
+  });
+
+  it("[edge] a garbage mode value falls back to the kind default", async () => {
+    const { modeOf } = await import("./types");
+    expect(modeOf({ label: "Gym", kind: "gym", mode: "nonsense" })).toBe("blends");
+  });
+
+  it("free channels default by kind and are filtered to the real ones", async () => {
+    const { freeOf } = await import("./types");
+    expect(freeOf({ kind: "gym" })).toEqual(["ears"]);
+    expect(freeOf({ kind: "commute" })).toEqual(["mouth", "ears"]);
+    expect(freeOf({ kind: "commute", free: ["mouth"] })).toEqual(["mouth"]);
+    expect(freeOf({ kind: "commute", free: ["telepathy"] })).toEqual(["mouth", "ears"]);
+  });
+
+  it("a blend block is a wall for placement AND an opening for blending", async () => {
+    const { splitProtectedRanges } = await import("./types");
+    const out = splitProtectedRanges([
+      { s: 270, e: 315, label: "Drive to Practice", kind: "commute" },
+      { s: 720, e: 780, label: "Lunch", kind: "meal" },
+      { s: 780, e: 1020, label: "Deep Work", kind: "focus" },
+    ]);
+    // The planner must route around the drive: you really are driving.
+    expect(out.hard.map((h) => h.label)).toContain("Drive to Practice");
+    expect(out.hard.map((h) => h.label)).toContain("Lunch");
+    // And the blend engine must still be able to reach it.
+    expect(out.blend.map((b) => b.label)).toEqual(["Drive to Practice"]);
+    expect(out.blend[0]!.free).toEqual(["mouth", "ears"]);
+    // Focus still pulls picks in.
+    expect(out.focus.map((f) => f.label)).toEqual(["Deep Work"]);
+  });
+
+  it("[edge] every existing block keeps working with no mode set", async () => {
+    const { splitProtectedRanges } = await import("./types");
+    const out = splitProtectedRanges([
+      { s: 780, e: 1020, label: "Deep Work" },
+      { s: 720, e: 780, label: "Lunch", soft: true },
+    ]);
+    expect(out.focus.map((f) => f.label)).toEqual(["Deep Work"]);
+    expect(out.soft.map((f) => f.label)).toEqual(["Lunch"]);
+    expect(out.blend).toEqual([]);
+  });
+});

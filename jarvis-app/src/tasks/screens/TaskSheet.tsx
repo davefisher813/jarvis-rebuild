@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import { categoriesOf, setCategories } from "../categories";
 import { useState } from "react";
 import type { ColorSlot } from "../../categories/types";
 import Provenance from "../../shared/Provenance";
@@ -7,7 +8,7 @@ import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, typ
 
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
 export interface TaskDraft {
-  text: string; category: string; due: string; repeat: string; projectId?: string;
+  text: string; category: string; extraCategories?: string[]; due: string; repeat: string; projectId?: string;
   // A1 (2026-08-20): the if-then plan, when he set one.
   plan?: IfThen;
 }
@@ -63,7 +64,18 @@ export default function TaskSheet({
   // No default category (2026-08-09): defaulting to whichever category was
   // first silently mis-tagged every "+" task, the exact poisoning the
   // quick-add path fixed on 2026-08-03. Untagged is honest; tagging is a tap.
-  const [category, setCategory] = useState(initial?.category ?? "");
+  // MULTIPLE CATEGORIES (2026-08-21). One ordered list, primary first. Tapping
+  // an unpicked chip adds it; tapping a picked one removes it; tapping the
+  // primary again promotes the next in line, so the dot can be changed without
+  // a second control.
+  const [cats, setCats] = useState<string[]>(() =>
+    categoriesOf({ category: initial?.category, extraCategories: initial?.extraCategories }));
+  const category = cats[0] ?? "";
+  const toggleCat = (id: string) => setCats((cur) => {
+    if (!cur.includes(id)) return [...cur, id];
+    if (cur[0] === id && cur.length > 1) return [...cur.slice(1)];  // demote, keep
+    return cur.filter((c) => c !== id);
+  });
   const [due, setDue] = useState(initial?.due ?? "");
   const [repeat, setRepeat] = useState(initial?.repeat ?? "");
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
@@ -90,7 +102,7 @@ export default function TaskSheet({
       return;
     }
     onSave({
-      text: text.trim(), category, due, repeat, projectId: projectId || undefined,
+      text: text.trim(), ...setCategories(cats), due, repeat, projectId: projectId || undefined,
       // Only a plan that will actually work is saved. A weak one is worse
       // than none: it feels like a plan and carries no effect.
       plan: planTouched && isUsable(draftPlan) ? draftPlan : undefined,
@@ -167,22 +179,32 @@ export default function TaskSheet({
                 idea had two looks on two screens, and it spent a colour on a
                 thing the dot was already saying. */}
             <div className="chip-row cat-pick">
-              <div className={"chip" + (category === "" ? " active" : "")} role="button" tabIndex={0} aria-pressed={category === ""} onClick={() => setCategory("")}>None</div>
-              {categories.map((c) => (
+              <div className={"chip" + (cats.length === 0 ? " active" : "")} role="button" tabIndex={0} aria-pressed={cats.length === 0} onClick={() => setCats([])}>None</div>
+              {categories.map((c) => {
+                const at = cats.indexOf(c.id);
+                return (
                 <div
                   key={c.id}
-                  className={"chip" + (c.id === category ? " active" : "")}
+                  className={"chip" + (at >= 0 ? " active" : "")}
                   role="button"
                   tabIndex={0}
-                  aria-pressed={c.id === category}
-                  onClick={() => setCategory(c.id)}
+                  aria-pressed={at >= 0}
+                  onClick={() => toggleCat(c.id)}
                 >
                   <span className={"cat-dot cat-bg-" + c.color} />
                   {c.name}
+                  {/* Only the primary is marked, and only when there is more
+                      than one: a badge on a single pick would be noise. */}
+                  {at === 0 && cats.length > 1 && <span className="cat-main">Main</span>}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
+
+          {cats.length > 1 && (
+            <div className="input-help">{categories.find((c) => c.id === category)?.name ?? "The first"} is the main one · Tap it to pass that to the next</div>
+          )}
 
           <div className="field">
             <div className="input-label">Due</div>

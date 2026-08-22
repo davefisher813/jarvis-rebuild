@@ -4,6 +4,7 @@ import {
   saveMailSnapshot, loadMailSnapshot, SNAPSHOT_MAX_AGE_MS, EMPTY,
   type MailSnapshot,
 } from "./home";
+import { decide } from "./mailAction";
 
 const TODAY = "2026-08-20";
 const NOW = new Date("2026-08-20T09:00:00");
@@ -128,5 +129,64 @@ describe("the snapshot", () => {
   it("survives garbage without taking the page down", () => {
     const st = { getItem: () => "{not json" };
     expect(loadMailSnapshot(NOW.getTime(), st)).toEqual(EMPTY);
+  });
+});
+
+// THE SAME BUG, ON THE SCREEN HE SEES FIRST (2026-08-21).
+//
+// The Email tab stopped printing one universal button. The home page kept
+// printing "Nudge" on every waiting thread, so Dave's original complaint was
+// still true on Today. These pin the fix in both directions.
+describe("the home page derives its mail action too", () => {
+  const wait = (threadId: string, to: string, subject: string, days: number) =>
+    ({ threadId, to, subject, days });
+  const snapOf = (waiting: ReturnType<typeof wait>[]) =>
+    ({ threads: [], waiting, promises: [], savedAt: "2026-08-21T12:00:00Z" });
+
+  it("no two waiting threads carry the same button", () => {
+    const out = mailNotices(
+      snapOf([
+        wait("a", "summitgear", "Missing Items From Order #D2565", 58),
+        wait("b", "wei", "Invoice", 53),
+        wait("c", "Joseph", "CALL ME", 51),
+      ]) as never,
+      "2026-08-21",
+      new Date("2026-08-21T12:00:00Z"),
+      9,
+    );
+    const acts = out.filter((n) => n.kind === "nudge").map((n) => n.action);
+    expect(acts.length).toBe(3);
+    expect(new Set(acts).size).toBe(3);
+    expect(acts).not.toContain("Nudge");
+  });
+
+  it("a receipt owes nothing, so it never reaches the home page", () => {
+    const out = mailNotices(
+      snapOf([wait("r", "Elieserhenry0", "Reservation Receipt", 49)]) as never,
+      "2026-08-21",
+      new Date("2026-08-21T12:00:00Z"),
+      9,
+    );
+    expect(out.find((n) => n.threadId === "r")).toBeUndefined();
+  });
+
+  it("[edge] the card can only draft, so it never prints a button that dials", () => {
+    // Whatever the ask, the label on this surface has to be an email, because
+    // the only handler behind it writes one.
+    for (const s of ["Invoice", "CALL ME", "Missing item", "Question?", "$400 past due"]) {
+      for (const days of [1, 8, 40]) {
+        const out = mailNotices(
+          snapOf([wait("x", "Somebody", s, days)]) as never,
+          "2026-08-21",
+          new Date("2026-08-21T12:00:00Z"),
+          9,
+        );
+        const n = out.find((x) => x.kind === "nudge");
+        if (!n) continue;
+        const d = decide(s, "", days);
+        const match = [d.primary, ...d.alternates].find((a) => a.label === n.action);
+        expect(match?.channel, s + " " + days + " -> " + n.action).toBe("email");
+      }
+    }
   });
 });

@@ -12,7 +12,32 @@ export const ENTITY_ROUTINE = "routine";
 // keeps working. Routine enrichment, 2026-08-09 (Dave: "it should know your
 // routine life... how can it plan your day when it doesn't know what your
 // day is like").
-export type BlockKind = "meal" | "gym" | "hobby" | "family" | "focus" | "errand" | "other";
+export type BlockKind = "meal" | "gym" | "hobby" | "family" | "focus" | "errand" | "commute" | "work" | "other";
+
+// WHAT A BLOCK DOES WITH YOUR LIST (2026-08-21, Dave's call: "should be able
+// to edit any category like this... some people might be fine putting tasks
+// during eating hours"). Three answers, editable on every block:
+//
+//   holds    - time set aside FOR the list. Picks land here first and render
+//              INSIDE the block on the day view. Deep Work, Errands, Work Hours.
+//   protects - nothing lands. Meals, family, hobby. The wall.
+//   blends   - you are busy, but a channel is free. Driving frees your mouth
+//              and ears and takes your hands; the gym frees your ears. The
+//              planner still routes around it, but the blend engine may offer
+//              work that fits the free channels.
+//
+// The mode was HARDCODED to the kind before this (only "focus" held tasks),
+// which is wrong for thousands of users who are not Dave. It is now a per
+// block setting with a sensible default, so nobody has to configure anything
+// and anybody can change their mind.
+export type BlockMode = "holds" | "protects" | "blends";
+
+// What a blend block leaves free. This is not decoration: it is the whole
+// difference between "phone call while driving" (fine) and "write the email
+// while driving" (not fine). blend.ts already reasons in mouth-vs-hands
+// terms; this is how a routine block tells it which.
+export type FreeChannel = "mouth" | "hands" | "ears";
+export const FREE_CHANNELS: FreeChannel[] = ["mouth", "hands", "ears"];
 
 // A daily range in the user's routine: gym, meals, family, deep work, hobby
 // time. Days use JS getDay (0=Sun ... 6=Sat) so a block can apply on any
@@ -34,6 +59,10 @@ export interface ProtectedBlock {
   kind?: BlockKind;
   soft?: boolean;
   location?: string;
+  // Absent means "the default for this kind" (see defaultModeFor), so every
+  // block written before 2026-08-21 keeps behaving exactly as it did.
+  mode?: BlockMode;
+  free?: FreeChannel[];
 }
 
 export interface RoutineData {
@@ -68,7 +97,7 @@ export const DEFAULT_ROUTINE: RoutineData = {
 // out, carrying its label for the preview. soft rides along so callers can
 // split walls from preferences; kind (2026-08-10) so focus blocks can be
 // told apart from time to protect. Phase 2, extended 2026-08-09/10.
-export interface ProtectedRange { s: number; e: number; label: string; soft?: boolean; kind?: BlockKind }
+export interface ProtectedRange { s: number; e: number; label: string; soft?: boolean; kind?: BlockKind; mode?: BlockMode; free?: FreeChannel[] }
 
 // The protected ranges that apply on a given day of week, as sorted busy
 // ranges for the planner, hard and soft together. Malformed blocks (end at or
@@ -77,7 +106,7 @@ export interface ProtectedRange { s: number; e: number; label: string; soft?: bo
 export function protectedRangesFor(r: RoutineData, dow: number): ProtectedRange[] {
   return (r.protectedBlocks ?? [])
     .filter((b) => b.endMin > b.startMin && b.label.trim() !== "" && b.days.includes(dow))
-    .map((b) => ({ s: b.startMin, e: b.endMin, label: b.label.trim(), ...(b.soft ? { soft: true } : {}), ...(b.kind ? { kind: b.kind } : {}) }))
+    .map((b) => ({ s: b.startMin, e: b.endMin, label: b.label.trim(), ...(b.soft ? { soft: true } : {}), ...(b.kind ? { kind: b.kind } : {}), ...(b.mode ? { mode: b.mode } : {}), ...(b.free ? { free: b.free } : {}) }))
     .sort((a, b) => a.s - b.s || a.e - b.e);
 }
 
@@ -87,9 +116,64 @@ export function protectedRangesFor(r: RoutineData, dow: number): ProtectedRange[
 // built exactly for them sat empty. kind === "focus" is the signal; blocks
 // created before kinds existed fall back to the label, deterministically,
 // so an existing "Deep Work" block starts working without being re-edited.
-export function isFocusRange(x: { label: string; kind?: string }): boolean {
-  return x.kind === "focus" || (x.kind == null && /\b(deep work|focus)\b/i.test(x.label));
+export function isFocusRange(x: { label: string; kind?: string; mode?: string }): boolean {
+  return modeOf(x) === "holds";
 }
+
+// The default a kind carries when the user has not chosen. Blocks created
+// before kinds existed fall back to the LABEL, deterministically, so an
+// existing "Deep Work" keeps holding tasks without being re-edited.
+export function defaultModeFor(kind?: string, label = ""): BlockMode {
+  switch (kind) {
+    case "focus": case "errand": case "work": return "holds";
+    case "commute": case "gym": return "blends";
+    case "meal": case "family": case "hobby": return "protects";
+    default:
+      // An explicit kind is a DECISION and outranks the label, even when the
+      // decision is "other" on a block called Deep Work (law-tested since
+      // 2026-08-10). The label is consulted only when no kind was ever set.
+      if (kind != null) return "protects";
+      if (/\b(deep work|focus|study hall)\b/i.test(label)) return "holds";
+      if (/\b(errands?|shopping)\b/i.test(label)) return "holds";
+      if (/\b(commute|drive|driving|carpool)\b/i.test(label)) return "blends";
+      return "protects";
+  }
+}
+
+// One resolver, used by every surface, so "what does this block do" can never
+// drift between the planner, the day list and the editor.
+export function modeOf(x: { label?: string; kind?: string; mode?: string }): BlockMode {
+  const m = x.mode;
+  if (m === "holds" || m === "protects" || m === "blends") return m;
+  return defaultModeFor(x.kind, x.label ?? "");
+}
+
+// What a blend block leaves free, defaulted by kind when unset. Driving takes
+// your hands and leaves your mouth and ears; the gym leaves your ears only.
+export function freeOf(x: { kind?: string; free?: string[]; label?: string }): FreeChannel[] {
+  // Filter FIRST, then decide. Returning the filtered list directly would let
+  // a block whose stored channels are all unrecognised report that nothing is
+  // free, which silently makes it un-blendable forever instead of falling
+  // back to something sane.
+  const kept = (x.free ?? []).filter((f): f is FreeChannel => (FREE_CHANNELS as string[]).includes(f));
+  if (kept.length) return kept;
+  if (x.kind === "gym") return ["ears"];
+  return ["mouth", "ears"];
+}
+
+export const MODE_LABEL: Record<BlockMode, string> = {
+  holds: "Holds Tasks",
+  protects: "Protected",
+  blends: "Can Blend",
+};
+
+// One sentence saying what the chosen mode actually means, shown under the
+// control. A three-way switch with no explanation is a guess.
+export const MODE_HELP: Record<BlockMode, string> = {
+  holds: "Your list lands here first",
+  protects: "Nothing gets scheduled here",
+  blends: "Busy, but a channel is free",
+};
 
 // One classification, shared by the plan sheet, the planner tests, and any
 // future caller, so "what counts as focus time" can never drift apart.
@@ -97,13 +181,20 @@ export function splitProtectedRanges(ranges: ProtectedRange[]): {
   hard: { s: number; e: number; label: string }[];
   soft: { s: number; e: number; label: string }[];
   focus: { s: number; e: number; label: string }[];
+  blend: { s: number; e: number; label: string; free: FreeChannel[] }[];
 } {
-  const focus = ranges.filter(isFocusRange).map((x) => ({ s: x.s, e: x.e, label: x.label }));
-  const rest = ranges.filter((x) => !isFocusRange(x));
+  const bucket = (x: ProtectedRange) => modeOf(x);
+  const focus = ranges.filter((x) => bucket(x) === "holds").map((x) => ({ s: x.s, e: x.e, label: x.label }));
+  // A blend block is a WALL for ordinary placement (you really are driving),
+  // and an opening for the blend engine only. Both facts are true at once,
+  // which is why it rides in hard AND is returned separately.
+  const blends = ranges.filter((x) => bucket(x) === "blends");
+  const prot = ranges.filter((x) => bucket(x) === "protects");
   return {
-    hard: rest.filter((x) => !x.soft).map((x) => ({ s: x.s, e: x.e, label: x.label })),
-    soft: rest.filter((x) => x.soft).map((x) => ({ s: x.s, e: x.e, label: x.label })),
+    hard: [...prot.filter((x) => !x.soft), ...blends].map((x) => ({ s: x.s, e: x.e, label: x.label })),
+    soft: prot.filter((x) => x.soft).map((x) => ({ s: x.s, e: x.e, label: x.label })),
     focus,
+    blend: blends.map((x) => ({ s: x.s, e: x.e, label: x.label, free: freeOf(x) })),
   };
 }
 
