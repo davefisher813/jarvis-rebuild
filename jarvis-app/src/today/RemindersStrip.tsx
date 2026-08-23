@@ -2,6 +2,7 @@ import { Check, Plus, CalendarPlus } from "lucide-react";
 import { Burst } from "../shared/Burst";
 import { useRef, useState } from "react";
 import type { ReminderView } from "../tasks/reminders";
+import { fmtTime } from "../schedule/calendar";
 
 // THE REMINDERS STRIP (Dave 2026-08-19: "taking meds should just be a set
 // reminder"). One line each, the time, the thing, a circle. Tap the circle,
@@ -64,7 +65,11 @@ export default function RemindersStrip({
             </div>
             {/* A missed reminder marks its TIME, not the whole row: it needs
                 to be findable, not accusatory. Never red, never a count. */}
-            <span className="rem-time">{r.time}</span>
+            {/* 12-HOUR, LIKE EVERY OTHER TIME IN THE APP (Dave 2026-08-22:
+                "reminders are rendering in military time"). r.time is the
+                stored HH:MM; every other surface runs it through fmtTime and
+                this one printed it raw, so 9 PM meds read "21:00". */}
+            <span className="rem-time">{fmtTime(r.time).time}<span className="ampm">{fmtTime(r.time).ap}</span></span>
             <div className="row-grow" role="button" tabIndex={0} onClick={() => onOpen?.(r.id)}>
               <div className="rem-name">{r.text}</div>
             </div>

@@ -80,6 +80,32 @@ describe("LAW: every class has CSS behind it", () => {
   });
 });
 
+// NO MILITARY TIME ON SCREEN (Dave 2026-08-22: "reminders are rendering in
+// military time"). Every surface but one ran its HH:MM through fmtTime; the
+// reminders strip printed the stored string raw, so 9 PM meds read "21:00".
+// A time that reaches the screen goes through the formatter.
+describe("LAW: clock times are 12-hour", () => {
+  it("no component renders a raw stored time string", () => {
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const src = read(f);
+      // {x.time} rendered directly, without fmtTime around it. fmtTime's own
+      // output is {t.time}/{t.ap} where t = fmtTime(...), which is fine, so
+      // the check is for a time field on a DATA object reaching JSX bare.
+      for (const m of src.matchAll(/\{(\w+)\.time\}/g)) {
+        const varName = m[1]!;
+        // The declaration only has to REACH fmtTime, not start with it:
+        // `const endT = e.data.end ? fmtTime(e.data.end) : null` is correct
+        // and a stricter pattern flagged it as a violation.
+        const decl = new RegExp("(const|let)\\s+" + varName + "\\s*=[^;\\n]*", "g");
+        const declared = [...src.matchAll(decl)].some((d) => d[0].includes("fmtTime("));
+        if (!declared) bad.push(rel(f) + ": {" + varName + ".time}");
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+});
+
 describe("LAW: no inline styles", () => {
   // Tokens only. The single legitimate exception is a live drag position,
   // which cannot be expressed as a class.
