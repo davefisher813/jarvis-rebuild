@@ -123,6 +123,59 @@ describe("DeckFlow prepare race", () => {
   });
 });
 
+// E7 (2026-08-23): the deck's finish line.
+describe("DeckFlow progress bar", () => {
+  const plainApi = () => makeFakeGoogleApi({
+    getThread: async (id: string) => gThread(id, "Alpha", "First", "BODY"),
+    searchThreads: async () => [],
+  });
+
+  const mount = (threads: ThreadRow[], limitMs?: number) => render(
+    <NotesProvider userId="u1">
+      <DeckFlow
+        ai={new AIService({ available: false })}
+        apiFor={() => plainApi()}
+        threads={threads}
+        limitMs={limitMs}
+        onDone={vi.fn()} onExit={vi.fn()} onOpenThread={vi.fn()}
+        onEditReply={vi.fn()} onHandled={vi.fn()}
+      />
+    </NotesProvider>,
+  );
+
+  it("draws a bar that starts empty and advances with the deck", async () => {
+    const { container } = mount([row("tA", "Alpha", "First"), row("tB", "Bravo", "Second"),
+      row("tC", "Cara", "Third"), row("tD", "Dan", "Fourth")]);
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+
+    const fill = () => container.querySelector(".deck-bar-fill") as HTMLElement | null;
+    expect(fill()).toBeTruthy();
+    expect(fill()!.style.width).toBe("0%");
+
+    await waitFor(() => expect(screen.queryByText("Preparing...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("Later"));
+    await screen.findByText("Bravo");
+    // One of four done. The bar is the only thing on screen that says a deck
+    // of four ends, without doing arithmetic between two numbers.
+    expect(fill()!.style.width).toBe("25%");
+  });
+
+  it("still shows position when a drain clock has taken the title", async () => {
+    const { container } = mount([row("tA", "Alpha", "First"), row("tB", "Bravo", "Second")], 60000);
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    // The clock REPLACES the count in the nav title, which is exactly why the
+    // bar has to exist: before it, a timed deck showed no position at all.
+    expect(screen.queryByText("1 of 2")).toBeNull();
+    expect(container.querySelector(".deck-bar-fill")).toBeTruthy();
+  });
+
+  it("says where you are in words too, capitalized after the number", async () => {
+    mount([row("tA", "Alpha", "First"), row("tB", "Bravo", "Second")]);
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2")).toBeInTheDocument();
+  });
+});
+
 // Sabotages TasksService.createTask inside the provider tree so later() fails.
 import { useTasks } from "../data/NotesProvider";
 function BreakTasks() {

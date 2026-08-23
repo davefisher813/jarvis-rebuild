@@ -46,6 +46,8 @@ import { decide, type Decision, type MailAction } from "./mailAction";
 import MailMoreSheet from "./MailMoreSheet";
 import { phoneBook, phoneFor, telLink, smsLink, colleagueBook, altFor, firstName,
   type PhoneBook, type Colleague } from "./reachBy";
+import { nameBook, nameFor, type NameBook } from "./names";
+import { clearedToday, bumpCleared, closeOut } from "./cleared";
 import { loadLetGo, letGo, undoLetGo } from "./letGo";
 import { closeCandidates, closeLine, closeReceipt, closeDue, markClosed, lastClose } from "./weeklyClose";
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
@@ -175,6 +177,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // The fallback for a failed sort is a calm screen with one way out, never
   // the raw list dumped back in Dave's face.
   const [triageState, setTriageState] = useState<TriageState>("idle");
+  // E13 (2026-08-23): how much of the sort is done. Not a guess and not a
+  // fake bar: `triageDelta` already says exactly how many threads need
+  // sorting, and the loop below already runs them in batches of
+  // TRIAGE_BATCH, so both numbers were sitting there unread.
+  const [sortProg, setSortProg] = useState<{ done: number; total: number } | null>(null);
   const [triageWhy, setTriageWhy] = useState<string>("");
   const [openBodies, setOpenBodies] = useState<Record<string, boolean>>({});
   const [restOpen, setRestOpen] = useState(false);
@@ -240,6 +247,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // and routing around a quiet person is the move no other mail app can
   // offer because no other mail app knows your people.
   const [colleagues, setColleagues] = useState<Record<string, Colleague[]>>({});
+  // Real names for the addresses on Waiting On rows. Same list, same load,
+  // one more book: a row that says "jrubino" is a row you have to decode.
+  const [names, setNames] = useState<NameBook>({ byEmail: {} });
+  // E12: what actually got cleared today, counted where the archives happen.
+  const clearedKey = new Date().toISOString().slice(0, 10);
+  const [cleared, setCleared] = useState<number>(() => clearedToday(clearedKey));
+  const countCleared = (n: number) => setCleared(bumpCleared(clearedKey, n));
   // The rest of the moves for one Waiting On row, opened from its swipe.
   const [more, setMore] = useState<{ row: WaitingRow & { account?: string }; d: Decision } | null>(null);
   const [nudging, setNudging] = useState<string | null>(null);
@@ -282,6 +296,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
     triageBusy.current = true;
     setTriageState((s) => (s === "ready" ? s : "pending"));
+    setSortProg({ done: 0, total: delta.length });
     let merged: TriageMap = { ...cache };
     let anyOk = false;
     let lastErr = "";
@@ -305,6 +320,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             lastErr = ((e as Error)?.message || "").slice(0, 140);
           }
         }
+        // A batch that failed is still a batch that is no longer pending, so
+        // the count moves either way. It measures work attempted, not work
+        // that succeeded, and a stuck number would be the lie here.
+        setSortProg({ done: Math.min(i + batch.length, delta.length), total: delta.length });
         if (!parsed) continue; // this batch stays unsorted; the rest still sorts
         merged = fillSkipped({ ...merged, ...parsed }, batch);
         anyOk = true;
@@ -325,6 +344,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setTriage(merged);
     } finally {
       triageBusy.current = false;
+      // Cleared on every exit path, including the early return above, so a
+      // sort that died never leaves a strip claiming it is still working.
+      setSortProg(null);
     }
   }, [ai]);
 
@@ -465,6 +487,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           const list = await people.list();
           setBook(phoneBook(list));
           setColleagues(colleagueBook(list));
+          setNames(nameBook(list));
         } catch { /* no phones, no Call */ }
       }
       const tracks = loadTracks();
@@ -507,8 +530,27 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const dropRow = (threadId: string, said = "Stopped tracking") => {
     setWaiting((ws) => ws.filter((x) => x.threadId !== threadId));
     letGo(threadId);
+    countCleared(1);
     say(said, { label: "Undo", run: () => {
       undoLetGo(threadId);
+      void loadWaiting();
+    } });
+  };
+
+  // E14 (2026-08-23): the one batch move that is safe on this list.
+  //
+  // A Nothing Owed row is a receipt: `decideFor(w).ask === "nothing"` is the
+  // whole definition of the section. Clearing them owes nobody a reply and
+  // sends nobody an email, which is exactly why Waiting On does NOT get a
+  // head verb: the batch move there would be sending six real emails on one
+  // tap. One Undo covers the whole batch.
+  const dropAll = (ids: string[]) => {
+    if (!ids.length) return;
+    setWaiting((ws) => ws.filter((x) => !ids.includes(x.threadId)));
+    for (const id of ids) letGo(id);
+    countCleared(ids.length);
+    say(capAfterNumber(ids.length + " cleared"), { label: "Undo", run: () => {
+      for (const id of ids) undoLetGo(id);
       void loadWaiting();
     } });
   };
@@ -1168,6 +1210,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
     }
     if (counts) setToss(tossOffer(counts));
+    // E12: an auto-clear the user did not ask for is not something the user
+    // cleared, so only the manual sweep counts toward today's number.
+    if (manual) countCleared(noise.length);
     const what = capAfterNumber(noise.length === 1 ? "1 conversation archived" : noise.length + " conversations archived");
     // Undo (2026-08-09): this was the one archive without it, and it is the
     // one that takes the most at once, including when the opt-in auto-clear
@@ -1438,7 +1483,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             setView("compose");
           }}
           onHandled={(threadId, archived) => {
-            if (archived) setRows((rs) => rs.filter((r) => r.id !== threadId));
+            if (archived) {
+              setRows((rs) => rs.filter((r) => r.id !== threadId));
+              // E12: counted here, one per thread as it actually leaves,
+              // rather than in a lump at the end. A deck the user abandons
+              // half way still counts what it cleared.
+              countCleared(1);
+            }
           }}
         />
       </div>
@@ -2033,52 +2084,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           Drafts {draftsLoaded && drafts.length > 0 ? "(" + drafts.length + ")" : ""}
         </button>
       </div>
-      {showTriage && needsYou.length > 0 && (
-        <div className="pad-x deck-cta">
-          <div className="promo-card">
-            <div className="promo-head">
-              <div className="promo-badge b-red"><svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg></div>
-              <div className="promo-body">
-                <div className="promo-title">{needsYou.length === 1 ? "1 Thread Needs You" : `${needsYou.length} Threads Need You`}</div>
-                <div className="promo-sub">Everything else is filed below.</div>
-              </div>
-            </div>
-            {!drainOpen ? (
-              <div className="promo-acts">
-                <button className="promo-pill quiet" onClick={() => setDrainOpen(true)}>Only have a few minutes?</button>
-                <button className="promo-pill" onClick={() => { setDeckRows(needsYou); setView("deck"); }}>Deal With It</button>
-              </div>
-            ) : (
-              <div className="drain-pick">
-                <div className="eyebrow">Give Me</div>
-                <div className="msg-chips">
-                  {PRESETS.map((m) => (
-                    <button key={m} className={"chip" + (minutes === m ? " on" : "")}
-                      onClick={() => setMinutes(saveMinutes(m))}>{m} min</button>
-                  ))}
-                  <input
-                    className="msg-input drain-input" type="number" min={1} max={60} value={minutes}
-                    aria-label="Minutes"
-                    onChange={(e) => setMinutes(clampMinutes(parseInt(e.target.value, 10)))}
-                    onBlur={() => setMinutes(saveMinutes(minutes))}
-                  />
-                </div>
-                <div className="promo-acts">
-                  <button className="promo-pill" onClick={() => {
-                    saveMinutes(minutes);
-                    setDrainMs(minutes * 60000);
-                    setDeckRows(needsYou);
-                    setDrainOpen(false);
-                    setView("deck");
-                  }}>Start the Drain</button>
-                </div>
-              </div>
-            )}
+      {error && <div className="pad-x conn-error">{error}</div>}
+      {searching && <div className="pad-x conn-status">Searching everything...</div>}
+      {/* E13: the sort renders the first batch and keeps working, so the list
+          below is real but incomplete. Saying so is the difference between
+          "that is everything" and "that is everything so far". Disappears the
+          moment the count catches up. */}
+      {sortProg && sortProg.done < sortProg.total && triageState === "ready" && (
+        <div className="pad-x sort-strip">
+          <div className="conn-meta">{capAfterNumber(sortProg.done + " of " + sortProg.total + " sorted")}</div>
+          <div className="sort-bar" role="presentation">
+            <span className="sort-bar-fill" style={{ width: (sortProg.done / sortProg.total) * 100 + "%" }} />
           </div>
         </div>
       )}
-      {error && <div className="pad-x conn-error">{error}</div>}
-      {searching && <div className="pad-x conn-status">Searching everything...</div>}
 
       {filter === "drafts" ? (
         loading && !draftsLoaded ? (
@@ -2118,7 +2137,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="pad-x"><div className="card"><div className="empty-state">
             <div className="empty-icon"><Mail className="ic" /></div>
             <div className="empty-title">Reading Your Inbox</div>
-            <div className="empty-sub">Sorting your mail</div>
+            {/* E13: the wait was open-ended, which is the part that made it
+                feel long. The number is real: `total` is how many threads
+                actually need sorting and `done` counts batches attempted. */}
+            <div className="empty-sub">
+              {sortProg ? capAfterNumber(sortProg.done + " of " + sortProg.total + " sorted") : "Sorting your mail"}
+            </div>
+            {sortProg && sortProg.total > 0 && (
+              <div className="sort-bar" role="presentation">
+                <span className="sort-bar-fill" style={{ width: (sortProg.done / sortProg.total) * 100 + "%" }} />
+              </div>
+            )}
             {/* Never trapped: the way out is on screen the whole time. */}
             <button className="quiet-action" onClick={() => setFilter("all")}>Show all mail instead</button>
           </div></div></div>
@@ -2187,7 +2216,50 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
           {needsYou.length > 0 && (
             <>
-              <div className="sh2"><span className="t">Needs You</span></div>
+              {/* E14 (2026-08-23): the verb rides the head.
+                  It used to live in a promo card above the whole list that
+                  spent a badge, a title and a sub saying three things: the
+                  count (which the head can carry), "everything else is filed
+                  below" (which the fold below already says by existing), and
+                  the verb. A whole card of height for one button. */}
+              <div className="sh2">
+                <span className="t">Needs You</span>
+                <span className="n">{needsYou.length}</span>
+                <button className="see-all" onClick={() => { setDeckRows(needsYou); setView("deck"); }}>Deal With It</button>
+              </div>
+              {/* The timed version is the rarer choice, so it costs one quiet
+                  line instead of half a card, and it sits next to the list it
+                  drains rather than floating above the whole tab. */}
+              {!drainOpen ? (
+                <div className="pad-x drain-line">
+                  <button className="quiet-action" onClick={() => setDrainOpen(true)}>Only Have a Few Minutes?</button>
+                </div>
+              ) : (
+                <div className="pad-x drain-pick">
+                  <div className="eyebrow">Give Me</div>
+                  <div className="msg-chips">
+                    {PRESETS.map((m) => (
+                      <button key={m} className={"chip" + (minutes === m ? " on" : "")}
+                        onClick={() => setMinutes(saveMinutes(m))}>{m} min</button>
+                    ))}
+                    <input
+                      className="msg-input drain-input" type="number" min={1} max={60} value={minutes}
+                      aria-label="Minutes"
+                      onChange={(e) => setMinutes(clampMinutes(parseInt(e.target.value, 10)))}
+                      onBlur={() => setMinutes(saveMinutes(minutes))}
+                    />
+                  </div>
+                  <div className="promo-acts">
+                    <button className="promo-pill" onClick={() => {
+                      saveMinutes(minutes);
+                      setDrainMs(minutes * 60000);
+                      setDeckRows(needsYou);
+                      setDrainOpen(false);
+                      setView("deck");
+                    }}>Start the Drain</button>
+                  </div>
+                </div>
+              )}
               <div><div className="list-flat">
                 {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist))}
               </div></div>
@@ -2216,15 +2288,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             // on. It leaves the list rather than wearing a button that lies.
             const owed = rungs.filter((r) => r.d.ask !== "nothing");
             const unowed = rungs.filter((r) => r.d.ask === "nothing");
-            const allTop = owed.length > 0 && owed.every((r) => r.d.tone === "firm");
             return (
             <>
-              <div className="sh2"><span className="t">Waiting On</span></div>
-              {allTop && (
-                <div className="pad-x conn-meta wait-why">
-                  All of these are past the point where another email helps.
-                </div>
-              )}
+              {/* E1 (2026-08-23): the count moved onto the head and the
+                  standing sentence under it went away. It said "all of these
+                  are past the point where another email helps" on every
+                  render where every row was firm, which in a real aged inbox
+                  is every render. Permanent helper text is not help. */}
+              <div className="sh2"><span className="t">Waiting On</span><span className="n">{owed.length}</span></div>
               <div><div className="list-flat">
                 {owed.map(({ w, d }) => (
                   <LetGoSwipe
@@ -2236,15 +2307,22 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     <span className="msg-dot off"></span>
                     <div className="row-grow">
                       <div className="msg-line">
-                        <span className="conn-name truncate">{displayName(w.to)}</span>
+                        <span className="conn-name truncate">{nameFor(names, w.toEmail, w.to)}</span>
                         {/* Age as severity: the number was always there and
                             said nothing. Past the point email helps, it reads
                             hot. */}
                         <span className={"mail-age" + (d.tone === "firm" ? " hot" : d.tone === "direct" ? " warm" : "")}>{w.waitingDays}d</span>
                         <span className="pill-act">{nudging === w.threadId ? "Drafting…" : d.primary.label}</span>
                       </div>
+                      {/* E1: the days were on this line AND in the badge two
+                          inches above it, and "No reply" restated the name of
+                          the section. What survives is the subject, plus the
+                          open signal on the minority of rows that have one,
+                          because "they read it and said nothing" is a fact
+                          the badge cannot carry. */}
                       <div className="conn-meta msg-gist">
-                        {w.subject} · {waitingLine(w, opens[w.threadId] ?? null)}
+                        {w.subject}
+                        {opens[w.threadId] ? " · " + waitingLine(w, opens[w.threadId]!) : ""}
                         {g.accounts.length > 1 && w.account && <span className="msg-acct">{acctLabel(w.account)}</span>}
                       </div>
                     </div>
@@ -2257,7 +2335,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   pretending somebody is late. */}
               {unowed.length > 0 && (
                 <>
-                  <div className="sh2"><span className="t">Nothing Owed</span><span className="n">{unowed.length}</span></div>
+                  <div className="sh2">
+                    <span className="t">Nothing Owed</span>
+                    <span className="n">{unowed.length}</span>
+                    <button className="see-all" onClick={() => dropAll(unowed.map(({ w }) => w.threadId))}>Archive These</button>
+                  </div>
                   <div><div className="list-flat">
                     {unowed.map(({ w, d }) => (
                       <LetGoSwipe
@@ -2269,10 +2351,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         <span className="msg-dot off"></span>
                         <div className="row-grow">
                           <div className="msg-line">
-                            <span className="conn-name truncate">{displayName(w.to)}</span>
+                            <span className="conn-name truncate">{nameFor(names, w.toEmail, w.to)}</span>
                             <span className="pill-act">{d.primary.label}</span>
                           </div>
-                          <div className="conn-meta msg-gist">{w.subject} · A receipt needs no reply</div>
+                          {/* E1: "A receipt needs no reply" was on every row
+                              of a section already called Nothing Owed. */}
+                          <div className="conn-meta msg-gist">{w.subject}</div>
                         </div>
                       </div>
                       </LetGoSwipe>
@@ -2412,6 +2496,22 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <button className="quiet-action" onClick={() => setAutoOffer(false)}>Keep it manual</button>
             </div>
           ) : null}
+          {/* E12 (2026-08-23): the close-out. It goes at the bottom because
+              that is where you arrive having finished, and it is the only
+              thing on this tab that says the day went anywhere.
+              Two derived facts, no confetti and no advice. Every number here
+              is counted, never estimated: `cleared` is incremented where the
+              archives actually happen, and the other two are the lists on
+              this screen. A zero is not dressed up as an achievement. */}
+          {triageState === "ready" && (() => {
+            const line = closeOut(cleared, rows.length, needsYou.length);
+            return (
+              <div className="pad-x close-out">
+                <div className="close-title">{line.title}</div>
+                <div className="close-sub">{line.sub}</div>
+              </div>
+            );
+          })()}
         </>
       )}
       {toast && (

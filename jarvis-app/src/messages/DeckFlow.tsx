@@ -12,6 +12,7 @@ import { buildPlanPrompt, parseDeckPlan, primaryLabel, laterTaskTitle, type Deck
 import { voiceExamplesFor } from "./voiceExamples";
 import { newTrackId, pixelUrlFor, saveTrack, registerTrack } from "./tracking";
 import { showToast } from "../shared/toast";
+import { capAfterNumber } from "../shared/casing";
 
 // The Deal With It deck (email 2): one email at a time, the decision already
 // prepared, a reply in the user's voice, a bill for Money, a slot for the
@@ -228,8 +229,16 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
     <div className="screen" key={"deck" + row.id}>
       <div className="nav-bar">
         <button className="nav-back" onClick={onExit}>Email</button>
-        <span className="nav-title">{limitMs && left !== null ? fmtClock(left) : idx + 1 + " of " + threads.length}</span>
+        <span className="nav-title">{limitMs && left !== null ? fmtClock(left) : capAfterNumber(idx + 1 + " of " + threads.length)}</span>
         <span className="nav-action"></span>
+      </div>
+      {/* E7 (2026-08-23): the deck already knew where you were and only said
+          it in words, and the clock REPLACED the count when a drain was
+          running, so a timed deck showed no position at all. The bar carries
+          position in both cases: it is the one thing that says "this ends"
+          without you doing arithmetic between two numbers. */}
+      <div className="deck-bar" role="presentation">
+        <span className="deck-bar-fill" style={{ width: (threads.length ? (idx / threads.length) * 100 : 0) + "%" }} />
       </div>
       <div className="pad-x">
         <div className="card pad deck-card">

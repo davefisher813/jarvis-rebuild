@@ -10,6 +10,7 @@ import { showToast } from "../shared/toast";
 import { Plus } from "lucide-react";
 import { saveMailSnapshot } from "./home";
 import { decide } from "./mailAction";
+import { nameFor } from "./names";
 
 interface DemoRow { from: string; sub: string; when: string; unread?: boolean; due?: string }
 interface DemoWait { to: string; sub: string; days: number }
@@ -30,9 +31,6 @@ const WAITING: DemoWait[] = [
   { to: "Elieserhenry0", sub: "Reservation Receipt", days: 46 },
 ];
 
-const MAIL_ICO = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
-);
 
 const demoTap = () => showToast({ message: "Demo mail · Connect Google for the real thing" });
 
@@ -99,23 +97,17 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
         <button className="chip" onClick={demoTap}>Drafts</button>
       </div>
 
-      <div className="pad-x deck-cta">
-        <div className="promo-card">
-          <div className="promo-head">
-            <div className="promo-badge b-red">{MAIL_ICO}</div>
-            <div className="promo-body">
-              <div className="promo-title">3 Threads Need You</div>
-              <div className="promo-sub">Everything else is filed below.</div>
-            </div>
-          </div>
-          <div className="promo-acts">
-            <button className="promo-pill quiet" onClick={demoTap}>Only have a few minutes?</button>
-            <button className="promo-pill" onClick={demoTap}>Deal With It</button>
-          </div>
-        </div>
+      {/* E14 (2026-08-23): the promo card is gone from the live page, so it
+          is gone from here. The whole point of this component is that a demo
+          never shows an anatomy the app does not have. */}
+      <div className="sh2">
+        <span className="t">Needs You</span>
+        <span className="n">{NEEDS.length}</span>
+        <button className="see-all" onClick={demoTap}>Deal With It</button>
       </div>
-
-      <div className="sh2"><span className="t">Needs You</span></div>
+      <div className="pad-x drain-line">
+        <button className="quiet-action" onClick={demoTap}>Only Have a Few Minutes?</button>
+      </div>
       <div><div className="list-flat">
         {NEEDS.map((r) => (
           <div className="row" role="button" tabIndex={0} key={r.from} onClick={demoTap}>
@@ -131,7 +123,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
         ))}
       </div></div>
 
-      <div className="sh2"><span className="t">Waiting On</span></div>
+      <div className="sh2"><span className="t">Waiting On</span><span className="n">{WAITING.length}</span></div>
       <div><div className="list-flat">
         {WAITING.map((w) => {
           const d = decide(w.sub, "", w.days);
@@ -140,11 +132,12 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
             <span className="msg-dot off"></span>
             <div className="row-grow">
               <div className="msg-line">
-                <span className="conn-name truncate">{w.to}</span>
+                <span className="conn-name truncate">{nameFor({ byEmail: {} }, undefined, w.to)}</span>
                 <span className={"mail-age" + (d.tone === "firm" ? " hot" : d.tone === "direct" ? " warm" : "")}>{w.days}d</span>
                 <span className="pill-act">{d.primary.label}</span>
               </div>
-              <div className="conn-meta msg-gist">{w.sub} · No reply</div>
+              {/* E1: "No reply" on every row of a section called Waiting On. */}
+              <div className="conn-meta msg-gist">{w.sub}</div>
             </div>
           </div>
           );

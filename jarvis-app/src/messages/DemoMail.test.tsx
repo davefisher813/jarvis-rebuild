@@ -11,11 +11,24 @@ import DemoMail from "./DemoMail";
 describe("DemoMail fixture", () => {
   it("renders the full email anatomy: promo, Needs You, Waiting On, The Rest", () => {
     render(<DemoMail />);
-    expect(screen.getByText("3 Threads Need You")).toBeInTheDocument();
+    // SPEC MOVED (E14, 2026-08-23): the promo card is retired on the live
+    // page, so it is retired here. This component exists to show the REAL
+    // anatomy, which makes a stale copy of it the one thing it must never be.
+    expect(screen.queryByText("3 Threads Need You")).toBeNull();
+    expect(document.querySelectorAll(".deck-cta").length).toBe(0);
     expect(screen.getByText("Needs You")).toBeInTheDocument();
     expect(screen.getByText("Waiting On")).toBeInTheDocument();
     expect(screen.getByText("The Rest")).toBeInTheDocument();
-    // The promo count matches the fixture rows, so the numbers can't drift.
+    // The verb and the count moved onto the head, and the counts still match
+    // the fixtures, so the numbers cannot drift.
+    expect(screen.getByText("Deal With It")).toBeInTheDocument();
+    const counts = [...document.querySelectorAll(".sh2 .n")].map((e) => e.textContent);
+    expect(counts).toEqual(["3", "4"]);
+    // E1: a handle is not a name, and "No reply" is not news in a section
+    // called Waiting On.
+    expect(screen.getByText("Summitgear")).toBeInTheDocument();
+    expect(screen.queryByText(/No reply/)).toBeNull();
+    expect(screen.queryByText("nadia@northlake.org")).toBeNull();
     // SPEC MOVED 2026-08-21: the demo runs the real action model, so a
     // Waiting On row no longer wears a universal "Nudge". The contract is
     // now the opposite one, and it is the bug Dave reported: rows that want

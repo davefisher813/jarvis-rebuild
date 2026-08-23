@@ -87,14 +87,18 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     expect(await screen.findByText("Needs You")).toBeInTheDocument();
-    // SPEC MOVED (V4 page order, 2026-08-18): the floating headline sentence
-    // is retired; the Needs-You promo card carries the count instead.
-    expect(screen.getByText("1 Thread Needs You")).toBeInTheDocument();
+    // SPEC MOVED (E14, 2026-08-23): the promo card that carried the count and
+    // the verb is retired. The head carries both, which is a whole card of
+    // height back. "1 Thread Needs You" said in three lines what
+    // "Needs You · 1 · Deal With It" says in one.
+    expect(screen.queryByText("1 Thread Needs You")).toBeNull();
+    expect(screen.getByText("Deal With It")).toBeInTheDocument();
     expect(screen.getByText(/Ridgeley needs the waiver by Friday/)).toBeInTheDocument();
     // THE FOLD: everything that does not need him is one line, not a section.
     // SPEC MOVED (V2 anatomy, 2026-08-15): the count is a pill beside the line.
     expect(screen.getByText("The Rest")).toBeInTheDocument();
-    expect(screen.getByText("1")).toBeInTheDocument();
+    // Two counts now: one on the Needs You head, one on the fold.
+    expect(screen.getAllByText("1").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("Noise")).toBeNull();
     expect(screen.queryByText("1 Automated email")).toBeNull();
     // It expands in place, and noise inside it is still collapsed to a count.
@@ -338,7 +342,9 @@ describe("MessagesFlow (threads)", () => {
 
   it("renders the demo fixture instead of the setup state when demoMail is set", async () => {
     render(wrap(<MessagesFlow ai={noAI} configured={false} demoMail />));
-    expect(await screen.findByText("3 Threads Need You")).toBeInTheDocument();
+    // SPEC MOVED (E14, 2026-08-23): the count and the verb ride the head.
+    expect(await screen.findByText("Needs You")).toBeInTheDocument();
+    expect(screen.getByText("Deal With It")).toBeInTheDocument();
     expect(screen.queryByText("Connect Your Email")).not.toBeInTheDocument();
   });
 
