@@ -436,6 +436,40 @@ describe("LAW: an icon always has a size", () => {
   });
 });
 
+describe("LAW: a destructive verb never matches its Cancel", () => {
+  // Cost: the 2026-08-23 danger-text sweep moved Delete off a red fill and
+  // onto `color: var(--accent-tx)` across ELEVEN sheets. On dark card
+  // surfaces --accent-tx is WHITE by deliberate palette decision (a red light
+  // enough to pass there reads salmon, which Dave rejected on sight), so
+  // every Delete in the app rendered identical to the Cancel under it. In
+  // light, [data-theme="light"] .btn-secondary then outranked it and made it
+  // near-black, identical again for the opposite reason.
+  //
+  // Neither failed anything: the class had CSS, the token existed, the
+  // contrast was fine. It was just the wrong colour, twice.
+  it("the destructive text token exists in both themes and is not a neutral", () => {
+    const dark = CSS.match(/--danger-tx:\s*(#[0-9A-Fa-f]{6})/g) ?? [];
+    expect(dark.length, "--danger-tx must be defined for light AND dark").toBeGreaterThanOrEqual(2);
+    for (const d of dark) {
+      const hex = d.split(":")[1]!.trim().toUpperCase();
+      // A red has a red channel clearly ahead of the other two. White, black
+      // and every grey fail this, which is the exact bug.
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      expect(r, hex + " is not a red").toBeGreaterThan(g + 60);
+      expect(r, hex + " is not a red").toBeGreaterThan(b + 60);
+    }
+  });
+
+  it("the destructive class uses that token and nothing else", () => {
+    expect(CSS).toMatch(/\.btn-danger-text\s*\{[^}]*color:\s*var\(--danger-tx\)/);
+    // And it must beat the light-theme secondary rule, which is 0,2,0.
+    expect(CSS, "light theme needs its own danger-text rule or .btn-secondary wins")
+      .toMatch(/\[data-theme="light"\]\s*\.btn-danger-text/);
+  });
+});
+
 describe("LAW: a dead control looks dead", () => {
   // The app carried exactly three :disabled rules, each scoped to one
   // component, and none for buttons in general. Every other disabled button

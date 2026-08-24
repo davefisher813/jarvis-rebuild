@@ -140,6 +140,13 @@
      white, and red appears only as chrome and fills. The red meaning on
      chip-shaped controls now comes from --accent-chip below instead. */
   --accent-tx: #FFFFFF;
+  /* DESTRUCTIVE TEXT (2026-08-24). A Delete button that is not a red fill
+     still has to read as destructive, and --accent-tx cannot do it: on these
+     surfaces it is WHITE by the decision above, which made every Delete in
+     the app identical to the Cancel under it. Measured on the composited
+     secondary-button surface: 5.63:1, and distinct from --tint (5.17:1) so a
+     destructive verb does not look like every other tappable pill. */
+  --danger-tx: #FF453A;
   --accent-chrome: #FF2B3C;
   /* ROW PILL, option B (Dave's pick 2026-08-21, catalog O.5 revised).
      The tinted wash it replaces was mixed from SYSTEM red (255,69,58) while
@@ -206,6 +213,12 @@
   --tint: #CC051B;
   /* Same reason as --tint, same value. */
   --accent-tx: #CC051B;
+  /* Destructive text, light. The dark value (#FF453A) is 2.74:1 here, which
+     is why this cannot be one value for both themes. #CC051B is the red this
+     page already trusts and clears the secondary button at 4.50:1. In light
+     the destructive verb reads by being red at all, since Cancel beside it
+     is near-black. */
+  --danger-tx: #CC051B;
   /* ROW PILL, light theme (option B, catalog O.5 revised 2026-08-21).
      Outlined, no fill, so the same form reads in both themes. The border
      and the text are the light-theme red the page already trusts:

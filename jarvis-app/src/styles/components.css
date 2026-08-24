@@ -2667,7 +2667,11 @@ button {
 .strand-receipt { display: flex; gap: var(--s-3); padding: var(--s-2h) 0; border-bottom: 1px solid var(--divider); }
 .strand-receipt:last-child { border-bottom: 0; }
 .strand-receipt .r-what { flex: 1; min-width: 0; }
-.btn-danger-text { color: var(--accent-tx); }
+/* Destructive verb on a neutral button: the shape says "secondary", the
+   colour says "this deletes something". It used --accent-tx until 2026-08-24,
+   which is WHITE on dark card surfaces by deliberate palette decision, so
+   every Delete in the app rendered identical to the Cancel beneath it. */
+.btn-danger-text { color: var(--danger-tx); }
 
 /* Law 3E override, placed after the notice card's 2-line clamps: inside a
    VERB ROW one line IS the form's contract, so the clamps that serve full
@@ -2740,6 +2744,11 @@ button {
 [data-theme="light"] .btn-primary { background: var(--accent-fill); color: #fff; }
 [data-theme="light"] .btn-danger { background: var(--sys-red); color: #fff; }
 [data-theme="light"] .btn-secondary { background: var(--press-3); color: var(--tx-1); }
+/* And the destructive variant has to outrank it, or Delete renders near-black
+   and identical to Cancel in light exactly the way it rendered white and
+   identical to Cancel in dark. Same specificity as the rule above, declared
+   after it, which is the pattern this whole light block already uses. */
+[data-theme="light"] .btn-danger-text { color: var(--danger-tx); }
 [data-theme="light"] .btn-tertiary { background: transparent; color: var(--tint); }
 [data-theme="light"] .btn-disabled { background: var(--press-1); color: var(--tx-4); }
 [data-theme="light"] .btn-icon { background: var(--press-3); color: var(--tx-1); }
