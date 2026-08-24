@@ -3,6 +3,8 @@ import { useCategories } from "../data/NotesProvider";
 import type { Category } from "./types";
 import CategoriesPage from "./screens/CategoriesPage";
 import CategorySheet, { type CategoryDraft } from "./screens/CategorySheet";
+import { attemptWrite } from "../shared/guard";
+import { showToast } from "../shared/toast";
 
 type SheetState = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
@@ -34,11 +36,20 @@ export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
     await reload();
   };
 
+  // B10 (2026-08-24): guarded and announced, deliberately WITHOUT an Undo.
+  // Deleting a category orphans every task, note and project tagged with it,
+  // and a recreated category gets a new id, so an Undo here would restore
+  // the name and none of the links. The two-tap arming in the sheet is the
+  // real protection; this adds the missing guard (a failed delete used to
+  // close the sheet silently, which reads as success) and the receipt.
   const onDelete = async () => {
     if (sheet.kind !== "edit") return;
-    await categories.remove(sheet.id);
+    const name = list.find((c) => c.id === sheet.id)?.data.name;
+    const ok = await attemptWrite(() => categories.remove(sheet.id));
+    if (!ok) return;
     setSheet({ kind: "closed" });
     await reload();
+    showToast({ message: name ? name + " deleted" : "Category deleted" });
   };
 
   return (

@@ -143,7 +143,7 @@ export default function ReminderSheet({
             </>
           )}
           {mode === "edit" && onDelete && (
-            <button className="btn btn-danger btn-block" onClick={onDelete}>Delete Reminder</button>
+            <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>Delete Reminder</button>
           )}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>

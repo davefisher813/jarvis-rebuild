@@ -48,6 +48,8 @@ import { phoneBook, phoneFor, telLink, smsLink, colleagueBook, altFor, firstName
   type PhoneBook, type Colleague } from "./reachBy";
 import { nameBook, nameFor, type NameBook } from "./names";
 import { clearedToday, bumpCleared, closeOut } from "./cleared";
+import { railClass, railToneForWaiting, railToneForDeadline, ageBands, showBandHeads } from "./rows";
+import { DEFAULT_ANSWERS } from "./quickAnswers";
 import { loadLetGo, letGo, undoLetGo } from "./letGo";
 import { closeCandidates, closeLine, closeReceipt, closeDue, markClosed, lastClose } from "./weeklyClose";
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
@@ -118,7 +120,8 @@ function acctLabel(email: string): string {
   return /gmail|googlemail/.test(domain) ? "gmail" : domain;
 }
 
-const DEFAULT_REPLIES = ["Thanks", "Got it", "Will do"];
+// E9 (2026-08-24): this was a second copy of quickAnswers' DEFAULT_ANSWERS,
+// identical today and free to drift tomorrow. One list now.
 
 function header(msg: { payload?: { headers?: { name: string; value: string }[] } }, name: string): string {
   const h = (msg.payload?.headers || []).find((x) => x.name.toLowerCase() === name.toLowerCase());
@@ -185,6 +188,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [triageWhy, setTriageWhy] = useState<string>("");
   const [openBodies, setOpenBodies] = useState<Record<string, boolean>>({});
   const [restOpen, setRestOpen] = useState(false);
+  // E10 (2026-08-24): select mode for the fold. Null when off; a set of
+  // thread ids when on. Scoped to Worth Knowing and Noise on purpose: bulk
+  // matters most where the count is highest and the stakes are lowest, and a
+  // multi-select on Needs You would be a tool for ignoring things that need
+  // you.
+  const [picked, setPicked] = useState<ReadonlySet<string> | null>(null);
   const [toss, setToss] = useState<{ sender: string; n: number } | null>(null);
   // The drain. minutes is the user's number, remembered between runs.
   const [minutes, setMinutes] = useState<number>(() => loadMinutes());
@@ -256,6 +265,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const countCleared = (n: number) => setCleared(bumpCleared(clearedKey, n));
   // The rest of the moves for one Waiting On row, opened from its swipe.
   const [more, setMore] = useState<{ row: WaitingRow & { account?: string }; d: Decision } | null>(null);
+  // E6 (2026-08-24): Waiting On, one decision at a time. An index into the
+  // owed list, or null for the list view. Not a copy of the rows: Let It Go
+  // shrinks the list under the index and the next card simply surfaces.
+  const [waitDeck, setWaitDeck] = useState<number | null>(null);
   const [nudging, setNudging] = useState<string | null>(null);
   const [acctFilter, setAcctFilter] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
@@ -269,7 +282,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [error, setError] = useState<string | null>(null);
   const [thread, setThread] = useState<ThreadFull | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
-  const [replies, setReplies] = useState<string[]>(DEFAULT_REPLIES);
+  const [replies, setReplies] = useState<string[]>(DEFAULT_ANSWERS);
   const [draft, setDraft] = useState<Draft>({ to: "", subject: "", body: "" });
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -1019,7 +1032,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // must not silence this one.
     setAttachDone(false);
     setSummary(null);
-    setReplies(DEFAULT_REPLIES);
+    setReplies(DEFAULT_ANSWERS);
     try {
       const full = mapThreadFull(await api.getThread(id));
       if (full.messages.length === 0) return;
@@ -1164,6 +1177,29 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setToast(msg);
     setUndo(undoable ?? null);
     setTimeout(() => { setToast(null); setUndo(null); }, ms);
+  };
+
+  // E10: archive every picked row in one move, one Undo for the lot. Same
+  // optimistic shape as archiveRow; a failed write un-hides its own row.
+  const archivePicked = (all: ThreadRow[]) => {
+    const chosen = all.filter((r) => picked?.has(r.id));
+    setPicked(null);
+    if (!chosen.length) return;
+    const ids = new Set(chosen.map((r) => r.id));
+    setRows((rs) => rs.filter((x) => !ids.has(x.id)));
+    for (const r of chosen) {
+      apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {
+        setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
+      });
+    }
+    countCleared(chosen.length);
+    say(capAfterNumber(chosen.length === 1 ? "1 archived" : chosen.length + " archived"), {
+      label: "Undo",
+      run: () => {
+        setRows((rs) => [...chosen, ...rs.filter((x) => !ids.has(x.id))].sort((a, b) => b.dateMs - a.dateMs));
+        for (const r of chosen) apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []).catch(() => {});
+      },
+    });
   };
 
   const archiveRow = (r: ThreadRow) => {
@@ -1980,32 +2016,61 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   // A triaged row shows the gist and NOTHING else: the thread count is inbox
   // bookkeeping, and bookkeeping is exactly what the fold is removing.
-  const threadRow = (r: ThreadRow, gist?: string) => (
+  // E11 (2026-08-24): GIST FIRST. What the email wants from you leads the
+  // row; who sent it drops to the eyebrow. The gist was already AI-written,
+  // already scrubbed, already on the row, but it sat in the metadata slot
+  // under the sender's name, so the eye caught "Nadia Brandt" and had to
+  // read on to learn whether Nadia mattered today. Rows without a gist lead
+  // with the subject, which is the same promise the catalog frame made: the
+  // AI goes first only when it has something to say.
+  //
+  // E3: the unread dot becomes the rail, which also carries the deadline's
+  // heat, so urgency is felt in the left margin before anything is read.
+  const togglePick = (id: string) => setPicked((cur) => {
+    const next = new Set(cur ?? []);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+
+  // `selectable` marks the fold's rows. In select mode their left column
+  // swaps the rail for a checkbox and the row tap toggles instead of
+  // opening; everything outside the fold is untouched, so select mode can
+  // never archive something that needs you.
+  const threadRow = (r: ThreadRow, gist?: string, selectable = false) => {
+    const selecting = selectable && picked !== null;
+    return (
     <MailSwipe
       key={r.id}
       onArchive={() => archiveRow(r)}
       onDelete={() => trashThread(r.id, r.account)}
     >
-    <div className="row" role="button" tabIndex={0} onClick={() => void openThread(r.id)}>
+    <div className="row" role="button" tabIndex={0}
+      aria-pressed={selecting ? picked!.has(r.id) : undefined}
+      onClick={() => (selecting ? togglePick(r.id) : void openThread(r.id))}>
       {/* Reserved column: read and unread rows share one text edge. */}
-      <span className={"msg-dot" + (r.unread ? "" : " off")} aria-label={r.unread ? "unread" : undefined}></span>
+      {selecting ? (
+        <span className={"cb" + (picked!.has(r.id) ? " on" : "")} aria-label={picked!.has(r.id) ? "Picked" : "Not picked"}>{picked!.has(r.id) ? "\u2713" : ""}</span>
+      ) : (
+        <span className={railClass(r.unread, railToneForDeadline(effTriage[r.id]?.by))} aria-label={r.unread ? "unread" : undefined}></span>
+      )}
       <div className="row-grow">
         <div className="msg-line">
-          <span className={"conn-name truncate" + (r.unread ? " msg-strong" : "")}>{displayName(r.from)}</span>
+          <span className="msg-from truncate">{displayName(r.from)}</span>
           {/* N4: a VIP is marked where he reads, not buried in a setting. */}
           {isVip(r.fromEmail, vips) && <span className="msg-vip" aria-label="Always gets through">★</span>}
           {effTriage[r.id]?.by
             ? <span className={"msg-due" + (byRank(effTriage[r.id]!.by) >= 900 ? " soft" : "")}>{effTriage[r.id]!.by}</span>
             : <span className="msg-when">{fmtWhen(r.dateMs)}</span>}
         </div>
-        <div className="conn-meta msg-gist">
+        <div className={"msg-headline" + (r.unread ? " msg-strong" : "")}>
           {gist ?? r.subject}{!gist && r.count > 1 ? " · " + r.count : ""}
           {g.accounts.length > 1 && r.account && <span className="msg-acct">{acctLabel(r.account)}</span>}
         </div>
       </div>
     </div>
     </MailSwipe>
-  );
+    );
+  };
 
   return (
     <div className={"screen " + pushCls} key="list">
@@ -2106,6 +2171,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="pad-x"><div className="card"><div className="empty-state">
             <div className="empty-icon"><Mail className="ic" /></div>
             <div className="empty-title">No Drafts</div>
+            {/* B14: the empty state carries its action (the app's own law). */}
+            <button className="btn btn-secondary" onClick={startCompose}>New Email</button>
           </div></div></div>
         ) : (
           <div><div className="list-flat">
@@ -2157,7 +2224,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         listRows.length === 0 ? (
           <div className="pad-x"><div className="card"><div className="empty-state">
             <div className="empty-icon"><Mail className="ic" /></div>
-            <div className="empty-title">{results !== null ? "No matches" : "Inbox empty"}</div>
+            <div className="empty-title">{results !== null ? "No Matches" : "Inbox Empty"}</div>
+            {/* B14: a failed search that offers nothing is a dead end six
+                inches from the box that caused it. */}
+            {results !== null && (
+              <button className="quiet-action" onClick={() => { setSearch(""); setResults(null); }}>Clear the Search</button>
+            )}
           </div></div></div>
         ) : (
           <div><div className="list-flat">{listRows.map((r) => threadRow(r))}</div></div>
@@ -2295,41 +2367,75 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   are past the point where another email helps" on every
                   render where every row was firm, which in a real aged inbox
                   is every render. Permanent helper text is not help. */}
-              <div className="sh2"><span className="t">Waiting On</span><span className="n">{owed.length}</span></div>
-              <div><div className="list-flat">
-                {owed.map(({ w, d }) => (
-                  <LetGoSwipe
-                    key={w.threadId}
-                    onMore={d.alternates.length ? () => setMore({ row: w, d }) : undefined}
-                    onLetGo={() => dropRow(w.threadId)}
-                  >
-                  <div className="row" role="button" tabIndex={0} onClick={() => void startNudge(w)}>
-                    <span className="msg-dot off"></span>
-                    <div className="row-grow">
-                      <div className="msg-line">
-                        <span className="conn-name truncate">{nameFor(names, w.toEmail, w.to)}</span>
-                        {/* Age as severity: the number was always there and
-                            said nothing. Past the point email helps, it reads
-                            hot. */}
-                        <span className={"mail-age" + (d.tone === "firm" ? " hot" : d.tone === "direct" ? " warm" : "")}>{w.waitingDays}d</span>
-                        <span className="pill-act">{nudging === w.threadId ? "Drafting…" : d.primary.label}</span>
+              <div className="sh2">
+                <span className="t">Waiting On</span>
+                <span className="n">{owed.length}</span>
+                {/* E6: one decision on screen, nothing else. Not a batch
+                    verb, which this head is forbidden (a batch here would
+                    send real emails); each card still takes its own tap. */}
+                {owed.length > 1 && <button className="see-all" onClick={() => setWaitDeck(0)}>One at a Time</button>}
+              </div>
+              {/* E5: banded by age, because age is this section's organizing
+                  fact, and the label on the band is what lets the number
+                  leave every row. E2: THE ASK LEADS. The verb was a pill at
+                  the row's far edge; it is the headline now, because "Open a
+                  Dispute" is the decision and "Summitgear" is only context.
+                  The tone that used to color a number colors the rail. */}
+              {waitDeck !== null && owed.length > 0 ? (() => {
+                const i = Math.min(waitDeck, owed.length - 1);
+                const { w, d } = owed[i]!;
+                const advance = () => setWaitDeck(i + 1 < owed.length ? i + 1 : null);
+                return (
+                  <div className="pad-x">
+                    <div className="card pad wait-card">
+                      <div className="conn-meta">{nameFor(names, w.toEmail, w.to)} &middot; {capAfterNumber(w.waitingDays + " days")}</div>
+                      <div className="wait-card-subj">{w.subject}</div>
+                      {opens[w.threadId] && <div className="conn-meta">{waitingLine(w, opens[w.threadId]!)}</div>}
+                      <div className="momentum-actions wait-card-acts">
+                        <button className="pill-act" onClick={() => void startNudge(w)}>{nudging === w.threadId ? "Drafting…" : d.primary.label}</button>
+                        {d.alternates.length > 0 && <button className="btn-sm" onClick={() => setMore({ row: w, d })}>More Moves</button>}
+                        <button className="btn-sm" onClick={() => dropRow(w.threadId)}>Let It Go</button>
+                        <button className="btn-sm" onClick={advance}>Skip</button>
                       </div>
-                      {/* E1: the days were on this line AND in the badge two
-                          inches above it, and "No reply" restated the name of
-                          the section. What survives is the subject, plus the
-                          open signal on the minority of rows that have one,
-                          because "they read it and said nothing" is a fact
-                          the badge cannot carry. */}
-                      <div className="conn-meta msg-gist">
-                        {w.subject}
-                        {opens[w.threadId] ? " · " + waitingLine(w, opens[w.threadId]!) : ""}
-                        {g.accounts.length > 1 && w.account && <span className="msg-acct">{acctLabel(w.account)}</span>}
+                      <div className="wait-card-count">
+                        {capAfterNumber((i + 1) + " of " + owed.length)}
+                        <button className="quiet-action" onClick={() => setWaitDeck(null)}>Show the List</button>
                       </div>
                     </div>
                   </div>
-                  </LetGoSwipe>
-                ))}
-              </div></div>
+                );
+              })() : (() => {
+                const bands = ageBands(owed, ({ w }) => w.waitingDays);
+                const heads = showBandHeads(bands);
+                return bands.map((band) => (
+                <div key={band.label}>
+                  {heads && <div className="msg-fold-head">{band.label}<span className="band-n">{band.rows.length}</span></div>}
+                  <div className="list-flat">
+                  {band.rows.map(({ w, d }) => (
+                    <LetGoSwipe
+                      key={w.threadId}
+                      onMore={d.alternates.length ? () => setMore({ row: w, d }) : undefined}
+                      onLetGo={() => dropRow(w.threadId)}
+                    >
+                    <div className="row" role="button" tabIndex={0} onClick={() => void startNudge(w)}>
+                      <span className={railClass(false, railToneForWaiting(d.tone))}></span>
+                      <div className="row-grow">
+                        <div className="msg-line">
+                          <span className="conn-name truncate">{nudging === w.threadId ? "Drafting…" : d.primary.label}</span>
+                        </div>
+                        <div className="conn-meta msg-gist">
+                          {nameFor(names, w.toEmail, w.to)} · {w.subject}
+                          {opens[w.threadId] ? " · " + waitingLine(w, opens[w.threadId]!) : ""}
+                          {g.accounts.length > 1 && w.account && <span className="msg-acct">{acctLabel(w.account)}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    </LetGoSwipe>
+                  ))}
+                  </div>
+                </div>
+                ));
+              })()}
               {/* Nothing is owed on these, so they get their own quiet band
                   and an honest button instead of sitting in Waiting On
                   pretending somebody is late. */}
@@ -2348,15 +2454,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         onLetGo={() => dropRow(w.threadId)}
                       >
                       <div className="row" role="button" tabIndex={0} onClick={() => dropRow(w.threadId)}>
-                        <span className="msg-dot off"></span>
+                        <span className="msg-rail"></span>
                         <div className="row-grow">
                           <div className="msg-line">
-                            <span className="conn-name truncate">{nameFor(names, w.toEmail, w.to)}</span>
-                            <span className="pill-act">{d.primary.label}</span>
+                            <span className="conn-name truncate">{d.primary.label}</span>
                           </div>
-                          {/* E1: "A receipt needs no reply" was on every row
-                              of a section already called Nothing Owed. */}
-                          <div className="conn-meta msg-gist">{w.subject}</div>
+                          <div className="conn-meta msg-gist">{nameFor(names, w.toEmail, w.to)} · {w.subject}</div>
                         </div>
                       </div>
                       </LetGoSwipe>
@@ -2373,7 +2476,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {restCount > 0 && (
             <div className="pad-x msg-fold">
               <div className="card">
-                <div className="row" role="button" tabIndex={0} onClick={() => setRestOpen(!restOpen)}>
+                <div className="row" role="button" tabIndex={0} onClick={() => { setRestOpen(!restOpen); setPicked(null); }}>
                   <div className="row-grow">
                     <div className="conn-name">The Rest</div>
                     <div className="conn-meta msg-gist">
@@ -2385,10 +2488,25 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 </div>
                 {restOpen && (
                   <>
+                    {/* E10: the one place bulk select lives. The fold holds
+                        everything that does not need Dave, which is exactly
+                        the pile where clearing ten at once is safe. */}
+                    {picked === null ? (
+                      <div className="fold-tools">
+                        <button className="quiet-action" onClick={() => setPicked(new Set())}>Select</button>
+                      </div>
+                    ) : (
+                      <div className="fold-tools">
+                        <button className="btn-sm" onClick={() => archivePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
+                          {picked.size === 0 ? "Archive Selected" : capAfterNumber("Archive " + picked.size)}
+                        </button>
+                        <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
+                      </div>
+                    )}
                     {worthKnowing.length > 0 && (
                       <>
                         <div className="msg-fold-head">Worth Knowing</div>
-                        {worthKnowing.map((r) => threadRow(r, effTriage[r.id]?.gist))}
+                        {worthKnowing.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
                       </>
                     )}
                     {noise.length > 0 && (
@@ -2421,10 +2539,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                                     </div>
                                     <button className="pill-act" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(g.rows); }}>Archive All</button>
                                   </div>
-                                  {noiseGroups[g.key] && g.rows.map((r) => threadRow(r, effTriage[r.id]?.gist))}
+                                  {noiseGroups[g.key] && g.rows.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
                                 </div>
                               ))}
-                              {loose.map((r) => threadRow(r, effTriage[r.id]?.gist))}
+                              {loose.map((r) => threadRow(r, effTriage[r.id]?.gist, true))}
                             </>
                           );
                         })()}

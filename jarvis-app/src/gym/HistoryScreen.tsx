@@ -35,7 +35,10 @@ export default function HistoryScreen({ workouts, onBack }: { workouts: Workout[
       </div>
 
       {rows.length === 0 ? (
-        <div className="empty-state"><div className="empty-title">No Numbers Yet</div></div>
+        <div className="empty-state"><div className="empty-title">No Numbers Yet</div>
+          {/* B14: not a button, because history is earned in the gym, but the
+              bare title read as broken instead of as new. */}
+          <div className="empty-sub">Log a set in any session and it shows up here</div></div>
       ) : (
         <div><div className="list-flat">
           {rows.map((r) => {

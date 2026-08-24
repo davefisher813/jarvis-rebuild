@@ -61,21 +61,28 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
   const reload = useCallback(async () => setStrands(await svc.list()), [svc]);
   useEffect(() => { void reload(); }, [reload]);
 
+  // B12 (2026-08-24): the Brain is capped, so a double-tapped Save used to
+  // burn a slot on a duplicate belief.
+  const [saving, setSaving] = useState(false);
   const doAdd = async () => {
-    if (!text.trim()) return;
+    if (!text.trim() || saving) return;
+    setSaving(true);
     haptics.success();
     const id = await svc.add(text, cat, today);
     if (!id) showToast({ message: "The Brain is full · Delete one first" });
     else showToast({ message: "JARVIS will remember that" });
     setAdding(false); setText("");
+    setSaving(false);
     await reload();
   };
 
   const doEdit = async () => {
-    if (!open || !text.trim()) return;
+    if (!open || !text.trim() || saving) return;
+    setSaving(true);
     haptics.selection();
     await svc.edit(open, text, today);
     setEditing(false); setOpen(null); setText("");
+    setSaving(false);
     await reload();
   };
 
@@ -197,7 +204,7 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
               )}
             </div>
             <div className="pad-x sheet-actions">
-              <button className="btn btn-primary btn-block" onClick={() => void (adding ? doAdd() : doEdit())}>Save</button>
+              <button className="btn btn-primary btn-block" disabled={saving} onClick={() => void (adding ? doAdd() : doEdit())}>{saving ? "Saving..." : "Save"}</button>
             </div>
           </div>
         </div>

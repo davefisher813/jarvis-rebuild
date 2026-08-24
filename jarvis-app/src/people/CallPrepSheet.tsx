@@ -47,6 +47,8 @@ export default function CallPrepSheet({
 }) {
   const { name, relationship, notes, phone, register, flagged, lastCallAttempt } = person.data;
   const [dialed, setDialed] = useState(false);
+  // B12: Save Note creates a note, so a double tap created two.
+  const [saving, setSaving] = useState(false);
   const [captureText, setCaptureText] = useState("");
   const lastCalled = ago(lastCallAttempt || undefined);
   const writeStyle = flagged
@@ -73,8 +75,12 @@ export default function CallPrepSheet({
 
   const capture = async () => {
     const t = captureText.trim();
-    if (!t || !onCaptureNote) return;
+    if (!t || !onCaptureNote || saving) return;
+    setSaving(true);
     const ok = await attemptWrite(async () => { await onCaptureNote(t); });
+    // Released on BOTH paths: a failed save that kept the button grey would
+    // trap the note in the box with no way to retry.
+    setSaving(false);
     if (!ok) return;
     setCaptureText("");
     showToast({ message: "Saved · Linked to " + name });
@@ -127,7 +133,7 @@ export default function CallPrepSheet({
               <button className="btn btn-primary btn-block" onClick={() => void call()}>Call</button>
             )}
             {dialed && captureText.trim() && (
-              <button className="btn btn-primary btn-block" onClick={() => void capture()}>Save Note</button>
+              <button className="btn btn-primary btn-block" disabled={saving} onClick={() => void capture()}>{saving ? "Saving..." : "Save Note"}</button>
             )}
             <button className="btn btn-secondary btn-block" onClick={onClose}>{dialed ? "Done" : "Cancel"}</button>
           </div>

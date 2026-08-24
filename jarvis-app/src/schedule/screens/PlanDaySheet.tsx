@@ -497,7 +497,10 @@ export default function PlanDaySheet({
           )}
 
           {allTasks.length === 0 ? (
-            <div className="empty-state"><div className="t-body">Nothing to plan yet</div></div>
+            // B14: the sheet already owns an add-task row at the bottom; an
+            // empty plan pointed at nothing while the fix sat off screen.
+            <div className="empty-state"><div className="t-body">Nothing to Plan Yet</div>
+              {onAddTask && <div className="empty-sub">Add something below and it lands here picked</div>}</div>
           ) : (
             <div className="p3-list">
               {groups.map((g) => (

@@ -11,6 +11,7 @@ import { Plus } from "lucide-react";
 import { saveMailSnapshot } from "./home";
 import { decide } from "./mailAction";
 import { nameFor } from "./names";
+import { railClass, railToneForWaiting, railToneForDeadline } from "./rows";
 
 interface DemoRow { from: string; sub: string; when: string; unread?: boolean; due?: string }
 interface DemoWait { to: string; sub: string; days: number }
@@ -111,13 +112,13 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
       <div><div className="list-flat">
         {NEEDS.map((r) => (
           <div className="row" role="button" tabIndex={0} key={r.from} onClick={demoTap}>
-            <span className={"msg-dot" + (r.unread ? "" : " off")}></span>
+            <span className={railClass(!!r.unread, railToneForDeadline(r.due))}></span>
             <div className="row-grow">
               <div className="msg-line">
-                <span className={"conn-name truncate" + (r.unread ? " msg-strong" : "")}>{r.from}</span>
+                <span className="msg-from truncate">{r.from}</span>
                 {r.due ? <span className="msg-due">{r.due}</span> : <span className="msg-when">{r.when}</span>}
               </div>
-              <div className="conn-meta msg-gist">{r.sub}</div>
+              <div className={"msg-headline" + (r.unread ? " msg-strong" : "")}>{r.sub}</div>
             </div>
           </div>
         ))}
@@ -129,15 +130,13 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           const d = decide(w.sub, "", w.days);
           return (
           <div className="row" role="button" tabIndex={0} key={w.to} onClick={demoTap}>
-            <span className="msg-dot off"></span>
+            <span className={railClass(false, railToneForWaiting(d.tone))}></span>
             <div className="row-grow">
               <div className="msg-line">
-                <span className="conn-name truncate">{nameFor({ byEmail: {} }, undefined, w.to)}</span>
-                <span className={"mail-age" + (d.tone === "firm" ? " hot" : d.tone === "direct" ? " warm" : "")}>{w.days}d</span>
-                <span className="pill-act">{d.primary.label}</span>
+                <span className="conn-name truncate">{d.primary.label}</span>
               </div>
-              {/* E1: "No reply" on every row of a section called Waiting On. */}
-              <div className="conn-meta msg-gist">{w.sub}</div>
+              {/* E2: the ask leads; the sender is context under it. */}
+              <div className="conn-meta msg-gist">{nameFor({ byEmail: {} }, undefined, w.to)} · {w.sub}</div>
             </div>
           </div>
           );

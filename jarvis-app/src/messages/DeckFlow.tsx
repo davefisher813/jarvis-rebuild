@@ -13,6 +13,7 @@ import { voiceExamplesFor } from "./voiceExamples";
 import { newTrackId, pixelUrlFor, saveTrack, registerTrack } from "./tracking";
 import { showToast } from "../shared/toast";
 import { capAfterNumber } from "../shared/casing";
+import { quickAnswers } from "./quickAnswers";
 
 // The Deal With It deck (email 2): one email at a time, the decision already
 // prepared, a reply in the user's voice, a bill for Money, a slot for the
@@ -143,19 +144,24 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
     apiFor(account)?.modifyThread(id, [], ["INBOX", "UNREAD"]).catch(() => {});
   };
 
-  const runPrimary = async () => {
+  // E9 (2026-08-24): `shortReply` is a quick-answer chip standing in for the
+  // drafted reply. Same send path, same tracking, same archive; the only
+  // thing that changes is the words, so a chip can never behave differently
+  // from the button beside it.
+  const runPrimary = async (shortReply?: string) => {
     if (!row || !thread || busy) return;
     if (!plan) { onOpenThread(row.id); return; }
     const api = apiFor(row.account);
     if (!api) return;
     setBusy(true);
     try {
-      if (plan.kind === "reply" && plan.reply) {
+      if (plan.kind === "reply" && (shortReply || plan.reply)) {
+        const body = shortReply ?? plan.reply!;
         const last = thread.messages[thread.messages.length - 1]!;
-        const r = buildReply(last, plan.reply);
+        const r = buildReply(last, body);
         const trackId = newTrackId();
         const sent = await api.sendMessage(
-          encodeEmail({ to: r.to, subject: r.subject, body: plan.reply, inReplyTo: r.inReplyTo, ...(trackOpens ? { pixelUrl: pixelUrlFor(trackId) } : {}) }),
+          encodeEmail({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, ...(trackOpens ? { pixelUrl: pixelUrlFor(trackId) } : {}) }),
           r.threadId,
         );
         if (trackOpens) {
@@ -252,6 +258,15 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
             <div className="deck-prep">
               <div className="eyebrow">Reply ready · Your voice</div>
               <div className="deck-prep-text">{plan.reply}</div>
+              {/* E9: the answer without the paragraph. A chip is a WHOLE
+                  reply (quickAnswers' own law), it sends through the same
+                  path as the big button, and it exists because half of these
+                  threads want one word, not your voice. */}
+              <div className="deck-chips">
+                {quickAnswers(undefined).map((q) => (
+                  <button key={q} className="chip" disabled={busy} onClick={() => void runPrimary(q)}>{q}</button>
+                ))}
+              </div>
             </div>
           ) : plan?.kind === "bill" && plan.bill ? (
             <div className="deck-prep">

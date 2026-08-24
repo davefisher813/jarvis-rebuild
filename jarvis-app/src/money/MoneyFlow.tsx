@@ -28,6 +28,7 @@ const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
 function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
   mode: "new" | "edit"; initial?: AccountData; onSave: (d: AccountData) => void; onDelete?: () => void; onCancel: () => void;
 }) {
+  const [saving, setSaving] = useState(false);
   const [name, setName] = useState(initial?.name ?? "");
   const [balance, setBalance] = useState(initial ? String(initial.balance) : "");
   const [kind, setKind] = useState<AccountKind>(initial?.kind ?? "cash");
@@ -50,8 +51,9 @@ function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
         </div>
         <div className="pad-x sheet-actions">
           {/* Every save re-stamps asOf: the dated-balance line depends on it. */}
-          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ name: name.trim(), balance: Number(balance), kind, asOf: todayISO() }); }}>Save</button>
-          {mode === "edit" && onDelete && <button className="btn btn-danger btn-block" onClick={onDelete}>{TRASH}Delete Account</button>}
+          {/* B12: Save creates an account, so two taps created two. */}
+          <button className="btn btn-primary btn-block" disabled={saving} onClick={() => { if (!valid) { setTouched(true); return; } setSaving(true); onSave({ name: name.trim(), balance: Number(balance), kind, asOf: todayISO() }); }}>{saving ? "Saving..." : "Save"}</button>
+          {mode === "edit" && onDelete && <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>{TRASH}Delete Account</button>}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>
@@ -64,6 +66,7 @@ function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
 function PaydaySheet({ initial, onSave, onRemove, onCancel }: {
   initial?: PaydayInfo; onSave: (p: PaydayInfo) => void; onRemove?: () => void; onCancel: () => void;
 }) {
+  const [saving, setSaving] = useState(false);
   const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
   const [next, setNext] = useState(initial?.next ?? "");
   const [freq, setFreq] = useState<PaydayFreq>(initial?.freq ?? "biweekly");
@@ -88,8 +91,8 @@ function PaydaySheet({ initial, onSave, onRemove, onCancel }: {
             </div></div>
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ amount: Number(amount), next, freq }); }}>Save</button>
-          {onRemove && <button className="btn btn-danger btn-block" onClick={onRemove}>{TRASH}Remove Payday</button>}
+          <button className="btn btn-primary btn-block" disabled={saving} onClick={() => { if (!valid) { setTouched(true); return; } setSaving(true); onSave({ amount: Number(amount), next, freq }); }}>{saving ? "Saving..." : "Save"}</button>
+          {onRemove && <button className="btn btn-secondary btn-block btn-danger-text" onClick={onRemove}>{TRASH}Remove Payday</button>}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>
@@ -405,7 +408,18 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
       {paydayOpen && (
         <PaydaySheet initial={payday}
           onSave={async (p) => { await profileSvc.save({ payday: p }); setPaydayOpen(false); await reload(); }}
-          onRemove={payday ? async () => { await profileSvc.save({ payday: undefined }); setPaydayOpen(false); await reload(); } : undefined}
+          onRemove={payday ? async () => {
+            // B10: one scalar with its old value in hand; the cheapest undo
+            // in the whole app, and it was missing.
+            const kept = payday;
+            await profileSvc.save({ payday: undefined });
+            setPaydayOpen(false);
+            await reload();
+            showToast({ message: "Payday removed", actionLabel: "Undo", onAction: () => void (async () => {
+              await profileSvc.save({ payday: kept });
+              await reload();
+            })() });
+          } : undefined}
           onCancel={() => setPaydayOpen(false)} />
       )}
     </div>

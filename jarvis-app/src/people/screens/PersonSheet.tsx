@@ -146,7 +146,7 @@ export default function PersonSheet({
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-block" onClick={save}>Save</button>
           {mode === "edit" && onDelete && (
-            <button className="btn btn-danger btn-block" onClick={onDelete}>{TRASH}Delete Person</button>
+            <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>{TRASH}Delete Person</button>
           )}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>

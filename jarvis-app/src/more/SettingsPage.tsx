@@ -54,7 +54,8 @@ export default function SettingsPage({ onNavigate, onBack }: { onNavigate: (r: M
         <div className="pad-x settings-search"><div className="search-bar"><Mag /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" /></div></div>
       </PageHeader>
       {rows.map((i) => <SettingRow key={i.route} item={i} onClick={() => onNavigate(i.route)} />)}
-      {!anyMatch && <div className="empty-state"><div className="empty-title">No settings match "{q}"</div></div>}
+      {!anyMatch && <div className="empty-state"><div className="empty-title">No Settings Match "{q}"</div>
+        <button className="quiet-action" onClick={() => setQ("")}>Clear the Search</button></div>}
     </div>
   );
 }

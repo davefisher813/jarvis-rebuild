@@ -24,16 +24,19 @@ describe("DemoMail fixture", () => {
     expect(screen.getByText("Deal With It")).toBeInTheDocument();
     const counts = [...document.querySelectorAll(".sh2 .n")].map((e) => e.textContent);
     expect(counts).toEqual(["3", "4"]);
-    // E1: a handle is not a name, and "No reply" is not news in a section
-    // called Waiting On.
-    expect(screen.getByText("Summitgear")).toBeInTheDocument();
+    // E2 (2026-08-24): THE ASK LEADS. The verb is the headline and the sender
+    // is context beneath it, so the name shares a line with the subject now.
+    expect(screen.getByText(/Summitgear · Missing Items/)).toBeInTheDocument();
     expect(screen.queryByText(/No reply/)).toBeNull();
-    expect(screen.queryByText("nadia@northlake.org")).toBeNull();
+    expect(screen.queryByText(/nadia@northlake\.org/)).toBeNull();
     // SPEC MOVED 2026-08-21: the demo runs the real action model, so a
     // Waiting On row no longer wears a universal "Nudge". The contract is
     // now the opposite one, and it is the bug Dave reported: rows that want
     // different things must not print the same button.
-    const acts = [...document.querySelectorAll(".pill-act")].map((e) => e.textContent);
+    // The verbs moved from pills to headlines (E2), and the contract is the
+    // same one Dave reported: rows that want different things must not print
+    // the same words.
+    const acts = [...document.querySelectorAll(".msg-line .conn-name")].map((e) => e.textContent);
     expect(acts.length).toBeGreaterThan(2);
     expect(new Set(acts).size).toBeGreaterThan(1);
     expect(acts).toContain("Stop Tracking"); // the receipt owes nothing

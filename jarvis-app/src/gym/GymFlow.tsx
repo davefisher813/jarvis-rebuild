@@ -35,6 +35,15 @@ function NameSheet({ title, initial, placeholder, onSave, onDelete, onCancel }: 
   onSave: (v: string) => void; onDelete?: () => void; onCancel: () => void;
 }) {
   const [v, setV] = useState(initial ?? "");
+  // B12 (2026-08-24): Save appends a program, a day, or an exercise, so a
+  // fast double tap appended it twice. Fires once.
+  const [busy, setBusy] = useState(false);
+  // B10: this sheet deletes whole programs and whole days, and logged
+  // workouts keep pointing at the exercise ids inside them, so the history
+  // page derives from records this delete orphans. That cannot be undone by
+  // recreating a program with new ids, so it gets the arming ExerciseSheet
+  // already has instead of an Undo that would be a lie.
+  const [armed, setArmed] = useState(false);
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
@@ -47,8 +56,14 @@ function NameSheet({ title, initial, placeholder, onSave, onDelete, onCancel }: 
           </div>
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => v.trim() && onSave(v.trim())}>Save</button>
-          {onDelete && <button className="btn btn-danger btn-block" onClick={onDelete}>Delete</button>}
+          <button className="btn btn-primary btn-block" disabled={busy}
+            onClick={() => { if (v.trim()) { setBusy(true); onSave(v.trim()); } }}>{busy ? "Saving..." : "Save"}</button>
+          {onDelete && (
+            <button className={"btn btn-block " + (armed ? "btn-danger" : "btn-secondary btn-danger-text")}
+              onClick={() => (armed ? onDelete() : setArmed(true))}>
+              {armed ? "Tap Again to Delete" : "Delete"}
+            </button>
+          )}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>

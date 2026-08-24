@@ -108,6 +108,51 @@ describe("MessagesFlow (threads)", () => {
     expect(screen.queryByText(/DoorDash promo/)).toBeNull();
   });
 
+
+  // E10 (2026-08-24): bulk select lives on the fold and nowhere else.
+  it("select mode clears a picked pile in one move, scoped to the fold", async () => {
+    const archived: string[] = [];
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "needs_you", gist: "Ridgeley needs the waiver by Friday." },
+      { id: "t2", bucket: "worth_knowing", gist: "DoorDash receipt." },
+    ]));
+    const api = makeApi({ modifyThread: async (id, _a, remove) => { if (remove.includes("INBOX")) archived.push(id); } });
+    render(wrap(<MessagesFlow ai={ai} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("The Rest"));
+
+    // In: a quiet Select, no checkboxes yet.
+    expect(screen.queryByLabelText("Not picked")).toBeNull();
+    fireEvent.click(await screen.findByText("Select"));
+
+    // The fold row toggles instead of opening; Needs You rows grow nothing.
+    fireEvent.click(screen.getByText(/DoorDash receipt/));
+    expect(screen.getByLabelText("Picked")).toBeInTheDocument();
+    expect(screen.getByText("Archive 1")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Archive 1"));
+    await waitFor(() => expect(archived).toEqual(["t2"]));
+    expect(screen.queryByText(/DoorDash receipt/)).toBeNull();
+    // Needs You untouched, select mode over.
+    expect(screen.getByText(/Ridgeley needs the waiver/)).toBeInTheDocument();
+    expect(screen.queryByText("Done")).toBeNull();
+  });
+
+  // E11 (2026-08-24): the gist is the headline, the sender is the eyebrow.
+  it("gist leads the row and the sender demotes to the eyebrow", async () => {
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "needs_you", gist: "Ridgeley needs the waiver by Friday." },
+      { id: "t2", bucket: "noise", gist: "promo" },
+    ]));
+    const { container } = render(wrap(<MessagesFlow ai={ai} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Needs You");
+    const lead = container.querySelector(".msg-headline")!;
+    expect(lead).toHaveTextContent("Ridgeley needs the waiver by Friday.");
+    const from = container.querySelector(".msg-from")!;
+    expect(from).toHaveTextContent("Ridgeley");
+  });
+
   it("Archive All clears noise threads and says what it did", async () => {
     const archived: string[] = [];
     const ai = aiReturning(JSON.stringify([

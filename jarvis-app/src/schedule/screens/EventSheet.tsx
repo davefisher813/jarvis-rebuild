@@ -415,7 +415,7 @@ export default function EventSheet({
             <button className="btn btn-secondary btn-block" onClick={onDuplicate}>Duplicate</button>
           )}
           {mode === "edit" && onDelete && (
-            <button className="btn btn-danger btn-block" onClick={() => (recurringEdit ? onDelete?.(scope) : onDelete?.())}>Delete Event</button>
+            <button className="btn btn-secondary btn-block btn-danger-text" onClick={() => (recurringEdit ? onDelete?.(scope) : onDelete?.())}>Delete Event</button>
           )}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>

@@ -160,8 +160,9 @@ export default function CategorySheet({
               task, note, and project tagged with it, and it fired on ONE tap
               of a red button. Same pattern as Redo Setup. */}
           {mode === "edit" && onDelete && (
-            <button className="btn btn-danger btn-block" onClick={() => { if (delArmed) { onDelete(); } else { setDelArmed(true); } }}>
-              {TRASH}{delArmed ? "Tap again to delete" : "Delete Category"}
+            <button className={"btn btn-block " + (delArmed ? "btn-danger" : "btn-secondary btn-danger-text")}
+              onClick={() => { if (delArmed) { onDelete(); } else { setDelArmed(true); } }}>
+              {TRASH}{delArmed ? "Tap Again to Delete" : "Delete Category"}
             </button>
           )}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>

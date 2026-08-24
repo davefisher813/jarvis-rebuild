@@ -138,7 +138,9 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
                   {phase === "saving" ? "Saving..." : "Capture"}
                 </button>
               ) : (
-                <button className="btn btn-primary btn-block" onClick={() => void capture(true)}>Save Anyway</button>
+                // B12: the sibling Capture button already disables while
+                // saving; this branch could still double-fire.
+                <button className="btn btn-primary btn-block" disabled={phase === "saving"} onClick={() => void capture(true)}>{phase === "saving" ? "Saving..." : "Save Anyway"}</button>
               )}
               <button className="btn btn-secondary btn-block" onClick={onClose}>Cancel</button>
             </div>

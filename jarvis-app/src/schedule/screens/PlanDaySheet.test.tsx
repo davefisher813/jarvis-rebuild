@@ -43,7 +43,7 @@ describe("it opens already planned", () => {
 
   it("with nothing to plan, the primary is a disabled Plan It For Me", () => {
     render(sheet({ tasks: [] }));
-    expect(screen.getByText("Nothing to plan yet")).toBeInTheDocument();
+    expect(screen.getByText("Nothing to Plan Yet")).toBeInTheDocument();
     expect(screen.getByText("Plan It For Me")).toBeDisabled();
   });
 

@@ -155,7 +155,7 @@ export default function ExerciseSheet({ mode, initial, onSave, onDelete, onCance
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
           {mode === "edit" && onDelete && (
             !armDelete
-              ? <button className="btn btn-danger btn-block" onClick={() => setArmDelete(true)}>{TRASH}Delete Exercise</button>
+              ? <button className="btn btn-secondary btn-block btn-danger-text" onClick={() => setArmDelete(true)}>{TRASH}Delete Exercise</button>
               : <button className="btn btn-danger btn-block" onClick={onDelete}>Tap Again to Confirm</button>
           )}
         </div>

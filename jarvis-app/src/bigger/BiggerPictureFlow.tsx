@@ -119,15 +119,23 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       setProjStepBusy(false);
     }
   };
+  // B12 (2026-08-24): fires once. The busy flag is shared with First Step's
+  // ask, so it must ALWAYS release: an early return that kept it set would
+  // dead-lock the sibling button, which is worse than the double write.
   const projStepAccept = async () => {
-    if (!projStep || !stalled || projStep.projectId !== stalled.id) return;
-    await tasksSvc.createTask(projStep.step, { projectId: stalled.id, category: stalled.data.category || undefined, due: today });
-    dismissProjStep(stalled.id, today);
-    setProjStep(null);
-    setDismissTick((n) => n + 1);
-    emit({ type: "suggestion.accepted", props: { kind: "proj_step" } });
-    await reload();
-    showToast({ message: "First step on Today" });
+    if (projStepBusy || !projStep || !stalled || projStep.projectId !== stalled.id) return;
+    setProjStepBusy(true);
+    try {
+      await tasksSvc.createTask(projStep.step, { projectId: stalled.id, category: stalled.data.category || undefined, due: today });
+      dismissProjStep(stalled.id, today);
+      setProjStep(null);
+      setDismissTick((n) => n + 1);
+      emit({ type: "suggestion.accepted", props: { kind: "proj_step" } });
+      await reload();
+      showToast({ message: "First step on Today" });
+    } finally {
+      setProjStepBusy(false);
+    }
   };
   const projStepDismiss = () => {
     if (!stalled) return;
@@ -152,7 +160,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
         {projStep && projStep.projectId === stalled.id ? (
           <div className="promo-acts">
             <button className="promo-pill quiet" onClick={projStepDismiss}>Not Now</button>
-            <button className="promo-pill" onClick={() => void projStepAccept()}>Add This Step</button>
+            <button className="promo-pill" disabled={projStepBusy} onClick={() => void projStepAccept()}>{projStepBusy ? "Adding..." : "Add This Step"}</button>
           </div>
         ) : (
           <div className="promo-acts">

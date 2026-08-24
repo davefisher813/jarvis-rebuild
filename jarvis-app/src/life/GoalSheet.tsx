@@ -42,7 +42,7 @@ export default function GoalSheet({ mode, initial, onSave, onDelete, onCancel }:
         </div>
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), state: initial?.state ?? "on_track", ...(initial?.areaId ? { areaId: initial.areaId } : {}), ...(initial?.saved ? { saved: initial.saved } : {}), moneyTarget: target.trim() ? Number(target) : undefined }); }}>Save</button>
-          {mode === "edit" && onDelete && <button className="btn btn-danger btn-block" onClick={onDelete}>{TRASH}Delete Goal</button>}
+          {mode === "edit" && onDelete && <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>{TRASH}Delete Goal</button>}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>

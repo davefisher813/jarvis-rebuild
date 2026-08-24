@@ -252,7 +252,7 @@ export default function TaskSheet({
             <button className="btn btn-secondary btn-block" onClick={() => onBreakDown(text.trim())}>Break It Down</button>
           )}
           {mode === "edit" && onDelete && (
-            <button className="btn btn-danger btn-block" onClick={onDelete}>Delete Task</button>
+            <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>Delete Task</button>
           )}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>

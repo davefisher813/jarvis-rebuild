@@ -60,7 +60,7 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
         </div>
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), status, category: category || undefined, goalId: goalId || undefined }); }}>Save</button>
-          {mode === "edit" && onDelete && <button className="btn btn-danger btn-block" onClick={onDelete}>{TRASH}Delete Project</button>}
+          {mode === "edit" && onDelete && <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>{TRASH}Delete Project</button>}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>
