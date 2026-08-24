@@ -20,6 +20,14 @@ import {
 // Typed strands (told) emit created without a kind; their edits are not
 // corrections of any derivation.
 
+// What happened when a moment was accepted. Three outcomes, because the
+// caller has to say something true about each and "null" could only ever
+// carry one message for two very different situations.
+export type AcceptResult =
+  | { outcome: "created"; id: string }    // new strand, JARVIS learned it
+  | { outcome: "refreshed"; id: string }  // already knew; receipts brought up to date
+  | { outcome: "full"; id?: undefined };  // genome or category at its cap
+
 export class StrandsService {
   constructor(private store: Store, private ownerId: string, private emit?: (e: EventInput) => void) {}
 
@@ -34,26 +42,38 @@ export class StrandsService {
     return (await this.list()).filter((s) => s.data.status === "active");
   }
 
-  // One strand per derivation, ever: a re-derivation refreshes the existing
-  // strand's evidence instead of growing a twin.
-  async byDerivation(key: DerivationKey): Promise<Strand | null> {
-    return (await this.list()).find((s) => s.data.derivation === key) ?? null;
-  }
-
   // A being-known moment was accepted: the fact becomes a watched strand with
   // its receipts. Caps enforced here; a full genome refuses quietly (null)
   // rather than growing into the fifty-maybes failure mode.
+  //
+  // RE-DERIVATION REFRESHES (2026-08-24). byDerivation and refreshEvidence
+  // were written for exactly this and never called: this method simply
+  // returned null when the derivation already existed, which had two costs.
+  // The fresher receipts were thrown on the floor, so a strand's evidence was
+  // frozen at whatever the first accept happened to see. And the only caller
+  // reads null as "the Brain is full" and said so in a toast, which was a lie
+  // every time the real reason was "you already have this one".
+  //
+  // So the refusals are now distinguishable, and the caller can say something
+  // true about each.
   async accept(
     text: string,
     category: StrandCategory,
     derivation: DerivationKey,
     evidence: StrandEvidence[],
     today: string,
-  ): Promise<string | null> {
+  ): Promise<AcceptResult> {
     const all = await this.list();
-    if (all.length >= STRAND_CAP_TOTAL) return null;
-    if (all.filter((s) => s.data.category === category).length >= STRAND_CAP_PER_CATEGORY) return null;
-    if (all.some((s) => s.data.derivation === derivation)) return null;
+    const existing = all.find((s) => s.data.derivation === derivation);
+    if (existing) {
+      // Quietly, and without touching the TEXT: if he edited the sentence it
+      // is told-rank now, and a later re-derivation must not overwrite his
+      // words with the machine's.
+      await this.refreshEvidence(existing, evidence, today);
+      return { outcome: "refreshed", id: existing.id };
+    }
+    if (all.length >= STRAND_CAP_TOTAL) return { outcome: "full" };
+    if (all.filter((s) => s.data.category === category).length >= STRAND_CAP_PER_CATEGORY) return { outcome: "full" };
     const data: StrandData = {
       text: text.trim(),
       category,
@@ -67,7 +87,7 @@ export class StrandsService {
     };
     const id = await this.store.create(this.ownerId, ENTITY_STRAND, data as unknown as ItemData);
     this.emit?.({ type: "strand.created", entityType: ENTITY_STRAND, entityId: id, props: { kind: derivation, category } });
-    return id;
+    return { outcome: "created", id };
   }
 
   // The user typed one sentence themselves: source told, the highest rank,

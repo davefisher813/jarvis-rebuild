@@ -35,7 +35,16 @@ export interface StrandData {
   strength: StrandStrength;
   status: StrandStatus;
   createdAt: string; // ISO date
-  lastConfirmed: string; // ISO date; strands expire, confirmation refreshes
+  // ISO date. Written on accept, on a re-derivation, on an edit, and by
+  // confirm(); READ by the Brain page, which shows "Confirmed 12 Aug".
+  //
+  // The comment here used to say "strands expire, confirmation refreshes".
+  // Nothing expires. No code anywhere reads this date and acts on it, and a
+  // strand from March is exactly as loud today as one confirmed this morning.
+  // Corrected rather than implemented (2026-08-24) because an expiry policy
+  // is a decision about JARVIS quietly forgetting things it was told, and how
+  // long is long enough is Dave's call, not a number to invent in a type.
+  lastConfirmed: string;
   derivation?: DerivationKey; // watched strands only: which derivation said it
   evidence?: StrandEvidence[]; // watched strands only, capped
 }

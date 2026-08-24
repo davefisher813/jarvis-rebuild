@@ -41,8 +41,51 @@ describe("StrandsService", () => {
 
   it("refuses a second strand for the same derivation, so a fact never twins", async () => {
     await ctx.svc.accept("first", "energy", "completion_window", [], TODAY);
-    expect(await ctx.svc.accept("again", "energy", "completion_window", [], TODAY)).toBeNull();
+    const r = await ctx.svc.accept("again", "energy", "completion_window", [], TODAY);
+    expect(r.outcome).toBe("refreshed");
     expect(await ctx.svc.list()).toHaveLength(1);
+  });
+
+  // 2026-08-24. byDerivation and refreshEvidence were written for this and
+  // never called: a re-derivation just returned null, so a strand's receipts
+  // were frozen at whatever the first accept happened to see, however long
+  // ago that was and however much better the evidence had got since.
+  it("a re-derivation brings the receipts up to date", async () => {
+    await ctx.svc.accept("first", "energy", "completion_window", [{ day: "2026-08-01", a: 9 }], TODAY);
+    await ctx.svc.accept("first", "energy", "completion_window", [{ day: "2026-08-20", a: 11 }], TODAY);
+    const [s] = await ctx.svc.list();
+    expect(s!.data.evidence).toEqual([{ day: "2026-08-20", a: 11 }]);
+  });
+
+  it("a re-derivation refreshes lastConfirmed, which is what confirmation means", async () => {
+    await ctx.svc.accept("first", "energy", "completion_window", [], "2026-08-01");
+    await ctx.svc.accept("first", "energy", "completion_window", [], "2026-08-24");
+    const [s] = await ctx.svc.list();
+    expect(s!.data.lastConfirmed).toBe("2026-08-24");
+  });
+
+  // The words are his once he has edited them. A later re-derivation must
+  // update the receipts and leave the sentence alone, or the machine quietly
+  // takes back a correction the user made on purpose.
+  it("a re-derivation never overwrites text the user corrected", async () => {
+    await ctx.svc.accept("machine words", "energy", "completion_window", [], TODAY);
+    const [before] = await ctx.svc.list();
+    await ctx.svc.edit(before!, "his own words", TODAY);
+    await ctx.svc.accept("machine words again", "energy", "completion_window", [{ day: TODAY, a: 3 }], TODAY);
+    const [after] = await ctx.svc.list();
+    expect(after!.data.text).toBe("his own words");
+    expect(after!.data.source).toBe("told");
+    expect(after!.data.evidence).toEqual([{ day: TODAY, a: 3 }]);
+  });
+
+  // The distinction the caller needs: a toast that says "the Brain is full"
+  // when the real reason is "you already have this one" is a lie, and it was
+  // shipping.
+  it("tells a full genome apart from a fact already known", async () => {
+    await ctx.svc.accept("first", "energy", "completion_window", [], TODAY);
+    expect((await ctx.svc.accept("again", "energy", "completion_window", [], TODAY)).outcome).toBe("refreshed");
+    for (let i = 0; i < STRAND_CAP_PER_CATEGORY; i++) await ctx.svc.add("v " + i, "values", TODAY);
+    expect((await ctx.svc.accept("new fact", "values", "task_timing", [], TODAY)).outcome).toBe("full");
   });
 
   it("caps a category rather than growing into fifty maybes", async () => {

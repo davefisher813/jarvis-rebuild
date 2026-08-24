@@ -1083,3 +1083,79 @@ describe("LAW: every surface offers the same lengths", () => {
     }
   });
 });
+
+// A SERVICE'S SURFACE IS ITS PROMISE (2026-08-24).
+//
+// The module reachability law one section up catches a whole file nobody
+// opens. It cannot catch a method nobody calls inside a file everybody does,
+// which is the shape the strand store had: StrandsService is imported and
+// rendered on the Brain page, and three of its ten methods had zero callers.
+// Two of them, byDerivation and refreshEvidence, were the two halves of a
+// behaviour the class comment promised out loud, "a re-derivation refreshes
+// the existing strand's evidence instead of growing a twin", which therefore
+// never happened. accept() returned null instead and the receipts were
+// dropped, and the caller read that null as "the Brain is full" and said so
+// in a toast, which was a lie every time.
+//
+// Scoped to named service classes rather than every exported symbol on
+// purpose. A first pass over everything returned 266 hits, most of them
+// constants read inside their own file, and a law with 266 exemptions is a
+// list, not a law.
+describe("LAW: a service method is called, or is listed as not", () => {
+  const SERVICES = [
+    "brain/strands/StrandsService.ts",
+    "rules/LearnedRulesService.ts",
+  ];
+
+  // Written, and nothing calls it. Each owes a reason and is meant to go.
+  const UNCALLED: Record<string, string> = {
+    // The Brain sheet PRINTS "Confirmed 12 Aug" and offers Edit, Pause and
+    // Delete. Nothing offers "still true", so the date it shows can only ever
+    // be the day the strand was created or last re-derived. Adding a fourth
+    // button to that sheet is a visible product change and Dave's call.
+    "StrandsService.confirm": "no affordance offers it: the Brain sheet has no Still True",
+    // The whole learned-rules engine. The settings page calls list() and
+    // nothing calls recordCorrection, so no rule is ever created, so the page
+    // can only ever be empty. Wire the correction points or remove the page:
+    // open decision, 2026-08-24.
+    "LearnedRulesService.recordCorrection": "nothing records a correction, so no rule is ever made",
+    "LearnedRulesService.announceIfFirstUse": "nothing applies a rule, so there is no first use",
+    "LearnedRulesService.contradict": "nothing applies a rule, so nothing can contradict one",
+  };
+
+  it("every service method is called from somewhere, or is named above", () => {
+    const bad: string[] = [];
+    for (const rel_ of SERVICES) {
+      const file = join(SRC, rel_);
+      const own = read(file);
+      const cls = rel_.replace(/^.*\//, "").replace(/\.ts$/, "");
+      // Two spaces of indent is a class member at the top level of the class.
+      const methods = [...own.matchAll(/^ {2}(?:async )?(\w+)\s*\(/gm)]
+        .map((m) => m[1]!)
+        .filter((n) => n !== "constructor");
+      expect(methods.length, rel_ + ": found no methods, the scan is broken").toBeGreaterThan(3);
+      for (const n of methods) {
+        const call = new RegExp("\\." + n + "\\s*\\(");
+        // Its own file counts: a method that became a private helper of
+        // another method on the same class is wired, not dead. That is what
+        // refreshEvidence is now.
+        const called = SOURCES.some((f) => (f === file ? call.test(own.replace(new RegExp("^ {2}(async )?" + n + "\\s*\\([\\s\\S]*?^ {2}\\}", "m"), "")) : call.test(read(f))));
+        if (!called && !(cls + "." + n in UNCALLED)) bad.push(cls + "." + n);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  // The half that makes the list shrink instead of rot.
+  it("nothing on the uncalled list is actually called", () => {
+    const stale: string[] = [];
+    for (const key of Object.keys(UNCALLED)) {
+      const [cls, n] = key.split(".") as [string, string];
+      const file = SERVICES.map((s) => join(SRC, s)).find((f) => f.endsWith("/" + cls + ".ts"));
+      if (!file) { stale.push(key + ": no such service"); continue; }
+      const call = new RegExp("\\." + n + "\\s*\\(");
+      if (SOURCES.some((f) => f !== file && call.test(read(f)))) stale.push(key + " IS called now, take it off the list");
+    }
+    expect(stale).toEqual([]);
+  });
+});

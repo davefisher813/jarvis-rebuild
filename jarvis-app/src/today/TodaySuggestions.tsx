@@ -183,9 +183,16 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
       // A being-known moment becomes a strand with its receipts. The commit
       // lands with weight: this is the hit the Brain exists for.
       const m = pattern.moment;
-      const id = await strandsSvc.accept(m.strandText, m.category, m.derivation, m.evidence, today);
+      // Three outcomes, three true sentences. This used to be a truthy check
+      // on an id, so "you already told me this" and "the Brain is full" both
+      // came out as "The Brain is full", which was a lie in the common case.
+      const r = await strandsSvc.accept(m.strandText, m.category, m.derivation, m.evidence, today);
       haptics.success();
-      showToast({ message: id ? "JARVIS will remember that" : "The Brain is full · Prune it in What JARVIS Knows" });
+      showToast({
+        message: r.outcome === "created" ? "JARVIS will remember that"
+          : r.outcome === "refreshed" ? "JARVIS already knew · Receipts updated"
+            : "The Brain is full · Prune it in What JARVIS Knows",
+      });
     } else {
       // Planning observations (per-task timing, the fourth launch
       // derivation) land as strands too, receipts included, so every fact
@@ -200,11 +207,14 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
           .sort((a, b) => b.ts - a.ts)
           .slice(0, 6)
           .map((c) => ({ day: new Date(c.ts).toISOString().slice(0, 10), a: c.deltaMin }));
-        const id = await strandsSvc.accept(pattern.text, "routine", "task_timing", evidence, today);
-        if (id) {
+        const r = await strandsSvc.accept(pattern.text, "routine", "task_timing", evidence, today);
+        // A refresh counts as landed. Falling through to the habits doc
+        // because the strand already existed is how the same observation
+        // ended up written into that document once per accept.
+        if (r.outcome !== "full") {
           landed = true;
           haptics.success();
-          showToast({ message: "JARVIS will remember that" });
+          showToast({ message: r.outcome === "created" ? "JARVIS will remember that" : "JARVIS already knew · Receipts updated" });
         }
       }
       if (!landed) {
