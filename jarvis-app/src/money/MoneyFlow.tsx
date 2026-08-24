@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { createPortal } from "react-dom";
-import { useMoney, useTasks, useProfile, useCategories } from "../data/NotesProvider";
+import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
 import { ACCOUNT_META, ACCOUNT_KINDS, formatMoney, totalBalance, type Account, type AccountData, type AccountKind } from "./types";
 import {
@@ -14,7 +14,9 @@ import type { TaskItem } from "../tasks/TasksService";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
 import { catColor } from "../shared/categories";
-import { DollarGlyph, RepeatGlyph, WalletGlyph } from "../shared/glyphs";
+import { DollarGlyph, RepeatGlyph, WalletGlyph, TargetGlyph } from "../shared/glyphs";
+import type { Goal } from "../life/types";
+import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
 
 const CHEV = <div className="chev" />;
 const PLUS = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
@@ -130,6 +132,29 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
   const [envelopes, setEnvelopes] = useState<Envelope[]>(() => loadEnvelopes());
   const [mathOpen, setMathOpen] = useState(false);
   const [envOpen, setEnvOpen] = useState(false);
+  // PICK 24: savings goals, read here and written here. Optional service so
+  // the Money tab still renders outside a full provider (bench, tests).
+  const goalsSvc = useOptionalGoals();
+  const [savingsGoals, setSavingsGoals] = useState<Goal[]>([]);
+  const [saveInto, setSaveInto] = useState<string | null>(null);
+  const [saveAmt, setSaveAmt] = useState("");
+  const loadGoals = useCallback(async () => {
+    if (!goalsSvc) return;
+    const gl = await goalsSvc.list();
+    setSavingsGoals(gl.filter((g) => !!g.data.moneyTarget && g.data.state !== "achieved" && !g.data.dropped));
+  }, [goalsSvc]);
+  useEffect(() => { void loadGoals(); }, [loadGoals]);
+  const addSavings = async (g: Goal) => {
+    const amt = Number(saveAmt);
+    // Say WHY nothing happened, the same rule the envelope adder follows.
+    if (!isFinite(amt) || amt <= 0) { showToast({ message: "Needs an amount over zero" }); return; }
+    if (!goalsSvc) return;
+    const d = todayISO();
+    await goalsSvc.update(g.id, { saved: [...(g.data.saved ?? []), { d, amount: amt }] });
+    setSaveInto(null); setSaveAmt("");
+    await loadGoals();
+    showToast({ message: formatMoney(amt) + " toward " + g.data.title });
+  };
   const [envName, setEnvName] = useState("");
   const [envAmt, setEnvAmt] = useState("");
   const today = todayISO();
@@ -327,6 +352,44 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
           )}
           <div className="sh2"><span className="t">Bills</span></div>
           <div>{billRows}</div>
+
+          {/* PICK 24 (Dave 2026-08-22): MONEY FLOWS INTO SAVINGS GOALS.
+              A savings goal has been able to hold real logged money since
+              Money v1, and the only door to it was two taps deep inside the
+              Bigger Picture. Money gets entered where money lives. Same
+              write, same derivation, same rule: only real logged dollars ever
+              land here, never a skipped purchase (not-spending is not
+              saving), so this is the one screen where the number and the goal
+              can be kept honest in the same breath. */}
+          {savingsGoals.length > 0 && (
+            <>
+              <div className="sh2"><span className="t">Saving Toward</span></div>
+              <div>
+                {savingsGoals.map((g) => (
+                  <div className="row" key={g.id}>
+                    <div className="row-glyph cat-fg-purple"><TargetGlyph /></div>
+                    <div className="row-grow">
+                      <div className="conn-name truncate">{g.data.title}</div>
+                      <div className="conn-meta">{savingsLine(g.data.moneyTarget!, g.data.saved)}</div>
+                      {savedTotal(g.data.saved) > 0 && (
+                        <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, savingsPct(g.data.moneyTarget!, g.data.saved)) + "%" }} /></div>
+                      )}
+                    </div>
+                    {saveInto === g.id ? (
+                      <div className="row-grow budget-add">
+                        <input className="input budget-amt" inputMode="numeric" placeholder="0" value={saveAmt}
+                          onChange={(ev) => setSaveAmt(ev.target.value)} />
+                        <button className="btn btn-primary btn-sm" onClick={() => void addSavings(g)}>Add</button>
+                      </div>
+                    ) : (
+                      <button className="pill-act" onClick={() => { setSaveInto(g.id); setSaveAmt(""); }}>Add</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
           {tagged.length > 0 && (
             <>
               <div className="sh2"><span className="t">Also Tagged Money</span></div>

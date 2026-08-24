@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions } from "../data/NotesProvider";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
-import { goalTitleOf, workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
+import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
@@ -31,6 +31,7 @@ import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap } from "./evening";
 import { readSamples } from "../shared/timeSense";
 import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask } from "../bigger/reach";
+import { inheritFromThread } from "../messages/threadTasks";
 import { rankProjects, closable } from "../bigger/progress";
 import { movesCount, movesLine, goalsMovedToday, movedLine, untouchedGoal, untouchedLine, openWorkOf, dismissGoalNudge } from "./goalPulse";
 import SkeletonScreen from "../shared/SkeletonScreen";
@@ -517,7 +518,12 @@ export default function TodayFlow({
         return {
           id: t.id, text: t.data.text, category: t.data.category ?? "", due,
           suggested: isSuggested(due, dateISO, t.data.recurrence), overdue: !!due && due < today,
-          goal: goalTitleOf(projList, goalList, t.data.projectId),
+          // PICK 23 (2026-08-24): read through the upward index, not the
+          // project chain alone. Plan My Day has ranked goal-moving tasks
+          // above goalless ones since 2026-08-09, but it could only SEE the
+          // filed ones, so most of his real work ranked as if it moved
+          // nothing. A tagged task now claims its place in the day.
+          goal: goalTitleForTask(goalIdx, t),
           ...(win ? { windowS: win.s, windowE: win.e } : {}),
         };
       })
@@ -1637,8 +1643,18 @@ export default function TodayFlow({
     if (id) showToast({ message: `Fifteen minutes on ${t.data.text}` });
   };
 
-  const addTaskFromMail = async (text: string, due?: string): Promise<boolean> => {
-    const ok = await attemptWrite(() => tasks.createTask(text, { due: due ?? today }));
+  // PICK 26 (Dave 2026-08-22): an email-born task lands with its lineage.
+  // Not a guess: the ONLY signal used is that a task from this same thread
+  // already exists and somebody already filed it. The first task off a thread
+  // inherits nothing, which is correct, because there is nothing to inherit
+  // yet; every one after it joins its sibling. See messages/threadTasks.ts.
+  const addTaskFromMail = async (text: string, due?: string, threadId?: string): Promise<boolean> => {
+    const inherited = threadId ? inheritFromThread(taskItems, threadId) : {};
+    const ok = await attemptWrite(() => tasks.createTask(text, {
+      due: due ?? today,
+      ...(threadId ? { fromThread: threadId } : {}),
+      ...inherited,
+    }));
     if (ok) await reload();
     return !!ok;
   };

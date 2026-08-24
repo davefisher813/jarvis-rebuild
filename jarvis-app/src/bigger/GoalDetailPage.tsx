@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
@@ -13,7 +13,9 @@ import { fmtDay } from "../decisions/DecisionsFlow";
 import { formatMoney } from "../money/types";
 import { monthDay } from "../money/bills";
 import { capAfterNumber } from "../shared/casing";
-import { TargetGlyph } from "../shared/glyphs";
+import { TargetGlyph, ForkGlyph } from "../shared/glyphs";
+import { useOptionalDecisions } from "../data/NotesProvider";
+import type { DecisionRecord } from "../decisions/types";
 
 // Session 6.6: a goal is a PLACE, not an edit form. One glance answers "is
 // this moving, and what happens next": an aggregate progress line in the hero
@@ -44,6 +46,7 @@ export default function GoalDetailPage({
   pace = null,
   health,
   onDrop,
+  onOpenDecision,
   nextActionTextOf,
   suggestion,
   onBack,
@@ -72,6 +75,8 @@ export default function GoalDetailPage({
   health?: Health;
   // PICK 17: putting a goal down on purpose, with the reason kept.
   onDrop?: (why: string) => void;
+  // Pick 25: tapping the decision banner opens the record.
+  onOpenDecision?: (id: string) => void;
   // True when the user actually has areas to pick from. Without it the empty
   // goal would be offered a door that opens onto nothing.
   canTag?: boolean;
@@ -107,6 +112,23 @@ export default function GoalDetailPage({
   // costs two taps and usually fills the goal immediately from work that
   // already exists.
   const empty = projects.length === 0 && !target && reach.taggedIds.length === 0;
+  // PICK 25 (Dave 2026-08-22): DECISIONS ATTACH TO THE GOAL. They already
+  // could -- goals have been in the attach picker all along -- and the goal
+  // page was the one place that never showed the result. The project page has
+  // carried this banner since Screen 04: you reopen the thing six weeks later
+  // and the reason is sitting there before you can second-guess it. A goal is
+  // exactly where that matters most.
+  //
+  // Optional on purpose, matching ProjectDetailPage: outside a provider the
+  // banner simply does not exist rather than crashing the page.
+  const decisions = useOptionalDecisions();
+  const [decision, setDecision] = useState<DecisionRecord | null>(null);
+  useEffect(() => {
+    if (!decisions) return;
+    let on = true;
+    void decisions.getByLink("goal", goal.id).then((d) => { if (on) setDecision(d); });
+    return () => { on = false; };
+  }, [decisions, goal.id]);
   const [dropOpen, setDropOpen] = useState(false);
   const [dropWhy, setDropWhy] = useState("");
   const [savingsOpen, setSavingsOpen] = useState(false);
@@ -170,6 +192,22 @@ export default function GoalDetailPage({
             <button className="row row-act" onClick={() => { setSavingsAmt(""); setSavingsOpen(true); }}>Add to Savings</button>
           </div></div>
         </>
+      )}
+
+      {decision && (
+        <div className="pad-x">
+          <div className="promo-card" role={onOpenDecision ? "button" : undefined} tabIndex={onOpenDecision ? 0 : undefined}
+            onClick={onOpenDecision ? () => onOpenDecision(decision.id) : undefined}>
+            <div className="promo-head">
+              <div className="promo-badge b-purple"><ForkGlyph /></div>
+              <div className="promo-body">
+                <div className="promo-title">{decision.data.decision}</div>
+                <div className="promo-sub">{decision.data.why ? <>Because {decision.data.why} · Decided {fmtDay(decision.data.createdAt)}</> : <>No reason recorded · Decided {fmtDay(decision.data.createdAt)}</>}</div>
+              </div>
+              {onOpenDecision && <div className="chev promo-chev" />}
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="sec-head"><div className="sec-left"><div className="sec-title">Projects</div></div></div>

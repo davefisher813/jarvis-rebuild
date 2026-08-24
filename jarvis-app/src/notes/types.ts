@@ -123,6 +123,11 @@ export interface TaskData {
   // Provenance (addendum item 8): set on every AUTO-created task, absent on
   // hand-made ones. Lives in JSONB, no migration needed.
   source?: import("../shared/provenance").Source;
+  // PICK 26 (2026-08-24): the email thread this task was born from. Stored so
+  // the SECOND task off a thread can inherit what the first one was filed
+  // under (see messages/threadTasks.ts), and so a task can find its way back
+  // to the conversation that produced it. Optional and additive.
+  fromThread?: string;
   projectId?: string; // the project this task belongs to (Session 6). Optional
   // field on the existing task entity, so no registry migration is needed.
   due?: string | null;

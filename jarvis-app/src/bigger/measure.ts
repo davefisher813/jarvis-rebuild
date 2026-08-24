@@ -269,3 +269,17 @@ export function measureLabel(m: Measure | undefined, moneyTarget?: number): stri
   if (m.kind === "cadence") return capAfterNumber(`${m.times} a ${m.per}`);
   return "Every Project Done";
 }
+
+/**
+ * PICK 28: the one line the Brain is told about a goal.
+ *
+ * The AI context has sent `Run three times a week (on_track)` since Session 5,
+ * where "on_track" is the stored state nothing has ever updated: the model has
+ * been reasoning about statuses that were typed once, months ago. It gets the
+ * DERIVED reading now, plus the finish line, which is the half that lets it say
+ * something useful instead of something agreeable.
+ */
+export function goalStatusForAI(health: Health, state: MeasureState | null): string {
+  const label = HEALTH_LABEL[health].toLowerCase();
+  return state ? `${label}, ${state.line.toLowerCase()}` : label;
+}

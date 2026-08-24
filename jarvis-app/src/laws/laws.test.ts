@@ -965,6 +965,31 @@ describe("LAW: stored shapes are versioned", () => {
     expect(reachOf([...mixed, ...filed], p, goal).progress).toEqual({ done: 1, total: 1, pct: 100 });
   });
 
+  // PICK 23, THE DAY IS PLANNED THROUGH THE UPWARD INDEX (2026-08-24). Plan
+  // My Day has ranked goal-moving tasks above goalless ones since
+  // 2026-08-09, but it could only SEE tasks filed under a project, so most of
+  // his real work ranked as if it moved nothing. Both surfaces that build
+  // plan candidates read the same index, or they will rank the same day
+  // differently.
+  it("plan candidates read the upward index, not the project chain alone", () => {
+    for (const f of ["today/TodayFlow.tsx", "schedule/ScheduleFlow.tsx"]) {
+      const src = read(SRC + "/" + f);
+      expect(src, f).toMatch(/goal: goalTitleForTask\(goalIdx, t\)/);
+      expect(src, f + " must not fall back to the filed-only lookup").not.toMatch(/goal: goalTitleOf\(/);
+    }
+  });
+
+  // PICK 28, THE BRAIN IS NEVER TOLD A STORED GOAL STATUS. Every AI feature
+  // in the app read `Run three times a week (on_track)` where on_track is the
+  // field nothing updates, so the model has been reasoning about statuses
+  // typed once, months ago. It gets the derived reading now.
+  it("the AI context sends a derived goal status, never the stored one", () => {
+    const src = read(SRC + "/ai/useAIContext.ts");
+    expect(src).not.toMatch(/status: g\.data\.state/);
+    expect(src).toMatch(/goalStatusForAI\(/);
+    expect(src, "and never speaks about a dropped goal").toMatch(/liveGoals\(gl\)/);
+  });
+
   // PICK 22, ONE SET OF ESTIMATES (2026-08-24). A project's stated size and
   // the block the planner puts on the calendar for the same work must come
   // from the same number. Two estimators drift, and the day the project says

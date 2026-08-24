@@ -90,7 +90,9 @@ export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; 
       if (!on) return;
       const opts: AttachOption[] = [
         ...pr.filter((p) => p.data.status !== "done").map((p) => ({ type: "project" as const, id: p.id, label: p.data.title })),
-        ...gl.filter((g) => g.data.state !== "achieved").map((g) => ({ type: "goal" as const, id: g.id, label: g.data.title })),
+        // A dropped goal is not something to attach a new decision to: it
+        // already HAS the decision that ended it (pick 17).
+        ...gl.filter((g) => g.data.state !== "achieved" && !g.data.dropped).map((g) => ({ type: "goal" as const, id: g.id, label: g.data.title })),
         ...cats.filter((c) => effectiveKind(c.data) === "org").map((c) => ({ type: "org" as const, id: c.id, label: c.data.name })),
       ];
       setAttachOptions(opts);

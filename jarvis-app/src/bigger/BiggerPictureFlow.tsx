@@ -392,6 +392,18 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
           project={detail}
           estimateFor={estimateFor}
           today={today}
+          onAddNote={onOpenNote ? () => void (async () => {
+            // PICK 27: born connected, then opened. The title is the project's
+            // own, because a note you have to name before you can write it is
+            // a note that does not get written; renaming it is one tap in the
+            // editor he is already looking at.
+            const id = await attemptWrite(() => notesSvc.createNote(
+              detail.data.title,
+              detail.data.category ?? "",
+              [{ id: "proj-" + detail.id, kind: "project", label: detail.data.title, targetId: detail.id }],
+            ));
+            if (typeof id === "string") onOpenNote(id);
+          })() : undefined}
           firstStep={ai.available ? (
             <div className="pad-x">
               <div className="promo-card">
@@ -513,6 +525,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
           pace={paceLine(goalMeasure, goalDetail.data.measure, goalDetail.data.by, today)}
           health={healthOf(goalDetail, goalMeasure, goalDetail.data.measure, measureCtxFor(goalDetail), openWorkOf(reachOfGoal(goalDetail.id)))}
           onDrop={(why) => void dropGoal(goalDetail, why)}
+          onOpenDecision={onOpenDecision}
           projects={goalProjects}
           canTag={categories.length > 0}
           tagged={goalTagged}

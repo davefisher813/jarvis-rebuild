@@ -37,7 +37,7 @@ export interface ProjectStep {
 
 export default function ProjectDetailPage({
   project, onBack, onEdit, linkedNotes = [], onOpenNote, onOpenDecision, onChanged, onFinish,
-  steps = [], onToggleStep, onAddStep, onOpenStep, estimateFor, today, firstStep,
+  steps = [], onToggleStep, onAddStep, onOpenStep, estimateFor, today, firstStep, onAddNote,
 }: {
   project: Project;
   onBack: () => void;
@@ -65,6 +65,8 @@ export default function ProjectDetailPage({
   // PICK 21: the offer on an empty project. The flow owns the AI call; this
   // page owns where it sits and what it looks like.
   firstStep?: ReactNode;
+  // Pick 27: makes a note already connected to this project and opens it.
+  onAddNote?: () => void;
 }) {
   // SEAMLESS LINKING (Dave 2026-08-18): Area and Goal are chip-pickers IN
   // the detail card, the one-tap in-place edit from the editing law. Local
@@ -273,7 +275,14 @@ export default function ProjectDetailPage({
         </>
       )}
 
-      {linkedNotes.length > 0 && (
+      {/* PICK 27 (Dave 2026-08-22): NOTES BELONG TO A PROJECT. The reverse
+          lookup has existed since Session 6 and nothing fed it except a user
+          who remembered to open the link picker afterwards, so this section
+          was empty on every project he had. A note written from HERE is born
+          connected. The head renders whenever the project can make one, not
+          only when one already exists, because a section that appears only
+          after you have already solved the problem solves nothing. */}
+      {(linkedNotes.length > 0 || onAddNote) && (
         <>
           <div className="grp"><div className="eyebrow">Linked Notes</div></div>
           <div className="pad-x"><div className="card">
@@ -284,6 +293,7 @@ export default function ProjectDetailPage({
                 {onOpenNote && <div className="chev"></div>}
               </div>
             ))}
+            {onAddNote && <button className="row row-act" onClick={onAddNote}>Add a Note</button>}
           </div></div>
         </>
       )}

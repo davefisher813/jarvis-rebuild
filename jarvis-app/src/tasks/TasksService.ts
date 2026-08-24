@@ -41,7 +41,7 @@ export class TasksService {
 
   async createTask(
     text: string,
-    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen } = {},
+    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen } = {},
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
     const data: TaskData = { text: text.trim(), category: opts.category ?? "", done: false };
@@ -51,6 +51,9 @@ export class TasksService {
     if (extras.length) data.extraCategories = [...new Set(extras)];
     if (opts.due) data.due = opts.due;
     if (opts.fromNote) data.fromNote = opts.fromNote;
+    // Pick 26: the thread this task came from, so its siblings can teach the
+    // next one where it belongs.
+    if (opts.fromThread) data.fromThread = opts.fromThread;
     if (opts.recurrence) data.recurrence = opts.recurrence;
     if (opts.projectId) data.projectId = opts.projectId;
     if (opts.bill) data.bill = opts.bill;

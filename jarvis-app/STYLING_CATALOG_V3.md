@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.20 (2026-08-24)
+# JARVIS Styling Catalog V4.21 (2026-08-24)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -477,6 +477,22 @@ A project row said one of three words: Active, On hold, Done. None of them answe
 **HOW BIG IS THIS (pick 22).** Not a size someone types, which decays like every other self-report, and not a task count on its own, because four ten-minute tasks and four half-day tasks are not the same project. "4 Open · About 3h 20m", from the SAME learned per-category durations Plan My Day places blocks with, so a project's stated size and its calendar footprint can never tell two different stories. Law-tested on the shared source. The word "About" is load-bearing: these are learned averages, not commitments.
 
 **A GOAL ROW SPEAKS ITS FINISH LINE.** The list and the detail page take the same derivation, so they cannot drift: "0 of 3 This week", "0 of 12 Done", "0 of 1 Projects done". Health earns a word only when it is worth saying, which is Behind or Idle; "On Track" on every row is wallpaper.
+
+## BP6. The ties (V4.21, Dave's picks 23, 24, 25, 26, 27, 28, built 2026-08-24)
+
+Six places where two features already held both halves of a link and nothing joined them.
+
+**23 · GOALS CLAIM TIME ON THE CALENDAR.** Plan My Day has ranked goal-moving tasks above goalless ones since 2026-08-09, but it read the project chain only, so most of his real work ranked as if it moved nothing. Both surfaces that build plan candidates (Today and Schedule) now read the same upward index architecture C built, and the plan rows apply pick 31 through the same `movesLine` the Now card uses. Law-tested on both.
+
+**24 · MONEY FLOWS INTO SAVINGS GOALS.** A savings goal has held real logged money since Money v1, and the only door to it was two taps deep inside the Bigger Picture. Money gets entered where money lives: a **Saving Toward** band on the Money tab, below Bills, with the same write and the same law (only real logged dollars, never a skipped purchase).
+
+**25 · DECISIONS ATTACH TO THE GOAL.** They always could; goals have been in the attach picker all along, and the goal page was the one place that never showed the result. It carries the same banner the project page has had since Screen 04: you reopen the thing six weeks later and the reason is sitting there before you can second-guess it. A dropped goal leaves the attach picker, because it already has the decision that ended it.
+
+**26 · EMAIL-BORN TASKS INHERIT.** A task made from an email notice landed with a due date and nothing else, which sends him back to the inbox the band exists to keep him out of. Inheritance is DERIVED, never guessed: no title matching and no category heuristic, only the fact that a task from this same thread already exists and somebody already filed it. The first task off a thread inherits nothing, which is correct; every one after it joins its sibling, newest filed sibling winning. The thread id is stored so the second task can be smarter than the first.
+
+**27 · NOTES BELONG TO A PROJECT.** The reverse lookup has existed since Session 6 and nothing fed it except a user who remembered to open the link picker afterwards, so the section was empty on every project he had. A note written from inside a project is born connected, titled with the project's own name because a note you have to name before you can write it is a note that does not get written. The head renders whenever the project can make one, not only when one already exists: a section that appears after you have already solved the problem solves nothing.
+
+**28 · THE BRAIN KNOWS THE CURRENT GOALS.** Every AI feature in the app read `Run three times a week (on_track)`, where `on_track` is the stored field nothing updates: the model has been reasoning about statuses typed once, months ago. It gets the DERIVED health and the finish line now, from the same functions the goal page renders, and dropped goals are left out entirely. Law-tested.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
