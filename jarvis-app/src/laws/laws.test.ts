@@ -315,6 +315,14 @@ describe("LAW: Apple HIG casing", () => {
       // Added 2026-08-24: every use of this class is a <button> that opens
       // something, and it painted at roughly 19px with no affordance at all.
       "receipt-line": "eyebrow-sized receipt that opens the pile it describes",
+      // Added 2026-08-24 by a page-by-page browser walk. The law had five
+      // classes; the walk measured every button on every screen and found
+      // these six, including the Schedule tab's primary navigation at 30px.
+      "seg": "30px segmented control, Day/Week/Month/Repeats",
+      "barbtn": "32px round bar button",
+      "cal-step": "32px month stepper",
+      "plan-cta": "30px day action, Plan My Day and Running Late?",
+      "day-pill": "32px summary pill on Today",
     };
     for (const [cls, why] of Object.entries(small)) {
       // Either an ::after carrying inset/height, or a wrapper that is itself

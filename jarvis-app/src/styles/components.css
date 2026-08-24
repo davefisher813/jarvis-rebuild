@@ -1551,6 +1551,35 @@ button {
 .receipt-line .chev { flex-shrink: 0; }
 /* Painted at about 19px, which is a bad target and well under --tap-min. */
 .receipt-line::after { content: ""; position: absolute; inset: -14px 0; }
+
+/* THE 44px SWEEP (2026-08-24, page-by-page walk).
+ 
+   The tap law covered five classes. The walk measured every button on every
+   screen in both themes and found six more painting under the minimum, one of
+   them the Schedule tab's primary navigation. Same trick throughout: the
+   paint never changes, the pseudo-element carries the target.
+ 
+   Vertical only, deliberately. These controls sit in rows next to each other,
+   and growing the box sideways would put one control's hit area on top of its
+   neighbour, which trades a small target for a wrong one. */
+.seg { position: relative; }
+.seg::after { content: ""; position: absolute; inset: -7px 0; }
+.barbtn { position: relative; }
+.barbtn::after { content: ""; position: absolute; inset: -6px; }
+.cal-step { position: relative; }
+.cal-step::after { content: ""; position: absolute; inset: -6px; }
+.plan-cta { position: relative; }
+.plan-cta::after { content: ""; position: absolute; inset: -7px 0; }
+.day-pill { position: relative; }
+.day-pill::after { content: ""; position: absolute; inset: -6px 0; }
+
+/* A row whose HANDLER sits on an inner div, not on the row. The row paints
+   62px and the target was 38, so the thumb aims at what it can see and misses
+   by a third of the row. Filling the row is what the user already believes is
+   happening. */
+.row-grow[role="button"], .row-stack[role="button"], .task-title[role="button"] { position: relative; }
+.row-grow[role="button"]::after, .row-stack[role="button"]::after, .task-title[role="button"]::after {
+  content: ""; position: absolute; inset: -12px 0; }
 /* The quiet line: words whisper, data pops. Bright tabular data in the time
    face; heat only where a producer's own thresholds say so. */
 .qd { font-variant-numeric: tabular-nums;

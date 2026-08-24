@@ -75,14 +75,15 @@ describe("billsLine", () => {
   });
 
   it("names one bill with its amount and a human day", () => {
-    expect(billsLine([bill("b", "Pay Rent", "2026-08-10", 1850)], T)).toBe("Rent ($1850) due tomorrow");
-    expect(billsLine([bill("b", "Pay Rent", T, 1850)], T)).toBe("Rent ($1850) due today");
-    expect(billsLine([bill("b", "Pay Electric", "2026-08-12", 120)], T)).toBe("Electric ($120) due Wednesday");
+    expect(billsLine([bill("b", "Pay Rent", "2026-08-10", 1850)], T)).toEqual({ title: "Rent", sub: "$1850 · Due tomorrow" });
+    expect(billsLine([bill("b", "Pay Rent", T, 1850)], T)).toEqual({ title: "Rent", sub: "$1850 · Due today" });
+    expect(billsLine([bill("b", "Pay Electric", "2026-08-12", 120)], T)).toEqual({ title: "Electric", sub: "$120 · Due Wednesday" });
   });
 
   it("rolls several into a count, earliest first", () => {
     const out = billsLine([bill("a", "Pay Electric", "2026-08-11", 120), bill("b", "Pay Rent", "2026-08-10", 1850)], T);
-    expect(out).toBe("2 Bills due soon · Rent, Electric") // SPEC MOVED;
+    // SPEC MOVED 2026-08-24: title and sub, so neither half truncates.
+    expect(out).toEqual({ title: "2 Bills due soon", sub: "Rent, Electric" });
   });
 
   it("ignores a paid bill", () => {

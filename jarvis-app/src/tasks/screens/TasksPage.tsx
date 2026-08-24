@@ -377,6 +377,11 @@ export default function TasksPage({
           )}
         </div>
       )}
+      {/* This page had no foot spacer at all, so its last row sat under the
+          capture bar with nothing below it to scroll (2026-08-24 walk, which
+          found Add a Task permanently covered). Every other scrolling screen
+          in the app already ends with one. */}
+      <div className="screen-foot" />
     </div>
   );
 }

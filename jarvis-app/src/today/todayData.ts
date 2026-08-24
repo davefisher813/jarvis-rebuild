@@ -60,7 +60,17 @@ export function billsDueSoon(tasks: TaskItem[], today: string): TaskItem[] {
     .sort((a, b) => ((a.data.due as string) || "").localeCompare((b.data.due as string) || ""));
 }
 
-export function billsLine(tasks: TaskItem[], today: string): string | null {
+// TITLE AND SUB, NOT ONE SENTENCE (2026-08-24, page-by-page walk).
+//
+// This returned the whole thing as one string, and TodayPage passed it as the
+// card TITLE with no sub. Titles ellipsize by law, so "Rent ($2200) due
+// Wednesday" needed 253px in a 174px column and lost the word that made it
+// urgent: the reader saw a bill and not when it is due.
+//
+// Every other notice card on that page is one fact in the title and the rest
+// in the sub. This is now shaped the same, so nothing truncates and the day
+// is the thing that survives.
+export function billsLine(tasks: TaskItem[], today: string): { title: string; sub: string } | null {
   const due = billsDueSoon(tasks, today);
   if (due.length === 0) return null;
 
@@ -76,7 +86,13 @@ export function billsLine(tasks: TaskItem[], today: string): string | null {
   if (due.length === 1) {
     const t = due[0]!;
     const amt = t.data.bill?.amount;
-    return `${name(t)}${amt ? ` ($${amt})` : ""} due ${when(t.data.due as string)}`;
+    return {
+      title: name(t),
+      sub: `${amt ? `$${amt} · ` : ""}Due ${when(t.data.due as string)}`,
+    };
   }
-  return capAfterNumber(`${due.length} bills due soon`) + ` · ${due.map(name).join(", ")}`;
+  return {
+    title: capAfterNumber(`${due.length} bills due soon`),
+    sub: due.map(name).join(", "),
+  };
 }

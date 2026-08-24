@@ -159,7 +159,7 @@ export default function TodayPage({
   onSeeAllMail?: () => void;
   // The band and its head appear together or not at all.
   mailEmpty?: boolean;
-  billLine?: string; // bills due within 3 days, from billsLine (2026-08-09)
+  billLine?: { title: string; sub: string }; // bills due within 3 days, from billsLine (2026-08-09)
   onPayBill?: () => void; // marks the SOONEST due bill paid, with undo
   summary: DaySummary;
   todayEvents: EventItem[];
@@ -350,7 +350,8 @@ export default function TodayPage({
         weight={WAITING}
         icon={<DollarSign className="ic" />}
         tone="cat-fg-green"
-        title={billLine}
+        title={billLine.title}
+        sub={billLine.sub}
         // A bill card with no button is the same dead end the old email line
         // was: it tells him he owes money and stops. One tap marks it paid.
         action={onPayBill ? { label: "Mark Paid", onClick: onPayBill } : undefined}
