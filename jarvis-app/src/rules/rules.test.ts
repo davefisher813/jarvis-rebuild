@@ -82,6 +82,36 @@ describe("law: rules announce once, die on one contradiction, and delete cleanly
     expect(await svc.resolve("capture.category", "practice")).toBeNull();
   });
 
+  // RECORD-ONLY MODE (Dave's decision, 2026-08-24). Corrections are observed
+  // and rules are created so they can be judged in What JARVIS Learned, and
+  // nothing calls resolve(), so no rule ever acts. That means no rule is ever
+  // announced, and a contradiction toast about a rule he was never told
+  // existed would be the same lie as the strand toast that said the Brain was
+  // full when it was not.
+  it("a rule that was never announced dies quietly", async () => {
+    const { svc } = rig();
+    await makeRule(svc);
+    const seen: (ToastState | null)[] = [];
+    const un = subscribeToast((t) => seen.push(t));
+    await svc.recordCorrection("alias", "capture.category", "practice", "orgA", "contradiction");
+    expect(seen.filter(Boolean)).toEqual([]);
+    un();
+  });
+
+  // And the announcement still means something: once he HAS been told, taking
+  // it back out loud is the honest thing.
+  it("a rule he was told about says so when it dies", async () => {
+    const { svc } = rig();
+    const rule = await makeRule(svc);
+    await svc.announceIfFirstUse(rule);
+    hideToast();
+    const seen: (ToastState | null)[] = [];
+    const un = subscribeToast((t) => seen.push(t));
+    await svc.recordCorrection("alias", "capture.category", "practice", "orgA", "contradiction");
+    expect(seen.filter(Boolean).map((t) => t!.message).join(" ")).toMatch(/Forgot the rule/);
+    un();
+  });
+
   it("deleting the row fully reverts the behavior", async () => {
     const { svc, store } = rig();
     const rule = await makeRule(svc);

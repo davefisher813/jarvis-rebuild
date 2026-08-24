@@ -86,6 +86,28 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
     await reload();
   };
 
+  // STILL TRUE (Dave's call, 2026-08-24). The sheet has always PRINTED
+  // "Confirmed 12 Aug" and offered no way to confirm, so that date could only
+  // ever be the day the strand was created or last re-derived, and
+  // StrandsService.confirm() sat written and uncalled.
+  //
+  // A strand is a claim about him. Being able to say "yes, still" is the
+  // cheapest possible way to keep the Brain honest without deleting anything,
+  // and it is the only control on this sheet that is not a retreat: Edit says
+  // the words are wrong, Pause says not now, Delete says never. This one says
+  // right.
+  //
+  // Guarded, because an unguarded write that silently failed would leave the
+  // date unchanged under a toast saying it had been confirmed.
+  const doConfirm = async (s: Strand) => {
+    haptics.selection();
+    const ok = await attemptWrite(() => svc.confirm(s, today));
+    if (!ok) return;
+    setOpen(null);
+    await reload();
+    showToast({ message: "Confirmed" });
+  };
+
   const doPause = async (s: Strand) => {
     haptics.selection();
     await svc.setStatus(s, s.data.status === "active" ? "paused" : "active");
@@ -177,6 +199,9 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
               ))}
             </div>
             <div className="pad-x sheet-actions">
+              {/* First, and above Edit, because it is the affirmative one and
+                  the other three are all ways of taking something back. */}
+              <button className="btn btn-secondary btn-block" onClick={() => void doConfirm(open)}>Still True</button>
               <button className="btn btn-secondary btn-block" onClick={() => { setEditing(true); setText(open.data.text); }}>Edit</button>
               <button className="btn btn-secondary btn-block" onClick={() => void doPause(open)}>{open.data.status === "active" ? "Pause" : "Resume"}</button>
               <button className="btn btn-secondary btn-block btn-danger-text" onClick={() => void doDelete(open)}>Delete</button>

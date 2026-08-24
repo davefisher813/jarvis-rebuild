@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { EventItem } from "../types";
 import { planDay, type PlanBlock } from "../planDay";
 import { fmtTime } from "../calendar";
-import { catColor } from "../../shared/categories";
+import { catColor, catName } from "../../shared/categories";
+import { useOptionalRules } from "../../data/NotesProvider";
 import { FULL_DAY, type DaySizing } from "../daySizing";
 import { emit, eventLog } from "../../events";
 import { recordPicks, planRecord } from "../../events/planOutcome";
@@ -116,6 +117,9 @@ export default function PlanDaySheet({
   onClose: () => void;
   onAIPlan?: (picks: { id: string; text: string; category: string; overdue: boolean }[], startMin: number, endMin: number) => Promise<{ items: { id: string; minutes: number }[]; leanedOn: string[] }>;
 }) {
+  // Optional: the plan sheet renders in places that may sit outside the
+  // rules provider, and a missing store must mean "learn nothing", not a crash.
+  const rules = useOptionalRules();
   const [extra, setExtra] = useState<PlanCandidate[]>([]);
   const allTasks = useMemo(() => [...extra, ...tasks], [extra, tasks]);
 
@@ -347,6 +351,26 @@ export default function PlanDaySheet({
       const category = allTasks.find((t) => t.id === id)?.category ?? "";
       if (!category) continue;
       emit({ type: "plan.duration_corrected", entityType: "task", entityId: id, props: { category, n: delta } });
+      // A CORRECTION, RECORDED (2026-08-24). The AI estimated this task at
+      // `est` minutes and Dave committed something else. That is the tuning
+      // signal the learned-rules engine was built for and had never been
+      // given: recordCorrection had zero callers.
+      //
+      // The rule keys on the CATEGORY and resolves to the length he actually
+      // commits, so two identical overrides mean "Work means 90 minutes",
+      // not "Work runs 15 minutes long", because a rule has to answer a
+      // question at a decision point and the question is how long to book.
+      //
+      // RECORDING ONLY, by Dave's decision: nothing calls resolve(), so no
+      // plan is ever sized by a rule. The page fills so the rules can be
+      // judged before they are allowed to act.
+      if (rules) {
+        const mins = durFor(id);
+        void rules.recordCorrection(
+          "tuning", "plan.duration", category, String(mins),
+          `${catName(category)} estimated at ${est}m, committed at ${mins}m`,
+        ).catch(() => { /* the next identical override re-observes it */ });
+      }
     }
     for (const b of committed) {
       if (!b.category) continue;

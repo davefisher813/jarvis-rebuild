@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
-import { useTasks, useSchedule, useNotes, useCategories } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules } from "../data/NotesProvider";
+import { aliasTrigger } from "../rules/triggers";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import type { AIService } from "../ai/AIService";
 import type { Category } from "../categories/types";
@@ -52,6 +53,9 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
   const notes = useNotes();
   const categoriesSvc = useCategories();
   const gather = useAIContext();
+  // Optional: QuickCapture renders in surfaces that may sit outside the rules
+  // provider, and a missing store must mean "learn nothing", not a crash.
+  const rules = useOptionalRules();
 
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<"input" | "saving" | "saved">("input");
@@ -107,10 +111,36 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
     setSaved(saved.map((x) => (x.id === s.id ? next! : x)));
   };
 
+  // A CORRECTION, RECORDED (2026-08-24). Smart Paste read the text and chose
+  // a category; changing it here is the user saying that choice was wrong.
+  // That is the exact signal the learned-rules engine was built for and had
+  // never been given: recordCorrection had zero callers, so no rule was ever
+  // created and What JARVIS Learned could only ever be empty.
+  //
+  // RECORDING ONLY, by Dave's decision. Nothing calls resolve(), so no
+  // capture is ever categorised by a rule. The page fills with what JARVIS
+  // noticed so the rules can be judged before they are allowed to act.
+  //
+  // Three guards, all of them refusals:
+  //   - only when the category actually CHANGED, so re-tapping the current
+  //     chip is not evidence of anything
+  //   - only when the text carries a proper noun (see rules/triggers.ts); a
+  //     capture with no name in it teaches nothing
+  //   - after the write succeeds, never before, because a correction that
+  //     failed to save is not a correction
   const onCat = async (s: SavedEntity, categoryId: string) => {
+    const was = s.category;
     const ok = await attemptWrite(() => recategorizeSaved(s, categoryId, deps(cats)));
     if (!ok) return;
     setSaved(saved.map((x) => (x.id === s.id ? { ...x, category: categoryId } : x)));
+    if (was === categoryId) return;
+    const trigger = aliasTrigger(s.title);
+    if (!trigger || !rules) return;
+    const to = cats.find((c) => c.id === categoryId)?.data.name ?? categoryId;
+    // Never throws into the tap: learning is a side effect of the correction,
+    // and a storage failure must not make the recategorise look like it lost.
+    void rules.recordCorrection("alias", "capture.category", trigger, categoryId, `"${s.title}" moved to ${to}`)
+      .catch(() => { /* the next identical correction re-observes it */ });
   };
 
   return createPortal(

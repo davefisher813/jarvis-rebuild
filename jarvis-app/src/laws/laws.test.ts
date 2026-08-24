@@ -1108,19 +1108,20 @@ describe("LAW: a service method is called, or is listed as not", () => {
   ];
 
   // Written, and nothing calls it. Each owes a reason and is meant to go.
+  //
+  // Started at four on 2026-08-24 and is down to one the same day, which is
+  // what the list is for. confirm() got the Still True button the sheet had
+  // been missing; recordCorrection got two real correction points, and
+  // contradict came alive with it because recordCorrection calls it.
   const UNCALLED: Record<string, string> = {
-    // The Brain sheet PRINTS "Confirmed 12 Aug" and offers Edit, Pause and
-    // Delete. Nothing offers "still true", so the date it shows can only ever
-    // be the day the strand was created or last re-derived. Adding a fourth
-    // button to that sheet is a visible product change and Dave's call.
-    "StrandsService.confirm": "no affordance offers it: the Brain sheet has no Still True",
-    // The whole learned-rules engine. The settings page calls list() and
-    // nothing calls recordCorrection, so no rule is ever created, so the page
-    // can only ever be empty. Wire the correction points or remove the page:
-    // open decision, 2026-08-24.
-    "LearnedRulesService.recordCorrection": "nothing records a correction, so no rule is ever made",
-    "LearnedRulesService.announceIfFirstUse": "nothing applies a rule, so there is no first use",
-    "LearnedRulesService.contradict": "nothing applies a rule, so nothing can contradict one",
+    // The last one, and it is inert BY DECISION rather than by neglect. Dave
+    // chose record-only for the learned-rules engine: corrections are
+    // observed and rules are created so they can be judged in What JARVIS
+    // Learned, but nothing calls resolve(), so no rule ever acts. A rule that
+    // never acts has no first use to announce.
+    //
+    // This comes off the list the day resolve() gets a caller, and not before.
+    "LearnedRulesService.announceIfFirstUse": "record-only: nothing applies a rule, so there is no first use",
   };
 
   it("every service method is called from somewhere, or is named above", () => {
@@ -1157,5 +1158,60 @@ describe("LAW: a service method is called, or is listed as not", () => {
       if (SOURCES.some((f) => f !== file && call.test(read(f)))) stale.push(key + " IS called now, take it off the list");
     }
     expect(stale).toEqual([]);
+  });
+});
+
+// A RULE NEVER ACTS IN SILENCE (2026-08-24).
+//
+// rules/types.ts states the deal that licenses this whole engine: "Every rule
+// announces itself on first use. Visibility is what licenses creating it
+// without a tap." A rule is born from two corrections with no confirmation
+// step, so the announcement is the only thing standing between "JARVIS
+// learned something" and "the app changed my stuff and did not say so".
+//
+// Right now the engine is record-only by Dave's decision: corrections are
+// observed and rules are created so they can be judged in What JARVIS
+// Learned, and nothing calls resolve(), so no rule acts. That makes this law
+// vacuously true today, which is exactly when it is worth writing: the moment
+// someone wires resolve() to a decision point, this fails unless the
+// announcement is wired in the same commit.
+describe("LAW: applying a rule requires announcing it", () => {
+  const svc = join(SRC, "rules/LearnedRulesService.ts");
+  // Only files that actually HOLD a rules service count. Matching ".resolve("
+  // alone found Promise.resolve and four unrelated services, which is the
+  // kind of noise that gets a law muted.
+  const holdsRules = (t: string) => /useRules\(\)|useOptionalRules\(\)|LearnedRulesService/.test(t);
+  const callers = (method: string) =>
+    SOURCES.filter((f) => {
+      if (f === svc) return false;
+      const t = read(f);
+      return holdsRules(t) && new RegExp("\\." + method + "\\s*\\(").test(t);
+    }).map(rel);
+
+  it("nothing consults a rule without also announcing it on first use", () => {
+    const applies = callers("resolve");
+    const announces = callers("announceIfFirstUse");
+    // Not "somebody somewhere announces": the file that ACTS on a rule is the
+    // file that has to say so, because that is where first use happens.
+    const silent = applies.filter((f) => !announces.includes(f));
+    expect(silent, "these apply a learned rule without announcing it").toEqual([]);
+  });
+
+  // The correction points wired on 2026-08-24. Without them the engine is
+  // back to where it was: a settings page that can only ever be empty.
+  it("real corrections are still being recorded", () => {
+    const rec = callers("recordCorrection");
+    expect(rec).toContain("capture/QuickCapture.tsx");
+    expect(rec).toContain("schedule/screens/PlanDaySheet.tsx");
+  });
+
+  // The announcement fires on first USE. In record-only mode nothing is ever
+  // used, so nothing is ever announced, so a contradiction must die quietly:
+  // "Forgot the rule X" about a rule he was never told existed is the same
+  // lie as the strand toast that said the Brain was full when it was not.
+  it("a rule that was never announced dies without a toast", () => {
+    const src = read(svc);
+    const body = /async contradict\([\s\S]*?\n  \}/.exec(src)?.[0] ?? "";
+    expect(body, "contradict must guard its toast on announced").toMatch(/if\s*\(\s*rule\.data\.announced\s*\)/);
   });
 });
