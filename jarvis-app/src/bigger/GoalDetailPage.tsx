@@ -4,6 +4,8 @@ import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
 import type { GoalReach } from "./reach";
 import { reachLine, byDue } from "./reach";
+import type { MeasureState, Health } from "./measure";
+import { HEALTH_LABEL, HEALTH_CLASS } from "./measure";
 import { savingsLine, savingsPct, savedNewestFirst, savedTotal } from "./savings";
 import { catColor } from "../shared/categories";
 import { haptics } from "../shared/haptics";
@@ -38,6 +40,10 @@ export default function GoalDetailPage({
   tagged = [],
   onToggleTagged,
   canTag = false,
+  measure = null,
+  pace = null,
+  health,
+  onDrop,
   nextActionTextOf,
   suggestion,
   onBack,
@@ -59,6 +65,13 @@ export default function GoalDetailPage({
   // copied here: these are the same task records the Tasks tab renders.
   tagged?: TaggedTask[];
   onToggleTagged?: (id: string) => void;
+  // PICKS 13/14/15, all DERIVED by the flow and passed in whole so this page
+  // holds no second opinion about any of them.
+  measure?: MeasureState | null;
+  pace?: string | null;
+  health?: Health;
+  // PICK 17: putting a goal down on purpose, with the reason kept.
+  onDrop?: (why: string) => void;
   // True when the user actually has areas to pick from. Without it the empty
   // goal would be offered a door that opens onto nothing.
   canTag?: boolean;
@@ -94,6 +107,8 @@ export default function GoalDetailPage({
   // costs two taps and usually fills the goal immediately from work that
   // already exists.
   const empty = projects.length === 0 && !target && reach.taggedIds.length === 0;
+  const [dropOpen, setDropOpen] = useState(false);
+  const [dropWhy, setDropWhy] = useState("");
   const [savingsOpen, setSavingsOpen] = useState(false);
   const [savingsAmt, setSavingsAmt] = useState("");
   const savingsValid = Number.isFinite(Number(savingsAmt)) && Number(savingsAmt) > 0;
@@ -110,6 +125,11 @@ export default function GoalDetailPage({
         {/* proj-detail-title, not nav-large: goal titles run long and the
             34px screen-title size wraps them badly */}
         <div className="proj-detail-title">{goal.data.title}</div>
+        {/* PICK 15: HEALTH IS DERIVED, NEVER TYPED. GoalData.state has said
+            "on_track" since the day each goal was made and nothing has ever
+            updated it. This reads the same evidence the rest of the page
+            reads, at render time, and is never written back. */}
+        {health && <div className={"eyebrow " + HEALTH_CLASS[health]}>{HEALTH_LABEL[health]}</div>}
         {/* The ONLY place counts appear on this page. Honest null: a goal
             with no tasks under it yet says so instead of claiming 0%. A
             dollar target replaces the counts line with the DERIVED savings
@@ -123,8 +143,17 @@ export default function GoalDetailPage({
           </>
         ) : (
           <>
-            <div className="bp-sub">{reachLine(reach)}</div>
-            {progress && <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, progress.pct) + "%" }} /></div>}
+            {/* A finish line outranks the task fractions: "2 of 3 This week"
+                is what he asked to be measured on, and the task counts are
+                the machinery under it. Without one, reachLine still says the
+                honest thing about what the goal can see. */}
+            <div className="bp-sub">{measure ? measure.line : reachLine(reach)}</div>
+            {/* PICK 14: the arithmetic a date makes possible. Absent when
+                there is nothing to pace. */}
+            {pace && <div className="bp-sub">{pace}</div>}
+            {(measure || progress) && (
+              <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, measure ? measure.pct : progress!.pct) + "%" }} /></div>
+            )}
           </>
         )}
       </div></div>
@@ -249,7 +278,7 @@ export default function GoalDetailPage({
             work all done     -> ask, do not assert
             work outstanding  -> the quiet tier; finishing early is allowed,
                                  it is just not the shouted move */}
-      {onAchieve && goal.data.state !== "achieved" && (
+      {onAchieve && goal.data.state !== "achieved" && !goal.data.dropped && (
         <div className="pad-x conn-action">
           {empty
             ? (canTag
@@ -260,6 +289,51 @@ export default function GoalDetailPage({
               : <button className="btn btn-block" onClick={onAchieve}>Mark Achieved</button>}
         </div>
       )}
+
+      {/* PICK 17: DROPPING A GOAL WRITES A DECISION (Dave 2026-08-22).
+          Deleting one threw away the only part worth keeping. Six weeks later
+          the question is never "what was that goal called", it is "why did I
+          stop", and the app had no answer because there was nothing left to
+          ask. Dropping now writes a Decision Record linked to the goal, and
+          the goal itself is KEPT: it stops counting as live, it stops
+          nagging from Today, and its reason is one tap away forever.
+
+          Quiet tier, always: putting something down is a legitimate move and
+          the app should not argue, but it is never the shouted one. */}
+      {onDrop && !goal.data.dropped && goal.data.state !== "achieved" && (
+        <div className="pad-x conn-action">
+          <button className="btn btn-block" onClick={() => { setDropWhy(""); setDropOpen(true); }}>Drop This Goal</button>
+        </div>
+      )}
+      {goal.data.dropped && (
+        <div className="pad-x conn-action">
+          <div className="conn-meta">Dropped {monthDay(goal.data.dropped.on)} · The reason is in your decisions</div>
+        </div>
+      )}
+      {dropOpen && onDrop && createPortal(
+        <div className="sheet-scrim" onClick={() => setDropOpen(false)}>
+          <div className="card" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            <div className="grp"><div className="eyebrow">Drop This Goal</div></div>
+            <div className="pad-x sheet-form">
+              <div className="field">
+                <div className="input-label">Why</div>
+                <input className="input" placeholder="e.g. the season ended" value={dropWhy} onChange={(e) => setDropWhy(e.target.value)} />
+                {/* Never disabled. A reason you cannot articulate at 11pm is
+                    still a real reason, and a Save that refuses to save is
+                    how a record stops getting written at all. */}
+                <div className="input-hint">Optional. Whatever you write is kept with the decision.</div>
+              </div>
+            </div>
+            <div className="pad-x sheet-actions">
+              <button className="btn btn-primary btn-block" onClick={() => { onDrop(dropWhy.trim()); setDropOpen(false); }}>Drop It</button>
+              <button className="btn btn-secondary btn-block" onClick={() => setDropOpen(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
     </div>
   );
 }

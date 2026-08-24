@@ -114,7 +114,10 @@ export default function BiggerPicturePage({
 
       <div className="sh2"><span className="t">Working Toward</span></div>
       <div><div className="list-flat">
-        {rankGoals(goals.map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g, reach: r }; }))
+        {/* PICK 17: a dropped goal is not something he is working toward. It
+            keeps its record, its history and its reason (reachable from the
+            decision it wrote), and it leaves this list. */}
+        {rankGoals(goals.filter((g) => !g.data.dropped).map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g, reach: r }; }))
           .map(({ goal: g, progress: p, reach: r }) => {
           return (
             <div className="row bp-goal" role="button" tabIndex={0} key={g.id} onClick={() => onOpenGoal(g.id)}>

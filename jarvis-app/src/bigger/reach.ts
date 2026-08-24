@@ -42,9 +42,14 @@ export function goalTags(goal: Goal): string[] {
   return (goal.data.tags ?? []).map((t) => (t ?? "").trim()).filter(Boolean);
 }
 
-/** Goals that can still be moved. An achieved goal is not "moved" by anything. */
+/**
+ * Goals that can still be moved. An achieved goal is not "moved" by anything,
+ * and neither is one that was put down on purpose (pick 17): a dropped goal
+ * keeps its record and its reason, but it stops counting, stops ranking, and
+ * stops nudging from Today.
+ */
 export function liveGoals(goals: Goal[]): Goal[] {
-  return goals.filter((g) => g.data.state !== "achieved");
+  return goals.filter((g) => g.data.state !== "achieved" && !g.data.dropped);
 }
 
 export interface GoalReach {

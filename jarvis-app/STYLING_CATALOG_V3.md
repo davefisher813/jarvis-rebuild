@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.18 (2026-08-24)
+# JARVIS Styling Catalog V4.19 (2026-08-24)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -447,6 +447,22 @@ Dave: "it's the mother of tasks so why does it feel [absent] at all?" Because To
 **EVERY DAY PILL DECLARES ITS LIGHT INK.** The pills are the palette colour on a 16% tint of themselves, which composites near-black in dark and to a pale wash in light. Sky once measured 1.6:1 there. A pill without a `[data-theme="light"]` ink is now a failing test, not a sweep finding.
 
 **THE INVISIBLE BAR.** Found while wiring C: `.proj-detail-hero` is a column flexbox with `align-items: center`, so `.bp-bar`, a block with no intrinsic width, measured 0px. Both bars that card can show, task progress and the Money v1 savings bar, had rendered as a 4px-tall nothing since the card was written.
+
+## BP4. A goal with a finish line (V4.19, Dave's picks 13, 14, 15, 17, built 2026-08-24)
+
+**A GOAL KNOWS WHAT DONE MEANS.** "Run three times a week" had no idea what three, or a week, referred to. Four finish lines, each DERIVED from evidence the app already holds: **count** (a number of things done), **cadence** (N times per week or month, counted from Time Sense completions inside the window), **projects** (every project under it closed), and **amount** (Money v1's dollar target, older than this and left where it is). The bar tracks the MEASURE once one exists; the task fractions become the machinery underneath.
+
+**A COUNT COUNTS FORWARD.** Setting a count stamps the day. Tagged completions count from that day on; filed completions count in full, because filing is deliberate. Without the stamp, "read 12 books" on a goal watching Reading opens at 40 of 12: the same history exposure architecture C closed, arriving from the other direction. Law-tested.
+
+**A DATE IS ARITHMETIC, NOT A WISH.** A date with a finish line produces a rate: "12 To go · About 0.8 a week", or "Due in 6 days" when it is close, or "Past its date" when it is gone. A cadence has no end date, it has a rhythm, so it is never paced.
+
+**COPY IS PHRASED FOR THE CASING LAW, NOT AROUND IT.** "2 a week" becomes "2 A week" under the number-lead rule, and "6 days left" becomes "6 Days left", the capitalized UNIT the rule's own exemption list exists to avoid. Leading the segment with a word ("About 2 a week", "Due in 6 days") costs nothing and reads correctly.
+
+**HEALTH IS DERIVED, NEVER TYPED.** `GoalData.state` has held whatever each goal was created with since Session 6; nothing has ever updated it. The goal header now derives **Done / On Track / Behind / Idle / No Measure** at render time and writes nothing back. Behind is claimable only against BOTH a date and a finish line, or a rhythm more than half through a window it is not half way into: without both there is no pace to be behind of and saying so is a guess. Idle needs POSITIVE evidence of neglect (seen completions, and the latest older than 14 days); silence on a device-local log says nothing, exactly as `isStalled` has always treated projects. Law-tested against a goal whose stored state lies.
+
+**DROPPING A GOAL WRITES A DECISION (pick 17).** Deleting one threw away the only part worth keeping: six weeks later the question is never what the goal was called, it is why you stopped. Drop writes a Decision Record linked to the goal, and KEEPS the goal: it leaves Working Toward, stops nudging from Today, moves nothing, and its reason stays one tap away. The decision is written FIRST, then the goal is marked, because a goal marked dropped with no record of why is the exact state the feature exists to prevent. Law-tested on the ordering. The Why field is never required: a reason you cannot articulate at 11pm is still a reason, and a Save that refuses to save is how a record stops getting written at all.
+
+**THE DESTRUCTIVE MOVE IS LAST.** Drop sits below the achieve offer, not above it. Encountering "Drop This Goal" before "Choose Its Areas" reads as the app's recommendation.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 

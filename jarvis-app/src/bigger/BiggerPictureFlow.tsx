@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useProjects, useCategories, useGoals, useTasks, useNotes } from "../data/NotesProvider";
+import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions } from "../data/NotesProvider";
 import type { Project, ProjectData } from "../projects/types";
 import type { Goal, GoalData } from "../life/types";
 import type { Category } from "../categories/types";
@@ -13,6 +13,8 @@ import { attemptWrite } from "../shared/guard";
 import GoalSheet from "../life/GoalSheet";
 import { rankProjects } from "./progress";
 import { reachOf, type GoalReach } from "./reach";
+import { measureState, paceLine, healthOf, type MeasureContext } from "./measure";
+import { openWorkOf } from "../today/goalPulse";
 import GoalDetailPage from "./GoalDetailPage";
 import { relatedProjectsForGoal, nextActionOf, isLinkDismissed, dismissLink } from "./related";
 import { stalledCandidate, dismissProjStep } from "./stalled";
@@ -51,6 +53,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   const catsSvc = useCategories();
   const tasksSvc = useTasks();
   const notesSvc = useNotes();
+  const decisionsSvc = useDecisions();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -267,6 +270,32 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
 
   // ---- Goal detail (Session 6.6): the goal as a place ----
   const goalDetail = goalDetailId ? goals.find((g) => g.id === goalDetailId) : undefined;
+  // PICKS 13/14/15: one context, one derivation, handed to the page whole.
+  const measureCtxFor = useCallback((g: Goal): MeasureContext => ({
+    reach: reachOfGoal(g.id),
+    tasks,
+    projects: projects.filter((p) => p.data.goalId === g.id),
+    samples,
+    today,
+    now: Date.now(),
+  }), [reachOfGoal, tasks, projects, samples, today]);
+  const goalMeasure = goalDetail ? measureState(goalDetail.data.measure, measureCtxFor(goalDetail)) : null;
+  // PICK 17: the drop writes the decision FIRST, then marks the goal. Order
+  // matters for the same reason the meeting booking's does: a goal marked
+  // dropped with no record of why is exactly the state this feature exists
+  // to prevent, and it is the unrecoverable half.
+  const dropGoal = async (g: Goal, why: string) => {
+    const decisionId = await decisionsSvc.create({
+      decision: "Dropped " + g.data.title,
+      ...(why ? { why } : {}),
+      linkedType: "goal", linkedId: g.id, linkedLabel: g.data.title,
+    });
+    const ok = await attemptWrite(() => goalsSvc.update(g.id, { ...g.data, dropped: { on: today, ...(decisionId ? { decisionId } : {}) } }));
+    if (!ok) return;
+    setGoalDetailId(null);
+    await reload();
+    showToast({ message: decisionId ? "Dropped · The reason is in your decisions" : "Dropped" });
+  };
   const goalProjects = goalDetail ? projects.filter((p) => p.data.goalId === goalDetail.id) : [];
   // The watched work, flattened for the page. Same records, seen through the
   // goal's areas: ticking one here finishes the task everywhere.
@@ -413,6 +442,10 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
         <GoalDetailPage
           goal={goalDetail}
           reach={reachOfGoal(goalDetail.id)}
+          measure={goalMeasure}
+          pace={paceLine(goalMeasure, goalDetail.data.measure, goalDetail.data.by, today)}
+          health={healthOf(goalDetail, goalMeasure, goalDetail.data.measure, measureCtxFor(goalDetail), openWorkOf(reachOfGoal(goalDetail.id)))}
+          onDrop={(why) => void dropGoal(goalDetail, why)}
           projects={goalProjects}
           canTag={categories.length > 0}
           tagged={goalTagged}

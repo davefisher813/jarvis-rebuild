@@ -93,11 +93,15 @@ export async function seedDemoData(
     // that claims "Call Ridgeline About the Field" moves date night is the
     // exact nonsense a too-broad watch list produces. Books carries neither,
     // so the empty state is on screen too.
-    await goals.create({ title: "Run three times a week", state: "on_track", areaId: health ?? undefined, tags: [cat("Health")] });
-    await goals.create({ title: "Ship the App Store Launch", state: "steady", areaId: career ?? undefined, tags: [cat("Work")] });
+    // FINISH LINES (picks 13/14). Each one is the measure the goal's own
+    // TITLE already names, which is the point: a goal called "run three times
+    // a week" knew nothing about three, or about a week. Date night carries
+    // none, so the unmeasured state is on screen too.
+    await goals.create({ title: "Run three times a week", state: "on_track", areaId: health ?? undefined, tags: [cat("Health")], measure: { kind: "cadence", times: 3, per: "week" } });
+    await goals.create({ title: "Ship the App Store Launch", state: "steady", areaId: career ?? undefined, tags: [cat("Work")], measure: { kind: "projects" } });
     await goals.create({ title: "Weekly date night", state: "on_track", areaId: rel ?? undefined });
-    await goals.create({ title: "Build a six-month runway", state: "at_risk", areaId: fin ?? undefined, tags: [cat("Money")] });
-    await goals.create({ title: "Read twelve books", state: "steady", areaId: growth ?? undefined });
+    await goals.create({ title: "Build a six-month runway", state: "at_risk", areaId: fin ?? undefined, tags: [cat("Money")], moneyTarget: 24000 });
+    await goals.create({ title: "Read twelve books", state: "steady", areaId: growth ?? undefined, measure: { kind: "count", target: 12, since: today }, by: addDays(today, 120) });
   }
 
   if ((await projects.list()).length === 0) {

@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { reachOf } from "../bigger/reach";
 import { movesLine } from "../today/goalPulse";
+import { healthOf, measureState } from "../bigger/measure";
 
 // THE LAWS, AS TESTS.
 //
@@ -962,6 +963,48 @@ describe("LAW: stored shapes are versioned", () => {
     const filed = [{ id: "t4", data: { text: "d", category: "health", done: true, projectId: "p" } }];
     const p = [{ id: "p", data: { title: "P", status: "active" as const, goalId: "g" } }];
     expect(reachOf([...mixed, ...filed], p, goal).progress).toEqual({ done: 1, total: 1, pct: 100 });
+  });
+
+  // PICK 15, HEALTH IS DERIVED AND NEVER TYPED (Dave 2026-08-22).
+  // GoalData.state has said whatever the goal was created with since Session
+  // 6, and nothing anywhere updates it. A self-reported dashboard decaying
+  // into confident nonsense is the oldest rule on this surface, and the goal
+  // header was the last place still breaking it. Behavioural: a goal whose
+  // stored state claims on_track, whose date has passed and whose finish line
+  // is nowhere near, must read behind.
+  it("a goal's health comes from evidence, not from its stored state", () => {
+    const stale = { id: "g", data: { title: "G", state: "on_track" as const, by: "2026-01-01" } };
+    const ctx = {
+      reach: { filedIds: [], taggedIds: [], openTagged: 0, progress: null },
+      tasks: [], projects: [], samples: [], today: "2026-08-24", now: Date.parse("2026-08-24T12:00:00Z"),
+    };
+    const state = { done: 1, target: 12, pct: 8, met: false, line: "" };
+    expect(healthOf(stale, state, { kind: "count", target: 12 }, ctx, 4)).toBe("behind");
+  });
+
+  // PICK 13, A COUNT NEVER INHERITS THE HISTORY BEHIND IT. The same exposure
+  // architecture C closed from the other direction: set "read 12 books" on a
+  // goal watching Reading and, without the stamp, it opens at 40 of 12.
+  it("a count measure counts forward from the day it was set", () => {
+    const day = Date.parse("2026-08-24T12:00:00Z");
+    const base = {
+      reach: { filedIds: [], taggedIds: ["x"], openTagged: 0, progress: null },
+      tasks: [], projects: [], today: "2026-08-24", now: day,
+      samples: [{ id: "x", t: day - 400 * 86400000 }],
+    };
+    expect(measureState({ kind: "count", target: 12 }, base)!.done).toBe(0);
+    expect(measureState({ kind: "count", target: 12, since: "2020-01-01" }, base)!.done).toBe(1);
+  });
+
+  // PICK 17, THE REASON IS WRITTEN BEFORE THE GOAL IS MARKED. A goal marked
+  // dropped with no record of why is the exact state the feature exists to
+  // prevent, and it is the unrecoverable half: the same ordering rule the
+  // meeting booking follows (calendar first, then the reply).
+  it("dropping a goal writes its decision first", () => {
+    const src = read(SRC + "/bigger/BiggerPictureFlow.tsx");
+    const drop = src.slice(src.indexOf("const dropGoal"), src.indexOf("const dropGoal") + 900);
+    expect(drop).toMatch(/decisionsSvc\.create/);
+    expect(drop.indexOf("decisionsSvc.create")).toBeLessThan(drop.indexOf("dropped: {"));
   });
 
   // PICK 31, LINEAGE ONLY WHEN IT MATTERS (Dave 2026-08-22). "Moves Ship the

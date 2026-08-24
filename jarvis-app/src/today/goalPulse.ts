@@ -158,7 +158,7 @@ export function untouchedGoal(
   }
   return (
     goals
-      .filter((g) => g.data.state !== "achieved")
+      .filter((g) => g.data.state !== "achieved" && !g.data.dropped)
       .filter((g) => !covered.has(g.id))
       .filter((g) => !isGoalNudgeDismissed(g.id, todayIso, store))
       .map((g) => ({ g, open: openWorkOf(reachOf(g.id)) }))

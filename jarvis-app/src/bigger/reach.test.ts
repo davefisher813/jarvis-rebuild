@@ -157,3 +157,17 @@ describe("byDue", () => {
     expect(byDue(rows).map((r) => r.id)).toEqual(["a", "b"]);
   });
 });
+
+describe("liveGoals and pick 17", () => {
+  it("a dropped goal stops counting as live, and keeps its record", () => {
+    const all = [goal("a"), goal("b", { dropped: { on: "2026-08-24" } }), goal("c")];
+    expect(liveGoals(all).map((g) => g.id)).toEqual(["a", "c"]);
+    // Still there, still holding its reason.
+    expect(all[1]!.data.dropped?.on).toBe("2026-08-24");
+  });
+  it("a dropped goal moves nothing, so no task points at it", () => {
+    const projects = [proj("p1", { goalId: "gone" })];
+    const idx = buildGoalIndex(projects, liveGoals([goal("gone", { dropped: { on: "2026-08-24" } })]));
+    expect(goalIdsForTask(idx, task("a", { projectId: "p1" }))).toEqual([]);
+  });
+});
