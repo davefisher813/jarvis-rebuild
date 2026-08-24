@@ -247,7 +247,8 @@ export default function MailNotices({
       {/* The rest of the inbox is a receipt: it reports, it does not ask. */}
       {residual && (
         <button data-receipt className="receipt-line" onClick={onOpenEmail}>
-          {residual} · Nothing urgent
+          <span className="rl-t">{residual} · Nothing urgent</span>
+          <span className="chev" />
         </button>
       )}
     </>

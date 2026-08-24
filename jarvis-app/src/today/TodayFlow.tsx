@@ -982,8 +982,12 @@ export default function TodayFlow({
             </div>
             <div className="rail-stops">
               <div className="rail-stop">
-                <div className="conn-name">Now</div>
-                <div className="conn-meta">{shortSpan(nowCtx.gapMin)} open</div>
+                {/* MERGE B (2026-08-24): this said "Now" directly under a
+                    section head that says NOW. Two lines to state one word
+                    that was already on screen. The gap is the fact worth
+                    having here, so it takes the name and the second line
+                    goes away with the repetition. */}
+                <div className="conn-name">{shortSpan(nowCtx.gapMin)} open</div>
               </div>
               <div className="rail-stop">
                 <div className="conn-name truncate">{nowCtx.nextTitle ?? "Next Up"}</div>
@@ -1049,8 +1053,11 @@ export default function TodayFlow({
           // him the one-tap way in instead of stating the time and stopping.
           <div className="row">
             <div className="momentum-actions">
+              {/* MERGE B: Plan My Day used to sit here as well as in the
+                  day's own button row a few hundred pixels below, which is
+                  the same verb twice in one section. This card is about the
+                  next few minutes; planning the day belongs to the day. */}
               <button className="pill-act" onClick={() => setUpNextOpen(true)}>Pick Something</button>
-              <button className="btn-sm" onClick={() => void openPlan("today")}>Plan My Day</button>
             </div>
           </div>
         )}
@@ -1175,7 +1182,8 @@ export default function TodayFlow({
     // One quiet line; tapping it opens the pile it describes.
     back ? (
       <button key="back" data-receipt className="receipt-line" onClick={() => setUpNextOpen(true)}>
-        {back.title} · {back.sub}
+        <span className="rl-t">{back.title} · {back.sub}</span>
+        <span className="chev" />
       </button>
     ) : null,
     revisit ? (

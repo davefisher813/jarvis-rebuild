@@ -501,6 +501,22 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .block-held { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-1h) 0; background: 0; border: 0; width: 100%; text-align: left; font-family: var(--f); }
 .block-held-t { color: var(--tx-1); font-size: var(--t-body); flex: 1; min-width: 0; }
 .block-held-u { color: var(--tx-3); font-size: var(--t-meta); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+/* A proposal nested inside its holding block (2026-08-24). Same hollow
+   vocabulary the proposed ROW uses out in the timeline: a dashed or hollow
+   mark means "not real yet", so the nested version needs no new idea, only
+   the small form of the one already on screen. */
+.block-held-prop .block-held-t { color: var(--tx-2); }
+
+/* MERGE B + I3 (2026-08-24). The band under the Now head, and the line that
+   admits an empty evening. Quiet by design: the accent on the head above is
+   what makes Now the one loud thing on the page, so its own divider must not
+   compete with it. */
+.day-band { font-family: var(--f); font-size: var(--t-eyebrow); font-weight: var(--w-semi);
+  letter-spacing: var(--track-eyebrow); text-transform: uppercase; color: var(--tx-4);
+  padding: var(--s-4) var(--s-4) var(--s-2); }
+.day-clear { color: var(--tx-3); font-size: var(--t-meta); padding-bottom: var(--s-3); }
+.cat-dot-hollow { width: 10px; height: 10px; border-radius: var(--r-circle);
+  flex-shrink: 0; background: transparent; border-width: 1.5px; border-style: dashed; }
 .block-add { display: block; margin-top: var(--s-1h); background: 0; border: 0; padding: var(--s-1h) 0; font-family: var(--f);
   font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent-chrome); text-align: left; }
 .sched-lock-title { display: flex; align-items: center; gap: var(--s-1h); }
@@ -1522,7 +1538,19 @@ button {
    line under the stream. Furniture is for decisions. */
 .receipt-line { font-size: var(--t-eyebrow); letter-spacing: 0.02em;
   color: var(--tx-4); padding: var(--s-1) var(--s-4) 0; white-space: nowrap; overflow: hidden;
-  text-overflow: ellipsis; background: none; border: 0; width: 100%; text-align: left; }
+  text-overflow: ellipsis; background: none; border: 0; width: 100%; text-align: left;
+  position: relative; display: flex; align-items: center; gap: var(--s-2); }
+/* I5 (2026-08-24). Every one of these is a <button> that opens something,
+   and all four rendered as the dimmest text on the screen with no affordance
+   at all. That is precisely the note Dave wrote against the first visual
+   six: "this looks nothing like something to click on, just floating text".
+   A chevron is the honest signal here, because what these do IS "there is
+   more" - the Noticed whisper opens a card with a real verb behind it. It
+   stays dim; the glyph does the work, not colour. */
+.receipt-line .rl-t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.receipt-line .chev { flex-shrink: 0; }
+/* Painted at about 19px, which is a bad target and well under --tap-min. */
+.receipt-line::after { content: ""; position: absolute; inset: -14px 0; }
 /* The quiet line: words whisper, data pops. Bright tabular data in the time
    face; heat only where a producer's own thresholds say so. */
 .qd { font-variant-numeric: tabular-nums;
@@ -1878,6 +1906,17 @@ button {
   text-transform: uppercase; color: var(--accent-chrome); }
 .sh2::after { content: ""; order: 1; flex: 1; border-top: 1px dotted rgba(250, 35, 59, 0.35); align-self: center; }
 .sh2 .n { order: 2; font-size: var(--t-eyebrow); font-weight: var(--w-bold); color: var(--tx-3); letter-spacing: var(--track-caps); }
+/* I3 (2026-08-24, Dave's screenshot): SIX identical red heads down one
+   screen. When every head shouts, none of them does, and the accent stops
+   meaning "look here" exactly the way a second filled red does. Same
+   argument as the one-fill-per-screen law, applied to the other red.
+
+   Today keeps ONE accent head, Now, because it is the only section on the
+   page about this minute. Every other head takes this modifier and recedes
+   into a spine. The dotted rule goes with it: a grey label under a red rule
+   is still a red head. */
+.sh2.sh2-quiet .t { color: var(--tx-3); }
+.sh2.sh2-quiet::after { border-top-color: var(--divider); }
 /* Today's brand bar rides the same chassis: sticky, glass on condense. */
 .today-pagebar .today-bar { padding-top: 0; height: 44px; width: 100%; }
 .sched-list.drop-target { outline: 2px solid var(--red); outline-offset: -2px; border-radius: var(--r-md); }
@@ -2045,6 +2084,14 @@ button {
 .rem-name { font-size: var(--t-h3); color: var(--tx-1); }
 .rem-row.missed .rem-time { color: var(--tx-1); font-weight: var(--w-semi); }
 .rem-row.done .rem-name { color: var(--tx-4); text-decoration: line-through; }
+/* A FINISHED REMINDER RECEDES (2026-08-24). `.cb.on` fills with `--sel-bg`,
+   which in dark is near-white, so the done row wore the brightest element in
+   the section while its own text was struck through and dimmed: the row said
+   "ignore me" and the box said "look here". This strip's header already
+   argues the same way about missed reminders, which mark their time rather
+   than reddening the row, because it should be findable and not accusatory.
+   Done should be quieter still. */
+.rem-row.done .cb.on { background: var(--press-5); border-color: var(--press-5); color: var(--tx-4); }
 .rem-row.done .rem-time { color: var(--tx-4); }
 
 /* SCHEDULE WAVE 1 (Dave 2026-08-19: "the schedule is still way too difficult
@@ -2180,6 +2227,14 @@ button {
    expanded past the paint rather than the pill being made fatter, so the
    design is unchanged and the thumb gets what Apple asks for. */
 .pill-act::after { content: ""; position: absolute; inset: -9px 0; }
+/* A PILL MAY NEVER EAT ITS ROW (2026-08-24).
+   flex-shrink:0 is right: a verb must not be squeezed into two lines by a
+   long title. But with no ceiling it worked the other way too, and a
+   40-character label collapsed the title column to one letter per line on
+   Dave's phone. The label producer was the real bug and is fixed, but a
+   producer is a thing that changes, and the row should survive the next one.
+   9.5rem fits every sanctioned verb in the app with room to spare. */
+.pill-act { max-width: 9.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 
 /* V4 WRITING CANVAS (Dave 2026-08-18: "feel like an actual writing app...

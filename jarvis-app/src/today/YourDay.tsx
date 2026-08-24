@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { EventItem } from "../schedule/types";
 import { fmtTime, fmtDistance, minToHHMM } from "../schedule/calendar";
 import { catColor, catName } from "../shared/categories";
 import { isPast } from "./todayData";
 import { EventWeatherLine } from "../weather/WeatherLine";
 import ProposedRow from "../schedule/screens/ProposedRow";
+import { holdersIn, holderFor, holderKey, spanOf, type HoldRange } from "../schedule/nesting";
 import type { PlanBlock } from "../schedule/planDay";
 
 // A standing proposal for this day, plus the handlers that edit it. Absent
@@ -25,7 +26,12 @@ const WINDOW = 252; // ticker viewport height (px), matches .sched-ticker
 // Pausing the day ticker survives leaving Today and coming back.
 const TICKER_KEY = "jarvis.today.ticker.v1";
 
-export interface LockedRange { s: number; e: number; label: string }
+// ONE SHAPE (2026-08-24). This used to be a local `{ s, e, label }`, which
+// silently discarded the `kind` and `mode` fields that say whether a block
+// HOLDS work. The data always arrived (protectedRangesFor supplies it); the
+// type threw it away, which is why nesting could not even be asked about on
+// this screen. Re-exported under the old name so callers are unchanged.
+export type LockedRange = HoldRange;
 
 function Row({ ev, past, dist, onOpen }: { ev: EventItem; past: boolean; dist: string | null; onOpen?: () => void }) {
   const t = fmtTime(ev.data.start);
@@ -57,17 +63,32 @@ const todayISODate = () => {
 };
 
 // A protected block from Your Routine, real on the day view. Tap edits the routine.
-function LockedRow({ l, past, onOpen }: { l: LockedRange; past: boolean; onOpen?: () => void }) {
+// I2 (2026-08-24, Dave: the word Protected appeared four times down one
+// screenshot). Every one of those rows already carried a lock glyph saying
+// exactly that, so the word was the same fact twice on one row and four times
+// on one screen. The line it occupied now carries something the row did NOT
+// say before: when the block ends.
+//
+// A HOLDING block gets no lock, because it is not protecting time FROM work,
+// it is collecting work into itself. That is also how the Schedule tab
+// already draws it.
+function LockedRow({ l, past, onOpen, children }: { l: LockedRange; past: boolean; onOpen?: () => void; children?: ReactNode }) {
   const t = fmtTime(minToHHMM(l.s));
+  const end = fmtTime(minToHHMM(l.e));
+  const holds = holdersIn([l]).length > 0;
   return (
     <div className={"sched-row sched-locked" + (past ? " past" : "")} role="button" tabIndex={0} onClick={onOpen}>
       <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
       <div className="sched-body">
         <div className="sched-title sched-lock-title">
-          <svg className="ic lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+          {!holds && (
+            <svg className="ic lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+          )}
           {l.label}
         </div>
-        <div className="sched-cat">Protected</div>
+        <div className="sched-cat">Until {end.time} {end.ap}</div>
+        {/* The work this block is holding, at its own times. */}
+        {children}
       </div>
     </div>
   );
@@ -75,7 +96,7 @@ function LockedRow({ l, past, onOpen }: { l: LockedRange; past: boolean; onOpen?
 
 // One full pass of the day: events + protected blocks in time order, with the
 // Now line inserted at the right spot and time-as-distance on the next event.
-function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {}, proposed }: { events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void; onEditRoutine?: () => void; blendMap?: BlendMap; proposed?: ProposedDay }) {
+function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {}, proposed, fromMin }: { events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void; onEditRoutine?: () => void; blendMap?: BlendMap; proposed?: ProposedDay; fromMin?: number }) {
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
   const nowMin = toMin(now);
   // The distance label ("in 40 minutes") counts down to a COMMITMENT. A
@@ -85,17 +106,55 @@ function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine
     | { kind: "event"; ev: EventItem; s: number }
     | { kind: "locked"; l: LockedRange; s: number }
     | { kind: "proposed"; b: PlanBlock; s: number };
+  // NESTING (2026-08-24, Dave on a screenshot: "the tasks should be inside
+  // deep work. That's another bug"). A focus block PULLS TASKS IN by design,
+  // so a task the planner deliberately placed into Deep Work rendering as an
+  // unrelated row at the same minute reads as a clash instead of a plan.
+  //
+  // The Schedule tab already nested committed events. It did NOT nest
+  // proposals, and this screen nested neither. One helper, both kinds, both
+  // surfaces.
+  const holders = holdersIn(locked);
+  const heldEv = new Map<string, EventItem[]>();
+  const heldProp = new Map<string, PlanBlock[]>();
+  const nested = new Set<string>();
+  for (const ev of events) {
+    const h = holderFor(holders, ...spanOf(ev.data.start, ev.data.end));
+    if (!h) continue;
+    const k = holderKey(h);
+    heldEv.set(k, [...(heldEv.get(k) ?? []), ev]);
+    nested.add("e:" + ev.id);
+  }
+  for (const b of proposed?.blocks ?? []) {
+    const h = holderFor(holders, ...spanOf(b.start, b.end));
+    if (!h) continue;
+    const k = holderKey(h);
+    heldProp.set(k, [...(heldProp.get(k) ?? []), b]);
+    nested.add("p:" + b.taskId);
+  }
+
   const entries: Entry[] = [
-    ...events.map((ev): Entry => ({ kind: "event", ev, s: toMin(ev.data.start) })),
+    ...events.filter((ev) => !nested.has("e:" + ev.id))
+      .map((ev): Entry => ({ kind: "event", ev, s: toMin(ev.data.start) })),
     ...locked.map((l): Entry => ({ kind: "locked", l, s: l.s })),
     // Proposals join the SAME sort, not a separate list below the day. That
     // is the whole point: one schedule, in time order.
-    ...(proposed?.blocks ?? []).map((b): Entry => ({ kind: "proposed", b, s: toMin(b.start) })),
+    ...(proposed?.blocks ?? []).filter((b) => !nested.has("p:" + b.taskId))
+      .map((b): Entry => ({ kind: "proposed", b, s: toMin(b.start) })),
   ].sort((a, b) => a.s - b.s);
   // Insert the Now line by minutes, simple and correct with locked rows mixed in.
   const out: JSX.Element[] = [];
-  let nowPlaced = false;
-  entries.forEach((en, i) => {
+  // MERGE B (2026-08-24). With Now promoted to this section's head, the list
+  // below it is "the rest of today", so anything that has already STARTED is
+  // either finished or is the thing the head is describing. Either way it is
+  // not the rest of the day, and drawing it again is the duplication the
+  // merge exists to remove.
+  //
+  // No coordination with the head is needed for that: "has started" is
+  // s < now, which is exactly what the head can be showing.
+  const shown = fromMin === undefined ? entries : entries.filter((en) => en.s >= fromMin);
+  let nowPlaced = fromMin !== undefined; // the head IS the now line
+  shown.forEach((en, i) => {
     if (!nowPlaced && en.s >= nowMin) { out.push(<NowLine key="now" label={nowLabel} />); nowPlaced = true; }
     if (en.kind === "event") {
       out.push(<Row key={en.ev.id} ev={en.ev} past={isPast(en.ev, now)} dist={en.ev.id === nextId ? fmtDistance(en.ev.data.start, now) : null} onOpen={onOpenEvent ? () => onOpenEvent(en.ev.id) : undefined} />);
@@ -128,10 +187,41 @@ function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine
         />,
       );
     } else {
-      out.push(<LockedRow key={"lock-" + i} l={en.l} past={en.l.e <= nowMin} onOpen={onEditRoutine} />);
+      const k = holderKey(en.l);
+      const evs = heldEv.get(k) ?? [];
+      const props = heldProp.get(k) ?? [];
+      out.push(
+        <LockedRow key={"lock-" + i} l={en.l} past={en.l.e <= nowMin} onOpen={onEditRoutine}>
+          {(evs.length > 0 || props.length > 0) && (
+            <div className="block-nest">
+              {evs.map((h) => (
+                <div className="block-held" key={h.id} role="button" tabIndex={0}
+                  onClick={(ev) => { ev.stopPropagation(); onOpenEvent?.(h.id); }}>
+                  <span className={"cat-dot cat-bg-" + catColor(h.data.category)} />
+                  <span className="block-held-t truncate">{h.data.title}</span>
+                  <span className="block-held-u">{fmtTime(h.data.start).time}</span>
+                </div>
+              ))}
+              {props.map((b) => (
+                <div className="block-held block-held-prop" key={"p" + b.taskId} role="button" tabIndex={0}
+                  onClick={(ev) => { ev.stopPropagation(); proposed?.onToggle(b.taskId); }}>
+                  <span className={"cat-dot-hollow cat-bd-" + catColor(b.category)} />
+                  <span className="block-held-t truncate">{b.text}</span>
+                  <span className="block-held-u">{fmtTime(b.start).time}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </LockedRow>,
+      );
     }
   });
   if (!nowPlaced) out.push(<NowLine key="now" label={nowLabel} />);
+  // Merged mode with nothing ahead: say so rather than render an empty strip
+  // under a band that promised "the rest of today".
+  if (fromMin !== undefined && shown.length === 0) {
+    return <div className="pad-x day-clear">Nothing else scheduled</div>;
+  }
   return <>{out}</>;
 }
 
@@ -173,6 +263,7 @@ export default function YourDay({
   blendMap = {},
   proposed,
   footer,
+  nowHead,
 }: {
   events: EventItem[];
   locked?: LockedRange[];
@@ -192,6 +283,12 @@ export default function YourDay({
   proposed?: ProposedDay;
   // Accept / Not Today, owned by the flow and drawn under the day.
   footer?: React.ReactNode;
+  // MERGE B (2026-08-24, Dave: "can't now and your day be combined somehow?").
+  // The Now card, rendered as this section's head instead of as its own
+  // section above. Passed rather than rebuilt because TodayFlow owns what
+  // "now" means; this screen owns where it sits. Absent in the evening, which
+  // is exactly when the full-day view is the right one again.
+  nowHead?: React.ReactNode;
 }) {
   const measureRef = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);
@@ -269,7 +366,7 @@ export default function YourDay({
 
   const header = (
     <div className="sh2">
-      <span className="t">{title}</span>
+      <span className="t">{nowHead ? "Now" : title}</span>
       <span className="sec-left">
         {overflow && (
           <button
@@ -318,13 +415,23 @@ export default function YourDay({
   // exist in two copies, keyed the same, sliding past the thumb. While a
   // proposal stands, the day holds still; it starts moving again once the
   // day is accepted and there is nothing left to decide.
+  const nowMinutes = (() => { const p = now.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); })();
+
   if (!overflow || proposedCount > 0) {
     return (
       <div>
         {header}
+        {nowHead}
+        {/* Focus / Plan My Day / Running Late are about the whole day, so
+            they sit ABOVE the band. The band introduces the LIST, and
+            anything under a line that says "the rest of today" should be the
+            rest of today. */}
         {planButton}
+        {/* Quiet on purpose: the accent on the head above is what makes Now
+            the one loud thing on this screen. */}
+        {nowHead && <div className="day-band">The rest of today</div>}
         <div>
-          <div ref={measureRef}><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} proposed={proposed} /></div>
+          <div ref={measureRef}><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} /></div>
         </div>
         {footer}
       </div>
@@ -332,9 +439,16 @@ export default function YourDay({
   }
 
   // Overflowing: duplicate the day and let the CSS loop scroll it.
+  //
+  // The ticker deliberately shows the WHOLE day, past included, even when Now
+  // is the head. It is a loop: it comes back around to the morning either way,
+  // and a loop with a hole cut in it reads as a rendering fault rather than as
+  // a decision. The head still owns Now; this is the ambient version below it.
   return (
     <div>
       {header}
+      {nowHead}
+      {nowHead && <div className="day-band">The whole day</div>}
       {planButton}
       <div className="pad-x">
         <div className={"card sched-ticker" + (paused ? " paused" : "")}>

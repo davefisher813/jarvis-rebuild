@@ -247,7 +247,7 @@ export default function TodayPage({
   // never red. The year is untrusted (contact imports), so no age is claimed.
   const birthdaySection = birthdays && birthdays.length > 0 && (
     <>
-      <div className="sh2"><span className="t">{birthdays.length === 1 ? "Birthday" : "Birthdays"}</span></div>
+      <div className="sh2 sh2-quiet"><span className="t">{birthdays.length === 1 ? "Birthday" : "Birthdays"}</span></div>
       <div>
         <div>
           {birthdays.map((b) => (
@@ -266,7 +266,7 @@ export default function TodayPage({
 
   const upNextSection = !evening && upNext && upNext.length > 0 && (
     <>
-      <div className="sh2"><span className="t">Up Next</span>{onSeeAllUpNext && <button className="see-all" onClick={onSeeAllUpNext}>See All</button>}</div>
+      <div className="sh2 sh2-quiet"><span className="t">Up Next</span>{onSeeAllUpNext && <button className="see-all" onClick={onSeeAllUpNext}>See All</button>}</div>
       <div>
         <div>
           {upNext.map((t) => (
@@ -289,7 +289,7 @@ export default function TodayPage({
 
   const tasksSection = tasks.length > 0 && (
     <>
-      <div className="sh2"><span className="t">{evening ? "Still Open" : "Today’s Tasks"}</span><button className="see-all" onClick={onSeeAllTasks}>See All</button></div>
+      <div className="sh2 sh2-quiet"><span className="t">{evening ? "Still Open" : "Today’s Tasks"}</span><button className="see-all" onClick={onSeeAllTasks}>See All</button></div>
       <div>
         <div>
           {tasks.map((t) => (
@@ -303,7 +303,7 @@ export default function TodayPage({
 
   const tomorrowEmpty = tomorrowEvents.length === 0 && tomorrowTasks.length === 0 && onPlanTomorrow && (
     <>
-      <div className="sh2"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span></div>
+      <div className="sh2 sh2-quiet"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span></div>
       <div className="pad-x"><button className="row row-act" onClick={onPlanTomorrow}>Plan Tomorrow</button></div>
     </>
   );
@@ -313,7 +313,7 @@ export default function TodayPage({
       {/* The date was styled as a tappable action but only opened Schedule,
           which the head already offers elsewhere. It reads as the fact it is
           now, and the action is the one that helps: set tomorrow up. */}
-      <div className="sh2"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span>
+      <div className="sh2 sh2-quiet"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span>
         {onPlanTomorrow && <button className="see-all" onClick={onPlanTomorrow}>Plan It</button>}</div>
       <div>
         <div>
@@ -403,12 +403,16 @@ export default function TodayPage({
       {/* THE DAY'S OWN ORDER (Dave 2026-08-19: "the order should have the
           same flow as the day"): Now → Heads Up → Up Next → Your Day →
           Tomorrow. Nothing about this minute sits below tomorrow. */}
-      {!evening && nowCard && (
-        <>
-          <div className="sh2"><span className="t">Now</span></div>
-          {nowCard}
-        </>
-      )}
+      {/* MERGE B (2026-08-24, Dave: "can't now and your day be combined
+          somehow?"). Now was its own section here, directly above Your Day,
+          which also drew a NOW rule through its own timeline: one fact, two
+          formats, one scroll. That is the same thing he made us fix on the
+          drafted day.
+
+          The card now rides down to Your Day as its head, so Now is a
+          position in the day rather than a section beside it. In the EVENING
+          there is no now card, YourDay gets no head, and the full-day view it
+          has always had comes back untouched. */}
 
       {birthdaySection}
 
@@ -428,7 +432,7 @@ export default function TodayPage({
         const ranked = rankStream(headsUp);
         return (
           <>
-            <div className="sh2"><span className="t">Heads Up</span></div>
+            <div className="sh2 sh2-quiet"><span className="t">Heads Up</span></div>
             <div className="heads-up-stream">
               {ranked.headliner && (ranked.headliner.type === NoticeCard
                 ? cloneElement(ranked.headliner, { form: "headliner" })
@@ -454,7 +458,7 @@ export default function TodayPage({
           conditional. Gating both on the same flag would mean it could never
           report itself non-empty. */}
       {mail && !mailEmpty && (
-        <div className="sh2">
+        <div className="sh2 sh2-quiet">
           <span className="t">Email</span>
           {onSeeAllMail && <button className="see-all" onClick={onSeeAllMail}>Open Inbox</button>}
         </div>
@@ -469,6 +473,7 @@ export default function TodayPage({
         events={dayEvents}
         proposed={proposedDay}
         footer={dayFooter}
+        nowHead={!evening ? nowCard : undefined}
         locked={locked}
         now={now}
         nowLabel={nowLabel}
@@ -488,7 +493,7 @@ export default function TodayPage({
           this is what the Insights page folds into (roadmap v2). */}
       {evening && weekly && (
         <>
-          <div className="sh2"><span className="t">Your Week</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Your Week</span></div>
           <div className="pad-x"><div className="card">
             <div className="week-recap">
               <div className="t-body">

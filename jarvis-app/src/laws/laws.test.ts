@@ -312,6 +312,9 @@ describe("LAW: Apple HIG casing", () => {
       "chip": "30px filter chip",
       "pill-act": "27px row action",
       "row-act": "40px bare-text action, 26 call sites, four short",
+      // Added 2026-08-24: every use of this class is a <button> that opens
+      // something, and it painted at roughly 19px with no affordance at all.
+      "receipt-line": "eyebrow-sized receipt that opens the pile it describes",
     };
     for (const [cls, why] of Object.entries(small)) {
       // Either an ::after carrying inset/height, or a wrapper that is itself

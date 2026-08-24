@@ -420,7 +420,13 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
 
 .sched-row { align-items: flex-start; }
 .sched-time { font-size: var(--t-body); color: var(--tx-2); width: 64px; flex-shrink: 0; padding-top: 1px; font-weight: var(--w-regular); font-variant-numeric: tabular-nums; }
-.sched-time .ampm { font-size: 11px; color: var(--tx-3); font-weight: var(--w-regular); margin-left: 2px; letter-spacing: 0.3px; }
+/* THE MERIDIEM, WHEREVER A TIME IS PRINTED (2026-08-24).
+   This was scoped to `.sched-time`, so the reminders strip, which uses
+   `.rem-time`, rendered "10:00AM" at full weight with no gap. Exactly the
+   same shape of bug as the military-time one: a shared span whose styling
+   only existed under one parent. It is now the class's own rule, so a new
+   surface that prints a time gets it for free. */
+.ampm { font-size: 11px; color: var(--tx-3); font-weight: var(--w-regular); margin-left: 3px; letter-spacing: 0.3px; }
 /* min-width:0 is load-bearing, not tidiness (2026-08-21). A flex item will
    not shrink below its content's min-content width without it, so a long
    title or a nested row pushed .sched-body past the card and everything

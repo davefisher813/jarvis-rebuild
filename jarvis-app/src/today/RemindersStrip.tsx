@@ -42,7 +42,11 @@ export default function RemindersStrip({
 
   return (
     <>
-      <div className="sh2">
+      {/* I3 (2026-08-24): quiet, like every other head on Today. Now is the
+          only section on that page allowed the accent. This strip renders its
+          own head rather than taking TodayPage's, which is exactly how it
+          survived the first sweep. */}
+      <div className="sh2 sh2-quiet">
         <span className="t">Reminders</span>
         {/* One Add, never two. An empty strip shows the LABELLED in-list create
             (which is discoverable); a populated one shows the head action

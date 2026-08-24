@@ -228,7 +228,8 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
       return (
         <div className="pad-x">
           <button className="receipt-line" onClick={() => setOpen(true)}>
-            Noticed · {pattern.text}
+            <span className="rl-t">Noticed · {pattern.text}</span>
+            <span className="chev" />
           </button>
         </div>
       );
@@ -249,7 +250,8 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
     return (
       <div className="pad-x">
         <button className="receipt-line" onClick={() => setOpen(true)}>
-          Noticed · {aiPick.s.text}
+          <span className="rl-t">Noticed · {aiPick.s.text}</span>
+          <span className="chev" />
         </button>
       </div>
     );

@@ -2,6 +2,7 @@ import { byRank } from "./triage";
 import { capAfterNumber, titleCase } from "../shared/casing";
 import { decide, draftableOf } from "./mailAction";
 import { dayPhrase } from "../money/bills";
+import { fmtTime } from "../schedule/calendar";
 
 // THE HOME-PAGE EMAIL SURFACE (Dave 2026-08-20: "give me ideas to make the
 // email homepage feature actually useful or we can scratch it because right
@@ -192,7 +193,18 @@ function meetingNotice(m: MailMeeting): MailNotice {
     threadId: m.threadId,
     title: m.from + " Wants a Time",
     sub: m.line,
-    action: "Take " + m.label,
+    // THE BUTTON SAYS A TIME, NOT A SENTENCE (2026-08-24, Dave's screenshot).
+    //
+    // This was `"Take " + m.label`, and m.label is the SENDER'S OWN PHRASE,
+    // kept up to 60 characters by meetingTimes.ts. One real inbox produced
+    // "Take 1:00 pm (ET) on Monday, August 24th": a 40-character label in a
+    // flex-shrink:0 pill, which crushed the title column to one letter per
+    // line and rendered the card as a vertical stack of single characters.
+    //
+    // The meeting already carries `start` as a real field, so the button
+    // states the time itself and stays short whatever the sender wrote. The
+    // sender's phrasing is not lost: `m.line` carries it into the sub.
+    action: "Take " + fmtTime(m.start).time + " " + fmtTime(m.start).ap,
     tone: "cat-fg-sky",
   };
 }

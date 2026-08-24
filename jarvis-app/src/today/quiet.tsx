@@ -14,19 +14,49 @@ import type { ReactNode } from "react";
 // belong to domain code (the mail rungs, the slip counts), never to a
 // presentation regex.
 
+// A datum, and the characters allowed to touch it.
+//
+// The pattern alone is not the rule. Any run of digits matched it, so an
+// order number lit up inside "#D2565" and the 28 lit up inside "August 28th"
+// on Dave's home screen: two pieces of prose wearing the app's data voice.
+//
+// The rule this MEANT is "a number standing alone is data", so the match has
+// to be a whole token. A letter or digit immediately before it means we are
+// inside an identifier; a letter immediately after means we are inside a word
+// (an ordinal suffix, a unit we do not recognise). Neither is data.
+//
+// Deliberately no lookbehind: Safari only gained it in 16.4 and this ships to
+// phones. The preceding character is checked in code instead.
 const DATA = /(\d+\/\d+|\d+:\d+|\d+(?:\.\d+)?(?:[dhm]|min|%)?)/g;
+const WORDY = /[A-Za-z0-9#]/;
 
 export type Heat = "warm" | "hot" | null;
 
 export function Quiet({ s, heat = null }: { s: string; heat?: Heat }) {
-  const parts = s.split(DATA);
-  if (parts.length === 1) return <>{s}</>;
+  // Walked rather than split, so each candidate can be judged against the
+  // characters around it. Every character of `s` is emitted exactly once.
+  const out: { text: string; data: boolean }[] = [];
+  let last = 0;
+  DATA.lastIndex = 0;
+  for (let m = DATA.exec(s); m; m = DATA.exec(s)) {
+    const start = m.index;
+    const end = start + m[0].length;
+    const before = start > 0 ? s[start - 1]! : "";
+    const after = end < s.length ? s[end]! : "";
+    // Inside an identifier, or carrying a suffix the pattern did not claim.
+    if ((before && WORDY.test(before)) || (after && /[A-Za-z]/.test(after))) continue;
+    if (start > last) out.push({ text: s.slice(last, start), data: false });
+    out.push({ text: m[0], data: true });
+    last = end;
+  }
+  if (!out.length) return <>{s}</>;
+  if (last < s.length) out.push({ text: s.slice(last), data: false });
   return (
     <>
-      {parts.map((p, i) =>
-        i % 2 === 1
-          ? <span key={i} className={"qd" + (heat ? " qd-" + heat : "")}>{p}</span>
-          : <span key={i}>{p}</span>,
+      {out.map((p, i) =>
+        p.data
+          ? <span key={i} className={"qd" + (heat ? " qd-" + heat : "")}>{p.text}</span>
+          : <span key={i}>{p.text}</span>,
       )}
     </>
   );
