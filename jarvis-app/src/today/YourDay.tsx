@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { LATE_CHOICES } from "../schedule/durations";
 import type { EventItem } from "../schedule/types";
 import { fmtTime, fmtDistance, minToHHMM } from "../schedule/calendar";
 import { catColor, catName } from "../shared/categories";
@@ -355,7 +356,7 @@ export default function YourDay({
       {lateOpen && onRunningLate && (
         <div className="late-chips">
           <div className="segmented">
-            {[15, 30, 60].map((m) => (
+            {LATE_CHOICES.map((m) => (
               <button className="seg" key={m} onClick={() => { setLateOpen(false); onRunningLate(m); }}>+{m === 60 ? "1h" : m + "m"}</button>
             ))}
           </div>

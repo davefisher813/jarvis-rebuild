@@ -1023,3 +1023,63 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     expect(stale).toEqual([]);
   });
 });
+
+// ONE LIST OF LENGTHS (2026-08-24).
+//
+// schedule/durations.ts exists because PlanDaySheet had already grown a
+// private copy of the duration list once. Today the sweep found a second
+// fork: EventSheet declared 30m / 1h / 2h inline while the day row and the
+// plan sheet offered six. The same event had a different set of lengths
+// depending on which control you reached it through, and 45 minutes existed
+// on two surfaces out of three.
+//
+// Cheap to break and invisible when broken, because a hard-coded chip row
+// looks completely correct on its own screen.
+describe("LAW: every surface offers the same lengths", () => {
+  // Two things are wrong and everything else is a legitimate list of minutes.
+  // A first pass banned every minute array in these folders and flagged the
+  // reminder ladder (60/30/15/5) and the focus-sprint lengths (10/25/45),
+  // which are different questions with their own named exports in their own
+  // modules. A law that fires on correct code gets muted.
+  //
+  // So: the shared list may not be RETYPED, and no list of minutes may appear
+  // in two files at once. That is exactly the shape all three real forks had.
+  it("no schedule surface retypes the shared list, or shares one with another file", () => {
+    const durations = read(join(SRC, "schedule/durations.ts"));
+    const canon = [...durations.matchAll(/export const (\w+) = (\[[\d, ]+\])/g)]
+      .map((m) => m[2]!.replace(/\s+/g, ""));
+    const bad: string[] = [];
+    const seen = new Map<string, string>();
+    for (const f of SOURCES) {
+      const r = rel(f);
+      if (!r.startsWith("schedule/") && !r.startsWith("today/") && !r.startsWith("tasks/")) continue;
+      if (r === "schedule/durations.ts") continue;
+      const src = read(f).replace(/\/\*[\s\S]*?\*\//g, " ").split("\n").filter((l) => !/^\s*\/\//.test(l)).join("\n");
+      const lists = new Set<string>();
+      for (const m of src.matchAll(/\[\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){1,}\]/g)) lists.add(m[0].replace(/\s+/g, ""));
+      // The labelled-pair form EventSheet used, which the plain scan misses.
+      for (const m of src.matchAll(/\[\s*\[\s*\d{1,3}\s*,\s*"[\dhm ]+"/g)) {
+        bad.push(r + ": a labelled duration list, " + m[0].replace(/\s+/g, ""));
+      }
+      // A file that already imports a shared list and ALSO writes its own is
+      // a fork by definition, even a shorter one. Without this, replacing
+      // DUR_CHOICES.map with [30, 60, 120].map while leaving the import in
+      // place passes both halves of this law, which is a plausible edit.
+      const importsShared = /from "[^"]*durations"/.test(src);
+      for (const l of lists) {
+        if (canon.includes(l)) { bad.push(r + ": retypes the shared list " + l); continue; }
+        if (importsShared) { bad.push(r + ": imports the shared list and declares " + l + " anyway"); continue; }
+        const first = seen.get(l);
+        if (first) bad.push(r + " and " + first + " both declare " + l);
+        else seen.set(l, r);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("the surfaces that show lengths import the shared list", () => {
+    for (const f of ["schedule/screens/EventSheet.tsx", "schedule/screens/DayRow.tsx", "schedule/screens/ProposedRow.tsx"]) {
+      expect(read(join(SRC, f)), f + " must use DUR_CHOICES").toContain("DUR_CHOICES");
+    }
+  });
+});

@@ -28,4 +28,14 @@ export const durLabel = (d: number): string =>
 // list, reading as first thing in the morning.
 export const endFor = (start: string, minutes: number): string => addMinutes(start, minutes);
 
+// HOW LATE ARE YOU (2026-08-24). A different question from "how long is
+// this", so a different list: Running Late pushes the whole rest of the day,
+// and pushing it by 90 minutes from a chip is not a thing anyone means to do.
+//
+// Here because it was declared identically in SchedulePage and in YourDay,
+// which are the two surfaces that offer it, and a Running Late that meant
+// something different on Today than on Schedule is the same class of bug as
+// two duration lists.
+export const LATE_CHOICES = [15, 30, 60];
+
 export { minutesBetween } from "./calendar";

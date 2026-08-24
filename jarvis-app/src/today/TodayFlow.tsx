@@ -37,6 +37,7 @@ import { useAI } from "../ai/useAI";
 import { useGoogle } from "../connections/google/GoogleSession";
 import { mapThreadFull, buildReply, encodeEmail } from "../connections/google/map";
 import { cardDraftJob } from "../messages/cardDraftJob";
+import { DUR_CHOICES } from "../schedule/durations";
 import { cachedDraft, pregenerate, rememberDraft, PREGEN_CAP } from "../ai/pregen";
 import { loadNudgeCounts, countNudge } from "../messages/escalate";
 import { decide } from "../messages/mailAction";
@@ -948,9 +949,10 @@ export default function TodayFlow({
   // the card above has already given the task a time. A notice about a task
   // the plan holds is suppressed while that plan stands. A dismissed draft
   // holds nothing, so the notices come back.
-  // The lengths the card offers. Same set the plan sheet offers, because a
-  // second set of choices for the same decision is a second system.
-  const DRAFT_DURS = [15, 30, 45, 60, 90, 120];
+  // The lengths the card offers. Literally the plan sheet's list, not a copy
+  // of it: this was declared inline with a comment claiming it was "the same
+  // set", which is precisely how a set stops being the same.
+  const DRAFT_DURS = DUR_CHOICES;
   const draftMinutes = (d: DayDraft, taskId: string): number => {
     const b = d.blocks.find((x) => x.taskId === taskId);
     if (!b) return 0;

@@ -6,6 +6,7 @@ import type { SheetCategory } from "../../tasks/screens/TaskSheet";
 import type { EventRecurrence } from "../types";
 import { addMinutes, fmtTime, minToHHMM, addDays } from "../calendar";
 import type { TitleSuggestion } from "../memory";
+import { DUR_CHOICES, durLabel } from "../durations";
 import { catColor } from "../../shared/categories";
 import { untilError } from "../repeats";
 
@@ -255,12 +256,23 @@ export default function EventSheet({
 
           <div className="field">
             <div className="input-label">Length</div>
+            {/* THE SHARED LIST (2026-08-24). This sheet declared its own
+                three lengths, 30m / 1h / 2h, while the day row and the plan
+                sheet offered six from schedule/durations.ts. The same event
+                therefore had a different set of lengths depending on which
+                control you reached it through, and 45 minutes was reachable
+                from two surfaces out of three.
+                DUR_CHOICES was extracted for exactly this: PlanDaySheet had
+                already grown a private copy of it once. Keeping the selected
+                chip on this sheet's own .active rather than the plan strip's
+                red is deliberate, so it matches the Move and Category rows
+                sitting directly above and below it. */}
             <div className="chip-row">
-              {([[30, "30m"], [60, "1h"], [120, "2h"]] as const).map(([mins, label]) => {
+              {DUR_CHOICES.map((mins) => {
                 const tm = toMin;
                 const activeDur = !!end && tm(end) - tm(start) === mins;
                 return (
-                  <div key={mins} className={"chip" + (activeDur ? " active" : "")} role="button" tabIndex={0} onClick={() => { setEnd(addMinutes(start, mins)); if (err) setErr(false); }}>{label}</div>
+                  <div key={mins} className={"chip" + (activeDur ? " active" : "")} role="button" tabIndex={0} onClick={() => { setEnd(addMinutes(start, mins)); if (err) setErr(false); }}>{durLabel(mins)}</div>
                 );
               })}
             </div>

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
+import { LATE_CHOICES } from "../durations";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
 import { ChevronLeft, ChevronRight, Plus, Camera, AlertTriangle } from "lucide-react";
 import type { EventItem } from "../types";
@@ -383,7 +384,7 @@ export default function SchedulePage({
       {lateOpen && onRunningLate && (
         <div className="pad-x late-chips">
           <div className="segmented">
-            {[15, 30, 60].map((m) => (
+            {LATE_CHOICES.map((m) => (
               <button className="seg" key={m} onClick={() => { setLateOpen(false); onRunningLate(m); }}>
                 {m === 60 ? "1 hour" : `${m} min`}
               </button>
