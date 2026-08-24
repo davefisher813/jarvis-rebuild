@@ -90,6 +90,9 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-cat { display: flex; align-items: center; gap: var(--s-1h); font-size: var(--t-meta); color: var(--tx-3); }
 .sched-cat .cat-dot { width: 8px; height: 8px; }
 .sched-until, .sched-rep { font-size: var(--t-meta); color: var(--tx-3); }
+/* The separator between facts on the category line. Dimmer than the facts it
+   divides, so it groups without competing. */
+.sched-sep { font-size: var(--t-meta); color: var(--tx-4); }
 .sched-badge { margin-left: var(--s-1h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent-chrome); border: 1px solid var(--accent); border-radius: var(--r-pill); padding: 0 var(--s-1h); vertical-align: middle; }
 /* N5 completion (2026-08-21): the badge as a button. Same anatomy; the
    ::after pad brings the touch target up to size without moving a pixel. */
@@ -982,7 +985,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .toast-msg { flex: 1; font-size: var(--t-body); color: var(--tx-1); }
 .toast-action { background: 0; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-body); padding: var(--s-1) var(--s-2); flex-shrink: 0; }
 
-.sched-open-list { display: flex; flex-direction: column; gap: var(--s-2); margin-top: var(--s-2); }
 .sched-open { display: flex; align-items: center; gap: var(--s-2); width: 100%; text-align: left; background: transparent; border: 1px dashed var(--divider); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); color: var(--tx-3); font-size: var(--t-meta); font-family: var(--f); }
 .sched-open-plus { color: var(--tint); font-weight: var(--w-semi); }
 /* N5 completion (2026-08-21): the clash summary line's trailing action. */
@@ -1040,6 +1042,18 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    row of controls next to the length stepper. */
 .plan-controls .input-compact { width: 128px; height: 34px; padding: 0 var(--s-2); font-size: var(--t-meta); flex-shrink: 0; }
 .plan-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
+/* B-fix (2026-08-23, seen in the browser walk): with both Running Late? and
+   Plan My Day present, the two buttons are nowrap AND flex-shrink:0, so the
+   count was the only thing that could give. It broke into three stacked
+   lines, collided with Running Late?, and Plan My Day still ran off the
+   right edge.
+
+   The count is one short phrase and should never stack; the ACTIONS are what
+   move to their own line when they do not fit. */
+.plan-head { flex-wrap: wrap; }
+.plan-head > .eyebrow { white-space: nowrap; flex: 0 1 auto; min-width: 0; }
+.plan-head-acts { flex: 1 1 auto; justify-content: flex-end; flex-wrap: wrap;
+  row-gap: var(--s-2); }
 .plan-cta { display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2); background: var(--accent-fill); border: 0; border-radius: var(--r-pill); padding: var(--s-1h) var(--s-3); color: #fff; font-size: var(--t-meta); font-weight: var(--w-semi); flex-shrink: 0; }
 .plan-cta svg { width: 18px; height: 18px; flex-shrink: 0; }
 .plan-cta-row { padding: var(--s-1) var(--s-4) var(--s-3); }
@@ -2002,6 +2016,27 @@ button {
   z-index: 61; background: var(--surface-3); border: 1px solid var(--card-bd);
   border-radius: var(--r-md); padding: var(--s-2); box-shadow: 0 10px 34px rgba(0,0,0,0.6); }
 .time-pop-input { width: 150px; height: 40px; }
+
+/* B3/B5 (2026-08-23): TAP THE UNTIL. Same relationship to .sched-until that
+   .sched-time-btn has to .sched-time: the text keeps its exact paint and the
+   pseudo-element carries the 44px, so a control appears where dead text was
+   without the row growing by a pixel. */
+.sched-until-btn { position: relative; background: 0; border: 0; padding: 0; margin: 0;
+  font-family: var(--f); font-size: var(--t-meta); font-weight: inherit;
+  color: var(--tx-3); cursor: pointer; }
+.sched-until-btn::after { content: ""; position: absolute; inset: -13px -6px; }
+.sched-until-btn:active { color: var(--accent-tx); }
+/* "Until 9:00 AM" is information that happens to be tappable, so it stays the
+   colour of the facts beside it. "Set Length" is an OFFER with nothing to
+   read, and grey floating text that is actually a button is the exact thing
+   Dave called out: "this looks nothing like something to click on". It takes
+   the tappable colour the location link on this same row already uses.
+   Deliberately not both: every row wearing accent text is a wall of red. */
+.sched-until-empty { color: var(--accent-tx); font-weight: var(--w-semi); }
+/* No .dur-pop: the duration editor expands in place under the row, reusing
+   .draft-edit-body and .plan-controls, which is what ProposedRow already
+   does. A floating version shipped for about an hour and the browser walk
+   found it clipped behind the capture bar on low rows. */
 
 /* Four actions need more rail than two did. */
 .sched-actions .sched-act { padding: 0 var(--s-2h); }

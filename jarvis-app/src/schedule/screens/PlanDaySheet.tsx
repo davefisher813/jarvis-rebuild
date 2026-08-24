@@ -17,6 +17,7 @@ import { dayClock } from "../planClock";
 import { saveShape, planCount } from "../dayShape";
 import { estimateFor } from "../padding";
 import { capAfterNumber } from "../../shared/casing";
+import { DUR_CHOICES } from "../durations";
 
 const BUFFER = 10;
 const DEFAULT_DUR = 45;
@@ -24,7 +25,10 @@ const DUR_MIN = 15;
 const DUR_MAX = 240;
 // P6 (Dave 2026-08-20): 45m to 2h was five taps on a stepper. Chips do it in
 // one. The set is the lengths real work actually comes in.
-const DUR_CHOICES = [15, 30, 45, 60, 90, 120];
+//
+// B5 (2026-08-23): that set now lives in schedule/durations.ts. It was
+// declared here AND exported from ProposedRow, two identical lists with
+// nothing keeping them identical.
 
 // A protected range shown in the plan: gym, meals, deep work. Fed to the planner
 // as busy time so proposed blocks route around it. soft ranges are preferences

@@ -1,6 +1,7 @@
 import { catColor, catName } from "../../shared/categories";
 import { fmtTime } from "../calendar";
 import type { PlanBlock } from "../planDay";
+import { DUR_CHOICES, durLabel, minutesBetween } from "../durations";
 
 // THE PROPOSED BLOCK (blend, 2026-08-22).
 //
@@ -18,15 +19,12 @@ import type { PlanBlock } from "../planDay";
 // One component, used by Today and by the Schedule tab, so the two cannot
 // drift into a third format the way the card and the day list did.
 
-export const DUR_CHOICES = [15, 30, 45, 60, 90, 120];
+// B5 (2026-08-23): the duration list moved to schedule/durations.ts, because
+// PlanDaySheet had declared its own identical copy and DayRow now needs the
+// same one. Re-exported so existing importers keep working.
+export { DUR_CHOICES } from "../durations";
 
-export const blockMinutes = (b: PlanBlock): number => {
-  const m = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
-  return m(b.end) - m(b.start);
-};
-
-const durLabel = (d: number) =>
-  d < 60 ? `${d}m` : d % 60 === 0 ? `${d / 60}h` : `${Math.floor(d / 60)}h ${d % 60}m`;
+export const blockMinutes = (b: PlanBlock): number => minutesBetween(b.start, b.end);
 
 export default function ProposedRow({
   block,

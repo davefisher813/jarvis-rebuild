@@ -9,6 +9,7 @@ import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import ScheduleUploadFlow from "./screens/ScheduleUploadFlow";
 import { todayISO, weekOf, addDays, addMinutes, minutesBetween, fmtTime, eventsForDate, nextFreeSlot, fmtRange, minToHHMM } from "./calendar";
+import { durLabel } from "./durations";
 import { isKept, keepBoth } from "./overlapAck";
 import OverlapSheet from "./screens/OverlapSheet";
 import { planDay } from "./planDay";
@@ -702,6 +703,34 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     await moveEvent(id, addMinutes(e.start, mins), word);
   };
 
+  // B3/B5 (2026-08-23): RESIZE, from the row. Until now the only way to change
+  // how long something is was the full editor, on a row that already let you
+  // change WHEN it is from two different controls. Same undo as every other
+  // move, because a length change is as easy to fat-finger as a time change.
+  //
+  // A repeating event resizes for the whole series, which is correct and is
+  // not the same footgun as MOVING one: the series keeps its slot, every
+  // instance just gets longer or shorter. The toast says the new length so
+  // there is no guessing what happened.
+  const onSetEnd = async (id: string, end: string) => {
+    const e = await svc.event(id);
+    if (!e) return;
+    const before = e.end;
+    const ok = await attemptWrite(() => svc.editEnd(id, end));
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: durLabel(minutesBetween(e.start, end)),
+      actionLabel: "Undo",
+      onAction: async () => {
+        // A row that never had an end goes back to not having one, rather
+        // than to a default we invented on its behalf.
+        await attemptWrite(() => svc.editEnd(id, before ?? ""));
+        await reload();
+      },
+    });
+  };
+
   // Move to an exact time (the time tap, and later the drag drop).
   const onMoveTo = async (id: string, start: string) => {
     const t = fmtTime(start);
@@ -881,6 +910,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onEditRoutine={onEditRoutine}
         onShift={onShift}
         onMoveTo={onMoveTo}
+        onSetEnd={onSetEnd}
         onSkipToday={onSkipToday}
         onPushTomorrow={onPushTomorrow}
         onRunningLate={onRunningLate}

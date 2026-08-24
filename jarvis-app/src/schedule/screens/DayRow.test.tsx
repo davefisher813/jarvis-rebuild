@@ -106,3 +106,58 @@ describe("DayRow quick actions", () => {
     expect(onMoveTo).toHaveBeenCalledWith("14:30");
   });
 });
+
+// B3/B5 (2026-08-23): the row could change WHEN an event is from two separate
+// controls and could not change how LONG it is from any of them.
+describe("DayRow resize", () => {
+  const withEnd = (props: Record<string, unknown> = {}, over: Partial<EventItem["data"]> = {}) => {
+    const onSetEnd = vi.fn();
+    const onOpen = vi.fn();
+    render(
+      <DayRow e={ev(over)} conflict={false} isNext={false} isPast={false} now={null}
+        onOpen={onOpen} onSetEnd={onSetEnd} {...props} />,
+    );
+    return { onSetEnd, onOpen };
+  };
+
+  it("turns the until line into a control instead of leaving it as text", () => {
+    withEnd();
+    const btn = screen.getByLabelText("Change length, currently 60 minutes");
+    expect(btn.tagName).toBe("BUTTON");
+    expect(btn).toHaveTextContent("Until");
+  });
+
+  it("stays plain text when the row has no way to resize", () => {
+    render(<DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} onOpen={() => {}} />);
+    expect(screen.queryByLabelText(/Change length/)).toBeNull();
+    expect(screen.getByText(/Until/)).toBeInTheDocument();
+  });
+
+  it("offers a length to a row that has none, rather than rendering nothing", () => {
+    withEnd({}, { end: undefined });
+    expect(screen.getByLabelText("Set a length")).toHaveTextContent("Set Length");
+  });
+
+  it("sends back an END time, not a duration, and does not open the editor", () => {
+    const { onSetEnd, onOpen } = withEnd();
+    fireEvent.click(screen.getByLabelText("Change length, currently 60 minutes"));
+    fireEvent.click(screen.getByLabelText("Client Call: 90 minutes"));
+    expect(onSetEnd).toHaveBeenCalledWith("11:30");
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it("marks the length the event already has, so the popover says where you are", () => {
+    withEnd();
+    fireEvent.click(screen.getByLabelText("Change length, currently 60 minutes"));
+    expect(screen.getByLabelText("Client Call: 60 minutes").className).toContain("chip-on");
+    expect(screen.getByLabelText("Client Call: 90 minutes").className).not.toContain("chip-on");
+  });
+
+  // The one that would sort an event to the top of the morning.
+  it("clamps a block stretched past midnight instead of wrapping it", () => {
+    const { onSetEnd } = withEnd({}, { start: "23:00", end: "23:30" });
+    fireEvent.click(screen.getByLabelText(/Change length/));
+    fireEvent.click(screen.getByLabelText("Client Call: 120 minutes"));
+    expect(onSetEnd).toHaveBeenCalledWith("23:59");
+  });
+});

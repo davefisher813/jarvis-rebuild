@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 
 import PageHeader, { BarAction } from "../../shared/PageHeader";
 import { ChevronLeft, ChevronRight, Plus, Camera, AlertTriangle } from "lucide-react";
 import type { EventItem } from "../types";
-import { monthMatrix, fmtTime, fmtRange, openSlots, minToHHMM } from "../calendar";
+import { monthMatrix, fmtTime, openSlots, minToHHMM } from "../calendar";
 import { isFocusRange, modeOf, freeOf } from "../../routine/types";
 import { catColor } from "../../shared/categories";
 import SkeletonRows from "../../shared/SkeletonRows";
@@ -44,7 +44,7 @@ export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts,
   mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload,
-  locked = [], now, onEditRoutine, onFillBlock, onShift, onMoveTo, onSkipToday, onPushTomorrow, onRunningLate,
+  locked = [], now, onEditRoutine, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
   proposed, dayFooter,
   anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {}, blendMap = {},
   windowStartMin, windowEndMin,
@@ -75,6 +75,7 @@ export default function SchedulePage({
   onFillBlock?: (startMin: number, endMin: number) => void;
   onShift?: (id: string, mins: number) => void;
   onMoveTo?: (id: string, start: string) => void;
+  onSetEnd?: (id: string, end: string) => void;
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
   onRunningLate?: (mins: number) => void;
@@ -213,7 +214,13 @@ export default function SchedulePage({
   const entries: Entry[] = [
     ...dayEvents.filter((e) => !nestedIds.has(e.id)).map((e): Entry => ({ kind: "event", e, s: toMin(e.data.start) })),
     ...locked.map((l): Entry => ({ kind: "locked", l, s: l.s })),
-    ...(mode === "day" && onPickSlot
+    // B4 (2026-08-23): NOT mode-gated, for the same reason the proposals
+    // above it are not. This day list renders under the week and month grids
+    // too, so gating the gap ROWS on day mode meant the one view where you
+    // are most likely to be looking for a free hour was the view that hid
+    // them in a capped trailing list at the bottom. Same bug shape as
+    // "6 Events · 5 Proposed" above a list showing none.
+    ...(onPickSlot
       ? slots.map((sl): Entry => ({ kind: "gap", start: sl.start, end: sl.end, s: toMin(sl.start) }))
       : []),
     // NOT mode-gated. The day list renders under the month grid too, and
@@ -486,6 +493,7 @@ export default function SchedulePage({
                   onOpen={() => onOpenEvent?.(en.e.id)}
                   onShift={onShift ? (m) => onShift(en.e.id, m) : undefined}
                   onMoveTo={onMoveTo ? (t) => onMoveTo(en.e.id, t) : undefined}
+                  onSetEnd={onSetEnd ? (end) => onSetEnd(en.e.id, end) : undefined}
                   onSkipToday={onSkipToday ? () => onSkipToday(en.e.id) : undefined}
                   onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.e.id) : undefined}
                 />
@@ -511,18 +519,12 @@ export default function SchedulePage({
         {/* NO DEAD ENDS. A proposal you can see and edit but not accept is
             decoration. The same decision Today offers, under the same day. */}
         {dayFooter}
-        {/* The trailing "Open ..." list is retired: those rows are in the
-            timeline now, at the hour they belong to. Week and month views,
-            which have no timeline, keep the list. */}
-        {mode !== "day" && slots.length > 0 && onPickSlot && (
-          <div className="pad-x sched-open-list">
-            {slots.slice(0, 4).map((sl, i) => (
-              <button key={i} className="sched-open" onClick={() => onPickSlot(sl.start)}>
-                <span className="sched-open-plus">+</span> Open {fmtRange(sl.start, sl.end)}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* The trailing "Open ..." list is retired in EVERY mode now (B4,
+            2026-08-23). It survived for week and month on the reasoning that
+            those views have no timeline, which was never true: the day list
+            it sat under is the timeline. So the same free hour appeared as a
+            dashed row at 2pm in one view and as a bare button in a footer in
+            another, and the footer silently capped at four. */}
         </>
       )}
       </>)}

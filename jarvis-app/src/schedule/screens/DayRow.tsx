@@ -4,6 +4,7 @@ import { useSwipe } from "../../shared/useSwipe";
 import { fmtTime, fmtDistance } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
 import { attachLabel } from "../attachments";
+import { DUR_CHOICES, durLabel, minutesBetween, endFor } from "../durations";
 
 // One event row on the Schedule day list. Same anatomy as before, plus the
 // roadmap-v2 basics: swipe left reveals Push 15 / Tomorrow (recurring events
@@ -32,6 +33,7 @@ export default function DayRow({
   onMoveTo,
   onSkipToday,
   onPushTomorrow,
+  onSetEnd,
 }: {
   e: EventItem;
   conflict: boolean;
@@ -47,6 +49,8 @@ export default function DayRow({
   onMoveTo?: (start: string) => void;
   onSkipToday?: () => void;
   onPushTomorrow?: () => void;
+  // B3/B5 (2026-08-23): change how LONG this is, without the full editor.
+  onSetEnd?: (end: string) => void;
 }) {
   const t = fmtTime(e.data.start);
   const endT = e.data.end ? fmtTime(e.data.end) : null;
@@ -64,6 +68,8 @@ export default function DayRow({
   const swipeable = !isPast && (onShift || onPushTomorrow || onSkipToday);
   const { dx, open, dragging, handlers, closeThen, toggle } = useSwipe({ revealW: rep ? 268 : 232, enabled: !!swipeable });
   const [picking, setPicking] = useState(false);
+  const [sizing, setSizing] = useState(false);
+  const mins = e.data.end ? minutesBetween(e.data.start, e.data.end) : null;
 
   return (
     <div className="sched-swipe-wrap">
@@ -119,11 +125,37 @@ export default function DayRow({
             ))}
             {dist && <span className="sched-dist">{dist}</span>}
           </div>
+          {/* THE DOT BREAKS (2026-08-23). Dave reported this as "Work Repeats
+              daily" with nothing between the category and the recurrence, and
+              adding the length button made it worse: "Work Set Length Repeats
+              daily" reads as one run-on phrase. Every segment on this line is
+              a separate fact and gets the separator the rest of the app uses,
+              which also brings it under the dot-break casing law instead of
+              slipping past it on a technicality. */}
           <div className="sched-cat">
             <span className={"cat-dot cat-bg-" + catColor(e.data.category)} />
             {catName(e.data.category)}
-            {endT && <span className="sched-until">until {endT.time} {endT.ap}</span>}
-            {rep && <span className="sched-rep">Repeats {rep}</span>}
+            {/* B3/B5 (2026-08-23): "until 10:00 AM" was the last piece of
+                dead text on this row, and it names the one thing about an
+                event that nothing here could change: its LENGTH. Tap the
+                time to move it, tap the until to resize it. Same popover, so
+                the second control costs nothing to learn.
+
+                A row with no end has no length to state, so instead of
+                rendering nothing it offers to give it one. */}
+            {(onSetEnd || endT) && <span className="sched-sep">&middot;</span>}
+            {onSetEnd ? (
+              <button
+                type="button"
+                className={"sched-until sched-until-btn" + (endT ? "" : " sched-until-empty")}
+                aria-label={endT ? "Change length, currently " + (mins ?? 0) + " minutes" : "Set a length"}
+                aria-expanded={sizing}
+                onClick={(ev) => { ev.stopPropagation(); setSizing(!sizing); }}
+              >{endT ? <>Until {endT.time} {endT.ap}</> : "Set Length"}</button>
+            ) : endT ? (
+              <span className="sched-until">Until {endT.time} {endT.ap}</span>
+            ) : null}
+            {rep && <><span className="sched-sep">&middot;</span><span className="sched-rep">Repeats {rep}</span></>}
           </div>
           {attach && (
             <div className="sched-cat">
@@ -150,6 +182,39 @@ export default function DayRow({
           </button>
         )}
       </div>
+      {/* TAP THE UNTIL (B5): the same move for the other half of the block.
+          Chips, not a stepper, because PlanDaySheet already settled that:
+          45m to 2h is one tap on a chip and five on a stepper. The list is
+          the shared one, so the plan sheet, a proposed row and a real event
+          all offer exactly the same lengths.
+
+          IN PLACE, not a popover. The first build floated it the way the
+          time picker floats, and the browser walk caught it half hidden
+          behind the capture bar on any row low in the list. It is also just
+          the wrong shape: ProposedRow already expands in place with these
+          exact controls, and two ways to edit a row is how the app grew two
+          schedule formats in the first place. Same .plan-controls, so the
+          surfaces cannot drift. */}
+      {sizing && onSetEnd && (
+        <div className="draft-edit-body" onClick={(ev) => ev.stopPropagation()}>
+          <div className="plan-controls">
+            <div className="chip-row plan-durs">
+              {DUR_CHOICES.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  className={"chip" + (mins === d ? " chip-on" : "")}
+                  aria-label={e.data.title + ": " + d + " minutes"}
+                  onClick={() => { setSizing(false); onSetEnd(endFor(e.data.start, d)); }}
+                >{durLabel(d)}</button>
+              ))}
+            </div>
+            <div className="plan-when">
+              <button type="button" className="btn-sm" onClick={() => setSizing(false)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* TAP THE TIME (M3): a time change should not cost the whole editor. */}
       {picking && onMoveTo && (
         <>
