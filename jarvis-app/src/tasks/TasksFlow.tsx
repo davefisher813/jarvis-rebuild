@@ -20,7 +20,7 @@ import { identityToText } from "../ai/context";
 import { firstStepPrompt, parseFirstStep } from "./firstStep";
 import { rankOpen } from "../upnext/upnext";
 import { FIFTEEN } from "./rightNow";
-import { breakdownPrompt, parseBreakdown } from "./breakdown";
+import { scheduleTask, breakDownTask, undoBreakdown, splitLine, type BreakdownResult } from "./taskMoves";
 import { emit } from "../events";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "./momentum";
 import { RowIcon } from "../shared/anatomy";
@@ -363,15 +363,15 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   };
 
   // Drop the task into the next free slot on its due day (or today) as a 1h event.
+  // The move itself lives in taskMoves.ts so Today can make it too; this
+  // keeps only what is local: which sheet is open, and what to say after.
   const onScheduleTask = async () => {
     if (sheet?.mode !== "edit") return;
-    const t = await svc.task(sheet.id);
-    if (!t) return;
-    const date = t.due || today;
-    const start = nextFreeSlot(await schedule.eventsOn(date), date, new Date());
-    const ok = await attemptWrite(() => schedule.createEvent(t.text, { date, start, end: addMinutes(start, 60), category: t.category || undefined }));
+    const id = sheet.id;
+    let landed = false;
+    const ok = await attemptWrite(async () => { landed = (await scheduleTask(id, today, svc, schedule)).ok; });
     setSheet(null);
-    if (ok) showToast({ message: "Added to schedule" });
+    if (ok) showToast({ message: landed ? "Added to schedule" : "Couldn't find that task" });
   };
 
   // A2 (audit 2026-08-21): the Tasks tab could not start anything. Same move
@@ -463,45 +463,20 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     const editingId = sheet?.mode === "edit" ? sheet.id : null;
     setSheet(null);
     showToast({ message: "Breaking it down..." });
-    let steps: string[] = [];
-    try {
-      const identity = await gatherContext().then(identityToText).catch(() => "");
-      const p = breakdownPrompt(text, identity);
-      steps = parseBreakdown(await ai.complete([{ role: "user", content: p.user }], p.system));
-    } catch {
-      steps = [];
-    }
-    if (steps.length === 0) { showToast({ message: "Couldn't reach JARVIS" }); return; }
     const original = editingId ? parts.all.find((t) => t.id === editingId) ?? null : null;
     if (!original && editingId) { showToast({ message: "Couldn't find that task" }); return; }
-    const made: string[] = [];
-    const ok = await attemptWrite(async () => {
-      for (const step of steps) {
-        const id = await svc.createTask(step, {
-          category: original?.data.category ?? "",
-          due: original?.data.due ?? today,
-          projectId: original?.data.projectId,
-          source: { type: "chat", ts: Date.now() },
-        });
-        if (id) made.push(id);
-      }
-      if (editingId) await svc.deleteTask(editingId);
-    });
+    const identity = await gatherContext().then(identityToText).catch(() => "");
+    let res: Awaited<ReturnType<typeof breakDownTask>> | null = null;
+    const ok = await attemptWrite(async () => { res = await breakDownTask(text, original, today, ai, svc, identity); });
     await reload();
-    if (!ok) return;
+    if (!ok || !res) return;
+    const r = res as BreakdownResult;
+    if (r.reason === "no-ai") { showToast({ message: "Couldn't reach JARVIS" }); return; }
     showToast({
-      message: `Split into ${made.length} ${made.length === 1 ? "step" : "steps"}`,
+      message: splitLine(r.made.length),
       actionLabel: "Undo",
       onAction: async () => {
-        await attemptWrite(async () => {
-          for (const id of made) await svc.deleteTask(id);
-          if (original) await svc.createTask(original.data.text, {
-            category: original.data.category,
-            due: original.data.due ?? null,
-            recurrence: original.data.recurrence,
-            projectId: original.data.projectId,
-          });
-        });
+        await attemptWrite(() => undoBreakdown(r.made, r.original, svc));
         await reload();
       },
     });

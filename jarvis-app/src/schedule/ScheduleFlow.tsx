@@ -528,6 +528,15 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     : [];
 
   // Tap the circle: complete the task (it leaves the strip).
+  // Make a task from inside the planner, due on the day being planned.
+  const addPlanTask = async (text: string) => {
+    let made: string | null = null;
+    const ok = await attemptWrite(async () => { made = await tasksSvc.createTask(text, { due: selected }); });
+    if (!ok || !made) return null;
+    await reloadTasks();
+    return { id: made as string, text, category: "", suggested: false, overdue: false, due: selected };
+  };
+
   const onToggleTask = async (id: string) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reloadTasks(); };
 
   // Give-back: move a timed block back to Anytime. If it came from a task the
@@ -974,6 +983,15 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         </div>
       )}
       {planOpen && (
+        /* P7 wired here too (2026-08-24): making a task without leaving the
+           planner is useful wherever the planner was opened from, and this
+           entry point simply never passed it.
+
+           `onTarget` and `sizing` stay absent, and that is NOT the same kind
+           of gap. Today needs a today/tomorrow switch because it has no date
+           picker; this tab IS a date picker. And the comment at the top of
+           this file records mood sizing as a Today-surface behaviour on
+           purpose. Two of the three "missing" props were correct all along. */
         <PlanDaySheet
           events={dayEvents}
           tasks={planCandidates}
@@ -988,6 +1006,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           routineConfigured={routineSet}
           blocked={blocked}
           onEditRoutine={onEditRoutine ? () => { setPlanOpen(false); onEditRoutine(); } : undefined}
+          onAddTask={addPlanTask}
           onCommit={onPlanCommit}
           onAIPlan={onAIPlan}
           onClose={() => setPlanOpen(false)}

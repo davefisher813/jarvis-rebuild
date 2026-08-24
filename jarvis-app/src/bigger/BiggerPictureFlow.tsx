@@ -7,6 +7,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import BiggerPicturePage from "./BiggerPicturePage";
 import Payoff, { payoffLine } from "../shared/Payoff";
 import ProjectSheet from "../projects/ProjectSheet";
+import TaskSheet, { type TaskDraft } from "../tasks/screens/TaskSheet";
 import ProjectDetailPage from "../projects/ProjectDetailPage";
 import { attemptWrite } from "../shared/guard";
 import GoalSheet from "../life/GoalSheet";
@@ -29,7 +30,11 @@ type Sheet =
   | { kind: "newProject"; goalId?: string } // contextual add: born linked
   | { kind: "editProject"; id: string }
   | { kind: "newGoal" }
-  | { kind: "editGoal"; id: string };
+  | { kind: "editGoal"; id: string }
+  // A project STEP is a task. The row had a whole button branch waiting for a
+  // handler that no caller ever passed (2026-08-24 audit), so you could tick a
+  // step off and never open it.
+  | { kind: "editStep"; id: string };
 
 // One surface for goals and projects. Replaces LifeMapFlow and ProjectsFlow.
 // openGoalId (2026-08-09): goal deep-links used to be set by the shell and
@@ -303,6 +308,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
             .filter((t) => t.data.projectId === detail.id)
             .map((t) => ({ id: t.id, text: t.data.text, done: !!t.data.done, due: t.data.due ?? null, category: t.data.category }))}
           onToggleStep={async (id) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reload(); }}
+          onOpenStep={(id) => setSheet({ kind: "editStep", id })}
           onAddStep={async (text) => {
             // The step is born into the project AND its area, because a task
             // created from inside a project already answered both questions.
@@ -336,6 +342,46 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
             onCancel={() => setSheet({ kind: "closed" })}
           />
         )}
+        {sheet.kind === "editStep" && (() => {
+          const t = tasks.find((x) => x.id === sheet.id);
+          if (!t) return null;
+          return (
+            <TaskSheet
+              mode="edit"
+              categories={categories.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))}
+              initial={{ text: t.data.text, category: t.data.category ?? "", due: t.data.due ?? undefined }}
+              onSave={async (d: TaskDraft) => {
+                const id = sheet.id;
+                await attemptWrite(async () => {
+                  await tasksSvc.editText(id, d.text);
+                  await tasksSvc.setDue(id, d.due ?? null);
+                  await tasksSvc.setCategory(id, d.category);
+                });
+                setSheet({ kind: "closed" });
+                await reload();
+              }}
+              onDelete={async () => {
+                const id = sheet.id;
+                const kept = t.data;
+                const ok = await attemptWrite(() => tasksSvc.deleteTask(id));
+                setSheet({ kind: "closed" });
+                await reload();
+                if (!ok) return;
+                showToast({
+                  message: "Step deleted",
+                  actionLabel: "Undo",
+                  onAction: () => void (async () => {
+                    await attemptWrite(() => tasksSvc.createTask(kept.text, {
+                      projectId: kept.projectId, category: kept.category, due: kept.due ?? null,
+                    }));
+                    await reload();
+                  })(),
+                });
+              }}
+              onCancel={() => setSheet({ kind: "closed" })}
+            />
+          );
+        })()}
       </>
     );
   }

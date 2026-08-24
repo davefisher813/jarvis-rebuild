@@ -1573,13 +1573,23 @@ button {
 .day-pill { position: relative; }
 .day-pill::after { content: ""; position: absolute; inset: -6px 0; }
 
-/* A row whose HANDLER sits on an inner div, not on the row. The row paints
-   62px and the target was 38, so the thumb aims at what it can see and misses
-   by a third of the row. Filling the row is what the user already believes is
-   happening. */
-.row-grow[role="button"], .row-stack[role="button"], .task-title[role="button"] { position: relative; }
-.row-grow[role="button"]::after, .row-stack[role="button"]::after, .task-title[role="button"]::after {
-  content: ""; position: absolute; inset: -12px 0; }
+/* NOT EXPANDED, AND THE REASON MATTERS.
+ 
+   A row whose handler sits on an inner div paints 62px and targets 38, so the
+   thumb aims at what it can see and misses by a third of the row. The obvious
+   fix is the same ::after trick as everything above.
+ 
+   It cannot be used here. Those rows CONTAIN their own controls: the task
+   title inside `.row-stack` is a contenteditable from InlineEdit, and an
+   overlay covering the parent covers the child too. Playwright caught it
+   immediately, refusing to click the title because
+   `.row-stack intercepts pointer events`, which in a real hand means tapping
+   a task to rename it silently opens the sheet instead.
+ 
+   Trading a small target for a broken rename is a worse deal than the small
+   target. The real fix is to move the handler onto the row in the components
+   themselves, which is a change to make deliberately and not as part of a
+   CSS sweep. Left alone on purpose; noted so nobody "fixes" it in passing. */
 /* The quiet line: words whisper, data pops. Bright tabular data in the time
    face; heat only where a producer's own thresholds say so. */
 .qd { font-variant-numeric: tabular-nums;

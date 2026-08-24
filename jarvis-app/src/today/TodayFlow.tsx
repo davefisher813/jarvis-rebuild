@@ -61,9 +61,11 @@ import { restorableSpot, clearSpot, spotAgo, type WorkSpot } from "../restore/wh
 import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCaptureSheet";
 import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
+import { scheduleTask, breakDownTask as splitIntoSteps, undoBreakdown, splitLine, type BreakdownResult } from "../tasks/taskMoves";
+import { identityToText } from "../ai/context";
+import { useAIContext } from "../ai/useAIContext";
 import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
 import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, plannedTaskIds, acceptInto, seedFrom, editDraft, type DayDraft } from "../dayloop/dayLoop";
-import { breakdownPrompt, parseBreakdown } from "../tasks/breakdown";
 import { madeBy } from "../shared/provenance";
 import { RowIcon, StatTiles } from "../shared/anatomy";
 import { effectiveLevel } from "../ai/aiGate";
@@ -113,6 +115,7 @@ export default function TodayFlow({
   onRestoreSpot?: (kind: "note" | "task" | "event" | "gym", id: string) => void;
 }) {
   const ai = useAI();
+  const gatherContext = useAIContext();
   const google = useGoogle();
   const schedule = useSchedule();
   const tasks = useTasks();
@@ -386,6 +389,22 @@ export default function TodayFlow({
     }
   };
 
+  // THE SAME SHEET, THE SAME MOVES (2026-08-24). Editing a task from Today
+  // offered neither Add to Schedule nor Break It Down, because TaskSheet
+  // renders each only when its callback is passed and this flow passed
+  // neither. Both moves live in tasks/taskMoves.ts precisely so this surface
+  // can make them without a second copy of what they mean.
+  const onScheduleFromToday = async () => {
+    if (!sheet) return;
+    const id = sheet.id;
+    let landed = false;
+    const ok = await attemptWrite(async () => { landed = (await scheduleTask(id, today, tasks, schedule)).ok; });
+    setSheet(null);
+    await reload();
+    if (ok) showToast({ message: landed ? "Added to schedule" : "Couldn't find that task" });
+  };
+
+
   const onSaveTask = async (draft: TaskDraft) => {
     if (sheet?.mode === "edit") {
       const rec = (draft.repeat || "") as "" | Recurrence;
@@ -497,44 +516,29 @@ export default function TodayFlow({
   // offers, reachable from the card that actually notices the problem. A task
   // that has slid five days running is not a discipline failure; it is a task
   // whose first step was never obvious. One Undo restores the original.
+  // ONE BREAKDOWN (2026-08-24). This was a near-copy of the one in TasksFlow,
+  // and the copy had drifted in a way that mattered: it called
+  // breakdownPrompt WITHOUT the identity context, so splitting a task from
+  // Today produced worse steps than splitting the same task from the Tasks
+  // tab. Nothing said so. Both routes go through tasks/taskMoves.ts now.
   const breakDownTask = async (taskId: string) => {
     const original = taskItems.find((t) => t.id === taskId);
     if (!original || !ai.available) return;
     showToast({ message: "Breaking it down…" });
-    let steps: string[] = [];
-    try {
-      const p = breakdownPrompt(original.data.text);
-      steps = parseBreakdown(await ai.complete([{ role: "user", content: p.user }], p.system));
-    } catch { steps = []; }
-    if (steps.length === 0) { showToast({ message: "Couldn't reach JARVIS" }); return; }
-    const made: string[] = [];
+    const identity = await gatherContext().then(identityToText).catch(() => "");
+    let res: BreakdownResult | null = null;
     const ok = await attemptWrite(async () => {
-      for (const step of steps) {
-        const id = await tasks.createTask(step, {
-          category: original.data.category ?? "",
-          due: original.data.due ?? today,
-          projectId: original.data.projectId,
-          source: { type: "chat", ts: Date.now() },
-        });
-        if (id) made.push(id);
-      }
-      await tasks.deleteTask(taskId);
+      res = await splitIntoSteps(original.data.text, original, today, ai, tasks, identity);
     });
     await reload();
-    if (!ok) return;
+    if (!ok || !res) return;
+    const r = res as BreakdownResult;
+    if (r.reason === "no-ai") { showToast({ message: "Couldn't reach JARVIS" }); return; }
     showToast({
-      message: `Split into ${made.length} ${made.length === 1 ? "step" : "steps"}`,
+      message: splitLine(r.made.length),
       actionLabel: "Undo",
       onAction: async () => {
-        await attemptWrite(async () => {
-          for (const id of made) await tasks.deleteTask(id);
-          await tasks.createTask(original.data.text, {
-            category: original.data.category,
-            due: original.data.due ?? null,
-            recurrence: original.data.recurrence,
-            projectId: original.data.projectId,
-          });
-        });
+        await attemptWrite(() => undoBreakdown(r.made, r.original, tasks));
         await reload();
       },
     });
@@ -1606,6 +1610,8 @@ export default function TodayFlow({
         categories={categories}
         onSave={onSaveTask}
         onDelete={onDeleteTask}
+        onSchedule={onScheduleFromToday}
+        onBreakDown={ai.available && sheet ? () => void breakDownTask(sheet.id) : undefined}
         onCancel={() => setSheet(null)}
       />
     )}
