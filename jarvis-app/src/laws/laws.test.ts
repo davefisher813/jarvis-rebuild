@@ -394,6 +394,48 @@ describe("LAW: Apple HIG casing", () => {
 
 });
 
+describe("LAW: an icon always has a size", () => {
+  // Cost: a trash can rendered the height of a sheet on Dave's phone,
+  // covering Save, Cancel and half of Delete Exercise.
+  //
+  // `.ic` had 63 sizing rules and no bare default, every one scoped to a
+  // parent someone remembered. Moving one button from .btn-danger to
+  // .btn-secondary took away the only rule sizing that icon, and an inline
+  // SVG with just a viewBox stretches to fill its box. Nothing caught it:
+  // the class-has-CSS law passed, because the class DOES have CSS, just
+  // never for that parent.
+  //
+  // A shared glyph class needs a base case, and the base case is what this
+  // pins. Parent-scoped rules keep winning on specificity.
+  it("the icon class carries an unscoped width and height", () => {
+    // A bare `.ic { ... }` rule: no ancestor, no combinator, no other class.
+    const m = CSS.match(/(^|\n)\.ic\s*\{([^}]*)\}/);
+    expect(m, ".ic has no unscoped rule at all").toBeTruthy();
+    const body = m![2]!;
+    expect(body, ".ic default must set width").toMatch(/width\s*:/);
+    expect(body, ".ic default must set height").toMatch(/height\s*:/);
+  });
+
+  it("an svg that renders inline carries the icon class", () => {
+    // An <svg> with a viewBox and no width/height attribute and no className
+    // is the exact shape that stretches. Anything drawing one has to say how
+    // big it is, either with the class or with its own attributes.
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const src = read(f);
+      for (const m of src.matchAll(/<svg\s[^>]*>/g)) {
+        const tag = m[0];
+        if (/className=/.test(tag)) continue;
+        if (/\bwidth=/.test(tag) && /\bheight=/.test(tag)) continue;
+        // Locate it for the message.
+        const line = src.slice(0, m.index).split("\n").length;
+        bad.push(rel(f) + ":" + line);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+});
+
 describe("LAW: one filled red per screen", () => {
   // B15 (2026-08-23): ONE FILL PER SCREEN.
   //

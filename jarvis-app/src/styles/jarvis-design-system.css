@@ -347,6 +347,32 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
    2026-07-29; inversion solves that too, with far more contrast). */
 .segmented .seg.active { background: var(--sel-bg); color: var(--sel-fg); font-weight: var(--w-semi); }
 
+/* THE ICON DEFAULT (2026-08-24, Dave's screenshot: a trash can the size of
+   the sheet, covering Save, Cancel and half of Delete Exercise).
+ 
+   `.ic` had SIXTY-THREE sizing rules across the stylesheets and not one bare
+   default. Every one of them is scoped to a parent somebody remembered:
+   `.nav-action .ic`, `.tab .ic`, `.barbtn .ic`, and so on. An icon inside a
+   parent nobody remembered gets NO width and NO height, and an inline SVG
+   carrying only a viewBox then stretches to fill whatever box it is in.
+ 
+   That is exactly what happened: the delete button used to be `.btn-danger`,
+   whose `.ic` rule was the only thing sizing that trash can, and the
+   danger-text sweep on 2026-08-23 moved the button to `.btn-secondary`. The
+   icon lost its size and swallowed the screen. Nothing failed: not tsc, not
+   eslint, not 1889 tests, not the class-has-CSS law, because the class DOES
+   have CSS -- just never for that parent.
+ 
+   So the base case stops being nobody's job. Specificity keeps every scoped
+   rule winning (0,1,0 loses to 0,2,0), so no existing icon changes size; the
+   only icons this touches are the ones that had no size at all, which were
+   already broken. flex-shrink because an icon beside text must never be
+   squeezed into a sliver, which is the same failure in the other axis. */
+.ic { width: 20px; height: 20px; flex-shrink: 0; }
+/* Buttons carry a slightly smaller glyph with a gap, which is what
+   `.btn-danger .ic` used to say for exactly one kind of button. */
+.btn .ic { width: 18px; height: 18px; margin-right: 6px; }
+
 /* RADIO / CHECKBOX */
 .radio, .cb { width: 22px; height: 22px; flex-shrink: 0; border: 2px solid var(--tx-4); display: flex; align-items: center; justify-content: center; }
 .radio { border-radius: var(--r-circle); } .cb { border-radius: var(--r-xs); }
