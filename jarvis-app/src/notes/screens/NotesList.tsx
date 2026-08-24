@@ -1,6 +1,6 @@
 import { useState } from "react";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
-import { FileText, PenLine, Search } from "lucide-react";
+import { FileText, PenLine, Search } from "../../shared/icons";
 import { catColor } from "../../shared/categories";
 
 // Matches locked frame #46 "List". The real iOS chrome (status bar, home

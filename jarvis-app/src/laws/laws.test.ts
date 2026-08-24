@@ -622,23 +622,33 @@ describe("LAW: one filled red per screen", () => {
       if (rd < 4.5) bad.push(`${slot} (dark text): ${d} on #3A3A3C is ${rd.toFixed(2)}:1`);
       // Light: the tx variant is REQUIRED (no raw Apple light value survives
       // #F2F2F7), judged against the page AND against its own kicker chip.
-      // The chip (Daylight parity pass, 2026-08-22) is an 18% wash of the
-      // ink over whatever is behind it, which is DARKER than the page, so
-      // it is the worst surface a kicker ever sits on: the first vivid ink
-      // set passed the page check while quietly reading 3.9-4.3 on-chip.
-      // The mix here mirrors components.css exactly (color-mix in srgb,
-      // currentColor 18%); change the wash there and this recomputes.
+      // The chip is an 18% wash of the slot's FILL over the page, which is
+      // what components.css draws -- it was briefly washed from the INK
+      // instead, and washing an already-darkened ink is exactly how MONEY
+      // arrived olive-on-olive in Dave's 2026-08-22 screenshot. Mixing the
+      // fill keeps the chip vivid and makes it LIGHTER than the ink wash,
+      // so the ink has room to stay saturated.
       const l = txVar("light", slot, "tx");
       if (!l) { bad.push(`${slot}: no --cat-tx-${slot} light text variant`); continue; }
       const rl = ratio(l, "#F2F2F7");
       if (rl < 4.5) bad.push(`${slot} (light text): ${l} on #F2F2F7 is ${rl.toFixed(2)}:1`);
+      const fill = light[slot];
+      if (!fill) { bad.push(`${slot}: no light fill to mix its chip from`); continue; }
       const ch = (i: number) => Math.round(
-        parseInt(l.slice(1 + 2 * i, 3 + 2 * i), 16) * 0.18 +
+        parseInt(fill.slice(1 + 2 * i, 3 + 2 * i), 16) * 0.18 +
         parseInt("F2F2F7".slice(2 * i, 2 * i + 2), 16) * 0.82,
       );
       const chip = "#" + [ch(0), ch(1), ch(2)].map((v) => v.toString(16).padStart(2, "0")).join("");
       const rc = ratio(l, chip);
       if (rc < 4.5) bad.push(`${slot} (light text on own chip): ${l} on ${chip} is ${rc.toFixed(2)}:1`);
+      // GLYPHS ARE CHROME, NOT TEXT. An icon carries no words, so it is held
+      // to the 3:1 non-text bar -- but it must actually HAVE its own value,
+      // or it inherits the text ink and arrives as mud (Dave, 2026-08-22:
+      // "the yellow in some spots it's terrible", on olive chevrons).
+      const g = txVar("light", slot, "ic");
+      if (!g) { bad.push(`${slot}: no --cat-ic-${slot} light glyph variant`); continue; }
+      const rg = ratio(g, "#F2F2F7");
+      if (rg < 3) bad.push(`${slot} (light glyph): ${g} on #F2F2F7 is ${rg.toFixed(2)}:1`);
     }
     expect(bad).toEqual([]);
   });
@@ -846,6 +856,72 @@ describe("LAW: stored shapes are versioned", () => {
       if (/<svg[^>]*className="chev/.test(read(f))) bad.push(rel(f));
     }
     expect(bad).toEqual([]);
+  });
+
+  // ONE ICON DOOR (Dave 2026-08-22: "on the light version filled in icons
+  // look MUCH better"). Light wears Phosphor's FILL weight, dark keeps the
+  // lucide outline, and the pairing lives in shared/icons.tsx. A file that
+  // imports lucide-react directly gets an icon with no filled twin, which
+  // vanishes in light (the stylesheet hides .ic-out there) or, worse, stays
+  // outline while everything around it fills. So there is exactly one door.
+  it("nothing imports lucide-react except the icon module", () => {
+    const bad = SOURCES
+      .filter((f) => rel(f) !== "shared/icons.tsx" && /from "lucide-react"/.test(read(f)))
+      .map(rel);
+    expect(bad).toEqual([]);
+  });
+
+  // SECTIONS ARE DERIVED, NEVER TYPED (Dave 2026-08-22, pick 9). The Bigger
+  // Picture head counted projects whose STATUS said active while the list
+  // rendered all of them, so it read "Moving Now 5" over seven rows, one of
+  // which carried a card saying nothing was moving there. A section head is a
+  // claim about reality and must come from bucketOf, which reads real task
+  // completion, not a field nobody has touched since the record was made.
+  it("the bigger picture never sections by a typed status", () => {
+    const src = read(SRC + "/bigger/BiggerPicturePage.tsx");
+    expect(src).toContain("bucketOf");
+    expect(/status === "active"/.test(src)).toBe(false);
+  });
+
+  // ONE WORD FOR ONE THING (pick 30). The project page called them Steps and
+  // the Tasks tab called the same records Tasks, which taught him that filing
+  // work into a project moved it somewhere else. Prop names may stay `step`;
+  // the words a reader sees may not.
+  it("no surface calls a task a step", () => {
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      for (const m of read(f).matchAll(/(placeholder|title|aria-label)="([^"]*\bSteps?\b[^"]*)"/g)) {
+        bad.push(rel(f) + ": " + m[2]);
+      }
+      for (const m of read(f).matchAll(/>\s*(Steps?)\s*</g)) bad.push(rel(f) + ": " + m[1]);
+    }
+    expect(bad).toEqual([]);
+  });
+
+  // THE HAND-DRAWN RATCHET (Dave 2026-08-22, sending examples of icons that
+  // were still outline in light: the Today double-chevron, the Checklist
+  // document, the note files). Not every icon came from a library -- 43
+  // shapes were drawn inline as raw SVG, invisible to the icon pairing, and
+  // they would have stayed outline in light while everything around them
+  // filled. The 24 that NAME a thing were paired in shared/glyphs.tsx. What
+  // is left is controls, which are supposed to stay outline. This number may
+  // fall, never rise: a new hand-drawn glyph is a new icon with no filled
+  // twin, and the mixed state comes straight back.
+  it("hand-drawn icon SVGs do not multiply", () => {
+    const n = SOURCES
+      .filter((f) => rel(f) !== "shared/glyphs.tsx")
+      .reduce((acc, f) => acc + [...read(f).matchAll(/<svg className="ic/g)].length, 0);
+    expect(n).toBeLessThanOrEqual(43);
+  });
+
+  // Fill is for glyphs that NAME a thing. A control is operated WITH, and
+  // Phosphor's fill weight turns those into blobs: a filled magnifier is a
+  // disc, a filled "..." is a badge. Those stay outline in both themes.
+  it("controls are never given a filled twin", () => {
+    const src = read(SRC + "/shared/icons.tsx");
+    for (const c of ["Search", "Ellipsis", "MoreHorizontal", "ChevronRight", "Plus", "X"]) {
+      expect(src, `${c} must stay outline`).toMatch(new RegExp(`export const ${c} = [^;]*outline\\(`));
+    }
   });
 
   // A SENDER OWNS ITS LINE (Dave's 10:30 screenshot, 2026-08-22). Mail

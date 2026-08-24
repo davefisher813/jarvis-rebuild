@@ -24,6 +24,7 @@ import { identityToText } from "../ai/context";
 import { firstStepPrompt, parseFirstStep } from "../tasks/firstStep";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
+import { TargetGlyph } from "../shared/glyphs";
 
 type Sheet =
   | { kind: "closed" }
@@ -155,7 +156,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       <div className="promo-card">
         <div className="promo-head">
           <div className="promo-badge b-amber">
-            <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /></svg>
+            <TargetGlyph />
           </div>
           <div className="promo-body">
             <div className="promo-title">{stalled.data.title}</div>
@@ -465,6 +466,22 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
         // a hidden action.
         onAddProject={() => setSheet({ kind: "newProject", goalId: goals.length === 1 ? goals[0]!.id : undefined })}
         onOpenProject={(id) => setDetailId(id)}
+        onCloseProject={async (id) => {
+          // PICK 6: the row closes itself where the work is already finished.
+          // The same write and the same payoff the detail page already used,
+          // so a project finished from the list celebrates identically to one
+          // finished from inside it.
+          const proj = projects.find((x) => x.id === id);
+          if (!proj) return;
+          await attemptWrite(() => projectsSvc.update(id, { ...proj.data, status: "done" }));
+          await reload();
+          const mine = tasks.filter((t) => (t.data as { projectId?: string }).projectId === id);
+          setPayoff({
+            kind: "project",
+            title: proj.data.title,
+            line: payoffLine({ tasksDone: mine.filter((t) => (t.data as { done?: boolean }).done).length }),
+          });
+        }}
         onAddGoal={() => setSheet({ kind: "newGoal" })}
         onOpenGoal={(id) => setGoalDetailId(id)}
       />

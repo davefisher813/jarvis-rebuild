@@ -202,30 +202,47 @@
   --sys-gray: #8E8E93;
   --red: #FF3B30; --sys-red: #FF3B30; --warn: #FF9500; --good: #34C759; --blue: #007AFF;
   --yellow: #FFCC00; --teal: #30B0C7; --mint: #00C7BE; --pink: #FF2D55;
-  /* Red in light theme too (Dave, 2026-08-02), but a darker red than dark
-     theme uses. --tint is drawn as TEXT in several places (toast action,
-     search cancel, tertiary buttons, action-sheet items, links), and
-     #FA233B on this page is only 3.32:1, and the worst thing light-theme red
-     text sits on is not the page but a pressed chip (#E7E7EC, a 6% dark wash
-     over white). #CC051B is the closest Music red that clears the chip too:
-     4.73:1 there, 5.22:1 on the page, 5.83:1 on a white card, and it carries
-     white at 5.83:1 when a light-theme fill needs it. */
-  --tint: #CC051B;
+  /* ONE LIGHT RED (Dave, 2026-08-22: "the red still isn't Jarvis red").
+     Light was carrying THREE unrelated reds -- #E2051E fills, #CC051B tint,
+     #B80417 capsule labels -- and #CC051B/#B80417 were Music-hue, not brand
+     hue, which is the exact muddying the one-red law was written to stop.
+     Now one: #DA0012, the BRAND hue taken down only as far as the worst
+     surface red text actually meets (the tinted capsule, 4.52:1), which
+     leaves 4.79:1 on the page and 5.26:1 on a white card, and carries white
+     at 5.26:1 where a fill needs it.
+     Red cannot go brighter than this AS TEXT on a light ground: the red
+     channel alone puts #FF2B3C at 3.38:1 on this page. So the brand red is
+     not abandoned in light, it is routed by job -- anything with no words
+     in it (glyphs, the wordmark J, rules, dots) wears the real #FF2B3C
+     under the 3:1 non-text bar, and only lettering steps down to #DA0012. */
+  --tint: #DA0012;
   /* Same reason as --tint, same value. */
-  --accent-tx: #CC051B;
-  /* Destructive text, light. The dark value (#FF453A) is 2.74:1 here, which
-     is why this cannot be one value for both themes. #CC051B is the red this
-     page already trusts and clears the secondary button at 4.50:1. In light
-     the destructive verb reads by being red at all, since Cancel beside it
-     is near-black. */
+  --accent-tx: #DA0012;
+  /* Destructive text, light, and it is deliberately NOT --accent-tx
+     (merge, 2026-08-24). Two sessions landed here at once: one made the
+     light accent #DA0012, the other added a separate destructive red.
+     Both survive, and the reason is measured, not aesthetic.
+
+     This value cannot be shared with dark either way: the dark red
+     (#FF453A) is 2.74:1 against a light card, which is why --danger-tx
+     exists at all.
+
+     Against the light .btn-secondary it sits on (#ECECED, which is
+     --press-3 over a white card): #DA0012 is 4.46:1 and #CC051B is 4.93:1.
+     A destructive verb is the one label that has to clear 4.5:1 outright
+     rather than lean on the large-text allowance, so it takes the darker
+     red by a hair. Everything else in light wears --accent-tx.
+
+     In light the destructive verb reads by being red AT ALL, since Cancel
+     beside it is near-black at 15.49:1. */
   --danger-tx: #CC051B;
   /* ROW PILL, light theme (option B, catalog O.5 revised 2026-08-21).
      Outlined, no fill, so the same form reads in both themes. The border
      and the text are the light-theme red the page already trusts:
-     #B80417 is 5.9:1 on the white card and 4.82:1 on a pressed chip. */
+     it now rides the one light red (#DA0012): 5.26:1 on the white card. */
   --accent-chip: transparent;
-  --accent-chip-bd: #B80417;
-  --accent-chip-tx: #B80417;
+  --accent-chip-bd: #DA0012;
+  --accent-chip-tx: #DA0012;
   --red-tint: rgba(204,5,27,0.10); --warn-tint: rgba(255,149,0,0.14); --good-tint: rgba(52,199,89,0.14);
   --glass-bg: rgba(255,255,255,0.78);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);

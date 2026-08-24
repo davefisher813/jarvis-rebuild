@@ -76,6 +76,7 @@ import { lazy, Suspense } from "react";
 import { isOffTrack, rankOpen } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
+import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph } from "../shared/glyphs";
 
 // Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
 // overlays, not tabs, and stay out of the boot bundle.
@@ -83,15 +84,15 @@ const SPARK_ICO = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /></svg>
 );
 const CLOCK_ICO = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+  <ClockGlyph />
 );
 // Double chevrons: things carried forward (sweep, slip, re-flow).
 const SWEEP_ICO = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="13 17 18 12 13 7" /><polyline points="6 17 11 12 6 7" /></svg>
+  <SweepGlyph />
 );
 // A fork with one path taken: the Decision Record mark (matches anatomy.tsx).
 const FORK_ICO = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="6" y1="3" x2="6" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></svg>
+  <ForkGlyph />
 );
 const UpNextFlow = lazy(() => import("../upnext/UpNextFlow"));
 const FreshStartFlow = lazy(() => import("../upnext/FreshStartFlow"));
@@ -1264,7 +1265,7 @@ export default function TodayFlow({
   // The rest wait for the next open; every card is also actionable away.
   // Order: revisit > failed sweep > sweep receipt > where-you-were.
   const DOC_ICO = (
-    <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+    <DocGlyph />
   );
   // E1 · DESIGNING FOR THE RETURN (2026-08-20). You will stop using this for
   // two weeks at some point; everyone does. The apps that punish you for it

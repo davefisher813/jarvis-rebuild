@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getWeather, morningLine, eventLine, readCoords, writeCoords, readSnapshot } from "./weather";
 import NoticeCard from "../today/NoticeCard";
+import { CloudGlyph } from "../shared/glyphs";
 
 // The Weather Fact renderers (addendum item 4). Self-contained: they read
 // the cache, fetch when it is stale, and render NOTHING on mild days, with
@@ -74,7 +75,7 @@ export function WeatherOfferRow() {
   return (
     <NoticeCard
       icon={
-        <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 14.9" /></svg>
+        <CloudGlyph />
       }
       tone="cat-fg-sky"
       title="Add Weather to Your Day"

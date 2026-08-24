@@ -35,6 +35,7 @@ import GymFlow from "../gym/GymFlow";
 import { useGym } from "../data/NotesProvider";
 import type { Program } from "../gym/types";
 import { capAfterNumber } from "../shared/casing";
+import { BarbellGlyph, CalendarGlyph, FolderGlyph } from "../shared/glyphs";
 
 const CHEV = (
   <div className="chev" />
@@ -48,10 +49,10 @@ const CHECK_ICO = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
 );
 const CAL_ICO = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+  <CalendarGlyph />
 );
 const FOLDER_ICO = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+  <FolderGlyph />
 );
 
 // V2 anatomy: one day label per group, not one per row.
@@ -69,7 +70,7 @@ const NOTES_CAP = 4;
 type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project" } | { kind: "edit" };
 
 const DUMBBELL = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="m6.5 6.5 11 11" /><path d="m21 21-1-1" /><path d="m3 3 1 1" /><path d="m18 22 4-4" /><path d="m2 6 4-4" /><path d="m3 10 7-7" /><path d="m14 21 7-7" /></svg>
+  <BarbellGlyph />
 );
 
 // The category page (2026-08-03), replacing the read-only archive. Pages are

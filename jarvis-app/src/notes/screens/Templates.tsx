@@ -1,4 +1,4 @@
-import { AlignLeft, CalendarDays, ListTodo, Table, FileText, ListOrdered } from "lucide-react";
+import { AlignLeft, CalendarDays, ListTodo, Table, FileText, ListOrdered } from "../../shared/icons";
 import type { TemplateKey } from "../types";
 
 // Matches locked frame #49 "Templates" (the New Note picker). Keys match the

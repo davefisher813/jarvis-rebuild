@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { AlignLeft, Heading, List, ListOrdered, ListTodo, Table, Image, Paperclip, Info } from "lucide-react";
+import { AlignLeft, Heading, List, ListOrdered, ListTodo, Table, Image, Paperclip, Info } from "../../shared/icons";
 import type { BlockType } from "../types";
 
 // Matches locked frame #48 "Add Block": a bottom sheet over the editor. Each

@@ -18,6 +18,7 @@ export interface ProposedDay {
   onDuration: (taskId: string, minutes: number) => void;
   onDrop: (taskId: string) => void;
 }
+import { BullseyeGlyph, CalendarGlyph, LockGlyph } from "../shared/glyphs";
 
 // One confident blend offer per block, keyed by event id. Built by the flow;
 // this screen only draws it.
@@ -82,9 +83,12 @@ function LockedRow({ l, past, onOpen, children }: { l: LockedRange; past: boolea
       <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
       <div className="sched-body">
         <div className="sched-title sched-lock-title">
-          {!holds && (
-            <svg className="ic lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
-          )}
+          {/* Both halves of a merge, and both are right (2026-08-24). The
+              other session replaced the inline SVG with the shared glyph;
+              this one added the guard, because a block that HOLDS tasks
+              already says so and the padlock beside it read as a second,
+              contradictory status. Glyph from there, guard from here. */}
+          {!holds && <LockGlyph className="ic lock-ic" />}
           {l.label}
         </div>
         <div className="sched-cat">Until {end.time} {end.ap}</div>
@@ -236,15 +240,11 @@ function NowLine({ label }: { label: string }) {
 }
 
 const CalIcon = () => (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-  </svg>
+  <CalendarGlyph />
 );
 
 const FocusIcon = () => (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3" />
-  </svg>
+  <BullseyeGlyph />
 );
 
 export default function YourDay({

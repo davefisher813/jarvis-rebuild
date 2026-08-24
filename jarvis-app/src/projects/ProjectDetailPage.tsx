@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { PROJECT_META, type Project, type ProjectData } from "./types";
 import { catColor, catName } from "../shared/categories";
-import { FileText } from "lucide-react";
+import { FileText } from "../shared/icons";
 import { useOptionalDecisions, useOptionalProjects, useOptionalGoals, useOptionalCategories } from "../data/NotesProvider";
 import type { DecisionRecord } from "../decisions/types";
 import type { Goal } from "../life/types";
@@ -12,6 +12,7 @@ import { attemptWrite } from "../shared/guard";
 import { capAfterNumber } from "../shared/casing";
 import { areaFromTasks } from "./backfill";
 import { haptics } from "../shared/haptics";
+import { ForkGlyph } from "../shared/glyphs";
 
 const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
 
@@ -20,7 +21,7 @@ const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
 // there before you can second-guess it. Deterministic lookup, newest live
 // decision attached to this project; absent when there is none.
 const FORK = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="6" y1="3" x2="6" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></svg>
+  <ForkGlyph />
 );
 
 // A step: one of the project's own tasks, flattened by the caller so this
@@ -181,7 +182,11 @@ export default function ProjectDetailPage({
           there is no second copy of it living on this page. */}
       {(steps.length > 0 || onAddStep) && (
         <>
-          <div className="grp"><div className="eyebrow">Steps</div></div>
+          {/* ONE WORD FOR ONE THING (Dave 2026-08-22, pick 30). This page called
+   them Steps and the Tasks tab called the same records Tasks, so filing
+   work into a project looked like moving it somewhere else. The word is
+   Tasks everywhere a reader can see it; the props keep their names. */}
+          <div className="grp"><div className="eyebrow">Tasks</div></div>
           <div className="pad-x"><div className="card">
             {openSteps.map((t) => (
               <div className="row proj-step" key={t.id}>
@@ -208,7 +213,7 @@ export default function ProjectDetailPage({
               <div className="row proj-add-step">
                 <input
                   className="input proj-step-input"
-                  placeholder="Add a Step"
+                  placeholder="Add a Task"
                   value={newStep}
                   onChange={(e) => setNewStep(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") addStep(); }}
@@ -269,7 +274,7 @@ export default function ProjectDetailPage({
               nobody marks anything done. */}
           {openSteps.length > 0 && (
             <div className="conn-meta proj-finish-note">
-              {capAfterNumber(openSteps.length === 1 ? "1 step is still open" : `${openSteps.length} steps are still open`)}
+              {capAfterNumber(openSteps.length === 1 ? "1 task is still open" : `${openSteps.length} tasks are still open`)}
             </div>
           )}
         </div>

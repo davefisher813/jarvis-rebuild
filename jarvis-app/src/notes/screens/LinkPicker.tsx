@@ -1,4 +1,4 @@
-import { CalendarDays, ListChecks, FolderKanban, User, Target } from "lucide-react";
+import { CalendarDays, ListChecks, FolderKanban, User, Target } from "../../shared/icons";
 
 // Lists the user's real events, tasks, projects, people, and goals so a note
 // can be linked to any of them. Tapping a row calls onPick with the entity's

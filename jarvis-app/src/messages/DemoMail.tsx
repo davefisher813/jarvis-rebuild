@@ -7,11 +7,12 @@
 import { useEffect, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { showToast } from "../shared/toast";
-import { Plus } from "lucide-react";
+import { Plus } from "../shared/icons";
 import { saveMailSnapshot } from "./home";
 import { decide } from "./mailAction";
 import { nameFor } from "./names";
 import { railClass, railToneForWaiting, railToneForDeadline } from "./rows";
+import { EnvelopeGlyph } from "../shared/glyphs";
 
 interface DemoRow { from: string; sub: string; when: string; unread?: boolean; due?: string }
 interface DemoWait { to: string; sub: string; days: number }
@@ -32,6 +33,9 @@ const WAITING: DemoWait[] = [
   { to: "Elieserhenry0", sub: "Reservation Receipt", days: 46 },
 ];
 
+const MAIL_ICO = (
+  <EnvelopeGlyph />
+);
 
 const demoTap = () => showToast({ message: "Demo mail · Connect Google for the real thing" });
 

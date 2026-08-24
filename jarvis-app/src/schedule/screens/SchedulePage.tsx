@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { LATE_CHOICES } from "../durations";
 import PageHeader, { BarAction } from "../../shared/PageHeader";
-import { ChevronLeft, ChevronRight, Plus, Camera, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Camera, AlertTriangle } from "../../shared/icons";
 import type { EventItem } from "../types";
 import { monthMatrix, fmtTime, openSlots, minToHHMM } from "../calendar";
 import { isFocusRange, modeOf, freeOf } from "../../routine/types";
@@ -13,6 +13,7 @@ import ProposedRow from "./ProposedRow";
 import type { TaskItem } from "../../tasks/TasksService";
 import type { AttachInfo } from "../attachments";
 import { dropInto } from "../dayEdit";
+import { LockGlyph } from "../../shared/glyphs";
 
 // A dropped task gets an hour, the same hour the tap-to-fill path gives it.
 const DROP_MINUTES = 60;
@@ -459,7 +460,7 @@ export default function SchedulePage({
                 <div className="sched-body">
                   <div className="sched-title sched-lock-title">
                     {m === "holds" ? null : (
-                      <svg className="ic lock-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+                      <LockGlyph className="ic lock-ic" />
                     )}
                     {en.l.label}
                   </div>

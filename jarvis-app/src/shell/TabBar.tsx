@@ -1,4 +1,4 @@
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal } from "../shared/icons";
 import { destOf } from "./destinations";
 
 // Dynamic tab bar: the chosen destinations plus a fixed More tab. Active is the

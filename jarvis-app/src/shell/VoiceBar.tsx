@@ -1,4 +1,4 @@
-import { Sparkles, Search, Zap } from "lucide-react";
+import { Sparkles, Search, Zap } from "../shared/icons";
 
 // Quick-capture bar docked above the tab bar on main tab screens. Tapping it
 // opens text Quick Capture, where JARVIS parses what you type into tasks,

@@ -4,6 +4,7 @@ import { todayISO } from "../schedule/calendar";
 import { haptics } from "../shared/haptics";
 import type { ProfileData } from "../profile/types";
 import NoticeCard from "./NoticeCard";
+import { SunGlyph } from "../shared/glyphs";
 
 // The evening check-in: ONE question, every answer a single tap, dismissing is
 // guilt-free and gone for the day. The morning "one thing" and "still on for"
@@ -13,7 +14,7 @@ import NoticeCard from "./NoticeCard";
 // plan (daySizing) and feeds pattern awareness.
 
 const SPARK = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /></svg>
+  <SunGlyph />
 );
 
 export default function CheckIn({ onChanged }: { onChanged?: () => void }) {

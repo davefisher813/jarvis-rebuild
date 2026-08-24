@@ -228,42 +228,123 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cat-bg-olive { background: var(--cat-olive); color: var(--on-fill-dark); } .cat-bd-olive { border-color: var(--cat-olive); } .cat-fg-olive { color: var(--cat-olive); }
 .cat-bg-slate { background: var(--cat-slate); color: var(--on-fill-dark); } .cat-bd-slate { border-color: var(--cat-slate); } .cat-fg-slate { color: var(--cat-slate); }
 
-/* CATEGORY COLOURS DRAWN AS TEXT, IN LIGHT THEME (Daylight parity pass,
-   2026-08-22, Dave: "make sure they are rendering with the same quality as
-   the dark version"). Light ink physically cannot glow the way dark's
-   luminous text does, so the CHIP carries the vibrancy and the ink carries
-   the weight: the chip background is a strong 18% wash of the slot's own
-   colour, and each ink is that hue's chroma-max value darkened until it
-   clears 4.6:1 ON ITS OWN CHIP as the chip renders over the page (the chip
-   is the worst surface a kicker ever sits on now, not the page; at the old
-   12% wash the first vivid set quietly read 3.9-4.3 on-chip). Derived and
-   verified computationally; the law below checks the same formula. */
+/* CATEGORY COLOURS DRAWN AS TEXT, IN LIGHT THEME (chip-derived, parity
+   pass 2026-08-22). The chip behind a kicker is now mixed from the slot's
+   VIVID FILL rather than from the ink (see the chip rules below), so a
+   MONEY chip is wheat gold instead of the olive-on-olive Dave photographed.
+   Each ink is that hue darkened only until it clears 4.6:1 on its own
+   chip AND on the page. Derived computationally; the palette law recomputes
+   the same pair. */
 [data-theme="light"] {
-  --cat-tx-amber: #805400;
-  --cat-tx-rust: #A73400;
-  --cat-tx-rose: #B20034;
-  --cat-tx-plum: #9F1597;
-  --cat-tx-violet: #6C2BE0;
-  --cat-tx-cyan: #006481;
-  --cat-tx-mint: #006A49;
-  --cat-tx-olive: #4E6400;
-  --cat-tx-slate: #3B5F87;
-  --cat-tx-red: #B2000C;
-  --cat-tx-orange: #9C3F00;
-  --cat-tx-sky: #006290;
-  --cat-tx-pink: #B20030;
-  --cat-tx-yellow: #805400;
-  --cat-tx-green: #186B2D;
-  --cat-tx-blue: #0057C1;
-  --cat-tx-teal: #006679;
-  --cat-tx-graphite: #5D5D64;
-  --cat-tx-purple: #851DCE;
-  --cat-tx-indigo: #4B49CF;
-  --cat-tx-magenta: #A90078;
-  --cat-tx-lime: #00685F;
-  --cat-tx-sand: #745837;
-  --cat-tx-coral: #AC2800;
+  --cat-tx-red: #B42A22;
+  --cat-tx-orange: #945600;
+  --cat-tx-sky: #1F6B8F;
+  --cat-tx-pink: #B5203C;
+  --cat-tx-yellow: #816700;
+  --cat-tx-green: #1E7434;
+  --cat-tx-blue: #005CC1;
+  --cat-tx-teal: #1E6E7C;
+  --cat-tx-graphite: #636366;
+  --cat-tx-purple: #873FAB;
+  --cat-tx-indigo: #504EC3;
+  --cat-tx-magenta: #A12D89;
+  --cat-tx-lime: #00726D;
+  --cat-tx-sand: #755F44;
+  --cat-tx-coral: #A54435;
+  --cat-tx-amber: #855800;
+  --cat-tx-rust: #A83911;
+  --cat-tx-rose: #B60137;
+  --cat-tx-plum: #A22198;
+  --cat-tx-violet: #7243C4;
+  --cat-tx-cyan: #056B7D;
+  --cat-tx-mint: #0B704B;
+  --cat-tx-olive: #516B17;
+  --cat-tx-slate: #466286;
 }
+/* GLYPH INKS. A glyph is CHROME, not text: it carries no words, so it is
+   held to the 3:1 non-text bar, not 4.5:1. Icons were inheriting the TEXT
+   ink and arriving as mud -- Dave, 2026-08-22, on the olive chevrons and
+   the olive document icon: "the yellow in some spots it's terrible". This
+   is the same defect as the 08-21 one-token-two-roles bug, in light.
+   FIFTEEN of the twenty-four keep Apple's light fill EXACTLY; only the
+   nine that miss 3:1 on the page are darkened, and only to the bar. */
+[data-theme="light"] {
+  --cat-ic-red: #FF3B30;
+  --cat-ic-orange: #C97500;
+  --cat-ic-sky: #2A93C3;
+  --cat-ic-pink: #FF2D55;
+  --cat-ic-yellow: #A78600;
+  --cat-ic-green: #299E46;
+  --cat-ic-blue: #007AFF;
+  --cat-ic-teal: #2996AA;
+  --cat-ic-graphite: #89898E;
+  --cat-ic-purple: #AF52DE;
+  --cat-ic-indigo: #5856D6;
+  --cat-ic-magenta: #C838AB;
+  --cat-ic-lime: #009A93;
+  --cat-ic-sand: #A2845E;
+  --cat-ic-coral: #E55E4A;
+  --cat-ic-amber: #B87A00;
+  --cat-ic-rust: #D54815;
+  --cat-ic-rose: #EF0148;
+  --cat-ic-plum: #CF2AC2;
+  --cat-ic-violet: #9054F8;
+  --cat-ic-cyan: #0797B0;
+  --cat-ic-mint: #109D69;
+  --cat-ic-olive: #729521;
+  --cat-ic-slate: #577BA8;
+}
+[data-theme="light"] .row-glyph.cat-fg-red, [data-theme="light"] .lib-ico.cat-fg-red { color: var(--cat-ic-red); }
+[data-theme="light"] .row-glyph.cat-fg-orange, [data-theme="light"] .lib-ico.cat-fg-orange { color: var(--cat-ic-orange); }
+[data-theme="light"] .row-glyph.cat-fg-sky, [data-theme="light"] .lib-ico.cat-fg-sky { color: var(--cat-ic-sky); }
+[data-theme="light"] .row-glyph.cat-fg-pink, [data-theme="light"] .lib-ico.cat-fg-pink { color: var(--cat-ic-pink); }
+[data-theme="light"] .row-glyph.cat-fg-yellow, [data-theme="light"] .lib-ico.cat-fg-yellow { color: var(--cat-ic-yellow); }
+[data-theme="light"] .row-glyph.cat-fg-green, [data-theme="light"] .lib-ico.cat-fg-green { color: var(--cat-ic-green); }
+[data-theme="light"] .row-glyph.cat-fg-blue, [data-theme="light"] .lib-ico.cat-fg-blue { color: var(--cat-ic-blue); }
+[data-theme="light"] .row-glyph.cat-fg-teal, [data-theme="light"] .lib-ico.cat-fg-teal { color: var(--cat-ic-teal); }
+[data-theme="light"] .row-glyph.cat-fg-graphite, [data-theme="light"] .lib-ico.cat-fg-graphite { color: var(--cat-ic-graphite); }
+[data-theme="light"] .row-glyph.cat-fg-purple, [data-theme="light"] .lib-ico.cat-fg-purple { color: var(--cat-ic-purple); }
+[data-theme="light"] .row-glyph.cat-fg-indigo, [data-theme="light"] .lib-ico.cat-fg-indigo { color: var(--cat-ic-indigo); }
+[data-theme="light"] .row-glyph.cat-fg-magenta, [data-theme="light"] .lib-ico.cat-fg-magenta { color: var(--cat-ic-magenta); }
+[data-theme="light"] .row-glyph.cat-fg-lime, [data-theme="light"] .lib-ico.cat-fg-lime { color: var(--cat-ic-lime); }
+[data-theme="light"] .row-glyph.cat-fg-sand, [data-theme="light"] .lib-ico.cat-fg-sand { color: var(--cat-ic-sand); }
+[data-theme="light"] .row-glyph.cat-fg-coral, [data-theme="light"] .lib-ico.cat-fg-coral { color: var(--cat-ic-coral); }
+[data-theme="light"] .row-glyph.cat-fg-amber, [data-theme="light"] .lib-ico.cat-fg-amber { color: var(--cat-ic-amber); }
+[data-theme="light"] .row-glyph.cat-fg-rust, [data-theme="light"] .lib-ico.cat-fg-rust { color: var(--cat-ic-rust); }
+[data-theme="light"] .row-glyph.cat-fg-rose, [data-theme="light"] .lib-ico.cat-fg-rose { color: var(--cat-ic-rose); }
+[data-theme="light"] .row-glyph.cat-fg-plum, [data-theme="light"] .lib-ico.cat-fg-plum { color: var(--cat-ic-plum); }
+[data-theme="light"] .row-glyph.cat-fg-violet, [data-theme="light"] .lib-ico.cat-fg-violet { color: var(--cat-ic-violet); }
+[data-theme="light"] .row-glyph.cat-fg-cyan, [data-theme="light"] .lib-ico.cat-fg-cyan { color: var(--cat-ic-cyan); }
+[data-theme="light"] .row-glyph.cat-fg-mint, [data-theme="light"] .lib-ico.cat-fg-mint { color: var(--cat-ic-mint); }
+[data-theme="light"] .row-glyph.cat-fg-olive, [data-theme="light"] .lib-ico.cat-fg-olive { color: var(--cat-ic-olive); }
+[data-theme="light"] .row-glyph.cat-fg-slate, [data-theme="light"] .lib-ico.cat-fg-slate { color: var(--cat-ic-slate); }
+/* KICKER CHIPS carry the slot's own FILL, not its ink: 18% of the vivid
+   Apple colour over the page. currentColor could not do this -- it is the
+   ink, and washing an already-darkened ink is what made MONEY olive. */
+[data-theme="light"] .eyebrow.cat-fg-red { background: color-mix(in srgb, var(--cat-red) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-orange { background: color-mix(in srgb, var(--cat-orange) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-sky { background: color-mix(in srgb, var(--cat-sky) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-pink { background: color-mix(in srgb, var(--cat-pink) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-yellow { background: color-mix(in srgb, var(--cat-yellow) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-green { background: color-mix(in srgb, var(--cat-green) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-blue { background: color-mix(in srgb, var(--cat-blue) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-teal { background: color-mix(in srgb, var(--cat-teal) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-graphite { background: color-mix(in srgb, var(--cat-graphite) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-purple { background: color-mix(in srgb, var(--cat-purple) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-indigo { background: color-mix(in srgb, var(--cat-indigo) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-magenta { background: color-mix(in srgb, var(--cat-magenta) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-lime { background: color-mix(in srgb, var(--cat-lime) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-sand { background: color-mix(in srgb, var(--cat-sand) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-coral { background: color-mix(in srgb, var(--cat-coral) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-amber { background: color-mix(in srgb, var(--cat-amber) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-rust { background: color-mix(in srgb, var(--cat-rust) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-rose { background: color-mix(in srgb, var(--cat-rose) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-plum { background: color-mix(in srgb, var(--cat-plum) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-violet { background: color-mix(in srgb, var(--cat-violet) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-cyan { background: color-mix(in srgb, var(--cat-cyan) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-mint { background: color-mix(in srgb, var(--cat-mint) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-olive { background: color-mix(in srgb, var(--cat-olive) 18%, transparent); }
+[data-theme="light"] .eyebrow.cat-fg-slate { background: color-mix(in srgb, var(--cat-slate) 18%, transparent); }
 /* CATEGORY COLOURS DRAWN AS TEXT, IN DARK THEME (2026-08-21). New with the
    Apple surfaces: #3A3A3C is lighter than the old #2A2A32, and nine of the
    fifteen dark variants stop clearing 4.5:1 on it (indigo is 2.24:1, blue
@@ -1243,7 +1324,13 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
    already passes and is untouched. Verified by measuring computed styles, not
    by eye. Fills carry white text, so the fill itself is darkened. */
 [data-theme="light"] {
-  --on-light-red: #CC051B;   /* Music hue: 5.83:1 on white, and carries white text at 5.83:1 */
+  /* ONE LIGHT RED (Dave 2026-08-22: "the red still isn't Jarvis red").
+     #CC051B was a Music-hue red unrelated to the brand, and it was darker
+     than it had to be. #DA0012 is the brand hue taken down only to the
+     worst surface red text actually meets in Daylight -- the tinted
+     capsule (4.52:1) -- so it also clears the page (4.79) and white
+     (5.26), and carries white text at 5.26 where it is a fill. */
+  --on-light-red: #DA0012;
   --on-light-warn: #8A5A00;  /* 5.93:1 */
   --on-light-good: #1B7A3D;  /* 5.39:1 */
 }
@@ -1252,8 +1339,12 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
 [data-theme="light"] .sched-dist { color: var(--on-light-good); }
 [data-theme="light"] .sec-head .see-all { color: var(--on-light-red); }
 [data-theme="light"] .now-line .now-label { color: var(--on-light-red); }
+/* THE WORDMARK IS A LOGOTYPE. The J in JARVIS carries no information a
+   reader must decode, and WCAG exempts brand marks from the text bar for
+   exactly that reason, so it wears the real brand red in both themes.
+   This is the single most identity-carrying red on the screen. */
 [data-theme="light"] .brand-mark .j,
-[data-theme="light"] .today-brand .j { color: var(--on-light-red); }
+[data-theme="light"] .today-brand .j { color: #FF2B3C; }
 [data-theme="light"] .tab-badge { background: var(--on-light-red); }
 [data-theme="light"] .av-accent { background: var(--on-light-red); }
 [data-theme="light"] .bp-stalled { color: var(--on-light-warn); }
@@ -2804,17 +2895,17 @@ button {
    ============================================================ */
 /* 1 · ACTIONS WEAR THE BRAND. Every capsule that is not primary, danger or
    deliberately neutral takes the iOS tinted-button form: a soft wash of
-   the JARVIS red with the deep red label on it. #B80417 on the wash is
-   5.5:1, on a white card 6.9:1. The :not() chain on .btn-sm matches the
+   the JARVIS red with the deep red label on it. The label is the one light
+   red (--on-light-red, #DA0012): 4.52:1 on the wash, 5.26:1 on a white card. The :not() chain on .btn-sm matches the
    capsule backstop's own specificity, or bare small buttons (Plan My Day,
    Not Today, Edit) silently keep the gray -- proven in preview, where all
    three sat unconverted until the chain matched. */
 [data-theme="light"] .btn,
 [data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
-  background: rgba(204,5,27,0.085); color: #B80417;
+  background: rgba(204,5,27,0.085); color: var(--on-light-red);
 }
-[data-theme="light"] .pill-act { background: rgba(204,5,27,0.085); color: #B80417; }
-[data-theme="light"] .note-fix { background: rgba(204,5,27,0.085); color: #B80417; }
+[data-theme="light"] .pill-act { background: rgba(204,5,27,0.085); color: var(--on-light-red); }
+[data-theme="light"] .note-fix { background: rgba(204,5,27,0.085); color: var(--on-light-red); }
 /* The variants the tint must NOT bleach, restated so the cascade keeps
    them: primary stays the flat brand fill, danger stays system red,
    neutral stays neutral, icon buttons stay furniture. */
@@ -2837,13 +2928,23 @@ button {
 [data-theme="light"] .eyebrow[class*="cat-fg-"] {
   display: inline-flex; align-items: center; width: fit-content;
   padding: 2px 7px; border-radius: 6px; margin-top: 2px;
-  /* 18%, not the first pass's 12% (Dave: same quality as dark). The chip
-     is where light carries the saturation dark carries in its text; the
-     ink set above is derived against exactly this wash. Change one and
-     you must re-derive the other -- the palette law computes the pair. */
-  background: color-mix(in srgb, currentColor 18%, transparent);
+  /* The wash itself is per-slot (it mixes the FILL, not the ink) and lives
+     with the palette above. Geometry only here. */
 }
+/* 4 · LIGHT WEARS THE FILLED GLYPH (Dave 2026-08-22: "on the light version
+   filled in icons look MUCH better. Can we fill those in exclusively on the
+   light version?"). Every icon ships as a PAIR from shared/icons.tsx -- the
+   lucide outline and Phosphor's fill-weight twin -- because a stroke icon
+   cannot be filled by CSS without becoming the compass blob the 08-18 law
+   banned. The stylesheet picks one. Dark keeps its lucide drawings exactly,
+   so this is light-only by construction, not by discipline. */
+.ic-fill { display: none; }
+[data-theme="light"] .ic-out { display: none; }
+[data-theme="light"] .ic-fill { display: inline-block; }
+
 /* 3 · MAIL GLYPHS JOIN THE FAMILY. The purple envelope was the dark
    theme's mail tone surviving into daylight, where it clashed with
-   everything red on the page. In light the glyph wears the brand. */
-[data-theme="light"] .row-glyph.cat-fg-purple { color: #C7001A; }
+   everything red on the page. In light the glyph wears the brand -- and
+   because a glyph is chrome (3:1, no words in it), it wears the REAL
+   #FF2B3C, not a darkened stand-in. 3.38:1 on the page. */
+[data-theme="light"] .row-glyph.cat-fg-purple { color: #FF2B3C; }

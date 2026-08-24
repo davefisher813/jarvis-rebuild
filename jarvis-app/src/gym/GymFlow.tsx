@@ -16,6 +16,7 @@ import { usePushDepth } from "../shared/pushNav";
 import { showToast } from "../shared/toast";
 import { useAI } from "../ai/useAI";
 import { capAfterNumber } from "../shared/casing";
+import { BarbellGlyph } from "../shared/glyphs";
 
 const CHEV = (
   <div className="chev" />
@@ -24,7 +25,7 @@ const PLUS = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
 );
 const DUMBBELL = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="m6.5 6.5 11 11" /><path d="m21 21-1-1" /><path d="m3 3 1 1" /><path d="m18 22 4-4" /><path d="m2 6 4-4" /><path d="m3 10 7-7" /><path d="m14 21 7-7" /></svg>
+  <BarbellGlyph />
 );
 
 let seq = 0;

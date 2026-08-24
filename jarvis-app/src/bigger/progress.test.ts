@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { projectProgress, goalProgress, isStalled, rankProjects, progressLabel, lastActivity, STALE_DAYS } from "./progress";
+import { projectProgress, goalProgress, isStalled, rankProjects, progressLabel, lastActivity, STALE_DAYS,
+  bucketOf, closable, rankGoals } from "./progress";
 import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
 
@@ -72,5 +73,69 @@ describe("progressLabel", () => {
     expect(progressLabel({ done: 3, total: 7, pct: 43 }, false)).toBe("3 of 7 Done");
     expect(progressLabel({ done: 3, total: 7, pct: 43 }, true)).toBe("3 of 7 Done · Stalled");
     expect(progressLabel({ done: 4, total: 4, pct: 100 }, false)).toBe("All 4 done");
+  });
+});
+
+describe("wave 1: sections are derived, not typed", () => {
+  const R = (status: string, done: number, total: number, stalled = false) => ({
+    project: { id: "p", data: { title: "P", status } } as never,
+    progress: total ? { done, total, pct: Math.round((done / total) * 100) } : null,
+    stalled, lastAt: null,
+  });
+
+  it("a project whose tasks are all done is Done, even if nobody closed it", () => {
+    expect(bucketOf(R("active", 23, 23))).toBe("done");
+  });
+
+  it("a project with no tasks has not started, it is not moving", () => {
+    expect(bucketOf(R("active", 0, 0))).toBe("unstarted");
+  });
+
+  it("a stalled project is never filed under Moving", () => {
+    expect(bucketOf(R("active", 1, 3, true))).toBe("stalled");
+  });
+
+  it("real work in progress is Moving", () => {
+    expect(bucketOf(R("active", 1, 3))).toBe("moving");
+  });
+
+  it("a closed project stays Done whatever its tasks say", () => {
+    expect(bucketOf(R("done", 0, 3))).toBe("done");
+  });
+
+  // Pick 6: the offer only appears where it is true, which is the exact
+  // inverse of what shipped (loud on an unfinished project, silent on a
+  // finished one).
+  it("offers to close only when the work is finished and the project is not", () => {
+    expect(closable(R("active", 23, 23))).toBe(true);
+    expect(closable(R("done", 23, 23))).toBe(false);
+    expect(closable(R("active", 1, 3))).toBe(false);
+    expect(closable(R("active", 0, 0))).toBe(false);
+  });
+});
+
+describe("wave 1: goals order by what is true", () => {
+  const G = (id: string, done: number | null, total = 0) => ({
+    id, progress: done === null ? null : { done, total, pct: Math.round((done / total) * 100) },
+  });
+
+  it("nearest to finishing leads", () => {
+    const out = rankGoals([G("far", 1, 10), G("near", 8, 10)]).map((g) => g.id);
+    expect(out).toEqual(["near", "far"]);
+  });
+
+  it("a finished goal sinks below live work", () => {
+    const out = rankGoals([G("done", 5, 5), G("live", 1, 10)]).map((g) => g.id);
+    expect(out).toEqual(["live", "done"]);
+  });
+
+  it("goals with nothing to measure sit between live and finished", () => {
+    const out = rankGoals([G("done", 5, 5), G("empty", null), G("live", 1, 10)]).map((g) => g.id);
+    expect(out).toEqual(["live", "empty", "done"]);
+  });
+
+  it("never sorts by title, which is what put B first", () => {
+    const out = rankGoals([G("Zebra", 9, 10), G("Apple", 1, 10)]).map((g) => g.id);
+    expect(out).toEqual(["Zebra", "Apple"]);
   });
 });
