@@ -35,6 +35,9 @@ import type { TaskItem } from "../tasks/TasksService";
 import { repeatRows, repeatDays } from "./repeats";
 import { overlapsOn, overlapLine, copyDay, duplicateOf, durationOf, type Overlap } from "./dayEdit";
 import { capAfterNumber } from "../shared/casing";
+import { useFreshLists } from "../data/useFreshLists";
+import { ENTITY_EVENT } from "./types";
+import { ENTITY_TASK } from "../notes/types";
 
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: EventDraft } | null;
 
@@ -104,6 +107,12 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   useEffect(() => {
     reload();
   }, [reload]);
+  // A background refresh that found real changes repaints this surface
+  // (2026-08-24). CachedAdapter has reported these since it shipped and
+  // nothing was listening, so a day edited on another device sat wrong until
+  // something else happened to trigger a reload.
+  useFreshLists([ENTITY_EVENT, ENTITY_TASK], reload);
+
 
   useEffect(() => {
     let on = true;

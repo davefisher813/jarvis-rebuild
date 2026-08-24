@@ -28,6 +28,8 @@ import { touchActivity, recordSpot } from "../restore/whereYouWere";
 import { capAfterNumber } from "../shared/casing";
 import { loadOverwhelmed, setOverwhelmed as setOverwhelmedFlag, theOneThing } from "./overwhelmed";
 import { haptics } from "../shared/haptics";
+import { useFreshLists } from "../data/useFreshLists";
+import { ENTITY_TASK } from "../notes/types";
 
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
@@ -77,6 +79,12 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   useEffect(() => {
     reload();
   }, [reload]);
+  // A background refresh that found real changes repaints this surface
+  // (2026-08-24). CachedAdapter has reported these since it shipped and
+  // nothing was listening, so a list edited on another device sat wrong until
+  // something else happened to trigger a reload.
+  useFreshLists([ENTITY_TASK], reload);
+
 
   // Set Aside (lifecycle): once per day, long-overdue tasks quietly leave the
   // red wall for Someday territory, transparently and reversibly. The app

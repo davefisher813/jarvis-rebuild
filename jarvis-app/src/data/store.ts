@@ -17,6 +17,15 @@ export function subscribeFreshLists(fn: (entityType: string) => void): () => voi
   return () => freshSubs.delete(fn);
 }
 
+// The dispatch half, exported rather than an inline closure inside makeStore
+// (2026-08-24). It was unreachable from anywhere else, which meant the only
+// way to test the notification was to build a real Supabase-backed store, so
+// in practice nobody ever did: this pipe had zero subscribers from the day it
+// shipped and nothing noticed.
+export function notifyFreshLists(entityType: string): void {
+  for (const fn of freshSubs) fn(entityType);
+}
+
 // Builds the data store. With Supabase env present, uses the real adapter
 // wrapped in the stale-while-revalidate preload cache, with the signed-in
 // user's access token. Otherwise an in-memory store for local dev and the
@@ -25,7 +34,7 @@ export function subscribeFreshLists(fn: (entityType: string) => void): () => voi
 export function makeStore(accessToken?: string): Store {
   if (url && anonKey) {
     const real = createSupabaseAdapter(url, anonKey, accessToken);
-    const cached = new CachedAdapter(real, (t) => { for (const fn of freshSubs) fn(t); });
+    const cached = new CachedAdapter(real, notifyFreshLists);
     return new Store(cached);
   }
   return new Store(new InMemoryAdapter());
