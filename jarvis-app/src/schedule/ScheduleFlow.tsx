@@ -33,11 +33,12 @@ import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
 import type { TaskItem } from "../tasks/TasksService";
 import { repeatRows, repeatDays } from "./repeats";
-import { overlapsOn, overlapLine, copyDay, duplicateOf, durationOf, type Overlap } from "./dayEdit";
+import { overlapsOn, overlapLine, copyDay, durationOf, type Overlap } from "./dayEdit";
 import { capAfterNumber } from "../shared/casing";
 import { useFreshLists } from "../data/useFreshLists";
 import { ENTITY_EVENT } from "./types";
 import { ENTITY_TASK } from "../notes/types";
+import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent as duplicateEventMove } from "./eventMoves";
 
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: EventDraft } | null;
 
@@ -552,24 +553,21 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // task still exists, so deleting the block returns it to the strip; a manual
   // event becomes a fresh task first. Undo restores the block either way.
   const onUnschedule = async (id: string) => {
-    const e = await svc.event(id);
-    if (!e) return;
-    let restoredTaskId: string | undefined;
-    const ok = await attemptWrite(async () => {
-      if (!e.sourceTaskId) restoredTaskId = (await tasksSvc.createTask(e.title, { category: e.category || undefined })) ?? undefined;
-      await svc.deleteEvent(id);
-    });
+    // The move itself is in schedule/eventMoves.ts so Today can make it too.
+    type MoveRes = Awaited<ReturnType<typeof moveEventToAnytime>>;
+    let res: MoveRes | null = null;
+    const ok = await attemptWrite(async () => { res = await moveEventToAnytime(id, svc, tasksSvc); });
     await reload();
     await reloadTasks();
-    if (!ok) return;
+    const r = res as MoveRes | null;
+    if (!ok || !r?.ok || !r.event) return;
+    const kept = r.event;
+    const madeTaskId = r.madeTaskId;
     showToast({
       message: "Moved to Anytime",
       actionLabel: "Undo",
       onAction: async () => {
-        await attemptWrite(async () => {
-          if (restoredTaskId) await tasksSvc.deleteTask(restoredTaskId);
-          await svc.createEvent(e.title, { date: e.date, start: e.start, end: e.end, category: e.category || undefined, location: e.location, recurrence: e.recurrence, sourceTaskId: e.sourceTaskId });
-        });
+        await attemptWrite(() => undoMoveToAnytime(kept, madeTaskId, svc, tasksSvc));
         await reload(); await reloadTasks();
       },
     });
@@ -868,19 +866,21 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // appear here by themselves and copying one would double it.
   // E2: duplicate this event as a fresh one-off.
   const duplicateEvent = async (id: string) => {
-    const src = allEvents.find((e) => e.id === id);
-    if (!src) return;
-    const d = duplicateOf(src.data, selected);
-    let made: string | null = null;
+    let made: string | undefined;
     const ok = await attemptWrite(async () => {
-      made = await svc.createEvent(d.title, { date: d.date, start: d.start, end: d.end, category: d.category || undefined, location: d.location });
+      made = (await duplicateEventMove(id, allEvents, selected, svc)).madeId;
     });
     setSheet(null);
     await reload();
-    if (ok && made) showToast({
+    if (!ok || !made) return;
+    const madeId = made;
+    showToast({
       message: "Duplicated",
       actionLabel: "Undo",
-      onAction: async () => { await attemptWrite(() => svc.deleteEvent(made!)); await reload(); },
+      onAction: async () => {
+        await attemptWrite(() => svc.deleteEvent(madeId));
+        await reload();
+      },
     });
   };
 

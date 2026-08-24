@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import { catColor, catName } from "../../shared/categories";
+import { useChipInView } from "../../shared/useChipInView";
 import { fmtTime } from "../calendar";
 import type { PlanBlock } from "../planDay";
 import { DUR_CHOICES, durLabel, minutesBetween } from "../durations";
@@ -42,6 +44,8 @@ export default function ProposedRow({
   const t = fmtTime(block.start);
   const slot = catColor(block.category);
   const mins = blockMinutes(block);
+  const durs = useRef<HTMLDivElement>(null);
+  useChipInView(durs, open);
   return (
     <>
       <div
@@ -68,7 +72,7 @@ export default function ProposedRow({
       {open && (
         <div className="draft-edit-body" onClick={(e) => e.stopPropagation()}>
           <div className="plan-controls">
-            <div className="chip-row plan-durs">
+            <div className="chip-row plan-durs" ref={durs}>
               {DUR_CHOICES.map((d) => (
                 <button
                   key={d}

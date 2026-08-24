@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { EventItem } from "../types";
 import { useSwipe } from "../../shared/useSwipe";
+import { useChipInView } from "../../shared/useChipInView";
 import { fmtTime, fmtDistance } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
 import { attachLabel } from "../attachments";
@@ -69,10 +70,23 @@ export default function DayRow({
   const { dx, open, dragging, handlers, closeThen, toggle } = useSwipe({ revealW: rep ? 268 : 232, enabled: !!swipeable });
   const [picking, setPicking] = useState(false);
   const [sizing, setSizing] = useState(false);
+  const durs = useRef<HTMLDivElement>(null);
+  useChipInView(durs, sizing);
   const mins = e.data.end ? minutesBetween(e.data.start, e.data.end) : null;
 
   return (
     <div className="sched-swipe-wrap">
+      {/* THE STRIP IS THE ROW'S BOX, NOT THE WHOLE CARD (2026-08-24).
+          .sched-actions is absolutely positioned to bottom:0 of its
+          containing block. That used to be .sched-swipe-wrap, which was fine
+          while the row was the only thing in it. B5 put the length editor in
+          there too, so opening it grew the wrapper by 144px and the orange
+          swipe rail grew with it: measured at 218px tall behind a 68px row,
+          painting straight over the duration chips.
+          The actions belong to the ROW, so they get a box that only ever
+          contains the row. Clipping moves here with them; the wrapper keeps
+          position:relative for the time popover and now no longer crops it. */}
+      <div className="sched-strip">
       {swipeable && (
         // tabIndex mirrors aria-hidden (audit 2026-08-07): aria-hidden with
         // still-focusable children is an ARIA violation, and it let keyboard
@@ -182,6 +196,7 @@ export default function DayRow({
           </button>
         )}
       </div>
+      </div>
       {/* TAP THE UNTIL (B5): the same move for the other half of the block.
           Chips, not a stepper, because PlanDaySheet already settled that:
           45m to 2h is one tap on a chip and five on a stepper. The list is
@@ -198,7 +213,7 @@ export default function DayRow({
       {sizing && onSetEnd && (
         <div className="draft-edit-body" onClick={(ev) => ev.stopPropagation()}>
           <div className="plan-controls">
-            <div className="chip-row plan-durs">
+            <div className="chip-row plan-durs" ref={durs}>
               {DUR_CHOICES.map((d) => (
                 <button
                   key={d}

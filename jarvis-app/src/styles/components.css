@@ -95,9 +95,14 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-sep { font-size: var(--t-meta); color: var(--tx-4); }
 .sched-badge { margin-left: var(--s-1h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent-chrome); border: 1px solid var(--accent); border-radius: var(--r-pill); padding: 0 var(--s-1h); vertical-align: middle; }
 /* N5 completion (2026-08-21): the badge as a button. Same anatomy; the
-   ::after pad brings the touch target up to size without moving a pixel. */
+   ::after pad brings the touch target up without moving a pixel.
+   Clamped 2026-08-24 by the new nested-control law, which found it while
+   catching the until button. This badge sits INSIDE .sched-title, so -8px on
+   every side covered the title text either side of it, and .sched-row is a
+   button: those taps belonged to "open this event". Sideways it can have
+   what it likes; vertically it takes the 4px that is empty. */
 .sched-badge-btn { background: transparent; font-family: var(--f); position: relative; }
-.sched-badge-btn::after { content: ""; position: absolute; inset: -8px; }
+.sched-badge-btn::after { content: ""; position: absolute; inset: -4px -8px; }
 .sched-row-warn { box-shadow: inset 2px 0 0 var(--accent); }
 .input-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: var(--t-meta); color: var(--tx-2); margin-top: var(--s-1); }
 /* Capsule law: the inline fix offer wears the smallest capsule. */
@@ -522,7 +527,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-lock-title { display: flex; align-items: center; gap: var(--s-1h); }
 .lock-ic { width: 13px; height: 13px; color: var(--tx-3); flex-shrink: 0; }
 .sched-dist { font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--good); margin-left: var(--s-2); }
-.sched-swipe-wrap { position: relative; overflow: hidden; }
+/* The wrapper holds the row AND anything the row expands into (the length
+   editor, the time popover), so it must NOT be the containing block for the
+   swipe rail and must NOT clip. Both of those now belong to .sched-strip,
+   which only ever contains the row itself. See the note in DayRow.tsx. */
+.sched-swipe-wrap { position: relative; }
+.sched-strip { position: relative; overflow: hidden; }
 .sched-actions { position: absolute; top: 0; right: 0; bottom: 0; display: flex; }
 /* Swipe-reveal actions are the one place --tint must NOT be used now that it
    is red: "+15 min" and Snooze sit directly beside a red Delete, and a row of
@@ -2166,7 +2176,21 @@ button {
 .sched-until-btn { position: relative; background: 0; border: 0; padding: 0; margin: 0;
   font-family: var(--f); font-size: var(--t-meta); font-weight: inherit;
   color: var(--tx-3); cursor: pointer; }
-.sched-until-btn::after { content: ""; position: absolute; inset: -13px -6px; }
+/* A CONTROL INSIDE A TAPPABLE ROW EXPANDS ONLY INTO FREE SPACE (2026-08-24).
+   Shipped at -13px, which is the number every other 44px expansion uses, and
+   it was wrong here for a reason none of the others have: .sched-row is
+   itself role="button". Everything the pseudo-element covers is area the ROW
+   loses, and the user cannot see it happen. Measured: the button paints 18px
+   tall with 3px of clear space above it and 5px below, so -13px reached 10px
+   up into the title's box. Tapping an event on Schedule opened the length
+   editor instead of the event sheet.
+   Same lesson as the .row-stack[role="button"]::after revert on 2026-08-23.
+   Sideways is free, because nothing else on that line is tappable. Vertically
+   it gets the 3 and the 5 that are actually empty, and no more: 26px, under
+   the tap minimum and deliberately so. There is no honest way to reach 44
+   inside a 68px row without either stealing the row's tap or padding every
+   schedule row taller, and the row itself already opens the full editor. */
+.sched-until-btn::after { content: ""; position: absolute; inset: -3px -8px -5px; }
 .sched-until-btn:active { color: var(--accent-tx); }
 /* "Until 9:00 AM" is information that happens to be tappable, so it stays the
    colour of the facts beside it. "Set Length" is an OFFER with nothing to
@@ -2178,7 +2202,21 @@ button {
 /* No .dur-pop: the duration editor expands in place under the row, reusing
    .draft-edit-body and .plan-controls, which is what ProposedRow already
    does. A floating version shipped for about an hour and the browser walk
-   found it clipped behind the capture bar on low rows. */
+   found it clipped behind the capture bar on low rows.
+
+   Sharing the markup is right; sharing the INDENT was not. .plan-controls
+   pads 44px to clear ProposedRow's checkbox gutter, and a schedule row has
+   no checkbox: it has a 48px time column. Measured in Chromium, the chips
+   landed at x=60 under a title at x=92, so six chips wrapped onto two lines
+   and the whole editor floated 32px left of the row it edits, reading as if
+   it belonged to the nested task below it.
+   The offset is the one the divider between two schedule rows already uses,
+   so the editor starts exactly where that line starts. One scrolling line,
+   not two wrapped ones, for the same reason every other chip row in the app
+   scrolls: a wrapping row changes height as the choices change. */
+.sched-swipe-wrap > .draft-edit-body .plan-controls { padding-left: calc(var(--s-4) + 48px + var(--s-3)); }
+.sched-swipe-wrap > .draft-edit-body .chip-row { padding-left: 0; padding-right: var(--s-4); }
+.sched-swipe-wrap > .draft-edit-body .plan-durs { flex-wrap: nowrap; overflow-x: auto; }
 
 /* Four actions need more rail than two did. */
 .sched-actions .sched-act { padding: 0 var(--s-2h); }

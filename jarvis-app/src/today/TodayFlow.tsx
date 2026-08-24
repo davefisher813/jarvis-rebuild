@@ -73,6 +73,7 @@ import { getAIControl } from "../ai/levelStore";
 import { lazy, Suspense } from "react";
 import { isOffTrack, rankOpen } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
+import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
 
 // Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
 // overlays, not tabs, and stay out of the boot bundle.
@@ -404,6 +405,54 @@ export default function TodayFlow({
     if (ok) showToast({ message: landed ? "Added to schedule" : "Couldn't find that task" });
   };
 
+
+  // THE SAME SHEET, THE SAME MOVES (2026-08-24). Editing an event from Today
+  // offered neither Move to Anytime nor Duplicate, because EventSheet renders
+  // each only when its callback is passed and only ScheduleFlow passed them.
+  // Both live in schedule/eventMoves.ts so this surface can make them without
+  // a second copy of what they mean.
+  const onEventToAnytime = async () => {
+    if (!eventSheet) return;
+    const id = eventSheet.id;
+    type MoveRes = Awaited<ReturnType<typeof moveEventToAnytime>>;
+    let res: MoveRes | null = null;
+    const ok = await attemptWrite(async () => { res = await moveEventToAnytime(id, schedule, tasks); });
+    setEventSheet(null);
+    await reload();
+    const r = res as MoveRes | null;
+    if (!ok || !r?.ok || !r.event) return;
+    const kept = r.event;
+    const madeTaskId = r.madeTaskId;
+    showToast({
+      message: "Moved to Anytime",
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(() => undoMoveToAnytime(kept, madeTaskId, schedule, tasks));
+        await reload();
+      },
+    });
+  };
+
+  const onEventDuplicate = async () => {
+    if (!eventSheet) return;
+    const id = eventSheet.id;
+    let made: string | undefined;
+    const ok = await attemptWrite(async () => {
+      made = (await duplicateEvent(id, todayEvents, today, schedule)).madeId;
+    });
+    setEventSheet(null);
+    await reload();
+    if (!ok || !made) return;
+    const madeId = made;
+    showToast({
+      message: "Duplicated",
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(() => schedule.deleteEvent(madeId));
+        await reload();
+      },
+    });
+  };
 
   const onSaveTask = async (draft: TaskDraft) => {
     if (sheet?.mode === "edit") {
@@ -1622,6 +1671,8 @@ export default function TodayFlow({
         categories={categories}
         onSave={onSaveEvent}
         onDelete={onDeleteEvent}
+        onMoveToAnytime={onEventToAnytime}
+        onDuplicate={onEventDuplicate}
         onCancel={() => setEventSheet(null)}
       />
     )}

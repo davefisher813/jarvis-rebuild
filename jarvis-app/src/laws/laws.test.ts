@@ -861,3 +861,70 @@ describe("LAW: stored shapes are versioned", () => {
     expect(/form=\{[^}]*"row"/.test(src)).toBe(false);
   });
 });
+
+// THE TAPPABLE ROW OWNS ITS OWN AREA (2026-08-24).
+//
+// Two bugs from one week, both mine, both the same shape: something inside a
+// row that is itself role="button" took area the row needed, and neither was
+// visible in the markup.
+describe("LAW: a row that is a button keeps its area", () => {
+  // Dave tapped an event on Schedule and got the length editor. The until
+  // button carried the standard -13px hit expansion, which every other
+  // control in the app uses safely because they do not sit inside a tappable
+  // row. Measured in Chromium: it reached 10px up into the title's box.
+  //
+  // The .row-stack[role="button"]::after revert the day before was the same
+  // fact discovered the other way round, when Playwright reported ".row-stack
+  // intercepts pointer events" and inline rename stopped working.
+  //
+  // Cap, not ban: sideways expansion costs a tappable row nothing, and a few
+  // px vertically into genuinely empty space is fine. What is not fine is the
+  // reflex of writing -13px because that is what the 44px law wants, in the
+  // one place where 44px is not available without taking it from the row.
+  it("no control nested in a tappable row reaches far vertically", () => {
+    const bad: string[] = [];
+    // class -> the tappable row it lives inside
+    const nested: Record<string, string> = {
+      "sched-until-btn": ".sched-row",
+      "sched-badge-btn": ".sched-row",
+    };
+    for (const [cls, row] of Object.entries(nested)) {
+      const m = new RegExp("\\." + cls + "::after\\s*\\{([^}]*)\\}").exec(CSS);
+      if (!m) { bad.push(`.${cls} has no ::after at all`); continue; }
+      const inset = /inset:\s*([^;]+)/.exec(m[1] ?? "");
+      if (!inset?.[1]) { bad.push(`.${cls} expands by something other than inset`); continue; }
+      const parts = inset[1].trim().split(/\s+/).map((v) => Math.abs(parseFloat(v)) || 0);
+      // top right bottom left, CSS shorthand rules
+      const top = parts[0] ?? 0;
+      const bottom = (parts.length >= 3 ? parts[2] : parts[0]) ?? 0;
+      for (const [side, v] of [["top", top], ["bottom", bottom]] as [string, number][]) {
+        if (v > 6) bad.push(`.${cls} reaches ${v}px ${side} inside ${row}, which is a button`);
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
+  // .sched-actions is the orange swipe rail, positioned to bottom:0 of its
+  // containing block. While the row was the only child of .sched-swipe-wrap
+  // that was the row's height. B5 added the length editor as a second child,
+  // so opening it grew the wrapper and the rail grew with it: measured 218px
+  // of orange behind a 68px row, painting over the duration chips.
+  //
+  // The rail belongs to the row, so its containing block must contain only
+  // the row. Anything the row expands INTO stays outside that box.
+  it("the swipe rail's box holds the row and nothing that grows", () => {
+    const jsx = read(SRC + "/schedule/screens/DayRow.tsx");
+    // the strip exists, and both the actions and the row are inside it
+    expect(jsx).toMatch(/className="sched-strip"/);
+    const strip = jsx.indexOf('className="sched-strip"');
+    const acts = jsx.indexOf('className="sched-actions"');
+    const editor = jsx.indexOf('className="draft-edit-body"');
+    expect(strip).toBeGreaterThan(-1);
+    expect(acts).toBeGreaterThan(strip);
+    // the editor is rendered after the strip closes, not inside it
+    expect(editor).toBeGreaterThan(acts);
+    // and the strip, not the wrapper, does the clipping
+    expect(CSS).toMatch(/\.sched-strip\s*\{[^}]*overflow:\s*hidden/);
+    expect(CSS).not.toMatch(/\.sched-swipe-wrap\s*\{[^}]*overflow:\s*hidden/);
+  });
+});
