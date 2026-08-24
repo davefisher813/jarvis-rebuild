@@ -17,6 +17,11 @@ import { useSwipe } from "../shared/useSwipe";
 //
 // Let It Go keeps the outer slot because it is the one-swipe case (a dead
 // thread), and neither button is destructive: nothing here touches the mail.
+//
+// B13 (2026-08-23): More is the only way into MailMoreSheet, which holds the
+// entire escalation ladder for this row. It was an ellipsis behind a swipe:
+// the most buried control in the app, guarding the most useful sheet in it.
+// Now it says More.
 export default function LetGoSwipe({
   onMore,
   onLetGo,
@@ -33,10 +38,12 @@ export default function LetGoSwipe({
       {onMore && (
         <button className="mail-arch" onClick={() => swipe.closeThen(onMore)} aria-label="More moves">
           <Ellipsis className="ic" />
+          <span className="swipe-label">More</span>
         </button>
       )}
       <button className="mail-letgo" onClick={() => swipe.closeThen(onLetGo)} aria-label="Let it go">
         <CircleSlash className="ic" />
+        <span className="swipe-label">Let Go</span>
       </button>
       <div
         className={"task-row" + (swipe.dragging ? " swiping" : "")}

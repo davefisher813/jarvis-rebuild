@@ -4,22 +4,12 @@ import type { LiveSession } from "./liveSession";
 import { formatSet, logButtonLabel, targetSet, entryNoun, fieldsFor } from "./measures";
 import { isPR, lastTimeLine } from "./prs";
 import MusicChip from "../music/MusicChip";
+import Stepper from "../shared/Stepper";
 
 const CHEV = (
   <div className="chev" />
 );
 
-function Stepper({ value, step, onChange }: { value: number; step: number; onChange: (n: number) => void }) {
-  return (
-    <div className="stepper">
-      <button type="button" aria-label="Less" onClick={() => onChange(Math.max(0, Number((value - step).toFixed(2))))}>&minus;</button>
-      <div className="sep" />
-      <div className="val">{value}</div>
-      <div className="sep" />
-      <button type="button" aria-label="More" onClick={() => onChange(Number((value + step).toFixed(2)))}>+</button>
-    </div>
-  );
-}
 
 // The in-gym screen. ONE exercise, huge type, readable from a bench, because
 // standing there scrolling is the moment self-consciousness eats people. The
@@ -124,6 +114,7 @@ export default function SessionScreen({
                   {f.key === "t" && <div className="eyebrow">{exercise.timeUnit ?? "min"}</div>}
                 </div>
                 <Stepper value={(pending as Record<string, number | undefined>)[f.key] ?? 0} step={f.step}
+                  label={f.label}
                   onChange={(n) => setDev({ ...pending, [f.key]: n })} />
               </div>
             ))}

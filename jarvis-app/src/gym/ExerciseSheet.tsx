@@ -3,47 +3,12 @@ import { useState } from "react";
 import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, type Exercise, type MeasureKind } from "./types";
 import { fieldsFor, targetLine } from "./measures";
 import { StatTiles, type Stat } from "../shared/anatomy";
+import Stepper from "../shared/Stepper";
 
 const TRASH = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
 );
 
-// Tap the number to TYPE it (approved preview 2026-08-15): steppers nudge,
-// the keypad jumps. 0 to 185 is one tap and three digits, not 37 taps.
-function Stepper({ value, step, onChange }: { value: number; step: number; onChange: (n: number) => void }) {
-  const [editing, setEditing] = useState<string | null>(null);
-  const dec = () => onChange(Math.max(0, Number((value - step).toFixed(2))));
-  const inc = () => onChange(Number((value + step).toFixed(2)));
-  const commit = () => {
-    if (editing !== null) {
-      const n = Number(editing);
-      if (Number.isFinite(n) && n >= 0) onChange(Number(n.toFixed(2)));
-    }
-    setEditing(null);
-  };
-  return (
-    <div className="stepper">
-      <button type="button" aria-label="Less" onClick={dec}>&minus;</button>
-      <div className="sep" />
-      {editing === null ? (
-        <div className="val stepper-tap" role="button" tabIndex={0} onClick={() => setEditing(String(value))}>{value}</div>
-      ) : (
-        <input
-          className="val stepper-edit"
-          inputMode="decimal"
-          autoFocus
-          value={editing}
-          onChange={(e) => setEditing(e.target.value.replace(/[^0-9.]/g, ""))}
-          onBlur={commit}
-          onKeyDown={(e) => { if (e.key === "Enter") commit(); }}
-          onFocus={(e) => e.target.select()}
-        />
-      )}
-      <div className="sep" />
-      <button type="button" aria-label="More" onClick={inc}>+</button>
-    </div>
-  );
-}
 
 // The count row in the user's language, never "How many" (Dave, 2026-08-15).
 const countLabel = (kind: MeasureKind): string => {
@@ -133,7 +98,7 @@ export default function ExerciseSheet({ mode, initial, onSave, onDelete, onCance
               {kind !== "done" && <div className="now-stats"><StatTiles stats={tiles} /></div>}
               <div className="row">
                 <div className="row-grow"><div className="conn-name">{countLabel(kind)}</div></div>
-                <Stepper value={sets} step={1} onChange={(n) => setSets(Math.max(1, n))} />
+                <Stepper value={sets} step={1} min={1} label={countLabel(kind)} onChange={setSets} />
               </div>
               {fields.map((f) => (
                 <div className="row" key={f.key}>
@@ -142,7 +107,7 @@ export default function ExerciseSheet({ mode, initial, onSave, onDelete, onCance
                     {(f.key === "w" || f.key === "v") && unit && <div className="eyebrow">{unit} · Tap number to type</div>}
                     {f.key === "t" && <div className="eyebrow">{timeUnit}</div>}
                   </div>
-                  <Stepper value={target[f.key] ?? 0} step={f.step} onChange={(n) => setTarget((t) => ({ ...t, [f.key]: n }))} />
+                  <Stepper value={target[f.key] ?? 0} step={f.step} label={f.label} onChange={(n) => setTarget((t) => ({ ...t, [f.key]: n }))} />
                 </div>
               ))}
               {units.length > 1 && (

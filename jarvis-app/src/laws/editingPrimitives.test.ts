@@ -1,8 +1,12 @@
-// LAWS (editing coverage map, universal mechanics): the five editing
+// LAWS (editing coverage map, universal mechanics): the six editing
 // primitives exist EXACTLY ONCE. Inline text edit, chip picker, drag
-// controller, swipe controller, undo stack. Surfaces configure them, never
-// reimplement them; a second implementation of any primitive is a
+// controller, swipe controller, undo stack, stepper. Surfaces configure them,
+// never reimplement them; a second implementation of any primitive is a
 // review-blocking violation, which is what this file makes literal.
+//
+// Stepper was added 2026-08-23, after being found already duplicated. That is
+// the pattern to watch: a primitive nobody named is a primitive nobody
+// protected, and the copy is always the worse one.
 
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -98,10 +102,28 @@ describe("law: the undo stack", () => {
 });
 
 describe("law: the primitives exist where surfaces expect them", () => {
-  it("all five primitives are present in shared/", () => {
+  // Six since 2026-08-23. Stepper joined because it had already been copied:
+  // gym/ExerciseSheet had the real one and gym/SessionScreen had a stripped
+  // copy that dropped tap-to-type, which is the only thing that makes a
+  // stepper bearable past about ten taps. Nothing caught it, because a
+  // primitive that is not named here is a primitive nothing protects.
+  it("all six primitives are present in shared/", () => {
     const names = readdirSync(join(SRC, "shared"));
-    for (const p of ["InlineEdit.tsx", "ChipPicker.tsx", "ReorderList.tsx", "useSwipe.ts", "undoStack.ts"]) {
+    for (const p of ["InlineEdit.tsx", "ChipPicker.tsx", "ReorderList.tsx", "useSwipe.ts", "undoStack.ts", "Stepper.tsx"]) {
       expect(names).toContain(p);
     }
+  });
+
+  it("there is ONE stepper, and it is the shared one", () => {
+    const bad: string[] = [];
+    for (const f of FILES) {
+      if (rel(f) === "shared/Stepper.tsx") continue;
+      const src = read(f);
+      // A local component named Stepper, or a hand-rolled .stepper wrapper,
+      // is the copy this law exists to stop.
+      if (/function\s+Stepper\s*\(/.test(src)) bad.push(rel(f) + ": declares its own Stepper");
+      if (/className="stepper"/.test(src)) bad.push(rel(f) + ': hand-builds className="stepper"');
+    }
+    expect(bad).toEqual([]);
   });
 });

@@ -656,6 +656,20 @@ a.row.person-reach { color: inherit; text-decoration: none; }
    checkboxes and note checklist boxes (audit 2026-07-30). */
 .task-check-tap { position: relative; }
 .cb { position: relative; }
+/* B1 (2026-08-23): THE 44px RULE, applied to the last box that missed it.
+   `.cb` paints at 22px and was the tap target itself on note checklists and
+   reminders, while every other checkbox in the app sits inside the 44px
+   `.task-check-tap` wrapper. Same trick `.pill-act` uses: the paint stays
+   22px and the pseudo-element carries the target.
+
+   Vertical bleed is exactly 11px because both hosts (`.check-line` and
+   `.rem-row`) are `min-height: var(--tap-min)`, so a 22px box centred in a
+   44px line has precisely 11px of room above and below. It cannot reach the
+   neighbouring row. Measured, not assumed.
+
+   `.burst` is `pointer-events: none`, so the celebration inside the box does
+   not eat the tap this creates. */
+.cb::after { content: ""; position: absolute; inset: -11px; }
 .cb.on.just-checked { animation: checkPop 0.42s var(--ease-out); }
 .burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
 /* Sized to actually register (Dave 2026-07-30: original 5px/22px read as
@@ -932,6 +946,25 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .task-del .ic { width: 22px; height: 22px; }
 .task-snooze { position: absolute; top: 0; right: 88px; bottom: 0; width: 88px; border: 0; background: var(--warn); color: var(--on-fill-dark); display: flex; align-items: center; justify-content: center; }
 .task-snooze .ic { width: 22px; height: 22px; }
+
+/* B13 (2026-08-23): SWIPE ACTIONS SAY THEIR NAMES.
+   Three of the five swipe surfaces revealed icon-only buttons: a clock beside
+   a trash can, an archive tray beside a trash can, an ellipsis beside a
+   circle-slash. Each pair is a guess until you have made it wrong once.
+   DayRow already proved text works in this system, at 66 to 77px per action.
+
+   The reveal WIDTH does not change. Every label here fits 88px, and a wider
+   reveal would hide more of the row you are deciding about. LetGoSwipe's
+   header records what happens when these widths are edited carelessly: a
+   button sat in a covered slot and was unreachable from the day it shipped.
+
+   Stacking, not shrinking: the icon keeps its meaning at 20px and the word
+   goes under it. */
+.task-del, .task-snooze, .mail-arch, .mail-letgo {
+  flex-direction: column; gap: 5px; padding: 0 var(--s-1); }
+.task-del .ic, .task-snooze .ic, .mail-arch .ic, .mail-letgo .ic { width: 20px; height: 20px; }
+.swipe-label { font-family: var(--f); font-size: 11px; font-weight: var(--w-semi);
+  letter-spacing: .01em; line-height: 1; white-space: nowrap; }
 /* V4 full-bleed law (Dave 2026-08-18, "revise the email visuals... layout"):
    swipeable rows sit on the PAGE background, not a grey band; the opaque bg
    still hides the swipe reveal. Lists read as one surface again. */

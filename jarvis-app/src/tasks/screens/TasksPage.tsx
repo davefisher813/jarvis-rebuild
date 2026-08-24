@@ -111,10 +111,15 @@ function Row({
       {snoozable && (
         <button className="task-snooze" onClick={() => onSnooze?.(item.id)} aria-label="Move to tomorrow">
           <Clock className="ic" />
+          <span className="swipe-label">Tomorrow</span>
         </button>
       )}
+      {/* B13 (2026-08-23): a clock and a trash can, side by side, in two
+          coloured slots, with nothing saying which is which. Both say their
+          names now. Reveal width is unchanged: the labels fit 88px. */}
       <button className="task-del" onClick={() => onDelete?.(item.id)} aria-label="Delete task">
         <Trash2 className="ic" />
+        <span className="swipe-label">Delete</span>
       </button>
       <div
         className={"task-row" + (t.done ? " completed" : "") + (burst ? " just-done" : "") + (dragging ? " swiping" : "")}

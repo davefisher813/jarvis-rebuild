@@ -293,6 +293,34 @@ describe("LAW: Apple HIG casing", () => {
     expect(css).toMatch(/\.pill-act::after\s*\{[^}]*inset/);
   });
 
+  // B1/B2 (2026-08-23): the law above checked ONE class, so it could not have
+  // caught the two things this audit found. `.cb` was the tap target on note
+  // checklists and reminders and painted at 22px; `.chip` paints at 30px
+  // across three dozen screens. Every control that paints smaller than
+  // --tap-min has to say, in CSS, how it reaches 44.
+  //
+  // Deliberately a source check and not a measurement: jsdom reports every
+  // width as 0, so a real height assertion belongs in the browser walk. What
+  // this catches is the expansion being deleted, which is how it went missing
+  // the first time.
+  it("every control that paints under 44px expands its hit area", () => {
+    const css = read(SRC + "/styles/components.css") + read(SRC + "/styles/uniformity.css");
+    const bad: string[] = [];
+    // class -> the painted size that makes the expansion mandatory
+    const small: Record<string, string> = {
+      "cb": "22px checkbox, note checklists and reminders",
+      "chip": "30px filter chip",
+      "pill-act": "27px row action",
+    };
+    for (const [cls, why] of Object.entries(small)) {
+      // Either an ::after carrying inset/height, or a wrapper that is itself
+      // at least the tap minimum, counts as meeting it.
+      const expands = new RegExp("\\." + cls + "::after\\s*\\{[^}]*(inset|height)").test(css);
+      if (!expands) bad.push(`.${cls} (${why}) has no ::after hit area`);
+    }
+    expect(bad).toEqual([]);
+  });
+
   // THE RETIRED SECTION HEAD (catalog L). Today's icon-tile head, sec-ico
   // plus sec-title, was retired in favour of the steel head. It survived in
   // the check-in, which meant the one card in the Heads Up stream that was
