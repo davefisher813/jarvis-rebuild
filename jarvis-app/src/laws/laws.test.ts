@@ -997,6 +997,18 @@ describe("LAW: stored shapes are versioned", () => {
     expect([...pills].filter((p) => !lit.has(p))).toEqual([]);
   });
 
+  // PICK 1 SURVIVES A MERGE. The Now card's second segment is the one place
+  // on the home page where a single task says what it is for, and it is one
+  // JSX expression deep inside a 1700-line flow that two sessions edit at
+  // once. It has already survived one rebase; this is so the next one is not
+  // a matter of luck. Verified end to end against the demo on 2026-08-24:
+  // "About 45 min · Moves Weekly date night".
+  it("the Now card still says what its task moves", () => {
+    const src = read(SRC + "/today/TodayFlow.tsx");
+    expect(src, "gapMoves must be derived").toMatch(/const gapMoves = .*movesLine\(/);
+    expect(src, "and rendered in the Now meta").toMatch(/\{gapMoves \?\? "Fits this gap"\}/);
+  });
+
   // A GOAL'S LINE IS DERIVED ONCE. Two passes over the same data drift: the
   // list row said "No projects yet" while the hero said "8 open in your
   // tags", and both were reading the truth from different functions. The
