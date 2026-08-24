@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import PageHeader from "../shared/PageHeader";
 import type { Goal } from "../life/types";
 import type { ProjectRow, Progress } from "./progress";
-import { progressLabel } from "./progress";
+import { progressLabel, bucketOf, closable, rankGoals, BUCKETS, BUCKET_LABEL } from "./progress";
 import { catColor } from "../shared/categories";
 import SkeletonRows from "../shared/SkeletonRows";
 import { capAfterNumber } from "../shared/casing";
@@ -22,7 +22,7 @@ function Bar({ p }: { p: Progress }) {
 }
 
 export default function BiggerPicturePage({
-  goals, goalProgressOf, projectRows, loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf,
+  goals, goalProgressOf, projectRows, loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, onCloseProject,
 }: {
   goals: Goal[];
   goalProgressOf: (id: string) => Progress | null;
@@ -34,6 +34,8 @@ export default function BiggerPicturePage({
   onOpenGoal: (id: string) => void;
   onAddProject: () => void;
   onOpenProject: (id: string) => void;
+  // Pick 6: the row offers to close itself where the work is already done.
+  onCloseProject?: (id: string) => void;
 }) {
   if (loading) {
     return (
@@ -64,35 +66,54 @@ export default function BiggerPicturePage({
 
       {offer}
 
-      {/* V4: plain count in the head (caps qualifier retired); rows lead with
-          the bare folder glyph in the category color (letter tiles retired);
-          the per-row category kicker is gone, the color says it. */}
-      <div className="sh2"><span className="t">Moving Now</span>{projectRows.length > 0 && <span className="n">{projectRows.filter((r) => r.project.data.status === "active").length}</span>}</div>
+      {/* SECTIONS ARE A CLAIM ABOUT REALITY (Dave 2026-08-22, pick 9). The old
+          head counted projects whose STATUS said active while the list below
+          rendered all of them, so it read "Moving Now 5" over seven rows, one
+          of which carried a card saying nothing was moving there. Each section
+          is now derived by bucketOf, and an empty section does not render.
+          Spacing and heads are the existing .sh2 and .list-flat, so this
+          invents no new rhythm. */}
+      {BUCKETS.map((b) => {
+        const rows = projectRows.filter((r) => bucketOf(r) === b);
+        if (rows.length === 0) return null;
+        return (
+          <div key={b}>
+            <div className="sh2"><span className="t">{BUCKET_LABEL[b]}</span><span className="n">{rows.length}</span></div>
+            <div><div className="list-flat">
+              {rows.map(({ project, progress, stalled }) => {
+                const next = nextActionTextOf?.(project.id);
+                const canClose = closable({ project, progress, stalled, lastAt: null });
+                return (
+                  <div className="proj-row" role="button" tabIndex={0} key={project.id} onClick={() => onOpenProject(project.id)}>
+                    <div className={"row-glyph cat-fg-" + catColor(project.data.category ?? "")}>{FOLDER}</div>
+                    <div className="proj-meta">
+                      <div className="proj-title">{project.data.title}</div>
+                      {/* THE NEXT MOVE LEADS (pick 19). "Call Ridgeline" tells
+                          you more than a status word or a fraction ever will,
+                          so it goes first and the counts become the evidence
+                          under it. */}
+                      {next && <div className="bp-sub bp-next truncate">Next: {next}</div>}
+                      <div className={"bp-sub" + (stalled ? " bp-stalled" : "")}>{progressLabel(progress, stalled)}</div>
+                      {progress && <Bar p={progress} />}
+                    </div>
+                    {canClose && onCloseProject
+                      ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onCloseProject(project.id); }}>Close It</button>
+                      : CHEV}
+                  </div>
+                );
+              })}
+            </div></div>
+          </div>
+        );
+      })}
       <div><div className="list-flat">
-        {projectRows.map(({ project, progress, stalled }) => {
-          return (
-            <div className="proj-row" role="button" tabIndex={0} key={project.id} onClick={() => onOpenProject(project.id)}>
-              <div className={"row-glyph cat-fg-" + catColor(project.data.category ?? "")}>{FOLDER}</div>
-              <div className="proj-meta">
-                <div className="proj-title">{project.data.title}</div>
-                <div className={"bp-sub" + (stalled ? " bp-stalled" : "")}>{progressLabel(progress, stalled)}</div>
-                {/* The one thing that would move this project (Session 6.6).
-                    Derived; a project with no next action is stuck by
-                    definition, and the counts line above already says so. */}
-                {(() => { const next = nextActionTextOf?.(project.id); return next ? <div className="bp-sub bp-next truncate">Next: {next}</div> : null; })()}
-                {progress && <Bar p={progress} />}
-              </div>
-              {CHEV}
-            </div>
-          );
-        })}
         <button className="row row-act" onClick={onAddProject}>Add Project</button>
       </div></div>
 
       <div className="sh2"><span className="t">Working Toward</span></div>
       <div><div className="list-flat">
-        {goals.map((g) => {
-          const p = goalProgressOf(g.id);
+        {rankGoals(goals.map((g) => ({ id: g.id, progress: goalProgressOf(g.id), goal: g })))
+          .map(({ goal: g, progress: p }) => {
           return (
             <div className="row bp-goal" role="button" tabIndex={0} key={g.id} onClick={() => onOpenGoal(g.id)}>
               <div className="row-glyph cat-fg-purple">{TARGET}</div>

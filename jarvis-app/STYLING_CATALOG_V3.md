@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.15 (2026-08-22)
+# JARVIS Styling Catalog V4.16 (2026-08-22)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -391,6 +391,24 @@ The Second Sun's architecture stands (paper ground, borderless white cards, two-
 **HAND-DRAWN GLYPHS ARE PAIRED TOO.** Not every icon came from a library: 43 shapes were drawn inline as raw SVG and were invisible to the icon pairing, so they would have stayed outline in light while everything around them filled. The 24 that NAME a thing now live in `shared/glyphs.tsx`, where the OUTLINE half is the exact markup that was already in the file, character for character, so dark cannot move. A ratchet law pins the remaining inline count: it may fall, never rise.
 
 **FILL IS FOR NOUNS; CONTROLS STAY OUTLINE IN BOTH THEMES.** A glyph that NAMES a thing fills (house, envelope, wallet, calendar, brain). A control is operated WITH, and the fill weight turns those into blobs: a filled magnifier is a disc, a filled "..." is a badge, a filled chevron is a triangle. Apple never fills them either. The outline-always set is the navigation and manipulation controls (search, ellipsis, chevrons, plus, X, check, arrows, send, paperclip, trash, drag handle) plus the note editor's formatting marks (bold, italic, heading, lists, table, link), and it is law-tested on the six most visible.
+
+## BP1. The Honesty Pass (V4.16, Dave's picks 6, 8, 9, 10, 11, 19, 30, approved 2026-08-22)
+
+Wave one of the Bigger Picture rebuild. Every rule here is the same doctrine the rest of the app already follows, finally applied one tier up.
+
+**A SECTION HEAD IS A CLAIM ABOUT REALITY.** "Moving Now" counted projects whose typed `status` said active while the list under it rendered every project, so the head read 5 over 7 rows and a card saying "Nothing is moving here" sat inside a section called Moving. Sections are now derived by `bucketOf`: **Moving, Stalled, Not Started, Done**, read from real task completion. An empty section does not render. Law-tested: the page may not section by a typed status.
+
+**THE NEXT MOVE LEADS.** A project row opens with "Next: Call Ridgeline" and the counts become the evidence beneath it. A status word never outranks the move it is hiding.
+
+**FINISHED WORK IS CAUGHT ON OPEN, NOT ONLY ON TICK.** `clearsProject` already existed in shared/completion.ts and only ran at the instant of a completion, so a project finished any other way stayed open forever. A row whose work is done and whose record is not now carries **Close It** in place of its chevron, writing the same status and firing the same payoff as the detail page.
+
+**GOALS ORDER BY WHAT IS TRUE.** They sorted by an `order` field nothing ever set, so the tiebreaker was the title and the list ran A to Z. Now: live work first, nearest to finishing leads, goals with nothing to measure follow, finished goals sink.
+
+**THE PAGE OFFERS WHAT IS AVAILABLE.** Mark Achieved was the red primary on a goal with no projects, no tasks and no measure. Now the offer follows the evidence: nothing under it offers **Add a Project**; work all done asks **All Work Done, Finish It**; work outstanding drops Mark Achieved to the quiet tier. Never assert a claim the numbers cannot make.
+
+**ONE WORD FOR ONE THING.** The project page said Steps, the Tasks tab said Tasks, for the same records. It is Tasks on every surface a reader sees; prop names may keep `step`. Law-tested.
+
+**SPACING IS INHERITED, NEVER INVENTED.** This wave adds no new spacing: every section uses the existing `.sh2` head and `.list-flat` body, every action an existing capsule class. A wave that needs new rhythm must say why in the catalog first.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 

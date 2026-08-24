@@ -57,6 +57,9 @@ export default function GoalDetailPage({
   onAchieve?: () => void;
 }) {
   const target = goal.data.moneyTarget;
+  // Derived, never asserted: every task under every project of this goal is
+  // closed. It says the work is done, which is not the same as the goal.
+  const allWorkDone = !!progress && progress.total > 0 && progress.done >= progress.total;
   const [savingsOpen, setSavingsOpen] = useState(false);
   const [savingsAmt, setSavingsAmt] = useState("");
   const savingsValid = Number.isFinite(Number(savingsAmt)) && Number(savingsAmt) > 0;
@@ -160,11 +163,24 @@ export default function GoalDetailPage({
         document.body,
       )}
 
-      {/* Finishing the goal, where the goal actually lives. Hidden once it is
-          achieved, because the moment is not a toggle to flip back and forth. */}
+      {/* WHAT THE PAGE OFFERS IS WHAT IS AVAILABLE (Dave 2026-08-22, picks 11
+          and 8). Mark Achieved used to be the primary action on a goal with no
+          projects, no tasks and no measure: the loudest control in the app
+          inviting him to declare victory over something never started. And it
+          said "Achieved" for a goal whose only evidence was task counts, which
+          is a different claim: Raise 100k is not finished because a golf event
+          is. So the offer follows the evidence.
+            nothing under it  -> the move that exists is adding a project
+            work all done     -> ask, do not assert
+            work outstanding  -> the quiet tier; finishing early is allowed,
+                                 it is just not the shouted move */}
       {onAchieve && goal.data.state !== "achieved" && (
         <div className="pad-x conn-action">
-          <button className="btn btn-primary btn-block" onClick={onAchieve}>Mark Achieved</button>
+          {projects.length === 0 && !target
+            ? <button className="btn btn-primary btn-block" onClick={onAddProject}>Add a Project</button>
+            : allWorkDone
+              ? <button className="btn btn-primary btn-block" onClick={onAchieve}>All Work Done, Finish It</button>
+              : <button className="btn btn-block" onClick={onAchieve}>Mark Achieved</button>}
         </div>
       )}
     </div>

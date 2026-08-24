@@ -770,6 +770,33 @@ describe("LAW: stored shapes are versioned", () => {
     expect(bad).toEqual([]);
   });
 
+  // SECTIONS ARE DERIVED, NEVER TYPED (Dave 2026-08-22, pick 9). The Bigger
+  // Picture head counted projects whose STATUS said active while the list
+  // rendered all of them, so it read "Moving Now 5" over seven rows, one of
+  // which carried a card saying nothing was moving there. A section head is a
+  // claim about reality and must come from bucketOf, which reads real task
+  // completion, not a field nobody has touched since the record was made.
+  it("the bigger picture never sections by a typed status", () => {
+    const src = read(SRC + "/bigger/BiggerPicturePage.tsx");
+    expect(src).toContain("bucketOf");
+    expect(/status === "active"/.test(src)).toBe(false);
+  });
+
+  // ONE WORD FOR ONE THING (pick 30). The project page called them Steps and
+  // the Tasks tab called the same records Tasks, which taught him that filing
+  // work into a project moved it somewhere else. Prop names may stay `step`;
+  // the words a reader sees may not.
+  it("no surface calls a task a step", () => {
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      for (const m of read(f).matchAll(/(placeholder|title|aria-label)="([^"]*\bSteps?\b[^"]*)"/g)) {
+        bad.push(rel(f) + ": " + m[2]);
+      }
+      for (const m of read(f).matchAll(/>\s*(Steps?)\s*</g)) bad.push(rel(f) + ": " + m[1]);
+    }
+    expect(bad).toEqual([]);
+  });
+
   // THE HAND-DRAWN RATCHET (Dave 2026-08-22, sending examples of icons that
   // were still outline in light: the Today double-chevron, the Checklist
   // document, the note files). Not every icon came from a library -- 43

@@ -182,7 +182,11 @@ export default function ProjectDetailPage({
           there is no second copy of it living on this page. */}
       {(steps.length > 0 || onAddStep) && (
         <>
-          <div className="grp"><div className="eyebrow">Steps</div></div>
+          {/* ONE WORD FOR ONE THING (Dave 2026-08-22, pick 30). This page called
+   them Steps and the Tasks tab called the same records Tasks, so filing
+   work into a project looked like moving it somewhere else. The word is
+   Tasks everywhere a reader can see it; the props keep their names. */}
+          <div className="grp"><div className="eyebrow">Tasks</div></div>
           <div className="pad-x"><div className="card">
             {openSteps.map((t) => (
               <div className="row proj-step" key={t.id}>
@@ -209,7 +213,7 @@ export default function ProjectDetailPage({
               <div className="row proj-add-step">
                 <input
                   className="input proj-step-input"
-                  placeholder="Add a Step"
+                  placeholder="Add a Task"
                   value={newStep}
                   onChange={(e) => setNewStep(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") addStep(); }}
@@ -270,7 +274,7 @@ export default function ProjectDetailPage({
               nobody marks anything done. */}
           {openSteps.length > 0 && (
             <div className="conn-meta proj-finish-note">
-              {capAfterNumber(openSteps.length === 1 ? "1 step is still open" : `${openSteps.length} steps are still open`)}
+              {capAfterNumber(openSteps.length === 1 ? "1 task is still open" : `${openSteps.length} tasks are still open`)}
             </div>
           )}
         </div>

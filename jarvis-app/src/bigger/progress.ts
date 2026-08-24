@@ -113,3 +113,62 @@ export function progressLabel(p: Progress | null, stalled: boolean): string {
   if (p.done === p.total) return `All ${p.total} done`;
   return capAfterNumber(`${p.done} of ${p.total} done`) + (stalled ? " · Stalled" : "");
 }
+
+// ---------------------------------------------------------------------------
+// WAVE 1, THE HONESTY PASS (Dave's picks 6, 9, 10, 2026-08-22).
+//
+// "Moving Now" counted projects whose STATUS said active while the list below
+// rendered every project, so the header said five and seven rows appeared, and
+// a card reading "Nothing is moving here" sat inside a section called Moving.
+// A section is a claim about reality, so the claim gets derived like every
+// other number on this surface.
+// ---------------------------------------------------------------------------
+
+export type Bucket = "moving" | "stalled" | "unstarted" | "done";
+
+// The order sections are shown in, and the order a reader needs them: what is
+// alive, what has stopped, what never began, what is over.
+export const BUCKETS: Bucket[] = ["moving", "stalled", "unstarted", "done"];
+export const BUCKET_LABEL: Record<Bucket, string> = {
+  moving: "Moving", stalled: "Stalled", unstarted: "Not Started", done: "Done",
+};
+
+// A project is DONE when its own tasks say so, not only when someone closed
+// it. That is the whole of pick 6: clearsProject already existed in
+// shared/completion.ts and only ran at the instant of a tick, so a project
+// that finished any other way stayed open forever.
+export function bucketOf(row: ProjectRow): Bucket {
+  if (row.project.data.status === "done") return "done";
+  const p = row.progress;
+  if (!p) return "unstarted";
+  if (p.done >= p.total) return "done";
+  return row.stalled ? "stalled" : "moving";
+}
+
+// True when the work is finished but the project has not been closed. The row
+// offers to close itself; nothing closes silently.
+export function closable(row: ProjectRow): boolean {
+  const p = row.progress;
+  return !!p && p.total > 0 && p.done >= p.total && row.project.data.status !== "done";
+}
+
+// GOALS ORDER BY WHAT IS TRUE (pick 10). They sorted by an `order` field
+// nothing ever set, so the tiebreaker was the title and the list ran A to Z:
+// "Build Massive Recruiting Network" led because of its first letter, and a
+// finished goal sank to the bottom only because R is late in the alphabet.
+//
+// Nearest to finishing leads, because that is the one worth another hour.
+// Goals with nothing to measure follow. Finished goals sink.
+export interface GoalRank { id: string; progress: Progress | null }
+export function rankGoals<T extends GoalRank>(rows: T[]): T[] {
+  const tier = (r: T): number => {
+    if (!r.progress) return 1;                       // nothing to measure
+    if (r.progress.done >= r.progress.total) return 2; // finished, sink
+    return 0;                                        // live work
+  };
+  return [...rows].sort((a, b) => {
+    const ta = tier(a), tb = tier(b);
+    if (ta !== tb) return ta - tb;
+    return (b.progress?.pct ?? 0) - (a.progress?.pct ?? 0);
+  });
+}

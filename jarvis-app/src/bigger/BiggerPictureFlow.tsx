@@ -420,6 +420,22 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
         // a hidden action.
         onAddProject={() => setSheet({ kind: "newProject", goalId: goals.length === 1 ? goals[0]!.id : undefined })}
         onOpenProject={(id) => setDetailId(id)}
+        onCloseProject={async (id) => {
+          // PICK 6: the row closes itself where the work is already finished.
+          // The same write and the same payoff the detail page already used,
+          // so a project finished from the list celebrates identically to one
+          // finished from inside it.
+          const proj = projects.find((x) => x.id === id);
+          if (!proj) return;
+          await attemptWrite(() => projectsSvc.update(id, { ...proj.data, status: "done" }));
+          await reload();
+          const mine = tasks.filter((t) => (t.data as { projectId?: string }).projectId === id);
+          setPayoff({
+            kind: "project",
+            title: proj.data.title,
+            line: payoffLine({ tasksDone: mine.filter((t) => (t.data as { done?: boolean }).done).length }),
+          });
+        }}
         onAddGoal={() => setSheet({ kind: "newGoal" })}
         onOpenGoal={(id) => setGoalDetailId(id)}
       />
