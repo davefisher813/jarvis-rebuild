@@ -24,7 +24,7 @@ const tk = (id: string, due: string | null, cat = "orgB", done = false): TaskIte
 const base = {
   greeting: "Good Morning",
   dateLong: "Wednesday, May 20",
-  summary: { events: 2, due: 1, overdue: 1 },
+  summary: { events: 2, due: 1, overdue: 1, moves: 0 },
   todayEvents: [ev("e1", "09:00")],
   now: "08:00",
   nowLabel: "8:00",

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { reachOf } from "../bigger/reach";
+import { movesLine } from "../today/goalPulse";
 
 // THE LAWS, AS TESTS.
 //
@@ -961,6 +962,39 @@ describe("LAW: stored shapes are versioned", () => {
     const filed = [{ id: "t4", data: { text: "d", category: "health", done: true, projectId: "p" } }];
     const p = [{ id: "p", data: { title: "P", status: "active" as const, goalId: "g" } }];
     expect(reachOf([...mixed, ...filed], p, goal).progress).toEqual({ done: 1, total: 1, pct: 100 });
+  });
+
+  // PICK 31, LINEAGE ONLY WHEN IT MATTERS (Dave 2026-08-22). "Moves Ship the
+  // App Store Launch" under a task called "Ship the App Store Launch" is
+  // furniture: it costs a line on a 390px phone, it survives truncation
+  // better than the task title does, and it says nothing the reader did not
+  // just read. Behavioural, because the property is about two strings.
+  it("a lineage line never repeats the task it sits under", () => {
+    expect(movesLine("Ship the App Store Launch", "Ship the App Store Launch today")).toBeNull();
+    expect(movesLine("Ship the App Store Launch", "Draft the Coach Onboarding Email"))
+      .toBe("Moves Ship the App Store Launch");
+  });
+
+  // PICK 29 (Dave 2026-08-22, filed under "Remove: pays for the rest"). The
+  // Noticed whisper is off Today for good. It was not deleted: the same offer
+  // lives on What JARVIS Knows, which is the page about what JARVIS noticed.
+  it("the Noticed line stays off the home page", () => {
+    const page = read(SRC + "/today/TodayPage.tsx");
+    expect(page).not.toMatch(/\{suggestions\}/);
+    const flow = read(SRC + "/today/TodayFlow.tsx");
+    expect(flow).not.toMatch(/<TodaySuggestions/);
+    expect(read(SRC + "/brain/strands/StrandsPage.tsx")).toMatch(/<TodaySuggestions/);
+  });
+
+  // EVERY DAY PILL DECLARES ITS LIGHT INK. The pills are the palette colour
+  // on a 16% tint of THEMSELVES: in dark that composites to a near-black chip
+  // and reads fine, in light it composites to a pale wash of the same hue and
+  // sky measured 1.6:1 (sweep 2026-08-21). A new pill that forgets its light
+  // variant repeats that bug silently, so the pairing is checked here.
+  it("every day pill has a light-theme ink", () => {
+    const pills = new Set([...CSS.matchAll(/^\.dp-([a-z]+)\s*\{/gm)].map((m) => m[1]!));
+    const lit = new Set([...CSS.matchAll(/\[data-theme="light"\]\s*\.dp-([a-z]+)/g)].map((m) => m[1]!));
+    expect([...pills].filter((p) => !lit.has(p))).toEqual([]);
   });
 
   // A GOAL'S LINE IS DERIVED ONCE. Two passes over the same data drift: the

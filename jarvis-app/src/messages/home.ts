@@ -259,7 +259,10 @@ function nudgeNotice(w: MailWaiting): MailNotice | null {
     title: w.to + " Hasn't Replied",
     sub: capAfterNumber(`${w.subject} · ${w.days} ${w.days === 1 ? "day" : "days"}`),
     action: act.label,
-    tone: "cat-fg-purple",
+    // mail-glyph opts this one into the light theme's brand-red envelope
+    // (components.css). The marker is explicit so the rule cannot catch
+    // every purple glyph in the app, which is exactly what it used to do.
+    tone: "cat-fg-purple mail-glyph",
   };
 }
 

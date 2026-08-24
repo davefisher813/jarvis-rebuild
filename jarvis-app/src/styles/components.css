@@ -1917,6 +1917,10 @@ button {
 .dp-sky { background: rgba(100,210,255,0.16); color: var(--cat-sky, #64D2FF); }
 .dp-blue { background: rgba(10,132,255,0.16); color: var(--cat-blue, #0A84FF); }
 .dp-red { background: var(--red-tint); color: var(--red); }
+/* Pick 5 (2026-08-22): the goal pill. Purple because that is what a goal
+   wears everywhere else in the app (the Bigger Picture's target glyph, the
+   goal rows, the decision fork), so the colour says whose without a word. */
+.dp-purple { background: rgba(191,90,242,0.16); color: var(--cat-purple, #BF5AF2); }
 /* The day pills are the palette colour on a 16% tint of ITSELF. In dark that
    composites to a near-black chip and reads fine; in light it composites to a
    pale wash of the same hue, and sky measured 1.6:1 against it (sweep
@@ -1930,6 +1934,10 @@ button {
 [data-theme="light"] .dp-sky { color: #126A93; }
 [data-theme="light"] .dp-blue { color: #005CBF; }
 [data-theme="light"] .dp-red { color: var(--on-light-red); }
+/* 5.7:1 on the chip (16% #AF52DE over the page), computed as a BLEND, not
+   read off a flat hex. --cat-tx-purple lands 4.66 here; the pills sit a
+   shade darker than the shared text inks for exactly this reason. */
+[data-theme="light"] .dp-purple { color: #7A2F9E; }
 
 /* 4a · library list (Apple Music form, JARVIS red) */
 .lib-row { display: flex; align-items: center; gap: var(--s-3h); padding: var(--s-3) var(--s-4);
@@ -2954,5 +2962,12 @@ button {
    theme's mail tone surviving into daylight, where it clashed with
    everything red on the page. In light the glyph wears the brand -- and
    because a glyph is chrome (3:1, no words in it), it wears the REAL
-   #FF2B3C, not a darkened stand-in. 3.38:1 on the page. */
-[data-theme="light"] .row-glyph.cat-fg-purple { color: #FF2B3C; }
+   #FF2B3C, not a darkened stand-in. 3.38:1 on the page.
+
+   NARROWED 2026-08-24. This was written for ONE notice kind and keyed on
+   the shared purple class, so it caught every purple row glyph in the app.
+   The goal nudge (pick 3) landed in light wearing brand red, which under
+   the icon law means "JARVIS's own feature" and a goal is the user's
+   content. Mail opts in by name now; everything else purple keeps
+   --cat-ic-purple (3.76:1 on the light page). */
+[data-theme="light"] .row-glyph.mail-glyph { color: #FF2B3C; }

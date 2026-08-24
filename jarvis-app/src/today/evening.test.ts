@@ -37,18 +37,18 @@ describe("eveningStats + eveningSummary", () => {
     const s = eveningStats(events, tasks, TODAY, "19:00");
     // 2 done + the 9 AM event attended = 3 things
     expect(s).toEqual({ doneDue: 2, dueTotal: 3, eventsLeft: 1, openCount: 2, thingsDone: 3 });
-    expect(eveningSummary(s)).toBe("3 done today · 1 left tonight") // SPEC MOVED (short copy, 2026-08-15);
+    expect(eveningSummary(s)).toBe("3 Done today · 1 Left tonight") // SPEC MOVED (short copy, 2026-08-15);
   });
 
   it("Time Sense completions win over the due-today count when larger", () => {
     const s = eveningStats([], [task(true, TODAY)], TODAY, "19:00", 5);
     expect(s.thingsDone).toBe(5);
-    expect(eveningSummary(s)).toBe("5 done today");
+    expect(eveningSummary(s)).toBe("5 Done today");
   });
 
   it("leads with the win when the evening is clear", () => {
     const s = eveningStats([], [task(true, TODAY)], TODAY, "19:00");
-    expect(eveningSummary(s)).toBe("1 done today");
+    expect(eveningSummary(s)).toBe("1 Done today");
   });
 
   it("a truly clear evening says so, without inventing wins", () => {
@@ -84,5 +84,20 @@ describe("weekRecap", () => {
     expect(weekRecap([], [], SUN)).toBeNull();
     const r = weekRecap([at("2026-07-28", 2)], [], SUN);
     expect(r?.bestDay).toBeNull();
+  });
+});
+
+describe("eveningSummary and what moved (pick 4)", () => {
+  const stats = { doneDue: 2, dueTotal: 3, eventsLeft: 0, openCount: 1, thingsDone: 4 };
+  it("names the goal the day moved, between the count and the night", () => {
+    expect(eveningSummary({ ...stats, eventsLeft: 1 }, "Moved Run a Half"))
+      .toBe("4 Done today · Moved Run a Half · 1 Left tonight");
+  });
+  it("says nothing extra when Time Sense saw nothing move", () => {
+    expect(eveningSummary(stats, null)).toBe("4 Done today");
+    expect(eveningSummary(stats)).toBe("4 Done today");
+  });
+  it("still leads with the win on a day that only moved a goal", () => {
+    expect(eveningSummary({ ...stats, thingsDone: 0 }, "Moved 2 goals")).toBe("Moved 2 goals");
   });
 });

@@ -85,12 +85,17 @@ export async function seedDemoData(
     const growth = await areas.create({ name: "Growth", state: "steady" });
     // ARCHITECTURE C: `tags` are the CATEGORIES a goal watches, which is a
     // different axis from the legacy `areaId` above (Life Areas have no UI).
-    // Four of the five carry them so the demo shows a goal filling itself
-    // from work nobody filed; "Read twelve books" deliberately carries
-    // neither tags nor a project, so the empty state is on screen too.
+    //
+    // Three carry tags, and only where the mapping is HONEST: every Health
+    // task really is running work, every Money task really is runway. Date
+    // night is deliberately untagged even though a Family tag would light it
+    // up, because Family in this data is mostly the kids' sport, and a goal
+    // that claims "Call Ridgeline About the Field" moves date night is the
+    // exact nonsense a too-broad watch list produces. Books carries neither,
+    // so the empty state is on screen too.
     await goals.create({ title: "Run three times a week", state: "on_track", areaId: health ?? undefined, tags: [cat("Health")] });
     await goals.create({ title: "Ship the App Store Launch", state: "steady", areaId: career ?? undefined, tags: [cat("Work")] });
-    await goals.create({ title: "Weekly date night", state: "on_track", areaId: rel ?? undefined, tags: [cat("Family")] });
+    await goals.create({ title: "Weekly date night", state: "on_track", areaId: rel ?? undefined });
     await goals.create({ title: "Build a six-month runway", state: "at_risk", areaId: fin ?? undefined, tags: [cat("Money")] });
     await goals.create({ title: "Read twelve books", state: "steady", areaId: growth ?? undefined });
   }

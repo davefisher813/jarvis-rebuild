@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useStrands } from "../../data/NotesProvider";
+import { useAI } from "../../ai/useAI";
+import TodaySuggestions from "../../today/TodaySuggestions";
 import { todayISO } from "../../ai/useAIContext";
 import { haptics } from "../../shared/haptics";
 import { showToast } from "../../shared/toast";
@@ -50,6 +52,7 @@ export function receiptLine(derivation: DerivationKey | undefined, e: StrandEvid
 
 export default function StrandsPage({ onBack }: { onBack: () => void }) {
   const svc = useStrands();
+  const ai = useAI();
   const today = todayISO();
   const [strands, setStrands] = useState<Strand[]>([]);
   const [open, setOpen] = useState<Strand | null>(null);
@@ -150,6 +153,13 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
         <span />
       </div>
       <div className="nav-large">What JARVIS Knows</div>
+
+      {/* PICK 29 (Dave 2026-08-22): the Noticed offer moved here off Today.
+          It renders NOTHING most days, exactly as it did before, so this adds
+          no furniture to the page. When there is something, this is where it
+          belongs: an observation waiting to become a strand, sitting above
+          the strands it would join. */}
+      <TodaySuggestions ai={ai} always />
 
       {strands.length === 0 && (
         <div className="empty-state">
