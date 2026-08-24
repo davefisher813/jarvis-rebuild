@@ -11,7 +11,14 @@ export interface AreaData { name: string; state: AreaState; order?: number; }
 // DERIVED from dated entries the user logged, never self-reported, and skipped
 // purchases NEVER feed it (not-spending is not saving).
 export interface SavedEntry { d: string; amount: number }
-export interface GoalData { title: string; state: GoalState; areaId?: string; order?: number; moneyTarget?: number; saved?: SavedEntry[]; }
+// ARCHITECTURE C (2026-08-22): `tags` are category ids the goal WATCHES. A
+// task in one of them is work toward this goal with no filing at all, which
+// is the half the app never had: projects pointed down at tasks and nothing
+// pointed back up. Tags are a saved filter, never a scoreboard, so they feed
+// the goal's open-work count and NEVER its done/total (see bigger/reach.ts
+// for why: an ordinary task carries no completion date, so a freshly tagged
+// goal would inherit every closed task in that category).
+export interface GoalData { title: string; state: GoalState; areaId?: string; order?: number; moneyTarget?: number; saved?: SavedEntry[]; tags?: string[]; }
 export interface Area { id: string; data: AreaData; }
 export interface Goal { id: string; data: GoalData; }
 

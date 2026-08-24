@@ -716,6 +716,14 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .proj-detail-hero { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); padding: var(--s-6) var(--s-4); }
 .proj-detail-hero .proj-icon { width: 56px; height: 56px; border-radius: var(--r-lg); }
 .proj-detail-hero .proj-icon .ic { width: 26px; height: 26px; }
+/* THE BAR THAT WAS NEVER THERE (found 2026-08-24 while wiring architecture C).
+   The hero is a column flexbox with align-items:center, so .bp-bar, a block
+   with no intrinsic width, measured 0px wide. Both bars this card can show,
+   task progress and the Money v1 savings bar, have been invisible since the
+   day the card was written: the markup rendered, the element existed, and it
+   was four pixels tall by nothing wide. Stretch, not a new width value, so no
+   spacing is invented. */
+.proj-detail-hero .bp-bar { align-self: stretch; }
 .proj-detail-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); text-align: center; }
 .proj-detail-cat { display: inline-flex; align-items: center; gap: var(--s-1h); font-size: var(--t-body); color: var(--tx-2); }
 .nav-bar + .nav-large { padding-top: var(--s-1); }

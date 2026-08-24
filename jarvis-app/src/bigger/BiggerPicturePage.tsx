@@ -3,9 +3,10 @@ import PageHeader from "../shared/PageHeader";
 import type { Goal } from "../life/types";
 import type { ProjectRow, Progress } from "./progress";
 import { progressLabel, bucketOf, closable, rankGoals, BUCKETS, BUCKET_LABEL } from "./progress";
+import type { GoalReach } from "./reach";
+import { reachLine } from "./reach";
 import { catColor } from "../shared/categories";
 import SkeletonRows from "../shared/SkeletonRows";
-import { capAfterNumber } from "../shared/casing";
 import { FolderOpenGlyph, TargetGlyph } from "../shared/glyphs";
 
 // Bigger Picture (roadmap v2, Session 6): Goals and Projects on one surface,
@@ -22,10 +23,11 @@ function Bar({ p }: { p: Progress }) {
 }
 
 export default function BiggerPicturePage({
-  goals, goalProgressOf, projectRows, loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, onCloseProject,
+  goals, reachOfGoal, projectRows, loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, onCloseProject,
 }: {
   goals: Goal[];
-  goalProgressOf: (id: string) => Progress | null;
+  // ARCHITECTURE C: both routes into a goal's work, computed once by the flow.
+  reachOfGoal: (id: string) => GoalReach;
   projectRows: ProjectRow[];
   loading?: boolean;
   offer?: ReactNode; // the one stalled-project First Step card (6.7)
@@ -112,14 +114,18 @@ export default function BiggerPicturePage({
 
       <div className="sh2"><span className="t">Working Toward</span></div>
       <div><div className="list-flat">
-        {rankGoals(goals.map((g) => ({ id: g.id, progress: goalProgressOf(g.id), goal: g })))
-          .map(({ goal: g, progress: p }) => {
+        {rankGoals(goals.map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g, reach: r }; }))
+          .map(({ goal: g, progress: p, reach: r }) => {
           return (
             <div className="row bp-goal" role="button" tabIndex={0} key={g.id} onClick={() => onOpenGoal(g.id)}>
               <div className="row-glyph cat-fg-purple">{TARGET}</div>
               <div className="row-grow">
                 <div className="conn-name">{g.data.title}</div>
-                <div className="bp-sub">{p ? capAfterNumber(`${p.done} of ${p.total} done`) : "No projects yet"}</div>
+                {/* "No projects yet" was the wrong sentence for most of his
+                    goals: they had work, nobody had filed it. reachLine says
+                    what is actually true, in fractions where a real
+                    denominator exists and in open counts where it does not. */}
+                <div className="bp-sub">{reachLine(r)}</div>
                 {p && <Bar p={p} />}
               </div>
               {CHEV}

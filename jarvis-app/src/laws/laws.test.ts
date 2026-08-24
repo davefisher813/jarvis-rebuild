@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { reachOf } from "../bigger/reach";
 
 // THE LAWS, AS TESTS.
 //
@@ -935,6 +936,43 @@ describe("LAW: stored shapes are versioned", () => {
     const src = read(SRC + "/today/MailNotices.tsx");
     expect(/form="card"/.test(src)).toBe(true);
     expect(/form=\{[^}]*"row"/.test(src)).toBe(false);
+  });
+
+  // ARCHITECTURE C, THE HONESTY OF A TAG (Dave 2026-08-22, pick C).
+  //
+  // A tag is a saved filter. The temptation is to pour tagged tasks into
+  // done/total so the bar moves, and the reason that is a lie is specific:
+  // an ordinary task carries no completion date (only bills and recurring
+  // tasks stamp lastDone), so a goal tagged Health on Tuesday would inherit
+  // every Health task ever closed and open at 78% on the day it was born.
+  //
+  // This law RUNS the function rather than grepping it, because the property
+  // is behavioural: no arrangement of tagged tasks may move the fraction.
+  it("a tag never feeds a goal's done over total", () => {
+    const goal = { id: "g", data: { title: "Get Fit", state: "on_track" as const, tags: ["health"] } };
+    const done = [
+      { id: "t1", data: { text: "a", category: "health", done: true } },
+      { id: "t2", data: { text: "b", category: "health", done: true } },
+    ];
+    expect(reachOf(done, [], goal).progress).toBeNull();
+    const mixed = [...done, { id: "t3", data: { text: "c", category: "health", done: false } }];
+    expect(reachOf(mixed, [], goal).progress).toBeNull();
+    // Filed work, and ONLY filed work, produces a denominator.
+    const filed = [{ id: "t4", data: { text: "d", category: "health", done: true, projectId: "p" } }];
+    const p = [{ id: "p", data: { title: "P", status: "active" as const, goalId: "g" } }];
+    expect(reachOf([...mixed, ...filed], p, goal).progress).toEqual({ done: 1, total: 1, pct: 100 });
+  });
+
+  // A GOAL'S LINE IS DERIVED ONCE. Two passes over the same data drift: the
+  // list row said "No projects yet" while the hero said "8 open in your
+  // tags", and both were reading the truth from different functions. The
+  // page and the detail view take the SAME reach object.
+  it("the bigger picture reads a goal through reach, never a second derivation", () => {
+    for (const f of ["bigger/BiggerPicturePage.tsx", "bigger/GoalDetailPage.tsx"]) {
+      const src = read(SRC + "/" + f);
+      expect(src, f + " must not re-derive").not.toMatch(/goalProgress\s*\(/);
+      expect(src, f + " must speak through reachLine").toMatch(/reachLine\(/);
+    }
   });
 });
 

@@ -11,7 +11,8 @@ import TaskSheet, { type TaskDraft } from "../tasks/screens/TaskSheet";
 import ProjectDetailPage from "../projects/ProjectDetailPage";
 import { attemptWrite } from "../shared/guard";
 import GoalSheet from "../life/GoalSheet";
-import { rankProjects, goalProgress } from "./progress";
+import { rankProjects } from "./progress";
+import { reachOf, type GoalReach } from "./reach";
 import GoalDetailPage from "./GoalDetailPage";
 import { relatedProjectsForGoal, nextActionOf, isLinkDismissed, dismissLink } from "./related";
 import { stalledCandidate, dismissProjStep } from "./stalled";
@@ -25,6 +26,9 @@ import { firstStepPrompt, parseFirstStep } from "../tasks/firstStep";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
 import { TargetGlyph } from "../shared/glyphs";
+
+// Hoisted: a fresh object per render would make every consumer's memo stale.
+const EMPTY_REACH: GoalReach = { filedIds: [], taggedIds: [], openTagged: 0, progress: null };
 
 type Sheet =
   | { kind: "closed" }
@@ -84,9 +88,16 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
     () => rankProjects(projects, tasks, samples, Date.now()),
     [projects, tasks, samples],
   );
-  const goalProgressOf = useCallback(
-    (id: string) => goalProgress(tasks, projects, id),
-    [tasks, projects],
+  // ARCHITECTURE C: one derivation per goal, memoised across the page and the
+  // detail view so the list row and the hero can never disagree.
+  const reachCache = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof reachOf>>();
+    for (const g of goals) m.set(g.id, reachOf(tasks, projects, g));
+    return m;
+  }, [goals, tasks, projects]);
+  const reachOfGoal = useCallback(
+    (id: string) => reachCache.get(id) ?? EMPTY_REACH,
+    [reachCache],
   );
 
   const detail = detailId ? projects.find((p) => p.id === detailId) : undefined;
@@ -257,6 +268,15 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   // ---- Goal detail (Session 6.6): the goal as a place ----
   const goalDetail = goalDetailId ? goals.find((g) => g.id === goalDetailId) : undefined;
   const goalProjects = goalDetail ? projects.filter((p) => p.data.goalId === goalDetail.id) : [];
+  // The watched work, flattened for the page. Same records, seen through the
+  // goal's areas: ticking one here finishes the task everywhere.
+  const goalTagged = useMemo(() => {
+    if (!goalDetail) return [];
+    const ids = new Set(reachOfGoal(goalDetail.id).taggedIds);
+    return tasks.filter((t) => ids.has(t.id)).map((t) => ({
+      id: t.id, text: t.data.text, done: !!t.data.done, due: t.data.due ?? null, category: t.data.category,
+    }));
+  }, [goalDetail, reachOfGoal, tasks]);
   const nextActionTextOf = useCallback(
     (projectId: string) => nextActionOf(tasks, projectId)?.data.text ?? null,
     [tasks],
@@ -392,8 +412,11 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       <>
         <GoalDetailPage
           goal={goalDetail}
-          progress={goalProgressOf(goalDetail.id)}
+          reach={reachOfGoal(goalDetail.id)}
           projects={goalProjects}
+          canTag={categories.length > 0}
+          tagged={goalTagged}
+          onToggleTagged={async (id) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reload(); }}
           nextActionTextOf={nextActionTextOf}
           suggestion={goalSuggestion}
           onBack={() => setGoalDetailId(null)}
@@ -442,6 +465,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
         {sheet.kind === "editGoal" && (
           <GoalSheet
             mode="edit"
+            categories={categories}
             initial={editingGoal?.data}
             onSave={saveGoal}
             onDelete={() => removeWithUndo("goal", sheet.id, () => { setSheet({ kind: "closed" }); setGoalDetailId(null); })}
@@ -456,7 +480,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
     <>
       <BiggerPicturePage
         goals={goals}
-        goalProgressOf={goalProgressOf}
+        reachOfGoal={reachOfGoal}
         projectRows={projectRows}
         loading={loading}
         offer={stalledOffer}
@@ -499,6 +523,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       {(sheet.kind === "newGoal" || sheet.kind === "editGoal") && (
         <GoalSheet
           mode={sheet.kind === "newGoal" ? "new" : "edit"}
+          categories={categories}
           initial={editingGoal?.data}
           onSave={saveGoal}
           onDelete={sheet.kind === "editGoal" ? () => removeWithUndo("goal", sheet.id, () => setSheet({ kind: "closed" })) : undefined}

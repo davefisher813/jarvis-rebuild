@@ -83,10 +83,15 @@ export async function seedDemoData(
     const rel = await areas.create({ name: "Relationships", state: "steady" });
     const fin = await areas.create({ name: "Finances", state: "drifting" });
     const growth = await areas.create({ name: "Growth", state: "steady" });
-    await goals.create({ title: "Run three times a week", state: "on_track", areaId: health ?? undefined });
-    await goals.create({ title: "Ship the App Store Launch", state: "steady", areaId: career ?? undefined });
-    await goals.create({ title: "Weekly date night", state: "on_track", areaId: rel ?? undefined });
-    await goals.create({ title: "Build a six-month runway", state: "at_risk", areaId: fin ?? undefined });
+    // ARCHITECTURE C: `tags` are the CATEGORIES a goal watches, which is a
+    // different axis from the legacy `areaId` above (Life Areas have no UI).
+    // Four of the five carry them so the demo shows a goal filling itself
+    // from work nobody filed; "Read twelve books" deliberately carries
+    // neither tags nor a project, so the empty state is on screen too.
+    await goals.create({ title: "Run three times a week", state: "on_track", areaId: health ?? undefined, tags: [cat("Health")] });
+    await goals.create({ title: "Ship the App Store Launch", state: "steady", areaId: career ?? undefined, tags: [cat("Work")] });
+    await goals.create({ title: "Weekly date night", state: "on_track", areaId: rel ?? undefined, tags: [cat("Family")] });
+    await goals.create({ title: "Build a six-month runway", state: "at_risk", areaId: fin ?? undefined, tags: [cat("Money")] });
     await goals.create({ title: "Read twelve books", state: "steady", areaId: growth ?? undefined });
   }
 
