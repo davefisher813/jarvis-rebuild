@@ -166,6 +166,42 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
 
   // Finishing something big earns a moment. Only on the TRANSITION into done:
   // saving an already-finished project must not re-congratulate anyone.
+  // B10/B12 (2026-08-23): DELETING SOMETHING SHOULD NOT BE SILENT AND SHOULD
+  // NOT BE FINAL.
+  //
+  // These four call sites did `await svc.remove(id)` and closed the sheet.
+  // No attemptWrite, so a failed delete was completely invisible AND the
+  // sheet closed anyway, which reads as success. No undo, on a record that
+  // took real thought to write. Deleting a project also orphans every task
+  // pointing at it, and deleting a goal orphans its projects.
+  //
+  // The shape is DecisionsFlow's, which already got this right: snapshot the
+  // data, guard the write, and hand back an Undo that recreates it. The
+  // recreated record gets a NEW id, so anything that referenced the old one
+  // stays orphaned; the toast promises a restore of the record, never of its
+  // links, and the copy says so.
+  const removeWithUndo = async (
+    kind: "project" | "goal",
+    id: string,
+    close: () => void,
+  ) => {
+    const svc = kind === "project" ? projectsSvc : goalsSvc;
+    const kept = (kind === "project" ? projects : goals).find((x) => x.id === id)?.data;
+    const ok = await attemptWrite(() => svc.remove(id));
+    if (!ok) return; // attemptWrite already said what went wrong; sheet stays open
+    close();
+    await reload();
+    if (!kept) return;
+    showToast({
+      message: kind === "project" ? "Project deleted" : "Goal deleted",
+      actionLabel: "Undo",
+      onAction: () => void (async () => {
+        await attemptWrite(() => svc.create(kept as never));
+        await reload();
+      })(),
+    });
+  };
+
   const saveProject = async (d: ProjectData) => {
     const was = sheet.kind === "editProject" ? projects.find((p) => p.id === sheet.id)?.data.status : undefined;
     if (sheet.kind === "newProject") await projectsSvc.create(d);
@@ -288,7 +324,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
             goals={goals}
             initial={editingProject?.data}
             onSave={saveProject}
-            onDelete={async () => { await projectsSvc.remove(sheet.id); setSheet({ kind: "closed" }); setDetailId(null); await reload(); }}
+            onDelete={() => removeWithUndo("project", sheet.id, () => { setSheet({ kind: "closed" }); setDetailId(null); })}
             onCancel={() => setSheet({ kind: "closed" })}
           />
         )}
@@ -353,7 +389,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
             mode="edit"
             initial={editingGoal?.data}
             onSave={saveGoal}
-            onDelete={async () => { await goalsSvc.remove(sheet.id); setSheet({ kind: "closed" }); setGoalDetailId(null); await reload(); }}
+            onDelete={() => removeWithUndo("goal", sheet.id, () => { setSheet({ kind: "closed" }); setGoalDetailId(null); })}
             onCancel={() => setSheet({ kind: "closed" })}
           />
         )}
@@ -385,7 +421,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
           goals={goals}
           initial={sheet.kind === "newProject" ? { goalId: sheet.goalId } : editingProject?.data}
           onSave={saveProject}
-          onDelete={sheet.kind === "editProject" ? async () => { await projectsSvc.remove(sheet.id); setSheet({ kind: "closed" }); await reload(); } : undefined}
+          onDelete={sheet.kind === "editProject" ? () => removeWithUndo("project", sheet.id, () => setSheet({ kind: "closed" })) : undefined}
           onCancel={() => setSheet({ kind: "closed" })}
         />
       )}
@@ -394,7 +430,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
           mode={sheet.kind === "newGoal" ? "new" : "edit"}
           initial={editingGoal?.data}
           onSave={saveGoal}
-          onDelete={sheet.kind === "editGoal" ? async () => { await goalsSvc.remove(sheet.id); setSheet({ kind: "closed" }); await reload(); } : undefined}
+          onDelete={sheet.kind === "editGoal" ? () => removeWithUndo("goal", sheet.id, () => setSheet({ kind: "closed" })) : undefined}
           onCancel={() => setSheet({ kind: "closed" })}
         />
       )}

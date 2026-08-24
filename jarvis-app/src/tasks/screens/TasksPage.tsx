@@ -295,10 +295,23 @@ export default function TasksPage({
           <div className="empty-icon"><ListChecks className="ic" /></div>
           <div className="empty-title">{EMPTY_TITLE[filter]}</div>
           {emptySub(filter, counts) && <div className="empty-sub">{emptySub(filter, counts)}</div>}
-          {/* No button here on purpose. The "+" in the nav bar is the one way
-              to make a task from this screen, and a second red fill on a
-              screen that is only allowed one is exactly what the removed
-              quick-add box was spending. */}
+          {/* No button here WHEN THERE IS ANOTHER RED. The "+" in the nav bar
+              is the way to make a task, and a second red fill on a screen
+              allowed only one is what the removed quick-add box was spending.
+
+              B14 (2026-08-23): that reasoning has a hole, and it opens in
+              exactly the case this branch renders. The red it defers to is
+              Just Pick One For Me, which is gated on `counts.all > 0`. With
+              no tasks at all, that button does not render, this screen has
+              ZERO red fills, and the argument for withholding one is spending
+              a budget nothing is using. A first-run user got a page that
+              named its own emptiness and offered nothing.
+
+              So: still nothing when there is a task somewhere to pick, and
+              the obvious next tap when the whole list is empty. */}
+          {onNew && counts.all === 0 && (
+            <button className="btn btn-primary" onClick={onNew}>New Task</button>
+          )}
         </div>
       ) : (
         <div>

@@ -232,8 +232,21 @@ export default function YourDay({
   const planButton = onPlanDay || onFocus || onPlanTomorrow || hasFuture ? (
     <>
       <div className={"plan-cta-row" + (onPlanDay && onFocus ? " plan-cta-pair" : "")}>
-        {onFocus && <button className="plan-cta plan-cta-block" onClick={onFocus}><FocusIcon />Focus</button>}
-        {onPlanDay && <button className={"plan-cta plan-cta-block" + (onFocus ? " plan-cta-ghost" : "")} onClick={onPlanDay}><CalIcon />Plan My Day</button>}
+        {/* B15 (2026-08-23): ONE FILL PER SCREEN, and the fill belongs to
+            whichever action advances the WHOLE screen.
+
+            This row already ghosted Plan My Day when Focus was beside it,
+            but that rule only ever saw these two buttons. It could not see
+            the draft footer below, where Accept the Day commits every hour
+            of the day at once. With a draft standing, Today rendered three
+            filled reds: Start in the Now card, Focus here, and Accept below.
+
+            `footer` is only ever passed while a draft is standing (see
+            draftFooter in TodayFlow), so it is the honest signal for "a
+            bigger decision is on this screen" without threading a new prop
+            down for a fact the component already has. */}
+        {onFocus && <button className={"plan-cta plan-cta-block" + (footer ? " plan-cta-ghost" : "")} onClick={onFocus}><FocusIcon />Focus</button>}
+        {onPlanDay && <button className={"plan-cta plan-cta-block" + (onFocus || footer ? " plan-cta-ghost" : "")} onClick={onPlanDay}><CalIcon />Plan My Day</button>}
       </div>
       {(onPlanTomorrow || hasFuture) && (
         <div className="plan-cta-row plan-cta-pair">

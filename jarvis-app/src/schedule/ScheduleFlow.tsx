@@ -225,8 +225,21 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // task's prior block before writing), same resolution (acceptInto marks
   // the one draft), so which tab he was looking at cannot change what the
   // day becomes.
+  // B12 (2026-08-23): FIRES EXACTLY ONCE.
+  //
+  // commitPlan creates one event per block, so two taps landing before the
+  // first write resolves produced a full duplicate day. There was no
+  // disabled state and no label change, and on a phone the button sits
+  // exactly where an impatient thumb taps twice.
+  //
+  // A ref, not state, and deliberately: a state flag re-renders and the
+  // second tap can still enter before React commits it. This is the same
+  // guard UpNextFlow uses on its completion path, for the same reason.
+  const accepting = useRef(false);
   const acceptProposal = async () => {
-    if (!standingDraft) return;
+    if (!standingDraft || accepting.current) return;
+    accepting.current = true;
+    try {
     let ids: string[] = [];
     const ok = await attemptWrite(async () => {
       ids = (await svc.commitPlan(selected, standingDraft.blocks.map((b) => ({
@@ -243,6 +256,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(async () => { for (const id of ids) await svc.deleteEvent(id); }); await reload(); },
     });
+    } finally {
+      accepting.current = false;
+    }
   };
 
   const dismissProposal = () => {

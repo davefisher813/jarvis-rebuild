@@ -283,8 +283,11 @@ export default function SchedulePage({
           the thing nobody notices until it is still going in March. */}
       {mode === "repeats" && (
         repeats.length === 0 ? (
+          // B14: the sub described a future in which someone else had already
+          // pressed a button elsewhere. The button is here now.
           <div className="empty-state"><div className="empty-title">Nothing Repeats Yet</div>
-            <div className="empty-sub">Anything set to repeat will be listed here.</div></div>
+            <div className="empty-sub">Set one once and it handles itself</div>
+            {onNew && <button className="btn btn-secondary" onClick={onNew}>New Repeating Event</button>}</div>
         ) : (
           <div className="pad-x"><div className="card">
             {repeats.map((r) => (
@@ -343,7 +346,14 @@ export default function SchedulePage({
           {mode === "day" && onCopyDay && n === 0 && (
             <button className="plan-cta plan-cta-ghost" onClick={onCopyDay}>Copy Yesterday</button>
           )}
-          {onPlanDay && <button className="plan-cta" onClick={onPlanDay}>Plan My Day</button>}
+          {/* B15 (2026-08-23): ghosted while a draft is standing.
+              The runtime walk caught this and the source law could not: Plan
+              My Day lives in this file and Accept the Day lives in
+              ScheduleFlow's dayFooter, so a per-FILE scan sees one fill in
+              each and two on the glass. Same resolution as Today's Focus
+              button, and the same honest signal: dayFooter is only ever
+              passed while a proposal is waiting to be accepted. */}
+          {onPlanDay && <button className={"plan-cta" + (dayFooter ? " plan-cta-ghost" : "")} onClick={onPlanDay}>Plan My Day</button>}
         </div>
       </div></div>
       {/* N5: the day says when it does not fit, WHERE it does not fit, and
@@ -389,7 +399,11 @@ export default function SchedulePage({
       {loading ? (
         <SkeletonRows />
       ) : entries.every((en) => en.kind === "gap") ? (
-        <div className="empty-state"><div className="t-body">No events</div><button className="btn btn-primary" onClick={onNew}>New Event</button></div>
+        // B15: the head above already renders a filled Plan My Day, which
+        // fills the whole day. New Event adds one row, so it takes the
+        // secondary. This is the tab's most common first-run state and it was
+        // showing two fills.
+        <div className="empty-state"><div className="t-body">No events</div><button className="btn btn-secondary" onClick={onNew}>New Event</button></div>
       ) : (
         <>
         <div className={"sched-list" + (mode === "day" && drag?.over ? " drop-target" : "")} ref={gridZoneRef}>

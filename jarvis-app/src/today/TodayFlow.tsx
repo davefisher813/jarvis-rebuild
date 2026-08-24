@@ -732,7 +732,23 @@ export default function TodayFlow({
     }));
   }, [loading, evening]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // B12 (2026-08-23): FIRES EXACTLY ONCE, same as the Schedule tab's copy.
+  //
+  // There IS a stale-draft re-read below, and it is not a double-tap guard:
+  // it awaits readDraft, so a second tap enters before the first tap's write
+  // lands and both read accepted:false. The result was a duplicate day.
+  // A ref closes the window a state flag leaves open.
+  const acceptingDraft = useRef(false);
   const acceptDraft = async () => {
+    if (!dayDraft || acceptingDraft.current) return;
+    acceptingDraft.current = true;
+    try {
+      await acceptDraftInner();
+    } finally {
+      acceptingDraft.current = false;
+    }
+  };
+  const acceptDraftInner = async () => {
     if (!dayDraft) return;
     // SOMEONE ELSE MAY HAVE ANSWERED IT (merge phase 1). Schedule commits
     // through the same door and resolves the same draft, but this tab's copy
@@ -1006,7 +1022,13 @@ export default function TodayFlow({
             </div>
             <div className="row row-acts">
               <div className="momentum-actions">
-                <button className="btn btn-primary btn-sm" onClick={() => void onOpenTask(gapPick.id)}>Start</button>
+                {/* B15 (2026-08-23): red TEXT, not a red fill. Start opens one
+                    task. On a screen where Accept the Day commits every hour
+                    of the day, the fill belongs to the bigger move, and three
+                    fills on the home screen every session was the actual
+                    state before this. .pill-act keeps it obviously the
+                    primary of its own row without spending the budget. */}
+                <button className="pill-act" onClick={() => void onOpenTask(gapPick.id)}>Start</button>
                 {/* C1 · THE START RITUAL. Not a focus timer: a timer starts
                     when you are already working, which is the problem
                     solved. This is for the minute before. */}
@@ -1027,7 +1049,7 @@ export default function TodayFlow({
           // him the one-tap way in instead of stating the time and stopping.
           <div className="row">
             <div className="momentum-actions">
-              <button className="btn btn-primary btn-sm" onClick={() => setUpNextOpen(true)}>Pick Something</button>
+              <button className="pill-act" onClick={() => setUpNextOpen(true)}>Pick Something</button>
               <button className="btn-sm" onClick={() => void openPlan("today")}>Plan My Day</button>
             </div>
           </div>
@@ -1271,12 +1293,28 @@ export default function TodayFlow({
     else await attemptWrite(async () => { await tasks.editText(sheet.id, text); await tasks.editReminder(sheet.id, r); });
     await reload();
   };
+  // B10 (2026-08-23): guarded already, but silent and final. A reminder is one
+  // row with everything about it on the client, so it takes the same Undo the
+  // event delete four hundred lines up already offers.
   const onDeleteReminder = async () => {
     const sheet = remSheet;
     setRemSheet(null);
     if (!sheet || sheet.mode !== "edit") return;
-    await attemptWrite(() => tasks.deleteTask(sheet.id));
+    // The sheet already carries the text and the reminder it was editing, so
+    // the snapshot costs nothing and cannot go stale.
+    const { text: keptText, reminder: keptRem } = sheet;
+    const ok = await attemptWrite(() => tasks.deleteTask(sheet.id));
     await reload();
+    if (ok) {
+      showToast({
+        message: "Reminder deleted",
+        actionLabel: "Undo",
+        onAction: async () => {
+          await attemptWrite(() => tasks.createReminder(keptText, keptRem));
+          await reload();
+        },
+      });
+    }
     showToast({ message: "Reminder deleted" });
   };
   // CALENDAR HANDOFF: the only way a reminder can actually go off on an

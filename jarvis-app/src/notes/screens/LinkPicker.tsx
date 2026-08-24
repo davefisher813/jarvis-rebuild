@@ -34,9 +34,17 @@ export default function LinkPicker({
       <div className="nav-large">Add Link</div>
 
       {empty && (
+        // B14 (2026-08-23): "Create something first · Link it here" is
+        // directions to a button on another screen, which the app's own law
+        // calls illegal (see MessagesFlow: "the empty state carries its
+        // action"). This component cannot create anything, it only picks, so
+        // the honest action is the way back rather than a create button it
+        // has no handler for. The real fix is a create-and-link path, which
+        // is a feature and not a copy change.
         <div className="pad-x"><div className="card"><div className="empty-state">
           <div className="empty-title">Nothing to Link Yet</div>
-          <div className="empty-sub">Create something first · Link it here</div>
+          <div className="empty-sub">Tasks, events, projects, people and goals show up here</div>
+          {onBack && <button className="btn btn-secondary" onClick={onBack}>Back to the Note</button>}
         </div></div></div>
       )}
 

@@ -388,6 +388,78 @@ describe("LAW: Apple HIG casing", () => {
     expect(bad).toEqual([]);
   });
 
+});
+
+describe("LAW: one filled red per screen", () => {
+  // B15 (2026-08-23): ONE FILL PER SCREEN.
+  //
+  // The red law above maps each token to the job it can do. It says nothing
+  // about how MANY are lit at once, and its own comment names that gap: "the
+  // visual auditor catches a regression here, but only on a screen it walks".
+  // The audit found three filled reds on Today every session, three on Tasks
+  // on the default filter, and two on the Schedule tab's most common
+  // first-run state. Nothing was broken by the rules as written.
+  //
+  // Only two classes carry --accent-fill: .btn-primary, and .plan-cta when it
+  // is NOT also .plan-cta-ghost. .promo-pill looks red and is not a fill (it
+  // is accent TEXT on a neutral pill), so it is deliberately not counted, and
+  // neither is .btn-danger, which is --sys-red and a different question.
+  //
+  // This is a source scan, so it counts what a file CAN render, not what it
+  // does. That over-counts mutually exclusive branches, which is why the
+  // allowance below is per-file and why known-exclusive files are pinned with
+  // their reason rather than the threshold being raised for everyone.
+  //
+  // AND IT HAS A HOLE IT CANNOT CLOSE. Counting per file cannot see two files
+  // composing onto one screen. The Schedule tab shipped exactly that on the
+  // day this law was written: Plan My Day in SchedulePage and Accept the Day
+  // in ScheduleFlow's dayFooter, one fill each by this test, two on the
+  // glass. The browser walk found it; this test never could. So this law is
+  // the floor, not the ceiling, and the walk that counts PAINTED background
+  // colours per screen is the thing that actually enforces B15.
+  it("no screen can render more than one filled red at a time", () => {
+    const FILLS = /className=\{?["'`][^"'`}]*\b(btn-primary|plan-cta)\b[^"'`}]*["'`]?/g;
+
+    // Files whose multiple fills are provably not simultaneous. Each needs a
+    // reason, and the reason has to be checkable by reading the file.
+    const EXCLUSIVE: Record<string, string> = {
+      "messages/MessagesFlow.tsx": "sweep / toss / autoOffer are one if-else chain; the rest are separate views",
+      "upnext/UpNextFlow.tsx": "three mutually exclusive branches of one switch",
+      "gym/GymFlow.tsx": "Create a Program and Start are gated on !program vs program",
+      "connections/ConnectionsPage.tsx": "one per connection state",
+      "schedule/screens/SchedulePage.tsx": "the empty-day branch and the populated list never both render",
+      "today/YourDay.tsx": "the plan-cta row ghosts all but one, and the day-empty branch excludes the rest",
+      "money/MoneyFlow.tsx": "each sheet is its own portal; the empty state excludes the populated one",
+      "bigger/GoalDetailPage.tsx": "the savings sheet is a portal over the page",
+      "settings/BackupPage.tsx": "import and export are separate rows of one form",
+      "tasks/screens/TasksPage.tsx": "Just Pick One needs counts.all > 0; the empty-state New Task needs counts.all === 0",
+      "onboarding/OnboardingFlow.tsx": "a step wizard; one step is mounted at a time",
+      "screens/SignIn.tsx": "sign-in and sign-up are exclusive branches",
+      "gym/UploadFlow.tsx": "phase machine; one phase renders",
+      "schedule/screens/ScheduleUploadFlow.tsx": "phase machine; one phase renders",
+      "capture/QuickCapture.tsx": "dupAge ternary, plus a separate saved-phase screen",
+      "people/CallPrepSheet.tsx": "Call and Save Note are exclusive on `dialed`",
+      "schedule/screens/PlanDaySheet.tsx": "count === 0 ternary: replan or commit, never both",
+      "schedule/ScheduleFlow.tsx": "the Anytime guard is a modal over the page, not a second button in it",
+    };
+
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const name = rel(f);
+      if (EXCLUSIVE[name]) continue;
+      const src = read(f);
+      let n = 0;
+      for (const m of src.matchAll(FILLS)) {
+        const cls = m[0];
+        // A ghosted plan-cta is not a fill.
+        if (/plan-cta/.test(cls) && /plan-cta-ghost/.test(cls)) continue;
+        n++;
+      }
+      if (n > 1) bad.push(`${name}: ${n} filled reds`);
+    }
+    expect(bad).toEqual([]);
+  });
+
   // THE PALETTE IS MEASURED, NOT TRUSTED (2026-08-21, Apple palette). Every
   // slot has a light and a dark value, an on-colour for its fills, and text
   // variants where the raw value cannot be read. None of that is taken on

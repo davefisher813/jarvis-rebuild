@@ -405,13 +405,16 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
             {/* This line IS the answer, not a description of the button. */}
             <div className="conn-meta">Start with: {fsStep.step}</div>
             <div className="offer-row">
-              <button className="btn btn-primary" onClick={fsAccept}>Add This Step</button>
+              {/* B15 (2026-08-23): this banner acts on ONE stalled task. The
+                  screen's own red is Just Pick One For Me, which collapses
+                  the whole page to a single open task. */}
+              <button className="pill-act" onClick={fsAccept}>Add This Step</button>
               <button className="quiet-action" onClick={fsDismiss}>Not Now</button>
             </div>
           </>
         ) : (
           <div className="offer-row">
-            <button className="btn btn-primary" onClick={fsAsk} disabled={fsBusy}>{fsBusy ? "Thinking..." : "First Step"}</button>
+            <button className="pill-act" onClick={fsAsk} disabled={fsBusy}>{fsBusy ? "Thinking..." : "First Step"}</button>
             <button className="quiet-action" onClick={fsDismiss}>Not Now</button>
           </div>
         )}
@@ -541,7 +544,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
                 )}
               </div>
               <div className="momentum-actions">
-                <button className="btn btn-primary btn-sm" onClick={() => { const id = momentum.task.id; setMomentum(null); openEdit(id); }}>Start</button>
+                <button className="pill-act" onClick={() => { const id = momentum.task.id; setMomentum(null); openEdit(id); }}>Start</button>
                 <button className="btn-sm" onClick={() => { dismissChain(today); setMomentum(null); }}>Not Now</button>
               </div>
             </div>

@@ -14,6 +14,7 @@ import PersonSheet, { type PersonDraft } from "./screens/PersonSheet";
 import { usePushDepth } from "../shared/pushNav";
 import { parseContactsFile, type ImportedContact } from "./importContacts";
 import { showToast } from "../shared/toast";
+import { attemptWrite } from "../shared/guard";
 import { createPortal } from "react-dom";
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
@@ -119,12 +120,26 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
     await reload();
     showToast({ message: p.data.name + " moved to Contacts" });
   };
+  // B10/B12 (2026-08-23): this was the worst one in the audit. Deleting a
+  // person removed the contact AND every fact recorded about them, with no
+  // guard, no toast, and no undo. The row simply stopped existing.
   const onDelete = async () => {
     if (sheet.kind !== "edit") return;
-    await people.remove(sheet.id);
+    const kept = list.find((x) => x.id === sheet.id)?.data;
+    const ok = await attemptWrite(() => people.remove(sheet.id));
+    if (!ok) return; // the sheet stays open rather than closing over a failure
     setSheet({ kind: "closed" });
     setOpenId(null);
     await reload();
+    if (!kept) return;
+    showToast({
+      message: kept.name + " deleted",
+      actionLabel: "Undo",
+      onAction: () => void (async () => {
+        await attemptWrite(() => people.create(kept));
+        await reload();
+      })(),
+    });
   };
 
   // Contact import (Dave 2026-07-30): parse a shared .vcf/.csv, dedupe by

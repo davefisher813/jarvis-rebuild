@@ -3,6 +3,7 @@ import { useStrands } from "../../data/NotesProvider";
 import { todayISO } from "../../ai/useAIContext";
 import { haptics } from "../../shared/haptics";
 import { showToast } from "../../shared/toast";
+import { attemptWrite } from "../../shared/guard";
 import {
   STRAND_CATEGORY_LABEL,
   type Strand, type StrandCategory, type StrandEvidence, type DerivationKey,
@@ -85,12 +86,32 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
     await reload();
   };
 
+  // B10/B12 (2026-08-23): the write was unguarded, so a failed delete still
+  // said "Forgotten" and closed the row. It is guarded now, and it offers the
+  // way back.
+  //
+  // HONEST ABOUT WHAT UNDO RESTORES: `add` rebuilds the strand's text,
+  // category and strength, which is the belief itself. It cannot rebuild the
+  // evidence array or the derivation key, because those were observed over
+  // time and cannot be re-derived on demand. So JARVIS remembers the thing
+  // again but not why it first believed it. That is a real restore of the
+  // fact and a partial one of its history, which is the same honest-but-weak
+  // shape CategoryDetail already documents for its own undo.
   const doDelete = async (s: Strand) => {
     haptics.selection();
-    await svc.remove(s);
+    const kept = s.data;
+    const ok = await attemptWrite(() => svc.remove(s));
+    if (!ok) return;
     setOpen(null);
-    showToast({ message: "Forgotten" });
     await reload();
+    showToast({
+      message: "Forgotten",
+      actionLabel: "Undo",
+      onAction: () => void (async () => {
+        await attemptWrite(() => svc.add(kept.text, kept.category, today, kept.strength));
+        await reload();
+      })(),
+    });
   };
 
   return (
