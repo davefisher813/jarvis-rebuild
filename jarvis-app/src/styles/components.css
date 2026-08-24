@@ -402,7 +402,14 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .row-act { justify-content: center; width: auto; align-self: center; margin: var(--s-1) auto;
   background: var(--press-3); border: 0; color: var(--tint); font-weight: var(--w-semi);
   font-size: var(--t-body); height: 40px; padding: 0 var(--s-5); border-radius: var(--r-pill);
-  display: inline-flex; align-items: center; }
+  display: inline-flex; align-items: center; position: relative; }
+/* B1/B8 (2026-08-23): found by measuring, not by reading. .row-act paints at
+   40px, four short of --tap-min, across 26 call sites. Nothing caught it
+   because the 44px law only ever named three classes. The paint stays 40 so
+   nothing reflows; the hit box reaches 44. */
+.row-act::after { content: ""; position: absolute; inset: -2px 0; }
+/* The tail of a full-bleed list: centres whatever grows the list. */
+.list-foot { display: flex; justify-content: center; padding: var(--s-2) var(--s-4) var(--s-3); }
 .input-multiline { height: auto; min-height: 88px; padding-top: var(--s-2h); resize: none; line-height: var(--lh-relaxed); font-family: inherit; }
 /* A text bar action is 18px of glyph. It needs a hit area like everything
    else does (audit 2026-08-21: "Edit" measured 41x18 against a 24 minimum,

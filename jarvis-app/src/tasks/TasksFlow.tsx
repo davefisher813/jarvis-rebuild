@@ -530,6 +530,13 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
         onFilter={setFilter}
         onToggle={onToggle}
         onOpenTask={openEdit}
+        // B6: a rename is one field, so it does not cost a sheet. Undo comes
+        // free with the row still on screen showing the old text if the
+        // write fails.
+        onRenameTask={(id, text) => void (async () => {
+          const ok = await attemptWrite(() => svc.editText(id, text));
+          if (ok) await reload();
+        })()}
         onStartTask={(id) => void onStartTask(id)}
         momentum={momentum && {
           afterId: momentum.afterId,

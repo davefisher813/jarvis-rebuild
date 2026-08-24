@@ -14,6 +14,7 @@ import Provenance from "../../shared/Provenance";
 import { capAfterNumber } from "../../shared/casing";
 import { cueLine } from "../ifThen";
 import { OVERWHELM_EXIT } from "../overwhelmed";
+import InlineEdit from "../../shared/InlineEdit";
 
 // Tasks page. Two-line rows with a large (44pt) completion target on the left
 // and swipe-left-to-delete, so completing or removing a task is one easy action.
@@ -57,6 +58,7 @@ function Row({
   onOpen,
   onDelete,
   onSnooze,
+  onRename,
   onStart,
 }: {
   item: TaskItem;
@@ -65,6 +67,8 @@ function Row({
   onOpen?: (id: string) => void;
   onDelete?: (id: string) => void;
   onSnooze?: (id: string) => void;
+  // B6 (2026-08-23): rename where it stands, without the sheet.
+  onRename?: (id: string, text: string) => void;
   // A2 (audit 2026-08-21): the Tasks tab could not START anything. Every
   // task in the app lived here, and the one thing an ADHD app exists to help
   // with -- getting going -- was only reachable from a card on Today that
@@ -137,7 +141,29 @@ function Row({
           <Burst show={burst} />
         </div>
         <div className="row-stack" role="button" tabIndex={0} onClick={() => onOpen?.(item.id)}>
-          <div className="conn-name truncate">{t.text}</div>
+          {/* B6 (2026-08-23): THE TITLE EDITS WHERE IT STANDS.
+              This is InlineEdit's own stated doctrine, applied to the list
+              that needed it most: "if you can see it, you can change it,
+              where it stands. Tap gives the caret, blur or Enter saves, and
+              there is no Save button because editing in place IS the
+              feedback." The primitive had two consumers and neither was a
+              task row, so fixing a typo cost a sheet.
+
+              The rest of the row still opens the full editor, exactly the
+              way tapping the time on a schedule row changes the time while
+              tapping the row opens everything. stopPropagation keeps the two
+              from firing together. */}
+          {onRename && !t.done ? (
+            <div onClick={(ev) => ev.stopPropagation()}>
+              <InlineEdit
+                className="conn-name truncate"
+                value={t.text}
+                onSave={(v) => { const next = v.trim(); if (next && next !== t.text) onRename(item.id, next); }}
+              />
+            </div>
+          ) : (
+            <div className="conn-name truncate">{t.text}</div>
+          )}
           {/* The primary keeps the colour; the tags ride the same line as
               plain facts (2026-08-21). Colouring all of them would spend
               three colours saying one thing. */}
@@ -175,6 +201,7 @@ export default function TasksPage({
   onSnoozeTask,
   onStartTask,
   onNew,
+  onRenameTask,
   onClearDone,
   categories,
   catFilter,
@@ -199,6 +226,7 @@ export default function TasksPage({
   onSnoozeTask?: (id: string) => void;
   onStartTask?: (id: string) => void;
   onNew?: () => void;
+  onRenameTask?: (id: string, text: string) => void;
   onClearDone?: () => void;
   categories?: SheetCategory[];
   catFilter?: string;
@@ -319,12 +347,34 @@ export default function TasksPage({
               dividers inset past the checkbox, no card. */}
           {items.map((it) => (
             <React.Fragment key={it.id}>
-              <Row item={it} today={today} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} />
+              <Row item={it} today={today} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} onRename={onRenameTask} />
               {/* Momentum Chain (addendum item 7): the suggestion slides
                   into the just-finished slot, right below its row. */}
               {momentum?.afterId === it.id && momentum.el}
             </React.Fragment>
           ))}
+          {/* B8 (2026-08-23): EVERY LIST ENDS WITH THE WAY TO GROW IT.
+              The "+" in the nav bar is the only way to add a task from this
+              screen, which means the answer to "I just thought of one more"
+              is at the far top of a list you have scrolled to the bottom of.
+              One row costs less than that hunt.
+
+              NEUTRAL, never a fill: .row-act is what components.css calls
+              "the ONE sanctioned bare-text action", and it is exactly why
+              this can coexist with the one-red law that the old comment above
+              cited as the reason not to have it at all.
+
+              Not shown on the done list, where "add a completed task" is not
+              a thing anyone wants, and not shown while the overwhelmed view
+              is deliberately collapsing the page to one thing. */}
+          {onNew && filter !== "done" && !overwhelmed && items.length > 0 && (
+            // .row-act centres itself with `margin: auto`, which works in the
+            // flex-column CARD its other 26 call sites live in and does
+            // nothing in a plain block parent like this full-bleed list. The
+            // walk caught it hanging off the left edge. One flex wrapper
+            // rather than touching a class 26 places depend on.
+            <div className="list-foot"><button className="row-act" onClick={onNew}>Add a Task</button></div>
+          )}
         </div>
       )}
     </div>

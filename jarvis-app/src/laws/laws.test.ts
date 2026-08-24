@@ -311,6 +311,7 @@ describe("LAW: Apple HIG casing", () => {
       "cb": "22px checkbox, note checklists and reminders",
       "chip": "30px filter chip",
       "pill-act": "27px row action",
+      "row-act": "40px bare-text action, 26 call sites, four short",
     };
     for (const [cls, why] of Object.entries(small)) {
       // Either an ::after carrying inset/height, or a wrapper that is itself

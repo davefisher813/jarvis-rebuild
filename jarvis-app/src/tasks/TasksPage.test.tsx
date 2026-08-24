@@ -67,3 +67,66 @@ describe("TasksPage", () => {
     expect(onToggle).toHaveBeenCalledWith("d");
   });
 });
+
+// B6 / B8 (2026-08-23): editing and adding without leaving the list.
+describe("TasksPage editing in place", () => {
+  it("renames from the row itself instead of costing a sheet", () => {
+    const onRenameTask = vi.fn();
+    const onOpenTask = vi.fn();
+    const { container } = render(
+      <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
+        onRenameTask={onRenameTask} onOpenTask={onOpenTask} />,
+    );
+    const title = container.querySelector(".conn-name")!;
+    expect(title.getAttribute("contenteditable")).toBe("true");
+
+    // Editing the title must NOT also open the full editor.
+    fireEvent.click(title);
+    expect(onOpenTask).not.toHaveBeenCalled();
+
+    title.textContent = "Renamed";
+    fireEvent.blur(title);
+    expect(onRenameTask).toHaveBeenCalledWith("a", "Renamed");
+  });
+
+  it("keeps the rest of the row opening the full editor", () => {
+    const onOpenTask = vi.fn();
+    const { container } = render(
+      <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
+        onRenameTask={() => {}} onOpenTask={onOpenTask} />,
+    );
+    fireEvent.click(container.querySelector(".eyebrow")!);
+    expect(onOpenTask).toHaveBeenCalledWith("a");
+  });
+
+  it("does not save an empty title or an unchanged one", () => {
+    const onRenameTask = vi.fn();
+    const { container } = render(
+      <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
+        onRenameTask={onRenameTask} />,
+    );
+    const title = container.querySelector(".conn-name")!;
+    title.textContent = "   ";
+    fireEvent.blur(title);
+    expect(onRenameTask).not.toHaveBeenCalled();
+  });
+
+  it("ends the list with the way to grow it, and never as a second red fill", () => {
+    const onNew = vi.fn();
+    const { container } = render(
+      <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20" onNew={onNew} />,
+    );
+    const add = container.querySelector(".row-act")!;
+    expect(add).toHaveTextContent("Add a Task");
+    expect(add.className).not.toContain("btn-primary");
+    fireEvent.click(add);
+    expect(onNew).toHaveBeenCalled();
+  });
+
+  it("offers no trailing add on the done list", () => {
+    const { container } = render(
+      <TasksPage filter="done" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20" onNew={() => {}} />,
+    );
+    expect(container.querySelector(".row-act")).toBeNull();
+  });
+});
