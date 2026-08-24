@@ -436,6 +436,20 @@ describe("LAW: an icon always has a size", () => {
   });
 });
 
+describe("LAW: a dead control looks dead", () => {
+  // The app carried exactly three :disabled rules, each scoped to one
+  // component, and none for buttons in general. Every other disabled button
+  // rendered identically to a live one and silently ate taps. It stopped
+  // being theoretical the day ~8 Save buttons and both ends of every Stepper
+  // gained a disabled state.
+  it("there is an unscoped disabled treatment for buttons", () => {
+    const m = CSS.match(/(^|\n)[^{}\n]*\bbutton:disabled\b[^{]*\{([^}]*)\}/);
+    expect(m, "no unscoped button:disabled rule").toBeTruthy();
+    const body = m![2]!;
+    expect(body, "disabled must change how the control LOOKS").toMatch(/opacity|color|background/);
+  });
+});
+
 describe("LAW: one filled red per screen", () => {
   // B15 (2026-08-23): ONE FILL PER SCREEN.
   //

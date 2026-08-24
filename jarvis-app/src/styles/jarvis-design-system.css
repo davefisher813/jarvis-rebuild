@@ -333,7 +333,24 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
 .slider-thumb { position: absolute; top: 50%; transform: translate(-50%,-50%); width: 28px; height: 28px; background: #fff; border-radius: var(--r-circle); box-shadow: 0 2px 8px rgba(0,0,0,0.20); }
 
 /* STEPPER */
+/* A DEAD CONTROL MUST LOOK DEAD (2026-08-24).
+ 
+   The app had exactly three `:disabled` rules, all scoped to one component
+   each, and none for `.btn`. So every button carrying `disabled` rendered
+   identically to a live one: full colour, full weight, no cursor change,
+   silently eating taps.
+ 
+   That was mostly theoretical until the B12 sweep put `disabled={busy}` on
+   about eight Save buttons and `disabled` on both ends of every Stepper, at
+   which point the app grew a lot of controls that look pressable and are not.
+   Same shape as the icon default: an attribute added without the stylesheet
+   knowing about it. So this is the base case, and per-component rules still
+   win on specificity. */
+button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .stepper { display: inline-flex; background: var(--press-3); border-radius: var(--r-md); overflow: hidden; }
+/* The stepper keeps its track solid and greys only the glyph: a translucent
+   button inside a filled pill reads as a rendering fault. */
+.stepper button:disabled { opacity: 1; color: var(--tx-4); }
 .stepper button { width: 44px; height: 34px; background: transparent; border: 0; color: var(--tint); font-size: 20px; font-family: var(--f); }
 .stepper .sep { width: 1px; background: var(--divider); }
 .stepper .val { padding: 0 var(--s-3); display: flex; align-items: center; font-size: var(--t-h3); min-width: 32px; justify-content: center; }
