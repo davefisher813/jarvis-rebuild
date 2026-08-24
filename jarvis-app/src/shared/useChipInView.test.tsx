@@ -10,7 +10,7 @@ import { useChipInView } from "./useChipInView";
 // about WHEN it runs, which are the parts a later edit would quietly break.
 
 function Strip({ open, current, onBox }: { open: boolean; current: number; onBox?: (b: HTMLDivElement) => void }) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
   useChipInView(ref, open);
   return (
     <div

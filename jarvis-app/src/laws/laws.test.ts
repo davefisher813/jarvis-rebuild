@@ -928,3 +928,98 @@ describe("LAW: a row that is a button keeps its area", () => {
     expect(CSS).not.toMatch(/\.sched-swipe-wrap\s*\{[^}]*overflow:\s*hidden/);
   });
 });
+
+// TESTED IS NOT THE SAME AS WIRED (2026-08-24).
+//
+// The sweep that prompted this found ai/pregen.ts: 107 lines, six passing
+// tests, a documented cap and a documented gate, and zero callers since the
+// day it shipped. The tests all passed the whole time. Nothing in the suite
+// could tell the difference between a feature and a well-tested library that
+// the app never opens, which is how roughly a thousand lines accumulated
+// without anyone deciding to keep them.
+//
+// So: a module is either reachable from the app, reachable from a serverless
+// handler, or named below with the reason it is not. Anything else fails.
+// The list is meant to shrink. Adding to it is a decision someone makes on
+// purpose, in a commit, with a sentence saying why.
+describe("LAW: every module is reachable, or is listed as not", () => {
+  // Reachable means: some non-test file under src/ or api/ mentions it in an
+  // import, static or dynamic. Deliberately crude, because the alternative is
+  // a resolver, and a law nobody can read is a law nobody maintains.
+  const ROOTS = [SRC, join(process.cwd(), "api")];
+
+  // Not app code at all.
+  const NOT_APP = [
+    "main.tsx", "testMain.tsx",            // the two entry points
+    "vite.config.ts", "vitest.config.ts",  // build config
+    "notesSpec.ts", "tasksSpec.ts",        // written specs, read by people
+    "emailBench.tsx",                      // bench harness, run by hand
+    "score.ts",                            // golden-set scorer, run by hand
+  ];
+
+  // Written, tested, and NOT reachable from the running app. Each line is a
+  // standing decision to keep the code, and owes a reason.
+  const UNWIRED: Record<string, string> = {
+    // 516 lines across four files. Pure logic for the Capacitor iOS bridge:
+    // contact enrichment, EventKit and HealthKit de-duplication. The web
+    // build has no bridge to call it, so it cannot be wired until there is an
+    // iOS build to wire it INTO. bridge.ts is imported only by its own
+    // siblings, which is what makes the folder an island rather than a
+    // half-connected feature.
+    "bridge.ts": "iOS only: no Capacitor bridge in the web build",
+    "contactsMatch.ts": "iOS only: needs the Contacts bridge",
+    "eventKitDedupe.ts": "iOS only: needs the EventKit bridge",
+    "healthDedupe.ts": "iOS only: needs the HealthKit bridge",
+    // The upload pipeline for Supabase Storage. The app's current adapters do
+    // not store files, so there is no upload path to route through it yet.
+    // Track 3 work, kept because the size gate and the type gate in it are
+    // the part that is easy to get wrong twice.
+    "fileStorage.ts": "Supabase Storage: no upload surface in this build yet",
+  };
+
+  it("nothing is written, tested, and silently unreachable", () => {
+    const files: string[] = [];
+    for (const r of ROOTS) { try { walk(r, files); } catch { /* api/ may not exist */ } }
+    const code = files.filter((f) => /\.(ts|tsx)$/.test(f) && !isTest(f) && !/\.d\.ts$/.test(f));
+    const text = files
+      .filter((f) => /\.(ts|tsx)$/.test(f) && !isTest(f))
+      .map((f) => ({ f, t: read(f) }));
+
+    const orphans: string[] = [];
+    for (const m of code) {
+      const stem = m.replace(/^.*\//, "").replace(/\.(ts|tsx)$/, "");
+      if (NOT_APP.includes(stem + (m.endsWith(".tsx") ? ".tsx" : ".ts"))) continue;
+      const re = new RegExp('["\'][^"\']*[./]' + stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + '["\']');
+      if (text.some((s) => s.f !== m && re.test(s.t))) continue;
+      const base = stem + (m.endsWith(".tsx") ? ".tsx" : ".ts");
+      if (base in UNWIRED) continue;
+      orphans.push(base);
+    }
+    expect(orphans).toEqual([]);
+  });
+
+  // The other direction, and the one that makes the list shrink instead of
+  // rot: once something IS wired, its excuse has to go. Without this the list
+  // becomes a place stale names live forever and stop meaning anything.
+  it("nothing on the unwired list is actually wired", () => {
+    const files: string[] = [];
+    for (const r of ROOTS) { try { walk(r, files); } catch { /* api/ may not exist */ } }
+    const text = files
+      .filter((f) => /\.(ts|tsx)$/.test(f) && !isTest(f))
+      .map((f) => ({ f, t: read(f) }));
+    const stale: string[] = [];
+    for (const base of Object.keys(UNWIRED)) {
+      const stem = base.replace(/\.(ts|tsx)$/, "");
+      const own = files.find((f) => f.endsWith("/" + base));
+      if (!own) { stale.push(base + " is on the list but no longer exists"); continue; }
+      const re = new RegExp('["\'][^"\']*[./]' + stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + '["\']');
+      // Its own siblings do not count as wiring: that is exactly the shape
+      // src/native/ has, four files importing each other and nothing else.
+      const dir = own.slice(0, own.lastIndexOf("/") + 1);
+      if (text.some((s) => !s.f.startsWith(dir) && re.test(s.t))) {
+        stale.push(base + " IS wired now, take it off the list");
+      }
+    }
+    expect(stale).toEqual([]);
+  });
+});

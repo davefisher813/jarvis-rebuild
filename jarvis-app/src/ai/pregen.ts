@@ -75,6 +75,25 @@ export function cachedDraft(kind: string, sourceId: string, hash: string): strin
   return e && e.hash === hash ? e.text : null;
 }
 
+// The write half of cachedDraft, for a draft the FOREGROUND built.
+//
+// Added 2026-08-24 with the first real consumer. Without it the cache only
+// ever filled from the background pass, so a draft the user waited for was
+// thrown away the moment the card closed and rebuilt from scratch the next
+// time they opened it. Same key and same eviction, so a foreground entry is
+// indistinguishable from a pre-generated one, which is the point: the cache
+// answers "is there a current draft for this", not "who made it".
+//
+// Deliberately NOT gated. The gate exists to stop the app spending model
+// calls nobody asked for; remembering the result of a call the user did ask
+// for spends nothing.
+export function rememberDraft(kind: string, sourceId: string, hash: string, text: string): void {
+  if (!text) return;
+  const cache = readAll();
+  cache[keyOf(kind, sourceId)] = { hash, text, ts: Date.now() };
+  writeAll(cache);
+}
+
 // djb2. Cheap, stable, good enough to detect "the source changed".
 export function contentHash(text: string): string {
   let h = 5381;

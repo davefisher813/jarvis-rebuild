@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { InMemoryAdapter, type Item } from "@core";
 import { CachedAdapter } from "./CachedAdapter";
 import { readPreload, writePreload, clearPreload, listSignature } from "./preloadCache";
-import { cachedDraft, contentHash, pregenerate, PREGEN_CAP } from "../ai/pregen";
+import { cachedDraft, contentHash, pregenerate, rememberDraft, PREGEN_CAP } from "../ai/pregen";
 import { setAIControl } from "../ai/levelStore";
 
 const U = "user1";
@@ -157,6 +157,35 @@ describe("law: pre-generation is capped, cache-first, and obeys AI Control", () 
     const calls = { n: 0 };
     await pregenerate([{ ...req("s9", calls), pin: "emailDrafts" }]);
     expect(calls.n).toBe(0);
+  });
+
+  // The write half, added 2026-08-24 with the first real consumer. Without
+  // it the cache only ever filled from the background pass, so a draft the
+  // user actually WAITED for was thrown away when the card closed and
+  // rebuilt from scratch the next time they opened it.
+  it("remembers a draft the foreground built, at the same key", () => {
+    rememberDraft("reply", "fg1", "h1", "typed by hand");
+    expect(cachedDraft("reply", "fg1", "h1")).toBe("typed by hand");
+  });
+
+  it("a remembered draft counts as a cache hit, so the pass skips it", async () => {
+    setAIControl({ level: "draft" });
+    const calls = { n: 0 };
+    rememberDraft("reply", "fg2", "h1", "already here");
+    await pregenerate([req("fg2", calls)]);
+    expect(calls.n).toBe(0);
+  });
+
+  // It stores what the user waited for; it is not a way around the gate.
+  it("remembering is not a model call, so Off can still hold a draft", () => {
+    setAIControl({ level: "off" });
+    rememberDraft("reply", "fg3", "h1", "asked for explicitly");
+    expect(cachedDraft("reply", "fg3", "h1")).toBe("asked for explicitly");
+  });
+
+  it("refuses to remember an empty draft, which would look like a hit", () => {
+    rememberDraft("reply", "fg4", "h1", "");
+    expect(cachedDraft("reply", "fg4", "h1")).toBeNull();
   });
 
   it("contentHash is stable and change-sensitive", () => {

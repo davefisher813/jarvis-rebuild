@@ -36,7 +36,8 @@ import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
 import { useGoogle } from "../connections/google/GoogleSession";
 import { mapThreadFull, buildReply, encodeEmail } from "../connections/google/map";
-import { cardReplyPrompt, cardNudgePrompt, parseCardDraft } from "../messages/cardDraft";
+import { cardDraftJob } from "../messages/cardDraftJob";
+import { cachedDraft, pregenerate, rememberDraft, PREGEN_CAP } from "../ai/pregen";
 import { loadNudgeCounts, countNudge } from "../messages/escalate";
 import { decide } from "../messages/mailAction";
 import { clearChase } from "../messages/followUp";
@@ -48,7 +49,7 @@ import { proposeFirstMove, nextStart, endsAt, ritualIsReady, whyNotReady, LENGTH
 import RitualSheet from "../tasks/screens/RitualSheet";
 import { bestPerBlock, blockKind, recordBlend, loadBlendMemory } from "../schedule/blend";
 import type { BlendMap } from "./YourDay";
-import { loadMailSnapshot } from "../messages/home";
+import { loadMailSnapshot, mailNotices } from "../messages/home";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
@@ -993,6 +994,44 @@ export default function TodayFlow({
 
   const [ritual, setRitual] = useState<Ritual | null>(null);
 
+  // THE DRAFT PRE-GENERATION PASS lives above the loading return, because
+  // hooks must run in the same order on every render and the skeleton is an
+  // early one. Its helpers come with it: jobFor is referenced inside the
+  // effect, so declaring it further down would put it in the temporal dead
+  // zone at the moment the effect closes over it.
+  // N13: fifty-five days deserves a different tone than three, and a chase he
+  // set himself starts gentle whatever the clock says. The WAIT sets the
+  // tone, the ASK sets what the draft is for (2026-08-21), so the card's
+  // draft matches the button the card is wearing instead of climbing a ladder
+  // the button no longer uses.
+  const nudgeInstruction = (subject: string, days: number, sent: number) =>
+    decide(subject, "", days, sent).primary.instruction ?? "";
+
+  const jobFor = (n: { kind: string; threadId: string }) =>
+    cardDraftJob(n, loadMailSnapshot(), loadNudgeCounts(), nudgeInstruction,
+      (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system));
+
+  //
+  // The list is derived with the SAME mailNotices() call MailNotices renders
+  // from, so the drafts that get warmed are the cards he can actually see. A
+  // separate ranking here would warm the wrong five.
+  const pregenRan = useRef(false);
+  useEffect(() => {
+    if (pregenRan.current || !ai.available) return;
+    const snap = loadMailSnapshot();
+    if (snap.threads.length === 0 && snap.waiting.length === 0) return;
+    pregenRan.current = true;
+    const jobs = mailNotices(snap, today, new Date(), PREGEN_CAP)
+      .filter((n) => n.kind === "reply" || n.kind === "deadline" || n.kind === "nudge" || n.kind === "chase")
+      .map((n) => jobFor(n))
+      .filter((j): j is NonNullable<typeof j> => !!j);
+    if (jobs.length) void pregenerate(jobs);
+    // Deliberately not depending on the snapshot: this is a once-per-open
+    // warm-up, and re-running it whenever mail reloads would turn a capped
+    // background pass into a loop that spends five calls per refresh. The
+    // pregenRan ref makes that true even if the deps below ever grow.
+  }, [ai.available, today]);
+
   if (loading) return <SkeletonScreen />;
 
   // GROUP B (items 10-11): the Now line and the gap offer, derived fresh
@@ -1413,36 +1452,36 @@ export default function TodayFlow({
     return (match ?? list[0])!.api;
   };
 
+
+  // CACHE FIRST (2026-08-24). The prompt building moved to cardDraftJob so
+  // that this path and the background pass below cannot describe the same
+  // draft differently; a hash that disagreed by one space would miss every
+  // pre-generated entry while looking like it worked.
   const draftForCard = async (n: { kind: string; threadId: string; title: string; sub: string }): Promise<string> => {
     if (!ai.available) return "";
     try {
-      const snap = loadMailSnapshot();
-      if (n.kind === "nudge" || n.kind === "chase") {
-        const w = snap.waiting.find((x) => x.threadId === n.threadId);
-        const c = (snap.chases ?? []).find((x) => x.threadId === n.threadId);
-        const to = w?.to ?? c?.to;
-        const subject = w?.subject ?? c?.subject;
-        if (!to || !subject) return "";
-        // N13: fifty-five days deserves a different tone than three, and a
-        // chase he set himself starts gentle whatever the clock says.
-        // The WAIT sets the tone, the ASK sets what the draft is for
-        // (2026-08-21), so the card's draft matches the button the card is
-        // wearing instead of climbing a ladder the button no longer uses.
-        const dec = decide(subject, "", w?.days ?? 0, loadNudgeCounts()[n.threadId] ?? 0);
-        const p = cardNudgePrompt(to, subject, w?.days ?? 0);
-        return parseCardDraft(await ai.complete(
-          [{ role: "user", content: p.user }],
-          p.system + "\n" + (dec.primary.instruction ?? ""),
-        ));
-      }
-      const t = snap.threads.find((x) => x.id === n.threadId);
-      if (!t) return "";
-      const p = cardReplyPrompt(t.from, t.subject, t.gist, t.snippet ?? t.gist ?? "");
-      return parseCardDraft(await ai.complete([{ role: "user", content: p.user }], p.system));
+      const job = jobFor(n);
+      if (!job) return "";
+      const hit = cachedDraft(job.kind, job.sourceId, job.hash);
+      if (hit) return hit;
+      const text = await job.build();
+      // Worth remembering even though he waited for it: closing the card and
+      // opening it again should not spend a second call on the same email.
+      rememberDraft(job.kind, job.sourceId, job.hash, text);
+      return text;
     } catch {
       return "";
     }
   };
+
+  // THE BACKGROUND PASS. One run per open, for the mail notices actually on
+  // screen, so tapping Draft on the top card is usually instant.
+  //
+  // Everything that keeps this cheap lives in pregen.ts: five calls a pass at
+  // most, a cache hit costs nothing, and the AI Control gate is applied per
+  // request with the emailDrafts pin, so Off never pre-generates and neither
+  // does any level below Draft Only. What is added here is only WHICH drafts
+  // are worth having ready.
 
   const sendFromCard = async (n: { kind: string; threadId: string }, body: string): Promise<boolean> => {
     const api = mailApiFor(n.threadId);
