@@ -965,6 +965,26 @@ describe("LAW: stored shapes are versioned", () => {
     expect(reachOf([...mixed, ...filed], p, goal).progress).toEqual({ done: 1, total: 1, pct: 100 });
   });
 
+  // PICK 22, ONE SET OF ESTIMATES (2026-08-24). A project's stated size and
+  // the block the planner puts on the calendar for the same work must come
+  // from the same number. Two estimators drift, and the day the project says
+  // "About 2h" while Plan My Day books 45 minutes is the day both stop being
+  // believed.
+  it("a project's size uses the planner's own learned durations", () => {
+    const src = read(SRC + "/bigger/BiggerPictureFlow.tsx");
+    expect(src).toMatch(/learnedDurations\(readCommittedDurations\(\)/);
+    expect(src).toMatch(/estimateFor = useCallback/);
+  });
+
+  // ONE FILLED PRIMARY PER SCREEN, EVEN WHEN A SECOND DECISION ARRIVES
+  // (capsule law X). An expired hold puts "Pick It Back Up" on a page that
+  // already had a red "Mark Done", and two fills is the screen shouting
+  // twice. Finishing drops to the quiet tier for that one case.
+  it("an expired hold does not put a second red fill on the project page", () => {
+    const src = read(SRC + "/projects/ProjectDetailPage.tsx");
+    expect(src).toMatch(/className=\{"btn btn-block" \+ \(expired \? "" : " btn-primary"\)\}/);
+  });
+
   // PICK 15, HEALTH IS DERIVED AND NEVER TYPED (Dave 2026-08-22).
   // GoalData.state has said whatever the goal was created with since Session
   // 6, and nothing anywhere updates it. A self-reported dashboard decaying

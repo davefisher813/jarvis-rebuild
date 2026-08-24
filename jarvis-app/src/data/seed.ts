@@ -110,7 +110,10 @@ export async function seedDemoData(
     const rebuild = await projects.create({ title: "Rebuild Calder App", status: "active", category: cat("Work"), goalId: launchGoal?.id });
     const site = await projects.create({ title: "Remodel Calder Website", status: "active", category: cat("Work") });
     const cookout = await projects.create({ title: "Calder Summer Cookout", status: "active", category: cat("Family") });
-    await projects.create({ title: "Tax Filing", status: "on_hold", category: cat("Money") });
+    // PICK 20: a hold that RAN OUT, because that is the state worth showing.
+    // A hold with a future date is quiet furniture; one whose day has passed
+    // is the only moment the app has anything to say about it.
+    await projects.create({ title: "Tax Filing", status: "on_hold", category: cat("Money"), holdUntil: addDays(today, -9) });
     // Linked tasks so progress bars, counts, and Next lines all populate.
     if (golf) {
       const g1 = await tasks.createTask("Lock the Pavilion Date", { category: cat("Family"), due: addDays(today, -6), projectId: golf });

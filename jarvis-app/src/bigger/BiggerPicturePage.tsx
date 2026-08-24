@@ -5,7 +5,10 @@ import type { ProjectRow, Progress } from "./progress";
 import { progressLabel, bucketOf, closable, rankGoals, BUCKETS, BUCKET_LABEL } from "./progress";
 import type { GoalReach } from "./reach";
 import { reachLine } from "./reach";
+import type { MeasureState, Health } from "./measure";
+import { HEALTH_LABEL } from "./measure";
 import { catColor } from "../shared/categories";
+import { holdLine, sizeOf, sizeLine } from "../projects/shape";
 import SkeletonRows from "../shared/SkeletonRows";
 import { FolderOpenGlyph, TargetGlyph } from "../shared/glyphs";
 
@@ -23,15 +26,23 @@ function Bar({ p }: { p: Progress }) {
 }
 
 export default function BiggerPicturePage({
-  goals, reachOfGoal, projectRows, loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, onCloseProject,
+  goals, reachOfGoal, measureOfGoal, healthOfGoal, projectRows, loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, sizeLineOf, onCloseProject,
 }: {
   goals: Goal[];
   // ARCHITECTURE C: both routes into a goal's work, computed once by the flow.
   reachOfGoal: (id: string) => GoalReach;
+  // PICKS 13/15: the finish line and the derived health, from the same
+  // derivation the goal page uses. A list and a detail page that compute the
+  // same fact twice will eventually disagree.
+  measureOfGoal?: (id: string) => MeasureState | null;
+  healthOfGoal?: (id: string) => Health;
   projectRows: ProjectRow[];
   loading?: boolean;
   offer?: ReactNode; // the one stalled-project First Step card (6.7)
   nextActionTextOf?: (projectId: string) => string | null;
+  // PICKS 20 + 22: what a row could never say. Both derived by the flow.
+  holdLineOf?: (projectId: string) => string | null;
+  sizeLineOf?: (projectId: string) => string | null;
   onAddGoal: () => void;
   onOpenGoal: (id: string) => void;
   onAddProject: () => void;
@@ -84,6 +95,8 @@ export default function BiggerPicturePage({
             <div><div className="list-flat">
               {rows.map(({ project, progress, stalled }) => {
                 const next = nextActionTextOf?.(project.id);
+                const hold = holdLineOf?.(project.id) ?? null;
+                const sized = sizeLineOf?.(project.id) ?? null;
                 const canClose = closable({ project, progress, stalled, lastAt: null });
                 return (
                   <div className="proj-row" role="button" tabIndex={0} key={project.id} onClick={() => onOpenProject(project.id)}>
@@ -95,7 +108,15 @@ export default function BiggerPicturePage({
                           so it goes first and the counts become the evidence
                           under it. */}
                       {next && <div className="bp-sub bp-next truncate">Next: {next}</div>}
-                      <div className={"bp-sub" + (stalled ? " bp-stalled" : "")}>{progressLabel(progress, stalled)}</div>
+                      {/* PICK 20: a held project's row said "On hold" and
+                          stopped, which is the same as saying nothing. The
+                          date is the whole content of a hold. */}
+                      {hold
+                        ? <div className="bp-sub bp-stalled">{hold}</div>
+                        : <div className={"bp-sub" + (stalled ? " bp-stalled" : "")}>{progressLabel(progress, stalled)}</div>}
+                      {/* PICK 22: how big is this, from the same learned
+                          estimates the planner places blocks with. */}
+                      {sized && <div className="bp-sub">{sized}</div>}
                       {progress && <Bar p={progress} />}
                     </div>
                     {canClose && onCloseProject
@@ -119,6 +140,15 @@ export default function BiggerPicturePage({
             decision it wrote), and it leaves this list. */}
         {rankGoals(goals.filter((g) => !g.data.dropped).map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g, reach: r }; }))
           .map(({ goal: g, progress: p, reach: r }) => {
+          const ms = measureOfGoal?.(g.id) ?? null;
+          const h = healthOfGoal?.(g.id);
+          // Health earns a word only when it is worth saying. "On Track" on
+          // every row is wallpaper; Behind and Idle are the two the eye
+          // should catch, and they lead their line.
+          const flag = h === "behind" || h === "idle" ? HEALTH_LABEL[h] : null;
+          // A finish line outranks the reach line, for the same reason it
+          // does on the goal page: it is what he asked to be measured on.
+          const body = ms ? ms.line : reachLine(r);
           return (
             <div className="row bp-goal" role="button" tabIndex={0} key={g.id} onClick={() => onOpenGoal(g.id)}>
               <div className="row-glyph cat-fg-purple">{TARGET}</div>
@@ -128,8 +158,8 @@ export default function BiggerPicturePage({
                     goals: they had work, nobody had filed it. reachLine says
                     what is actually true, in fractions where a real
                     denominator exists and in open counts where it does not. */}
-                <div className="bp-sub">{reachLine(r)}</div>
-                {p && <Bar p={p} />}
+                <div className={"bp-sub" + (flag ? " bp-stalled" : "")}>{flag ? flag + " · " + body : body}</div>
+                {(ms || p) && <Bar p={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : p!} />}
               </div>
               {CHEV}
             </div>

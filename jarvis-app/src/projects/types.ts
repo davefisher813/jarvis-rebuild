@@ -3,7 +3,10 @@ export type ProjectStatus = "active" | "on_hold" | "done";
 
 // goalId completes the roadmap's goal -> project -> task chain, so progress can
 // be DERIVED from real task completion instead of typed in by hand.
-export interface ProjectData { title: string; category?: string; status: ProjectStatus; order?: number; goalId?: string; }
+// PICK 20 (2026-08-24): holdUntil is the day a parked project comes back.
+// "On hold" with no date is a project that disappeared, and the list had no
+// way to tell one from a project that was simply never started.
+export interface ProjectData { title: string; category?: string; status: ProjectStatus; order?: number; goalId?: string; holdUntil?: string; }
 export interface Project { id: string; data: ProjectData; }
 
 export const PROJECT_META: Record<ProjectStatus, { label: string; cls: string }> = {

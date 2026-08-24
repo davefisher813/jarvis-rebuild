@@ -14,6 +14,8 @@ import GoalSheet from "../life/GoalSheet";
 import { rankProjects } from "./progress";
 import { reachOf, type GoalReach } from "./reach";
 import { measureState, paceLine, healthOf, type MeasureContext } from "./measure";
+import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
+import { holdLine, sizeOf, sizeLine } from "../projects/shape";
 import { openWorkOf } from "../today/goalPulse";
 import GoalDetailPage from "./GoalDetailPage";
 import { relatedProjectsForGoal, nextActionOf, isLinkDismissed, dismissLink } from "./related";
@@ -87,6 +89,11 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
 
   // Derived, never self-reported. Samples are read once per render pass.
   const samples = useMemo(() => readSamples(), [tasks]);
+  // PICK 22: the SAME learned per-category durations Plan My Day places
+  // blocks with, so a project's stated size and its calendar footprint can
+  // never tell two different stories.
+  const estimates = useMemo(() => learnedDurations(readCommittedDurations(), Date.now()), [tasks]);
+  const estimateFor = useCallback((cat: string) => estimates[cat] ?? 45, [estimates]);
   const projectRows = useMemo(
     () => rankProjects(projects, tasks, samples, Date.now()),
     [projects, tasks, samples],
@@ -155,6 +162,41 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       showToast({ message: "First step on Today" });
     } finally {
       setProjStepBusy(false);
+    }
+  };
+  // PICK 21: the same offer, aimed at the project he is LOOKING AT rather
+  // than the one the list picked. Separate state deliberately: the two offers
+  // can be on screen in the same session and must not overwrite each other.
+  const [openStep, setOpenStep] = useState<{ projectId: string; step: string } | null>(null);
+  const [openStepBusy, setOpenStepBusy] = useState(false);
+  const openStepAsk = async (proj: Project) => {
+    if (openStepBusy) return;
+    setOpenStepBusy(true);
+    try {
+      const identity = await gatherContext().then(identityToText).catch(() => "");
+      const p = firstStepPrompt(proj.data.title, "project", identity);
+      const step = parseFirstStep(await ai.complete([{ role: "user", content: p.user }], p.system));
+      if (!step) throw new Error("empty");
+      setOpenStep({ projectId: proj.id, step });
+    } catch {
+      showToast({ message: "Couldn't reach JARVIS" });
+    } finally {
+      setOpenStepBusy(false);
+    }
+  };
+  const openStepAccept = async (proj: Project) => {
+    if (openStepBusy || !openStep || openStep.projectId !== proj.id) return;
+    setOpenStepBusy(true);
+    try {
+      await attemptWrite(() => tasksSvc.createTask(openStep.step, {
+        projectId: proj.id, category: proj.data.category || undefined, due: today,
+      }));
+      setOpenStep(null);
+      emit({ type: "suggestion.accepted", props: { kind: "proj_step" } });
+      await reload();
+      showToast({ message: "First step on Today" });
+    } finally {
+      setOpenStepBusy(false);
     }
   };
   const projStepDismiss = () => {
@@ -348,6 +390,31 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       <>
         <ProjectDetailPage
           project={detail}
+          estimateFor={estimateFor}
+          today={today}
+          firstStep={ai.available ? (
+            <div className="pad-x">
+              <div className="promo-card">
+                <div className="promo-head">
+                  <div className="promo-badge b-amber"><TargetGlyph /></div>
+                  <div className="promo-body">
+                    <div className="promo-title">Nothing In It Yet</div>
+                    <div className="promo-sub">{openStep && openStep.projectId === detail.id ? <>Start with: {openStep.step}</> : "One small opening move is enough."}</div>
+                  </div>
+                </div>
+                <div className="promo-acts">
+                  {openStep && openStep.projectId === detail.id ? (
+                    <>
+                      <button className="promo-pill quiet" onClick={() => setOpenStep(null)}>Not That</button>
+                      <button className="promo-pill" disabled={openStepBusy} onClick={() => void openStepAccept(detail)}>{openStepBusy ? "Adding..." : "Add This Step"}</button>
+                    </>
+                  ) : (
+                    <button className="promo-pill" disabled={openStepBusy} onClick={() => void openStepAsk(detail)}>{openStepBusy ? "Thinking..." : "First Step"}</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : undefined}
           linkedNotes={linkedNotes}
           onOpenNote={onOpenNote}
           onOpenDecision={onOpenDecision}
@@ -514,10 +581,14 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       <BiggerPicturePage
         goals={goals}
         reachOfGoal={reachOfGoal}
+        measureOfGoal={(id: string) => { const g = goals.find((x) => x.id === id); return g ? measureState(g.data.measure, measureCtxFor(g)) : null; }}
+        healthOfGoal={(id: string) => { const g = goals.find((x) => x.id === id); if (!g) return "unmeasured"; const c = measureCtxFor(g); return healthOf(g, measureState(g.data.measure, c), g.data.measure, c, openWorkOf(reachOfGoal(id))); }}
         projectRows={projectRows}
         loading={loading}
         offer={stalledOffer}
         nextActionTextOf={nextActionTextOf}
+        holdLineOf={(id: string) => { const p = projects.find((x) => x.id === id); return p ? holdLine(p.data, today) : null; }}
+        sizeLineOf={(id: string) => sizeLine(sizeOf(tasks.filter((t) => t.data.projectId === id).map((t) => ({ done: !!t.data.done, category: t.data.category })), estimateFor))}
         // Single-goal default: with exactly one goal, a new project starts
         // linked to it, visibly, one tap to undo in the sheet. A default, not
         // a hidden action.

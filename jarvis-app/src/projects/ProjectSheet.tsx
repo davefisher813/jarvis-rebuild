@@ -14,6 +14,8 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
   const [status, setStatus] = useState<ProjectStatus>(initial?.status ?? "active");
   const [category, setCategory] = useState<string>(initial?.category ?? "");
   const [goalId, setGoalId] = useState<string>(initial?.goalId ?? "");
+  // PICK 20: a hold with no end is a project that disappeared.
+  const [holdUntil, setHoldUntil] = useState<string>(initial?.holdUntil ?? "");
   const [touched, setTouched] = useState(false);
   const valid = title.trim().length > 0;
   return createPortal(
@@ -35,6 +37,13 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
               ))}
             </div>
           </div>
+          {status === "on_hold" && (
+            <div className="field">
+              <div className="input-label">Back On</div>
+              <input type="date" className="input" value={holdUntil} onChange={(e) => setHoldUntil(e.target.value)} />
+              <div className="input-hint">The day it comes back. A hold with no date is a project that disappeared.</div>
+            </div>
+          )}
           {categories.length > 0 && (
             <div className="field">
               <div className="input-label">Area (optional)</div>
@@ -59,7 +68,7 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
           )}
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), status, category: category || undefined, goalId: goalId || undefined }); }}>Save</button>
+          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), status, category: category || undefined, goalId: goalId || undefined, holdUntil: status === "on_hold" && holdUntil ? holdUntil : undefined }); }}>Save</button>
           {mode === "edit" && onDelete && <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>{TRASH}Delete Project</button>}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>

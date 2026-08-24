@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.19 (2026-08-24)
+# JARVIS Styling Catalog V4.20 (2026-08-24)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -463,6 +463,20 @@ Dave: "it's the mother of tasks so why does it feel [absent] at all?" Because To
 **DROPPING A GOAL WRITES A DECISION (pick 17).** Deleting one threw away the only part worth keeping: six weeks later the question is never what the goal was called, it is why you stopped. Drop writes a Decision Record linked to the goal, and KEEPS the goal: it leaves Working Toward, stops nudging from Today, moves nothing, and its reason stays one tap away. The decision is written FIRST, then the goal is marked, because a goal marked dropped with no record of why is the exact state the feature exists to prevent. Law-tested on the ordering. The Why field is never required: a reason you cannot articulate at 11pm is still a reason, and a Save that refuses to save is how a record stops getting written at all.
 
 **THE DESTRUCTIVE MOVE IS LAST.** Drop sits below the achieve offer, not above it. Encountering "Drop This Goal" before "Choose Its Areas" reads as the app's recommendation.
+
+## BP5. The shape of a project (V4.20, Dave's picks 20, 21, 22, built 2026-08-24)
+
+A project row said one of three words: Active, On hold, Done. None of them answered the two questions a reader actually has when deciding what to open.
+
+**A HOLD HAS AN END (pick 20).** "On hold" with no date is a project that disappeared, and the list had no way to tell one from a project that was simply never started. `holdUntil` is the day it comes back; the row and the header carry the countdown, and a hold with no date says exactly that rather than pretending to be a plan. When the day passes the line turns warn ("Hold ended 9 days ago") and the page offers **Pick It Back Up**.
+
+**ONE FILLED PRIMARY, EVEN WHEN A SECOND DECISION ARRIVES.** An expired hold puts a timely decision on a page that already had a red Mark Done. Two fills is the screen shouting twice, so coming back to a parked project takes the fill and finishing drops to the quiet tier for that one case. Nothing is hidden; one of them is simply not shouted. Law-tested.
+
+**AN EMPTY PROJECT GETS A FIRST STEP (pick 21).** Four of his seven projects were unstarted, not unlinked, which is why the self-critique killed the suggest-links-by-category idea this replaced. A project with no tasks is not waiting to be connected to something, it is waiting to be BEGUN, and an empty add-field said nothing about how. Gated on the AI, like every other First Step, so the button never promises what it cannot do.
+
+**HOW BIG IS THIS (pick 22).** Not a size someone types, which decays like every other self-report, and not a task count on its own, because four ten-minute tasks and four half-day tasks are not the same project. "4 Open · About 3h 20m", from the SAME learned per-category durations Plan My Day places blocks with, so a project's stated size and its calendar footprint can never tell two different stories. Law-tested on the shared source. The word "About" is load-bearing: these are learned averages, not commitments.
+
+**A GOAL ROW SPEAKS ITS FINISH LINE.** The list and the detail page take the same derivation, so they cannot drift: "0 of 3 This week", "0 of 12 Done", "0 of 1 Projects done". Health earns a word only when it is worth saying, which is Behind or Idle; "On Track" on every row is wallpaper.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
