@@ -18,6 +18,15 @@ export interface ParsedEntity {
   start?: string; // HH:MM 24h
   // True when the deterministic rules are sure. False = AI may improve it.
   confident: boolean;
+  // The line EXACTLY as it was pasted (2026-08-24). Every title on this
+  // object has been through titleCase, which capitalises every meaningful
+  // word, and rules/triggers.ts reads capitalisation to find a proper noun.
+  // Run against a title, "Elite Squad practice" comes back as "Elite Squad
+  // Practice" and the trigger becomes the entire title, which is the safe
+  // and useless option the trigger heuristic explicitly rejects: nobody
+  // pastes the same full sentence twice, so a rule needing two matches is
+  // never born. The signal only survives in the original line.
+  raw: string;
 }
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
@@ -93,24 +102,24 @@ export function classifyLine(line: string, today: string): ParsedEntity {
   // A time plus a day (or just a time with "tonight"-style words caught by
   // resolveDay) is an event, confidently.
   if (time && date) {
-    return { kind: "event", title: titleCase(stripDateWords(t)), date, start: time, confident: true };
+    return { kind: "event", title: titleCase(stripDateWords(t)), date, start: time, confident: true, raw: t };
   }
   // A date without a time on a to-do-looking line: a task due that day.
   if (TASK_OPENERS.test(t)) {
-    return { kind: "task", title: titleCase(stripDateWords(t)), ...(date ? { date } : {}), confident: true };
+    return { kind: "task", title: titleCase(stripDateWords(t)), ...(date ? { date } : {}), confident: true, raw: t };
   }
   // A date, no time, not imperative: an all-day-ish event is a guess; a task
   // due that day is the safe, reversible read.
   if (date) {
-    return { kind: "task", title: titleCase(stripDateWords(t)), date, confident: false };
+    return { kind: "task", title: titleCase(stripDateWords(t)), date, confident: false, raw: t };
   }
   // Long prose, URLs, confirmation codes: keep it, verbatim, as a note.
   if (t.length > 160 || /https?:\/\//.test(t) || t.split(/[.!?]\s/).length > 2) {
-    return { kind: "note", title: titleCase(t.split(/\s+/).slice(0, 6).join(" ")), body: t, confident: true };
+    return { kind: "note", title: titleCase(t.split(/\s+/).slice(0, 6).join(" ")), body: t, confident: true, raw: t };
   }
   // Short, no signal: a task is the cheapest honest read, but the AI
   // fallback may know better.
-  return { kind: "task", title: titleCase(t), confident: false };
+  return { kind: "task", title: titleCase(t), confident: false, raw: t };
 }
 
 // Remove the date/time words from a created TITLE only (the receipt shows the
@@ -155,7 +164,7 @@ export function parsePaste(text: string, today: string): ParseOutcome {
   if (noteish > parsed.length / 2) {
     // Mostly prose: one note, paste kept verbatim.
     return {
-      entities: [{ kind: "note", title: titleCase(lines[0]!.split(/\s+/).slice(0, 6).join(" ")), body: text.trim(), confident: true }],
+      entities: [{ kind: "note", title: titleCase(lines[0]!.split(/\s+/).slice(0, 6).join(" ")), body: text.trim(), confident: true, raw: text.trim() }],
       confident: true,
     };
   }

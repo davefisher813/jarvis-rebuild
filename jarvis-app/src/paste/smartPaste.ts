@@ -15,6 +15,8 @@ import type { Category } from "../categories/types";
 import { madeBy } from "../shared/provenance";
 import { parsePaste, titleCase, type ParsedEntity } from "./deterministic";
 import { markPasteSeen, recordCapture } from "./captureLog";
+import { aliasTrigger } from "../rules/triggers";
+import type { LearnedRule, LearnedRulesService } from "../rules/LearnedRulesService";
 
 export interface SavedEntity {
   id: string;
@@ -23,6 +25,12 @@ export interface SavedEntity {
   date?: string;
   start?: string;
   category?: string;
+  // The line exactly as pasted. Both halves of the learned-rules loop derive
+  // their trigger from THIS and never from title, so the correction that
+  // teaches a rule and the lookup that applies it key on the same string.
+  // They did not, briefly: title has been through titleCase, and running the
+  // proper-noun heuristic over it made the trigger the whole title.
+  raw?: string;
 }
 
 export interface PasteDeps {
@@ -33,6 +41,53 @@ export interface PasteDeps {
   notes: NotesService;
   categories: Category[];
   today: string;
+  // Learned rules, optional. Absent means no capture is ever categorised by
+  // a rule, which is what every existing caller and every test gets by
+  // default: this can only ever change behaviour where it is passed in.
+  rules?: Pick<LearnedRulesService, "resolve" | "announceIfFirstUse">;
+}
+
+// APPLYING WHAT IT LEARNED (2026-08-24). Two identical corrections of the
+// same proper noun made a rule; this is the decision point that rule exists
+// to answer. Consulted BEFORE the write, so the capture lands categorised
+// correctly the first time rather than being fixed a moment later.
+//
+// Four refusals, in order, and every one of them is the difference between a
+// rule and a guess:
+//
+//   1. No trigger in the text means no rule can key on it. triggers.ts
+//      already refuses to invent one.
+//   2. No rule for that trigger means fall through. resolve() never
+//      generalizes, so silence here is the normal case, not a failure.
+//   3. A rule that agrees with what JARVIS was going to do anyway changes
+//      nothing, so it is not a USE and must not announce. An announcement
+//      about a non-event is noise, and this toast has exactly one job.
+//   4. A rule pointing at a category that no longer exists is stale, and
+//      applying it would write a dangling id. It is ignored rather than
+//      repaired, because guessing which category replaced it is the kind of
+//      inference this whole engine is built to avoid.
+//
+// The announcement is not optional and not deferred. types.ts states the
+// deal that licenses creating a rule with no confirmation step: "Every rule
+// announces itself on first use. Visibility is what licenses creating it
+// without a tap." The first time a rule silently changes something is the
+// moment it has to say so, and laws.test.ts fails if this file resolves
+// without announcing.
+async function categoryFromRule(result: CaptureResult, raw: string, deps: PasteDeps): Promise<CaptureResult> {
+  if (!deps.rules) return result;
+  const trigger = aliasTrigger(raw);
+  if (!trigger) return result;
+  let rule: LearnedRule | null = null;
+  try {
+    rule = await deps.rules.resolve("capture.category", trigger);
+  } catch {
+    return result; // a store that cannot be read teaches nothing this time
+  }
+  if (!rule) return result;
+  if (rule.data.to === result.category) return result;
+  if (!deps.categories.some((c) => c.id === rule!.data.to)) return result;
+  await deps.rules.announceIfFirstUse(rule);
+  return { ...result, category: rule.data.to };
 }
 
 function toCaptureResult(e: ParsedEntity): CaptureResult {
@@ -91,6 +146,7 @@ export async function smartPasteSave(text: string, deps: PasteDeps): Promise<Sav
         result = toCaptureResult(e);
       }
     }
+    result = await categoryFromRule(result, e.raw, deps);
     const { id } = await applyCapture(result, deps, deps.categories, deps.today, madeBy("paste"));
     if (id) {
       const s: SavedEntity = {
@@ -100,6 +156,7 @@ export async function smartPasteSave(text: string, deps: PasteDeps): Promise<Sav
         ...(result.date ? { date: result.date } : {}),
         ...(result.start ? { start: result.start } : {}),
         ...(result.category ? { category: result.category } : {}),
+        raw: e.raw,
       };
       saved.push(s);
       recordCapture({ id, kind: s.kind, title: s.title, ts: Date.now() });

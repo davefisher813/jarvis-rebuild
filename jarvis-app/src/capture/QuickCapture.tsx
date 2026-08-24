@@ -65,7 +65,10 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
   const [error, setError] = useState("");
   const [dupAge, setDupAge] = useState<number | null>(null);
 
-  const deps = (categories: Category[]) => ({ ai, gather, tasks, schedule, notes, categories, today: todayISO() });
+  // rules is passed IN, not reached for inside smartPaste: the pipeline stays
+  // a pure function of its deps, and a surface that has no rules store simply
+  // does not learn rather than crashing or reaching for a global.
+  const deps = (categories: Category[]) => ({ ai, gather, tasks, schedule, notes, categories, today: todayISO(), ...(rules ? { rules } : {}) });
 
   const capture = async (force = false) => {
     const t = text.trim();
@@ -134,7 +137,11 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
     if (!ok) return;
     setSaved(saved.map((x) => (x.id === s.id ? { ...x, category: categoryId } : x)));
     if (was === categoryId) return;
-    const trigger = aliasTrigger(s.title);
+    // s.raw, not s.title: title has been through titleCase, which capitalises
+    // every meaningful word, so the proper-noun heuristic run over it returns
+    // the whole title. The apply side in smartPaste keys on raw too, and the
+    // two must agree or no correction ever matches its own lookup.
+    const trigger = s.raw ? aliasTrigger(s.raw) : null;
     if (!trigger || !rules) return;
     const to = cats.find((c) => c.id === categoryId)?.data.name ?? categoryId;
     // Never throws into the tap: learning is a side effect of the correction,

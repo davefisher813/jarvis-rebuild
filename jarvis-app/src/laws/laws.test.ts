@@ -1109,20 +1109,17 @@ describe("LAW: a service method is called, or is listed as not", () => {
 
   // Written, and nothing calls it. Each owes a reason and is meant to go.
   //
-  // Started at four on 2026-08-24 and is down to one the same day, which is
+  // Started at four on 2026-08-24 and reached zero the same day, which is
   // what the list is for. confirm() got the Still True button the sheet had
-  // been missing; recordCorrection got two real correction points, and
-  // contradict came alive with it because recordCorrection calls it.
-  const UNCALLED: Record<string, string> = {
-    // The last one, and it is inert BY DECISION rather than by neglect. Dave
-    // chose record-only for the learned-rules engine: corrections are
-    // observed and rules are created so they can be judged in What JARVIS
-    // Learned, but nothing calls resolve(), so no rule ever acts. A rule that
-    // never acts has no first use to announce.
-    //
-    // This comes off the list the day resolve() gets a caller, and not before.
-    "LearnedRulesService.announceIfFirstUse": "record-only: nothing applies a rule, so there is no first use",
-  };
+  // been missing. recordCorrection got two real correction points, and
+  // contradict came alive with it. announceIfFirstUse was the last one, and
+  // it came off exactly the way it said it would: the day resolve() got a
+  // caller, and in the same commit, which is the law below.
+  //
+  // Empty is the goal state, not a bug in the scan. The two tests either
+  // side of this object still run: the first now says every method is
+  // called, the second has nothing to check.
+  const UNCALLED: Record<string, string> = {};
 
   it("every service method is called from somewhere, or is named above", () => {
     const bad: string[] = [];
@@ -1195,6 +1192,33 @@ describe("LAW: applying a rule requires announcing it", () => {
     // file that has to say so, because that is where first use happens.
     const silent = applies.filter((f) => !announces.includes(f));
     expect(silent, "these apply a learned rule without announcing it").toEqual([]);
+  });
+
+  // THE TRIGGER COMES FROM THE RAW LINE (2026-08-24).
+  //
+  // Both halves of the loop derive a trigger with aliasTrigger, and they have
+  // to agree or a correction never matches its own lookup. They briefly did
+  // not: both read `title`, which has been through titleCase, which
+  // capitalises every meaningful word. "Elite Squad practice" became "Elite
+  // Squad Practice" and the proper-noun heuristic then returned the ENTIRE
+  // title, which is the safe-and-useless option triggers.ts explicitly
+  // rejects. Nobody pastes the same full sentence twice, so no rule would
+  // ever have been born.
+  //
+  // Nothing would have failed. No error, no warning, no wrong output: an
+  // engine that quietly never learns anything, which is indistinguishable
+  // from the engine being switched off.
+  it("no trigger is ever derived from a title", () => {
+    const bad: string[] = [];
+    for (const f of SOURCES) {
+      const src = read(f);
+      if (!/aliasTrigger\(/.test(src)) continue;
+      for (const m of src.matchAll(/aliasTrigger\(([^)]*)\)/g)) {
+        const arg = m[1]!.trim();
+        if (/title/i.test(arg)) bad.push(rel(f) + ": aliasTrigger(" + arg + ")");
+      }
+    }
+    expect(bad, "titleCase destroys the capitalisation the trigger reads").toEqual([]);
   });
 
   // The correction points wired on 2026-08-24. Without them the engine is

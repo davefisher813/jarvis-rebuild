@@ -14,6 +14,8 @@ import { ScheduleService } from "../schedule/ScheduleService";
 import { NotesService } from "../notes/NotesService";
 import type { AIService } from "../ai/AIService";
 import type { AIContext } from "../ai/context";
+import { LearnedRulesService } from "../rules/LearnedRulesService";
+import { aliasTrigger } from "../rules/triggers";
 
 const TODAY = "2026-08-15"; // a Saturday
 const U = "user1";
@@ -182,5 +184,169 @@ describe("exact-text 7-day dedupe", () => {
     markPasteSeen("buy milk", clock);
     now.t += 8 * 86400000;
     expect(pasteSeenAge("buy milk", clock)).toBeNull();
+  });
+});
+
+// APPLYING WHAT IT LEARNED (2026-08-24). Two identical corrections of the
+// same proper noun make a rule; these are the tests for the decision point
+// that rule exists to answer. The refusals matter more than the hits: a rule
+// that fires when it should not is worse than no rules at all, because the
+// user cannot see it happen and has no reason to look.
+describe("learned category rules", () => {
+  const CATS = [
+    { id: "cat-work", data: { name: "Work", color: "blue", order: 0 } },
+    { id: "cat-family", data: { name: "Family", color: "pink", order: 1 } },
+  ] as unknown as PasteDeps["categories"];
+
+  // A rules store thin enough that each test states exactly what it answers.
+  function fakeRules(answer: { to: string; announced?: boolean } | null, log: string[] = []) {
+    const rule = answer ? { id: "r1", data: { kind: "alias", scope: "capture.category", from: "x", to: answer.to, evidence: [], createdAt: "", announced: answer.announced } } : null;
+    return {
+      log,
+      resolve: async (scope: string, from: string) => { log.push(`resolve ${scope} ${from}`); return rule as never; },
+      announceIfFirstUse: async () => { log.push("announce"); },
+    };
+  }
+
+  const withRules = (deps: PasteDeps, rules: unknown, categories = CATS) =>
+    ({ ...deps, categories, rules } as unknown as PasteDeps);
+
+  it("categorises a capture from a rule keyed on its proper noun", async () => {
+    const calls = { n: 0 };
+    const log: string[] = [];
+    const deps = withRules(rig(calls, false), fakeRules({ to: "cat-family" }, log));
+    const [s] = await smartPasteSave("Elite Squad practice", deps);
+    expect(s!.category).toBe("cat-family");
+    expect(log).toContain("resolve capture.category Elite Squad");
+  });
+
+  // The deal that licenses creating a rule with no confirmation step.
+  it("announces the first time a rule changes something", async () => {
+    const log: string[] = [];
+    const deps = withRules(rig({ n: 0 }, false), fakeRules({ to: "cat-family" }, log));
+    await smartPasteSave("Elite Squad practice", deps);
+    expect(log).toContain("announce");
+  });
+
+  // A rule that agrees with what JARVIS was going to do anyway changed
+  // nothing, so it is not a use, so announcing would be noise about a
+  // non-event. This toast has exactly one job.
+  it("stays quiet when the rule agrees with the category already chosen", async () => {
+    const log: string[] = [];
+    const base = rig({ n: 0 }, false);
+    const [first] = await smartPasteSave("Elite Squad practice", { ...base, categories: CATS } as PasteDeps);
+    const deps = withRules(rig({ n: 0 }, false), fakeRules({ to: first!.category ?? "" }, log));
+    await smartPasteSave("Elite Squad practice again", deps);
+    expect(log).not.toContain("announce");
+  });
+
+  // Nothing here guesses. A capture with no name in it has no trigger, so
+  // the store is never even asked.
+  it("does not consult the store when the text carries no proper noun", async () => {
+    const log: string[] = [];
+    const deps = withRules(rig({ n: 0 }, false), fakeRules({ to: "cat-family" }, log));
+    await smartPasteSave("pick up milk", deps);
+    expect(log).toEqual([]);
+  });
+
+  it("falls through when no rule matches the trigger", async () => {
+    const log: string[] = [];
+    const deps = withRules(rig({ n: 0 }, false), fakeRules(null, log));
+    const [s] = await smartPasteSave("Elite Squad practice", deps);
+    expect(s!.category).not.toBe("cat-family");
+    expect(log).not.toContain("announce");
+  });
+
+  // A rule pointing at a deleted category would write a dangling id.
+  // Ignored rather than repaired: guessing which category replaced it is the
+  // exact inference this engine exists to avoid.
+  it("ignores a rule pointing at a category that no longer exists", async () => {
+    const log: string[] = [];
+    const deps = withRules(rig({ n: 0 }, false), fakeRules({ to: "cat-deleted" }, log));
+    const [s] = await smartPasteSave("Elite Squad practice", deps);
+    expect(s!.category).not.toBe("cat-deleted");
+    expect(log).not.toContain("announce");
+  });
+
+  // Learning is a bonus on top of a capture, never a condition of it. A
+  // store that cannot be read must not cost him the thing he just pasted.
+  it("still saves the capture when the rules store throws", async () => {
+    const deps = withRules(rig({ n: 0 }, false), {
+      resolve: async () => { throw new Error("store down"); },
+      announceIfFirstUse: async () => { /* never reached */ },
+    });
+    const [s] = await smartPasteSave("Elite Squad practice", deps);
+    expect(s).toBeTruthy();
+  });
+
+  // Every existing caller, and every other test in this file, passes no
+  // rules at all. That path must be exactly what it was before.
+  it("changes nothing at all when no rules store is passed", async () => {
+    const log: string[] = [];
+    const plain = { ...rig({ n: 0 }, false), categories: CATS } as PasteDeps;
+    const [s] = await smartPasteSave("Elite Squad practice", plain);
+    expect(s).toBeTruthy();
+    expect(log).toEqual([]);
+  });
+});
+
+// THE WHOLE LOOP, END TO END (2026-08-24).
+//
+// Every other test here fakes one half. This one uses the real
+// LearnedRulesService for both, because the bug that nearly shipped lived in
+// the JOIN: the correction side and the lookup side each worked perfectly
+// and derived their triggers from different strings, so nothing ever
+// matched. Nothing failed. The engine simply never learned, which is
+// indistinguishable from it being switched off.
+describe("a correction taught on one capture applies to the next", () => {
+  const CATS = [
+    { id: "cat-work", data: { name: "Work", color: "blue", order: 0 } },
+    { id: "cat-family", data: { name: "Family", color: "pink", order: 1 } },
+  ] as unknown as PasteDeps["categories"];
+
+  it("two corrections of the same proper noun categorise the third capture", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const rules = new LearnedRulesService(store, U);
+    const deps = { ...rig({ n: 0 }, false), categories: CATS, rules } as unknown as PasteDeps;
+
+    // Two captures, each corrected to Family the way QuickCapture's onCat
+    // does it: trigger from the RAW line, never from the title.
+    for (const text of ["Elite Squad practice tuesday", "Elite Squad film session"]) {
+      const [s] = await smartPasteSave(text, deps);
+      const trigger = aliasTrigger(s!.raw!);
+      expect(trigger).toBe("Elite Squad");
+      await rules.recordCorrection("alias", "capture.category", trigger!, "cat-family", `"${s!.title}" moved to Family`);
+    }
+
+    // Two identical corrections is a rule.
+    expect(await rules.resolve("capture.category", "Elite Squad")).not.toBeNull();
+
+    // And the third capture lands in Family without being touched.
+    const [third] = await smartPasteSave("Elite Squad parent meeting", deps);
+    expect(third!.category).toBe("cat-family");
+  });
+
+  it("one correction is not enough, so the next capture is untouched", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const rules = new LearnedRulesService(store, U);
+    const deps = { ...rig({ n: 0 }, false), categories: CATS, rules } as unknown as PasteDeps;
+    const [first] = await smartPasteSave("Elite Squad practice tuesday", deps);
+    await rules.recordCorrection("alias", "capture.category", aliasTrigger(first!.raw!)!, "cat-family", "once");
+    const [second] = await smartPasteSave("Elite Squad film session", deps);
+    expect(second!.category).not.toBe("cat-family");
+  });
+
+  // A rule never generalizes past its trigger, so a different name is a
+  // different question and JARVIS goes back to not knowing.
+  it("the rule does not leak onto a different name", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const rules = new LearnedRulesService(store, U);
+    const deps = { ...rig({ n: 0 }, false), categories: CATS, rules } as unknown as PasteDeps;
+    for (const text of ["Elite Squad practice tuesday", "Elite Squad film session"]) {
+      const [s] = await smartPasteSave(text, deps);
+      await rules.recordCorrection("alias", "capture.category", aliasTrigger(s!.raw!)!, "cat-family", "e");
+    }
+    const [other] = await smartPasteSave("Northline Partners call", deps);
+    expect(other!.category).not.toBe("cat-family");
   });
 });

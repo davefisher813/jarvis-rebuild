@@ -124,6 +124,15 @@ export default function PlanDaySheet({
   const allTasks = useMemo(() => [...extra, ...tasks], [extra, tasks]);
 
   const [durations, setDurations] = useState<Record<string, number>>({});
+  // APPLYING WHAT IT LEARNED (2026-08-24). Two identical overrides of the AI's
+  // estimate for a category made a rule; this is the decision point it exists
+  // to answer. Held apart from `durations` on purpose, because `durations` is
+  // "a length somebody chose for this task" and these are "a length he
+  // chose for this KIND of task, twice". Keeping them separate is what lets
+  // durFor rank them and lets the AI pass know to stay out of the way.
+  const [ruled, setRuled] = useState<Record<string, number>>({});
+  const ruledRef = useRef<Record<string, number>>({});
+  ruledRef.current = ruled;
   const [overrides, setOverrides] = useState<Record<string, string>>({});
   // P13: how many sittings a pick is broken into. 1 unless he says otherwise.
   const [sittings, setSittings] = useState<Record<string, number>>({});
@@ -144,7 +153,10 @@ export default function PlanDaySheet({
 
   const catOf = (id: string) => allTasks.find((t) => t.id === realId(id))?.category ?? "";
   const estFor = (id: string) => estimateFor(catOf(id), learned, DEFAULT_DUR, DUR_CHOICES);
-  const durFor = (id: string) => durations[id] ?? estFor(id).minutes;
+  // Precedence, most specific first: a length chosen for THIS task this
+  // session beats a rule about this kind of task, which beats the statistical
+  // estimate from committed history. His hands always win.
+  const durFor = (id: string) => durations[id] ?? ruled[id] ?? estFor(id).minutes;
   const setDur = (id: string, next: number) => setDurations((prev) => ({ ...prev, [id]: Math.max(DUR_MIN, Math.min(DUR_MAX, next)) }));
   const setOverride = (id: string, hhmmStr: string) => setOverrides((prev) => {
     if (!hhmmStr) { const n = { ...prev }; delete n[id]; return n; }
@@ -185,6 +197,62 @@ export default function PlanDaySheet({
     }
   }
 
+  // Resolve the duration rules for the categories on screen, once per set of
+  // picks. Runs against picks rather than the whole task list so the store is
+  // read for lengths that are actually about to be shown.
+  //
+  // Four refusals, the same shape as the capture side, and each is the
+  // difference between a rule and a guess:
+  //
+  //   1. A task with no category has nothing for a rule to key on.
+  //   2. No rule for that category means fall through to the statistical
+  //      estimate, which is already honest.
+  //   3. A rule whose length is not a real length (a corrupt row, or a clamp
+  //      that has since changed) is ignored rather than clamped into
+  //      something he never chose.
+  //   4. A rule that agrees with the estimate changes nothing, so it is not a
+  //      USE and must not announce.
+  //
+  // The announcement is the deal. types.ts: "Every rule announces itself on
+  // first use. Visibility is what licenses creating it without a tap." The
+  // first time a rule silently changes a length is the moment it has to say
+  // so, and laws.test.ts fails if this file resolves without announcing.
+  const ruleAsked = useRef<string>("");
+  useEffect(() => {
+    if (!rules || picks.length === 0) return;
+    const cats = [...new Set(picks.map((id) => catOf(id)).filter(Boolean))];
+    const key = cats.slice().sort().join("|");
+    if (!key || key === ruleAsked.current) return;
+    ruleAsked.current = key;
+    let live = true;
+    void (async () => {
+      const found: Record<string, number> = {};
+      for (const cat of cats) {
+        let rule;
+        try {
+          rule = await rules.resolve("plan.duration", cat);
+        } catch {
+          continue; // a store that cannot be read teaches nothing this time
+        }
+        if (!rule) continue;
+        const mins = Number(rule.data.to);
+        if (!Number.isFinite(mins) || mins < DUR_MIN || mins > DUR_MAX) continue;
+        let used = false;
+        for (const id of picks) {
+          if (catOf(id) !== cat) continue;
+          if (estimateFor(cat, learned, DEFAULT_DUR, DUR_CHOICES).minutes === mins) continue;
+          found[id] = mins;
+          used = true;
+        }
+        if (used) await rules.announceIfFirstUse(rule);
+      }
+      if (live && Object.keys(found).length) setRuled((prev) => ({ ...found, ...prev }));
+    })();
+    return () => { live = false; };
+    // catOf and learned are derived from props that do not change while the
+    // sheet is open; ruleAsked is what actually stops this repeating.
+  }, [rules, picks]);
+
   const [aiBusy, setAiBusy] = useState(false);
   const [aiEstimates, setAiEstimates] = useState<Record<string, number>>({});
   const [leanedOn, setLeanedOn] = useState<string[]>([]);
@@ -210,7 +278,11 @@ export default function PlanDaySheet({
         const leftover = current.filter((id) => !order.includes(id));
         setDurations((prev) => {
           const next = { ...prev };
-          result.items.forEach((r) => { if (current.includes(r.id) && prev[r.id] == null) next[r.id] = r.minutes; });
+          // A rule was learned FROM him overriding this estimate, twice. Letting
+          // the estimate win here would undo the lesson every single time.
+          result.items.forEach((r) => {
+            if (current.includes(r.id) && prev[r.id] == null && ruledRef.current[r.id] == null) next[r.id] = r.minutes;
+          });
           return next;
         });
         setAiEstimates((prev) => {
