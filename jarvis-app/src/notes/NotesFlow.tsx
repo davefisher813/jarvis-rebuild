@@ -440,6 +440,33 @@ export default function NotesFlow({
   const NOTE_DEPTH: Record<Screen, number> = { list: 0, editor: 1, templates: 1, connections: 2, linkPicker: 3, createTasks: 3 };
   const pushCls = usePushDepth(NOTE_DEPTH[screen]);
 
+  // BULK DELETE (Dave 2026-08-24). restoreNote is what makes the Undo whole
+  // here: a note carries blocks, connections and a category, and recreating
+  // one from its title would be a worse lie than not offering Undo at all.
+  // Snapshots are read BEFORE anything is deleted, or by the time the toast
+  // is tapped there is nothing left to read.
+  const onDeleteManyNotes = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const kept: NoteData[] = [];
+    for (const id of ids) {
+      const n = await svc.note(id);
+      if (n) kept.push(n);
+    }
+    let gone = 0;
+    await attemptWrite(async () => { for (const id of ids) { await svc.deleteNote(id); gone++; } });
+    await loadList();
+    if (gone === 0) return;
+    const n = gone;
+    showToast({
+      message: n === 1 ? "Note deleted" : n + " notes deleted",
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => { for (const note of kept.slice(0, n)) await svc.restoreNote(note); });
+        await loadList();
+      },
+    });
+  };
+
   if (screen === "list") {
     return (
       <div className={pushCls} key="list">
@@ -447,6 +474,7 @@ export default function NotesFlow({
         notes={list}
         onOpen={openNote}
         onNewNote={() => setScreen("templates")}
+        onDeleteMany={onDeleteManyNotes}
       />
       </div>
     );

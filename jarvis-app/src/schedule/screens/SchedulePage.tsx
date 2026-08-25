@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { LATE_CHOICES } from "../durations";
-import PageHeader, { BarAction } from "../../shared/PageHeader";
+import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
+import { useSelection } from "../../shared/useSelection";
+import SelectBar from "../../shared/SelectBar";
 import { ChevronLeft, ChevronRight, Plus, Camera, AlertTriangle } from "../../shared/icons";
 import type { EventItem } from "../types";
 import { monthMatrix, fmtTime, openSlots, minToHHMM } from "../calendar";
@@ -45,7 +47,7 @@ function weekRange(cells: WeekCell[]): string {
 export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts,
   mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
-  onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload,
+  onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload, onDeleteMany,
   locked = [], now, onEditRoutine, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
   proposed, dayFooter,
   anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {}, blendMap = {},
@@ -69,6 +71,8 @@ export default function SchedulePage({
   repeatMarks?: ReadonlySet<string>;
   onPrev?: () => void; onNext?: () => void; onSelect?: (date: string) => void;
   onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void; onUpload?: () => void;
+  // Bulk delete for the selected day (2026-08-24).
+  onDeleteMany?: (ids: string[]) => void;
   locked?: LockedRange[]; now?: string | null; onEditRoutine?: () => void;
   // The standing proposal for THIS date, drawn among the real rows.
   proposed?: import("../../today/YourDay").ProposedDay;
@@ -100,6 +104,10 @@ export default function SchedulePage({
 
   const cells = monthMatrix(year, month);
   const n = dayEvents.length;
+  // Select mode over the events of the SELECTED day, which is exactly what
+  // is on screen in Day mode. A month grid has no rows to tick.
+  const dayIds = dayEvents.map((e) => e.id);
+  const sel = useSelection(dayIds);
   // ONE DEFINITION OF BUSY (hotfix 2026-08-21). The planner counts a focus
   // block as OPEN by law (planLoad.ts: it is where picks go), and these Open
   // rows must read the same model: a "7h open" plan sheet next to a day list
@@ -242,7 +250,10 @@ export default function SchedulePage({
 
   return (
     <div className="screen">
-      <PageHeader title="Schedule" actions={<>
+      <PageHeader title="Schedule" actions={sel.active ? <BarText label="Done" strong onClick={sel.exit} /> : <>
+        {/* Select only appears in Day mode: a month grid has no rows to tick,
+            and offering it there would be a control that does nothing. */}
+        {onDeleteMany && mode === "day" && dayIds.length > 0 && <BarText label="Select" onClick={() => sel.enter()} />}
         {onUpload && <BarAction label="Upload a Schedule" onClick={onUpload}><Camera className="ic" /></BarAction>}
         <BarAction label="New Event" onClick={onNew}><Plus className="ic" /></BarAction>
       </>} />
@@ -510,6 +521,9 @@ export default function SchedulePage({
                   onShift={onShift ? (m) => onShift(en.e.id, m) : undefined}
                   onMoveTo={onMoveTo ? (t) => onMoveTo(en.e.id, t) : undefined}
                   onSetEnd={onSetEnd ? (end) => onSetEnd(en.e.id, end) : undefined}
+                  selecting={sel.active}
+                  picked={sel.isSelected(en.e.id)}
+                  onPick={() => sel.toggle(en.e.id)}
                   onSkipToday={onSkipToday ? () => onSkipToday(en.e.id) : undefined}
                   onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.e.id) : undefined}
                 />
@@ -547,6 +561,9 @@ export default function SchedulePage({
 
       {drag && (
         <div className="anytime-ghost" style={{ left: drag.x, top: drag.y }}>{drag.label}</div>
+      )}
+      {onDeleteMany && (
+        <SelectBar sel={sel} noun="Event" onDelete={() => { onDeleteMany(sel.selected); sel.exit(); }} />
       )}
     </div>
   );

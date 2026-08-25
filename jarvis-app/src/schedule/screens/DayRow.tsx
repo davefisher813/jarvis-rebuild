@@ -7,6 +7,7 @@ import { catColor, catName } from "../../shared/categories";
 import { attachLabel } from "../attachments";
 import { DUR_CHOICES, durLabel, minutesBetween, endFor } from "../durations";
 import { PinGlyph } from "../../shared/glyphs";
+import { Check as CheckGlyph } from "../../shared/icons";
 
 // One event row on the Schedule day list. Same anatomy as before, plus the
 // roadmap-v2 basics: swipe left reveals Push 15 / Tomorrow (recurring events
@@ -36,6 +37,9 @@ export default function DayRow({
   onSkipToday,
   onPushTomorrow,
   onSetEnd,
+  selecting = false,
+  picked = false,
+  onPick,
 }: {
   e: EventItem;
   conflict: boolean;
@@ -53,6 +57,13 @@ export default function DayRow({
   onPushTomorrow?: () => void;
   // B3/B5 (2026-08-23): change how LONG this is, without the full editor.
   onSetEnd?: (end: string) => void;
+  // Select mode (2026-08-24, bulk delete). The row picks instead of opening,
+  // and every control inside it stands down: a half-swiped row under a
+  // selection is two gestures fighting, and a time picker opening from a row
+  // you meant to tick is the tap-stealing bug all over again.
+  selecting?: boolean;
+  picked?: boolean;
+  onPick?: () => void;
 }) {
   const t = fmtTime(e.data.start);
   const endT = e.data.end ? fmtTime(e.data.end) : null;
@@ -67,7 +78,7 @@ export default function DayRow({
   // entirely, which is exactly why they felt welded to the calendar. What is
   // dangerous is moving a SERIES by accident, and the flow handles that by
   // moving one day only and saying so in the toast.
-  const swipeable = !isPast && (onShift || onPushTomorrow || onSkipToday);
+  const swipeable = !selecting && !isPast && (onShift || onPushTomorrow || onSkipToday);
   const { dx, open, dragging, handlers, closeThen, toggle } = useSwipe({ revealW: rep ? 268 : 232, enabled: !!swipeable });
   const [picking, setPicking] = useState(false);
   const [sizing, setSizing] = useState(false);
@@ -108,14 +119,25 @@ export default function DayRow({
         style={swipeable ? { transform: `translateX(${dx}px)` } : undefined}
         role="button"
         tabIndex={0}
-        onClick={() => (open ? closeThen() : onOpen?.())}
+        onClick={() => (selecting ? onPick?.() : open ? closeThen() : onOpen?.())}
         {...handlers}
       >
         {/* THE CATEGORY BAR (Dave 2026-08-19, "doesn't show which category
             things are tied to"): the dot on the third line was there but read
             as absent. This is the same fact at a glance, no reading. */}
         <span className={"sched-bar cat-bg-" + catColor(e.data.category)} />
-        {onMoveTo ? (
+        {selecting && (
+          <button
+            type="button"
+            className={"sel-box sched-sel" + (picked ? " on" : "")}
+            role="checkbox" aria-checked={picked}
+            aria-label={(picked ? "Deselect " : "Select ") + e.data.title}
+            onClick={(ev) => { ev.stopPropagation(); onPick?.(); }}
+          >{picked && <CheckGlyph className="ic" />}</button>
+        )}
+        {selecting ? (
+          <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
+        ) : onMoveTo ? (
           <button
             type="button"
             className="sched-time sched-time-btn"
@@ -128,7 +150,7 @@ export default function DayRow({
         <div className="sched-body">
           <div className="sched-title">
             {e.data.title}
-            {conflict && (onFixOverlap ? (
+            {conflict && (onFixOverlap && !selecting ? (
               <button
                 type="button"
                 className="sched-badge sched-badge-btn"
@@ -159,7 +181,7 @@ export default function DayRow({
                 A row with no end has no length to state, so instead of
                 rendering nothing it offers to give it one. */}
             {(onSetEnd || endT) && <span className="sched-sep">&middot;</span>}
-            {onSetEnd ? (
+            {onSetEnd && !selecting ? (
               <button
                 type="button"
                 className={"sched-until sched-until-btn" + (endT ? "" : " sched-until-empty")}

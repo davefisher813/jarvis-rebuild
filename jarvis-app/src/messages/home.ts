@@ -338,6 +338,24 @@ export function loadDismissed(
   }
 }
 
+// CLEAR THEM ALL (Dave 2026-08-24: "It should be very easy to clear and
+// delete stuff. Also in bulk"). Every notice already has its own dismiss;
+// this is the whole stream at once.
+//
+// It takes the FULL list rather than appending, because that is what makes
+// Undo possible: the caller keeps the list as it was, and putting it back is
+// one write of the old value. dismissNotice appends and so cannot express
+// "fewer than before".
+export function setDismissed(
+  keys: string[],
+  todayISO: string,
+  storage: Pick<Storage, "setItem"> = localStorage,
+): string[] {
+  const next = [...new Set(keys)];
+  try { storage.setItem(DKEY, JSON.stringify({ day: todayISO, keys: next })); } catch { /* private mode */ }
+  return next;
+}
+
 export function dismissNotice(
   key: string,
   todayISO: string,

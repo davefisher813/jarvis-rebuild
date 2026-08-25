@@ -4,7 +4,7 @@ import NoticeCard from "./NoticeCard";
 import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import {
-  loadMailSnapshot, mailNotices, residualLine, loadDismissed, dismissNotice,
+  loadMailSnapshot, mailNotices, residualLine, loadDismissed, dismissNotice, setDismissed,
   type MailKind, type MailNotice,
 } from "../messages/home";
 import { loadSnoozes, snoozeNotice, sleepingNow, snoozeChoices } from "../messages/snoozeNotice";
@@ -158,6 +158,35 @@ export default function MailNotices({
 
   return (
     <>
+      {/* CLEAR THEM ALL (Dave 2026-08-24). Every card already has its own
+          dismiss; this is the stream at once, for the morning where none of
+          it is going to happen. Checkboxes would be the wrong shape here:
+          these are cards, not list rows, and ticking six of them to clear
+          six of them is more work than dismissing six of them.
+
+          Only from two up. At one notice this is a second control that does
+          exactly what the dismiss on the card already does. */}
+      {notices.length > 1 && (
+        <div className="notice-clear-row">
+          <button
+            className="row-act"
+            onClick={() => {
+              haptics.selection();
+              const was = hidden;
+              const keys = notices.map((n) => n.key);
+              setHidden(setDismissed([...was, ...keys], today));
+              showToast({
+                message: keys.length + " cleared",
+                actionLabel: "Undo",
+                // The list AS IT WAS, written back in one go. Removing the
+                // keys one at a time would be the same thing said less
+                // safely, and would drift if a dismiss landed in between.
+                onAction: () => setHidden(setDismissed(was, today)),
+              });
+            }}
+          >Clear All</button>
+        </div>
+      )}
       {/* Law 3E (2026-08-22): the band's summary sentence is gone. "One
           needs an answer and someone has been waiting 59 days on you" was a
           paragraph ABOUT the rows sitting directly above the rows; the rows

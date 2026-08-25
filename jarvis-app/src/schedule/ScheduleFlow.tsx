@@ -437,6 +437,47 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     }
   };
 
+  // BULK DELETE FOR A DAY (Dave 2026-08-24). Snapshots first, or Undo has
+  // nothing to put back.
+  //
+  // A repeating event is deleted as the SERIES here, not as one day, and the
+  // toast says so. Every other quiet path in this flow moves a single
+  // occurrence precisely because touching a series by accident is the
+  // footgun; a selection is not an accident, but it is also not the place to
+  // ask six separate questions about scope, so the honest answer is to say
+  // plainly what happened and offer the way back.
+  const onDeleteManyEvents = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const kept: EventData[] = [];
+    for (const id of ids) {
+      const e = await svc.event(id);
+      if (e) kept.push(e);
+    }
+    let gone = 0;
+    await attemptWrite(async () => { for (const id of ids) { await svc.deleteEvent(id); gone++; } });
+    await reload();
+    if (gone === 0) return;
+    const n = gone;
+    const repeats = kept.slice(0, n).filter((e) => (e.recurrence ?? "none") !== "none").length;
+    showToast({
+      message: (n === 1 ? "Event deleted" : n + " events deleted")
+        + (repeats > 0 ? " \u00b7 " + (repeats === 1 ? "1 was a repeat" : repeats + " were repeats") : ""),
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => {
+          for (const e of kept.slice(0, n)) {
+            await svc.createEvent(e.title, {
+              date: e.date, start: e.start, end: e.end,
+              category: e.category || undefined, location: e.location,
+              recurrence: e.recurrence, sourceTaskId: e.sourceTaskId,
+            });
+          }
+        });
+        await reload();
+      },
+    });
+  };
+
   const onDelete = async (scope?: "this" | "series") => {
     if (sheet?.mode === "edit") {
       const recurring = (sheet.initial.recurrence ?? "none") !== "none";
@@ -937,6 +978,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onPickSlot={onPickSlot}
         onPlanDay={() => setPlanOpen(true)}
         onUpload={ai.available ? () => setUploadOpen(true) : undefined}
+        onDeleteMany={onDeleteManyEvents}
         locked={blocked}
         windowStartMin={planWindow.wakeMin}
         windowEndMin={planWindow.endMin}

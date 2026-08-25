@@ -2998,3 +2998,18 @@ body.selecting .voice-dock { display: none; }
   color: var(--accent-tx); white-space: nowrap; }
 .bar-text.strong { font-weight: var(--w-semi); }
 .bar-text::after { content: ""; position: absolute; inset: -13px -8px; }
+
+/* Clear All sits above the notice stream, right-aligned, quiet. It is the
+   escape hatch for the whole section, not one of the actions in it, so it
+   wears the bare-text treatment rather than competing with the card buttons
+   underneath it. */
+.notice-clear-row { display: flex; justify-content: flex-end; padding: 0 var(--s-4) var(--s-1); }
+
+/* A past row is dimmed to 0.45, and that dimming used to take the selection
+   box with it: the two rows Dave had actually ticked were the hardest to see
+   on the screen. Whatever else a row is doing, what you have picked stays
+   legible, because that is the only thing the screen is being asked. */
+.sched-row.past .sel-box { opacity: 1; }
+.sched-row.past .sel-box.on { background: var(--accent-fill); border-color: var(--accent-fill); }
+/* The box needs the row's flex line to itself, not the bar's absolute slot. */
+.sched-sel { align-self: center; margin-right: var(--s-1); }
