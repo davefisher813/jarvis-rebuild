@@ -5,6 +5,13 @@ import {
   DEFAULT_WINDOWS, MAX_WINDOWS, type WindowSettings,
 } from "./batching";
 
+// The clock face carries a NON-BREAKING space before the meridiem, so "4 AM"
+// can never wrap in half at display sizes (the Door draws it at 34px). These
+// expectations spell it as an escape rather than pasting the character in:
+// an invisible byte in a test literal is how a test starts asserting
+// something nobody can see.
+const NB = "\u00A0";
+
 // 2026-08-20: Thursday. Weekday, so day gating never muddies a time assertion.
 const at = (h: number, m = 0) => new Date(2026, 7, 20, h, m, 0);
 const W = (on: boolean, hours: number[], days = [0, 1, 2, 3, 4, 5, 6]): WindowSettings =>
@@ -58,17 +65,17 @@ describe("email windows", () => {
 
   it("says WHEN, never how many are waiting", () => {
     const w = W(true, [9, 13, 17]);
-    expect(closedLine(w, at(10))).toBe("Opens at 1 PM");
+    expect(closedLine(w, at(10))).toBe("Opens at 1" + NB + "PM");
     expect(closedLine(w, at(10))).not.toMatch(/\d+ (email|message|unread)/);
-    expect(closedLine(w, at(20))).toBe("Opens at 9 AM tomorrow");
+    expect(closedLine(w, at(20))).toBe("Opens at 9" + NB + "AM tomorrow");
     const weekdays = W(true, [9], [1, 2, 3, 4, 5]);
     expect(closedLine(weekdays, new Date(2026, 7, 21, 20, 0, 0))).toBe("Opens Monday");
   });
 
   it("reads minutes like a person", () => {
-    expect(minLabel(9 * 60)).toBe("9 AM");
-    expect(minLabel(13 * 60 + 30)).toBe("1:30 PM");
-    expect(minLabel(0)).toBe("12 AM");
+    expect(minLabel(9 * 60)).toBe("9" + NB + "AM");
+    expect(minLabel(13 * 60 + 30)).toBe("1:30" + NB + "PM");
+    expect(minLabel(0)).toBe("12" + NB + "AM");
   });
 });
 

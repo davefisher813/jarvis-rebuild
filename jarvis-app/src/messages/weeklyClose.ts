@@ -82,3 +82,38 @@ export function closeDue(todayISO: string, last: string): boolean {
     (new Date(todayISO + "T12:00:00").getTime() - new Date(last + "T12:00:00").getTime()) / 86400e3,
   ) >= 7;
 }
+
+// 9A: THE AMNESTY (Dave 2026-08-25, the Anti-Inbox catalog).
+//
+// The avoidance loop: anxiety causes avoidance, avoidance balloons the
+// backlog, the backlog makes opening email feel insurmountable, and round it
+// goes. Gmail preserves the backlog forever as a monument to it.
+//
+// The weekly close was this idea at small scale, gated purely on the clock.
+// The amnesty adds the other trigger: when the backlog itself is the problem,
+// the offer comes whether or not it is Sunday. A person who has been avoiding
+// their inbox for three weeks should not have to wait for a calendar.
+export const AMNESTY_AT = 25;
+
+export function amnestyDue(set: CloseSet, todayISO: string, last: string): boolean {
+  if (set.count === 0) return false;
+  // The clock, as before. Or the pile, which does not care what day it is.
+  return closeDue(todayISO, last) || set.count >= AMNESTY_AT;
+}
+
+// The honest sub-line. Every clause is a fact the user can check, because a
+// one-tap bulk action lives or dies on whether the promise under it is true.
+export function amnestyPromise(): string {
+  return "Archived, never deleted · Searchable in Gmail forever · Undo for a week";
+}
+
+// The offer's own words. Never "clean up" or "tidy": what is on offer is
+// permission to stop carrying something, and the sentence says why it is safe
+// to take it.
+export function amnestyLine(set: CloseSet): string {
+  return capAfterNumber(
+    set.count === 1
+      ? "1 thread older than two weeks"
+      : set.count + " threads older than two weeks",
+  );
+}

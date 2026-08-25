@@ -13,6 +13,7 @@ import { decide } from "./mailAction";
 import { nameFor } from "./names";
 import { railClass, railToneForWaiting, railToneForDeadline } from "./rows";
 import { EnvelopeGlyph } from "../shared/glyphs";
+import ListFloor from "../shared/ListFloor";
 
 interface DemoRow { from: string; sub: string; when: string; unread?: boolean; due?: string }
 interface DemoWait { to: string; sub: string; days: number }
@@ -127,6 +128,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           </div>
         ))}
       </div></div>
+      <ListFloor />
 
       <div className="sh2"><span className="t">Waiting On</span><span className="n">{WAITING.length}</span></div>
       <div><div className="list-flat">
@@ -146,6 +148,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           );
         })}
       </div></div>
+      <ListFloor />
 
       <div className="pad-x msg-fold">
         <div className="card">

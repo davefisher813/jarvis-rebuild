@@ -22,6 +22,9 @@
 //     with every window visible and editable, never a stray tap on a row.
 //   - Every window is his: start, length, and which days the feature runs.
 
+import { AUTOMATED_ADDRESS } from "./noReply";
+import { capAfterNumber } from "../shared/casing";
+
 const KEY_V1 = "jarvis.mail.windows.v1";
 const KEY = "jarvis.mail.windows.v2";
 
@@ -153,7 +156,12 @@ export function minLabel(startMin: number): string {
   const m = startMin % 60;
   const ap = h >= 12 ? "PM" : "AM";
   const h12 = h % 12 === 0 ? 12 : h % 12;
-  return m === 0 ? `${h12} ${ap}` : `${h12}:${String(m).padStart(2, "0")} ${ap}`;
+  // NON-BREAKING space before the meridiem. The Door draws this at 34px,
+  // where "Opens at 4 AM tomorrow" wrapped as "Opens at 4 / AM tomorrow"
+  // and split the time itself in half. A clock face is one word wherever it
+  // is drawn, so the rule belongs here rather than in one screen's CSS.
+  const NB = "\u00A0";
+  return m === 0 ? `${h12}${NB}${ap}` : `${h12}:${String(m).padStart(2, "0")}${NB}${ap}`;
 }
 export const hourLabel = (h: number) => minLabel(h * 60);
 
@@ -169,4 +177,77 @@ export function closedLine(w: WindowSettings, now: Date): string {
   if (days === 0) return "Opens at " + minLabel(next.getHours() * 60 + next.getMinutes());
   if (days === 1) return "Opens at " + minLabel(next.getHours() * 60 + next.getMinutes()) + " tomorrow";
   return "Opens " + DAY_NAME[next.getDay()];
+}
+
+// ---- 1B: THE PEEK (Dave 2026-08-25, the Anti-Inbox catalog) ----
+//
+// The door already answered WHEN. It never answered the question that
+// actually makes a person open it early, which is "is anyone waiting on me?"
+// Without an answer the door does not remove the anxiety, it just moves it:
+// you sit outside a closed room wondering what is in it, and uncertainty
+// alone is enough to trigger the avoidance loop this whole feature exists to
+// break.
+//
+// So the peek answers it, in the only two terms that do not rebuild the pile:
+//
+//   PEOPLE, NOT MAIL. Four emails from one person is one person. The
+//   machines are not counted at all, because the promise of the curtain is
+//   that the shops are not your problem right now.
+//
+//   A NAME, NOT A NUMBER. When somebody is waiting, the line says who. A
+//   name is a specific, finite, answerable thing; "3 need you" is a meter.
+//
+// The word "unread" never appears, and neither does a total.
+export function peekLine(
+  rows: readonly PeekRow[],
+  buckets: Record<string, { bucket: string }> = {},
+  vips: readonly string[] = [],
+): string {
+  const vip = new Set(vips.map((v) => v.toLowerCase()));
+  const people = new Map<string, { name: string; urgent: boolean }>();
+  for (const r of rows) {
+    if (!r.inInbox) continue;
+    const email = (r.fromEmail || "").toLowerCase().trim();
+    if (!email) continue;
+    const isVipRow = vip.has(email);
+    // A machine is not a person. A VIP is a person even if the address
+    // pattern says otherwise, because the VIP rule outranks every guess.
+    if (!isVipRow && (AUTOMATED_ADDRESS.test(email) || buckets[r.id]?.bucket === "noise")) continue;
+    const prev = people.get(email);
+    const urgent = isVipRow || buckets[r.id]?.bucket === "needs_you";
+    if (prev) { prev.urgent = prev.urgent || urgent; continue; }
+    people.set(email, { name: firstName(r.from) || email, urgent });
+  }
+  const n = people.size;
+  if (n === 0) return "Nothing from a person";
+  const waiting = [...people.values()].filter((p) => p.urgent);
+  const who = n === 1 ? "1 person wrote" : n + " people wrote";
+  if (waiting.length === 0) return capAfterNumber(who + " · nothing urgent");
+  const first = waiting[0]!.name;
+  const rest = waiting.length - 1;
+  const tail = rest === 0
+    ? first + " needs you"
+    : first + " and " + rest + (rest === 1 ? " other need you" : " others need you");
+  // Through the number-lead rule, like every other counted line in the app:
+  // it capitalizes "People" and leaves the name clause alone, because that
+  // clause does not open on a number.
+  return capAfterNumber(who + " · " + tail);
+}
+
+/** The shape the peek needs, so this module keeps its own dependencies small. */
+export interface PeekRow {
+  id: string;
+  from: string;
+  fromEmail: string;
+  inInbox: boolean;
+}
+
+/**
+ * First name only. The peek has one line and a full name spends it; "Sarah"
+ * is also simply how a person thinks about who is waiting on them.
+ */
+function firstName(from: string): string {
+  const clean = from.replace(/^"+|"+$/g, "").trim();
+  const bare = clean.replace(/\s*<[^>]*>\s*$/, "").trim();
+  return (bare.split(/\s+/)[0] || "").replace(/,$/, "");
 }

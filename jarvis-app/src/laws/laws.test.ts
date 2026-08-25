@@ -170,6 +170,32 @@ describe("LAW: Apple HIG casing", () => {
     // (sentence case by catalog); interrogative strings are talk wherever
     // they appear; brand words carry their own casing.
     const TALK_FILES = new Set(["onboarding/OnboardingFlow.tsx"]);
+    // STANDING DEBT, recorded 2026-08-25, awaiting one decision from Dave.
+    //
+    // Widening the button regex above (it used to stop at the `>` inside an
+    // arrow function) revealed 21 sentence-case buttons that this law has
+    // never actually been enforced against. They are listed rather than
+    // silently restyled, because restyling 21 buttons across seven screens
+    // is a visible change to surfaces nobody asked about.
+    //
+    // The list also poses a real question the law does not currently answer.
+    // Some of these are LABELS and plainly owe Title Case ("Mute this
+    // thread", "Use next free slot"). Others are ANSWERS to a question asked
+    // directly above them ("Yes, file them", "No thanks", "It pays itself"),
+    // and Title Case makes talk read like a filing cabinet. The law already
+    // exempts interrogatives for that reason, but only on the asking side.
+    //
+    // When Dave rules: split this set, fix the labels, and either exempt the
+    // answers by rule or fix them too. Until then nothing here regresses,
+    // because a new violation not on this list still fails.
+    const BUTTON_DEBT = new Set([
+      "Follows my work hours", "Mute this thread", "Hand this to someone",
+      "Show all mail instead", "Leave them", "Yes, file them", "No thanks",
+      "Keep it manual", "I pay it", "It pays itself", "Turn into text",
+      "Turn into heading", "Turn into list", "Turn into checklist", "Move up",
+      "Move down", "No, move out", "Leave it scheduled", "Skip today",
+      "Use next free slot", "Tap again to confirm",
+    ]);
     const BRAND = /^(iCloud|iPhone|iPad|iOS|iMessage|macOS|kg|lb|min|hr)$/;
     const passes = (t: string) => {
       if (t.includes("?")) return true; // interrogative talk
@@ -191,8 +217,16 @@ describe("LAW: Apple HIG casing", () => {
           if (t.split(/\s+/).length > 1 && !passes(t)) bad.push(rel(f) + " [" + cls + "]: " + t);
         }
       }
-      for (const m of src.matchAll(/<button[^>]*>\s*([A-Za-z][^<>{}\n]{2,40}?)\s*<\/button>/g)) {
+      // `[^>]*` used to close the opening tag here, which meant any button
+      // carrying an arrow function was invisible to this law: the `>` in
+      // `=>` ended the match early. Caught 2026-08-25 when "Open early"
+      // shipped past it on `onClick={() => setPeeked(true)}`. A law with a
+      // hole that the newest code falls straight through is not a law.
+      // `[\s\S]*?` is safe because buttons do not nest and the body is
+      // still barred from containing `<`.
+      for (const m of src.matchAll(/<button\b[\s\S]*?>\s*([A-Za-z][^<>{}\n]{2,40}?)\s*<\/button>/g)) {
         const t = m[1]!.trim();
+        if (BUTTON_DEBT.has(t)) continue;
         if (t.split(/\s+/).length > 1 && !passes(t)) bad.push(rel(f) + " [button]: " + t);
       }
       // Placeholders carry the same casing when they are labels. Example-
@@ -604,6 +638,79 @@ describe("LAW: one filled red per screen", () => {
     }
     return { css, dark, light };
   };
+
+  // L3: A PROMISE IS NOT DECORATION (2026-08-25, found by a browser walk of
+  // the Door and the Clean Out).
+  //
+  // --tx-4 is the app's quaternary ramp: 0.30 alpha, iOS's decoration
+  // weight. Composited over the real page it measures 2.25:1 on dark and
+  // 1.71:1 on light, nowhere near the 4.5:1 bar for text a person is
+  // expected to READ. That is right for a divider or a glyph and wrong for
+  // three kinds of line, all of which had drifted onto it:
+  //
+  //   A PROMISE ("Goes to Gmail's trash · 30 days to change your mind") is
+  //   the sentence that makes a bulk delete safe to press. Illegible safety
+  //   copy is worse than none, because the button still looks reassured.
+  //
+  //   A FLOOR ("That's everything.") is L2's entire payload. An edge you
+  //   cannot see is an edge you do not have.
+  //
+  //   The WHO line on the Door is what rescues somebody who does not
+  //   recognise the screen. Dave hit exactly that once: "My email is closed
+  //   off and I no idea why."
+  //
+  // The maths below is the rule's justification, not ornament on it: it
+  // proves --tx-4 fails the bar and --tx-3 clears it, so the rule follows
+  // from a measurement rather than a preference.
+  //
+  // MEASURED AND MARGINAL, recorded honestly rather than rounded away:
+  // --tx-3 in LIGHT is 4.51:1 on the page (#F3F4F9) and 4.74:1 on a white
+  // card, but 4.47:1 on --surface-2 (#F2F2F7). It clears the bar where
+  // these lines actually sit and misses it by 0.6% on one grouped surface.
+  // Open question for Dave: nudge light --tx-3 from 0.72 to 0.75 alpha
+  // (4.89:1 on the page) and clear every surface, or leave the ramp alone.
+  it("promises, floors, and the door's explanation are never the decoration ramp", () => {
+    // Composite in FLOAT. An earlier draft rounded each channel to hex
+    // first, which cost 0.02:1 and made a passing colour look like a
+    // failing one. A law that rounds before it judges is a law that lies
+    // about small margins, and small margins are the only ones it decides.
+    type RGB = [number, number, number];
+    const over = (rgb: RGB, a: number, bg: RGB): RGB =>
+      [rgb[0] * a + bg[0] * (1 - a), rgb[1] * a + bg[1] * (1 - a), rgb[2] * a + bg[2] * (1 - a)];
+    const lumF = (c: RGB) => 0.2126 * srgb(c[0]) + 0.7152 * srgb(c[1]) + 0.0722 * srgb(c[2]);
+    const ratioF = (a: RGB, b: RGB) => {
+      const x = lumF(a), y = lumF(b);
+      return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+    };
+    const DARK: RGB = [0, 0, 0];
+    const PAGE: RGB = [0xF3, 0xF4, 0xF9];
+    const CARD: RGB = [255, 255, 255];
+
+    // --tx-4 fails the text bar on every surface in both themes. This is
+    // the whole reason the rule below exists.
+    expect(ratioF(over([235, 235, 245], 0.30, DARK), DARK)).toBeLessThan(2.5);
+    expect(ratioF(over([60, 60, 67], 0.30, PAGE), PAGE)).toBeLessThan(2.0);
+    // --tx-3 clears it where these lines are actually drawn.
+    expect(ratioF(over([235, 235, 245], 0.60, DARK), DARK)).toBeGreaterThanOrEqual(4.5);
+    expect(ratioF(over([60, 60, 67], 0.72, PAGE), PAGE)).toBeGreaterThanOrEqual(4.5);
+    expect(ratioF(over([60, 60, 67], 0.72, CARD), CARD)).toBeGreaterThanOrEqual(4.5);
+
+    // ESSENTIAL names its own scope out loud rather than leaning on a fuzzy
+    // word list: a class earns the bar by being one of these kinds of line,
+    // and anything new that is has to be added here deliberately.
+    const ESSENTIAL = /^\.(purge-promise|msg-amnesty-promise|list-floor|sweep-floor|mail-door-who|mail-door-peek)\b/;
+    const css = read(SRC + "/styles/components.css");
+    const bad: string[] = [];
+    for (const m of css.matchAll(/^(\.[a-z0-9-]+)[^{}]*\{([^}]*)\}/gim)) {
+      if (!ESSENTIAL.test(m[1]!)) continue;
+      if (/color:\s*var\(--tx-4\)/.test(m[2]!)) bad.push(m[1]! + " is drawn in --tx-4");
+    }
+    expect(bad).toEqual([]);
+    // The rule has teeth only if it is pointed at rules that exist.
+    for (const cls of ["purge-promise", "list-floor", "mail-door-who"]) {
+      expect(css).toMatch(new RegExp("\\." + cls + "\\s*\\{"));
+    }
+  });
 
   it("every category fill's on-colour measurably clears 4.5:1 in both themes", () => {
     const { css, dark, light } = palettes();
@@ -1625,5 +1732,102 @@ describe("LAW: a receipt names what landed, not what was attempted", () => {
       .toContain("settleAll");
     expect(src, "and must report the counted result, not the batch size")
       .toContain("settleLine");
+  });
+});
+
+// LAW L1: RED IS A VERB, NEVER A STATUS (Dave 2026-08-25, the Anti-Inbox
+// catalog, adopted).
+//
+// The red badge is the single most-studied anxiety mechanic in email: it
+// exploits the brain's need for closure, it only ever counts up, and it turns
+// "you have mail" into "you are behind". Red in this app means TAP ME TO ACT.
+// It never means you are late, and it never counts your failures.
+//
+// Red marking a WIN is still red doing its job: the streak square that colors
+// in on the finish screen is an accent because clearing the deck is the good
+// outcome. What is banned is red attached to lateness, unreadness, or a
+// count of undone things.
+describe("LAW L1: red is a verb, never a status", () => {
+  const EMAIL_PREFIXES = ["messages/", "today/MailNotices", "today/NoticeCard"];
+  const inEmail = (f: string) => EMAIL_PREFIXES.some((p) => rel(f).startsWith(p));
+
+  // Class names that describe a STATE OF FAILURE. If one of these is painted
+  // with the accent anywhere in the stylesheet, red has become a status.
+  const GUILT = /\.(?:[a-z-]*)(overdue|late|unread|behind|count|badge)(?:[a-z-]*)\b[^{]*\{[^}]*(--accent|--accent-fill|--sys-red|--bad)\b/gi;
+
+  it("no email class paints lateness or a count in red", () => {
+    const bad = [...CSS.matchAll(GUILT)]
+      .map((m) => m[0].split("{")[0]!.trim())
+      // The app-wide tab badge is Tasks', not email's, and it is governed by
+      // its own screen. This law is about the email surface.
+      .filter((sel) => /msg-|mail-|sweep-|deck-|inbox-/.test(sel));
+    expect(bad, "red means tap me, never you are behind").toEqual([]);
+  });
+
+  it("email never renders a numeric badge", () => {
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      if (!inEmail(f)) continue;
+      read(f).split("\n").forEach((line, i) => {
+        if (/className=["'{`][^"'}`]*\bbadge\b/.test(line)) bad.push(rel(f) + ":" + (i + 1));
+      });
+    }
+    expect(bad, "a count on a tab is a guilt meter wearing a notification costume").toEqual([]);
+  });
+
+  it("the shell never hands email a tab badge", () => {
+    const shell = read(join(SRC, "shell/AppShell.tsx"));
+    const m = /badges=\{\{([^}]*)\}\}/.exec(shell);
+    expect(m, "badges prop should still exist").toBeTruthy();
+    expect(m![1], "email may never carry a badge").not.toMatch(/messages|email/i);
+  });
+
+  it("no email copy counts unread mail at the user", () => {
+    const bad: string[] = [];
+    for (const f of ALL) {
+      if (isTest(f) || isBench(f) || !inEmail(f)) continue;
+      read(f).split("\n").forEach((line, i) => {
+        if (/^\s*(\/\/|\*)/.test(line)) return; // a comment may name the sin
+        // "UNREAD" in caps is Gmail's LABEL, passed to modifyThread. The sin
+        // is the WORD shown to a person, so the check is case-sensitive on
+        // the lowercase form and wants a number beside it.
+        if (/\d+\s+unread|unread\s+(mail|email|message)/.test(line)) bad.push(rel(f) + ":" + (i + 1));
+      });
+    }
+    expect(bad, "the number of unread emails is never the headline").toEqual([]);
+  });
+});
+
+// LAW L2: EVERY LIST HAS A FLOOR (Dave 2026-08-25, adopted with L1).
+//
+// Nothing in email scrolls forever. Every list ends with a visible line that
+// says "That's everything." An edge you can reach is the difference between a
+// task and an ocean, and it is the cheapest anxiety fix in the whole catalog.
+describe("LAW L2: every list has a floor", () => {
+  it("every email screen that renders a list also renders its floor", () => {
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const r = rel(f);
+      if (!r.startsWith("messages/")) continue;
+      // A SHEET is bounded by its own frame: you can see where a five-option
+      // menu ends without being told. The floor is for lists you scroll, and
+      // putting one under a modal's option list is noise, not reassurance.
+      if (/Sheet\.tsx$/.test(r)) continue;
+      const src = read(f);
+      // A list surface is one that lays rows out in the flat-list container.
+      if (!src.includes("list-flat")) continue;
+      if (!/ListFloor|list-floor|sweep-floor/.test(src)) bad.push(r);
+    }
+    expect(bad, "import ListFloor and end the list with it").toEqual([]);
+  });
+
+  it("the floor's words answer 'am I done', not 'is the array empty'", () => {
+    const src = read(join(SRC, "shared/ListFloor.tsx"));
+    expect(src).toContain("That's everything.");
+    // Judged on the CODE, not the prose: the first cut read its own comment
+    // (which names the banned phrases in order to ban them) and failed.
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, "").split("\n").filter((l) => !/^\s*\/\//.test(l)).join("\n");
+    expect(code, "the floor answers 'am I done', not 'is the array empty'")
+      .not.toMatch(/end of list|no more items|nothing to show/i);
   });
 });

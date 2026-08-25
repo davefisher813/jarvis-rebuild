@@ -100,11 +100,17 @@ describe("MessagesFlow (threads)", () => {
     // Two counts now: one on the Needs You head, one on the fold.
     expect(screen.getAllByText("1").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("Noise")).toBeNull();
-    expect(screen.queryByText("1 Automated email")).toBeNull();
-    // It expands in place, and noise inside it is still collapsed to a count.
+    expect(screen.queryByText(/machine wrote/i)).toBeNull();
+    // It expands in place, and noise inside it is still collapsed to a line.
     fireEvent.click(screen.getByText("The Rest"));
     expect(screen.getByText("Noise")).toBeInTheDocument();
-    expect(screen.getByText("1 Automated email")).toBeInTheDocument();
+    // SPEC MOVED (8A castes, 2026-08-25): the machines' row used to be a
+    // full row reading "1 Automated email", which is the sensory flatness
+    // the Anti-Inbox catalog is against: a promo wearing a person's weight.
+    // It is now one grey line that counts SENDERS as machines and carries
+    // the single action that ends the lot.
+    expect(screen.getByText(/1 Machine wrote/)).toBeInTheDocument();
+    expect(screen.getByText("Sweep")).toBeInTheDocument();
     expect(screen.queryByText(/DoorDash promo/)).toBeNull();
   });
 
@@ -164,7 +170,10 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     // SPEC MOVED (V2 anatomy, 2026-08-15): fold count now rides as a pill.
     fireEvent.click(await screen.findByText("The Rest"));
-    fireEvent.click(await screen.findByText("Archive All"));
+    // SPEC MOVED (8A castes, 2026-08-25): the fold's bulk noise action is
+    // "Sweep" and rides on the machines line. "Archive All" survives, but
+    // only on a collapsed single-sender group inside the unfolded noise.
+    fireEvent.click(await screen.findByText("Sweep"));
     await waitFor(() => expect(archived).toEqual(["t2"]));
     expect(screen.getByText("1 Conversation archived")).toBeInTheDocument();
     expect(screen.queryByText("Noise")).toBeNull();
@@ -323,14 +332,15 @@ describe("MessagesFlow (threads)", () => {
       { id: "t1", bucket: "needs_you", gist: "g" },
       { id: "t2", bucket: "noise", gist: "promo" },
     ]));
-    // This sender is already over the self-cleaning threshold, and Archive All
-    // arms the auto-noise offer. Both want the same slot.
+    // This sender is already over the self-cleaning threshold, and the
+    // Sweep arms the auto-noise offer. Both want the same slot.
     localStorage.setItem("jarvis.mail.tossed.v1", JSON.stringify({ "no@dd.com": 4 }));
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     // SPEC MOVED (V2 anatomy, 2026-08-15): fold count now rides as a pill.
     fireEvent.click(await screen.findByText("The Rest"));
-    fireEvent.click(await screen.findByText("Archive All"));
+    // SPEC MOVED (8A castes, 2026-08-25): "Archive All" is now "Sweep".
+    fireEvent.click(await screen.findByText("Sweep"));
     // SPEC MOVED (short copy, 2026-08-15)
     expect(await screen.findByText(/Archived unread 4 times/)).toBeInTheDocument();
     expect(screen.queryByText("Clear Noise Automatically From Now On")).toBeNull();

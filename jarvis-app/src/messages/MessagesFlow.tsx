@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, lazy, Suspense } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send } from "../shared/icons";
+import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag } from "../shared/icons";
 import type { AIService } from "../ai/AIService";
 import { useGoogle } from "../connections/google/GoogleSession";
 
@@ -39,6 +39,8 @@ import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, 
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import { settleAll, settleLine, type SettleWords } from "./settle";
 import { recordSweepDay, loadSweepDays, streakView, receiptLines, type SweepReceipts } from "./sweep";
+import ListFloor from "../shared/ListFloor";
+import { senderPiles, selectedCount, selectedIds, purgeLabel, purgePromise, defaultPicks } from "./purge";
 import { readIcs } from "./ics";
 import { isNoReply, isBulk } from "./noReply";
 import { humanError } from "../connections/google/humanError";
@@ -54,6 +56,17 @@ const ARCHIVE_WORDS: SettleWords = {
 
 // For an Undo that could not put everything back. An undo that silently fails
 // is worse than no undo: the rows return to the list and the mail does not.
+const DELETE_WORDS: SettleWords = {
+  one: "conversation", many: "conversations",
+  did: "in the trash", doing: "delete", stuck: "still in your inbox",
+};
+
+// Undo on a delete: the mail comes BACK, so the words are about return.
+const UNTRASH_WORDS: SettleWords = {
+  one: "conversation", many: "conversations",
+  did: "back in your inbox", doing: "put those back", stuck: "still in the trash",
+};
+
 const RESTORE_WORDS: SettleWords = {
   one: "conversation", many: "conversations",
   did: "back in your inbox", doing: "put those back", stuck: "still archived in Gmail",
@@ -72,11 +85,11 @@ import { clearedToday, bumpCleared, closeOut } from "./cleared";
 import { railClass, railToneForWaiting, railToneForDeadline, ageBands, showBandHeads } from "./rows";
 import { DEFAULT_ANSWERS } from "./quickAnswers";
 import { loadLetGo, letGo, undoLetGo } from "./letGo";
-import { closeCandidates, closeLine, closeDue, markClosed, lastClose } from "./weeklyClose";
+import { closeCandidates, closeLine, amnestyDue, amnestyLine, amnestyPromise, markClosed, lastClose } from "./weeklyClose";
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
 import { attachOffer, amountIn } from "./attachmentKind";
 import { HOLD_SECONDS } from "./outbox";
-import { loadWindows, saveWindows, isOpenNow, closedLine, type WindowSettings } from "./batching";
+import { loadWindows, saveWindows, isOpenNow, closedLine, peekLine, type WindowSettings } from "./batching";
 import WindowsSheet from "./WindowsSheet";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
 import { saidQuery, saidPrompt, parseSaid, saidEmpty, SAID_SYSTEM } from "./saidWhat";
@@ -106,7 +119,7 @@ import { capAfterNumber } from "../shared/casing";
 
 type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string };
 type DraftRow = { id: string; to: string; subject: string; snippet: string; dateMs?: number; threadId?: string };
-type View = "list" | "detail" | "compose" | "deck" | "dead" | "rules";
+type View = "list" | "detail" | "compose" | "deck" | "dead" | "rules" | "purge";
 type Filter = "triage" | "all" | "drafts";
 type TriageState = "idle" | "pending" | "ready" | "failed";
 
@@ -120,6 +133,16 @@ function draftTo(raw: string): string {
   const one = parts[0]!;
   const m = one.match(/^(.*?)\s*<.*>$/);
   return displayName(m?.[1] ?? one) || one;
+}
+
+// 8A: a stable warm color per sender, drawn from the category fills so the
+// on-color contrast is already held at 4.5:1 by a law test. Red is absent on
+// purpose: red is a verb (L1), never an identity.
+const FACE_SLOTS = ["yellow", "sky", "green", "orange", "teal", "pink", "purple", "blue"] as const;
+export function faceSlot(key: string): string {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return FACE_SLOTS[h % FACE_SLOTS.length]!;
 }
 
 const AUTONOISE_KEY = "jarvis.mail.autonoise.v1";
@@ -206,6 +229,26 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     return () => { on = false; };
   }, [profileSvc]);
   const [view, setView] = useState<View>("list");
+  // A PUSHED SCREEN STARTS AT THE TOP (2026-08-25, caught by a browser walk
+  // of the Clean Out). Nothing in the app resets scroll between views, so
+  // opening a screen from a link at the FOOT of a long list lands you
+  // already scrolled past its first rows. On the Clean Out that is fatal to
+  // the whole design: it sorts biggest-offender-first, and the two senders
+  // worth deciding about first were the two hidden under the nav bar.
+  //
+  // Pushing goes to the top; popping back to the list deliberately does NOT,
+  // because returning to where you were is the point of going back. That is
+  // the iOS push/pop contract, and it is the reason this is not just a blunt
+  // reset on every change.
+  //
+  // Scoped to email on purpose. The gap is app-wide and worth a proper fix
+  // with saved offsets per screen; that is a bigger change than this session
+  // should make unasked.
+  useEffect(() => {
+    if (view === "list") return;
+    const el = document.querySelector(".app-scroll");
+    if (el) el.scrollTop = 0; else window.scrollTo(0, 0);
+  }, [view]);
   const [rows, setRows] = useState<ThreadRow[]>([]);
   const [triage, setTriage] = useState<TriageMap>({});
   const [triaged, setTriaged] = useState(false);
@@ -227,6 +270,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // multi-select on Needs You would be a tool for ignoring things that need
   // you.
   const [picked, setPicked] = useState<ReadonlySet<string> | null>(null);
+  // 11A: the Clean Out screen's selection, keyed by SENDER rather than by
+  // thread. Nobody wants to make four hundred decisions; everybody can make
+  // eight.
+  const [purgePicks, setPurgePicks] = useState<ReadonlySet<string> | null>(null);
+  const [purging, setPurging] = useState(false);
   const [toss, setToss] = useState<{ sender: string; n: number } | null>(null);
   // The drain. minutes is the user's number, remembered between runs.
   const [minutes, setMinutes] = useState<number>(() => loadMinutes());
@@ -1307,21 +1355,47 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setTimeout(() => { setToast(null); setUndo(null); }, ms);
   };
 
+  // 11C: BULK DELETE, the same shape as archive and the same honesty.
+  // Trash, never the permanent-delete endpoint: that is the standing law and
+  // this is the surface where it matters most. Undo untrashes.
+  const deleteThreads = async (chosen: ThreadRow[]) => {
+    if (!chosen.length) return;
+    const ids = new Set(chosen.map((r) => r.id));
+    setRows((rs) => rs.filter((x) => !ids.has(x.id)));
+    setResults((rs) => (rs ? rs.filter((x) => !ids.has(x.id)) : rs));
+    const { ok, failed } = await settleAll(chosen, (r) => apiFor(r.account)?.trashThread(r.id));
+    if (failed.length) setRows((rs) => [...failed, ...rs.filter((x) => !failed.some((f) => f.id === x.id))].sort((a, b) => b.dateMs - a.dateMs));
+    say(capAfterNumber(settleLine(ok.length, failed.length, DELETE_WORDS)), ok.length ? {
+      label: "Undo",
+      run: () => void (async () => {
+        setRows((rs) => [...ok, ...rs.filter((x) => !ids.has(x.id))].sort((a, b) => b.dateMs - a.dateMs));
+        const back = await settleAll(ok, (r) => apiFor(r.account)?.untrashThread(r.id));
+        if (back.failed.length) say(settleLine(back.ok.length, back.failed.length, UNTRASH_WORDS));
+      })(),
+    } : undefined, 8000);
+  };
+
+  const deletePicked = async (all: ThreadRow[]) => {
+    const chosen = all.filter((r) => picked?.has(r.id));
+    setPicked(null);
+    await deleteThreads(chosen);
+  };
+
   // E10: archive every picked row in one move, one Undo for the lot. Same
   // optimistic shape as archiveRow; a failed write un-hides its own row.
-  const archivePicked = (all: ThreadRow[]) => {
+  const archivePicked = async (all: ThreadRow[]) => {
     const chosen = all.filter((r) => picked?.has(r.id));
     setPicked(null);
     if (!chosen.length) return;
     const ids = new Set(chosen.map((r) => r.id));
     setRows((rs) => rs.filter((x) => !ids.has(x.id)));
-    for (const r of chosen) {
-      apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {
-        setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
-      });
-    }
-    countCleared(chosen.length);
-    say(capAfterNumber(chosen.length === 1 ? "1 archived" : chosen.length + " archived"), {
+    // COUNTED, LIKE EVERY OTHER BATCH (2026-08-25). This still looped with a
+    // per-row catch that put the row back and told nobody, then reported
+    // chosen.length regardless.
+    const { failed } = await settleAll(chosen, (r) => apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]));
+    if (failed.length) setRows((rs) => [...failed, ...rs.filter((x) => !failed.some((f) => f.id === x.id))].sort((a, b) => b.dateMs - a.dateMs));
+    countCleared(chosen.length - failed.length);
+    say(capAfterNumber(settleLine(chosen.length - failed.length, failed.length, ARCHIVE_WORDS)), {
       label: "Undo",
       // AN UNDO THAT DOES NOT UNDO IS THE WORST ONE (2026-08-25): the rows
       // come back in the list, the mail stays archived in Gmail, and the next
@@ -1739,6 +1813,88 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     );
   }
 
+  // 11A: THE CLEAN OUT (Dave 2026-08-25: "cleaning it out and mass deletion").
+  //
+  // The sweep is about the DAY. This is about the ACCOUNT: hundreds of
+  // threads, grouped by sender, biggest offender first, deleted in one move.
+  // The count beside each sender is what tells you which single decision
+  // removes the most, which is the whole reason grouping beats a list.
+  //
+  // Safety is visible rather than assumed: a sender with even one needs-you
+  // thread is shown but never pre-picked, and a VIP is not in the list at
+  // all. Delete means Gmail's trash. This app has never called the
+  // permanent-delete endpoint and this screen does not either.
+  if (view === "purge") {
+    const piles = senderPiles(unmutedRows, effTriage, vips);
+    const picks = purgePicks ?? defaultPicks(piles);
+    const n = selectedCount(piles, picks);
+    const toggle = (email: string) => {
+      const next = new Set(picks);
+      if (next.has(email)) next.delete(email); else next.add(email);
+      setPurgePicks(next);
+    };
+    return (
+      <div className={"screen " + pushCls} key="purge">
+        <div className="nav-bar">
+          <button className="nav-back" onClick={() => { setPurgePicks(null); setView("list"); }}>Email</button>
+          <span className="nav-title">Clean Out</span>
+          <button className="nav-action" onClick={() => setPurgePicks(new Set())}>None</button>
+        </div>
+        {piles.length === 0 ? (
+          <div className="pad-x"><div className="card"><div className="empty-state empty-compact">
+            <div className="empty-title">Nothing to Clean Out</div>
+            <div className="empty-sub">Your inbox is already down to what matters.</div>
+          </div></div></div>
+        ) : (
+          <>
+            <div className="grp"><div className="eyebrow">Who fills your inbox</div></div>
+            <div><div className="list-flat">
+              {piles.map((p) => (
+                <div className="row" role="button" tabIndex={0} key={p.email}
+                  aria-pressed={picks.has(p.email)}
+                  onClick={() => toggle(p.email)}>
+                  <span className={"cb" + (picks.has(p.email) ? " on" : "")} aria-label={picks.has(p.email) ? "Picked" : "Not picked"}>
+                    {picks.has(p.email) ? "\u2713" : ""}
+                  </span>
+                  <div className="row-grow">
+                    <div className="conn-name">{p.name}</div>
+                    {/* The safety line is on the ROW that is unsafe, not in a
+                        legend somewhere. It is the reason not to tick it. */}
+                    {!p.safe && <div className="conn-meta purge-warn">Some of these needed you</div>}
+                  </div>
+                  <span className="purge-count">{p.count}</span>
+                </div>
+              ))}
+            </div></div>
+            <ListFloor />
+            <div className="pad-x conn-action purge-foot">
+              {/* L1 LITERALLY: red is a VERB. With nothing picked there is no
+                  verb, so a full-width red pill reading "Pick Some Senders"
+                  is red announcing a danger that does not exist yet, on the
+                  one screen where the eye most needs red to mean something.
+                  It goes red the moment it will actually delete, and not one
+                  render before. */}
+              <button className={"btn btn-block " + (n === 0 ? "btn-secondary" : "btn-danger")} disabled={n === 0 || purging}
+                onClick={() => void (async () => {
+                  setPurging(true);
+                  try {
+                    const ids = new Set(selectedIds(piles, picks));
+                    await deleteThreads(unmutedRows.filter((r) => ids.has(r.id)));
+                    setPurgePicks(null);
+                    setView("list");
+                  } finally { setPurging(false); }
+                })()}>
+                {purging ? "Deleting..." : purgeLabel(n)}
+              </button>
+              <div className="conn-meta purge-promise">{purgePromise()}</div>
+            </div>
+          </>
+        )}
+        <div className="screen-foot" />
+      </div>
+    );
+  }
+
   // Every standing decision, in one place, each one undoable. A rule that is
   // permanent and invisible is not a rule, it is a haunting.
   if (view === "rules") {
@@ -1827,24 +1983,33 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     return (
       <div className="screen">
         <PageHeader title="Email" />
-        <div className="pad-x">
-          <div className="card mail-curtain">
-            <div className="row">
-              <div className="row-glyph cat-fg-teal"><Mail className="ic" /></div>
-              <div className="row-grow">
-                {/* WHEN, never how many. A count here would reintroduce the
-                    exact guilt this feature exists to remove. And it says WHO
-                    closed it: Dave found this screen and did not recognise it
-                    as his own choice, which is the failure the sub repairs. */}
-                <div className="conn-name">{closedLine(windows, new Date())}</div>
-                <div className="conn-meta">You close email outside your windows</div>
-              </div>
-            </div>
-            <div className="row row-acts">
-              <button className="btn btn-primary btn-sm" onClick={() => setPeeked(true)}>Open Anyway</button>
-              <button className="btn-sm" onClick={() => setEditWindows(true)}>Adjust</button>
-            </div>
+        {/* 1B: THE DOOR. It used to be a card in a stack of cards, which is
+            the wrong shape for the idea: a curtain that looks like one more
+            row is a curtain you scroll past. Sealed means the screen is the
+            door and there is nothing behind it to squint at.
+
+            Three lines, in the order a person actually asks them. WHEN it
+            opens. WHO is behind it, in people and names rather than a count.
+            And WHOSE choice this was, because Dave once found this screen and
+            did not recognise it as his own. */}
+        <div className="mail-door">
+          <div className="mail-door-seal cat-fg-teal"><Mail className="ic" /></div>
+          <div className="mail-door-when">{closedLine(windows, new Date())}</div>
+          <div className="mail-door-peek">{peekLine(rows, effTriage, vips)}</div>
+          <div className="mail-door-acts">
+            {/* Early, not "anyway". It is his door and he is allowed through
+                it; the word should not imply he is breaking a rule.
+
+                SECONDARY, not primary. The first draft made this a filled
+                red pill, which put the loudest object in the app on its
+                calmest screen and recommended the one action the screen
+                exists to make unnecessary. The recommended action here is
+                to WAIT, and nothing recommends waiting like the escape
+                hatch being quiet. */}
+            <button className="btn btn-secondary" onClick={() => setPeeked(true)}>Open Early</button>
+            <button className="quiet-action" onClick={() => setEditWindows(true)}>Adjust My Windows</button>
           </div>
+          <div className="mail-door-who">You close email outside your windows</div>
         </div>
         {vipRows.length > 0 && (
           <div className="pad-x"><div className="card">
@@ -2331,8 +2496,19 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       {/* Reserved column: read and unread rows share one text edge. */}
       {selecting ? (
         <span className={"cb" + (picked!.has(r.id) ? " on" : "")} aria-label={picked!.has(r.id) ? "Picked" : "Not picked"}>{picked!.has(r.id) ? "\u2713" : ""}</span>
-      ) : (
+      ) : effTriage[r.id]?.bucket === "noise" || isNoReply(r.fromEmail) ? (
+        // 8A: a machine keeps the hairline rail. The signal is the triage
+        // bucket plus the no-reply address rule, which is exactly the
+        // knowledge the app already had and never spent: List-Unsubscribe is
+        // not on ThreadRow (the list is built from thread metadata), so
+        // reaching for it here would have meant a header fetch per row.
         <span className={railClass(r.unread, railToneForDeadline(effTriage[r.id]?.by))} aria-label={r.unread ? "unread" : undefined}></span>
+      ) : (
+        // 8A: A PERSON GETS A FACE. Warm, stable per sender, and big enough
+        // that your eyes triage the list before your brain has to read it.
+        <span className={"msg-face cat-bg-" + faceSlot(r.fromEmail || r.from)} aria-hidden="true">
+          {(displayName(r.from)[0] || "?").toUpperCase()}
+        </span>
       )}
       <div className="row-grow">
         <div className="msg-line">
@@ -2520,7 +2696,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             )}
           </div></div></div>
         ) : (
-          <div><div className="list-flat">{listRows.map((r) => threadRow(r))}</div></div>
+          <>
+            <div><div className="list-flat">{listRows.map((r) => threadRow(r))}</div></div>
+            <ListFloor />
+          </>
         )
       ) : (
         <>
@@ -2552,14 +2731,22 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               in the set, whatever its age, and neither is unsorted mail:
               not having read something is not evidence about it. */}
           {(() => {
-            if (closeDone || !closeDue(todayISO(), lastClose())) return null;
+            if (closeDone) return null;
             const set = closeCandidates(unmutedRows, effTriage, vips, Date.now());
-            if (set.count === 0) return null;
+            // 9A: the clock OR the pile. Three weeks of avoidance should not
+            // have to wait for Sunday; that wait is the avoidance loop with
+            // the app's help.
+            if (!amnestyDue(set, todayISO(), lastClose())) return null;
             return (
+              // 9A: THE AMNESTY. The offer names the AGE, never a verdict on
+              // the person: "17 threads older than two weeks", not "17 you
+              // ignored". The promise under it is the whole reason a one-tap
+              // bulk action is safe to take, so it is stated in full.
               <div className="pad-x"><div className="card"><div className="row">
                 <div className="row-grow">
-                  <div className="conn-name">{closeLine(set)}</div>
-                  <div className="conn-meta">Older than a fortnight · Archive, never delete</div>
+                  <div className="conn-name">{amnestyLine(set)}</div>
+                  <div className="conn-meta">{closeLine(set)}</div>
+                  <div className="conn-meta msg-amnesty-promise">{amnestyPromise()}</div>
                 </div>
                 <button className="pill-act" onClick={() => void (async () => {
                   const ids = set.ids;
@@ -2634,6 +2821,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div><div className="list-flat">
                 {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist))}
               </div></div>
+              {/* L2: the list ends somewhere and says so. The residual is
+                  named in words with its reason, never as a bare count
+                  hanging under the last row. */}
+              <ListFloor count={restCount > 0 ? restCount : undefined} />
             </>
           )}
           {waiting.length > 0 && (() => {
@@ -2796,8 +2987,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       </div>
                     ) : (
                       <div className="fold-tools">
-                        <button className="btn-sm" onClick={() => archivePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
+                        <button className="btn-sm" onClick={() => void archivePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
                           {picked.size === 0 ? "Archive Selected" : capAfterNumber("Archive " + picked.size)}
+                        </button>
+                        {/* 11B: the other half of the job. Archive keeps it
+                            in the account; delete is for the mail that should
+                            not be in the account at all. Both count what
+                            landed, both undo. */}
+                        <button className="btn-sm btn-danger" onClick={() => void deletePicked([...worthKnowing, ...noise])} disabled={picked.size === 0}>
+                          {picked.size === 0 ? "Delete Selected" : capAfterNumber("Delete " + picked.size)}
                         </button>
                         <button className="quiet-action" onClick={() => setPicked(null)}>Done</button>
                       </div>
@@ -2810,15 +3008,22 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     )}
                     {noise.length > 0 && (
                       <>
-                        <div className="msg-fold-head">
-                          Noise
-                          <button className="see-all" onClick={() => void archiveAllNoise(noise)}>Archive All</button>
-                        </div>
-                        <div className="row" role="button" tabIndex={0} onClick={() => setNoiseOpen(!noiseOpen)}>
-                          <div className="row-grow">
-                            <div className="conn-name">{capAfterNumber(noise.length === 1 ? "1 automated email" : noise.length + " automated emails")}</div>
-                            <div className="conn-meta msg-gist">{noiseLine(noise)}</div>
-                          </div>
+                        <div className="msg-fold-head">Noise</div>
+                        {/* 8A: ONE GREY LINE FOR ALL OF THEM. This was a
+                            full row with a bold name, which is the sensory
+                            flatness the catalog is against: a shipping promo
+                            wearing the same weight as a person. The count is
+                            a fact, not an alarm, and the one action ends the
+                            lot. Tap the line to unfold if you want to look. */}
+                        <div className="msg-machines" role="button" tabIndex={0} onClick={() => setNoiseOpen(!noiseOpen)}>
+                          <span className="msg-machines-icon" aria-hidden="true"><Tag className="ic" /></span>
+                          <span className="msg-machines-text">
+                            {capAfterNumber(noise.length === 1 ? "1 machine wrote" : noise.length + " machines wrote")}
+                            {" \u00b7 "}{noiseOpen ? "Tap to fold" : "Tap to look"}
+                          </span>
+                          <button className="pill-act msg-machines-sweep" onClick={(e) => { e.stopPropagation(); void archiveAllNoise(noise); }}>
+                            Sweep
+                          </button>
                         </div>
                         {/* N5 (2026-08-20): a sender who writes six times a
                             week about things he will never act on is not six
@@ -2948,9 +3153,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           )}
         </div>
       )}
-      {/* The standing rules live one tap from the tab that creates them. */}
-      {(Object.keys(rules).length > 0 || muted.length > 0) && (
-        <div className="pad-x"><button className="quiet-action" onClick={() => setView("rules")}>Standing Rules</button></div>
+      {/* The two jobs that are not today's mail, at the floor of the screen
+          where they cannot compete with it. Standing Rules is what you built;
+          Clean Out is 11C, the account rather than the day. Both are quiet on
+          purpose: neither is a thing you should be pulled into while you are
+          trying to get through the morning, and a bulk-delete door that
+          shouts is a bulk-delete door somebody taps on momentum. */}
+      {(Object.keys(rules).length > 0 || muted.length > 0 || unmutedRows.length > 0) && (
+        <div className="pad-x foot-links">
+          {(Object.keys(rules).length > 0 || muted.length > 0) && (
+            <button className="quiet-action" onClick={() => setView("rules")}>Standing Rules</button>
+          )}
+          {unmutedRows.length > 0 && (
+            <button className="quiet-action" onClick={() => { setPurgePicks(null); setView("purge"); }}>Clean Out</button>
+          )}
+        </div>
       )}
       {/* Everything else this thread could become, one swipe from the row. */}
       {more && (
