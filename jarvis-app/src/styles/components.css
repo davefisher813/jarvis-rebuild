@@ -580,7 +580,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* The wash is deliberately FAINT. --red-tint (16%) is the banner strength and
    reads as an alarm on a four-hour block; this is a container, not a warning.
    The spine carries the identity, the wash only groups. */
-.sched-holds { background: rgba(255, 43, 60, 0.055); box-shadow: inset 3px 0 0 var(--accent-chrome); border-radius: var(--r-md); }
+.sched-holds { background: rgba(255, 43, 60, 0.055); box-shadow: inset 3px 0 0 var(--accent-glyph); border-radius: var(--r-md); }
 [data-theme="light"] .sched-holds { background: rgba(204, 5, 27, 0.045); }
 .sched-holds .sched-title { color: var(--tx-1); font-weight: var(--w-semi); }
 .block-nest { margin: var(--s-2) 0 0; padding-left: var(--s-3); border-left: 2px dotted var(--accent-chip-bd); display: flex; flex-direction: column; }
@@ -738,7 +738,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .note-body { font-size: var(--t-body); color: var(--tx-2); line-height: 1.5; white-space: pre-wrap; padding: var(--s-3) var(--s-4); }
 .kv-val { font-size: var(--t-body); color: var(--tx-1); font-weight: var(--w-medium); }
 .brand-mark { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
-.brand-mark .j { color: var(--accent-chrome); }
+.brand-mark .j { color: var(--accent-glyph); }
 .chart-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-4); }
 .chart-row + .chart-row { border-top: 0.5px solid var(--divider); }
 .chart-label { width: 76px; flex-shrink: 0; font-size: var(--t-meta); color: var(--tx-2); }
@@ -749,7 +749,7 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .today-bar { justify-content: space-between; }
 .today-av { background: 0; border: 0; padding: 0; display: flex; align-items: center; width: 36px; height: 36px; justify-content: center; }
 .today-brand { flex: 1; text-align: center; font-size: var(--t-h3); font-weight: var(--w-bold); letter-spacing: -0.02em; color: var(--tx-1); }
-.today-brand .j { color: var(--accent-chrome); }
+.today-brand .j { color: var(--accent-glyph); }
 .sched-seg { padding: var(--s-1) var(--s-4) var(--s-2); }
 .week-strip { display: flex; gap: var(--s-1); padding: 0 var(--s-4) var(--s-2); }
 .wk-cell { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--s-1); padding: var(--s-2) 0; border-radius: var(--r-md); cursor: pointer; }
@@ -1351,8 +1351,10 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
    reader must decode, and WCAG exempts brand marks from the text bar for
    exactly that reason, so it wears the real brand red in both themes.
    This is the single most identity-carrying red on the screen. */
-[data-theme="light"] .brand-mark .j,
-[data-theme="light"] .today-brand .j { color: #FF2B3C; }
+/* The wordmark's light one-off is gone: --accent-glyph is #FF2B3C in both
+   themes, so the J needs no theme-specific rule to stay brand red. A
+   logotype is exempt from the text bar outright, which is why it was the
+   first thing to get this treatment and why it can now share the token. */
 [data-theme="light"] .tab-badge { background: var(--on-light-red); }
 [data-theme="light"] .av-accent { background: var(--on-light-red); }
 [data-theme="light"] .bp-stalled { color: var(--on-light-warn); }
@@ -1946,7 +1948,7 @@ button {
    the accent is only the zero-specificity fallback so it never wins over
    a systemic color (the all-red More bug, caught in preview). */
 .lib-row .lib-ico { width: 30px; display: flex; justify-content: center; flex-shrink: 0; }
-:where(.lib-ico) { color: var(--accent-chrome); }
+:where(.lib-ico) { color: var(--accent-glyph); }
 .lib-row .lib-ico .ic { width: 25px; height: 25px; }
 .lib-name { flex: 1; font-size: var(--t-h2); font-weight: var(--w-normal); color: var(--tx-1); min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1966,7 +1968,7 @@ button {
 .tip-banner { display: flex; align-items: flex-start; gap: var(--s-3); margin-bottom: var(--s-3);
   padding: var(--s-3h); border-radius: var(--r-xl); background: var(--press-2, var(--press-3));
   animation: restoreIn var(--dur-normal) var(--ease-out); }
-.tip-ico { color: var(--accent-chrome); flex-shrink: 0; margin-top: 1px; }
+.tip-ico { color: var(--accent-glyph); flex-shrink: 0; margin-top: 1px; }
 .tip-ico .ic { width: 26px; height: 26px; }
 .tip-body { flex: 1; min-width: 0; }
 .tip-title { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
@@ -2161,8 +2163,14 @@ button {
 /* GLYPH SWEEP (Dave 2026-08-21: "I never signed off on changing the icons").
    --accent-tx went red -> white to fix salmon TEXT on cards, and every glyph
    inheriting it went white as collateral. Chrome is not text: icons take
-   --accent-chrome, which is the brand red in both themes. */
-.lib-ico-brand { color: var(--accent-chrome); }
+   --accent-glyph, which IS the brand red in both themes.
+
+   Corrected 2026-08-24: this said --accent-chrome, and that was true on the
+   day it was written. Light later took chrome down to #DA0012 so red TEXT
+   could clear 4.5:1 on paper, and every brand glyph in the app rode down
+   with it. A glyph carries no words and answers to 3:1, so it keeps the real
+   brand red. Same bug as the sweep this comment is about, one layer up. */
+.lib-ico-brand { color: var(--accent-glyph); }
 /* sh2-caps (Brain 4 pick) is absorbed by the app-wide steel head: one
    small-label style everywhere means the variant adds nothing. Kept as a
    no-op selector so existing markup stays legal. */
@@ -2837,6 +2845,15 @@ button {
 .rn-sub { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-2); }
 /* The bolt sits beside search in the one bar that is on every tab. */
 .voice-now { color: var(--accent-tx); }
+/* GLYPH SWEEP, light (Dave 2026-08-24: "make sure all red icons in light
+   version are Jarvis red"). These two are icon-only controls -- a lightning
+   bolt and a round bar button -- that inherit --accent-tx, the TEXT red.
+   In dark that token is WHITE and these read correctly, so the rule is
+   light-only by construction and dark cannot move. In light the text red
+   (#DA0012) was dragging both down to crimson; a glyph carries no words and
+   answers to 3:1, where the real brand red measures 3.71 on a white card. */
+[data-theme="light"] .voice-now,
+[data-theme="light"] .barbtn { color: var(--accent-glyph); }
 
 /* WHAT JARVIS KNOWS (Brain Layer 2). The genome made visible: one row per
    strand, its origin in the eyebrow, its receipts in the sheet. A paused

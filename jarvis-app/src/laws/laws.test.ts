@@ -965,6 +965,49 @@ describe("LAW: stored shapes are versioned", () => {
     expect(reachOf([...mixed, ...filed], p, goal).progress).toEqual({ done: 1, total: 1, pct: 100 });
   });
 
+  // A RED GLYPH WEARS THE BRAND, IN BOTH THEMES (Dave 2026-08-24: "make sure
+  // all red icons in light version are Jarvis red. It looks a little off on
+  // the icons there"). He was right, and the cause is the trap this codebase
+  // has now hit three times: a token serving two roles gets changed for one
+  // of them. --accent-chrome served the red TEXT on the page AND the red
+  // glyphs on nav lists. Light took chrome down to #DA0012 so text could
+  // clear 4.5:1 on paper, and every brand glyph in the app rode down with it.
+  //
+  // The catalog has said the right thing since V4.14: red is routed by JOB,
+  // not flattened, and anything with no words in or on it takes the real
+  // #FF2B3C under the 3:1 bar. This pins the token that finally implements it.
+  it("brand glyphs take the glyph red, and light never pulls it down", () => {
+    expect(CSS, "the token exists and is the real brand red").toMatch(/--accent-glyph:\s*#FF2B3C/);
+    for (const sel of ["\\:where\\(\\.lib-ico\\)", "\\.lib-ico-brand", "\\.tip-ico"]) {
+      expect(CSS, sel + " must take the glyph red").toMatch(new RegExp(sel + "[^}]*var\\(--accent-glyph\\)"));
+    }
+    // No theme may redefine it. The whole point is that one value clears the
+    // 3:1 glyph bar on black AND on paper, so there is nothing to override.
+    expect(CSS).not.toMatch(/\[data-theme=[^\]]*\][^{]*\{[^}]*--accent-glyph\s*:/);
+  });
+
+  // ...and it is legal on the worst light ground it can land on. A glyph
+  // carries no words, so the bar is 3:1, not 4.5:1. Computed as a real
+  // relative-luminance ratio rather than eyeballed, because eyeballing is how
+  // #DA0012 got onto the icons in the first place.
+  it("the glyph red clears 3:1 on every light surface", () => {
+    const lum = (hex: string) => {
+      const v = [1, 3, 5].map((i) => {
+        const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+        return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      });
+      return 0.2126 * v[0]! + 0.7152 * v[1]! + 0.0722 * v[2]!;
+    };
+    const ratio = (a: string, b: string) => {
+      const la = lum(a), lb = lum(b);
+      return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+    };
+    // page, white card, and the strict constant the palette sweep judges by
+    for (const ground of ["#F3F4F9", "#FFFFFF", "#F1F2F7", "#F2F2F7"]) {
+      expect(ratio("#FF2B3C", ground), "glyph red on " + ground).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   // PICK 23, THE DAY IS PLANNED THROUGH THE UPWARD INDEX (2026-08-24). Plan
   // My Day has ranked goal-moving tasks above goalless ones since
   // 2026-08-09, but it could only SEE tasks filed under a project, so most of

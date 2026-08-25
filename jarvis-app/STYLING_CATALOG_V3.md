@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.21 (2026-08-24)
+# JARVIS Styling Catalog V4.22 (2026-08-24)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -493,6 +493,18 @@ Six places where two features already held both halves of a link and nothing joi
 **27 · NOTES BELONG TO A PROJECT.** The reverse lookup has existed since Session 6 and nothing fed it except a user who remembered to open the link picker afterwards, so the section was empty on every project he had. A note written from inside a project is born connected, titled with the project's own name because a note you have to name before you can write it is a note that does not get written. The head renders whenever the project can make one, not only when one already exists: a section that appears after you have already solved the problem solves nothing.
 
 **28 · THE BRAIN KNOWS THE CURRENT GOALS.** Every AI feature in the app read `Run three times a week (on_track)`, where `on_track` is the stored field nothing updates: the model has been reasoning about statuses typed once, months ago. It gets the DERIVED health and the finish line now, from the same functions the goal page renders, and dropped goals are left out entirely. Law-tested.
+
+## L6. A glyph is not text, and now it has its own token (V4.22, Dave 2026-08-24: "make sure all red icons in light version are Jarvis red. It looks a little off on the icons there")
+
+He was right, and the cause is the trap this catalog already names twice: **a token that serves two roles will eventually be changed for one of them.**
+
+**THE BUG.** `--accent-chrome` served both the red TEXT that sits on the page (active tab label, section eyebrows, See All) and the red GLYPHS on nav lists. In dark that is harmless: the page is black and one value, `#FF2B3C`, clears both bars. In light they are different bars. Text on `#F3F4F9` needs 4.5:1, which caps red at `#DA0012`; a glyph carries no words and answers to 3:1, where the real brand red measures **3.32 on the worst light ground and 3.71 on a white card**. So light quietly dragged every brand glyph down to the text red, and the More list, the Brain list, the tip icons and the schedule rail all went crimson instead of JARVIS red. The block that made the sweep said in its own comment that chrome "is the brand red in both themes"; that stopped being true the day Daylight shipped and nothing caught it.
+
+**THE FIX.** `--accent-glyph: #FF2B3C`, defined once and never overridden by a theme, because one value clears the glyph bar on black AND on paper. Every icon-only consumer takes it: `.lib-ico`, `.lib-ico-brand`, `.tip-ico`, the schedule holds rail, and the wordmark J (whose light one-off is now deleted, since the token carries it). Two icon-only controls that inherited the TEXT token instead, `.voice-now` and `.barbtn`, take it in light only, because in dark `--accent-tx` is WHITE and they read correctly that way.
+
+**DARK CANNOT MOVE, BY CONSTRUCTION.** Dark's chrome was already `#FF2B3C`, so every repointed rule resolves to the identical value. Proven, not asserted: More, Today and Tasks are byte-identical with the old rules re-injected, and Schedule's only difference was traced to the repaint that injecting a stylesheet causes at all, which vanishes when the injection is held constant.
+
+**WHAT DELIBERATELY DID NOT CHANGE.** The tab bar. `.tab.active` colours the icon AND its label from one value, the way Apple's own tab bars do. Splitting them would put `#FF2B3C` dots four pixels above a `#DA0012` word, which reads worse than either, and taking the label up to brand red would drop permanent navigation text to 3.38:1. Fills also keep `#E2051E`: no full-red-channel colour can carry white text at 4.5:1, so a red that carries white has to be darker, and that is a different job from a glyph.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 
