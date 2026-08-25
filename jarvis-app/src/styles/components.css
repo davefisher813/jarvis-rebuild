@@ -3132,3 +3132,13 @@ body.selecting .voice-dock { display: none; }
    so the verb yields first. Capped tighter than the app-wide .pill-act, which
    at 9.5rem could take 139px of a 358px row. */
 .notice-card-uniform .pill-act { max-width: 7.5rem; }
+
+/* Two lines, always, whichever form the stream chose. A row with no sub
+   spends both on its title rather than truncating it; a row with one spends
+   one each. Either way the card is the same height, which is the whole ask. */
+/* ONE HEIGHT, and it is the taller of the two things a uniform card can
+   hold: two lines of TITLE type, which is taller than title plus sub because
+   the sub is smaller. Set as a floor on every uniform card so the shorter
+   ones grow to meet it instead of the taller one being clipped. */
+.notice-card-uniform { min-height: 72px; display: flex; flex-direction: column; justify-content: center; }
+.notice-card-uniform .row { min-height: 0; }

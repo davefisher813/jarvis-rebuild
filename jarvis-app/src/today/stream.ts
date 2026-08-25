@@ -41,14 +41,23 @@ export function rankStream(children: ReactNode): Ranked {
     ranked.push({ el: c, w: p.weight ?? DEFAULT_WEIGHT, i: i++ });
   });
   ranked.sort((a, b) => b.w - a.w || a.i - b.i);
-  // A LONE NOTICE IS A ROW (Dave 2026-08-22, from the "Finish Jarvis
-  // Visuals" screenshot). Headliner type exists so the heaviest notice
-  // physically beats the others; with nothing to beat, big type is just a
-  // large card around one line of fact. Receipts are not competition: they
-  // whisper, so a single actionable notice above them still rows down.
-  if (ranked.length === 1) {
-    return { headliner: null, rows: [ranked[0]!.el], receipts };
-  }
-  const [first, ...rest] = ranked;
-  return { headliner: first?.el ?? null, rows: rest.map((r) => r.el), receipts };
+  // EVERY NOTICE IS A ROW (Dave 2026-08-25, from a screenshot of three cards
+  // at three heights: "Why are the heads up containers different sizes? They
+  // should all be the size of update workout feature").
+  //
+  // The headliner is retired. It existed so the heaviest notice could
+  // physically beat the others, and it had already been compressed once
+  // ("THE HEADLINER PAYS RENT", 2026-08-22) after he asked twice in one day
+  // why a notice was rendering so large. Compressing it again would be the
+  // third pass at the same complaint.
+  //
+  // The emphasis it was buying is already free: this function SORTS by
+  // weight, so the heaviest notice is the first thing under the head. Order
+  // says "this one first" at no cost, and the headliner was spending about
+  // 46px saying it a second time, in a shape that also put the verb on its
+  // own line and made the most important notice the hardest to scan.
+  //
+  // A lone notice already rowed down for exactly this reason, which is the
+  // same argument arriving one screenshot early.
+  return { headliner: null, rows: ranked.map((r) => r.el), receipts };
 }

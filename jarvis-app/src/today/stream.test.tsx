@@ -11,24 +11,34 @@ const card = (key: string, weight: number, title: string) => (
   <NoticeCard key={key} weight={weight} icon={<span />} title={title} action={{ label: "Go", onClick: () => {} }} />
 );
 
-// LAW 3E: form follows decision. One headliner, verb rows, receipts.
+// LAW 3E: form follows decision. Verb rows and receipts. The headliner was
+// retired 2026-08-25 (Dave: "They should all be the size of update workout
+// feature"): ORDER carries the emphasis it was buying, at no height.
 describe("the stream ranks", () => {
-  it("exactly one headliner: the heaviest; failing beats waiting beats new", () => {
+  it("puts the heaviest first; failing beats waiting beats new", () => {
     const r = rankStream([
       card("a", NEW, "New Thing"),
       card("b", FAILING, "Failing Thing"),
       card("c", WAITING, "Waiting Thing"),
       card("d", RESUME, "Resume Thing"),
     ]);
-    expect((r.headliner!.props as { title: string }).title).toBe("Failing Thing");
+    expect(r.headliner).toBeNull();
     expect(r.rows.map((x) => (x.props as { title: string }).title)).toEqual([
-      "Waiting Thing", "New Thing", "Resume Thing",
+      "Failing Thing", "Waiting Thing", "New Thing", "Resume Thing",
     ]);
+  });
+
+  // The ranking still has to be a ranking. Retiring the big shape must not
+  // quietly retire the ORDER, which is now the only thing carrying it.
+  it("never promotes anything to a headliner any more", () => {
+    const r = rankStream([card("a", FAILING, "One"), card("b", NEW, "Two"), card("c", WAITING, "Three")]);
+    expect(r.headliner).toBeNull();
+    expect(r.rows).toHaveLength(3);
   });
 
   it("[edge] ties keep the producer's own order", () => {
     const r = rankStream([card("a", FAILING, "First"), card("b", FAILING, "Second")]);
-    expect((r.headliner!.props as { title: string }).title).toBe("First");
+    expect(r.rows.map((x) => (x.props as { title: string }).title)).toEqual(["First", "Second"]);
   });
 
   // SPEC MOVED (Dave 2026-08-22): a lone notice no longer headlines. Big

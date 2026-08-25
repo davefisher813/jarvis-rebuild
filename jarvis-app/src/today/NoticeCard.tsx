@@ -237,7 +237,15 @@ export default function NoticeCard({
         <div
           className={"card notice-card"
             + (effForm === "row" ? " notice-card-row" : "")
-            + (uniform && effForm === "card" ? " notice-card-uniform" : "")
+            /* ROWS JOIN THE CARDS (2026-08-25, second pass). The first pass
+               clamped only the card form, which is the rare pinned one, so
+               Dave's stream was a retired headliner plus rows at 55px plus
+               one card at 66px: still three heights.
+               His pick was two fixed lines, and 66px IS that. Measured at
+               55px the lead notice lost 26% of "Student template ships
+               first" to a single line. A uniform height that throws away a
+               quarter of the sentence is the wrong uniform height. */
+            + (uniform && (effForm === "card" || effForm === "row") ? " notice-card-uniform" : "")
             /* A UNIFORM CARD IS TWO LINES TALL, and how it spends them is
                its own business. With a sub, that is one line each. WITHOUT
                one, the title takes both, which costs nothing: the card is
@@ -245,7 +253,12 @@ export default function NoticeCard({
                Found by the page sweep, which measured "Run three times a
                week" losing 34% of itself to a clamp it did not need. Fixed
                height was the ask; throwing away words was not. */
-            + (uniform && effForm === "card" && !subNode ? " notice-card-solo" : "")
+            /* Solo means no sub is RENDERED, not no sub was passed. The row
+               form measures and DROPS a sub it cannot finish (the "shredded
+               sub" rule), and reading the prop instead of the outcome left
+               the lead notice with a dropped sub, an unused second line, and
+               a title still truncated to fit one. */
+            + (uniform && (effForm === "card" || effForm === "row") && !(subNode && !subDropped) ? " notice-card-solo" : "")
             + (swipe.dragging ? " swiping" : "")}
           style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
           {...swipe.handlers}
