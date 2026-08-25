@@ -3283,3 +3283,16 @@ body.selecting .voice-dock { display: none; }
   border: 1px solid var(--divider); }
 .sweep-sq.on { background: var(--accent); border-color: var(--accent); }
 .sweep-streak-line { font-size: var(--t-meta); color: var(--tx-3); }
+/* ---- Health page reads the gym (2026-08-25) ------------------------------
+   The Sessions tile and the trained-days strip. Blue is the training world's
+   color everywhere else on the page (ico-blue dumbbell), so the tile and the
+   dots wear it too. Light overrides are BLENDS against the real tint, not
+   flat guesses: #0A5FD0 measures 4.98:1 on the 14% blue wash. */
+.stat-tile.stat-blue { background: rgba(10, 132, 255, 0.14); }
+.stat-tile.stat-blue .stat-num { color: var(--blue); }
+[data-theme="light"] .stat-tile.stat-blue .stat-num { color: #0A5FD0; }
+.week-dots { display: inline-flex; gap: 4px; margin-right: var(--s-2); flex-shrink: 0; align-self: center; }
+.week-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--surface-3); }
+.week-dots i.on { background: var(--blue); }
+[data-theme="light"] .week-dots i { background: rgba(18, 18, 32, 0.14); }
+[data-theme="light"] .week-dots i.on { background: #0A5FD0; }

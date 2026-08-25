@@ -36,11 +36,19 @@ import GymFlow from "../gym/GymFlow";
 import { useGym } from "../data/NotesProvider";
 import type { Program } from "../gym/types";
 import { capAfterNumber } from "../shared/casing";
-import { BarbellGlyph, CalendarGlyph, FolderGlyph } from "../shared/glyphs";
+import { BarbellGlyph, CalendarGlyph, FolderGlyph, TargetGlyph } from "../shared/glyphs";
+import { trainingSummary, agoPhrase } from "../gym/summary";
+import type { Workout } from "../gym/types";
+import { buildGoalIndex, liveGoals, reachOf, reachLine } from "../bigger/reach";
+import { measureState, healthOf, HEALTH_LABEL, HEALTH_CLASS, type MeasureContext } from "../bigger/measure";
+import { openWorkOf } from "../today/goalPulse";
 
 const CHEV = (
   <div className="chev" />
 );
+// The shared target glyph, not a 44th hand-drawn svg: the icon ratchet
+// exists precisely so this file reaches for glyphs.tsx instead.
+const TARGET_ICO = <TargetGlyph />;
 const PLUS = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
 );
@@ -133,7 +141,13 @@ export default function CategoryDetail({
   const [sheet, setSheet] = useState<SheetState>({ kind: "closed" });
   const gymSvc = useGym();
   const [programs, setPrograms] = useState<Program[]>([]);
+  const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [gymOpen, setGymOpen] = useState(false);
+  // Full project list, unfiltered: goal reach is computed across ALL
+  // projects (a goal tagged here can be filed anywhere).
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  // This Week's day groups start capped; See All opens the rest.
+  const [weekOpen, setWeekOpen] = useState(false);
   const today = todayISO();
 
   const reload = useCallback(async () => {
@@ -159,6 +173,7 @@ export default function CategoryDetail({
         .slice(0, UP_NEXT_CAP),
     );
     setProjects(pj.filter((p) => p.data.category === categoryId && p.data.status !== "done"));
+    setAllProjects(pj);
     setGoals(gl);
     setNotes(
       tk && nt
@@ -190,6 +205,9 @@ export default function CategoryDetail({
   useEffect(() => {
     let on = true;
     gymSvc.listPrograms().then((p) => { if (on) setPrograms(p); }).catch(() => {});
+    // The page reads the gym, it does not open it: last session, the week's
+    // dots, a fresh PR and a climber all come from the workout list.
+    gymSvc.listWorkouts().then((w) => { if (on) setWorkouts(w); }).catch(() => {});
     return () => { on = false; };
   }, [gymSvc, gymOpen]);
 
@@ -287,6 +305,31 @@ export default function CategoryDetail({
     .sort((a, b) => (b.data.runLen ?? 0) - (a.data.runLen ?? 0))
     .slice(0, 5);
 
+  // Training summary (2026-08-25): the health page reads the gym without
+  // opening it. Null on every other kind, and every row degrades to absent.
+  const training = kind === "health" ? trainingSummary(workouts, today) : null;
+
+  // Goals reaching this category through tags (Architecture C). The page
+  // shows their pulse; Bigger Picture owns the goal itself. Health earns a
+  // word only when the eye should catch it, the same law as the BP list.
+  const goalIdx = buildGoalIndex(allProjects, liveGoals(goals));
+  const goalsHere = (goalIdx.byCategory.get(categoryId) ?? [])
+    .map((id) => goals.find((g) => g.id === id))
+    .filter((g): g is Goal => !!g)
+    .slice(0, 3)
+    .map((g) => {
+      const reach = reachOf(allTasks, allProjects, g);
+      const ctx: MeasureContext = { reach, tasks: allTasks, projects: allProjects.filter((p) => p.data.goalId === g.id), samples, today, now: nowMs };
+      const ms = measureState(g.data.measure, ctx);
+      const h = healthOf(g, ms, g.data.measure, ctx, openWorkOf(reach));
+      return { id: g.id, title: g.data.title, line: ms ? ms.line : reachLine(reach), flag: h === "behind" || h === "idle" ? h : null };
+    });
+
+  // This Week's completion groups, capped until See All (2026-08-25): a busy
+  // week was pushing Training below the fold.
+  const dayGroups = groupByDay(rec.recent);
+  const shownGroups = weekOpen ? dayGroups : dayGroups.slice(0, 2);
+
   const toggle = async (id: string) => { await tasksSvc.toggleDone(id); await reload(); };
 
   const saveTask = async (draft: TaskDraft) => {
@@ -336,9 +379,13 @@ export default function CategoryDetail({
               all-caps day labels; Dave: unreadable. */}
           <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green">{CHECK_ICO}</div><div className="sec-title">This Week</div></div></div>
           <div className="pad-x">
+            {/* Zeros go silent (2026-08-25): a green 0 leading the page is a
+                verdict, not a receipt. Every tile earns its place with a real
+                number, and the health kind adds the week's training count. */}
             <StatTiles stats={[
-              { num: receipt.done, label: "Done", tint: "good" },
-              { num: receipt.events, label: receipt.events === 1 ? "Event" : "Events", tint: "sky" },
+              ...(receipt.done > 0 ? [{ num: receipt.done, label: "Done", tint: "good" as const }] : []),
+              ...(training && training.sessionsThisWeek > 0 ? [{ num: training.sessionsThisWeek, label: training.sessionsThisWeek === 1 ? "Session" : "Sessions", tint: "blue" as const }] : []),
+              ...(receipt.events > 0 ? [{ num: receipt.events, label: receipt.events === 1 ? "Event" : "Events", tint: "sky" as const }] : []),
               ...(pushedWeek > 0 ? [{ num: pushedWeek, label: "Pushed", tint: "warn" as const }] : []),
               ...(rec.lastWeek > 0 ? [{ num: (receipt.done - rec.lastWeek >= 0 ? "+" : "") + (receipt.done - rec.lastWeek), label: "vs Last Week", tint: "plain" as const }] : []),
             ]} />
@@ -348,7 +395,7 @@ export default function CategoryDetail({
                 {rec.insight && <div className="row"><div className="conn-meta">{rec.insight}</div></div>}
               </div>
             )}
-            {groupByDay(rec.recent).map((g) => (
+            {shownGroups.map((g) => (
               <div key={g.day}>
                 <DayDivide label={g.day} />
                 <div className="card">
@@ -361,6 +408,9 @@ export default function CategoryDetail({
                 </div>
               </div>
             ))}
+            {!weekOpen && dayGroups.length > 2 && (
+              <div className="card"><button className="row row-act" onClick={() => setWeekOpen(true)}>See All</button></div>
+            )}
           </div>
         </>
       )}
@@ -513,16 +563,67 @@ export default function CategoryDetail({
 
       {kind === "health" && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Training</div></div></div>
+          {/* The gym without opening the gym (2026-08-25): the strongest data
+              in the app finally shows up on its own page. Program, last
+              session, the week's dots, a fresh PR, one climber. Every row
+              degrades to absent; an empty gym is one quiet setup row. */}
+          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-blue">{DUMBBELL}</div><div className="sec-title">Training</div></div></div>
           <div className="pad-x"><div className="card">
             <div className="row" role="button" tabIndex={0} onClick={() => setGymOpen(true)}>
-              <div className="sec-ico ico-blue">{DUMBBELL}</div>
               <div className="row-grow">
                 <div className="conn-name">{programs[0]?.data.name ?? "Set Up a Program"}</div>
                 {programs[0] && <div className="eyebrow">{programs[0].data.days.length} {programs[0].data.days.length === 1 ? "day" : "days"}</div>}
               </div>
+              {training && training.weekDots.some(Boolean) && (
+                <span className="week-dots" aria-label="Days trained this week">
+                  {training.weekDots.map((on, i) => <i key={i} className={on ? "on" : undefined} />)}
+                </span>
+              )}
               {CHEV}
             </div>
+            {training?.last && (
+              <div className="row" role="button" tabIndex={0} onClick={() => setGymOpen(true)}>
+                <div className="row-grow">
+                  <div className="conn-name">Last Session · {training.last.dayName}</div>
+                  <div className="eyebrow">{agoPhrase(training.last.date, today)} · {training.last.minutes}m · {training.last.exercises} {training.last.exercises === 1 ? "exercise" : "exercises"}</div>
+                </div>
+                {CHEV}
+              </div>
+            )}
+            {training?.pr && (
+              <div className="row">
+                <div className="row-grow">
+                  <div className="conn-name truncate">{training.pr.name} · {training.pr.text}</div>
+                  <div className="eyebrow">New best · {agoPhrase(training.pr.date, today)}</div>
+                </div>
+                <span className="pill pill-good">PR</span>
+              </div>
+            )}
+            {training?.trending && (
+              <div className="row">
+                <div className="row-grow">
+                  <div className="conn-name truncate">{training.trending.name} trending up</div>
+                  <div className="eyebrow">{training.trending.line}</div>
+                </div>
+              </div>
+            )}
+          </div></div>
+        </>
+      )}
+
+      {goalsHere.length > 0 && (
+        <>
+          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-red">{TARGET_ICO}</div><div className="sec-title">Goals Here</div></div></div>
+          <div className="pad-x"><div className="card">
+            {goalsHere.map((g) => (
+              <div className="row" key={g.id}>
+                <div className="row-grow">
+                  <div className="conn-name truncate">{g.title}</div>
+                  <div className="eyebrow">{g.line}</div>
+                </div>
+                {g.flag && <span className={"eyebrow " + HEALTH_CLASS[g.flag]}>{HEALTH_LABEL[g.flag]}</span>}
+              </div>
+            ))}
           </div></div>
         </>
       )}
@@ -530,7 +631,10 @@ export default function CategoryDetail({
       <div className="sec-head"><div className="sec-left"><div className="sec-title">Up Next</div></div></div>
       <div className="pad-x"><div className="card">
         {open.map((t) => {
-          const due = dueLabel(t);
+          // The line under a task: a due date when it has one, otherwise the
+          // reminder's ping time, so the meds rows read as the day's plan.
+          const rem = t.data.reminder?.time;
+          const due = dueLabel(t) ?? (rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null);
           return (
             <div className="row" key={t.id}>
               <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={() => void toggle(t.id)}>
