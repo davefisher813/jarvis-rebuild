@@ -1,5 +1,5 @@
 import { MoreHorizontal } from "../shared/icons";
-import { destOf } from "./destinations";
+import { destOf, tabLabelOf } from "./destinations";
 
 // Dynamic tab bar: the chosen destinations plus a fixed More tab. Active is the
 // current page key; when the active page is not one of the tabs (it was opened
@@ -23,7 +23,9 @@ export default function TabBar({
 
   return (
     <div className="tab-bar">
-      {items.map(({ key, label, Icon }) => (
+      {items.map((d) => {
+        const { key, Icon } = d;
+        return (
         <div
           className={"tab" + (key === activeKey ? " active" : "")}
           key={key}
@@ -32,10 +34,12 @@ export default function TabBar({
           onClick={() => onTab(key)}
         >
           <Icon className="ic" />
-          {label}
+          {/* The short word, where there is one. See destinations.tsx. */}
+          {tabLabelOf(d)}
           {badges && badges[key] ? <span className="tab-badge">{badges[key]! > 99 ? "99+" : badges[key]}</span> : null}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

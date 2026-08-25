@@ -6,8 +6,23 @@ import { Home, ListChecks, Calendar, Brain, FileText, Target, MessageSquare, Bel
 export interface Destination {
   key: string;
   label: string;
+  // THE BAR GETS ITS OWN WORD (Dave 2026-08-25: "when I do big picture wraps.
+  // Need a work around or to change the name of bigger picture").
+  //
+  // The tab and the page were the same string, so a page called Bigger Picture
+  // forced a tab called Bigger Picture, and at six tabs each one has about
+  // 65px: four to seven characters at the tab type size. Fourteen wrapped.
+  //
+  // Splitting them is the fix rather than a rename. The feature keeps the
+  // name it earned everywhere it has room; only the bar, which has none,
+  // wears the short one. Optional, because every other destination already
+  // fits and giving them all a second label would be ceremony.
+  tabLabel?: string;
   Icon: LucideIcon;
 }
+
+// What the bar shows: the short word when there is one, else the real name.
+export const tabLabelOf = (d: Destination): string => d.tabLabel ?? d.label;
 
 export const DESTINATIONS: Destination[] = [
   { key: "today", label: "Today", Icon: Home },
@@ -15,9 +30,12 @@ export const DESTINATIONS: Destination[] = [
   { key: "schedule", label: "Schedule", Icon: Calendar },
   { key: "brain", label: "Brain", Icon: Brain },
   { key: "notes", label: "Notes", Icon: FileText },
-  { key: "bigger", label: "Bigger Picture", Icon: Target },
+  { key: "bigger", label: "Bigger Picture", tabLabel: "Vision", Icon: Target },
   { key: "messages", label: "Email", Icon: MessageSquare },
-  { key: "notifications", label: "Notifications", Icon: Bell },
+  // Thirteen characters, and it would have wrapped exactly the way Bigger
+  // Picture did the moment anyone put it in the bar. Found by the law rather
+  // than by a screenshot, which is the point of writing the law.
+  { key: "notifications", label: "Notifications", tabLabel: "Alerts", Icon: Bell },
   { key: "money", label: "Money", Icon: Wallet },
   { key: "chat", label: "Chat", Icon: Sparkles },
 ];

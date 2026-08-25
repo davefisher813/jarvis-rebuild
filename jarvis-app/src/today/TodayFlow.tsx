@@ -80,6 +80,8 @@ import { isOffTrack, rankOpen } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
 import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph } from "../shared/glyphs";
+import { Clock, CircleSlash } from "../shared/icons";
+import { useSwipe } from "../shared/useSwipe";
 
 // Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
 // overlays, not tabs, and stay out of the boot bundle.
@@ -1065,6 +1067,11 @@ export default function TodayFlow({
   // The list is derived with the SAME mailNotices() call MailNotices renders
   // from, so the drafts that get warmed are the cards he can actually see. A
   // separate ranking here would warm the wrong five.
+  // The Now suggestion's swipe (2026-08-25, pick 5A). Same controller every
+  // other swipe row uses, so the gesture and its distances match the rest of
+  // the app rather than being a second implementation on the home page.
+  const nowSwipe = useSwipe({ revealW: 176 });
+
   const pregenRan = useRef(false);
   useEffect(() => {
     if (pregenRan.current || !ai.available) return;
@@ -1120,26 +1127,22 @@ export default function TodayFlow({
           // same left-rail language the Schedule speaks; the gap is the space
           // between them, which is what a gap is. No meter: a ring at 9h 26m
           // of a 9h 30m gap was a full circle saying nothing.
-          <div className="now-rail" role="img" aria-label={`${shortSpan(nowCtx.gapMin)} open, then ${nowCtx.nextTitle ?? "your next event"} at ${fmtTime(nowCtx.nextStart).time} ${fmtTime(nowCtx.nextStart).ap}`}>
-            <div className="rail-line" aria-hidden="true">
-              <span className="rail-dot rail-now" />
-              <span className="rail-stem" />
-              <span className="rail-dot rail-next" />
-            </div>
-            <div className="rail-stops">
-              <div className="rail-stop">
-                {/* MERGE B (2026-08-24): this said "Now" directly under a
-                    section head that says NOW. Two lines to state one word
-                    that was already on screen. The gap is the fact worth
-                    having here, so it takes the name and the second line
-                    goes away with the repetition. */}
-                <div className="conn-name">{shortSpan(nowCtx.gapMin)} open</div>
-              </div>
-              <div className="rail-stop">
-                <div className="conn-name truncate">{nowCtx.nextTitle ?? "Next Up"}</div>
-                <div className="conn-meta">{fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}</div>
-              </div>
-            </div>
+          // ONE LINE, NOT A RAIL (Dave 2026-08-25: "The now display in the
+          // schedule is currently way too vertical"). Measured on his
+          // screenshot, Now ran about 510px before The Rest of Today began,
+          // on an 844px screen.
+          //
+          // The rail spent four stacked lines and a drawn connector saying
+          // two things: how much time is open, and what ends it. Both fit on
+          // one line, and the drawing was illustrating a relationship nobody
+          // was confused about. The aria-label was already the sentence this
+          // now says out loud, which is the tell that the sentence was the
+          // real content all along.
+          <div className="now-line-one">
+            <span className="now-gap">{shortSpan(nowCtx.gapMin)} open</span>
+            <span className="now-until">
+              &middot; until {nowCtx.nextTitle ?? "your next event"} {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}
+            </span>
           </div>
         ) : (
           <div className="row">
@@ -1162,11 +1165,38 @@ export default function TodayFlow({
           // The task name and its buttons do NOT share a line. On a 390px
           // phone two pills plus a title truncated the title to "Create B...",
           // which is the one piece of information the card exists to carry.
-          <>
-            <div className="row">
+          // START RIDES THE ROW; THE OTHER TWO ARE A SWIPE (Dave 2026-08-25,
+          // pick 5A). The note this replaces was right at the time: two
+          // pills PLUS a title truncated the title to "Create B...", the one
+          // thing the card exists to say. One pill is a different sum, and
+          // .pill-act caps itself at 9.5rem so the title keeps the rest.
+          //
+          // Set a Start and Not Now move to the swipe every other row in this
+          // app already uses for its secondary actions, so nothing new is
+          // being taught and the card gets ~280px back.
+          <div className="task-swipe now-swipe">
+            <button className="task-snooze" onClick={() => setRitual({
+              taskId: gapPick.id,
+              text: gapPick.text,
+              firstMove: proposeFirstMove(gapPick.text),
+              startHHMM: nextStart(nhm),
+              minutes: DEFAULT_MINUTES,
+            })} aria-label="Set a start time">
+              <Clock className="ic" />
+              <span className="swipe-label">Set a Start</span>
+            </button>
+            <button className="task-del" onClick={() => setGapDismissed(gapKey)} aria-label="Not now">
+              <CircleSlash className="ic" />
+              <span className="swipe-label">Not Now</span>
+            </button>
+            <div
+              className={"task-row now-row" + (nowSwipe.dragging ? " swiping" : "")}
+              style={nowSwipe.dx ? { transform: `translateX(${nowSwipe.dx}px)` } : undefined}
+              {...nowSwipe.handlers}
+            >
               <RowIcon kind="task" />
               <div className="row-stack">
-                <div className="conn-name">{gapPick.text}</div>
+                <div className="conn-name truncate">{gapPick.text}</div>
                 {/* PICK 1: NOW SAYS WHAT IT MOVES (Dave 2026-08-22). "Fits
                     this gap" is the card's own premise restated: it is IN
                     the gap, he can see that. When the task points at a goal,
@@ -1174,32 +1204,14 @@ export default function TodayFlow({
                     and pick 31 keeps it quiet when the goal only repeats the
                     task's own words. Two dot segments, never three: a third
                     wraps on a 390px phone. */}
-                <div className="conn-meta">About {gapPick.estimateMin} min · {gapMoves ?? "Fits this gap"}</div>
+                <div className="conn-meta truncate">{gapPick.estimateMin} min · {gapMoves ?? "Fits this gap"}</div>
               </div>
+              {/* B15 (2026-08-23): red TEXT, not a red fill. Start opens one
+                  task. On a screen where Accept the Day commits every hour of
+                  the day, the fill belongs to the bigger move. */}
+              <button className="pill-act" onClick={(e) => { e.stopPropagation(); void onOpenTask(gapPick.id); }}>Start</button>
             </div>
-            <div className="row row-acts">
-              <div className="momentum-actions">
-                {/* B15 (2026-08-23): red TEXT, not a red fill. Start opens one
-                    task. On a screen where Accept the Day commits every hour
-                    of the day, the fill belongs to the bigger move, and three
-                    fills on the home screen every session was the actual
-                    state before this. .pill-act keeps it obviously the
-                    primary of its own row without spending the budget. */}
-                <button className="pill-act" onClick={() => void onOpenTask(gapPick.id)}>Start</button>
-                {/* C1 · THE START RITUAL. Not a focus timer: a timer starts
-                    when you are already working, which is the problem
-                    solved. This is for the minute before. */}
-                <button className="btn-sm" onClick={() => setRitual({
-                  taskId: gapPick.id,
-                  text: gapPick.text,
-                  firstMove: proposeFirstMove(gapPick.text),
-                  startHHMM: nextStart(nhm),
-                  minutes: DEFAULT_MINUTES,
-                })}>Set a Start</button>
-                <button className="btn-sm" onClick={() => setGapDismissed(gapKey)}>Not Now</button>
-              </div>
-            </div>
-          </>
+          </div>
         ) : (
           // NO DEAD ENDS IN NOW (Dave 2026-08-19, "the more I can do without
           // thinking, the better"): when nothing is teed up, Now still hands
@@ -1464,7 +1476,12 @@ export default function TodayFlow({
         tone="cat-fg-purple"
         title={untouched.data.title}
         sub={untouchedLine(openWorkOf(goalReach(untouched.id)))}
-        action={{ label: "Pick Something", onClick: () => onGoBigger?.(untouched.id) }}
+        // "Pick One", not "Pick Something" (2026-08-25). Measured on the
+        // uniform card: the longer label took 139px of a 358px row and left
+        // the goal's own name 133px when it needed 202, so a two-word button
+        // was eating the sentence it was attached to. Same verb, same
+        // meaning, and it matches Just Pick One For Me on Tasks.
+        action={{ label: "Pick One", onClick: () => onGoBigger?.(untouched.id) }}
         onDismiss={() => { dismissGoalNudge(untouched.id, today); setGoalNudgeTick((n) => n + 1); }}
       />
     ) : null,

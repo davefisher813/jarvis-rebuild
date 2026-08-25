@@ -50,17 +50,50 @@ describe("YourDay", () => {
       else delete (HTMLElement.prototype as unknown as Record<string, unknown>).scrollHeight;
     });
 
-    it("becomes an auto-scroll ticker with a working pause toggle", () => {
+    // PAUSED IS THE EDITABLE VIEW (2026-08-25). Pausing used to freeze the
+    // loop, which left two copies of every row on screen with nothing in
+    // either safely reachable. It now renders the real single list.
+    it("scrolls as a ticker, and pausing swaps it for the real list", () => {
       const { container } = render(<YourDay events={many} now="13:00" nowLabel="1:00" onSeeAll={() => {}} />);
-      const ticker = container.querySelector(".sched-ticker");
-      expect(ticker).toBeTruthy();
+      expect(container.querySelector(".sched-ticker")).toBeTruthy();
       const toggle = container.querySelector(".ticker-toggle") as HTMLElement;
       expect(toggle).toBeTruthy();
-      expect(ticker!.classList.contains("paused")).toBe(false);
       fireEvent.click(toggle);
-      expect(container.querySelector(".sched-ticker")!.classList.contains("paused")).toBe(true);
+      expect(container.querySelector(".sched-ticker")).toBeNull();
       fireEvent.click(container.querySelector(".ticker-toggle") as HTMLElement);
-      expect(container.querySelector(".sched-ticker")!.classList.contains("paused")).toBe(false);
+      expect(container.querySelector(".sched-ticker")).toBeTruthy();
+    });
+
+    // Dave 2026-08-25: "the home page one is supposed to be one that rotates
+    // the display with a pause button." It did, except while any proposal
+    // stood, which is most mornings for someone who plans their day. The
+    // ticker was effectively never on.
+    it("still scrolls while a proposal stands", () => {
+      const proposed = {
+        blocks: [{ taskId: "t1", text: "Finish Jarvis Visuals", category: "work", start: "14:00", end: "14:45" }],
+        openId: null as string | null,
+        onToggle: () => {},
+        onDuration: () => {},
+        onDrop: () => {},
+      };
+      const { container } = render(
+        <YourDay events={many} now="13:00" nowLabel="1:00" onSeeAll={() => {}} proposed={proposed} />,
+      );
+      expect(container.querySelector(".sched-ticker")).toBeTruthy();
+    });
+
+    // Reaching for a moving list must stop it, and the tap that stopped it
+    // must not also open whatever happened to be passing under the thumb.
+    it("a tap on the moving ticker stops it instead of opening a row", () => {
+      const onOpenEvent = vi.fn();
+      const { container } = render(
+        <YourDay events={many} now="13:00" nowLabel="1:00" onSeeAll={() => {}} onOpenEvent={onOpenEvent} />,
+      );
+      const row = container.querySelector(".sched-ticker .sched-row") as HTMLElement;
+      expect(row).toBeTruthy();
+      fireEvent.click(row);
+      expect(onOpenEvent).not.toHaveBeenCalled();
+      expect(container.querySelector(".sched-ticker")).toBeNull();
     });
 
     it("shows the now line and dims past events", () => {
@@ -117,7 +150,9 @@ describe("the ticker remembers that it was turned off", () => {
   it("starts paused when it was paused last time", () => {
     localStorage.setItem("jarvis.today.ticker.v1", "off");
     const { container } = render(<YourDay events={many} locked={[]} now="09:00" nowLabel="Now" onSeeAll={() => {}} />);
-    expect(container.querySelector(".sched-ticker")!.classList.contains("paused")).toBe(true);
+    // Paused means the real list, not a frozen loop.
+    expect(container.querySelector(".sched-ticker")).toBeNull();
+    expect(container.querySelector(".ticker-toggle")).toBeTruthy();
   });
 
   it("writes the choice down when it is toggled", () => {

@@ -1530,3 +1530,35 @@ describe("LAW: applying a rule requires announcing it", () => {
     expect(body, "contradict must guard its toast on announced").toMatch(/if\s*\(\s*rule\.data\.announced\s*\)/);
   });
 });
+
+// THE BAR HAS NO ROOM (Dave 2026-08-25: "when I do big picture wraps").
+//
+// A destination's page title and its tab label were one string, so naming a
+// page Bigger Picture named a tab Bigger Picture, and at six tabs each one
+// gets about 65px: four to seven characters at the tab type size. Fourteen
+// wrapped onto two lines and pushed the bar taller than every other tab.
+//
+// The fix was to let the bar carry its own word. This is what stops the next
+// long name from arriving without one.
+describe("LAW: a tab label fits on one line", () => {
+  // Measured against the bar, not guessed: six tabs across a 390px phone is
+  // 65px each, and the tab type is small enough that eight characters is the
+  // honest ceiling once the label has any padding at all.
+  const MAX = 8;
+
+  it("every destination's tab label is short enough for the bar", () => {
+    const src = read(join(SRC, "shell/destinations.tsx"));
+    const bad: string[] = [];
+    for (const m of src.matchAll(/\{\s*key:\s*"(\w+)",\s*label:\s*"([^"]+)"(?:,\s*tabLabel:\s*"([^"]+)")?/g)) {
+      const shown = m[3] ?? m[2]!;
+      if (shown.length > MAX) bad.push(`${m[1]}: the bar would show "${shown}" (${shown.length} chars)`);
+    }
+    expect(bad, "give it a tabLabel").toEqual([]);
+  });
+
+  // And the bar must actually USE it. A tabLabel nothing reads is the same
+  // wrap with an extra field.
+  it("the bar renders the short label", () => {
+    expect(read(join(SRC, "shell/TabBar.tsx"))).toContain("tabLabelOf");
+  });
+});

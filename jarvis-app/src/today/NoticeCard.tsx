@@ -40,6 +40,7 @@ export default function NoticeCard({
   onOpen,
   foot,
   form = "card",
+  uniform = true,
   // Read by the stream's ranker, not by this component; declared so the
   // props are typed at every call site.
   weight,
@@ -62,6 +63,21 @@ export default function NoticeCard({
   // Extra rows below the main line, inside the same card (the email stack).
   foot?: ReactNode;
   form?: "card" | "headliner" | "row";
+  // ONE HEIGHT FOR THE WHOLE STREAM (Dave 2026-08-25: "Why are the heads up
+  // containers different sizes? They should all be the size of update workout
+  // feature"). A card's title takes up to two lines and its sub takes up to
+  // two more, so the same component rendered anything from one line to four
+  // and the stream looked like three different components.
+  //
+  // Uniform clamps both to exactly one line. Default ON, because he asked for
+  // all of them and an opt-in default would have left the stream as it was.
+  //
+  // Mail opts OUT, and that is his call too (2026-08-25, "mail stays"). A
+  // mail notice's title is a SENDER, which is whatever length the world
+  // chooses; the 22 Aug screenshot of "nikestrength H… Missi…" is what the
+  // one-line form does to one. Everything else here is a phrase this app
+  // wrote itself and can be trusted to fit.
+  uniform?: boolean;
   weight?: number;
   receipt?: boolean;
 }) {
@@ -219,7 +235,18 @@ export default function NoticeCard({
           </button>
         )}
         <div
-          className={"card notice-card" + (effForm === "row" ? " notice-card-row" : "") + (swipe.dragging ? " swiping" : "")}
+          className={"card notice-card"
+            + (effForm === "row" ? " notice-card-row" : "")
+            + (uniform && effForm === "card" ? " notice-card-uniform" : "")
+            /* A UNIFORM CARD IS TWO LINES TALL, and how it spends them is
+               its own business. With a sub, that is one line each. WITHOUT
+               one, the title takes both, which costs nothing: the card is
+               the same height either way.
+               Found by the page sweep, which measured "Run three times a
+               week" losing 34% of itself to a clamp it did not need. Fixed
+               height was the ask; throwing away words was not. */
+            + (uniform && effForm === "card" && !subNode ? " notice-card-solo" : "")
+            + (swipe.dragging ? " swiping" : "")}
           style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
           {...swipe.handlers}
         >

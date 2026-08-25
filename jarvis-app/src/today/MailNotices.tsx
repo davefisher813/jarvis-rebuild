@@ -216,6 +216,9 @@ export default function MailNotices({
                is a short fused datum (Slid 3d, 9h ago), which is what the
                one-line contract was written for. */
             form="card"
+            // Mail stays stacked (Dave 2026-08-25). A sender is any length
+            // the world chooses; see the note on the prop.
+            uniform={false}
             icon={ICON[n.kind]}
             tone={n.tone}
             title={n.title}

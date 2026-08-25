@@ -7,6 +7,7 @@ import { isPast } from "./todayData";
 import { EventWeatherLine } from "../weather/WeatherLine";
 import ProposedRow from "../schedule/screens/ProposedRow";
 import { holdersIn, holderFor, holderKey, spanOf, type HoldRange } from "../schedule/nesting";
+import HeldTasks from "../schedule/screens/HeldTasks";
 import type { PlanBlock } from "../schedule/planDay";
 
 // A standing proposal for this day, plus the handlers that edit it. Absent
@@ -198,7 +199,8 @@ function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine
       out.push(
         <LockedRow key={"lock-" + i} l={en.l} past={en.l.e <= nowMin} onOpen={onEditRoutine}>
           {(evs.length > 0 || props.length > 0) && (
-            <div className="block-nest">
+            <HeldTasks count={evs.length + props.length}>
+              <>
               {evs.map((h) => (
                 <div className="block-held" key={h.id} role="button" tabIndex={0}
                   onClick={(ev) => { ev.stopPropagation(); onOpenEvent?.(h.id); }}>
@@ -215,7 +217,8 @@ function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine
                   <span className="block-held-u">{fmtTime(b.start).time}</span>
                 </div>
               ))}
-            </div>
+              </>
+            </HeldTasks>
           )}
         </LockedRow>,
       );
@@ -413,12 +416,26 @@ export default function YourDay({
 
   // YOU CANNOT EDIT A MOVING TARGET (blend, 2026-08-22). The ticker renders
   // the day TWICE inside a scrolling track, so an editable proposal would
-  // exist in two copies, keyed the same, sliding past the thumb. While a
-  // proposal stands, the day holds still; it starts moving again once the
-  // day is accepted and there is nothing left to decide.
+  // exist in two copies, keyed the same, sliding past the thumb.
+  //
+  // The original answer was to hold the whole day still while any proposal
+  // stood. Correct, and it cost Dave the feature outright (2026-08-25: "the
+  // home page one is supposed to be one that rotates the display with a
+  // pause button"). He plans most mornings, so proposals are the normal
+  // state and the ticker was effectively never on.
+  //
+  // PAUSED IS THE EDITABLE VIEW. Moving and editing are now two modes rather
+  // than a conflict: while it scrolls it is ambient and read-only, and the
+  // moment it is paused it renders the real single list with every control
+  // live. So a proposal is safe in the loop, because you cannot reach it
+  // there, and reaching it is one tap away.
+  //
+  // That tap is anywhere on the ticker, not just the pause button: touching
+  // something that is sliding under your thumb should stop it, and the tap
+  // that stopped it must not also activate whatever it landed on.
   const nowMinutes = (() => { const p = now.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); })();
 
-  if (!overflow || proposedCount > 0) {
+  if (!overflow || paused) {
     return (
       <div>
         {header}
@@ -452,12 +469,22 @@ export default function YourDay({
       {nowHead && <div className="day-band">The whole day</div>}
       {planButton}
       <div className="pad-x">
-        <div className={"card sched-ticker" + (paused ? " paused" : "")}>
+        <div
+          className="card sched-ticker"
+          // Capture, so the tap that stops the scroll is swallowed before it
+          // reaches the row it happened to land on. Without this the first
+          // touch opens whatever was passing, which is the worst possible
+          // outcome of reaching for a moving list.
+          onClickCapture={(e) => { e.stopPropagation(); setPausedSticky(true); }}
+        >
           <div className="ticker-track">
-            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} />
-            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} />
+            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} />
+            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} />
           </div>
         </div>
+        {/* Says what the tap does, because a list that stops when you touch
+            it is only obvious after it has happened once. */}
+        <div className="ticker-hint">Tap to hold it still</div>
       </div>
     </div>
   );

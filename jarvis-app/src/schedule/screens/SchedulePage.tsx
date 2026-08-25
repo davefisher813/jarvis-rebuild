@@ -433,13 +433,25 @@ export default function SchedulePage({
                 data-gap-end={en.end}
                 onClick={() => onPickSlot?.(en.start)}
               >
+                {/* NO "TAP TO FILL IT" (Dave 2026-08-25: "there's no need to
+                    say (tap to fill). The display for those slots also do not
+                    stand out enough to make someone actually fill it. It
+                    looks like everything else.").
+                    Both halves of that are the same mistake. The label was
+                    explaining an affordance the shape should carry, and the
+                    shape was a schedule row: same gutter, same type, same
+                    weight as a committed event. An open slot is the one thing
+                    on this page that is an INVITATION rather than a fact, and
+                    it now looks different in kind. The window it covers moves
+                    into the title, so the second line has nothing left to say
+                    and goes away with the instruction. */}
                 <div className="sched-time">{fmtTime(en.start).time}<span className="ampm">{fmtTime(en.start).ap}</span></div>
                 <div className="sched-body">
                   <div className="sched-title sched-gap-title">
                     <span className="sched-open-plus">+</span>
                     {gapLabel(toMin(en.end) - toMin(en.start))} open
+                    <span className="sched-gap-win">until {fmtTime(en.end).time} {fmtTime(en.end).ap}</span>
                   </div>
-                  <div className="sched-cat">Until {fmtTime(en.end).time} {fmtTime(en.end).ap} &middot; Tap to fill it</div>
                 </div>
               </button>
             ) : en.kind === "proposed" ? (

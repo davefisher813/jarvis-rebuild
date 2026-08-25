@@ -138,7 +138,14 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-ticker::before { top: 0; background: linear-gradient(180deg, var(--surface-1) 0%, transparent 100%); }
 .sched-ticker::after { bottom: 0; background: linear-gradient(0deg, var(--surface-1) 0%, transparent 100%); }
 .ticker-track { animation: tickerScroll 40s linear infinite; will-change: transform; }
+/* .paused no longer reaches this element: pausing now renders the real
+   single list instead of freezing the loop, because a frozen loop is still
+   two copies of every row and nothing in it can be safely edited. Kept as a
+   no-op guard so a stray .paused cannot leave the track running. */
 .sched-ticker.paused .ticker-track { animation-play-state: paused; }
+/* What the tap does. Meta-sized and muted: it is an instruction that stops
+   being needed after the first time anyone follows it. */
+.ticker-hint { font-size: var(--t-meta); color: var(--tx-3); text-align: center; padding: var(--s-1h) 0 0; }
 /* Touching it stops it, for as long as you are on it (2026-08-21). Reaching
    for a button to read a line you are already looking at is the wrong shape
    for the problem; the button stays for turning it off for good. */
@@ -2179,11 +2186,27 @@ button {
 /* A GAP IS A ROW (Dave 2026-08-19): open time renders in the timeline at the
    hour it falls, dashed so it reads as absence, tappable so it becomes a
    plan. Full row width and the same time gutter as every other sched row. */
-.sched-gap { width: 100%; text-align: left; background: transparent; border: 0;
-  font-family: var(--f); border-top: 1px dashed var(--divider); border-bottom: 1px dashed var(--divider); }
-.sched-gap .sched-gap-title { display: flex; align-items: center; gap: var(--s-1h); color: var(--tx-2); }
+/* AN INVITATION, NOT A ROW (Dave 2026-08-25: "The display for those slots
+   also do not stand out enough to make someone actually fill it. It looks
+   like everything else.").
+   It looked like everything else because it WAS everything else: a row with
+   hairline dashes top and bottom, which at a glance is just a row between two
+   rows. It is now a dashed enclosure in the accent, which is the vocabulary
+   this app already uses for "proposed, not committed" on the blend rows, and
+   it sits inset from the committed rows either side so the eye reads it as a
+   space rather than an item. */
+.sched-gap { width: 100%; text-align: left; background: rgba(255,43,60,0.05); border: 0;
+  font-family: var(--f); border: 1px dashed var(--accent);
+  border-radius: var(--r-md); margin: var(--s-1h) var(--s-4); width: auto;
+  display: flex; gap: var(--s-3); align-items: center; }
+[data-theme="light"] .sched-gap { background: rgba(218,0,18,0.045); }
+.sched-gap .sched-gap-title { display: flex; align-items: baseline; gap: var(--s-1h);
+  color: var(--accent-tx); font-weight: var(--w-semi); flex-wrap: wrap; }
+/* The window it covers, riding the title now that the second line is gone. */
+.sched-gap-win { font-size: var(--t-meta); font-weight: var(--w-regular); color: var(--tx-3); }
+.sched-open-plus { font-size: var(--t-h3); line-height: 1; font-weight: var(--w-bold); color: var(--accent-tx); }
 .sched-gap.past { opacity: 0.4; }
-.sched-gap:active { background: var(--press-1); }
+.sched-gap:active { background: var(--press-3); }
 
 /* THE CHEVRON IS A DRAWN ARROW, NOT AN ICON (Dave 2026-08-19, from a
    screenshot of a mangled one). `.chev` is a 7x12 box with two borders
@@ -3053,3 +3076,59 @@ body.selecting .voice-dock { display: none; }
 .sched-row.past .sel-box.on { background: var(--accent-fill); border-color: var(--accent-fill); }
 /* The box needs the row's flex line to itself, not the bar's absolute slot. */
 .sched-sel { align-self: center; margin-right: var(--s-1); }
+
+/* THE HELD-WORK TOGGLE (Dave 2026-08-25, "any tasks within events in the
+   schedule should be able to compress"). Quiet, because it is a disclosure
+   and not an action: it wears the meta size and the muted colour, and only
+   the chevron is drawn in anything. Its own hit area, since it sits inside a
+   row that is itself a button. */
+.held-toggle { display: flex; align-items: center; gap: var(--s-1h);
+  background: 0; border: 0; padding: var(--s-1) 0; margin: 0; font-family: var(--f);
+  font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-3);
+  position: relative; }
+.held-toggle::after { content: ""; position: absolute; inset: -6px -8px; }
+.held-toggle:active { color: var(--tx-2); }
+
+/* NOW, ON ONE LINE (Dave 2026-08-25, "The now display in the schedule is
+   currently way too vertical"). Replaces the four-line rail: the gap takes
+   the emphasis, what ends it rides beside it and truncates rather than
+   wrapping, because a gap that pushed the card taller would be the same
+   complaint back again. */
+.now-line-one { display: flex; align-items: baseline; gap: var(--s-1h);
+  /* The same horizontal padding every row in this card uses. Measured at 0
+     first: the line sat flush on the card's border and the gap figure looked
+     clipped against the edge. */
+  padding: var(--s-3) var(--s-4) var(--s-2); flex-wrap: nowrap; min-width: 0; }
+.now-gap { font-weight: var(--w-semi); color: var(--accent-tx); white-space: nowrap; flex-shrink: 0; }
+.now-until { font-size: var(--t-meta); color: var(--tx-3); min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The suggestion row's swipe. The reveal holds two labelled actions, which
+   is the same anatomy the task rows use. */
+.now-swipe .now-row { background: var(--surface-1); display: flex; align-items: center; gap: var(--s-2h); }
+.now-swipe .now-row .row-stack { flex: 1; min-width: 0; }
+
+/* ONE HEIGHT (Dave 2026-08-25, "Why are the heads up containers different
+   sizes? They should all be the size of update workout feature").
+   Both lines clamp to one, so nothing in the stream can push a card taller:
+   a long title ellipses instead of wrapping, and the sub does the same. The
+   pill never wraps under the title, which is what made "1 Moved to Today"
+   the tallest card on his screen while carrying the least. */
+.notice-card-uniform .conn-name,
+.notice-card-uniform .conn-meta {
+  display: block; -webkit-line-clamp: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.notice-card-uniform .row { flex-wrap: nowrap; align-items: center; }
+.notice-card-uniform .row-grow { min-width: 0; }
+
+/* A uniform card with no sub gives the title both of its lines. Same height,
+   more words. See the note in NoticeCard.tsx. */
+.notice-card-solo .conn-name {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  white-space: normal; overflow: hidden; text-overflow: clip;
+}
+
+/* On a uniform card the title is the content and the button is a known verb,
+   so the verb yields first. Capped tighter than the app-wide .pill-act, which
+   at 9.5rem could take 139px of a 358px row. */
+.notice-card-uniform .pill-act { max-width: 7.5rem; }
