@@ -44,6 +44,9 @@ const READ_TYPES = [
   "task.completed", "task.pushed", "plan.picked", "plan.outcome",
   "plan.duration_corrected", "plan.duration_committed",
   "strand.created", "strand.corrected", "strand.deleted",
+  // Persisted since layer 1, read for the first time by the monthly seal
+  // (2026-08-25): days-in-the-app is a seal fact, and it was already durable.
+  "app.opened",
 ];
 
 export function windowStartISO(nowMs: number, days = WINDOW_DAYS): string {
@@ -55,13 +58,13 @@ function rowOk(r: unknown): r is WindowRow {
   return !!o && typeof o.type === "string" && typeof o.day === "string" && typeof o.h === "number";
 }
 
-export async function readWindow(client: WindowClient | null, nowMs: number): Promise<WindowRow[]> {
+export async function readWindow(client: WindowClient | null, nowMs: number, days = WINDOW_DAYS): Promise<WindowRow[]> {
   if (client) {
     try {
       const { data, error } = await client
         .from("event_log")
         .select("type,day,h,category,n,flag,kind")
-        .gte("day", windowStartISO(nowMs))
+        .gte("day", windowStartISO(nowMs, days))
         .in("type", READ_TYPES)
         // Most recent first is half the law, and it is not decoration: the
         // limit truncates, and without an order clause WHICH 2000 rows come
@@ -72,13 +75,13 @@ export async function readWindow(client: WindowClient | null, nowMs: number): Pr
       if (!error && Array.isArray(data)) return (data as unknown[]).filter(rowOk);
     } catch { /* fall through to local */ }
   }
-  return localWindow(nowMs);
+  return localWindow(nowMs, days);
 }
 
 // The same window from the local log: map JarvisEvents to WindowRows through
 // the exact prop typing the server sink uses, so the two paths cannot drift.
-export function localWindow(nowMs: number): WindowRow[] {
-  const cutoff = nowMs - WINDOW_DAYS * 86400000;
+export function localWindow(nowMs: number, days = WINDOW_DAYS): WindowRow[] {
+  const cutoff = nowMs - days * 86400000;
   const types = new Set(READ_TYPES);
   return eventLog
     .all()

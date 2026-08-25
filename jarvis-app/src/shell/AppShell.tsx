@@ -9,7 +9,7 @@ import BrainFlow from "../brain/BrainFlow";
 import { dismissSplash } from "../shared/splash";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
-import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions } from "../data/NotesProvider";
+import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym } from "../data/NotesProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { useAI } from "../ai/useAI";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
@@ -31,6 +31,9 @@ const SearchFlow = lazy(() => import("../search/SearchFlow"));
 import { setCategoryRegistry } from "../shared/categories";
 import ToastHost from "../shared/ToastHost";
 import { bus } from "../events";
+import { sealPreviousMonthIfDue } from "../review/seal";
+import { supabase } from "../auth/supabaseClient";
+import type { WindowClient } from "../brain/window";
 import { ENTITY_CATEGORY } from "../categories/types";
 import { ENTITY_TASK } from "../notes/types";
 import { partition } from "../tasks/filters";
@@ -53,6 +56,8 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const money = useMoney();
   const people = usePeople();
   const decisions = useDecisions();
+  const gym = useGym();
+  const sealSvc = useOptionalSeal();
   const { signOut, backendConfigured } = useAuth();
   const ai = useAI();
 
@@ -220,6 +225,18 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // The boot splash (index.html) stays up until the shell is actually ready,
   // then fades. This is the first real UI of a signed-in launch.
   useEffect(() => { if (ready) dismissSplash(); }, [ready]);
+
+  // THE MONTHLY SEAL (2026-08-25): once the shell is up, check whether the
+  // previous month still needs its record and write it silently. Fire and
+  // forget, guarded twice (localStorage marker, then the Store) so the cost
+  // on an ordinary open is one localStorage read. Nothing renders from this
+  // yet; the record just has to exist before the first report can say
+  // "vs last month" honestly.
+  useEffect(() => {
+    if (!ready || !sealSvc) return;
+    void sealPreviousMonthIfDue(sealSvc, supabase as unknown as WindowClient | null, gym, goals)
+      .catch(() => { /* a missed boundary retries on the next open */ });
+  }, [ready, sealSvc, gym, goals]);
 
   if (!ready) return <div className="app-shell"><div className="app-scroll" /></div>;
 

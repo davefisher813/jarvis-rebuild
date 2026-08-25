@@ -45,12 +45,10 @@ function partOfDay(h: number): string {
 // 1. Completion window: the 3-hour band holding the most task completions in
 // the window, spoken only with 10+ samples AND real dominance. Same band
 // logic Time Sense uses, now on the durable log.
-export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
-  // Tasks only. GymService emits task.completed with kind "workout" for a
-  // finished session; counting those here drags the band toward whenever the
-  // user trains, and the strand then claims "your tasks get done at 6 PM"
-  // about a month of gym evenings. A session is not a task.
-  const done = rows.filter((r) => r.type === "task.completed" && r.kind !== "workout");
+/** The dominant 3-hour completion band, shared by the derivation and the
+ *  monthly seal: start hour + its count, or null when the evidence is thin
+ *  or nothing dominates. One definition, two readers, no drift. */
+export function completionBand(done: WindowRow[]): { start: number; count: number } | null {
   if (done.length < MIN_COMPLETIONS) return null;
   let best = 0;
   let bestCount = -1;
@@ -59,6 +57,22 @@ export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
     if (count > bestCount) { bestCount = count; best = start; }
   }
   if (bestCount / done.length < MIN_BAND_SHARE) return null;
+  return { start: best, count: bestCount };
+}
+
+/** Task completions only: GymService emits task.completed with kind
+ *  "workout" for a finished session, and a session is not a task. */
+export function taskDone(rows: WindowRow[]): WindowRow[] {
+  return rows.filter((r) => r.type === "task.completed" && r.kind !== "workout");
+}
+
+export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
+  // Tasks only (see taskDone): a month of gym evenings must not become
+  // "your tasks get done at 6 PM".
+  const done = taskDone(rows);
+  const band = completionBand(done);
+  if (!band) return null;
+  const { start: best, count: bestCount } = band;
   const from = hour12(best);
   const to = hour12(best + 3);
   const days = [...new Set(done.filter((r) => r.h >= best && r.h < best + 3).map((r) => r.day))].sort().reverse();
