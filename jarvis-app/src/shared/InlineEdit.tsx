@@ -133,6 +133,21 @@ export default function InlineEdit({
         if (e.key === "Enter" && !e.shiftKey && onEnter) {
           e.preventDefault();
           onEnter(text);
+        } else if (e.key === "Enter" && !e.shiftKey) {
+          // A PLAIN FIELD COMMITS ON ENTER (2026-08-24). The canvas surfaces
+          // pass onEnter because there Enter means "new block"; everywhere
+          // else it fell through to contentEditable's default, which inserts
+          // a line break into a single-line field. The doctrine at the top of
+          // this file says "blur or Enter saves" and Enter did not, on every
+          // consumer that was not a canvas.
+          e.preventDefault();
+          e.currentTarget.blur();
+        } else if (e.key === "Escape") {
+          // Put the original back BEFORE blurring, so the blur handler saves
+          // the unchanged value and the edit is abandoned rather than half
+          // applied. There is no separate cancel path to keep in sync.
+          e.currentTarget.textContent = value;
+          e.currentTarget.blur();
         } else if (e.key === "Backspace" && text === "" && onEmptyBackspace) {
           e.preventDefault();
           onEmptyBackspace();

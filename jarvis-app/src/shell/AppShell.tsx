@@ -257,6 +257,14 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         </Suspense>
       </div>
       <ToastHost />
+      {/* Where a page's select bar lands (2026-08-24). A page owns its own
+          select mode, but the bar belongs in the fixed footer stack above the
+          tab bar, not inside .app-scroll where it would scroll away from the
+          selection it describes. A portal target rather than fixed
+          positioning with an offset, because the tab bar has no fixed height:
+          it is content plus the safe-area inset, so any number here would be
+          wrong on some device. */}
+      <div id="select-bar-host" />
       {showDock && (
         <>
           <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={() => void openWhatNow()} />

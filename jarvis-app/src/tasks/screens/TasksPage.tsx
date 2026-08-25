@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import PageHeader, { BarAction } from "../../shared/PageHeader";
-import { Plus, Trash2, Clock, ListChecks } from "../../shared/icons";
+import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
+import { useSelection } from "../../shared/useSelection";
+import SelectBar from "../../shared/SelectBar";
+import { Plus, Trash2, Clock, ListChecks, Check } from "../../shared/icons";
 import SkeletonRows from "../../shared/SkeletonRows";
 import { Burst } from "../../shared/Burst";
 import type { TaskItem } from "../TasksService";
@@ -15,6 +17,8 @@ import { capAfterNumber } from "../../shared/casing";
 import { cueLine } from "../ifThen";
 import { OVERWHELM_EXIT } from "../overwhelmed";
 import InlineEdit from "../../shared/InlineEdit";
+import { useLongPress } from "../../shared/useLongPress";
+import { haptics } from "../../shared/haptics";
 
 // Tasks page. Two-line rows with a large (44pt) completion target on the left
 // and swipe-left-to-delete, so completing or removing a task is one easy action.
@@ -60,9 +64,17 @@ function Row({
   onSnooze,
   onRename,
   onStart,
+  selecting = false,
+  picked = false,
+  onPick,
 }: {
   item: TaskItem;
   today: string;
+  // Select mode: the row picks instead of opening, and the swipe is off
+  // because a half-swiped row under a selection is two gestures fighting.
+  selecting?: boolean;
+  picked?: boolean;
+  onPick?: (id: string) => void;
   onToggle?: (id: string) => void;
   onOpen?: (id: string) => void;
   onDelete?: (id: string) => void;
@@ -100,6 +112,15 @@ function Row({
     prevDone.current = t.done;
   }, [t.done]);
 
+  // Rename is a mode the row enters deliberately, not something a tap can
+  // fall into. .renaming lifts the row while it is open so the gesture is
+  // visible rather than silent.
+  const [renaming, setRenaming] = useState(false);
+  const hold = useLongPress({
+    onLongPress: () => { haptics.selection(); setRenaming(true); },
+    enabled: !!onRename && !t.done && !selecting,
+  });
+
   const tapCheck = () => {
     if (pendingDone.current) return;
     if (t.done) { onToggle?.(item.id); return; } // un-completing: no ceremony
@@ -126,43 +147,73 @@ function Row({
         <span className="swipe-label">Delete</span>
       </button>
       <div
-        className={"task-row" + (t.done ? " completed" : "") + (burst ? " just-done" : "") + (dragging ? " swiping" : "")}
+        className={"task-row" + (renaming ? " renaming" : "") + (t.done ? " completed" : "") + (burst ? " just-done" : "") + (dragging ? " swiping" : "")}
         style={{ transform: dx ? `translateX(${dx}px)` : undefined }}
         {...handlers}
       >
-        <div
-          className="task-check-tap"
-          onClick={(e) => { e.stopPropagation(); tapCheck(); }}
-          role="checkbox"
-          aria-checked={shownDone}
-          aria-label={shownDone ? "Mark not done" : "Mark done"}
-        >
-          <div className={"task-check " + (shownDone ? "done" : "cat-bd-" + catColor(t.category))} />
-          <Burst show={burst} />
-        </div>
-        <div className="row-stack" role="button" tabIndex={0} onClick={() => onOpen?.(item.id)}>
-          {/* B6 (2026-08-23): THE TITLE EDITS WHERE IT STANDS.
-              This is InlineEdit's own stated doctrine, applied to the list
-              that needed it most: "if you can see it, you can change it,
-              where it stands. Tap gives the caret, blur or Enter saves, and
-              there is no Save button because editing in place IS the
-              feedback." The primitive had two consumers and neither was a
-              task row, so fixing a typo cost a sheet.
+        {/* SELECT MODE TAKES THE CHECK COLUMN (2026-08-24). The row already
+            has a circle in front of it that means "tick this off", and a
+            second circle beside it meaning "pick this one" would be two
+            round controls saying different things in the same place. While
+            selecting, the done-check steps aside and the selection box has
+            the column to itself. Completing a task is not something anyone
+            needs mid-selection. */}
+        {selecting ? (
+          <button
+            type="button"
+            className={"sel-box" + (picked ? " on" : "")}
+            role="checkbox"
+            aria-checked={picked}
+            aria-label={picked ? "Deselect " + t.text : "Select " + t.text}
+            onClick={(e) => { e.stopPropagation(); onPick?.(item.id); }}
+          >
+            {picked && <Check className="ic" />}
+          </button>
+        ) : (
+          <div
+            className="task-check-tap"
+            onClick={(e) => { e.stopPropagation(); tapCheck(); }}
+            role="checkbox"
+            aria-checked={shownDone}
+            aria-label={shownDone ? "Mark not done" : "Mark done"}
+          >
+            <div className={"task-check " + (shownDone ? "done" : "cat-bd-" + catColor(t.category))} />
+            <Burst show={burst} />
+          </div>
+        )}
+        <div className="row-stack" role="button" tabIndex={0} onClick={() => (selecting ? onPick?.(item.id) : onOpen?.(item.id))}>
+          {/* THE TAP OPENS. RENAME IS THE LONG PRESS (Dave 2026-08-24: "when
+              I tap to edit a task it now edits the text instead... it's WAY
+              more important that I can easily click and edit the tasks").
 
-              The rest of the row still opens the full editor, exactly the
-              way tapping the time on a schedule row changes the time while
-              tapping the row opens everything. stopPropagation keeps the two
-              from firing together. */}
-          {onRename && !t.done ? (
+              B6 gave the title's tap to InlineEdit, on the reasoning that
+              the rest of the row still opened the editor. That reasoning was
+              wrong in the only way that matters: the title IS the row to
+              anyone using it. It is the biggest thing there, it is what the
+              row is ABOUT, and it is where a thumb goes when the intent is
+              "open this". Renaming took the gesture opening needed and left
+              opening with the margins.
+
+              Rename is still here and still edits where it stands, on the
+              press-and-hold that every phone already uses for "the other
+              thing this can do". It cannot be hit by accident, and it costs
+              the primary gesture nothing. Held rows say so with .renaming
+              so the gesture is not invisible while it is happening. */}
+          {renaming && onRename && !t.done ? (
             <div onClick={(ev) => ev.stopPropagation()}>
               <InlineEdit
                 className="conn-name truncate"
                 value={t.text}
-                onSave={(v) => { const next = v.trim(); if (next && next !== t.text) onRename(item.id, next); }}
+                focused
+                onSave={(v) => {
+                  setRenaming(false);
+                  const next = v.trim();
+                  if (next && next !== t.text) onRename(item.id, next);
+                }}
               />
             </div>
           ) : (
-            <div className="conn-name truncate">{t.text}</div>
+            <div className="conn-name truncate" {...(onRename && !t.done && !selecting ? hold : {})}>{t.text}</div>
           )}
           {/* The primary keeps the colour; the tags ride the same line as
               plain facts (2026-08-21). Colouring all of them would spend
@@ -180,7 +231,7 @@ function Row({
             Today: knowing a thing is due is worth less than a way to begin
             it, and two pills on one row is the clutter that made the audit
             flag this list in the first place. */}
-        {onStart && !shownDone
+        {selecting ? null : onStart && !shownDone
           ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(item.id); }}>Start</button>
           : u && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
       </div>
@@ -213,6 +264,8 @@ export default function TasksPage({
   onCalm,
   overwhelmed = false,
   onMoveAllToToday,
+  onDeleteMany,
+  onDoneMany,
 }: {
   filter: TaskFilter;
   counts: Record<TaskFilter, number>;
@@ -243,10 +296,38 @@ export default function TasksPage({
   onCalm?: () => void;
   overwhelmed?: boolean;
   onMoveAllToToday?: () => void;
+  // BULK (Dave 2026-08-24: "It should be very easy to clear and delete
+  // stuff. Also in bulk"). One call for the whole selection rather than a
+  // loop of single deletes at the call site, so the flow can write one undo
+  // that brings all of them back together.
+  onDeleteMany?: (ids: string[]) => void;
+  onDoneMany?: (ids: string[]) => void;
 }) {
+  // Select mode owns the ids currently ON SCREEN, so a filter change or a
+  // reload can never leave a selection pointing at rows that are gone.
+  const sel = useSelection(items.map((i) => i.id));
   return (
     <div className="screen">
-      <PageHeader title="Tasks" actions={<BarAction label="New Task" onClick={onNew}><Plus className="ic" /></BarAction>} />
+      {/* Select is a HEADER BUTTON, not a hidden long press. Dave asked for
+          this to be easy, and a bulk action nobody can find is not easy: the
+          long press is a shortcut for people who already know it exists, and
+          the button is how they find out. Done replaces it while selecting,
+          because the way out is the one control that must never move. */}
+      <PageHeader
+        title="Tasks"
+        actions={
+          sel.active ? (
+            <BarText label="Done" strong onClick={sel.exit} />
+          ) : (
+            <>
+              {onDeleteMany && items.length > 0 && (
+                <BarText label="Select" onClick={() => sel.enter()} />
+              )}
+              <BarAction label="New Task" onClick={onNew}><Plus className="ic" /></BarAction>
+            </>
+          )
+        }
+      />
 
       {/* F1 · I'M OVERWHELMED. When it is on, the page IS the one thing:
           everything else is hidden, nothing is moved, and one tap brings it
@@ -347,7 +428,12 @@ export default function TasksPage({
               dividers inset past the checkbox, no card. */}
           {items.map((it) => (
             <React.Fragment key={it.id}>
-              <Row item={it} today={today} onToggle={onToggle} onOpen={onOpenTask} onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} onRename={onRenameTask} />
+              <Row
+                item={it} today={today} onToggle={onToggle} onOpen={onOpenTask}
+                onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} onRename={onRenameTask}
+                selecting={sel.active} picked={sel.isSelected(it.id)}
+                onPick={sel.toggle}
+              />
               {/* Momentum Chain (addendum item 7): the suggestion slides
                   into the just-finished slot, right below its row. */}
               {momentum?.afterId === it.id && momentum.el}
@@ -382,6 +468,14 @@ export default function TasksPage({
           found Add a Task permanently covered). Every other scrolling screen
           in the app already ends with one. */}
       <div className="screen-foot" />
+      {onDeleteMany && (
+        <SelectBar
+          sel={sel}
+          noun="Task"
+          onDelete={() => { onDeleteMany(sel.selected); sel.exit(); }}
+          {...(onDoneMany ? { extraLabel: "Mark Done", onExtra: () => { onDoneMany(sel.selected); sel.exit(); } } : {})}
+        />
+      )}
     </div>
   );
 }

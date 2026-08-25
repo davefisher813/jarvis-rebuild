@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
+import { act } from "@testing-library/react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import TasksPage from "./screens/TasksPage";
@@ -70,23 +71,62 @@ describe("TasksPage", () => {
 
 // B6 / B8 (2026-08-23): editing and adding without leaving the list.
 describe("TasksPage editing in place", () => {
-  it("renames from the row itself instead of costing a sheet", () => {
+  // Dave 2026-08-24: "when I tap to edit a task it now edits the text
+  // instead... it's WAY more important that I can easily click and edit the
+  // tasks." B6 gave the title's TAP to InlineEdit, and the test that shipped
+  // with it asserted exactly that, so the suite was holding the complaint in
+  // place. The title is the biggest thing on the row and what a thumb aims
+  // for when the intent is "open this". The tap opens; rename is the hold.
+  const hold = (el: Element) => {
+    fireEvent.touchStart(el, { touches: [{ clientX: 10, clientY: 10 }] });
+    act(() => { vi.advanceTimersByTime(500); });
+    fireEvent.touchEnd(el);
+  };
+
+  it("tapping the title opens the editor, because that is what a tap means", () => {
+    const onOpenTask = vi.fn();
+    const onRenameTask = vi.fn();
+    const { container } = render(
+      <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
+        onRenameTask={onRenameTask} onOpenTask={onOpenTask} />,
+    );
+    const title = container.querySelector(".conn-name")!;
+    // Not editable at rest: nothing to fall into.
+    expect(title.getAttribute("contenteditable")).not.toBe("true");
+    fireEvent.click(title);
+    expect(onOpenTask).toHaveBeenCalledWith("a");
+    expect(onRenameTask).not.toHaveBeenCalled();
+  });
+
+  it("holding the title renames it where it stands", () => {
+    vi.useFakeTimers();
     const onRenameTask = vi.fn();
     const onOpenTask = vi.fn();
     const { container } = render(
       <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
         onRenameTask={onRenameTask} onOpenTask={onOpenTask} />,
     );
-    const title = container.querySelector(".conn-name")!;
-    expect(title.getAttribute("contenteditable")).toBe("true");
-
-    // Editing the title must NOT also open the full editor.
-    fireEvent.click(title);
-    expect(onOpenTask).not.toHaveBeenCalled();
-
-    title.textContent = "Renamed";
-    fireEvent.blur(title);
+    hold(container.querySelector(".conn-name")!);
+    const field = container.querySelector('[contenteditable="true"]')!;
+    expect(field).toBeTruthy();
+    field.textContent = "Renamed";
+    fireEvent.blur(field);
     expect(onRenameTask).toHaveBeenCalledWith("a", "Renamed");
+    // The hold must not ALSO open the sheet: one gesture, one outcome.
+    expect(onOpenTask).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("a done task is not renamable, so the hold does nothing", () => {
+    vi.useFakeTimers();
+    const onRenameTask = vi.fn();
+    const done = { ...tk("a", "2026-05-20"), data: { ...tk("a", "2026-05-20").data, done: true } } as TaskItem;
+    const { container } = render(
+      <TasksPage filter="today" counts={counts} items={[done]} today="2026-05-20" onRenameTask={onRenameTask} />,
+    );
+    hold(container.querySelector(".conn-name")!);
+    expect(container.querySelector('[contenteditable="true"]')).toBeNull();
+    vi.useRealTimers();
   });
 
   it("keeps the rest of the row opening the full editor", () => {

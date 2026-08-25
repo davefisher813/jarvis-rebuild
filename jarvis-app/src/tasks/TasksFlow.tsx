@@ -351,6 +351,55 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     await reload();
   };
 
+  // BULK DELETE (Dave 2026-08-24: "It should be very easy to clear and
+  // delete stuff. Also in bulk").
+  //
+  // Read the whole selection BEFORE deleting any of it, or Undo has nothing
+  // to restore: by the time the first delete lands the rest are still there,
+  // but by the time the toast is tapped none of them are.
+  //
+  // A partial failure is reported honestly rather than rounded up. Deleting
+  // four of six and saying "6 tasks deleted" is the kind of lie that costs
+  // trust in the Undo as well, since the two numbers have to agree.
+  const onDeleteMany = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const kept: TaskData[] = [];
+    for (const id of ids) {
+      const t = await svc.task(id);
+      if (t) kept.push(t);
+    }
+    let gone = 0;
+    await attemptWrite(async () => {
+      for (const id of ids) { await svc.deleteTask(id); gone++; }
+    });
+    await reload();
+    if (gone === 0) return;
+    const n = gone;
+    showToast({
+      message: n === 1 ? "Task deleted" : n + " tasks deleted",
+      actionLabel: "Undo",
+      onAction: async () => {
+        // All of them, in one go, so one tap puts the list back exactly as
+        // it was rather than leaving the user to undo six times.
+        await attemptWrite(async () => {
+          for (const t of kept.slice(0, n)) {
+            await svc.createTask(t.text, { category: t.category || undefined, due: t.due ?? null, recurrence: t.recurrence });
+          }
+        });
+        await reload();
+      },
+    });
+  };
+
+  // Completing a selection is the other thing anyone wants in bulk, and it
+  // is the NON-destructive one, so it needs no undo beyond the check itself.
+  const onDoneMany = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const ok = await attemptWrite(async () => { for (const id of ids) await svc.toggleDone(id); });
+    await reload();
+    if (ok) showToast({ message: ids.length === 1 ? "Done" : ids.length + " marked done" });
+  };
+
   // Recreate a just-deleted task if the user taps Undo.
   const offerUndoTask = (t: TaskData) => {
     showToast({
@@ -541,6 +590,8 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
           ),
         }}
         onDeleteTask={onDeleteRow}
+        onDeleteMany={onDeleteMany}
+        onDoneMany={onDoneMany}
         onSnoozeTask={onSnooze}
         onClearDone={onClearDone}
         onNew={() => setSheet({

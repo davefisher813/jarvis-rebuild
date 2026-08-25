@@ -64,3 +64,17 @@ export function BarAction({ label, onClick, children }: { label: string; onClick
     <button className="barbtn" aria-label={label} onClick={onClick}>{children}</button>
   );
 }
+
+// The word version of BarAction (2026-08-24, bulk select). Select, Done and
+// Cancel are verbs with no honest glyph: a checklist icon for "Select" is a
+// guess the user has to decode, and Done as a tick is the same tick that
+// means "complete this task" three rows below. Words, in the bar, the way
+// every list on this platform does it.
+//
+// Its own component rather than a bare <button className="barbtn"> at each
+// call site, so the two cannot drift and so the hit area lives in one place.
+export function BarText({ label, onClick, strong }: { label: string; onClick?: () => void; strong?: boolean }) {
+  return (
+    <button className={"bar-text" + (strong ? " strong" : "")} onClick={onClick}>{label}</button>
+  );
+}

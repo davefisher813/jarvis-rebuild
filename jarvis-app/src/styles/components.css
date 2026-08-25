@@ -2948,3 +2948,53 @@ button {
    because a glyph is chrome (3:1, no words in it), it wears the REAL
    #FF2B3C, not a darkened stand-in. 3.38:1 on the page. */
 [data-theme="light"] .row-glyph.cat-fg-purple { color: #FF2B3C; }
+
+/* RENAME IS A MODE THE ROW ENTERS (Dave 2026-08-24). The row lifts while its
+   title is being edited, because a long press that changed nothing visible
+   would read as a gesture that did not take. Same surface the swipe rows use
+   for "this one is active", so it costs no new vocabulary. */
+.task-row.renaming { background: var(--surface-2); box-shadow: inset 2px 0 0 var(--accent); }
+.task-row.renaming .conn-name { outline: none; }
+
+/* THE SELECT BAR (Dave 2026-08-24, bulk delete). Fixed above the tab bar,
+   not in the page, so it cannot scroll away from a selection it describes.
+   The capture dock steps aside while it is up: "Add anything" is not what
+   anyone wants mid-selection, and stacking both eats a third of the screen. */
+body.selecting .voice-dock { display: none; }
+/* In normal flow inside the shell's fixed footer stack, directly above the
+   tab bar. No magic offset: the tab bar is content plus the safe-area inset,
+   so any number here would be wrong on some device. */
+.select-bar {
+  display: flex; align-items: center; gap: var(--s-2);
+  padding: var(--s-2h) var(--s-4) calc(var(--s-2h) + env(safe-area-inset-bottom, 0px));
+  background: var(--surface-2); border-top: 1px solid var(--card-bd);
+}
+/* Select All holds the left, the actions hold the right, and the gap between
+   them is what flexes. Nothing here may shrink into anything else: the first
+   build let the middle element flex and the walk found "Mark Done" printed
+   straight over the count. */
+.select-bar .select-all { flex-shrink: 0; margin-right: auto; }
+.select-bar .select-extra { flex-shrink: 0; }
+/* Bare text, because the bar already has one filled control and a second
+   would make the destructive one stop reading as the primary. */
+.select-all { position: relative; background: 0; border: 0; padding: 0; font-family: var(--f);
+  font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent-tx); white-space: nowrap; }
+.select-all::after { content: ""; position: absolute; inset: -13px -8px; }
+.select-bar .select-del { flex-shrink: 0; display: inline-flex; align-items: center; }
+/* The row checkbox that select mode adds in front of everything. */
+.sel-box { flex-shrink: 0; width: 22px; height: 22px; border-radius: var(--r-circle);
+  border: 2px solid var(--tx-3); background: transparent; position: relative;
+  display: flex; align-items: center; justify-content: center; padding: 0; }
+.sel-box::after { content: ""; position: absolute; inset: -11px; }
+.sel-box.on { background: var(--accent-fill); border-color: var(--accent-fill); }
+.sel-box.on .ic { width: 14px; height: 14px; color: #fff; }
+.sel-row { display: flex; align-items: center; gap: var(--s-3); }
+
+/* The word form of a bar action (2026-08-24). Select, Done and Cancel are
+   verbs with no honest glyph. Same accent as every other bar control, and
+   the ::after carries the tap target so the word keeps its exact paint. */
+.bar-text { position: relative; background: 0; border: 0; padding: 0; margin: 0;
+  font-family: var(--f); font-size: var(--t-body); font-weight: var(--w-medium);
+  color: var(--accent-tx); white-space: nowrap; }
+.bar-text.strong { font-weight: var(--w-semi); }
+.bar-text::after { content: ""; position: absolute; inset: -13px -8px; }
