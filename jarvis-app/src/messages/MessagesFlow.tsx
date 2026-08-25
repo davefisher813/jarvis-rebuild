@@ -241,9 +241,27 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // the iOS push/pop contract, and it is the reason this is not just a blunt
   // reset on every change.
   //
-  // Scoped to email on purpose. The gap is app-wide and worth a proper fix
-  // with saved offsets per screen; that is a bigger change than this session
-  // should make unasked.
+  // SCOPED TO EMAIL, DELIBERATELY, AND THE WIDER BUG IS STILL OPEN.
+  //
+  // The whole app shares ONE .app-scroll container that stays mounted while
+  // the screen inside it swaps, and nothing anywhere resets its offset. So
+  // the defect is not an email defect: scroll Email down, tap Today, and
+  // Today arrives wearing Email's scroll position. Two screens happen to
+  // self-correct because they scroll themselves on mount (ChatFlow to the
+  // last message, SchedulePage to the next event), which is also why a
+  // blanket reset would not fight them.
+  //
+  // Not fixed app-wide here for one honest reason: every other change in
+  // this session was verified in a real browser, and the demo build cannot
+  // be driven past onboarding automatically (the gate is an async
+  // isOnboarded() over IndexedDB, which a saved storage state does not
+  // carry). An unverified change to every screen transition in the app is
+  // exactly the class of change that comes back as a bug report.
+  //
+  // The proper fix is a per-tab offset map in AppShell: push starts at the
+  // top, returning to a tab restores where you were. The fragile part is
+  // restoring before layout, which clamps to 0 and silently loses the
+  // position, so it wants a real browser to prove it.
   useEffect(() => {
     if (view === "list") return;
     const el = document.querySelector(".app-scroll");
@@ -2130,7 +2148,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   if (view === "detail" && thread) {
     const noReply = isNoReply(lastMsg(thread).fromEmail, cleanBody(lastMsg(thread).body), lastMsg(thread).listUnsubscribe);
     // BULK LICENSES MORE THAN NO-REPLY (Dave 2026-08-25, on a marketing blast
-    // carrying the full stack: Reply, quick answers, Hand this to someone,
+    // carrying the full stack: Reply, quick answers, Hand This to Someone,
     // and four project chips). A blast belongs to no project and is nobody's
     // to hand off. An automated appointment reminder is neither of those, so
     // the two questions stay separate.
@@ -2234,7 +2252,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               setMuted(mute(thread.id));
               setView("list");
               say("Muted · Won't come back", { label: "Undo", run: () => setMuted(unmute(thread.id)) });
-            }}>Mute this thread</button>
+            }}>Mute This Thread</button>
             {sweepCount(lastMsg(thread).fromEmail) > 1 && (
               <button className="quiet-action" onClick={() => void sweepSender(lastMsg(thread).fromEmail)}>
                 {/* The sender's name used to sit INSIDE this button, so
@@ -2255,7 +2273,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {/* Hand off: one gesture for "this is not mine". */}
           {people && handTargets === null && !bulk && (
             <button className="btn btn-secondary btn-block msg-hand" onClick={() => void openHandoff()}>
-              <Forward className="ic" /> Hand this to someone
+              <Forward className="ic" /> Hand This to Someone
             </button>
           )}
           {handTargets !== null && (
@@ -2680,7 +2698,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               </div>
             )}
             {/* Never trapped: the way out is on screen the whole time. */}
-            <button className="quiet-action" onClick={() => setFilter("all")}>Show all mail instead</button>
+            <button className="quiet-action" onClick={() => setFilter("all")}>Show All Mail Instead</button>
           </div></div></div>
         )
       ) : results !== null || !showTriage ? (

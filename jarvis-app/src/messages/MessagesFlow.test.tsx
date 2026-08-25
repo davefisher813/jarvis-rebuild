@@ -245,7 +245,7 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     await screen.findByText("Reading Your Inbox");
     // The exit is on screen while it is still trying, not only after failure.
-    fireEvent.click(screen.getByText("Show all mail instead"));
+    fireEvent.click(screen.getByText("Show All Mail Instead"));
     expect(await screen.findByText("Ridgeley")).toBeInTheDocument();
   });
 
@@ -367,7 +367,7 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={noAI} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
     fireEvent.click(await screen.findByText("Ridgeley"));
-    fireEvent.click(await screen.findByText("Mute this thread"));
+    fireEvent.click(await screen.findByText("Mute This Thread"));
     await waitFor(() => expect(screen.queryByText("Ridgeley")).toBeNull());
     expect(screen.getByText("DoorDash")).toBeInTheDocument(); // only that thread
     fireEvent.click(screen.getByText("Standing Rules"));

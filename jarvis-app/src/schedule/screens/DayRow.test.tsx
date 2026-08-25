@@ -71,14 +71,14 @@ describe("DayRow quick actions", () => {
     expect(screen.getByLabelText("Quick actions")).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("LAW: a repeating event is movable, and offers Skip today instead of Tomorrow", () => {
+  it("LAW: a repeating event is movable, and offers Skip Today instead of Tomorrow", () => {
     const { onShift, onSkipToday } = render1({ recurrence: "weekly" });
     fireEvent.click(screen.getByLabelText("Quick actions"));
     fireEvent.click(screen.getByText("+15m"));
     expect(onShift).toHaveBeenCalledWith(15);
     // Tomorrow would move the whole series' anchor; skipping one day cannot.
     expect(screen.queryByText("Tomorrow")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Skip today"));
+    fireEvent.click(screen.getByText("Skip Today"));
     expect(onSkipToday).toHaveBeenCalled();
   });
 

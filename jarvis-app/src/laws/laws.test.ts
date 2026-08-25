@@ -170,31 +170,39 @@ describe("LAW: Apple HIG casing", () => {
     // (sentence case by catalog); interrogative strings are talk wherever
     // they appear; brand words carry their own casing.
     const TALK_FILES = new Set(["onboarding/OnboardingFlow.tsx"]);
-    // STANDING DEBT, recorded 2026-08-25, awaiting one decision from Dave.
+    // WHOSE VOICE IS THE BUTTON IN? (Dave 2026-08-25, ruling on the 21
+    // buttons this law had never actually been enforced against.)
     //
-    // Widening the button regex above (it used to stop at the `>` inside an
-    // arrow function) revealed 21 sentence-case buttons that this law has
-    // never actually been enforced against. They are listed rather than
-    // silently restyled, because restyling 21 buttons across seven screens
-    // is a visible change to surfaces nobody asked about.
+    // Widening the regex above (it used to stop at the `>` inside an arrow
+    // function, so every button with an onClick was invisible) surfaced 21
+    // sentence-case labels. Reading them in context showed the law was
+    // missing a distinction, not that 21 screens were wrong:
     //
-    // The list also poses a real question the law does not currently answer.
-    // Some of these are LABELS and plainly owe Title Case ("Mute this
-    // thread", "Use next free slot"). Others are ANSWERS to a question asked
-    // directly above them ("Yes, file them", "No thanks", "It pays itself"),
-    // and Title Case makes talk read like a filing cabinet. The law already
-    // exempts interrogatives for that reason, but only on the asking side.
+    //   The APP naming an action gets Title Case. "Mute This Thread",
+    //   "Use Next Free Slot", "Turn Into Heading". Twelve of these; all
+    //   fixed, so none appear below.
     //
-    // When Dave rules: split this set, fix the labels, and either exempt the
-    // answers by rule or fix them too. Until then nothing here regresses,
-    // because a new violation not on this list still fails.
-    const BUTTON_DEBT = new Set([
-      "Follows my work hours", "Mute this thread", "Hand this to someone",
-      "Show all mail instead", "Leave them", "Yes, file them", "No thanks",
-      "Keep it manual", "I pay it", "It pays itself", "Turn into text",
-      "Turn into heading", "Turn into list", "Turn into checklist", "Move up",
-      "Move down", "No, move out", "Leave it scheduled", "Skip today",
-      "Use next free slot", "Tap again to confirm",
+    //   A button written in the USER's voice does not. Title Case makes a
+    //   person's own words read like a filing cabinet, and the app is
+    //   putting these words in his mouth: "It Pays Itself" is absurd sat
+    //   next to "Off", and "No Thanks" is not how anybody declines.
+    //
+    // Two shapes speak in the user's voice, and only two:
+    //
+    //   SEGMENTED VALUES answer the field label above them. Autopay ->
+    //   "I pay it" / "It pays itself". This one is categorical, so it is
+    //   exempted by CLASS: a .seg option is always an answer.
+    //
+    //   DECLINES sit beside a Title Case primary and refuse it. "Clear
+    //   Noise Automatically From Now On" / "Keep it manual". Class cannot
+    //   decide this one, because .quiet-action also carries commands
+    //   ("Show All Mail Instead" is an escape hatch, not a decline), so
+    //   these are named. Nine of them, and the list should not grow: a new
+    //   entry means somebody wrote copy in the user's voice, which is worth
+    //   a moment's thought rather than an automatic exemption.
+    const USER_VOICE = new Set([
+      "Leave them", "Yes, file them", "No thanks", "Keep it manual",
+      "No, move out", "Leave it scheduled",
     ]);
     const BRAND = /^(iCloud|iPhone|iPad|iOS|iMessage|macOS|kg|lb|min|hr)$/;
     const passes = (t: string) => {
@@ -226,7 +234,10 @@ describe("LAW: Apple HIG casing", () => {
       // still barred from containing `<`.
       for (const m of src.matchAll(/<button\b[\s\S]*?>\s*([A-Za-z][^<>{}\n]{2,40}?)\s*<\/button>/g)) {
         const t = m[1]!.trim();
-        if (BUTTON_DEBT.has(t)) continue;
+        if (USER_VOICE.has(t)) continue;
+        // A segmented option is always an answer to the field label above
+        // it, so its voice is the user's by construction.
+        if (/className=\{?"[^"]*\bseg\b/.test(m[0]!)) continue;
         if (t.split(/\s+/).length > 1 && !passes(t)) bad.push(rel(f) + " [button]: " + t);
       }
       // Placeholders carry the same casing when they are labels. Example-
@@ -663,12 +674,20 @@ describe("LAW: one filled red per screen", () => {
   // proves --tx-4 fails the bar and --tx-3 clears it, so the rule follows
   // from a measurement rather than a preference.
   //
-  // MEASURED AND MARGINAL, recorded honestly rather than rounded away:
-  // --tx-3 in LIGHT is 4.51:1 on the page (#F3F4F9) and 4.74:1 on a white
-  // card, but 4.47:1 on --surface-2 (#F2F2F7). It clears the bar where
-  // these lines actually sit and misses it by 0.6% on one grouped surface.
-  // Open question for Dave: nudge light --tx-3 from 0.72 to 0.75 alpha
-  // (4.89:1 on the page) and clear every surface, or leave the ramp alone.
+  // MEASURED AND MARGINAL, and the first version of this note named the
+  // WRONG SURFACE. Light --surface-2 is #FFFFFF, which measures 4.74:1 and
+  // passes; the shortfall is on --surface-3 (#F1F2F7), which in light backs
+  // toasts, plan rows and the select bar. The full ramp, measured:
+  //
+  //   light --tx-3   page #F3F4F9 4.51   card #FFFFFF 4.74   s-3 4.47
+  //   dark  --tx-3   page #000000 6.36   s-1 5.95  s-2 5.27  s-3 4.59
+  //
+  // One combination sits 0.7% under, on a handful of small containers most
+  // of which set --tx-2 explicitly anyway. RULED 2026-08-25 (Dave, shown a
+  // rendered 0.72-vs-0.75 comparison): leave the ramp alone. The difference
+  // is invisible, and 0.75 is one point off the 0.76 that was rejected in
+  // dark for sitting too close to titles and killing hierarchy. This was
+  // never a legibility risk; it was a rounding artefact wearing one.
   it("promises, floors, and the door's explanation are never the decoration ramp", () => {
     // Composite in FLOAT. An earlier draft rounded each channel to hex
     // first, which cost 0.02:1 and made a passing colour look like a

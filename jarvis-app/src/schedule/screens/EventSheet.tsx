@@ -409,7 +409,7 @@ export default function EventSheet({
                   const dur = end && tm(end) > tm(start) ? tm(end) - tm(start) : 60;
                   const next = suggestSlot(date);
                   setStart(next); setEnd(addMinutes(next, dur)); if (err) setErr(false);
-                }}>Use next free slot</button>
+                }}>Use Next Free Slot</button>
               )}
             </div>
           )}

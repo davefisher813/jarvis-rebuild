@@ -265,30 +265,30 @@ function BlockRow({
               <>
                 {blockType !== "text" && (
                   <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "text"); setOpen(false); }}>
-                    <Type className="ic" /> Turn into text
+                    <Type className="ic" /> Turn Into Text
                   </button>
                 )}
                 {blockType !== "heading" && (
                   <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "heading"); setOpen(false); }}>
-                    <Heading1 className="ic" /> Turn into heading
+                    <Heading1 className="ic" /> Turn Into Heading
                   </button>
                 )}
                 <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "bulleted_list"); setOpen(false); }}>
-                  <ListIcon className="ic" /> Turn into list
+                  <ListIcon className="ic" /> Turn Into List
                 </button>
                 <button className="block-menu-item" onClick={() => { onTurnInto(blockId, "checklist"); setOpen(false); }}>
-                  <CheckSquare className="ic" /> Turn into checklist
+                  <CheckSquare className="ic" /> Turn Into Checklist
                 </button>
               </>
             )}
             {onMove && !isFirst && (
               <button className="block-menu-item" onClick={() => { onMove(blockId, -1); setOpen(false); }}>
-                <ArrowUp className="ic" /> Move up
+                <ArrowUp className="ic" /> Move Up
               </button>
             )}
             {onMove && !isLast && (
               <button className="block-menu-item" onClick={() => { onMove(blockId, 1); setOpen(false); }}>
-                <ArrowDown className="ic" /> Move down
+                <ArrowDown className="ic" /> Move Down
               </button>
             )}
             {onDelete && (

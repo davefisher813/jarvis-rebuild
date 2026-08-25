@@ -110,7 +110,7 @@ export default function DayRow({
           {onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(15))}>+15m</button>}
           {onShift && <button className="sched-act" tabIndex={open ? 0 : -1} onClick={() => closeThen(() => onShift(60))}>+1h</button>}
           {rep
-            ? onSkipToday && <button className="sched-act sched-act-quiet" tabIndex={open ? 0 : -1} onClick={() => closeThen(onSkipToday)}>Skip today</button>
+            ? onSkipToday && <button className="sched-act sched-act-quiet" tabIndex={open ? 0 : -1} onClick={() => closeThen(onSkipToday)}>Skip Today</button>
             : onPushTomorrow && <button className="sched-act sched-act-quiet" tabIndex={open ? 0 : -1} onClick={() => closeThen(onPushTomorrow)}>Tomorrow</button>}
         </div>
       )}

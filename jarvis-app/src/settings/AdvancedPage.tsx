@@ -38,7 +38,7 @@ export default function AdvancedPage({ onBack, onExport }: { onBack: () => void;
       <div className="pad-x"><div className="card">
         {!chatArmed
           ? <button className="row row-signout" onClick={() => setChatArmed(true)} disabled={chatBusy}>Delete Chat History</button>
-          : <button className="row row-signout" onClick={() => void deleteChat()}>Tap again to confirm</button>}
+          : <button className="row row-signout" onClick={() => void deleteChat()}>Tap Again to Confirm</button>}
       </div></div>
       <div className="pad-x"><div className="card">
         {!confirm
