@@ -93,6 +93,28 @@
      the raw red). */
   --accent-chrome: var(--accent-tx);
 
+  /* GLYPH red, split out of chrome (Dave 2026-08-24: "make sure all red icons
+     in light version are Jarvis red. It looks a little off on the icons").
+     He was right, and the cause is the trap this file already names twice: a
+     token that serves two roles will eventually be changed for one of them.
+
+     --accent-chrome serves BOTH the red text that sits on the page (the
+     active tab label, section eyebrows, See All) and the red GLYPHS on nav
+     lists. In dark that is harmless, because the page is black and one value
+     (#FF2B3C) clears both bars. In light they are different bars: text on
+     #F3F4F9 needs 4.5:1, which caps red at #DA0012, while a glyph carries no
+     words and is held to 3:1, where the real brand red measures 3.32 on the
+     worst light ground. So light quietly dragged every brand glyph down to
+     the TEXT red and the More list went crimson instead of JARVIS red.
+
+     The catalog has said the right thing since V4.14 ("red is routed by job,
+     not flattened: anything with no words in or on it takes the real
+     #FF2B3C"); only the token never implemented it. It does now, in both
+     themes, which is why dark cannot move: dark's chrome was already
+     #FF2B3C, so every rule repointed here resolves to the identical value.
+     Verified by pixel-diffing the dark More page before and after. */
+  --accent-glyph: #FF2B3C;
+
   /* SELECTION (2026-08-02). One treatment for "this one is picked", used by
      every selectable control in the app: chips, segmented controls, radios,
      checkboxes, the Pick Three rows, onboarding dots. Selection used to be
