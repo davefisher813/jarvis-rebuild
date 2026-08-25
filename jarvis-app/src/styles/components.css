@@ -3201,3 +3201,85 @@ body.selecting .voice-dock { display: none; }
 .day-hold { position: relative; }
 .day-measure { position: absolute; top: 0; left: 0; visibility: hidden;
   pointer-events: none; height: 0; overflow: hidden; width: 100%; }
+
+/* ===== THE SWEEP (Dave 2026-08-25, the Anti-Inbox catalog, all picks
+   approved in one string). The deck's presentation rebuilt as the opposite
+   of an inbox: verb-first card, countdown ring, session clock, a kill that
+   pays, and a floor. Tokens only (RULE 9). ===== */
+
+/* 2A: the ring. Painted with a conic gradient set inline (the fraction is
+   state); this is the shell that makes it a ring and not a pie. */
+.sweep-ring-slot { display: flex; justify-content: flex-end; }
+.sweep-ring { width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: conic-gradient(var(--accent) 0 var(--sweep-arc, 0deg), var(--press-5) var(--sweep-arc, 0deg) 360deg); }
+.sweep-ring-n { width: 22px; height: 22px; border-radius: 50%; background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--t-meta); font-weight: var(--w-bold); color: var(--tx-1);
+  font-variant-numeric: tabular-nums; }
+.sweep-clock { font-variant-numeric: tabular-nums; }
+
+/* The hand: the current card, the next card's edge, the floor. */
+.sweep-hold { position: relative; padding-top: var(--s-2); }
+.sweep-under { position: absolute; left: calc(var(--s-4) + 10px); right: calc(var(--s-4) + 10px);
+  top: 0; height: 40px; opacity: 0.5; }
+.sweep-card { position: relative; z-index: 1;
+  transition: transform var(--dur-slow) var(--ease-out), opacity var(--dur-slow) var(--ease-out); }
+
+/* 6A: the kill. The card physically leaves; the next one is already under
+   it. Reduced motion keeps the payoff and drops the flight: it fades. */
+.sweep-kill { transform: translate(70vw, -12vh) rotate(14deg); opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .sweep-card { transition: opacity var(--dur-slow) var(--ease-out); }
+  .sweep-kill { transform: none; opacity: 0; }
+}
+.sweep-burst { position: absolute; top: 10px; right: 14px; z-index: 2; }
+
+/* 4A: the verb is the headline. Big on purpose: it is the decision, and the
+   email below it is the evidence. A drafted reply reads as a quote. */
+.sweep-kicker-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
+.sweep-cost { font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.sweep-verb { font-size: var(--t-h2); font-weight: var(--w-bold); line-height: var(--lh-tight);
+  letter-spacing: -0.01em; margin: var(--s-2) 0 var(--s-3); overflow-wrap: break-word; }
+.sweep-verb-quote { font-weight: var(--w-semi); font-size: var(--t-h3); }
+
+/* The evidence: sender disc + why, quiet, under the actions. The disc colors
+   come from the category fills, whose on-color contrast is already law-held. */
+.sweep-evidence { display: flex; align-items: center; gap: var(--s-3);
+  margin-top: var(--s-3); padding-top: var(--s-3); border-top: 0.5px solid var(--divider); }
+.sweep-disc { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--t-meta); font-weight: var(--w-bold); }
+.sweep-ev-text { min-width: 0; display: flex; flex-direction: column; }
+.sweep-ev-from { font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-2); }
+.sweep-ev-why { font-size: var(--t-meta); color: var(--tx-3);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* L2 in embryo: the hand has a floor and says so. */
+.sweep-floor { text-align: center; font-size: var(--t-meta); color: var(--tx-4);
+  padding: var(--s-3) 0 var(--s-1); }
+
+/* 7A: the finish is a place. Full screen, the one celebratory surface in
+   email, so it may glow: a quiet radial wash of the accent from below. */
+.sweep-finish { display: flex; flex-direction: column; }
+.sweep-finish-body { flex: 1; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center; padding: var(--s-6) var(--s-4);
+  background: radial-gradient(120% 90% at 50% 115%, var(--press-3), transparent 60%); }
+.sweep-finish-done { font-size: var(--t-display); font-weight: var(--w-bold);
+  letter-spacing: -0.02em; margin-top: var(--s-3); }
+.sweep-finish-sub { color: var(--tx-3); margin-top: var(--s-1h); }
+.sweep-receipts { margin-top: var(--s-4); display: inline-flex; flex-direction: column;
+  align-items: flex-start; gap: var(--s-1); }
+.sweep-receipt { color: var(--tx-2); font-size: var(--t-body); }
+
+/* 10A: the honest streak. Squares that color in and never reset. */
+.sweep-streak { margin-top: var(--s-6); display: flex; flex-direction: column; align-items: center; gap: var(--s-2); }
+.sweep-streak-row { display: flex; gap: var(--s-1h); }
+/* An empty square must be VISIBLY empty (bench walk 2026-08-25: on the
+   finish screen six of seven squares vanished into the ground, so the one
+   red square floated alone and read as misalignment, not as 1-of-7). The
+   streak only means anything if the misses are as legible as the hits. */
+.sweep-sq { width: 14px; height: 14px; border-radius: 4px; background: var(--press-3);
+  border: 1px solid var(--divider); }
+.sweep-sq.on { background: var(--accent); border-color: var(--accent); }
+.sweep-streak-line { font-size: var(--t-meta); color: var(--tx-3); }

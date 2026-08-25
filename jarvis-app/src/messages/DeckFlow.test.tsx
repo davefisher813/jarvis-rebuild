@@ -68,7 +68,7 @@ describe("DeckFlow prepare race", () => {
           ai={aiByBody()}
           apiFor={() => api}
           threads={[row("tA", "Alpha", "First"), row("tB", "Bravo", "Second")]}
-          onDone={vi.fn()} onExit={vi.fn()} onOpenThread={vi.fn()}
+          onDone={vi.fn()} onOpenThread={vi.fn()}
           onEditReply={vi.fn()} onHandled={vi.fn()}
         />
       </NotesProvider>,
@@ -76,12 +76,12 @@ describe("DeckFlow prepare race", () => {
 
     // Card A is stuck preparing; Later is deliberately still enabled.
     expect(await screen.findByText("Alpha")).toBeInTheDocument();
-    expect(screen.getByText("Preparing...")).toBeInTheDocument();
+    expect(screen.getByText("Reading it...")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Later"));
 
     // The deck advances to B and B's plan arrives.
     expect(await screen.findByText("Bravo")).toBeInTheDocument();
-    expect(await screen.findByText("REPLY-FOR-B")).toBeInTheDocument();
+    expect(await screen.findByText(/REPLY-FOR-B/)).toBeInTheDocument();
 
     // NOW card A's fetch finally resolves. Pre-fix, its continuation ran to
     // completion and overwrote B's card with A's thread and plan.
@@ -89,9 +89,9 @@ describe("DeckFlow prepare race", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Bravo")).toBeInTheDocument();
-      expect(screen.getByText("REPLY-FOR-B")).toBeInTheDocument();
-      expect(screen.queryByText("REPLY-FOR-A")).not.toBeInTheDocument();
-      expect(screen.queryByText("Preparing...")).not.toBeInTheDocument();
+      expect(screen.getByText(/REPLY-FOR-B/)).toBeInTheDocument();
+      expect(screen.queryByText(/REPLY-FOR-A/)).not.toBeInTheDocument();
+      expect(screen.queryByText("Reading it...")).not.toBeInTheDocument();
     });
   });
 
@@ -109,13 +109,13 @@ describe("DeckFlow prepare race", () => {
           ai={new AIService({ available: false })}
           apiFor={() => api}
           threads={[row("tA", "Alpha", "First")]}
-          onDone={vi.fn()} onExit={vi.fn()} onOpenThread={vi.fn()}
+          onDone={vi.fn()} onOpenThread={vi.fn()}
           onEditReply={vi.fn()} onHandled={onHandled}
         />
       </NotesProvider>,
     );
     expect(await screen.findByText("Alpha")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByText("Preparing...")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
     fireEvent.click(screen.getByText("Later"));
     // Still on the card, not advanced past it: deferring never means losing.
     await waitFor(() => expect(screen.getByText("Alpha")).toBeInTheDocument());
@@ -137,7 +137,7 @@ describe("DeckFlow progress bar", () => {
         apiFor={() => plainApi()}
         threads={threads}
         limitMs={limitMs}
-        onDone={vi.fn()} onExit={vi.fn()} onOpenThread={vi.fn()}
+        onDone={vi.fn()} onOpenThread={vi.fn()}
         onEditReply={vi.fn()} onHandled={vi.fn()}
       />
     </NotesProvider>,
@@ -152,7 +152,7 @@ describe("DeckFlow progress bar", () => {
     expect(fill()).toBeTruthy();
     expect(fill()!.style.width).toBe("0%");
 
-    await waitFor(() => expect(screen.queryByText("Preparing...")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
     fireEvent.click(screen.getByText("Later"));
     await screen.findByText("Bravo");
     // One of four done. The bar is the only thing on screen that says a deck
@@ -160,19 +160,41 @@ describe("DeckFlow progress bar", () => {
     expect(fill()!.style.width).toBe("25%");
   });
 
-  it("still shows position when a drain clock has taken the title", async () => {
-    const { container } = mount([row("tA", "Alpha", "First"), row("tB", "Bravo", "Second")], 60000);
+  it("counts DOWN in the ring, never up and never a total (2A)", async () => {
+    const { container } = mount([row("tA", "Alpha", "First"), row("tB", "Bravo", "Second")]);
     expect(await screen.findByText("Alpha")).toBeInTheDocument();
-    // The clock REPLACES the count in the nav title, which is exactly why the
-    // bar has to exist: before it, a timed deck showed no position at all.
-    expect(screen.queryByText("1 of 2")).toBeNull();
-    expect(container.querySelector(".deck-bar-fill")).toBeTruthy();
+    const ring = () => container.querySelector(".sweep-ring-n");
+    expect(ring()!.textContent).toBe("2");
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("Later"));
+    await screen.findByText("Bravo");
+    // The number fell. "1 of 2" is dead: an up-counter is a guilt meter.
+    expect(ring()!.textContent).toBe("1");
+    expect(screen.queryByText(/1 of 2/)).toBeNull();
   });
 
-  it("says where you are in words too, capitalized after the number", async () => {
-    mount([row("tA", "Alpha", "First"), row("tB", "Bravo", "Second")]);
+  it("always runs a session clock (5A): untimed sweeps do not exist", async () => {
+    const { container } = mount([row("tA", "Alpha", "First")]);
     expect(await screen.findByText("Alpha")).toBeInTheDocument();
-    expect(screen.getByText("1 of 2")).toBeInTheDocument();
+    // The default five-minute session, already ticking in the title.
+    expect(container.querySelector(".sweep-clock")!.textContent).toMatch(/^[45]:\d\d$/);
+  });
+
+  it("wears the card's cost once the plan is known (5A)", async () => {
+    const { container } = mount([row("tA", "Alpha", "First")]);
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    // ai unavailable = no plan = open and reply, honestly the slowest.
+    expect(container.querySelector(".sweep-cost")!.textContent).toBe("~1 min");
+  });
+
+  it("deals a hand of at most nine, whatever the pile holds (3A)", async () => {
+    const pile = Array.from({ length: 40 }, (_, i) => row("t" + i, "Sender" + i, "S" + i));
+    const { container } = mount(pile);
+    expect(await screen.findByText("Sender0")).toBeInTheDocument();
+    expect(container.querySelector(".sweep-ring-n")!.textContent).toBe("9");
+    // And the floor says so (L2 in embryo): the deck keeps the rest.
+    expect(container.querySelector(".sweep-floor")!.textContent).toContain("deck keeps the rest");
   });
 });
 

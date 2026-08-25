@@ -118,14 +118,20 @@ describe("LAW: clock times are 12-hour", () => {
 });
 
 describe("LAW: no inline styles", () => {
-  // Tokens only. The single legitimate exception is a live drag position,
-  // which cannot be expressed as a class.
-  it("style={{ }} appears only for dynamic geometry", () => {
+  // Tokens only. Two legitimate exceptions, both the same idea: a runtime
+  // NUMBER the CSS cannot know. Live geometry (a drag position), and a
+  // custom property ("--x") that a stylesheet rule consumes: the Sweep's
+  // countdown ring passes its arc angle this way (2026-08-25), and the
+  // paint itself stays in CSS where the tokens are. An inline style that
+  // sets a real CSS property by name is still the violation this law was
+  // written for.
+  it("style={{ }} appears only for dynamic geometry or a custom property", () => {
     const bad: string[] = [];
     for (const f of COMPONENTS) {
       read(f).split("\n").forEach((line, i) => {
         if (!/style=\{\{/.test(line)) return;
         if (/transform|left:|top:|width:|height:/.test(line)) return; // geometry
+        if (/style=\{\{\s*"--[a-z-]+":/.test(line)) return; // custom property only
         bad.push(rel(f) + ":" + (i + 1));
       });
     }

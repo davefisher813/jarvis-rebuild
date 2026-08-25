@@ -33,11 +33,12 @@ import { getAIControl } from "../ai/levelStore";
 import { cleanBody, isLong, leadIn, wordCount } from "./bodyText";
 import { recordToss, markAsked, tossOffer, tossLine, loadTossed, loadAsked } from "./selfClean";
 import { sweepCandidates, sweepTitle, sweepSub, sweepReceipt, type SweepCandidate } from "./unsubSweep";
-import { PRESETS, loadMinutes, saveMinutes, clampMinutes, drainReceipt } from "./drain";
+import { PRESETS, loadMinutes, saveMinutes, clampMinutes } from "./drain";
 import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, handoffLine, type HandoffTarget } from "./handoff";
 import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, markPromised, commitmentLine, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import { settleAll, settleLine, type SettleWords } from "./settle";
+import { recordSweepDay, loadSweepDays, streakView, receiptLines, type SweepReceipts } from "./sweep";
 import { readIcs } from "./ics";
 import { isNoReply, isBulk } from "./noReply";
 import { humanError } from "../connections/google/humanError";
@@ -245,7 +246,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     try { return localStorage.getItem(AUTONOISE_KEY) === "1"; } catch { return false; }
   });
   const [autoOffer, setAutoOffer] = useState(false);
-  const [deadStats, setDeadStats] = useState<{ n: number; ms: number } | null>(null);
+  const [deadStats, setDeadStats] = useState<{ n: number; ms: number; receipts: SweepReceipts } | null>(null);
   // The deck runs on a SNAPSHOT of needs-you taken when it opens. Passing the
   // live-filtered list while the deck advances its own index double-advanced
   // and silently skipped an email (caught by the email 2 walk). A skipped
@@ -1669,8 +1670,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           threads={deckRows}
           limitMs={drainMs}
           token={authToken}
-          onExit={() => { setDeckRows(null); setDrainMs(undefined); setView("list"); }}
-          onDone={(n, ms) => { setDeckRows(null); setDrainMs(undefined); setDeadStats({ n, ms }); setView("dead"); }}
+          onDone={(n, ms, receipts) => {
+            setDeckRows(null); setDrainMs(undefined);
+            // 10A: the day colors in when at least one card truly died.
+            // Recorded here, at the finish, never during render.
+            recordSweepDay(todayISO(), n);
+            setDeadStats({ n, ms, receipts }); setView("dead");
+          }}
           onOpenThread={(id) => void openThread(id)}
           onEditReply={(t, body) => {
             const r = buildReply(t.messages[t.messages.length - 1]!, body);
@@ -1693,19 +1699,39 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     );
   }
 
+  // 7A: THE FINISH IS A PLACE (Dave 2026-08-25, the Anti-Inbox catalog).
+  // Gmail has no done state, so no session ever feels finished, so every
+  // session feels like failure. This screen is the payoff and the proof in
+  // one: a full-screen Done, the true receipts (counted as they happened,
+  // never estimated), and the honest streak (10A): squares that color in and
+  // never, ever reset.
   if (view === "dead" && deadStats) {
+    const sv = streakView(loadSweepDays(), todayISO());
+    const lines = receiptLines(deadStats.receipts);
     return (
-      <div className={"screen " + pushCls} key="dead">
-        <PageHeader title="Email" />
-        <div className="pad-x"><div className="card"><div className="empty-state">
-          <div className="deck-dead-burst"><Burst show /></div>
-          <div className="empty-title">Inbox: Dead</div>
-          <div className="empty-sub">
-            {deadStats.ms % 60000 === 0 && deadStats.ms >= 60000
-              ? drainReceipt(deadStats.n, deadStats.ms / 60000)
-              : deadStats.n + " handled in " + fmtDuration(deadStats.ms)}
+      <div className={"screen sweep-finish " + pushCls} key="dead">
+        <div className="sweep-finish-body">
+          <div className="deck-dead-burst"><Burst show size="big" /></div>
+          <div className="sweep-finish-done">{deadStats.n > 0 ? "Done." : "Nothing needed you."}</div>
+          <div className="sweep-finish-sub">
+            {deadStats.n > 0
+              ? deadStats.n + " handled · " + fmtDuration(deadStats.ms)
+              : "The deck is holding the rest for next time"}
           </div>
-        </div></div></div>
+          {lines.length > 0 && (
+            <div className="sweep-receipts">
+              {lines.map((l) => <div className="sweep-receipt" key={l}>→ {capAfterNumber(l)}</div>)}
+            </div>
+          )}
+          <div className="sweep-streak">
+            <div className="sweep-streak-row" aria-label={"Cleared " + sv.cleared + " of the last 7 days"}>
+              {sv.last7.map((hit, i) => <span className={"sweep-sq" + (hit ? " on" : "")} key={i} />)}
+            </div>
+            <div className="sweep-streak-line">
+              {capAfterNumber("Cleared " + sv.cleared + " of the last 7")}{sv.best > 1 ? " · Best run: " + sv.best : ""}
+            </div>
+          </div>
+        </div>
         <div className="pad-x conn-action">
           <button className="btn btn-secondary btn-block" onClick={() => { setDeadStats(null); setView("list"); }}>Back to Email</button>
         </div>
