@@ -3,6 +3,7 @@ import { capAfterNumber, titleCase } from "../shared/casing";
 import { decide, draftableOf } from "./mailAction";
 import { dayPhrase } from "../money/bills";
 import { fmtTime } from "../schedule/calendar";
+import { readAct, actLabel, type ActProposal, type MailAct } from "./mailAct";
 
 // THE HOME-PAGE EMAIL SURFACE (Dave 2026-08-20: "give me ideas to make the
 // email homepage feature actually useful or we can scratch it because right
@@ -46,6 +47,10 @@ export interface MailThread {
   snippet?: string;
   lastMsgId?: string;
   replies?: string[];
+  // The dated commitment the email states, UNRESOLVED, straight from triage.
+  // Resolved against today's date inside mailNotices, so an appointment that
+  // has been sitting in the snapshot since yesterday expires by itself.
+  act?: ActProposal;
 }
 export interface MailWaiting { threadId: string; to: string; subject: string; days: number }
 export interface MailPromise { threadId: string; text: string; due?: string }
@@ -70,7 +75,7 @@ export interface MailSnapshot {
   drafts?: MailDraftRow[];
 }
 
-export type MailKind = "deadline" | "reply" | "promised" | "nudge" | "meeting" | "chase" | "draft";
+export type MailKind = "deadline" | "reply" | "promised" | "nudge" | "meeting" | "chase" | "draft" | "act";
 
 export interface MailNotice {
   key: string;
@@ -83,6 +88,10 @@ export interface MailNotice {
   // When present, the action finishes on Today: it writes this task and the
   // card clears. No navigation, no inbox, no second decision.
   task?: { text: string; due?: string };
+  // Same contract, a different surface. Present only on kind "act": the card
+  // writes an event, a bill, or a reminder and clears. Already validated by
+  // readAct, so a handler can use these fields without re-checking them.
+  act?: MailAct;
 }
 
 const KEY = "jarvis.mail.home.v1";
@@ -240,6 +249,36 @@ function draftNotice(d: MailDraftRow): MailNotice {
   };
 }
 
+// THE EMAIL ALREADY TOLD US WHERE IT GOES (Dave 2026-08-25: "if it's
+// something that AI can act on it should have the option. Example would be
+// it's an appointment reminder and it adds it to the Jarvis schedule").
+//
+// An appointment reminder is not a conversation. Offering "Reply" on it was
+// the app failing to read something it had already read: triage knows the
+// date and the time, and the card was asking him to go and re-enter them.
+//
+// The sub states EXACTLY what the button will write, because this is the one
+// notice that changes his schedule without opening anything, and a button
+// that writes an event has to show the event first.
+function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
+  const when = dayPhrase(a.date, todayISO);
+  const sub = a.verb === "schedule"
+    ? `${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap} · ${a.durationMin} min`
+    : a.verb === "bill"
+      ? `$${a.amount!.toFixed(2)} · Due ${when}`
+      : when;
+  return {
+    key: "act:" + a.verb + ":" + t.id,
+    kind: "act",
+    threadId: t.id,
+    title: titleCase(a.title),
+    sub: capAfterNumber(sub),
+    action: actLabel(a),
+    tone: a.verb === "bill" ? "cat-fg-green" : "cat-fg-sky",
+    act: a,
+  };
+}
+
 // THE ASK DECIDES THE ACTION, ON THIS PAGE TOO (2026-08-21).
 //
 // The Email tab stopped printing one universal button; the home page kept
@@ -279,10 +318,21 @@ export function mailNotices(
   const skip = new Set(hidden);
   const threads = [...snap.threads].sort((a, b) => byRank(a.by, now) - byRank(b.by, now));
 
+  // Resolved HERE, against the real clock, for the reason in mailAct.ts: the
+  // snapshot can be most of a day old and an appointment does not wait.
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const acts = threads
+    .map((t) => { const a = readAct(t.act, todayISO, nowMin); return a ? actNotice(t, a, todayISO) : null; })
+    .filter((n): n is MailNotice => n !== null);
+  const actIds = new Set(acts.map((a) => a.threadId));
+
   const deadlines = threads.map((t) => deadlineNotice(t, todayISO, now)).filter((n): n is MailNotice => n !== null);
   const deadlineIds = new Set(deadlines.map((d) => d.threadId));
-  // A thread already surfaced as a deadline is not also surfaced as a reply.
-  const replies = threads.filter((t) => !deadlineIds.has(t.id)).map(replyNotice);
+  // A thread already surfaced as a deadline or as a dated commitment is not
+  // also surfaced as a reply. An appointment reminder that also says "let us
+  // know if this time doesn't work" would otherwise take two of the three
+  // slots on the page to say one thing.
+  const replies = threads.filter((t) => !deadlineIds.has(t.id) && !actIds.has(t.id)).map(replyNotice);
   const promises = [...snap.promises]
     .sort((a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999"))
     .map((p) => promiseNotice(p, todayISO));
@@ -296,16 +346,32 @@ export function mailNotices(
   // deadline someone named beat everything: both are other people's clocks.
   // Drafts go last, because an unsent draft is the only thing on this list
   // that is nobody's problem but his.
-  const lanes = [meetings, deadlines, replies, chases, promises, nudges, drafts]
+  const lanes = [meetings, acts, deadlines, replies, chases, promises, nudges, drafts]
     .map((l) => l.filter((n) => !skip.has(n.key)));
   const out: MailNotice[] = [];
+  // TWO CARDS THAT READ THE SAME ARE ONE CARD SAID TWICE (Dave 2026-08-25,
+  // whose screenshot showed "Resolve Psychiatric Services Client Portal /
+  // Draft It" stacked directly on top of an identical copy of itself).
+  //
+  // Not a duplicate thread: a portal that sends the same notice twice makes
+  // two real threads with the same sender and the same gist, and every lane
+  // rule here is about KINDS, so nothing was watching for it. He cannot tell
+  // them apart, so the second one is not information, it is the pile.
+  const seen = new Set<string>();
+  const fresh = (n: MailNotice) => {
+    const sig = [n.title, n.sub, n.action].map((s) => s.toLowerCase()).join("\u0000");
+    if (seen.has(sig)) return false;
+    seen.add(sig);
+    return true;
+  };
   for (let round = 0; out.length < max; round++) {
     let took = false;
     for (const lane of lanes) {
       const pick = lane[round];
       if (!pick) continue;
-      out.push(pick);
       took = true;
+      if (!fresh(pick)) continue;
+      out.push(pick);
       if (out.length >= max) break;
     }
     if (!took) break;

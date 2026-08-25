@@ -803,6 +803,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         subject: r.subject,
         gist: map[r.id]?.gist ?? r.snippet ?? "",
         by: map[r.id]?.by,
+        // Unresolved on purpose: mailNotices validates it against the day it
+        // is actually being read on, not the day this snapshot was written.
+        act: map[r.id]?.act,
         account: (r as ThreadRow & { account?: string }).account,
         snippet: r.snippet ?? "",
         lastMsgId: r.lastMsgId,

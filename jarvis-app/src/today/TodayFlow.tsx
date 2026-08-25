@@ -32,6 +32,8 @@ import { isEvening, eveningStats, weekRecap } from "./evening";
 import { readSamples } from "../shared/timeSense";
 import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask } from "../bigger/reach";
 import { inheritFromThread } from "../messages/threadTasks";
+import { endOfAct, type MailAct } from "../messages/mailAct";
+import { dayPhrase } from "../money/bills";
 import { rankProjects, closable } from "../bigger/progress";
 import { movesCount, movesLine, goalsMovedToday, movedLine, untouchedGoal, untouchedLine, openWorkOf, dismissGoalNudge } from "./goalPulse";
 import SkeletonScreen from "../shared/SkeletonScreen";
@@ -1642,6 +1644,60 @@ export default function TodayFlow({
     return true;
   };
 
+  // THE EMAIL ALREADY DID THE DATA ENTRY (Dave 2026-08-25: "if it's something
+  // that AI can act on it should have the option. Example would be it's an
+  // appointment reminder and it adds it to the Jarvis schedule").
+  //
+  // Triage read the date, the time and the amount out of the email and then
+  // the card offered him "Reply". This is the other half: the button writes
+  // to the surface the email was always about.
+  //
+  // Everything it writes carries a gmail source, so every one of these can be
+  // traced back to the mail that made it, and nothing auto-created is ever
+  // mistaken for something he typed. It returns the receipt AND the undo,
+  // because this is the only card that changes the schedule without opening
+  // anything first, so a wrong one has to be one tap from gone.
+  const takeAct = async (a: MailAct, threadId: string): Promise<{ receipt: string; undo?: () => Promise<void> } | null> => {
+    const src = { type: "gmail" as const, ref: threadId, ts: Date.now() };
+    const when = dayPhrase(a.date, today);
+    // attemptWrite resolves a boolean, so the new id comes back out through a
+    // local the way onEventDuplicate does it. Undo needs the id, and an undo
+    // that cannot name what it is undoing is not an undo.
+    let made: string | null = null;
+    if (a.verb === "schedule") {
+      const ok = await attemptWrite(async () => {
+        made = await schedule.createEvent(a.title, {
+          date: a.date, start: a.start!, end: endOfAct(a.start!, a.durationMin ?? 60), source: src,
+        });
+      });
+      const id: string | null = made;
+      if (!ok || !id) return null;
+      await reload();
+      return {
+        receipt: `On your schedule · ${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap}`,
+        undo: async () => { await attemptWrite(() => schedule.deleteEvent(id)); await reload(); },
+      };
+    }
+    const ok = await attemptWrite(async () => {
+      made = await tasks.createTask(a.title, {
+        due: a.date,
+        fromThread: threadId,
+        source: src,
+        // A bill is a task wearing money facts (notes/types.ts), so Money
+        // needs no separate write and the row appears where he pays things.
+        ...(a.verb === "bill" ? { bill: { amount: a.amount! } } : {}),
+        ...inheritFromThread(taskItems, threadId),
+      });
+    });
+    const id: string | null = made;
+    if (!ok || !id) return null;
+    await reload();
+    return {
+      receipt: a.verb === "bill" ? `In Money · $${a.amount!.toFixed(2)} due ${when}` : `Added to your tasks · ${when}`,
+      undo: async () => { await attemptWrite(() => tasks.deleteTask(id)); await reload(); },
+    };
+  };
+
   // Email that finishes on Today. A deadline a sender named, or a promise he
   // made, becomes a real task right here: the whole point is that he never
   // has to open the inbox to deal with what the inbox produced.
@@ -1727,6 +1783,7 @@ export default function TodayFlow({
           nowHHMM={nhm}
           onDraft={ai.available ? draftForCard : undefined}
           onTakeMeeting={google.hasToken ? takeMeeting : undefined}
+          onTakeAct={takeAct}
           onSend={google.hasToken ? sendFromCard : undefined}
           onAddTask={addTaskFromMail}
           onOpenThread={onGoEmail ? (id) => onGoEmail(id) : undefined}

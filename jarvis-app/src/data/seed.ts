@@ -222,9 +222,32 @@ export function seedDemoMail(): void {
     ts: Date.now(),
     needsYou: 7,
     threads: [
-      { id: "demo-1", from: "App Store Team", fromEmail: "no-reply@apple.com", subject: "complete your enrollment", gist: "Enrollment closes and the app cannot ship", by: "today" },
-      { id: "demo-2", from: "Nadia Brandt", fromEmail: "nadia@northlake.org", subject: "Invoice attached", gist: "Wants it signed before Net 15 starts Monday" },
-      { id: "demo-3", from: "Northwind Cloud", fromEmail: "alerts@supabase.io", subject: "Security advisories flagged", gist: "Two projects need a version bump" },
+      // Gists are FRAGMENTS here for the same reason triage now asks for them
+      // (Dave 2026-08-25: "The subtext on email previews feels a little
+      // lengthy"). The demo is the one place the copy rules are visible
+      // without a live inbox, so a demo that still writes sentences is a demo
+      // of the old behaviour.
+      { id: "demo-1", from: "App Store Team", fromEmail: "no-reply@apple.com", subject: "complete your enrollment", gist: "Closes today, blocks the ship", by: "today" },
+      { id: "demo-2", from: "Nadia Brandt", fromEmail: "nadia@northlake.org", subject: "Invoice attached", gist: "Signature needed before Monday" },
+      { id: "demo-3", from: "Northwind Cloud", fromEmail: "alerts@supabase.io", subject: "Security advisories flagged", gist: "Two projects need a bump" },
+      // The three shapes of a dated commitment, so all three buttons are
+      // reachable without a live inbox: an appointment with a time, a bill
+      // with an amount, and a package with only a day.
+      {
+        id: "demo-4", from: "Riverside Dental", fromEmail: "front@riversidedental.com",
+        subject: "Appointment reminder", gist: "Cleaning, 2 PM",
+        act: { kind: "appointment", title: "Dental cleaning", date: day(2), start: "14:00", durationMin: 45 },
+      },
+      {
+        id: "demo-5", from: "Northwind Cloud", fromEmail: "billing@supabase.io",
+        subject: "Your invoice is ready", gist: "Renews Sept 1",
+        act: { kind: "bill", title: "Northwind Cloud", date: day(6), amount: 74.99 },
+      },
+      {
+        id: "demo-6", from: "Summit Gear", fromEmail: "ship@summitgear.com",
+        subject: "Your order has shipped", gist: "Order #D2565 arriving",
+        act: { kind: "delivery", title: "Summit Gear order", date: day(1) },
+      },
     ],
     waiting: [
       { threadId: "demo-w1", to: "summitgear", subject: "Order #D2565", days: 55 },

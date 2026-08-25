@@ -1,6 +1,7 @@
 import type { ThreadRow } from "../connections/google/map";
 import { noDashes } from "../ai/suggestions";
 import { capAfterNumber } from "../shared/casing";
+import type { ActProposal } from "./mailAct";
 
 // Triage (email 1): one AI pass sorts the inbox into what needs Dave, what is
 // worth knowing, and noise, with a one-line gist per thread so junk never has
@@ -19,7 +20,14 @@ export type Bucket = "needs_you" | "worth_knowing" | "noise";
 // "by" is the answer-by the SENDER stated, never one we invented: "today",
 // "friday", "aug 14", or "" when nobody named a time. Fake urgency is the
 // thing this feature exists to remove, so an absent deadline stays absent.
-export interface Triage { bucket: Bucket; gist: string; by?: string }
+export interface Triage {
+  bucket: Bucket;
+  gist: string;
+  by?: string;
+  // The dated commitment the email states, UNRESOLVED. See mailAct.ts for why
+  // it is validated at render time rather than here.
+  act?: ActProposal;
+}
 export type TriageMap = Record<string, Triage & { lastMsgId: string }>;
 
 // v2: the cached shape gained "by" (the sender's stated deadline). Entries
@@ -27,9 +35,22 @@ export type TriageMap = Record<string, Triage & { lastMsgId: string }>;
 // thread when a NEW message arrives, they would never get one. Bumping the key
 // forces one re-sort, after which deadlines appear on mail that is already in
 // the inbox. Any schema change here MUST bump this.
-const CACHE_KEY = "jarvis.mail.triage.v2";
+// v3 (2026-08-25): the cached shape gained "act", and the gist rules changed
+// from a sentence to a fragment. Both are invisible without a bump, because
+// the delta only re-triages a thread when a NEW message arrives: every email
+// already in the inbox would keep its old long gist and its missing action
+// forever. One re-sort buys both.
+const CACHE_KEY = "jarvis.mail.triage.v3";
 const CACHE_CAP = 300;
-const GIST_MAX = 140;
+// A FRAGMENT, NOT A PARAGRAPH (Dave 2026-08-25: "The subtext on email
+// previews feels a little lengthy. It should be right to the point").
+//
+// This was 140, which is a tweet, and the model filled it: his screenshot
+// read "Resolve Psychiatric Services reminds Dave of video..." under a card
+// whose title already said Resolve Psychiatric Services. Six words is the
+// ask; 64 characters is the wall behind it, so a model that ignores the
+// instruction still cannot produce a second line.
+const GIST_MAX = 64;
 
 export const TRIAGE_PROMPT = `You triage an inbox for a busy person with ADHD. For each thread decide:
 
@@ -37,11 +58,22 @@ export const TRIAGE_PROMPT = `You triage an inbox for a busy person with ADHD. F
 - "worth_knowing": real information, no action required (receipts for things already handled, status updates, genuine announcements).
 - "noise": promotions, marketing, social-network notifications, newsletters, automated mail nobody replies to.
 
-Also write "gist": ONE plain sentence (under 15 words) saying who wants what and by when. Be concrete: names, amounts, dates. Never scold, never say "you should". If a deadline or amount is in the snippet, it goes in the gist.
+Also write "gist": a FRAGMENT, at most 6 words. Not a sentence. The card already shows who it is from, so never name the sender, and never write "Dave", "the user", "you", or "they". Start with the thing itself. Keep numbers, amounts, dates and times; drop everything else.
+Good: "Video appt Thu 2 PM" / "Invoice $2,400, signature needed" / "Package arriving Wednesday" / "Renews Sept 1, $74.99"
+Bad: "Resolve Psychiatric Services reminds Dave of video appointment" / "They are asking you to confirm your appointment"
 
 Also write "by": the answer-by the SENDER actually stated, copied in their words and under 20 characters ("today", "Friday", "Aug 14", "end of month"). If the sender did not name a time, use "". NEVER invent a deadline and never guess one from tone.
 
-Reply with ONLY a JSON array, one object per thread: [{"id":"...","bucket":"needs_you|worth_knowing|noise","gist":"...","by":"..."}]
+Also write "act" WHEN AND ONLY WHEN the email states a dated commitment this person now has. This becomes a one-tap button, so every field must be COPIED from the email, never inferred:
+- "kind": one of appointment, meeting, call, flight, reservation, class, bill, invoice, payment, renewal, subscription, delivery, package, order. Anything else: leave "act" out entirely.
+- "title": what it is, 6 words max, no sender name.
+- "date": the exact calendar date as YYYY-MM-DD. If the email says a weekday with no date, work it out ONLY when the year and month are unambiguous; otherwise leave "act" out.
+- "start": 24-hour "HH:MM", ONLY when the email states a start time. Omit it rather than guess. An appointment with no stated time is still worth an "act" without a start.
+- "durationMin": only if stated.
+- "amount": a plain number, only for bills, only when the email states the total.
+Leave "act" out for anything speculative, for marketing with a deadline, and for anything already in the past.
+
+Reply with ONLY a JSON array, one object per thread: [{"id":"...","bucket":"needs_you|worth_knowing|noise","gist":"...","by":"...","act":{...}}]
 
 THREADS:
 `;
@@ -60,8 +92,21 @@ export const TRIAGE_SCHEMA: Record<string, unknown> = {
         properties: {
           id: { type: "string" },
           bucket: { type: "string", enum: ["needs_you", "worth_knowing", "noise"] },
-          gist: { type: "string", description: "one sentence, under 15 words, who wants what by when" },
+          gist: { type: "string", description: "a fragment, at most 6 words, no sender name, no 'you'" },
           by: { type: "string", description: "sender's stated deadline in their words, or empty" },
+          act: {
+            type: "object",
+            description: "a dated commitment stated in the email, every field copied not inferred; omit entirely when there is none",
+            properties: {
+              kind: { type: "string", description: "appointment|meeting|call|flight|reservation|class|bill|invoice|payment|renewal|subscription|delivery|package|order" },
+              title: { type: "string", description: "what it is, 6 words max, no sender name" },
+              date: { type: "string", description: "YYYY-MM-DD, copied or unambiguously resolved" },
+              start: { type: "string", description: "HH:MM 24-hour, only when the email states a time" },
+              durationMin: { type: "number", description: "only if stated" },
+              amount: { type: "number", description: "bills only, the stated total" },
+            },
+            required: ["kind", "title", "date"],
+          },
         },
         required: ["id", "bucket", "gist", "by"],
       },
@@ -94,14 +139,20 @@ export function parseTriage(raw: string, rows: ThreadRow[]): TriageMap | null {
   const out: TriageMap = {};
   for (const item of parsed) {
     if (typeof item !== "object" || item === null) continue;
-    const { id, bucket, gist, by } = item as { id?: unknown; bucket?: unknown; gist?: unknown; by?: unknown };
+    const { id, bucket, gist, by, act } = item as { id?: unknown; bucket?: unknown; gist?: unknown; by?: unknown; act?: unknown };
     if (typeof id !== "string") continue;
     const row = byId.get(id);
     if (!row) continue;
     const b: Bucket = bucket === "needs_you" || bucket === "noise" ? bucket : "worth_knowing";
     const g = noDashes(typeof gist === "string" && gist.trim() ? gist.trim().slice(0, GIST_MAX) : row.snippet.slice(0, GIST_MAX));
     const d = typeof by === "string" ? by.trim().slice(0, 20) : "";
-    out[id] = { bucket: b, gist: g, lastMsgId: row.lastMsgId, ...(d ? { by: d } : {}) };
+    // Stored RAW, resolved later. readAct needs to know what day it is, and
+    // this cache outlives the day it was written: an appointment validated as
+    // "next Tuesday" at parse time would still claim to be next Tuesday a
+    // fortnight later. Resolving at render means a stale action expires by
+    // itself rather than lying quietly.
+    const a = act && typeof act === "object" && !Array.isArray(act) ? (act as ActProposal) : undefined;
+    out[id] = { bucket: b, gist: g, lastMsgId: row.lastMsgId, ...(d ? { by: d } : {}), ...(a ? { act: a } : {}) };
   }
   return Object.keys(out).length ? out : null;
 }
@@ -151,10 +202,13 @@ export function loadTriageCache(storage: Pick<Storage, "getItem"> = localStorage
     const out: TriageMap = {};
     for (const [id, v] of Object.entries(parsed as Record<string, unknown>)) {
       if (typeof v !== "object" || v === null) continue;
-      const { bucket, gist, lastMsgId, by } = v as { bucket?: unknown; gist?: unknown; lastMsgId?: unknown; by?: unknown };
+      const { bucket, gist, lastMsgId, by, act } = v as { bucket?: unknown; gist?: unknown; lastMsgId?: unknown; by?: unknown; act?: unknown };
       if ((bucket === "needs_you" || bucket === "worth_knowing" || bucket === "noise")
         && typeof gist === "string" && typeof lastMsgId === "string") {
-        out[id] = { bucket, gist, lastMsgId, ...(typeof by === "string" && by ? { by } : {}) };
+        // Carried through unread. Dropping it here would mean the button
+        // appears once, on the pass that triaged the thread, and never again.
+        const a = act && typeof act === "object" && !Array.isArray(act) ? (act as ActProposal) : undefined;
+        out[id] = { bucket, gist, lastMsgId, ...(typeof by === "string" && by ? { by } : {}), ...(a ? { act: a } : {}) };
       }
     }
     return out;

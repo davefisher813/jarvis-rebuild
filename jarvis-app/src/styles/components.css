@@ -492,10 +492,18 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    draws itself as Apple Music's own secondary: dim capsule, red label,
    centered in its card. Width comes from the label; the centering works in
    both block and flex-column parents. */
-.row-act { justify-content: center; width: auto; align-self: center; margin: var(--s-1) auto;
+/* THE CENTERING WAS NEVER TRUE IN A BLOCK PARENT (Dave 2026-08-25, in the
+   same screenshot as the reminders rows). `margin: auto` cannot centre an
+   inline box, so inside a plain .card this pill sat hard left with only its
+   own padding, reading as something spilling out of the corner. In a flex
+   parent `align-self` carried it and the comment above looked true.
+   Measured: leftGap 0, rightGap 127 in .card; 142/142 in a flex row.
+   `display: flex` with `width: fit-content` keeps the pill the width of its
+   label and makes the auto margins work. */
+.row-act { justify-content: center; width: fit-content; align-self: center; margin: var(--s-1) auto;
   background: var(--press-3); border: 0; color: var(--tint); font-weight: var(--w-semi);
   font-size: var(--t-body); height: 40px; padding: 0 var(--s-5); border-radius: var(--r-pill);
-  display: inline-flex; align-items: center; position: relative; }
+  display: flex; align-items: center; position: relative; }
 /* B1/B8 (2026-08-23): found by measuring, not by reading. .row-act paints at
    40px, four short of --tap-min, across 26 call sites. Nothing caught it
    because the 44px law only ever named three classes. The paint stays 40 so
@@ -2265,8 +2273,20 @@ button {
 /* REMINDERS (Dave 2026-08-19: "taking meds should just be a set reminder").
    A reminder row is deliberately quieter than a task row: no category kicker,
    no urgency colour, no overdue red. A missed one greys, it never shouts. */
-.rem-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) 0; min-height: var(--tap-min); }
-.rem-row + .rem-row { border-top: 1px solid var(--divider); }
+/* INSIDE THE CARD, LIKE EVERY OTHER ROW (Dave 2026-08-25: "Reminders boxes
+   aren't fully inside the container. Looks like it's not following catalog
+   rules"). Measured: the card ran 16 to 374 and so did the row, so the
+   checkbox sat ON the card's left edge and the Snooze pill ON its right one,
+   under a 22px corner radius. Every other row in the app pays --s-4 to both
+   sides; this one paid nothing and had since it was written. */
+.rem-row { display: flex; align-items: center; gap: var(--s-3); padding: var(--s-2h) var(--s-4); min-height: var(--tap-min); }
+/* The divider follows the house rule too: it starts where the TEXT starts,
+   past the leading control, the same as .task-row:has(.task-check). A rule
+   drawn edge to edge under an indented row cuts the card in half instead of
+   separating two lines. */
+.rem-row + .rem-row { border-top: 0; position: relative; }
+.rem-row + .rem-row::before { content: ""; position: absolute;
+  left: calc(var(--s-4) + 22px + var(--s-3)); right: 0; top: 0; height: 0.5px; background: var(--divider); }
 .rem-time { font-size: var(--t-meta); color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 46px; }
 .rem-name { font-size: var(--t-h3); color: var(--tx-1); }
 .rem-row.missed .rem-time { color: var(--tx-1); font-weight: var(--w-semi); }

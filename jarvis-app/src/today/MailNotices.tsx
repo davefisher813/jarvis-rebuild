@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Mail, Clock, CalendarClock, CornerUpLeft, CalendarCheck, BellRing, PenLine } from "../shared/icons";
+import { Mail, Clock, CalendarClock, CornerUpLeft, CalendarCheck, BellRing, PenLine, CalendarPlus } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
 import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
@@ -7,6 +7,7 @@ import {
   loadMailSnapshot, mailNotices, residualLine, loadDismissed, dismissNotice, setDismissed,
   type MailKind, type MailNotice,
 } from "../messages/home";
+import type { MailAct } from "../messages/mailAct";
 import { loadSnoozes, snoozeNotice, sleepingNow, snoozeChoices } from "../messages/snoozeNotice";
 import { quickAnswers } from "../messages/quickAnswers";
 
@@ -30,6 +31,7 @@ const ICON: Record<MailKind, React.ReactNode> = {
   meeting: <CalendarCheck className="ic" />,
   chase: <BellRing className="ic" />,
   draft: <PenLine className="ic" />,
+  act: <CalendarPlus className="ic" />,
 };
 
 export interface MailDraft { text: string; sending: boolean }
@@ -44,6 +46,7 @@ export default function MailNotices({
   onDraft,
   onSend,
   onTakeMeeting,
+  onTakeAct,
   max = 3,
 }: {
   today: string;
@@ -66,6 +69,11 @@ export default function MailNotices({
   // N1: book the slot, accept it in writing, and block the time. One tap for
   // what is otherwise three decisions.
   onTakeMeeting?: (threadId: string) => Promise<boolean>;
+  // Dave 2026-08-25: the appointment, the bill, the package. Returns the
+  // receipt to show and, when the write can be taken back, how to take it
+  // back. null means nothing landed, and the card says so rather than
+  // claiming a save.
+  onTakeAct?: (a: MailAct, threadId: string) => Promise<{ receipt: string; undo?: () => Promise<void> } | null>;
   max?: number;
 }) {
   const [hidden, setHidden] = useState<string[]>(() => loadDismissed(today));
@@ -94,6 +102,32 @@ export default function MailNotices({
   };
 
   const act = (n: MailNotice) => {
+    // BEFORE n.task, because a dated commitment is more specific than a task.
+    // An appointment reminder that also names a deadline would otherwise land
+    // as a to-do about an appointment instead of the appointment.
+    if (n.act && onTakeAct) {
+      haptics.selection();
+      setBusy(n.key);
+      void (async () => {
+        const done = await onTakeAct(n.act!, n.threadId);
+        setBusy(null);
+        if (!done) {
+          showToast({ message: "Couldn't add it · Opening the thread" });
+          onOpenThread?.(n.threadId);
+          return;
+        }
+        // Undo is not politeness here. This is the only card that writes to
+        // the schedule without opening anything, so the wrong one has to be
+        // one tap from gone, in the same place the receipt appears.
+        setDone((d) => [...d, n.key]);
+        setDrafts((d) => { const x = { ...d }; delete x[n.key]; return x; });
+        showToast({
+          message: done.receipt,
+          ...(done.undo ? { actionLabel: "Undo", onAction: () => { void done.undo!(); setDone((d) => d.filter((k) => k !== n.key)); } } : {}),
+        });
+      })();
+      return;
+    }
     if (n.task) {
       haptics.selection();
       void (async () => {
