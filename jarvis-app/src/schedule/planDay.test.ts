@@ -223,3 +223,28 @@ describe("focus zones pull tasks in", () => {
     expect(plan.blocks[0]!.overSoft).toBeUndefined();
   });
 });
+
+// Dave 2026-08-25, from a screenshot of Today: Deep Work held "Update workout
+// feature" at 1:55 and again at 2:50. This loop places whatever it is handed,
+// so the same id arriving twice was planned twice, and nothing downstream
+// could recover: Your Day nests by taskId, so its Set collapsed to one entry
+// while the list it renders from kept both blocks.
+describe("law: a task is planned once", () => {
+  const t = (id: string, text: string) => ({ id, text, category: "work", durationMin: 30 });
+
+  it("plans one block for a task handed to it twice", () => {
+    const plan = planDay([t("a", "Update workout feature"), t("a", "Update workout feature")], [], 540, 1020);
+    expect(plan.blocks.filter((b) => b.taskId === "a")).toHaveLength(1);
+  });
+
+  it("still plans two DIFFERENT tasks that happen to share a title", () => {
+    const plan = planDay([t("a", "Update workout feature"), t("b", "Update workout feature")], [], 540, 1020);
+    expect(plan.blocks).toHaveLength(2);
+    expect(plan.blocks.map((b) => b.taskId).sort()).toEqual(["a", "b"]);
+  });
+
+  it("does not report the skipped duplicate as unplaced, which would be a second lie", () => {
+    const plan = planDay([t("a", "x"), t("a", "x")], [], 540, 1020);
+    expect(plan.unplaced).toEqual([]);
+  });
+});

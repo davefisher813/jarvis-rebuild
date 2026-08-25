@@ -100,7 +100,22 @@ export function planDay(
     .filter((z) => z.e > z.s)
     .sort((a, b) => a.s - b.s);
 
+  // ONE BLOCK PER TASK (Dave 2026-08-25, screenshot: "the schedule also is
+  // rendering on the home page with a bug. It shows the same task twice
+  // currently in deep work").
+  //
+  // This loop places whatever it is handed, so a task id arriving twice was
+  // planned twice and the day showed it at two different times. Nothing
+  // downstream could recover: Your Day nests by taskId, so the Set collapsed
+  // to one entry while the list it renders from kept both.
+  //
+  // Deduped HERE rather than at the call sites, because there is no reading
+  // of "plan this task twice today" that is ever what anyone meant, and a
+  // guard at one call site would not cover the next one.
+  const placed = new Set<string>();
   for (const t of tasks) {
+    if (placed.has(t.id)) continue;
+    placed.add(t.id);
     const dur = Math.max(5, t.durationMin);
     const windowed = t.windowS != null || t.windowE != null;
     const winFrom = Math.max(startMin, t.windowS ?? startMin);
