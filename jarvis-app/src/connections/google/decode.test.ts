@@ -98,3 +98,19 @@ describe("HTML entities", () => {
     expect(decodeEntities("plain words")).toBe("plain words");
   });
 });
+
+describe("a header can carry entities too", () => {
+  it("is decoded by the same boundary that decodes the body", () => {
+    // Found by looking at the inbox list after the first pass fixed only the
+    // body: "Sarah &amp; Co" and "Don&#39;t miss it" were still in the list.
+    expect(decodeEntities(decodeWords("Sarah &amp; Co"))).toBe("Sarah & Co");
+    expect(decodeEntities(decodeWords("Don&#39;t miss it"))).toBe("Don't miss it");
+    // And the two compose: an encoded word whose text holds an entity.
+    expect(decodeEntities(decodeWords("=?UTF-8?Q?Caf=C3=A9_&amp;_Bar?="))).toBe("Café & Bar");
+  });
+
+  it("leaves an ampersand that is not an entity alone", () => {
+    expect(decodeEntities("AT&T pricing")).toBe("AT&T pricing");
+    expect(decodeEntities("R&D budget")).toBe("R&D budget");
+  });
+});

@@ -52,7 +52,16 @@ export interface MailRow { id: string; from: string; subject: string; snippet: s
 // instead is how buildReply came to send an encoded subject back out.
 function header(meta: GmailMeta, name: string): string {
   const h = (meta.payload?.headers || []).find((x) => x.name.toLowerCase() === name.toLowerCase());
-  return decodeWords(h?.value || "");
+  return decodeHeader(h?.value || "");
+}
+
+// Both decoders, in order. Entities in a HEADER are rarer than in a body and
+// they happen: a sender templating HTML into their subject line ships
+// "Don&#39;t miss it" and "Sarah &amp; Co", which is what the inbox list read
+// after the first pass fixed only the body (2026-08-25). The entity pattern
+// needs a closing semicolon, so "AT&T" is untouched.
+function decodeHeader(v: string): string {
+  return decodeEntities(decodeWords(v));
 }
 // TRANSPORT QUOTES COME OFF HERE (2026-08-25). A display name containing a
 // comma is sent quoted: `"Delaney, Marcus" <m@x.com>`. MessagesFlow had a
@@ -187,7 +196,7 @@ function fmtWall(d: Date): string {
 
 function headerOf(headers: GmailHeader[] | undefined, name: string): string {
   const h = (headers || []).find((x) => x.name.toLowerCase() === name.toLowerCase());
-  return decodeWords(h?.value || "");
+  return decodeHeader(h?.value || "");
 }
 function emailOf(raw: string): string {
   const m = raw.match(/<([^>]+)>/);
