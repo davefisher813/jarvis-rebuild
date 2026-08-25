@@ -31,8 +31,29 @@ const SAYS_SO = /\b(do not reply|don'?t reply|no reply (is )?(needed|necessary|r
  * costs a tap (the thread still opens, Forward still works), and OFFERING one
  * on a mailbox that will not costs a reply he believes he sent.
  */
-export function isNoReply(fromEmail: string, body = ""): boolean {
+/**
+ * Did this go to a list?
+ *
+ * Separate from isNoReply because it licenses more: a marketing blast belongs
+ * to no project, is nobody's to hand off, and has no person on the other end.
+ * An automated APPOINTMENT reminder is none of those things, so the two
+ * questions do not collapse into one.
+ */
+export function isBulk(listUnsubscribe = ""): boolean {
+  return !!(listUnsubscribe || "").trim();
+}
+
+export function isNoReply(fromEmail: string, body = "", listUnsubscribe = ""): boolean {
   if (AUTOMATED_ADDRESS.test((fromEmail || "").toLowerCase())) return true;
+  // BULK MAIL IS NOT A CONVERSATION (Dave 2026-08-25, on a RushOrderTees
+  // blast). A List-Unsubscribe header is the sender declaring, in a machine
+  // readable way, that this went to a list. The app was already reading that
+  // header to draw an Unsubscribe button, and offering "Thanks", "Got it" and
+  // "Will do" on the same screen: it knew and asked anyway.
+  //
+  // A reply to a marketing address reaches a queue nobody empties. This is
+  // the most reliable signal of the three, because the sender set it.
+  if ((listUnsubscribe || "").trim()) return true;
   // Only the opening of the message. A newsletter's footer boilerplate at the
   // bottom of a genuine person's forwarded thread is not that person saying
   // they will not read a reply.

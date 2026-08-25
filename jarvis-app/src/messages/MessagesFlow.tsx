@@ -39,7 +39,7 @@ import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, 
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import { settleAll, settleLine, type SettleWords } from "./settle";
 import { readIcs } from "./ics";
-import { isNoReply } from "./noReply";
+import { isNoReply, isBulk } from "./noReply";
 import { humanError } from "../connections/google/humanError";
 import { endOfAct } from "./mailAct";
 import { dayPhrase, monthDay } from "../money/bills";
@@ -1937,7 +1937,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   }
 
   if (view === "detail" && thread) {
-    const noReply = isNoReply(lastMsg(thread).fromEmail, cleanBody(lastMsg(thread).body));
+    const noReply = isNoReply(lastMsg(thread).fromEmail, cleanBody(lastMsg(thread).body), lastMsg(thread).listUnsubscribe);
+    // BULK LICENSES MORE THAN NO-REPLY (Dave 2026-08-25, on a marketing blast
+    // carrying the full stack: Reply, quick answers, Hand this to someone,
+    // and four project chips). A blast belongs to no project and is nobody's
+    // to hand off. An automated appointment reminder is neither of those, so
+    // the two questions stay separate.
+    const bulk = isBulk(lastMsg(thread).listUnsubscribe);
     const worthSummarising = thread.messages.length > 1 || isLong(cleanBody(lastMsg(thread).body));
     return (
       <div className={"screen " + pushCls} key="detail">
@@ -2015,7 +2021,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="msg-actions">
                 <button className="btn btn-secondary" onClick={() => startForward(thread)}><Forward className="ic" /> Forward</button>
               </div>
-              <div className="conn-meta msg-noreply">No-reply sender · Answers here go nowhere</div>
+              <div className="conn-meta msg-noreply">{bulk ? "Bulk mail · A reply reaches a list, not a person" : "No-reply sender · Answers here go nowhere"}</div>
             </>
           ) : (
             <>
@@ -2056,7 +2062,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           </div>
 
           {/* Hand off: one gesture for "this is not mine". */}
-          {people && handTargets === null && (
+          {people && handTargets === null && !bulk && (
             <button className="btn btn-secondary btn-block msg-hand" onClick={() => void openHandoff()}>
               <Forward className="ic" /> Hand this to someone
             </button>
@@ -2116,7 +2122,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               mutation: nothing is written to Gmail and nothing is written to
               the project, so unlinking leaves no trace anywhere. One home
               per thread, because a thread in two projects is in neither. */}
-          {projects.length > 0 && (
+          {projects.length > 0 && !bulk && (
             <div className="msg-filed">
               <span className="conn-meta">{links[thread.id] ? "Part of " + links[thread.id]!.label : "Not linked to anything"}</span>
               <div className="msg-chips">

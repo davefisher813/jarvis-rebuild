@@ -54,6 +54,12 @@ const THREADS: GmailThreadMeta[] = [
   { id: "t_nosub", messages: [
     msg("m_nosub", "Marcus Delaney <m@northlake.org>", "", "", ["INBOX"], NOW - 7 * H),
   ] },
+  // Dave's own inbox, 2026-08-25: a marketing blast with the full plumbing
+  // in its plain-text part. This fixture is why the "( )" columns and the
+  // reply chips on bulk mail are now testable.
+  { id: "t_bulk", messages: [
+    msg("m_bulk", "RushOrderTees <sales@rushordertees.com>", "Put Your Logo on the Brands Everyone Knows", "Custom gear from Nike, Under Armour, Stanley, and more", ["INBOX", "UNREAD"], NOW - 8 * H),
+  ] },
   { id: "t_orgA", messages: [
     msg("m6", "Northlake <news@northlake.org>", "Fall registration opens Monday", "Registration for the fall season opens Monday. Nothing due yet.", ["INBOX"], NOW - 30 * H),
   ] },
@@ -97,7 +103,40 @@ const FULLS: Record<string, GmailThreadFull> = {
   t_encoded: full("t_encoded", [{ from: "=?UTF-8?B?Tm/Dq2wgQmVyZ2Vy?= <noel@bruxelles.be>", subject: "=?UTF-8?B?TsOkY2hzdGUgU2Nocml0dGU=?=", date: "Yesterday", body: "Bonjour Dave, voici la suite." }]),
   t_entity: full("t_entity", [{ from: "Sarah &amp; Co <events@sarahco.com>", subject: "Don&#39;t miss it", date: "Yesterday", body: "Don&#39;t miss Sarah &amp; Co&mdash;RSVP by Friday" }]),
   t_nosub: full("t_nosub", [{ from: "Marcus Delaney <m@northlake.org>", subject: "", date: "Yesterday", body: "" }]),
+  t_bulk: full("t_bulk", [{
+    from: "RushOrderTees <sales@rushordertees.com>",
+    subject: "Put Your Logo on the Brands Everyone Knows",
+    date: "Tue, 25 Aug 2026 14:21:07 +0000",
+    body: [
+      "Custom gear from Nike, Under Armour, Stanley, and more, all printed with your design.",
+      "RushOrderTees Logo ( https://rushordertees.com/?t=a1 )",
+      "Products ( https://rushordertees.com/products?t=a2 )",
+      "My Saved Designs ( https://rushordertees.com/saved?t=a3 )",
+      "Premium gear for \"Vector Sports\"",
+      "front ( https://rushordertees.com/f?t=a4 )",
+      "back ( https://rushordertees.com/b?t=a5 )",
+      "Premium brands carry built-in trust. When your logo lands on gear from Nike, Under Armour, or Carhartt, it signals that your brand values quality before anyone reads a word.",
+      "Premium Brands ( https://rushordertees.com/pb?t=a6 )",
+      "Shop Products ( https://rushordertees.com/sp?t=a7 )",
+      "Free Shipping on All Orders!",
+      "Call (267) 332-4101 ( tel:2673324101 )",
+      "Email sales@rushordertees.com ( mailto:sales@rushordertees.com )",
+      "RushOrderTees, A Printfly Company",
+      "2727 Commerce Way, Philadelphia, PA 19154",
+      "Copyright \u00A9 2026 RushOrderTees, All rights reserved.",
+      "This message was sent to davefisher813@gmail.com",
+      "No longer interested? Unsubscribe ( https://rushordertees.com/unsub?t=a8 )",
+    ].join("\n"),
+  }]),
 };
+
+// The List-Unsubscribe header is what makes this bulk, and it is the header
+// the app was already reading to draw an Unsubscribe button while offering
+// quick replies beside it.
+{
+  const b = FULLS.t_bulk?.messages?.[0] as { payload?: { headers?: { name: string; value: string }[] } } | undefined;
+  b?.payload?.headers?.push({ name: "List-Unsubscribe", value: "<https://rushordertees.com/unsub?t=a8>" });
+}
 
 // A real calendar invite, so the calendar card can be walked end to end. The
 // old bench had a PDF and nothing else, which is why "Add It to Your Calendar"
@@ -189,6 +228,7 @@ const TRIAGE_REPLY = JSON.stringify([
   { id: "t_encoded", bucket: "needs_you", gist: "Next steps, needs an answer" },
   { id: "t_entity", bucket: "worth_knowing", gist: "RSVP by Friday" },
   { id: "t_nosub", bucket: "worth_knowing", gist: "Empty message" },
+  { id: "t_bulk", bucket: "noise", gist: "Custom branded gear promo" },
 ]);
 
 const fetchImpl = (async (_url: RequestInfo | URL, init?: RequestInit) => {

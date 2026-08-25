@@ -20,6 +20,17 @@ describe("a mailbox nobody reads", () => {
     expect(isNoReply("x@y.com", "You have reached an unmonitored mailbox.")).toBe(true);
   });
 
+  it("treats a List-Unsubscribe header as the sender saying so", () => {
+    // The app already read this header to draw an Unsubscribe button, and
+    // offered quick replies beside it. The sender set the header; it is the
+    // most reliable of the three signals.
+    expect(isNoReply("sales@rushordertees.com", "Custom gear from Nike, all printed with your design.",
+      "<https://rushordertees.com/unsub?x=1>, <mailto:unsub@rushordertees.com>")).toBe(true);
+    // Absent or blank changes nothing.
+    expect(isNoReply("marcus@northlake.org", "Need that waiver", "")).toBe(false);
+    expect(isNoReply("marcus@northlake.org", "Need that waiver", "   ")).toBe(false);
+  });
+
   it("leaves a real person alone", () => {
     expect(isNoReply("coach@northlake.org", "Dave, need the waiver back before Friday.")).toBe(false);
     expect(isNoReply("nadia@northlake.org", "Can you sign this and send it back?")).toBe(false);
