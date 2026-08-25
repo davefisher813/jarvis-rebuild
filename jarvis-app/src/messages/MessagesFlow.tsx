@@ -36,11 +36,12 @@ import { sweepCandidates, sweepTitle, sweepSub, sweepReceipt, type SweepCandidat
 import { PRESETS, loadMinutes, saveMinutes, clampMinutes, drainReceipt } from "./drain";
 import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, handoffLine, type HandoffTarget } from "./handoff";
 import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, markPromised, commitmentLine, loadPromised } from "./commitments";
-import { saveMailSnapshot, mailNotices, loadMailSnapshot, type MailMeeting } from "./home";
+import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import { settleAll, settleLine, type SettleWords } from "./settle";
 import { readIcs } from "./ics";
+import { humanError } from "../connections/google/humanError";
 import { endOfAct } from "./mailAct";
-import { dayPhrase } from "../money/bills";
+import { dayPhrase, monthDay } from "../money/bills";
 
 // The words every mail-archive receipt uses, in one place, because the four
 // batch sites used to phrase the same outcome four ways.
@@ -64,7 +65,7 @@ import { decide, type Decision, type MailAction } from "./mailAction";
 import MailMoreSheet from "./MailMoreSheet";
 import { phoneBook, phoneFor, telLink, smsLink, colleagueBook, altFor, firstName,
   type PhoneBook, type Colleague } from "./reachBy";
-import { nameBook, nameFor, type NameBook } from "./names";
+import { nameBook, nameFor, prettyHandle, type NameBook, displayName } from "./names";
 import { clearedToday, bumpCleared, closeOut } from "./cleared";
 import { railClass, railToneForWaiting, railToneForDeadline, ageBands, showBandHeads } from "./rows";
 import { DEFAULT_ANSWERS } from "./quickAnswers";
@@ -107,6 +108,18 @@ type View = "list" | "detail" | "compose" | "deck" | "dead" | "rules";
 type Filter = "triage" | "all" | "drafts";
 type TriageState = "idle" | "pending" | "ready" | "failed";
 
+// One recipient's name, or "3 people" when a draft has several. The raw To
+// header is a transport artefact and never belongs in a name slot.
+function draftTo(raw: string): string {
+  const t = (raw || "").trim();
+  if (!t) return "(no recipient)";
+  const parts = t.split(",").map((x) => x.trim()).filter(Boolean);
+  if (parts.length > 1) return parts.length + " people";
+  const one = parts[0]!;
+  const m = one.match(/^(.*?)\s*<.*>$/);
+  return displayName(m?.[1] ?? one) || one;
+}
+
 const AUTONOISE_KEY = "jarvis.mail.autonoise.v1";
 // Small enough that one request is fast and well under the proxy's input cap.
 const TRIAGE_BATCH = 12;
@@ -122,7 +135,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
 }
 // Transport quotes around display names ("Marcus Delaney") are wire
 // format, not UI. Strip them everywhere a sender renders (V4 email pass).
-const displayName = (n: string) => n.replace(/^"+|"+$/g, "").trim();
+
 
 const BUCKET_LABEL: Record<Bucket, string> = { needs_you: "Needs You", worth_knowing: "Worth Knowing", noise: "Noise" };
 
@@ -279,7 +292,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // one more book: a row that says "jrubino" is a row you have to decode.
   const [names, setNames] = useState<NameBook>({ byEmail: {} });
   // E12: what actually got cleared today, counted where the archives happen.
-  const clearedKey = new Date().toISOString().slice(0, 10);
+  const clearedKey = todayISO();
   const [cleared, setCleared] = useState<number>(() => clearedToday(clearedKey));
   const countCleared = (n: number) => setCleared(bumpCleared(clearedKey, n));
   // The rest of the moves for one Waiting On row, opened from its swipe.
@@ -349,7 +362,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             parsed = parseTriage(raw, batch);
             if (!parsed) lastErr = "Sort came back unreadable";
           } catch (e) {
-            lastErr = ((e as Error)?.message || "").slice(0, 140);
+            // The raw AI response body used to land here and render under
+            // "Couldn't Sort Your Mail", cut off mid-JSON at 140 characters
+            // (2026-08-25).
+            lastErr = humanError(e, "The sort didn't come back");
           }
         }
         // A batch that failed is still a batch that is no longer pending, so
@@ -404,7 +420,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       void runSweep();
       void findMeetings(splitByBucket(mapped, loadTriageCache()).needsYou);
     } catch (e) {
-      setError((e as Error).message || "Could not load mail");
+      setError(humanError(e, "Could not load mail"));
     } finally {
       setLoading(false);
     }
@@ -426,7 +442,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       .filter((r) => mightProposeTimes((r.subject || "") + " " + (r.snippet || "")))
       .slice(0, 2);
     if (candidates.length === 0) { setMeetings([]); return; }
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = todayISO();
     const out: MailMeeting[] = [];
     for (const r of candidates) {
       try {
@@ -489,7 +505,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (!needsSweep(head)) return;
       if (items.length === 0) { saveSweep({ head, promises: [] }); setSweepTick((n) => n + 1); return; }
       const raw = await ai.complete(
-        [{ role: "user", content: sweepPrompt(items.slice(0, 8), new Date().toISOString().slice(0, 10)) }],
+        [{ role: "user", content: sweepPrompt(items.slice(0, 8), todayISO()) }],
         SWEEP_SYSTEM,
       );
       saveSweep({ head, promises: parseSweep(raw, items) });
@@ -788,7 +804,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       })));
       setDraftsLoaded(true);
     } catch (e) {
-      setError((e as Error).message || "Could not load drafts");
+      setError(humanError(e, "Could not load drafts"));
     } finally {
       setLoading(false);
     }
@@ -833,7 +849,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // messages/home.ts for what the home page does with it.
   useEffect(() => {
     if (!triaged || rows.length === 0) return;
-    const todayIso = new Date().toISOString().slice(0, 10);
+    const todayIso = todayISO();
     // A thread whose last message is no longer HIS has answered itself, which
     // is the same derivation Waiting On uses, so the two can never disagree.
     const answeredThreads = rows.filter((r) => !waiting.some((w) => w.threadId === r.id)).map((r) => r.id);
@@ -904,7 +920,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     void (async () => {
       for (const r of due) {
         await tasks
-          .createTask(laterTaskTitle(r.from, r.subject), { due: new Date().toISOString().slice(0, 10), source: madeBy("email", r.id) })
+          .createTask(laterTaskTitle(r.from, r.subject), { due: todayISO(), source: madeBy("email", r.id) })
           .catch(() => {});
       }
       emit({ type: "action", props: { name: "email.net.caught", n: due.length } });
@@ -917,7 +933,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       await g.connect();
       await loadThreads();
     } catch (e) {
-      setError((e as Error).message || "Could not connect");
+      setError(humanError(e, "Could not connect"));
     }
   };
 
@@ -942,7 +958,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       }));
       setResults(perAccount.flat().sort((a, b) => b.dateMs - a.dateMs));
     } catch (e) {
-      setError((e as Error).message || "Search failed");
+      setError(humanError(e, "Search failed"));
     } finally {
       setSearching(false);
     }
@@ -1015,7 +1031,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           if (!mine) return null;
           return {
             subject: full.subject,
-            dateISO: (mine.date ? new Date(mine.date) : new Date()).toISOString().slice(0, 10),
+            // The INSTANT, read as a local calendar day. This used to parse
+            // the raw Date header and re-serialize it through UTC, so a mail
+            // sent at 8:40 PM ET on the 19th was filed and shown as the 20th
+            // (2026-08-25). It now takes dateMs and todayISO, which is the
+            // app's own local-day function.
+            dateISO: todayISO(mine.dateMs ? new Date(mine.dateMs) : new Date()),
             threadId: full.id,
             body: cleanBody(mine.body),
           };
@@ -1126,7 +1147,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         }
       }
     } catch (e) {
-      setError((e as Error).message || "Could not open conversation");
+      setError(humanError(e, "Could not open conversation"));
     }
   };
 
@@ -1515,7 +1536,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setDraft({ to: full.to || "", subject: full.subject, body: full.body });
       setView("compose");
     } catch (e) {
-      setError((e as Error).message || "Could not open draft");
+      setError(humanError(e, "Could not open draft"));
     }
   };
 
@@ -1572,7 +1593,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (draft.threadId && chaseDays > 0) {
         setChase({
           threadId: draft.threadId, to: draft.to, subject: draft.subject,
-          setISO: new Date().toISOString().slice(0, 10), days: chaseDays,
+          setISO: todayISO(), days: chaseDays,
         });
       }
       const nudged = draft.threadId && waiting.some((w) => w.threadId === draft.threadId);
@@ -1581,7 +1602,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (draft.threadId) clearChase(draft.threadId);
       const threadForPromise = draft.threadId || sent.threadId;
       if (tasks && ai.available && !draft.handoffTo && threadForPromise && !alreadyPromised(threadForPromise)) {
-        const today = new Date().toISOString().slice(0, 10);
+        const today = todayISO();
         void (async () => {
           try {
             const raw = await ai.complete(
@@ -1593,7 +1614,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             markPromised(threadForPromise);
             await tasks.createTask(c.text, { due: c.due ?? null, source: madeBy("email", threadForPromise) });
             emit({ type: "action", props: { name: "email.commitment.caught" } });
-            setToast(commitmentLine(c));
+            setToast(commitmentLine(c, todayISO()));
             setTimeout(() => setToast(null), 4000);
           } catch { /* a missed catch is silent; a wrong task is not */ }
         })();
@@ -1620,7 +1641,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setView("list");
       setTimeout(() => setToast(null), draft.handoffTo ? 3000 : 2000);
     } catch (e) {
-      setError((e as Error).message || "Could not send");
+      setError(humanError(e, "Could not send"));
     } finally {
       setSending(false);
     }
@@ -1707,7 +1728,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="row" key={sender}>
               <div className="row-grow">
                 <div className="line-between">
-                  <span className="conn-name truncate">{sender}</span>
+                  {/* The rule's storage key is an address. The row underneath
+                    a Waiting On entry has used nameFor since August; this one
+                    printed the key (2026-08-25). */}
+                <span className="conn-name truncate">{nameFor(names, sender, prettyHandle(sender.split("@")[0] ?? "") ?? sender)}</span>
                   <span className="conn-meta">{BUCKET_LABEL[bucket]}</span>
                 </div>
               </div>
@@ -2245,8 +2269,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <span className="msg-from truncate">{displayName(r.from)}</span>
           {/* N4: a VIP is marked where he reads, not buried in a setting. */}
           {isVip(r.fromEmail, vips) && <span className="msg-vip" aria-label="Always gets through">★</span>}
+          {/* ONE VOCABULARY FOR ONE FIELD (2026-08-25). The chip printed the
+              model's raw phrase, sliced at 20 characters and mid-word, while
+              the Today card ran the identical field through byLabel and read
+              "Today" / "Tomorrow". Same email, two descriptions. */}
           {effTriage[r.id]?.by
-            ? <span className={"msg-due" + (byRank(effTriage[r.id]!.by) >= 900 ? " soft" : "")}>{effTriage[r.id]!.by}</span>
+            ? <span className={"msg-due" + (byRank(effTriage[r.id]!.by) >= 900 ? " soft" : "")}>{byLabel(effTriage[r.id]!.by)}</span>
             : <span className="msg-when">{fmtWhen(r.dateMs)}</span>}
         </div>
         <div className={"msg-headline" + (r.unread ? " msg-strong" : "")}>
@@ -2309,7 +2337,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="row" role="button" tabIndex={0} key={h.threadId + i} onClick={() => void openThread(h.threadId)}>
               <div className="row-grow">
                 <div className="conn-name">&ldquo;{h.quote}&rdquo;</div>
-                <div className="conn-meta">{h.dateISO} · {h.subject}</div>
+                <div className="conn-meta">{monthDay(h.dateISO)} · {h.subject}</div>
               </div>
               <div className="chev" />
             </div>
@@ -2366,7 +2394,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             {drafts.map((d) => (
               <div className="row" role="button" tabIndex={0} key={d.id} onClick={() => void openDraft(d.id)}>
                 <div className="row-grow">
-                  <div className="conn-name">{d.to || "(no recipient)"}</div>
+                  {/* The raw To header used to sit here: "Marcus Delaney
+                      <marcus@northlake.org>", and the whole comma-joined
+                      header for a multi-recipient draft (2026-08-25). */}
+                  <div className="conn-name">{draftTo(d.to)}</div>
                   <div className="conn-meta">{d.subject || "(no subject)"}</div>
                 </div>
               </div>
@@ -2441,7 +2472,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               </div>
               <button className="pill-act" onClick={() => {
                 if (speaking) { stopSpeaking(); setSpeaking(false); return; }
-                const notices = mailNotices(loadMailSnapshot(), new Date().toISOString().slice(0, 10));
+                const notices = mailNotices(loadMailSnapshot(), todayISO());
                 setSpeaking(speak(speakable(notices, inboxSentence(notices, loadMailSnapshot()))));
               }}>{speaking ? "Stop" : "Play"}</button>
             </div></div></div>
@@ -2451,7 +2482,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               in the set, whatever its age, and neither is unsorted mail:
               not having read something is not evidence about it. */}
           {(() => {
-            if (closeDone || !closeDue(new Date().toISOString().slice(0, 10), lastClose())) return null;
+            if (closeDone || !closeDue(todayISO(), lastClose())) return null;
             const set = closeCandidates(unmutedRows, effTriage, vips, Date.now());
             if (set.count === 0) return null;
             return (

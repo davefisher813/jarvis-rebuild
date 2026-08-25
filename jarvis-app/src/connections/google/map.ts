@@ -1,3 +1,4 @@
+import { decodeWords, decodeEntities, encodeWord } from "./decode";
 // Pure mappers from Google API shapes to JARVIS shapes. Deterministic: we read
 // the wall-clock straight out of the ISO string rather than converting through
 // a Date, so an event shows at the time Google reports it, in any environment.
@@ -45,13 +46,26 @@ export interface GmailMeta {
 }
 export interface MailRow { id: string; from: string; subject: string; snippet: string }
 
+// DECODED AT THE BOUNDARY (2026-08-25). Every header a person reads passes
+// through here, and every one of them arrived encoded when the sender's name
+// or subject had a single accent in it. Decoding at the twenty render sites
+// instead is how buildReply came to send an encoded subject back out.
 function header(meta: GmailMeta, name: string): string {
   const h = (meta.payload?.headers || []).find((x) => x.name.toLowerCase() === name.toLowerCase());
-  return h?.value || "";
+  return decodeWords(h?.value || "");
 }
+// TRANSPORT QUOTES COME OFF HERE (2026-08-25). A display name containing a
+// comma is sent quoted: `"Delaney, Marcus" <m@x.com>`. MessagesFlow had a
+// private displayName() that stripped them, and the audit found twelve render
+// sites that never called it, so "Archive all 6 from \"Northwind Cloud\"" was
+// on screen with the quotes in it.
+//
+// Stripping at the boundary is the same move as decoding at the boundary: a
+// cleanup that has to be remembered is a cleanup that gets forgotten.
 function displayFrom(raw: string): string {
   const m = raw.match(/^(.*?)\s*<.*>$/);
-  return (m && m[1]!.trim()) || raw || "(unknown)";
+  const name = (m && m[1]!.trim()) || raw || "(unknown)";
+  return name.replace(/^"+|"+$/g, "").trim() || "(unknown)";
 }
 
 export function mapGmailMessage(meta: GmailMeta): MailRow {
@@ -77,7 +91,10 @@ export interface MailFull extends MailRow {
   listUnsubscribe: string;
   listUnsubscribePost: string;
   fromEmail: string;
+  /** How it reads to a person: "7:41 AM", "Yesterday 6:02 PM", "Aug 4". */
   date: string;
+  /** The instant, for anything that needs to sort or compare rather than show. */
+  dateMs: number;
   body: string;
   threadId: string;
   messageId: string;
@@ -108,8 +125,15 @@ export function b64urlEncode(s: string): string {
   bytes.forEach((b) => (bin += String.fromCharCode(b)));
   return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
+// An HTML-only message reaches the screen through here. It used to decode
+// &nbsp; and nothing else, so an ordinary marketing mail rendered as
+// "Don&#39;t miss Sarah &amp; Co&mdash;RSVP" (2026-08-25).
+//
+// Tags first, entities second, and in that order on purpose: decoding
+// entities first could manufacture a "<" that the tag stripper would then eat
+// along with everything after it.
 function stripHtml(h: string): string {
-  return h.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  return decodeEntities(h.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
 }
 function findPart(part: GmailPart | undefined, mime: string): string | null {
   if (!part) return null;
@@ -129,9 +153,41 @@ export function extractBody(payload?: GmailFull["payload"]): string {
   const html = findPart(root, "text/html");
   return html ? stripHtml(html) : "";
 }
+// "7:41 AM" for today, "Yesterday", "Mon 7:41 AM" inside a week, "Aug 4"
+// beyond it. Anything unparseable comes back as the original string rather
+// than as a blank or an invented date.
+export function mailDate(raw: string, now = new Date()): string {
+  if (!raw) return "";
+  const t = new Date(raw);
+  if (Number.isNaN(t.getTime())) return raw;
+  const clock = fmtWall(t);
+  const days = Math.round((startOfDay(now) - startOfDay(t)) / 86400e3);
+  if (days === 0) return clock;
+  if (days === 1) return "Yesterday " + clock;
+  if (days > 1 && days < 7) return WEEKDAY[t.getDay()] + " " + clock;
+  return MONTH[t.getMonth()] + " " + t.getDate();
+}
+
+const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+// The instant behind the header. Gmail's own internalDate is the fallback,
+// because it is always there and always numeric.
+export function dateMsOf(raw: string, internalDate?: string): number {
+  const t = raw ? new Date(raw).getTime() : NaN;
+  if (!Number.isNaN(t)) return t;
+  const n = Number(internalDate || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+function fmtWall(d: Date): string {
+  const h = d.getHours();
+  return `${h % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+}
+
 function headerOf(headers: GmailHeader[] | undefined, name: string): string {
   const h = (headers || []).find((x) => x.name.toLowerCase() === name.toLowerCase());
-  return h?.value || "";
+  return decodeWords(h?.value || "");
 }
 function emailOf(raw: string): string {
   const m = raw.match(/<([^>]+)>/);
@@ -156,7 +212,15 @@ export function mapGmailFull(m: GmailFull): MailFull {
     ...row,
     to: headerOf(hs, "To"),
     fromEmail: emailOf(headerOf(hs, "From")),
-    date: headerOf(hs, "Date"),
+    // A HUMAN TIME, NOT THE TRANSPORT'S (Dave 2026-08-25, on his screenshot
+    // reading "Mon, 24 Aug 2026 17:13:10 +0000 (UTC)"). This was the raw
+    // RFC 2822 Date header rendered verbatim while every other time in the
+    // app is 12-hour local, and it was in UTC, so a 1:13 PM email read 17:13.
+    //
+    // The raw header stays available as dateMs for anything that needs to
+    // sort or compare; `date` is the one a person looks at.
+    date: mailDate(headerOf(hs, "Date")),
+    dateMs: dateMsOf(headerOf(hs, "Date"), m.internalDate),
     body: extractBody(m.payload),
     threadId: m.threadId || "",
     messageId: headerOf(hs, "Message-ID"),
@@ -189,7 +253,10 @@ function escapeHtml(s: string): string {
 // the escaped text and one 1x1 tracking image. The words the recipient reads
 // are identical either way.
 export function encodeEmail(msg: { to: string; subject: string; body: string; inReplyTo?: string; pixelUrl?: string }): string {
-  const headers = ["To: " + msg.to, "Subject: " + msg.subject];
+  // Subjects are decoded on the way IN now, so a reply to "Nächste Schritte"
+  // carries real UTF-8 that cannot legally sit raw in a header. encodeWord
+  // returns an ASCII subject untouched, which is nearly all of them.
+  const headers = ["To: " + encodeWord(msg.to), "Subject: " + encodeWord(msg.subject)];
   if (msg.inReplyTo) headers.push("In-Reply-To: " + msg.inReplyTo, "References: " + msg.inReplyTo);
   if (!msg.pixelUrl) {
     headers.push("Content-Type: text/plain; charset=UTF-8");

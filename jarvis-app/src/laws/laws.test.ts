@@ -44,8 +44,16 @@ describe("LAW: no em dashes, anywhere", () => {
   });
 
   it("no escaped em dash in any string we render", () => {
-    // The one legitimate use is the scrubber that REMOVES them.
-    const allowed = ["ai/suggestions.ts"];
+    // Two legitimate uses, and both of them are about SOMEBODY ELSE'S text.
+    //
+    //   ai/suggestions.ts is the scrubber that REMOVES them from what the
+    //   model writes, because model output is the app talking.
+    //
+    //   connections/google/decode.ts is the HTML entity table. &mdash; in a
+    //   sender's email is that sender's punctuation, and rewriting it would
+    //   be misquoting them. The law is about the app's own prose; quoted mail
+    //   is not the app's prose. (2026-08-25)
+    const allowed = ["ai/suggestions.ts", "connections/google/decode.ts"];
     const hits = SOURCES
       .filter((f) => !allowed.includes(rel(f)) && /\\u2014/.test(read(f)))
       .map(rel);

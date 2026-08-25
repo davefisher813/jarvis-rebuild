@@ -24,6 +24,12 @@
 // of mistake as dialing the wrong human, and reachBy.ts already refuses to
 // do that.
 
+// The transport quotes around a display name that contains a comma. Stripped
+// at the Gmail boundary now (map.ts displayFrom), so this is for the paths
+// that do NOT come through that mapper: the To header on a waiting row, a
+// draft recipient, a rule key.
+export const displayName = (n: string): string => n.replace(/^"+|"+$/g, "").trim();
+
 export interface Named {
   data: { name: string; email?: string };
 }

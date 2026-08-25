@@ -9,7 +9,7 @@ import type { TriageMap } from "./triage";
 const THREAD: ThreadFull = {
   id: "t1", subject: "Waiver",
   messages: [{
-    id: "m1", from: "Ridgeley", fromEmail: "t@x.com", to: "d@x.com", date: "Mon",
+    id: "m1", from: "Ridgeley", fromEmail: "t@x.com", to: "d@x.com", date: "Mon", dateMs: 0,
     subject: "Waiver", snippet: "", body: "Need the waiver by Friday", threadId: "t1", messageId: "<a@x>", attachments: [], listUnsubscribe: "", listUnsubscribePost: "",
   }],
 };

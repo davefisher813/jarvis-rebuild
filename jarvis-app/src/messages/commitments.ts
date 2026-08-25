@@ -1,3 +1,4 @@
+import { dayPhrase } from "../money/bills";
 // Commitment catcher.
 //
 // The thing that actually gets dropped is not the email someone sent you. It
@@ -76,6 +77,9 @@ export function parseCommitment(raw: string, todayISO: string): Commitment | nul
 }
 
 // The receipt. States the promise, names the day, and stops.
-export function commitmentLine(c: Commitment): string {
-  return c.due ? "Caught: " + c.text + " · By " + c.due : "Caught: " + c.text;
+// `today` is required rather than optional: an ISO date printed at a person
+// is the bug this signature exists to prevent, and a default would let a
+// caller keep the old behaviour by forgetting (2026-08-25).
+export function commitmentLine(c: Commitment, today: string): string {
+  return c.due ? "Caught: " + c.text + " · By " + dayPhrase(c.due, today) : "Caught: " + c.text;
 }

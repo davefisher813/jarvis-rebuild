@@ -96,7 +96,9 @@ export function attachOffer(input: AttachOfferInput): AttachOffer | null {
       return {
         kind: "bill",
         title: input.subject.trim().slice(0, 60) || "New Bill",
-        sub: `$${amount.toLocaleString()} · From ${input.from}`,
+        // toFixed, not toLocaleString: the latter drops the trailing
+        // cent, so $1,234.50 read "$1,234.5" (2026-08-25).
+        sub: `$${amount.toFixed(2)} · From ${input.from}`,
         action: "Add Bill",
         amount,
         filename: bill?.a.filename,

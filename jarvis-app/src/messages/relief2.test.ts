@@ -93,9 +93,15 @@ describe("commitment catcher", () => {
   });
 
   it("states the promise without a word of judgement", () => {
-    const line = commitmentLine({ text: "Send the roster", due: "2026-08-14" });
+    // The date reads the way every other date in the app reads (2026-08-25).
+    // It used to print the ISO string at him.
+    const line = commitmentLine({ text: "Send the roster", due: "2026-08-14" }, "2026-08-12");
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(line).toBe("Caught: Send the roster · By 2026-08-14");
+    expect(line).toBe("Caught: Send the roster · By Friday");
+    expect(commitmentLine({ text: "Send the roster", due: "2026-08-13" }, "2026-08-12"))
+      .toBe("Caught: Send the roster · By tomorrow");
+    expect(commitmentLine({ text: "Send the roster", due: "2026-09-30" }, "2026-08-12"))
+      .toBe("Caught: Send the roster · By Sep 30");
     for (const w of ["forgot", "remember", "don't", "again", "promised you"]) {
       expect(line.toLowerCase()).not.toContain(w);
     }

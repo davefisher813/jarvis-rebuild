@@ -12,6 +12,10 @@ import { buildPlanPrompt, parseDeckPlan, primaryLabel, laterTaskTitle, type Deck
 import { voiceExamplesFor } from "./voiceExamples";
 import { newTrackId, pixelUrlFor, saveTrack, registerTrack } from "./tracking";
 import { showToast } from "../shared/toast";
+import { humanError } from "../connections/google/humanError";
+import { dayPhrase } from "../money/bills";
+import { displayName } from "./names";
+import { fmtTime, todayISO } from "../schedule/calendar";
 import { settleAll } from "./settle";
 import { capAfterNumber } from "../shared/casing";
 import { quickAnswers } from "./quickAnswers";
@@ -91,7 +95,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
         flagged: person?.data.flagged,
         examples: await voiceExamplesFor(api, r.fromEmail, Date.now()),
       };
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayISO();
       // styleRule: false because buildPlanPrompt already emits
       // STYLE_SCOPE_RULE unconditionally. Sending it twice is roughly 250
       // wasted tokens on every card in the deck.
@@ -214,7 +218,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
       emit({ type: "action", props: { name: "email.deck.handled", kind: plan.kind } });
       advance(cleared);
     } catch (e) {
-      showToast({ message: (e as Error).message || "Didn't send · Nothing lost" });
+      showToast({ message: humanError(e, "Didn't send · Nothing lost") });
     } finally {
       setBusy(false);
     }
@@ -224,13 +228,15 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
     if (!row || busy) return;
     setBusy(true);
     try {
-      await tasks.createTask(laterTaskTitle(row.from, row.subject), { due: new Date().toISOString().slice(0, 10) });
+      // todayISO is LOCAL. toISOString().slice(0,10) is UTC, so tapping
+      // Later after 5pm west of UTC filed the task due TOMORROW.
+      await tasks.createTask(laterTaskTitle(displayName(row.from), row.subject), { due: todayISO() });
       emit({ type: "action", props: { name: "email.deck.later" } });
       advance(false); // stays in the inbox: the task is the reminder, the mail is the evidence
     } catch (e) {
       // Do NOT advance: Later without its task is a silent loss, and the whole
       // point of Later is that deferring never means losing.
-      showToast({ message: (e as Error).message || "Couldn't save · Nothing lost" });
+      showToast({ message: humanError(e, "Couldn't save · Nothing lost") });
     } finally {
       setBusy(false);
     }
@@ -286,17 +292,21 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
           ) : plan?.kind === "bill" && plan.bill ? (
             <div className="deck-prep">
               <div className="eyebrow">Bill prepped for Money</div>
-              <div className="deck-prep-text">{plan.bill.name} · ${plan.bill.amount}{plan.bill.due ? " · Due " + plan.bill.due : ""}</div>
+              {/* THE WAY THE REST OF THE APP SAYS IT (2026-08-25). This
+                  printed "$1250 · Due 2026-09-01": the amount unformatted and
+                  the date as an ISO string, while the equivalent card on the
+                  home page reads "$1,250.00 · Due Tuesday". */}
+              <div className="deck-prep-text">{plan.bill.name} · ${plan.bill.amount.toFixed(2)}{plan.bill.due ? " · Due " + dayPhrase(plan.bill.due, todayISO()) : ""}</div>
             </div>
           ) : plan?.kind === "event" && plan.event ? (
             <div className="deck-prep">
               <div className="eyebrow">Ready for the Schedule</div>
-              <div className="deck-prep-text">{plan.event.title} · {plan.event.date} at {plan.event.start}</div>
+              <div className="deck-prep-text">{plan.event.title} · {dayPhrase(plan.event.date, todayISO())} at {fmtTime(plan.event.start).time} {fmtTime(plan.event.start).ap}</div>
             </div>
           ) : plan?.kind === "task" && plan.task ? (
             <div className="deck-prep">
               <div className="eyebrow">Task prepped</div>
-              <div className="deck-prep-text">{plan.task.title}{plan.task.due ? " · Due " + plan.task.due : ""}</div>
+              <div className="deck-prep-text">{plan.task.title}{plan.task.due ? " · Due " + dayPhrase(plan.task.due, todayISO()) : ""}</div>
             </div>
           ) : null}
 
