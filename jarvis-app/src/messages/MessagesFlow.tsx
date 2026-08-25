@@ -39,6 +39,7 @@ import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, 
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import { settleAll, settleLine, type SettleWords } from "./settle";
 import { readIcs } from "./ics";
+import { isNoReply } from "./noReply";
 import { humanError } from "../connections/google/humanError";
 import { endOfAct } from "./mailAct";
 import { dayPhrase, monthDay } from "../money/bills";
@@ -1936,6 +1937,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   }
 
   if (view === "detail" && thread) {
+    const noReply = isNoReply(lastMsg(thread).fromEmail, cleanBody(lastMsg(thread).body));
+    const worthSummarising = thread.messages.length > 1 || isLong(cleanBody(lastMsg(thread).body));
     return (
       <div className={"screen " + pushCls} key="detail">
         <div className="nav-bar">
@@ -1951,7 +1954,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="msg-detail-subj">{thread.subject}</div>
             <div className="conn-meta">{thread.messages.length === 1 ? lastMsg(thread).from : thread.messages.length + " messages"}</div>
           </div>
-          {summary && (
+          {/* FOUR LAYERS OF ONE APPOINTMENT REMINDER (Dave 2026-08-25). His
+              screenshot: the subject, then a JARVIS Summary, then the raw
+              body opening with the same sentence, then "Read the whole thing
+              · 141 words".
+
+              A summary earns its place when there is something to summarise.
+              One short message is already the shortest version of itself, and
+              a paraphrase of two visible lines is furniture. */}
+          {summary && worthSummarising && (
             <div className="card msg-summary">
               <div className="eyebrow">JARVIS Summary</div>
               <div className="msg-summary-text">{summary}</div>
@@ -1990,15 +2001,35 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             </div>
             );
           })}
-          <div className="msg-quick">
-            {replies.map((q) => (
-              <button key={q} className="chip" onClick={() => quickReply(thread, q)}>{q}</button>
-            ))}
-          </div>
-          <div className="msg-actions">
-            <button className="btn btn-secondary" onClick={() => startReply(thread)}><CornerUpLeft className="ic" /> Reply</button>
-            <button className="btn btn-secondary" onClick={() => startForward(thread)}><Forward className="ic" /> Forward</button>
-          </div>
+          {/* NOBODY IS READING THAT MAILBOX (Dave 2026-08-25). His screenshot
+              had "Got it, thanks." and "Will I need to reschedule?" under an
+              email whose first line is "This is an automated message. Please
+              do not reply." Both bounce, and the second is a question he
+              would then believe he had asked.
+
+              Forward survives, because forwarding an automated notice to a
+              person is a real move. Reply does not, and the line says why
+              rather than leaving a hole where a button was. */}
+          {noReply ? (
+            <>
+              <div className="msg-actions">
+                <button className="btn btn-secondary" onClick={() => startForward(thread)}><Forward className="ic" /> Forward</button>
+              </div>
+              <div className="conn-meta msg-noreply">No-reply sender · Answers here go nowhere</div>
+            </>
+          ) : (
+            <>
+              <div className="msg-quick">
+                {replies.map((q) => (
+                  <button key={q} className="chip" onClick={() => quickReply(thread, q)}>{q}</button>
+                ))}
+              </div>
+              <div className="msg-actions">
+                <button className="btn btn-secondary" onClick={() => startReply(thread)}><CornerUpLeft className="ic" /> Reply</button>
+                <button className="btn btn-secondary" onClick={() => startForward(thread)}><Forward className="ic" /> Forward</button>
+              </div>
+            </>
+          )}
           {/* Mute, sweep, unsubscribe: the three ways to make a sender stop
               costing you attention, strongest last. */}
           <div className="msg-quiet-acts">
@@ -2009,7 +2040,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             }}>Mute this thread</button>
             {sweepCount(lastMsg(thread).fromEmail) > 1 && (
               <button className="quiet-action" onClick={() => void sweepSender(lastMsg(thread).fromEmail)}>
-                Archive all {sweepCount(lastMsg(thread).fromEmail)} from {lastMsg(thread).from}
+                {/* The sender's name used to sit INSIDE this button, so
+                    "Archive all 2 from Resolve Psychiatric Services Client
+                    Portal" ran to two lines (2026-08-25). The name is on
+                    every message above; the button only has to say which
+                    sender it means. */}
+                Archive all {sweepCount(lastMsg(thread).fromEmail)} from this sender
               </button>
             )}
             {parseUnsub(lastMsg(thread).listUnsubscribe, lastMsg(thread).listUnsubscribePost) && (
@@ -2104,7 +2140,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               his own filing. Short on purpose: a VIP list with twenty people
               on it is an inbox with extra steps. */}
           <div className="msg-filed">
-            <span className="conn-meta">{isVip(lastMsg(thread).fromEmail, vips) ? "Always gets through" : "Everyone else waits for the drain"}</span>
+            <span className="conn-meta">{isVip(lastMsg(thread).fromEmail, vips) ? "Always gets through" : "Not a VIP · waits with everything else"}</span>
             <div className="msg-chips">
               <button
                 className={"chip" + (isVip(lastMsg(thread).fromEmail, vips) ? " on" : "")}
@@ -2208,6 +2244,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           })()}
 
           {toast && <div className="conn-status">{toast}</div>}
+          {/* The page ends above the floating dock. */}
+          <div className="msg-detail-tail" aria-hidden="true" />
         </div>
       </div>
     );

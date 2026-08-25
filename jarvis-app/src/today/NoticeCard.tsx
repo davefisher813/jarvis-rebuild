@@ -169,7 +169,7 @@ export default function NoticeCard({
         tabIndex={0}
         onClick={() => { if (foot || alt) setExpanded(true); else if (onOpen) onOpen(); }}
       >
-        <div className={"row-glyph " + (tone ?? "cat-fg-red")}>{icon}</div>
+        <div className={"row-glyph notice-disc " + (tone ?? "cat-fg-red").replace("cat-fg-", "cat-bg-")}>{icon}</div>
         <div className="row-grow vrow-line">
           <span className="conn-name vrow-fact" ref={factRef}>{title}</span>
           {subNode && !subDropped && <span className="conn-meta vrow-sub" ref={subRef}>{subNode}</span>}
@@ -190,7 +190,7 @@ export default function NoticeCard({
           tabIndex={onOpen ? 0 : undefined}
           onClick={onOpen}
         >
-          <div className={"row-glyph " + (tone ?? "cat-fg-red")}>{icon}</div>
+          <div className={"row-glyph notice-disc " + (tone ?? "cat-fg-red").replace("cat-fg-", "cat-bg-")}>{icon}</div>
           <div className="row-grow">
             <div className="conn-name">{title}</div>
             {subNode && <div className="conn-meta">{subNode}</div>}

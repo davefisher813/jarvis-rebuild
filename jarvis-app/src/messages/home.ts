@@ -158,6 +158,15 @@ export function byLabel(by: string | undefined, now = new Date()): string {
   return titleCase((by ?? "").trim());
 }
 
+// The name a task off this email should carry. Falls back to the sender when
+// the subject is a placeholder or empty, because "Reply to Nadia Brandt" is a
+// task and "(No Subject)" is not.
+export function taskTitleFrom(subject: string, from: string): string {
+  const s = (subject || "").trim();
+  if (!s || /^\((no subject|unknown|empty)\)$/i.test(s)) return titleCase("Reply to " + (from || "that email").trim());
+  return titleCase(s);
+}
+
 function deadlineNotice(t: MailThread, todayISO: string, now: Date): MailNotice | null {
   const due = dueFromBy(t.by, todayISO, now);
   if (!due || byRank(t.by, now) > 1) return null; // only when the date is NOW
@@ -169,7 +178,9 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date): MailNotice 
     sub: capAfterNumber(`From ${t.from} · Due ${byLabel(t.by, now).toLowerCase()}`),
     action: "Add Task",
     tone: "cat-fg-red",
-    task: { text: titleCase(t.subject), due },
+    // A subject of "(no subject)" is a list placeholder; titleCase turned it
+    // into the literal task name "(No Subject)" (2026-08-25).
+    task: { text: taskTitleFrom(t.subject, t.from), due },
   };
 }
 

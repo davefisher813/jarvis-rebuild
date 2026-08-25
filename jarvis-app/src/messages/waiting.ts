@@ -1,3 +1,4 @@
+import { AUTOMATED_ADDRESS } from "./noReply";
 import type { GoogleApi } from "../connections/google/api";
 import { mapThread, type ThreadRow } from "../connections/google/map";
 import { JARVIS_VOICE } from "../ai/voice";
@@ -19,7 +20,10 @@ export interface WaitingRow {
 }
 
 const MIN_WAIT_DAYS = 2;
-const AUTOMATED = /no-?reply|donotreply|notifications?@|mailer-daemon|@docs\.|@calendar-server\./i;
+// One copy of this rule, in noReply.ts. It lived here AND in autoReply.ts,
+// and the thread screen (the one place a person presses Reply) consulted
+// neither, which is how reply chips ended up on a no-reply sender.
+const AUTOMATED = AUTOMATED_ADDRESS;
 
 export function waitingDaysOf(sentMs: number, now: number): number {
   return Math.floor((now - sentMs) / 86400e3);

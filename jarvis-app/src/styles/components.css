@@ -986,7 +986,16 @@ a.row.person-reach { color: inherit; text-decoration: none; }
   margin-top: var(--s-1); font-size: var(--t-meta); color: var(--tx-4);
   font-variant-numeric: tabular-nums; }
 .msg-strong { font-weight: var(--w-semi); }
-.msg-chips { display: flex; gap: var(--s-2); margin-bottom: var(--s-2); }
+/* A CHIP IS A ONE-LINE OBJECT (Dave 2026-08-25). The filing rows put four
+   project names in a flex row with no shrink rules, so "Finish Jarvis V1" and
+   "Remodel Bridge Website" rendered as three-line chips: a chip at three
+   lines is a card in costume. They scroll sideways now, each on one line,
+   which is what .chip-row two hundred lines up has always done. */
+.msg-chips { display: flex; gap: var(--s-2); margin-bottom: var(--s-2);
+  overflow-x: auto; scrollbar-width: none; padding-bottom: var(--s-1); }
+.msg-chips::-webkit-scrollbar { display: none; }
+.msg-chips > .chip { flex-shrink: 0; white-space: nowrap; max-width: 60vw;
+  overflow: hidden; text-overflow: ellipsis; }
 .msg-detail-head { padding: var(--s-2) 0 var(--s-3); }
 .msg-detail-subj { font-size: var(--t-h3); font-weight: var(--w-bold); }
 /* The thread summary is the most valuable thing on this screen, and it was the
@@ -1729,6 +1738,13 @@ button {
 .msg-undo { flex-shrink: 0; }
 /* The three sender-level exits, stacked quietly under the thread actions. */
 .msg-quiet-acts { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); margin-top: var(--s-3); }
+/* The thread's last row sat under the floating voice dock (Dave 2026-08-25,
+   second screenshot: Reply and Forward half-covered). The dock is fixed over
+   the page, so the page has to end above it. Measured against the dock's own
+   height, not guessed: 56px of control plus its --s-3 padding. */
+.msg-detail-tail { height: calc(56px + var(--s-3) + var(--s-4)); }
+/* Says why the Reply button is not there, rather than leaving a hole. */
+.msg-noreply { margin-top: var(--s-3); }
 
 /* The payoff moment for a finished project or goal. Tasks have had a burst
    since day one; the things that take weeks had nothing. Centred, one way
@@ -2062,6 +2078,21 @@ button {
   left: calc(var(--s-4) + 22px + var(--s-3)); }
 .sched-row + .sched-row::before { left: calc(var(--s-4) + 48px + var(--s-3)); }
 .lib-row + .lib-row::before { left: calc(var(--s-4) + 30px + var(--s-3h)); }
+
+/* YELLOW HAS TO BE A FILL, NOT AN INK (Dave 2026-08-25: "I want this color in
+   the light version closer to yellow").
+   Measured: #FFCC00 on the light page is 1.6:1, against a 3:1 bar for a
+   glyph, so a real yellow STROKE is not legible. Holding 3:1 at a yellow hue
+   forces #AD8200, which is the olive he rejected in August. The colour can
+   only read as itself when it is the fill and the mark on it is dark, which
+   is exactly what the numbered circles in onboarding already do.
+   Applied to every notice tone rather than to orange alone: one disc in a
+   column of bare strokes reads as a rendering fault, and every other colour
+   gets the same legibility back. --on-fill-dark is already held to 4.5:1 on
+   every category fill by a law test. */
+.notice-disc { width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.notice-disc .ic { width: 17px; height: 17px; }
 
 /* Bare colored glyph column (replaces the tile on library surfaces). */
 .row-glyph { width: 30px; display: flex; justify-content: center; flex-shrink: 0; }

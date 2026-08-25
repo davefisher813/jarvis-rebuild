@@ -1,3 +1,4 @@
+import { AUTOMATED_ADDRESS } from "./noReply";
 import { JARVIS_VOICE } from "../ai/voice";
 
 // HEADS-DOWN AUTO-REPLY (N8, Dave 2026-08-20).
@@ -18,7 +19,10 @@ import { JARVIS_VOICE } from "../ai/voice";
 //     already answered inside this block.
 
 const KEY = "jarvis.mail.autoreply.v1";
-const AUTOMATED = /no-?reply|donotreply|notifications?@|mailer-daemon|@docs\.|@calendar-server\./i;
+// One copy of this rule, in noReply.ts. It lived here AND in autoReply.ts,
+// and the thread screen (the one place a person presses Reply) consulted
+// neither, which is how reply chips ended up on a no-reply sender.
+const AUTOMATED = AUTOMATED_ADDRESS;
 
 export interface AutoReplyState {
   blockId: string;              // the focus block currently running

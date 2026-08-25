@@ -17,6 +17,12 @@ export interface Brief {
 const KEY = "jarvis.mail.brief.v1";
 const CAP = 100;
 const REPLY_MAX = 6; // words
+// A WALL BEHIND THE INSTRUCTION (2026-08-25). The prompt asks for 15 words
+// and a model that ignores it must still not be able to produce a paragraph.
+// Cut on a word boundary with an ellipsis, never mid-word: the one truncation
+// in this repo that was already done right is bodyText's leadIn, and this
+// follows it.
+const SUMMARY_MAX = 120;
 type Cache = Record<string, Brief>;
 
 export const BRIEF_SYSTEM =
@@ -26,7 +32,14 @@ export function briefPrompt(convo: string): string {
   return (
     "Read this email conversation.\n\n" +
     'Reply with ONLY: {"summary":"...","replies":["...","...","..."]}\n\n' +
-    "summary: one or two sentences. If something is being asked of the reader, lead with that.\n" +
+    // THE SAME DISEASE AS THE PREVIEWS (Dave 2026-08-25: "The subtext on
+    // email previews feels a little lengthy. It should be right to the
+    // point"). This asked for "one or two sentences" and got 26 words that
+    // named the sender already in the header, restated the subject already
+    // above it, and referred to Dave in the third person.
+    "summary: ONE line, at most 15 words. The reader can already see who it is from and what the subject is, so never repeat those, and never write the reader's name or \"the user\". Lead with what is being asked, or with the fact that matters. Keep dates, times, amounts and names of other people.\n" +
+    "Good: \"Video appt Wed Sept 23, 1 PM ET, link to join\" / \"Wants the waiver signed before Friday\"\n" +
+    "Bad: \"This is an automated reminder that Dave has a video appointment with Resolve Psychiatric Services at 1:00 pm ET on Wednesday, September 23rd\"\n" +
     "replies: three short reply options the reader could send, each under " + REPLY_MAX + " words, " +
     "in a plain human voice. No greetings, no signatures.\n\n" +
     convo
@@ -46,12 +59,20 @@ export function parseBrief(raw: string): Brief | null {
   }
   if (typeof o !== "object" || o === null) return null;
   const { summary, replies } = o as { summary?: unknown; replies?: unknown };
-  const s = typeof summary === "string" ? noDashes(summary.trim()) : "";
+  const s = typeof summary === "string" ? clip(noDashes(summary.trim()), SUMMARY_MAX) : "";
   const r = Array.isArray(replies)
     ? replies.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => noDashes(x.trim())).slice(0, 3)
     : [];
   if (!s && r.length === 0) return null;
   return { summary: s, replies: r };
+}
+
+// Cut at a word boundary, with the ellipsis that says it happened.
+function clip(s: string, max: number): string {
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const back = cut.replace(/\s+\S*$/, "");
+  return (back.length > max * 0.6 ? back : cut).replace(/[.,;:\s]+$/, "") + "\u2026";
 }
 
 export function loadBriefs(): Cache {

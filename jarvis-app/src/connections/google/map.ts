@@ -236,11 +236,21 @@ export function buildReply(orig: MailFull, body: string): {
 } {
   return {
     to: orig.fromEmail,
-    subject: /^re:/i.test(orig.subject) ? orig.subject : "Re: " + orig.subject,
+    // "(no subject)" is a LIST PLACEHOLDER, not a subject. It used to go out
+    // to the recipient as "Re: (no subject)" (2026-08-25).
+    subject: replySubject(orig.subject),
     body,
     inReplyTo: orig.messageId,
     threadId: orig.threadId,
   };
+}
+
+const PLACEHOLDER = /^\((no subject|unknown|empty)\)$/i;
+
+export function replySubject(subject: string): string {
+  const s = (subject || "").trim();
+  if (!s || PLACEHOLDER.test(s)) return "Re:";
+  return /^re:/i.test(s) ? s : "Re: " + s;
 }
 
 function escapeHtml(s: string): string {
