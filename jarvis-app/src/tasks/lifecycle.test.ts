@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { TaskItem } from "./TasksService";
 import type { TaskData } from "../notes/types";
-import { setAsideCandidates, firstStepCandidate, nextStreak, backOnTrackMessage } from "./lifecycle";
+import { setAsideCandidates, firstStepCandidate, nextStreak, backOnTrackMessage, streakAlive } from "./lifecycle";
 
 const T = "2026-07-30";
 let n = 0;
@@ -94,5 +94,25 @@ describe("backOnTrackMessage", () => {
     expect(backOnTrackMessage({ ...base, lastDone: "2026-07-17", runLen: 2 }, T)).toBeNull(); // short run
     expect(backOnTrackMessage({ ...base, lastDone: "2026-07-17", runLen: 12, done: true }, T)).toBeNull();
     expect(backOnTrackMessage({ text: "x", category: "", done: false }, T)).toBeNull(); // not recurring
+  });
+});
+
+describe("streakAlive", () => {
+  const base: TaskData = { text: "Gym", category: "", done: false, recurrence: "daily" };
+  it("a run fed inside the contiguity window is live; one outside it is over", () => {
+    expect(streakAlive({ ...base, lastDone: "2026-07-29", runLen: 5 }, T)).toBe(true); // yesterday
+    expect(streakAlive({ ...base, lastDone: "2026-07-28", runLen: 5 }, T)).toBe(true); // slack day
+    // Ended in March, runLen still says 12: the exact bug. Not live.
+    expect(streakAlive({ ...base, lastDone: "2026-03-02", runLen: 12 }, T)).toBe(false);
+  });
+  it("uses each recurrence's own window, same as nextStreak", () => {
+    const wk: TaskData = { ...base, recurrence: "weekly" };
+    expect(streakAlive({ ...wk, lastDone: "2026-07-22", runLen: 3 }, T)).toBe(true);  // 8 days: slack
+    expect(streakAlive({ ...wk, lastDone: "2026-07-20", runLen: 3 }, T)).toBe(false); // 10 days: over
+  });
+  it("no recurrence, no lastDone, or no run at all is never live", () => {
+    expect(streakAlive({ text: "x", category: "", done: false }, T)).toBe(false);
+    expect(streakAlive({ ...base, runLen: 3 }, T)).toBe(false);
+    expect(streakAlive({ ...base, lastDone: "2026-07-29", runLen: 0 }, T)).toBe(false);
   });
 });

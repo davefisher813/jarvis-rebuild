@@ -78,3 +78,59 @@ describe("TaskSheet", () => {
     expect(onDelete).toHaveBeenCalled();
   });
 });
+
+describe("editing a task that owns a plan (2026-08-25)", () => {
+  const PLAN = { cue: { kind: "after" as const, what: "Lunch" }, then: "send the invoice" };
+  const OTHERS = [
+    { id: "t1", text: "Send Invoice", plan: PLAN },
+    { id: "t2", text: "Walk the dog", plan: { cue: { kind: "after" as const, what: "Dinner" }, then: "walk" } },
+  ];
+
+  it("does not report the task as clashing with itself", () => {
+    render(
+      <TaskSheet
+        mode="edit"
+        selfId="t1"
+        initial={{ text: "Send Invoice", category: "c1", due: "", repeat: "", plan: PLAN }}
+        otherPlans={OTHERS}
+        categories={CATS}
+        onSave={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    expect(screen.queryByText('"Send Invoice" already starts there')).not.toBeInTheDocument();
+  });
+
+  it("still reports a real clash with a DIFFERENT task on the same cue", () => {
+    render(
+      <TaskSheet
+        mode="edit"
+        selfId="t2"
+        initial={{ text: "Walk the dog", category: "c1", due: "", repeat: "", plan: { cue: { kind: "after", what: "lunch" }, then: "walk" } }}
+        otherPlans={OTHERS}
+        categories={CATS}
+        onSave={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    expect(screen.getByText('"Send Invoice" already starts there')).toBeInTheDocument();
+  });
+
+  it("an untouched edit keeps the plan instead of silently erasing it", () => {
+    const onSave = vi.fn();
+    render(
+      <TaskSheet
+        mode="edit"
+        selfId="t1"
+        initial={{ text: "Send Invoice", category: "c1", due: "", repeat: "", plan: PLAN }}
+        otherPlans={OTHERS}
+        categories={CATS}
+        onSave={onSave}
+        onCancel={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0]![0].plan).toEqual(PLAN);
+  });
+});

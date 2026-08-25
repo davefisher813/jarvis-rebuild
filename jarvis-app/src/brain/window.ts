@@ -31,7 +31,9 @@ export interface WindowClient {
     select(cols: string): {
       gte(col: string, val: string): {
         in(col: string, vals: string[]): {
-          limit(n: number): PromiseLike<{ data: unknown; error: unknown | null }>;
+          order(col: string, opts: { ascending: boolean }): {
+            limit(n: number): PromiseLike<{ data: unknown; error: unknown | null }>;
+          };
         };
       };
     };
@@ -61,6 +63,11 @@ export async function readWindow(client: WindowClient | null, nowMs: number): Pr
         .select("type,day,h,category,n,flag,kind")
         .gte("day", windowStartISO(nowMs))
         .in("type", READ_TYPES)
+        // Most recent first is half the law, and it is not decoration: the
+        // limit truncates, and without an order clause WHICH 2000 rows come
+        // back is the server's choice. Newest-first makes the cut mean
+        // "the latest 2000", which is the only honest reading of a window.
+        .order("at", { ascending: false })
         .limit(WINDOW_LIMIT);
       if (!error && Array.isArray(data)) return (data as unknown[]).filter(rowOk);
     } catch { /* fall through to local */ }
@@ -79,9 +86,13 @@ export function localWindow(nowMs: number): WindowRow[] {
     .map((e) => {
       const p = e.props ?? {};
       const { day, h } = localDayParts(e.ts);
+      // Same rule as the server sink: an event that names its own local day
+      // (plan.outcome carries the plan's day) is dated by it, not by the
+      // moment the resolver happened to run. Shape-gated, never free text.
+      const ownDay = typeof p.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.day) ? p.day : null;
       return {
         type: e.type,
-        day,
+        day: ownDay ?? day,
         h,
         category: typeof p.category === "string" ? p.category : null,
         n: typeof p.n === "number" ? p.n : null,

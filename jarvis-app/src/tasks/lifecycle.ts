@@ -102,6 +102,18 @@ export function nextStreak(data: TaskData, today: string): { lastDone: string; r
   return { lastDone: today, runLen, bestRun: Math.max(best, runLen, prevLen) };
 }
 
+// Whether a run is still alive TODAY: the same contiguity window nextStreak
+// uses to extend it. runLen only changes on completion, so a run that stopped
+// in March still says 12 forever; without this gate a page would show it as
+// current. A dead run is not shamed anywhere, it just stops being presented
+// as live (bestRun still remembers it).
+export function streakAlive(data: TaskData, today: string): boolean {
+  const rec = data.recurrence;
+  const last = data.lastDone;
+  if (!rec || !last || (data.runLen ?? 0) < 1) return false;
+  return daysBetween(last, today) <= intervalDays(rec) + 1;
+}
+
 // The Back On Track moment: completing a recurring task after a real gap, when
 // the run it pauses was worth naming. Returns the toast line or null.
 export function backOnTrackMessage(data: TaskData, today: string): string | null {

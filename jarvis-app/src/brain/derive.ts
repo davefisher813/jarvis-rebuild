@@ -46,7 +46,11 @@ function partOfDay(h: number): string {
 // the window, spoken only with 10+ samples AND real dominance. Same band
 // logic Time Sense uses, now on the durable log.
 export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
-  const done = rows.filter((r) => r.type === "task.completed");
+  // Tasks only. GymService emits task.completed with kind "workout" for a
+  // finished session; counting those here drags the band toward whenever the
+  // user trains, and the strand then claims "your tasks get done at 6 PM"
+  // about a month of gym evenings. A session is not a task.
+  const done = rows.filter((r) => r.type === "task.completed" && r.kind !== "workout");
   if (done.length < MIN_COMPLETIONS) return null;
   let best = 0;
   let bestCount = -1;

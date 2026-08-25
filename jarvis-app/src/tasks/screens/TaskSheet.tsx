@@ -38,9 +38,14 @@ export default function TaskSheet({
   onDelete,
   onCancel,
   otherPlans = [],
+  selfId,
 }: {
   mode: "new" | "edit";
   initial?: Partial<TaskDraft>;
+  // The id of the task being edited, so the clash check can skip its own
+  // plan. Without it, editing a task that owns a cue reported the task as
+  // clashing with itself (2026-08-25).
+  selfId?: string;
   // A3: every OTHER task that already owns a cue, so a clash can be reported
   // rather than silently allowed. The research is specific that competing
   // plans on one trigger cancel each other out.
@@ -91,7 +96,7 @@ export default function TaskSheet({
   const planTouched = cueWhat.trim() !== "" || thenWhat.trim() !== "";
   const planWeak = planTouched ? whyWeak(draftPlan) : null;
   const clash = planTouched && cueIsDetectable(draftPlan.cue)
-    ? findClash(otherPlans, draftPlan.cue, initial ? undefined : undefined)
+    ? findClash(otherPlans, draftPlan.cue, selfId)
     : null;
 
   const dueMode = due === "" ? "none" : due === today ? "today" : due === tomorrow ? "tomorrow" : "pick";

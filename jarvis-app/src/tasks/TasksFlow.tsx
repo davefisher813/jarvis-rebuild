@@ -293,7 +293,10 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
     const t = await svc.task(id);
     if (!t) return;
     recordSpot({ kind: "task", id, label: t.text }); // Where You Were
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "" }, source: t.source });
+    // plan rides into the sheet (2026-08-25): without it the sheet's fields
+    // start empty, save() sees an untouched plan, and setPlan(id, null) below
+    // silently erased the task's if-then on EVERY edit.
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan }, source: t.source });
   };
 
   // When arriving via a note connection, open that task once on mount.
@@ -611,6 +614,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
           categories={categories}
           onSave={onSave}
           otherPlans={allItems.map((t) => ({ id: t.id, text: t.data.text, plan: t.data.plan }))}
+          selfId={sheet.mode === "edit" ? sheet.id : undefined}
           onSchedule={sheet.mode === "edit" ? onScheduleTask : undefined}
           onBreakDown={sheet.mode === "edit" && ai.available ? (t) => void breakDown(t) : undefined}
           onDelete={sheet.mode === "edit" ? onDelete : undefined}

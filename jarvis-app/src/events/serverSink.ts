@@ -99,13 +99,18 @@ function newId(): string {
 export function rowFrom(e: JarvisEvent): EventRow {
   const { day, h, dow } = localDayParts(e.ts);
   const p = e.props ?? {};
+  // An event that names its own local day wins the day column. plan.outcome
+  // emits the PLAN's day on purpose (planOutcome.ts): the resolver runs at
+  // least a day later, and a receipt dated by the resolver's morning points
+  // at the wrong day. Shape-gated like kind: a valid local day or nothing.
+  const ownDay = typeof p.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.day) ? p.day : null;
   return {
     id: newId(),
     type: e.type,
     entity_type: e.entityType ?? null,
     entity_id: e.entityId ?? null,
     at: new Date(e.ts).toISOString(),
-    day,
+    day: ownDay ?? day,
     h,
     dow,
     category: typeof p.category === "string" ? p.category : null,

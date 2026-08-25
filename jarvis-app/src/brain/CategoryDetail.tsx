@@ -17,6 +17,7 @@ import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import { showToast } from "../shared/toast";
 import type { TaskItem } from "../tasks/TasksService";
+import { streakAlive } from "../tasks/lifecycle";
 import { effectiveKind } from "../categories/kinds";
 import { weekReceipt, receiptLine, afterHoursLine, type WeekEvent } from "../categories/receipts";
 import { categoryRecord, type RecordEntry } from "../categories/record";
@@ -278,9 +279,11 @@ export default function CategoryDetail({
   const nowMs = Date.now();
   // Streaks (2026-08-10): recurring tasks in this category that are actually
   // running. The data (runLen/bestRun) has been maintained since the ADHD
-  // lifecycle work; the page never showed it.
+  // lifecycle work; the page never showed it. streakAlive is the gate
+  // (2026-08-25): runLen only changes on completion, so without it a run
+  // that ended months ago still displayed as current.
   const streaks = allTasks
-    .filter((t) => t.data.category === categoryId && t.data.recurrence && (t.data.runLen ?? 0) >= 2)
+    .filter((t) => t.data.category === categoryId && t.data.recurrence && (t.data.runLen ?? 0) >= 2 && streakAlive(t.data, today))
     .sort((a, b) => (b.data.runLen ?? 0) - (a.data.runLen ?? 0))
     .slice(0, 5);
 
