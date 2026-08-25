@@ -1,4 +1,4 @@
-# JARVIS Styling Catalog V4.16 (2026-08-22)
+# JARVIS Styling Catalog V4.21 (2026-08-24)
 
 ## V4.4 revision (Dave's picks, 2026-08-21). Supersedes conflicting earlier rules.
 
@@ -409,6 +409,90 @@ Wave one of the Bigger Picture rebuild. Every rule here is the same doctrine the
 **ONE WORD FOR ONE THING.** The project page said Steps, the Tasks tab said Tasks, for the same records. It is Tasks on every surface a reader sees; prop names may keep `step`. Law-tested.
 
 **SPACING IS INHERITED, NEVER INVENTED.** This wave adds no new spacing: every section uses the existing `.sh2` head and `.list-flat` body, every action an existing capsule class. A wave that needs new rhythm must say why in the catalog first.
+
+## BP2. Architecture C, the goal that can see (V4.17, Dave's pick C, built 2026-08-24)
+
+**A GOAL REACHES ITS WORK TWO WAYS.** FILED, through a project pointing at it. TAGGED, through the categories the goal watches, with no filing at all. Dave picked "both: tags by default, attach projects when big enough." Before this, everything pointed DOWN and nothing pointed up, so a task could not say what it was for and a goal whose work was never filed looked idle while he was doing it.
+
+**A TAG NEVER FEEDS `done/total`.** A tag is a saved filter, not a scoreboard. An ordinary task carries no completion date (only bills and recurring tasks stamp `lastDone`), so a goal tagged Health on Tuesday would inherit every Health task ever closed and open at "312 of 400 done, 78%" the day it was born: true about the tag, a lie about the goal. Filed work speaks in **fractions** because it has a real denominator; tagged work speaks in **open counts** because it does not. Law-tested by running the function, not by grepping it.
+
+**A WATCH LIST IS NOT A MOVE.** Picking areas on a goal refiles nothing and copies nothing. The tasks under "From Your Areas" are the same records the Tasks tab renders; ticking one there finishes it everywhere.
+
+**TAGS ARE THE DEFAULT WAY IN.** An empty goal is offered **Choose Its Areas**, not Add a Project. Naming two areas usually fills a goal instantly from work that already exists; creating a project is the move for work big enough to need a plan.
+
+**A NARROW TAG OR NONE.** A watch list only says something true if the category means what the goal means. Tagging "Weekly date night" with a Family category that is mostly the kids' sport makes the app claim a call to a sports field moves date night. The demo seed carries this rule deliberately: three goals tagged where the mapping is honest, two carrying nothing.
+
+## BP3. The home page looks up (V4.18, Dave's picks 1, 2, 3, 4, 5, 29, 31, built 2026-08-24)
+
+Dave: "it's the mother of tasks so why does it feel [absent] at all?" Because Today never once said the word goal. Every number on the home screen counted work by SHAPE.
+
+**THE HERO COUNTS WHAT MATTERS, NOT ONLY WHAT IS DUE.** A fourth day pill, in the purple a goal wears everywhere else: **"5 move a goal"**, landing on the Bigger Picture. Absent on a day that moves nothing, which is a fact, not a scolding.
+
+**NOW SAYS WHAT IT MOVES.** The gap offer's second segment was "Fits this gap", which is the card's own premise restated. When the task points at a goal, that slot carries the goal instead. Two dot segments, never three: a third wraps at 390px.
+
+**LINEAGE ONLY WHEN IT MATTERS (pick 31).** "Moves Ship the App Store Launch" under a task called "Ship the App Store Launch" is furniture. The line renders only when the goal names something the task does not. Law-tested.
+
+**A FINISHED THING SURFACES WHERE HE IS (pick 2).** Wave one taught the Bigger Picture to offer Close It. That only helps on a page he has no reason to open. The offer now also rides Today, for every way a project reaches the end that the tick-time toast misses.
+
+**THE GOAL NOTHING TODAY TOUCHES (pick 3).** One card, quietest weight: a live goal with open work that nothing on today's plate points at, with its arithmetic under it ("3 Open · Nothing today moves it"). Silent when the day already covers every goal. Waved off, it stays quiet three days.
+
+**THE END OF THE DAY SAYS WHAT MOVED (pick 4).** "13 Done today · Moved 2 goals". Time Sense evidence is device-local, so this speaks only about completions it saw and never claims a goal did not move.
+
+**THE NOTICED LINE IS OFF TODAY (pick 29).** An insight is the least urgent thing the app can say and it was taking a line on the busiest screen. Not deleted: the same offer lives on What JARVIS Knows, which is the page about what JARVIS has noticed.
+
+**A PINNED CARD IS NOT A PROMOTION.** The stream still owns the headliner, which is the only real promotion. A producer may pin the CARD form, and only for the reason the mail law already established: a title that is USER CONTENT is any length the world chooses. On the row form the goal nudge rendered "Run three ti..." and, because a row's sub yields whole or not at all, the evidence line vanished with it. A pinned card can still be outranked, dismissed, and beaten to the headline. It just is not shredded.
+
+**A GLYPH RULE IS SCOPED TO ITS GLYPH.** The light theme's "purple row glyph wears the brand red" rule was written for one mail notice and keyed on the shared purple class, so it caught every purple row glyph in the app and landed the goal nudge in brand red: under the icon law that means "JARVIS's own feature", and a goal is the user's content. Mail opts in by name (`.mail-glyph`) now.
+
+**EVERY DAY PILL DECLARES ITS LIGHT INK.** The pills are the palette colour on a 16% tint of themselves, which composites near-black in dark and to a pale wash in light. Sky once measured 1.6:1 there. A pill without a `[data-theme="light"]` ink is now a failing test, not a sweep finding.
+
+**THE INVISIBLE BAR.** Found while wiring C: `.proj-detail-hero` is a column flexbox with `align-items: center`, so `.bp-bar`, a block with no intrinsic width, measured 0px. Both bars that card can show, task progress and the Money v1 savings bar, had rendered as a 4px-tall nothing since the card was written.
+
+## BP4. A goal with a finish line (V4.19, Dave's picks 13, 14, 15, 17, built 2026-08-24)
+
+**A GOAL KNOWS WHAT DONE MEANS.** "Run three times a week" had no idea what three, or a week, referred to. Four finish lines, each DERIVED from evidence the app already holds: **count** (a number of things done), **cadence** (N times per week or month, counted from Time Sense completions inside the window), **projects** (every project under it closed), and **amount** (Money v1's dollar target, older than this and left where it is). The bar tracks the MEASURE once one exists; the task fractions become the machinery underneath.
+
+**A COUNT COUNTS FORWARD.** Setting a count stamps the day. Tagged completions count from that day on; filed completions count in full, because filing is deliberate. Without the stamp, "read 12 books" on a goal watching Reading opens at 40 of 12: the same history exposure architecture C closed, arriving from the other direction. Law-tested.
+
+**A DATE IS ARITHMETIC, NOT A WISH.** A date with a finish line produces a rate: "12 To go · About 0.8 a week", or "Due in 6 days" when it is close, or "Past its date" when it is gone. A cadence has no end date, it has a rhythm, so it is never paced.
+
+**COPY IS PHRASED FOR THE CASING LAW, NOT AROUND IT.** "2 a week" becomes "2 A week" under the number-lead rule, and "6 days left" becomes "6 Days left", the capitalized UNIT the rule's own exemption list exists to avoid. Leading the segment with a word ("About 2 a week", "Due in 6 days") costs nothing and reads correctly.
+
+**HEALTH IS DERIVED, NEVER TYPED.** `GoalData.state` has held whatever each goal was created with since Session 6; nothing has ever updated it. The goal header now derives **Done / On Track / Behind / Idle / No Measure** at render time and writes nothing back. Behind is claimable only against BOTH a date and a finish line, or a rhythm more than half through a window it is not half way into: without both there is no pace to be behind of and saying so is a guess. Idle needs POSITIVE evidence of neglect (seen completions, and the latest older than 14 days); silence on a device-local log says nothing, exactly as `isStalled` has always treated projects. Law-tested against a goal whose stored state lies.
+
+**DROPPING A GOAL WRITES A DECISION (pick 17).** Deleting one threw away the only part worth keeping: six weeks later the question is never what the goal was called, it is why you stopped. Drop writes a Decision Record linked to the goal, and KEEPS the goal: it leaves Working Toward, stops nudging from Today, moves nothing, and its reason stays one tap away. The decision is written FIRST, then the goal is marked, because a goal marked dropped with no record of why is the exact state the feature exists to prevent. Law-tested on the ordering. The Why field is never required: a reason you cannot articulate at 11pm is still a reason, and a Save that refuses to save is how a record stops getting written at all.
+
+**THE DESTRUCTIVE MOVE IS LAST.** Drop sits below the achieve offer, not above it. Encountering "Drop This Goal" before "Choose Its Areas" reads as the app's recommendation.
+
+## BP5. The shape of a project (V4.20, Dave's picks 20, 21, 22, built 2026-08-24)
+
+A project row said one of three words: Active, On hold, Done. None of them answered the two questions a reader actually has when deciding what to open.
+
+**A HOLD HAS AN END (pick 20).** "On hold" with no date is a project that disappeared, and the list had no way to tell one from a project that was simply never started. `holdUntil` is the day it comes back; the row and the header carry the countdown, and a hold with no date says exactly that rather than pretending to be a plan. When the day passes the line turns warn ("Hold ended 9 days ago") and the page offers **Pick It Back Up**.
+
+**ONE FILLED PRIMARY, EVEN WHEN A SECOND DECISION ARRIVES.** An expired hold puts a timely decision on a page that already had a red Mark Done. Two fills is the screen shouting twice, so coming back to a parked project takes the fill and finishing drops to the quiet tier for that one case. Nothing is hidden; one of them is simply not shouted. Law-tested.
+
+**AN EMPTY PROJECT GETS A FIRST STEP (pick 21).** Four of his seven projects were unstarted, not unlinked, which is why the self-critique killed the suggest-links-by-category idea this replaced. A project with no tasks is not waiting to be connected to something, it is waiting to be BEGUN, and an empty add-field said nothing about how. Gated on the AI, like every other First Step, so the button never promises what it cannot do.
+
+**HOW BIG IS THIS (pick 22).** Not a size someone types, which decays like every other self-report, and not a task count on its own, because four ten-minute tasks and four half-day tasks are not the same project. "4 Open · About 3h 20m", from the SAME learned per-category durations Plan My Day places blocks with, so a project's stated size and its calendar footprint can never tell two different stories. Law-tested on the shared source. The word "About" is load-bearing: these are learned averages, not commitments.
+
+**A GOAL ROW SPEAKS ITS FINISH LINE.** The list and the detail page take the same derivation, so they cannot drift: "0 of 3 This week", "0 of 12 Done", "0 of 1 Projects done". Health earns a word only when it is worth saying, which is Behind or Idle; "On Track" on every row is wallpaper.
+
+## BP6. The ties (V4.21, Dave's picks 23, 24, 25, 26, 27, 28, built 2026-08-24)
+
+Six places where two features already held both halves of a link and nothing joined them.
+
+**23 · GOALS CLAIM TIME ON THE CALENDAR.** Plan My Day has ranked goal-moving tasks above goalless ones since 2026-08-09, but it read the project chain only, so most of his real work ranked as if it moved nothing. Both surfaces that build plan candidates (Today and Schedule) now read the same upward index architecture C built, and the plan rows apply pick 31 through the same `movesLine` the Now card uses. Law-tested on both.
+
+**24 · MONEY FLOWS INTO SAVINGS GOALS.** A savings goal has held real logged money since Money v1, and the only door to it was two taps deep inside the Bigger Picture. Money gets entered where money lives: a **Saving Toward** band on the Money tab, below Bills, with the same write and the same law (only real logged dollars, never a skipped purchase).
+
+**25 · DECISIONS ATTACH TO THE GOAL.** They always could; goals have been in the attach picker all along, and the goal page was the one place that never showed the result. It carries the same banner the project page has had since Screen 04: you reopen the thing six weeks later and the reason is sitting there before you can second-guess it. A dropped goal leaves the attach picker, because it already has the decision that ended it.
+
+**26 · EMAIL-BORN TASKS INHERIT.** A task made from an email notice landed with a due date and nothing else, which sends him back to the inbox the band exists to keep him out of. Inheritance is DERIVED, never guessed: no title matching and no category heuristic, only the fact that a task from this same thread already exists and somebody already filed it. The first task off a thread inherits nothing, which is correct; every one after it joins its sibling, newest filed sibling winning. The thread id is stored so the second task can be smarter than the first.
+
+**27 · NOTES BELONG TO A PROJECT.** The reverse lookup has existed since Session 6 and nothing fed it except a user who remembered to open the link picker afterwards, so the section was empty on every project he had. A note written from inside a project is born connected, titled with the project's own name because a note you have to name before you can write it is a note that does not get written. The head renders whenever the project can make one, not only when one already exists: a section that appears after you have already solved the problem solves nothing.
+
+**28 · THE BRAIN KNOWS THE CURRENT GOALS.** Every AI feature in the app read `Run three times a week (on_track)`, where `on_track` is the stored field nothing updates: the model has been reasoning about statuses typed once, months ago. It gets the DERIVED health and the finish line now, from the same functions the goal page renders, and dropped goals are left out entirely. Law-tested.
 
 ## Approved conversions queued behind this catalog (from the 2026-08-18 sweep)
 

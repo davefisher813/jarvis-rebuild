@@ -1,6 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { reachOf } from "../bigger/reach";
+import { movesLine } from "../today/goalPulse";
+import { healthOf, measureState } from "../bigger/measure";
 
 // THE LAWS, AS TESTS.
 //
@@ -935,6 +938,175 @@ describe("LAW: stored shapes are versioned", () => {
     const src = read(SRC + "/today/MailNotices.tsx");
     expect(/form="card"/.test(src)).toBe(true);
     expect(/form=\{[^}]*"row"/.test(src)).toBe(false);
+  });
+
+  // ARCHITECTURE C, THE HONESTY OF A TAG (Dave 2026-08-22, pick C).
+  //
+  // A tag is a saved filter. The temptation is to pour tagged tasks into
+  // done/total so the bar moves, and the reason that is a lie is specific:
+  // an ordinary task carries no completion date (only bills and recurring
+  // tasks stamp lastDone), so a goal tagged Health on Tuesday would inherit
+  // every Health task ever closed and open at 78% on the day it was born.
+  //
+  // This law RUNS the function rather than grepping it, because the property
+  // is behavioural: no arrangement of tagged tasks may move the fraction.
+  it("a tag never feeds a goal's done over total", () => {
+    const goal = { id: "g", data: { title: "Get Fit", state: "on_track" as const, tags: ["health"] } };
+    const done = [
+      { id: "t1", data: { text: "a", category: "health", done: true } },
+      { id: "t2", data: { text: "b", category: "health", done: true } },
+    ];
+    expect(reachOf(done, [], goal).progress).toBeNull();
+    const mixed = [...done, { id: "t3", data: { text: "c", category: "health", done: false } }];
+    expect(reachOf(mixed, [], goal).progress).toBeNull();
+    // Filed work, and ONLY filed work, produces a denominator.
+    const filed = [{ id: "t4", data: { text: "d", category: "health", done: true, projectId: "p" } }];
+    const p = [{ id: "p", data: { title: "P", status: "active" as const, goalId: "g" } }];
+    expect(reachOf([...mixed, ...filed], p, goal).progress).toEqual({ done: 1, total: 1, pct: 100 });
+  });
+
+  // PICK 23, THE DAY IS PLANNED THROUGH THE UPWARD INDEX (2026-08-24). Plan
+  // My Day has ranked goal-moving tasks above goalless ones since
+  // 2026-08-09, but it could only SEE tasks filed under a project, so most of
+  // his real work ranked as if it moved nothing. Both surfaces that build
+  // plan candidates read the same index, or they will rank the same day
+  // differently.
+  it("plan candidates read the upward index, not the project chain alone", () => {
+    for (const f of ["today/TodayFlow.tsx", "schedule/ScheduleFlow.tsx"]) {
+      const src = read(SRC + "/" + f);
+      expect(src, f).toMatch(/goal: goalTitleForTask\(goalIdx, t\)/);
+      expect(src, f + " must not fall back to the filed-only lookup").not.toMatch(/goal: goalTitleOf\(/);
+    }
+  });
+
+  // PICK 28, THE BRAIN IS NEVER TOLD A STORED GOAL STATUS. Every AI feature
+  // in the app read `Run three times a week (on_track)` where on_track is the
+  // field nothing updates, so the model has been reasoning about statuses
+  // typed once, months ago. It gets the derived reading now.
+  it("the AI context sends a derived goal status, never the stored one", () => {
+    const src = read(SRC + "/ai/useAIContext.ts");
+    expect(src).not.toMatch(/status: g\.data\.state/);
+    expect(src).toMatch(/goalStatusForAI\(/);
+    expect(src, "and never speaks about a dropped goal").toMatch(/liveGoals\(gl\)/);
+  });
+
+  // PICK 22, ONE SET OF ESTIMATES (2026-08-24). A project's stated size and
+  // the block the planner puts on the calendar for the same work must come
+  // from the same number. Two estimators drift, and the day the project says
+  // "About 2h" while Plan My Day books 45 minutes is the day both stop being
+  // believed.
+  it("a project's size uses the planner's own learned durations", () => {
+    const src = read(SRC + "/bigger/BiggerPictureFlow.tsx");
+    expect(src).toMatch(/learnedDurations\(readCommittedDurations\(\)/);
+    expect(src).toMatch(/estimateFor = useCallback/);
+  });
+
+  // ONE FILLED PRIMARY PER SCREEN, EVEN WHEN A SECOND DECISION ARRIVES
+  // (capsule law X). An expired hold puts "Pick It Back Up" on a page that
+  // already had a red "Mark Done", and two fills is the screen shouting
+  // twice. Finishing drops to the quiet tier for that one case.
+  it("an expired hold does not put a second red fill on the project page", () => {
+    const src = read(SRC + "/projects/ProjectDetailPage.tsx");
+    expect(src).toMatch(/className=\{"btn btn-block" \+ \(expired \? "" : " btn-primary"\)\}/);
+  });
+
+  // PICK 15, HEALTH IS DERIVED AND NEVER TYPED (Dave 2026-08-22).
+  // GoalData.state has said whatever the goal was created with since Session
+  // 6, and nothing anywhere updates it. A self-reported dashboard decaying
+  // into confident nonsense is the oldest rule on this surface, and the goal
+  // header was the last place still breaking it. Behavioural: a goal whose
+  // stored state claims on_track, whose date has passed and whose finish line
+  // is nowhere near, must read behind.
+  it("a goal's health comes from evidence, not from its stored state", () => {
+    const stale = { id: "g", data: { title: "G", state: "on_track" as const, by: "2026-01-01" } };
+    const ctx = {
+      reach: { filedIds: [], taggedIds: [], openTagged: 0, progress: null },
+      tasks: [], projects: [], samples: [], today: "2026-08-24", now: Date.parse("2026-08-24T12:00:00Z"),
+    };
+    const state = { done: 1, target: 12, pct: 8, met: false, line: "" };
+    expect(healthOf(stale, state, { kind: "count", target: 12 }, ctx, 4)).toBe("behind");
+  });
+
+  // PICK 13, A COUNT NEVER INHERITS THE HISTORY BEHIND IT. The same exposure
+  // architecture C closed from the other direction: set "read 12 books" on a
+  // goal watching Reading and, without the stamp, it opens at 40 of 12.
+  it("a count measure counts forward from the day it was set", () => {
+    const day = Date.parse("2026-08-24T12:00:00Z");
+    const base = {
+      reach: { filedIds: [], taggedIds: ["x"], openTagged: 0, progress: null },
+      tasks: [], projects: [], today: "2026-08-24", now: day,
+      samples: [{ id: "x", t: day - 400 * 86400000 }],
+    };
+    expect(measureState({ kind: "count", target: 12 }, base)!.done).toBe(0);
+    expect(measureState({ kind: "count", target: 12, since: "2020-01-01" }, base)!.done).toBe(1);
+  });
+
+  // PICK 17, THE REASON IS WRITTEN BEFORE THE GOAL IS MARKED. A goal marked
+  // dropped with no record of why is the exact state the feature exists to
+  // prevent, and it is the unrecoverable half: the same ordering rule the
+  // meeting booking follows (calendar first, then the reply).
+  it("dropping a goal writes its decision first", () => {
+    const src = read(SRC + "/bigger/BiggerPictureFlow.tsx");
+    const drop = src.slice(src.indexOf("const dropGoal"), src.indexOf("const dropGoal") + 900);
+    expect(drop).toMatch(/decisionsSvc\.create/);
+    expect(drop.indexOf("decisionsSvc.create")).toBeLessThan(drop.indexOf("dropped: {"));
+  });
+
+  // PICK 31, LINEAGE ONLY WHEN IT MATTERS (Dave 2026-08-22). "Moves Ship the
+  // App Store Launch" under a task called "Ship the App Store Launch" is
+  // furniture: it costs a line on a 390px phone, it survives truncation
+  // better than the task title does, and it says nothing the reader did not
+  // just read. Behavioural, because the property is about two strings.
+  it("a lineage line never repeats the task it sits under", () => {
+    expect(movesLine("Ship the App Store Launch", "Ship the App Store Launch today")).toBeNull();
+    expect(movesLine("Ship the App Store Launch", "Draft the Coach Onboarding Email"))
+      .toBe("Moves Ship the App Store Launch");
+  });
+
+  // PICK 29 (Dave 2026-08-22, filed under "Remove: pays for the rest"). The
+  // Noticed whisper is off Today for good. It was not deleted: the same offer
+  // lives on What JARVIS Knows, which is the page about what JARVIS noticed.
+  it("the Noticed line stays off the home page", () => {
+    const page = read(SRC + "/today/TodayPage.tsx");
+    expect(page).not.toMatch(/\{suggestions\}/);
+    const flow = read(SRC + "/today/TodayFlow.tsx");
+    expect(flow).not.toMatch(/<TodaySuggestions/);
+    expect(read(SRC + "/brain/strands/StrandsPage.tsx")).toMatch(/<TodaySuggestions/);
+  });
+
+  // EVERY DAY PILL DECLARES ITS LIGHT INK. The pills are the palette colour
+  // on a 16% tint of THEMSELVES: in dark that composites to a near-black chip
+  // and reads fine, in light it composites to a pale wash of the same hue and
+  // sky measured 1.6:1 (sweep 2026-08-21). A new pill that forgets its light
+  // variant repeats that bug silently, so the pairing is checked here.
+  it("every day pill has a light-theme ink", () => {
+    const pills = new Set([...CSS.matchAll(/^\.dp-([a-z]+)\s*\{/gm)].map((m) => m[1]!));
+    const lit = new Set([...CSS.matchAll(/\[data-theme="light"\]\s*\.dp-([a-z]+)/g)].map((m) => m[1]!));
+    expect([...pills].filter((p) => !lit.has(p))).toEqual([]);
+  });
+
+  // PICK 1 SURVIVES A MERGE. The Now card's second segment is the one place
+  // on the home page where a single task says what it is for, and it is one
+  // JSX expression deep inside a 1700-line flow that two sessions edit at
+  // once. It has already survived one rebase; this is so the next one is not
+  // a matter of luck. Verified end to end against the demo on 2026-08-24:
+  // "About 45 min · Moves Weekly date night".
+  it("the Now card still says what its task moves", () => {
+    const src = read(SRC + "/today/TodayFlow.tsx");
+    expect(src, "gapMoves must be derived").toMatch(/const gapMoves = .*movesLine\(/);
+    expect(src, "and rendered in the Now meta").toMatch(/\{gapMoves \?\? "Fits this gap"\}/);
+  });
+
+  // A GOAL'S LINE IS DERIVED ONCE. Two passes over the same data drift: the
+  // list row said "No projects yet" while the hero said "8 open in your
+  // tags", and both were reading the truth from different functions. The
+  // page and the detail view take the SAME reach object.
+  it("the bigger picture reads a goal through reach, never a second derivation", () => {
+    for (const f of ["bigger/BiggerPicturePage.tsx", "bigger/GoalDetailPage.tsx"]) {
+      const src = read(SRC + "/" + f);
+      expect(src, f + " must not re-derive").not.toMatch(/goalProgress\s*\(/);
+      expect(src, f + " must speak through reachLine").toMatch(/reachLine\(/);
+    }
   });
 });
 

@@ -33,7 +33,7 @@ function writeCache(d: string, c: DayCache) {
   try { localStorage.setItem(KEY(d), JSON.stringify(c)); } catch { /* private mode */ }
 }
 
-export default function TodaySuggestions({ ai }: { ai: AIService }) {
+export default function TodaySuggestions({ ai, always = false }: { ai: AIService; always?: boolean }) {
   const gather = useAIContext();
   const tasksSvc = useTasks();
   const profileSvc = useProfile();
@@ -141,7 +141,10 @@ export default function TodaySuggestions({ ai }: { ai: AIService }) {
         .filter((x) => !hidden.has(x.i))
         .filter((x) => !x.s.task || !visibleTaskTexts?.has(x.s.task.toLowerCase()))
     : [];
-  const [open, setOpen] = useState(false);
+  // `always` is What JARVIS Knows (pick 29). On Today this was a whisper you
+  // had to tap; on the page about what JARVIS has noticed it IS the content,
+  // so it opens as the card.
+  const [open, setOpen] = useState(always);
   const aiPick = !pattern && visibleTaskTexts !== null ? nonEcho[0] ?? null : null;
   if (!pattern && !aiPick) return null;
 

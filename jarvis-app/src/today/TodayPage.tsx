@@ -16,6 +16,7 @@ import DayRing from "./DayRing";
 import { useCondensed } from "../shared/PageHeader";
 import { Burst, useBurst } from "../shared/Burst";
 import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats, type WeekRecap } from "./evening";
+import { movesPillLabel } from "./goalPulse";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
 import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph } from "../shared/glyphs";
 
@@ -122,8 +123,9 @@ export default function TodayPage({
   onOpenEvent,
   onEditRoutine,
   onSeeAllTasks,
+  onGoBigger,
+  movedLine,
   onStartTask,
-  suggestions,
   proposedDay,
   dayFooter,
   checkIn,
@@ -180,9 +182,12 @@ export default function TodayPage({
   onOpenEvent?: (id: string) => void;
   onEditRoutine?: () => void;
   onSeeAllTasks: () => void;
+  // Pick 5: the goal-aware pill lands on the Bigger Picture.
+  onGoBigger?: () => void;
+  // Pick 4: what today moved, already built by the flow. Absent most days.
+  movedLine?: string | null;
   // Fifteen minutes on this one, starting now.
   onStartTask?: (id: string) => void;
-  suggestions?: ReactNode;
   // The standing proposal and the one decision it asks for. Both go to
   // YourDay: there is one schedule on this page now, not two.
   proposedDay?: import("./YourDay").ProposedDay;
@@ -224,6 +229,16 @@ export default function TodayPage({
       {summary.overdue > 0 && (
         <span className="day-pill dp-red" role="button" tabIndex={0} onClick={onSeeAllTasks}>
           <RollingNumber value={summary.overdue} />&nbsp;overdue
+        </span>
+      )}
+      {/* PICK 5 (Dave 2026-08-22). Events, due and overdue all count work by
+          its SHAPE. None of them can tell him whether any of today is worth
+          doing. This one counts what moves something he said he wants, in the
+          goal colour the Bigger Picture already uses, and lands there. It is
+          absent on a day that moves nothing, which is a fact, not a scolding. */}
+      {summary.moves > 0 && onGoBigger && (
+        <span className="day-pill dp-purple" role="button" tabIndex={0} onClick={() => onGoBigger()}>
+          <RollingNumber value={summary.moves} />&nbsp;{movesPillLabel(summary.moves)}
         </span>
       )}
     </div>
@@ -386,7 +401,7 @@ export default function TodayPage({
           <div>
             <div className="eyebrow">{dateLong}</div>
             <div className="today-title">{greeting}</div>
-            <div className="today-summary">{evening ? eveningSummary(evening) : parts}</div>
+            <div className="today-summary">{evening ? eveningSummary(evening, movedLine) : parts}</div>
             {/* Weather Fact (addendum item 4): the morning line. Threshold-
                 gated; a mild day renders nothing here. */}
             <MorningWeatherLine todayIso={localISODate()} />
@@ -433,16 +448,32 @@ export default function TodayPage({
               {ranked.headliner && (ranked.headliner.type === NoticeCard
                 ? cloneElement(ranked.headliner, { form: "headliner" })
                 : ranked.headliner)}
-              {ranked.rows.map((r) => (r.type === NoticeCard ? cloneElement(r, { form: "row" }) : r))}
+              {/* A PINNED CARD IS NOT A PROMOTION (2026-08-24, from the goal
+                  nudge truncating "Run three times a week" to "Run three
+                  ti..."). The stream still owns the HEADLINER, which is the
+                  only real promotion; what a producer may pin is the card
+                  form, and only for the reason the mail law already
+                  established: a title that is USER CONTENT is any length the
+                  world chooses, so the one-line row cannot hold it and the
+                  row's rule of "the sub yields whole or not at all" then
+                  costs the evidence line too. A pinned card can still be
+                  outranked, still be dismissed, still be beaten to the
+                  headline. It just is not shredded. */}
+              {ranked.rows.map((r) => (r.type === NoticeCard && (r.props as { form?: string }).form !== "card"
+                ? cloneElement(r, { form: "row" })
+                : r))}
               {ranked.receipts}
             </div>
           </>
         );
       })()}
 
-      {/* The Noticed insight is a WHISPER below the stream (Law 3E's receipt
-          tier): one quiet line until tapped, the full card only on request. */}
-      {suggestions}
+      {/* PICK 29, THE NOTICED LINE IS GONE (Dave 2026-08-22, filed under
+          "Remove: pays for the rest"). An insight is the least urgent thing
+          the app can say, and it was still taking a line on the busiest
+          screen. It was not deleted: the same offer now lives on What JARVIS
+          Knows, which is the page about what JARVIS has noticed, where it is
+          the point instead of an interruption. */}
 
       {/* EMAIL IS ITS OWN BAND (2026-08-21, Dave: "emails should be sectioned
           off"). Three of the six rows on his Heads Up were mail wearing the

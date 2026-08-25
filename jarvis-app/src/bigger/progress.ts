@@ -159,11 +159,17 @@ export function closable(row: ProjectRow): boolean {
 //
 // Nearest to finishing leads, because that is the one worth another hour.
 // Goals with nothing to measure follow. Finished goals sink.
-export interface GoalRank { id: string; progress: Progress | null }
+//
+// ARCHITECTURE C (2026-08-22): openTagged joins the ranking. A goal that
+// watches areas but holds no projects has no fraction at all, and under the
+// old tiers it fell in with the goals that have nothing to measure, below
+// every filed goal. It is live work; it just was not filed. It ranks as live,
+// after the goals that can say how close they are, because those can.
+export interface GoalRank { id: string; progress: Progress | null; openTagged?: number }
 export function rankGoals<T extends GoalRank>(rows: T[]): T[] {
   const tier = (r: T): number => {
-    if (!r.progress) return 1;                       // nothing to measure
-    if (r.progress.done >= r.progress.total) return 2; // finished, sink
+    if (!r.progress) return (r.openTagged ?? 0) > 0 ? 0 : 1; // tagged work is live work
+    if (r.progress.done >= r.progress.total) return (r.openTagged ?? 0) > 0 ? 0 : 2;
     return 0;                                        // live work
   };
   return [...rows].sort((a, b) => {

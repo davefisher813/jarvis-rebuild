@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useOptionalStrands } from "../data/NotesProvider";
 import { pausedCategoryIds } from "../categories/kinds";
-import { goalTitleOf, workWindowOf } from "./planMeta";
+import { workWindowOf } from "./planMeta";
+import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
@@ -170,6 +171,8 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     return others.some((e) => { const es = toMin(e.data.start), ee = e.data.end ? toMin(e.data.end) : es + 60; return s < ee && es < en; });
   };
 
+  // PICK 23: one upward index per render pass, the same shape Today builds.
+  const goalIdx = buildGoalIndex(projList, liveGoals(goalList));
   const realToday = todayISO();
   const plannedTaskIds = new Set(dayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
   const planCandidates = taskItems
@@ -183,7 +186,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
       return {
         id: t.id, text: t.data.text, category: t.data.category ?? "", due,
         suggested: isSuggested(due, selected, t.data.recurrence), overdue: !!due && due < realToday,
-        goal: goalTitleOf(projList, goalList, t.data.projectId),
+        // PICK 23: the same upward index Today uses, so the two surfaces
+        // that both build plan candidates cannot rank them differently.
+        goal: goalTitleForTask(goalIdx, t),
         ...(win ? { windowS: win.s, windowE: win.e } : {}),
       };
     })

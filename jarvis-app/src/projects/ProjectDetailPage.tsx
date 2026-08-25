@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { PROJECT_META, type Project, type ProjectData } from "./types";
 import { catColor, catName } from "../shared/categories";
 import { FileText } from "../shared/icons";
@@ -11,6 +11,7 @@ import ChipPicker from "../shared/ChipPicker";
 import { attemptWrite } from "../shared/guard";
 import { capAfterNumber } from "../shared/casing";
 import { areaFromTasks } from "./backfill";
+import { holdLine, holdExpired, sizeOf, sizeLine } from "./shape";
 import { haptics } from "../shared/haptics";
 import { ForkGlyph } from "../shared/glyphs";
 
@@ -36,7 +37,7 @@ export interface ProjectStep {
 
 export default function ProjectDetailPage({
   project, onBack, onEdit, linkedNotes = [], onOpenNote, onOpenDecision, onChanged, onFinish,
-  steps = [], onToggleStep, onAddStep, onOpenStep,
+  steps = [], onToggleStep, onAddStep, onOpenStep, estimateFor, today, firstStep, onAddNote,
 }: {
   project: Project;
   onBack: () => void;
@@ -56,6 +57,16 @@ export default function ProjectDetailPage({
   onToggleStep?: (id: string) => void;
   onAddStep?: (text: string) => void;
   onOpenStep?: (id: string) => void;
+  // PICK 22: the learned per-category estimate the planner already uses, so a
+  // project's size and its calendar footprint cannot disagree. Passed in
+  // rather than read here: this page touches no service for its own facts.
+  estimateFor?: (category: string) => number;
+  today?: string;
+  // PICK 21: the offer on an empty project. The flow owns the AI call; this
+  // page owns where it sits and what it looks like.
+  firstStep?: ReactNode;
+  // Pick 27: makes a note already connected to this project and opens it.
+  onAddNote?: () => void;
 }) {
   // SEAMLESS LINKING (Dave 2026-08-18): Area and Goal are chip-pickers IN
   // the detail card, the one-tap in-place edit from the editing law. Local
@@ -94,6 +105,9 @@ export default function ProjectDetailPage({
   };
 
   const m = PROJECT_META[data.status];
+  const size = estimateFor ? sizeOf(steps, estimateFor) : null;
+  const hold = today ? holdLine(data, today) : null;
+  const expired = today ? holdExpired(data, today) : false;
   const hasCat = !!data.category;
   // The one inference worth making about an older project, and it is an
   // OFFER, not a repair: no Area of its own, but its own steps agree on one.
@@ -129,6 +143,15 @@ export default function ProjectDetailPage({
             <div className="conn-meta">{doneSteps.length} of {steps.length} done</div>
           </div>
         )}
+        {/* PICK 22 (Dave 2026-08-22): how big is this. Not a size someone
+            types, which decays like every other self-report, and not a task
+            count on its own, because four ten-minute tasks and four half-day
+            tasks are not the same project. "About" is doing real work in that
+            sentence: these are learned averages, not commitments. */}
+        {size && <div className="conn-meta">{sizeLine(size)}</div>}
+        {/* PICK 20: a hold with an end. Expired, it stops being furniture and
+            becomes the one move worth offering. */}
+        {hold && <div className={"conn-meta" + (expired ? " fact-warn" : "")}>{hold}</div>}
       </div></div>
       {decision && (
         <div className="pad-x">
@@ -180,6 +203,13 @@ export default function ProjectDetailPage({
           own count, and one field to add another. Tapping the check
           completes the task everywhere in the app, because it IS the task:
           there is no second copy of it living on this page. */}
+      {/* PICK 21 (Dave 2026-08-22): AN EMPTY PROJECT GETS A FIRST STEP.
+          Four of his seven projects were unstarted, not unlinked, which is
+          why the self-critique killed the suggest-links-by-category idea this
+          replaced. A project with no tasks is not waiting to be connected to
+          something, it is waiting to be BEGUN, and the empty add-field said
+          nothing about how. */}
+      {steps.length === 0 && firstStep}
       {(steps.length > 0 || onAddStep) && (
         <>
           {/* ONE WORD FOR ONE THING (Dave 2026-08-22, pick 30). This page called
@@ -245,7 +275,14 @@ export default function ProjectDetailPage({
         </>
       )}
 
-      {linkedNotes.length > 0 && (
+      {/* PICK 27 (Dave 2026-08-22): NOTES BELONG TO A PROJECT. The reverse
+          lookup has existed since Session 6 and nothing fed it except a user
+          who remembered to open the link picker afterwards, so this section
+          was empty on every project he had. A note written from HERE is born
+          connected. The head renders whenever the project can make one, not
+          only when one already exists, because a section that appears only
+          after you have already solved the problem solves nothing. */}
+      {(linkedNotes.length > 0 || onAddNote) && (
         <>
           <div className="grp"><div className="eyebrow">Linked Notes</div></div>
           <div className="pad-x"><div className="card">
@@ -256,6 +293,7 @@ export default function ProjectDetailPage({
                 {onOpenNote && <div className="chev"></div>}
               </div>
             ))}
+            {onAddNote && <button className="row row-act" onClick={onAddNote}>Add a Note</button>}
           </div></div>
         </>
       )}
@@ -265,9 +303,20 @@ export default function ProjectDetailPage({
           and Save: four taps through a form for the best moment the app has.
           Goals already had this button on their own page; projects had
           nothing. Hidden once done, because finishing is not a toggle. */}
+      {expired && projectsSvc && (
+        <div className="pad-x conn-action">
+          <button className="btn btn-primary btn-block" onClick={() => saveField({ status: "active", holdUntil: undefined })}>Pick It Back Up</button>
+        </div>
+      )}
       {onFinish && data.status !== "done" && (
         <div className="pad-x conn-action">
-          <button className="btn btn-primary btn-block" onClick={onFinish}>Mark Done</button>
+          {/* ONE FILLED PRIMARY PER SCREEN (capsule law X). An expired hold
+              puts a second, more timely decision on this page, and two red
+              fills is the screen shouting twice. Coming back to a parked
+              project is the move its own hold just asked for, so it takes
+              the fill and finishing drops to the quiet tier for that one
+              case. Nothing is hidden; one of them is simply not shouted. */}
+          <button className={"btn btn-block" + (expired ? "" : " btn-primary")} onClick={onFinish}>Mark Done</button>
           {/* Says it, does not block it. Finishing a project with open steps
               is a normal thing to do (the steps stopped mattering), and an
               app that argues with you at the finish line is the reason

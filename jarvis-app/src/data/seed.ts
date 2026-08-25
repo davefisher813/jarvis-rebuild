@@ -83,11 +83,25 @@ export async function seedDemoData(
     const rel = await areas.create({ name: "Relationships", state: "steady" });
     const fin = await areas.create({ name: "Finances", state: "drifting" });
     const growth = await areas.create({ name: "Growth", state: "steady" });
-    await goals.create({ title: "Run three times a week", state: "on_track", areaId: health ?? undefined });
-    await goals.create({ title: "Ship the App Store Launch", state: "steady", areaId: career ?? undefined });
+    // ARCHITECTURE C: `tags` are the CATEGORIES a goal watches, which is a
+    // different axis from the legacy `areaId` above (Life Areas have no UI).
+    //
+    // Three carry tags, and only where the mapping is HONEST: every Health
+    // task really is running work, every Money task really is runway. Date
+    // night is deliberately untagged even though a Family tag would light it
+    // up, because Family in this data is mostly the kids' sport, and a goal
+    // that claims "Call Ridgeline About the Field" moves date night is the
+    // exact nonsense a too-broad watch list produces. Books carries neither,
+    // so the empty state is on screen too.
+    // FINISH LINES (picks 13/14). Each one is the measure the goal's own
+    // TITLE already names, which is the point: a goal called "run three times
+    // a week" knew nothing about three, or about a week. Date night carries
+    // none, so the unmeasured state is on screen too.
+    await goals.create({ title: "Run three times a week", state: "on_track", areaId: health ?? undefined, tags: [cat("Health")], measure: { kind: "cadence", times: 3, per: "week" } });
+    await goals.create({ title: "Ship the App Store Launch", state: "steady", areaId: career ?? undefined, tags: [cat("Work")], measure: { kind: "projects" } });
     await goals.create({ title: "Weekly date night", state: "on_track", areaId: rel ?? undefined });
-    await goals.create({ title: "Build a six-month runway", state: "at_risk", areaId: fin ?? undefined });
-    await goals.create({ title: "Read twelve books", state: "steady", areaId: growth ?? undefined });
+    await goals.create({ title: "Build a six-month runway", state: "at_risk", areaId: fin ?? undefined, tags: [cat("Money")], moneyTarget: 24000 });
+    await goals.create({ title: "Read twelve books", state: "steady", areaId: growth ?? undefined, measure: { kind: "count", target: 12, since: today }, by: addDays(today, 120) });
   }
 
   if ((await projects.list()).length === 0) {
@@ -96,7 +110,10 @@ export async function seedDemoData(
     const rebuild = await projects.create({ title: "Rebuild Calder App", status: "active", category: cat("Work"), goalId: launchGoal?.id });
     const site = await projects.create({ title: "Remodel Calder Website", status: "active", category: cat("Work") });
     const cookout = await projects.create({ title: "Calder Summer Cookout", status: "active", category: cat("Family") });
-    await projects.create({ title: "Tax Filing", status: "on_hold", category: cat("Money") });
+    // PICK 20: a hold that RAN OUT, because that is the state worth showing.
+    // A hold with a future date is quiet furniture; one whose day has passed
+    // is the only moment the app has anything to say about it.
+    await projects.create({ title: "Tax Filing", status: "on_hold", category: cat("Money"), holdUntil: addDays(today, -9) });
     // Linked tasks so progress bars, counts, and Next lines all populate.
     if (golf) {
       const g1 = await tasks.createTask("Lock the Pavilion Date", { category: cat("Family"), due: addDays(today, -6), projectId: golf });

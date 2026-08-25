@@ -4,6 +4,7 @@ import type { EventItem } from "../types";
 import { planDay, type PlanBlock } from "../planDay";
 import { fmtTime } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
+import { movesLine } from "../../today/goalPulse";
 import { useOptionalRules } from "../../data/NotesProvider";
 import { FULL_DAY, type DaySizing } from "../daySizing";
 import { emit, eventLog } from "../../events";
@@ -615,7 +616,12 @@ export default function PlanDaySheet({
                           <span className={"cat-dot cat-bg-" + catColor(t.category)} />
                           <div className="row-grow">
                             <div className="p3-name truncate">{t.text}</div>
-                            {t.goal && <div className="bp-sub truncate">Moves {t.goal}</div>}
+                            {/* PICK 31 applies here too: a goal whose whole
+                                name is already in the task title costs a
+                                line and says nothing. Same helper the Now
+                                card uses, so the two cannot disagree about
+                                when lineage is worth printing. */}
+                            {movesLine(t.goal, t.text) && <div className="bp-sub truncate">{movesLine(t.goal, t.text)}</div>}
                             {on && blockFor(t.id)?.outsideWindow && (
                               <div className="bp-sub">Outside its work hours</div>
                             )}

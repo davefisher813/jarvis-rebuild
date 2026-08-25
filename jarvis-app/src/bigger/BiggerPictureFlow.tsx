@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useProjects, useCategories, useGoals, useTasks, useNotes } from "../data/NotesProvider";
+import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions } from "../data/NotesProvider";
 import type { Project, ProjectData } from "../projects/types";
 import type { Goal, GoalData } from "../life/types";
 import type { Category } from "../categories/types";
@@ -11,7 +11,12 @@ import TaskSheet, { type TaskDraft } from "../tasks/screens/TaskSheet";
 import ProjectDetailPage from "../projects/ProjectDetailPage";
 import { attemptWrite } from "../shared/guard";
 import GoalSheet from "../life/GoalSheet";
-import { rankProjects, goalProgress } from "./progress";
+import { rankProjects } from "./progress";
+import { reachOf, type GoalReach } from "./reach";
+import { measureState, paceLine, healthOf, type MeasureContext } from "./measure";
+import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
+import { holdLine, sizeOf, sizeLine } from "../projects/shape";
+import { openWorkOf } from "../today/goalPulse";
 import GoalDetailPage from "./GoalDetailPage";
 import { relatedProjectsForGoal, nextActionOf, isLinkDismissed, dismissLink } from "./related";
 import { stalledCandidate, dismissProjStep } from "./stalled";
@@ -25,6 +30,9 @@ import { firstStepPrompt, parseFirstStep } from "../tasks/firstStep";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
 import { TargetGlyph } from "../shared/glyphs";
+
+// Hoisted: a fresh object per render would make every consumer's memo stale.
+const EMPTY_REACH: GoalReach = { filedIds: [], taggedIds: [], openTagged: 0, progress: null };
 
 type Sheet =
   | { kind: "closed" }
@@ -47,6 +55,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   const catsSvc = useCategories();
   const tasksSvc = useTasks();
   const notesSvc = useNotes();
+  const decisionsSvc = useDecisions();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -80,13 +89,25 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
 
   // Derived, never self-reported. Samples are read once per render pass.
   const samples = useMemo(() => readSamples(), [tasks]);
+  // PICK 22: the SAME learned per-category durations Plan My Day places
+  // blocks with, so a project's stated size and its calendar footprint can
+  // never tell two different stories.
+  const estimates = useMemo(() => learnedDurations(readCommittedDurations(), Date.now()), [tasks]);
+  const estimateFor = useCallback((cat: string) => estimates[cat] ?? 45, [estimates]);
   const projectRows = useMemo(
     () => rankProjects(projects, tasks, samples, Date.now()),
     [projects, tasks, samples],
   );
-  const goalProgressOf = useCallback(
-    (id: string) => goalProgress(tasks, projects, id),
-    [tasks, projects],
+  // ARCHITECTURE C: one derivation per goal, memoised across the page and the
+  // detail view so the list row and the hero can never disagree.
+  const reachCache = useMemo(() => {
+    const m = new Map<string, ReturnType<typeof reachOf>>();
+    for (const g of goals) m.set(g.id, reachOf(tasks, projects, g));
+    return m;
+  }, [goals, tasks, projects]);
+  const reachOfGoal = useCallback(
+    (id: string) => reachCache.get(id) ?? EMPTY_REACH,
+    [reachCache],
   );
 
   const detail = detailId ? projects.find((p) => p.id === detailId) : undefined;
@@ -141,6 +162,41 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       showToast({ message: "First step on Today" });
     } finally {
       setProjStepBusy(false);
+    }
+  };
+  // PICK 21: the same offer, aimed at the project he is LOOKING AT rather
+  // than the one the list picked. Separate state deliberately: the two offers
+  // can be on screen in the same session and must not overwrite each other.
+  const [openStep, setOpenStep] = useState<{ projectId: string; step: string } | null>(null);
+  const [openStepBusy, setOpenStepBusy] = useState(false);
+  const openStepAsk = async (proj: Project) => {
+    if (openStepBusy) return;
+    setOpenStepBusy(true);
+    try {
+      const identity = await gatherContext().then(identityToText).catch(() => "");
+      const p = firstStepPrompt(proj.data.title, "project", identity);
+      const step = parseFirstStep(await ai.complete([{ role: "user", content: p.user }], p.system));
+      if (!step) throw new Error("empty");
+      setOpenStep({ projectId: proj.id, step });
+    } catch {
+      showToast({ message: "Couldn't reach JARVIS" });
+    } finally {
+      setOpenStepBusy(false);
+    }
+  };
+  const openStepAccept = async (proj: Project) => {
+    if (openStepBusy || !openStep || openStep.projectId !== proj.id) return;
+    setOpenStepBusy(true);
+    try {
+      await attemptWrite(() => tasksSvc.createTask(openStep.step, {
+        projectId: proj.id, category: proj.data.category || undefined, due: today,
+      }));
+      setOpenStep(null);
+      emit({ type: "suggestion.accepted", props: { kind: "proj_step" } });
+      await reload();
+      showToast({ message: "First step on Today" });
+    } finally {
+      setOpenStepBusy(false);
     }
   };
   const projStepDismiss = () => {
@@ -256,7 +312,42 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
 
   // ---- Goal detail (Session 6.6): the goal as a place ----
   const goalDetail = goalDetailId ? goals.find((g) => g.id === goalDetailId) : undefined;
+  // PICKS 13/14/15: one context, one derivation, handed to the page whole.
+  const measureCtxFor = useCallback((g: Goal): MeasureContext => ({
+    reach: reachOfGoal(g.id),
+    tasks,
+    projects: projects.filter((p) => p.data.goalId === g.id),
+    samples,
+    today,
+    now: Date.now(),
+  }), [reachOfGoal, tasks, projects, samples, today]);
+  const goalMeasure = goalDetail ? measureState(goalDetail.data.measure, measureCtxFor(goalDetail)) : null;
+  // PICK 17: the drop writes the decision FIRST, then marks the goal. Order
+  // matters for the same reason the meeting booking's does: a goal marked
+  // dropped with no record of why is exactly the state this feature exists
+  // to prevent, and it is the unrecoverable half.
+  const dropGoal = async (g: Goal, why: string) => {
+    const decisionId = await decisionsSvc.create({
+      decision: "Dropped " + g.data.title,
+      ...(why ? { why } : {}),
+      linkedType: "goal", linkedId: g.id, linkedLabel: g.data.title,
+    });
+    const ok = await attemptWrite(() => goalsSvc.update(g.id, { ...g.data, dropped: { on: today, ...(decisionId ? { decisionId } : {}) } }));
+    if (!ok) return;
+    setGoalDetailId(null);
+    await reload();
+    showToast({ message: decisionId ? "Dropped · The reason is in your decisions" : "Dropped" });
+  };
   const goalProjects = goalDetail ? projects.filter((p) => p.data.goalId === goalDetail.id) : [];
+  // The watched work, flattened for the page. Same records, seen through the
+  // goal's areas: ticking one here finishes the task everywhere.
+  const goalTagged = useMemo(() => {
+    if (!goalDetail) return [];
+    const ids = new Set(reachOfGoal(goalDetail.id).taggedIds);
+    return tasks.filter((t) => ids.has(t.id)).map((t) => ({
+      id: t.id, text: t.data.text, done: !!t.data.done, due: t.data.due ?? null, category: t.data.category,
+    }));
+  }, [goalDetail, reachOfGoal, tasks]);
   const nextActionTextOf = useCallback(
     (projectId: string) => nextActionOf(tasks, projectId)?.data.text ?? null,
     [tasks],
@@ -299,6 +390,43 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       <>
         <ProjectDetailPage
           project={detail}
+          estimateFor={estimateFor}
+          today={today}
+          onAddNote={onOpenNote ? () => void (async () => {
+            // PICK 27: born connected, then opened. The title is the project's
+            // own, because a note you have to name before you can write it is
+            // a note that does not get written; renaming it is one tap in the
+            // editor he is already looking at.
+            const id = await attemptWrite(() => notesSvc.createNote(
+              detail.data.title,
+              detail.data.category ?? "",
+              [{ id: "proj-" + detail.id, kind: "project", label: detail.data.title, targetId: detail.id }],
+            ));
+            if (typeof id === "string") onOpenNote(id);
+          })() : undefined}
+          firstStep={ai.available ? (
+            <div className="pad-x">
+              <div className="promo-card">
+                <div className="promo-head">
+                  <div className="promo-badge b-amber"><TargetGlyph /></div>
+                  <div className="promo-body">
+                    <div className="promo-title">Nothing In It Yet</div>
+                    <div className="promo-sub">{openStep && openStep.projectId === detail.id ? <>Start with: {openStep.step}</> : "One small opening move is enough."}</div>
+                  </div>
+                </div>
+                <div className="promo-acts">
+                  {openStep && openStep.projectId === detail.id ? (
+                    <>
+                      <button className="promo-pill quiet" onClick={() => setOpenStep(null)}>Not That</button>
+                      <button className="promo-pill" disabled={openStepBusy} onClick={() => void openStepAccept(detail)}>{openStepBusy ? "Adding..." : "Add This Step"}</button>
+                    </>
+                  ) : (
+                    <button className="promo-pill" disabled={openStepBusy} onClick={() => void openStepAsk(detail)}>{openStepBusy ? "Thinking..." : "First Step"}</button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : undefined}
           linkedNotes={linkedNotes}
           onOpenNote={onOpenNote}
           onOpenDecision={onOpenDecision}
@@ -392,8 +520,16 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       <>
         <GoalDetailPage
           goal={goalDetail}
-          progress={goalProgressOf(goalDetail.id)}
+          reach={reachOfGoal(goalDetail.id)}
+          measure={goalMeasure}
+          pace={paceLine(goalMeasure, goalDetail.data.measure, goalDetail.data.by, today)}
+          health={healthOf(goalDetail, goalMeasure, goalDetail.data.measure, measureCtxFor(goalDetail), openWorkOf(reachOfGoal(goalDetail.id)))}
+          onDrop={(why) => void dropGoal(goalDetail, why)}
+          onOpenDecision={onOpenDecision}
           projects={goalProjects}
+          canTag={categories.length > 0}
+          tagged={goalTagged}
+          onToggleTagged={async (id) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reload(); }}
           nextActionTextOf={nextActionTextOf}
           suggestion={goalSuggestion}
           onBack={() => setGoalDetailId(null)}
@@ -442,6 +578,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
         {sheet.kind === "editGoal" && (
           <GoalSheet
             mode="edit"
+            categories={categories}
             initial={editingGoal?.data}
             onSave={saveGoal}
             onDelete={() => removeWithUndo("goal", sheet.id, () => { setSheet({ kind: "closed" }); setGoalDetailId(null); })}
@@ -456,11 +593,15 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
     <>
       <BiggerPicturePage
         goals={goals}
-        goalProgressOf={goalProgressOf}
+        reachOfGoal={reachOfGoal}
+        measureOfGoal={(id: string) => { const g = goals.find((x) => x.id === id); return g ? measureState(g.data.measure, measureCtxFor(g)) : null; }}
+        healthOfGoal={(id: string) => { const g = goals.find((x) => x.id === id); if (!g) return "unmeasured"; const c = measureCtxFor(g); return healthOf(g, measureState(g.data.measure, c), g.data.measure, c, openWorkOf(reachOfGoal(id))); }}
         projectRows={projectRows}
         loading={loading}
         offer={stalledOffer}
         nextActionTextOf={nextActionTextOf}
+        holdLineOf={(id: string) => { const p = projects.find((x) => x.id === id); return p ? holdLine(p.data, today) : null; }}
+        sizeLineOf={(id: string) => sizeLine(sizeOf(tasks.filter((t) => t.data.projectId === id).map((t) => ({ done: !!t.data.done, category: t.data.category })), estimateFor))}
         // Single-goal default: with exactly one goal, a new project starts
         // linked to it, visibly, one tap to undo in the sheet. A default, not
         // a hidden action.
@@ -499,6 +640,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       {(sheet.kind === "newGoal" || sheet.kind === "editGoal") && (
         <GoalSheet
           mode={sheet.kind === "newGoal" ? "new" : "edit"}
+          categories={categories}
           initial={editingGoal?.data}
           onSave={saveGoal}
           onDelete={sheet.kind === "editGoal" ? () => removeWithUndo("goal", sheet.id, () => setSheet({ kind: "closed" })) : undefined}

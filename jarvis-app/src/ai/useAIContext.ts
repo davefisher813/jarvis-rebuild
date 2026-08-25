@@ -9,6 +9,9 @@ import type { StrandsService } from "../brain/strands/StrandsService";
 import { assembleContext, type AIContext } from "./context";
 import { routineToText } from "../routine/types";
 import { readSamples } from "../shared/timeSense";
+import { reachOf, liveGoals } from "../bigger/reach";
+import { measureState, healthOf, goalStatusForAI } from "../bigger/measure";
+import { openWorkOf } from "../today/goalPulse";
 import { activeBills, paydayNext } from "../money/bills";
 import { loadEnvelopes, setAsideTotal, leftToSpend } from "../money/budget";
 
@@ -79,6 +82,10 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
     const l = leftToSpend(payday.amount, billsOut, setAside);
     cashFlow = { paycheck: payday.amount, nextPayday: next, billsOut, setAside, left: l.amount, short: l.short };
   }
+  // Read once for every goal below: readSamples parses device storage, and
+  // doing it per goal would parse it five times to answer one question.
+  const goalSamples = readSamples();
+  const goalNow = Date.now();
   return assembleContext({
     name: p?.name,
     template: p?.template,
@@ -97,7 +104,22 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
     philosophy,
     routine: { workStartMin: rt.workStartMin, workEndMin: rt.workEndMin },
     routineDetail: routineToText(rt),
-    goals: gl.map((g) => ({ name: g.data.title, status: g.data.state })),
+    // PICK 28 (2026-08-24): THE BRAIN KNOWS THE CURRENT GOALS, not the ones
+    // the record was created with. `g.data.state` is the stored status that
+    // nothing anywhere updates, so every AI feature in the app has been
+    // reasoning about statuses typed once, months ago. It gets the derived
+    // health and the finish line now, from the same functions the goal page
+    // renders. Dropped goals are left out entirely: they are not goals.
+    goals: liveGoals(gl).map((g) => {
+      const mctx = {
+        reach: reachOf(tk, pj, g),
+        tasks: tk, projects: pj.filter((x) => x.data.goalId === g.id),
+        samples: goalSamples, today, now: goalNow,
+      };
+      const ms = measureState(g.data.measure, mctx);
+      const open = openWorkOf(mctx.reach);
+      return { name: g.data.title, status: goalStatusForAI(healthOf(g, ms, g.data.measure, mctx, open), ms) };
+    }),
     projects: pj.map((x) => x.data.title),
     habits,
     completionSamples: readSamples().map((s2) => ({ h: s2.h, t: s2.t })),

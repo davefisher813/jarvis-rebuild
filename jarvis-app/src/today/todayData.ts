@@ -28,12 +28,16 @@ export interface DaySummary {
   events: number;
   due: number;
   overdue: number;
+  // PICK 5 (Dave 2026-08-22): how many of today's open tasks move something
+  // he said he wants. Every other number here counts work by SHAPE, which is
+  // why the home page never once mentioned a goal.
+  moves: number;
 }
 
 // Counts for the one-line briefing under the greeting.
-export function daySummary(todayEvents: EventItem[], tasks: TaskItem[], today: string): DaySummary {
+export function daySummary(todayEvents: EventItem[], tasks: TaskItem[], today: string, moves = 0): DaySummary {
   const p = partition(tasks, today);
-  return { events: todayEvents.length, due: p.today.length, overdue: p.overdue.length };
+  return { events: todayEvents.length, due: p.today.length, overdue: p.overdue.length, moves };
 }
 
 // Home "Today's Tasks" = overdue first, then due-today. Done and later tasks excluded.

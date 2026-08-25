@@ -42,9 +42,14 @@ export class NotesService {
     return this.getNote(id);
   }
 
-  async createNote(title: string, category: string): Promise<string | null> {
+  // PICK 27 (2026-08-24): a note may be BORN linked. A note written while
+  // inside a project belongs to that project, and asking the user to go find
+  // the link picker afterwards is how the link never gets made. The reverse
+  // lookup (notesLinkedTo) has existed since Session 6 and had nothing
+  // feeding it except manual linking.
+  async createNote(title: string, category: string, connections: Connection[] = []): Promise<string | null> {
     if (!title || !String(title).trim()) return null;
-    const data: NoteData = { title, category, blocks: [], connections: [] };
+    const data: NoteData = { title, category, blocks: [], connections };
     const id = await this.store.create(this.ownerId, ENTITY_NOTE, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_NOTE, entityId: id });
     return id;

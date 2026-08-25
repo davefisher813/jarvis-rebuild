@@ -50,7 +50,9 @@ export default function MailNotices({
   nowHHMM: string;
   // Returns true when the task actually landed, so the receipt never claims
   // a save that failed.
-  onAddTask: (text: string, due?: string) => Promise<boolean>;
+  // Pick 26: the thread rides along, so the task can inherit what its
+  // siblings from the same conversation were filed under.
+  onAddTask: (text: string, due?: string, threadId?: string) => Promise<boolean>;
   onOpenThread?: (threadId: string) => void;
   onOpenEmail?: () => void;
   // Told to the parent so the section head can disappear with the content.
@@ -95,7 +97,7 @@ export default function MailNotices({
     if (n.task) {
       haptics.selection();
       void (async () => {
-        const ok = await onAddTask(n.task!.text, n.task!.due);
+        const ok = await onAddTask(n.task!.text, n.task!.due, n.threadId);
         if (!ok) return;
         finish(n, n.task?.due ? "Added to your tasks · Due " + n.task.due : "Added to your tasks");
       })();

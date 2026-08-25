@@ -32,10 +32,43 @@ const svc = {
   remove: vi.fn(async () => {}),
 };
 
+// PICK 29 (2026-08-24): the Noticed offer moved off Today and onto this
+// page, so this tree now reaches the services that offer feeds on. The mock
+// listing only useStrands stopped describing the component the moment the
+// page grew; these are the real hooks TodaySuggestions calls, stubbed to the
+// quiet answer so the offer renders nothing and these tests keep testing
+// strands. The AI is unavailable in the stub, which is the state Dave's
+// device is in whenever the key is missing, and the correct one to test.
+const quiet = {
+  get: async () => null,
+  save: async () => {},
+  list: async () => [],
+  listTasks: async () => [],
+  listEvents: async () => [],
+  setDue: async () => {},
+};
 vi.mock("../../data/NotesProvider", async (orig) => {
   const actual = await orig<typeof import("../../data/NotesProvider")>();
-  return { ...actual, useStrands: () => svc, useOptionalStrands: () => svc };
+  return {
+    ...actual,
+    useStrands: () => svc,
+    useOptionalStrands: () => svc,
+    useTasks: () => quiet,
+    useProfile: () => quiet,
+    useBrainDocs: () => quiet,
+    useSchedule: () => quiet,
+    useRoutine: () => ({ ...quiet, get: async () => ({ protectedBlocks: [] }) }),
+  };
 });
+vi.mock("../../ai/useAI", () => ({ useAI: () => ({ available: false, complete: async () => "" }) }));
+// useAIContext reaches for the whole identity (people, profile, schedule,
+// routine, money). It is only ever CALLED behind an ai.available gate, but
+// the hook runs at the top of the component, so it is stubbed at the module
+// rather than service by service.
+vi.mock("../../ai/useAIContext", () => ({
+  useAIContext: () => async () => ({}),
+  todayISO: (d?: Date) => (d ?? new Date("2026-08-24T12:00:00")).toISOString().slice(0, 10),
+}));
 
 describe("StrandsPage renders the genome", () => {
   beforeEach(() => {

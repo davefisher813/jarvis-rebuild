@@ -5,6 +5,7 @@
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import type { RoutineData } from "../routine/types";
+import { capAfterNumber } from "../shared/casing";
 
 // Evening starts at the later of 6 PM and the end of work hours, and runs to
 // midnight (after midnight the clock is morning again, whatever it feels like).
@@ -53,12 +54,25 @@ function addHour(hhmm: string): string {
 // The close-out line under the evening greeting (roadmap v2: "You did 6 things
 // today." One line, no charts). Leads with the win; never mentions what did
 // not happen.
-export function eveningSummary(s: EveningStats): string {
+//
+// PICK 4 (Dave 2026-08-22): and what it MOVED. Six things done is a number
+// about volume; the goal it advanced is the only part of the day worth
+// remembering, and the app has never said it. The segment is passed in
+// already built (today/goalPulse) and is null when Time Sense saw nothing,
+// because device-local evidence can be absent without being negative: this
+// line never claims a goal did not move.
+//
+// Casing: routed through capAfterNumber, which the number-lead law has asked
+// of every count-led line since 2026-08-20. This one predated the rule and
+// slipped its detector, because the detector keys on a property literally
+// named `done` and this one is `thingsDone`.
+export function eveningSummary(s: EveningStats, moved?: string | null): string {
   const parts: string[] = [];
   if (s.thingsDone > 0) parts.push(`${s.thingsDone} done today`);
+  if (moved) parts.push(moved);
   if (s.eventsLeft > 0) parts.push(`${s.eventsLeft} left tonight`);
   if (parts.length === 0) return "A clear evening";
-  return parts.join(" · ");
+  return capAfterNumber(parts.join(" · "));
 }
 
 // --- The weekly close-out card (Sundays only; the Insights page folds into

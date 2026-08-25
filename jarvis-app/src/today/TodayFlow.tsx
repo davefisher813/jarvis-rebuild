@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions } from "../data/NotesProvider";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
-import { goalTitleOf, workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
+import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
@@ -17,7 +17,6 @@ import { FAILING, WAITING, NEW, RESUME } from "./stream";
 import { capAfterNumber } from "../shared/casing";
 import { movedBy, celebrationLine, type Moved } from "../shared/completion";
 import { birthdaysOn, type BirthdayHit } from "../people/birthdays";
-import TodaySuggestions from "./TodaySuggestions";
 import CheckIn from "./CheckIn";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import EventSheet, { type EventDraft } from "../schedule/screens/EventSheet";
@@ -31,6 +30,10 @@ import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventRemi
 import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap } from "./evening";
 import { readSamples } from "../shared/timeSense";
+import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask } from "../bigger/reach";
+import { inheritFromThread } from "../messages/threadTasks";
+import { rankProjects, closable } from "../bigger/progress";
+import { movesCount, movesLine, goalsMovedToday, movedLine, untouchedGoal, untouchedLine, openWorkOf, dismissGoalNudge } from "./goalPulse";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
@@ -76,7 +79,7 @@ import { lazy, Suspense } from "react";
 import { isOffTrack, rankOpen } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
-import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph } from "../shared/glyphs";
+import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph } from "../shared/glyphs";
 
 // Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
 // overlays, not tabs, and stay out of the boot bundle.
@@ -94,6 +97,14 @@ const SWEEP_ICO = (
 const FORK_ICO = (
   <ForkGlyph />
 );
+// A goal, and a win claimed. Both come from the paired glyph module so light
+// gets the filled twin and the hand-drawn ratchet does not move.
+const GOAL_ICO = (
+  <TargetGlyph />
+);
+const WIN_ICO = (
+  <CheckCircleGlyph />
+);
 const UpNextFlow = lazy(() => import("../upnext/UpNextFlow"));
 const FreshStartFlow = lazy(() => import("../upnext/FreshStartFlow"));
 
@@ -107,10 +118,14 @@ export default function TodayFlow({
   onProfile,
   onEditRoutine,
   onRestoreSpot,
+  onGoBigger,
 }: {
   onGoSchedule: () => void;
   onGoTasks: () => void;
   onGoTasksAll?: () => void;
+  // Picks 3 and 5: the home page can now send him to a goal. With an id it
+  // opens that goal; without one it lands on the Bigger Picture itself.
+  onGoBigger?: (goalId?: string) => void;
   onGoEmail?: (threadId?: string) => void;
   onSearch?: () => void;
   onProfile?: () => void;
@@ -233,6 +248,8 @@ export default function TodayFlow({
   const projectsSvc = useProjects();
   const goalsSvc = useGoals();
   const [projList, setProjList] = useState<Project[]>([]);
+  // Bumps after a goal nudge is waved off so the derivation re-reads storage.
+  const [goalNudgeTick, setGoalNudgeTick] = useState(0);
   const [goalList, setGoalList] = useState<Goal[]>([]);
   useEffect(() => {
     let on = true;
@@ -501,7 +518,12 @@ export default function TodayFlow({
         return {
           id: t.id, text: t.data.text, category: t.data.category ?? "", due,
           suggested: isSuggested(due, dateISO, t.data.recurrence), overdue: !!due && due < today,
-          goal: goalTitleOf(projList, goalList, t.data.projectId),
+          // PICK 23 (2026-08-24): read through the upward index, not the
+          // project chain alone. Plan My Day has ranked goal-moving tasks
+          // above goalless ones since 2026-08-09, but it could only SEE the
+          // filed ones, so most of his real work ranked as if it moved
+          // nothing. A tagged task now claims its place in the day.
+          goal: goalTitleForTask(goalIdx, t),
           ...(win ? { windowS: win.s, windowE: win.e } : {}),
         };
       })
@@ -727,6 +749,31 @@ export default function TodayFlow({
   const samples = readSamples();
   const dayStart = new Date(today + "T00:00:00").getTime();
   const completionsToday = samples.filter((s) => s.t >= dayStart && s.t < dayStart + 86400000).length;
+  // THE HOME PAGE LOOKS UP (Dave 2026-08-22, picks 1-5 and 31). One index per
+  // render pass, shared by the hero pill, the Now card, both new notices and
+  // the evening line, so no two of them can disagree about what moves what.
+  const goalIdx = buildGoalIndex(projList, liveGoals(goalList));
+  const goalReach = (id: string) => {
+    const g = goalList.find((x) => x.id === id);
+    return g ? reachOf(taskItems, projList, g) : { filedIds: [], taggedIds: [], openTagged: 0, progress: null };
+  };
+  const movedGoals = goalsMovedToday(goalIdx, taskItems, samples, dayStart, dayStart + 86400000);
+  // PICK 2: a project whose work is finished but which nobody has closed.
+  // The tick-time toast already offers this at the instant of the last tap;
+  // this is for every other way a project reaches the end (a sweep, an
+  // import, the toast missed while the phone was in a pocket). One at a time.
+  const finishedProject = rankProjects(projList, taskItems, samples, Date.now()).filter(closable)[0] ?? null;
+  const closeProject = async (id: string) => {
+    const proj = projList.find((p) => p.id === id);
+    if (!proj) return;
+    const ok = await attemptWrite(() => projectsSvc.update(id, { ...proj.data, status: "done" }));
+    await reload();
+    if (ok) showToast({ message: celebrationLine("project", id) + " · " + proj.data.title });
+  };
+  // PICK 3: the goal nothing on today's plate touches. goalNudgeTick lets a
+  // dismissal re-derive without a reload.
+  void goalNudgeTick; // re-derive after a dismissal (same pattern as dismissTick)
+  const untouched = untouchedGoal(goalIdx, goalList, goalReach, todaysTasks(taskItems, today), today);
   const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm, completionsToday) : undefined;
   const weekly = evening ? weekRecap(samples, allEvents, today) : null;
   // Day ring: due-today done over due-today total. Hero tint by daypart.
@@ -1042,6 +1089,8 @@ export default function TodayFlow({
   const nowCtx = nowContext(todayEvents, blocked, nhm);
   const estimates = learnedDurations(readCommittedDurations(), Date.now());
   const gapKey = today + ":" + (nowCtx.nextStart ?? "end");
+  // Pick 1 + pick 31: the goal this gap task moves, when naming it says
+  // something the task title did not already say.
   const gapPick = evening || gapDismissed === gapKey
     ? null
     : gapFill(
@@ -1050,6 +1099,8 @@ export default function TodayFlow({
         today,
         (cat) => estimates[cat] ?? 45,
       );
+  const gapTask = gapPick ? taskItems.find((t) => t.id === gapPick.id) ?? null : null;
+  const gapMoves = gapTask ? movesLine(goalTitleForTask(goalIdx, gapTask), gapTask.data.text) : null;
 
   // Approved V2 anatomy (preview 2026-08-15): the free window reads as two
   // stat tiles (sky until, green open); inside an event the event tile leads;
@@ -1116,7 +1167,14 @@ export default function TodayFlow({
               <RowIcon kind="task" />
               <div className="row-stack">
                 <div className="conn-name">{gapPick.text}</div>
-                <div className="conn-meta">About {gapPick.estimateMin} min · Fits this gap</div>
+                {/* PICK 1: NOW SAYS WHAT IT MOVES (Dave 2026-08-22). "Fits
+                    this gap" is the card's own premise restated: it is IN
+                    the gap, he can see that. When the task points at a goal,
+                    that slot carries the one thing he cannot see from here,
+                    and pick 31 keeps it quiet when the goal only repeats the
+                    task's own words. Two dot segments, never three: a third
+                    wraps on a 390px phone. */}
+                <div className="conn-meta">About {gapPick.estimateMin} min · {gapMoves ?? "Fits this gap"}</div>
               </div>
             </div>
             <div className="row row-acts">
@@ -1371,6 +1429,45 @@ export default function TodayFlow({
         action={{ label: "Resume", onClick: () => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); } }}
       />
     ) : null,
+    // PICK 2: A FINISHED THING SURFACES WHERE HE IS (Dave 2026-08-22). Wave 1
+    // taught the Bigger Picture to offer Close It on a project whose work is
+    // done. That only helps on a page he has no reason to open, and the whole
+    // complaint was that the bigger picture is invisible. The last tick of
+    // the last task IS the moment; it happens here, so the offer belongs
+    // here. One at a time, and it disappears the instant it is taken.
+    finishedProject ? (
+      <NoticeCard
+        key="finished"
+        weight={NEW}
+        icon={WIN_ICO}
+        tone="cat-fg-green"
+        title={finishedProject.project.data.title}
+        sub={capAfterNumber(`All ${finishedProject.progress?.total ?? 0} done`)}
+        action={{ label: "Close It", onClick: () => void closeProject(finishedProject.project.id) }}
+      />
+    ) : null,
+    // PICK 3: THE GOAL NOTHING TODAY TOUCHES. Not a scolding and not a
+    // streak: one line of arithmetic he cannot see anywhere else, because
+    // nothing on this page has ever mentioned a goal. Quiet for three days
+    // when waved off, and silent entirely on a day whose plate already
+    // covers every goal, which is the normal case.
+    untouched ? (
+      <NoticeCard
+        key="goalnudge"
+        /* Card, never row: a goal title is his words and any length (see
+           TodayPage's pinned-card note and the mail-notice law it extends).
+           On the row form "Run three times a week" rendered as "Run three
+           ti..." and the evidence line vanished entirely. */
+        form="card"
+        weight={RESUME}
+        icon={GOAL_ICO}
+        tone="cat-fg-purple"
+        title={untouched.data.title}
+        sub={untouchedLine(openWorkOf(goalReach(untouched.id)))}
+        action={{ label: "Pick Something", onClick: () => onGoBigger?.(untouched.id) }}
+        onDismiss={() => { dismissGoalNudge(untouched.id, today); setGoalNudgeTick((n) => n + 1); }}
+      />
+    ) : null,
   ].filter(Boolean);
   // --- Reminders (2026-08-19). Everything here writes a date, never a
   // boolean, so a reminder resets itself at midnight with nothing scheduled.
@@ -1546,8 +1643,18 @@ export default function TodayFlow({
     if (id) showToast({ message: `Fifteen minutes on ${t.data.text}` });
   };
 
-  const addTaskFromMail = async (text: string, due?: string): Promise<boolean> => {
-    const ok = await attemptWrite(() => tasks.createTask(text, { due: due ?? today }));
+  // PICK 26 (Dave 2026-08-22): an email-born task lands with its lineage.
+  // Not a guess: the ONLY signal used is that a task from this same thread
+  // already exists and somebody already filed it. The first task off a thread
+  // inherits nothing, which is correct, because there is nothing to inherit
+  // yet; every one after it joins its sibling. See messages/threadTasks.ts.
+  const addTaskFromMail = async (text: string, due?: string, threadId?: string): Promise<boolean> => {
+    const inherited = threadId ? inheritFromThread(taskItems, threadId) : {};
+    const ok = await attemptWrite(() => tasks.createTask(text, {
+      due: due ?? today,
+      ...(threadId ? { fromThread: threadId } : {}),
+      ...inherited,
+    }));
     if (ok) await reload();
     return !!ok;
   };
@@ -1569,7 +1676,7 @@ export default function TodayFlow({
     <TodayPage
       greeting={name ? `${greetingFor(now)}, ${name}` : greetingFor(now)}
       dateLong={longDate(now)}
-      summary={daySummary(todayEvents, taskItems, today)}
+      summary={daySummary(todayEvents, taskItems, today, movesCount(goalIdx, todaysTasks(taskItems, today)))}
       todayEvents={todayEvents}
       now={nhm}
       nowLabel={fmtTime(nhm).time}
@@ -1640,11 +1747,12 @@ export default function TodayFlow({
       // nothing between them, so the suggestion read as part of the question.
       // They are unrelated: one asks how today felt, the other proposes work.
       checkIn={<CheckIn onChanged={() => { void reload(); }} />}
-      suggestions={<TodaySuggestions ai={ai} />}
       onSearch={onSearch}
       onProfile={onProfile}
       onSeeAllSchedule={onGoSchedule}
       onSeeAllTasks={onGoTasks}
+      onGoBigger={onGoBigger ? () => onGoBigger() : undefined}
+      movedLine={movedLine(movedGoals)}
       avatar={initials}
       birthdays={birthdays}
     />
