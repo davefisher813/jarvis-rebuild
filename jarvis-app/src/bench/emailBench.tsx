@@ -33,6 +33,27 @@ const THREADS: GmailThreadMeta[] = [
   { id: "t_patel", messages: [
     msg("m5", "Dr. Patel's Office <front@patelmed.com>", "Appointment reminder", "Please confirm your appointment Aug 8 at 2:30 PM", ["INBOX", "UNREAD"], NOW - 26 * H),
   ] },
+  // The audit fixtures (2026-08-25). Each of these is a bug Dave found on his
+  // own screen that the old bench could not reproduce, so the walk could not
+  // see it and neither could I.
+  //
+  //   t_ics      a real calendar invite, so "Add It to Your Calendar" can be
+  //              proved to actually add it
+  //   t_encoded  an RFC 2047 encoded-word subject and sender
+  //   t_entity   an HTML-only body full of undecoded entities
+  //   t_nosub    a message with no subject at all
+  { id: "t_ics", messages: [
+    msg("m_ics", "Resolve Clinic <no-reply@resolveclinic.com>", "Video appointment reminder", "You have a video appointment. Do not reply to this message.", ["INBOX", "UNREAD"], NOW - 3 * H),
+  ] },
+  { id: "t_encoded", messages: [
+    msg("m_enc", "=?UTF-8?B?Tm/Dq2wgQmVyZ2Vy?= <noel@bruxelles.be>", "=?UTF-8?B?TsOkY2hzdGUgU2Nocml0dGU=?=", "Bonjour Dave", ["INBOX", "UNREAD"], NOW - 4 * H),
+  ] },
+  { id: "t_entity", messages: [
+    msg("m_ent", "Sarah &amp; Co <events@sarahco.com>", "Don&#39;t miss it", "RSVP by Friday", ["INBOX"], NOW - 6 * H),
+  ] },
+  { id: "t_nosub", messages: [
+    msg("m_nosub", "Marcus Delaney <m@northlake.org>", "", "", ["INBOX"], NOW - 7 * H),
+  ] },
   { id: "t_orgA", messages: [
     msg("m6", "Northlake <news@northlake.org>", "Fall registration opens Monday", "Registration for the fall season opens Monday. Nothing due yet.", ["INBOX"], NOW - 30 * H),
   ] },
@@ -72,7 +93,21 @@ const FULLS: Record<string, GmailThreadFull> = {
   ]),
   t_geico: full("t_geico", [{ from: "GEICO <no-reply@geico.com>", subject: "Your policy renews soon", date: "Yesterday", body: "Your auto policy renews Aug 12. Amount due: $214.00. No action is needed if autopay is enabled." }]),
   t_patel: full("t_patel", [{ from: "Dr. Patel's Office <front@patelmed.com>", subject: "Appointment reminder", date: "Yesterday", body: "Please confirm your appointment on Aug 8 at 2:30 PM. Reply CONFIRM or call us." }]),
+  t_ics: full("t_ics", [{ from: "Resolve Clinic <no-reply@resolveclinic.com>", subject: "Video appointment reminder", date: "Mon, 24 Aug 2026 17:13:10 +0000 (UTC)", body: "IMPORTANT: This is an automated message. Please do not reply. Hi Dave, this is a reminder that you have an appointment at 1:00 pm (ET) on Wednesday, September 23rd." }]),
+  t_encoded: full("t_encoded", [{ from: "=?UTF-8?B?Tm/Dq2wgQmVyZ2Vy?= <noel@bruxelles.be>", subject: "=?UTF-8?B?TsOkY2hzdGUgU2Nocml0dGU=?=", date: "Yesterday", body: "Bonjour Dave, voici la suite." }]),
+  t_entity: full("t_entity", [{ from: "Sarah &amp; Co <events@sarahco.com>", subject: "Don&#39;t miss it", date: "Yesterday", body: "Don&#39;t miss Sarah &amp; Co&mdash;RSVP by Friday" }]),
+  t_nosub: full("t_nosub", [{ from: "Marcus Delaney <m@northlake.org>", subject: "", date: "Yesterday", body: "" }]),
 };
+
+// A real calendar invite, so the calendar card can be walked end to end. The
+// old bench had a PDF and nothing else, which is why "Add It to Your Calendar"
+// could ship for months doing nothing.
+const INVITE_ICS = [
+  "BEGIN:VCALENDAR", "VERSION:2.0", "BEGIN:VEVENT",
+  "SUMMARY:Video appointment with Resolve Clinic",
+  "DTSTART:20260923T170000Z", "DTEND:20260923T173000Z",
+  "END:VEVENT", "END:VCALENDAR",
+].join("\r\n");
 
 // The waiver form rides the first Ridgeley message as a real attachment part.
 {
@@ -80,6 +115,12 @@ const FULLS: Record<string, GmailThreadFull> = {
   if (first?.payload) {
     first.payload.parts = [
       { filename: "waiver.pdf", mimeType: "application/pdf", body: { attachmentId: "att1" } },
+    ];
+  }
+  const inv = FULLS.t_ics?.messages?.[0] as { payload?: { parts?: unknown[] } } | undefined;
+  if (inv?.payload) {
+    inv.payload.parts = [
+      { filename: "appointment.ics", mimeType: "text/calendar", body: { attachmentId: "att_ics" } },
     ];
   }
 }
@@ -127,7 +168,10 @@ const api = makeFakeGoogleApi({
     return THREADS.filter((t) => JSON.stringify(t).toLowerCase().includes(q.toLowerCase()));
   },
   getProfile: async () => ({ emailAddress: "dave@x.com" }),
-  getAttachment: async () => ({ data: btoa("PDFBYTES").replace(/\+/g, "-").replace(/\//g, "_"), size: 8 }),
+  getAttachment: async (_msgId: string, attId: string) => {
+    const body = attId === "att_ics" ? INVITE_ICS : "PDFBYTES";
+    return { data: btoa(body).replace(/\+/g, "-").replace(/\//g, "_"), size: body.length };
+  },
 });
 
 // Scripted AI: answers by recognizing which prompt MessagesFlow sent.
@@ -140,6 +184,11 @@ const TRIAGE_REPLY = JSON.stringify([
   { id: "t_dd", bucket: "noise", gist: "DoorDash promo." },
   { id: "t_li", bucket: "noise", gist: "LinkedIn notifications." },
   { id: "t_sub", bucket: "noise", gist: "Newsletter." },
+  { id: "t_ics", bucket: "needs_you", gist: "Video appt Sept 23, 1 PM",
+    act: { kind: "appointment", title: "Video appointment", date: "2026-09-23", start: "13:00", durationMin: 30 } },
+  { id: "t_encoded", bucket: "needs_you", gist: "Next steps, needs an answer" },
+  { id: "t_entity", bucket: "worth_knowing", gist: "RSVP by Friday" },
+  { id: "t_nosub", bucket: "worth_knowing", gist: "Empty message" },
 ]);
 
 const fetchImpl = (async (_url: RequestInfo | URL, init?: RequestInit) => {

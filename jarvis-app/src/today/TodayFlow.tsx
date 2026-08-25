@@ -130,7 +130,7 @@ export default function TodayFlow({
   // Picks 3 and 5: the home page can now send him to a goal. With an id it
   // opens that goal; without one it lands on the Bigger Picture itself.
   onGoBigger?: (goalId?: string) => void;
-  onGoEmail?: (threadId?: string) => void;
+  onGoEmail?: (threadId?: string, draftId?: string) => void;
   onSearch?: () => void;
   onProfile?: () => void;
   onEditRoutine?: () => void;
@@ -1631,17 +1631,26 @@ export default function TodayFlow({
   // an accepted invitation with nothing in the diary is the exact failure
   // this feature exists to remove. A failed send leaves the event, which is
   // recoverable; a failed event after a sent yes is not.
-  const takeMeeting = async (threadId: string): Promise<boolean> => {
+  // ONE RECEIPT, AND IT IS THE TRUE ONE (Dave 2026-08-25, from the audit).
+  //
+  // This returned `true` on the send-failure path and showed its own honest
+  // "Booked · Couldn't send the reply" toast. The caller then printed "Booked
+  // and replied" in the same tick, and showToast holds exactly ONE message, so
+  // the honest one was overwritten before it ever rendered. You would believe
+  // you had accepted a meeting time in writing to somebody who was never told.
+  //
+  // The receipt is now the return value rather than a toast fired from in
+  // here. Two functions cannot both own one line of text.
+  const takeMeeting = async (threadId: string): Promise<string | null> => {
     const snap = loadMailSnapshot();
     const m = (snap.meetings ?? []).find((x) => x.threadId === threadId);
-    if (!m) return false;
+    if (!m) return null;
     const made = await attemptWrite(() =>
       schedule.createEvent("Call With " + m.from, { date: m.date, start: m.start, end: m.end }));
-    if (!made) return false;
+    if (!made) return null;
     await reload();
     const sent = await sendFromCard({ kind: "reply", threadId }, acceptBody({ ...m, free: true }));
-    if (!sent) showToast({ message: "Booked · Couldn't send the reply" });
-    return true;
+    return sent ? "Booked and replied" : "Booked · Couldn't send the reply";
   };
 
   // THE EMAIL ALREADY DID THE DATA ENTRY (Dave 2026-08-25: "if it's something
@@ -1723,13 +1732,21 @@ export default function TodayFlow({
   // yet; every one after it joins its sibling. See messages/threadTasks.ts.
   const addTaskFromMail = async (text: string, due?: string, threadId?: string): Promise<boolean> => {
     const inherited = threadId ? inheritFromThread(taskItems, threadId) : {};
-    const ok = await attemptWrite(() => tasks.createTask(text, {
-      due: due ?? today,
-      ...(threadId ? { fromThread: threadId } : {}),
-      ...inherited,
-    }));
-    if (ok) await reload();
-    return !!ok;
+    // THE ID, NOT THE ABSENCE OF A THROW (2026-08-25). attemptWrite reports
+    // true whenever nothing threw, and createTask returns null WITHOUT
+    // throwing when the text is blank. A subject of "Re:" strips to an empty
+    // string, so "Added to your tasks" could print with no task behind it.
+    let made: string | null = null;
+    const ok = await attemptWrite(async () => {
+      made = await tasks.createTask(text, {
+        due: due ?? today,
+        ...(threadId ? { fromThread: threadId } : {}),
+        ...inherited,
+      });
+    });
+    const id: string | null = made;
+    if (ok && id) await reload();
+    return !!(ok && id);
   };
 
   // ONE NOTICE STREAM (Dave 2026-08-19: "there's a ton of notifications
@@ -1787,6 +1804,7 @@ export default function TodayFlow({
           onSend={google.hasToken ? sendFromCard : undefined}
           onAddTask={addTaskFromMail}
           onOpenThread={onGoEmail ? (id) => onGoEmail(id) : undefined}
+          onOpenDraft={onGoEmail ? (id) => onGoEmail(undefined, id) : undefined}
           onOpenEmail={onGoEmail ? () => onGoEmail() : undefined}
           onEmptyChange={setMailEmpty}
         />

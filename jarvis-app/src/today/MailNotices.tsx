@@ -10,6 +10,7 @@ import {
 import type { MailAct } from "../messages/mailAct";
 import { loadSnoozes, snoozeNotice, sleepingNow, snoozeChoices } from "../messages/snoozeNotice";
 import { quickAnswers } from "../messages/quickAnswers";
+import { dayPhrase } from "../money/bills";
 
 // Email on the home page, rebuilt (Dave 2026-08-20). The count is gone; what
 // is left is the work itself. See messages/home.ts for the reasoning.
@@ -41,6 +42,7 @@ export default function MailNotices({
   nowHHMM,
   onAddTask,
   onOpenThread,
+  onOpenDraft,
   onOpenEmail,
   onEmptyChange,
   onDraft,
@@ -57,6 +59,9 @@ export default function MailNotices({
   // siblings from the same conversation were filed under.
   onAddTask: (text: string, due?: string, threadId?: string) => Promise<boolean>;
   onOpenThread?: (threadId: string) => void;
+  // "Finish It" on an unsent draft. Separate from onOpenThread because a
+  // draft with no thread has no thread to open.
+  onOpenDraft?: (draftId: string) => void;
   onOpenEmail?: () => void;
   // Told to the parent so the section head can disappear with the content.
   onEmptyChange?: (empty: boolean) => void;
@@ -68,7 +73,10 @@ export default function MailNotices({
   onSend?: (n: MailNotice, body: string) => Promise<boolean>;
   // N1: book the slot, accept it in writing, and block the time. One tap for
   // what is otherwise three decisions.
-  onTakeMeeting?: (threadId: string) => Promise<boolean>;
+  // Returns the receipt to show, or null when nothing was booked. A string
+  // rather than a boolean because the booking is the only thing that knows
+  // whether the acceptance reply actually sent.
+  onTakeMeeting?: (threadId: string) => Promise<string | null>;
   // Dave 2026-08-25: the appointment, the bill, the package. Returns the
   // receipt to show and, when the write can be taken back, how to take it
   // back. null means nothing landed, and the card says so rather than
@@ -132,8 +140,14 @@ export default function MailNotices({
       haptics.selection();
       void (async () => {
         const ok = await onAddTask(n.task!.text, n.task!.due, n.threadId);
-        if (!ok) return;
-        finish(n, n.task?.due ? "Added to your tasks · Due " + n.task.due : "Added to your tasks");
+        // A tap that produced nothing used to say nothing (2026-08-25). The
+        // act path beside this one already tells you and offers the thread.
+        if (!ok) {
+          showToast({ message: "Couldn't add it · Opening the thread" });
+          onOpenThread?.(n.threadId);
+          return;
+        }
+        finish(n, "Added to your tasks" + (n.task?.due ? " · Due " + dayPhrase(n.task.due, today) : ""));
       })();
       return;
     }
@@ -141,15 +155,24 @@ export default function MailNotices({
       haptics.selection();
       setBusy(n.key);
       void (async () => {
-        const ok = await onTakeMeeting(n.threadId);
+        // The receipt comes back FROM the booking, because only the booking
+        // knows whether the reply went out. This used to print "Booked and
+        // replied" over the top of the handler's own "Couldn't send the
+        // reply", in the same tick, and the toast holds one message.
+        const receipt = await onTakeMeeting(n.threadId);
         setBusy(null);
-        if (ok) finish(n, "Booked and replied");
-        else showToast({ message: "Couldn't book it · Opening the thread" });
-        if (!ok) onOpenThread?.(n.threadId);
+        if (receipt) finish(n, receipt);
+        else {
+          showToast({ message: "Couldn't book it · Opening the thread" });
+          onOpenThread?.(n.threadId);
+        }
       })();
       return;
     }
     if (writable(n)) { void write(n); return; }
+    // A draft opens the DRAFT. The thread view is read-only and the unsent
+    // words are only ever loaded by openDraft.
+    if (n.draftId && onOpenDraft) { onOpenDraft(n.draftId); return; }
     onOpenThread?.(n.threadId);
   };
 

@@ -92,6 +92,11 @@ export interface MailNotice {
   // writes an event, a bill, or a reminder and clears. Already validated by
   // readAct, so a handler can use these fields without re-checking them.
   act?: MailAct;
+  // Present only on kind "draft". "Finish It" used to fall through every
+  // branch to "open the thread", and a draft composed from scratch HAS no
+  // thread, so a draft id reached the thread opener and it returned silently
+  // (2026-08-25). The draft is what the button is about; it travels.
+  draftId?: string;
 }
 
 const KEY = "jarvis.mail.home.v1";
@@ -246,6 +251,7 @@ function draftNotice(d: MailDraftRow): MailNotice {
     sub: d.line,
     action: "Finish It",
     tone: "cat-fg-magenta",
+    draftId: d.id,
   };
 }
 

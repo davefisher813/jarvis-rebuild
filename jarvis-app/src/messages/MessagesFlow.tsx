@@ -37,6 +37,24 @@ import { PRESETS, loadMinutes, saveMinutes, clampMinutes, drainReceipt } from ".
 import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, handoffLine, type HandoffTarget } from "./handoff";
 import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, markPromised, commitmentLine, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, type MailMeeting } from "./home";
+import { settleAll, settleLine, type SettleWords } from "./settle";
+import { readIcs } from "./ics";
+import { endOfAct } from "./mailAct";
+import { dayPhrase } from "../money/bills";
+
+// The words every mail-archive receipt uses, in one place, because the four
+// batch sites used to phrase the same outcome four ways.
+const ARCHIVE_WORDS: SettleWords = {
+  one: "conversation", many: "conversations",
+  did: "archived", doing: "archive", stuck: "still in your inbox",
+};
+
+// For an Undo that could not put everything back. An undo that silently fails
+// is worse than no undo: the rows return to the list and the mail does not.
+const RESTORE_WORDS: SettleWords = {
+  one: "conversation", many: "conversations",
+  did: "back in your inbox", doing: "put those back", stuck: "still archived in Gmail",
+};
 import { inboxSentence } from "./inboxBrief";
 import { dueChases, loadChases, clearChase, setChase, CHASE_DAYS, CHASE_DEFAULT } from "./followUp";
 import { loadVips, toggleVip, isVip, applyVips } from "./vip";
@@ -51,7 +69,7 @@ import { clearedToday, bumpCleared, closeOut } from "./cleared";
 import { railClass, railToneForWaiting, railToneForDeadline, ageBands, showBandHeads } from "./rows";
 import { DEFAULT_ANSWERS } from "./quickAnswers";
 import { loadLetGo, letGo, undoLetGo } from "./letGo";
-import { closeCandidates, closeLine, closeReceipt, closeDue, markClosed, lastClose } from "./weeklyClose";
+import { closeCandidates, closeLine, closeDue, markClosed, lastClose } from "./weeklyClose";
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
 import { attachOffer, amountIn } from "./attachmentKind";
 import { HOLD_SECONDS } from "./outbox";
@@ -144,7 +162,7 @@ function fmtWhen(ms: number): string {
 // so junk is never opened. The headline counts what needs Dave, never unread.
 // Threads are the unit throughout; search is server-side over the whole
 // mailbox. Without AI the tab is an honest threaded list, no fake triage.
-export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections , demoMail = false, openThreadId }: { demoMail?: boolean; ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void; openThreadId?: string }) {
+export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections , demoMail = false, openThreadId, openDraftId }: { demoMail?: boolean; ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void; openThreadId?: string; openDraftId?: string }) {
   const g = useGoogle();
   const tasks = useOptionalTasks();
   const scheduleSvc = useOptionalSchedule();
@@ -229,6 +247,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [closeDone, setCloseDone] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [attachDone, setAttachDone] = useState(false);
+  const [attachBusy, setAttachBusy] = useState(false);
   const [nudgeCounts, setNudgeCounts] = useState<Record<string, number>>(() => loadNudgeCounts());
   const [chaseDays, setChaseDays] = useState<number>(CHASE_DEFAULT);
   // N15: what he actually owns, by name. Loaded once when compose opens, so
@@ -643,6 +662,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // and every tone and asserts no key escapes without a case here.
   const runAction = async (row: WaitingRow & { account?: string }, a: MailAction) => {
     setMore(null);
+    // A THROW USED TO CLOSE THE SHEET AND SAY NOTHING (2026-08-25). This is
+    // called as `void runAction(...)`, so a rejected write produced an
+    // unhandled rejection and the only observable effect of tapping "Add as
+    // Bill" was the sheet disappearing.
+    //
+    // The switch stays INSIDE this function rather than moving to a helper: a
+    // law test scans runAction's own body for a case per action key, and a
+    // split put every case out of its reach.
+    try {
     switch (a.key) {
       case "stop":
         dropRow(row.threadId);
@@ -674,22 +702,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         return;
       case "add_bill": {
         const amount = amountIn(row.subject ?? "");
-        if (!tasks || amount == null) return;
-        await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
+        // Silent returns, both of them (2026-08-25). A label that promises
+        // "Files it under Money" may not answer a tap with nothing.
+        if (!tasks) { say("Tasks aren't available right now"); return; }
+        if (amount == null) { say("No amount in that one · Nothing to file"); return; }
+        const id = await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
           bill: { amount },
           source: madeBy("email", row.threadId),
         });
-        say("Added to Money · $" + amount.toLocaleString());
+        // toFixed, not toLocaleString: the latter drops the trailing cent, so
+        // $1,234.50 was printing as $1,234.5 on every money receipt.
+        say(id ? "Added to Money · $" + amount.toFixed(2) : "Couldn't file it · Nothing was saved");
         return;
       }
-      case "add_task":
-        if (!tasks) return;
-        await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
+      case "add_task": {
+        if (!tasks) { say("Tasks aren't available right now"); return; }
+        const id = await tasks.createTask(laterTaskTitle(displayName(row.to), row.subject ?? ""), {
           due: todayISO(),
           source: madeBy("email", row.threadId),
         });
-        say("Added to your tasks");
+        say(id ? "Added to your tasks" : "Couldn't add it · Nothing was saved");
         return;
+      }
       case "block_time": {
         if (!scheduleSvc) return;
         const now = new Date();
@@ -717,8 +751,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           end: slot.end,
           source: madeBy("email", row.threadId),
         });
+        // fmtTime returns { time, ap }, not a string. Concatenating it raw
+        // printed "Booked [object Object] · 30 min" (2026-08-25); this was
+        // the only site in the app that did not destructure it.
         say(id
-          ? (slot.date === today ? "Booked " : "Booked tomorrow ") + fmtTime(slot.start) + " · " + BOOK_MIN + " min"
+          ? (slot.date === today ? "Booked " : "Booked tomorrow ") + fmtTime(slot.start).time + " " + fmtTime(slot.start).ap + " · " + BOOK_MIN + " min"
           : "Couldn't book that");
         return;
       }
@@ -726,6 +763,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         // Everything left is a draft or a dial, and startNudge knows the
         // difference from the action's own channel.
         await startNudge(row, a);
+    }
+    } catch {
+      say("Couldn't save · Nothing was lost");
     }
   };
 
@@ -774,6 +814,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     void openThread(openThreadId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openThreadId, rows]);
+
+  // "Finish It" lands HERE, in the draft, with the unsent words loaded
+  // (2026-08-25). It used to hand a draft id to the thread jump above, which
+  // found no matching row and returned silently.
+  const jumpedDraft = useRef<string | null>(null);
+  useEffect(() => {
+    if (!openDraftId) return;
+    if (jumpedDraft.current === openDraftId) return;
+    jumpedDraft.current = openDraftId;
+    void openDraft(openDraftId);
+  }, [openDraftId]);
 
   // THE HOME SNAPSHOT (Dave 2026-08-20). Today must render instantly, so it
   // never touches Gmail: the Email tab leaves behind everything the home page
@@ -1049,7 +1100,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         if (u) setUnsubbable((prev) => (prev[um.fromEmail.toLowerCase()] ? prev : { ...prev, [um.fromEmail.toLowerCase()]: u }));
       }
       setRows((rs) => rs.map((r) => (r.id === id ? { ...r, unread: false } : r)));
-      api.modifyThread(id, [], ["UNREAD"]).catch(() => {});
+      // Deliberately unreported. Nothing on screen claims the thread was
+      // marked read, so a failure here costs a bold row and nothing else.
+      // Routed through settleAll so the choice is visible rather than an
+      // empty catch that reads like every other one that WAS a bug.
+      void settleAll([id], () => api.modifyThread(id, [], ["UNREAD"]));
       // ONE call for the summary and the replies, cached against the latest
       // message id. Reopening a thread costs nothing until someone writes.
       const lastId = full.messages[full.messages.length - 1]?.id || id;
@@ -1077,6 +1132,22 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   // Attachments open in a new tab (or download when the browser can't render
   // the type). Bytes travel Gmail -> this device only, nothing is uploaded.
+  // Fetch a .ics and read it. Separate from openAttachment because that one
+  // hands the bytes to the browser to download; this one keeps them.
+  const readIcsAttachment = async (messageId: string, attachmentId?: string) => {
+    if (!attachmentId) return null;
+    const api = apiFor(thread ? accountOfThread(thread.id) : undefined);
+    if (!api) return null;
+    try {
+      const { data } = await api.getAttachment(messageId, attachmentId);
+      const bytes = b64urlDecodeBytes(data);
+      if (bytes.length === 0) return null;
+      return readIcs(new TextDecoder().decode(bytes));
+    } catch {
+      return null;
+    }
+  };
+
   const openAttachment = async (messageId: string, attachmentId: string, filename: string, mime: string) => {
     const api = apiFor(thread ? accountOfThread(thread.id) : undefined);
     if (!api) return;
@@ -1111,19 +1182,27 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const sweepCount = (fromEmail: string) =>
     rows.filter((r) => r.fromEmail.toLowerCase() === fromEmail.toLowerCase()).length;
 
-  const sweepSender = (fromEmail: string) => {
+  const sweepSender = async (fromEmail: string) => {
     const hit = rows.filter((r) => r.fromEmail.toLowerCase() === fromEmail.toLowerCase());
     if (hit.length === 0) return;
     setRows((rs) => rs.filter((r) => r.fromEmail.toLowerCase() !== fromEmail.toLowerCase()));
     setView("list");
-    for (const r of hit) apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
-    say(hit.length + (hit.length === 1 ? " conversation archived" : " conversations archived"), {
+    // COUNTED, NOT ASSUMED (2026-08-25). This printed hit.length archived
+    // while every failure went into an empty catch, so a sender whose sweep
+    // half-failed reported a clean number and the rest came back on the next
+    // load. The rows that did not move go back in the list where they were.
+    const { ok, failed } = await settleAll(hit, (r) => apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]));
+    if (failed.length) setRows((rs) => [...failed, ...rs.filter((x) => !failed.some((f) => f.id === x.id))].sort((a, b) => b.dateMs - a.dateMs));
+    say(settleLine(ok.length, failed.length, ARCHIVE_WORDS), ok.length ? {
       label: "Undo",
       run: () => {
-        setRows((rs) => [...hit, ...rs].sort((a, b) => b.dateMs - a.dateMs));
-        for (const r of hit) apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []).catch(() => {});
+        void (async () => {
+          setRows((rs) => [...ok, ...rs].sort((a, b) => b.dateMs - a.dateMs));
+          const back = await settleAll(ok, (r) => apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []));
+          if (back.failed.length) say(settleLine(back.ok.length, back.failed.length, RESTORE_WORDS));
+        })();
       },
-    });
+    } : undefined);
   };
 
   // Unsubscribe using the sender's own header. mailto is sent (on this tap);
@@ -1133,13 +1212,23 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const m = lastMsg(t);
     const u = parseUnsub(m.listUnsubscribe, m.listUnsubscribePost);
     if (!u) return;
+    // The receipt was careful not to claim the sender would comply, and then
+    // claimed the REQUEST was made whether or not it was (2026-08-25): the
+    // send failure went into an empty catch and window.open's null was never
+    // read. Both are now the thing the receipt is about.
+    let sent: boolean;
     if (u.kind === "mailto") {
       const api = apiFor(accountOfThread(t.id));
       if (!api) return;
       const raw = encodeEmail({ to: u.target, subject: u.subject || UNSUB_SUBJECT, body: UNSUB_BODY });
-      await api.sendMessage(raw).catch(() => {});
+      const { ok } = await settleAll([raw], () => api.sendMessage(raw));
+      sent = ok.length > 0;
     } else {
-      window.open(u.target, "_blank", "noopener,noreferrer");
+      sent = !!window.open(u.target, "_blank", "noopener,noreferrer");
+    }
+    if (!sent) {
+      say(u.kind === "mailto" ? "Couldn't send it · Nothing was asked" : "Your browser blocked that tab · Nothing was asked");
+      return;
     }
     emit({ type: "action", props: { name: "email.unsubscribe", kind: u.kind } });
     setView("list");
@@ -1150,15 +1239,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // and the same honesty as doUnsub: mailto is sent, https is OPENED, because
   // without List-Unsubscribe-Post a URL may be a page needing a click and
   // pretending otherwise is a false receipt.
-  const requestUnsub = async (u: Unsub) => {
+  // Returns whether the ASK actually left the building. It used to return
+  // nothing and swallow both failures (2026-08-25), which let the sweep above
+  // count an unsubscribe that never happened.
+  //
+  // The https branch is the interesting one: a sweep opens these in a loop
+  // from a single tap, and every browser blocks all but the first popup.
+  // window.open returns null when it is blocked, so that is the check. There
+  // is no way to make the second tab open, and the honest move is to say so
+  // rather than to report three asks and send one.
+  const requestUnsub = async (u: Unsub): Promise<boolean> => {
+    let sent = false;
     if (u.kind === "mailto") {
       const api = g.apis("mail")[0]?.api;
-      if (!api) return;
-      await api.sendMessage(encodeEmail({ to: u.target, subject: u.subject || UNSUB_SUBJECT, body: UNSUB_BODY })).catch(() => {});
+      if (!api) return false;
+      const { ok } = await settleAll([u], () =>
+        api.sendMessage(encodeEmail({ to: u.target, subject: u.subject || UNSUB_SUBJECT, body: UNSUB_BODY })));
+      sent = ok.length > 0;
     } else {
-      window.open(u.target, "_blank", "noopener,noreferrer");
+      sent = !!window.open(u.target, "_blank", "noopener,noreferrer");
     }
-    emit({ type: "action", props: { name: "email.unsubscribe", kind: u.kind } });
+    if (sent) emit({ type: "action", props: { name: "email.unsubscribe", kind: u.kind } });
+    return sent;
   };
 
   // Which of the binned senders published a machine-readable way to stop.
@@ -1198,10 +1300,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     countCleared(chosen.length);
     say(capAfterNumber(chosen.length === 1 ? "1 archived" : chosen.length + " archived"), {
       label: "Undo",
-      run: () => {
+      // AN UNDO THAT DOES NOT UNDO IS THE WORST ONE (2026-08-25): the rows
+      // come back in the list, the mail stays archived in Gmail, and the next
+      // load quietly takes them away again.
+      run: () => void (async () => {
         setRows((rs) => [...chosen, ...rs.filter((x) => !ids.has(x.id))].sort((a, b) => b.dateMs - a.dateMs));
-        for (const r of chosen) apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []).catch(() => {});
-      },
+        const { failed } = await settleAll(chosen, (r) => apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []));
+        if (failed.length) say(settleLine(chosen.length - failed.length, failed.length, RESTORE_WORDS));
+      })(),
     });
   };
 
@@ -1215,15 +1321,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
       say("Couldn't archive · Still in inbox");
     });
-    say("Archived", { label: "Undo", run: () => {
+    say("Archived", { label: "Undo", run: () => void (async () => {
       setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
-      apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []).catch(() => {});
-    } });
+      const { failed } = await settleAll([r], (x) => apiFor(x.account)?.modifyThread(x.id, ["INBOX"], []));
+      if (failed.length) say("Couldn't put it back · Still archived in Gmail");
+    })() });
   };
 
   // Delete goes to Gmail's Trash, recoverable for 30 days. The permanent
   // delete endpoint is never called from this app.
-  const trashThread = (id: string, account?: string) => {
+  const trashThread = async (id: string, account?: string) => {
     const api = apiFor(account ?? accountOfThread(id));
     if (!api) return;
     setRows((rs) => rs.filter((r) => r.id !== id));
@@ -1231,38 +1338,54 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // Deleting the thread you are reading must not leave you reading it.
     setView("list");
     const gone = rows.find((r) => r.id === id);
-    api.trashThread(id).catch(() => {});
-    say("Deleted · In trash 30 days", { label: "Undo", run: () => {
+    // DELETE HAS TO BE TRUE (2026-08-25). This said "In trash 30 days" with
+    // the rejection in an empty catch: the row vanished locally, the thread
+    // stayed in the inbox, and it reappeared on the next load with no mention.
+    // Archive, twelve lines up, got this right in August and Delete never did.
+    const { ok } = await settleAll([id], () => api.trashThread(id));
+    if (!ok.length) {
       if (gone) setRows((rs) => [gone, ...rs.filter((x) => x.id !== id)].sort((a, b) => b.dateMs - a.dateMs));
-      api.untrashThread(id).catch(() => {});
-    } });
+      say("Couldn't delete it · Still in your inbox");
+      return;
+    }
+    say("Deleted · In trash 30 days", { label: "Undo", run: () => void (async () => {
+      if (gone) setRows((rs) => [gone, ...rs.filter((x) => x.id !== id)].sort((a, b) => b.dateMs - a.dateMs));
+      const { failed } = await settleAll([id], () => api.untrashThread(id));
+      if (failed.length) say("Couldn't put it back · Still in trash");
+    })() });
   };
 
-  const archiveAllNoise = (noise: ThreadRow[], manual = true) => {
+  const archiveAllNoise = async (noise: ThreadRow[], manual = true) => {
     if (noise.length === 0) return;
     const ids = new Set(noise.map((r) => r.id));
     setRows((rs) => rs.filter((r) => !ids.has(r.id)));
     setNoiseOpen(false);
     let counts;
-    for (const r of noise) {
-      counts = recordToss(r.fromEmail, r.unread);
-      apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
-    }
+    for (const r of noise) counts = recordToss(r.fromEmail, r.unread);
     if (counts) setToss(tossOffer(counts));
+    // THE NUMBER THIS FEEDS IS CALLED "COUNTED, NEVER ESTIMATED" (2026-08-25).
+    // It was an estimate: every write's failure went into an empty catch and
+    // the receipt printed noise.length. This one runs UNATTENDED from the
+    // auto-clear effect, so nobody was watching the inbox it did not clear.
+    const { ok, failed } = await settleAll(noise, (r) => apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]));
+    if (failed.length) setRows((rs) => [...failed, ...rs.filter((x) => !ids.has(x.id) || !failed.some((f) => f.id === x.id))].sort((a, b) => b.dateMs - a.dateMs));
     // E12: an auto-clear the user did not ask for is not something the user
     // cleared, so only the manual sweep counts toward today's number.
-    if (manual) countCleared(noise.length);
-    const what = capAfterNumber(noise.length === 1 ? "1 conversation archived" : noise.length + " conversations archived");
+    if (manual && ok.length) countCleared(ok.length);
+    const what = capAfterNumber(settleLine(ok.length, failed.length, ARCHIVE_WORDS));
     // Undo (2026-08-09): this was the one archive without it, and it is the
     // one that takes the most at once, including when the opt-in auto-clear
     // runs it unattended.
-    say(manual ? what : what + " · " + noiseLine(noise), {
+    say(manual || !ok.length ? what : what + " · " + noiseLine(ok), ok.length ? {
       label: "Undo",
       run: () => {
-        setRows((rs) => [...noise, ...rs].sort((a, b) => b.dateMs - a.dateMs));
-        for (const r of noise) apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []).catch(() => {});
+        void (async () => {
+          setRows((rs) => [...ok, ...rs].sort((a, b) => b.dateMs - a.dateMs));
+          const back = await settleAll(ok, (r) => apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []));
+          if (back.failed.length) say(settleLine(back.ok.length, back.failed.length, RESTORE_WORDS));
+        })();
       },
-    }, manual ? 6000 : 8000);
+    } : undefined, manual ? 6000 : 8000);
     if (manual && !autoNoise) setAutoOffer(true);
   };
 
@@ -1284,7 +1407,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const { noise } = splitByBucket(rows, applyRules(triage, rows, rules));
     if (noise.length === 0) return;
     autoRan.current = true;
-    archiveAllNoise(noise, false);
+    void archiveAllNoise(noise, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [triaged, autoNoise, rows, triage, rules]);
 
@@ -1430,9 +1553,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (draft.fromDeck) emit({ type: "email.deck_sent", props: { flag: true } });
       if (editingDraftId) {
         const id = editingDraftId;
-        api.deleteDraft(id).catch(() => {});
         setDrafts((ds) => ds.filter((d) => d.id !== id));
         setEditingDraftId(null);
+        // The mail is SENT by this point, so a failed draft cleanup is not
+        // worth alarming him about; it leaves a stale draft in Gmail. Said
+        // out loud rather than hidden in an empty catch, and reported quietly
+        // so he is not hunting a duplicate later.
+        void (async () => {
+          const { failed } = await settleAll([id], () => api.deleteDraft(id));
+          if (failed.length) say("Sent · The old draft is still in your drafts");
+        })();
       }
       // Commitment catcher: if he just promised something, it becomes a task
       // with the date HE named. Once per thread, and never for a hand-off note
@@ -1473,7 +1603,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         const tid = draft.threadId || sent.threadId;
         if (tid) {
           setRows((rs) => rs.filter((r) => r.id !== tid));
-          apiFor(draft.account)?.modifyThread(tid, [], ["INBOX"]).catch(() => {});
+          // The handoff note went out; this only moves the thread out of the
+          // inbox. A failure leaves it visible, which is recoverable and
+          // worth one line rather than a silent divergence.
+          void (async () => {
+            const { failed } = await settleAll([tid], () => apiFor(draft.account)?.modifyThread(tid, [], ["INBOX"]));
+            if (failed.length) say("Handed off · Still in your inbox");
+          })();
         }
         void loadWaiting();
         emit({ type: "action", props: { name: "email.handoff" } });
@@ -1782,7 +1918,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <button className="nav-back" onClick={() => setView("list")}>Email</button>
           <span className="nav-title"></span>
           <div className="nav-actions">
-            <button className="nav-action danger" onClick={() => trashThread(thread.id)} aria-label="Delete"><Trash2 className="ic" /></button>
+            <button className="nav-action danger" onClick={() => void trashThread(thread.id)} aria-label="Delete"><Trash2 className="ic" /></button>
             <button className="nav-action" onClick={() => archiveThread(thread.id)} aria-label="Archive"><Archive className="ic" /></button>
           </div>
         </div>
@@ -1848,7 +1984,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               say("Muted · Won't come back", { label: "Undo", run: () => setMuted(unmute(thread.id)) });
             }}>Mute this thread</button>
             {sweepCount(lastMsg(thread).fromEmail) > 1 && (
-              <button className="quiet-action" onClick={() => sweepSender(lastMsg(thread).fromEmail)}>
+              <button className="quiet-action" onClick={() => void sweepSender(lastMsg(thread).fromEmail)}>
                 Archive all {sweepCount(lastMsg(thread).fromEmail)} from {lastMsg(thread).from}
               </button>
             )}
@@ -1974,27 +2110,75 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <div className="conn-name">{offer.title}</div>
                   <div className="conn-meta">{offer.sub}</div>
                 </div>
-                <button className="pill-act" onClick={() => void (async () => {
-                  if (offer.kind === "calendar") {
-                    // The .ics goes to the phone's own calendar, which is the
-                    // same handoff reminders already use and the only thing
-                    // that can actually fire an alarm on iOS.
-                    setToast("Open the attachment to add it · Your Calendar handles .ics");
-                    setTimeout(() => setToast(null), 4000);
+                <button className="pill-act" disabled={attachBusy} onClick={() => void (async () => {
+                  if (attachBusy) return;
+                  setAttachBusy(true);
+                  try {
+                    // THE BUTTON DOES THE THING (2026-08-25). This branch used
+                    // to fire "Open the attachment to add it · Your Calendar
+                    // handles .ics", mark the card done, and hide it: a button
+                    // labelled Add whose entire effect was to hand the job
+                    // back and withdraw the offer. The file states the title,
+                    // the date and the time; ics.ts reads them.
+                    if (offer.kind === "calendar") {
+                      const read = await readIcsAttachment(m.id, offer.attachmentId);
+                      if (!read?.event) {
+                        // Law 1: unreadable means unreadable. It opens the
+                        // file rather than inventing an appointment, and the
+                        // card STAYS so the offer is not silently spent.
+                        setToast("Couldn't read that invite · Opening the file");
+                        setTimeout(() => setToast(null), 3500);
+                        if (offer.attachmentId) void openAttachment(m.id, offer.attachmentId, offer.filename ?? "invite.ics", "text/calendar");
+                        return;
+                      }
+                      const { event: ev, count } = read;
+                      const extra = count > 1 ? " · " + (count - 1) + " more in the file" : "";
+                      if (ev.start && scheduleSvc) {
+                        const id = await scheduleSvc.createEvent(ev.title, {
+                          date: ev.date, start: ev.start,
+                          end: endOfAct(ev.start, ev.durationMin ?? 60),
+                          source: madeBy("email", thread.id),
+                        });
+                        if (!id) { setToast("Couldn't add it · Nothing was saved"); setTimeout(() => setToast(null), 3000); return; }
+                        setToast("On your schedule · " + dayPhrase(ev.date, todayISO()) + " " + fmtTime(ev.start).time + " " + fmtTime(ev.start).ap + extra);
+                      } else if (tasks) {
+                        // Law 2: an all-day invite has a date and no time.
+                        // It stays a date rather than becoming a 9am nobody
+                        // wrote down.
+                        const id = await tasks.createTask(ev.title, { due: ev.date, source: madeBy("email", thread.id) });
+                        if (!id) { setToast("Couldn't add it · Nothing was saved"); setTimeout(() => setToast(null), 3000); return; }
+                        setToast("Added to your tasks · " + dayPhrase(ev.date, todayISO()) + extra);
+                      } else {
+                        return;
+                      }
+                      setAttachDone(true);
+                      setTimeout(() => setToast(null), 3500);
+                      return;
+                    }
+                    // A card offering a write with no service behind it is a
+                    // button that does nothing, silently. The sheet's own file
+                    // legislated against this shape; this card never got it.
+                    if (!tasks) { setToast("Tasks aren't available right now"); setTimeout(() => setToast(null), 3000); return; }
+                    const id = offer.kind === "bill" && offer.amount != null
+                      ? await tasks.createTask(offer.title, { bill: { amount: offer.amount }, source: madeBy("email", thread.id) })
+                      : await tasks.createTask(offer.title, { source: madeBy("email", thread.id) });
+                    // createTask returns null for blank text without throwing.
+                    if (!id) { setToast("Couldn't add it · Nothing was saved"); setTimeout(() => setToast(null), 3000); return; }
+                    setToast(offer.kind === "bill" && offer.amount != null
+                      ? "Added to Money · $" + offer.amount.toFixed(2)
+                      : "Added to your tasks");
                     setAttachDone(true);
-                    return;
+                    setTimeout(() => setToast(null), 3000);
+                  } catch {
+                    // Unwrapped before (2026-08-25): a throwing write produced
+                    // an unhandled rejection, no toast, and a card that stayed
+                    // put with no explanation.
+                    setToast("Couldn't add it · Nothing was saved");
+                    setTimeout(() => setToast(null), 3000);
+                  } finally {
+                    setAttachBusy(false);
                   }
-                  if (!tasks) return;
-                  if (offer.kind === "bill" && offer.amount != null) {
-                    await tasks.createTask(offer.title, { bill: { amount: offer.amount }, source: madeBy("email", thread.id) });
-                    setToast("Added to Money · $" + offer.amount.toLocaleString());
-                  } else {
-                    await tasks.createTask(offer.title, { source: madeBy("email", thread.id) });
-                    setToast("Added to your tasks");
-                  }
-                  setAttachDone(true);
-                  setTimeout(() => setToast(null), 3000);
-                })()}>{offer.action}</button>
+                })()}>{attachBusy ? "Adding…" : offer.action}</button>
               </div></div></div>
             );
           })()}
@@ -2045,7 +2229,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     <MailSwipe
       key={r.id}
       onArchive={() => archiveRow(r)}
-      onDelete={() => trashThread(r.id, r.account)}
+      onDelete={() => void trashThread(r.id, r.account)}
     >
     <div className="row" role="button" tabIndex={0}
       aria-pressed={selecting ? picked!.has(r.id) : undefined}
@@ -2278,11 +2462,22 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 </div>
                 <button className="pill-act" onClick={() => void (async () => {
                   const ids = set.ids;
+                  const kept = rows.filter((r) => ids.includes(r.id));
                   setRows((rs) => rs.filter((r) => !ids.includes(r.id)));
-                  markClosed(new Date().toISOString().slice(0, 10));
-                  setCloseDone(true);
-                  await Promise.all(ids.map((id) => apiFor(accountOfThread(id))?.modifyThread(id, [], ["INBOX"]).catch(() => {})));
-                  setToast(closeReceipt(set));
+                  // THE WRITES DECIDE, NOT THE OFFER (2026-08-25). This marked
+                  // the week closed BEFORE the awaits and reported set.count,
+                  // which is the size of the offer. Every per-thread failure
+                  // went into an empty catch, so a fortnight of mail could
+                  // stay exactly where it was and the offer would not come
+                  // back for another week to say so.
+                  const { ok, failed } = await settleAll(ids, (id) => apiFor(accountOfThread(id))?.modifyThread(id, [], ["INBOX"]));
+                  if (failed.length) {
+                    const back = kept.filter((r) => failed.includes(r.id));
+                    setRows((rs) => [...back, ...rs.filter((x) => !failed.includes(x.id))].sort((a, b) => b.dateMs - a.dateMs));
+                  }
+                  // Only a week that actually closed counts as closed.
+                  if (ok.length) { markClosed(todayISO()); setCloseDone(true); }
+                  setToast(settleLine(ok.length, failed.length, ARCHIVE_WORDS) + (ok.length && !failed.length ? " · Still searchable in Gmail" : ""));
                   setTimeout(() => setToast(null), 4000);
                 })()}>Close It Out</button>
               </div></div></div>
@@ -2516,7 +2711,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       <>
                         <div className="msg-fold-head">
                           Noise
-                          <button className="see-all" onClick={() => archiveAllNoise(noise)}>Archive All</button>
+                          <button className="see-all" onClick={() => void archiveAllNoise(noise)}>Archive All</button>
                         </div>
                         <div className="row" role="button" tabIndex={0} onClick={() => setNoiseOpen(!noiseOpen)}>
                           <div className="row-grow">
@@ -2575,22 +2770,29 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               </div></div></div>
               <button
                 className="btn btn-primary btn-block"
-                onClick={() => {
+                onClick={() => void (async () => {
+                  // ASKED MEANS ASKED (2026-08-25). This incremented `ended`
+                  // off an un-awaited call, so the receipt said "Asked 3
+                  // senders to stop" whether or not a single one went out.
+                  // The file's own header says NEVER CLAIMS IT WORKED; the
+                  // count of asks was itself the claim.
+                  //
+                  // A sender whose ask did NOT go out is not left in limbo:
+                  // it falls through to the Noise rule, which is the outcome
+                  // that does not depend on anyone else's server.
                   let ended = 0;
                   let filed = 0;
                   for (const c of sweep) {
                     markAsked(c.sender);
-                    if (c.canUnsub) {
-                      const u = unsubbable[c.sender];
-                      if (u) { void requestUnsub(u); ended++; continue; }
-                    }
+                    const u = c.canUnsub ? unsubbable[c.sender] : undefined;
+                    if (u && await requestUnsub(u)) { ended++; continue; }
                     setRules(saveRule(c.sender, "noise"));
                     filed++;
                   }
                   setSweep([]);
                   setToast(sweepReceipt(ended, filed));
                   setTimeout(() => setToast(null), 4000);
-                }}
+                })()}
               >{sweepSub(sweep)}</button>
               <button className="quiet-action" onClick={() => { sweep.forEach((c) => markAsked(c.sender)); setSweep([]); }}>Leave them</button>
             </div>

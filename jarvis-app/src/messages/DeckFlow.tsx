@@ -12,6 +12,7 @@ import { buildPlanPrompt, parseDeckPlan, primaryLabel, laterTaskTitle, type Deck
 import { voiceExamplesFor } from "./voiceExamples";
 import { newTrackId, pixelUrlFor, saveTrack, registerTrack } from "./tracking";
 import { showToast } from "../shared/toast";
+import { settleAll } from "./settle";
 import { capAfterNumber } from "../shared/casing";
 import { quickAnswers } from "./quickAnswers";
 
@@ -140,8 +141,18 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
     }
   };
 
-  const archiveRemote = (id: string, account?: string) => {
-    apiFor(account)?.modifyThread(id, [], ["INBOX", "UNREAD"]).catch(() => {});
+  // AWAITED, AND ITS ANSWER USED (2026-08-25). This was detached and its
+  // rejection discarded, then `advance(true)` reported the thread cleared and
+  // the parent counted it. The surrounding try/catch could not catch it,
+  // because the promise was never attached to anything.
+  //
+  // Returns whether the mail actually left the inbox. The callers pass that
+  // straight into `advance`, so a thread that failed to archive is not counted
+  // as cleared: the work still happened (the bill was filed, the reply was
+  // sent), and the mail is simply still there.
+  const archiveRemote = async (id: string, account?: string): Promise<boolean> => {
+    const { ok } = await settleAll([id], () => apiFor(account)?.modifyThread(id, [], ["INBOX", "UNREAD"]));
+    return ok.length > 0;
   };
 
   // E9 (2026-08-24): `shortReply` is a quick-answer chip standing in for the
@@ -154,6 +165,9 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
     const api = apiFor(row.account);
     if (!api) return;
     setBusy(true);
+    // Whether the mail actually left the inbox. Only a true archive is
+    // counted as cleared by the parent.
+    let cleared = false;
     try {
       if (plan.kind === "reply" && (shortReply || plan.reply)) {
         const body = shortReply ?? plan.reply!;
@@ -168,7 +182,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
           saveTrack(trackId, { threadId: sent.threadId || r.threadId || sent.id, sentAt: Date.now() });
           void registerTrack(trackId, token);
         }
-        archiveRemote(row.id, row.account);
+        cleared = await archiveRemote(row.id, row.account);
         // The honest voice metric: sent exactly as drafted (edited sends are
         // logged from the compose path with flag: true). A real, durable
         // EventType since 2026-08-07; it was a device-local "action" before,
@@ -180,7 +194,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
           due: plan.bill.due ?? null,
           bill: { amount: plan.bill.amount },
         });
-        archiveRemote(row.id, row.account);
+        cleared = await archiveRemote(row.id, row.account);
         showToast({ message: "Bill added to Money" });
       } else if (plan.kind === "event" && plan.event) {
         await schedule.createEvent(plan.event.title, {
@@ -188,17 +202,17 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
           start: plan.event.start,
           end: plan.event.end,
         });
-        archiveRemote(row.id, row.account);
+        cleared = await archiveRemote(row.id, row.account);
         showToast({ message: "On the schedule" });
       } else if (plan.kind === "task" && plan.task) {
         await tasks.createTask(plan.task.title, { due: plan.task.due ?? null });
-        archiveRemote(row.id, row.account);
+        cleared = await archiveRemote(row.id, row.account);
         showToast({ message: "Task added" });
       } else {
-        archiveRemote(row.id, row.account);
+        cleared = await archiveRemote(row.id, row.account);
       }
       emit({ type: "action", props: { name: "email.deck.handled", kind: plan.kind } });
-      advance(true);
+      advance(cleared);
     } catch (e) {
       showToast({ message: (e as Error).message || "Didn't send · Nothing lost" });
     } finally {
@@ -222,11 +236,12 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
     }
   };
 
-  const archive = () => {
+  const archive = async () => {
     if (!row || busy) return;
-    archiveRemote(row.id, row.account);
+    const cleared = await archiveRemote(row.id, row.account);
+    if (!cleared) showToast({ message: "Couldn't archive it · Still in your inbox" });
     emit({ type: "action", props: { name: "email.deck.handled", kind: "archive" } });
-    advance(true);
+    advance(cleared);
   };
 
   if (!row) return null;
@@ -295,7 +310,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
               )}
               <button className="btn btn-secondary" disabled={busy} onClick={() => onOpenThread(row.id)}>Open</button>
               <button className="btn btn-secondary" disabled={busy} onClick={() => void later()}>Later</button>
-              <button className="btn btn-secondary" disabled={busy} onClick={archive}>Archive</button>
+              <button className="btn btn-secondary" disabled={busy} onClick={() => void archive()}>Archive</button>
             </div>
           </div>
         </div>

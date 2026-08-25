@@ -63,6 +63,10 @@ export interface AttachOffer {
   action: string;
   amount?: number;
   filename?: string;
+  // The id needed to FETCH the file (2026-08-25). The calendar offer used to
+  // carry only a filename, which is why its button could never do more than
+  // tell you to open the attachment yourself.
+  attachmentId?: string;
 }
 
 // One offer per message, the strongest one. A row of four offers under an
@@ -78,6 +82,7 @@ export function attachOffer(input: AttachOfferInput): AttachOffer | null {
       sub: `${cal.a.filename} · From ${input.from}`,
       action: "Add",
       filename: cal.a.filename,
+      attachmentId: cal.a.attachmentId,
     };
   }
 

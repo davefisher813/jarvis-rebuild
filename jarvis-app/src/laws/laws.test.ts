@@ -1562,3 +1562,54 @@ describe("LAW: a tab label fits on one line", () => {
     expect(read(join(SRC, "shell/TabBar.tsx"))).toContain("tabLabelOf");
   });
 });
+
+// LAW: A RECEIPT NAMES WHAT LANDED (Dave 2026-08-25, from the email audit).
+//
+// Six places in the mail module ran a batch of Gmail writes like this:
+//
+//     for (const r of hit) apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {});
+//     say(hit.length + " conversations archived");
+//
+// Every failure is swallowed by the empty catch, the number in the receipt is
+// the size of the BATCH, and two of those sites feed the day's cleared count
+// that this app's own copy calls "counted, never estimated". The mail comes
+// back on the next load and the app never mentions it.
+//
+// The correct shape existed for one row (archiveRow un-hides it and says so)
+// and was never generalised, so every batch written after it repeated the bug.
+// settle.ts is that shape written once. This is what stops the seventh.
+describe("LAW: a receipt names what landed, not what was attempted", () => {
+  // The Gmail mutations. A read that fails shows an error state; a WRITE that
+  // fails and is swallowed becomes a false receipt, which is the whole point.
+  const MUTATIONS = /\b(modifyThread|trashThread|untrashThread|sendMessage|deleteDraft)\s*\(/;
+
+  it("no mail write discards its failure with an empty catch", () => {
+    const bad: string[] = [];
+    for (const f of ALL) {
+      if (isTest(f) || isBench(f)) continue;
+      const r = rel(f);
+      if (!r.startsWith("messages/") && !r.startsWith("today/") && !r.startsWith("connections/google/")) continue;
+      const src = read(f);
+      src.split("\n").forEach((line, i) => {
+        // A comment quoting the bad shape is how settle.ts explains itself.
+        if (/^\s*(\/\/|\*)/.test(line)) return;
+        if (!MUTATIONS.test(line)) return;
+        // `.catch(() => {})` on the same line, which is how all six were written.
+        if (/\.catch\(\s*\(\s*\)\s*=>\s*\{\s*\}\s*\)/.test(line)) {
+          bad.push(`${r}:${i + 1}  ${line.trim().slice(0, 90)}`);
+        }
+      });
+    }
+    expect(bad, "run it through settleAll and report the real count").toEqual([]);
+  });
+
+  // The other half. A batch may await honestly and still print the wrong
+  // number, which is what "N archived" did while N was the input length.
+  it("the batch sites route their receipts through settleLine", () => {
+    const src = read(join(SRC, "messages/MessagesFlow.tsx"));
+    expect(src, "MessagesFlow runs batch mail writes and must count them")
+      .toContain("settleAll");
+    expect(src, "and must report the counted result, not the batch size")
+      .toContain("settleLine");
+  });
+});
