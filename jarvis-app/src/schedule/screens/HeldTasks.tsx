@@ -22,6 +22,7 @@ export default function HeldTasks({
   count,
   children,
   label = "task",
+  alwaysOpen = false,
 }: {
   // How many rows `children` holds. Passed rather than counted, because the
   // caller builds them from two different lists (committed and proposed) and
@@ -29,8 +30,20 @@ export default function HeldTasks({
   count: number;
   children: ReactNode;
   label?: string;
+  // THE TICKER SHOWS EVERYTHING (Dave 2026-08-25: "The schedule isn't
+  // scrolling on its own like a tv guide").
+  //
+  // Compressing the day made it FIT, and a day that fits does not scroll, so
+  // yesterday's pick quietly switched off the day before's. His screenshot
+  // was two rows and a "5 tasks" line where there used to be seven rows.
+  //
+  // The two views want opposite things and that is the resolution rather
+  // than a compromise: the ticker is ambient and untouchable, so it shows the
+  // whole day the way a guide does, and the paused view is where you act, so
+  // it stays compressed. Same component, told which one it is in.
+  alwaysOpen?: boolean;
 }) {
-  const collapsible = count > COLLAPSE_OVER;
+  const collapsible = count > COLLAPSE_OVER && !alwaysOpen;
   const [open, setOpen] = useState(false);
   if (count === 0) return null;
   const shown = !collapsible || open;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LATE_CHOICES } from "../schedule/durations";
 import type { EventItem } from "../schedule/types";
 import { fmtTime, fmtDistance, minToHHMM } from "../schedule/calendar";
@@ -27,7 +27,10 @@ export type BlendMap = Record<string, { text: string; why: string; onAdd: () => 
 
 const WINDOW = 252; // ticker viewport height (px), matches .sched-ticker
 // Pausing the day ticker survives leaving Today and coming back.
-const TICKER_KEY = "jarvis.today.ticker.v1";
+// Exported so the tests set the same string the app reads. A test that
+// hardcodes its own copy of a storage key passes forever after the key is
+// renamed, and tests the wrong thing quietly.
+export const TICKER_KEY = "jarvis.today.ticker.v1";
 
 // ONE SHAPE (2026-08-24). This used to be a local `{ s, e, label }`, which
 // silently discarded the `kind` and `mode` fields that say whether a block
@@ -102,7 +105,7 @@ function LockedRow({ l, past, onOpen, children }: { l: LockedRange; past: boolea
 
 // One full pass of the day: events + protected blocks in time order, with the
 // Now line inserted at the right spot and time-as-distance on the next event.
-function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {}, proposed, fromMin }: { events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void; onEditRoutine?: () => void; blendMap?: BlendMap; proposed?: ProposedDay; fromMin?: number }) {
+function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {}, proposed, fromMin, expandHeld = false }: { events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void; onEditRoutine?: () => void; blendMap?: BlendMap; proposed?: ProposedDay; fromMin?: number; expandHeld?: boolean }) {
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
   const nowMin = toMin(now);
   // The distance label ("in 40 minutes") counts down to a COMMITMENT. A
@@ -199,7 +202,7 @@ function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine
       out.push(
         <LockedRow key={"lock-" + i} l={en.l} past={en.l.e <= nowMin} onOpen={onEditRoutine}>
           {(evs.length > 0 || props.length > 0) && (
-            <HeldTasks count={evs.length + props.length}>
+            <HeldTasks count={evs.length + props.length} alwaysOpen={expandHeld}>
               <>
               {evs.map((h) => (
                 <div className="block-held" key={h.id} role="button" tabIndex={0}
@@ -295,6 +298,7 @@ export default function YourDay({
   nowHead?: React.ReactNode;
 }) {
   const measureRef = useRef<HTMLDivElement>(null);
+  const firstPass = useRef(true);
   const [overflow, setOverflow] = useState(false);
   // PAUSING IS A PREFERENCE, NOT A CHORE (Dave, 2026-08-21: "make the
   // scrolling schedule still an option. If you want to make pausing it
@@ -316,10 +320,45 @@ export default function YourDay({
     try { localStorage.setItem(TICKER_KEY, next ? "off" : "on"); } catch { /* private mode */ }
   };
 
+  // THE TWIN IS A MEASUREMENT, NOT A SECOND DAY.
+  //
+  // Deciding whether the day scrolls means measuring the day the TICKER would
+  // show, which is every held task expanded, and the compressed day on screen
+  // is not that. So a hidden twin renders the expanded version and gets
+  // measured. First cut left the twin mounted permanently, and a permanent
+  // twin is a permanent second copy of every row in the document: six
+  // existing tests broke on "found multiple elements", which was the DOM
+  // telling the truth about a real cost, not a test problem.
+  //
+  // So it mounts for one frame. `measuring` puts it in the tree, the layout
+  // effect reads it before paint and takes it back out. Nothing sees it: not
+  // the user, not the accessibility tree, not a text search.
+  const [measuring, setMeasuring] = useState(true);
+  // WHAT THE DAY IS, AS A STRING, because `locked = []` above is a fresh array
+  // on every render and so is `blendMap = {}`. Depending on those references
+  // used to be harmless: the effect only ever set `overflow` to the value it
+  // already held, and React drops a state write that changes nothing. Now the
+  // effect mounts the twin, the twin unmounts itself, and that IS a change, so
+  // an unstable dependency became a render loop that hung the test run rather
+  // than failing it. Compare the content, not the containers.
+  const daySig = events.map((e) => e.id + "@" + e.data.start + ":" + e.data.title).join("|")
+    + "//" + locked.map((l) => l.s + "-" + l.e + ":" + l.label).join("|")
+    + "//" + (proposed?.blocks ?? []).map((b) => b.taskId + "@" + b.start).join("|");
   useEffect(() => {
+    // Skipped on mount, where the layout effect below already measures. Without
+    // this, mount measures, unmounts the twin, then this effect remounts it and
+    // measures again to reach the same answer.
+    if (firstPass.current) { firstPass.current = false; return; }
+    setMeasuring(true);
+  }, [daySig, now]);
+  useLayoutEffect(() => {
+    if (!measuring) return;
     const el = measureRef.current;
+    // Null while the ticker is running, which renders no twin because the
+    // ticker's own content IS the expanded day.
     if (el) setOverflow(el.scrollHeight > WINDOW);
-  }, [events, now]);
+    setMeasuring(false);
+  }, [measuring]);
 
   // Focus (the one-card mode) pairs with Plan My Day when available: Focus is
   // the one red action on the page, Plan My Day drops to the quiet style.
@@ -448,8 +487,22 @@ export default function YourDay({
         {/* Quiet on purpose: the accent on the head above is what makes Now
             the one loud thing on this screen. */}
         {nowHead && <div className="day-band">The rest of today</div>}
-        <div>
-          <div ref={measureRef}><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} /></div>
+        <div className="day-hold">
+          {/* THE MEASUREMENT IS OF WHAT THE TICKER WOULD SHOW, not of what is
+              on screen. This div renders the visible, COMPRESSED day, and
+              compression is exactly what made Dave's day fit: two rows and a
+              "5 tasks" line where there had been seven rows, so the overflow
+              test said "it fits" and the ticker never started.
+              The hidden twin below measures the day with every held task
+              expanded, which is the ticker's own content. Deciding whether a
+              thing should scroll by measuring something other than that thing
+              is how the feature switched itself off. */}
+          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} /></div>
+          {measuring && (
+            <div ref={measureRef} className="day-measure" aria-hidden="true">
+              <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld />
+            </div>
+          )}
         </div>
         {footer}
       </div>
@@ -478,8 +531,8 @@ export default function YourDay({
           onClickCapture={(e) => { e.stopPropagation(); setPausedSticky(true); }}
         >
           <div className="ticker-track">
-            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} />
-            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} />
+            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld />
+            <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld />
           </div>
         </div>
         {/* Says what the tap does, because a list that stops when you touch
