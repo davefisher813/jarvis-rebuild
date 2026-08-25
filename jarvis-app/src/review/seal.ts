@@ -2,7 +2,7 @@ import type { Store, ItemData } from "@core";
 import type { EventInput } from "../events";
 import type { WindowRow, WindowClient } from "../brain/window";
 import { readWindow } from "../brain/window";
-import { completionBand, taskDone } from "../brain/derive";
+import { completionBand, taskDone, slipLeader } from "../brain/derive";
 import { liveGoals } from "../bigger/reach";
 import type { Goal } from "../life/types";
 import type { Workout } from "../gym/types";
@@ -37,6 +37,30 @@ export interface MonthSealData {
   saved: number; // their sum
   goalsLive: number;
   goalsAchieved: number;
+  // v2 (2026-08-25, the report's fields). Everything below is numbers and
+  // ids, never text, and everything degrades to empty rather than lying.
+  bandCount: number; // completions inside the band (0 when bandStart null)
+  byHour: number[]; // 24 buckets of task completions
+  doneByDay: Record<string, number>; // ISO day -> completions
+  pushedByCategory: Record<string, number>;
+  slip: { category: string; n: number } | null; // deriveSlipCategory's own gates
+  // plan.picked joined to plan.outcome on entity_id: per pick position,
+  // how many were picked and how many finished that same day.
+  byPick: { n: number; picked: number; done: number }[];
+  // plan.duration_corrected folded per category: total signed minutes and
+  // how many corrections. Positive = ran longer than estimated.
+  overrunByCategory: Record<string, { min: number; n: number }>;
+  // suggestion.accepted / dismissed by kind.
+  suggestions: Record<string, { acc: number; dis: number }>;
+  strands: { created: number; corrected: number; deleted: number };
+  remindersTicked: number;
+  // email.deck_sent: sent count and how many went out as written (flag on
+  // the row means EDITED before send).
+  deck: { sent: number; asWritten: number };
+  // The tasks that kept getting pushed: top entity ids by month push count,
+  // 3 or more pushes, at most three of them. Ids only; the report resolves
+  // titles against the live Store and silently drops what no longer exists.
+  carried: { id: string; n: number }[];
 }
 
 export interface MonthSeal { id: string; data: MonthSealData }
@@ -65,12 +89,71 @@ export function computeSeal(month: string, inp: SealInputs): MonthSealData {
   const inMonth = inp.rows.filter((r) => r.day.startsWith(month));
   const done = taskDone(inMonth);
   const byCategory: Record<string, number> = {};
+  const doneByDay: Record<string, number> = {};
+  const byHour = new Array<number>(24).fill(0);
   for (const r of done) {
+    doneByDay[r.day] = (doneByDay[r.day] ?? 0) + 1;
+    if (r.h >= 0 && r.h < 24) byHour[r.h] = (byHour[r.h] ?? 0) + 1;
     const c = r.category ?? "";
     if (!c) continue;
     byCategory[c] = (byCategory[c] ?? 0) + 1;
   }
+  const pushedByCategory: Record<string, number> = {};
+  const pushedByTask = new Map<string, number>();
+  for (const r of inMonth) {
+    if (r.type !== "task.pushed") continue;
+    if (r.category) pushedByCategory[r.category] = (pushedByCategory[r.category] ?? 0) + 1;
+    if (r.entity_id) pushedByTask.set(r.entity_id, (pushedByTask.get(r.entity_id) ?? 0) + 1);
+  }
+  const carried = [...pushedByTask.entries()]
+    .filter(([, n]) => n >= 3)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 3)
+    .map(([id, n]) => ({ id, n }));
+  // Pick position -> same-day finish, joined on the task id. An outcome row
+  // without a matching pick still counts under its own position when it
+  // carries one (n rides both event types).
+  const pickPos = new Map<string, number>();
+  for (const r of inMonth) {
+    if (r.type === "plan.picked" && r.entity_id && typeof r.n === "number") pickPos.set(r.entity_id + "|" + r.day, r.n);
+  }
+  const byPickMap = new Map<number, { picked: number; done: number }>();
+  for (const r of inMonth) {
+    if (r.type !== "plan.picked" || typeof r.n !== "number") continue;
+    const b = byPickMap.get(r.n) ?? { picked: 0, done: 0 };
+    b.picked++;
+    byPickMap.set(r.n, b);
+  }
+  for (const r of inMonth) {
+    if (r.type !== "plan.outcome" || typeof r.flag !== "boolean") continue;
+    const joined = r.entity_id ? pickPos.get(r.entity_id + "|" + r.day) : undefined;
+    const pos = joined ?? (typeof r.n === "number" ? r.n : null);
+    if (pos == null) continue;
+    const b = byPickMap.get(pos) ?? { picked: 0, done: 0 };
+    if (r.flag) b.done++;
+    byPickMap.set(pos, b);
+  }
+  const byPick = [...byPickMap.entries()].map(([n, v]) => ({ n, ...v })).sort((a, b) => a.n - b.n);
+  const overrunByCategory: Record<string, { min: number; n: number }> = {};
+  for (const r of inMonth) {
+    if (r.type !== "plan.duration_corrected" || !r.category || typeof r.n !== "number") continue;
+    const o = overrunByCategory[r.category] ?? { min: 0, n: 0 };
+    o.min += r.n;
+    o.n++;
+    overrunByCategory[r.category] = o;
+  }
+  const suggestions: Record<string, { acc: number; dis: number }> = {};
+  for (const r of inMonth) {
+    if (r.type !== "suggestion.accepted" && r.type !== "suggestion.dismissed") continue;
+    const k = r.kind ?? "other";
+    const sgg = suggestions[k] ?? { acc: 0, dis: 0 };
+    if (r.type === "suggestion.accepted") sgg.acc++;
+    else sgg.dis++;
+    suggestions[k] = sgg;
+  }
+  const deckRows = inMonth.filter((r) => r.type === "email.deck_sent");
   const entries = inp.goals.flatMap((g) => (g.data.saved ?? []).filter((s) => s.d.startsWith(month)));
+  const band = completionBand(done);
   return {
     month,
     sealedAt: inp.sealedAt,
@@ -78,12 +161,28 @@ export function computeSeal(month: string, inp: SealInputs): MonthSealData {
     pushed: inMonth.filter((r) => r.type === "task.pushed").length,
     daysIn: new Set(inMonth.filter((r) => r.type === "app.opened").map((r) => r.day)).size,
     byCategory,
-    bandStart: completionBand(done)?.start ?? null,
+    bandStart: band?.start ?? null,
     sessions: inp.workouts.filter((w) => w.data.date.startsWith(month)).length,
     deposits: entries.length,
     saved: entries.reduce((a, s) => a + s.amount, 0),
     goalsLive: liveGoals(inp.goals).length,
     goalsAchieved: inp.goals.filter((g) => g.data.state === "achieved").length,
+    bandCount: band?.count ?? 0,
+    byHour,
+    doneByDay,
+    pushedByCategory,
+    slip: slipLeader(inMonth),
+    byPick,
+    overrunByCategory,
+    suggestions,
+    strands: {
+      created: inMonth.filter((r) => r.type === "strand.created").length,
+      corrected: inMonth.filter((r) => r.type === "strand.corrected").length,
+      deleted: inMonth.filter((r) => r.type === "strand.deleted").length,
+    },
+    remindersTicked: inMonth.filter((r) => r.type === "reminder.ticked").length,
+    deck: { sent: deckRows.length, asWritten: deckRows.filter((r) => r.flag === false).length },
+    carried,
   };
 }
 

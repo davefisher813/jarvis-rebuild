@@ -46,6 +46,11 @@ export type EventType =
   // (positive = ran longer than estimated). Feeds a Phase-2-only pattern
   // observation; carries no free text, same discipline as the rest of this log.
   | "plan.duration_corrected"
+  // A reminder enacted (2026-08-25, insights build). NOT task.completed on
+  // purpose: the reminder doctrine says ticks never count toward the day's
+  // numbers, and the durable log keeps that promise by giving the act its
+  // own type. The monthly report reads it as adherence evidence.
+  | "reminder.ticked"
   // The deck's voice metric (promoted from a free-form "action" 2026-08-07):
   // an AI-drafted reply that went out. flag = edited first (true means the
   // draft was NOT good enough to send as written, which is the number that

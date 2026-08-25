@@ -3,6 +3,8 @@ import type { EventInput } from "../events";
 import { ENTITY_EVENT, type EventData, type EventItem, type EventRecurrence } from "./types";
 import { eventsForDate, dotsForMonth } from "./calendar";
 import { planDuplicateIds, supersededPlanEventIds } from "./planDedupe";
+import { recordPicks } from "../events/planOutcome";
+import { saveShape } from "./dayShape";
 
 // The Schedule feature, backed by the engine Store. Each event is a Store item
 // of entity type "event". onEvent feeds the gaming event bus (no-op in tests).
@@ -126,6 +128,14 @@ export class ScheduleService {
     date: string,
     blocks: { taskId: string; text: string; category: string; start: string; end: string }[],
     source?: import("../shared/provenance").Source,
+    // THE ONE EVENT DOOR (audit 2026-08-25). PlanDaySheet used to be the
+    // only emitter of plan.picked and plan.duration_committed, while five
+    // other routes committed real days through this method in silence, so
+    // every pick-position and duration fact was computed on whichever days
+    // happened to be hand-planned. Now every commit emits here. `plan` is
+    // passed when the blocks are a coherent day plan (ordered picks); a
+    // single placement passes nothing and still records its duration.
+    plan?: { picks: string[] },
   ): Promise<{ created: string[]; replaced: number }> {
     const existing = eventsForDate(await this.listEvents(), date);
     const superseded = supersededPlanEventIds(existing, blocks.map((b) => b.taskId));
@@ -139,6 +149,28 @@ export class ScheduleService {
         ...(source ? { source } : {}),
       });
       if (id) created.push(id);
+    }
+    const toMin = (t: string) => { const [h, m] = t.split(":"); return Number(h) * 60 + Number(m); };
+    for (const b of blocks) {
+      const mins = toMin(b.end) - toMin(b.start);
+      if (b.category && mins > 0) {
+        this.onEvent({ type: "plan.duration_committed", entityType: "task", entityId: b.taskId, props: { category: b.category, n: mins } });
+      }
+    }
+    if (plan && plan.picks.length > 0) {
+      plan.picks.forEach((id, i) => this.onEvent({ type: "plan.picked", entityType: "task", entityId: id, props: { n: i + 1 } }));
+      // The outcome resolver's registry and the day-shape memory ride the
+      // same door, so an accepted day counts exactly like a hand-built one.
+      // Best-effort: both are localStorage conveniences, and a commit must
+      // never fail because storage is absent (tests, private mode).
+      try {
+        recordPicks(date, plan.picks);
+        saveShape({
+          day: date,
+          dow: new Date(date + "T12:00:00").getDay(),
+          slots: blocks.map((b) => ({ startMin: toMin(b.start), min: toMin(b.end) - toMin(b.start) })).filter((s) => s.min > 0),
+        });
+      } catch { /* memory is a convenience; the events above are the record */ }
     }
     return { created, replaced: superseded.length };
   }

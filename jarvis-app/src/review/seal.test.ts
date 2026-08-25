@@ -78,6 +78,10 @@ describe("SealService", () => {
   const sealData = (month: string, sealedAt: number): MonthSealData => ({
     month, sealedAt, done: 1, pushed: 0, daysIn: 1, byCategory: {}, bandStart: null,
     sessions: 0, deposits: 0, saved: 0, goalsLive: 0, goalsAchieved: 0,
+    bandCount: 0, byHour: new Array(24).fill(0), doneByDay: {}, pushedByCategory: {},
+    slip: null, byPick: [], overrunByCategory: {}, suggestions: {},
+    strands: { created: 0, corrected: 0, deleted: 0 }, remindersTicked: 0,
+    deck: { sent: 0, asWritten: 0 }, carried: [],
   });
 
   it("dedupes a two-device race: earliest write wins on read", async () => {
@@ -95,5 +99,46 @@ describe("SealService", () => {
 
   it("stores under the registered entity type", () => {
     expect(ENTITY_MONTH_SEAL).toBe("month_seal");
+  });
+});
+
+describe("computeSeal v2: the report's fields", () => {
+  it("folds hours, days, picks, overruns, suggestions, strands, ticks, deck", () => {
+    const rows: import("../brain/window").WindowRow[] = [
+      row({ day: "2026-08-03", h: 9, category: "work", entity_id: "t1" }),
+      row({ day: "2026-08-03", h: 10, category: "work", entity_id: "t2" }),
+      row({ day: "2026-08-04", h: 9, category: "home", entity_id: "t3" }),
+      row({ type: "task.pushed", day: "2026-08-05", category: "admin" }),
+      row({ type: "task.pushed", day: "2026-08-06", category: "admin" }),
+      row({ type: "plan.picked", day: "2026-08-03", n: 1, entity_id: "t1" }),
+      row({ type: "plan.picked", day: "2026-08-03", n: 2, entity_id: "t2" }),
+      row({ type: "plan.outcome", day: "2026-08-03", flag: true, n: 1, entity_id: "t1" }),
+      row({ type: "plan.outcome", day: "2026-08-03", flag: false, n: 2, entity_id: "t2" }),
+      row({ type: "plan.duration_corrected", day: "2026-08-03", category: "work", n: 20 }),
+      row({ type: "plan.duration_corrected", day: "2026-08-10", category: "work", n: 10 }),
+      row({ type: "suggestion.accepted", day: "2026-08-03", kind: "first_step" }),
+      row({ type: "suggestion.dismissed", day: "2026-08-03", kind: "link" }),
+      row({ type: "strand.created", day: "2026-08-04", kind: "completion_window" }),
+      row({ type: "strand.corrected", day: "2026-08-05", kind: "completion_window" }),
+      row({ type: "reminder.ticked", day: "2026-08-06" }),
+      row({ type: "reminder.ticked", day: "2026-08-07" }),
+      row({ type: "email.deck_sent", day: "2026-08-08", flag: false }),
+      row({ type: "email.deck_sent", day: "2026-08-09", flag: true }),
+    ];
+    const d = computeSeal("2026-08", { rows, workouts: [], goals: [], sealedAt: 5 });
+    expect(d.byHour[9]).toBe(2);
+    expect(d.byHour[10]).toBe(1);
+    expect(d.doneByDay).toEqual({ "2026-08-03": 2, "2026-08-04": 1 });
+    expect(d.pushedByCategory).toEqual({ admin: 2 });
+    expect(d.slip).toBeNull(); // two pushes is under the shared gate
+    expect(d.byPick).toEqual([
+      { n: 1, picked: 1, done: 1 },
+      { n: 2, picked: 1, done: 0 },
+    ]);
+    expect(d.overrunByCategory).toEqual({ work: { min: 30, n: 2 } });
+    expect(d.suggestions).toEqual({ first_step: { acc: 1, dis: 0 }, link: { acc: 0, dis: 1 } });
+    expect(d.strands).toEqual({ created: 1, corrected: 1, deleted: 0 });
+    expect(d.remindersTicked).toBe(2);
+    expect(d.deck).toEqual({ sent: 2, asWritten: 1 });
   });
 });

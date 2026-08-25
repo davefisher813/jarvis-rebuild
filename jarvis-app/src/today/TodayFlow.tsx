@@ -12,6 +12,9 @@ import { greetingFor, longDate, shortDate } from "./greeting";
 import { tomorrowISO, nowHHMM, daySummary, todaysTasks, billsLine, billsDueSoon } from "./todayData";
 import TodayPage from "./TodayPage";
 import MailNotices from "./MailNotices";
+import ReportFlow, { reportSeen } from "../review/ReportPage";
+import { monthName as monthTitle } from "../review/report";
+import { useOptionalSeal } from "../data/NotesProvider";
 import NoticeCard from "./NoticeCard";
 import { FAILING, WAITING, NEW, RESUME } from "./stream";
 import { capAfterNumber } from "../shared/casing";
@@ -147,6 +150,7 @@ export default function TodayFlow({
   const [routineData, setRoutineData] = useState<RoutineData>(DEFAULT_ROUTINE);
   const [routineSet, setRoutineSet] = useState(true);
   const [name, setName] = useState("");
+  const [planCap, setPlanCap] = useState<number | undefined>(undefined);
   const [todayEvents, setTodayEvents] = useState<EventItem[]>([]);
   const [tomorrowEvents, setTomorrowEvents] = useState<EventItem[]>([]);
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
@@ -264,6 +268,23 @@ export default function TodayFlow({
   const [eventSheet, setEventSheet] = useState<{ id: string; initial: EventDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [upNextOpen, setUpNextOpen] = useState(false);
+  // THE MONTHLY REPORT (2026-08-25). Arrives as one row in the notice
+  // stream, unannounced, when the previous month is sealed and this device
+  // has not read it. No countdown, no teaser: anticipating a landmark
+  // measurably reduces effort in the run-up (the catalog's own research).
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportMonth, setReportMonth] = useState<string | null>(null);
+  const sealSvc = useOptionalSeal();
+  useEffect(() => {
+    let on = true;
+    if (!sealSvc) return;
+    sealSvc.list().then((seals) => {
+      if (!on) return;
+      const latest = seals[seals.length - 1];
+      if (latest && reportSeen() !== latest.data.month) setReportMonth(latest.data.month);
+    }).catch(() => {});
+    return () => { on = false; };
+  }, [sealSvc, reportOpen]);
   const [freshOpen, setFreshOpen] = useState(false);
   const [freshSkipped, setFreshSkipped] = useState(() => {
     try { return localStorage.getItem("jarvis.fresh.skip") === todayISO(); } catch { return false; }
@@ -299,6 +320,7 @@ export default function TodayFlow({
     setTaskItems(tk);
     setAllEvents(all);
     setName(prof?.name ?? "");
+    setPlanCap(prof?.planCap ?? undefined);
     // Yesterday's evening mood sizes today's plan (Phase 2). Noon anchor keeps
     // the date subtraction clear of any midnight or DST edge.
     const y = new Date(today + "T12:00:00");
@@ -622,12 +644,12 @@ export default function TodayFlow({
     });
   };
 
-  const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
+  const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[], picks: string[]) => {
     // Replace, never add (hotfix 2026-08-21): commitPlan sweeps each task's
     // prior plan event on this day before writing, against a fresh read.
     let ids: string[] = [];
     const ok = await attemptWrite(async () => {
-      ids = (await schedule.commitPlan(planDate, blocks)).created;
+      ids = (await schedule.commitPlan(planDate, blocks, undefined, { picks })).created;
       for (const b of blocks) {
         // A2 (2026-08-20): committing a plan already decides the WHEN, so the
         // if-then costs nothing to write. Gollwitzer and Sheeran put this at
@@ -905,7 +927,9 @@ export default function TodayFlow({
     const ok = await attemptWrite(async () => {
       ids = (await schedule.commitPlan(today, dayDraft.blocks.map((b) => ({
         taskId: b.taskId, text: b.text, category: b.category, start: b.start, end: b.end,
-      })), madeBy("plan"))).created;
+        // Accept the Day IS committing a day plan (audit 2026-08-25): picks
+        // ride the one event door in the card's own order.
+      })), madeBy("plan"), { picks: dayDraft.blocks.map((b) => b.taskId) })).created;
     });
     if (!ok) return;
     const next = { ...dayDraft, accepted: true, eventIds: ids };
@@ -1092,6 +1116,9 @@ export default function TodayFlow({
   }, [ai.available, today]);
 
   if (loading) return <SkeletonScreen />;
+  if (reportOpen) {
+    return <ReportFlow onBack={() => { setReportOpen(false); void reload(); }} onOpenTask={(id) => { setReportOpen(false); void onOpenTask(id); }} />;
+  }
 
   // GROUP B (items 10-11): the Now line and the gap offer, derived fresh
   // every render (and the minute tick keeps renders coming).
@@ -1757,7 +1784,18 @@ export default function TodayFlow({
   // same screen, so a card here would show the identical reminder twice, and
   // duplicated notices are precisely what "there's a ton of notifications
   // floating around" meant. The strip carries the missed state itself.
-  const notices = [...alertCards, reflowSection, overflowSection].filter(Boolean);
+  const reportNotice = reportMonth ? (
+    <NoticeCard
+      key="report"
+      weight={WAITING}
+      icon={<TargetGlyph />}
+      tone="cat-fg-red"
+      title={`Your ${monthTitle(reportMonth)} is ready`}
+      sub="Two minutes"
+      action={{ label: "Read It", onClick: () => setReportOpen(true) }}
+    />
+  ) : null;
+  const notices = [reportNotice, ...alertCards, reflowSection, overflowSection].filter(Boolean);
 
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
   const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "JV";
@@ -1851,6 +1889,7 @@ export default function TodayFlow({
     {planOpen && (
       <PlanDaySheet
         key={planDate}
+        chosenCap={planCap}
         events={planEvents}
         tasks={candidatesFor(planDate, planEvents)}
         startMin={planStart}

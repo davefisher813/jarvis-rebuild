@@ -6,6 +6,7 @@ import { dayClock } from "./planClock";
 import { saveShape, loadShapes, dayScores, planCount, shapeOffer, applyShape, type DayShape } from "./dayShape";
 import type { EventItem } from "./types";
 import type { PlanCandidate } from "./screens/PlanDaySheet";
+import { ScheduleService } from "./ScheduleService";
 
 const ev = (id: string, start: string, end?: string): EventItem =>
   ({ id, data: { title: id, date: "2026-08-20", start, ...(end ? { end } : {}) } } as unknown as EventItem);
@@ -246,5 +247,40 @@ describe("plan it for me", () => {
 
   it("plans nothing out of nothing", () => {
     expect(autoSelect([], 480, () => 45, null)).toEqual([]);
+  });
+});
+
+describe("the one event door (audit 2026-08-25)", () => {
+  function doorSvc() {
+    const events: { type: string; entityId?: string; props?: Record<string, unknown> }[] = [];
+    const store = {
+      listForUser: async () => [],
+      create: async () => "e" + events.length,
+      read: async () => null,
+      update: async () => {},
+      delete: async () => {},
+    } as never;
+    const svc = new ScheduleService(store, "u1", (e) => events.push(e as never));
+    return { svc, events };
+  }
+  const BLOCKS = [
+    { taskId: "t1", text: "Deep work", category: "work", start: "09:00", end: "10:30" },
+    { taskId: "t2", text: "Calls", category: "work", start: "10:30", end: "11:00" },
+  ];
+
+  it("a day plan emits picks in order and a committed duration per block", async () => {
+    const { svc, events } = doorSvc();
+    await svc.commitPlan("2026-08-25", BLOCKS, undefined, { picks: ["t1", "t2"] });
+    const picked = events.filter((e) => e.type === "plan.picked");
+    expect(picked.map((e) => [e.entityId, e.props?.n])).toEqual([["t1", 1], ["t2", 2]]);
+    const durs = events.filter((e) => e.type === "plan.duration_committed");
+    expect(durs.map((e) => [e.entityId, e.props?.n])).toEqual([["t1", 90], ["t2", 30]]);
+  });
+
+  it("a single placement records its duration and never a pick", async () => {
+    const { svc, events } = doorSvc();
+    await svc.commitPlan("2026-08-25", [BLOCKS[0]!]);
+    expect(events.filter((e) => e.type === "plan.picked")).toEqual([]);
+    expect(events.filter((e) => e.type === "plan.duration_committed")).toHaveLength(1);
   });
 });

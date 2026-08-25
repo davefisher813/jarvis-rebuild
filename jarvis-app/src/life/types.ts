@@ -36,6 +36,9 @@ export interface SavedEntry { d: string; amount: number }
 export interface GoalData {
   title: string; state: GoalState; areaId?: string; order?: number;
   moneyTarget?: number; saved?: SavedEntry[]; tags?: string[];
+  // Stamped by GoalService.update on the transition INTO achieved (audit
+  // 2026-08-25): the one dated fact that lets a month name its crossings.
+  achievedOn?: string;
   measure?: import("../bigger/measure").Measure;
   by?: string;
   dropped?: { on: string; decisionId?: string };

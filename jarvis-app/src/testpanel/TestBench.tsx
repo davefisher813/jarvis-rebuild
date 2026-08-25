@@ -6,7 +6,6 @@ import { NotesService } from "../notes/NotesService";
 import { CategoriesService } from "../categories/CategoriesService";
 import { PeopleService } from "../people/PeopleService";
 import { BrainDocService } from "../brain/docs/BrainDocService";
-import { webProviders, nativeProviders } from "../connections/providers";
 import { assembleContext, contextToText } from "../ai/context";
 import { localParse, parseCapture, applyCapture } from "../ai/capture";
 import { parseSuggestions } from "../ai/suggestions";
@@ -185,8 +184,6 @@ export default function TestBench() {
             });
             say("Context: " + contextToText(ctx).replace(/\n/g, " | "));
           }} />
-          <Act label="Web sources" onClick={() => say("Web: " + webProviders().map((x) => x.label).join(", "))} />
-          <Act label="Native sources" onClick={() => say("Native: " + nativeProviders().map((x) => x.label).join(", "))} />
         </div>
       </div>
 

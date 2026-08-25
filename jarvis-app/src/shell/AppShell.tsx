@@ -161,7 +161,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       // contains the seed module at all (see vite.config.ts).
       if (__DEMO_SEED__ && seedDemo) {
         const seed = await import("../data/seed");
-        await seed.seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people, decisions });
+        await seed.seedDemoData(tasks, schedule, cats, { areas, goals, projects, money, people, decisions, seal: sealSvc ?? undefined, gym });
         seed.seedDemoMail();
       }
       if (!on) return;
@@ -171,7 +171,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       setReady(true);
     })();
     return () => { on = false; };
-  }, [seedDemo, tasks, schedule, categories, profile, areas, goals, projects, money, people, decisions]);
+  }, [seedDemo, tasks, schedule, categories, profile, areas, goals, projects, money, people, decisions, sealSvc, gym]);
 
   // Keep the category name/color resolver in sync when a category is created,
   // renamed, recolored, or deleted, so edits reflect live everywhere (schedule,

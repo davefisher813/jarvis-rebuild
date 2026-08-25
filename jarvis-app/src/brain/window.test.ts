@@ -36,7 +36,7 @@ describe("the windowed read (the log is never bulk-loaded)", () => {
     // Typed columns only: no free-text column exists to ask for, and the
     // select must not become a star.
     expect(q.cols).not.toContain("*");
-    expect(q.cols.split(",")).toEqual(["type", "day", "h", "category", "n", "flag", "kind"]);
+    expect(q.cols.split(",")).toEqual(["type", "day", "h", "category", "n", "flag", "kind", "entity_id"]);
     // A bounded type list, so the read never drags the whole log back.
     expect(q.inArg[0]).toBe("type");
     expect(q.inArg[1].length).toBeGreaterThan(0);

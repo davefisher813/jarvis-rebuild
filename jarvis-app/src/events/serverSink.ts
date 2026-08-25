@@ -55,6 +55,7 @@ const PERSISTED: ReadonlySet<string> = new Set([
   "strand.created",
   "strand.corrected",
   "strand.deleted",
+  "reminder.ticked",
 ]);
 
 // Storage seam (same pattern as LocalEventLog) so tests run without a browser.

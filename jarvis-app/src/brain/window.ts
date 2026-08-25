@@ -19,6 +19,11 @@ export interface WindowRow {
   n: number | null;
   flag: boolean | null;
   kind: string | null;
+  // The row's entity, when it has one. An id, never text: it is what lets
+  // plan.picked and plan.outcome join into pick-position facts, and what
+  // names the tasks behind a carried count. Optional so old readers and
+  // fakes keep working unchanged.
+  entity_id?: string | null;
 }
 
 export const WINDOW_DAYS = 30;
@@ -47,6 +52,10 @@ const READ_TYPES = [
   // Persisted since layer 1, read for the first time by the monthly seal
   // (2026-08-25): days-in-the-app is a seal fact, and it was already durable.
   "app.opened",
+  // Read by the monthly report (2026-08-25): deletions were persisted with
+  // zero readers since layer 1; the deck metric was promoted to durable
+  // exactly so it could be read once a month; reminder ticks are new.
+  "entity.deleted", "email.deck_sent", "reminder.ticked",
 ];
 
 export function windowStartISO(nowMs: number, days = WINDOW_DAYS): string {
@@ -63,7 +72,7 @@ export async function readWindow(client: WindowClient | null, nowMs: number, day
     try {
       const { data, error } = await client
         .from("event_log")
-        .select("type,day,h,category,n,flag,kind")
+        .select("type,day,h,category,n,flag,kind,entity_id")
         .gte("day", windowStartISO(nowMs, days))
         .in("type", READ_TYPES)
         // Most recent first is half the law, and it is not decoration: the
@@ -97,6 +106,7 @@ export function localWindow(nowMs: number, days = WINDOW_DAYS): WindowRow[] {
         type: e.type,
         day: ownDay ?? day,
         h,
+        entity_id: e.entityId ?? null,
         category: typeof p.category === "string" ? p.category : null,
         n: typeof p.n === "number" ? p.n : null,
         flag: typeof p.flag === "boolean" ? p.flag : null,

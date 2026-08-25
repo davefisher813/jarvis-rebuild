@@ -6,7 +6,12 @@ export type ProjectStatus = "active" | "on_hold" | "done";
 // PICK 20 (2026-08-24): holdUntil is the day a parked project comes back.
 // "On hold" with no date is a project that disappeared, and the list had no
 // way to tell one from a project that was simply never started.
-export interface ProjectData { title: string; category?: string; status: ProjectStatus; order?: number; goalId?: string; holdUntil?: string; }
+export interface ProjectData {
+  title: string; category?: string; status: ProjectStatus; order?: number; goalId?: string; holdUntil?: string;
+  // Stamped by ProjectsService.update on the transition INTO done (audit
+  // 2026-08-25), so the monthly report can name the month's closures.
+  closedOn?: string;
+}
 export interface Project { id: string; data: ProjectData; }
 
 export const PROJECT_META: Record<ProjectStatus, { label: string; cls: string }> = {

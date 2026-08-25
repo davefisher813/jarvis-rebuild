@@ -93,7 +93,10 @@ export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
 // when it clearly leads (5+ pushes and double the runner-up). "Slips" is a
 // fact about tasks, never a verdict about the person: the copy names the
 // category, not a failing.
-export function deriveSlipCategory(rows: WindowRow[]): Derived | null {
+/** The clearly leading slipped category, shared by the derivation and the
+ *  monthly seal: 5+ pushes and double the runner-up, or nothing. One
+ *  definition, two readers, no drift. */
+export function slipLeader(rows: WindowRow[]): { category: string; n: number } | null {
   const pushed = rows.filter((r) => r.type === "task.pushed" && r.category);
   const counts = new Map<string, number>();
   for (const r of pushed) counts.set(r.category!, (counts.get(r.category!) ?? 0) + 1);
@@ -102,7 +105,14 @@ export function deriveSlipCategory(rows: WindowRow[]): Derived | null {
   if (!leader || leader[1] < MIN_SLIPS_LEADER) return null;
   const runnerUp = ranked[1]?.[1] ?? 0;
   if (runnerUp > 0 && leader[1] < runnerUp * SLIP_LEAD_RATIO) return null;
-  const [cat, n] = leader;
+  return { category: leader[0], n: leader[1] };
+}
+
+export function deriveSlipCategory(rows: WindowRow[]): Derived | null {
+  const pushed = rows.filter((r) => r.type === "task.pushed" && r.category);
+  const lead = slipLeader(rows);
+  if (!lead) return null;
+  const { category: cat, n } = lead;
   const days = [...new Set(pushed.filter((r) => r.category === cat).map((r) => r.day))].sort().reverse();
   return {
     derivation: "slip_category",

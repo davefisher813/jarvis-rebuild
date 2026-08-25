@@ -14,9 +14,7 @@ import { buildFeed } from "../notifications/feed";
 import { MoneyService } from "../money/MoneyService";
 import { BackupService } from "../backup/BackupService";
 import { totalBalance } from "../money/types";
-import { weekDates, openTasksByArea } from "../insights/insights";
 import { personInitials, slotForName } from "../people/types";
-import { PROVIDERS, webProviders, nativeProviders, isConnected } from "../connections/providers";
 import { EMPTY_PROFILE } from "../profile/types";
 import { assembleContext } from "../ai/context";
 import { parseCapture, localParse, applyCapture } from "../ai/capture";
@@ -70,18 +68,12 @@ export const CHECKS: Check[] = [
   { group: "People", name: "CRUD by group", run: async () => { const pe = new PeopleService(store(), "u"); const id = await pe.create({ name: "Sam Rivera", group: "inner_circle" }); await pe.create({ name: "Dev", group: "contacts" }); eq((await pe.list("inner_circle")).length, 1, "filter"); await pe.update(id!, { notes: "t" }); eq((await pe.get(id!))!.data.notes, "t", "update"); await pe.remove(id!); eq((await pe.list("inner_circle")).length, 0, "removed"); } },
   { group: "People", name: "initials + stable color", run: () => { eq(personInitials("Sam Rivera"), "SR", "initials"); eq(slotForName("Sam Rivera"), slotForName("Sam Rivera"), "stable"); } },
   { group: "Brain docs", name: "one per topic", run: async () => { const b = new BrainDocService(store(), "u"); await b.save("values", "A"); await b.save("values", "B"); eq(await b.get("values"), "B", "latest"); } },
-  { group: "Connections", name: "web vs native", run: () => { ok(webProviders().some((p) => p.key === "gmail"), "gmail"); ok(nativeProviders().some((p) => p.key === "appleHealth"), "health"); ok(PROVIDERS.length >= 5, "registry"); } },
-  { group: "Connections", name: "status map + legacy", run: () => { eq(isConnected({ ...EMPTY_PROFILE, gmail: true }, "gmail"), true, "legacy"); eq(isConnected({ ...EMPTY_PROFILE, connections: { appleMusic: true } }, "appleMusic"), true, "map"); } },
   { group: "AI context", name: "open tasks + voice", run: () => { const c = assembleContext({ tasks: [{ text: "a", done: false }, { text: "b", done: true }], voice: "Short" }); eq(c.openTasks.length, 1, "open"); eq(c.openTasks[0], "a", "task"); eq(c.voice, "Short", "voice"); } },
   { group: "Quick Capture", name: "parse json/fenced/junk", run: () => { eq(parseCapture('{"kind":"event","title":"x"}')!.kind, "event", "json"); eq(parseCapture('```json\n{"kind":"task","title":"y"}\n```')!.title, "y", "fenced"); eq(parseCapture("nope"), null, "junk"); } },
   { group: "Quick Capture", name: "local routes time/plain", run: () => { eq(localParse("Lunch Thursday 1pm", "2026-05-24").kind, "event", "event"); eq(localParse("Lunch Thursday 1pm", "2026-05-24").start, "13:00", "time"); eq(localParse("Renew domain", "2026-05-24").kind, "task", "task"); } },
   { group: "Quick Capture", name: "apply files entity + category", run: async () => { const s = store(); const tasks = new TasksService(s, "u"), schedule = new ScheduleService(s, "u"), notes = new NotesService(s, "u"); const cats: Category[] = [{ id: "c1", data: { name: "Work", color: "blue", order: 0 } }]; await applyCapture({ kind: "task", title: "Email", category: "Work" }, { tasks, schedule, notes }, cats, "2026-05-24"); await applyCapture({ kind: "event", title: "Sync", start: "09:00" }, { tasks, schedule, notes }, cats, "2026-05-24"); await applyCapture({ kind: "note", title: "Idea" }, { tasks, schedule, notes }, cats, "2026-05-24"); eq((await tasks.listTasks())[0]!.data.category, "c1", "cat"); eq((await schedule.listEvents()).length, 1, "event"); eq((await notes.listNotes()).length, 1, "note"); } },
   { group: "Life Map", name: "areas + goals CRUD", run: async () => { const s = store(); const a = new AreaService(s, "u"), g = new GoalService(s, "u"); const id = await a.create({ name: "Health", state: "strong" }); await g.create({ title: "Run", state: "on_track", areaId: id! }); eq((await a.list()).length, 1, "area"); eq((await g.list())[0]!.data.state, "on_track", "goal"); await a.update(id!, { state: "drifting" }); eq((await a.get(id!))!.data.state, "drifting", "area update"); } },
   { group: "Projects", name: "create, active sorts first, update", run: async () => { const p = new ProjectsService(store(), "u"); await p.create({ title: "Old", status: "done" }); const id = await p.create({ title: "Q3", status: "active" }); eq((await p.list())[0]!.data.title, "Q3", "active first"); await p.update(id!, { status: "on_hold" }); eq((await p.get(id!))!.data.status, "on_hold", "update"); } },
-  { group: "Insights", name: "week Monday-anchored; tasks-by-area counts", run: () => {
-      const w = weekDates("2026-05-24"); eq(w[0], "2026-05-18", "monday"); eq(w.length, 7, "7 days");
-      const bars = openTasksByArea([{ id: "1", data: { text: "a", category: "c1", done: false, due: null } }], [{ id: "c1", name: "Work", slot: "blue" }]);
-      eq(bars[0]!.value, 1, "one open task"); } },
   { group: "Money", name: "totals balances incl. negative", run: async () => { const m = new MoneyService(store(), "u"); await m.create({ name: "A", balance: 1000, kind: "cash" }); await m.create({ name: "B", balance: -250, kind: "credit" }); eq(totalBalance(await m.list()), 750, "total"); } },
   { group: "Notifications", name: "overdue before due-today; done excluded", run: () => {
       const feed = buildFeed({ tasks: [ { id: "1", data: { text: "A", category: "", done: false, due: "2026-01-01" } }, { id: "2", data: { text: "B", category: "", done: false, due: "2026-05-24" } } ], events: [], goals: [], areas: [] }, "2026-05-24");

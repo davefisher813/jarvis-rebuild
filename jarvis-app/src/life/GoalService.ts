@@ -3,6 +3,11 @@ import { ENTITY_GOAL, type Goal, type GoalData } from "./types";
 
 type Emit = (e: { type: "entity.created" | "entity.updated" | "entity.deleted"; entityType: string; entityId: string }) => void;
 
+const localISO = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 export class GoalService {
   constructor(private store: Store, private ownerId: string, private onEvent: Emit = () => {}) {}
   async list(): Promise<Goal[]> {
@@ -20,6 +25,12 @@ export class GoalService {
   async update(id: string, patch: Partial<GoalData>): Promise<boolean> {
     const g = await this.get(id); if (!g) return false;
     const next = { ...g.data, ...patch }; if (typeof next.title === "string") next.title = next.title.trim();
+    // The achieved date, stamped at the ONE door every caller uses (audit
+    // 2026-08-25): without it a crossing has no month, and the monthly
+    // report cannot name what moved. First achievement keeps its date.
+    if (next.state === "achieved" && g.data.state !== "achieved" && !next.achievedOn) {
+      next.achievedOn = localISO();
+    }
     await this.store.update(this.ownerId, id, next as unknown as ItemData);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_GOAL, entityId: id });
     return true;
