@@ -6,7 +6,15 @@ export type AreaState = "strong" | "steady" | "drifting";
 // be finished. There was nothing to reach, and so nothing to celebrate.
 export type GoalState = "on_track" | "steady" | "at_risk" | "achieved";
 
-export interface AreaData { name: string; state: AreaState; order?: number; }
+export interface AreaData {
+  name: string; state: AreaState; order?: number;
+  // THE LIFE VIEW WAKES THE ENTITY (2026-08-25). chosen marks an area the
+  // user wants kept alive: only chosen areas can ever earn the starved card,
+  // because JARVIS never invents an obligation. restingUntil is the It's
+  // Resting exit: a chosen quiet season, silent until the date passes.
+  chosen?: boolean;
+  restingUntil?: string;
+}
 // Money v1 savings (2026-08-03): a goal may carry a dollar target. Progress is
 // DERIVED from dated entries the user logged, never self-reported, and skipped
 // purchases NEVER feed it (not-spending is not saving).

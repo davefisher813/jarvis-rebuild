@@ -202,3 +202,27 @@ describe("measureLabel", () => {
     expect(measureLabel({ kind: "count", target: 12 }, 2000)).toBe("Dollar Target");
   });
 });
+
+describe("to-date for new goals, to-go for committed ones (Life View pick 8)", () => {
+  const reach = { filedIds: [], taggedIds: ["x"], openTagged: 0, progress: null };
+  it("a young measure banks what is done already", () => {
+    const since = new Date(NOW - 5 * DAY).toISOString().slice(0, 10);
+    const c = ctx({ reach, samples: [{ id: "x", t: NOW - DAY }] });
+    expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("1 Done already");
+  });
+  it("an established measure pulls with what is left", () => {
+    const since = new Date(NOW - 40 * DAY).toISOString().slice(0, 10);
+    const c = ctx({ reach, samples: [{ id: "x", t: NOW - DAY }] });
+    expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("11 To go");
+  });
+  it("a young measure with nothing banked stays neutral, never a zero brag", () => {
+    const since = new Date(NOW - 5 * DAY).toISOString().slice(0, 10);
+    const c = ctx({ reach });
+    expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("0 of 12 Done");
+  });
+  it("a met measure keeps the full receipt", () => {
+    const since = new Date(NOW - 40 * DAY).toISOString().slice(0, 10);
+    const c = ctx({ reach: { filedIds: ["a"], taggedIds: [], openTagged: 0, progress: { done: 12, total: 12, pct: 100 } } });
+    expect(measureState({ kind: "count", target: 12, since }, c)!.line).toBe("12 of 12 Done");
+  });
+});

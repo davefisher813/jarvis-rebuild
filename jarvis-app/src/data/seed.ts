@@ -82,11 +82,14 @@ export async function seedDemoData(
   const { areas, goals, projects, money, people } = extras;
 
   if ((await areas.list()).length === 0) {
+    // THE LIFE VIEW (2026-08-25): Growth is the one CHOSEN area, so the demo
+    // walk shows exactly one quiet card (the at-most-one law, on screen);
+    // Finances rests, so the tap-to-wake chip is on screen too.
     const health = await areas.create({ name: "Health", state: "strong" });
     const career = await areas.create({ name: "Career", state: "steady" });
     const rel = await areas.create({ name: "Relationships", state: "steady" });
-    const fin = await areas.create({ name: "Finances", state: "drifting" });
-    const growth = await areas.create({ name: "Growth", state: "steady" });
+    const fin = await areas.create({ name: "Finances", state: "drifting", restingUntil: addDays(today, 60) });
+    const growth = await areas.create({ name: "Growth", state: "steady", chosen: true });
     // ARCHITECTURE C: `tags` are the CATEGORIES a goal watches, which is a
     // different axis from the legacy `areaId` above (Life Areas have no UI).
     //

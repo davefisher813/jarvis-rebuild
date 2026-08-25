@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCategories, useGoals, useProjects, useGym, useTasks, useProfile, useRules, useOptionalSeal } from "../data/NotesProvider";
-import type { MonthSeal } from "./seal";
-import { prevMonthKey } from "./seal";
+import type { MonthSeal, MonthSealData } from "./seal";
+import { prevMonthKey, computeSeal } from "./seal";
+import { readWindow, type WindowClient } from "../brain/window";
+import { supabase } from "../auth/supabaseClient";
+import { todayISO } from "../tasks/grouping";
 import { buildReport, type MonthReport, type CarriedTask } from "./report";
 import RollingNumber from "../shared/RollingNumber";
 import { showToast } from "../shared/toast";
@@ -52,13 +55,15 @@ function ReceiptsSheet({ title, lines, onDone }: { title: string; lines: string[
 
 const WIN_TONES = ["rep-win-good", "rep-win-blue", "rep-win-purple", "rep-win-warn"];
 
-export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, onBack }: {
+export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, onBack, stillOpen }: {
   report: MonthReport;
   capped: boolean;
   onCap: () => void;
   onOpenTask?: (id: string) => void;
   onDropTask?: (t: CarriedTask) => void;
   onBack: () => void;
+  /** The live current month: labeled, and never marked as a seen arrival. */
+  stillOpen?: boolean;
 }) {
   const [receipts, setReceipts] = useState<{ title: string; lines: string[] } | null>(null);
   // The open animation: bars grow into place once, numbers roll via the
@@ -69,7 +74,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
     const t = window.setTimeout(() => setGrown(true), 60);
     return () => window.clearTimeout(t);
   }, []);
-  useEffect(() => { markReportSeen(report.month); }, [report.month]);
+  useEffect(() => { if (!stillOpen) markReportSeen(report.month); }, [report.month, stillOpen]);
 
   const maxHour = Math.max(1, ...report.hours?.byHour ?? [1]);
 
@@ -83,7 +88,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
 
       {/* HERO: the month's one number, then its named wins. */}
       <div className="pad-x rep-hero">
-        <div className="rep-eyebrow">Your Month</div>
+        <div className="rep-eyebrow">{stillOpen ? "Your Month · Still Open" : "Your Month"}</div>
         <div className="rep-big"><RollingNumber value={Number(report.hero.big)} /></div>
         <div className="rep-big-label">
           {report.hero.label}
@@ -246,15 +251,19 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
           </div>
         )}
 
-        <div className="card rep-gap">
-          <div className="row">
-            <div className="row-glyph lib-ico-neutral"><LockGlyph /></div>
-            <div className="row-grow">
-              <div className="rep-title">{report.sealed.title}</div>
-              <div className="eyebrow">{report.sealed.sub}</div>
+        {/* A month still open is NOT sealed, and the lock card would be a
+            lie on it; the eyebrow already says Still Open (2026-08-25). */}
+        {!stillOpen && (
+          <div className="card rep-gap">
+            <div className="row">
+              <div className="row-glyph lib-ico-neutral"><LockGlyph /></div>
+              <div className="row-grow">
+                <div className="rep-title">{report.sealed.title}</div>
+                <div className="eyebrow">{report.sealed.sub}</div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="screen-foot" />
@@ -263,11 +272,16 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
   );
 }
 
-/** Loads the latest sealed month, assembles the model, wires the actions.
- *  Hosts mount this and pass navigation; everything else is internal. */
-export default function ReportFlow({ onBack, onOpenTask }: {
+/** Loads a month's report, assembles the model, wires the actions. With no
+ *  props beyond navigation it opens the latest sealed month (the arrival
+ *  path). `month` opens that sealed month from the shelf. `live` builds the
+ *  CURRENT month from the live window through the same computeSeal, so the
+ *  page is one engine wearing one honest extra label: Still Open. */
+export default function ReportFlow({ onBack, onOpenTask, month, live }: {
   onBack: () => void;
   onOpenTask?: (id: string) => void;
+  month?: string;
+  live?: boolean;
 }) {
   const sealSvc = useOptionalSeal();
   const cats = useCategories();
@@ -293,14 +307,25 @@ export default function ReportFlow({ onBack, onOpenTask }: {
       tasksSvc.listTasks(),
       profileSvc.get(),
     ]);
-    const latest: MonthSeal | undefined = seals[seals.length - 1];
-    if (!latest) { setNone(true); return; }
-    const prev = seals.find((s) => s.data.month === prevMonthKey(latest.data.month + "-15")) ?? null;
+    let sealData: MonthSealData | null = null;
+    if (live) {
+      // The month in progress, through the SAME fold the boundary uses.
+      const now = Date.now();
+      const rows = await readWindow(supabase as unknown as WindowClient | null, now, 35);
+      sealData = computeSeal(todayISO().slice(0, 7), { rows, workouts: ws, goals: gl, sealedAt: now });
+    } else {
+      const wanted: MonthSeal | undefined = month
+        ? seals.find((x) => x.data.month === month)
+        : seals[seals.length - 1];
+      if (!wanted) { setNone(true); return; }
+      sealData = wanted.data;
+    }
+    const prev = seals.find((s) => s.data.month === prevMonthKey(sealData!.month + "-15")) ?? null;
     const open = new Map(tk.filter((t) => !t.data.done).map((t) => [t.id, t.data] as const));
     setTaskById(open);
     setCapped(prof?.planCap != null);
     setReport(buildReport({
-      seal: latest.data,
+      seal: sealData,
       prev: prev?.data ?? null,
       categories: cs.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })),
       goals: gl,
@@ -309,7 +334,7 @@ export default function ReportFlow({ onBack, onOpenTask }: {
       openTaskText: (id) => open.get(id)?.text ?? null,
       alreadyCapped: prof?.planCap != null,
     }));
-  }, [sealSvc, cats, goalsSvc, projectsSvc, gym, tasksSvc, profileSvc]);
+  }, [sealSvc, cats, goalsSvc, projectsSvc, gym, tasksSvc, profileSvc, month, live]);
   useEffect(() => { void load(); }, [load]);
 
   const onCap = async () => {
@@ -360,6 +385,7 @@ export default function ReportFlow({ onBack, onOpenTask }: {
       onOpenTask={onOpenTask}
       onDropTask={(c) => void onDropTask(c)}
       onBack={onBack}
+      stillOpen={live}
     />
   );
 }

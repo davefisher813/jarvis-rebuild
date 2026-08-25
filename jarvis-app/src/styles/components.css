@@ -3462,3 +3462,15 @@ body.selecting .voice-dock { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .rep-hours i, .rep-stack i { transition: none; }
 }
+
+/* THE LIFE VIEW (2026-08-25): area group heads and the word each area wears.
+   The chip is .rep-chip's shape; the three tones are the whole vocabulary.
+   Fed = alive (good tint). Resting = chosen quiet (plain, calm, tappable to
+   wake). Quiet = a chosen area gone silent (warn tint, never red: it is a
+   nudge, not a verdict). */
+.life-head { display: flex; align-items: center; justify-content: space-between; }
+.life-head .day-divide { flex: 1 1 auto; min-width: 0; }
+.life-word { font-size: 12px; font-weight: var(--w-bold); border: 0; border-radius: var(--r-pill); padding: 3px 10px; white-space: nowrap; flex-shrink: 0; }
+.life-fed { background: var(--good-tint); color: var(--good); }
+.life-rest { background: var(--press-3); color: var(--tx-3); cursor: pointer; }
+.life-quiet { background: var(--warn-tint); color: var(--warn); }
