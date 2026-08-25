@@ -99,3 +99,15 @@ describe("lastTimeLine", () => {
     expect(lastTimeLine(history, "Squat", "weight_reps")).toBeNull();
   });
 });
+
+describe("isSessionPR (audit 2026-08-25)", () => {
+  it("one pill per standing best: a repeat of the same weight earns nothing", async () => {
+    const { isSessionPR } = await import("./prs");
+    const sets = [{ w: 135, r: 8 }, { w: 135, r: 8 }, { w: 140, r: 6 }];
+    // No saved history: the first set is a first-ever best, the tie is not,
+    // and the heavier third set takes the pill back.
+    expect(isSessionPR([], "Bench", "weight_reps", sets, 0)).toBe(true);
+    expect(isSessionPR([], "Bench", "weight_reps", sets, 1)).toBe(false);
+    expect(isSessionPR([], "Bench", "weight_reps", sets, 2)).toBe(true);
+  });
+});

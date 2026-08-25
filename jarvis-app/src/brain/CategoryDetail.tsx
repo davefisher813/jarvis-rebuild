@@ -425,7 +425,7 @@ export default function CategoryDetail({
               <div className="row" key={t.id}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{t.data.text}</div>
-                  <div className="eyebrow">{t.data.runLen} in a row{(t.data.bestRun ?? 0) > (t.data.runLen ?? 0) ? ` · Best ${t.data.bestRun}` : (t.data.runLen ?? 0) >= 3 ? " · Your best" : ""}</div>
+                  <div className="eyebrow">{capAfterNumber(`${t.data.runLen} in a row${(t.data.bestRun ?? 0) > (t.data.runLen ?? 0) ? ` · Best ${t.data.bestRun}` : (t.data.runLen ?? 0) >= 3 ? " · Your best" : ""}`)}</div>
                 </div>
               </div>
             ))}
@@ -572,7 +572,7 @@ export default function CategoryDetail({
             <div className="row" role="button" tabIndex={0} onClick={() => setGymOpen(true)}>
               <div className="row-grow">
                 <div className="conn-name">{programs[0]?.data.name ?? "Set Up a Program"}</div>
-                {programs[0] && <div className="eyebrow">{programs[0].data.days.length} {programs[0].data.days.length === 1 ? "day" : "days"}</div>}
+                {programs[0] && <div className="eyebrow">{capAfterNumber(`${programs[0].data.days.length} ${programs[0].data.days.length === 1 ? "day" : "days"}`)}</div>}
               </div>
               {training && training.weekDots.some(Boolean) && (
                 <span className="week-dots" aria-label="Days trained this week">
@@ -585,7 +585,7 @@ export default function CategoryDetail({
               <div className="row" role="button" tabIndex={0} onClick={() => setGymOpen(true)}>
                 <div className="row-grow">
                   <div className="conn-name">Last Session · {training.last.dayName}</div>
-                  <div className="eyebrow">{agoPhrase(training.last.date, today)} · {training.last.minutes}m · {training.last.exercises} {training.last.exercises === 1 ? "exercise" : "exercises"}</div>
+                  <div className="eyebrow">{capAfterNumber(`${agoPhrase(training.last.date, today)} · ${training.last.minutes}m · ${training.last.exercises} ${training.last.exercises === 1 ? "exercise" : "exercises"}`)}</div>
                 </div>
                 {CHEV}
               </div>
@@ -602,8 +602,8 @@ export default function CategoryDetail({
             {training?.trending && (
               <div className="row">
                 <div className="row-grow">
-                  <div className="conn-name truncate">{training.trending.name} trending up</div>
-                  <div className="eyebrow">{training.trending.line}</div>
+                  <div className="conn-name truncate">{training.trending.name}</div>
+                  <div className="eyebrow">Trending up · {training.trending.line}</div>
                 </div>
               </div>
             )}

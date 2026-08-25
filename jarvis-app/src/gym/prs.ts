@@ -101,6 +101,31 @@ export function receiptFor(
   };
 }
 
+/**
+ * The in-session PR pill (audit 2026-08-25). isPR judges against SAVED
+ * history only, so on a new exercise every set wore the pill: the second
+ * 135 x 8 "beat" a best that had not been written yet, and three pills on
+ * one screen said more than the receipt, which correctly counts one. A set
+ * earns the pill only if it also beats every EARLIER set logged this
+ * session; a tie keeps the first pill and no other.
+ */
+export function isSessionPR(
+  history: Workout[],
+  name: string,
+  kind: MeasureKind,
+  sets: SetLog[],
+  i: number,
+): boolean {
+  const s = sets[i];
+  if (!s || !isPR(history, name, kind, s)) return false;
+  for (let j = 0; j < i; j++) {
+    const prev = sets[j];
+    if (!prev || prev.skipped || !scoreOf(kind, prev)) continue;
+    if (!beats(kind, s, prev)) return false; // an earlier set already stands
+  }
+  return true;
+}
+
 /** "Last time: 135 lb × 8, 8, 7" for the in-gym header. Null when new. */
 export function lastTimeLine(history: Workout[], name: string, kind: MeasureKind): string | null {
   for (let i = history.length - 1; i >= 0; i--) {
