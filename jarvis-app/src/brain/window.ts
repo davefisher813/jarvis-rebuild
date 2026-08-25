@@ -19,6 +19,11 @@ export interface WindowRow {
   n: number | null;
   flag: boolean | null;
   kind: string | null;
+  // The row's entity, when it has one. An id, never text: it is what lets
+  // plan.picked and plan.outcome join into pick-position facts, and what
+  // names the tasks behind a carried count. Optional so old readers and
+  // fakes keep working unchanged.
+  entity_id?: string | null;
 }
 
 export const WINDOW_DAYS = 30;
@@ -31,7 +36,9 @@ export interface WindowClient {
     select(cols: string): {
       gte(col: string, val: string): {
         in(col: string, vals: string[]): {
-          limit(n: number): PromiseLike<{ data: unknown; error: unknown | null }>;
+          order(col: string, opts: { ascending: boolean }): {
+            limit(n: number): PromiseLike<{ data: unknown; error: unknown | null }>;
+          };
         };
       };
     };
@@ -42,6 +49,13 @@ const READ_TYPES = [
   "task.completed", "task.pushed", "plan.picked", "plan.outcome",
   "plan.duration_corrected", "plan.duration_committed",
   "strand.created", "strand.corrected", "strand.deleted",
+  // Persisted since layer 1, read for the first time by the monthly seal
+  // (2026-08-25): days-in-the-app is a seal fact, and it was already durable.
+  "app.opened",
+  // Read by the monthly report (2026-08-25): deletions were persisted with
+  // zero readers since layer 1; the deck metric was promoted to durable
+  // exactly so it could be read once a month; reminder ticks are new.
+  "entity.deleted", "email.deck_sent", "reminder.ticked",
 ];
 
 export function windowStartISO(nowMs: number, days = WINDOW_DAYS): string {
@@ -53,25 +67,30 @@ function rowOk(r: unknown): r is WindowRow {
   return !!o && typeof o.type === "string" && typeof o.day === "string" && typeof o.h === "number";
 }
 
-export async function readWindow(client: WindowClient | null, nowMs: number): Promise<WindowRow[]> {
+export async function readWindow(client: WindowClient | null, nowMs: number, days = WINDOW_DAYS): Promise<WindowRow[]> {
   if (client) {
     try {
       const { data, error } = await client
         .from("event_log")
-        .select("type,day,h,category,n,flag,kind")
-        .gte("day", windowStartISO(nowMs))
+        .select("type,day,h,category,n,flag,kind,entity_id")
+        .gte("day", windowStartISO(nowMs, days))
         .in("type", READ_TYPES)
+        // Most recent first is half the law, and it is not decoration: the
+        // limit truncates, and without an order clause WHICH 2000 rows come
+        // back is the server's choice. Newest-first makes the cut mean
+        // "the latest 2000", which is the only honest reading of a window.
+        .order("at", { ascending: false })
         .limit(WINDOW_LIMIT);
       if (!error && Array.isArray(data)) return (data as unknown[]).filter(rowOk);
     } catch { /* fall through to local */ }
   }
-  return localWindow(nowMs);
+  return localWindow(nowMs, days);
 }
 
 // The same window from the local log: map JarvisEvents to WindowRows through
 // the exact prop typing the server sink uses, so the two paths cannot drift.
-export function localWindow(nowMs: number): WindowRow[] {
-  const cutoff = nowMs - WINDOW_DAYS * 86400000;
+export function localWindow(nowMs: number, days = WINDOW_DAYS): WindowRow[] {
+  const cutoff = nowMs - days * 86400000;
   const types = new Set(READ_TYPES);
   return eventLog
     .all()
@@ -79,10 +98,15 @@ export function localWindow(nowMs: number): WindowRow[] {
     .map((e) => {
       const p = e.props ?? {};
       const { day, h } = localDayParts(e.ts);
+      // Same rule as the server sink: an event that names its own local day
+      // (plan.outcome carries the plan's day) is dated by it, not by the
+      // moment the resolver happened to run. Shape-gated, never free text.
+      const ownDay = typeof p.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.day) ? p.day : null;
       return {
         type: e.type,
-        day,
+        day: ownDay ?? day,
         h,
+        entity_id: e.entityId ?? null,
         category: typeof p.category === "string" ? p.category : null,
         n: typeof p.n === "number" ? p.n : null,
         flag: typeof p.flag === "boolean" ? p.flag : null,

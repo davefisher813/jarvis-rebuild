@@ -4,6 +4,11 @@ import { normalizeProject, needsRepair } from "./backfill";
 
 type Emit = (e: { type: "entity.created" | "entity.updated" | "entity.deleted"; entityType: string; entityId: string }) => void;
 
+const localISO = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 export class ProjectsService {
   constructor(private store: Store, private ownerId: string, private onEvent: Emit = () => {}) {}
   // BACKFILL ON READ (2026-08-21). Older records are missing fields the app
@@ -39,6 +44,11 @@ export class ProjectsService {
   async update(id: string, patch: Partial<ProjectData>): Promise<boolean> {
     const p = await this.get(id); if (!p) return false;
     const next = { ...p.data, ...patch }; if (typeof next.title === "string") next.title = next.title.trim();
+    // Stamped at the one door every caller uses (audit 2026-08-25): a
+    // project closed without a date is a closure no month can claim.
+    if (next.status === "done" && p.data.status !== "done" && !next.closedOn) {
+      next.closedOn = localISO();
+    }
     await this.store.update(this.ownerId, id, next as unknown as ItemData);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_PROJECT, entityId: id });
     return true;

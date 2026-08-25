@@ -17,6 +17,7 @@ import { LearnedRulesService } from "../rules/LearnedRulesService";
 import { ChatService } from "../chat/ChatService";
 import { DecisionService } from "../decisions/DecisionService";
 import { StrandsService } from "../brain/strands/StrandsService";
+import { SealService } from "../review/seal";
 import { makeStore } from "./store";
 import { emit } from "../events";
 
@@ -41,6 +42,7 @@ const RoutineContext = createContext<RoutineService | null>(null);
 const ChatContext = createContext<ChatService | null>(null);
 const DecisionContext = createContext<DecisionService | null>(null);
 const StrandsContext = createContext<StrandsService | null>(null);
+const SealContext = createContext<SealService | null>(null);
 // The Supabase access token, for callers that hit privileged endpoints (e.g.
 // the admin check). Undefined when signed out or in the local harness.
 const TokenContext = createContext<string | undefined>(undefined);
@@ -54,7 +56,7 @@ export function NotesProvider({
   accessToken?: string;
   children: ReactNode;
 }) {
-  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, rules, chat, decisions, strands } = useMemo(() => {
+  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, rules, chat, decisions, strands, seal } = useMemo(() => {
     const store = makeStore(accessToken);
     return {
       rules: new LearnedRulesService(store, userId),
@@ -75,6 +77,7 @@ export function NotesProvider({
       chat: new ChatService(store, userId),
       decisions: new DecisionService(store, userId, (e) => emit(e)),
       strands: new StrandsService(store, userId, (e) => emit(e)),
+      seal: new SealService(store, userId, (e) => emit(e)),
     };
   }, [userId, accessToken]);
   return (
@@ -96,7 +99,7 @@ export function NotesProvider({
                       <RulesContext.Provider value={rules}>
                       <ChatContext.Provider value={chat}>
                       <DecisionContext.Provider value={decisions}>
-                      <StrandsContext.Provider value={strands}>{children}</StrandsContext.Provider>
+                      <StrandsContext.Provider value={strands}><SealContext.Provider value={seal}>{children}</SealContext.Provider></StrandsContext.Provider>
                       </DecisionContext.Provider>
                       </ChatContext.Provider>
                       </RulesContext.Provider>
@@ -224,6 +227,12 @@ export function useRules(): LearnedRulesService {
 
 // Rules are an enhancement at decision points; outside NotesProvider they
 // simply do not exist (same principle as useOptionalTasks).
+export function useSeal(): SealService {
+  const s = useContext(SealContext);
+  if (!s) throw new Error("useSeal outside provider");
+  return s;
+}
+export function useOptionalSeal(): SealService | null { return useContext(SealContext) ?? null; }
 export function useOptionalRules(): LearnedRulesService | null {
   return useContext(RulesContext) ?? null;
 }

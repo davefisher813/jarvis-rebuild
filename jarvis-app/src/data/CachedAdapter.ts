@@ -131,4 +131,5 @@ export const KNOWN_TYPES = [
   "routine",
   "program",
   "workout",
+  "month_seal",
 ] as const;

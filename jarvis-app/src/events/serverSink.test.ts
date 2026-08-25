@@ -68,6 +68,17 @@ describe("rowFrom", () => {
     expect(row.dow).toBe(1);
     expect(localDayParts(ts).day).toBe("2026-08-03");
   });
+
+  it("lets an event that names its own day win the day column (plan.outcome)", () => {
+    const ts = new Date(2026, 7, 4, 9, 0).getTime(); // resolver ran Aug 4
+    const row = rowFrom({ id: "x", ts, v: 1, type: "plan.outcome", props: { n: 1, flag: true, day: "2026-08-03" } });
+    // The receipt points at the plan's day, not the morning the resolver ran.
+    expect(row.day).toBe("2026-08-03");
+    // Shape-gated like kind: a malformed day is ignored, never stored.
+    const junk = rowFrom({ id: "y", ts, v: 1, type: "plan.outcome", props: { flag: false, day: "last tuesday, roughly" } });
+    expect(junk.day).toBe("2026-08-04");
+    expect(JSON.stringify(junk)).not.toContain("tuesday");
+  });
 });
 
 describe("ServerSink", () => {

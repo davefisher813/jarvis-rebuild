@@ -8,7 +8,7 @@ import { movesLine } from "../../today/goalPulse";
 import { useOptionalRules } from "../../data/NotesProvider";
 import { FULL_DAY, type DaySizing } from "../daySizing";
 import { emit, eventLog } from "../../events";
-import { recordPicks, planRecord } from "../../events/planOutcome";
+import { planRecord } from "../../events/planOutcome";
 import { learnedDurations, readCommittedDurations } from "../learnedDurations";
 import PlanStrip from "./PlanStrip";
 import { splitProtectedRanges, type BlockKind } from "../../routine/types";
@@ -16,7 +16,7 @@ import { openMinutes, loadOf, loadLine, dropToFit, dropLine, hhmm, autoSelect } 
 import { capOffer } from "../planCap";
 import { splitSittings, splitLine, SITTING_MAX } from "../splitSitting";
 import { dayClock } from "../planClock";
-import { saveShape, planCount } from "../dayShape";
+import { planCount } from "../dayShape";
 import { estimateFor } from "../padding";
 import { capAfterNumber } from "../../shared/casing";
 import { DUR_CHOICES } from "../durations";
@@ -90,6 +90,7 @@ export default function PlanDaySheet({
   onEditRoutine,
   onAddTask,
   onCommit,
+  chosenCap,
   onClose,
   onAIPlan,
 }: {
@@ -114,7 +115,9 @@ export default function PlanDaySheet({
   onEditRoutine?: () => void;
   // P7: make a task without leaving the sheet.
   onAddTask?: (text: string) => Promise<PlanCandidate | null>;
-  onCommit: (blocks: PlanBlock[]) => void;
+  onCommit: (blocks: PlanBlock[], picks: string[]) => void;
+  // The user's chosen day cap from the monthly report, when set.
+  chosenCap?: number;
   onClose: () => void;
   onAIPlan?: (picks: { id: string; text: string; category: string; overdue: boolean }[], startMin: number, endMin: number) => Promise<{ items: { id: string; minutes: number }[]; leanedOn: string[] }>;
 }) {
@@ -189,7 +192,9 @@ export default function PlanDaySheet({
       // The card showed these lengths. The sheet opens agreeing with it.
       setDurations(seed.minutes);
     } else {
-      const seedCap = cap?.n ?? sizing.maxBlocks ?? 3;
+      // His chosen cap outranks the evidence-derived offer (the monthly
+      // report's one change, 2026-08-25); evidence fills its absence.
+      const seedCap = chosenCap ?? cap?.n ?? sizing.maxBlocks ?? 3;
       const chosen = autoSelect(allTasks, open, durFor, seedCap);
       if (chosen.length > 0) {
         setPicks(chosen);
@@ -415,7 +420,10 @@ export default function PlanDaySheet({
       const stale = plan.blocks.some((b) => !overrides[realId(b.taskId)] && toMin(b.start) < nowM);
       if (stale && nowM > startMin) committed = planFor(picks, Math.ceil(nowM / 15) * 15).blocks;
     }
-    picks.forEach((id, i) => emit({ type: "plan.picked", entityType: "task", entityId: id, props: { n: i + 1 } }));
+    // plan.picked, plan.duration_committed, recordPicks and saveShape all
+    // moved into ScheduleService.commitPlan (the one event door, audit
+    // 2026-08-25); the host passes `picks` through onCommit. The correction
+    // signal stays here because the AI estimates are sheet state.
     for (const id of picks) {
       const est = aiEstimates[id];
       if (est == null) continue;
@@ -445,19 +453,7 @@ export default function PlanDaySheet({
         ).catch(() => { /* the next identical override re-observes it */ });
       }
     }
-    for (const b of committed) {
-      if (!b.category) continue;
-      const mins = toMin(b.end) - toMin(b.start);
-      if (mins > 0) emit({ type: "plan.duration_committed", entityType: "task", entityId: realId(b.taskId), props: { category: b.category, n: mins } });
-    }
-    // P12: the rhythm he actually committed. Shape only, never the tasks.
-    saveShape({
-      day,
-      dow: new Date(day + "T12:00:00").getDay(),
-      slots: committed.map((b) => ({ startMin: toMin(b.start), min: toMin(b.end) - toMin(b.start) })),
-    });
-    recordPicks(day, picks);
-    onCommit(committed.map((b) => ({ ...b, taskId: realId(b.taskId) })));
+    onCommit(committed.map((b) => ({ ...b, taskId: realId(b.taskId) })), picks.map(realId));
   };
 
   const hide = (k: string) => setDismissed((d) => ({ ...d, [k]: true }));

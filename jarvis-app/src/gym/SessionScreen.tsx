@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Exercise, SetLog, Workout } from "./types";
 import type { LiveSession } from "./liveSession";
 import { formatSet, logButtonLabel, targetSet, entryNoun, fieldsFor } from "./measures";
-import { isPR, lastTimeLine } from "./prs";
+import { isSessionPR, lastTimeLine } from "./prs";
 import MusicChip from "../music/MusicChip";
 import Stepper from "../shared/Stepper";
 
@@ -76,8 +76,10 @@ export default function SessionScreen({
             <div className="task-check done" />
             <div className="row-grow"><div className="conn-name">{formatSet(exercise, s)}</div></div>
             {/* The PR moment happens HERE, mid-session, not buried in a stats
-                tab weeks later. That timing is the whole trick. */}
-            {isPR(history, exercise.name, exercise.kind, s) && <span className="pill pill-good">PR</span>}
+                tab weeks later. That timing is the whole trick. Judged
+                against saved history AND the session's earlier sets, so a
+                repeat of the same weight cannot wear a second pill. */}
+            {isSessionPR(history, exercise.name, exercise.kind, logged, i) && <span className="pill pill-good">PR</span>}
           </div>
         ))}
         {!current.skipped && logged.length < exercise.sets && (

@@ -45,8 +45,10 @@ function partOfDay(h: number): string {
 // 1. Completion window: the 3-hour band holding the most task completions in
 // the window, spoken only with 10+ samples AND real dominance. Same band
 // logic Time Sense uses, now on the durable log.
-export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
-  const done = rows.filter((r) => r.type === "task.completed");
+/** The dominant 3-hour completion band, shared by the derivation and the
+ *  monthly seal: start hour + its count, or null when the evidence is thin
+ *  or nothing dominates. One definition, two readers, no drift. */
+export function completionBand(done: WindowRow[]): { start: number; count: number } | null {
   if (done.length < MIN_COMPLETIONS) return null;
   let best = 0;
   let bestCount = -1;
@@ -55,6 +57,22 @@ export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
     if (count > bestCount) { bestCount = count; best = start; }
   }
   if (bestCount / done.length < MIN_BAND_SHARE) return null;
+  return { start: best, count: bestCount };
+}
+
+/** Task completions only: GymService emits task.completed with kind
+ *  "workout" for a finished session, and a session is not a task. */
+export function taskDone(rows: WindowRow[]): WindowRow[] {
+  return rows.filter((r) => r.type === "task.completed" && r.kind !== "workout");
+}
+
+export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
+  // Tasks only (see taskDone): a month of gym evenings must not become
+  // "your tasks get done at 6 PM".
+  const done = taskDone(rows);
+  const band = completionBand(done);
+  if (!band) return null;
+  const { start: best, count: bestCount } = band;
   const from = hour12(best);
   const to = hour12(best + 3);
   const days = [...new Set(done.filter((r) => r.h >= best && r.h < best + 3).map((r) => r.day))].sort().reverse();
@@ -75,7 +93,10 @@ export function deriveCompletionWindow(rows: WindowRow[]): Derived | null {
 // when it clearly leads (5+ pushes and double the runner-up). "Slips" is a
 // fact about tasks, never a verdict about the person: the copy names the
 // category, not a failing.
-export function deriveSlipCategory(rows: WindowRow[]): Derived | null {
+/** The clearly leading slipped category, shared by the derivation and the
+ *  monthly seal: 5+ pushes and double the runner-up, or nothing. One
+ *  definition, two readers, no drift. */
+export function slipLeader(rows: WindowRow[]): { category: string; n: number } | null {
   const pushed = rows.filter((r) => r.type === "task.pushed" && r.category);
   const counts = new Map<string, number>();
   for (const r of pushed) counts.set(r.category!, (counts.get(r.category!) ?? 0) + 1);
@@ -84,7 +105,14 @@ export function deriveSlipCategory(rows: WindowRow[]): Derived | null {
   if (!leader || leader[1] < MIN_SLIPS_LEADER) return null;
   const runnerUp = ranked[1]?.[1] ?? 0;
   if (runnerUp > 0 && leader[1] < runnerUp * SLIP_LEAD_RATIO) return null;
-  const [cat, n] = leader;
+  return { category: leader[0], n: leader[1] };
+}
+
+export function deriveSlipCategory(rows: WindowRow[]): Derived | null {
+  const pushed = rows.filter((r) => r.type === "task.pushed" && r.category);
+  const lead = slipLeader(rows);
+  if (!lead) return null;
+  const { category: cat, n } = lead;
   const days = [...new Set(pushed.filter((r) => r.category === cat).map((r) => r.day))].sort().reverse();
   return {
     derivation: "slip_category",

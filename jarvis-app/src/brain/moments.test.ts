@@ -33,7 +33,9 @@ describe("the nod test, operationalized", () => {
   });
 
   it("does not mute on thin evidence, however bad it looks", () => {
-    expect(derivationMuted({ accepted: 2, corrected: 2, deleted: 0 })).toBe(false);
+    // Retune 2026-08-25: two corrective acts mute on their own; one does not.
+    expect(derivationMuted({ accepted: 2, corrected: 2, deleted: 0 })).toBe(true);
+    expect(derivationMuted({ accepted: 2, corrected: 1, deleted: 0 })).toBe(false);
   });
 
   it("mutes a derivation that keeps being wrong once there are real votes", () => {

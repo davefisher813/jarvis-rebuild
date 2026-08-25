@@ -77,7 +77,7 @@ export function RowGlyph({ kind }: { kind: RowKind }) {
 export interface Stat {
   num: string | number;
   label: string;
-  tint?: "good" | "sky" | "warn" | "plain";
+  tint?: "good" | "sky" | "warn" | "blue" | "plain";
 }
 
 export function StatTiles({ stats }: { stats: Stat[] }) {

@@ -41,6 +41,18 @@ describe("completion window", () => {
       expect(typeof e.day).toBe("string");
     }
   });
+
+  it("a month of gym evenings is not a task pattern: kind workout is excluded", () => {
+    // 12 real completions at 10 AM, 30 gym sessions at 6 PM. Without the
+    // filter the band would name the gym. With it, the mornings win and the
+    // count is the task count.
+    const gym = Array.from({ length: 30 }, (_, i) => row({ h: 18, kind: "workout", day: `2026-08-${String((i % 20) + 1).padStart(2, "0")}` }));
+    const d = deriveCompletionWindow([...done(12, 10), ...gym])!;
+    expect(d.title).toBe("Your tasks get done between 8 AM and 11 AM");
+    expect(d.sub).toBe("12 Finishes there, out of your last 12");
+    // And sessions alone never produce the derivation at all.
+    expect(deriveCompletionWindow(gym)).toBeNull();
+  });
 });
 
 describe("slip by category", () => {

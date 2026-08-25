@@ -10,7 +10,7 @@ import {
   Brain, Note, Target, EnvelopeSimple, BellSimple, Wallet, Sparkle, GearSix,
   House, CheckSquare, CalendarBlank, UsersThree, GitFork, Compass, PenNib,
   Flag, Clock, UserCircle, Palette, Tag, SquaresFour, LinkSimple, Lightbulb,
-  CloudArrowUp, SlidersHorizontal, Info, Circle,
+  CloudArrowUp, SlidersHorizontal, Info, Circle, CalendarCheck,
 } from "@phosphor-icons/react";
 
 const P = { weight: "fill" as const, className: "ic" };
@@ -24,6 +24,8 @@ export const FILLED: Record<string, ReactNode> = {
   writing: <PenNib {...P} />,
   values: <Flag {...P} />,
   routine: <Clock {...P} />,
+  // The monthly report row (2026-08-25).
+  month: <CalendarCheck {...P} />,
 
   // ---- More rows (destination keys) ----
   today: <House {...P} />,

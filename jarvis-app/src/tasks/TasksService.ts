@@ -186,7 +186,13 @@ export class TasksService {
     const t = await this.getTask(id);
     const prev = t?.reminder;
     const counted = countEnactment(prev?.doneCount, prev?.lastCounted, today);
-    return this.patchReminder(id, { lastDone: today, doneCount: counted.doneCount, lastCounted: counted.lastCounted });
+    const ok = await this.patchReminder(id, { lastDone: today, doneCount: counted.doneCount, lastCounted: counted.lastCounted });
+    // The one writer in this service that never called onEvent (audit
+    // 2026-08-25). Its own durable type, NOT task.completed: the reminder
+    // doctrine keeps ticks out of the day's numbers, and the log keeps the
+    // same promise. An untick is a correction and stays local.
+    if (ok) this.onEvent({ type: "reminder.ticked", entityType: ENTITY_TASK, entityId: id });
+    return ok;
   }
   untickReminder(id: string): Promise<boolean> {
     return this.patchReminder(id, { lastDone: undefined });

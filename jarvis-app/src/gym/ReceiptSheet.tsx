@@ -10,7 +10,7 @@ export default function ReceiptSheet({ dayName, receipt, onDone }: {
   onDone: () => void;
 }) {
   const tiles: { num: string; label: string }[] = [
-    { num: String(receipt.minutes), label: "Minutes" },
+    { num: String(receipt.minutes), label: receipt.minutes === 1 ? "Minute" : "Minutes" },
     { num: String(receipt.exercises), label: receipt.exercises === 1 ? "Exercise" : "Exercises" },
   ];
   if (receipt.volumeUnit) tiles.push({ num: receipt.volume.toLocaleString(), label: `${receipt.volumeUnit} moved` });

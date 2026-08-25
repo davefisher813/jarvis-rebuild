@@ -10,6 +10,8 @@ import type { ProjectsService } from "../projects/ProjectsService";
 import type { MoneyService } from "../money/MoneyService";
 import type { PeopleService } from "../people/PeopleService";
 import type { DecisionService } from "../decisions/DecisionService";
+import type { SealService } from "../review/seal";
+import type { GymService } from "../gym/GymService";
 import type { Category } from "../categories/types";
 import { todayISO } from "../schedule/calendar";
 import { saveMailSnapshot } from "../messages/home";
@@ -27,6 +29,8 @@ interface Extras {
   money: MoneyService;
   people: PeopleService;
   decisions?: DecisionService;
+  seal?: SealService;
+  gym?: GymService;
 }
 
 export async function seedDemoData(
@@ -205,6 +209,78 @@ export async function seedDemoData(
         ruledOut: ["Sundays", "Both days"],
       });
     }
+  }
+
+  // THE MONTHLY REPORT'S DEMO (2026-08-25): two sealed months plus the
+  // dated Store facts the hero and joins read, so a reviewer sees the full
+  // page instead of a first-of-the-month empty state. Demo only; the real
+  // seal writes itself at the boundary.
+  if (extras?.seal && (await extras.seal.list()).length === 0) {
+    const now = new Date(today + "T12:00:00");
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1; // 1-based current month
+    const key = (yy: number, mm: number) => `${yy}-${String(mm).padStart(2, "0")}`;
+    const monthKey = m === 1 ? key(y - 1, 12) : key(y, m - 1);
+    const prevKey = m <= 2 ? key(y - 1, 12 - (2 - m)) : key(y, m - 2);
+    const dIn = (k: string, day: number) => `${k}-${String(day).padStart(2, "0")}`;
+
+    if (extras.goals) {
+      await extras.goals.create({ title: "Run a Half Marathon", state: "achieved", achievedOn: dIn(monthKey, 14), tags: [cat("Health")] });
+      await extras.goals.create({ title: "Read every evening", state: "on_track", dropped: { on: dIn(monthKey, 19) } });
+    }
+    await extras.projects.create({ title: "Garage Cleanout", status: "done", category: cat("Friends"), closedOn: dIn(monthKey, 20) });
+    const carriedId = await tasks.createTask("Update insurance docs", { category: cat("Friends") });
+
+    if (extras.gym) {
+      for (const day of [2, 4, 7, 9, 11, 13, 14, 16, 18, 21, 23, 25, 27, 28]) {
+        await extras.gym.saveWorkout({
+          programId: "demo", dayId: "demo-day", dayName: day % 2 === 0 ? "Push Day" : "Pull Day",
+          date: dIn(monthKey, day),
+          startedAt: new Date(dIn(monthKey, day) + "T17:30:00").getTime(),
+          endedAt: new Date(dIn(monthKey, day) + "T18:17:00").getTime(),
+          exercises: [],
+        });
+      }
+    }
+
+    const byHour = [0, 0, 0, 0, 0, 0, 1, 2, 6, 13, 16, 12, 7, 6, 5, 5, 4, 3, 2, 1, 1, 0, 0, 0];
+    const doneByDay: Record<string, number> = {};
+    for (let d = 1; d <= 28; d++) {
+      // Training days carry more finishes, so the join has something true
+      // to say; Sundays (7, 14, 21, 28 here) stay quiet like real weeks.
+      const trained = [2, 4, 7, 9, 11, 13, 14, 16, 18, 21, 23, 25, 27, 28].includes(d);
+      doneByDay[dIn(monthKey, d)] = trained ? 4 : d % 7 === 0 ? 1 : 2;
+    }
+    await extras.seal.create({
+      month: monthKey, sealedAt: Date.now() - 86400000,
+      done: 84, pushed: 19, daysIn: 26,
+      byCategory: { [cat("Work")]: 48, [cat("Friends")]: 22, [cat("Health")]: 8, [cat("Family")]: 2 },
+      bandStart: 9, bandCount: 41, byHour, doneByDay,
+      pushedByCategory: { [cat("Work")]: 5, [cat("Friends")]: 3, [cat("Family")]: 11 },
+      slip: { category: cat("Family"), n: 11 },
+      byPick: [
+        { n: 1, picked: 18, done: 14 }, { n: 2, picked: 17, done: 11 },
+        { n: 3, picked: 15, done: 8 }, { n: 4, picked: 9, done: 2 }, { n: 5, picked: 5, done: 1 },
+      ],
+      overrunByCategory: { [cat("Work")]: { min: 240, n: 12 }, [cat("Friends")]: { min: -30, n: 6 } },
+      suggestions: { first_step: { acc: 9, dis: 2 }, link: { acc: 1, dis: 7 } },
+      strands: { created: 4, corrected: 1, deleted: 0 },
+      remindersTicked: 14,
+      deck: { sent: 18, asWritten: 14 },
+      sessions: 14, deposits: 9, saved: 1200, goalsLive: 4, goalsAchieved: 1,
+      carried: carriedId ? [{ id: carriedId, n: 7 }] : [],
+    });
+    await extras.seal.create({
+      month: prevKey, sealedAt: Date.now() - 40 * 86400000,
+      done: 72, pushed: 24, daysIn: 26,
+      byCategory: { [cat("Work")]: 40, [cat("Friends")]: 18, [cat("Health")]: 3, [cat("Family")]: 11 },
+      bandStart: 10, bandCount: 33, byHour: byHour.map((n) => Math.max(0, n - 1)), doneByDay: {},
+      pushedByCategory: {}, slip: null, byPick: [], overrunByCategory: {}, suggestions: {},
+      strands: { created: 2, corrected: 0, deleted: 0 }, remindersTicked: 9,
+      deck: { sent: 11, asWritten: 7 },
+      sessions: 16, deposits: 11, saved: 950, goalsLive: 4, goalsAchieved: 0,
+      carried: [],
+    });
   }
 }
 

@@ -3395,3 +3395,70 @@ body.selecting .voice-dock { display: none; }
 /* WHOSE choice this was. Last and quietest: nobody needs it until the moment
    they do not recognise the screen, and then they need it badly. */
 .mail-door-who { font-size: var(--t-meta); color: var(--tx-3); margin-top: var(--s-7); }
+
+/* ---- Health page reads the gym (2026-08-25) ------------------------------
+   The Sessions tile and the trained-days strip. Blue is the training world's
+   color everywhere else on the page (ico-blue dumbbell), so the tile and the
+   dots wear it too. Light overrides are BLENDS against the real tint, not
+   flat guesses: #0A5FD0 measures 4.98:1 on the 14% blue wash. */
+.stat-tile.stat-blue { background: rgba(10, 132, 255, 0.14); }
+.stat-tile.stat-blue .stat-num { color: var(--blue); }
+[data-theme="light"] .stat-tile.stat-blue .stat-num { color: #0A5FD0; }
+.week-dots { display: inline-flex; gap: 4px; margin-right: var(--s-2); flex-shrink: 0; align-self: center; }
+.week-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--surface-3); }
+.week-dots i.on { background: var(--blue); }
+[data-theme="light"] .week-dots i { background: rgba(18, 18, 32, 0.14); }
+[data-theme="light"] .week-dots i.on { background: #0A5FD0; }
+
+/* ---- The monthly report (2026-08-25, from the approved v3 preview) ------
+   Spoken sentences wear .rep-title (sentence case is their register; the
+   Title Case law scans conn-name, and these are not labels). Numbers and
+   color carry the page; bars grow once on open and reduced motion gets the
+   finished frame. Down-deltas are muted facts, never red ones. */
+.rep-hero { padding: 12px 16px 0; }
+.rep-eyebrow { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 2px; text-transform: uppercase; color: var(--accent-tx); }
+.rep-quiet { color: var(--tx-3); }
+.rep-quiet2 { color: var(--tx-2); margin-top: 4px; }
+.rep-big { font-size: 64px; font-weight: var(--w-bold); line-height: 1; letter-spacing: -2px; color: var(--tx-1); margin-top: 6px; }
+.rep-big-label { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-2); margin-top: 2px; }
+.rep-anchor { display: inline-block; font-size: 12px; font-weight: var(--w-bold); color: var(--good); background: var(--good-tint); border-radius: var(--r-pill); padding: 3px 10px; margin-left: 10px; vertical-align: middle; }
+.rep-hint { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-4); margin-top: 12px; }
+.rep-title { font-size: var(--t-h3); font-weight: var(--w-medium); color: var(--tx-1); line-height: var(--lh-default); }
+.rep-wins { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
+.rep-win { border-radius: var(--r-md); padding: 12px 14px; }
+.rep-win-name { font-size: 13px; font-weight: var(--w-medium); color: var(--tx-2); }
+.rep-win-val { font-size: 17px; font-weight: var(--w-bold); margin-top: 2px; }
+.rep-win-good { background: var(--good-tint); } .rep-win-good .rep-win-val { color: var(--good); }
+.rep-win-blue { background: rgba(10, 132, 255, 0.14); } .rep-win-blue .rep-win-val { color: var(--blue); }
+.rep-win-purple { background: rgba(191, 90, 242, 0.14); } .rep-win-purple .rep-win-val { color: var(--cat-purple); }
+.rep-win-warn { background: var(--warn-tint); } .rep-win-warn .rep-win-val { color: var(--warn); }
+[data-theme="light"] .rep-win-blue .rep-win-val { color: #0A5FD0; }
+[data-theme="light"] .rep-win-purple .rep-win-val { color: #7A2F9E; }
+.rep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rep-grid .stat-tile { border-radius: var(--r-md); padding: 14px 8px 12px; text-align: center; }
+.rep-delta { font-size: 11px; font-weight: var(--w-bold); margin-top: 2px; font-variant-numeric: tabular-nums; color: var(--tx-4); }
+.rep-delta-up { color: var(--good); }
+.rep-gap { margin-top: 10px; }
+.rep-split { display: flex; align-items: baseline; justify-content: space-between; }
+.rep-split b { font-size: var(--t-h3); font-weight: var(--w-bold); color: var(--accent-tx); }
+.rep-hours { display: flex; gap: 3px; align-items: flex-end; height: 30px; margin-top: 10px; }
+.rep-hours i { flex: 1; background: var(--surface-3); border-radius: 2px; display: block; transition: height 0.45s var(--ease-out); }
+.rep-hours i.hot { background: var(--accent); }
+.rep-stack { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin-top: 10px; }
+.rep-stack i { display: block; transition: width 0.45s var(--ease-out); }
+.rep-leg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.rep-leg span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: var(--w-semi); color: var(--tx-2); background: var(--surface-2); border-radius: var(--r-pill); padding: 3px 9px; }
+.rep-leg i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.rep-chip { font-size: 13px; font-weight: var(--w-bold); border-radius: var(--r-pill); padding: 4px 10px; white-space: nowrap; flex-shrink: 0; }
+.rep-chip-good { background: var(--good-tint); color: var(--good); }
+.rep-chip-warn { background: var(--warn-tint); color: var(--warn); }
+.rep-btnrow { display: flex; gap: 8px; padding: 2px 16px 14px; }
+.rep-good-glyph { color: var(--good); }
+.rep-one { border: 1px solid var(--accent); }
+.rep-question { font-size: 20px; font-weight: var(--w-semi); color: var(--tx-1); margin-top: 6px; }
+.rep-one-acts { display: flex; gap: 10px; margin-top: 14px; }
+.rep-one-acts .btn { flex: 1; }
+.rep-one-foot { margin-top: 10px; }
+@media (prefers-reduced-motion: reduce) {
+  .rep-hours i, .rep-stack i { transition: none; }
+}

@@ -45,8 +45,8 @@ describe("BrainPage", () => {
   it("nav rows are filled brand red, category rows are color discs", () => {
     const { container } = render(<BrainPage onOpen={() => {}} categories={CATS} />);
     const glyphs = container.querySelectorAll(".lib-ico");
-    expect(glyphs.length).toBe(10); // 7 nav rows + 3 category rows
-    expect(container.querySelectorAll(".lib-ico.lib-ico-brand").length).toBe(7);
+    expect(glyphs.length).toBe(11); // 8 nav rows (Your Month joined 2026-08-25) + 3 category rows
+    expect(container.querySelectorAll(".lib-ico.lib-ico-brand").length).toBe(8);
     expect(container.querySelectorAll(".lib-ico.lib-disc").length).toBe(3);
     // No outline color-glyph state left in a nav list.
     expect(container.querySelectorAll('.lib-ico[class*="cat-fg-"]').length).toBe(0);

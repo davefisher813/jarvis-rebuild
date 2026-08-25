@@ -1,0 +1,365 @@
+import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { useCategories, useGoals, useProjects, useGym, useTasks, useProfile, useRules, useOptionalSeal } from "../data/NotesProvider";
+import type { MonthSeal } from "./seal";
+import { prevMonthKey } from "./seal";
+import { buildReport, type MonthReport, type CarriedTask } from "./report";
+import RollingNumber from "../shared/RollingNumber";
+import { showToast } from "../shared/toast";
+import { capAfterNumber } from "../shared/casing";
+import type { TaskData } from "../notes/types";
+import { TargetGlyph, CheckCircleGlyph, WarningGlyph, LockGlyph } from "../shared/glyphs";
+import { filledIcon } from "../shared/filledIcons";
+
+// THE MONTHLY REPORT (2026-08-25, built from the approved v3 preview).
+// Reassurance leads, numbers and color carry it, sentences live behind the
+// taps. Exactly one proposed change, and it ends in a setting, not a
+// feeling. Every section renders only what its month can prove.
+
+const SEEN_KEY = "jarvis.report.seen.v1";
+
+export function markReportSeen(month: string): void {
+  try { localStorage.setItem(SEEN_KEY, month); } catch { /* convenience only */ }
+}
+export function reportSeen(): string | null {
+  try { return localStorage.getItem(SEEN_KEY); } catch { return null; }
+}
+
+const TARGET = <TargetGlyph />;
+
+function ReceiptsSheet({ title, lines, onDone }: { title: string; lines: string[]; onDone: () => void }) {
+  return createPortal(
+    <div className="sheet-scrim" onClick={onDone}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="grp"><div className="eyebrow">Receipts</div></div>
+        <div className="pad-x sheet-form">
+          <div className="rep-question">{title}</div>
+          <div className="card rep-gap">
+            {lines.map((l, i) => (
+              <div className="row" key={i}><div className="row-grow"><div className="rep-title">{l}</div></div></div>
+            ))}
+          </div>
+        </div>
+        <div className="pad-x sheet-actions">
+          <button className="btn btn-secondary btn-block" onClick={onDone}>Done</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+const WIN_TONES = ["rep-win-good", "rep-win-blue", "rep-win-purple", "rep-win-warn"];
+
+export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, onBack }: {
+  report: MonthReport;
+  capped: boolean;
+  onCap: () => void;
+  onOpenTask?: (id: string) => void;
+  onDropTask?: (t: CarriedTask) => void;
+  onBack: () => void;
+}) {
+  const [receipts, setReceipts] = useState<{ title: string; lines: string[] } | null>(null);
+  // The open animation: bars grow into place once, numbers roll via the
+  // shared RollingNumber. One orchestrated moment, then still; reduced
+  // motion gets the finished frame (CSS side).
+  const [grown, setGrown] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setGrown(true), 60);
+    return () => window.clearTimeout(t);
+  }, []);
+  useEffect(() => { markReportSeen(report.month); }, [report.month]);
+
+  const maxHour = Math.max(1, ...report.hours?.byHour ?? [1]);
+
+  return (
+    <div className="screen">
+      <div className="nav-bar">
+        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+        <div className="nav-title">{report.monthName}</div>
+        <button className="nav-action-text" onClick={onBack}>Done</button>
+      </div>
+
+      {/* HERO: the month's one number, then its named wins. */}
+      <div className="pad-x rep-hero">
+        <div className="rep-eyebrow">Your Month</div>
+        <div className="rep-big"><RollingNumber value={Number(report.hero.big)} /></div>
+        <div className="rep-big-label">
+          {report.hero.label}
+          {report.hero.anchor && <span className="rep-anchor">{report.hero.anchor}</span>}
+        </div>
+        {report.hero.wins.length > 0 && (
+          <div className="rep-wins">
+            {report.hero.wins.map((w) => (
+              <div className={"rep-win " + (WIN_TONES[w.tone] ?? "rep-win-good")} key={w.name}>
+                <div className="rep-win-name">{w.name}</div>
+                <div className="rep-win-val">{w.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div className="rep-hint">Tap anything for its receipts</div>
+      </div>
+
+      {/* THE MONTH: tiles with deltas, the hours strip, where it went. */}
+      {(report.tiles.length > 0 || report.hours || report.went) && (
+        <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green"><CheckCircleGlyph /></div><div className="sec-title">The Month</div></div></div>
+      )}
+      <div className="pad-x">
+        {report.tiles.length > 0 && (
+          <div className="rep-grid">
+            {report.tiles.map((t) => (
+              <div className={"stat-tile stat-" + t.tint} key={t.label}>
+                <div className="stat-num">{/^\d+$/.test(t.num) ? <RollingNumber value={Number(t.num)} /> : t.num}</div>
+                {t.delta && <div className={"rep-delta " + (t.delta.up ? "rep-delta-up" : "")}>{t.delta.text}</div>}
+                <div className="stat-label">{t.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {report.hours && (
+          <div className="card pad rep-gap" role="button" tabIndex={0}
+            onClick={() => setReceipts({ title: `Your hours: ${report.hours!.label}`, lines: [capAfterNumber(`${report.tiles.find((t) => t.label === "Done")?.num ?? 0} finishes this month; the tallest bars are your band`)] })}>
+            <div className="rep-split"><span className="rep-eyebrow rep-quiet">Your Hours</span><b>{report.hours.label}</b></div>
+            <div className="rep-hours">
+              {report.hours.byHour.map((n, h) => (
+                <i
+                  key={h}
+                  className={h >= report.hours!.bandStart && h < report.hours!.bandStart + 3 ? "hot" : undefined}
+                  style={{ height: grown ? `${Math.max(6, Math.round((n / maxHour) * 100))}%` : "6%" }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {report.went && (
+          <div className="card pad rep-gap">
+            <div className="rep-eyebrow rep-quiet">Where It Went</div>
+            <div className="rep-stack">
+              {(() => {
+                const total = report.went.reduce((a, x) => a + x.n, 0) || 1;
+                return report.went.map((s) => (
+                  <i key={s.id} className={"cat-bg-" + s.color} style={{ width: grown ? `${Math.max(4, (s.n / total) * 100)}%` : "25%" }} />
+                ));
+              })()}
+            </div>
+            <div className="rep-leg">
+              {report.went.map((s) => (
+                <span key={s.id}><i className={"cat-bg-" + s.color} />{s.name} {s.n}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* WORTH A LOOK: each gap keeps its exit. */}
+      {report.worth.length > 0 && (
+        <>
+          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-orange"><WarningGlyph /></div><div className="sec-title">Worth a Look</div></div></div>
+          <div className="pad-x">
+            {report.worth.map((w) => (
+              <div className="card rep-gap" key={w.id}>
+                <div className="row" role="button" tabIndex={0} onClick={() => setReceipts({ title: w.title, lines: w.receipts })}>
+                  {w.id === "cut" && <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>}
+                  <div className="row-grow">
+                    <div className="rep-title">{w.title}</div>
+                    {w.sub && <div className="eyebrow">{w.sub}</div>}
+                  </div>
+                  <div className="chev" />
+                </div>
+                {w.id === "carried" && w.carried && w.carried.length > 0 && (onOpenTask || onDropTask) && (
+                  <div className="rep-btnrow">
+                    {onOpenTask && <button className="pill-act" onClick={() => onOpenTask(w.carried![0]!.id)}>Do One</button>}
+                    {onDropTask && <button className="pill-act" onClick={() => onDropTask(w.carried![0]!)}>Drop One</button>}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* PATTERNS: one line, one number, receipts behind the tap. */}
+      {report.patterns.length > 0 && (
+        <>
+          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-red">{TARGET}</div><div className="sec-title">Patterns</div></div></div>
+          <div className="pad-x"><div className="card">
+            {report.patterns.map((p) => (
+              <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => setReceipts({ title: p.title, lines: p.receipts })}>
+                <div className="row-grow">
+                  <div className="rep-title">{p.title}</div>
+                  {p.sub && <div className="eyebrow">{p.sub}</div>}
+                </div>
+                {p.chip && <span className={"rep-chip rep-chip-" + p.chip.tone}>{p.chip.text}</span>}
+                <div className="chev" />
+              </div>
+            ))}
+          </div></div>
+        </>
+      )}
+
+      {/* JARVIS: what it learned and did, the one change, the seal. */}
+      {(report.learned || report.did || report.closer) && (
+        <div className="sec-head"><div className="sec-left"><div className="sec-ico ico-accent">{filledIcon("knows")}</div><div className="sec-title">JARVIS</div></div></div>
+      )}
+      <div className="pad-x">
+        {(report.learned || report.did) && (
+          <div className="card">
+            {report.learned && (
+              <div className="row">
+                <div className="row-grow">
+                  <div className="rep-title">{report.learned.title}</div>
+                  {report.learned.sub && <div className="eyebrow">{report.learned.sub}</div>}
+                </div>
+              </div>
+            )}
+            {report.did && (
+              <div className="row">
+                <div className="row-grow">
+                  <div className="rep-title">{report.did.title}</div>
+                  {report.did.sub && <div className="eyebrow">{report.did.sub}</div>}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {report.closer && (
+          <div className="card pad rep-one rep-gap">
+            <div className="rep-eyebrow">One Change</div>
+            <div className="rep-question">{report.closer.question}</div>
+            <div className="rep-title rep-quiet2">{report.closer.sub}</div>
+            <div className="rep-one-acts">
+              {capped
+                ? <button className="btn btn-block" disabled>Capped ✓</button>
+                : (
+                  <>
+                    <button className="btn btn-primary" onClick={onCap}>Turn It On</button>
+                    <button className="btn" onClick={onBack}>No Thanks</button>
+                  </>
+                )}
+            </div>
+            <div className="eyebrow rep-one-foot">{report.closer.foot}</div>
+          </div>
+        )}
+
+        <div className="card rep-gap">
+          <div className="row">
+            <div className="row-glyph lib-ico-neutral"><LockGlyph /></div>
+            <div className="row-grow">
+              <div className="rep-title">{report.sealed.title}</div>
+              <div className="eyebrow">{report.sealed.sub}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="screen-foot" />
+      {receipts && <ReceiptsSheet title={receipts.title} lines={receipts.lines} onDone={() => setReceipts(null)} />}
+    </div>
+  );
+}
+
+/** Loads the latest sealed month, assembles the model, wires the actions.
+ *  Hosts mount this and pass navigation; everything else is internal. */
+export default function ReportFlow({ onBack, onOpenTask }: {
+  onBack: () => void;
+  onOpenTask?: (id: string) => void;
+}) {
+  const sealSvc = useOptionalSeal();
+  const cats = useCategories();
+  const goalsSvc = useGoals();
+  const projectsSvc = useProjects();
+  const gym = useGym();
+  const tasksSvc = useTasks();
+  const profileSvc = useProfile();
+  const rules = useRules();
+  const [report, setReport] = useState<MonthReport | null>(null);
+  const [none, setNone] = useState(false);
+  const [capped, setCapped] = useState(false);
+  const [taskById, setTaskById] = useState<Map<string, TaskData>>(new Map());
+
+  const load = useCallback(async () => {
+    if (!sealSvc) { setNone(true); return; }
+    const [seals, cs, gl, pj, ws, tk, prof] = await Promise.all([
+      sealSvc.list(),
+      cats.list(),
+      goalsSvc.list(),
+      projectsSvc.list(),
+      gym.listWorkouts(),
+      tasksSvc.listTasks(),
+      profileSvc.get(),
+    ]);
+    const latest: MonthSeal | undefined = seals[seals.length - 1];
+    if (!latest) { setNone(true); return; }
+    const prev = seals.find((s) => s.data.month === prevMonthKey(latest.data.month + "-15")) ?? null;
+    const open = new Map(tk.filter((t) => !t.data.done).map((t) => [t.id, t.data] as const));
+    setTaskById(open);
+    setCapped(prof?.planCap != null);
+    setReport(buildReport({
+      seal: latest.data,
+      prev: prev?.data ?? null,
+      categories: cs.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })),
+      goals: gl,
+      projects: pj,
+      workouts: ws,
+      openTaskText: (id) => open.get(id)?.text ?? null,
+      alreadyCapped: prof?.planCap != null,
+    }));
+  }, [sealSvc, cats, goalsSvc, projectsSvc, gym, tasksSvc, profileSvc]);
+  useEffect(() => { void load(); }, [load]);
+
+  const onCap = async () => {
+    await profileSvc.save({ planCap: 3 });
+    // The mirror record: the change shows up beside every other learned
+    // rule, with its evidence line, and can be deleted there like any rule.
+    await rules.recordCorrection("tuning", "plan.cap", "day", "3", "Chosen from the monthly report: first picks finish, later picks mostly do not").catch(() => {});
+    setCapped(true);
+    showToast({ message: "Capped at 3 · Starting tomorrow" });
+  };
+
+  const onDropTask = async (c: CarriedTask) => {
+    const data = taskById.get(c.id);
+    await tasksSvc.deleteTask(c.id);
+    showToast({
+      message: "Task dropped",
+      actionLabel: "Undo",
+      onAction: async () => {
+        if (data) await tasksSvc.createTask(data.text, { category: data.category || undefined, due: data.due ?? null, recurrence: data.recurrence });
+        await load();
+      },
+    });
+    await load();
+  };
+
+  if (none) {
+    return (
+      <div className="screen">
+        <div className="nav-bar">
+          <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+          <div className="nav-title">Your Month</div>
+          <span className="nav-action"></span>
+        </div>
+        <div className="empty-state">
+          <div className="empty-icon">{TARGET}</div>
+          <div className="empty-title">No Month Sealed Yet</div>
+          <div className="empty-sub">Your first report arrives on the 1st, unannounced</div>
+        </div>
+      </div>
+    );
+  }
+  if (!report) return <div className="screen" />;
+  return (
+    <ReportScreen
+      report={report}
+      capped={capped}
+      onCap={() => void onCap()}
+      onOpenTask={onOpenTask}
+      onDropTask={(c) => void onDropTask(c)}
+      onBack={onBack}
+    />
+  );
+}

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useOptionalStrands } from "../data/NotesProvider";
+import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useOptionalStrands, useOptionalProfile } from "../data/NotesProvider";
 import { pausedCategoryIds } from "../categories/kinds";
 import { workWindowOf } from "./planMeta";
 import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
@@ -45,6 +45,14 @@ type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: EventDr
 
 export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?: () => void; openId?: string } = {}) {
   const svc = useSchedule();
+  const profileSvc = useOptionalProfile();
+  // The chosen day cap (monthly report's one change): seeds the sheet.
+  const [planCap, setPlanCap] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    let on = true;
+    profileSvc?.get().then((p) => { if (on) setPlanCap(p?.planCap ?? undefined); }).catch(() => {});
+    return () => { on = false; };
+  }, [profileSvc]);
   const cats = useCategories();
   const today = todayISO();
   const t0 = new Date(today + "T00:00:00");
@@ -259,7 +267,10 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     const ok = await attemptWrite(async () => {
       ids = (await svc.commitPlan(selected, standingDraft.blocks.map((b) => ({
         taskId: b.taskId, text: b.text, category: b.category, start: b.start, end: b.end,
-      })))).created;
+        // Accepting the card IS committing a day plan: the picks ride the
+        // same event door as a hand-built one (audit 2026-08-25). Block
+        // order is the card's own order.
+      })), undefined, { picks: standingDraft.blocks.map((b) => b.taskId) })).created;
     });
     if (!ok) return;
     const resolved = acceptInto(readDraft(selected), selected, standingDraft.blocks, ids);
@@ -316,12 +327,12 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         });
       }
     : undefined;
-  const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[]) => {
+  const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[], picks: string[]) => {
     // Replace, never add (hotfix 2026-08-21): commitPlan sweeps each task's
     // prior plan event on this day before writing, against a fresh read.
     let ids: string[] = [];
     const ok = await attemptWrite(async () => {
-      ids = (await svc.commitPlan(selected, blocks)).created;
+      ids = (await svc.commitPlan(selected, blocks, undefined, { picks })).created;
     });
     // ONE PROPOSED DAY (merge phase 1). Schedule commits through the same
     // door, so it resolves the same standing draft; otherwise Today would
@@ -1049,6 +1060,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
            this file records mood sizing as a Today-surface behaviour on
            purpose. Two of the three "missing" props were correct all along. */
         <PlanDaySheet
+          chosenCap={planCap}
           events={dayEvents}
           tasks={planCandidates}
           startMin={planStart}

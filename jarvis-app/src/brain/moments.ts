@@ -19,6 +19,11 @@ import { deriveAll, type Derived } from "./derive";
 
 export const NOD_RATE = 0.2;
 export const NOD_MIN_VOTES = 5;
+// Retuned 2026-08-25 (insights audit): a derivation surfaces ONE strand at a
+// time, so the rate gate alone needed five accept/delete cycles of a single
+// derivation inside 30 days before a wrong one went quiet, which no real
+// month produces. Being told twice, in any form, is enough on its own.
+export const NOD_WRONG_MIN = 2;
 
 export interface CorrectionStats {
   accepted: number;
@@ -49,6 +54,7 @@ export function correctionStats(rows: WindowRow[]): Map<string, CorrectionStats>
 export function derivationMuted(stats: CorrectionStats | undefined): boolean {
   if (!stats) return false;
   const wrong = stats.corrected + stats.deleted;
+  if (wrong >= NOD_WRONG_MIN) return true; // told twice: stop, whatever the volume
   const votes = stats.accepted + stats.deleted; // an edit and its create are one strand
   if (votes < NOD_MIN_VOTES) return false;
   return wrong / votes > NOD_RATE;

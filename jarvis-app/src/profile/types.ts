@@ -13,6 +13,10 @@ export interface ProfileData {
   template: TemplateKey;
   briefTime?: string;
   tabs?: string[];
+  // The chosen day cap (monthly report's one change, 2026-08-25): Plan My
+  // Day seeds at most this many picks. His explicit word outranks the
+  // evidence-derived offer; absent means no chosen cap.
+  planCap?: number;
   gmail: boolean;
   connections?: Record<string, boolean>;
   // Multi-account Google (2026-08-04): the persisted account list. Tokens are
