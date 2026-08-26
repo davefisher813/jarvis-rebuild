@@ -1174,92 +1174,111 @@ export default function TodayFlow({
           // was confused about. The aria-label was already the sentence this
           // now says out loud, which is the tell that the sentence was the
           // real content all along.
+          <>
           <div className="now-line-one">
             <span className="now-gap">{shortSpan(nowCtx.gapMin)} open</span>
             <span className="now-until">
               &middot; until {nowCtx.nextTitle ?? "your next event"} {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}
             </span>
           </div>
+          {gapPick ? (
+            // The task name and its buttons do NOT share a line. On a 390px
+            // phone two pills plus a title truncated the title to "Create B...",
+            // which is the one piece of information the card exists to carry.
+            // START RIDES THE ROW; THE OTHER TWO ARE A SWIPE (Dave 2026-08-25,
+            // pick 5A). The note this replaces was right at the time: two
+            // pills PLUS a title truncated the title to "Create B...", the one
+            // thing the card exists to say. One pill is a different sum, and
+            // .pill-act caps itself at 9.5rem so the title keeps the rest.
+            //
+            // Set a Start and Not Now move to the swipe every other row in this
+            // app already uses for its secondary actions, so nothing new is
+            // being taught and the card gets ~280px back.
+            <div className="task-swipe now-swipe">
+              <button className="task-snooze" onClick={() => setRitual({
+                taskId: gapPick.id,
+                text: gapPick.text,
+                firstMove: proposeFirstMove(gapPick.text),
+                startHHMM: nextStart(nhm),
+                minutes: DEFAULT_MINUTES,
+              })} aria-label="Set a start time">
+                <Clock className="ic" />
+                <span className="swipe-label">Set a Start</span>
+              </button>
+              <button className="task-del" onClick={() => setGapDismissed(gapKey)} aria-label="Not now">
+                <CircleSlash className="ic" />
+                <span className="swipe-label">Not Now</span>
+              </button>
+              <div
+                className={"task-row now-row" + (nowSwipe.dragging ? " swiping" : "")}
+                style={nowSwipe.dx ? { transform: `translateX(${nowSwipe.dx}px)` } : undefined}
+                {...nowSwipe.handlers}
+              >
+                <RowIcon kind="task" />
+                <div className="row-stack">
+                  <div className="conn-name truncate">{gapPick.text}</div>
+                  {/* PICK 1: NOW SAYS WHAT IT MOVES (Dave 2026-08-22). "Fits
+                      this gap" is the card's own premise restated: it is IN
+                      the gap, he can see that. When the task points at a goal,
+                      that slot carries the one thing he cannot see from here,
+                      and pick 31 keeps it quiet when the goal only repeats the
+                      task's own words. Two dot segments, never three: a third
+                      wraps on a 390px phone. */}
+                  <div className="conn-meta truncate">{gapPick.estimateMin} min · {gapMoves ?? "Fits this gap"}</div>
+                </div>
+                {/* B15 (2026-08-23): red TEXT, not a red fill. Start opens one
+                    task. On a screen where Accept the Day commits every hour of
+                    the day, the fill belongs to the bigger move. */}
+                <button className="pill-act" onClick={(e) => { e.stopPropagation(); void onOpenTask(gapPick.id); }}>Start</button>
+              </div>
+            </div>
+          ) : (
+            // NO DEAD ENDS IN NOW (Dave 2026-08-19, "the more I can do without
+            // thinking, the better"): when nothing is teed up, Now still hands
+            // him the one-tap way in instead of stating the time and stopping.
+            <div className="row">
+              <div className="momentum-actions">
+                {/* MERGE B: Plan My Day used to sit here as well as in the
+                    day's own button row a few hundred pixels below, which is
+                    the same verb twice in one section. This card is about the
+                    next few minutes; planning the day belongs to the day. */}
+                <button className="pill-act" onClick={() => setUpNextOpen(true)}>Pick Something</button>
+              </div>
+            </div>
+          )}
+          </>
         ) : (
+          // INSIDE A NAMED BLOCK, OR NOTHING LEFT TODAY (2026-08-26, off a
+          // screenshot of "In: Deep Work" / "until 5 PM" stacked over a
+          // second row holding nothing but Pick Something: "the style looks
+          // awful. It's also extra vertical for no reason and doesn't
+          // assist the user with an action.")
+          //
+          // gapMin is null in both cases nowContext ever returns it null
+          // for (inside a slot, or "Clear from here" with nothing left) --
+          // gapFill's very first check bails on a null gapMin -- so gapPick
+          // was ALWAYS null down here and that second row was NEVER
+          // anything but Pick Something floating under a divider with
+          // nothing beside it to connect it to. Two rows saying "you're in
+          // Deep Work" and here's a thing to do, when the gap-task row two
+          // cases up already proves one row can hold a title, a time, and a
+          // pill together. Same anatomy, so the action reads as attached to
+          // the fact instead of floating under it.
           <div className="row">
             <RowIcon kind="event" />
             <div className="row-stack">
               {(() => {
                 const at = nowCtx.line.lastIndexOf(" until ");
-                if (at < 0) return <div className="conn-name">{nowCtx.line}</div>;
+                if (at < 0) return <div className="conn-name truncate">{nowCtx.line}</div>;
                 return (
                   <>
-                    <div className="conn-name">{nowCtx.line.slice(0, at)}</div>
-                    <div className="conn-meta">{nowCtx.line.slice(at + 1)}</div>
+                    <div className="conn-name truncate">{nowCtx.line.slice(0, at)}</div>
+                    <div className="conn-meta truncate">{nowCtx.line.slice(at + 1)}</div>
                   </>
                 );
               })()}
             </div>
-          </div>
-        )}
-        {gapPick ? (
-          // The task name and its buttons do NOT share a line. On a 390px
-          // phone two pills plus a title truncated the title to "Create B...",
-          // which is the one piece of information the card exists to carry.
-          // START RIDES THE ROW; THE OTHER TWO ARE A SWIPE (Dave 2026-08-25,
-          // pick 5A). The note this replaces was right at the time: two
-          // pills PLUS a title truncated the title to "Create B...", the one
-          // thing the card exists to say. One pill is a different sum, and
-          // .pill-act caps itself at 9.5rem so the title keeps the rest.
-          //
-          // Set a Start and Not Now move to the swipe every other row in this
-          // app already uses for its secondary actions, so nothing new is
-          // being taught and the card gets ~280px back.
-          <div className="task-swipe now-swipe">
-            <button className="task-snooze" onClick={() => setRitual({
-              taskId: gapPick.id,
-              text: gapPick.text,
-              firstMove: proposeFirstMove(gapPick.text),
-              startHHMM: nextStart(nhm),
-              minutes: DEFAULT_MINUTES,
-            })} aria-label="Set a start time">
-              <Clock className="ic" />
-              <span className="swipe-label">Set a Start</span>
-            </button>
-            <button className="task-del" onClick={() => setGapDismissed(gapKey)} aria-label="Not now">
-              <CircleSlash className="ic" />
-              <span className="swipe-label">Not Now</span>
-            </button>
-            <div
-              className={"task-row now-row" + (nowSwipe.dragging ? " swiping" : "")}
-              style={nowSwipe.dx ? { transform: `translateX(${nowSwipe.dx}px)` } : undefined}
-              {...nowSwipe.handlers}
-            >
-              <RowIcon kind="task" />
-              <div className="row-stack">
-                <div className="conn-name truncate">{gapPick.text}</div>
-                {/* PICK 1: NOW SAYS WHAT IT MOVES (Dave 2026-08-22). "Fits
-                    this gap" is the card's own premise restated: it is IN
-                    the gap, he can see that. When the task points at a goal,
-                    that slot carries the one thing he cannot see from here,
-                    and pick 31 keeps it quiet when the goal only repeats the
-                    task's own words. Two dot segments, never three: a third
-                    wraps on a 390px phone. */}
-                <div className="conn-meta truncate">{gapPick.estimateMin} min · {gapMoves ?? "Fits this gap"}</div>
-              </div>
-              {/* B15 (2026-08-23): red TEXT, not a red fill. Start opens one
-                  task. On a screen where Accept the Day commits every hour of
-                  the day, the fill belongs to the bigger move. */}
-              <button className="pill-act" onClick={(e) => { e.stopPropagation(); void onOpenTask(gapPick.id); }}>Start</button>
-            </div>
-          </div>
-        ) : (
-          // NO DEAD ENDS IN NOW (Dave 2026-08-19, "the more I can do without
-          // thinking, the better"): when nothing is teed up, Now still hands
-          // him the one-tap way in instead of stating the time and stopping.
-          <div className="row">
-            <div className="momentum-actions">
-              {/* MERGE B: Plan My Day used to sit here as well as in the
-                  day's own button row a few hundred pixels below, which is
-                  the same verb twice in one section. This card is about the
-                  next few minutes; planning the day belongs to the day. */}
-              <button className="pill-act" onClick={() => setUpNextOpen(true)}>Pick Something</button>
-            </div>
+            <button className="pill-act" onClick={() => setUpNextOpen(true)}>Pick Something</button>
           </div>
         )}
       </div></div>

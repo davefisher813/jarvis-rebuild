@@ -2527,6 +2527,19 @@ button {
    producer is a thing that changes, and the row should survive the next one.
    9.5rem fits every sanctioned verb in the app with room to spare. */
 .pill-act { max-width: 9.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* MAIL CAN GROW PAST TWO LINES, SO ITS PILL CANNOT STAY CENTERED (2026-08-26,
+   Dave off a real screenshot: "nikestrength Hasn't Replied" wrapping beside
+   "Open a Dispute"). align-self: center on .pill-act, just above, was tuned
+   for exactly two lines -- one for the title, one for the sub -- which is
+   every notice EXCEPT mail's. Mail opted out of the one-line clamp on
+   2026-08-25 ("mail stays": truncating a sender name was worse than
+   wrapping it), so a mail title can wrap to two lines on its own, and its
+   sub is uncapped too. Four lines centered a pill in the middle of empty
+   space above and below it, which is the "awful ... extra vertical" this
+   fixes: not the wrap itself (still deliberately unclamped), just where
+   the button sits next to it. .notice-card-uniform is the class every
+   OTHER producer's card wears, so this touches mail alone. */
+.notice-card:not(.notice-card-uniform) .row > .pill-act { align-self: flex-start; margin-top: 2px; }
 
 
 /* V4 WRITING CANVAS (Dave 2026-08-18: "feel like an actual writing app...
