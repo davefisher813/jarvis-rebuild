@@ -252,6 +252,56 @@ describe("LAW: Apple HIG casing", () => {
     expect(bad).toEqual([]);
   });
 
+  // A BUTTON IS A VERB, NEVER A CONFESSION (Dave 2026-08-26: "These button
+  // names don't align with the research theme of the app").
+  //
+  // The casing law above asks WHOSE voice a button is in. This one asks what
+  // it makes the user say to press it, and it is L1 in words rather than in
+  // color. L1 outlawed red as a status because a status you cannot act on is
+  // just a report on your own failure; a button labelled with the user's
+  // deficit is the same object with a tap target.
+  //
+  // Three shipped, all found in one sweep of every label in the app:
+  //
+  //   "I'm Overwhelmed"       the door into the app's most important ADHD
+  //                           feature, priced at a declaration of the exact
+  //                           state that makes pressing anything hard, on a
+  //                           home screen anyone glancing at the phone reads
+  //   "Just Pick One For Me"  "Just" begs; "For Me" casts the user as a
+  //                           dependent asking a caretaker
+  //   "Plan It For Me"        the same "For Me", milder
+  //
+  // Now "Just This One", "Pick One" and "Plan It". Each names what the app
+  // does or what you get, and the last two were already the labels for the
+  // identical action elsewhere, so this collapsed two vocabularies into one.
+  //
+  // The test is deliberately narrow: two syntactic shapes, no vocabulary
+  // list of sad words. A label pleading in some new way will not be caught
+  // here, and should not be -- that is a judgement, and this file is for the
+  // rules that hold without one.
+  it("no button asks the user to confess or to beg", () => {
+    // "For Me" as the whole tail of a label: the app doing its job is not a
+    // favour granted on request. "Deal Five Quick Ones Instead" and friends
+    // are untouched; this fires only on the trailing plea.
+    const BEGS = /\bfor me$/i;
+    // A first-person state as the entire label. Not every "I": the segmented
+    // values ("I pay it") are the user answering a field, which the casing
+    // law above already recognises as legitimately his voice, and they are
+    // exempted here by the same .seg class.
+    const CONFESSES = /^i(?:'m| am)\b/i;
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const src = read(f);
+      for (const m of src.matchAll(/<button[\s\S]*?>\s*([^<>{}\n]{2,60}?)\s*<\/button>/g)) {
+        const t = m[1]!.trim();
+        if (/className=\{?"[^"]*\bseg\b/.test(m[0]!)) continue;
+        if (BEGS.test(t)) bad.push(rel(f) + ' [begs]: "' + t + '"');
+        if (CONFESSES.test(t)) bad.push(rel(f) + ' [confesses]: "' + t + '"');
+      }
+    }
+    expect(bad, "name the move, not the person pressing it").toEqual([]);
+  });
+
   // V3.3 addendum (Dave 2026-08-18): anything starting a line, and anything
   // after a middle-dot section break, starts with a capital. Applies to sub
   // and meta literals and to toast receipts; dynamic segments are exempt by

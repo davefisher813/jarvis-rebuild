@@ -466,7 +466,7 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
             <div className="conn-meta">Start with: {fsStep.step}</div>
             <div className="offer-row">
               {/* B15 (2026-08-23): this banner acts on ONE stalled task. The
-                  screen's own red is Just Pick One For Me, which collapses
+                  screen's own red is Pick One, which collapses
                   the whole page to a single open task. */}
               <button className="pill-act" onClick={fsAccept}>Add This Step</button>
               <button className="quiet-action" onClick={fsDismiss}>Not Now</button>

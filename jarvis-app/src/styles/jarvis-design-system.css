@@ -344,7 +344,8 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
 /* BUTTONS */
 /* Capsule law backstop: the BASE button is already a capsule (dim fill, red
    label), so a .btn that forgets its variant can never render as naked
-   words. Five did -- I'm Overwhelmed and every sheet's quiet sibling. */
+   words. Five did -- the Tasks overwhelm door (now "Just This One") and
+   every sheet's quiet sibling. */
 .btn { display: inline-flex; align-items: center; justify-content: center; font-family: var(--f); font-size: var(--t-h3); font-weight: var(--w-semi); height: 50px; padding: 0 var(--s-6); border-radius: var(--r-pill); border: 0; letter-spacing: var(--track-default); min-width: var(--tap-min); cursor: pointer;
   background: var(--press-3); color: var(--tint); }
 /* Primary is the flat brand fill, full stop. The OLED glow it wore from

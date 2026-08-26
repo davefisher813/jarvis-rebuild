@@ -41,16 +41,16 @@ describe("it opens already planned", () => {
     expect(screen.getByText("Add This One")).toBeInTheDocument();
   });
 
-  it("with nothing to plan, the primary is a disabled Plan It For Me", () => {
+  it("with nothing to plan, the primary is a disabled Plan It", () => {
     render(sheet({ tasks: [] }));
     expect(screen.getByText("Nothing to Plan Yet")).toBeInTheDocument();
-    expect(screen.getByText("Plan It For Me")).toBeDisabled();
+    expect(screen.getByText("Plan It")).toBeDisabled();
   });
 
-  it("unpicking everything turns the primary back into Plan It For Me, which replans", () => {
+  it("unpicking everything turns the primary back into Plan It, which replans", () => {
     render(sheet({ tasks: TASKS.slice(0, 1) }));
     fireEvent.click(screen.getByText("Email vendor"));
-    const replan = screen.getByText("Plan It For Me");
+    const replan = screen.getByText("Plan It");
     expect(replan).toBeEnabled();
     fireEvent.click(replan);
     expect(document.querySelectorAll(".p3-row.on").length).toBe(1);

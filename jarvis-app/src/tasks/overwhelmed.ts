@@ -57,6 +57,21 @@ export function theOneThing(
   })[0] ?? null;
 }
 
-export const OVERWHELM_TITLE = "Just This One";
+// THE DOOR IN IS NOT A CONFESSION (Dave 2026-08-26: "These button names
+// don't align with the research theme of the app").
+//
+// This button used to read "I'm Overwhelmed", which is a STATUS wearing a
+// button. L1 already outlawed that shape in color -- red is a verb, never a
+// status -- and the same argument is stronger in words: the feature exists
+// for someone already depleted, and it charged a declaration of that
+// depletion as the price of admission. The button that helps most was the
+// one that cost the most to press, on a home screen anyone glancing at the
+// phone can read.
+//
+// "Just This One" was already written here as the mode's title and never
+// rendered anywhere. It says exactly what you get, makes no claim about the
+// person pressing it, and pairs with the exit as one vocabulary: Just This
+// One, then Show Everything.
+export const OVERWHELM_ENTER = "Just This One";
 export const OVERWHELM_SUB = "Everything else is still there";
 export const OVERWHELM_EXIT = "Show Everything";

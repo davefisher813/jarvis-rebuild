@@ -15,7 +15,7 @@ import { useSwipe } from "../../shared/useSwipe";
 import Provenance from "../../shared/Provenance";
 import { capAfterNumber } from "../../shared/casing";
 import { cueLine } from "../ifThen";
-import { OVERWHELM_EXIT } from "../overwhelmed";
+import { OVERWHELM_ENTER, OVERWHELM_EXIT } from "../overwhelmed";
 import InlineEdit from "../../shared/InlineEdit";
 import { useLongPress } from "../../shared/useLongPress";
 import { haptics } from "../../shared/haptics";
@@ -329,10 +329,15 @@ export default function TasksPage({
         }
       />
 
-      {/* F1 · I'M OVERWHELMED. When it is on, the page IS the one thing:
+      {/* F1 · JUST THIS ONE. When it is on, the page IS the one thing:
           everything else is hidden, nothing is moved, and one tap brings it
           all back. The research is specific that the cut has to be to one,
-          because three is still a decision. */}
+          because three is still a decision.
+          Both labels live in overwhelmed.ts, next to each other, because
+          the door in and the door out are one vocabulary and drifting them
+          apart is how a screen ends up telling you two different stories
+          about the same mode. The note on OVERWHELM_ENTER carries why the
+          old "I'm Overwhelmed" had to go. */}
       {overwhelmed ? (
         <div className="pad-x pick-one">
           <button className="btn btn-block" onClick={onCalm}>{OVERWHELM_EXIT}</button>
@@ -341,12 +346,17 @@ export default function TasksPage({
         <>
           {onPickOne && counts.all > 0 && (
             <div className="pad-x pick-one">
-              <button className="btn btn-primary btn-block btn-lg" onClick={onPickOne}>Just Pick One For Me</button>
+              {/* "Pick One", matching Today's identical action (see the note
+                  on the goal nudge in TodayFlow, which named itself after
+                  this button). Was "Just Pick One For Me": "Just" reads as
+                  begging and "For Me" casts the user as a dependent asking
+                  a caretaker, when the app is simply doing its job. */}
+              <button className="btn btn-primary btn-block btn-lg" onClick={onPickOne}>Pick One</button>
             </div>
           )}
           {onOverwhelmed && counts.all > 2 && (
             <div className="pad-x pick-one">
-              <button className="btn btn-block" onClick={onOverwhelmed}>I'm Overwhelmed</button>
+              <button className="btn btn-block" onClick={onOverwhelmed}>{OVERWHELM_ENTER}</button>
             </div>
           )}
         </>
@@ -410,7 +420,7 @@ export default function TasksPage({
 
               B14 (2026-08-23): that reasoning has a hole, and it opens in
               exactly the case this branch renders. The red it defers to is
-              Just Pick One For Me, which is gated on `counts.all > 0`. With
+              Pick One, which is gated on `counts.all > 0`. With
               no tasks at all, that button does not render, this screen has
               ZERO red fills, and the argument for withholding one is spending
               a budget nothing is using. A first-run user got a page that

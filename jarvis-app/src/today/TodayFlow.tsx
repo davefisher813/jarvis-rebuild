@@ -1536,7 +1536,8 @@ export default function TodayFlow({
         // uniform card: the longer label took 139px of a 358px row and left
         // the goal's own name 133px when it needed 202, so a two-word button
         // was eating the sentence it was attached to. Same verb, same
-        // meaning, and it matches Just Pick One For Me on Tasks.
+        // meaning, and it matches Pick One on Tasks (which took this
+        // shorter name itself on 2026-08-26, so the two are now identical).
         action={{ label: "Pick One", onClick: () => onGoBigger?.(untouched.id) }}
         onDismiss={() => { dismissGoalNudge(untouched.id, today); setGoalNudgeTick((n) => n + 1); }}
       />

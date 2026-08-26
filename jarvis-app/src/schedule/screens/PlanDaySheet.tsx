@@ -719,6 +719,12 @@ export default function PlanDaySheet({
         <div className="pad-x sheet-actions">
           {/* TWO BUTTONS, always. With nothing picked the primary replans;
               with picks it commits. Cancel is Cancel. */}
+          {/* Plan It, matching Today's identical action, replacing Plan It
+              For Me (2026-08-26). That trailing For Me is the same
+              dependency framing the two Tasks buttons carried: the app
+              planning the day is the app doing its job, not a favour
+              granted on request. See the note on OVERWHELM_ENTER in
+              tasks/overwhelmed.ts for the whole ruling. */}
           {count === 0 ? (
             <button
               className="btn btn-primary btn-block"
@@ -732,7 +738,7 @@ export default function PlanDaySheet({
                 void runAI(chosen);
               }}
             >
-              Plan It For Me
+              Plan It
             </button>
           ) : (
             <button className="btn btn-primary btn-block" onClick={commit}>
