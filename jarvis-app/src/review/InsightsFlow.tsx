@@ -15,6 +15,7 @@ import type { MonthSeal } from "./seal";
 import { goalEvidenceDays, areaPulse, areaWord, comebackLine, heavyWord, REST_DAYS } from "./life";
 import { capAfterNumber } from "../shared/casing";
 import { showToast } from "../shared/toast";
+import { attemptWrite } from "../shared/guard";
 import { TargetGlyph, CheckCircleGlyph, SunriseGlyph } from "../shared/glyphs";
 import { usePushDepth } from "../shared/pushNav";
 
@@ -264,23 +265,34 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
     return items.sort((a, b) => b.d.localeCompare(a.d));
   }, [goals, projects]);
 
+  // EVERY write below runs through attemptWrite (standing rule, corrections
+  // pack 2026-08-14; relearned 2026-08-25 when area saves failed silently on
+  // device). A rejected write toasts and skips its success follow-ons.
   const giveSlot = async (a: Area) => {
-    const id = await tasksSvc.createTask(`Time for ${a.data.name}`, { due: addDaysISO(today, 1) });
+    let id: string | null = null;
+    if (!(await attemptWrite(async () => { id = await tasksSvc.createTask(`Time for ${a.data.name}`, { due: addDaysISO(today, 1) }); }))) return;
     setHushed(a.id);
     showToast({
       message: `Planned time for ${a.data.name}`,
       actionLabel: "Undo",
-      onAction: async () => { if (id) await tasksSvc.deleteTask(id); setHushed(null); await reload(); },
+      onAction: async () => {
+        if (id) await attemptWrite(() => tasksSvc.deleteTask(id!));
+        setHushed(null);
+        await reload();
+      },
     });
     await reload();
   };
+  // update() resolving false means the row is gone (a stale cache id): that
+  // is a failed save to the person tapping, so it throws into the guard.
+  const mustUpdate = async (p: Promise<boolean>) => { if (!(await p)) throw new Error("row missing"); };
   const rest = async (a: Area) => {
-    await areasSvc.update(a.id, { restingUntil: addDaysISO(today, REST_DAYS) });
+    if (!(await attemptWrite(() => mustUpdate(areasSvc.update(a.id, { restingUntil: addDaysISO(today, REST_DAYS) }))))) return;
     showToast({ message: `${a.data.name} is resting · Tap its chip to wake it` });
     await reload();
   };
   const wake = async (a: Area) => {
-    await areasSvc.update(a.id, { restingUntil: undefined });
+    if (!(await attemptWrite(() => mustUpdate(areasSvc.update(a.id, { restingUntil: undefined }))))) return;
     await reload();
   };
 
@@ -478,13 +490,13 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
         <AreasSheet
           areas={areas}
           goals={live}
-          onCreate={(nm) => { void areasSvc.create({ name: nm, state: "steady" }).then(() => reload()); }}
-          onToggleChosen={(a) => { void areasSvc.update(a.id, { chosen: !a.data.chosen }).then(() => reload()); }}
+          onCreate={(nm) => { void attemptWrite(() => areasSvc.create({ name: nm, state: "steady" })).then((ok) => { if (ok) void reload(); }); }}
+          onToggleChosen={(a) => { void attemptWrite(() => mustUpdate(areasSvc.update(a.id, { chosen: !a.data.chosen }))).then((ok) => { if (ok) void reload(); }); }}
           onAssign={(goalId, areaId) => {
             const g = goals.find((x) => x.id === goalId);
-            if (g) void goalsSvc.update(goalId, { ...g.data, areaId: areaId ?? undefined }).then(() => reload());
+            if (g) void attemptWrite(() => mustUpdate(goalsSvc.update(goalId, { ...g.data, areaId: areaId ?? undefined }))).then((ok) => { if (ok) void reload(); });
           }}
-          onRemove={(a) => { void areasSvc.remove(a.id).then(() => reload()); }}
+          onRemove={(a) => { void attemptWrite(() => areasSvc.remove(a.id)).then((ok) => { if (ok) void reload(); }); }}
           onClose={() => setAreasOpen(false)}
         />
       )}
