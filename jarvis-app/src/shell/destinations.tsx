@@ -30,7 +30,9 @@ export const DESTINATIONS: Destination[] = [
   { key: "schedule", label: "Schedule", Icon: Calendar },
   { key: "brain", label: "Brain", Icon: Brain },
   { key: "notes", label: "Notes", Icon: FileText },
-  { key: "bigger", label: "Bigger Picture", tabLabel: "Vision", Icon: Target },
+  // THE LIFE MERGE (Dave 2026-08-26): the page absorbed the life layer and
+  // became Your Life. Key stays "bigger" so saved tabs and deep links hold.
+  { key: "bigger", label: "Your Life", tabLabel: "Life", Icon: Target },
   { key: "messages", label: "Email", Icon: MessageSquare },
   // Thirteen characters, and it would have wrapped exactly the way Bigger
   // Picture did the moment anyone put it in the bar. Found by the law rather

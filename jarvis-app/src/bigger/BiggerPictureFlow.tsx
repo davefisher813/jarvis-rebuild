@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions } from "../data/NotesProvider";
+import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions, useAreas } from "../data/NotesProvider";
 import type { Project, ProjectData } from "../projects/types";
-import type { Goal, GoalData } from "../life/types";
+import type { Area, Goal, GoalData } from "../life/types";
+import AreasSheet from "../life/AreasSheet";
+import { goalEvidenceDays, areaPulse, areaWord, comebackLine, heavyWord, addDaysISO, REST_DAYS } from "../review/life";
 import type { Category } from "../categories/types";
 import type { TaskItem } from "../tasks/TasksService";
 import BiggerPicturePage from "./BiggerPicturePage";
@@ -13,7 +15,7 @@ import { attemptWrite } from "../shared/guard";
 import GoalSheet from "../life/GoalSheet";
 import { rankProjects } from "./progress";
 import { reachOf, type GoalReach } from "./reach";
-import { measureState, paceLine, healthOf, type MeasureContext } from "./measure";
+import { measureState, paceLine, healthOf, HEALTH_LABEL, type MeasureContext } from "./measure";
 import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
 import { holdLine, sizeOf, sizeLine } from "../projects/shape";
 import { openWorkOf } from "../today/goalPulse";
@@ -56,11 +58,17 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   const tasksSvc = useTasks();
   const notesSvc = useNotes();
   const decisionsSvc = useDecisions();
+  const areasSvc = useAreas();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
+  const [areasOpen, setAreasOpen] = useState(false);
+  // Give It a Slot answers the quiet card, so the card leaves WITH the tap;
+  // session-local on purpose (the slot is not evidence yet).
+  const [hushed, setHushed] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [payoff, setPayoff] = useState<{ kind: "project" | "goal"; title: string; line: string } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(openId ?? null);
@@ -71,11 +79,11 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   const [loading, setLoading] = useState(true);
 
   const reload = useCallback(async () => {
-    const [p, g, c, t] = await Promise.all([
-      projectsSvc.list(), goalsSvc.list(), catsSvc.list(), tasksSvc.listTasks(),
+    const [p, g, c, t, ar] = await Promise.all([
+      projectsSvc.list(), goalsSvc.list(), catsSvc.list(), tasksSvc.listTasks(), areasSvc.list(),
     ]);
-    setProjects(p); setGoals(g); setCategories(c); setTasks(t); setLoading(false);
-  }, [projectsSvc, goalsSvc, catsSvc, tasksSvc]);
+    setProjects(p); setGoals(g); setCategories(c); setTasks(t); setAreas(ar); setLoading(false);
+  }, [projectsSvc, goalsSvc, catsSvc, tasksSvc, areasSvc]);
   useEffect(() => { void reload(); }, [reload]);
 
   useEffect(() => {
@@ -234,6 +242,82 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
     </div>
   ) : null;
 
+  // ---- The life frame (merged here 2026-08-26; model in review/life.ts) ----
+  const evidenceOf = useCallback(
+    (g: Goal) => goalEvidenceDays(g, reachOfGoal(g.id), samples),
+    [reachOfGoal, samples],
+  );
+  const evidenceByArea = useMemo(() => {
+    const m = new Map<string, string[][]>();
+    for (const a of areas) {
+      m.set(a.id, goals.filter((g) => !g.data.dropped && g.data.areaId === a.id).map(evidenceOf));
+    }
+    return m;
+  }, [areas, goals, evidenceOf]);
+  // At most ONE quiet card: the most starved chosen area, and only that.
+  const starvedArea = useMemo(() => {
+    const candidates = areas
+      .map((a) => ({ a, p: areaPulse(a, evidenceByArea.get(a.id) ?? [], today) }))
+      .filter((x) => x.p.starved && x.a.id !== hushed)
+      .sort((x, y) => (y.p.lastDays ?? 9999) - (x.p.lastDays ?? 9999));
+    return candidates[0] ?? null;
+  }, [areas, evidenceByArea, today, hushed]);
+  const areaWordOf = useCallback((a: Area) => {
+    const p = areaPulse(a, evidenceByArea.get(a.id) ?? [], today);
+    const word = areaWord(p);
+    return word ? { word, resting: p.resting } : null;
+  }, [evidenceByArea, today]);
+
+  // update() resolving false means the row is gone (a stale cache id): a
+  // failed save to the person tapping, so it throws into the guard.
+  const mustUpdate = async (p: Promise<boolean>) => { if (!(await p)) throw new Error("row missing"); };
+  const giveSlot = async (a: Area) => {
+    let id: string | null = null;
+    if (!(await attemptWrite(async () => { id = await tasksSvc.createTask(`Time for ${a.data.name}`, { due: addDaysISO(today, 1) }); }))) return;
+    setHushed(a.id);
+    showToast({
+      message: `Planned time for ${a.data.name}`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        if (id) await attemptWrite(() => tasksSvc.deleteTask(id!));
+        setHushed(null);
+        await reload();
+      },
+    });
+    await reload();
+  };
+  const restArea = async (a: Area) => {
+    if (!(await attemptWrite(() => mustUpdate(areasSvc.update(a.id, { restingUntil: addDaysISO(today, REST_DAYS) }))))) return;
+    showToast({ message: `${a.data.name} is resting · Tap its chip to wake it` });
+    await reload();
+  };
+  const wakeArea = async (a: Area) => {
+    if (!(await attemptWrite(() => mustUpdate(areasSvc.update(a.id, { restingUntil: undefined }))))) return;
+    await reload();
+  };
+
+  // THE ONE ASK. A page that stacks its asks is not soothing anyone: the
+  // quiet area (rarer, 21-day gate) outranks the stalled project, and only
+  // the winner renders. Same promo-card grammar either way.
+  const quietCard = starvedArea ? (
+    <div className="pad-x">
+      <div className="promo-card">
+        <div className="promo-head">
+          <div className="promo-badge b-amber"><TargetGlyph /></div>
+          <div className="promo-body">
+            <div className="promo-title">{starvedArea.a.data.name + " has been quiet a while"}</div>
+            <div className="promo-sub">You marked it one to keep alive.</div>
+          </div>
+        </div>
+        <div className="promo-acts">
+          <button className="promo-pill quiet" onClick={() => void restArea(starvedArea.a)}>It's Resting</button>
+          <button className="promo-pill" onClick={() => void giveSlot(starvedArea.a)}>Give It a Slot</button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+  const oneAsk = quietCard ?? stalledOffer;
+
   // Finishing something big earns a moment. Only on the TRANSITION into done:
   // saving an already-finished project must not re-congratulate anyone.
   // B10/B12 (2026-08-23): DELETING SOMETHING SHOULD NOT BE SILENT AND SHOULD
@@ -322,6 +406,21 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
     now: Date.now(),
   }), [reachOfGoal, tasks, projects, samples, today]);
   const goalMeasure = goalDetail ? measureState(goalDetail.data.measure, measureCtxFor(goalDetail)) : null;
+  // The one extra word a goal row wears on Your Life (picks 17/18): a
+  // comeback leads as a win, effort without movement reads as weight, and
+  // only then does a bare Behind or Idle speak.
+  const extraOf = useCallback((id: string): { text: string; tone: "good" | "warn" } | null => {
+    const g = goals.find((x) => x.id === id);
+    if (!g) return null;
+    const cb = comebackLine(evidenceOf(g), today);
+    if (cb) return { text: cb, tone: "good" };
+    const c = measureCtxFor(g);
+    const h = healthOf(g, measureState(g.data.measure, c), g.data.measure, c, openWorkOf(reachOfGoal(id)));
+    const heavy = heavyWord(h, openWorkOf(reachOfGoal(id)) > 0);
+    if (heavy) return { text: heavy, tone: "warn" };
+    if (h === "behind" || h === "idle") return { text: HEALTH_LABEL[h], tone: "warn" };
+    return null;
+  }, [goals, evidenceOf, measureCtxFor, reachOfGoal, today]);
   // PICK 17: the drop writes the decision FIRST, then marks the goal. Order
   // matters for the same reason the meeting booking's does: a goal marked
   // dropped with no record of why is exactly the state this feature exists
@@ -595,10 +694,14 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
         goals={goals}
         reachOfGoal={reachOfGoal}
         measureOfGoal={(id: string) => { const g = goals.find((x) => x.id === id); return g ? measureState(g.data.measure, measureCtxFor(g)) : null; }}
-        healthOfGoal={(id: string) => { const g = goals.find((x) => x.id === id); if (!g) return "unmeasured"; const c = measureCtxFor(g); return healthOf(g, measureState(g.data.measure, c), g.data.measure, c, openWorkOf(reachOfGoal(id))); }}
+        extraOf={extraOf}
         projectRows={projectRows}
+        areas={areas}
+        areaWordOf={areaWordOf}
+        onWakeArea={(a) => void wakeArea(a)}
+        onManageAreas={() => setAreasOpen(true)}
         loading={loading}
-        offer={stalledOffer}
+        offer={oneAsk}
         nextActionTextOf={nextActionTextOf}
         holdLineOf={(id: string) => { const p = projects.find((x) => x.id === id); return p ? holdLine(p.data, today) : null; }}
         sizeLineOf={(id: string) => sizeLine(sizeOf(tasks.filter((t) => t.data.projectId === id).map((t) => ({ done: !!t.data.done, category: t.data.category })), estimateFor))}
@@ -645,6 +748,20 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
           onSave={saveGoal}
           onDelete={sheet.kind === "editGoal" ? () => removeWithUndo("goal", sheet.id, () => setSheet({ kind: "closed" })) : undefined}
           onCancel={() => setSheet({ kind: "closed" })}
+        />
+      )}
+      {areasOpen && (
+        <AreasSheet
+          areas={areas}
+          goals={goals.filter((g) => !g.data.dropped)}
+          onCreate={(nm) => { void attemptWrite(() => areasSvc.create({ name: nm, state: "steady" })).then((ok) => { if (ok) void reload(); }); }}
+          onToggleChosen={(a) => { void attemptWrite(() => mustUpdate(areasSvc.update(a.id, { chosen: !a.data.chosen }))).then((ok) => { if (ok) void reload(); }); }}
+          onAssign={(goalId, areaId) => {
+            const g = goals.find((x) => x.id === goalId);
+            if (g) void attemptWrite(() => mustUpdate(goalsSvc.update(goalId, { ...g.data, areaId: areaId ?? undefined }))).then((ok) => { if (ok) void reload(); });
+          }}
+          onRemove={(a) => { void attemptWrite(() => areasSvc.remove(a.id)).then((ok) => { if (ok) void reload(); }); }}
+          onClose={() => setAreasOpen(false)}
         />
       )}
     </>

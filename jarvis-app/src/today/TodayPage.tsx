@@ -17,6 +17,7 @@ import { useCondensed } from "../shared/PageHeader";
 import { Burst, useBurst } from "../shared/Burst";
 import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats, type WeekRecap } from "./evening";
 import { movesPillLabel } from "./goalPulse";
+import { capAfterNumber } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
 import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph } from "../shared/glyphs";
 
@@ -35,7 +36,7 @@ const URGENCY_CLASS: Record<UrgencyKind, string> = {
 // Completion is optimistic: the check flips and the burst plays immediately,
 // and the real toggle (which reloads the list and removes the row) is held
 // for 600ms so the animation is actually visible before the row leaves.
-function TaskRow({ t, u, onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
+function TaskRow({ t, u, sub, onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; sub?: string | null; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
   const [bursting, fireBurst] = useBurst();
   const [localDone, setLocalDone] = useState(false);
   const pending = useRef(false);
@@ -54,7 +55,13 @@ function TaskRow({ t, u, onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: 
         <div className={"task-check " + (done ? "done" : "cat-bd-" + catColor(t.data.category))} />
         <Burst show={bursting} />
       </div>
-      <div className="task-title" role="button" tabIndex={0} onClick={onOpen}>{t.data.text}</div>
+      <div className="task-title" role="button" tabIndex={0} onClick={onOpen}>
+        {t.data.text}
+        {/* The dealt card explains itself (Up Next Option 1, 2026-08-26):
+            the reason rides under the title, same law as every automatic
+            pick. List rows pass no sub and render exactly as before. */}
+        {sub && <div className="eyebrow">{sub}</div>}
+      </div>
       {/* The urgency label steps aside for Start: knowing a thing is due is
           not the problem, beginning it is. Done rows keep the label. */}
       {onStart && !done ? (
@@ -117,6 +124,8 @@ export default function TodayPage({
   onRunningLate,
   onUpNext,
   upNext,
+  upNextWaiting,
+  upNextReason,
   onSeeAllUpNext,
   freshStart,
   locked,
@@ -175,6 +184,10 @@ export default function TodayPage({
   onPlanTomorrow?: () => void; // evening-only entry aiming the sheet at tomorrow (2026-08-09)
   onRunningLate?: (mins: number) => void; // shift the rest of today from here (2026-08-09)
   onUpNext?: () => void;
+  /** Count of open tasks behind the dealt card; the receipt line's number. */
+  upNextWaiting?: number;
+  /** The dealt card's reason line (reasonFor, computed by the flow). */
+  upNextReason?: string | null;
   upNext?: TaskItem[];
   onSeeAllUpNext?: () => void;
   freshStart?: () => void;
@@ -274,24 +287,31 @@ export default function TodayPage({
     </>
   );
 
-  const upNextSection = !evening && upNext && upNext.length > 0 && (
+  // ONE CARD (Option 1, approved 2026-08-26). The deck deals one: the top
+  // task with its reason and the only Start on the section. The rest of the
+  // deck is a receipt line that opens the Focus flow, where Skip lives.
+  // Three equal rows asked him to rank them himself; that was the decision
+  // tax this section existed to remove.
+  const upNextTop = upNext?.[0];
+  const upNextSection = !evening && upNextTop && (
     <>
       <div className="sh2 sh2-quiet"><span className="t">Up Next</span>{onSeeAllUpNext && <button className="see-all" onClick={onSeeAllUpNext}>See All</button>}</div>
       <div>
         <div>
-          {upNext.map((t) => (
-            <TaskRow
-              key={t.id}
-              t={t}
-              u={urgencyFor(t.data, today)}
-              onToggle={() => onToggleTask?.(t.id)}
-              onOpen={() => onOpenTask?.(t.id)}
-              // Start on EVERY row, not just the one the Now card happened to
-              // pick. Reading a list and then travelling somewhere else to
-              // begin is the friction that empties these apps.
-              onStart={onStartTask ? () => onStartTask(t.id) : undefined}
-            />
-          ))}
+          <TaskRow
+            t={upNextTop}
+            u={urgencyFor(upNextTop.data, today)}
+            sub={upNextReason ?? undefined}
+            onToggle={() => onToggleTask?.(upNextTop.id)}
+            onOpen={() => onOpenTask?.(upNextTop.id)}
+            onStart={onStartTask ? () => onStartTask(upNextTop.id) : undefined}
+          />
+          {(upNextWaiting ?? 0) > 0 && onUpNext && (
+            <button className="receipt-line" onClick={onUpNext}>
+              <span className="rl-t">{capAfterNumber(`${upNextWaiting} More waiting · Skip deals the next one`)}</span>
+              <div className="chev" />
+            </button>
+          )}
         </div>
       </div>
     </>

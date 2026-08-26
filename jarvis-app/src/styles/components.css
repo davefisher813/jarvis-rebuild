@@ -1317,6 +1317,10 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
 .bp-bar { height: 4px; background: var(--press-3); border-radius: 2px; overflow: hidden; margin-top: var(--s-1h); }
 .bp-bar-fill { height: 100%; border-radius: 2px; background: var(--good); }
 .bp-goal { align-items: center; }
+/* THE LIFE MERGE (2026-08-26): a goal's projects ride under it, indented,
+   and an area head wears its life-word chip in the count slot. */
+.proj-row.bp-nest { padding-left: calc(var(--s-4) + 26px); }
+.sh2 .life-word { order: 2; align-self: center; }
 
 /* Session 6: red is never a mood (locked design law). Status qualifiers move to
    green / muted / amber, freeing red for actions and the selected tab. */

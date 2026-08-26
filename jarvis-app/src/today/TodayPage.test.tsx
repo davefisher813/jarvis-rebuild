@@ -49,18 +49,23 @@ describe("TodayPage", () => {
     expect(summary.querySelector(".day-pill.dp-red")).toHaveTextContent("1 overdue");
   });
 
-  it("renders Up Next with STANDARD task rows (identical to every list)", () => {
-    const upNext = [tk("over", "2026-05-18"), tk("due", "2026-05-20")];
-    const { container } = render(<TodayPage {...base} upNext={upNext} onUpNext={() => {}} onSeeAllUpNext={() => {}} />);
+  it("renders Up Next as ONE dealt card with its reason and the deck receipt", () => {
+    // Option 1 (Dave 2026-08-26, "go with what you think is best"): one
+    // target on screen. The card keeps the standard row anatomy (check +
+    // title + urgency) plus the reason line every automatic pick owes;
+    // everything behind it is a count on a receipt that opens the deck.
+    const { container } = render(
+      <TodayPage {...base} upNext={[tk("over", "2026-05-18")]} upNextWaiting={2}
+        upNextReason="Waiting 2 days" onUpNext={() => {}} onSeeAllUpNext={() => {}} />,
+    );
     expect(screen.getByText("Up Next")).toBeInTheDocument();
     expect(screen.getByText("See All")).toBeInTheDocument();
-    // same row anatomy as every other task list: check + title + urgency tag
     expect(container.querySelector(".urgency-red")).toBeTruthy(); // overdue
-    expect(container.querySelector(".urgency-warn")).toBeTruthy(); // due today
     expect(container.querySelector(".task-check.cat-bd-sky")).toBeTruthy();
-    // no custom chrome: no meta lines, no per-row chevrons
-    expect(container.querySelector(".task-row .sched-cat")).toBeNull();
-    expect(container.querySelector(".upnext-deck-btn")).toBeNull();
+    expect(screen.getByText("Waiting 2 days")).toBeInTheDocument();
+    expect(screen.getByText("2 More waiting \u00b7 Skip deals the next one")).toBeInTheDocument();
+    // one card means one row, however deep the deck is
+    expect(container.querySelectorAll(".task-row").length).toBe(1);
     // the old daytime task list is replaced by Up Next
     expect(screen.queryByText("Today\u2019s Tasks")).toBeNull();
   });
