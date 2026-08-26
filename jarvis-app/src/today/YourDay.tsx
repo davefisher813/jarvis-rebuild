@@ -479,11 +479,6 @@ export default function YourDay({
       <div>
         {header}
         {nowHead}
-        {/* Focus / Plan My Day / Running Late are about the whole day, so
-            they sit ABOVE the band. The band introduces the LIST, and
-            anything under a line that says "the rest of today" should be the
-            rest of today. */}
-        {planButton}
         {/* Quiet on purpose: the accent on the head above is what makes Now
             the one loud thing on this screen. */}
         {nowHead && <div className="day-band">The rest of today</div>}
@@ -504,6 +499,14 @@ export default function YourDay({
             </div>
           )}
         </div>
+        {/* NOW FLOWS INTO SCHEDULE (Dave 2026-08-26, three-way catalog,
+            Option B: "actions trail the list"). Focus / Plan My Day used to
+            sit between the Now card and the band, splitting Now from what's
+            coming. Now nothing sits between them, and the whole-day actions
+            trail everything already committed today -- a deliberate step
+            once you've seen the day, not a wall you scroll past to reach
+            it. */}
+        {planButton}
         {footer}
       </div>
     );
@@ -520,7 +523,6 @@ export default function YourDay({
       {header}
       {nowHead}
       {nowHead && <div className="day-band">The whole day</div>}
-      {planButton}
       <div className="pad-x">
         <div
           className="card sched-ticker"
@@ -539,6 +541,9 @@ export default function YourDay({
             it is only obvious after it has happened once. */}
         <div className="ticker-hint">Tap to hold it still</div>
       </div>
+      {/* Same move as the paused view (Option B, 2026-08-26): actions trail
+          the day instead of splitting Now from it. */}
+      {planButton}
     </div>
   );
 }
