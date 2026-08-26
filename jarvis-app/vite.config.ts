@@ -2,6 +2,21 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { viteSingleFile } from "vite-plugin-singlefile";
 import { resolve } from "node:path";
+import { execSync } from "node:child_process";
+
+// THE BUILD STAMP (2026-08-26). Twice now, "the feature isn't there" turned
+// into an hour of guessing whether a phone was looking at the new build or
+// an old one; the second time, the guess was wrong in both directions. The
+// stamp ends the guessing: Settings > Advanced shows the commit this build
+// came from, so "is my phone on it?" is a ten-second look, not a debugging
+// session. On Vercel the sha comes from the deploy env; locally from git;
+// "dev" when neither exists (tests, bare checkouts).
+function buildSha(): string {
+  const v = process.env.VERCEL_GIT_COMMIT_SHA;
+  if (v) return v.slice(0, 7);
+  try { return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim(); }
+  catch { return "dev"; }
+}
 
 // app/ and jarvis-core/ are siblings under jarvis-rebuild/. @core is the single
 // engine source. SINGLEFILE=1 inlines everything into one openable index.html
@@ -32,6 +47,8 @@ export default defineConfig({
   // held by a test.
   define: {
     __DEMO_SEED__: JSON.stringify(!!process.env.SINGLEFILE || !!process.env.DEMO),
+    __BUILD_ID__: JSON.stringify(buildSha()),
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString().slice(0, 10)),
   },
   resolve: {
     alias: { "@core": resolve(__dirname, "../jarvis-core/src/index.ts") },

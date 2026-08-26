@@ -34,6 +34,10 @@ export default function AdvancedPage({ onBack, onExport }: { onBack: () => void;
       <div className="grp"><div className="eyebrow">Data</div></div>
       <div className="pad-x"><div className="card">
         <div className="row" role="button" tabIndex={0} onClick={onExport}><div className="row-grow"><div className="conn-name">Export Data</div></div><span className="row-value">JSON</span></div>
+        {/* Which commit this build came from. Exists so "is my phone on the
+            new build?" is a ten-second look instead of a debugging session:
+            that question has now been guessed at twice and guessed wrong. */}
+        <div className="row"><div className="row-grow"><div className="conn-name">Build</div></div><span className="row-value">{typeof __BUILD_ID__ === "string" ? __BUILD_ID__ + " \u00b7 " + __BUILD_DATE__ : "dev"}</span></div>
       </div></div>
       <div className="pad-x"><div className="card">
         {!chatArmed

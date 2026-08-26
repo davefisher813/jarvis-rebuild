@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useProfile } from "../../data/NotesProvider";
 import { requestGoogleToken, type TokenOpts } from "./gis";
+import { GOOGLE_SCOPES } from "./config";
 import { serverBroker, type TokenBroker } from "./broker";
 import { useOptionalSession } from "../../auth/AuthProvider";
 import { createGoogleApi, type GoogleApi } from "./api";
@@ -17,7 +18,23 @@ import { createGoogleApi, type GoogleApi } from "./api";
 // "connected" (the UI offers Connect), and the first successful connect
 // learns the real address via getProfile and creates the account entry.
 
-export interface GoogleAccount { email: string; mail: boolean; cal: boolean }
+export interface GoogleAccount {
+  email: string; mail: boolean; cal: boolean;
+  /** The scope string this account actually authorized under. Absent on
+   *  accounts from before 2026-08-26, which authorized as readonly. */
+  scopes?: string;
+}
+
+// THE SCOPE GATE (2026-08-26). A stored refresh token keeps minting access
+// tokens with the scopes it was BORN with, whatever config.ts says today. So
+// when the app's scope list changes, every silent path must refuse to mint
+// for accounts that authorized under the old list, or the app looks signed
+// in while every mutation quietly 403s, which is exactly the state Dave
+// found it in ("deleting literally doesn't work"). An account that fails
+// this check simply gets no silent token: the UI's existing signed-out
+// state shows, and the one interactive reconnect (code flow, prompt=consent)
+// re-authorizes under the current scopes and stamps them.
+const scopesCurrent = (a: GoogleAccount): boolean => a.scopes === GOOGLE_SCOPES;
 
 interface GoogleSessionValue {
   connected: boolean; // any account known (or legacy flag)
@@ -44,11 +61,15 @@ export function GoogleSessionProvider({
   children,
   requestToken = requestGoogleToken,
   makeApi = (t: string) => createGoogleApi(t),
+  broker,
 }: {
   children: ReactNode;
   /** Test/bench override: forces the legacy direct-token flow (no persistence). */
   requestToken?: (opts?: TokenOpts) => Promise<string>;
   makeApi?: (token: string) => GoogleApi;
+  /** Test override: a full broker, so the silent path (and its scope gate)
+   *  can be exercised without a server. Wins over both real and legacy. */
+  broker?: TokenBroker;
 }) {
   const profile = useProfile();
   const supaSession = useOptionalSession();
@@ -97,7 +118,9 @@ export function GoogleSessionProvider({
   // (tests, the bench), those environments have no server.
   const brokerRef = useRef<TokenBroker | null>(null);
   const legacy = requestToken !== requestGoogleToken;
-  if (!brokerRef.current || legacy) {
+  if (broker) {
+    brokerRef.current = broker;
+  } else if (!brokerRef.current || legacy) {
     brokerRef.current = legacy
       ? { authorize: async (opts) => ({ token: await requestToken(opts) }) }
       : serverBroker(() => tokenRefValue.current);
@@ -118,30 +141,48 @@ export function GoogleSessionProvider({
   // the stored sign-ins, no popup, no tap. Interactive connect remains the
   // fallback when an account was never stored or got revoked.
   const silentTried = useRef(false);
+  // The supaToken gate exists for the SERVER broker, whose calls carry the
+  // Supabase auth header; an injected test broker has no such dependency.
+  const injectedBroker = !!broker;
   useEffect(() => {
     const broker = brokerRef.current;
-    if (silentTried.current || !broker?.silent || accounts.length === 0 || !supaToken) return;
+    if (silentTried.current || !broker?.silent || accounts.length === 0 || (!supaToken && !injectedBroker)) return;
     silentTried.current = true;
     (async () => {
       for (const a of accounts) {
+        // The scope gate: an account that authorized under an older scope
+        // list gets no silent token, so the UI tells the truth (signed out)
+        // instead of minting a token that cannot do what the buttons offer.
+        if (!scopesCurrent(a)) continue;
         const t = await broker.silent!(a.email).catch(() => null);
         if (t) storeToken(a.email, t);
       }
     })();
-  }, [accounts, supaToken, storeToken]);
+  }, [accounts, supaToken, injectedBroker, storeToken]);
+
+  // After an interactive authorize, the account's entry records the scopes it
+  // was granted under, so the gate above can tell current sign-ins from
+  // pre-scope-change ones without guessing.
+  const stamped = useCallback((list: GoogleAccount[], email: string): GoogleAccount[] => {
+    if (!list.some((a) => a.email === email)) {
+      return [...list, { email, mail: true, cal: true, scopes: GOOGLE_SCOPES }];
+    }
+    return list.map((a) => (a.email === email ? { ...a, scopes: GOOGLE_SCOPES } : a));
+  }, []);
 
   const addAccount = useCallback(async () => {
     const got = await authorize({ selectAccount: true });
-    if (!accounts.some((a) => a.email === got.email)) {
-      await persist([...accounts, { email: got.email, mail: true, cal: true }]);
-    }
+    await persist(stamped(accounts, got.email));
     return got;
-  }, [authorize, accounts, persist]);
+  }, [authorize, accounts, persist, stamped]);
 
   const reconnect = useCallback(async (email: string) => {
-    // Silent first: with a stored sign-in this is popup-free.
+    // Silent first: with a stored sign-in this is popup-free. Gated on the
+    // scopes being current, because a silent token under old scopes LOOKS
+    // signed in and then fails every write.
+    const known = accounts.find((a) => a.email === email.toLowerCase());
     const silent = brokerRef.current?.silent;
-    if (silent) {
+    if (silent && known && scopesCurrent(known)) {
       const t = await silent(email).catch(() => null);
       if (t) {
         storeToken(email.toLowerCase(), t);
@@ -149,12 +190,11 @@ export function GoogleSessionProvider({
       }
     }
     const got = await authorize({ loginHint: email });
-    if (!accounts.some((a) => a.email === got.email)) {
-      // The user picked a different account in the popup: honor reality.
-      await persist([...accounts, { email: got.email, mail: true, cal: true }]);
-    }
+    // Stamp whoever ACTUALLY authorized (the user picks in Google's popup;
+    // honoring reality also creates the entry when they picked someone new).
+    await persist(stamped(accounts, got.email));
     return got.api;
-  }, [authorize, accounts, persist]);
+  }, [authorize, accounts, persist, stamped]);
 
   const connect = useCallback(async (): Promise<GoogleApi> => {
     if (accounts.length === 0) return (await addAccount()).api;

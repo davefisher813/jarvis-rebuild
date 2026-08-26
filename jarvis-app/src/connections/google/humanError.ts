@@ -16,7 +16,11 @@
 // Nothing here invents a diagnosis.
 
 const SIGNED_OUT = "Your Google sign-in expired · Reconnect in Settings";
-const NO_ACCESS = "Google refused that · Check the permissions you granted";
+// 403 usually means the token's scopes cannot do what the button offered
+// (the 2026-08-26 scope bug was exactly this, app-wide). Reconnecting runs
+// consent again and re-grants under the current scope list, so that is the
+// action this sentence sells.
+const NO_ACCESS = "Google refused that · Reconnect in Settings to update permissions";
 const TOO_FAST = "Google is rate-limiting us · Try again in a minute";
 const GOOGLE_DOWN = "Google's mail service is having trouble · Try again shortly";
 const OFFLINE = "You're offline · Nothing was lost";
