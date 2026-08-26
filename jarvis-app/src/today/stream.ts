@@ -17,10 +17,27 @@
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 
 export const FAILING = 90;   // sliding tasks, broken sweeps, an overloaded day
+// THE DEALT TASK'S OWN WEIGHT (2026-08-26, Dave: "the logic behind all of
+// this needs to be sound"). Your Move's dealt task was always MEANT to lead
+// its band -- "added first so it leads its band... everything else defers"
+// (Your Move, same day) -- but that was true only because it was spliced
+// first into rankStream's input array and won the stable sort's
+// arrival-order tie-break. Nothing enforced it; a future reordering of the
+// concatenation would have silently dropped it behind a same-weight notice.
+// A named weight above WAITING says outright what was already the design,
+// so it holds no matter how the caller assembles the array.
+export const DEALT = 71;
 export const WAITING = 70;   // things waiting on him: revisits, slipped plans, money
 export const NEW = 50;       // new arrivals: moved tasks, fresh offers
 export const RESUME = 40;    // pick-up-where-you-left-off
 const DEFAULT_WEIGHT = 30;
+// AMBIENT ASKS (2026-08-26): opportunistic, no urgency of their own -- the
+// weather permission offer is the only member today. It used to carry no
+// weight at all, which meant it rode DEFAULT_WEIGHT by omission: correct by
+// accident, indistinguishable from a producer that simply forgot to declare
+// one. A named tier below the fallback makes "deliberately the least urgent
+// thing in the stream" an explicit claim instead of a gap.
+export const AMBIENT = 20;
 
 export interface Ranked {
   headliner: ReactElement | null;

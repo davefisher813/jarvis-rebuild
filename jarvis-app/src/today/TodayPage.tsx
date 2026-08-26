@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { DollarSign, RotateCcw } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
-import { rankStream, WAITING, NEW } from "./stream";
+import { rankStream, DEALT, WAITING, NEW, AMBIENT } from "./stream";
 import { cloneElement } from "react";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
@@ -298,14 +298,16 @@ export default function TodayPage({
   );
 
   // YOUR MOVE (Combine B from the Up Next catalog, resumed 2026-08-26).
-  // The dealt task stops being its own section and joins the one stream as
-  // a standing WAITING member, added first so it leads its band: a FAILING
-  // notice (a sliding day) still sorts above it, everything else defers.
+  // The dealt task stops being its own section and joins the one stream. It
+  // carries its OWN weight, DEALT (2026-08-26 soundness pass): a FAILING
+  // notice (a sliding day) still sorts above it, everything else defers,
+  // and that is now a comparison the sort makes, not an artifact of where
+  // this element sits in the array passed to rankStream.
   // The section answers ONE question at the top of the page. In the evening
   // there is no dealt card and the stream stays what it was: Heads Up.
   const upNextTop = !evening ? upNext?.[0] : undefined;
   const dealtRow = upNextTop ? (
-    <StreamMember key="dealt" weight={WAITING}>
+    <StreamMember key="dealt" weight={DEALT}>
       <TaskRow
         t={upNextTop}
         u={urgencyFor(upNextTop.data, today)}
@@ -418,7 +420,11 @@ export default function TodayPage({
         action={{ label: "Re-plan", onClick: freshStart }}
       />
     ) : null,
-    !offersQuiet ? <WeatherOfferRow key="weather" /> : null,
+    // AMBIENT (2026-08-26 soundness pass): the weather ask used to carry no
+    // weight and rode the ranker's generic fallback by omission. Explicit
+    // now, and named below that fallback -- a permission nag should never
+    // out-rank even a producer that forgot to declare a weight.
+    !offersQuiet ? <WeatherOfferRow key="weather" weight={AMBIENT} /> : null,
   ].filter(Boolean);
 
   return (

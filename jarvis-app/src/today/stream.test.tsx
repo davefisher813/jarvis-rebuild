@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { rankStream, FAILING, WAITING, NEW, RESUME } from "./stream";
+import { rankStream, FAILING, DEALT, WAITING, NEW, RESUME, AMBIENT } from "./stream";
 import NoticeCard from "./NoticeCard";
 import { Quiet } from "./quiet";
 import { cloneElement } from "react";
@@ -64,6 +64,43 @@ describe("the stream ranks", () => {
     const r = rankStream([]);
     expect(r.headliner).toBeNull();
     expect(r.rows).toEqual([]);
+  });
+
+  // SOUNDNESS PASS (2026-08-26, Dave: "the logic behind all of this needs to
+  // be sound"). The dealt task leading its band used to be true only because
+  // Your Move spliced it first into the array handed to rankStream, winning
+  // the arrival-order tie-break. That is a fact about ONE caller's code, not
+  // a fact this function guarantees. DEALT makes it a real weight comparison:
+  // built here with the dealt element placed LAST and still landing first,
+  // which the old array-order trick could never have produced.
+  it("the dealt task leads WAITING regardless of where it sits in the array", () => {
+    const r = rankStream([
+      card("bill", WAITING, "Rent Due Friday"),
+      card("report", WAITING, "Your July Is Ready"),
+      card("dealt", DEALT, "Brainstorm For App Design"),
+    ]);
+    expect(r.rows.map((x) => (x.props as { title: string }).title)).toEqual([
+      "Brainstorm For App Design", "Rent Due Friday", "Your July Is Ready",
+    ]);
+  });
+
+  it("FAILING still beats the dealt task -- a sliding day outranks any single move", () => {
+    const r = rankStream([card("dealt", DEALT, "The Move"), card("fail", FAILING, "Day Is Sliding")]);
+    expect(r.rows.map((x) => (x.props as { title: string }).title)).toEqual(["Day Is Sliding", "The Move"]);
+  });
+
+  // AMBIENT sits below the ranker's own DEFAULT_WEIGHT fallback (an
+  // unweighted card, which is always a bug -- nothing ships one on purpose):
+  // deliberately the least urgent thing in the stream ranks below an
+  // accident, never above it.
+  it("[edge] AMBIENT sinks below an unweighted (default-weight) member", () => {
+    const r = rankStream([
+      card("weather", AMBIENT, "Add Weather to Your Day"),
+      <NoticeCard key="mystery" icon={<span />} title="No Weight Declared" action={{ label: "Go", onClick: () => {} }} />,
+    ]);
+    expect(r.rows.map((x) => (x.props as { title?: string }).title)).toEqual([
+      "No Weight Declared", "Add Weather to Your Day",
+    ]);
   });
 });
 

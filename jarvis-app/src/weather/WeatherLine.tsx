@@ -47,7 +47,14 @@ const OFFER_KEY = "jarvis.weather.offer.v1";
 // strip-the-boxes test, which counted one un-rowed card in a stream that
 // promises zero. The form now passes through, and TodayPage clones this
 // component the same way it clones a bare NoticeCard.
-export function WeatherOfferRow({ form = "card" }: { form?: "card" | "row" }) {
+// `weight` is read by the stream's ranker (TodayPage passes AMBIENT), not by
+// this component -- same reason NoticeCard declares and voids it: rankStream
+// inspects the JSX element's own props without rendering it, so a prop that
+// exists only for that inspection still has to be part of the type (2026-08-26
+// soundness pass; this component's outer type has no weight of its own to
+// forward, which is exactly how it went unweighted in the first place).
+export function WeatherOfferRow({ form = "card", weight }: { form?: "card" | "row"; weight?: number }) {
+  void weight;
   const [state, setState] = useState<"offer" | "gone">(() => {
     try {
       if (readCoords()) return "gone";
