@@ -317,14 +317,28 @@ export default function TodayPage({
     </>
   );
 
+  // THE RECAP IS NOT A WALL (Dave's screenshot 2026-08-26: fifteen bare rows
+  // filling two screens at 10:35 PM). Evening shows the top of what is still
+  // open and folds the rest to a receipt, the same grammar Up Next and the
+  // email band already use. The full list is one tap away and tomorrow's
+  // planner is the real home for it; tonight is his.
+  const EVENING_TASKS_SHOWN = 5;
+  const shownTasks = evening ? tasks.slice(0, EVENING_TASKS_SHOWN) : tasks;
+  const foldedTasks = tasks.length - shownTasks.length;
   const tasksSection = tasks.length > 0 && (
     <>
       <div className="sh2 sh2-quiet"><span className="t">{evening ? "Still Open" : "Today’s Tasks"}</span><button className="see-all" onClick={onSeeAllTasks}>See All</button></div>
       <div>
         <div>
-          {tasks.map((t) => (
+          {shownTasks.map((t) => (
             <TaskRow key={t.id} t={t} u={evening ? null : urgencyFor(t.data, today)} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
           ))}
+          {foldedTasks > 0 && (
+            <button className="receipt-line" onClick={onSeeAllTasks}>
+              <span className="rl-t">{capAfterNumber(`${foldedTasks} More still open`)}</span>
+              <div className="chev" />
+            </button>
+          )}
         </div>
       </div>
       {evening && <div className="pad-x"><div className="input-help">{EVENING_TASKS_NOTE}</div></div>}

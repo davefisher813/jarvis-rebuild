@@ -111,6 +111,19 @@ describe("TodayPage", () => {
     expect(screen.getByText("Still Open")).toBeInTheDocument();
   });
 
+  it("evening folds a long Still Open list to five rows and a receipt", () => {
+    // Dave's screenshot (2026-08-26): fifteen bare rows at 10:35 PM. The
+    // recap shows the top five; the rest is a count that opens Tasks.
+    const many = Array.from({ length: 8 }, (_, i) => tk("t" + i, "2026-05-20"));
+    const { container } = render(
+      <TodayPage {...base}
+        evening={{ doneDue: 2, dueTotal: 3, eventsLeft: 0, openCount: 8, thingsDone: 2 }}
+        tasks={many} onUpNext={() => {}} />,
+    );
+    expect(container.querySelectorAll(".task-row").length).toBe(5);
+    expect(screen.getByText("3 More still open")).toBeInTheDocument();
+  });
+
   it("renders Your Day and Tomorrow sections", () => {
     render(<TodayPage {...base} />);
     expect(screen.getByText("Your Day")).toBeInTheDocument();
