@@ -45,6 +45,7 @@ export default function NoticeCard({
   // props are typed at every call site.
   weight,
   receipt,
+  anchor,
 }: {
   icon: ReactNode;
   // A cat-fg-* class. Color is the notice's category, never decoration.
@@ -80,8 +81,11 @@ export default function NoticeCard({
   uniform?: boolean;
   weight?: number;
   receipt?: boolean;
+  // Read only by rankStream (2026-08-26): marks the one element the stream
+  // should never wedge between two others. See stream.ts for the rule.
+  anchor?: boolean;
 }) {
-  void weight; void receipt;
+  void weight; void receipt; void anchor;
   const [expanded, setExpanded] = useState(false);
   const effForm = form === "row" && expanded ? "card" : form;
 

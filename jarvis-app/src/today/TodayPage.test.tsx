@@ -98,18 +98,24 @@ describe("TodayPage", () => {
     const streamRows = () =>
       container.querySelectorAll(".heads-up-stream .notice-vrow").length +
       container.querySelectorAll(".heads-up-stream .task-row").length;
-    // Folded: the FAILING notice, the dealt task, the WAITING notice.
+    // Shown: FAILING, WAITING, then NEW -- the three heaviest non-anchor
+    // members. The dealt task is DEALT-weight and the stream's anchor
+    // (2026-08-26, "I don't want a task wedged in between 2 arrows"):
+    // FAILING(90) outranks its 71, so the WHOLE notice block rides above
+    // it, not just FAILING, which pushes the anchor itself down to fold
+    // with the lightest notice (Old Thread) instead of riding mid-list.
     expect(streamRows()).toBe(3);
     expect(screen.getByText("Day Is Sliding")).toBeInTheDocument();
-    expect(screen.queryByText("Fresh Offer")).toBeNull();
+    expect(screen.getByText("Fresh Offer")).toBeInTheDocument();
     expect(screen.queryByText("Old Thread")).toBeNull();
+    expect(screen.queryByText("over")).toBeNull(); // the dealt task's title
     fireEvent.click(screen.getByText("See All"));
     expect(streamRows()).toBe(5);
-    expect(screen.getByText("Fresh Offer")).toBeInTheDocument();
     expect(screen.getByText("Old Thread")).toBeInTheDocument();
+    expect(screen.getByText("over")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Less"));
     expect(streamRows()).toBe(3);
-    expect(screen.queryByText("Fresh Offer")).toBeNull();
+    expect(screen.queryByText("over")).toBeNull();
   });
 
   it("rows down a pinned card too: one grammar, no exceptions in the stream", () => {
@@ -136,19 +142,26 @@ describe("TodayPage", () => {
     expect(group.querySelectorAll(".notice-card-row").length).toBe(1); // rows live in the group
   });
 
-  it("the dealt task leads its band: WAITING notices sort below it, FAILING above", () => {
+  // FIXED 2026-08-26: this fixture WAS Dave's screenshot -- a FAILING notice
+  // above, a WAITING notice below, the dealt task sorting in between them
+  // because plain-weight DEALT sits between the two. "I don't want a task
+  // wedged in between 2 arrows." The dealt task is now the stream's anchor:
+  // FAILING outranks it, so the WHOLE block (FAILING AND WAITING, not just
+  // the notice that outranks it) moves above, and the task trails both.
+  it("the dealt task no longer wedges between a FAILING notice and a WAITING one", () => {
     const notice = (title: string, weight: number) => (
       <NoticeCard key={title} weight={weight} icon={null} title={title} action={{ label: "Do It", onClick: () => {} }} />
     );
     const { container } = render(
-      <TodayPage {...base} upNext={[tk("over", "2026-05-18")]} upNextReason="Waiting 2 days"
+      <TodayPage {...base} offersQuiet upNext={[tk("over", "2026-05-18")]} upNextReason="Waiting 2 days"
         onUpNext={() => {}} notices={[notice("Money Waits", WAITING), notice("Day Is Sliding", FAILING)]} />,
     );
     const stream = container.querySelector(".heads-up-stream")!;
     const texts = stream.textContent!;
-    // FAILING first, then the dealt task, then the WAITING notice.
-    expect(texts.indexOf("Day Is Sliding")).toBeLessThan(texts.indexOf("over"));
-    expect(texts.indexOf("over")).toBeLessThan(texts.indexOf("Money Waits"));
+    // FAILING first, then WAITING, then the dealt task trailing both --
+    // never between them.
+    expect(texts.indexOf("Day Is Sliding")).toBeLessThan(texts.indexOf("Money Waits"));
+    expect(texts.indexOf("Money Waits")).toBeLessThan(texts.indexOf("over"));
   });
 
   it("shows today's birthdays above Up Next, and nothing on ordinary days", () => {

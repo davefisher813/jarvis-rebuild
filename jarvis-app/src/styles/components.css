@@ -2687,6 +2687,15 @@ button {
    same 44px slot the task check-tap owns, so every fact starts at the same
    x whether its row is a task or a notice. */
 .stream-grouped .notice-vrow .notice-disc { margin: 0 7px; }
+/* TASK OR NOTICE, BY SHAPE (Dave 2026-08-26, task-vs-notice catalog: "Option
+   1 works"). The dealt task's check is a circle everywhere the app shows
+   one; the notice disc was ALSO a circle, so in a stream that mixes both
+   there was nothing to read pre-attentively -- the words had to do it.
+   Shape splits them at a glance instead. Scoped to .stream-grouped only:
+   mail notices, Fresh Start, and every other notice-disc elsewhere in the
+   app keep their familiar circle. This is the one stream that mixes a task
+   with notices; nowhere else needs the distinction. */
+.stream-grouped .notice-vrow .notice-disc { border-radius: 9px; }
 /* Inset hairlines between rows, to the shared text edge, like every other
    grouped list in the app. Receipts live under the card, quiet as ever. */
 .stream-card > .pad-x { position: relative; }

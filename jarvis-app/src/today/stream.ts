@@ -46,18 +46,41 @@ export interface Ranked {
 }
 
 export function rankStream(children: ReactNode): Ranked {
-  const ranked: { el: ReactElement; w: number; i: number }[] = [];
+  const ranked: { el: ReactElement; w: number; i: number; anchor: boolean }[] = [];
   const receipts: ReactElement[] = [];
   let i = 0;
   Children.forEach(children, (c) => {
     if (!isValidElement(c)) return;
-    const p = c.props as { weight?: number; receipt?: boolean; "data-receipt"?: unknown };
+    const p = c.props as { weight?: number; receipt?: boolean; "data-receipt"?: unknown; anchor?: boolean };
     if (p.receipt || p["data-receipt"] !== undefined) { receipts.push(c); return; }
     // Stable sort by weight, arrival order breaking ties, so two same-band
     // notices keep the producer's own priority.
-    ranked.push({ el: c, w: p.weight ?? DEFAULT_WEIGHT, i: i++ });
+    ranked.push({ el: c, w: p.weight ?? DEFAULT_WEIGHT, i: i++, anchor: p.anchor === true });
   });
-  ranked.sort((a, b) => b.w - a.w || a.i - b.i);
+  const byWeight = (a: { w: number; i: number }, b: { w: number; i: number }) => b.w - a.w || a.i - b.i;
+
+  // AN ANCHOR NEVER WEDGES (Dave 2026-08-26, from a screenshot: "I don't
+  // want a task wedged in between 2 arrows"). Plain weight order put the
+  // dealt task wherever its weight fell that day, and DEALT sits BETWEEN
+  // WAITING and FAILING on purpose -- so on any day with one notice heavier
+  // and one notice lighter than it, the task lands in the middle. That is
+  // not a sorting bug, it is what a fixed point in the middle of a range
+  // does; no amount of tie-break tuning fixes it, because it is not a tie.
+  //
+  // The rule an anchor gets instead: does ANYTHING here outrank it today?
+  // If nothing does, it leads and every notice follows as one weight-sorted
+  // block. If anything does, the whole block moves above it, not just the
+  // one notice that outranks it, and the anchor trails. It sits at one
+  // edge of the stream, never between two others; which edge is the only
+  // thing the day decides.
+  const anchor = ranked.find((r) => r.anchor);
+  if (anchor) {
+    const others = ranked.filter((r) => r !== anchor).sort(byWeight);
+    const outranked = others.some((o) => o.w > anchor.w);
+    const rows = outranked ? [...others, anchor] : [anchor, ...others];
+    return { headliner: null, rows: rows.map((r) => r.el), receipts };
+  }
+  ranked.sort(byWeight);
   // EVERY NOTICE IS A ROW (Dave 2026-08-25, from a screenshot of three cards
   // at three heights: "Why are the heads up containers different sizes? They
   // should all be the size of update workout feature").

@@ -73,11 +73,17 @@ describe("the stream ranks", () => {
   // a fact this function guarantees. DEALT makes it a real weight comparison:
   // built here with the dealt element placed LAST and still landing first,
   // which the old array-order trick could never have produced.
+  //
+  // These two also mark the dealt fixture `anchor: true` now, matching
+  // what StreamMember actually passes in TodayPage.tsx. With only WAITING
+  // (below DEALT) or only FAILING (above DEALT) in the mix, anchor and
+  // plain weight order agree, so these two do not yet prove the anchor
+  // mechanism itself -- the "wedged" tests below do that.
   it("the dealt task leads WAITING regardless of where it sits in the array", () => {
     const r = rankStream([
       card("bill", WAITING, "Rent Due Friday"),
       card("report", WAITING, "Your July Is Ready"),
-      card("dealt", DEALT, "Brainstorm For App Design"),
+      cloneElement(card("dealt", DEALT, "Brainstorm For App Design"), { anchor: true }),
     ]);
     expect(r.rows.map((x) => (x.props as { title: string }).title)).toEqual([
       "Brainstorm For App Design", "Rent Due Friday", "Your July Is Ready",
@@ -85,8 +91,59 @@ describe("the stream ranks", () => {
   });
 
   it("FAILING still beats the dealt task -- a sliding day outranks any single move", () => {
-    const r = rankStream([card("dealt", DEALT, "The Move"), card("fail", FAILING, "Day Is Sliding")]);
+    const r = rankStream([
+      cloneElement(card("dealt", DEALT, "The Move"), { anchor: true }),
+      card("fail", FAILING, "Day Is Sliding"),
+    ]);
     expect(r.rows.map((x) => (x.props as { title: string }).title)).toEqual(["Day Is Sliding", "The Move"]);
+  });
+
+  // AN ANCHOR NEVER WEDGES (2026-08-26, Dave's screenshot: a FAILING notice
+  // above, a lighter notice below, the dealt task pinned in the middle --
+  // "I don't want a task wedged in between 2 arrows"; resolved as "task
+  // leads, urgent notices can still jump it"). Reproduced here exactly:
+  // FAILING outranks DEALT, NEW does not. A naive per-element check ("does
+  // THIS notice outrank the anchor?") would leave FAILING above and NEW
+  // below, putting the anchor right back in the middle. It has to move as
+  // one block.
+  it("[edge] one heavier notice pulls the whole block above the anchor, not just itself", () => {
+    const r = rankStream([
+      cloneElement(card("dealt", DEALT, "The Move"), { anchor: true }),
+      card("fail", FAILING, "Day Is Sliding"),
+      card("new", NEW, "3 Moved to Today"),
+    ]);
+    expect(r.rows.map((x) => (x.props as { title: string }).title)).toEqual([
+      "Day Is Sliding", "3 Moved to Today", "The Move",
+    ]);
+  });
+
+  // Stronger than the above: WAITING sits only ONE point below DEALT, the
+  // closest a non-anchor weight gets without tying it, so this is the case
+  // most likely to survive a bug that only moves elements strictly heavier
+  // than the anchor. It still has to ride up with FAILING and NEW, sorted
+  // among themselves, because the rule is "does anything outrank the
+  // anchor", not "does this element outrank the anchor".
+  it("[edge] a notice lighter than the anchor still rides up with the ones that outrank it", () => {
+    const r = rankStream([
+      cloneElement(card("dealt", DEALT, "The Move"), { anchor: true }),
+      card("wait", WAITING, "Rent Due Friday"),
+      card("fail", FAILING, "Day Is Sliding"),
+      card("new", NEW, "3 Moved to Today"),
+    ]);
+    expect(r.rows.map((x) => (x.props as { title: string }).title)).toEqual([
+      "Day Is Sliding", "Rent Due Friday", "3 Moved to Today", "The Move",
+    ]);
+  });
+
+  it("[edge] with nothing to outrank it the anchor leads, and the rest still sort by weight behind it", () => {
+    const r = rankStream([
+      card("new", NEW, "3 Moved to Today"),
+      cloneElement(card("dealt", DEALT, "The Move"), { anchor: true }),
+      card("resume", RESUME, "Pick Up Report"),
+    ]);
+    expect(r.rows.map((x) => (x.props as { title: string }).title)).toEqual([
+      "The Move", "3 Moved to Today", "Pick Up Report",
+    ]);
   });
 
   // AMBIENT sits below the ranker's own DEFAULT_WEIGHT fallback (an

@@ -39,7 +39,7 @@ const URGENCY_CLASS: Record<UrgencyKind, string> = {
 // A stream member that is not a NoticeCard: carries the weight rankStream
 // reads, renders only its children, so a TaskRow can ride the one stream
 // without wearing notice clothes (Your Move, 2026-08-26).
-function StreamMember(props: { weight: number; children: ReactNode }) {
+function StreamMember(props: { weight: number; anchor?: boolean; children: ReactNode }) {
   return <>{props.children}</>;
 }
 
@@ -299,15 +299,19 @@ export default function TodayPage({
 
   // YOUR MOVE (Combine B from the Up Next catalog, resumed 2026-08-26).
   // The dealt task stops being its own section and joins the one stream. It
-  // carries its OWN weight, DEALT (2026-08-26 soundness pass): a FAILING
-  // notice (a sliding day) still sorts above it, everything else defers,
-  // and that is now a comparison the sort makes, not an artifact of where
-  // this element sits in the array passed to rankStream.
+  // carries its OWN weight, DEALT (2026-08-26 soundness pass), AND it is the
+  // stream's anchor (2026-08-26, Dave's screenshot: "I don't want a task
+  // wedged in between 2 arrows" -- resolved as "task leads, urgent notices
+  // can still jump it"). Weight alone put it wherever DEALT fell that day,
+  // which on a day with one heavier and one lighter notice is the middle;
+  // anchor tells rankStream to keep it at an edge instead -- leading unless
+  // something outranks it, in which case the WHOLE notice block moves above
+  // it together. See stream.ts for the rule.
   // The section answers ONE question at the top of the page. In the evening
   // there is no dealt card and the stream stays what it was: Heads Up.
   const upNextTop = !evening ? upNext?.[0] : undefined;
   const dealtRow = upNextTop ? (
-    <StreamMember key="dealt" weight={DEALT}>
+    <StreamMember key="dealt" weight={DEALT} anchor>
       <TaskRow
         t={upNextTop}
         u={urgencyFor(upNextTop.data, today)}
