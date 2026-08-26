@@ -2648,12 +2648,16 @@ button {
   background-color: var(--surface-1);
   backdrop-filter: none; -webkit-backdrop-filter: none; }
 .notice-card.swiping { transition: none; }
-.notice-dismiss, .notice-alt { position: absolute; top: 0; bottom: 0; width: 88px; border: 0;
+.notice-dismiss, .notice-alt, .notice-delete { position: absolute; top: 0; bottom: 0; width: 88px; border: 0;
   font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi);
   display: flex; align-items: center; justify-content: center; }
 .notice-dismiss { right: 0; background: var(--press-3); color: var(--tx-2); }
 .notice-alt { right: 0; background: var(--accent-chip); color: var(--accent-chip-tx); }
-.notice-alt.beside-dismiss { right: 88px; }
+/* Trashes the mail itself, not just the card (2026-08-26). Outermost slot,
+   same edge Delete sits at on a real inbox row (MailSwipe) -- a swipe
+   should feel identical everywhere it fires. Red, because this one is
+   the actual destructive action; Dismiss only ever hides the card. */
+.notice-delete { right: 0; background: var(--red); color: #fff; }
 
 /* ONE CARD, THREE ROWS (Dave 2026-08-26, twice in one morning). First pick,
    from the five-way render catalog: "Option 1 with a limit" -- one-line

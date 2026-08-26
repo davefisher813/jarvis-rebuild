@@ -48,6 +48,7 @@ import { cardDraftJob } from "../messages/cardDraftJob";
 import { DUR_CHOICES } from "../schedule/durations";
 import { cachedDraft, pregenerate, rememberDraft, PREGEN_CAP } from "../ai/pregen";
 import { loadNudgeCounts, countNudge } from "../messages/escalate";
+import { settleAll } from "../messages/settle";
 import { decide } from "../messages/mailAction";
 import { clearChase } from "../messages/followUp";
 import { planFromBlock } from "../tasks/ifThen";
@@ -58,7 +59,7 @@ import { proposeFirstMove, nextStart, endsAt, ritualIsReady, whyNotReady, LENGTH
 import RitualSheet from "../tasks/screens/RitualSheet";
 import { bestPerBlock, blockKind, recordBlend, loadBlendMemory } from "../schedule/blend";
 import type { BlendMap } from "./YourDay";
-import { loadMailSnapshot, mailNotices } from "../messages/home";
+import { loadMailSnapshot, mailNotices, type MailNotice } from "../messages/home";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
@@ -1660,6 +1661,28 @@ export default function TodayFlow({
     }
   };
 
+  // Trashes the mail behind a Today notice (2026-08-26, Dave: "I should be
+  // able to delete from here"). Dismiss already existed and only ever hid
+  // the card; the email stayed put and the notice came back on the next
+  // snapshot refresh, which is not what "delete" means to him.
+  // Same shape as MessagesFlow's own trashThread: settleAll so a failure is
+  // never swallowed into a false receipt (the LAW below requires it for
+  // every mail write in this file), and an undo that puts the thread back
+  // in Gmail's inbox, not just back on screen.
+  const deleteFromCard = async (n: MailNotice): Promise<{ ok: boolean; undo?: () => Promise<void> } | null> => {
+    const api = mailApiFor(n.threadId);
+    if (!api) return null;
+    const { ok } = await settleAll([n.threadId], () => api.trashThread(n.threadId));
+    if (!ok.length) return { ok: false };
+    return {
+      ok: true,
+      undo: async () => {
+        const { failed } = await settleAll([n.threadId], () => api.untrashThread(n.threadId));
+        if (failed.length) showToast({ message: "Couldn't put it back · Still in trash" });
+      },
+    };
+  };
+
   // N1: one tap books the slot, replies accepting it in his own words, and
   // blocks the time. Order matters: the CALENDAR write happens first, because
   // an accepted invitation with nothing in the diary is the exact failure
@@ -1848,6 +1871,7 @@ export default function TodayFlow({
           onTakeMeeting={google.hasToken ? takeMeeting : undefined}
           onTakeAct={takeAct}
           onSend={google.hasToken ? sendFromCard : undefined}
+          onDelete={google.hasToken ? deleteFromCard : undefined}
           onAddTask={addTaskFromMail}
           onOpenThread={onGoEmail ? (id) => onGoEmail(id) : undefined}
           onOpenDraft={onGoEmail ? (id) => onGoEmail(undefined, id) : undefined}

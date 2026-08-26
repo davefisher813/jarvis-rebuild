@@ -37,6 +37,7 @@ export default function NoticeCard({
   action,
   alt,
   onDismiss,
+  onDelete,
   onOpen,
   foot,
   form = "card",
@@ -60,6 +61,12 @@ export default function NoticeCard({
   // swipe reveal elsewhere.
   alt?: NoticeAction;
   onDismiss?: () => void;
+  // Trashes the underlying mail, not just this card (2026-08-26, Dave: "I
+  // should be able to delete from here"). Separate from onDismiss, which
+  // only ever hid the notice and left the email exactly where it was, a
+  // distinction the swipe reveal never surfaced, so he read "Dismiss" as
+  // "make it go away" and found the email still sitting in his inbox.
+  onDelete?: () => void;
   onOpen?: () => void;
   // Extra rows below the main line, inside the same card (the email stack).
   foot?: ReactNode;
@@ -139,7 +146,7 @@ export default function NoticeCard({
   // Headliners show alt beside the primary, so the swipe carries only
   // Dismiss there; other forms keep alt on the reveal.
   const altOnReveal = effForm === "headliner" ? undefined : alt;
-  const acts = (altOnReveal ? 1 : 0) + (onDismiss ? 1 : 0);
+  const acts = (altOnReveal ? 1 : 0) + (onDismiss ? 1 : 0) + (onDelete ? 1 : 0);
   const swipe = useSwipe({ revealW: acts * 88, enabled: acts > 0 });
 
   const subNode = sub != null && (typeof sub === "string" ? <Quiet s={sub} heat={heat} /> : sub);
@@ -241,20 +248,45 @@ export default function NoticeCard({
       </>
     );
 
+  // Slot order matches MailSwipe's own reveal (Delete outermost, at the
+  // edge you meet first): a swipe should feel the same wherever it fires.
+  // Offsets are computed rather than hardcoded because a notice can carry
+  // any subset of the three (a plain reminder has only Dismiss; a mail
+  // notice can carry all three), and a fixed "beside-dismiss"-style class
+  // per pair does not scale past two.
+  let slot = 0;
+  const deleteRight = onDelete ? slot++ * 88 : 0;
+  const dismissRight = onDismiss ? slot++ * 88 : 0;
+  const altRight = altOnReveal ? slot++ * 88 : 0;
+
   return (
     <div className="pad-x">
       <div className="notice-swipe">
         {altOnReveal && (
           <button
-            className={"notice-alt" + (onDismiss ? " beside-dismiss" : "")}
+            className="notice-alt"
+            style={altRight ? { right: altRight } : undefined}
             onClick={() => swipe.closeThen(altOnReveal.onClick)}
           >
             {altOnReveal.label}
           </button>
         )}
         {onDismiss && (
-          <button className="notice-dismiss" onClick={() => swipe.closeThen(onDismiss)}>
+          <button
+            className="notice-dismiss"
+            style={dismissRight ? { right: dismissRight } : undefined}
+            onClick={() => swipe.closeThen(onDismiss)}
+          >
             Dismiss
+          </button>
+        )}
+        {onDelete && (
+          <button
+            className="notice-delete"
+            style={deleteRight ? { right: deleteRight } : undefined}
+            onClick={() => swipe.closeThen(onDelete)}
+          >
+            Delete
           </button>
         )}
         <div

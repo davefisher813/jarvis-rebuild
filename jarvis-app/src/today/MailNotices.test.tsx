@@ -71,3 +71,67 @@ describe("MailNotices: Clear All", () => {
     expect(container.querySelectorAll(".pad-x")).toHaveLength(0);
   });
 });
+
+// THE DELETE SWIPE (2026-08-26). Dave, off a real screenshot: "I should be
+// able to delete from here." Dismiss already sat on the swipe and only ever
+// hid the card -- the email stayed exactly where it was, and this same
+// notice came back on the next snapshot refresh. onDelete is wired through
+// to a real Gmail trash by the caller (TodayFlow); this file only owns the
+// card-side contract -- clear on a true success, stay put and say so on a
+// false one, and never touch the card on a network throw the caller
+// couldn't resolve to either.
+describe("MailNotices: Delete", () => {
+  beforeEach(() => localStorage.clear());
+
+  it("Delete is absent with no onDelete prop -- the pre-existing behavior for every caller that hasn't wired it up", () => {
+    saveMailSnapshot(snap({ needsYou: 1, threads: [thread("t1", "Nadia Brandt", "invoice attached")] }));
+    const { container } = render(<MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />);
+    expect(container.querySelector(".notice-delete")).toBeNull();
+  });
+
+  it("clears the card on a true success", async () => {
+    saveMailSnapshot(snap({ needsYou: 1, threads: [thread("t1", "Nadia Brandt", "invoice attached")] }));
+    const { container } = render(
+      <MailNotices
+        today={TODAY}
+        nowHHMM="09:00"
+        onAddTask={async () => true}
+        onDelete={async () => ({ ok: true })}
+      />,
+    );
+    expect(container.querySelectorAll(".pad-x")).toHaveLength(1);
+    fireEvent.click(container.querySelector(".notice-delete")!);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container.querySelectorAll(".pad-x")).toHaveLength(0);
+  });
+
+  it("leaves the card exactly where it was on a false result -- a failed trash is not a hidden one", async () => {
+    saveMailSnapshot(snap({ needsYou: 1, threads: [thread("t1", "Nadia Brandt", "invoice attached")] }));
+    const { container } = render(
+      <MailNotices
+        today={TODAY}
+        nowHHMM="09:00"
+        onAddTask={async () => true}
+        onDelete={async () => ({ ok: false })}
+      />,
+    );
+    fireEvent.click(container.querySelector(".notice-delete")!);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container.querySelectorAll(".pad-x")).toHaveLength(1);
+  });
+
+  it("leaves the card in place when the account cannot be resolved (null)", async () => {
+    saveMailSnapshot(snap({ needsYou: 1, threads: [thread("t1", "Nadia Brandt", "invoice attached")] }));
+    const { container } = render(
+      <MailNotices
+        today={TODAY}
+        nowHHMM="09:00"
+        onAddTask={async () => true}
+        onDelete={async () => null}
+      />,
+    );
+    fireEvent.click(container.querySelector(".notice-delete")!);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(container.querySelectorAll(".pad-x")).toHaveLength(1);
+  });
+});

@@ -49,6 +49,7 @@ export default function MailNotices({
   onSend,
   onTakeMeeting,
   onTakeAct,
+  onDelete,
   max = 3,
 }: {
   today: string;
@@ -82,6 +83,11 @@ export default function MailNotices({
   // back. null means nothing landed, and the card says so rather than
   // claiming a save.
   onTakeAct?: (a: MailAct, threadId: string) => Promise<{ receipt: string; undo?: () => Promise<void> } | null>;
+  // Trashes the mail itself (2026-08-26, Dave: "I should be able to delete
+  // from here"). Dismiss, above, only ever hid the card; the email stayed
+  // in the inbox and this notice reappeared the next time the snapshot
+  // refreshed. null means no account could be resolved for the thread.
+  onDelete?: (n: MailNotice) => Promise<{ ok: boolean; undo?: () => Promise<void> } | null>;
   max?: number;
 }) {
   const [hidden, setHidden] = useState<string[]>(() => loadDismissed(today));
@@ -195,6 +201,30 @@ export default function MailNotices({
     }
   };
 
+  // Same shape as onTakeAct just above it: a real receipt, undo where the
+  // mutation supports one, and the card only clears on a confirmed success
+  // so a failed trash never quietly disappears from Today while sitting
+  // untouched in Gmail.
+  const remove = (n: MailNotice) => {
+    if (!onDelete) return;
+    haptics.selection();
+    setBusy(n.key);
+    void (async () => {
+      const done = await onDelete(n);
+      setBusy(null);
+      if (!done || !done.ok) {
+        showToast({ message: "Couldn't delete it · Still in your inbox" });
+        return;
+      }
+      setDone((d) => [...d, n.key]);
+      setDrafts((d) => { const x = { ...d }; delete x[n.key]; return x; });
+      showToast({
+        message: "Deleted · In trash 30 days",
+        ...(done.undo ? { actionLabel: "Undo", onAction: () => { void done.undo!(); setDone((d) => d.filter((k) => k !== n.key)); } } : {}),
+      });
+    })();
+  };
+
   const send = async (n: MailNotice, body: string) => {
     if (!body.trim()) return;
     haptics.selection();
@@ -265,6 +295,7 @@ export default function MailNotices({
               onClick: () => { haptics.selection(); setSnoozed(snoozeNotice(n.key, choices[0]!.at, today)); },
             } : undefined}
             onDismiss={() => { haptics.selection(); setHidden(dismissNotice(n.key, today)); }}
+            onDelete={onDelete ? () => remove(n) : undefined}
             onOpen={onOpenThread ? () => onOpenThread(n.threadId) : undefined}
             foot={
               <>
