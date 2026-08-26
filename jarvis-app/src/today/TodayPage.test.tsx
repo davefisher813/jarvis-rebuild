@@ -128,7 +128,12 @@ describe("TodayPage", () => {
     expect(stream.querySelectorAll(".notice-card-row").length).toBe(1);
     // nothing in the stream kept the card form (the box only returns on tap)
     expect(stream.querySelectorAll(".notice-card:not(.notice-card-row)").length).toBe(0);
-    expect(stream.classList.contains("stream-bare")).toBe(true); // the boxes are stripped by the stream's own class
+    // the rows ride inside ONE grouped card, the page's own material
+    // (Dave 2026-08-26: bare rows "don't look like the rest of the home page")
+    expect(stream.classList.contains("stream-grouped")).toBe(true);
+    const group = stream.querySelector(".card.stream-card")!;
+    expect(group).toBeTruthy();
+    expect(group.querySelectorAll(".notice-card-row").length).toBe(1); // rows live in the group
   });
 
   it("the dealt task leads its band: WAITING notices sort below it, FAILING above", () => {

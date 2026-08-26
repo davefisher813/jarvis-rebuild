@@ -504,18 +504,26 @@ export default function TodayPage({
                 </button>
               )}
             </div>
-            <div className="heads-up-stream stream-bare">
-              {/* THE PINNED CARD IS REPEALED, IN THE STREAM (Dave
-                  2026-08-26, picking Option 1 with the tradeoff stated:
-                  long titles truncate to one line, tap opens the full
-                  thing). The pin existed so user-written titles could wrap;
-                  the row's tap-to-expand already carries that need, one tap
-                  later. Every member rows down, no exceptions; the dealt
-                  task passes through untouched because a task row is
-                  already the uniform. */}
-              {shownRows.map((r) => (r.type === NoticeCard || r.type === WeatherOfferRow
-                ? cloneElement(r, { form: "row" })
-                : r))}
+            <div className="heads-up-stream stream-grouped">
+              {/* ONE CARD, THREE ROWS (Dave 2026-08-26: bare rows "don't
+                  look like the rest of the home page"). The rows keep
+                  Option 1's economy and ride inside one grouped card, the
+                  same material as every other band on Today. */}
+              {shownRows.length > 0 && (
+                <div className="card stream-card">
+                  {/* THE PINNED CARD IS REPEALED, IN THE STREAM (Dave
+                      2026-08-26, picking Option 1 with the tradeoff stated:
+                      long titles truncate to one line, tap opens the full
+                      thing). The pin existed so user-written titles could
+                      wrap; the row's tap-to-expand already carries that
+                      need, one tap later. Every member rows down, no
+                      exceptions; the dealt task passes through untouched
+                      because a task row is already the uniform. */}
+                  {shownRows.map((r) => (r.type === NoticeCard || r.type === WeatherOfferRow
+                    ? cloneElement(r, { form: "row" })
+                    : r))}
+                </div>
+              )}
               {waitingReceipt}
               {ranked.receipts}
             </div>
