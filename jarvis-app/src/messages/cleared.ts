@@ -60,7 +60,14 @@ export function bumpCleared(todayISO: string, by = 1): number {
 // Order matters: the achievement goes first when there is one, and when
 // there is not, the line opens with the state of the inbox instead of with a
 // zero.
-export function closeOut(cleared: number, left: number, pressing: number): { title: string; sub: string } {
+// Returns null when there is nothing true to say. Dave's screen 2026-08-26:
+// "Nothing Needs You" as the headline with "3 Still need you" directly under
+// it, because the title's zero-cleared fallback claimed peace the sub then
+// denied. When nothing was cleared and things still need him, the Needs You
+// section above already says so, and a close-out that contradicts it earns
+// its absence.
+export function closeOut(cleared: number, left: number, pressing: number): { title: string; sub: string } | null {
+  if (cleared <= 0 && pressing > 0) return null;
   const title = cleared > 0
     ? cleared + " Cleared Today"
     : "Nothing Needs You";

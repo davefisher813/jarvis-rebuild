@@ -42,7 +42,7 @@ import { recordSweepDay, loadSweepDays, streakView, receiptLines, type SweepRece
 import ListFloor from "../shared/ListFloor";
 import { senderPiles, selectedCount, selectedIds, purgeLabel, purgePromise, defaultPicks } from "./purge";
 import { readIcs } from "./ics";
-import { isNoReply, isBulk } from "./noReply";
+import { isNoReply, isBulk , isMachineAddress } from "./noReply";
 import { humanError } from "../connections/google/humanError";
 import { endOfAct } from "./mailAct";
 import { dayPhrase, monthDay } from "../money/bills";
@@ -2513,13 +2513,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       {/* Reserved column: read and unread rows share one text edge. */}
       {selecting ? (
         <span className={"cb" + (picked!.has(r.id) ? " on" : "")} aria-label={picked!.has(r.id) ? "Picked" : "Not picked"}>{picked!.has(r.id) ? "\u2713" : ""}</span>
-      ) : effTriage[r.id]?.bucket === "noise" || isNoReply(r.fromEmail) ? (
+      ) : effTriage[r.id]?.bucket === "noise" || isMachineAddress(r.fromEmail) ? (
         // 8A: a machine keeps the hairline rail. The signal is the triage
         // bucket plus the no-reply address rule, which is exactly the
         // knowledge the app already had and never spent: List-Unsubscribe is
         // not on ThreadRow (the list is built from thread metadata), so
         // reaching for it here would have meant a header fetch per row.
-        <span className={railClass(r.unread, railToneForDeadline(effTriage[r.id]?.by))} aria-label={r.unread ? "unread" : undefined}></span>
+        // A machine's rail lights for a DEADLINE (a bill due is a real
+        // tone) but never for mere unreadness: six unread promos wearing six
+        // solid red rails was a red status column down the whole All tab,
+        // which is L1's exact sin. Unread still bolds the headline.
+        <span className={railClass(false, railToneForDeadline(effTriage[r.id]?.by))} aria-label={r.unread ? "unread" : undefined}></span>
       ) : (
         // 8A: A PERSON GETS A FACE. Warm, stable per sender, and big enough
         // that your eyes triage the list before your brain has to read it.
@@ -2838,10 +2842,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div><div className="list-flat">
                 {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist))}
               </div></div>
-              {/* L2: the list ends somewhere and says so. The residual is
-                  named in words with its reason, never as a bare count
-                  hanging under the last row. */}
-              <ListFloor count={restCount > 0 ? restCount : undefined} />
+              {/* L2: the list ends somewhere and says so. This floor once
+                  carried count={restCount}, which printed "27 more are
+                  waiting for next time" under a COMPLETE list of three:
+                  those 27 were The Rest, a different list with its own pill
+                  a scroll below. A floor may only count what it is the
+                  floor OF. */}
+              <ListFloor>That&rsquo;s every one that needs you.</ListFloor>
             </>
           )}
           {waiting.length > 0 && (() => {
@@ -3151,6 +3158,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               this screen. A zero is not dressed up as an achievement. */}
           {triageState === "ready" && (() => {
             const line = closeOut(cleared, rows.length, needsYou.length);
+            // Null means there is nothing true to say: nothing cleared and
+            // things still owed. The Needs You section already carries that.
+            if (!line) return null;
             return (
               <div className="pad-x close-out">
                 <div className="close-title">{line.title}</div>

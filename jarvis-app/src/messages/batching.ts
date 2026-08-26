@@ -22,7 +22,7 @@
 //     with every window visible and editable, never a stray tap on a row.
 //   - Every window is his: start, length, and which days the feature runs.
 
-import { AUTOMATED_ADDRESS } from "./noReply";
+import { isMachineAddress } from "./noReply";
 import { capAfterNumber } from "../shared/casing";
 
 const KEY_V1 = "jarvis.mail.windows.v1";
@@ -212,7 +212,7 @@ export function peekLine(
     const isVipRow = vip.has(email);
     // A machine is not a person. A VIP is a person even if the address
     // pattern says otherwise, because the VIP rule outranks every guess.
-    if (!isVipRow && (AUTOMATED_ADDRESS.test(email) || buckets[r.id]?.bucket === "noise")) continue;
+    if (!isVipRow && (isMachineAddress(email) || buckets[r.id]?.bucket === "noise")) continue;
     const prev = people.get(email);
     const urgent = isVipRow || buckets[r.id]?.bucket === "needs_you";
     if (prev) { prev.urgent = prev.urgent || urgent; continue; }

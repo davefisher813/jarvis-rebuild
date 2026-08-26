@@ -39,7 +39,13 @@ export default function MailSwipe({
         <span className="swipe-label">Delete</span>
       </button>
       <div
-        className={"task-row" + (swipe.dragging ? " swiping" : "")}
+        // swipe-shell: .task-row is in the shared row-padding rule because in
+        // Tasks it IS the row. Here it merely carries a .row that brings its
+        // own padding, and the two stacked into 24px of dead space around
+        // every mail row: the giant black gaps in Dave's 2026-08-26
+        // screenshots, present since B13 wrapped rows and invisible to a walk
+        // that measured .row instead of the block that contains it.
+        className={"task-row swipe-shell" + (swipe.dragging ? " swiping" : "")}
         style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
         {...swipe.handlers}
       >

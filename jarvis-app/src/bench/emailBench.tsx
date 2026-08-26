@@ -72,6 +72,20 @@ const THREADS: GmailThreadMeta[] = [
   { id: "t_li", messages: [
     msg("m9", "LinkedIn <messages-noreply@linkedin.com>", "You have 3 new notifications", "See who viewed your profile", ["INBOX"], NOW - 9 * H),
   ] },
+  // Dave's own inbox, 2026-08-26: the rows on screen when every row rendered
+  // 150 to 250px tall on his phone. The common thread in the real four is
+  // snippets shaped like marketing plumbing: emoji, long unbroken runs, and
+  // Gmail's snippet field carrying encoded whitespace (&#8203; zero-width,
+  // \u00a0 runs, \r\n pairs) that the API passes through verbatim.
+  { id: "t_tiktok", messages: [
+    msg("m_tt", "TikTok <noreply@account.tiktok.com>", "anessajuleisy reposted: 6 meses. La extra\u00f1o t\u00eda. \u2764\ufe0f\ud83e\udd72", "anessajuleisy reposted: 6 meses. La extra\u00f1o t\u00eda. \u2764\ufe0f\ud83e\udd72 \r\n\r\n\r\n\r\n \u00a0 \u00a0 \u00a0\r\n\r\n Watch now \r\n\r\n\r\n", ["INBOX", "UNREAD"], NOW - 1 * H),
+  ] },
+  { id: "t_bowery", messages: [
+    msg("m_bw", "The Bowery Presents <noreply@mail.bowerypresents.com>", "Mannequin P*ssy, Remi Wolf, Tobiahs, Nia Archives, bunii, TEN, and more shows on sale this week", "Mannequin P*ssy, Remi Wolf, Tobiahs, Nia Archives, bunii, TEN, and more shows on sale this week&#8203;&#8203;&#8203;&#8203;&#8203;&#8203;&#8203; \u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0 ", ["INBOX", "UNREAD"], NOW - 3 * H),
+  ] },
+  { id: "t_crexi", messages: [
+    msg("m_cx", "Crexi <alerts@crexi.com>", "12 new properties recommended for you", "12 new properties recommended for you\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c\u200c", ["INBOX", "UNREAD"], NOW - 30 * 60000),
+  ] },
   { id: "t_sub", messages: [
     msg("m10", "Lenny's Newsletter <lenny@substack.com>", "How to price your product", "This week: pricing strategies", ["INBOX"], NOW - 50 * H),
   ] },

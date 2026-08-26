@@ -18,6 +18,24 @@
 // not say "noreply" but are just as deaf.
 export const AUTOMATED_ADDRESS = /no-?reply|donotreply|do-not-reply|notifications?@|mailer-daemon|postmaster@|bounce|@docs\.|@calendar-server\./i;
 
+// The wider net for PRESENTATION decisions only (2026-08-26). Dave's inbox:
+// Custom Ink, Crexi and Northlake all wore warm human discs, because their
+// addresses (marketing@, alerts@, news@) say nothing about replies and the
+// face rule only knew AUTOMATED_ADDRESS. These locals are the bulk-mail
+// trade's uniform; no colleague writes from promo@.
+//
+// Deliberately NOT here: info@, hello@, support@, team@, office@. Small
+// businesses and doctors' offices write real mail from those, and a person
+// misfiled as a machine is a worse error than a machine wearing a face.
+// This regex also never gates BEHAVIOR (replies, archiving): it decides how
+// a row DRESSES, and the reply plumbing keeps its own narrower rule above.
+export const BULK_ADDRESS = /alerts?@|news@|newsletters?@|marketing@|promos?@|promotions?@|offers?@|deals@|sales@|digest@|updates?@|billing@|receipts?@|invoices?@|store@|shop@|email@|mail@|hi@|events@/i;
+
+/** A machine for PRESENTATION: rails, faces, and the peek's people count. */
+export function isMachineAddress(fromEmail: string): boolean {
+  return AUTOMATED_ADDRESS.test(fromEmail) || BULK_ADDRESS.test(fromEmail);
+}
+
 // What the message says about itself. A sender using a perfectly ordinary
 // address can still open with "do not reply to this message", and that
 // sentence is more reliable than any address heuristic.

@@ -72,3 +72,16 @@ describe("nameFor", () => {
     expect(nameFor(book, "unknown@x.com", "Ridgeline HS Athletics")).toBe("Ridgeline HS Athletics");
   });
 });
+
+// 2026-08-26, from Dave's Waiting On: '"wei@bffsa.org" · Invoice' and
+// '"Joseph T. Pareres" · CALL ME'. Headers quote display names, and when
+// the quoted part is all the header gives, the quotes reached the screen.
+describe("nameFor strips header quoting", () => {
+  const empty = { byEmail: {} };
+  it("unwraps a quoted address and still prettifies its localpart", () => {
+    expect(nameFor(empty, undefined, '"wei@bffsa.org"')).toBe("Wei");
+  });
+  it("unwraps a quoted full name", () => {
+    expect(nameFor(empty, undefined, '"Joseph T. Pareres"')).toBe("Joseph T. Pareres");
+  });
+});

@@ -1900,6 +1900,36 @@ describe("LAW L1: red is a verb, never a status", () => {
   });
 });
 
+// LAW: A SHELL ADDS NO PADDING TO THE ROW IT CARRIES (2026-08-26).
+//
+// MailSwipe wraps each mail row in a .task-row so the swipe gesture and
+// reveal are the one shared mechanism. But .task-row is in the shared
+// row-padding rule, because in TASKS it IS the row. Stacked around a .row
+// that brings its own padding, the two padded every mail row with 24px of
+// black: on Dave's phone that read as a 56pt dead gap after every single
+// row, down the entire inbox, and a walk that measured .row instead of the
+// block that contains it reported the list healthy.
+//
+// The fix is the .swipe-shell modifier, and this law holds both halves of
+// it together: the wrapper must wear the class, and the class must zero the
+// padding. Lose either and the ghosts return.
+describe("LAW: a shell adds no padding to the row it carries", () => {
+  it("every mail shell's task-row wears swipe-shell", () => {
+    // Both mail swipe wrappers nest a padded .row; the first version of this
+    // law named only MailSwipe and the very first walk after it found
+    // LetGoSwipe still carrying the ghost on the Waiting On list.
+    for (const f of ["messages/MailSwipe.tsx", "messages/LetGoSwipe.tsx"]) {
+      expect(read(join(SRC, f)), f).toMatch(/"task-row swipe-shell"/);
+    }
+  });
+  it("swipe-shell zeroes the padding the shared rule adds", () => {
+    const m = CSS.match(/\.task-row\.swipe-shell\s*\{([^}]*)\}/);
+    expect(m, "the swipe-shell rule must exist").toBeTruthy();
+    expect(m![1]).toMatch(/padding:\s*0/);
+    expect(m![1]).toMatch(/min-height:\s*0/);
+  });
+});
+
 // LAW L4: NO SCREEN PROMISES A SCREEN (2026-08-26).
 //
 // BrainFlow carried a fallback reading "This area is coming soon." It was

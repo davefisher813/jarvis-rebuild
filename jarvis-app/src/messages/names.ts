@@ -68,7 +68,11 @@ export function nameFor(book: NameBook, email: string | undefined, fallback: str
   const e = (email ?? "").trim().toLowerCase();
   if (e && book.byEmail[e]) return book.byEmail[e]!;
 
-  const raw = fallback.trim();
+  // Headers quote display names ("Joseph T. Pareres" <j@x.com>), and when
+  // the name part IS an address the quotes survive into the UI verbatim:
+  // Dave's Waiting On read '"wei@bffsa.org" · Invoice'. Strip them the same
+  // way displayName does.
+  const raw = fallback.replace(/^"+|"+$/g, "").trim();
   // A bare address in the name slot: try its localpart, else leave it alone.
   if (raw.includes("@")) {
     const local = raw.split("@")[0] ?? "";

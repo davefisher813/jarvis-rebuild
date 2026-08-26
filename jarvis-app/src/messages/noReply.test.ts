@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isNoReply } from "./noReply";
+import { isNoReply, isMachineAddress } from "./noReply";
 
 describe("a mailbox nobody reads", () => {
   it("knows the address forms", () => {
@@ -43,5 +43,23 @@ describe("a mailbox nobody reads", () => {
     const long = "Hi Dave, here's what I think about the plan. ".repeat(30)
       + "\n\n> This is an automated message. Please do not reply.";
     expect(isNoReply("marcus@northlake.org", long)).toBe(false);
+  });
+});
+
+// 2026-08-26: the presentation net. Dave's inbox dressed Custom Ink, Crexi
+// and Northlake as people because marketing@/alerts@/news@ say nothing about
+// replies. The wide net is for how a row DRESSES; behavior keeps isNoReply.
+describe("isMachineAddress", () => {
+  it("catches the bulk trade's uniform locals", () => {
+    for (const e of ["marketing@customink.com", "alerts@crexi.com", "news@northlake.org",
+      "sales@rushordertees.com", "events@sarahco.com", "no-reply@geico.com"]) {
+      expect(isMachineAddress(e), e).toBe(true);
+    }
+  });
+  it("leaves the addresses small businesses actually write from", () => {
+    for (const e of ["info@patelmed.com", "support@acme.com", "hello@studio.co",
+      "team@startup.io", "office@school.org", "coach@northlake.org", "wei@bffsa.org"]) {
+      expect(isMachineAddress(e), e).toBe(false);
+    }
   });
 });

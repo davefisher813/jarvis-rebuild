@@ -46,7 +46,9 @@ export default function LetGoSwipe({
         <span className="swipe-label">Let Go</span>
       </button>
       <div
-        className={"task-row" + (swipe.dragging ? " swiping" : "")}
+        // swipe-shell: same double-padding trap as MailSwipe (see the law
+        // "a shell adds no padding to the row it carries").
+        className={"task-row swipe-shell" + (swipe.dragging ? " swiping" : "")}
         style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
         {...swipe.handlers}
       >

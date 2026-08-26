@@ -49,16 +49,25 @@ describe("the close-out line", () => {
   });
 
   it("never dresses up a zero", () => {
-    expect(closeOut(0, 14, 0).title).toBe("Nothing Needs You");
+    expect(closeOut(0, 14, 0)!.title).toBe("Nothing Needs You");
   });
 
   it("says what is still waiting rather than claiming calm it cannot see", () => {
-    expect(closeOut(3, 14, 2).sub).toBe("14 In the inbox · 2 Still need you");
-    expect(closeOut(3, 14, 1).sub).toBe("14 In the inbox · 1 Still needs you");
+    expect(closeOut(3, 14, 2)!.sub).toBe("14 In the inbox · 2 Still need you");
+    expect(closeOut(3, 14, 1)!.sub).toBe("14 In the inbox · 1 Still needs you");
+  });
+
+  // Dave's screen, 2026-08-26: "Nothing Needs You" over "3 Still need you".
+  // The two clauses of one component contradicted each other, because the
+  // zero-cleared fallback title claimed peace the sub then denied. When
+  // there is nothing true to say, the close-out says nothing.
+  it("says NOTHING when nothing was cleared and things still need him", () => {
+    expect(closeOut(0, 30, 3)).toBeNull();
+    expect(closeOut(0, 1, 1)).toBeNull();
   });
 
   it("handles the singular and the truly empty", () => {
     expect(closeOut(1, 1, 0)).toEqual({ title: "1 Cleared Today", sub: "1 In the inbox · Nothing urgent" });
-    expect(closeOut(0, 0, 0).sub).toBe("Inbox empty · Nothing urgent");
+    expect(closeOut(0, 0, 0)!.sub).toBe("Inbox empty · Nothing urgent");
   });
 });
