@@ -3162,11 +3162,12 @@ body.selecting .voice-dock { display: none; }
 .bar-text.strong { font-weight: var(--w-semi); }
 .bar-text::after { content: ""; position: absolute; inset: -13px -8px; }
 
-/* Clear All sits above the notice stream, right-aligned, quiet. It is the
+/* Clear All sits under the notice stream (moved 2026-08-26; Dave: "should be
+   under the email tabs not above it"), right-aligned, quiet. It is the
    escape hatch for the whole section, not one of the actions in it, so it
    wears the bare-text treatment rather than competing with the card buttons
-   underneath it. */
-.notice-clear-row { display: flex; justify-content: flex-end; padding: 0 var(--s-4) var(--s-1); }
+   above it. */
+.notice-clear-row { display: flex; justify-content: flex-end; padding: var(--s-1) var(--s-4) 0; }
 
 /* A past row is dimmed to 0.45, and that dimming used to take the selection
    box with it: the two rows Dave had actually ticked were the hardest to see
