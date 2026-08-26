@@ -16,6 +16,15 @@ export const REST_DAYS = 90; // It's Resting sleeps an area for a season
 export const COMEBACK_GAP = 5; // quiet days that make a return worth naming
 export const COMEBACK_RUN = 3; // evidence days before the gap, so the return has a story
 
+/** Local ISO date n days from base. The life layer's own arithmetic (the
+ *  slot lands tomorrow, resting sleeps REST_DAYS), kept beside the constants
+ *  it serves. */
+export function addDaysISO(base: string, n: number): string {
+  const d = new Date(base + "T12:00:00");
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 /** Local ISO days on which a goal produced evidence: a seen completion of a
  *  task it reaches, or a savings entry logged on it. */
 export function goalEvidenceDays(

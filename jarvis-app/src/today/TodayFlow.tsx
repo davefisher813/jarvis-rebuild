@@ -81,7 +81,7 @@ import { RowIcon, StatTiles } from "../shared/anatomy";
 import { effectiveLevel } from "../ai/aiGate";
 import { getAIControl } from "../ai/levelStore";
 import { lazy, Suspense } from "react";
-import { isOffTrack, rankOpen } from "../upnext/upnext";
+import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
 import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph } from "../shared/glyphs";
@@ -732,8 +732,14 @@ export default function TodayFlow({
   // Fresh Start banner: only when the afternoon is honestly off track, never
   // in the evening posture, and never again today once waved off.
   const offTrack = !freshSkipped && !isEvening(nowMin, routineData) && isOffTrack(taskItems, today, nowMin);
-  // Up Next section: the deck's top 3, rendered as standard task rows.
-  const upNextRows = rankOpen(taskItems, today).slice(0, 3);
+  // Up Next: ONE dealt card (Option 1, Dave 2026-08-26 "go with what you
+  // think is best"). The deck's top task with its reason on it; everything
+  // behind it is a count on a receipt line that opens the Focus deck. One
+  // target on screen, because choosing among three is a decision tax the
+  // page was charging before work could start.
+  const upNextAll = rankOpen(taskItems, today);
+  const upNextRows = upNextAll.slice(0, 1);
+  const inPeakNow = !!energy && nowMin >= energy.peakStartMin && nowMin < energy.peakEndMin;
 
   // BLENDING ON TODAY (2026-08-21). The same offer the Schedule tab makes,
   // on the page he is actually on when the drive is forty minutes away. One
@@ -1823,6 +1829,8 @@ export default function TodayFlow({
       onRunningLate={onRunningLate}
       onUpNext={() => setUpNextOpen(true)}
       upNext={upNextRows}
+      upNextWaiting={Math.max(0, upNextAll.length - 1)}
+      upNextReason={upNextAll[0] ? reasonFor(upNextAll[0], today, inPeakNow) : null}
       blendMap={blendMap}
       onSeeAllUpNext={onGoTasksAll ?? onGoTasks}
       onStartTask={(id) => {
