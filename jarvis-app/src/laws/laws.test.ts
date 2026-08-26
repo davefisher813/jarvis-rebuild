@@ -1900,6 +1900,54 @@ describe("LAW L1: red is a verb, never a status", () => {
   });
 });
 
+// LAW L4: NO SCREEN PROMISES A SCREEN (2026-08-26).
+//
+// BrainFlow carried a fallback reading "This area is coming soon." It was
+// unreachable in practice, because every key the Brain hub offers is handled
+// by a branch above it. It was not harmless. It was read as an App Store
+// blocker twice: once by a session doc, once by me, both times by grepping
+// for placeholder copy and believing what came back. Two people spent real
+// time on a defect that did not exist.
+//
+// Shipped copy is a claim about what the app does. "Coming soon" claims a
+// screen has not been built, and a screen that IS built should never say so.
+// If a surface genuinely is not ready, it does not get a row on a hub.
+describe("LAW L4: no screen promises a screen", () => {
+  const EXCUSES = /coming soon|under construction|not (?:yet )?implemented|work in progress|\bTBD\b|\bTODO\b(?=[^a-z])|placeholder text|lorem ipsum/i;
+
+  it("no shipped copy tells a person to come back later", () => {
+    const bad: string[] = [];
+    for (const f of ALL) {
+      if (isTest(f) || isBench(f)) continue;
+      read(f).split("\n").forEach((line, i) => {
+        // A comment may name the sin: this law's own history is written in
+        // one, and so is the note in BrainPage that records the fix.
+        if (/^\s*(\/\/|\*|\/\*)/.test(line)) return;
+        // Only judge STRING LITERALS and JSX text, never identifiers.
+        const copy = [
+          ...[...line.matchAll(/"([^"\\]{4,120})"/g)].map((m) => m[1]!),
+          ...[...line.matchAll(/>([^<>{}]{4,120})</g)].map((m) => m[1]!),
+        ];
+        if (copy.some((c) => EXCUSES.test(c))) bad.push(rel(f) + ":" + (i + 1) + " " + line.trim().slice(0, 60));
+      });
+    }
+    expect(bad, "a screen that exists never says it does not").toEqual([]);
+  });
+
+  it("every area the Brain hub offers is actually routed", () => {
+    // The structural version of the same rule: a hub row with nothing behind
+    // it is the bug the copy was covering for. Catching it here means the
+    // copy never has to exist.
+    const page = read(join(SRC, "brain/BrainPage.tsx"));
+    const flow = read(join(SRC, "brain/BrainFlow.tsx"));
+    const keys = [...page.matchAll(/\{\s*key:\s*"([a-z]+)"/g)].map((m) => m[1]!);
+    expect(keys.length, "the hub should still offer areas").toBeGreaterThanOrEqual(6);
+    const unrouted = keys.filter((k) => !new RegExp('open\\.key === "' + k + '"').test(flow)
+      && !new RegExp('^\\s*' + k + ':', "m").test(flow));
+    expect(unrouted, "a row on the hub with nothing behind it").toEqual([]);
+  });
+});
+
 // LAW L2: EVERY LIST HAS A FLOOR (Dave 2026-08-25, adopted with L1).
 //
 // Nothing in email scrolls forever. Every list ends with a visible line that

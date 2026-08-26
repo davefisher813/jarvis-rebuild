@@ -1,11 +1,18 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import TabBar from "./TabBar";
 import VoiceBar from "./VoiceBar";
-import MoreFlow from "../more/MoreFlow";
-import TasksFlow from "../tasks/TasksFlow";
-import ScheduleFlow from "../schedule/ScheduleFlow";
+// TODAY IS EAGER, THE REST ARE NOT (2026-08-26, build queue item 13).
+// Today is the landing tab, so its code is needed to paint the first screen
+// and lazy-loading it would only buy a skeleton nobody asked for. The other
+// four are reached by a deliberate tap, and they already render inside the
+// Suspense boundary below with a real SkeletonScreen fallback, so splitting
+// them costs a skeleton frame on first visit and saves everyone the bytes
+// on every cold load.
 import TodayFlow from "../today/TodayFlow";
-import BrainFlow from "../brain/BrainFlow";
+const MoreFlow = lazy(() => import("../more/MoreFlow"));
+const TasksFlow = lazy(() => import("../tasks/TasksFlow"));
+const ScheduleFlow = lazy(() => import("../schedule/ScheduleFlow"));
+const BrainFlow = lazy(() => import("../brain/BrainFlow"));
 import { dismissSplash } from "../shared/splash";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";

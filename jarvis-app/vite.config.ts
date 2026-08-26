@@ -40,7 +40,38 @@ export default defineConfig({
     // these to resolve from the app's node_modules so the build works anywhere.
     dedupe: ["@supabase/supabase-js", "react", "react-dom"],
   },
+  // CODE SPLITTING (2026-08-26, build queue item 13). The main chunk was
+  // 868 KB, and roughly a third of it was vendor code that changes only when
+  // a dependency is upgraded. Splitting it out does not shrink the total
+  // download on a cold visit, but it means a normal app change no longer
+  // invalidates React, Supabase and the icon set in everyone's cache: the
+  // repeat visit that used to re-fetch 245 KB gzipped now re-fetches only
+  // what actually changed.
+  //
+  // Three groups, each on its own release cadence:
+  //   react    - react + react-dom, upgraded rarely
+  //   supabase - the backend client, upgraded rarely
+  //   icons    - lucide, large and almost never touched
+  //
+  // SINGLEFILE inlines everything into one openable index.html, so chunking
+  // is skipped there: splitting a bundle that is about to be concatenated
+  // just adds boundaries for no benefit.
   ...(process.env.TESTPANEL
     ? { build: { rollupOptions: { input: resolve(__dirname, "test.html") } } }
-    : {}),
+    : process.env.SINGLEFILE
+      ? {}
+      : {
+          build: {
+            rollupOptions: {
+              output: {
+                manualChunks(id: string) {
+                  if (!id.includes("node_modules")) return;
+                  if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return "react";
+                  if (id.includes("@supabase")) return "supabase";
+                  if (id.includes("lucide")) return "icons";
+                },
+              },
+            },
+          },
+        }),
 });

@@ -27,11 +27,35 @@ export default function BrainFlow({ openKey, personOpenId, decisionOpenId, onOpe
     openKey ? { key: openKey, name: "" } : null,
   );
 
+  // Whether the category list has ARRIVED, which is not the same question as
+  // whether it is empty. Without this the fallback below cannot tell "no such
+  // area" from "not loaded yet", and a category opened by deep link would
+  // flash a dead end on its way to rendering.
+  const [catsLoaded, setCatsLoaded] = useState(false);
   const loadCats = useCallback(async () => {
     const list = await cats.list();
     setCategories(list.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color, icon: c.data.icon, kind: effectiveKind(c.data) })));
+    setCatsLoaded(true);
   }, [cats]);
   useEffect(() => { void loadCats(); }, [loadCats]);
+
+  // AN AREA THAT DOES NOT EXIST IS NOT AN AREA (2026-08-26). This used to
+  // fall through to a screen reading "This area is coming soon.", which was
+  // unreachable in practice (every key BrainPage offers is handled above)
+  // but not harmless: it was read as an App Store blocker twice, once by a
+  // session doc and once by me, because a grep for placeholder copy finds it
+  // and nothing in the file says it is dead. Shipped code that lies about
+  // what the app does costs more than the line it saves.
+  //
+  // A key with nothing behind it now closes back to the hub, which is the
+  // only honest thing an unknown area can do.
+  useEffect(() => {
+    if (!open || !catsLoaded) return;
+    const known = open.key in DOC_TOPIC
+      || ["knows", "month", "routine", "decisions", "contacts"].includes(open.key)
+      || categories.some((c) => c.id === open.key);
+    if (!known) setOpen(null);
+  }, [open, catsLoaded, categories]);
 
   // A person tapped on a people-kind category page (2026-08-10) opens through
   // Contacts, the one people surface. Cleared when Contacts closes so a later
@@ -95,16 +119,11 @@ export default function BrainFlow({ openKey, personOpenId, decisionOpenId, onOpe
         />
       );
     }
-    return (
-      <div className="screen">
-        <div className="nav-bar">
-          <button className="nav-back" onClick={() => setOpen(null)} aria-label="Back">          </button>
-          <span></span>
-        </div>
-        <div className="nav-large">{open.name}</div>
-        <div className="empty-state">This area is coming soon.</div>
-      </div>
-    );
+    // Nothing matched. While the categories are still loading this is simply
+    // "not yet", so hold an empty screen for a frame rather than asserting
+    // anything; once they have loaded, the effect above has already sent us
+    // back to the hub.
+    return catsLoaded ? null : <div className="screen" />;
   })();
 
   if (detail) return <div className={pushCls} key={"d-" + open!.key}>{detail}</div>;
