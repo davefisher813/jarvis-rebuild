@@ -2012,7 +2012,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="mail-door">
           <div className="mail-door-seal cat-fg-teal"><Mail className="ic" /></div>
           <div className="mail-door-when">{closedLine(windows, new Date())}</div>
-          <div className="mail-door-peek">{peekLine(rows, effTriage, vips)}</div>
+          {/* The peek may not claim an empty inbox it has not seen. On a
+              fresh open the row load takes seconds (30 threads, one meta
+              fetch each), and Dave's 2026-08-26 screenshot caught the door
+              saying "Nothing from a person" while Joe Pareres sat in Needs
+              You: the peek had read a list that simply had not arrived yet.
+              While loading with nothing in hand it says it is looking, and
+              on a failed load it does not pretend the silence is peace. */}
+          <div className="mail-door-peek">
+            {rows.length === 0 && loading ? "Seeing who wrote…"
+              : rows.length === 0 && error ? "Couldn't check the inbox"
+              : peekLine(rows, effTriage, vips)}
+          </div>
           <div className="mail-door-acts">
             {/* Early, not "anyway". It is his door and he is allowed through
                 it; the word should not imply he is breaking a rule.
