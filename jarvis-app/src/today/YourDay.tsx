@@ -421,7 +421,7 @@ export default function YourDay({
             <svg className="icon-play" viewBox="0 0 24 24"><polygon points="7,5 19,12 7,19" /></svg>
           </button>
         )}
-      <button className="see-all" onClick={onSeeAll}>Schedule</button>
+      <button className="see-all pill-action" onClick={onSeeAll}>Schedule</button>
       </span>
     </div>
   );

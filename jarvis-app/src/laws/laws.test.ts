@@ -385,6 +385,10 @@ describe("LAW: Apple HIG casing", () => {
       "cal-step": "32px month stepper",
       "plan-cta": "30px day action, Plan My Day and Running Late?",
       "day-pill": "32px summary pill on Today",
+      // Added 2026-08-26 (Dave, from two screenshots): every .see-all on the
+      // home page now wears Plan My Day's ghost pill instead of bare text,
+      // same ~30px painted size as plan-cta itself.
+      "pill-action": "30px home-page head action (See All, Open Inbox, Schedule...), ghosted to match Plan My Day",
     };
     for (const [cls, why] of Object.entries(small)) {
       // Either an ::after carrying inset/height, or a wrapper that is itself

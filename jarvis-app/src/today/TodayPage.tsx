@@ -335,7 +335,7 @@ export default function TodayPage({
   const foldedTasks = tasks.length - shownTasks.length;
   const tasksSection = tasks.length > 0 && (
     <>
-      <div className="sh2 sh2-quiet"><span className="t">{evening ? "Still Open" : "Today’s Tasks"}</span><button className="see-all" onClick={onSeeAllTasks}>See All</button></div>
+      <div className="sh2 sh2-quiet"><span className="t">{evening ? "Still Open" : "Today’s Tasks"}</span><button className="see-all pill-action" onClick={onSeeAllTasks}>See All</button></div>
       <div>
         <div>
           {shownTasks.map((t) => (
@@ -366,7 +366,7 @@ export default function TodayPage({
           which the head already offers elsewhere. It reads as the fact it is
           now, and the action is the one that helps: set tomorrow up. */}
       <div className="sh2 sh2-quiet"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span>
-        {onPlanTomorrow && <button className="see-all" onClick={onPlanTomorrow}>Plan It</button>}</div>
+        {onPlanTomorrow && <button className="see-all pill-action" onClick={onPlanTomorrow}>Plan It</button>}</div>
       <div>
         <div>
           {tomorrowEvents.map((ev) => <SchedRow ev={ev} key={ev.id} />)}
@@ -505,7 +505,7 @@ export default function TodayPage({
                   live nowhere else: a See All that navigates would show him
                   everything except what it hid. */}
               {foldable && (
-                <button className="see-all" onClick={() => setStreamOpen((v) => !v)}>
+                <button className="see-all pill-action" onClick={() => setStreamOpen((v) => !v)}>
                   {streamOpen ? "Less" : "See All"}
                 </button>
               )}
@@ -556,7 +556,7 @@ export default function TodayPage({
       {mail && !mailEmpty && (
         <div className="sh2 sh2-quiet">
           <span className="t">Email</span>
-          {onSeeAllMail && <button className="see-all" onClick={onSeeAllMail}>Open Inbox</button>}
+          {onSeeAllMail && <button className="see-all pill-action" onClick={onSeeAllMail}>Open Inbox</button>}
         </div>
       )}
       {mail && <div className="heads-up-stream">{mail}</div>}

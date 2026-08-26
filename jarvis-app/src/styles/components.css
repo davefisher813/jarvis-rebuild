@@ -2452,6 +2452,22 @@ button {
    because Apple Music itself writes See All as text there. Everything else
    is a capsule, no exceptions. */
 .sh2 .see-all.quiet-action { color: var(--tx-3); font-size: 17px; background: transparent; padding: 0 var(--s-2); }
+/* Dave 2026-08-26, from two screenshots: every .see-all on the home page
+   should look like Plan My Day, not a bare red link. Same seat in the head
+   (order/margin/flex-shrink above still place it) -- only the paint and the
+   tap box change, to the compact ghost pill Plan My Day already wears
+   whenever Focus shares the screen (.plan-cta.plan-cta-ghost), sized for an
+   inline header rather than that pill's full-width -block modifier. The
+   inherited min-height/margin trick existed only to give the invisible bare
+   link a 44px hit box without inflating the row; a filled pill does that
+   with its own padding plus the same after-inset expansion .plan-cta uses,
+   so both are reset here instead of stacking on top of visible chrome. */
+.sh2 .see-all.pill-action {
+  background: var(--press-3); color: var(--tx-1); border-radius: var(--r-pill);
+  padding: var(--s-1h) var(--s-3); font-size: var(--t-meta); letter-spacing: normal;
+  min-height: 0; margin: 0; position: relative;
+}
+.sh2 .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
 /* Small pill: the one small doing-button (Add to Today, Link, Not Now).
    It always has a body; text-only small buttons are the head action's job.
    A small button that is ALSO a primary/danger keeps that fill: the
