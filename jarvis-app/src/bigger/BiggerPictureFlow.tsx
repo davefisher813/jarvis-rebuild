@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions, useAreas } from "../data/NotesProvider";
 import type { Project, ProjectData } from "../projects/types";
 import type { Area, Goal, GoalData } from "../life/types";
@@ -69,6 +69,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   // Give It a Slot answers the quiet card, so the card leaves WITH the tap;
   // session-local on purpose (the slot is not evidence yet).
   const [hushed, setHushed] = useState<string | null>(null);
+  const slotBusy = useRef(false);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [payoff, setPayoff] = useState<{ kind: "project" | "goal"; title: string; line: string } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(openId ?? null);
@@ -157,11 +158,17 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   // B12 (2026-08-24): fires once. The busy flag is shared with First Step's
   // ask, so it must ALWAYS release: an early return that kept it set would
   // dead-lock the sibling button, which is worse than the double write.
+  // The double-write B12 tolerated became visible (Dave 2026-08-26: "Update
+  // workout feature" twice on Today). Accepting a step that already exists
+  // open on the project is a no-op create; everything else about the accept
+  // (dismissal, event, receipt) still runs, so the button never dead-ends.
+  const stepExists = (text: string, projectId: string) =>
+    tasks.some((t) => !t.data.done && t.data.projectId === projectId && t.data.text.trim().toLowerCase() === text.trim().toLowerCase());
   const projStepAccept = async () => {
     if (projStepBusy || !projStep || !stalled || projStep.projectId !== stalled.id) return;
     setProjStepBusy(true);
     try {
-      await tasksSvc.createTask(projStep.step, { projectId: stalled.id, category: stalled.data.category || undefined, due: today });
+      if (!stepExists(projStep.step, stalled.id)) await tasksSvc.createTask(projStep.step, { projectId: stalled.id, category: stalled.data.category || undefined, due: today });
       dismissProjStep(stalled.id, today);
       setProjStep(null);
       setDismissTick((n) => n + 1);
@@ -196,9 +203,11 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
     if (openStepBusy || !openStep || openStep.projectId !== proj.id) return;
     setOpenStepBusy(true);
     try {
-      await attemptWrite(() => tasksSvc.createTask(openStep.step, {
-        projectId: proj.id, category: proj.data.category || undefined, due: today,
-      }));
+      if (!stepExists(openStep.step, proj.id)) {
+        await attemptWrite(() => tasksSvc.createTask(openStep.step, {
+          projectId: proj.id, category: proj.data.category || undefined, due: today,
+        }));
+      }
       setOpenStep(null);
       emit({ type: "suggestion.accepted", props: { kind: "proj_step" } });
       await reload();
@@ -272,8 +281,12 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   // failed save to the person tapping, so it throws into the guard.
   const mustUpdate = async (p: Promise<boolean>) => { if (!(await p)) throw new Error("row missing"); };
   const giveSlot = async (a: Area) => {
+    if (slotBusy.current) return; // a double tap must not plan the slot twice
+    slotBusy.current = true;
     let id: string | null = null;
-    if (!(await attemptWrite(async () => { id = await tasksSvc.createTask(`Time for ${a.data.name}`, { due: addDaysISO(today, 1) }); }))) return;
+    const ok = await attemptWrite(async () => { id = await tasksSvc.createTask(`Time for ${a.data.name}`, { due: addDaysISO(today, 1) }); });
+    slotBusy.current = false;
+    if (!ok) return;
     setHushed(a.id);
     showToast({
       message: `Planned time for ${a.data.name}`,

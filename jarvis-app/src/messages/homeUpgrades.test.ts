@@ -140,6 +140,16 @@ describe("quick answers", () => {
     expect(quickAnswers(["Yes", "yes", "No"])).toEqual(["Yes", "No"]);
   });
 
+  it("keeps the row one line tall: long chips spend the budget and the rest fold", () => {
+    // Dave's Custom Ink screenshot (2026-08-26): three long promo answers
+    // stacked three lines high. One survivor beats a tower; the first chip
+    // always stays even when it alone is over the row budget.
+    expect(quickAnswers(["Not interested right now", "Maybe next promotion", "Unsubscribe me please"]))
+      .toEqual(["Not interested right now"]);
+    // Short sets still ride together untouched.
+    expect(quickAnswers(["Yes", "No", "Call me"])).toEqual(["Yes", "No", "Call me"]);
+  });
+
   it("falls back rather than showing an empty row", () => {
     expect(quickAnswers([])).toEqual(DEFAULT_ANSWERS);
     expect(quickAnswers(undefined)).toEqual(DEFAULT_ANSWERS);
