@@ -4,16 +4,29 @@ import { destOf, tabLabelOf } from "./destinations";
 // Dynamic tab bar: the chosen destinations plus a fixed More tab. Active is the
 // current page key; when the active page is not one of the tabs (it was opened
 // from More), More is highlighted.
+//
+// NO BADGES, BY LAW (L1, widened app-wide 2026-08-25). The Tasks tab used to
+// wear a red pill counting overdue + due-today. That is the single
+// most-studied anxiety mechanic there is: it exploits the need for closure,
+// it only ever counts up, and it turns "you have tasks" into "you are
+// behind" from a surface you cannot act on.
+//
+// The count is not lost. Tasks has an Overdue filter carrying its own count
+// and its own "Nothing overdue" empty state, one tap away, on the screen
+// where something can actually be done about it. A number belongs where the
+// action is.
+//
+// The `badges` prop is GONE rather than merely unused, because a dead
+// mechanism is a resurrected one. Putting a count back means putting the
+// plumbing back, which is a decision somebody has to make on purpose.
 export default function TabBar({
   tabKeys,
   active,
   onTab,
-  badges,
 }: {
   tabKeys: string[];
   active: string;
   onTab: (key: string) => void;
-  badges?: Record<string, number>;
 }) {
   const items = [
     ...tabKeys.map((k) => destOf(k)).filter((d): d is NonNullable<typeof d> => !!d),
@@ -36,7 +49,6 @@ export default function TabBar({
           <Icon className="ic" />
           {/* The short word, where there is one. See destinations.tsx. */}
           {tabLabelOf(d)}
-          {badges && badges[key] ? <span className="tab-badge">{badges[key]! > 99 ? "99+" : badges[key]}</span> : null}
         </div>
         );
       })}

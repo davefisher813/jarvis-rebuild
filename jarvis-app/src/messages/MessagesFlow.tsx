@@ -241,27 +241,26 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // the iOS push/pop contract, and it is the reason this is not just a blunt
   // reset on every change.
   //
-  // SCOPED TO EMAIL, DELIBERATELY, AND THE WIDER BUG IS STILL OPEN.
+  // SCOPED TO EMAIL, AND THAT TURNS OUT TO BE THE RIGHT SCOPE.
   //
-  // The whole app shares ONE .app-scroll container that stays mounted while
-  // the screen inside it swaps, and nothing anywhere resets its offset. So
-  // the defect is not an email defect: scroll Email down, tap Today, and
-  // Today arrives wearing Email's scroll position. Two screens happen to
-  // self-correct because they scroll themselves on mount (ChatFlow to the
-  // last message, SchedulePage to the next event), which is also why a
-  // blanket reset would not fight them.
+  // An earlier version of this note claimed the bug was app-wide, reasoning
+  // that one shared .app-scroll stays mounted and nothing resets it, so a
+  // tab switch must inherit the previous screen's offset. That was read off
+  // the code and never measured, and measuring it says otherwise: scroll
+  // Schedule to 400 and tap Today, and Today lands at 0 with 1631px of room
+  // it could have carried into. Switching tabs swaps the screen INSIDE this
+  // container, and the height collapsing through zero during the swap
+  // resets the offset for free.
   //
-  // Not fixed app-wide here for one honest reason: every other change in
-  // this session was verified in a real browser, and the demo build cannot
-  // be driven past onboarding automatically (the gate is an async
-  // isOnboarded() over IndexedDB, which a saved storage state does not
-  // carry). An unverified change to every screen transition in the app is
-  // exactly the class of change that comes back as a bug report.
+  // The real distinction is mount, not container. A TAB change unmounts the
+  // old screen and resets by accident. A VIEW change inside one flow keeps
+  // the same component mounted, so the offset survives, which is exactly
+  // how the Clean Out arrived scrolled past its top two senders.
   //
-  // The proper fix is a per-tab offset map in AppShell: push starts at the
-  // top, returning to a tab restores where you were. The fragile part is
-  // restoring before layout, which clamps to 0 and silently loses the
-  // position, so it wants a real browser to prove it.
+  // So this belongs here, in the flow that changes views without
+  // unmounting, and there is no app-wide fix owed. Other multi-view flows
+  // have the same shape and have not been measured; if one of them is ever
+  // reached from a link low on a long list, it will want this same effect.
   useEffect(() => {
     if (view === "list") return;
     const el = document.querySelector(".app-scroll");

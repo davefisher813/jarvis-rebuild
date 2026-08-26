@@ -467,7 +467,6 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
    on the dark bar. */
 .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: var(--s-1) 0; color: var(--sys-gray); font-size: 10px; font-weight: var(--w-medium); position: relative; }
 .tab.active { color: var(--accent-chrome); }
-.tab .badge { position: absolute; top: 0; right: calc(50% - 20px); background: var(--sys-red); color: #fff; font-size: 10px; font-weight: var(--w-semi); min-width: 17px; height: 17px; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
 
 /* NAV BAR */
 .nav-bar { display: flex; align-items: center; justify-content: space-between; padding: var(--s-3) var(--s-4); min-height: 44px; }
@@ -486,7 +485,6 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .pill-teal { background: var(--teal); color: #fff; }
 .pill-subdued { background: var(--press-3); color: var(--tx-3); }
 .unread-dot { width: 8px; height: 8px; background: var(--blue); border-radius: var(--r-circle); flex-shrink: 0; }
-.num-badge { min-width: 22px; height: 22px; border-radius: 11px; background: var(--sys-red); color: #fff; font-size: var(--t-meta); font-weight: var(--w-semi); display: inline-flex; align-items: center; justify-content: center; padding: 0 7px; font-feature-settings: "tnum"; }
 
 /* ROWS (shared) */
 .row, .task-row, .conn-row, .msg-row, .sched-row, .proj-row, .suggestion-row { display: flex; gap: var(--s-3); padding: var(--s-3h) var(--s-4); align-items: center; }

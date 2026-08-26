@@ -1772,39 +1772,80 @@ describe("LAW L1: red is a verb, never a status", () => {
 
   // Class names that describe a STATE OF FAILURE. If one of these is painted
   // with the accent anywhere in the stylesheet, red has become a status.
-  const GUILT = /\.(?:[a-z-]*)(overdue|late|unread|behind|count|badge)(?:[a-z-]*)\b[^{]*\{[^}]*(--accent|--accent-fill|--sys-red|--bad)\b/gi;
+  //
+  // "badge" and "count" were in this list and have been REMOVED. They named
+  // a shape rather than a sin, and they cost two false positives on the day
+  // the law went app-wide: `.promo-badge` is a glyph in a coloured circle,
+  // and `.sched-badge` is the word "Overlaps" on a button whose aria-label
+  // is "Overlaps another event, tap to fix". That second one is red doing
+  // exactly its job. Red means TAP ME TO ACT, and a red thing you tap to
+  // fix the problem it names is the definition, not a breach of it.
+  //
+  // Counts are still caught, harder than before, by the two structural
+  // tests below: red plus a NUMBER at the render site, and red badge rules
+  // with nobody to fill them. What is left here is the vocabulary of
+  // lateness, which is a sin in any shape.
+  const GUILT = /\.(?:[a-z-]*)(overdue|late|unread|behind)(?:[a-z-]*)\b[^{]*\{[^}]*(--accent|--accent-fill|--sys-red|--bad)\b/gi;
 
-  it("no email class paints lateness or a count in red", () => {
-    const bad = [...CSS.matchAll(GUILT)]
-      .map((m) => m[0].split("{")[0]!.trim())
-      // The app-wide tab badge is Tasks', not email's, and it is governed by
-      // its own screen. This law is about the email surface.
-      .filter((sel) => /msg-|mail-|sweep-|deck-|inbox-/.test(sel));
+  // WIDENED APP-WIDE 2026-08-25 (Dave). L1 was written for email and scoped
+  // to email, which left the same mechanic running one tab over: the Tasks
+  // tab wore a permanent red pill counting overdue + due-today. That is the
+  // exact object the catalog was written against, and scoping the law to the
+  // surface that happened to prompt it was the mistake. A law that only
+  // holds where you first noticed the problem is a preference.
+  it("no class anywhere paints lateness or a count in red", () => {
+    const bad = [...CSS.matchAll(GUILT)].map((m) => m[0].split("{")[0]!.trim());
     expect(bad, "red means tap me, never you are behind").toEqual([]);
   });
 
-  it("email never renders a numeric badge", () => {
+  // THE SIN IS RED PLUS A NUMBER, not the word "badge" in a class name.
+  //
+  // Widening this test app-wide first flagged seven sites, and four of them
+  // were `.promo-badge`: a 52px amber or purple circle holding a GLYPH. No
+  // count, no red, no status of failure. The regex was matching the name of
+  // the thing rather than the thing, which is a law grading vocabulary.
+  //
+  // So it now requires a NUMBER to be rendered inside the badge. A glyph
+  // container called a badge is a container; a badge holding a count is the
+  // guilt meter, whatever it is called.
+  it("nothing renders a badge holding a count", () => {
     const bad: string[] = [];
+    // A number, a counted expression, or a truncated overflow ("99+").
+    const COUNTY = /\{[^}]*\b(count|length|total|overdue|due|unread|pending|remaining|n)\b[^}]*\}|>\s*\d+\s*<|"\d+\+"/;
     for (const f of COMPONENTS) {
-      if (!inEmail(f)) continue;
       read(f).split("\n").forEach((line, i) => {
-        if (/className=["'{`][^"'}`]*\bbadge\b/.test(line)) bad.push(rel(f) + ":" + (i + 1));
+        if (!/className=["'{`][^"'}`]*\bbadge\b/.test(line)) return;
+        if (!COUNTY.test(line)) return;
+        bad.push(rel(f) + ":" + (i + 1));
       });
     }
     expect(bad, "a count on a tab is a guilt meter wearing a notification costume").toEqual([]);
   });
 
-  it("the shell never hands email a tab badge", () => {
+  // The CSS half of the same idea: no rule that paints a badge red may also
+  // be the one a count lands in. Checked structurally rather than by name,
+  // because the class that carried this for months was called `.tab-badge`
+  // and looked perfectly innocent in a stylesheet.
+  it("no red badge rule survives with nothing to fill it", () => {
+    const reds = [...CSS.matchAll(/\.([a-z][a-z0-9-]*badge[a-z0-9-]*)\s*\{[^}]*(?:--accent-fill|--sys-red|--on-light-red)\b[^}]*\}/gi)]
+      .map((m) => m[1]!);
+    const src = COMPONENTS.map((f) => read(f)).join("\n");
+    const dead = reds.filter((c) => !new RegExp("\\b" + c + "\\b").test(src));
+    // A red badge class with no user is a loaded gun in a drawer: the next
+    // person to want a count finds it already styled and reaches for it.
+    expect(dead, "delete unused red badge rules, do not leave them lying about").toEqual([]);
+  });
+
+  it("the shell hands NO tab a badge", () => {
     const shell = read(join(SRC, "shell/AppShell.tsx"));
     const m = /badges=\{\{([^}]*)\}\}/.exec(shell);
-    expect(m, "badges prop should still exist").toBeTruthy();
-    expect(m![1], "email may never carry a badge").not.toMatch(/messages|email/i);
+    expect(m?.[1]?.trim() ?? "", "no tab carries a count").toBe("");
   });
 
   it("no email copy counts unread mail at the user", () => {
     const bad: string[] = [];
     for (const f of ALL) {
-      if (isTest(f) || isBench(f) || !inEmail(f)) continue;
+      if (isTest(f) || isBench(f)) continue;
       read(f).split("\n").forEach((line, i) => {
         if (/^\s*(\/\/|\*)/.test(line)) return; // a comment may name the sin
         // "UNREAD" in caps is Gmail's LABEL, passed to modifyThread. The sin

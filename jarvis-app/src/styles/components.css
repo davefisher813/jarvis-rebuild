@@ -1205,7 +1205,6 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .clear-done { display: flex; justify-content: flex-end; padding-bottom: var(--s-2); }
 
 .tab { position: relative; }
-.tab-badge { position: absolute; top: 2px; left: calc(50% + 8px); min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--r-pill); background: var(--accent-fill); color: #fff; font-size: 10px; font-weight: var(--w-bold); line-height: 16px; text-align: center; }
 
 .plan-sub { font-size: var(--t-body); color: var(--tx-2); margin-bottom: var(--s-3); line-height: 1.4; }
 .plan-list { display: flex; flex-direction: column; max-height: 40vh; overflow-y: auto; }
@@ -1379,8 +1378,7 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
    themes, so the J needs no theme-specific rule to stay brand red. A
    logotype is exempt from the text bar outright, which is why it was the
    first thing to get this treatment and why it can now share the token. */
-[data-theme="light"] .tab-badge { background: var(--on-light-red); }
-[data-theme="light"] .av-accent { background: var(--on-light-red); }
+[data-theme="light"] [data-theme="light"] .av-accent { background: var(--on-light-red); }
 [data-theme="light"] .bp-stalled { color: var(--on-light-warn); }
 [data-theme="light"] .lm-attention { color: var(--on-light-warn); }
 /* uniformity.css status text colours, same light-theme problem (the overdue

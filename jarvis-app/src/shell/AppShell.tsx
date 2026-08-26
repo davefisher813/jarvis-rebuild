@@ -35,8 +35,6 @@ import { sealPreviousMonthIfDue } from "../review/seal";
 import { supabase } from "../auth/supabaseClient";
 import type { WindowClient } from "../brain/window";
 import { ENTITY_CATEGORY } from "../categories/types";
-import { ENTITY_TASK } from "../notes/types";
-import { partition } from "../tasks/filters";
 import { todayISO } from "../tasks/grouping";
 import RightNowSheet from "../tasks/screens/RightNowSheet";
 import { rightNow, endOf, type RightNow } from "../tasks/rightNow";
@@ -111,7 +109,6 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [notesChrome, setNotesChrome] = useState(true);
   const [ready, setReady] = useState(false);
   const [, bumpCatVer] = useState(0);
-  const [taskBadge, setTaskBadge] = useState(0);
 
   // WHAT NOW / JUST FIFTEEN. Global, because being stuck happens wherever you
   // are, not on the Today screen. See tasks/rightNow.ts for the reasoning.
@@ -190,19 +187,6 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     return () => { on = false; unsub(); };
   }, [categories]);
 
-  // Tasks-tab badge: count of overdue + due-today (open) tasks, kept live.
-  useEffect(() => {
-    let on = true;
-    const recompute = async () => {
-      const items = await tasks.listTasks();
-      if (!on) return;
-      const p = partition(items, todayISO());
-      setTaskBadge(p.overdue.length + p.today.length);
-    };
-    recompute();
-    const unsub = bus.subscribe((e) => { if (e.entityType === ENTITY_TASK) void recompute(); });
-    return () => { on = false; unsub(); };
-  }, [tasks]);
 
   // Leaving Notes always restores the dock.
   useEffect(() => {
@@ -288,7 +272,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       {showDock && (
         <>
           <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={() => void openWhatNow()} />
-          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setTaskFilterIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setDecisionIntent(undefined); setActive(k); }} badges={{ tasks: taskBadge }} />
+          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setTaskIntent(undefined); setTaskFilterIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setDecisionIntent(undefined); setActive(k); }} />
         </>
       )}
       {whatNow && (
