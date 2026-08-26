@@ -949,6 +949,48 @@ describe("LAW: the app never scolds", () => {
   });
 });
 
+// A LIFE IS NEVER SCORED (2026-08-25, the Life View, pick 19).
+//
+// The research stance behind the whole Insights surface: an importance-
+// weighted life score adds no validity over the parts (Collabra 2018), and a
+// single number turns a mirror into a judge. So the review surfaces may
+// count, name, and compare a month to its own past, and may never grade.
+// Scoped to src/review because src/bigger legitimately ranks WORK
+// (rankProjects orders a queue); ranking work is triage, ranking a life is a
+// verdict.
+describe("LAW: a life is never scored", () => {
+  it("no grading vocabulary anywhere in the review surfaces", () => {
+    const banned = /\b(score[sd]?|grade[sd]?|percentile|rank(ed|ing)?|out of 100|\d+%\s*(complete|done)|life score)\b/i;
+    const bad: string[] = [];
+    for (const f of SOURCES.filter((x) => rel(x).startsWith("review/"))) {
+      const body = read(f)
+        .replace(/\/\*[\s\S]*?\*\//g, " ")
+        .split("\n")
+        .map((l) => l.replace(/\/\/.*$/, "").replace(/\{\/\*[\s\S]*$/, ""));
+      body.forEach((line, i) => {
+        if (banned.test(line)) bad.push(rel(f) + ":" + (i + 1) + " " + line.trim().slice(0, 80));
+      });
+    }
+    expect(bad).toEqual([]);
+  });
+
+  // The delta rule from the report carried to CSS: a month down on its past
+  // is muted, never alarmed. The only emphasis a delta may take is the good
+  // tone on a rise; accent or danger on a delta would make the number a
+  // verdict about the reader.
+  it("a delta is never dressed in accent or danger", () => {
+    for (const m of CSS.matchAll(/^([^{\n]*rep-delta[^{\n]*)\{([^}]*)\}/gm)) {
+      expect(m[2], m[1]!.trim() + " colors a delta like a verdict").not.toMatch(/var\(--accent\)|var\(--danger\)/);
+    }
+  });
+
+  // And the down direction stays the base class: no stylesheet may ever grow
+  // a rep-delta-down. The absence IS the design (down = muted, wordless).
+  it("there is no down-delta class to dress", () => {
+    expect(CSS).not.toContain("rep-delta-down");
+  });
+});
+
 describe("LAW: icon-only controls are reachable", () => {
   it("a button whose only child is an icon carries an aria-label", () => {
     const bad: string[] = [];

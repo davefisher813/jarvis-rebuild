@@ -75,7 +75,7 @@ export function windowStart(per: Cadence, now: number): number {
 }
 
 /** Task ids this goal reaches, both routes. */
-function reachedIds(reach: GoalReach): Set<string> {
+export function reachedIds(reach: GoalReach): Set<string> {
   return new Set([...reach.filedIds, ...reach.taggedIds]);
 }
 
@@ -132,10 +132,27 @@ export function measureState(m: Measure | undefined, ctx: MeasureContext): Measu
     }
   }
   const done = filedDone + taggedDone;
+  // TO-DATE FOR NEW GOALS, TO-GO FOR COMMITTED ONES (Life View pick 8,
+  // 2026-08-25). While commitment is still forming, what is banked proves
+  // the goal is real; once it is established, what remains creates the pull
+  // that finishes it (Koo & Fishbach 2008). The measure's own `since` stamp
+  // is the age; a measure without one keeps the neutral line.
+  const line = (() => {
+    if (done >= target) return capAfterNumber(`${done} of ${target} done`);
+    if (m.since) {
+      const age = (ctx.now - new Date(m.since + "T00:00:00").getTime()) / 86400000;
+      if (age < COMMIT_DAYS) {
+        if (done > 0) return capAfterNumber(`${done} done already`);
+      } else {
+        return capAfterNumber(`${target - done} to go`);
+      }
+    }
+    return capAfterNumber(`${done} of ${target} done`);
+  })();
   return {
     done, target, met: done >= target,
     pct: Math.min(100, Math.round((done / target) * 100)),
-    line: capAfterNumber(`${done} of ${target} done`),
+    line,
   };
 }
 
@@ -192,6 +209,9 @@ export const HEALTH_LABEL: Record<Health, string> = {
 export const HEALTH_CLASS: Record<Health, string> = {
   done: "fact-good", on_track: "fact-good", behind: "fact-warn", idle: "fact-warn", unmeasured: "",
 };
+
+/** Days before a young measure starts speaking to-go instead of to-date. */
+export const COMMIT_DAYS = 21;
 
 /** Days without a seen completion before a goal with open work reads idle. */
 export const IDLE_DAYS = 14;

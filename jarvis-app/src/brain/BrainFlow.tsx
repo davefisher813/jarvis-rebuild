@@ -6,7 +6,7 @@ import BrainDocPage from "./docs/BrainDocPage";
 import CategoryDetail from "./CategoryDetail";
 import RoutineFlow from "../routine/RoutineFlow";
 import DecisionsFlow from "../decisions/DecisionsFlow";
-import ReportFlow from "../review/ReportPage";
+import InsightsFlow from "../review/InsightsFlow";
 import StrandsPage from "./strands/StrandsPage";
 import { usePushDepth } from "../shared/pushNav";
 import { effectiveKind } from "../categories/kinds";
@@ -63,7 +63,7 @@ export default function BrainFlow({ openKey, personOpenId, decisionOpenId, onOpe
       return <StrandsPage onBack={() => setOpen(null)} />;
     }
     if (open.key === "month") {
-      return <ReportFlow onBack={() => setOpen(null)} onOpenTask={onOpenEntity ? (id) => onOpenEntity("task", id) : undefined} />;
+      return <InsightsFlow onBack={() => setOpen(null)} onOpenTask={onOpenEntity ? (id) => onOpenEntity("task", id) : undefined} />;
     }
     if (open.key === "routine") {
       return <RoutineFlow onBack={() => setOpen(null)} />;
