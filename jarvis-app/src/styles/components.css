@@ -2452,6 +2452,22 @@ button {
    because Apple Music itself writes See All as text there. Everything else
    is a capsule, no exceptions. */
 .sh2 .see-all.quiet-action { color: var(--tx-3); font-size: 17px; background: transparent; padding: 0 var(--s-2); }
+/* Dave 2026-08-26, from two screenshots: every .see-all on the home page
+   should look like Plan My Day, not a bare red link. Same seat in the head
+   (order/margin/flex-shrink above still place it) -- only the paint and the
+   tap box change, to the compact ghost pill Plan My Day already wears
+   whenever Focus shares the screen (.plan-cta.plan-cta-ghost), sized for an
+   inline header rather than that pill's full-width -block modifier. The
+   inherited min-height/margin trick existed only to give the invisible bare
+   link a 44px hit box without inflating the row; a filled pill does that
+   with its own padding plus the same after-inset expansion .plan-cta uses,
+   so both are reset here instead of stacking on top of visible chrome. */
+.sh2 .see-all.pill-action {
+  background: var(--press-3); color: var(--tx-1); border-radius: var(--r-pill);
+  padding: var(--s-1h) var(--s-3); font-size: var(--t-meta); letter-spacing: normal;
+  min-height: 0; margin: 0; position: relative;
+}
+.sh2 .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
 /* Small pill: the one small doing-button (Add to Today, Link, Not Now).
    It always has a body; text-only small buttons are the head action's job.
    A small button that is ALSO a primary/danger keeps that fill: the
@@ -2638,6 +2654,56 @@ button {
 .notice-dismiss { right: 0; background: var(--press-3); color: var(--tx-2); }
 .notice-alt { right: 0; background: var(--accent-chip); color: var(--accent-chip-tx); }
 .notice-alt.beside-dismiss { right: 88px; }
+
+/* ONE CARD, THREE ROWS (Dave 2026-08-26, twice in one morning). First pick,
+   from the five-way render catalog: "Option 1 with a limit" -- one-line
+   rows, cap of three, See All folds the rest. Then, on seeing bare rows on
+   the naked page ground: "That doesn't look like the rest of the home
+   page." Both are right, and they compose: the rows KEEP their economy and
+   go INSIDE one rounded card, the same material every other band on Today
+   wears (Email's cards, the day card). This is the iOS grouped list: one
+   surface, inset hairlines, rows all the way down.
+
+   The EXPANDED form still opens in place: inside the group the member just
+   grows taller (its own surface matches the group's), which is exactly how
+   a grouped list opens a row. Scoped to .stream-grouped so the Email band
+   keeps its per-card layout (senders are any length the world chooses;
+   mail's opt-out stands). Rows stay OPAQUE over their own swipe reveals,
+   same trick .task-row uses; the group's surface is theirs too. */
+.stream-grouped > .stream-card { margin: 0 var(--s-4); overflow: hidden; }
+.stream-grouped .pad-x { padding: 0; }
+.stream-grouped .notice-swipe { border-radius: 0; }
+.stream-grouped .notice-card-row { background: var(--surface-1); border-radius: 0;
+  border: 0; box-shadow: none; }
+/* The dealt task wears the group's surface. Base .task-row paints page
+   ground for the Tasks swipe shell and light theme repaints it white;
+   three classes deep wins both, with the one value that matches the card. */
+.stream-grouped .stream-card > .task-row { background: var(--surface-1); }
+/* The uniform two-line box stands down: one line, the row's own 44px floor. */
+.stream-grouped .notice-card-row.notice-card-uniform { min-height: 0; }
+.stream-grouped .notice-card-row.notice-card-solo .conn-name {
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* One icon COLUMN for the whole group: the 30px disc rides centered in the
+   same 44px slot the task check-tap owns, so every fact starts at the same
+   x whether its row is a task or a notice. */
+.stream-grouped .notice-vrow .notice-disc { margin: 0 7px; }
+/* TASK OR NOTICE, BY SHAPE (Dave 2026-08-26, task-vs-notice catalog: "Option
+   1 works"). The dealt task's check is a circle everywhere the app shows
+   one; the notice disc was ALSO a circle, so in a stream that mixes both
+   there was nothing to read pre-attentively -- the words had to do it.
+   Shape splits them at a glance instead. Scoped to .stream-grouped only:
+   mail notices, Fresh Start, and every other notice-disc elsewhere in the
+   app keep their familiar circle. This is the one stream that mixes a task
+   with notices; nowhere else needs the distinction. */
+.stream-grouped .notice-vrow .notice-disc { border-radius: 9px; }
+/* Inset hairlines between rows, to the shared text edge, like every other
+   grouped list in the app. Receipts live under the card, quiet as ever. */
+.stream-card > .pad-x { position: relative; }
+.stream-card > .pad-x + .pad-x::before,
+.stream-card > .task-row + .pad-x::before,
+.stream-card > .pad-x + .task-row::before {
+  content: ""; position: absolute; left: calc(var(--s-4) + 44px + var(--s-3));
+  right: 0; top: 0; height: 0.5px; background: var(--divider); }
 
 /* An action line inside a card: the buttons own the width instead of
    competing with a title for it. Used by Now and anywhere a row's controls
@@ -3121,11 +3187,12 @@ body.selecting .voice-dock { display: none; }
 .bar-text.strong { font-weight: var(--w-semi); }
 .bar-text::after { content: ""; position: absolute; inset: -13px -8px; }
 
-/* Clear All sits above the notice stream, right-aligned, quiet. It is the
+/* Clear All sits under the notice stream (moved 2026-08-26; Dave: "should be
+   under the email tabs not above it"), right-aligned, quiet. It is the
    escape hatch for the whole section, not one of the actions in it, so it
    wears the bare-text treatment rather than competing with the card buttons
-   underneath it. */
-.notice-clear-row { display: flex; justify-content: flex-end; padding: 0 var(--s-4) var(--s-1); }
+   above it. */
+.notice-clear-row { display: flex; justify-content: flex-end; padding: var(--s-1) var(--s-4) 0; }
 
 /* A past row is dimmed to 0.45, and that dimming used to take the selection
    box with it: the two rows Dave had actually ticked were the hardest to see

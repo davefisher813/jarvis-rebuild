@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import TodayPage from "./TodayPage";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { setCategoryRegistry } from "../shared/categories";
+import NoticeCard from "./NoticeCard";
+import { WAITING, FAILING, NEW, RESUME } from "./stream";
 
 setCategoryRegistry([
   { id: "orgB", name: "Ridgeley", color: "sky" },
@@ -49,25 +51,117 @@ describe("TodayPage", () => {
     expect(summary.querySelector(".day-pill.dp-red")).toHaveTextContent("1 overdue");
   });
 
-  it("renders Up Next as ONE dealt card with its reason and the deck receipt", () => {
-    // Option 1 (Dave 2026-08-26, "go with what you think is best"): one
-    // target on screen. The card keeps the standard row anatomy (check +
-    // title + urgency) plus the reason line every automatic pick owes;
-    // everything behind it is a count on a receipt that opens the deck.
+  it("Your Move deals ONE task into the stream with its reason and the deck receipt", () => {
+    // Combine B (resumed 2026-08-26): Heads Up and Up Next were two sections
+    // answering the same question; the dealt task now rides the one stream.
+    // It keeps the standard row anatomy (check + title + urgency) plus the
+    // reason line every automatic pick owes; the deck behind it is a count
+    // on a receipt that opens the Focus flow. With one member there is
+    // nothing folded, so the head carries no See All (the button belongs to
+    // the fold now, not to navigation).
     const { container } = render(
       <TodayPage {...base} upNext={[tk("over", "2026-05-18")]} upNextWaiting={2}
-        upNextReason="Waiting 2 days" onUpNext={() => {}} onSeeAllUpNext={() => {}} />,
+        upNextReason="Waiting 2 days" onUpNext={() => {}} />,
     );
-    expect(screen.getByText("Up Next")).toBeInTheDocument();
-    expect(screen.getByText("See All")).toBeInTheDocument();
+    expect(screen.getByText("Your Move")).toBeInTheDocument();
+    expect(screen.queryByText("Up Next")).toBeNull(); // the section is gone, not renamed twice
+    expect(screen.queryByText("See All")).toBeNull();
     expect(container.querySelector(".urgency-red")).toBeTruthy(); // overdue
     expect(container.querySelector(".task-check.cat-bd-sky")).toBeTruthy();
     expect(screen.getByText("Waiting 2 days")).toBeInTheDocument();
     expect(screen.getByText("2 More waiting \u00b7 Skip deals the next one")).toBeInTheDocument();
-    // one card means one row, however deep the deck is
+    // one dealt card means one task row, however deep the deck is
     expect(container.querySelectorAll(".task-row").length).toBe(1);
-    // the old daytime task list is replaced by Up Next
+    // the old daytime task list stays replaced
     expect(screen.queryByText("Today\u2019s Tasks")).toBeNull();
+  });
+
+  it("shows three, folds the rest behind See All in the head, Less refolds", () => {
+    // "Option 1 with a limit. Have a see all button if it exceeds 3 things"
+    // (Dave 2026-08-26). The cap counts rows; the ranker has already put
+    // the heaviest three on top, so what folds is the lightest. See All
+    // expands IN PLACE: what folds is mostly notices, and notices live on
+    // no other page, so a See All that navigated would show him everything
+    // except what it hid.
+    const notice = (title: string, weight: number) => (
+      <NoticeCard key={title} weight={weight} icon={null} title={title} action={{ label: "Do It", onClick: () => {} }} />
+    );
+    const { container } = render(
+      <TodayPage {...base} offersQuiet upNext={[tk("over", "2026-05-18")]} upNextReason="Waiting 2 days"
+        onUpNext={() => {}} notices={[
+          notice("Day Is Sliding", FAILING),
+          notice("Money Waits", WAITING),
+          notice("Fresh Offer", NEW),
+          notice("Old Thread", RESUME),
+        ]} />,
+    );
+    const streamRows = () =>
+      container.querySelectorAll(".heads-up-stream .notice-vrow").length +
+      container.querySelectorAll(".heads-up-stream .task-row").length;
+    // Shown: FAILING, WAITING, then NEW -- the three heaviest non-anchor
+    // members. The dealt task is DEALT-weight and the stream's anchor
+    // (2026-08-26, "I don't want a task wedged in between 2 arrows"):
+    // FAILING(90) outranks its 71, so the WHOLE notice block rides above
+    // it, not just FAILING, which pushes the anchor itself down to fold
+    // with the lightest notice (Old Thread) instead of riding mid-list.
+    expect(streamRows()).toBe(3);
+    expect(screen.getByText("Day Is Sliding")).toBeInTheDocument();
+    expect(screen.getByText("Fresh Offer")).toBeInTheDocument();
+    expect(screen.queryByText("Old Thread")).toBeNull();
+    expect(screen.queryByText("over")).toBeNull(); // the dealt task's title
+    fireEvent.click(screen.getByText("See All"));
+    expect(streamRows()).toBe(5);
+    expect(screen.getByText("Old Thread")).toBeInTheDocument();
+    expect(screen.getByText("over")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Less"));
+    expect(streamRows()).toBe(3);
+    expect(screen.queryByText("over")).toBeNull();
+  });
+
+  it("rows down a pinned card too: one grammar, no exceptions in the stream", () => {
+    // The pinned-card exemption is repealed in the stream (Dave 2026-08-26,
+    // Option 1 picked with the tradeoff stated). A producer may still ask
+    // for the card form; the stream rows it down, and tap-to-expand is
+    // where the full card lives now.
+    const { container } = render(
+      <TodayPage {...base} offersQuiet notices={[
+        <NoticeCard key="g" form="card" weight={RESUME} icon={null}
+          title="Run three times a week" sub="Nothing today moves it"
+          action={{ label: "Pick One", onClick: () => {} }} />,
+      ]} />,
+    );
+    const stream = container.querySelector(".heads-up-stream")!;
+    expect(stream.querySelectorAll(".notice-card-row").length).toBe(1);
+    // nothing in the stream kept the card form (the box only returns on tap)
+    expect(stream.querySelectorAll(".notice-card:not(.notice-card-row)").length).toBe(0);
+    // the rows ride inside ONE grouped card, the page's own material
+    // (Dave 2026-08-26: bare rows "don't look like the rest of the home page")
+    expect(stream.classList.contains("stream-grouped")).toBe(true);
+    const group = stream.querySelector(".card.stream-card")!;
+    expect(group).toBeTruthy();
+    expect(group.querySelectorAll(".notice-card-row").length).toBe(1); // rows live in the group
+  });
+
+  // FIXED 2026-08-26: this fixture WAS Dave's screenshot -- a FAILING notice
+  // above, a WAITING notice below, the dealt task sorting in between them
+  // because plain-weight DEALT sits between the two. "I don't want a task
+  // wedged in between 2 arrows." The dealt task is now the stream's anchor:
+  // FAILING outranks it, so the WHOLE block (FAILING AND WAITING, not just
+  // the notice that outranks it) moves above, and the task trails both.
+  it("the dealt task no longer wedges between a FAILING notice and a WAITING one", () => {
+    const notice = (title: string, weight: number) => (
+      <NoticeCard key={title} weight={weight} icon={null} title={title} action={{ label: "Do It", onClick: () => {} }} />
+    );
+    const { container } = render(
+      <TodayPage {...base} offersQuiet upNext={[tk("over", "2026-05-18")]} upNextReason="Waiting 2 days"
+        onUpNext={() => {}} notices={[notice("Money Waits", WAITING), notice("Day Is Sliding", FAILING)]} />,
+    );
+    const stream = container.querySelector(".heads-up-stream")!;
+    const texts = stream.textContent!;
+    // FAILING first, then WAITING, then the dealt task trailing both --
+    // never between them.
+    expect(texts.indexOf("Day Is Sliding")).toBeLessThan(texts.indexOf("Money Waits"));
+    expect(texts.indexOf("Money Waits")).toBeLessThan(texts.indexOf("over"));
   });
 
   it("shows today's birthdays above Up Next, and nothing on ordinary days", () => {
@@ -80,9 +174,9 @@ describe("TodayPage", () => {
     // SPEC MOVED (Library phase 2, 2026-08-18): section heads are the bold
     // sh2 form; the birthday avatar keeps people-pink (never red).
     expect(container.querySelector(".av.cat-bg-pink")).toBeTruthy();
-    // section order: Birthday section head precedes Up Next's
+    // section order: Birthday section head precedes Your Move's
     const heads = [...container.querySelectorAll(".sh2 .t")].map((e) => e.textContent);
-    expect(heads.indexOf("Birthday")).toBeLessThan(heads.indexOf("Up Next"));
+    expect(heads.indexOf("Birthday")).toBeLessThan(heads.indexOf("Your Move"));
     // absent = the normal state, and the plural title only with 2+
     rerender(<TodayPage {...base} birthdays={[]} />);
     expect(screen.queryByText("Birthday")).toBeNull();
@@ -107,6 +201,8 @@ describe("TodayPage", () => {
       />,
     );
     expect(screen.queryByText("Up Next")).toBeNull();
+    // No dealt card at night, so the stream never wears the daytime name.
+    expect(screen.queryByText("Your Move")).toBeNull();
     expect(screen.queryByText("Focus")).toBeNull();
     expect(screen.getByText("Still Open")).toBeInTheDocument();
   });

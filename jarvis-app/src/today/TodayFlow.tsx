@@ -1501,11 +1501,12 @@ export default function TodayFlow({
     untouched ? (
       <NoticeCard
         key="goalnudge"
-        /* Card, never row: a goal title is his words and any length (see
-           TodayPage's pinned-card note and the mail-notice law it extends).
-           On the row form "Run three times a week" rendered as "Run three
-           ti..." and the evidence line vanished entirely. */
-        form="card"
+        /* HISTORY: this pinned form="card" so the goal's own words could
+           wrap ("Run three times a week" shredded on the row form,
+           2026-08-25). The pin is repealed in the stream (Dave 2026-08-26,
+           Option 1: one-line rows, tap expands to the full card in place),
+           so the stream rows this down like everything else; the evidence
+           line comes back on the expand. */
         weight={RESUME}
         icon={GOAL_ICO}
         tone="cat-fg-purple"
@@ -1832,7 +1833,6 @@ export default function TodayFlow({
       upNextWaiting={Math.max(0, upNextAll.length - 1)}
       upNextReason={upNextAll[0] ? reasonFor(upNextAll[0], today, inPeakNow) : null}
       blendMap={blendMap}
-      onSeeAllUpNext={onGoTasksAll ?? onGoTasks}
       onStartTask={(id) => {
         const t = taskItems.find((x) => x.id === id);
         if (t) void startFifteen(t);

@@ -217,35 +217,6 @@ export default function MailNotices({
 
   return (
     <>
-      {/* CLEAR THEM ALL (Dave 2026-08-24). Every card already has its own
-          dismiss; this is the stream at once, for the morning where none of
-          it is going to happen. Checkboxes would be the wrong shape here:
-          these are cards, not list rows, and ticking six of them to clear
-          six of them is more work than dismissing six of them.
-
-          Only from two up. At one notice this is a second control that does
-          exactly what the dismiss on the card already does. */}
-      {notices.length > 1 && (
-        <div className="notice-clear-row">
-          <button
-            className="row-act"
-            onClick={() => {
-              haptics.selection();
-              const was = hidden;
-              const keys = notices.map((n) => n.key);
-              setHidden(setDismissed([...was, ...keys], today));
-              showToast({
-                message: keys.length + " cleared",
-                actionLabel: "Undo",
-                // The list AS IT WAS, written back in one go. Removing the
-                // keys one at a time would be the same thing said less
-                // safely, and would drift if a dismiss landed in between.
-                onAction: () => setHidden(setDismissed(was, today)),
-              });
-            }}
-          >Clear All</button>
-        </div>
-      )}
       {/* Law 3E (2026-08-22): the band's summary sentence is gone. "One
           needs an answer and someone has been waiting 59 days on you" was a
           paragraph ABOUT the rows sitting directly above the rows; the rows
@@ -334,6 +305,41 @@ export default function MailNotices({
           />
         );
       })}
+
+      {/* CLEAR THEM ALL (Dave 2026-08-24), moved under the cards it clears
+          (Dave 2026-08-26, from a screenshot: "Clear all should be under
+          the email tabs not above it"). It used to sit between the EMAIL
+          head and the first card -- an escape hatch offered before you had
+          seen a single thing it was offering to clear. Every card already
+          has its own dismiss; this is the stream at once, for the morning
+          where none of it is going to happen, and it now reads the way any
+          bulk action does: see the list, then act on the list.
+
+          Only from two up. At one notice this is a second control that does
+          exactly what the dismiss on the card already does. Above the
+          residual line on purpose: residual is a fact about threads NOT
+          shown here, which this button does not touch. */}
+      {notices.length > 1 && (
+        <div className="notice-clear-row">
+          <button
+            className="row-act"
+            onClick={() => {
+              haptics.selection();
+              const was = hidden;
+              const keys = notices.map((n) => n.key);
+              setHidden(setDismissed([...was, ...keys], today));
+              showToast({
+                message: keys.length + " cleared",
+                actionLabel: "Undo",
+                // The list AS IT WAS, written back in one go. Removing the
+                // keys one at a time would be the same thing said less
+                // safely, and would drift if a dismiss landed in between.
+                onAction: () => setHidden(setDismissed(was, today)),
+              });
+            }}
+          >Clear All</button>
+        </div>
+      )}
 
       {/* The rest of the inbox is a receipt: it reports, it does not ask. */}
       {residual && (

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { DollarSign, RotateCcw } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
-import { rankStream, WAITING, NEW } from "./stream";
+import { rankStream, DEALT, WAITING, NEW, AMBIENT } from "./stream";
 import { cloneElement } from "react";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
@@ -36,6 +36,13 @@ const URGENCY_CLASS: Record<UrgencyKind, string> = {
 // Completion is optimistic: the check flips and the burst plays immediately,
 // and the real toggle (which reloads the list and removes the row) is held
 // for 600ms so the animation is actually visible before the row leaves.
+// A stream member that is not a NoticeCard: carries the weight rankStream
+// reads, renders only its children, so a TaskRow can ride the one stream
+// without wearing notice clothes (Your Move, 2026-08-26).
+function StreamMember(props: { weight: number; anchor?: boolean; children: ReactNode }) {
+  return <>{props.children}</>;
+}
+
 function TaskRow({ t, u, sub, onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; sub?: string | null; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
   const [bursting, fireBurst] = useBurst();
   const [localDone, setLocalDone] = useState(false);
@@ -126,7 +133,6 @@ export default function TodayPage({
   upNext,
   upNextWaiting,
   upNextReason,
-  onSeeAllUpNext,
   freshStart,
   locked,
   onOpenEvent,
@@ -189,7 +195,6 @@ export default function TodayPage({
   /** The dealt card's reason line (reasonFor, computed by the flow). */
   upNextReason?: string | null;
   upNext?: TaskItem[];
-  onSeeAllUpNext?: () => void;
   freshStart?: () => void;
   locked?: { s: number; e: number; label: string }[];
   onOpenEvent?: (id: string) => void;
@@ -228,6 +233,11 @@ export default function TodayPage({
   daypart?: "morning" | "evening" | null;
   birthdays?: { id: string; name: string }[]; // today's only; absent is the normal state
 }) {
+  // THE STREAM SHOWS THREE (Dave 2026-08-26, from the five-way render
+  // catalog: "Option 1 with a limit. Have a see all button if it exceeds 3
+  // things"). Session-local, like a row's own expansion: navigating away and
+  // back re-folds, which is the right default for a triage surface.
+  const [streamOpen, setStreamOpen] = useState(false);
   // Catalog V3.1 (approved 2026-08-18): the workload line is tappable pills,
   // not floating text. Sky events land on Schedule, blue due and red overdue
   // land on Tasks. Rolling numbers kept.
@@ -261,10 +271,10 @@ export default function TodayPage({
   // Tomorrow promoted above the (softened) open tasks. Same page, same data.
   const dayEvents = evening ? todayEvents.filter((e) => e.data.start >= now) : todayEvents;
 
-  // Up Next: the deck's top 3, first thing under the hero (Dave 2026-07-30).
-  // Rows are the SAME task rows as every other list (all task lists identical,
-  // Dave 2026-07-30); the title stays outside the card; See All lands on the
-  // Tasks All filter. The one-card mode opens from the Focus button (YourDay).
+  // The dealt task is a SAME task row as every other list (all task lists
+  // identical, Dave 2026-07-30). The head's See All is the stream's own
+  // fold, not a navigation; the Focus flow opens from its receipt and the
+  // Focus button (YourDay).
   // Birthdays (ride-along 2026-08-03, previewed and approved): shown ONLY on
   // the day itself, above Up Next. People-pink because this is people data;
   // never red. The year is untrusted (contact imports), so no age is claimed.
@@ -287,35 +297,37 @@ export default function TodayPage({
     </>
   );
 
-  // ONE CARD (Option 1, approved 2026-08-26). The deck deals one: the top
-  // task with its reason and the only Start on the section. The rest of the
-  // deck is a receipt line that opens the Focus flow, where Skip lives.
-  // Three equal rows asked him to rank them himself; that was the decision
-  // tax this section existed to remove.
-  const upNextTop = upNext?.[0];
-  const upNextSection = !evening && upNextTop && (
-    <>
-      <div className="sh2 sh2-quiet"><span className="t">Up Next</span>{onSeeAllUpNext && <button className="see-all" onClick={onSeeAllUpNext}>See All</button>}</div>
-      <div>
-        <div>
-          <TaskRow
-            t={upNextTop}
-            u={urgencyFor(upNextTop.data, today)}
-            sub={upNextReason ?? undefined}
-            onToggle={() => onToggleTask?.(upNextTop.id)}
-            onOpen={() => onOpenTask?.(upNextTop.id)}
-            onStart={onStartTask ? () => onStartTask(upNextTop.id) : undefined}
-          />
-          {(upNextWaiting ?? 0) > 0 && onUpNext && (
-            <button className="receipt-line" onClick={onUpNext}>
-              <span className="rl-t">{capAfterNumber(`${upNextWaiting} More waiting · Skip deals the next one`)}</span>
-              <div className="chev" />
-            </button>
-          )}
-        </div>
-      </div>
-    </>
-  );
+  // YOUR MOVE (Combine B from the Up Next catalog, resumed 2026-08-26).
+  // The dealt task stops being its own section and joins the one stream. It
+  // carries its OWN weight, DEALT (2026-08-26 soundness pass), AND it is the
+  // stream's anchor (2026-08-26, Dave's screenshot: "I don't want a task
+  // wedged in between 2 arrows" -- resolved as "task leads, urgent notices
+  // can still jump it"). Weight alone put it wherever DEALT fell that day,
+  // which on a day with one heavier and one lighter notice is the middle;
+  // anchor tells rankStream to keep it at an edge instead -- leading unless
+  // something outranks it, in which case the WHOLE notice block moves above
+  // it together. See stream.ts for the rule.
+  // The section answers ONE question at the top of the page. In the evening
+  // there is no dealt card and the stream stays what it was: Heads Up.
+  const upNextTop = !evening ? upNext?.[0] : undefined;
+  const dealtRow = upNextTop ? (
+    <StreamMember key="dealt" weight={DEALT} anchor>
+      <TaskRow
+        t={upNextTop}
+        u={urgencyFor(upNextTop.data, today)}
+        sub={upNextReason ?? undefined}
+        onToggle={() => onToggleTask?.(upNextTop.id)}
+        onOpen={() => onOpenTask?.(upNextTop.id)}
+        onStart={onStartTask ? () => onStartTask(upNextTop.id) : undefined}
+      />
+    </StreamMember>
+  ) : null;
+  const waitingReceipt = upNextTop && (upNextWaiting ?? 0) > 0 && onUpNext ? (
+    <button key="waiting" className="receipt-line" onClick={onUpNext}>
+      <span className="rl-t">{capAfterNumber(`${upNextWaiting} More waiting · Skip deals the next one`)}</span>
+      <div className="chev" />
+    </button>
+  ) : null;
 
   // THE RECAP IS NOT A WALL (Dave's screenshot 2026-08-26: fifteen bare rows
   // filling two screens at 10:35 PM). Evening shows the top of what is still
@@ -327,7 +339,7 @@ export default function TodayPage({
   const foldedTasks = tasks.length - shownTasks.length;
   const tasksSection = tasks.length > 0 && (
     <>
-      <div className="sh2 sh2-quiet"><span className="t">{evening ? "Still Open" : "Today’s Tasks"}</span><button className="see-all" onClick={onSeeAllTasks}>See All</button></div>
+      <div className="sh2 sh2-quiet"><span className="t">{evening ? "Still Open" : "Today’s Tasks"}</span><button className="see-all pill-action" onClick={onSeeAllTasks}>See All</button></div>
       <div>
         <div>
           {shownTasks.map((t) => (
@@ -358,7 +370,7 @@ export default function TodayPage({
           which the head already offers elsewhere. It reads as the fact it is
           now, and the action is the one that helps: set tomorrow up. */}
       <div className="sh2 sh2-quiet"><span className="t">Tomorrow</span><span className="n">{tomorrowDate}</span>
-        {onPlanTomorrow && <button className="see-all" onClick={onPlanTomorrow}>Plan It</button>}</div>
+        {onPlanTomorrow && <button className="see-all pill-action" onClick={onPlanTomorrow}>Plan It</button>}</div>
       <div>
         <div>
           {tomorrowEvents.map((ev) => <SchedRow ev={ev} key={ev.id} />)}
@@ -412,7 +424,11 @@ export default function TodayPage({
         action={{ label: "Re-plan", onClick: freshStart }}
       />
     ) : null,
-    !offersQuiet ? <WeatherOfferRow key="weather" /> : null,
+    // AMBIENT (2026-08-26 soundness pass): the weather ask used to carry no
+    // weight and rode the ranker's generic fallback by omission. Explicit
+    // now, and named below that fallback -- a permission nag should never
+    // out-rank even a producer that forgot to declare a weight.
+    !offersQuiet ? <WeatherOfferRow key="weather" weight={AMBIENT} /> : null,
   ].filter(Boolean);
 
   return (
@@ -446,8 +462,9 @@ export default function TodayPage({
       <div ref={condProbe} />
 
       {/* THE DAY'S OWN ORDER (Dave 2026-08-19: "the order should have the
-          same flow as the day"): Now → Heads Up → Up Next → Your Day →
-          Tomorrow. Nothing about this minute sits below tomorrow. */}
+          same flow as the day", amended by Your Move 2026-08-26): Your Move
+          → Email → Reminders → Your Day → Tomorrow. Nothing about this
+          minute sits below tomorrow. */}
       {/* MERGE B (2026-08-24, Dave: "can't now and your day be combined
           somehow?"). Now was its own section here, directly above Your Day,
           which also drew a NOW rule through its own timeline: one fact, two
@@ -461,41 +478,63 @@ export default function TodayPage({
 
       {birthdaySection}
 
-      {/* HEADS UP: the one notice stream. Every card, row, and offer JARVIS
-          wants him to see lives here under one head, so the page has a
-          single place to look instead of nine floating interruptions. */}
-      {/* THE DAY DRAFT IS A COMMITMENT, NOT A NOTICE (cleanup 2026-08-22).
-          Ranked with the stream it fell to the default weight and sank
-          BELOW two verb rows on Dave's screenshot -- the most important
-          block on the page, under trivia. It renders first, always. */}
-      {headsUp.length > 0 && (() => {
-        // FORM FOLLOWS DECISION (Law 3E). The stream ranks its members:
-        // the heaviest becomes THE headliner, everything else drops to a
-        // one-line verb row, and receipts collapse to the quiet line. The
-        // producers only declare weight; form is decided here, in one
+      {/* YOUR MOVE: the one stream, and the dealt task is its first member
+          (Combine B, 2026-08-26). Heads Up and Up Next were two sections
+          answering the same question from different angles; now the page
+          has a single place that says what needs him, sorted by weight,
+          with the next task leading its band. Every member is a uniform
+          row (the headliner is retired, see stream.ts); the deck behind
+          the dealt task folds to the waiting receipt. Evening has no dealt
+          card, so the stream stays what it always was there: Heads Up. */}
+      {(headsUp.length > 0 || dealtRow) && (() => {
+        // FORM FOLLOWS DECISION (Law 3E). The stream ranks its members;
+        // the producers only declare weight, form is decided here, in one
         // place, so no card can promote itself.
-        const ranked = rankStream(headsUp);
+        const ranked = rankStream([dealtRow, ...headsUp]);
+        // STRIP THE BOXES, SHOW THREE (Dave 2026-08-26, five-way catalog:
+        // "Option 1 with a limit. Have a see all button if it exceeds 3
+        // things"). The cap counts ROWS: the ranker has already put the
+        // heaviest three on top, so what folds is by definition the
+        // lightest. Receipts never count and never fold; they are one quiet
+        // line each and the deck receipt is the Focus flow's front door.
+        const STREAM_SHOWN = 3;
+        const foldable = ranked.rows.length > STREAM_SHOWN;
+        const shownRows = streamOpen ? ranked.rows : ranked.rows.slice(0, STREAM_SHOWN);
         return (
           <>
-            <div className="sh2 sh2-quiet"><span className="t">Heads Up</span></div>
-            <div className="heads-up-stream">
-              {ranked.headliner && (ranked.headliner.type === NoticeCard
-                ? cloneElement(ranked.headliner, { form: "headliner" })
-                : ranked.headliner)}
-              {/* A PINNED CARD IS NOT A PROMOTION (2026-08-24, from the goal
-                  nudge truncating "Run three times a week" to "Run three
-                  ti..."). The stream still owns the HEADLINER, which is the
-                  only real promotion; what a producer may pin is the card
-                  form, and only for the reason the mail law already
-                  established: a title that is USER CONTENT is any length the
-                  world chooses, so the one-line row cannot hold it and the
-                  row's rule of "the sub yields whole or not at all" then
-                  costs the evidence line too. A pinned card can still be
-                  outranked, still be dismissed, still be beaten to the
-                  headline. It just is not shredded. */}
-              {ranked.rows.map((r) => (r.type === NoticeCard && (r.props as { form?: string }).form !== "card"
-                ? cloneElement(r, { form: "row" })
-                : r))}
+            <div className="sh2 sh2-quiet">
+              <span className="t">{evening ? "Heads Up" : "Your Move"}</span>
+              {/* See All expands IN PLACE. It used to land on the Tasks
+                  page, but what folds here is mostly notices, and notices
+                  live nowhere else: a See All that navigates would show him
+                  everything except what it hid. */}
+              {foldable && (
+                <button className="see-all pill-action" onClick={() => setStreamOpen((v) => !v)}>
+                  {streamOpen ? "Less" : "See All"}
+                </button>
+              )}
+            </div>
+            <div className="heads-up-stream stream-grouped">
+              {/* ONE CARD, THREE ROWS (Dave 2026-08-26: bare rows "don't
+                  look like the rest of the home page"). The rows keep
+                  Option 1's economy and ride inside one grouped card, the
+                  same material as every other band on Today. */}
+              {shownRows.length > 0 && (
+                <div className="card stream-card">
+                  {/* THE PINNED CARD IS REPEALED, IN THE STREAM (Dave
+                      2026-08-26, picking Option 1 with the tradeoff stated:
+                      long titles truncate to one line, tap opens the full
+                      thing). The pin existed so user-written titles could
+                      wrap; the row's tap-to-expand already carries that
+                      need, one tap later. Every member rows down, no
+                      exceptions; the dealt task passes through untouched
+                      because a task row is already the uniform. */}
+                  {shownRows.map((r) => (r.type === NoticeCard || r.type === WeatherOfferRow
+                    ? cloneElement(r, { form: "row" })
+                    : r))}
+                </div>
+              )}
+              {waitingReceipt}
               {ranked.receipts}
             </div>
           </>
@@ -521,14 +560,12 @@ export default function TodayPage({
       {mail && !mailEmpty && (
         <div className="sh2 sh2-quiet">
           <span className="t">Email</span>
-          {onSeeAllMail && <button className="see-all" onClick={onSeeAllMail}>Open Inbox</button>}
+          {onSeeAllMail && <button className="see-all pill-action" onClick={onSeeAllMail}>Open Inbox</button>}
         </div>
       )}
       {mail && <div className="heads-up-stream">{mail}</div>}
 
       {reminders}
-
-      {upNextSection}
 
       <YourDay
         events={dayEvents}

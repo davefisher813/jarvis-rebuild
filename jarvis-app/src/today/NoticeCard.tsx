@@ -45,6 +45,7 @@ export default function NoticeCard({
   // props are typed at every call site.
   weight,
   receipt,
+  anchor,
 }: {
   icon: ReactNode;
   // A cat-fg-* class. Color is the notice's category, never decoration.
@@ -80,8 +81,11 @@ export default function NoticeCard({
   uniform?: boolean;
   weight?: number;
   receipt?: boolean;
+  // Read only by rankStream (2026-08-26): marks the one element the stream
+  // should never wedge between two others. See stream.ts for the rule.
+  anchor?: boolean;
 }) {
-  void weight; void receipt;
+  void weight; void receipt; void anchor;
   const [expanded, setExpanded] = useState(false);
   const effForm = form === "row" && expanded ? "card" : form;
 
@@ -110,8 +114,27 @@ export default function NoticeCard({
   const [subDropped, setSubDropped] = useState(false);
   useLayoutEffect(() => {
     if ((effForm !== "row" && effForm !== "headliner") || subDropped) return;
-    const over = (el: HTMLElement | null) => !!el && el.scrollWidth > el.clientWidth + 1;
-    if (over(factRef.current) || over(subRef.current)) setSubDropped(true);
+    // ZERO TOLERANCE, measured live (probe 2026-08-26): Rent's sub sat at
+    // scrollWidth 146 vs clientWidth 145, the old +1 grace called that
+    // "fits", and text-overflow answered a 1px deficit by eating "ay" and
+    // three more characters to seat the ellipsis. One pixel over is not a
+    // pixel of loss; it is a word of loss. The law says whole or not at
+    // all, so the comparison is exactly that.
+    const over = (el: HTMLElement | null) => !!el && el.scrollWidth > el.clientWidth;
+    const check = () => { if (over(factRef.current) || over(subRef.current)) setSubDropped(true); };
+    check();
+    // A LATCH THAT LOOKS ONLY AT MOUNT CAN MISS (Dave's 9:57 screenshot,
+    // 2026-08-26: "All 1 do..." shipped mid-word). The mount-time
+    // measurement runs before layout fully settles on a real phone, and if
+    // no re-render follows, a sub that later loses room stays shredded on
+    // screen with the latch still open. The observer re-measures whenever
+    // the line's box actually changes, so the law holds after the moment
+    // this effect happened to look.
+    const line = factRef.current?.parentElement;
+    if (!line || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(check);
+    ro.observe(line);
+    return () => ro.disconnect();
   });
   // Headliners show alt beside the primary, so the swipe carries only
   // Dismiss there; other forms keep alt on the reveal.

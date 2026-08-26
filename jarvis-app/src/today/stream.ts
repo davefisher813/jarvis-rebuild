@@ -17,10 +17,27 @@
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 
 export const FAILING = 90;   // sliding tasks, broken sweeps, an overloaded day
+// THE DEALT TASK'S OWN WEIGHT (2026-08-26, Dave: "the logic behind all of
+// this needs to be sound"). Your Move's dealt task was always MEANT to lead
+// its band -- "added first so it leads its band... everything else defers"
+// (Your Move, same day) -- but that was true only because it was spliced
+// first into rankStream's input array and won the stable sort's
+// arrival-order tie-break. Nothing enforced it; a future reordering of the
+// concatenation would have silently dropped it behind a same-weight notice.
+// A named weight above WAITING says outright what was already the design,
+// so it holds no matter how the caller assembles the array.
+export const DEALT = 71;
 export const WAITING = 70;   // things waiting on him: revisits, slipped plans, money
 export const NEW = 50;       // new arrivals: moved tasks, fresh offers
 export const RESUME = 40;    // pick-up-where-you-left-off
 const DEFAULT_WEIGHT = 30;
+// AMBIENT ASKS (2026-08-26): opportunistic, no urgency of their own -- the
+// weather permission offer is the only member today. It used to carry no
+// weight at all, which meant it rode DEFAULT_WEIGHT by omission: correct by
+// accident, indistinguishable from a producer that simply forgot to declare
+// one. A named tier below the fallback makes "deliberately the least urgent
+// thing in the stream" an explicit claim instead of a gap.
+export const AMBIENT = 20;
 
 export interface Ranked {
   headliner: ReactElement | null;
@@ -29,18 +46,41 @@ export interface Ranked {
 }
 
 export function rankStream(children: ReactNode): Ranked {
-  const ranked: { el: ReactElement; w: number; i: number }[] = [];
+  const ranked: { el: ReactElement; w: number; i: number; anchor: boolean }[] = [];
   const receipts: ReactElement[] = [];
   let i = 0;
   Children.forEach(children, (c) => {
     if (!isValidElement(c)) return;
-    const p = c.props as { weight?: number; receipt?: boolean; "data-receipt"?: unknown };
+    const p = c.props as { weight?: number; receipt?: boolean; "data-receipt"?: unknown; anchor?: boolean };
     if (p.receipt || p["data-receipt"] !== undefined) { receipts.push(c); return; }
     // Stable sort by weight, arrival order breaking ties, so two same-band
     // notices keep the producer's own priority.
-    ranked.push({ el: c, w: p.weight ?? DEFAULT_WEIGHT, i: i++ });
+    ranked.push({ el: c, w: p.weight ?? DEFAULT_WEIGHT, i: i++, anchor: p.anchor === true });
   });
-  ranked.sort((a, b) => b.w - a.w || a.i - b.i);
+  const byWeight = (a: { w: number; i: number }, b: { w: number; i: number }) => b.w - a.w || a.i - b.i;
+
+  // AN ANCHOR NEVER WEDGES (Dave 2026-08-26, from a screenshot: "I don't
+  // want a task wedged in between 2 arrows"). Plain weight order put the
+  // dealt task wherever its weight fell that day, and DEALT sits BETWEEN
+  // WAITING and FAILING on purpose -- so on any day with one notice heavier
+  // and one notice lighter than it, the task lands in the middle. That is
+  // not a sorting bug, it is what a fixed point in the middle of a range
+  // does; no amount of tie-break tuning fixes it, because it is not a tie.
+  //
+  // The rule an anchor gets instead: does ANYTHING here outrank it today?
+  // If nothing does, it leads and every notice follows as one weight-sorted
+  // block. If anything does, the whole block moves above it, not just the
+  // one notice that outranks it, and the anchor trails. It sits at one
+  // edge of the stream, never between two others; which edge is the only
+  // thing the day decides.
+  const anchor = ranked.find((r) => r.anchor);
+  if (anchor) {
+    const others = ranked.filter((r) => r !== anchor).sort(byWeight);
+    const outranked = others.some((o) => o.w > anchor.w);
+    const rows = outranked ? [...others, anchor] : [anchor, ...others];
+    return { headliner: null, rows: rows.map((r) => r.el), receipts };
+  }
+  ranked.sort(byWeight);
   // EVERY NOTICE IS A ROW (Dave 2026-08-25, from a screenshot of three cards
   // at three heights: "Why are the heads up containers different sizes? They
   // should all be the size of update workout feature").
