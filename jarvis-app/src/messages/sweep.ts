@@ -132,3 +132,16 @@ export function streakView(d: SweepDays, todayISO: string): StreakView {
   }
   return { last7, cleared: last7.filter(Boolean).length, best };
 }
+
+/**
+ * The deck card's honest time estimate (2026-08-26, the Mission Deck).
+ * Forty seconds a card is the measured shape of a sweep: most cards are a
+ * one-tap archive or a prewritten reply, a few need a real look. Rounded UP,
+ * because "about 2 min" that takes 90 seconds delights and the reverse
+ * breaks the one promise the timer exists to make.
+ */
+export function sweepEstimate(n: number): string {
+  if (n <= 0) return "";
+  const mins = Math.max(1, Math.ceil((n * 40) / 60));
+  return "about " + mins + " min";
+}

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   dealHand, HAND_MAX, estimateOf, receiptLines, handledOf, EMPTY_RECEIPTS,
-  loadSweepDays, recordSweepDay, streakView,
+  loadSweepDays, recordSweepDay, streakView, sweepEstimate,
 } from "./sweep";
 
 // The Sweep's promises, held as tests. Each block is one approved catalog
@@ -92,5 +92,16 @@ describe("10A: the honest streak", () => {
     expect(loadSweepDays(s).days).toEqual([]);
     s.setItem("jarvis.mail.sweep.v1", JSON.stringify({ days: ["nope", 7, "2026-08-25"] }));
     expect(loadSweepDays(s).days).toEqual(["2026-08-25"]);
+  });
+});
+
+describe("the deck card's estimate", () => {
+  it("rounds UP, because an estimate that runs over breaks the promise", () => {
+    expect(sweepEstimate(1)).toBe("about 1 min");
+    expect(sweepEstimate(3)).toBe("about 2 min");
+    expect(sweepEstimate(9)).toBe("about 6 min");
+  });
+  it("says nothing about an empty hand", () => {
+    expect(sweepEstimate(0)).toBe("");
   });
 });

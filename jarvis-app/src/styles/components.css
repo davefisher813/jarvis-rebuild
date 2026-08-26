@@ -3480,3 +3480,47 @@ body.selecting .voice-dock { display: none; }
 .life-fed { background: var(--good-tint); color: var(--good); }
 .life-rest { background: var(--press-3); color: var(--tx-3); cursor: pointer; }
 .life-quiet { background: var(--warn-tint); color: var(--warn); }
+
+/* ===== THE MISSION DECK (Dave 2026-08-26, "combo of a/c"). The flagship
+   modes were footnotes: the Sweep behind a see-all link, the drain behind a
+   quiet line, the Clean Out behind a foot pill. Dave, on discovering them:
+   "People wouldn't think those render into unique major features." The deck
+   makes the two flagships the biggest objects on the tab; the launcher rows
+   below give every other mode a full-width target with a reason to tap. */
+.mode-deck { display: flex; gap: 10px; margin-bottom: var(--s-2); }
+.mode-card { flex: 1; min-width: 0; border-radius: var(--r-lg, 18px);
+  background: var(--surface-1); padding: var(--s-4) var(--s-3h) var(--s-3h); cursor: pointer; }
+/* ONE red fill on the screen, and this is it: the recommended action wears
+   the accent, the neighbor stays quiet. The one-filled-red law holds. */
+.mode-card.mode-hero { background: var(--accent-fill); flex: 1.35; }
+.mode-name { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.3px; color: var(--tx-1); }
+.mode-hero .mode-name { color: #fff; }
+.mode-n { font-size: var(--t-display); font-weight: var(--w-bold); line-height: 1; margin: var(--s-1h) 0 var(--s-0h); color: var(--tx-1); }
+.mode-hero .mode-n { color: #fff; }
+.mode-why { font-size: var(--t-meta); color: var(--tx-3); }
+.mode-hero .mode-why { color: rgba(255,255,255,0.85); }
+.mode-go { margin-top: var(--s-3); border-radius: var(--r-pill); text-align: center;
+  padding: var(--s-2) 0; font-size: var(--t-body); font-weight: var(--w-bold);
+  /* NOT --accent-tx: in dark that token is deliberately WHITE (the chip
+     ruling, 2026-08-21), which would put white text on this white pill.
+     #DA0012 is --on-light-red's exact value, the brand hue held to 5.26:1
+     on white, correct here in BOTH themes because the pill is white in
+     both. */
+  background: #fff; color: #DA0012; }
+.mode-go.mode-go-quiet { background: var(--press-5); color: var(--tx-1); }
+[data-theme="light"] .mode-card { background: #FFFFFF; box-shadow: var(--shadow-card); }
+[data-theme="light"] .mode-card.mode-hero { background: var(--accent-fill); box-shadow: var(--shadow-card); }
+[data-theme="light"] .mode-go { box-shadow: 0 0 0 0.5px rgba(0,0,0,0.06); }
+
+/* The launcher row: one mode, full width, its count and its reason. */
+.launch-row { display: flex; align-items: center; gap: var(--s-3);
+  background: var(--surface-1); border-radius: var(--r-md); padding: var(--s-3) var(--s-3h);
+  margin-bottom: var(--s-2); cursor: pointer; }
+.launch-ic { width: 40px; height: 40px; border-radius: var(--r-sm, 12px); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--red-tint); color: var(--accent-tx); }
+.launch-ic .ic { width: 20px; height: 20px; }
+.launch-tt { font-size: var(--t-h3); font-weight: var(--w-semi); color: var(--tx-1); }
+.launch-ss { font-size: var(--t-meta); color: var(--tx-3); margin-top: 1px; }
+.launch-chev { color: var(--tx-4); font-size: 22px; line-height: 1; flex-shrink: 0; }
+[data-theme="light"] .launch-row { background: #FFFFFF; box-shadow: var(--shadow-card); }

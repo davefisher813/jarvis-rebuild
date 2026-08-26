@@ -21,7 +21,7 @@ describe("DemoMail fixture", () => {
     expect(screen.getByText("The Rest")).toBeInTheDocument();
     // The verb and the count moved onto the head, and the counts still match
     // the fixtures, so the numbers cannot drift.
-    expect(screen.getByText("Deal With It")).toBeInTheDocument();
+    expect(screen.getByText("The Sweep")).toBeInTheDocument();
     const counts = [...document.querySelectorAll(".sh2 .n")].map((e) => e.textContent);
     expect(counts).toEqual(["3", "4"]);
     // E2 (2026-08-24): THE ASK LEADS. The verb is the headline and the sender

@@ -92,7 +92,7 @@ describe("MessagesFlow (threads)", () => {
     // height back. "1 Thread Needs You" said in three lines what
     // "Needs You · 1 · Deal With It" says in one.
     expect(screen.queryByText("1 Thread Needs You")).toBeNull();
-    expect(screen.getByText("Deal With It")).toBeInTheDocument();
+    expect(screen.getByText("The Sweep")).toBeInTheDocument();
     expect(screen.getByText(/Ridgeley needs the waiver by Friday/)).toBeInTheDocument();
     // THE FOLD: everything that does not need him is one line, not a section.
     // SPEC MOVED (V2 anatomy, 2026-08-15): the count is a pill beside the line.
@@ -399,7 +399,7 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={noAI} configured={false} demoMail />));
     // SPEC MOVED (E14, 2026-08-23): the count and the verb ride the head.
     expect(await screen.findByText("Needs You")).toBeInTheDocument();
-    expect(screen.getByText("Deal With It")).toBeInTheDocument();
+    expect(screen.getByText("The Sweep")).toBeInTheDocument();
     expect(screen.queryByText("Connect Your Email")).not.toBeInTheDocument();
   });
 

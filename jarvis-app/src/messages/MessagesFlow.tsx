@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, lazy, Suspense } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag } from "../shared/icons";
+import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare } from "../shared/icons";
 import type { AIService } from "../ai/AIService";
 import { useGoogle } from "../connections/google/GoogleSession";
 
@@ -38,7 +38,7 @@ import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, handoffLine
 import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, markPromised, commitmentLine, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import { settleAll, settleLine, type SettleWords } from "./settle";
-import { recordSweepDay, loadSweepDays, streakView, receiptLines, type SweepReceipts } from "./sweep";
+import { recordSweepDay, loadSweepDays, streakView, receiptLines, sweepEstimate, type SweepReceipts } from "./sweep";
 import ListFloor from "../shared/ListFloor";
 import { senderPiles, selectedCount, selectedIds, purgeLabel, purgePromise, defaultPicks } from "./purge";
 import { readIcs } from "./ics";
@@ -2741,6 +2741,97 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="empty-title">Inbox Is Quiet</div>
             </div></div></div>
           )}
+          {/* THE MISSION DECK (Dave 2026-08-26, approved as "a combo of
+              a/c"). His words, on finding the Sweep behind a small side
+              button: "People wouldn't think those render into unique major
+              features." He was right. The flagship modes were footnotes:
+              the Sweep behind a see-all link, the drain behind a quiet
+              line, the Clean Out behind a foot pill.
+              The deck makes the two flagships the biggest objects on the
+              tab, each carrying its count and its honest cost, and the
+              launcher rows below it give every other mode a full-width
+              target with a reason to tap. The tiny links are gone. */}
+          {triageState === "ready" && (needsYou.length > 0 || unmutedRows.length > 0) && (
+            <div className="pad-x mode-deck">
+              {needsYou.length > 0 && (
+                <div className="mode-card mode-hero" role="button" tabIndex={0}
+                  onClick={() => { setDeckRows(needsYou); setView("deck"); }}>
+                  <div className="mode-name">The Sweep</div>
+                  <div className="mode-n">{needsYou.length}</div>
+                  <div className="mode-why">{(needsYou.length === 1 ? "needs you" : "need you") + " \u00b7 " + sweepEstimate(needsYou.length)}</div>
+                  <div className="mode-go">Start</div>
+                </div>
+              )}
+              {unmutedRows.length > 0 && (
+                <div className="mode-card" role="button" tabIndex={0}
+                  onClick={() => { setPurgePicks(null); setView("purge"); }}>
+                  <div className="mode-name">Clean Out</div>
+                  <div className="mode-n">{unmutedRows.length}</div>
+                  <div className="mode-why">{"in the inbox \u00b7 " + senderPiles(unmutedRows, effTriage, vips).length + " senders"}</div>
+                  <div className="mode-go mode-go-quiet">Open</div>
+                </div>
+              )}
+            </div>
+          )}
+          {/* The timed drain, promoted from a quiet line to a launcher. The
+              picker it opens is the same one it always opened. */}
+          {triageState === "ready" && needsYou.length > 0 && !drainOpen && (
+            <div className="pad-x">
+              <div className="launch-row" role="button" tabIndex={0} onClick={() => setDrainOpen(true)}>
+                <span className="launch-ic" aria-hidden="true"><Clock className="ic" /></span>
+                <div className="row-grow">
+                  <div className="launch-tt">Only a Few Minutes?</div>
+                  <div className="launch-ss">A timed drain · It stops itself</div>
+                </div>
+                <span className="launch-chev" aria-hidden="true">›</span>
+              </div>
+            </div>
+          )}
+          {triageState === "ready" && needsYou.length > 0 && drainOpen && (
+            <div className="pad-x drain-pick">
+              <div className="eyebrow">Give Me</div>
+              <div className="msg-chips">
+                {PRESETS.map((m) => (
+                  <button key={m} className={"chip" + (minutes === m ? " on" : "")}
+                    onClick={() => setMinutes(saveMinutes(m))}>{m} min</button>
+                ))}
+                <input
+                  className="msg-input drain-input" type="number" min={1} max={60} value={minutes}
+                  aria-label="Minutes"
+                  onChange={(e) => setMinutes(clampMinutes(parseInt(e.target.value, 10)))}
+                  onBlur={() => setMinutes(saveMinutes(minutes))}
+                />
+              </div>
+              <div className="promo-acts">
+                <button className="promo-pill" onClick={() => {
+                  saveMinutes(minutes);
+                  setDrainMs(minutes * 60000);
+                  setDeckRows(needsYou);
+                  setDrainOpen(false);
+                  setView("deck");
+                }}>Start the Drain</button>
+              </div>
+            </div>
+          )}
+          {/* One at a Time, promoted from a head link to a launcher when
+              there is a real run of them to walk. */}
+          {(() => {
+            const owed = waiting.filter((w) => decideFor(w).ask !== "nothing");
+            if (owed.length < 2) return null;
+            const oldest = Math.max(...owed.map((w) => w.waitingDays));
+            return (
+              <div className="pad-x">
+                <div className="launch-row" role="button" tabIndex={0} onClick={() => setWaitDeck(0)}>
+                  <span className="launch-ic" aria-hidden="true"><MessageSquare className="ic" /></span>
+                  <div className="row-grow">
+                    <div className="launch-tt">One at a Time</div>
+                    <div className="launch-ss">{capAfterNumber(owed.length + " waiting on answers \u00b7 oldest is " + oldest + (oldest === 1 ? " day" : " days"))}</div>
+                  </div>
+                  <span className="launch-chev" aria-hidden="true">›</span>
+                </div>
+              </div>
+            );
+          })()}
           {/* N12 (2026-08-20): thirty seconds of speech for the car or the gym.
               It says the SAME things the cards say, and never reads a body
               aloud: a private message read out with other people in the car
@@ -2812,44 +2903,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   count (which the head can carry), "everything else is filed
                   below" (which the fold below already says by existing), and
                   the verb. A whole card of height for one button. */}
+              {/* E14's verb moved again (2026-08-26): off the head and onto
+                  the Mission Deck above, where it is the biggest thing on
+                  the tab instead of the smallest. The head keeps the count. */}
               <div className="sh2">
                 <span className="t">Needs You</span>
                 <span className="n">{needsYou.length}</span>
-                <button className="see-all" onClick={() => { setDeckRows(needsYou); setView("deck"); }}>Deal With It</button>
               </div>
-              {/* The timed version is the rarer choice, so it costs one quiet
-                  line instead of half a card, and it sits next to the list it
-                  drains rather than floating above the whole tab. */}
-              {!drainOpen ? (
-                <div className="pad-x drain-line">
-                  <button className="quiet-action" onClick={() => setDrainOpen(true)}>Only Have a Few Minutes?</button>
-                </div>
-              ) : (
-                <div className="pad-x drain-pick">
-                  <div className="eyebrow">Give Me</div>
-                  <div className="msg-chips">
-                    {PRESETS.map((m) => (
-                      <button key={m} className={"chip" + (minutes === m ? " on" : "")}
-                        onClick={() => setMinutes(saveMinutes(m))}>{m} min</button>
-                    ))}
-                    <input
-                      className="msg-input drain-input" type="number" min={1} max={60} value={minutes}
-                      aria-label="Minutes"
-                      onChange={(e) => setMinutes(clampMinutes(parseInt(e.target.value, 10)))}
-                      onBlur={() => setMinutes(saveMinutes(minutes))}
-                    />
-                  </div>
-                  <div className="promo-acts">
-                    <button className="promo-pill" onClick={() => {
-                      saveMinutes(minutes);
-                      setDrainMs(minutes * 60000);
-                      setDeckRows(needsYou);
-                      setDrainOpen(false);
-                      setView("deck");
-                    }}>Start the Drain</button>
-                  </div>
-                </div>
-              )}
               <div><div className="list-flat">
                 {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist))}
               </div></div>

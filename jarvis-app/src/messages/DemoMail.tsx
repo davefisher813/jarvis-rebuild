@@ -103,16 +103,25 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
         <button className="chip" onClick={demoTap}>Drafts</button>
       </div>
 
-      {/* E14 (2026-08-23): the promo card is gone from the live page, so it
-          is gone from here. The whole point of this component is that a demo
-          never shows an anatomy the app does not have. */}
+      {/* The demo never shows an anatomy the app does not have, so when the
+          Mission Deck landed (2026-08-26) it landed here the same day. */}
+      <div className="pad-x mode-deck">
+        <div className="mode-card mode-hero" role="button" tabIndex={0} onClick={demoTap}>
+          <div className="mode-name">The Sweep</div>
+          <div className="mode-n">{NEEDS.length}</div>
+          <div className="mode-why">need you &middot; about 2 min</div>
+          <div className="mode-go">Start</div>
+        </div>
+        <div className="mode-card" role="button" tabIndex={0} onClick={demoTap}>
+          <div className="mode-name">Clean Out</div>
+          <div className="mode-n">14</div>
+          <div className="mode-why">in the inbox &middot; 6 senders</div>
+          <div className="mode-go mode-go-quiet">Open</div>
+        </div>
+      </div>
       <div className="sh2">
         <span className="t">Needs You</span>
         <span className="n">{NEEDS.length}</span>
-        <button className="see-all" onClick={demoTap}>Deal With It</button>
-      </div>
-      <div className="pad-x drain-line">
-        <button className="quiet-action" onClick={demoTap}>Only Have a Few Minutes?</button>
       </div>
       <div><div className="list-flat">
         {NEEDS.map((r) => (
