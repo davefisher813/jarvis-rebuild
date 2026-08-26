@@ -36,6 +36,13 @@ const URGENCY_CLASS: Record<UrgencyKind, string> = {
 // Completion is optimistic: the check flips and the burst plays immediately,
 // and the real toggle (which reloads the list and removes the row) is held
 // for 600ms so the animation is actually visible before the row leaves.
+// A stream member that is not a NoticeCard: carries the weight rankStream
+// reads, renders only its children, so a TaskRow can ride the one stream
+// without wearing notice clothes (Your Move, 2026-08-26).
+function StreamMember(props: { weight: number; children: ReactNode }) {
+  return <>{props.children}</>;
+}
+
 function TaskRow({ t, u, sub, onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; sub?: string | null; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
   const [bursting, fireBurst] = useBurst();
   const [localDone, setLocalDone] = useState(false);
@@ -287,35 +294,31 @@ export default function TodayPage({
     </>
   );
 
-  // ONE CARD (Option 1, approved 2026-08-26). The deck deals one: the top
-  // task with its reason and the only Start on the section. The rest of the
-  // deck is a receipt line that opens the Focus flow, where Skip lives.
-  // Three equal rows asked him to rank them himself; that was the decision
-  // tax this section existed to remove.
-  const upNextTop = upNext?.[0];
-  const upNextSection = !evening && upNextTop && (
-    <>
-      <div className="sh2 sh2-quiet"><span className="t">Up Next</span>{onSeeAllUpNext && <button className="see-all" onClick={onSeeAllUpNext}>See All</button>}</div>
-      <div>
-        <div>
-          <TaskRow
-            t={upNextTop}
-            u={urgencyFor(upNextTop.data, today)}
-            sub={upNextReason ?? undefined}
-            onToggle={() => onToggleTask?.(upNextTop.id)}
-            onOpen={() => onOpenTask?.(upNextTop.id)}
-            onStart={onStartTask ? () => onStartTask(upNextTop.id) : undefined}
-          />
-          {(upNextWaiting ?? 0) > 0 && onUpNext && (
-            <button className="receipt-line" onClick={onUpNext}>
-              <span className="rl-t">{capAfterNumber(`${upNextWaiting} More waiting · Skip deals the next one`)}</span>
-              <div className="chev" />
-            </button>
-          )}
-        </div>
-      </div>
-    </>
-  );
+  // YOUR MOVE (Combine B from the Up Next catalog, resumed 2026-08-26).
+  // The dealt task stops being its own section and joins the one stream as
+  // a standing WAITING member, added first so it leads its band: a FAILING
+  // notice (a sliding day) still sorts above it, everything else defers.
+  // The section answers ONE question at the top of the page. In the evening
+  // there is no dealt card and the stream stays what it was: Heads Up.
+  const upNextTop = !evening ? upNext?.[0] : undefined;
+  const dealtRow = upNextTop ? (
+    <StreamMember key="dealt" weight={WAITING}>
+      <TaskRow
+        t={upNextTop}
+        u={urgencyFor(upNextTop.data, today)}
+        sub={upNextReason ?? undefined}
+        onToggle={() => onToggleTask?.(upNextTop.id)}
+        onOpen={() => onOpenTask?.(upNextTop.id)}
+        onStart={onStartTask ? () => onStartTask(upNextTop.id) : undefined}
+      />
+    </StreamMember>
+  ) : null;
+  const waitingReceipt = upNextTop && (upNextWaiting ?? 0) > 0 && onUpNext ? (
+    <button key="waiting" className="receipt-line" onClick={onUpNext}>
+      <span className="rl-t">{capAfterNumber(`${upNextWaiting} More waiting · Skip deals the next one`)}</span>
+      <div className="chev" />
+    </button>
+  ) : null;
 
   // THE RECAP IS NOT A WALL (Dave's screenshot 2026-08-26: fifteen bare rows
   // filling two screens at 10:35 PM). Evening shows the top of what is still
@@ -446,8 +449,9 @@ export default function TodayPage({
       <div ref={condProbe} />
 
       {/* THE DAY'S OWN ORDER (Dave 2026-08-19: "the order should have the
-          same flow as the day"): Now → Heads Up → Up Next → Your Day →
-          Tomorrow. Nothing about this minute sits below tomorrow. */}
+          same flow as the day", amended by Your Move 2026-08-26): Your Move
+          → Email → Reminders → Your Day → Tomorrow. Nothing about this
+          minute sits below tomorrow. */}
       {/* MERGE B (2026-08-24, Dave: "can't now and your day be combined
           somehow?"). Now was its own section here, directly above Your Day,
           which also drew a NOW rule through its own timeline: one fact, two
@@ -461,41 +465,37 @@ export default function TodayPage({
 
       {birthdaySection}
 
-      {/* HEADS UP: the one notice stream. Every card, row, and offer JARVIS
-          wants him to see lives here under one head, so the page has a
-          single place to look instead of nine floating interruptions. */}
-      {/* THE DAY DRAFT IS A COMMITMENT, NOT A NOTICE (cleanup 2026-08-22).
-          Ranked with the stream it fell to the default weight and sank
-          BELOW two verb rows on Dave's screenshot -- the most important
-          block on the page, under trivia. It renders first, always. */}
-      {headsUp.length > 0 && (() => {
-        // FORM FOLLOWS DECISION (Law 3E). The stream ranks its members:
-        // the heaviest becomes THE headliner, everything else drops to a
-        // one-line verb row, and receipts collapse to the quiet line. The
-        // producers only declare weight; form is decided here, in one
+      {/* YOUR MOVE: the one stream, and the dealt task is its first member
+          (Combine B, 2026-08-26). Heads Up and Up Next were two sections
+          answering the same question from different angles; now the page
+          has a single place that says what needs him, sorted by weight,
+          with the next task leading its band. Every member is a uniform
+          row (the headliner is retired, see stream.ts); the deck behind
+          the dealt task folds to the waiting receipt. Evening has no dealt
+          card, so the stream stays what it always was there: Heads Up. */}
+      {(headsUp.length > 0 || dealtRow) && (() => {
+        // FORM FOLLOWS DECISION (Law 3E). The stream ranks its members;
+        // the producers only declare weight, form is decided here, in one
         // place, so no card can promote itself.
-        const ranked = rankStream(headsUp);
+        const ranked = rankStream([dealtRow, ...headsUp]);
         return (
           <>
-            <div className="sh2 sh2-quiet"><span className="t">Heads Up</span></div>
+            <div className="sh2 sh2-quiet">
+              <span className="t">{evening ? "Heads Up" : "Your Move"}</span>
+              {upNextTop && onSeeAllUpNext && <button className="see-all" onClick={onSeeAllUpNext}>See All</button>}
+            </div>
             <div className="heads-up-stream">
-              {ranked.headliner && (ranked.headliner.type === NoticeCard
-                ? cloneElement(ranked.headliner, { form: "headliner" })
-                : ranked.headliner)}
-              {/* A PINNED CARD IS NOT A PROMOTION (2026-08-24, from the goal
-                  nudge truncating "Run three times a week" to "Run three
-                  ti..."). The stream still owns the HEADLINER, which is the
-                  only real promotion; what a producer may pin is the card
-                  form, and only for the reason the mail law already
-                  established: a title that is USER CONTENT is any length the
-                  world chooses, so the one-line row cannot hold it and the
-                  row's rule of "the sub yields whole or not at all" then
-                  costs the evidence line too. A pinned card can still be
-                  outranked, still be dismissed, still be beaten to the
-                  headline. It just is not shredded. */}
+              {/* A PINNED CARD IS NOT A PROMOTION (2026-08-24): what a
+                  producer may pin is the card form, because a title that is
+                  USER CONTENT is any length the world chooses and the
+                  one-line row cannot hold it. A pinned card can still be
+                  outranked and dismissed; it just is not shredded. The
+                  dealt task passes through untouched: task rows are their
+                  own uniform. */}
               {ranked.rows.map((r) => (r.type === NoticeCard && (r.props as { form?: string }).form !== "card"
                 ? cloneElement(r, { form: "row" })
                 : r))}
+              {waitingReceipt}
               {ranked.receipts}
             </div>
           </>
@@ -527,8 +527,6 @@ export default function TodayPage({
       {mail && <div className="heads-up-stream">{mail}</div>}
 
       {reminders}
-
-      {upNextSection}
 
       <YourDay
         events={dayEvents}

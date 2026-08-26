@@ -6,6 +6,8 @@ import TodayPage from "./TodayPage";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { setCategoryRegistry } from "../shared/categories";
+import NoticeCard from "./NoticeCard";
+import { WAITING, FAILING } from "./stream";
 
 setCategoryRegistry([
   { id: "orgB", name: "Ridgeley", color: "sky" },
@@ -49,25 +51,42 @@ describe("TodayPage", () => {
     expect(summary.querySelector(".day-pill.dp-red")).toHaveTextContent("1 overdue");
   });
 
-  it("renders Up Next as ONE dealt card with its reason and the deck receipt", () => {
-    // Option 1 (Dave 2026-08-26, "go with what you think is best"): one
-    // target on screen. The card keeps the standard row anatomy (check +
-    // title + urgency) plus the reason line every automatic pick owes;
-    // everything behind it is a count on a receipt that opens the deck.
+  it("Your Move deals ONE task into the stream with its reason and the deck receipt", () => {
+    // Combine B (resumed 2026-08-26): Heads Up and Up Next were two sections
+    // answering the same question; the dealt task now rides the one stream.
+    // It keeps the standard row anatomy (check + title + urgency) plus the
+    // reason line every automatic pick owes; the deck behind it is a count
+    // on a receipt that opens the Focus flow.
     const { container } = render(
       <TodayPage {...base} upNext={[tk("over", "2026-05-18")]} upNextWaiting={2}
         upNextReason="Waiting 2 days" onUpNext={() => {}} onSeeAllUpNext={() => {}} />,
     );
-    expect(screen.getByText("Up Next")).toBeInTheDocument();
+    expect(screen.getByText("Your Move")).toBeInTheDocument();
+    expect(screen.queryByText("Up Next")).toBeNull(); // the section is gone, not renamed twice
     expect(screen.getByText("See All")).toBeInTheDocument();
     expect(container.querySelector(".urgency-red")).toBeTruthy(); // overdue
     expect(container.querySelector(".task-check.cat-bd-sky")).toBeTruthy();
     expect(screen.getByText("Waiting 2 days")).toBeInTheDocument();
     expect(screen.getByText("2 More waiting \u00b7 Skip deals the next one")).toBeInTheDocument();
-    // one card means one row, however deep the deck is
+    // one dealt card means one task row, however deep the deck is
     expect(container.querySelectorAll(".task-row").length).toBe(1);
-    // the old daytime task list is replaced by Up Next
+    // the old daytime task list stays replaced
     expect(screen.queryByText("Today\u2019s Tasks")).toBeNull();
+  });
+
+  it("the dealt task leads its band: WAITING notices sort below it, FAILING above", () => {
+    const notice = (title: string, weight: number) => (
+      <NoticeCard key={title} weight={weight} icon={null} title={title} action={{ label: "Do It", onClick: () => {} }} />
+    );
+    const { container } = render(
+      <TodayPage {...base} upNext={[tk("over", "2026-05-18")]} upNextReason="Waiting 2 days"
+        onUpNext={() => {}} notices={[notice("Money Waits", WAITING), notice("Day Is Sliding", FAILING)]} />,
+    );
+    const stream = container.querySelector(".heads-up-stream")!;
+    const texts = stream.textContent!;
+    // FAILING first, then the dealt task, then the WAITING notice.
+    expect(texts.indexOf("Day Is Sliding")).toBeLessThan(texts.indexOf("over"));
+    expect(texts.indexOf("over")).toBeLessThan(texts.indexOf("Money Waits"));
   });
 
   it("shows today's birthdays above Up Next, and nothing on ordinary days", () => {
@@ -80,9 +99,9 @@ describe("TodayPage", () => {
     // SPEC MOVED (Library phase 2, 2026-08-18): section heads are the bold
     // sh2 form; the birthday avatar keeps people-pink (never red).
     expect(container.querySelector(".av.cat-bg-pink")).toBeTruthy();
-    // section order: Birthday section head precedes Up Next's
+    // section order: Birthday section head precedes Your Move's
     const heads = [...container.querySelectorAll(".sh2 .t")].map((e) => e.textContent);
-    expect(heads.indexOf("Birthday")).toBeLessThan(heads.indexOf("Up Next"));
+    expect(heads.indexOf("Birthday")).toBeLessThan(heads.indexOf("Your Move"));
     // absent = the normal state, and the plural title only with 2+
     rerender(<TodayPage {...base} birthdays={[]} />);
     expect(screen.queryByText("Birthday")).toBeNull();
@@ -107,6 +126,8 @@ describe("TodayPage", () => {
       />,
     );
     expect(screen.queryByText("Up Next")).toBeNull();
+    // No dealt card at night, so the stream never wears the daytime name.
+    expect(screen.queryByText("Your Move")).toBeNull();
     expect(screen.queryByText("Focus")).toBeNull();
     expect(screen.getByText("Still Open")).toBeInTheDocument();
   });
