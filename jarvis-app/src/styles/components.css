@@ -3314,6 +3314,10 @@ body.selecting .voice-dock { display: none; }
 .msg-face { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: var(--t-body); font-weight: var(--w-bold); }
+/* The rail's reserved column, sized to match .msg-face exactly so a machine
+   row's text starts at the same edge a person row's text does. */
+.msg-lead { width: 34px; height: 34px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; }
 .msg-row-human { display: flex; align-items: center; gap: var(--s-3); }
 .msg-row-human .msg-from { font-weight: var(--w-semi); font-size: var(--t-h3); }
 
@@ -3375,8 +3379,20 @@ body.selecting .voice-dock { display: none; }
   /* Centred in what is left of the screen under the page bar, not stacked
      at the top. The first draft padded down from the top and left roughly
      45% of the screen as empty black below the last line, which reads as a
-     screen that failed to load rather than a door that is shut. */
-  min-height: calc(100dvh - 190px);
+     screen that failed to load rather than a door that is shut.
+     A SECOND DRAFT (2026-08-26) guessed the header-plus-nav chrome was a
+     fixed 190px and subtracted that from 100dvh by hand. On the bench,
+     which has no real header or fixed nav to measure against, that guess
+     landed close enough to look right; on Dave's actual phone the real
+     chrome (safe-area top, page header, tab bar, the JARVIS bar) adds up to
+     something else, and centering inside a box sized off a wrong number
+     put the whole door far lower than the visible screen, with a black
+     gap up top big enough to read as a page that hadn't loaded.
+     `.screen` is already a flex column that knows its own true height.
+     See `.screen > .empty-state` below, the exact same shape used for the
+     not-connected screen. Filling that instead of re-deriving it removes
+     the guess entirely. */
+  flex: 1 1 auto; min-height: 200px;
   padding: var(--s-6) var(--s-6) var(--s-8); gap: var(--s-2); }
 
 /* The seal. Big and calm and teal: this screen is a state, not an error, and
@@ -3501,7 +3517,15 @@ body.selecting .voice-dock { display: none; }
 .mode-hero .mode-name { color: #fff; }
 .mode-n { font-size: var(--t-display); font-weight: var(--w-bold); line-height: 1; margin: var(--s-1h) 0 var(--s-0h); color: var(--tx-1); }
 .mode-hero .mode-n { color: #fff; }
-.mode-why { font-size: var(--t-meta); color: var(--tx-3); }
+/* Never wraps. The deck is a flex row with two cards of different width
+   (the hero is 1.35x), and a flex row stretches its children to match
+   height by default, so a two-line wrap on the narrower Clean Out card
+   was making BOTH cards grow, including the hero, which had nothing to
+   wrap. Dave: "they also text wrap and don't have to be that vertical."
+   A single, truncated line makes the card's height fixed regardless of
+   sender count or theme. */
+.mode-why { font-size: var(--t-meta); color: var(--tx-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mode-hero .mode-why { color: rgba(255,255,255,0.85); }
 .mode-go { margin-top: var(--s-3); border-radius: var(--r-pill); text-align: center;
   padding: var(--s-2) 0; font-size: var(--t-body); font-weight: var(--w-bold);

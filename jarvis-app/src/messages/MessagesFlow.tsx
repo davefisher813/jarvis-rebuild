@@ -2510,7 +2510,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // swaps the rail for a checkbox and the row tap toggles instead of
   // opening; everything outside the fold is untouched, so select mode can
   // never archive something that needs you.
-  const threadRow = (r: ThreadRow, gist?: string, selectable = false) => {
+  const threadRow = (r: ThreadRow, gist?: string, selectable = false, alwaysStrong = false) => {
     const selecting = selectable && picked !== null;
     return (
     <MailSwipe
@@ -2534,7 +2534,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         // tone) but never for mere unreadness: six unread promos wearing six
         // solid red rails was a red status column down the whole All tab,
         // which is L1's exact sin. Unread still bolds the headline.
-        <span className={railClass(false, railToneForDeadline(effTriage[r.id]?.by))} aria-label={r.unread ? "unread" : undefined}></span>
+        //
+        // THE RAIL SITS IN THE SAME SLOT A FACE WOULD. The rail itself is
+        // 3px, the face is 34px; without a matching slot, a machine row's
+        // text starts 31px to the left of a person row's text, and a list
+        // that mixes both kinds of sender reads as unaligned. Dave's
+        // screenshot of Custom Ink (a face) next to GitHub and Supabase
+        // (rails) shows exactly that stagger. .msg-lead is the reserved
+        // column the comment above already promised and the rail alone
+        // never got.
+        <span className="msg-lead">
+          <span className={railClass(false, railToneForDeadline(effTriage[r.id]?.by))} aria-label={r.unread ? "unread" : undefined}></span>
+        </span>
       ) : (
         // 8A: A PERSON GETS A FACE. Warm, stable per sender, and big enough
         // that your eyes triage the list before your brain has to read it.
@@ -2555,7 +2566,17 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             ? <span className={"msg-due" + (byRank(effTriage[r.id]!.by) >= 900 ? " soft" : "")}>{byLabel(effTriage[r.id]!.by)}</span>
             : <span className="msg-when">{fmtWhen(r.dateMs)}</span>}
         </div>
-        <div className={"msg-headline" + (r.unread ? " msg-strong" : "")}>
+        {/* NEEDS YOU IS ALREADY A VERDICT. Gmail's raw unread flag used to be
+            the only thing that made a subject line pop; three of Dave's
+            four Needs You rows had already been read (on another device,
+            or by him scrolling past) and so rendered in the same dim tone
+            as their meta line. A section built by triage, not by read
+            status, should not let an unrelated flag decide which of its
+            own rows look important. That produced a list that was mostly
+            grey with one bright row, which Dave read as noise: "too much
+            grey subtext ... gives me anxiety." Everything in this section
+            already earned its bold. */}
+        <div className={"msg-headline" + (r.unread || alwaysStrong ? " msg-strong" : "")}>
           {gist ?? r.subject}{!gist && r.count > 1 ? " · " + r.count : ""}
           {g.accounts.length > 1 && r.account && <span className="msg-acct">{acctLabel(r.account)}</span>}
         </div>
@@ -2911,7 +2932,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 <span className="n">{needsYou.length}</span>
               </div>
               <div><div className="list-flat">
-                {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist))}
+                {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist, false, true))}
               </div></div>
               {/* L2: the list ends somewhere and says so. This floor once
                   carried count={restCount}, which printed "27 more are
