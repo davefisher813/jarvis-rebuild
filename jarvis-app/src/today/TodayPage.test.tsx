@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import TodayPage from "./TodayPage";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { setCategoryRegistry } from "../shared/categories";
 import NoticeCard from "./NoticeCard";
-import { WAITING, FAILING } from "./stream";
+import { WAITING, FAILING, NEW, RESUME } from "./stream";
 
 setCategoryRegistry([
   { id: "orgB", name: "Ridgeley", color: "sky" },
@@ -56,14 +56,16 @@ describe("TodayPage", () => {
     // answering the same question; the dealt task now rides the one stream.
     // It keeps the standard row anatomy (check + title + urgency) plus the
     // reason line every automatic pick owes; the deck behind it is a count
-    // on a receipt that opens the Focus flow.
+    // on a receipt that opens the Focus flow. With one member there is
+    // nothing folded, so the head carries no See All (the button belongs to
+    // the fold now, not to navigation).
     const { container } = render(
       <TodayPage {...base} upNext={[tk("over", "2026-05-18")]} upNextWaiting={2}
-        upNextReason="Waiting 2 days" onUpNext={() => {}} onSeeAllUpNext={() => {}} />,
+        upNextReason="Waiting 2 days" onUpNext={() => {}} />,
     );
     expect(screen.getByText("Your Move")).toBeInTheDocument();
     expect(screen.queryByText("Up Next")).toBeNull(); // the section is gone, not renamed twice
-    expect(screen.getByText("See All")).toBeInTheDocument();
+    expect(screen.queryByText("See All")).toBeNull();
     expect(container.querySelector(".urgency-red")).toBeTruthy(); // overdue
     expect(container.querySelector(".task-check.cat-bd-sky")).toBeTruthy();
     expect(screen.getByText("Waiting 2 days")).toBeInTheDocument();
@@ -72,6 +74,61 @@ describe("TodayPage", () => {
     expect(container.querySelectorAll(".task-row").length).toBe(1);
     // the old daytime task list stays replaced
     expect(screen.queryByText("Today\u2019s Tasks")).toBeNull();
+  });
+
+  it("shows three, folds the rest behind See All in the head, Less refolds", () => {
+    // "Option 1 with a limit. Have a see all button if it exceeds 3 things"
+    // (Dave 2026-08-26). The cap counts rows; the ranker has already put
+    // the heaviest three on top, so what folds is the lightest. See All
+    // expands IN PLACE: what folds is mostly notices, and notices live on
+    // no other page, so a See All that navigated would show him everything
+    // except what it hid.
+    const notice = (title: string, weight: number) => (
+      <NoticeCard key={title} weight={weight} icon={null} title={title} action={{ label: "Do It", onClick: () => {} }} />
+    );
+    const { container } = render(
+      <TodayPage {...base} offersQuiet upNext={[tk("over", "2026-05-18")]} upNextReason="Waiting 2 days"
+        onUpNext={() => {}} notices={[
+          notice("Day Is Sliding", FAILING),
+          notice("Money Waits", WAITING),
+          notice("Fresh Offer", NEW),
+          notice("Old Thread", RESUME),
+        ]} />,
+    );
+    const streamRows = () =>
+      container.querySelectorAll(".heads-up-stream .notice-vrow").length +
+      container.querySelectorAll(".heads-up-stream .task-row").length;
+    // Folded: the FAILING notice, the dealt task, the WAITING notice.
+    expect(streamRows()).toBe(3);
+    expect(screen.getByText("Day Is Sliding")).toBeInTheDocument();
+    expect(screen.queryByText("Fresh Offer")).toBeNull();
+    expect(screen.queryByText("Old Thread")).toBeNull();
+    fireEvent.click(screen.getByText("See All"));
+    expect(streamRows()).toBe(5);
+    expect(screen.getByText("Fresh Offer")).toBeInTheDocument();
+    expect(screen.getByText("Old Thread")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Less"));
+    expect(streamRows()).toBe(3);
+    expect(screen.queryByText("Fresh Offer")).toBeNull();
+  });
+
+  it("rows down a pinned card too: one grammar, no exceptions in the stream", () => {
+    // The pinned-card exemption is repealed in the stream (Dave 2026-08-26,
+    // Option 1 picked with the tradeoff stated). A producer may still ask
+    // for the card form; the stream rows it down, and tap-to-expand is
+    // where the full card lives now.
+    const { container } = render(
+      <TodayPage {...base} offersQuiet notices={[
+        <NoticeCard key="g" form="card" weight={RESUME} icon={null}
+          title="Run three times a week" sub="Nothing today moves it"
+          action={{ label: "Pick One", onClick: () => {} }} />,
+      ]} />,
+    );
+    const stream = container.querySelector(".heads-up-stream")!;
+    expect(stream.querySelectorAll(".notice-card-row").length).toBe(1);
+    // nothing in the stream kept the card form (the box only returns on tap)
+    expect(stream.querySelectorAll(".notice-card:not(.notice-card-row)").length).toBe(0);
+    expect(stream.classList.contains("stream-bare")).toBe(true); // the boxes are stripped by the stream's own class
   });
 
   it("the dealt task leads its band: WAITING notices sort below it, FAILING above", () => {

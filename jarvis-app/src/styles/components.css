@@ -2639,6 +2639,48 @@ button {
 .notice-alt { right: 0; background: var(--accent-chip); color: var(--accent-chip-tx); }
 .notice-alt.beside-dismiss { right: 88px; }
 
+/* STRIP THE BOXES (Dave 2026-08-26, from the five-way render catalog:
+   "Option 1 with a limit"). In the Your Move / Heads Up stream every member
+   is the same bare one-line row on the page ground: one 44px icon column,
+   the fact, an inline sub when it fits whole, one verb capsule. The card
+   chrome goes; hairlines carry the separation; height comes from the row
+   itself, not from a uniform box. The dealt task already looked like this,
+   and it was the best-looking member on his screenshot, so it stops being
+   the exception and becomes the rule.
+
+   The EXPANDED form keeps its box on purpose: tap-to-expand means "open the
+   card in place", and the box returning is how the open state reads. Scoped
+   to .stream-bare so the Email band keeps its cards (senders are any length
+   the world chooses; mail's opt-out stands). The row stays OPAQUE on the
+   page ground, same trick as .task-row: the swipe reveal sits behind it. */
+.heads-up-stream.stream-bare > * + * { margin-top: 0; }
+.stream-bare .pad-x { padding: 0; }
+.stream-bare .notice-swipe { border-radius: 0; }
+.stream-bare .notice-card-row { background: var(--bg); border-radius: 0;
+  border: 0; box-shadow: none; }
+/* The dealt task rides the same ground. Light theme paints .task-row
+   surface-white for the Tasks lists (rule near the light block); in the
+   bare stream that read as one white band between page-grey rows. Three
+   classes deep so it wins that override regardless of order. */
+.heads-up-stream.stream-bare > .task-row { background: var(--bg); }
+/* The uniform two-line box stands down: one line, the row's own 44px floor. */
+.stream-bare .notice-card-row.notice-card-uniform { min-height: 0; }
+.stream-bare .notice-card-row.notice-card-solo .conn-name {
+  display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* One icon COLUMN for the whole stream: the 30px disc rides centered in the
+   same 44px slot the task check-tap owns, so every fact starts at the same
+   x whether its row is a task or a notice. */
+.stream-bare .notice-vrow .notice-disc { margin: 0 7px; }
+/* Hairlines between members, inset to the shared text edge. Receipts stay
+   quiet and unruled. */
+.stream-bare > .pad-x { position: relative; }
+.stream-bare > .pad-x + .pad-x::before,
+.stream-bare > .task-row + .pad-x::before,
+.stream-bare > .pad-x + .task-row::before {
+  content: ""; position: absolute; left: calc(var(--s-4) + 44px + var(--s-3));
+  right: 0; top: 0; height: 0.5px; background: var(--divider); }
+.stream-bare > .receipt-line { margin-top: var(--s-1); }
+
 /* An action line inside a card: the buttons own the width instead of
    competing with a title for it. Used by Now and anywhere a row's controls
    would otherwise truncate the one thing the row is there to say. */

@@ -41,7 +41,13 @@ const OFFER_KEY = "jarvis.weather.offer.v1";
 // The one-time connect moment, same doctrine as the gym page's Health row:
 // a single row, appears once, disappears forever on decline. Granting stores
 // a COARSE location (two decimals) and nothing else.
-export function WeatherOfferRow() {
+// The stream decides the form, never the producer (Law 3E) -- but a member
+// whose TYPE is not NoticeCard used to escape that decision entirely: the
+// stream's clone pass could not see the card inside. Found 2026-08-26 by the
+// strip-the-boxes test, which counted one un-rowed card in a stream that
+// promises zero. The form now passes through, and TodayPage clones this
+// component the same way it clones a bare NoticeCard.
+export function WeatherOfferRow({ form = "card" }: { form?: "card" | "row" }) {
   const [state, setState] = useState<"offer" | "gone">(() => {
     try {
       if (readCoords()) return "gone";
@@ -74,6 +80,7 @@ export function WeatherOfferRow() {
   // their own space; a card in a stream matches the stream.
   return (
     <NoticeCard
+      form={form}
       icon={
         <CloudGlyph />
       }

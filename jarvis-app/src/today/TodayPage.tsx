@@ -133,7 +133,6 @@ export default function TodayPage({
   upNext,
   upNextWaiting,
   upNextReason,
-  onSeeAllUpNext,
   freshStart,
   locked,
   onOpenEvent,
@@ -196,7 +195,6 @@ export default function TodayPage({
   /** The dealt card's reason line (reasonFor, computed by the flow). */
   upNextReason?: string | null;
   upNext?: TaskItem[];
-  onSeeAllUpNext?: () => void;
   freshStart?: () => void;
   locked?: { s: number; e: number; label: string }[];
   onOpenEvent?: (id: string) => void;
@@ -235,6 +233,11 @@ export default function TodayPage({
   daypart?: "morning" | "evening" | null;
   birthdays?: { id: string; name: string }[]; // today's only; absent is the normal state
 }) {
+  // THE STREAM SHOWS THREE (Dave 2026-08-26, from the five-way render
+  // catalog: "Option 1 with a limit. Have a see all button if it exceeds 3
+  // things"). Session-local, like a row's own expansion: navigating away and
+  // back re-folds, which is the right default for a triage surface.
+  const [streamOpen, setStreamOpen] = useState(false);
   // Catalog V3.1 (approved 2026-08-18): the workload line is tappable pills,
   // not floating text. Sky events land on Schedule, blue due and red overdue
   // land on Tasks. Rolling numbers kept.
@@ -268,10 +271,10 @@ export default function TodayPage({
   // Tomorrow promoted above the (softened) open tasks. Same page, same data.
   const dayEvents = evening ? todayEvents.filter((e) => e.data.start >= now) : todayEvents;
 
-  // Up Next: the deck's top 3, first thing under the hero (Dave 2026-07-30).
-  // Rows are the SAME task rows as every other list (all task lists identical,
-  // Dave 2026-07-30); the title stays outside the card; See All lands on the
-  // Tasks All filter. The one-card mode opens from the Focus button (YourDay).
+  // The dealt task is a SAME task row as every other list (all task lists
+  // identical, Dave 2026-07-30). The head's See All is the stream's own
+  // fold, not a navigation; the Focus flow opens from its receipt and the
+  // Focus button (YourDay).
   // Birthdays (ride-along 2026-08-03, previewed and approved): shown ONLY on
   // the day itself, above Up Next. People-pink because this is people data;
   // never red. The year is untrusted (contact imports), so no age is claimed.
@@ -478,21 +481,39 @@ export default function TodayPage({
         // the producers only declare weight, form is decided here, in one
         // place, so no card can promote itself.
         const ranked = rankStream([dealtRow, ...headsUp]);
+        // STRIP THE BOXES, SHOW THREE (Dave 2026-08-26, five-way catalog:
+        // "Option 1 with a limit. Have a see all button if it exceeds 3
+        // things"). The cap counts ROWS: the ranker has already put the
+        // heaviest three on top, so what folds is by definition the
+        // lightest. Receipts never count and never fold; they are one quiet
+        // line each and the deck receipt is the Focus flow's front door.
+        const STREAM_SHOWN = 3;
+        const foldable = ranked.rows.length > STREAM_SHOWN;
+        const shownRows = streamOpen ? ranked.rows : ranked.rows.slice(0, STREAM_SHOWN);
         return (
           <>
             <div className="sh2 sh2-quiet">
               <span className="t">{evening ? "Heads Up" : "Your Move"}</span>
-              {upNextTop && onSeeAllUpNext && <button className="see-all" onClick={onSeeAllUpNext}>See All</button>}
+              {/* See All expands IN PLACE. It used to land on the Tasks
+                  page, but what folds here is mostly notices, and notices
+                  live nowhere else: a See All that navigates would show him
+                  everything except what it hid. */}
+              {foldable && (
+                <button className="see-all" onClick={() => setStreamOpen((v) => !v)}>
+                  {streamOpen ? "Less" : "See All"}
+                </button>
+              )}
             </div>
-            <div className="heads-up-stream">
-              {/* A PINNED CARD IS NOT A PROMOTION (2026-08-24): what a
-                  producer may pin is the card form, because a title that is
-                  USER CONTENT is any length the world chooses and the
-                  one-line row cannot hold it. A pinned card can still be
-                  outranked and dismissed; it just is not shredded. The
-                  dealt task passes through untouched: task rows are their
-                  own uniform. */}
-              {ranked.rows.map((r) => (r.type === NoticeCard && (r.props as { form?: string }).form !== "card"
+            <div className="heads-up-stream stream-bare">
+              {/* THE PINNED CARD IS REPEALED, IN THE STREAM (Dave
+                  2026-08-26, picking Option 1 with the tradeoff stated:
+                  long titles truncate to one line, tap opens the full
+                  thing). The pin existed so user-written titles could wrap;
+                  the row's tap-to-expand already carries that need, one tap
+                  later. Every member rows down, no exceptions; the dealt
+                  task passes through untouched because a task row is
+                  already the uniform. */}
+              {shownRows.map((r) => (r.type === NoticeCard || r.type === WeatherOfferRow
                 ? cloneElement(r, { form: "row" })
                 : r))}
               {waitingReceipt}
