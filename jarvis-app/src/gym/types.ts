@@ -80,6 +80,11 @@ export interface SetLog {
  */
 export interface SetEntry extends SetLog {
   id: string;
+  /** HOW IT MOVED (catalog §4.5). Set once the set happened, never asked
+   *  before it -- an observable event ("all clean", "last one was a grind",
+   *  "missed one"), never an interoception/feelings scale. Feeds history as
+   *  a fact, never a prescription. */
+  moved?: "clean" | "grind" | "missed";
 }
 
 export interface Exercise {
@@ -90,6 +95,21 @@ export interface Exercise {
   timeUnit?: string; // distance_time only
   sets: SetEntry[]; // the strip: one planned entry per set
   note?: string; // reference, never coaching
+  /** THE EXERCISE LIBRARY (catalog §3.5). A stable identity assigned once,
+   *  never derived from the name, so a later rename can never fork history.
+   *  Picking a name from the autocomplete carries the picked entry's own key
+   *  forward; free text always mints a fresh one on save. Absent on
+   *  exercises that predate the library -- those fall back to name+kind. */
+  exerciseKey?: string;
+  /** Optional per-exercise rest target in seconds (catalog §4.3). */
+  restSec?: number;
+  /** The id of another exercise in the SAME day this one alternates with --
+   *  A1/A2 notation (catalog §4.2). Pairing is symmetric: both sides carry
+   *  the other's id. */
+  pairWith?: string;
+  /** Offered during the rest of its paired parent lift instead of standing
+   *  around (catalog §4.2): "Rest 2:00 -- or do your T-Spine Rotations." */
+  filler?: boolean;
 }
 
 export interface ProgramDay {
@@ -116,6 +136,16 @@ export interface ProgramData {
   weeks: ProgramWeek[];
   order?: number;
   archived?: boolean;
+  /** THE SEASON LINK (catalog §4.7). Marked in-season or off-season, by the
+   *  athlete or coach's own hand -- never inferred, and never a status the
+   *  program is graded on. */
+  inSeason?: boolean;
+  /** Which of the athlete's OWN calendar categories means "a game" (catalog
+   *  §4.7). Chosen by the athlete, never guessed: the calendar has no
+   *  built-in idea of what a game is, so reading "a game in 14 hours" as a
+   *  fact requires the athlete to say which category carries that meaning.
+   *  Absent means the gym does not claim to know. */
+  gameCategoryId?: string;
 }
 export interface Program { id: string; data: ProgramData }
 
@@ -128,6 +158,14 @@ export interface WorkoutExercise {
   timeUnit?: string;
   sets: SetEntry[]; // the logged strip: unfilled chips never appear here, only what happened
   skipped?: boolean;
+  exerciseKey?: string;
+  /** Mid-session Swap or Add (catalog §3.9-3.10): this entry does not read
+   *  its identity from the program day at this index -- name/kind/unit above
+   *  are the real thing to show, and `plan` (not the day's own strip) is
+   *  what unfilled ghost chips come from, if anything does. The program
+   *  itself is never touched by either action. */
+  custom?: boolean;
+  plan?: SetEntry[];
 }
 export interface WorkoutData {
   programId: string;
@@ -137,6 +175,12 @@ export interface WorkoutData {
   startedAt: number;
   endedAt: number;
   exercises: WorkoutExercise[];
+  /** LOG IT LATER (catalog §3.8): a session entered for a day other than
+   *  today. `date` above already carries the real day; this just marks that
+   *  the live-session recovery sweep (which treats a stale `date` as an
+   *  abandoned session from a prior day) must leave it alone while it is
+   *  still open. */
+  backdated?: boolean;
 }
 export interface Workout { id: string; data: WorkoutData }
 

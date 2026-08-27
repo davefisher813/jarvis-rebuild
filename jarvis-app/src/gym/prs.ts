@@ -52,6 +52,15 @@ export interface Receipt {
   volume: number; // 0 when nothing had weight; the tile hides rather than lying
   volumeUnit: string | null;
   prs: PRHit[];
+  /** THE `done` BLIND SPOT FIX (catalog §4.8). Sets logged in a kind other
+   *  than weight_reps and done -- reps, rounds, timed or measured work. A
+   *  second receipt tile so a speed or conditioning day is not left with
+   *  nothing to show for itself just because it moved no weight. */
+  otherSets: number;
+  /** `done`-kind exercises logged this session, by NAME -- arm care and
+   *  mobility get a receipt line of their own, not just folded into the
+   *  exercise count. */
+  doneNames: string[];
 }
 
 /**
@@ -68,7 +77,9 @@ export function receiptFor(
   let volume = 0;
   let volumeUnit: string | null = null;
   const prs: PRHit[] = [];
+  const doneNames: string[] = [];
   let done = 0;
+  let otherSets = 0;
 
   for (const ex of exercises) {
     const logged = ex.sets.filter((s) => !s.skipped);
@@ -77,6 +88,10 @@ export function receiptFor(
     if (hasVolume(ex.kind)) {
       for (const s of logged) volume += setVolume(ex.kind, s);
       volumeUnit = volumeUnit ?? ex.unit ?? "lb";
+    } else if (ex.kind === "done") {
+      doneNames.push(ex.name);
+    } else {
+      otherSets += logged.length;
     }
     // One PR line per exercise: the best entry of the session, if it beat
     // everything before it.
@@ -98,6 +113,8 @@ export function receiptFor(
     volume: Math.round(volume),
     volumeUnit: volume > 0 ? volumeUnit : null,
     prs,
+    otherSets,
+    doneNames,
   };
 }
 

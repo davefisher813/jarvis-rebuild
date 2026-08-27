@@ -3627,3 +3627,15 @@ body.selecting .voice-dock { display: none; }
    purpose, never .pill-red or an accent fill -- a lighter week is a plan,
    never a status to feel bad about (L1, "never call it deload"). */
 .week-back-off { margin-left: var(--s-2); }
+
+/* THE EXERCISE LIBRARY (gym catalog §3.5). The autocomplete dropdown under
+   the Name field: same .card surface as any sheet, pulled snug under the
+   input rather than floating free. */
+.lib-suggest { margin-top: var(--s-1); padding: 0; }
+
+/* REST TIMER + FILLER (gym catalog §4.3, §4.2). An inline card on the
+   session screen, not a blocking sheet -- the countdown keeps running while
+   the athlete does whatever is next. */
+.rest-timer { text-align: center; }
+.rest-clock { font-variant-numeric: tabular-nums; margin: var(--s-1) 0; }
+.rest-filler-btn { text-align: center; }

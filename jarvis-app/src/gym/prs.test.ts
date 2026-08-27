@@ -89,6 +89,30 @@ describe("receiptFor", () => {
     );
     expect(r.exercises).toBe(1);
   });
+
+  // THE `done` BLIND SPOT FIX (catalog §4.8): done work gets named, and
+  // non-weight work gets its own tile instead of vanishing into nothing.
+  it("names done-kind exercises by name, and gives reps/rounds/timed work its own tile", () => {
+    const r = receiptFor(
+      [
+        wex("T-Spine Rotations", "done", [{ done: true }]),
+        wex("Farmer's Carry", "rounds", [{ r: 3 }, { r: 3 }]),
+        wex("Plank", "time_longer", [{ v: 60 }], "sec"),
+      ],
+      [], 0, 20 * 60000,
+    );
+    expect(r.doneNames).toEqual(["T-Spine Rotations"]);
+    expect(r.otherSets).toBe(3); // 2 rounds sets + 1 plank set
+    expect(r.volume).toBe(0);
+  });
+
+  it("a skipped done exercise is never named", () => {
+    const r = receiptFor(
+      [{ ...wex("T-Spine Rotations", "done", [{ done: true }]), skipped: true }],
+      [], 0, 10 * 60000,
+    );
+    expect(r.doneNames).toEqual([]);
+  });
 });
 
 describe("lastTimeLine", () => {

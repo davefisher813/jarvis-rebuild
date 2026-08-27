@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { exerciseHistory, trendLine } from "./history";
+import { exerciseHistory, trendLine, doneCount, movedFact } from "./history";
 import type { Workout, WorkoutExercise, MeasureKind, SetLog } from "./types";
 
 const wk = (date: string, exercises: WorkoutExercise[]): Workout =>
@@ -41,5 +41,55 @@ describe("exerciseHistory", () => {
     expect(line).toBe("185 lb × 5 → 155 lb × 5 over 3 weeks");
     expect(line.toLowerCase()).not.toMatch(/lost|down|decline|worse/);
     expect(slid[0]!.best.set).toMatchObject({ w: 185, r: 5 }); // the best is still the best
+  });
+});
+
+describe("doneCount: the `done` blind spot fix (catalog §4.8)", () => {
+  const wex2 = (name: string, kind: MeasureKind, sets: SetLog[]): WorkoutExercise =>
+    ({ exerciseId: "x", name, kind, sets: sets.map((s, i) => ({ id: `s${i}`, ...s })) });
+
+  it("counts logged done-kind entries by name, across sessions", () => {
+    const workouts = [
+      wk("2026-07-01", [wex2("Cuff Work", "done", [{ done: true }])]),
+      wk("2026-07-08", [wex2("Cuff Work", "done", [{ done: true }])]),
+      wk("2026-07-15", [wex2("Cuff Work", "done", [{ skipped: true }])]),
+    ];
+    expect(doneCount(workouts, "Cuff Work")).toBe(2);
+  });
+
+  it("a skipped exercise never counts", () => {
+    const workouts = [wk("2026-07-01", [{ ...wex2("Cuff Work", "done", [{ done: true }]), skipped: true }])];
+    expect(doneCount(workouts, "Cuff Work")).toBe(0);
+  });
+
+  it("a name never logged returns zero, not undefined", () => {
+    expect(doneCount([], "Cuff Work")).toBe(0);
+  });
+});
+
+describe("movedFact: how it moved, as a fact (catalog §4.5)", () => {
+  const wex3 = (sets: (SetLog & { moved?: "clean" | "grind" | "missed" })[]): WorkoutExercise =>
+    ({ exerciseId: "x", name: "Bench", kind: "weight_reps", sets: sets.map((s, i) => ({ id: `s${i}`, ...s })) });
+
+  it("returns null when nothing was ever marked", () => {
+    const workouts = [wk("2026-07-01", [wex3([{ w: 135, r: 8 }])])];
+    expect(movedFact(workouts, "Bench")).toBeNull();
+  });
+
+  it("counts a grind as a fact, never a percentage or a prescription", () => {
+    const workouts = [wk("2026-07-01", [wex3([
+      { w: 135, r: 8, moved: "clean" },
+      { w: 135, r: 8, moved: "grind" },
+      { w: 135, r: 6, moved: "missed" },
+    ])])];
+    const fact = movedFact(workouts, "Bench");
+    expect(fact).toContain("grind");
+    expect(fact).toContain("missed");
+    expect(fact).not.toMatch(/%/);
+  });
+
+  it("all clean reads as a plain fact", () => {
+    const workouts = [wk("2026-07-01", [wex3([{ w: 135, r: 8, moved: "clean" }])])];
+    expect(movedFact(workouts, "Bench")).toBe("All clean across the last 1 marked sets");
   });
 });

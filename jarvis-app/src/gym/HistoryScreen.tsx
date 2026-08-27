@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Workout } from "./types";
-import { exerciseHistory, trendLine } from "./history";
+import { exerciseHistory, trendLine, doneCount, movedFact } from "./history";
 import { monthDay } from "../money/bills";
 import { DayDivide } from "../shared/anatomy";
 
@@ -26,6 +26,25 @@ function groupByDay(entries: { date: string; text: string }[]): { day: string; r
 export default function HistoryScreen({ workouts, onBack }: { workouts: Workout[]; onBack: () => void }) {
   const rows = exerciseHistory(workouts);
   const [open, setOpen] = useState<string | null>(null);
+
+  // THE `done` BLIND SPOT FIX (catalog §4.8): exerciseHistory skips done-kind
+  // work entirely (it produces no number to rank), so without this a whole
+  // category of real training -- cuff work, mobility, prehab -- never showed
+  // up here at all. A plain count per name, newest-name-first is not tracked;
+  // this is not a log, just "you've done this N times".
+  const doneRows = useMemo(() => {
+    const seen = new Set<string>();
+    const names: string[] = [];
+    for (const w of workouts) {
+      for (const ex of w.data.exercises) {
+        if (ex.kind !== "done" || ex.skipped || seen.has(ex.name)) continue;
+        if (!ex.sets.some((s) => s.done && !s.skipped)) continue;
+        seen.add(ex.name);
+        names.push(ex.name);
+      }
+    }
+    return names.map((name) => ({ name, n: doneCount(workouts, name) }));
+  }, [workouts]);
 
   return (
     <div className="screen">
@@ -55,6 +74,13 @@ export default function HistoryScreen({ workouts, onBack }: { workouts: Workout[
                   <span className="pill pill-good">{r.sessions}</span>
                   {isOpen ? CHEV_DOWN : CHEV}
                 </div>
+                {isOpen && (() => {
+                  // HOW IT MOVED (catalog §4.5): feeds history as a fact, once
+                  // there is history to feed. Never shown collapsed -- it is
+                  // detail, not a headline.
+                  const fact = movedFact(workouts, r.name);
+                  return fact ? <div className="pad-x"><div className="bp-sub">{fact}</div></div> : null;
+                })()}
                 {isOpen && groupByDay(r.entries).map((g) => (
                   <div key={g.day}>
                     <DayDivide label={monthDay(g.day)} />
@@ -69,6 +95,22 @@ export default function HistoryScreen({ workouts, onBack }: { workouts: Workout[
             );
           })}
         </div></div>
+      )}
+
+      {doneRows.length > 0 && (
+        <>
+          <div className="sh2"><span className="t">Done Work</span></div>
+          <div><div className="list-flat">
+            {doneRows.map((d) => (
+              <div className="row" key={d.name}>
+                <div className="row-grow">
+                  <div className="conn-name truncate">{d.name}</div>
+                  <div className="eyebrow">{d.n > 1 ? `Done ${d.n} times` : "Done"}</div>
+                </div>
+              </div>
+            ))}
+          </div></div>
+        </>
       )}
       <div className="screen-foot" />
     </div>
