@@ -4,8 +4,10 @@ import type { Workout, WorkoutExercise, MeasureKind, SetLog } from "./types";
 
 const wk = (date: string, exercises: WorkoutExercise[]): Workout =>
   ({ id: date, data: { programId: "p", dayId: "d", dayName: "Day", date, startedAt: 0, endedAt: 0, exercises } });
+// The logged strip is SetEntry[] (each chip carries an id); test fixtures
+// still write plain SetLog literals and this stamps an id on the way in.
 const wex = (name: string, kind: MeasureKind, sets: SetLog[], unit?: string): WorkoutExercise =>
-  ({ exerciseId: "x", name, kind, unit, sets });
+  ({ exerciseId: "x", name, kind, unit, sets: sets.map((s, i) => ({ id: `s${i}`, ...s })) });
 
 describe("isPR", () => {
   const history = [

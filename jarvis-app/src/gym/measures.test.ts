@@ -1,13 +1,21 @@
 import { describe, it, expect } from "vitest";
-import { formatSet, logButtonLabel, entryNoun, beats, hasVolume, setVolume, scoreOf, fieldsFor, hasTarget, targetLine } from "./measures";
-import type { Exercise, MeasureKind } from "./types";
+import { formatSet, logButtonLabel, entryNoun, beats, hasVolume, setVolume, scoreOf, fieldsFor, hasTarget, targetLine, plannedEntryAt, isUniformStrip } from "./measures";
+import type { Exercise, MeasureKind, SetEntry, SetLog } from "./types";
 
 // Nine measure kinds, and the direction lives IN the kind. These pin the two
 // things that would silently lie: which way a record goes, and whether "weight
 // moved" means anything for this kind.
+//
+// THE SET STRIP: an Exercise's plan is `sets: SetEntry[]`, one chip per set,
+// not a single `target`. `strip(n, over)` below builds a uniform strip the
+// way the "Quick Setup" convenience input does.
+
+let seq = 0;
+const mkSet = (over: SetLog = {}): SetEntry => ({ id: `s${seq++}`, ...over });
+const strip = (count: number, over: SetLog = {}): SetEntry[] => Array.from({ length: count }, () => mkSet(over));
 
 const ex = (kind: MeasureKind, over: Partial<Exercise> = {}): Exercise =>
-  ({ id: "e", name: "X", kind, sets: 3, ...over }) as Exercise;
+  ({ id: "e", name: "X", kind, sets: strip(3), ...over }) as Exercise;
 
 describe("formatSet speaks each kind's language", () => {
   it("renders every kind without inventing units", () => {
@@ -25,11 +33,19 @@ describe("formatSet speaks each kind's language", () => {
   });
 });
 
-describe("the one-tap button reads the real plan", () => {
-  it("labels with the target, and Done needs no numbers", () => {
-    expect(logButtonLabel(ex("weight_reps", { unit: "lb", target: { w: 135, r: 8 } }))).toBe("Log 135 lb × 8");
-    expect(logButtonLabel(ex("time_faster", { unit: "sec", target: { v: 4.6 } }))).toBe("Log 4.6 sec");
-    expect(logButtonLabel(ex("done"))).toBe("Mark Done");
+describe("the one-tap button reads the NEXT planned set in the strip", () => {
+  it("labels with the target at the logged position, and Done needs no numbers", () => {
+    expect(logButtonLabel(ex("weight_reps", { unit: "lb", sets: strip(3, { w: 135, r: 8 }) }), 0)).toBe("Log 135 lb × 8");
+    expect(logButtonLabel(ex("time_faster", { unit: "sec", sets: strip(1, { v: 4.6 }) }), 0)).toBe("Log 4.6 sec");
+    expect(logButtonLabel(ex("done"), 0)).toBe("Mark Done");
+  });
+  it("falls back once the strip is fully logged", () => {
+    const heavy = ex("weight_reps", { unit: "lb", sets: strip(2, { w: 135, r: 8 }) });
+    expect(logButtonLabel(heavy, 0)).toBe("Log 135 lb × 8");
+    expect(logButtonLabel(heavy, 1)).toBe("Log 135 lb × 8");
+    // Past the end of the plan there is no next chip to read.
+    expect(plannedEntryAt(heavy, 2)).toBeUndefined();
+    expect(logButtonLabel(heavy, 2)).toBe("Log Set");
   });
   it("names entries the way the athlete would", () => {
     expect(entryNoun("weight_reps")).toBe("Sets");
@@ -86,13 +102,41 @@ describe("deviation fields", () => {
 
 describe("an exercise with no target never offers to log a zero", () => {
   it("says what it will do instead, on the button and the plan line", () => {
-    const bare = ex("time_faster", { unit: "sec", sets: 4 });
+    const bare = ex("time_faster", { unit: "sec", sets: strip(4) });
     expect(hasTarget(bare)).toBe(false);
-    expect(logButtonLabel(bare)).toBe("Log Attempt");
+    expect(logButtonLabel(bare, 0)).toBe("Log Attempt");
     expect(targetLine(bare)).toBe("4 attempts");
-    const planned = ex("weight_reps", { unit: "lb", sets: 3, target: { w: 135, r: 8 } });
+    const planned = ex("weight_reps", { unit: "lb", sets: strip(3, { w: 135, r: 8 }) });
     expect(hasTarget(planned)).toBe(true);
     expect(targetLine(planned)).toBe("3 × 135 lb × 8");
-    expect(targetLine(ex("done", { sets: 1 }))).toBe("1 time");
+    expect(targetLine(ex("done", { sets: strip(1) }))).toBe("1 time");
+  });
+});
+
+describe("THE SET STRIP: uniform vs heterogeneous programming (catalog §1.2, §3.1)", () => {
+  it("a uniform strip speaks as one line", () => {
+    const uniform = strip(3, { w: 135, r: 5 });
+    expect(isUniformStrip("weight_reps", uniform)).toBe(true);
+    expect(targetLine(ex("weight_reps", { unit: "lb", sets: uniform }))).toBe("3 × 135 lb × 5");
+  });
+
+  it("a real program is not homogeneous: 3x5, 1x8 is expressed as itself", () => {
+    // The exact case the catalog opens with: a back-off set that is not the
+    // same as the three before it.
+    const backOffSet = [
+      mkSet({ w: 135, r: 5 }), mkSet({ w: 135, r: 5 }), mkSet({ w: 135, r: 5 }), mkSet({ w: 135, r: 8 }),
+    ];
+    expect(isUniformStrip("weight_reps", backOffSet)).toBe(false);
+    const heteroEx = ex("weight_reps", { unit: "lb", sets: backOffSet });
+    expect(targetLine(heteroEx)).toBe("135 lb × 5, 135 lb × 5, 135 lb × 5, 135 lb × 8");
+  });
+
+  it("a skipped or done chip breaks uniformity even with matching numbers", () => {
+    const withSkip = [mkSet({ w: 100, r: 5 }), mkSet({ w: 100, r: 5, skipped: true })];
+    expect(isUniformStrip("weight_reps", withSkip)).toBe(false);
+  });
+
+  it("a strip of one is trivially uniform", () => {
+    expect(isUniformStrip("weight_reps", strip(1, { w: 200, r: 1 }))).toBe(true);
   });
 });

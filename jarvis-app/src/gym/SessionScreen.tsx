@@ -1,26 +1,26 @@
-import { useState } from "react";
-import type { Exercise, SetLog, Workout } from "./types";
+import type { Exercise, SetEntry, Workout } from "./types";
 import type { LiveSession } from "./liveSession";
-import { formatSet, logButtonLabel, targetSet, entryNoun, fieldsFor } from "./measures";
+import { logButtonLabel, plannedEntryAt, entryNoun } from "./measures";
+import { newSetId, blankEntry, duplicateEntry } from "./strip";
 import { isSessionPR, lastTimeLine } from "./prs";
+import SetStrip from "./SetStrip";
 import MusicChip from "../music/MusicChip";
-import Stepper from "../shared/Stepper";
 
 const CHEV = (
   <div className="chev" />
 );
 
-
 // The in-gym screen. ONE exercise, huge type, readable from a bench, because
 // standing there scrolling is the moment self-consciousness eats people. The
 // big button carries the real numbers so a set that matched the plan is one
-// tap; steppers appear only for deviation.
+// tap; the set strip below is where a deviation gets corrected, in place,
+// after the fact -- the same strip that planned the exercise now logs it.
 export default function SessionScreen({
   live,
   exercise,
   history,
   onLog,
-  onUndo,
+  onSetLogged,
   onSkip,
   onMove,
   onFinish,
@@ -29,8 +29,8 @@ export default function SessionScreen({
   live: LiveSession;
   exercise: Exercise;
   history: Workout[];
-  onLog: (s: SetLog) => void;
-  onUndo: () => void;
+  onLog: (s: SetEntry) => void;
+  onSetLogged: (sets: SetEntry[]) => void;
   onSkip: () => void;
   onMove: (idx: number) => void;
   onFinish: () => void;
@@ -38,17 +38,17 @@ export default function SessionScreen({
 }) {
   const idx = live.idx;
   const current = live.exercises[idx]!;
-  const [dev, setDev] = useState<SetLog | null>(null);
-  const plan = targetSet(exercise);
-  const pending = dev ?? plan;
-  const fields = fieldsFor(exercise.kind);
+  const logged = current.sets;
   const noun = entryNoun(exercise.kind);
   const last = lastTimeLine(history, exercise.name, exercise.kind);
-  const logged = current.sets;
+  const ghost = exercise.sets.slice(logged.length);
 
   const log = () => {
-    onLog(exercise.kind === "done" ? {} : pending);
-    setDev(null);
+    if (exercise.kind === "done") { onLog({ id: newSetId(), done: true }); return; }
+    const next = plannedEntryAt(exercise, logged.length);
+    if (next) { onLog(duplicateEntry(next)); return; }
+    const last2 = logged[logged.length - 1];
+    onLog(last2 ? duplicateEntry(last2) : blankEntry());
   };
 
   return (
@@ -69,71 +69,34 @@ export default function SessionScreen({
       {/* Music Tier 1 (addendum item 5): the gym context's remembered link. */}
       <div className="pad-x"><MusicChip context="gym" /></div>
 
-      <div className="sec-head"><div className="sec-left"><div className="sec-title">{noun}</div></div></div>
-      <div className="pad-x"><div className="card">
-        {logged.map((s, i) => (
-          <div className="row" key={i}>
-            <div className="task-check done" />
-            <div className="row-grow"><div className="conn-name">{formatSet(exercise, s)}</div></div>
-            {/* The PR moment happens HERE, mid-session, not buried in a stats
-                tab weeks later. That timing is the whole trick. Judged
-                against saved history AND the session's earlier sets, so a
-                repeat of the same weight cannot wear a second pill. */}
-            {isSessionPR(history, exercise.name, exercise.kind, logged, i) && <span className="pill pill-good">PR</span>}
-          </div>
-        ))}
-        {!current.skipped && logged.length < exercise.sets && (
-          <div className="row">
-            <div className={"task-check cat-bd-green"} />
-            <div className="row-grow">
-              <div className="conn-name">{entryNoun(exercise.kind, false)} {logged.length + 1} of {exercise.sets}</div>
-              {exercise.kind !== "done" && <div className="eyebrow">Target {formatSet(exercise, plan)}</div>}
-            </div>
-          </div>
-        )}
-        {current.skipped && (
-          <div className="row"><div className="row-grow"><div className="conn-name">Skipped</div></div></div>
-        )}
-      </div></div>
-
       {!current.skipped && (
         <div className="pad-x gym-log">
           <button className="btn btn-primary btn-block btn-lg" onClick={log}>
-            {dev ? `Log ${formatSet(exercise, dev)}` : logButtonLabel(exercise)}
+            {logButtonLabel(exercise, logged.length)}
           </button>
         </div>
       )}
 
-      {(fields.length > 0 || logged.length > 0) && (
-        <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Something Different</div></div></div>
-          <div className="pad-x"><div className="card">
-            {fields.map((f) => (
-              <div className="row" key={f.key}>
-                <div className="row-grow">
-                  <div className="conn-name">{f.label}</div>
-                  {(f.key === "w" || f.key === "v") && exercise.unit && <div className="eyebrow">{exercise.unit}</div>}
-                  {f.key === "t" && <div className="eyebrow">{exercise.timeUnit ?? "min"}</div>}
-                </div>
-                <Stepper value={(pending as Record<string, number | undefined>)[f.key] ?? 0} step={f.step}
-                  label={f.label}
-                  onChange={(n) => setDev({ ...pending, [f.key]: n })} />
-              </div>
-            ))}
-            {logged.length > 0 && (
-              <div className="row" role="button" tabIndex={0} onClick={onUndo}>
-                <div className="row-grow"><div className="conn-name">Undo Last {entryNoun(exercise.kind, false)}</div></div>
-              </div>
-            )}
-            {!current.skipped && (
-              <div className="row" role="button" tabIndex={0} onClick={onSkip}>
-                <div className="row-grow"><div className="conn-name">Skip This Exercise</div></div>
-                {CHEV}
-              </div>
-            )}
-          </div></div>
-        </>
-      )}
+      <div className="sec-head"><div className="sec-left"><div className="sec-title">{noun}</div></div></div>
+      <div className="pad-x">
+        {current.skipped ? (
+          <div className="card"><div className="row"><div className="row-grow"><div className="conn-name">Skipped</div></div></div></div>
+        ) : (
+          <SetStrip
+            kind={exercise.kind}
+            unit={exercise.unit}
+            timeUnit={exercise.timeUnit}
+            entries={logged}
+            ghost={ghost}
+            onLogGhost={(i) => onLog(duplicateEntry(ghost[i]!))}
+            onChange={onSetLogged}
+            prAt={(i) => isSessionPR(history, exercise.name, exercise.kind, logged, i)}
+          />
+        )}
+        {!current.skipped && (
+          <button className="row row-act" role="button" tabIndex={0} onClick={onSkip}>Skip This Exercise</button>
+        )}
+      </div>
 
       <div className="sec-head"><div className="sec-left"><div className="sec-title">This Session</div></div></div>
       <div className="pad-x"><div className="card">

@@ -3,6 +3,10 @@ import { parseProgramExtract, coerceKind } from "./extract";
 
 // The upload parser is tolerant but never inventive: bad entries drop, numbers
 // clamp, and nothing usable means null, not a fabricated program.
+//
+// The model still writes the old, simple vocabulary (sets: N, target: {w,r,v,
+// t}) -- nobody photographs a set strip -- and parseProgramExtract expands
+// that into a uniform strip on the way in, wrapped in a single "Week 1".
 
 const GOOD = JSON.stringify({
   name: "Summer Speed",
@@ -20,12 +24,20 @@ const GOOD = JSON.stringify({
 });
 
 describe("parseProgramExtract", () => {
-  it("parses a clean reply, keeping the user's words verbatim", () => {
+  it("parses a clean reply, keeping the user's words verbatim, into one Week 1", () => {
     const p = parseProgramExtract(GOOD)!;
     expect(p.name).toBe("Summer Speed");
-    expect(p.days.map((d) => d.name)).toEqual(["Tuesday · Speed", "Thursday · Lift"]);
-    expect(p.days[0]!.exercises[0]).toMatchObject({ name: "40 Yard Dash", kind: "time_faster", unit: "sec", sets: 4, target: { v: 4.6 } });
-    expect(p.days[0]!.exercises[2]!.kind).toBe("done");
+    expect(p.weeks).toHaveLength(1);
+    expect(p.weeks[0]!.label).toBe("Week 1");
+    const days = p.weeks[0]!.days;
+    expect(days.map((d) => d.name)).toEqual(["Tuesday · Speed", "Thursday · Lift"]);
+    const dash = days[0]!.exercises[0]!;
+    expect(dash).toMatchObject({ name: "40 Yard Dash", kind: "time_faster", unit: "sec" });
+    // sets:4, target:{v:4.6} expands into a uniform 4-chip strip.
+    expect(dash.sets).toHaveLength(4);
+    for (const s of dash.sets) expect(s).toMatchObject({ v: 4.6 });
+    expect(days[0]!.exercises[2]!.kind).toBe("done");
+    expect(days[0]!.exercises[2]!.sets).toHaveLength(1);
   });
 
   it("strips code fences and surrounding prose", () => {
@@ -44,12 +56,13 @@ describe("parseProgramExtract", () => {
       }],
     });
     const p = parseProgramExtract(messy)!;
-    expect(p.days[0]!.exercises).toHaveLength(1);
-    const b = p.days[0]!.exercises[0]!;
+    const days = p.weeks[0]!.days;
+    expect(days[0]!.exercises).toHaveLength(1);
+    const b = days[0]!.exercises[0]!;
     expect(b.unit).toBe("lb"); // unknown unit -> the kind's default
-    expect(b.sets).toBe(20); // clamped
-    expect(b.target!.w).toBe(2000); // clamped
-    expect(b.target!.r).toBeUndefined(); // negative reps are not data
+    expect(b.sets).toHaveLength(20); // clamped, one chip per set
+    expect(b.sets[0]!.w).toBe(2000); // clamped
+    expect(b.sets[0]!.r).toBeUndefined(); // negative reps are not data
     expect(p.name).toBe("My Program"); // missing name gets the honest default
   });
 

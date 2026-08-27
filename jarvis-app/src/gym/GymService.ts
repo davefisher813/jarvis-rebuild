@@ -1,6 +1,7 @@
 import type { Store, ItemData } from "@core";
 import type { EventInput } from "../events";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type Program, type ProgramData, type Workout, type WorkoutData } from "./types";
+import { migrateProgramData, migrateWorkoutData } from "./migrate";
 
 // Programs and finished workouts. Set logs are CONTENT (item data), never
 // event_log rows; the durable log records session completion only, so a year
@@ -15,14 +16,14 @@ export class GymService {
   async listPrograms(): Promise<Program[]> {
     const items = await this.store.listForUser(this.ownerId, ENTITY_PROGRAM);
     return items
-      .map((i) => ({ id: i.id, data: i.data as unknown as ProgramData }))
+      .map((i) => ({ id: i.id, data: migrateProgramData(i.data) }))
       .filter((p) => !p.data.archived)
       .sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0) || a.data.name.localeCompare(b.data.name));
   }
 
   async getProgram(id: string): Promise<Program | null> {
     const it = await this.store.read(this.ownerId, id);
-    return it && it.entityType === ENTITY_PROGRAM ? { id: it.id, data: it.data as unknown as ProgramData } : null;
+    return it && it.entityType === ENTITY_PROGRAM ? { id: it.id, data: migrateProgramData(it.data) } : null;
   }
 
   async createProgram(data: ProgramData): Promise<string | null> {
@@ -50,7 +51,7 @@ export class GymService {
   async listWorkouts(): Promise<Workout[]> {
     const items = await this.store.listForUser(this.ownerId, ENTITY_WORKOUT);
     return items
-      .map((i) => ({ id: i.id, data: i.data as unknown as WorkoutData }))
+      .map((i) => ({ id: i.id, data: migrateWorkoutData(i.data) }))
       .sort((a, b) => a.data.date.localeCompare(b.data.date));
   }
 

@@ -3636,3 +3636,35 @@ body.selecting .voice-dock { display: none; }
 .launch-ss { font-size: var(--t-meta); color: var(--tx-3); margin-top: 1px; }
 .launch-chev { color: var(--tx-4); font-size: 22px; line-height: 1; flex-shrink: 0; }
 [data-theme="light"] .launch-row { background: #FFFFFF; box-shadow: var(--shadow-card); }
+
+/* THE SET STRIP (gym catalog §3.1). One chip per set: tap to edit, hold to
+   duplicate, swipe to delete, drag to reorder via the shared ReorderList
+   primitive. Reuses .task-swipe/.task-del (the same swipe-to-delete shape
+   as mail and tasks) and .row-act (the same "Add X" affordance as Add Day /
+   Add Exercise), so a set strip looks like the rest of the app, not like a
+   new control language. */
+.set-strip { margin-top: 0; }
+.set-chip-col { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.set-chip-swipe { width: 100%; border-radius: var(--r-sm); }
+.set-chip { display: flex; align-items: center; min-height: var(--tap-min);
+  padding: var(--s-1) 0; background: var(--bg); cursor: pointer;
+  -webkit-user-select: none; user-select: none; touch-action: pan-y;
+  transition: transform 0.28s cubic-bezier(0.32,0.72,0,1), background var(--dur-fast) var(--ease-out); }
+.set-chip.swiping { transition: none; }
+.set-chip[aria-expanded="true"] { background: var(--surface-2); }
+/* Skipped reads as a fact, not a failure: struck text, no red anywhere. */
+.set-chip-skipped .conn-name { color: var(--tx-3); text-decoration: line-through; }
+.set-chip-editor { padding: 0 0 var(--s-2); }
+.set-strip-add { margin-top: var(--s-1); }
+/* Ghost chips are the plan, not yet the record: quieter than a filled chip
+   and not draggable or swipeable -- there is nothing there to reorder or
+   delete until it is logged. */
+.set-strip-ghosts { margin: 0; }
+.set-chip-ghost { opacity: 0.6; }
+.set-chip-ghost .conn-name { color: var(--tx-3); }
+
+/* THE WEEK STRIP (gym catalog §4.1). A week is a row like any other; the
+   back-off tag reuses .pill-subdued (the app's existing neutral pill) on
+   purpose, never .pill-red or an accent fill -- a lighter week is a plan,
+   never a status to feel bad about (L1, "never call it deload"). */
+.week-back-off { margin-left: var(--s-2); }

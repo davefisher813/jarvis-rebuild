@@ -1,9 +1,16 @@
 import { MEASURE_KINDS, defaultUnit, unitsFor, type MeasureKind, type ProgramData, type ProgramDay, type Exercise } from "./types";
+import { uniformStrip } from "./strip";
 
 // Program upload (gym session 2). The standard distillation pipeline: parse a
 // coach's screenshot or pasted text -> show the extracted program for review
 // -> the user keeps or fixes each piece -> the RAW FILE IS NOT RETAINED.
 // Nothing here commits anything; the review screen owns that.
+//
+// The model still speaks the old, simple vocabulary ("sets": 3, "target":
+// {w,r,v,t}) because that is what a coach's sheet or text actually says --
+// nobody writes a photo of a set strip. The parser expands that INPUT into a
+// uniform strip on the way in (catalog Q6), so every program this pipeline
+// produces is already in the real storage shape: one week, real chips.
 
 export const EXTRACT_PROMPT = [
   "Extract the training program from this content.",
@@ -16,6 +23,7 @@ export const EXTRACT_PROMPT = [
   "Units: weight lb|kg, time sec|min, distance yd|m|mi|ft, height in|cm.",
   "Use the user's own words for every name. Do not invent exercises that are not in the content.",
   "If sets or targets are unreadable, use sets 3 and omit the target rather than guessing numbers.",
+  "If the program is written as multiple weeks (a wave, a 4-week block), extract only the FIRST week's days here; weeks are added by the athlete afterward.",
 ].join("\n");
 
 let seq = 0;
@@ -60,7 +68,9 @@ export function coerceKind(kind: unknown, target: { w?: number; r?: number; v?: 
 /**
  * Parse the model's reply into a ProgramData, tolerantly but never inventively:
  * fences stripped, bad entries dropped, numbers clamped, unknown units replaced
- * with the kind's default. Null when nothing usable survives.
+ * with the kind's default. The sets+target the model wrote is expanded into a
+ * uniform strip on the way in, and the single extracted day becomes "Week 1".
+ * Null when nothing usable survives.
  */
 export function parseProgramExtract(raw: string): ProgramData | null {
   let text = raw.trim();
@@ -90,20 +100,20 @@ export function parseProgramExtract(raw: string): ProgramData | null {
       const kind = coerceKind(ee.kind, target);
       const units = unitsFor(kind);
       const unit = typeof ee.unit === "string" && units.includes(ee.unit) ? ee.unit : defaultUnit(kind);
-      const hasAny = target.w || target.r || target.v || target.t;
+      const count = num(ee.sets, 20) ?? 3;
+      const sets = kind === "done" ? uniformStrip(count, {}) : uniformStrip(count, target);
       exercises.push({
         id: nid("e"),
         name,
         kind,
         ...(unit ? { unit } : {}),
         ...(kind === "distance_time" ? { timeUnit: "min" } : {}),
-        sets: num(ee.sets, 20) ?? 3,
-        ...(hasAny && kind !== "done" ? { target } : {}),
+        sets,
         ...(cleanName(ee.note) ? { note: cleanName(ee.note)! } : {}),
       });
     }
     if (exercises.length) days.push({ id: nid("d"), name: dayName, exercises });
   }
   if (!days.length) return null;
-  return { name: cleanName(root.name) ?? "My Program", days };
+  return { name: cleanName(root.name) ?? "My Program", weeks: [{ id: nid("w"), label: "Week 1", days }] };
 }
