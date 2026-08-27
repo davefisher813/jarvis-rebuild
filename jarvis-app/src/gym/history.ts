@@ -76,3 +76,48 @@ export function trendLine(row: HistoryRow): string {
   const arrow = `${formatSet(ex, row.first.set)} → ${formatSet(ex, row.last.set)}`;
   return weeks >= 2 ? `${arrow} over ${weeks} weeks` : arrow;
 }
+
+/**
+ * THE `done` BLIND SPOT FIX (catalog §4.8): "you've done this 14 times" for
+ * work that produces no numbers at all. A COUNT of things that happened --
+ * never a streak (no "in a row"), never red, never a target to hit.
+ * exerciseHistory skips done-kind work entirely (scoreOf(done) is null, so it
+ * has no best to rank), so this counts it separately by name.
+ */
+export function doneCount(workouts: Workout[], name: string): number {
+  let n = 0;
+  for (const w of workouts) {
+    for (const ex of w.data.exercises) {
+      if (ex.kind !== "done" || ex.name !== name || ex.skipped) continue;
+      if (ex.sets.some((s) => s.done && !s.skipped)) n++;
+    }
+  }
+  return n;
+}
+
+/**
+ * HOW IT MOVED, as a fact (catalog §4.5). Counts observable events already
+ * logged against an exercise -- never a prescription, never a percentage,
+ * never phrased as decline. Null when nothing has ever been marked, so a
+ * screen that reads null renders nothing rather than "0 grinds".
+ */
+export function movedFact(workouts: Workout[], name: string): string | null {
+  let grind = 0, missed = 0, total = 0;
+  for (const w of workouts) {
+    for (const ex of w.data.exercises) {
+      if (ex.name !== name || ex.skipped) continue;
+      for (const s of ex.sets) {
+        if (s.skipped || !s.moved) continue;
+        total++;
+        if (s.moved === "grind") grind++;
+        else if (s.moved === "missed") missed++;
+      }
+    }
+  }
+  if (total === 0) return null;
+  const bits: string[] = [];
+  if (grind > 0) bits.push(`a grind ${grind} of the last ${total} sets`);
+  if (missed > 0) bits.push(`missed ${missed} of ${total}`);
+  if (bits.length === 0) return `All clean across the last ${total} marked sets`;
+  return bits.map((b, i) => (i === 0 ? b.charAt(0).toUpperCase() + b.slice(1) : b)).join(", ");
+}

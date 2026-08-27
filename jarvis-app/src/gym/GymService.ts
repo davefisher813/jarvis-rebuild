@@ -13,11 +13,15 @@ export class GymService {
     private onEvent: (e: EventInput) => void = () => {},
   ) {}
 
-  async listPrograms(): Promise<Program[]> {
+  /** MULTIPLE PROGRAMS & ARCHIVE (catalog §3.11). `includeArchived` is for
+   *  the program switcher, which is the one screen that needs to show and
+   *  un-archive them; everywhere else keeps seeing only live programs, same
+   *  as before. */
+  async listPrograms(includeArchived = false): Promise<Program[]> {
     const items = await this.store.listForUser(this.ownerId, ENTITY_PROGRAM);
     return items
       .map((i) => ({ id: i.id, data: migrateProgramData(i.data) }))
-      .filter((p) => !p.data.archived)
+      .filter((p) => includeArchived || !p.data.archived)
       .sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0) || a.data.name.localeCompare(b.data.name));
   }
 
@@ -73,5 +77,20 @@ export class GymService {
   async removeWorkout(id: string): Promise<void> {
     await this.store.delete(this.ownerId, id);
     this.onEvent({ type: "entity.deleted", entityType: ENTITY_WORKOUT, entityId: id });
+  }
+
+  // EDIT A FINISHED WORKOUT (catalog §3.7). A mistyped set used to be
+  // permanent, and poisoned PR history the OTHER direction: a fat-fingered
+  // 1350x5 becomes an unbeatable, demoralising "best" forever. PRs and the
+  // receipt are both derived from the workout list at render time, so a
+  // corrected set recomputes every number downstream for free -- there is no
+  // separate "recompute PRs" step to remember.
+  async updateWorkout(id: string, patch: Partial<WorkoutData>): Promise<boolean> {
+    const it = await this.store.read(this.ownerId, id);
+    if (!it || it.entityType !== ENTITY_WORKOUT) return false;
+    const next = { ...migrateWorkoutData(it.data), ...patch };
+    await this.store.update(this.ownerId, id, next as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_WORKOUT, entityId: id });
+    return true;
   }
 }

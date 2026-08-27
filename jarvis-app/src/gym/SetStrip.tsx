@@ -24,7 +24,7 @@ const LONG_PRESS_MS = 550;
  * filled chips are the record.
  */
 export default function SetStrip({
-  kind, unit, timeUnit, entries, onChange, ghost, onLogGhost, disabled, prAt,
+  kind, unit, timeUnit, entries, onChange, ghost, onLogGhost, disabled, prAt, moveTracking,
 }: {
   kind: MeasureKind;
   unit?: string;
@@ -38,6 +38,11 @@ export default function SetStrip({
   disabled?: boolean;
   /** True at an index that earned the in-session PR pill (live session only). */
   prAt?: (index: number) => boolean;
+  /** HOW IT MOVED (catalog §4.5): offer the three observable-event chips in
+   *  the set editor. Only meaningful once a set has actually happened, so
+   *  ExerciseSheet (planning) never passes this -- only the live session and
+   *  a finished workout's editor do. */
+  moveTracking?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const fields = fieldsFor(kind);
@@ -89,7 +94,7 @@ export default function SetStrip({
                 onDuplicate={() => duplicate(id)}
               />
               {openId === id && !disabled && (
-                <SetChipEditor kind={kind} fields={fields} entry={e} onPatch={(p) => patch(id, p)} />
+                <SetChipEditor kind={kind} fields={fields} entry={e} onPatch={(p) => patch(id, p)} moveTracking={moveTracking} />
               )}
             </div>
           );
@@ -179,11 +184,18 @@ function SetChipRow({
   );
 }
 
-function SetChipEditor({ kind, fields, entry, onPatch }: {
+const MOVED_OPTIONS: { value: "clean" | "grind" | "missed"; label: string }[] = [
+  { value: "clean", label: "All Clean" },
+  { value: "grind", label: "Last One Was a Grind" },
+  { value: "missed", label: "Missed One" },
+];
+
+function SetChipEditor({ kind, fields, entry, onPatch, moveTracking }: {
   kind: MeasureKind;
   fields: ReturnType<typeof fieldsFor>;
   entry: SetEntry;
   onPatch: (p: Partial<SetEntry>) => void;
+  moveTracking?: boolean;
 }) {
   return (
     <div className="set-chip-editor">
@@ -199,6 +211,23 @@ function SetChipEditor({ kind, fields, entry, onPatch }: {
               onChange={(n) => onPatch({ [f.key]: n })} />
           </div>
         ))
+      )}
+      {/* HOW IT MOVED (catalog §4.5): observable events, never an
+          interoception/feelings scale. Optional -- tapping the already-active
+          chip clears it rather than forcing a choice. */}
+      {moveTracking && !entry.skipped && (
+        <div className="field">
+          <div className="input-label">How Did It Move?</div>
+          <div className="chip-row chip-wrap-row">
+            {MOVED_OPTIONS.map((o) => (
+              <div key={o.value} className={"chip" + (entry.moved === o.value ? " active" : "")} role="button" tabIndex={0}
+                aria-pressed={entry.moved === o.value}
+                onClick={() => onPatch({ moved: entry.moved === o.value ? undefined : o.value })}>
+                {o.label}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
       <div className="row" role="button" tabIndex={0} onClick={() => onPatch({ skipped: !entry.skipped, done: false })}>
         <div className="row-grow"><div className="conn-name">{entry.skipped ? "Unskip This Set" : "Skip This Set"}</div></div>

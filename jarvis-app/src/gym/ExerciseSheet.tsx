@@ -6,6 +6,7 @@ import { uniformStrip } from "./strip";
 import SetStrip from "./SetStrip";
 import Stepper from "../shared/Stepper";
 import { Trash2 } from "../shared/icons";
+import { searchLibrary, newExerciseKey, type LibraryEntry } from "./library";
 
 // The count row in the user's language, never "How many" (Dave, 2026-08-15).
 const countLabel = (kind: MeasureKind): string => {
@@ -27,9 +28,14 @@ function freshTarget(kind: MeasureKind): { w?: number; r?: number; v?: number; t
 // chip per set. "Quick Setup" below is the CONVENIENCE INPUT the catalog's
 // open question 6 resolved for: typing a count and one target once expands
 // into a uniform strip, which the strip then lets you edit set by set.
-export default function ExerciseSheet({ mode, initial, onSave, onDelete, onCancel }: {
+export default function ExerciseSheet({ mode, initial, library, onSave, onDelete, onCancel }: {
   mode: "new" | "edit";
   initial?: Exercise;
+  /** THE EXERCISE LIBRARY (catalog §3.5): every exercise name ever used,
+   *  offered as autocomplete while typing. Optional -- a caller with no
+   *  library yet (or a context where it does not apply) just gets a plain
+   *  name field, same as before the library existed. */
+  library?: LibraryEntry[];
   onSave: (e: Omit<Exercise, "id">) => void;
   onDelete?: () => void;
   onCancel: () => void;
@@ -42,12 +48,39 @@ export default function ExerciseSheet({ mode, initial, onSave, onDelete, onCance
   const [note, setNote] = useState(initial?.note ?? "");
   const [touched, setTouched] = useState(false);
   const [armDelete, setArmDelete] = useState(false);
+  // The stable identity (catalog §3.5): carried forward when the athlete
+  // picks a library suggestion, kept as-is when editing an exercise that
+  // already had one, and minted fresh on save otherwise.
+  const [exerciseKey, setExerciseKey] = useState<string | undefined>(initial?.exerciseKey);
+  const [nameFocused, setNameFocused] = useState(false);
+  const [restSec, setRestSec] = useState(initial?.restSec ?? 0);
+  const [filler, setFiller] = useState(!!initial?.filler);
+
+  const suggestions = library && nameFocused && name.trim().length > 0
+    ? searchLibrary(library, name, 5).filter((s) => s.name.toLowerCase() !== name.trim().toLowerCase())
+    : [];
 
   // Quick Setup state: independent of the strip until "Generate" is tapped,
   // so it never silently clobbers a set you already hand-edited.
   const [quickCount, setQuickCount] = useState(initial?.sets.length ?? 3);
   const [quickTarget, setQuickTarget] = useState<{ w?: number; r?: number; v?: number; t?: number }>(
     initial?.sets[0] ?? freshTarget(kind));
+
+  // Picking a suggestion carries kind, unit and the last-used target forward
+  // (catalog §3.5) -- exactness, not just proximity, is what stops the fork.
+  const pickSuggestion = (entry: LibraryEntry) => {
+    setName(entry.name);
+    setKind(entry.kind);
+    setUnit(entry.unit ?? defaultUnit(entry.kind));
+    if (entry.timeUnit) setTimeUnit(entry.timeUnit);
+    setExerciseKey(entry.exerciseKey);
+    if (entry.lastSets.length > 0) {
+      setSets(entry.lastSets.map((s) => ({ ...s, id: `${s.id}p` })));
+      setQuickTarget(entry.lastSets[0] ?? freshTarget(entry.kind));
+      setQuickCount(entry.lastSets.length);
+    }
+    setNameFocused(false);
+  };
 
   const pickKind = (k: MeasureKind) => {
     setKind(k);
@@ -83,8 +116,35 @@ export default function ExerciseSheet({ mode, initial, onSave, onDelete, onCance
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Name</div>
-            <input className={"input" + (touched && !name.trim() ? " input-error" : "")} placeholder="e.g. Barbell Row, 40 Yard Dash" value={name} onChange={(e) => setName(e.target.value)} />
+            <input
+              className={"input" + (touched && !name.trim() ? " input-error" : "")}
+              placeholder="e.g. Barbell Row, 40 Yard Dash"
+              value={name}
+              // Typing (including renaming an existing exercise) never
+              // touches exerciseKey -- a rename must keep the SAME history,
+              // which is the entire bug the library exists to fix (catalog
+              // §1.3). The key only ever changes by picking a suggestion.
+              onChange={(e) => setName(e.target.value)}
+              onFocus={() => setNameFocused(true)}
+              onBlur={() => setTimeout(() => setNameFocused(false), 150)}
+            />
             {touched && !name.trim() && <div className="input-error">Add a name.</div>}
+            {/* THE EXERCISE LIBRARY (catalog §3.5): offered the moment there is
+                anything to match against. Picking one carries the EXACT name
+                forward, which is what stops "Trap Bar Deadlift" and "Trap bar
+                DL" from ever becoming two histories in the first place. */}
+            {suggestions.length > 0 && (
+              <div className="card lib-suggest">
+                {suggestions.map((s) => (
+                  <div className="row" role="button" tabIndex={0} key={s.key} onMouseDown={() => pickSuggestion(s)}>
+                    <div className="row-grow">
+                      <div className="conn-name truncate">{s.name}</div>
+                      <div className="eyebrow">{MEASURE_LABEL[s.kind]}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="field">
@@ -153,6 +213,28 @@ export default function ExerciseSheet({ mode, initial, onSave, onDelete, onCance
             {/* Reference, never coaching: the app does not tell anyone how to lift. */}
             <input className="input" placeholder="Optional Note" value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
+
+          {/* REST TIMER (catalog §4.3), optional and per-exercise. 0 means no
+              timer offered in-session -- most "done" and reps work has none. */}
+          {kind !== "done" && (
+            <div className="field">
+              <div className="input-label">Rest Timer</div>
+              <div className="row">
+                <div className="row-grow"><div className="conn-name">{restSec > 0 ? `${Math.floor(restSec / 60)}:${String(restSec % 60).padStart(2, "0")}` : "Off"}</div></div>
+                <Stepper value={restSec} step={15} min={0} label="Rest Timer" onChange={setRestSec} />
+              </div>
+            </div>
+          )}
+
+          {/* FILLER (catalog §4.2): offered during the rest of whatever it is
+              paired with, instead of the athlete standing around. Pairing
+              itself is set from the day list's long-press menu, once both
+              exercises exist. */}
+          <div className="field">
+            <div className={"chip" + (filler ? " active" : "")} role="button" tabIndex={0} aria-pressed={filler} onClick={() => setFiller((f) => !f)}>
+              {filler ? "This Is a Filler" : "Mark As a Filler"}
+            </div>
+          </div>
         </div>
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-block" onClick={() => {
@@ -162,6 +244,12 @@ export default function ExerciseSheet({ mode, initial, onSave, onDelete, onCance
               ...(unit ? { unit } : {}),
               ...(kind === "distance_time" ? { timeUnit } : {}),
               ...(note.trim() ? { note: note.trim() } : {}),
+              // A stable identity, never derived from the name: keep the one
+              // carried from a picked suggestion or an edited exercise's own
+              // key, else mint a fresh one now (catalog §3.5).
+              exerciseKey: exerciseKey ?? newExerciseKey(),
+              ...(restSec > 0 ? { restSec } : {}),
+              ...(filler ? { filler: true } : {}),
             });
           }}>{saveLabel}</button>
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
