@@ -60,8 +60,14 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
   };
 
   // ---- review ----
+  // Extraction always produces one week (extract.ts): a coach's sheet or
+  // text is not a photo of a set strip, so the model still speaks the
+  // simple sets+target vocabulary, expanded into real strips on the way in.
+  // Weeks are something the athlete adds afterward, once the plan is theirs.
   if (draft) {
-    const fixing: Exercise | null = fix ? draft.days[fix.dayIdx]?.exercises[fix.exIdx] ?? null : null;
+    const week = draft.weeks[0];
+    const days = week?.days ?? [];
+    const fixing: Exercise | null = fix ? days[fix.dayIdx]?.exercises[fix.exIdx] ?? null : null;
     return (
       <>
         <div className="screen">
@@ -77,7 +83,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
           <div className="pad-x"><div className="card pad">
             <div className="conn-name">What I Read · Fix Anything</div>
           </div></div>
-          {draft.days.map((day, di) => (
+          {days.map((day, di) => (
             <div key={day.id}>
               <div className="sec-head"><div className="sec-left"><div className="sec-title">{day.name}</div></div></div>
               <div className="pad-x"><div className="card">
@@ -99,26 +105,22 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
           </div>
           <div className="screen-foot" />
         </div>
-        {fixing && fix && (
+        {fixing && fix && week && (
           <ExerciseSheet
             mode="edit"
             initial={fixing}
             onSave={(d) => {
-              setDraft({
-                ...draft,
-                days: draft.days.map((day, di) => (di === fix.dayIdx
-                  ? { ...day, exercises: day.exercises.map((e, ei) => (ei === fix.exIdx ? { ...d, id: e.id } : e)) }
-                  : day)),
-              });
+              const nextDays = days.map((day, di) => (di === fix.dayIdx
+                ? { ...day, exercises: day.exercises.map((e, ei) => (ei === fix.exIdx ? { ...d, id: e.id } : e)) }
+                : day));
+              setDraft({ ...draft, weeks: [{ ...week, days: nextDays }] });
               setFix(null);
             }}
             onDelete={() => {
-              setDraft({
-                ...draft,
-                days: draft.days
-                  .map((day, di) => (di === fix.dayIdx ? { ...day, exercises: day.exercises.filter((_, ei) => ei !== fix.exIdx) } : day))
-                  .filter((day) => day.exercises.length > 0),
-              });
+              const nextDays = days
+                .map((day, di) => (di === fix.dayIdx ? { ...day, exercises: day.exercises.filter((_, ei) => ei !== fix.exIdx) } : day))
+                .filter((day) => day.exercises.length > 0);
+              setDraft({ ...draft, weeks: [{ ...week, days: nextDays }] });
               setFix(null);
             }}
             onCancel={() => setFix(null)}

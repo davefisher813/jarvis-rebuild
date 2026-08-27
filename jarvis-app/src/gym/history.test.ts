@@ -4,8 +4,10 @@ import type { Workout, WorkoutExercise, MeasureKind, SetLog } from "./types";
 
 const wk = (date: string, exercises: WorkoutExercise[]): Workout =>
   ({ id: date, data: { programId: "p", dayId: "d", dayName: "Day", date, startedAt: 0, endedAt: 0, exercises } });
+// The logged strip is SetEntry[] (each chip carries an id); test fixtures
+// still write plain SetLog literals and this stamps an id on the way in.
 const wex = (name: string, kind: MeasureKind, sets: SetLog[], unit?: string): WorkoutExercise =>
-  ({ exerciseId: "x", name, kind, unit, sets });
+  ({ exerciseId: "x", name, kind, unit, sets: sets.map((s, i) => ({ id: `s${i}`, ...s })) });
 
 describe("exerciseHistory", () => {
   const workouts = [
@@ -19,8 +21,8 @@ describe("exerciseHistory", () => {
     expect(rows.map((r) => r.name)).toEqual(["Bench", "40 Yard Dash"]); // Done leaves no numbers
     const bench = rows[0]!;
     expect(bench.sessions).toBe(3);
-    expect(bench.first.set).toEqual({ w: 115, r: 8 });
-    expect(bench.best.set).toEqual({ w: 135, r: 8 });
+    expect(bench.first.set).toMatchObject({ w: 115, r: 8 });
+    expect(bench.best.set).toMatchObject({ w: 135, r: 8 });
     expect(bench.entries.map((e) => e.date)).toEqual(["2026-08-04", "2026-07-01", "2026-06-09"]);
   });
 
@@ -38,6 +40,6 @@ describe("exerciseHistory", () => {
     const line = trendLine(slid[0]!);
     expect(line).toBe("185 lb × 5 → 155 lb × 5 over 3 weeks");
     expect(line.toLowerCase()).not.toMatch(/lost|down|decline|worse/);
-    expect(slid[0]!.best.set).toEqual({ w: 185, r: 5 }); // the best is still the best
+    expect(slid[0]!.best.set).toMatchObject({ w: 185, r: 5 }); // the best is still the best
   });
 });

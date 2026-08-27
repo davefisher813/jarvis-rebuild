@@ -1,4 +1,4 @@
-import type { WorkoutData, WorkoutExercise, SetLog } from "./types";
+import type { WorkoutData, WorkoutExercise, SetEntry } from "./types";
 
 // OFFLINE-FIRST, and not optionally (2026-08-03 recon): the core Store only
 // queues UPDATES when offline, creates fail outright. Gyms are concrete boxes.
@@ -51,8 +51,18 @@ export function clearLive(store: Storage2 = browserStorage()): void {
 }
 
 /** Log one entry against the exercise at `idx`. Returns the updated session. */
-export function logSet(s: LiveSession, idx: number, set: SetLog): LiveSession {
+export function logSet(s: LiveSession, idx: number, set: SetEntry): LiveSession {
   const exercises = s.exercises.map((ex, i) => (i === idx ? { ...ex, sets: [...ex.sets, set] } : ex));
+  return { ...s, exercises };
+}
+
+/** Replace the whole logged strip for one exercise in a single write: the
+ *  set strip (catalog §3.1) owns add / duplicate / delete / reorder / edit
+ *  as ONE change to the array, and this is where that change lands. Used
+ *  for everything except the big one-tap Log button, which stays logSet so
+ *  a matching set is exactly one call. */
+export function setLoggedSets(s: LiveSession, idx: number, sets: SetEntry[]): LiveSession {
+  const exercises = s.exercises.map((ex, i) => (i === idx ? { ...ex, sets } : ex));
   return { ...s, exercises };
 }
 

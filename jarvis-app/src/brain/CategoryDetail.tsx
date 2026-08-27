@@ -572,7 +572,12 @@ export default function CategoryDetail({
             <div className="row" role="button" tabIndex={0} onClick={() => setGymOpen(true)}>
               <div className="row-grow">
                 <div className="conn-name">{programs[0]?.data.name ?? "Set Up a Program"}</div>
-                {programs[0] && <div className="eyebrow">{capAfterNumber(`${programs[0].data.days.length} ${programs[0].data.days.length === 1 ? "day" : "days"}`)}</div>}
+                {/* Track 3 gym rebuild (2026-08-27): ProgramData gained a
+                    week axis, so a day count is now summed across weeks
+                    rather than read off one flat list. Mechanical follow-on
+                    of the gym module's type change, not a gym feature --
+                    this file stays the read-without-opening summary it was. */}
+                {programs[0] && <div className="eyebrow">{capAfterNumber(`${programs[0].data.weeks.reduce((n, w) => n + w.days.length, 0)} ${programs[0].data.weeks.reduce((n, w) => n + w.days.length, 0) === 1 ? "day" : "days"}`)}</div>}
               </div>
               {training && training.weekDots.some(Boolean) && (
                 <span className="week-dots" aria-label="Days trained this week">

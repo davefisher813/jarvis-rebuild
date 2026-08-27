@@ -2015,3 +2015,43 @@ describe("LAW L2: every list has a floor", () => {
       .not.toMatch(/end of list|no more items|nothing to show/i);
   });
 });
+
+// GYM CATALOG §4.1, THE BACK-OFF WEEK IS NEVER "DELOAD" AND NEVER RED
+// (2026-08-27). A lighter week is a plan a coach wrote on purpose, not a
+// status the athlete should feel bad about -- the exact reasoning L1 already
+// applied to red as a status rather than a verb. "Deload" reads as failure
+// (the catalog's own ruling); the app calls it a back-off week, everywhere.
+describe("LAW: a back-off week is never called deload and never rendered red", () => {
+  it("no gym source ever writes the word deload as copy (comments may name the ban)", () => {
+    // Comments are allowed to SAY the banned word in order to explain why it
+    // is banned -- same allowance the "app never scolds" law makes above.
+    // What may never happen is the word reaching a screen.
+    const bad: string[] = [];
+    for (const f of SOURCES.filter((x) => rel(x).startsWith("gym/"))) {
+      const code = read(f)
+        .replace(/\/\*[\s\S]*?\*\//g, " ")
+        .split("\n").filter((l) => !/^\s*\/\//.test(l)).join("\n");
+      if (/deload/i.test(code)) bad.push(rel(f));
+    }
+    expect(bad, 'a lighter week is a "back-off week", never a "deload"').toEqual([]);
+  });
+
+  it("nothing that renders a week's back-off state pairs it with a red or danger class", () => {
+    // A structural check, not a vocabulary list: any line that mentions
+    // backOff and ALSO reaches for a red/danger/accent-fill class is the
+    // exact bug this law exists to catch, whichever file it ships in.
+    const RED = /\b(pill-red|btn-danger|--accent-fill|--danger-tx|--sys-red)\b/;
+    const bad: string[] = [];
+    for (const f of SOURCES.filter((x) => rel(x).startsWith("gym/") && x.endsWith(".tsx"))) {
+      read(f).split("\n").forEach((line, i) => {
+        if (/backOff/.test(line) && RED.test(line)) bad.push(`${rel(f)}:${i + 1} ${line.trim().slice(0, 90)}`);
+      });
+    }
+    expect(bad, "a back-off week is a lighter plan, never a status painted red").toEqual([]);
+  });
+
+  it("the back-off tag uses the app's existing neutral pill, not a new red one", () => {
+    const src = read(join(SRC, "gym/GymFlow.tsx"));
+    expect(src, "back-off reads through .pill-subdued (the app's neutral pill)").toMatch(/backOff[\s\S]{0,80}pill-subdued|pill-subdued[\s\S]{0,80}week-back-off/);
+  });
+});
