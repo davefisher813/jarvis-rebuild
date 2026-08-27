@@ -140,6 +140,31 @@ export function stillThere(entries: PointAtItEntry[], minSessions = 3): StillThe
   return out.sort((a, b) => b.sessions - a.sessions);
 }
 
+// STILL THERE?'s dated summary (catalog Part 6): "Produces a shareable dated
+// summary of the taps." One line per distinct day a pattern's cluster was
+// tapped, in order, nothing else -- no severity, no name, same restraint as
+// stillThere() itself. This is the thing a caller hands to a human.
+export interface StillThereSummaryRow {
+  date: string;
+  side: "front" | "back";
+}
+
+export function stillThereSummary(entries: PointAtItEntry[], pattern: StillTherePattern): StillThereSummaryRow[] {
+  const SAME_SPOT = 0.06;
+  const days = new Set<string>();
+  const out: StillThereSummaryRow[] = [];
+  for (const e of entries) {
+    if (e.data.side !== pattern.side) continue;
+    const [cx, cy] = pattern.spotKey.split(",").map(Number) as [number, number];
+    if (Math.hypot(e.data.x - cx, e.data.y - cy) > SAME_SPOT) continue;
+    const day = localDay(e.data.at);
+    if (days.has(day)) continue;
+    days.add(day);
+    out.push({ date: day, side: e.data.side });
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function localDay(atMs: number): string {
   const d = new Date(atMs);
   const y = d.getFullYear();

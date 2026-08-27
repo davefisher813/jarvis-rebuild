@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ateBeforeMarks, ateBeforeCountLine, ateBeforeForDate, tookItTimeline, callItHistory, stillThere } from "./timelines";
+import { ateBeforeMarks, ateBeforeCountLine, ateBeforeForDate, tookItTimeline, callItHistory, stillThere, stillThereSummary } from "./timelines";
 import type { AteBeforeEntry, CallItEntry, PointAtItEntry, TookItEntry } from "./types";
 
 describe("Ate Before: marks, never a fraction", () => {
@@ -95,5 +95,21 @@ describe("Still There?: a counted pattern, never a diagnosis", () => {
     const sameDayTwice: PointAtItEntry = { id: "x", data: { category: "body", x: 0.5, y: 0.5, side: "front", at: tap(0).data.at + 3600000 } };
     const out = stillThere([tap(0), sameDayTwice, tap(3), tap(11)], 3);
     expect(out[0]!.sessions).toBe(3);
+  });
+
+  it("stillThereSummary produces one dated row per distinct day in the cluster, nothing else", () => {
+    const entries = [tap(0), tap(3), tap(11)];
+    const [pattern] = stillThere(entries, 3);
+    const summary = stillThereSummary(entries, pattern!);
+    expect(summary).toHaveLength(3);
+    expect(summary.map((r) => r.date)).toEqual(["2026-08-01", "2026-08-04", "2026-08-12"]);
+    for (const row of summary) expect(Object.keys(row).sort()).toEqual(["date", "side"]);
+  });
+
+  it("stillThereSummary excludes taps from a different pattern's spot", () => {
+    const entries = [tap(0, 0.1, 0.1), tap(1, 0.1, 0.1), tap(2, 0.1, 0.1), tap(3, 0.9, 0.9), tap(4, 0.9, 0.9), tap(5, 0.9, 0.9)];
+    const patterns = stillThere(entries, 3);
+    const summary = stillThereSummary(entries, patterns[0]!);
+    expect(summary).toHaveLength(3);
   });
 });

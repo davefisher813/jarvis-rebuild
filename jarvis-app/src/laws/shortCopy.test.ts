@@ -61,6 +61,7 @@ const EXEMPT_FILES = new Set([
   "people/lastContact.ts",
   "tasks/firstStep.ts",
   "gym/extract.ts",
+  "health/seasonFeed.ts",
   "schedule/planDayAI.ts",
   "schedule/scheduleExtract.ts",
   "brain/docs/BrainDocPage.tsx",

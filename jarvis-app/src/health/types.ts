@@ -29,6 +29,18 @@ export const ENTITY_TOOK_IT = "health_took_it";
 export const ENTITY_CALL_IT = "health_call_it";
 export const ENTITY_POINT_AT_IT = "health_point_at_it";
 
+// Track 3 addenda (catalog Parts 1-8, 2026-08-27): Refill Runway, The Bag,
+// The Locker, Say It To Someone, The Age Rule's once-per-season gate. Same
+// pattern as the five loggers above -- one ENTITY_* const, a *Data
+// interface, a wrapper -- and the same safety rails apply: no field here
+// carries an expected/target count, a calorie/macro/weight number, or a
+// diagnosis name.
+export const ENTITY_MED_REFILL = "health_med_refill";
+export const ENTITY_BAG_CHECK = "health_bag_check";
+export const ENTITY_LOCKER_DOC = "health_locker_doc";
+export const ENTITY_TRUSTED_ADULT = "health_trusted_adult";
+export const ENTITY_AGE_RULE_SHOWN = "health_age_rule_shown";
+
 // The categories the Share Line lists and the athlete controls. "logistics"
 // is the one category defaulted ON (Part 7: "off by default for everything
 // except logistics"): rides, times, forms, and medication REFILL logistics
@@ -139,4 +151,98 @@ export interface PointAtItData {
 export interface PointAtItEntry {
   id: string;
   data: PointAtItData;
+}
+
+// ---- Refill Runway (Part 4) ----
+//
+// A prescription fill: when it started and how many doses it holds. Runway
+// remaining is DERIVED (refillRunway.ts) by counting real Took It taps since
+// `filledAt`, never stored as a separate countdown field, so there is only
+// ever one place doses are counted from. `category` is "logistics": this is
+// the fill event, not the medication's identity, dose, or name -- none of
+// which this shape (or anything in src/health) ever carries.
+export interface MedRefillData {
+  category: "logistics";
+  filledAt: number; // epoch ms this fill started
+  dosesInFill: number; // how many doses the fill holds, a whole number > 0
+  at: number;
+}
+export interface MedRefillEntry {
+  id: string;
+  data: MedRefillData;
+}
+
+// ---- The Bag, Water With You is a row inside it (Part 3) ----
+//
+// A pre-departure checklist bound to one calendar event. `items` is a flat
+// list of item keys the caller supplies (water, snack, gear, mouthguard,
+// inhaler, the form); each carries only a boolean, never a quantity -- Water
+// With You is object-level ("is the bottle in the bag"), never a volume.
+export interface BagItemState {
+  key: string;
+  checked: boolean;
+}
+export interface BagCheckData {
+  category: "logistics";
+  eventId: string;
+  eventTitle?: string;
+  date: string;
+  items: BagItemState[];
+  at: number; // last time this checklist was touched
+}
+export interface BagCheckEntry {
+  id: string;
+  data: BagCheckData;
+}
+
+// ---- The Locker (Part 8) ----
+//
+// Document storage with expiry tracking, zero medical judgment. "baseline"
+// deliberately avoids naming the condition it is a baseline FOR in the type
+// itself (src/laws/healthPrivacy.test.ts bans diagnosis vocabulary in this
+// module outright); the screen labels it in plain, non-diagnostic words.
+export type LockerDocKind = "physical" | "insurance" | "baseline" | "exception" | "waiver";
+export interface LockerDocData {
+  category: "logistics";
+  kind: LockerDocKind;
+  label: string;
+  expiresAt?: string; // local ISO date this document lapses, when it does
+  fileName?: string;
+  fileData?: string; // small data URI, same encode path as shared/imageEncode
+  at: number;
+}
+export interface LockerDocEntry {
+  id: string;
+  data: LockerDocData;
+}
+
+// ---- Say It To Someone (Part 5) ----
+//
+// The athlete's own chosen trusted adult. Not a log of anything that
+// happened; a standing preference the athlete picks and can change. Not
+// consent-gated through the Share Line: it names WHO to call, not any body
+// or mind data, so there is nothing here for a category grant to protect.
+export interface TrustedAdultData {
+  name: string;
+  phone: string;
+  at: number;
+}
+export interface TrustedAdultEntry {
+  id: string;
+  data: TrustedAdultData;
+}
+
+// ---- The Age Rule's once-per-season gate (Part 2) ----
+//
+// Records that the row has already been shown for a given season string
+// (caller-derived, e.g. "2026-fall"), so the fact is stated once per season
+// per the catalog's own mitigation, never repeated into a recurring nag.
+export interface AgeRuleShownData {
+  category: "load";
+  season: string;
+  at: number;
+}
+export interface AgeRuleShownEntry {
+  id: string;
+  data: AgeRuleShownData;
 }
