@@ -3595,3 +3595,42 @@ body.selecting .voice-dock { display: none; }
 .launch-ss { font-size: var(--t-meta); color: var(--tx-3); margin-top: 1px; }
 .launch-chev { color: var(--tx-4); font-size: 22px; line-height: 1; flex-shrink: 0; }
 [data-theme="light"] .launch-row { background: #FFFFFF; box-shadow: var(--shadow-card); }
+
+/* HEALTH MODULE (student-athlete health track, catalog 2026-08-27). Three
+   new shapes: the Ate Before timeline of dots, the Call It ten-block scale,
+   and the Point At It body map. Health inherits the wider "anything red"
+   ban from CATEGORY_KINDS ("HEALTH -- defined by its refusals"), so none of
+   these three ramp through the brand red; all three use --blue instead. */
+
+.ate-before-answer { display: flex; gap: var(--s-2); flex-shrink: 0; }
+
+.eaten-timeline { display: flex; gap: var(--s-1h); flex-wrap: wrap; margin-bottom: var(--s-2); }
+.eaten-dot { width: 12px; height: 12px; border-radius: var(--r-circle); flex-shrink: 0; }
+.eaten-dot-yes { background: var(--blue); }
+.eaten-dot-no { background: var(--press-3); border: 1px solid var(--tx-4); }
+
+/* Ten fat blocks, no text to read (catalog Part 2). Opacity ramps with --i
+   (1-10), passed as a custom property from the tap grid, the design law's
+   sanctioned inline-style exception. No hue ramp: a red-at-the-top scale is
+   exactly the "anything red" ban this module inherits. */
+.rpe-blocks { display: flex; gap: var(--s-1h); flex-wrap: wrap; }
+.rpe-block { width: 28px; height: 56px; border-radius: var(--r-xs); border: 0; flex-shrink: 0; padding: 0;
+  background: var(--blue); opacity: calc(0.15 + var(--i, 5) * 0.085); cursor: pointer; }
+.rpe-block:active { transform: scale(0.94); }
+
+/* A plain abstract silhouette, decorative only: it needs to read as a body,
+   not be anatomically exact. Every part is percentage-positioned within the
+   fixed-height container, so nothing here needs a dynamic inline style. */
+.body-map { position: relative; height: 320px; background: var(--surface-1); border-radius: var(--r-lg); cursor: crosshair; overflow: hidden; }
+.body-map-head { position: absolute; top: 4%; left: 50%; width: 14%; height: 12%; margin-left: -7%; border-radius: var(--r-circle); background: var(--press-3); }
+.body-map-torso { position: absolute; top: 18%; left: 50%; width: 30%; height: 34%; margin-left: -15%; border-radius: var(--r-md); background: var(--press-3); }
+.body-map-arm { position: absolute; top: 20%; width: 9%; height: 30%; border-radius: var(--r-pill); background: var(--press-3); }
+.body-map-arm-l { left: 22%; }
+.body-map-arm-r { right: 22%; }
+.body-map-leg { position: absolute; top: 54%; width: 11%; height: 42%; border-radius: var(--r-pill); background: var(--press-3); }
+.body-map-leg-l { left: 38%; }
+.body-map-leg-r { right: 38%; }
+/* left/top are set inline per tap (dynamic geometry, the other sanctioned
+   inline-style exception); everything else about the mark lives here. */
+.body-map-mark { position: absolute; width: 18px; height: 18px; margin-left: -9px; margin-top: -9px;
+  border-radius: var(--r-circle); background: var(--blue); border: 2px solid #fff; pointer-events: none; }
