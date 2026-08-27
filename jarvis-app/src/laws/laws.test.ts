@@ -1502,6 +1502,14 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     // Track 3 work, kept because the size gate and the type gate in it are
     // the part that is easy to get wrong twice.
     "fileStorage.ts": "Supabase Storage: no upload surface in this build yet",
+    // Same shape as fileStorage.ts above: real, tested code with nowhere to
+    // plug in yet. HealthFlow composes the Share Line and the five loggers
+    // over a real HealthService, but wiring it into AppShell/destinations.tsx
+    // is its own task (student-athlete health track, Track 3) and out of
+    // scope for the session that built the module itself. Every screen and
+    // service it composes IS reachable, through this file; this is the one
+    // file with nothing above it yet.
+    "HealthFlow.tsx": "Health module: not wired into AppShell yet, Track 3 follow-up",
   };
 
   it("nothing is written, tested, and silently unreachable", () => {
