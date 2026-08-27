@@ -654,6 +654,7 @@ describe("LAW: one filled red per screen", () => {
       "onboarding/OnboardingFlow.tsx": "a step wizard; one step is mounted at a time",
       "screens/SignIn.tsx": "sign-in and sign-up are exclusive branches",
       "gym/UploadFlow.tsx": "phase machine; one phase renders",
+      "health/screens/SeasonFeedScreen.tsx": "same phase machine as gym/UploadFlow.tsx; the source-pick view and the draft-review view are an early return apart",
       "schedule/screens/ScheduleUploadFlow.tsx": "phase machine; one phase renders",
       "capture/QuickCapture.tsx": "dupAge ternary, plus a separate saved-phase screen",
       "people/CallPrepSheet.tsx": "Call and Save Note are exclusive on `dialed`",

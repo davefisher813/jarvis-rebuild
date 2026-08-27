@@ -2,12 +2,18 @@ import type { Store, ItemData, Json } from "@core";
 import type { EventInput } from "../events";
 import {
   ENTITY_HEALTH_CONSENT, ENTITY_LIGHTS_OUT, ENTITY_ATE_BEFORE, ENTITY_TOOK_IT, ENTITY_CALL_IT, ENTITY_POINT_AT_IT,
+  ENTITY_MED_REFILL, ENTITY_BAG_CHECK, ENTITY_LOCKER_DOC, ENTITY_TRUSTED_ADULT, ENTITY_AGE_RULE_SHOWN,
   type ConsentGrant, type ConsentGrantsData, type HealthCategoryId,
   type LightsOutData, type LightsOutEntry,
   type AteBeforeData, type AteBeforeEntry,
   type TookItData, type TookItEntry,
   type CallItData, type CallItEntry,
   type PointAtItData, type PointAtItEntry,
+  type MedRefillData, type MedRefillEntry,
+  type BagItemState, type BagCheckData, type BagCheckEntry,
+  type LockerDocKind, type LockerDocData, type LockerDocEntry,
+  type TrustedAdultData, type TrustedAdultEntry,
+  type AgeRuleShownData, type AgeRuleShownEntry,
 } from "./types";
 import { defaultGrants, updateGrant } from "./shareLine";
 import { queueHealthLog, flushPending, readPending, type Storage2, type PendingHealthLog } from "./offlineQueue";
@@ -134,6 +140,89 @@ export class HealthService {
 
   async listPointAtIt(storage?: Storage2): Promise<PointAtItEntry[]> {
     return this.listMerged<PointAtItData>(ENTITY_POINT_AT_IT, storage, (a, b) => a.at - b.at);
+  }
+
+  // ---- Refill Runway ----
+
+  logMedRefill(input: { filledAt: number; dosesInFill: number }, at: number = Date.now(), storage?: Storage2): MedRefillData {
+    const dosesInFill = Math.max(1, Math.round(input.dosesInFill));
+    const data: MedRefillData = { category: "logistics", filledAt: input.filledAt, dosesInFill, at };
+    this.logAndQueue(ENTITY_MED_REFILL, data as unknown as Record<string, Json>, storage);
+    return data;
+  }
+
+  async listMedRefill(storage?: Storage2): Promise<MedRefillEntry[]> {
+    return this.listMerged<MedRefillData>(ENTITY_MED_REFILL, storage, (a, b) => a.filledAt - b.filledAt);
+  }
+
+  // ---- The Bag (Water With You is a row inside it) ----
+  //
+  // Each tap logs the checklist's FULL state at that moment (log an event,
+  // not a state, same as every other write in this file); the screen reads
+  // the most recent entry for the event via bag.ts's latestBagCheck.
+  logBagCheck(input: { eventId: string; eventTitle?: string; date: string; items: BagItemState[] }, at: number = Date.now(), storage?: Storage2): BagCheckData {
+    const data: BagCheckData = { category: "logistics", ...input, at };
+    this.logAndQueue(ENTITY_BAG_CHECK, data as unknown as Record<string, Json>, storage);
+    return data;
+  }
+
+  async listBagCheck(storage?: Storage2): Promise<BagCheckEntry[]> {
+    return this.listMerged<BagCheckData>(ENTITY_BAG_CHECK, storage, (a, b) => a.at - b.at);
+  }
+
+  // ---- The Locker ----
+
+  logLockerDoc(input: { kind: LockerDocKind; label: string; expiresAt?: string; fileName?: string; fileData?: string }, at: number = Date.now(), storage?: Storage2): LockerDocData {
+    const data: LockerDocData = { category: "logistics", ...input, at };
+    this.logAndQueue(ENTITY_LOCKER_DOC, data as unknown as Record<string, Json>, storage);
+    return data;
+  }
+
+  async listLockerDoc(storage?: Storage2): Promise<LockerDocEntry[]> {
+    return this.listMerged<LockerDocData>(ENTITY_LOCKER_DOC, storage, (a, b) => a.at - b.at);
+  }
+
+  async removeLockerDoc(id: string): Promise<void> {
+    await this.store.delete(this.ownerId, id);
+    this.onEvent({ type: "entity.deleted", entityType: ENTITY_LOCKER_DOC, entityId: id });
+  }
+
+  // ---- Say It To Someone ----
+  //
+  // One standing record, upserted like the Share Line's grants, not an
+  // append-only log: there is exactly one current trusted adult, and
+  // changing it is a preference change, not a new fact about the world.
+  async getTrustedAdult(): Promise<TrustedAdultEntry | null> {
+    const items = await this.store.listForUser(this.ownerId, ENTITY_TRUSTED_ADULT);
+    const item = items[0];
+    return item ? { id: item.id, data: item.data as unknown as TrustedAdultData } : null;
+  }
+
+  async setTrustedAdult(name: string, phone: string): Promise<TrustedAdultData> {
+    const items = await this.store.listForUser(this.ownerId, ENTITY_TRUSTED_ADULT);
+    const data: TrustedAdultData = { name: name.trim(), phone: phone.trim(), at: Date.now() };
+    if (items[0]) {
+      await this.store.update(this.ownerId, items[0].id, data as unknown as ItemData);
+      this.onEvent({ type: "entity.updated", entityType: ENTITY_TRUSTED_ADULT, entityId: items[0].id });
+    } else {
+      const id = await this.store.create(this.ownerId, ENTITY_TRUSTED_ADULT, data as unknown as ItemData);
+      this.onEvent({ type: "entity.created", entityType: ENTITY_TRUSTED_ADULT, entityId: id });
+    }
+    return data;
+  }
+
+  // ---- The Age Rule's once-per-season gate ----
+
+  async wasAgeRuleShown(season: string): Promise<boolean> {
+    const items = await this.store.listForUser(this.ownerId, ENTITY_AGE_RULE_SHOWN);
+    return items.some((i) => (i.data as unknown as AgeRuleShownData).season === season);
+  }
+
+  async markAgeRuleShown(season: string): Promise<void> {
+    if (await this.wasAgeRuleShown(season)) return;
+    const data: AgeRuleShownData = { category: "load", season, at: Date.now() };
+    const id = await this.store.create(this.ownerId, ENTITY_AGE_RULE_SHOWN, data as unknown as ItemData);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_AGE_RULE_SHOWN, entityId: id });
   }
 
   // Reads what has already landed on the Store AND whatever is still
