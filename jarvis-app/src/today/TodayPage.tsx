@@ -196,9 +196,9 @@ export default function TodayPage({
   upNextReason?: string | null;
   upNext?: TaskItem[];
   freshStart?: () => void;
-  locked?: { s: number; e: number; label: string }[];
+  locked?: { s: number; e: number; label: string; id?: string }[];
   onOpenEvent?: (id: string) => void;
-  onEditRoutine?: () => void;
+  onEditRoutine?: (blockId?: string) => void;
   onSeeAllTasks: () => void;
   // Pick 5: the goal-aware pill lands on the Bigger Picture.
   onGoBigger?: () => void;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRoutine } from "../data/NotesProvider";
 import { DEFAULT_ROUTINE, isOvernight, isWorkOutsideActive, defaultModeFor, freeOf, MODE_LABEL, MODE_HELP, FREE_CHANNELS, type RoutineData, type ProtectedBlock, type BlockKind, type BlockMode, type FreeChannel } from "./types";
 import { fmtTime } from "../schedule/calendar";
@@ -69,7 +69,7 @@ function pbId(): string {
 // Phase 1 routine editor. Active hours (wake/sleep) set the planner's window;
 // work hours give the AI context for sequencing. Lives in the Brain tab under
 // "How You Live". Editor chrome matches BrainDocPage; fields match EventSheet.
-export default function RoutineFlow({ onBack }: { onBack: () => void }) {
+export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBack: () => void; focusId?: string; onFocusConsumed?: () => void }) {
   const routine = useRoutine();
   const [data, setData] = useState<RoutineData>(DEFAULT_ROUTINE);
   const [loaded, setLoaded] = useState(false);
@@ -93,26 +93,67 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
   // the top Save button persists it, same as every other field here.
   const [form, setForm] = useState<FormState | null>(null);
   const blocks = data.protectedBlocks ?? [];
+  // Shown in time order (2026-08-28): the stored array is insertion order,
+  // which turns into a shuffled list the moment two blocks are added out of
+  // sequence. A day-shaped list reads at a glance; an insertion-order one
+  // makes you check every row's time to find the one you came for.
+  const sortedBlocks = [...blocks].sort((a, b) => a.startMin - b.startMin);
   const formValid = !!form && form.label.trim() !== "" && form.endMin > form.startMin && form.days.length > 0;
+  const formRef = useRef<HTMLDivElement | null>(null);
 
   const openAdd = () => setForm({ id: null, label: "", startMin: 12 * 60, endMin: 13 * 60, days: [1, 2, 3, 4, 5], kind: "other", soft: false, location: "", mode: null, free: [] });
   const openEdit = (b: ProtectedBlock) => setForm({ id: b.id, label: b.label, startMin: b.startMin, endMin: b.endMin, days: [...b.days], kind: b.kind ?? "other", soft: !!b.soft, location: b.location ?? "", mode: b.mode ?? null, free: b.free ?? [] });
+  // Landing straight in the block someone tapped (2026-08-28). A tap on a
+  // protected block anywhere else in the app hands its id here; once the
+  // routine has loaded, that block's own editor opens itself instead of
+  // making the person scroll the whole list to find it again. One-shot: the
+  // ref guards against reopening if they close the form and the id is still
+  // sitting in props.
+  const focusedRef = useRef(false);
+  useEffect(() => {
+    if (!loaded || !focusId || focusedRef.current) return;
+    const b = blocks.find((x) => x.id === focusId);
+    if (!b) return;
+    focusedRef.current = true;
+    openEdit(b);
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    // One-shot: tell the parent this id has done its job, so a later visit
+    // to Routine that does not come from tapping a block (the hub row, a
+    // second look at the whole list) opens on the list, not back on Gym.
+    onFocusConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, focusId, blocks]);
   const applyPreset = (p: Preset) => setForm((f) => ({ id: f?.id ?? null, label: p.label, startMin: p.startMin, endMin: p.endMin, days: [...p.days], kind: p.kind, soft: !!p.soft, location: f?.location ?? "", mode: null, free: [] }));
   const toggleDay = (d: number) => setForm((f) => (f ? { ...f, days: f.days.includes(d) ? f.days.filter((x) => x !== d) : [...f.days, d].sort((a, b) => a - b) } : f));
+  // Shared by Save and Duplicate: the block the current form describes,
+  // wearing whichever id it is given.
+  const blockFromForm = (f: FormState, id: string): ProtectedBlock => ({
+    id, label: f.label.trim(), startMin: f.startMin, endMin: f.endMin,
+    days: [...f.days].sort((a, b) => a - b), kind: f.kind,
+    ...(f.soft ? { soft: true } : {}),
+    // Only an EXPLICIT choice is stored. Leaving it alone keeps the block on
+    // its kind's default, which is what almost everyone should do.
+    ...(f.mode ? { mode: f.mode } : {}),
+    ...(f.mode === "blends" && f.free.length ? { free: f.free } : {}),
+    ...(f.location.trim() ? { location: f.location.trim() } : {}),
+  });
   const commitForm = () => {
     if (!form || !formValid) return;
-    const block: ProtectedBlock = {
-      id: form.id ?? pbId(), label: form.label.trim(), startMin: form.startMin, endMin: form.endMin,
-      days: [...form.days].sort((a, b) => a - b), kind: form.kind,
-      ...(form.soft ? { soft: true } : {}),
-      // Only an EXPLICIT choice is stored. Leaving it alone keeps the block on
-      // its kind's default, which is what almost everyone should do.
-      ...(form.mode ? { mode: form.mode } : {}),
-      ...(form.mode === "blends" && form.free.length ? { free: form.free } : {}),
-      ...(form.location.trim() ? { location: form.location.trim() } : {}),
-    };
+    const block = blockFromForm(form, form.id ?? pbId());
     set({ protectedBlocks: form.id ? blocks.map((b) => (b.id === form.id ? block : b)) : [...blocks, block] });
     setForm(null);
+  };
+  // Duplicate (2026-08-28, Dave: "seamlessly adjust things on the fly"). Two
+  // variants of one block - Gym at 6 AM Mon/Wed/Fri and a different Gym at 8
+  // AM Saturday - used to mean typing the whole thing twice. This clones
+  // whatever the form currently says (so a tweak made before duplicating
+  // rides along) as a NEW block and leaves the original exactly as it was.
+  const duplicateForm = () => {
+    if (!form || !formValid) return;
+    const block = blockFromForm(form, pbId());
+    set({ protectedBlocks: [...blocks, block] });
+    setForm(null);
+    showToast({ message: `Duplicated ${block.label}` });
   };
   const removeBlock = (id: string) => set({ protectedBlocks: blocks.filter((b) => b.id !== id) });
 
@@ -170,14 +211,21 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
 
         <div className="grp"><div className="eyebrow">Protected Time</div></div>
 
-        {blocks.map((b) => (
+        {sortedBlocks.map((b) => (
           <div className="field" key={b.id}>
             <div className="card">
-              <div className="row" role="button" tabIndex={0} onClick={() => openEdit(b)}>
+              {/* The row was a dead end wearing a delete button (Dave,
+                  2026-08-28: "lack of buttons makes that impossible"). It
+                  always opened the full editor on tap - nothing on the row
+                  said so. The chev is the same disclosure mark every other
+                  tappable row in the app wears (Connections, Money, Bigger
+                  Picture): one glance says "there's more here, tap it." */}
+              <div className={"row" + (form?.id === b.id ? " active" : "")} role="button" tabIndex={0} onClick={() => openEdit(b)}>
                 <div className="row-grow">
                   <div className="conn-name">{b.label}{b.soft ? " · Flexible" : ""}</div>
                   <div className="conn-meta">{label12(b.startMin)} to {label12(b.endMin)} &middot; {daysSummary(b.days)}{b.location ? ` · ${b.location}` : ""}</div>
                 </div>
+                <div className="chev" />
                 <button className="conn-remove" aria-label={`Remove ${b.label}`} onClick={(e) => { e.stopPropagation(); removeBlock(b.id); }}>&times;</button>
               </div>
             </div>
@@ -185,7 +233,7 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
         ))}
 
         {form ? (
-          <div className="card pad">
+          <div className="card pad" ref={formRef}>
             <div className="field">
               <label className="input-label">Quick Add</label>
               <div className="chip-wrap">
@@ -295,6 +343,13 @@ export default function RoutineFlow({ onBack }: { onBack: () => void }) {
               <button className="btn btn-primary btn-block" disabled={!formValid} onClick={commitForm}>{form.id ? "Save Block" : "Add Block"}</button>
               <button className="btn btn-secondary btn-block" onClick={() => setForm(null)}>Cancel</button>
             </div>
+            {/* Duplicate (2026-08-28): only meaningful once a block exists to
+                clone. Splitting Gym into a Mon/Wed/Fri 6 AM version and a
+                Saturday 8 AM version used to mean re-typing the whole block;
+                this is the same block, a new id, one tap. */}
+            {form.id && (
+              <button className="btn btn-tertiary btn-block" disabled={!formValid} onClick={duplicateForm}>Duplicate As New Block</button>
+            )}
           </div>
         ) : (
           <button className="btn btn-secondary btn-block" onClick={openAdd}>Add Protected Time</button>

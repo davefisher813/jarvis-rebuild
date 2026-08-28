@@ -21,7 +21,7 @@ import { LockGlyph } from "../../shared/glyphs";
 const DROP_MINUTES = 60;
 
 // A protected block from Your Routine, rendered on the day it applies.
-export interface LockedRange { s: number; e: number; label: string; soft?: boolean; kind?: string }
+export interface LockedRange { s: number; e: number; label: string; soft?: boolean; kind?: string; id?: string }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const WD = ["S", "M", "T", "W", "T", "F", "S"];
@@ -73,7 +73,13 @@ export default function SchedulePage({
   onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void; onUpload?: () => void;
   // Bulk delete for the selected day (2026-08-24).
   onDeleteMany?: (ids: string[]) => void;
-  locked?: LockedRange[]; now?: string | null; onEditRoutine?: () => void;
+  locked?: LockedRange[]; now?: string | null;
+  // Jumps straight to editing THIS block when the tap has one, so "move Gym
+  // later" is one tap from the row, not a hunt through the whole routine
+  // list (Dave, 2026-08-28: "I don't want to keep asking for the same
+  // thing"). Falls back to opening the routine screen at rest when a row has
+  // no id (older callers, or PlanDaySheet's generic "Edit Routine").
+  onEditRoutine?: (blockId?: string) => void;
   // The standing proposal for THIS date, drawn among the real rows.
   proposed?: import("../../today/YourDay").ProposedDay;
   dayFooter?: import("react").ReactNode;
@@ -477,7 +483,7 @@ export default function SchedulePage({
                 key={"lock-" + i}
                 role="button"
                 tabIndex={0}
-                onClick={onEditRoutine}
+                onClick={() => onEditRoutine?.(en.l.id)}
               >
                 <div className="sched-time">{fmtTime(minToHHMM(en.l.s)).time}<span className="ampm">{fmtTime(minToHHMM(en.l.s)).ap}</span></div>
                 <div className="sched-body">

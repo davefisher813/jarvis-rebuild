@@ -97,7 +97,11 @@ export const DEFAULT_ROUTINE: RoutineData = {
 // out, carrying its label for the preview. soft rides along so callers can
 // split walls from preferences; kind (2026-08-10) so focus blocks can be
 // told apart from time to protect. Phase 2, extended 2026-08-09/10.
-export interface ProtectedRange { s: number; e: number; label: string; soft?: boolean; kind?: BlockKind; mode?: BlockMode; free?: FreeChannel[] }
+// id (2026-08-28) rides along so a tap on a rendered range - on Today, on
+// Schedule - can jump straight back to editing THAT block instead of
+// dropping the user at the top of the whole routine list to hunt for it
+// again. Dave: "I don't want to keep asking for the same thing."
+export interface ProtectedRange { s: number; e: number; label: string; soft?: boolean; kind?: BlockKind; mode?: BlockMode; free?: FreeChannel[]; id?: string }
 
 // The protected ranges that apply on a given day of week, as sorted busy
 // ranges for the planner, hard and soft together. Malformed blocks (end at or
@@ -106,7 +110,7 @@ export interface ProtectedRange { s: number; e: number; label: string; soft?: bo
 export function protectedRangesFor(r: RoutineData, dow: number): ProtectedRange[] {
   return (r.protectedBlocks ?? [])
     .filter((b) => b.endMin > b.startMin && b.label.trim() !== "" && b.days.includes(dow))
-    .map((b) => ({ s: b.startMin, e: b.endMin, label: b.label.trim(), ...(b.soft ? { soft: true } : {}), ...(b.kind ? { kind: b.kind } : {}), ...(b.mode ? { mode: b.mode } : {}), ...(b.free ? { free: b.free } : {}) }))
+    .map((b) => ({ s: b.startMin, e: b.endMin, label: b.label.trim(), id: b.id, ...(b.soft ? { soft: true } : {}), ...(b.kind ? { kind: b.kind } : {}), ...(b.mode ? { mode: b.mode } : {}), ...(b.free ? { free: b.free } : {}) }))
     .sort((a, b) => a.s - b.s || a.e - b.e);
 }
 

@@ -112,7 +112,7 @@ export default function PlanDaySheet({
   routineConfigured?: boolean;
   blocked?: PlanBlocked[];
   sizing?: DaySizing;
-  onEditRoutine?: () => void;
+  onEditRoutine?: (blockId?: string) => void;
   // P7: make a task without leaving the sheet.
   onAddTask?: (text: string) => Promise<PlanCandidate | null>;
   onCommit: (blocks: PlanBlock[], picks: string[]) => void;
@@ -491,7 +491,7 @@ export default function PlanDaySheet({
             </div>
           )}
           {!routineConfigured && onEditRoutine && (
-            <div className="plan-sub"><button type="button" className="note-fix" onClick={onEditRoutine}>Set Your Routine</button></div>
+            <div className="plan-sub"><button type="button" className="note-fix" onClick={() => onEditRoutine()}>Set Your Routine</button></div>
           )}
 
           {/* R4: planning "today" at 10:54 PM is planning a dead day, and the
@@ -582,7 +582,7 @@ export default function PlanDaySheet({
                     </div>
                   ))}
                   {onEditRoutine && (
-                    <button type="button" className="row-act" onClick={onEditRoutine}>Edit Routine</button>
+                    <button type="button" className="row-act" onClick={() => onEditRoutine()}>Edit Routine</button>
                   )}
                 </>
               )}

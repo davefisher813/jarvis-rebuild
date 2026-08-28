@@ -137,7 +137,7 @@ export default function TodayFlow({
   onGoEmail?: (threadId?: string, draftId?: string) => void;
   onSearch?: () => void;
   onProfile?: () => void;
-  onEditRoutine?: () => void;
+  onEditRoutine?: (blockId?: string) => void;
   // Where You Were (addendum item 6): navigate back to a recorded spot.
   onRestoreSpot?: (kind: "note" | "task" | "event" | "gym", id: string) => void;
 }) {

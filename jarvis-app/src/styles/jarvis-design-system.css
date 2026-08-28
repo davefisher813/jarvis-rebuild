@@ -490,6 +490,11 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 /* ROWS (shared) */
 .row, .task-row, .conn-row, .msg-row, .sched-row, .proj-row, .suggestion-row { display: flex; gap: var(--s-3); padding: var(--s-3h) var(--s-4); align-items: center; }
 .row + .row, .task-row + .task-row, .conn-row + .conn-row, .msg-row + .msg-row, .sched-row + .sched-row, .proj-row + .proj-row, .suggestion-row + .suggestion-row, .lifemap-row + .lifemap-row { border-top: 0.5px solid var(--divider); }
+/* The row whose editor is open below it (Your Routine's protected-time list,
+   2026-08-28). Same tint the app already uses for "busy/pressed", so the
+   open card reads as attached to the row that opened it instead of just
+   appearing somewhere further down the screen. */
+.row.active { background: var(--press-3); }
 
 .task-check { width: 22px; height: 22px; border-radius: var(--r-circle); border: 2px solid var(--tx-4); flex-shrink: 0; }
 .task-check.done { border-color: var(--good); background: var(--good); }

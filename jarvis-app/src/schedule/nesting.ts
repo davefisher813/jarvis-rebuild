@@ -33,6 +33,9 @@ export interface HoldRange {
   soft?: boolean;
   kind?: string;
   mode?: string;
+  // The routine block's own id (2026-08-28), so a tap can jump straight back
+  // to editing it. Optional: not every HoldRange producer has one.
+  id?: string;
   // Deliberately NOT redeclaring `free` here. RoutineData types it as a list
   // of channels, and a narrower guess would make every real ProtectedRange
   // fail to assign. Nesting does not read it; anything that does should take

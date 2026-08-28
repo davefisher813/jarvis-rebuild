@@ -105,7 +105,7 @@ function LockedRow({ l, past, onOpen, children }: { l: LockedRange; past: boolea
 
 // One full pass of the day: events + protected blocks in time order, with the
 // Now line inserted at the right spot and time-as-distance on the next event.
-function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {}, proposed, fromMin, expandHeld = false }: { events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void; onEditRoutine?: () => void; blendMap?: BlendMap; proposed?: ProposedDay; fromMin?: number; expandHeld?: boolean }) {
+function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {}, proposed, fromMin, expandHeld = false }: { events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void; onEditRoutine?: (blockId?: string) => void; blendMap?: BlendMap; proposed?: ProposedDay; fromMin?: number; expandHeld?: boolean }) {
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
   const nowMin = toMin(now);
   // The distance label ("in 40 minutes") counts down to a COMMITMENT. A
@@ -200,7 +200,7 @@ function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine
       const evs = heldEv.get(k) ?? [];
       const props = heldProp.get(k) ?? [];
       out.push(
-        <LockedRow key={"lock-" + i} l={en.l} past={en.l.e <= nowMin} onOpen={onEditRoutine}>
+        <LockedRow key={"lock-" + i} l={en.l} past={en.l.e <= nowMin} onOpen={onEditRoutine ? () => onEditRoutine(en.l.id) : undefined}>
           {(evs.length > 0 || props.length > 0) && (
             <HeldTasks count={evs.length + props.length} alwaysOpen={expandHeld}>
               <>
@@ -282,7 +282,7 @@ export default function YourDay({
   onRunningLate?: (mins: number) => void;
   onFocus?: () => void;
   onOpenEvent?: (id: string) => void;
-  onEditRoutine?: () => void;
+  onEditRoutine?: (blockId?: string) => void;
   title?: string;
   emptyText?: string;
   blendMap?: BlendMap;

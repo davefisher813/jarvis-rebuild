@@ -139,11 +139,11 @@ describe("protectedRangesFor (Phase 2)", () => {
   it("returns only the blocks that apply on the given day, sorted by start", () => {
     // Monday (1): both gym and lunch apply, gym first.
     expect(protectedRangesFor(r, 1)).toEqual([
-      { s: 6 * 60, e: 7 * 60, label: "Gym" },
-      { s: 12 * 60, e: 13 * 60, label: "Lunch" },
+      { s: 6 * 60, e: 7 * 60, label: "Gym", id: "g" },
+      { s: 12 * 60, e: 13 * 60, label: "Lunch", id: "l" },
     ]);
     // Tuesday (2): only lunch.
-    expect(protectedRangesFor(r, 2)).toEqual([{ s: 12 * 60, e: 13 * 60, label: "Lunch" }]);
+    expect(protectedRangesFor(r, 2)).toEqual([{ s: 12 * 60, e: 13 * 60, label: "Lunch", id: "l" }]);
   });
 
   it("returns nothing when no blocks are set", () => {

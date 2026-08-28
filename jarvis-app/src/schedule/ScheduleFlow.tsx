@@ -43,7 +43,7 @@ import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent as duplicateEvent
 
 type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: EventDraft } | null;
 
-export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?: () => void; openId?: string } = {}) {
+export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?: (blockId?: string) => void; openId?: string } = {}) {
   const svc = useSchedule();
   const profileSvc = useOptionalProfile();
   // The chosen day cap (monthly report's one change): seeds the sheet.
