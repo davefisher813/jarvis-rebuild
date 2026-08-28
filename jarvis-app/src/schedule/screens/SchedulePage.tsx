@@ -48,7 +48,7 @@ export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts,
   mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload, onDeleteMany,
-  locked = [], now, onEditRoutine, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
+  locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
   onShiftBlock, onRetimeBlock, onResizeBlock,
   proposed, dayFooter,
   anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {}, blendMap = {},
@@ -75,12 +75,15 @@ export default function SchedulePage({
   // Bulk delete for the selected day (2026-08-24).
   onDeleteMany?: (ids: string[]) => void;
   locked?: LockedRange[]; now?: string | null;
-  // Jumps straight to editing THIS block when the tap has one, so "move Gym
-  // later" is one tap from the row, not a hunt through the whole routine
-  // list (Dave, 2026-08-28: "I don't want to keep asking for the same
-  // thing"). Falls back to opening the routine screen at rest when a row has
-  // no id (older callers, or PlanDaySheet's generic "Edit Routine").
+  // Falls back to opening the full Your Routine screen when a row has no id
+  // (older callers), or when onOpenBlock is not given (PlanDaySheet's generic
+  // "Edit Routine" still uses this one directly, with no id).
   onEditRoutine?: (blockId?: string) => void;
+  // THE ACTUAL TAP TARGET NOW (2026-08-28, Dave, all caps: "when I click on
+  // something in the schedule it should allow me to edit it like a normal
+  // scheduled event"). A tap on a locked row opens BlockSheet - the same
+  // small sheet an event opens - instead of leaving for Your Routine.
+  onOpenBlock?: (blockId: string) => void;
   // The standing proposal for THIS date, drawn among the real rows.
   proposed?: import("../../today/YourDay").ProposedDay;
   dayFooter?: import("react").ReactNode;
@@ -485,7 +488,7 @@ export default function SchedulePage({
                 key={"lock-" + i}
                 l={en.l}
                 past={isToday && en.l.e <= nowMin}
-                onOpen={() => onEditRoutine?.(id)}
+                onOpen={id && onOpenBlock ? () => onOpenBlock(id) : () => onEditRoutine?.(id)}
                 heldCount={held.length}
                 onFillBlock={onFillBlock ? () => onFillBlock(en.l.s, en.l.e) : undefined}
                 onShift={onShiftBlock && id ? (m) => onShiftBlock(id, m) : undefined}

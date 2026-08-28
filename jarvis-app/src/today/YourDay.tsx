@@ -68,12 +68,17 @@ const todayISODate = () => {
 // One full pass of the day: events + protected blocks in time order, with the
 // Now line inserted at the right spot and time-as-distance on the next event.
 function DaySet({
-  events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {}, proposed, fromMin, expandHeld = false,
+  events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, onOpenBlock, blendMap = {}, proposed, fromMin, expandHeld = false,
   conflicts, attachMap, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow,
   onShiftBlock, onRetimeBlock, onResizeBlock,
 }: {
   events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void;
-  onEditRoutine?: (blockId?: string) => void; blendMap?: BlendMap; proposed?: ProposedDay; fromMin?: number; expandHeld?: boolean;
+  onEditRoutine?: (blockId?: string) => void;
+  // The actual tap target on a locked row (2026-08-28): opens BlockSheet
+  // instead of leaving for Your Routine. Falls back to onEditRoutine when
+  // absent (older callers).
+  onOpenBlock?: (blockId: string) => void;
+  blendMap?: BlendMap; proposed?: ProposedDay; fromMin?: number; expandHeld?: boolean;
   // Same quick adjustments Schedule's row offers (2026-08-28): shift, retime,
   // resize, skip today, push tomorrow. Undefined on any of these just means
   // that action is not offered, same as DayRow already handles for Schedule.
@@ -205,7 +210,7 @@ function DaySet({
           key={"lock-" + i}
           l={en.l}
           past={en.l.e <= nowMin}
-          onOpen={onEditRoutine ? () => onEditRoutine(blockId) : undefined}
+          onOpen={blockId && onOpenBlock ? () => onOpenBlock(blockId) : onEditRoutine ? () => onEditRoutine(blockId) : undefined}
           heldCount={evs.length + props.length}
           onShift={onShiftBlock && blockId ? (m) => onShiftBlock(blockId, m) : undefined}
           onRetime={onRetimeBlock && blockId ? (s) => onRetimeBlock(blockId, s) : undefined}
@@ -275,6 +280,7 @@ export default function YourDay({
   onFocus,
   onOpenEvent,
   onEditRoutine,
+  onOpenBlock,
   title = "Your Day",
   emptyText = "Nothing scheduled today",
   blendMap = {},
@@ -303,6 +309,7 @@ export default function YourDay({
   onFocus?: () => void;
   onOpenEvent?: (id: string) => void;
   onEditRoutine?: (blockId?: string) => void;
+  onOpenBlock?: (blockId: string) => void;
   title?: string;
   emptyText?: string;
   blendMap?: BlendMap;
@@ -530,7 +537,7 @@ export default function YourDay({
               expanded, which is the ticker's own content. Deciding whether a
               thing should scroll by measuring something other than that thing
               is how the feature switched itself off. */}
-          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} /></div>
+          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} onOpenBlock={onOpenBlock} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} /></div>
           {measuring && (
             <div ref={measureRef} className="day-measure" aria-hidden="true">
               <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld />

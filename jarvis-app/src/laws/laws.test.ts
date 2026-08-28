@@ -876,6 +876,11 @@ describe("LAW: one filled red per screen", () => {
       // An event genuinely cannot be placed without a title, a date and a
       // start; every other field on that sheet defaults.
       "schedule/screens/EventSheet.tsx": 3,
+      // A protected block genuinely cannot be placed without a name, a start
+      // and at least one day; end defaults to start + 1h, same rule as the
+      // event sheet's End (2026-08-28, Dave: "edit it like a normal
+      // scheduled event").
+      "schedule/screens/BlockSheet.tsx": 3,
     };
     const bad: string[] = [];
     for (const f of COMPONENTS) {

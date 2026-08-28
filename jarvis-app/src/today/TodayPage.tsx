@@ -138,6 +138,7 @@ export default function TodayPage({
   locked,
   onOpenEvent,
   onEditRoutine,
+  onOpenBlock,
   onSeeAllTasks,
   onGoBigger,
   movedLine,
@@ -210,6 +211,9 @@ export default function TodayPage({
   locked?: { s: number; e: number; label: string; id?: string }[];
   onOpenEvent?: (id: string) => void;
   onEditRoutine?: (blockId?: string) => void;
+  // The actual tap target on a locked row (2026-08-28): opens BlockSheet, the
+  // same small sheet an event opens, instead of leaving for Your Routine.
+  onOpenBlock?: (blockId: string) => void;
   // Same quick adjustments Schedule's day list offers (2026-08-28): shift,
   // retime, resize, skip today, push tomorrow, plus overlap and attached-task
   // awareness. Optional throughout - TodayFlow wires whichever it has.
@@ -608,6 +612,7 @@ export default function TodayPage({
         onFocus={evening ? undefined : onUpNext}
         onOpenEvent={onOpenEvent}
         onEditRoutine={onEditRoutine}
+        onOpenBlock={onOpenBlock}
         blendMap={blendMap}
         title={evening ? "Tonight" : "Your Day"}
         emptyText={evening ? "Nothing else tonight" : "Nothing scheduled today"}

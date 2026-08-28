@@ -23,6 +23,7 @@ import { birthdaysOn, type BirthdayHit } from "../people/birthdays";
 import CheckIn from "./CheckIn";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import EventSheet, { type EventDraft } from "../schedule/screens/EventSheet";
+import BlockSheet, { type BlockDraft } from "../schedule/screens/BlockSheet";
 import PlanDaySheet from "../schedule/screens/PlanDaySheet";
 import { aiPlanDay } from "../schedule/planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } from "../routine/types";
@@ -52,7 +53,7 @@ import {
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
   pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust,
 } from "../schedule/eventAdjust";
-import { shiftBlock as shiftBlockAdjust, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust } from "../routine/blockAdjust";
+import { shiftBlock as shiftBlockAdjust, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust, editBlockBasics, removeBlock as removeBlockAdjust } from "../routine/blockAdjust";
 import { overlapsOn } from "../schedule/dayEdit";
 import { isKept } from "../schedule/overlapAck";
 import { attachInfo, type AttachInfo } from "../schedule/attachments";
@@ -277,6 +278,10 @@ export default function TodayFlow({
   }, [projectsSvc, goalsSvc]);
   const [sheet, setSheet] = useState<{ mode: "edit"; id: string; initial: TaskDraft } | null>(null);
   const [eventSheet, setEventSheet] = useState<{ id: string; initial: EventDraft } | null>(null);
+  // THE SAME TAP AS AN EVENT (2026-08-28, Dave: "when I click on something in
+  // the schedule it should allow me to edit it like a normal scheduled
+  // event"). Same shape as eventSheet above, for a protected block.
+  const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft } | null>(null);
   const [planOpen, setPlanOpen] = useState(false);
   const [upNextOpen, setUpNextOpen] = useState(false);
   // THE MONTHLY REPORT (2026-08-25). Arrives as one row in the notice
@@ -539,6 +544,46 @@ export default function TodayFlow({
       actionLabel: "Undo",
       onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
     });
+  };
+
+  // THE QUICK SHEET ITSELF (2026-08-28), identical to ScheduleFlow's copy:
+  // opens on a tap instead of leaving for Your Routine, and Save patches only
+  // name/time/days.
+  const onOpenBlock = (id: string) => {
+    const b = (routineData.protectedBlocks ?? []).find((x) => x.id === id);
+    if (!b) return;
+    setBlockSheet({ id, initial: { label: b.label, startMin: b.startMin, endMin: b.endMin, days: [...b.days] } });
+  };
+  const onSaveBlock = async (draft: BlockDraft) => {
+    if (!blockSheet) return;
+    const before = routineData;
+    const after = editBlockBasics(before, blockSheet.id, draft);
+    setBlockSheet(null);
+    if (!after) return;
+    const ok = await attemptWrite(() => routine.save(after));
+    if (ok) setRoutineData(after);
+  };
+  const onDeleteBlock = async () => {
+    if (!blockSheet) return;
+    const before = routineData;
+    const removed = (before.protectedBlocks ?? []).find((b) => b.id === blockSheet.id);
+    const after = removeBlockAdjust(before, blockSheet.id);
+    setBlockSheet(null);
+    if (!after) return;
+    const ok = await attemptWrite(() => routine.save(after));
+    if (!ok) return;
+    setRoutineData(after);
+    showToast({
+      message: (removed?.label ?? "Block") + " deleted",
+      actionLabel: "Undo",
+      onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
+    });
+  };
+  const onEditBlockFull = () => {
+    if (!blockSheet) return;
+    const id = blockSheet.id;
+    setBlockSheet(null);
+    onEditRoutine?.(id);
   };
 
   const onSaveEvent = async (draft: EventDraft) => {
@@ -2057,6 +2102,7 @@ export default function TodayFlow({
       locked={blocked}
       onOpenEvent={onOpenEvent}
       onEditRoutine={onEditRoutine}
+      onOpenBlock={onOpenBlock}
       conflicts={conflicts}
       attachMap={attachMap}
       onShift={onShift}
@@ -2166,6 +2212,15 @@ export default function TodayFlow({
         onMoveToAnytime={onEventToAnytime}
         onDuplicate={onEventDuplicate}
         onCancel={() => setEventSheet(null)}
+      />
+    )}
+    {blockSheet && (
+      <BlockSheet
+        initial={blockSheet.initial}
+        onSave={onSaveBlock}
+        onDelete={onDeleteBlock}
+        onEditFull={onEditRoutine ? onEditBlockFull : undefined}
+        onCancel={() => setBlockSheet(null)}
       />
     )}
     {upNextOpen && (

@@ -8,6 +8,7 @@ import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
+import BlockSheet, { type BlockDraft } from "./screens/BlockSheet";
 import ScheduleUploadFlow from "./screens/ScheduleUploadFlow";
 import { todayISO, weekOf, addDays, addMinutes, fmtTime, eventsForDate, nextFreeSlot, fmtRange, minToHHMM } from "./calendar";
 import { durLabel } from "./durations";
@@ -35,7 +36,7 @@ import {
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
   pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust,
 } from "./eventAdjust";
-import { shiftBlock as shiftBlockAdjust, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust } from "../routine/blockAdjust";
+import { shiftBlock as shiftBlockAdjust, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust, editBlockBasics, removeBlock as removeBlockAdjust } from "../routine/blockAdjust";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
@@ -80,6 +81,12 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     return () => { on = false; };
   }, [projectsSvc, goalsSvc]);
   const [sheet, setSheet] = useState<SheetState>(null);
+  // THE SAME TAP AS AN EVENT (2026-08-28, Dave: "when I click on something in
+  // the schedule it should allow me to edit it like a normal scheduled
+  // event"). Tapping a protected block used to open the whole Your Routine
+  // screen. This is its own small sheet state, same shape as `sheet` above,
+  // so a tap opens a short form instead of leaving the screen.
+  const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft } | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [mode, setMode] = useState<"day" | "week" | "month" | "repeats">("month");
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
@@ -875,6 +882,47 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     });
   };
 
+  // THE QUICK SHEET ITSELF (2026-08-28). Opens on a tap instead of leaving for
+  // Your Routine; Save patches only name/time/days, same fields BlockSheet
+  // exposes, and everything else on the block (kind, mode, Flexible,
+  // location) rides along untouched.
+  const onOpenBlock = (id: string) => {
+    const b = (routineData.protectedBlocks ?? []).find((x) => x.id === id);
+    if (!b) return;
+    setBlockSheet({ id, initial: { label: b.label, startMin: b.startMin, endMin: b.endMin, days: [...b.days] } });
+  };
+  const onSaveBlock = async (draft: BlockDraft) => {
+    if (!blockSheet) return;
+    const before = routineData;
+    const after = editBlockBasics(before, blockSheet.id, draft);
+    setBlockSheet(null);
+    if (!after) return;
+    const ok = await attemptWrite(() => routine.save(after));
+    if (ok) setRoutineData(after);
+  };
+  const onDeleteBlock = async () => {
+    if (!blockSheet) return;
+    const before = routineData;
+    const removed = (before.protectedBlocks ?? []).find((b) => b.id === blockSheet.id);
+    const after = removeBlockAdjust(before, blockSheet.id);
+    setBlockSheet(null);
+    if (!after) return;
+    const ok = await attemptWrite(() => routine.save(after));
+    if (!ok) return;
+    setRoutineData(after);
+    showToast({
+      message: (removed?.label ?? "Block") + " deleted",
+      actionLabel: "Undo",
+      onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
+    });
+  };
+  const onEditBlockFull = () => {
+    if (!blockSheet) return;
+    const id = blockSheet.id;
+    setBlockSheet(null);
+    onEditRoutine?.(id);
+  };
+
   // Running Late: one tap shifts everything left in today as a unit. Recurring
   // events are skipped (shifting a series from one bad morning is wrong); the
   // toast says what moved and Undo restores every prior time.
@@ -1024,6 +1072,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         windowEndMin={planWindow.endMin}
         now={selected === today ? nowHHMM : null}
         onEditRoutine={onEditRoutine}
+        onOpenBlock={onOpenBlock}
         onShift={onShift}
         onMoveTo={onMoveTo}
         onSetEnd={onSetEnd}
@@ -1145,6 +1194,15 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           attachTasks={attachableTasks}
           onToggleTask={onToggleAttached}
           onBlend={(kind, categoryId) => recordBlend(kind, categoryId)}
+        />
+      )}
+      {blockSheet && (
+        <BlockSheet
+          initial={blockSheet.initial}
+          onSave={onSaveBlock}
+          onDelete={onDeleteBlock}
+          onEditFull={onEditRoutine ? onEditBlockFull : undefined}
+          onCancel={() => setBlockSheet(null)}
         />
       )}
       {guard && (

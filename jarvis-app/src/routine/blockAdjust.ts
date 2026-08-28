@@ -52,3 +52,29 @@ export function retimeBlock(routine: RoutineData, id: string, startMin: number):
 export function resizeBlock(routine: RoutineData, id: string, endMin: number): RoutineData | null {
   return withBlock(routine, id, (b) => ({ ...b, endMin: clamp(endMin) }));
 }
+
+// THE QUICK SHEET (2026-08-28). Dave: tapping a protected block opened the
+// full Routine editor - Quick Add presets, kind, What Happens in This Block,
+// Where - to change a name or a time. He wanted the same tap he gets on a
+// real event: a short sheet with the basics and a Delete button, nothing
+// else. This patches only what that sheet edits (name, start, end, days);
+// kind, mode, soft and location ride along untouched. The full editor is
+// still one link away from the sheet for anyone who wants those.
+export interface BlockBasics { label: string; startMin: number; endMin: number; days: number[] }
+export function editBlockBasics(routine: RoutineData, id: string, patch: BlockBasics): RoutineData | null {
+  return withBlock(routine, id, (b) => ({
+    ...b,
+    label: patch.label.trim(),
+    startMin: clamp(patch.startMin),
+    endMin: clamp(patch.endMin),
+    days: [...patch.days].sort((a, c) => a - c),
+  }));
+}
+
+// Delete, from the same quick sheet. Null when the block is already gone
+// (nothing to delete), same "not found" contract as every function above.
+export function removeBlock(routine: RoutineData, id: string): RoutineData | null {
+  const blocks = routine.protectedBlocks ?? [];
+  if (!blocks.some((b) => b.id === id)) return null;
+  return { ...routine, protectedBlocks: blocks.filter((b) => b.id !== id) };
+}
