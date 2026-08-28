@@ -49,9 +49,22 @@ export default function InlineEdit({
   const caretAt = useRef<number | null>(null);
   const showRich = !!rich && !editing && hasRich(value);
 
+  // NEVER OVERWRITE WHAT SOMEONE IS ACTIVELY TYPING (2026-08-28, Dave:
+  // "extremely difficult to type... I shouldn't feel like it's difficult to
+  // type when I tap the screen or anything like that"). Every block save in
+  // NotesFlow.tsx blurs, writes, then reloads the WHOLE note from the
+  // service - by design, so the store stays the truth. That reload lands
+  // async, often while the person has already moved on and is typing into
+  // the NEXT block. Before this guard, this effect only checked whether the
+  // incoming value differed from the DOM - which it always does mid-keystroke
+  // - and stomped el.textContent with the stale pre-edit value, silently
+  // eating whatever had just been typed and dropping the caret to nowhere.
+  // document.activeElement is the one true signal for "someone's fingers are
+  // in this field right now"; a background reload must never touch it, only
+  // the fields nobody is currently in.
   useEffect(() => {
     const el = ref.current;
-    if (el && !showRich && el.textContent !== value) el.textContent = value;
+    if (el && !showRich && document.activeElement !== el && el.textContent !== value) el.textContent = value;
   }, [value, showRich]);
   // Canvas flow: when this block was just created by Enter, put the caret in it.
   useEffect(() => {
