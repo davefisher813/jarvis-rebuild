@@ -5,7 +5,7 @@ import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta"
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
-import { todayISO, fmtTime, addMinutes } from "../schedule/calendar";
+import { todayISO, fmtTime, addMinutes, minToHHMM } from "../schedule/calendar";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { greetingFor, longDate, shortDate } from "./greeting";
@@ -52,6 +52,7 @@ import {
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
   pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust,
 } from "../schedule/eventAdjust";
+import { shiftBlock as shiftBlockAdjust, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust } from "../routine/blockAdjust";
 import { overlapsOn } from "../schedule/dayEdit";
 import { isKept } from "../schedule/overlapAck";
 import { attachInfo, type AttachInfo } from "../schedule/attachments";
@@ -486,6 +487,58 @@ export default function TodayFlow({
     if (!ok || !fromDate) return;
     const from = fromDate;
     showToast({ message: "Moved to tomorrow", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => undoPushEventTomorrowAdjust(id, from, schedule)); await reload(); } });
+  };
+
+  // THE SAME MOVES, FOR A PROTECTED BLOCK (2026-08-28, Dave: "It should
+  // allow me to edit ALL schedule items THE FUCKING SAME"). Identical to
+  // ScheduleFlow's copy: the routine is one record, so the write is always
+  // "save the record back with this one block patched" and the undo is
+  // always "save the record from before the patch."
+  const onShiftBlock = async (id: string, mins: number) => {
+    const before = routineData;
+    const after = shiftBlockAdjust(before, id, mins);
+    if (!after) return;
+    const ok = await attemptWrite(() => routine.save(after));
+    if (!ok) return;
+    setRoutineData(after);
+    const word = mins < 0
+      ? `Back ${Math.abs(mins) === 60 ? "1 hr" : Math.abs(mins) + " min"}`
+      : `Forward ${mins === 60 ? "1 hr" : mins + " min"}`;
+    showToast({
+      message: word,
+      actionLabel: "Undo",
+      onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
+    });
+  };
+
+  const onRetimeBlock = async (id: string, startMin: number) => {
+    const before = routineData;
+    const after = retimeBlockAdjust(before, id, startMin);
+    if (!after) return;
+    const ok = await attemptWrite(() => routine.save(after));
+    if (!ok) return;
+    setRoutineData(after);
+    const t = fmtTime(minToHHMM(startMin));
+    showToast({
+      message: `Moved to ${t.time} ${t.ap}`,
+      actionLabel: "Undo",
+      onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
+    });
+  };
+
+  const onResizeBlock = async (id: string, endMin: number) => {
+    const before = routineData;
+    const beforeBlock = (before.protectedBlocks ?? []).find((b) => b.id === id);
+    const after = resizeBlockAdjust(before, id, endMin);
+    if (!after || !beforeBlock) return;
+    const ok = await attemptWrite(() => routine.save(after));
+    if (!ok) return;
+    setRoutineData(after);
+    showToast({
+      message: durLabel(endMin - beforeBlock.startMin),
+      actionLabel: "Undo",
+      onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
+    });
   };
 
   const onSaveEvent = async (draft: EventDraft) => {
@@ -2011,6 +2064,9 @@ export default function TodayFlow({
       onSetEnd={onSetEnd}
       onSkipToday={onSkipToday}
       onPushTomorrow={onPushTomorrow}
+      onShiftBlock={onShiftBlock}
+      onRetimeBlock={onRetimeBlock}
+      onResizeBlock={onResizeBlock}
       today={today}
       nowCard={nowSection}
       proposedDay={proposedDay}

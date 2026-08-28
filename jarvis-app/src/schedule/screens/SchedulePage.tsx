@@ -6,16 +6,16 @@ import SelectBar from "../../shared/SelectBar";
 import { ChevronLeft, ChevronRight, Plus, Camera, AlertTriangle } from "../../shared/icons";
 import type { EventItem } from "../types";
 import { monthMatrix, fmtTime, openSlots, minToHHMM } from "../calendar";
-import { isFocusRange, modeOf, freeOf } from "../../routine/types";
+import { isFocusRange } from "../../routine/types";
 import { catColor } from "../../shared/categories";
 import SkeletonRows from "../../shared/SkeletonRows";
 import DayRow from "./DayRow";
+import LockedRow from "./LockedRow";
 import AnytimeRow from "./AnytimeRow";
 import ProposedRow from "./ProposedRow";
 import type { TaskItem } from "../../tasks/TasksService";
 import type { AttachInfo } from "../attachments";
 import { dropInto } from "../dayEdit";
-import { LockGlyph } from "../../shared/glyphs";
 
 // A dropped task gets an hour, the same hour the tap-to-fill path gives it.
 const DROP_MINUTES = 60;
@@ -49,6 +49,7 @@ export default function SchedulePage({
   mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload, onDeleteMany,
   locked = [], now, onEditRoutine, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
+  onShiftBlock, onRetimeBlock, onResizeBlock,
   proposed, dayFooter,
   anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {}, blendMap = {},
   windowStartMin, windowEndMin,
@@ -91,6 +92,12 @@ export default function SchedulePage({
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
   onRunningLate?: (mins: number) => void;
+  // Same three moves, for a protected block instead of an event (Dave,
+  // 2026-08-28: "edit ALL schedule items THE FUCKING SAME"). No skip/push:
+  // a block is a weekly rule, not a single dated thing.
+  onShiftBlock?: (id: string, mins: number) => void;
+  onRetimeBlock?: (id: string, startMin: number) => void;
+  onResizeBlock?: (id: string, endMin: number) => void;
   anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string, startHHMM?: string) => void;
   attachMap?: Record<string, AttachInfo>;
   // BLENDING (Dave, 2026-08-21). One confident offer per block, keyed by
@@ -472,58 +479,38 @@ export default function SchedulePage({
               />
             ) : en.kind === "locked" ? (() => {
               const held = heldBy.get(en.l.label + "@" + en.l.s) ?? [];
-              const m = modeOf(en.l);
-              const kicker = m === "holds"
-                ? (held.length === 1 ? "Focus time · 1 task" : held.length ? `Focus time · ${held.length} tasks` : "Focus time · Tasks land here")
-                : m === "blends" ? "Can blend · " + freeOf(en.l).join(" and ") + " free"
-                : "Protected";
+              const id = en.l.id;
               return (
-              <div
-                className={"sched-row sched-locked" + (m === "holds" ? " sched-holds" : "") + (isToday && en.l.e <= nowMin ? " past" : "")}
+              <LockedRow
                 key={"lock-" + i}
-                role="button"
-                tabIndex={0}
-                onClick={() => onEditRoutine?.(en.l.id)}
+                l={en.l}
+                past={isToday && en.l.e <= nowMin}
+                onOpen={() => onEditRoutine?.(id)}
+                heldCount={held.length}
+                onFillBlock={onFillBlock ? () => onFillBlock(en.l.s, en.l.e) : undefined}
+                onShift={onShiftBlock && id ? (m) => onShiftBlock(id, m) : undefined}
+                onRetime={onRetimeBlock && id ? (s) => onRetimeBlock(id, s) : undefined}
+                onResize={onResizeBlock && id ? (e) => onResizeBlock(id, e) : undefined}
               >
-                <div className="sched-time">{fmtTime(minToHHMM(en.l.s)).time}<span className="ampm">{fmtTime(minToHHMM(en.l.s)).ap}</span></div>
-                <div className="sched-body">
-                  <div className="sched-title sched-lock-title">
-                    {m === "holds" ? null : (
-                      <LockGlyph className="ic lock-ic" />
-                    )}
-                    {en.l.label}
+                {/* The work this block is holding, at its own times. */}
+                {held.length > 0 && (
+                  <div className="block-nest">
+                    {held.map((h) => (
+                      <div
+                        className="block-held"
+                        key={h.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={(ev) => { ev.stopPropagation(); onOpenEvent?.(h.id); }}
+                      >
+                        <span className={"cat-dot cat-bg-" + catColor(h.data.category)} />
+                        <span className="block-held-t truncate">{h.data.title}</span>
+                        <span className="block-held-u">{fmtTime(h.data.start).time}{h.data.end ? "\u2013" + fmtTime(h.data.end).time : ""}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="sched-cat">{kicker} &middot; Until {fmtTime(minToHHMM(en.l.e)).time} {fmtTime(minToHHMM(en.l.e)).ap}</div>
-                  {/* The work this block is holding, at its own times. */}
-                  {held.length > 0 && (
-                    <div className="block-nest">
-                      {held.map((h) => (
-                        <div
-                          className="block-held"
-                          key={h.id}
-                          role="button"
-                          tabIndex={0}
-                          onClick={(ev) => { ev.stopPropagation(); onOpenEvent?.(h.id); }}
-                        >
-                          <span className={"cat-dot cat-bg-" + catColor(h.data.category)} />
-                          <span className="block-held-t truncate">{h.data.title}</span>
-                          <span className="block-held-u">{fmtTime(h.data.start).time}{h.data.end ? "\u2013" + fmtTime(h.data.end).time : ""}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {/* THE HALF THAT WAS UNREACHABLE: blending only ever attached
-                      to real calendar events, so the one block built to receive
-                      tasks had no way to receive one. */}
-                  {m === "holds" && onFillBlock && (
-                    <button
-                      type="button"
-                      className="block-add"
-                      onClick={(ev) => { ev.stopPropagation(); onFillBlock(en.l.s, en.l.e); }}
-                    >+ Put a Task in This Block</button>
-                  )}
-                </div>
-              </div>
+                )}
+              </LockedRow>
               );
             })() : (
               <div key={en.e.id} ref={en.e.id === nextId ? nextRef : undefined}>

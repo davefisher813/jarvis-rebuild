@@ -169,6 +169,9 @@ export default function TodayPage({
   onSetEnd,
   onSkipToday,
   onPushTomorrow,
+  onShiftBlock,
+  onRetimeBlock,
+  onResizeBlock,
 }: {
   greeting: string;
   dateLong: string;
@@ -217,6 +220,11 @@ export default function TodayPage({
   onSetEnd?: (id: string, end: string) => void;
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
+  // Same three moves, for a protected block (2026-08-28, Dave: "edit ALL
+  // schedule items THE FUCKING SAME").
+  onShiftBlock?: (id: string, mins: number) => void;
+  onRetimeBlock?: (id: string, startMin: number) => void;
+  onResizeBlock?: (id: string, endMin: number) => void;
   onSeeAllTasks: () => void;
   // Pick 5: the goal-aware pill lands on the Bigger Picture.
   onGoBigger?: () => void;
@@ -610,6 +618,9 @@ export default function TodayPage({
         onSetEnd={onSetEnd}
         onSkipToday={onSkipToday}
         onPushTomorrow={onPushTomorrow}
+        onShiftBlock={onShiftBlock}
+        onRetimeBlock={onRetimeBlock}
+        onResizeBlock={onResizeBlock}
       />
 
       {/* Sunday evening only: the weekly close-out card. Two lines, no charts;

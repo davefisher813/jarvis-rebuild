@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LATE_CHOICES } from "../schedule/durations";
 import type { EventItem } from "../schedule/types";
 import { fmtTime, minToHHMM } from "../schedule/calendar";
@@ -9,6 +9,7 @@ import DayRow from "../schedule/screens/DayRow";
 import type { AttachInfo } from "../schedule/attachments";
 import { holdersIn, holderFor, holderKey, spanOf, type HoldRange } from "../schedule/nesting";
 import HeldTasks from "../schedule/screens/HeldTasks";
+import LockedRow from "../schedule/screens/LockedRow";
 import type { PlanBlock } from "../schedule/planDay";
 
 // A standing proposal for this day, plus the handlers that edit it. Absent
@@ -20,7 +21,7 @@ export interface ProposedDay {
   onDuration: (taskId: string, minutes: number) => void;
   onDrop: (taskId: string) => void;
 }
-import { BullseyeGlyph, CalendarGlyph, LockGlyph } from "../shared/glyphs";
+import { BullseyeGlyph, CalendarGlyph } from "../shared/glyphs";
 
 // One confident blend offer per block, keyed by event id. Built by the flow;
 // this screen only draws it.
@@ -55,46 +56,21 @@ const todayISODate = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-// A protected block from Your Routine, real on the day view. Tap edits the routine.
-// I2 (2026-08-24, Dave: the word Protected appeared four times down one
-// screenshot). Every one of those rows already carried a lock glyph saying
-// exactly that, so the word was the same fact twice on one row and four times
-// on one screen. The line it occupied now carries something the row did NOT
-// say before: when the block ends.
-//
-// A HOLDING block gets no lock, because it is not protecting time FROM work,
-// it is collecting work into itself. That is also how the Schedule tab
-// already draws it.
-function LockedRow({ l, past, onOpen, children }: { l: LockedRange; past: boolean; onOpen?: () => void; children?: ReactNode }) {
-  const t = fmtTime(minToHHMM(l.s));
-  const end = fmtTime(minToHHMM(l.e));
-  const holds = holdersIn([l]).length > 0;
-  return (
-    <div className={"sched-row sched-locked" + (past ? " past" : "")} role="button" tabIndex={0} onClick={onOpen}>
-      <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
-      <div className="sched-body">
-        <div className="sched-title sched-lock-title">
-          {/* Both halves of a merge, and both are right (2026-08-24). The
-              other session replaced the inline SVG with the shared glyph;
-              this one added the guard, because a block that HOLDS tasks
-              already says so and the padlock beside it read as a second,
-              contradictory status. Glyph from there, guard from here. */}
-          {!holds && <LockGlyph className="ic lock-ic" />}
-          {l.label}
-        </div>
-        <div className="sched-cat">Until {end.time} {end.ap}</div>
-        {/* The work this block is holding, at its own times. */}
-        {children}
-      </div>
-    </div>
-  );
-}
+// A protected block from Your Routine, real on the day view. This used to be
+// a local component here - a plain tap-only strip with no swipe, no
+// time-tap, no length-tap (Dave, 2026-08-28: "It should allow me to edit ALL
+// schedule items THE FUCKING SAME"). It is the shared LockedRow now, the same
+// component Schedule uses, for the identical reason DayRow became shared in
+// the wave before this one: an edit added there is never a second thing to
+// remember to add here. Today also picks up the mode-aware kicker text
+// ("Focus time · 2 tasks", "Can blend · ears free") that only Schedule had.
 
 // One full pass of the day: events + protected blocks in time order, with the
 // Now line inserted at the right spot and time-as-distance on the next event.
 function DaySet({
   events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {}, proposed, fromMin, expandHeld = false,
   conflicts, attachMap, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow,
+  onShiftBlock, onRetimeBlock, onResizeBlock,
 }: {
   events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void;
   onEditRoutine?: (blockId?: string) => void; blendMap?: BlendMap; proposed?: ProposedDay; fromMin?: number; expandHeld?: boolean;
@@ -108,6 +84,10 @@ function DaySet({
   onSetEnd?: (id: string, end: string) => void;
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
+  // Same three moves, for a protected block instead of an event.
+  onShiftBlock?: (id: string, mins: number) => void;
+  onRetimeBlock?: (id: string, startMin: number) => void;
+  onResizeBlock?: (id: string, endMin: number) => void;
 }) {
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
   const nowMin = toMin(now);
@@ -219,8 +199,18 @@ function DaySet({
       const k = holderKey(en.l);
       const evs = heldEv.get(k) ?? [];
       const props = heldProp.get(k) ?? [];
+      const blockId = en.l.id;
       out.push(
-        <LockedRow key={"lock-" + i} l={en.l} past={en.l.e <= nowMin} onOpen={onEditRoutine ? () => onEditRoutine(en.l.id) : undefined}>
+        <LockedRow
+          key={"lock-" + i}
+          l={en.l}
+          past={en.l.e <= nowMin}
+          onOpen={onEditRoutine ? () => onEditRoutine(blockId) : undefined}
+          heldCount={evs.length + props.length}
+          onShift={onShiftBlock && blockId ? (m) => onShiftBlock(blockId, m) : undefined}
+          onRetime={onRetimeBlock && blockId ? (s) => onRetimeBlock(blockId, s) : undefined}
+          onResize={onResizeBlock && blockId ? (e) => onResizeBlock(blockId, e) : undefined}
+        >
           {(evs.length > 0 || props.length > 0) && (
             <HeldTasks count={evs.length + props.length} alwaysOpen={expandHeld}>
               <>
@@ -298,6 +288,9 @@ export default function YourDay({
   onSetEnd,
   onSkipToday,
   onPushTomorrow,
+  onShiftBlock,
+  onRetimeBlock,
+  onResizeBlock,
 }: {
   events: EventItem[];
   locked?: LockedRange[];
@@ -327,6 +320,12 @@ export default function YourDay({
   onSetEnd?: (id: string, end: string) => void;
   onSkipToday?: (id: string) => void;
   onPushTomorrow?: (id: string) => void;
+  // Same three moves, for a protected block instead of an event (Dave,
+  // 2026-08-28: "edit ALL schedule items THE FUCKING SAME"). No skip/push: a
+  // block is a weekly rule, not a single dated thing.
+  onShiftBlock?: (id: string, mins: number) => void;
+  onRetimeBlock?: (id: string, startMin: number) => void;
+  onResizeBlock?: (id: string, endMin: number) => void;
   // Accept / Not Today, owned by the flow and drawn under the day.
   footer?: React.ReactNode;
   // MERGE B (2026-08-24, Dave: "can't now and your day be combined somehow?").
@@ -531,7 +530,7 @@ export default function YourDay({
               expanded, which is the ticker's own content. Deciding whether a
               thing should scroll by measuring something other than that thing
               is how the feature switched itself off. */}
-          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} /></div>
+          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} /></div>
           {measuring && (
             <div ref={measureRef} className="day-measure" aria-hidden="true">
               <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld />

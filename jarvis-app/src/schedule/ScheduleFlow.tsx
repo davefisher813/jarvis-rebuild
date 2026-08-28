@@ -35,6 +35,7 @@ import {
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
   pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust,
 } from "./eventAdjust";
+import { shiftBlock as shiftBlockAdjust, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust } from "../routine/blockAdjust";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
@@ -820,6 +821,60 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     showToast({ message: "Moved to tomorrow", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => undoPushEventTomorrowAdjust(id, from, svc)); await reload(); } });
   };
 
+  // THE SAME MOVES, FOR A PROTECTED BLOCK (2026-08-28, Dave: "It should
+  // allow me to edit ALL schedule items THE FUCKING SAME"). Shift by the
+  // swipe actions, retime from the time tap, resize from the "Until" tap -
+  // all writing straight to the routine record instead of leaving this
+  // screen for Your Routine. The whole routine is one record, so the write
+  // is always "save the record back with this one block patched"; the undo
+  // is always "save the record from before the patch."
+  const onShiftBlock = async (id: string, mins: number) => {
+    const before = routineData;
+    const after = shiftBlockAdjust(before, id, mins);
+    if (!after) return;
+    const ok = await attemptWrite(() => routine.save(after));
+    if (!ok) return;
+    setRoutineData(after);
+    const word = mins < 0
+      ? `Back ${Math.abs(mins) === 60 ? "1 hr" : Math.abs(mins) + " min"}`
+      : `Forward ${mins === 60 ? "1 hr" : mins + " min"}`;
+    showToast({
+      message: word,
+      actionLabel: "Undo",
+      onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
+    });
+  };
+
+  const onRetimeBlock = async (id: string, startMin: number) => {
+    const before = routineData;
+    const after = retimeBlockAdjust(before, id, startMin);
+    if (!after) return;
+    const ok = await attemptWrite(() => routine.save(after));
+    if (!ok) return;
+    setRoutineData(after);
+    const t = fmtTime(minToHHMM(startMin));
+    showToast({
+      message: `Moved to ${t.time} ${t.ap}`,
+      actionLabel: "Undo",
+      onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
+    });
+  };
+
+  const onResizeBlock = async (id: string, endMin: number) => {
+    const before = routineData;
+    const beforeBlock = (before.protectedBlocks ?? []).find((b) => b.id === id);
+    const after = resizeBlockAdjust(before, id, endMin);
+    if (!after || !beforeBlock) return;
+    const ok = await attemptWrite(() => routine.save(after));
+    if (!ok) return;
+    setRoutineData(after);
+    showToast({
+      message: durLabel(endMin - beforeBlock.startMin),
+      actionLabel: "Undo",
+      onAction: async () => { if (await attemptWrite(() => routine.save(before))) setRoutineData(before); },
+    });
+  };
+
   // Running Late: one tap shifts everything left in today as a unit. Recurring
   // events are skipped (shifting a series from one bad morning is wrong); the
   // toast says what moved and Undo restores every prior time.
@@ -974,6 +1029,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onSetEnd={onSetEnd}
         onSkipToday={onSkipToday}
         onPushTomorrow={onPushTomorrow}
+        onShiftBlock={onShiftBlock}
+        onRetimeBlock={onRetimeBlock}
+        onResizeBlock={onResizeBlock}
         onRunningLate={onRunningLate}
         onFillBlock={onFillBlock}
         anytimeItems={anytimeItems}
