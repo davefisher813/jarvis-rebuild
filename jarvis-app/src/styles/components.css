@@ -2601,13 +2601,9 @@ button {
    typography, the accent caret. The page is the page you write on. */
 .doc-textarea { width: 100%; min-height: 55vh; background: transparent; border: 0; outline: none; resize: none; font-family: var(--f); font-size: 17px; line-height: 1.6; color: var(--tx-1); caret-color: var(--accent); padding: var(--s-2) 0 0; }
 .doc-textarea::placeholder { color: var(--tx-4); }
-/* BLACK STEEL HEADINGS WITH EDITORIAL NUMBERING (Dave 2026-08-19,
-   "5 with 4's numbering"): red counter number, red mini-caps heading,
-   dotted leader to the margin. Editorial's big title and airy body stay. */
-.doc { counter-reset: doch; }
-/* Faithful to the Option 5 mock ("5 looked different"): 26px title,
-   16.5px body at 1.6, and the mock's TIGHT vertical rhythm. The airy
-   editorial spacing read as a different design; density is the design. */
+/* TIGHT DOCUMENT RHYTHM (Dave 2026-08-19, "5 looked different"): 26px
+   title, 16.5px body at 1.6, tight vertical rhythm. Shared by both Field
+   Notes and Command Deck -- it is the writing canvas, not either skin. */
 .doc { padding-top: var(--s-3); }
 .doc > * + * { margin-top: var(--s-1h); }
 .doc .doc-title { font-size: 26px; letter-spacing: -0.01em; margin-bottom: 2px; }
@@ -2615,11 +2611,12 @@ button {
 .doc .block-meta { font-size: 14.5px; line-height: 1.5; color: var(--tx-3); min-height: 22px; }
 .doc .t-body { font-size: 16.5px; line-height: 1.6; min-height: 24px; }
 .screen-editor .doc { padding-bottom: 84px; }
-.hwrap { display: flex; align-items: baseline; gap: 9px; counter-increment: doch; margin-top: var(--s-6); margin-bottom: 2px; }
-.hwrap .hnum::before { content: counter(doch, decimal-leading-zero); }
-.hwrap .hnum { font-size: 12px; font-weight: var(--w-bold); color: var(--accent-tx); font-variant-numeric: tabular-nums; opacity: 0.65; }
-.doc .hwrap .block-h { margin-top: 0; min-width: 40px; max-width: 76%; font-size: 12px; font-weight: var(--w-bold); letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent-tx); }
-.hwrap::after { content: ""; flex: 1; border-top: 1px dotted rgba(255, 43, 60, 0.35); align-self: center; }
+/* .hwrap is FIELD NOTES ONLY now (Dave 2026-08-28) -- Command Deck lays
+   a heading out as a .cd-head instead. Base rule stays unscoped since
+   nothing but editorial mode renders the class; the dot color and the
+   removed dotted leader live under .doc-editorial below. */
+.hwrap { display: flex; align-items: center; gap: 8px; margin-top: var(--s-6); margin-bottom: 2px; }
+.doc .hwrap .block-h { margin-top: 0; max-width: 76%; font-size: 12px; font-weight: var(--w-bold); letter-spacing: 0.14em; text-transform: uppercase; }
 
 /* The Tracker's living table (deep template pass): cells edit in place,
    Add Row grows it, the header + adds a column, numeric columns sum.
@@ -2823,116 +2820,67 @@ button {
 .burst-big i:nth-child(8) { --bx: -51px; --by: -51px; }
 
 /* ============================================================
-   EDITORIAL MODE (Dave 2026-08-20: "an editorial feature in notes that
-   looks much more like an actual editorial writing option. use lines and
-   all that for a layout").
-
-   The canvas becomes a manuscript page: ruled baselines, a red margin rule,
-   numbered lines, serif body. Everything here is a LAYER over the same
-   blocks, never a different editor: the text, the rich marks, the block
-   menu and the selection bar all behave identically, so switching modes
-   can never lose or reformat a word.
-
-   The rules must land ON the baseline or the whole thing reads as broken
-   paper, so the body line-height is locked in PIXELS and the rule period is
-   the same number. Change one and you change both.
+   FIELD NOTES (Dave 2026-08-28: "replace the editorial version with
+   field notes" -- swapping out the ruled-manuscript layout that used to
+   live here). A warm single-voice page, not a form: a serif title over
+   plain sans body copy, a section marked by a colored dot instead of an
+   invented 01/02/03 or a dotted leader to the margin, and a dashed tap
+   target for adding a checklist item. Everything here is a LAYER over the
+   same blocks, never a different editor: the text, the rich marks, the
+   block menu and the selection bar all behave identically, so switching
+   modes can never lose or reformat a word.
    ============================================================ */
-.doc-editorial {
-  --ed-line: 30px;                 /* the baseline grid AND the rule period */
-  --ed-margin: 46px;               /* the red rule sits here, text starts after */
-  /* 0.07 read as a form, not paper (Dave 2026-08-22: "ugly and
-     depressing"); the grid should be felt, not counted. */
-  --ed-rule: rgba(255,255,255,0.045);
-  font-family: ui-serif, Georgia, "Times New Roman", serif;
-  padding-left: calc(var(--ed-margin) + var(--s-3));
-  padding-right: var(--s-4);
-  /* Only the margin rule lives on the page. The BASELINE rules live on each
-     block, because a page-level grid drifts the moment any element is not an
-     exact multiple of the period, and a ruled page whose rules miss the text
-     reads as broken paper rather than as a manuscript. Putting them on the
-     block means they are drawn from the same line-height the text uses, so
-     they cannot disagree with it. */
-  background-image: linear-gradient(90deg,
-    transparent var(--ed-margin),
-    rgba(255,43,60,0.30) var(--ed-margin), rgba(255,43,60,0.30) calc(var(--ed-margin) + 1px),
-    transparent calc(var(--ed-margin) + 1px));
-  background-attachment: local;
-}
-[data-theme="light"] .doc-editorial { --ed-rule: rgba(0,0,0,0.10); }
+.doc-editorial { font-family: var(--f); }
 
-/* The rules, drawn under the text they belong to. The offset puts the rule
-   just below the baseline of an 18px face on a 30px line. */
-.doc-editorial .block-row {
-  background-image: repeating-linear-gradient(180deg,
-    transparent 0, transparent calc(var(--ed-line) - 1px),
-    var(--ed-rule) calc(var(--ed-line) - 1px), var(--ed-rule) var(--ed-line));
-  background-position: 0 5px;
-}
-
-/* Body copy sits on the grid. A serif at a book measure, not UI text in a
-   different font: the point is that it reads like a page, not a form. */
-.doc-editorial .t-body,
-.doc-editorial .doc-textarea {
-  font-family: inherit;
-  font-size: 18px;
-  line-height: var(--ed-line);
-  min-height: var(--ed-line);
-  padding: 0;
-  letter-spacing: 0.005em;
-}
-.doc-editorial > * + * { margin-top: 0; }
-.doc-editorial .block-row { margin-top: 0; }
-
-/* The title is the piece's title: display serif, its own air, and it takes
-   whole grid rows so nothing below it drifts off the rules. */
+/* The title alone carries the serif voice. Body copy stays the app's own
+   sans below -- Field Notes is one considered accent, not a whole second
+   typeface bolted on. */
 .doc-editorial .doc-title {
-  font-family: inherit;
-  font-size: 30px;
-  line-height: calc(var(--ed-line) * 1.4);
+  font-family: "Newsreader", Georgia, "Times New Roman", serif;
+  font-size: 29px;
   font-weight: 600;
+  line-height: 1.25;
   letter-spacing: -0.01em;
-  margin: 0 0 var(--ed-line);
+  margin-bottom: var(--s-3);
 }
 
-/* Headings keep the steel numbering they already have, restyled to serif and
-   snapped to whole grid rows so the rules stay true underneath them. */
-/* Markers whisper on the manuscript: the ink belongs to the words. The
-   padding is restated because the editorial t-body reset zeroes it, and
-   without it the hanging marker backs into the line-number gutter. */
-.doc-editorial .t-body.li-line { padding-left: 24px; }
-.doc-editorial .li-marker { color: var(--tx-3); }
-.doc-editorial .hwrap { margin-top: var(--ed-line); }
-.doc-editorial .block-h {
-  font-family: inherit;
-  font-size: 21px;
-  line-height: var(--ed-line);
-  letter-spacing: 0.04em;
+/* A section is a colored dot, not a number and not a dotted leader out to
+   the margin -- the note never promised a sequence, so nothing here claims
+   one. The color rotates through the app's own category palette so
+   consecutive sections read apart without inventing what they mean. */
+.doc-editorial .hwrap::after { content: none; }
+.doc-editorial .hwrap .hnum {
+  flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; opacity: 1; font-size: 0;
 }
+.doc-editorial .hwrap .hnum::before { content: ""; display: block; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.doc-editorial .hwrap.hd-0 .hnum, .doc-editorial .hwrap.hd-0 .block-h { color: var(--cat-blue); }
+.doc-editorial .hwrap.hd-1 .hnum, .doc-editorial .hwrap.hd-1 .block-h { color: var(--cat-green); }
+.doc-editorial .hwrap.hd-2 .hnum, .doc-editorial .hwrap.hd-2 .block-h { color: var(--cat-amber); }
+.doc-editorial .block-h { font-family: var(--f); }
 
-/* LINE NUMBERS, the manuscript convention. They live in the margin gutter,
-   count themselves with a CSS counter, and are aria-hidden: they are a
-   printing convention, not content, and a screen reader announcing "one,
-   two, three" over every paragraph would be unusable. */
-.doc-editorial { counter-reset: doch edline; }
-.doc-editorial .block-row { position: relative; counter-increment: edline; }
-.doc-editorial .block-row::before {
-  content: counter(edline);
-  position: absolute;
-  left: calc((var(--ed-margin) + var(--s-3)) * -1);
-  width: var(--ed-margin);
-  padding-right: 10px;
-  text-align: right;
-  font-family: var(--f);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  line-height: var(--ed-line);
-  color: var(--tx-4);
-  pointer-events: none;
+/* Body copy: plain sans, no forced serif, no ruled baseline behind it --
+   the page is not paper, it is a page. */
+.doc-editorial .t-body,
+.doc-editorial .block-meta,
+.doc-editorial .doc-textarea { font-family: var(--f); }
+.doc-editorial [contenteditable][data-placeholder]:empty::before,
+.doc-editorial .note-empty { font-style: italic; }
+
+/* The Add Item row: a dashed tap target you reach for, not a ghost button
+   sitting at 30% opacity until you hover it (Dave: "I want people to
+   PREFER to type in here"). */
+.doc-editorial .check-add {
+  border: 1px dashed var(--tx-4);
+  border-radius: var(--r-md);
+  padding: var(--s-2) var(--s-2h);
+  color: var(--tx-3);
+  margin-top: var(--s-1h);
 }
+.doc-editorial .check-add:active { background: var(--press-3); }
 
-/* The running foot: title on the left, count on the right, a hairline above.
-   The word count already existed as a lonely centred number; on a manuscript
-   page it becomes the colophon it always wanted to be. */
+/* The running foot: title on the left, count on the right, a hairline
+   above. Shared with Command Deck's plain word count -- only editorial
+   dresses it up as a colophon. */
 .doc-colophon {
   display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3);
   margin: var(--s-5) var(--s-4) 0;
@@ -2945,6 +2893,32 @@ button {
 .doc-colophon .ed-name { font-weight: var(--w-semi); color: var(--tx-3); letter-spacing: 0.02em; }
 .doc-colophon .ed-count { font-variant-numeric: tabular-nums; }
 .screen-editor .doc-colophon { margin-bottom: 96px; }
+
+/* ============================================================
+   COMMAND DECK (Dave 2026-08-28: the default, non-editorial layout).
+   Each heading and the blocks under it become their own card: a colored
+   left rail carries the section the way the numbered header used to, and
+   the card's own header states how many items are inside instead of an
+   invented sequence number. Pure sans throughout -- Command Deck never
+   borrows Field Notes' serif. A render-only grouping over the same flat
+   blocks (see sectionize() in NoteEditor.tsx): nothing here can lose or
+   reorder a word, it only decides which card draws it.
+   ============================================================ */
+.cd-card { display: flex; background: var(--surface-1); border-radius: var(--r-lg); overflow: hidden; }
+.doc > .cd-card { margin-top: var(--s-5); }
+.cd-rail { width: 4px; flex-shrink: 0; }
+.cd-rail.cd-0 { background: var(--cat-blue); }
+.cd-rail.cd-1 { background: var(--cat-green); }
+.cd-rail.cd-2 { background: var(--cat-amber); }
+.cd-inner { flex: 1; min-width: 0; padding: var(--s-3) var(--s-4); }
+.cd-inner > * + * { margin-top: var(--s-2h); }
+.cd-head { display: flex; align-items: center; gap: var(--s-2); }
+.cd-head > .block-row { flex: 1; min-width: 0; }
+.cd-h3 { font-size: 13px; font-weight: var(--w-bold); letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-2); }
+.cd-count {
+  flex-shrink: 0; font-size: 12px; font-weight: var(--w-semi); color: var(--tx-4);
+  font-variant-numeric: tabular-nums; background: var(--press-3); border-radius: var(--r-pill); padding: 1px 8px;
+}
 
 /* THE SEND HOLD (undo send, 2026-08-20). Loud on purpose: a toast that fades
    while he is still deciding is the same as not offering undo at all. */

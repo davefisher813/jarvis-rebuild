@@ -35,6 +35,40 @@ export interface EditorNote {
   blocks: EditorBlock[];
 }
 
+// COMMAND DECK's card-per-section grouping (Dave 2026-08-28: "the non
+// editorial version [becomes] the command deck"). The block model stays
+// flat -- there is no section object anywhere in storage -- this just
+// partitions the SAME array into "everything before the first heading"
+// (rendered plain, no card) followed by one group per heading and the
+// blocks that follow it, purely for how Command Deck lays the page out.
+// Field Notes and the data layer never see this; it is a render-only view.
+type Section = { heading: Extract<EditorBlock, { type: "heading" }> | null; items: EditorBlock[] };
+function sectionize(blocks: EditorBlock[]): Section[] {
+  const out: Section[] = [];
+  let cur: Section = { heading: null, items: [] };
+  for (const b of blocks) {
+    if (b.type === "heading") {
+      if (cur.heading || cur.items.length) out.push(cur);
+      cur = { heading: b, items: [] };
+    } else {
+      cur.items.push(b);
+    }
+  }
+  if (cur.heading || cur.items.length) out.push(cur);
+  return out;
+}
+
+// The count a Command Deck card header shows instead of an invented
+// 01/02/03 sequence number: how many actual items are inside -- checklist
+// and list entries count individually, a paragraph or table counts as one.
+function sectionItemCount(items: EditorBlock[]): number {
+  return items.reduce((n, b) => {
+    if (b.type === "checklist" || b.type === "bulleted_list" || b.type === "numbered_list") return n + b.items.length;
+    if (b.type === "file" || b.type === "photo") return n;
+    return n + 1;
+  }, 0);
+}
+
 // Canvas flow for bulleted/numbered lists: every item is typeable, Enter adds
 // the next item, Enter on an empty item exits the list into fresh text, and
 // backspace on an empty item removes it (emptying the list turns it back into
@@ -461,6 +495,59 @@ export default function NoteEditor({
       b.type === "file" || b.type === "photo",
   );
 
+  // Everything below feeds BOTH layouts: which block sits where in the
+  // flat array (so Move Up/Down and the block menu stay correct no matter
+  // which layout drew it), and which color a heading's section wears (so
+  // the same section reads as the same color whether you're in Field
+  // Notes' dot or Command Deck's rail -- switching layouts recolors
+  // nothing, it only reshapes).
+  const sections = sectionize(inline);
+  const idxOf = new Map(inline.map((b, i) => [b.id, i] as const));
+  const headColor = new Map<string, number>();
+  {
+    let hi = -1;
+    for (const s of sections) if (s.heading) { hi++; headColor.set(s.heading.id, hi % 3); }
+  }
+
+  // The block types that render identically in both layouts (heading is
+  // laid out differently per-layout below, so it isn't handled here).
+  const blockContent = (b: EditorBlock): React.ReactNode => {
+    if (b.type === "meta")
+      // The meta line (Dave 2026-08-19, "add the meta block"): quiet grey
+      // context under the title: date, attendees, whatever frames the
+      // document. Same editing mechanics as text, styled down.
+      return <InlineEdit tag="div" className="block-meta" value={b.text} placeholder="Date · Attendees" bid={b.id}
+        focused={focusBlockId === b.id}
+        onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
+        onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
+        onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
+    if (b.type === "text")
+      return <InlineEdit tag="div" className="t-body" value={b.text} placeholder="Write Something" bid={b.id} rich
+        focused={focusBlockId === b.id}
+        onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
+        onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
+        onTransform={onTransformAt ? (p, rest) => onTransformAt(b.id, p, rest) : undefined}
+        onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
+    if (b.type === "checklist")
+      return <Checklist block={b} onToggle={onToggleCheck} onEditItem={onEditCheckItem} onAddItem={onAddCheckItem} onDeleteItem={onDeleteCheckItem} />;
+    if (b.type === "bulleted_list" || b.type === "numbered_list")
+      return <ListBlock block={b} focusBlockId={focusBlockId} onItems={onListItems} onExit={onListExit} />;
+    if (b.type === "table")
+      return <NoteTable block={b} onEditCell={onTableEdit} onAddRow={onTableAddRow} onAddColumn={onTableAddColumn} />;
+    return null;
+  };
+  const plainRow = (b: EditorBlock) => {
+    const content = blockContent(b);
+    if (content === null) return null;
+    const gi = idxOf.get(b.id)!;
+    return (
+      <BlockRow key={b.id} blockId={b.id} blockType={b.type} isFirst={gi === 0} isLast={gi === inline.length - 1}
+        onMove={onMoveBlock} onDelete={onDeleteBlock} onTurnInto={onTurnInto}>
+        {content}
+      </BlockRow>
+    );
+  };
+
   return (
     <div className="screen screen-editor">
       <div className="nav-bar">
@@ -507,63 +594,68 @@ export default function NoteEditor({
         </div>
         <InlineEdit tag="div" className="doc-title" value={note.title} placeholder="Untitled" onSave={onEditTitle} />
 
-        {inline.map((b, idx) => {
-          let content: React.ReactNode = null;
-          if (b.type === "heading")
-            // Black Steel with Editorial's numbering (Dave 2026-08-19,
-            // "5 with 4's numbering"): red mini-caps heading, red counter
-            // number leading it, dotted leader to the margin. The number
-            // is a CSS counter, so it renumbers itself.
-            content = (
-              <div className="hwrap">
-                <span className="hnum" aria-hidden="true"></span>
-                <InlineEdit tag="div" className="block-h" value={b.text} placeholder="Heading" bid={b.id}
-                  focused={focusBlockId === b.id}
-                  onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
-                  onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
-                  onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />
+        {editorial ? (
+          // FIELD NOTES (Dave 2026-08-28): one continuous page, same as the
+          // block array underneath it. A section is marked by a colored dot
+          // -- no invented 01/02/03, no dotted leader to the margin.
+          inline.map((b, idx) => {
+            let content: React.ReactNode;
+            if (b.type === "heading") {
+              const hn = headColor.get(b.id) ?? 0;
+              content = (
+                <div className={"hwrap hd-" + hn}>
+                  <span className="hnum" aria-hidden="true"></span>
+                  <InlineEdit tag="div" className="block-h" value={b.text} placeholder="Heading" bid={b.id}
+                    focused={focusBlockId === b.id}
+                    onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
+                    onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
+                    onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />
+                </div>
+              );
+            } else {
+              content = blockContent(b);
+            }
+            if (content === null) return null;
+            return (
+              <BlockRow key={b.id} blockId={b.id} blockType={b.type} isFirst={idx === 0} isLast={idx === inline.length - 1}
+                onMove={onMoveBlock} onDelete={onDeleteBlock} onTurnInto={onTurnInto}>
+                {content}
+              </BlockRow>
+            );
+          })
+        ) : (
+          // COMMAND DECK (Dave 2026-08-28): each heading and the blocks that
+          // follow it become their own card, a colored rail carrying the
+          // section the way the numbered header used to. Anything before the
+          // first heading (or a note with no heading at all) stays plain --
+          // there is no section to put it in.
+          sections.map((sec) => {
+            if (!sec.heading) return sec.items.map(plainRow);
+            const h = sec.heading;
+            const hi = idxOf.get(h.id)!;
+            const railN = headColor.get(h.id) ?? 0;
+            const count = sectionItemCount(sec.items);
+            return (
+              <div className="cd-card" key={h.id}>
+                <div className={"cd-rail cd-" + railN} aria-hidden="true" />
+                <div className="cd-inner">
+                  <div className="cd-head">
+                    <BlockRow blockId={h.id} blockType="heading" isFirst={hi === 0} isLast={hi === inline.length - 1}
+                      onMove={onMoveBlock} onDelete={onDeleteBlock} onTurnInto={onTurnInto}>
+                      <InlineEdit tag="div" className="cd-h3" value={h.text} placeholder="Heading" bid={h.id}
+                        focused={focusBlockId === h.id}
+                        onEnter={onEnterAt ? (t) => onEnterAt(h.id, t) : undefined}
+                        onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(h.id) : undefined}
+                        onSave={onEditBlockText ? (t) => onEditBlockText(h.id, t) : undefined} />
+                    </BlockRow>
+                    {count > 0 && <span className="cd-count">{count}</span>}
+                  </div>
+                  {sec.items.map(plainRow)}
+                </div>
               </div>
             );
-          else if (b.type === "meta")
-            // The meta line (Dave 2026-08-19, "add the meta block"): quiet
-            // grey context under the title: date, attendees, whatever frames
-            // the document. Same editing mechanics as text, styled down.
-            content = <InlineEdit tag="div" className="block-meta" value={b.text} placeholder="Date · Attendees" bid={b.id}
-              focused={focusBlockId === b.id}
-              onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
-              onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
-              onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
-          else if (b.type === "text")
-            content = <InlineEdit tag="div" className="t-body" value={b.text} placeholder="Write Something" bid={b.id} rich
-              focused={focusBlockId === b.id}
-              onEnter={onEnterAt ? (t) => onEnterAt(b.id, t) : undefined}
-              onEmptyBackspace={onBackspaceAt ? () => onBackspaceAt(b.id) : undefined}
-              onTransform={onTransformAt ? (p, rest) => onTransformAt(b.id, p, rest) : undefined}
-              onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
-          else if (b.type === "checklist")
-            content = <Checklist block={b} onToggle={onToggleCheck} onEditItem={onEditCheckItem} onAddItem={onAddCheckItem} onDeleteItem={onDeleteCheckItem} />;
-          else if (b.type === "bulleted_list")
-            content = <ListBlock block={b} focusBlockId={focusBlockId} onItems={onListItems} onExit={onListExit} />;
-          else if (b.type === "numbered_list")
-            content = <ListBlock block={b} focusBlockId={focusBlockId} onItems={onListItems} onExit={onListExit} />;
-          else if (b.type === "table")
-            content = <NoteTable block={b} onEditCell={onTableEdit} onAddRow={onTableAddRow} onAddColumn={onTableAddColumn} />;
-          else return null;
-          return (
-            <BlockRow
-              key={b.id}
-              blockId={b.id}
-              blockType={b.type}
-              isFirst={idx === 0}
-              isLast={idx === inline.length - 1}
-              onMove={onMoveBlock}
-              onDelete={onDeleteBlock}
-              onTurnInto={onTurnInto}
-            >
-              {content}
-            </BlockRow>
-          );
-        })}
+          })
+        )}
 
         {inline.length === 0 && (
           <div className="note-empty">Nothing here yet</div>

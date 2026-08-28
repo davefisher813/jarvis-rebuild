@@ -247,13 +247,12 @@ body:has(.sheet-scrim) .voice-bar, body:has(.sheet-scrim) .tab-bar, body.sheet-o
 .block-menu-item .ic { width:17px; height:17px; }
 .block-menu-item.danger { color:var(--sys-red); }
 .block-menu-item:active { background:var(--press-3); }
-/* placeholder text for empty editable lines, so a blank line shows a cue */
+/* placeholder text for empty editable lines, so a blank line shows a cue.
+   Field Notes (Dave 2026-08-28) keeps these visible -- unlike the old
+   ruled-manuscript editorial mode it replaced, it wants to read as an
+   inviting page, not blank paper, so "Write Something" stays put whether
+   or not the block is focused (italicized in components.css). */
 [contenteditable][data-placeholder]:empty::before { content: attr(data-placeholder); color: var(--tx-4); pointer-events: none; }
-/* Editorial pages carry no permanent helper text (Dave 2026-08-22: the
-   "List Item" and "Write Something" ghosts read as clutter on a manuscript).
-   The placeholder appears only while the empty block is actually focused,
-   so the page shows writing or blank paper, never instructions. */
-.doc-editorial [contenteditable][data-placeholder]:empty:not(:focus)::before { content: none; }
 /* stacked title + description (template rows) */
 .row-stack { display:flex; flex-direction:column; flex:1; min-width:0; gap:2px; }
 .row-stack .conn-name { flex:none; }
