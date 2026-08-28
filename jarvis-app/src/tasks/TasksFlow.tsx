@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTasks, useCategories, useSchedule, useRoutine } from "../data/NotesProvider";
+import { useTasks, useCategories, useSchedule, useRoutine, useNotes } from "../data/NotesProvider";
 import { pausedCategoryIds, offHoursCategoryIds } from "../categories/kinds";
 import TasksPage from "./screens/TasksPage";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
@@ -34,10 +34,11 @@ import { ENTITY_TASK } from "../notes/types";
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
 
-export default function TasksFlow({ openId, openFilter }: { openId?: string; openFilter?: string } = {}) {
+export default function TasksFlow({ openId, openFilter, onOpenNote }: { openId?: string; openFilter?: string; onOpenNote?: (id: string) => void } = {}) {
   const svc = useTasks();
   const cats = useCategories();
   const schedule = useSchedule();
+  const notesSvc = useNotes();
   const ai = useAI();
   const gatherContext = useAIContext();
   const today = todayISO();
@@ -59,6 +60,16 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
   const [offHoursCats, setOffHoursCats] = useState<ReadonlySet<string>>(new Set());
   const routineSvc = useRoutine();
   const [sheet, setSheet] = useState<SheetState>(null);
+  // LINKED NOTES (Dave 2026-08-28, "very very easy to connect things"): same
+  // reverse lookup Person/Project/Goal detail already use, kept in sync with
+  // whichever task the sheet has open.
+  const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);
+  useEffect(() => {
+    let on = true;
+    if (!sheet || sheet.mode !== "edit") { setLinkedNotes([]); return; }
+    notesSvc.notesLinkedTo(sheet.id).then((n) => { if (on) setLinkedNotes(n); });
+    return () => { on = false; };
+  }, [sheet, notesSvc]);
   // Momentum Chain: the suggestion occupying a just-finished task's slot.
   const [momentum, setMomentum] = useState<{ afterId: string; task: TaskItem } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -619,6 +630,20 @@ export default function TasksFlow({ openId, openFilter }: { openId?: string; ope
           onBreakDown={sheet.mode === "edit" && ai.available ? (t) => void breakDown(t) : undefined}
           onDelete={sheet.mode === "edit" ? onDelete : undefined}
           onCancel={() => setSheet(null)}
+          linkedNotes={sheet.mode === "edit" ? linkedNotes : []}
+          onOpenNote={sheet.mode === "edit" ? onOpenNote : undefined}
+          onAddNote={sheet.mode === "edit" && onOpenNote ? () => void (async () => {
+            // Born connected, then opened (PICK 27's pattern): the title is
+            // the task's own, so there's nothing to type before you can
+            // write the note.
+            const s = sheet;
+            const id = await attemptWrite(() => notesSvc.createNote(
+              s.initial.text,
+              s.initial.category,
+              [{ id: "task-" + s.id, kind: "task", label: s.initial.text, targetId: s.id }],
+            ));
+            if (typeof id === "string") onOpenNote(id);
+          })() : undefined}
         />
       )}
     </>

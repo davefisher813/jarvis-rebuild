@@ -2,9 +2,13 @@ import { useState } from "react";
 import { Tag, CalendarDays, ListChecks, ListTodo, Plus, X, FolderKanban, User, Target, Link2 as LinkIcon } from "../../shared/icons";
 import { catColor } from "../../shared/categories";
 
-type Conn = { id: string; kind: string; label: string; targetId?: string | null };
+export type Conn = { id: string; kind: string; label: string; targetId?: string | null };
 
-function connIcon(kind: string) {
+// Shared with NoteEditor's inline connection chips (Dave 2026-08-28, "very
+// very easy to connect things"): one icon/color per kind, defined once so
+// the chip strip under the title and the full Connections screen always
+// agree on what a task/event/project/person/goal link looks like.
+export function connIcon(kind: string) {
   if (kind === "event") return { cls: "cat-bg-sky", node: <CalendarDays className="ic" /> };
   if (kind === "task") return { cls: "cat-bg-red", node: <ListChecks className="ic" /> };
   if (kind === "project") return { cls: "cat-bg-blue", node: <FolderKanban className="ic" /> };

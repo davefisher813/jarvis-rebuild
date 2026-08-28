@@ -134,3 +134,43 @@ describe("editing a task that owns a plan (2026-08-25)", () => {
     expect(onSave.mock.calls[0]![0].plan).toEqual(PLAN);
   });
 });
+
+// LINKED NOTES (Dave 2026-08-28, "very very easy to connect things"): the
+// same "Linked Notes" section Person/Project/Goal detail already show,
+// brought to the task sheet. Add a Note is "born connected" (PICK 27's
+// pattern), not a picker.
+describe("TaskSheet linked notes", () => {
+  const NOTES = [{ id: "n1", title: "Renewal Terms", category: "c1" }];
+
+  it("stays hidden on a brand new task -- there's no id yet to link against", () => {
+    render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} onAddNote={() => {}} />);
+    expect(screen.queryByText("Linked Notes")).not.toBeInTheDocument();
+  });
+
+  it("stays hidden in edit mode when there's nothing to show and no way to add one", () => {
+    render(<TaskSheet mode="edit" initial={{ text: "X", category: "c1", due: "", repeat: "" }} categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.queryByText("Linked Notes")).not.toBeInTheDocument();
+  });
+
+  it("lists linked notes and opens one on tap", () => {
+    const onOpenNote = vi.fn();
+    render(
+      <TaskSheet mode="edit" initial={{ text: "X", category: "c1", due: "", repeat: "" }} categories={CATS}
+        onSave={() => {}} onCancel={() => {}} linkedNotes={NOTES} onOpenNote={onOpenNote} />,
+    );
+    expect(screen.getByText("Linked Notes")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Renewal Terms"));
+    expect(onOpenNote).toHaveBeenCalledWith("n1");
+  });
+
+  it("Add a Note fires even with nothing linked yet -- the row that solves the problem is the one that should always show up", () => {
+    const onAddNote = vi.fn();
+    render(
+      <TaskSheet mode="edit" initial={{ text: "X", category: "c1", due: "", repeat: "" }} categories={CATS}
+        onSave={() => {}} onCancel={() => {}} onAddNote={onAddNote} />,
+    );
+    expect(screen.getByText("Linked Notes")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Add a Note"));
+    expect(onAddNote).toHaveBeenCalled();
+  });
+});

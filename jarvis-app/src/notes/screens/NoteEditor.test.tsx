@@ -6,8 +6,8 @@
 // item count -- while confirming the grouping is render-only (no block is
 // added, dropped, or reordered by switching).
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import NoteEditor, { type EditorNote } from "./NoteEditor";
 
@@ -83,6 +83,70 @@ describe("Field Notes (editorial layout)", () => {
     // No digits left in the marker itself -- the number was a CSS counter
     // rendered via ::before, and that content is gone now, not just hidden.
     hwraps.forEach((h) => expect(h.querySelector(".hnum")?.textContent).toBe(""));
+  });
+});
+
+// THE CONNECTION STRIP (Dave 2026-08-28, "very very easy to connect
+// things"): what a note links to, right under the title, in both layouts.
+describe("the inline connection strip", () => {
+  const CONNS = [
+    { id: "c1", kind: "task", label: "Follow Up Call", targetId: "t1" },
+    { id: "c2", kind: "project", label: "Berto Contract", targetId: "p1" },
+  ];
+
+  it("shows a chip per connection and a + even with nothing linked, and stays gone with neither", () => {
+    const { rerender, container } = render(<NoteEditor note={NOTE} connections={CONNS} onAddLink={() => {}} />);
+    expect(container.querySelectorAll(".note-conn").length).toBe(2);
+    expect(screen.getByText("Follow Up Call")).toBeInTheDocument();
+    expect(screen.getByText("Berto Contract")).toBeInTheDocument();
+    expect(container.querySelector(".note-conn-add")).toBeInTheDocument();
+
+    rerender(<NoteEditor note={NOTE} connections={[]} onAddLink={() => {}} />);
+    expect(container.querySelectorAll(".note-conn").length).toBe(0);
+    expect(container.querySelector(".note-conn-add")).toBeInTheDocument(); // the + still shows: nothing to solve yet
+
+    rerender(<NoteEditor note={NOTE} connections={[]} />);
+    expect(container.querySelector(".note-conns")).toBeNull(); // no add handler, no strip at all
+  });
+
+  it("the + opens the picker, the X unlinks, and a tap on a chip navigates", () => {
+    const onAddLink = vi.fn();
+    const onRemoveConnection = vi.fn();
+    const onOpenConnection = vi.fn();
+    render(<NoteEditor note={NOTE} connections={CONNS} onAddLink={onAddLink} onRemoveConnection={onRemoveConnection} onOpenConnection={onOpenConnection} />);
+    fireEvent.click(screen.getByLabelText("Link Something"));
+    expect(onAddLink).toHaveBeenCalled();
+    fireEvent.click(screen.getByLabelText("Unlink Follow Up Call"));
+    expect(onRemoveConnection).toHaveBeenCalledWith("c1");
+    fireEvent.click(screen.getByText("Berto Contract"));
+    expect(onOpenConnection).toHaveBeenCalledWith("project", "p1");
+  });
+});
+
+// A checklist item already promoted to a real task (Dave 2026-08-28): a
+// quiet badge instead of an item that looks plain but is secretly synced.
+describe("the checklist's linked-task badge", () => {
+  const withPromoted: EditorNote = {
+    ...NOTE,
+    blocks: [
+      { id: "c1", type: "checklist", items: [{ text: "Send contract", taskId: "task-9" }, { text: "Not yet a task" }] },
+    ],
+  };
+
+  it("marks only the promoted item, and opens the task on tap", () => {
+    const onOpenTask = vi.fn();
+    const { container } = render(<NoteEditor note={withPromoted} onOpenTask={onOpenTask} />);
+    const badges = container.querySelectorAll(".check-linked");
+    expect(badges.length).toBe(1);
+    fireEvent.click(badges[0]!);
+    expect(onOpenTask).toHaveBeenCalledWith("task-9");
+  });
+
+  it("still shows the badge with no handler, just not tappable", () => {
+    const { container } = render(<NoteEditor note={withPromoted} />);
+    const badge = container.querySelector(".check-linked");
+    expect(badge).toBeInTheDocument();
+    expect(badge?.tagName).toBe("SPAN");
   });
 });
 

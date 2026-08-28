@@ -2920,6 +2920,47 @@ button {
   font-variant-numeric: tabular-nums; background: var(--press-3); border-radius: var(--r-pill); padding: 1px 8px;
 }
 
+/* ============================================================
+   THE CONNECTION STRIP (Dave 2026-08-28: "very very easy to connect
+   things"). What a note is linked to, right under the title, in both
+   layouts: a colored chip per link (same icon/color the full Connections
+   screen and LinkPicker already use, via Connections.tsx's connIcon), an
+   X to unlink in place, and a dashed "+" that opens the picker directly --
+   no trip through the Connections screen for the common case.
+   ============================================================ */
+.note-conns { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-1h); }
+.doc > .note-conns { margin-top: var(--s-1); }
+.note-conn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 6px 3px 3px; border-radius: var(--r-pill);
+  background: var(--surface-2); max-width: 100%;
+}
+.note-conn .proj-icon { width: 18px; height: 18px; border-radius: 50%; flex-shrink: 0; }
+.note-conn .proj-icon .ic { width: 10px; height: 10px; }
+.note-conn-label { font-size: 12.5px; font-weight: var(--w-medium); color: var(--tx-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px; }
+.note-conn-x { flex-shrink: 0; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; background: 0; border: 0; color: var(--tx-4); }
+.note-conn-x .ic { width: 10px; height: 10px; }
+.note-conn-x:active { color: var(--tx-2); }
+.note-conn-add {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  border: 1px dashed var(--tx-4); background: 0; color: var(--tx-3);
+  display: flex; align-items: center; justify-content: center;
+}
+.note-conn-add .ic { width: 13px; height: 13px; }
+.note-conn-add:active { background: var(--press-3); }
+
+/* A checklist item already promoted to a real task (Dave 2026-08-28): a
+   quiet badge instead of an item that looks plain but is secretly synced.
+   Tappable when a destination exists, so the connection goes both ways --
+   open the task from the note, not just watch its done-state echo back. */
+.check-linked {
+  flex-shrink: 0; margin-left: auto; width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: 0; border: 0; color: var(--cat-red); opacity: 0.55;
+}
+.check-linked .ic { width: 12px; height: 12px; }
+button.check-linked:active { opacity: 1; background: var(--press-3); }
+
 /* THE SEND HOLD (undo send, 2026-08-20). Loud on purpose: a toast that fades
    while he is still deciding is the same as not offering undo at all. */
 .send-hold { border: 1px solid rgba(10,132,255,0.35); }

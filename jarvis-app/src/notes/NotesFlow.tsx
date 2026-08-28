@@ -41,7 +41,7 @@ function toEditorNote(data: NoteData): EditorNote {
             id: b.id,
             type: "checklist",
             items: (b.items ?? []).map((it) =>
-              typeof it === "string" ? { text: it, done: false } : it),
+              typeof it === "string" ? { text: it, done: false } : { text: it.text, done: it.done, taskId: it.taskId }),
           };
         case "bulleted_list":
           return { id: b.id, type: "bulleted_list", items: (b.items ?? []).map((it) => typeof it === "string" ? it : it.text) };
@@ -197,6 +197,11 @@ export default function NotesFlow({
   };
   const [addBlockOpen, setAddBlockOpen] = useState(false);
   const [conns, setConns] = useState<Connection[]>([]);
+  // The connection strip's "+" (Dave 2026-08-28) reaches LinkPicker directly
+  // from the editor, not just through Connections -- so LinkPicker needs to
+  // know which screen sent it, to come back to that one rather than always
+  // landing on Connections.
+  const [linkReturnTo, setLinkReturnTo] = useState<Screen>("connections");
   const [linkEvents, setLinkEvents] = useState<{ id: string; title: string }[]>([]);
   const [linkTasks, setLinkTasks] = useState<{ id: string; text: string }[]>([]);
   // The picker has always been able to render these; nothing ever loaded them,
@@ -307,6 +312,12 @@ export default function NotesFlow({
     await loadCurrent(currentId);
     // Writing toolbar (V4): the caret lands in the block you just added.
     if (newId) setFocusBlockId(newId);
+  };
+
+  const openLinkPicker = async (from: Screen) => {
+    await loadLinkables();
+    setLinkReturnTo(from);
+    setScreen("linkPicker");
   };
 
   const runCreateTasks = async () => {
@@ -491,7 +502,7 @@ export default function NotesFlow({
         categoryLabel={catName(cat)}
         connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label, targetId: c.targetId }))}
         onBack={() => setScreen("editor")}
-        onAddLink={async () => { await loadLinkables(); setScreen("linkPicker"); }}
+        onAddLink={() => void openLinkPicker("connections")}
         onRemove={async (connId) => {
           if (!currentId) return;
           await attemptWrite(() => svc.removeConnection(currentId, connId));
@@ -523,9 +534,9 @@ export default function NotesFlow({
             await attemptWrite(() => svc.addConnection(currentId, kind, label, targetId));
             await loadCurrent(currentId);
           }
-          setScreen("connections");
+          setScreen(linkReturnTo);
         }}
-        onBack={() => setScreen("connections")}
+        onBack={() => setScreen(linkReturnTo)}
       />
       </div>
     );
@@ -603,6 +614,15 @@ export default function NotesFlow({
           onRedo={() => void redo()}
           canUndo={histTick >= 0 && history.current.length > 0}
           canRedo={histTick >= 0 && redoStack.current.length > 0}
+          connections={conns}
+          onAddLink={() => void openLinkPicker("editor")}
+          onRemoveConnection={(connId) => void (async () => {
+            if (!currentId) return;
+            await attemptWrite(() => svc.removeConnection(currentId, connId));
+            await loadCurrent(currentId);
+          })()}
+          onOpenConnection={(kind, targetId) => onNavigate?.(kind, targetId)}
+          onOpenTask={onNavigate ? (taskId) => onNavigate("task", taskId) : undefined}
         />
       )}
       {addBlockOpen && (

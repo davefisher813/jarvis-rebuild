@@ -5,6 +5,8 @@ import type { ColorSlot } from "../../categories/types";
 import Provenance from "../../shared/Provenance";
 import type { Source } from "../../shared/provenance";
 import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, type IfThen, type CueKind } from "../ifThen";
+import { FileText } from "../../shared/icons";
+import { catColor } from "../../shared/categories";
 
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
 export interface TaskDraft {
@@ -39,6 +41,9 @@ export default function TaskSheet({
   onCancel,
   otherPlans = [],
   selfId,
+  linkedNotes = [],
+  onOpenNote,
+  onAddNote,
 }: {
   mode: "new" | "edit";
   initial?: Partial<TaskDraft>;
@@ -62,6 +67,14 @@ export default function TaskSheet({
   onBreakDown?: (text: string) => void;
   onDelete?: () => void;
   onCancel: () => void;
+  // LINKED NOTES (Dave 2026-08-28, "very very easy to connect things"): the
+  // same reverse-lookup Person/Project/Goal detail already show, brought to
+  // the task sheet. onAddNote mirrors Project's "born connected" note (PICK
+  // 27) rather than a picker -- one tap makes a new note already linked to
+  // this task, instead of making you go create one and link it back.
+  linkedNotes?: { id: string; title: string; category: string }[];
+  onOpenNote?: (id: string) => void;
+  onAddNote?: () => void;
 }) {
   const today = todayISO();
   const tomorrow = addDaysISO(today, 1);
@@ -241,6 +254,28 @@ export default function TaskSheet({
                 {projects.map((p) => (
                   <div key={p.id} className={"chip" + (projectId === p.id ? " active" : "")} role="button" tabIndex={0} onClick={() => setProjectId(p.id)}>{p.title}</div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {mode === "edit" && (linkedNotes.length > 0 || onAddNote) && (
+            <div className="field">
+              <div className="input-label">Linked Notes</div>
+              <div className="card">
+                {linkedNotes.map((n) => (
+                  <div
+                    className="row"
+                    role={onOpenNote ? "button" : undefined}
+                    tabIndex={onOpenNote ? 0 : undefined}
+                    key={n.id}
+                    onClick={onOpenNote ? () => onOpenNote(n.id) : undefined}
+                  >
+                    <div className={"proj-icon cat-bg-" + (n.category ? catColor(n.category) : "graphite")}><FileText className="ic" /></div>
+                    <div className="conn-name">{n.title}</div>
+                    {onOpenNote && <div className="chev"></div>}
+                  </div>
+                ))}
+                {onAddNote && <button className="row row-act" onClick={onAddNote}>Add a Note</button>}
               </div>
             </div>
           )}

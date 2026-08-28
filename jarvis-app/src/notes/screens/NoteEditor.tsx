@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { MoreHorizontal, FileText, Image, Check, Plus, ArrowUp, ArrowDown, Trash2, Undo2, Redo2, Type, List as ListIcon, CheckSquare, Heading1, Bold, Italic, Strikethrough, Highlighter, Pilcrow } from "../../shared/icons";
+import { MoreHorizontal, FileText, Image, Check, Plus, X, ArrowUp, ArrowDown, Trash2, Undo2, Redo2, Type, List as ListIcon, CheckSquare, Heading1, Bold, Italic, Strikethrough, Highlighter, Pilcrow, ListChecks } from "../../shared/icons";
 import { wrapRange, countWords } from "../richtext";
 import { catColor } from "../../shared/categories";
 import { Burst } from "../../shared/Burst";
 import InlineEdit from "../../shared/InlineEdit";
+import { connIcon, type Conn } from "./Connections";
 
 // Editorial layout is a way of writing, not a property of one note, so the
 // choice is global and remembered.
@@ -16,7 +17,7 @@ const EDITORIAL_KEY = "jarvis.notes.editorial.v1";
 // editable (contentEditable, saved on blur). Visuals are unchanged from the
 // gated screen; editing just makes the existing elements interactive.
 
-type ChecklistItem = { text: string; done?: boolean };
+type ChecklistItem = { text: string; done?: boolean; taskId?: string };
 type EditorBlock =
   | { id: string; type: "heading"; text: string }
   | { id: string; type: "text"; text: string }
@@ -125,12 +126,18 @@ function Checklist({
   onEditItem,
   onAddItem,
   onDeleteItem,
+  onOpenTask,
 }: {
   block: Extract<EditorBlock, { type: "checklist" }>;
   onToggle?: (blockId: string, index: number) => void;
   onEditItem?: (blockId: string, index: number, text: string) => void;
   onAddItem?: (blockId: string) => void;
   onDeleteItem?: (blockId: string, index: number) => void;
+  // The item was already promoted to a real task (Dave 2026-08-28: "very
+  // very easy to connect things") -- a quiet badge says so instead of an
+  // item that looks plain but is secretly synced, and tapping it jumps
+  // straight to the task rather than making you go find it.
+  onOpenTask?: (taskId: string) => void;
 }) {
   // Completion feedback (audit 2026-07-30): checking an item pops the box and
   // fires the same micro-burst as tasks. Items stay in place when checked, so
@@ -165,6 +172,15 @@ function Checklist({
             // On blur, an item left blank is removed so no empty checkbox lingers.
             onSave={onEditItem ? (t) => { if (t.trim()) onEditItem(block.id, i, t); else onDeleteItem?.(block.id, i); } : undefined}
           />
+          {it.taskId && (
+            onOpenTask ? (
+              <button className="check-linked" aria-label="Open Linked Task" onClick={(e) => { e.stopPropagation(); onOpenTask(it.taskId!); }}>
+                <ListChecks className="ic" />
+              </button>
+            ) : (
+              <span className="check-linked" aria-hidden="true"><ListChecks className="ic" /></span>
+            )
+          )}
         </div>
       ))}
       {onAddItem && (
@@ -414,6 +430,11 @@ export default function NoteEditor({
   onTransformAt,
   onListItems,
   onListExit,
+  connections,
+  onAddLink,
+  onRemoveConnection,
+  onOpenConnection,
+  onOpenTask,
 }: {
   note: EditorNote;
   onBack?: () => void;
@@ -443,6 +464,18 @@ export default function NoteEditor({
   onRedo?: () => void;
   canUndo?: boolean;
   canRedo?: boolean;
+  // THE CONNECTION STRIP (Dave 2026-08-28: "very very easy to connect
+  // things"). The note's real connections (never the category -- that's
+  // its own fixed row inside the full Connections screen), shown right
+  // under the title so linking or unlinking never costs a screen. All
+  // optional: the strip renders nothing without connections/onAddLink,
+  // same "no handler, no control" rule every other screen in this file
+  // already follows.
+  connections?: Conn[];
+  onAddLink?: () => void;
+  onRemoveConnection?: (connId: string) => void;
+  onOpenConnection?: (kind: string, targetId: string) => void;
+  onOpenTask?: (taskId: string) => void;
 }) {
   const inline = note.blocks.filter((b) => b.type !== "file" && b.type !== "photo");
   // EDITORIAL MODE (Dave 2026-08-20). A layer over the same blocks, never a
@@ -529,7 +562,7 @@ export default function NoteEditor({
         onTransform={onTransformAt ? (p, rest) => onTransformAt(b.id, p, rest) : undefined}
         onSave={onEditBlockText ? (t) => onEditBlockText(b.id, t) : undefined} />;
     if (b.type === "checklist")
-      return <Checklist block={b} onToggle={onToggleCheck} onEditItem={onEditCheckItem} onAddItem={onAddCheckItem} onDeleteItem={onDeleteCheckItem} />;
+      return <Checklist block={b} onToggle={onToggleCheck} onEditItem={onEditCheckItem} onAddItem={onAddCheckItem} onDeleteItem={onDeleteCheckItem} onOpenTask={onOpenTask} />;
     if (b.type === "bulleted_list" || b.type === "numbered_list")
       return <ListBlock block={b} focusBlockId={focusBlockId} onItems={onListItems} onExit={onListExit} />;
     if (b.type === "table")
@@ -593,6 +626,47 @@ export default function NoteEditor({
           {note.eyebrow && <span className={"eyebrow cat-fg-" + catColor(note.category)}>{note.eyebrow}</span>}
         </div>
         <InlineEdit tag="div" className="doc-title" value={note.title} placeholder="Untitled" onSave={onEditTitle} />
+
+        {/* One tap to link, one tap to unlink, right where you're already
+            looking -- no trip to the Connections screen for the common
+            case. Renders even with nothing linked yet, same as this app's
+            other "add" rows: a control that appears only once you've
+            already solved the problem solves nothing. */}
+        {(connections && connections.length > 0) || onAddLink ? (
+          <div className="note-conns">
+            {(connections ?? []).map((c) => {
+              const ic = connIcon(c.kind);
+              const canOpen = !!(onOpenConnection && c.targetId);
+              const open = () => onOpenConnection!(c.kind, c.targetId!);
+              return (
+                <span className="note-conn" key={c.id}>
+                  <span
+                    className={"proj-icon " + ic.cls}
+                    role={canOpen ? "button" : undefined}
+                    tabIndex={canOpen ? 0 : undefined}
+                    onClick={canOpen ? open : undefined}
+                    aria-hidden={!canOpen}
+                  >
+                    {ic.node}
+                  </span>
+                  <span className="note-conn-label" role={canOpen ? "button" : undefined} tabIndex={canOpen ? 0 : undefined} onClick={canOpen ? open : undefined}>
+                    {c.label}
+                  </span>
+                  {onRemoveConnection && (
+                    <button className="note-conn-x" aria-label={"Unlink " + c.label} onClick={() => onRemoveConnection(c.id)}>
+                      <X className="ic" />
+                    </button>
+                  )}
+                </span>
+              );
+            })}
+            {onAddLink && (
+              <button className="note-conn-add" aria-label="Link Something" onClick={onAddLink}>
+                <Plus className="ic" />
+              </button>
+            )}
+          </div>
+        ) : null}
 
         {editorial ? (
           // FIELD NOTES (Dave 2026-08-28): one continuous page, same as the
