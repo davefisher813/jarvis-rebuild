@@ -5,7 +5,7 @@ import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta"
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
-import { todayISO, fmtTime } from "../schedule/calendar";
+import { todayISO, fmtTime, addMinutes } from "../schedule/calendar";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import { greetingFor, longDate, shortDate } from "./greeting";
@@ -45,7 +45,16 @@ import { useAI } from "../ai/useAI";
 import { useGoogle } from "../connections/google/GoogleSession";
 import { mapThreadFull, buildReply, encodeEmail } from "../connections/google/map";
 import { cardDraftJob } from "../messages/cardDraftJob";
-import { DUR_CHOICES } from "../schedule/durations";
+import { DUR_CHOICES, durLabel } from "../schedule/durations";
+import {
+  moveEvent as moveEventAdjust, undoMoveEvent as undoMoveEventAdjust, type MoveOutcome,
+  resizeEvent as resizeEventAdjust, undoResizeEvent as undoResizeEventAdjust, type ResizeOutcome,
+  skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
+  pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust,
+} from "../schedule/eventAdjust";
+import { overlapsOn } from "../schedule/dayEdit";
+import { isKept } from "../schedule/overlapAck";
+import { attachInfo, type AttachInfo } from "../schedule/attachments";
 import { cachedDraft, pregenerate, rememberDraft, PREGEN_CAP } from "../ai/pregen";
 import { loadNudgeCounts, countNudge } from "../messages/escalate";
 import { settleAll } from "../messages/settle";
@@ -403,6 +412,82 @@ export default function TodayFlow({
     if (e) setEventSheet({ id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none" } });
   };
 
+  // THE SAME ROW, THE SAME MOVES (2026-08-28). Schedule's day list could
+  // shift an event -15m/+15m/+1h, retime it from a tap, resize it from a
+  // tap, skip just today, or push it to tomorrow, all from the row, no
+  // editor visit. Today's had none of that: an event here could only be
+  // tapped open into the full sheet. Same fix as the two above - the reads
+  // and writes live once in schedule/eventAdjust.ts, and this wiring only
+  // owns the toast wording and the undo button, which legitimately differ
+  // per surface (ScheduleFlow's says "· Just today" for a split-off repeat;
+  // this one does too, for the identical reason).
+  const onShift = async (id: string, mins: number) => {
+    const e = await schedule.event(id);
+    if (!e) return;
+    const word = mins < 0
+      ? `Back ${Math.abs(mins) === 60 ? "1 hr" : Math.abs(mins) + " min"}`
+      : `Forward ${mins === 60 ? "1 hr" : mins + " min"}`;
+    let outcome: MoveOutcome | null = null;
+    const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, addMinutes(e.start, mins), today, schedule); });
+    await reload();
+    const o = outcome as MoveOutcome | null;
+    if (!ok || !o?.ok) return;
+    showToast({
+      message: o.repeating ? word + " · Just today" : word,
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, today, o, schedule)); await reload(); },
+    });
+  };
+
+  const onMoveTo = async (id: string, start: string) => {
+    const t = fmtTime(start);
+    const label = `Moved to ${t.time} ${t.ap}`;
+    let outcome: MoveOutcome | null = null;
+    const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, start, today, schedule); });
+    await reload();
+    const o = outcome as MoveOutcome | null;
+    if (!ok || !o?.ok) return;
+    showToast({
+      message: o.repeating ? label + " · Just today" : label,
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, today, o, schedule)); await reload(); },
+    });
+  };
+
+  const onSetEnd = async (id: string, end: string) => {
+    let r: ResizeOutcome | null = null;
+    const ok = await attemptWrite(async () => { r = await resizeEventAdjust(id, end, schedule); });
+    await reload();
+    const res = r as ResizeOutcome | null;
+    if (!ok || !res?.ok) return;
+    const before = res.before;
+    showToast({
+      message: durLabel(res.minutes ?? 0),
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => undoResizeEventAdjust(id, before, schedule)); await reload(); },
+    });
+  };
+
+  const onSkipToday = async (id: string) => {
+    const ok = await attemptWrite(() => skipEventTodayAdjust(id, today, schedule));
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: "Skipped today",
+      actionLabel: "Undo",
+      onAction: async () => { await attemptWrite(() => undoSkipEventTodayAdjust(id, today, schedule)); await reload(); },
+    });
+  };
+
+  const onPushTomorrow = async (id: string) => {
+    let fromDate: string | undefined;
+    const ok = await attemptWrite(async () => { const r = await pushEventTomorrowAdjust(id, schedule); fromDate = r.fromDate; });
+    await reload();
+    if (!ok || !fromDate) return;
+    const from = fromDate;
+    showToast({ message: "Moved to tomorrow", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => undoPushEventTomorrowAdjust(id, from, schedule)); await reload(); } });
+  };
+
   const onSaveEvent = async (draft: EventDraft) => {
     if (!eventSheet) return;
     const id = eventSheet.id;
@@ -581,6 +666,17 @@ export default function TodayFlow({
   // Phase 2 planning context: protected ranges for the target day, the
   // inferred energy peak, and how heavy yesterday felt.
   const blocked = protectedRangesFor(routineData, dow);
+  // Overlap awareness and attached-task counts (2026-08-28), same as
+  // Schedule's day list already computes for its own rows. Today reads the
+  // identical pure functions on its own event/task lists rather than
+  // reimplementing the overlap math or the attachment lookup.
+  const todayOverlaps = overlapsOn(allEvents, today).filter((o) => !isKept(o, today));
+  const conflicts = new Set<string>(todayOverlaps.flatMap((o) => [o.a.id, o.b.id]));
+  const attachMap: Record<string, AttachInfo> = {};
+  for (const e of todayEvents) {
+    const info = attachInfo(e, taskItems);
+    if (info) attachMap[e.id] = info;
+  }
   const chrono = chronotypeFor(routineData);
   const peak = peakWindowFor(routineData, chrono);
   const energy = chrono !== "neutral" ? { chronotype: chrono, peakStartMin: peak.s, peakEndMin: peak.e } : undefined;
@@ -1908,6 +2004,13 @@ export default function TodayFlow({
       locked={blocked}
       onOpenEvent={onOpenEvent}
       onEditRoutine={onEditRoutine}
+      conflicts={conflicts}
+      attachMap={attachMap}
+      onShift={onShift}
+      onMoveTo={onMoveTo}
+      onSetEnd={onSetEnd}
+      onSkipToday={onSkipToday}
+      onPushTomorrow={onPushTomorrow}
       today={today}
       nowCard={nowSection}
       proposedDay={proposedDay}

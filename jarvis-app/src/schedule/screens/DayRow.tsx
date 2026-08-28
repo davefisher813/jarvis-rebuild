@@ -8,6 +8,7 @@ import { attachLabel } from "../attachments";
 import { DUR_CHOICES, durLabel, minutesBetween, endFor } from "../durations";
 import { PinGlyph } from "../../shared/glyphs";
 import { Check as CheckGlyph } from "../../shared/icons";
+import { EventWeatherLine } from "../../weather/WeatherLine";
 
 // One event row on the Schedule day list. Same anatomy as before, plus the
 // roadmap-v2 basics: swipe left reveals Push 15 / Tomorrow (recurring events
@@ -40,6 +41,7 @@ export default function DayRow({
   selecting = false,
   picked = false,
   onPick,
+  weatherDateIso,
 }: {
   e: EventItem;
   conflict: boolean;
@@ -64,6 +66,11 @@ export default function DayRow({
   selecting?: boolean;
   picked?: boolean;
   onPick?: () => void;
+  // Weather Fact (2026-08-28, brought over from Today's own row so the two
+  // lists share one implementation instead of two that can drift). Only
+  // Today passes a date: an event with a location happening TODAY is where
+  // weather matters, and a past row never shows it.
+  weatherDateIso?: string;
 }) {
   const t = fmtTime(e.data.start);
   const endT = e.data.end ? fmtTime(e.data.end) : null;
@@ -193,6 +200,7 @@ export default function DayRow({
               <span className="sched-until">Until {endT.time} {endT.ap}</span>
             ) : null}
             {rep && <><span className="sched-sep">&middot;</span><span className="sched-rep">Repeats {rep}</span></>}
+            {weatherDateIso && !isPast && e.data.location && <EventWeatherLine dateIso={weatherDateIso} start={e.data.start} />}
           </div>
           {attach && (
             <div className="sched-cat">

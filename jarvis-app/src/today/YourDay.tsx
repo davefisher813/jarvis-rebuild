@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { LATE_CHOICES } from "../schedule/durations";
 import type { EventItem } from "../schedule/types";
-import { fmtTime, fmtDistance, minToHHMM } from "../schedule/calendar";
-import { catColor, catName } from "../shared/categories";
+import { fmtTime, minToHHMM } from "../schedule/calendar";
+import { catColor } from "../shared/categories";
 import { isPast } from "./todayData";
-import { EventWeatherLine } from "../weather/WeatherLine";
 import ProposedRow from "../schedule/screens/ProposedRow";
+import DayRow from "../schedule/screens/DayRow";
+import type { AttachInfo } from "../schedule/attachments";
 import { holdersIn, holderFor, holderKey, spanOf, type HoldRange } from "../schedule/nesting";
 import HeldTasks from "../schedule/screens/HeldTasks";
 import type { PlanBlock } from "../schedule/planDay";
@@ -39,29 +40,15 @@ export const TICKER_KEY = "jarvis.today.ticker.v1";
 // this screen. Re-exported under the old name so callers are unchanged.
 export type LockedRange = HoldRange;
 
-function Row({ ev, past, dist, onOpen }: { ev: EventItem; past: boolean; dist: string | null; onOpen?: () => void }) {
-  const t = fmtTime(ev.data.start);
-  return (
-    <div className={"sched-row" + (past ? " past" : "")} role="button" tabIndex={0} onClick={onOpen}>
-      {/* Category at a glance (Dave 2026-08-19): the dot on the line below is
-          still there, but the bar is what you actually see, and it survives
-          the scrolling ticker where the dot used to get clipped away. */}
-      <span className={"sched-bar cat-bg-" + catColor(ev.data.category)} />
-      <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
-      <div className="sched-body">
-        <div className="sched-title">{ev.data.title}{dist && <span className="sched-dist">{dist}</span>}</div>
-        <div className="sched-cat">
-          <span className={"cat-dot cat-bg-" + catColor(ev.data.category)} />
-          {catName(ev.data.category)}
-          {/* Weather Fact (addendum item 4), day-of, placed events only: an
-              event with a location happens somewhere weather matters.
-              Threshold-gated, so most rows show nothing. */}
-          {!past && ev.data.location && <EventWeatherLine dateIso={todayISODate()} start={ev.data.start} />}
-        </div>
-      </div>
-    </div>
-  );
-}
+// The event row used to be its own local component here, a plain tap-only
+// strip with no swipe, no time-tap, no length-tap, no overlap fix, and no
+// attached-task count - everything Schedule's row could do that this one
+// could not (Dave, 2026-08-28: "make sure it all translates to the home
+// page... max editing/adjusting ability for all scheduling features on all
+// pages"). It is DayRow now, the same component Schedule uses, so an edit
+// added there is never a second thing to remember to add here. The weather
+// line moved INTO DayRow behind an opt-in prop for exactly that reason,
+// rather than staying a fork only this screen had.
 
 const todayISODate = () => {
   const d = new Date();
@@ -105,7 +92,23 @@ function LockedRow({ l, past, onOpen, children }: { l: LockedRange; past: boolea
 
 // One full pass of the day: events + protected blocks in time order, with the
 // Now line inserted at the right spot and time-as-distance on the next event.
-function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {}, proposed, fromMin, expandHeld = false }: { events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void; onEditRoutine?: (blockId?: string) => void; blendMap?: BlendMap; proposed?: ProposedDay; fromMin?: number; expandHeld?: boolean }) {
+function DaySet({
+  events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, blendMap = {}, proposed, fromMin, expandHeld = false,
+  conflicts, attachMap, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow,
+}: {
+  events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void;
+  onEditRoutine?: (blockId?: string) => void; blendMap?: BlendMap; proposed?: ProposedDay; fromMin?: number; expandHeld?: boolean;
+  // Same quick adjustments Schedule's row offers (2026-08-28): shift, retime,
+  // resize, skip today, push tomorrow. Undefined on any of these just means
+  // that action is not offered, same as DayRow already handles for Schedule.
+  conflicts?: Set<string>;
+  attachMap?: Record<string, AttachInfo>;
+  onShift?: (id: string, mins: number) => void;
+  onMoveTo?: (id: string, start: string) => void;
+  onSetEnd?: (id: string, end: string) => void;
+  onSkipToday?: (id: string) => void;
+  onPushTomorrow?: (id: string) => void;
+}) {
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
   const nowMin = toMin(now);
   // The distance label ("in 40 minutes") counts down to a COMMITMENT. A
@@ -166,7 +169,24 @@ function DaySet({ events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine
   shown.forEach((en, i) => {
     if (!nowPlaced && en.s >= nowMin) { out.push(<NowLine key="now" label={nowLabel} />); nowPlaced = true; }
     if (en.kind === "event") {
-      out.push(<Row key={en.ev.id} ev={en.ev} past={isPast(en.ev, now)} dist={en.ev.id === nextId ? fmtDistance(en.ev.data.start, now) : null} onOpen={onOpenEvent ? () => onOpenEvent(en.ev.id) : undefined} />);
+      out.push(
+        <DayRow
+          key={en.ev.id}
+          e={en.ev}
+          conflict={conflicts?.has(en.ev.id) ?? false}
+          attach={attachMap?.[en.ev.id]}
+          isNext={en.ev.id === nextId}
+          isPast={isPast(en.ev, now)}
+          now={now}
+          onOpen={onOpenEvent ? () => onOpenEvent(en.ev.id) : undefined}
+          onShift={onShift ? (m) => onShift(en.ev.id, m) : undefined}
+          onMoveTo={onMoveTo ? (t) => onMoveTo(en.ev.id, t) : undefined}
+          onSetEnd={onSetEnd ? (end) => onSetEnd(en.ev.id, end) : undefined}
+          onSkipToday={onSkipToday ? () => onSkipToday(en.ev.id) : undefined}
+          onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.ev.id) : undefined}
+          weatherDateIso={todayISODate()}
+        />,
+      );
       // BLENDING ON TODAY (2026-08-21). Same offer, same anatomy, same one
       // tap as the Schedule tab. It belongs here MORE than there: Today is
       // the page he is on when the drive is forty minutes away.
@@ -271,6 +291,13 @@ export default function YourDay({
   proposed,
   footer,
   nowHead,
+  conflicts,
+  attachMap,
+  onShift,
+  onMoveTo,
+  onSetEnd,
+  onSkipToday,
+  onPushTomorrow,
 }: {
   events: EventItem[];
   locked?: LockedRange[];
@@ -288,6 +315,18 @@ export default function YourDay({
   blendMap?: BlendMap;
   // A standing proposal for this day, rendered inline among the real rows.
   proposed?: ProposedDay;
+  // Same quick adjustments Schedule's day list offers, at last also here
+  // (2026-08-28): shift by -15m/+15m/+1h, tap the time to retime, tap the
+  // length to resize, skip today, push tomorrow, and a badge on anything
+  // that overlaps. Every one is optional; TodayFlow wires whichever ones it
+  // has handlers for, same as ScheduleFlow already does for its own list.
+  conflicts?: Set<string>;
+  attachMap?: Record<string, AttachInfo>;
+  onShift?: (id: string, mins: number) => void;
+  onMoveTo?: (id: string, start: string) => void;
+  onSetEnd?: (id: string, end: string) => void;
+  onSkipToday?: (id: string) => void;
+  onPushTomorrow?: (id: string) => void;
   // Accept / Not Today, owned by the flow and drawn under the day.
   footer?: React.ReactNode;
   // MERGE B (2026-08-24, Dave: "can't now and your day be combined somehow?").
@@ -492,7 +531,7 @@ export default function YourDay({
               expanded, which is the ticker's own content. Deciding whether a
               thing should scroll by measuring something other than that thing
               is how the feature switched itself off. */}
-          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} /></div>
+          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} /></div>
           {measuring && (
             <div ref={measureRef} className="day-measure" aria-hidden="true">
               <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld />

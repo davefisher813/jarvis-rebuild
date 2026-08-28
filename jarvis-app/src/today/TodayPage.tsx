@@ -4,6 +4,7 @@ import NoticeCard from "./NoticeCard";
 import { rankStream, DEALT, WAITING, NEW, AMBIENT } from "./stream";
 import { cloneElement } from "react";
 import type { EventItem } from "../schedule/types";
+import type { AttachInfo } from "../schedule/attachments";
 import type { TaskItem } from "../tasks/TasksService";
 import { fmtTime } from "../schedule/calendar";
 import { urgencyFor, type UrgencyKind } from "../tasks/grouping";
@@ -161,6 +162,13 @@ export default function TodayPage({
   mailEmpty,
   billLine,
   onPayBill,
+  conflicts,
+  attachMap,
+  onShift,
+  onMoveTo,
+  onSetEnd,
+  onSkipToday,
+  onPushTomorrow,
 }: {
   greeting: string;
   dateLong: string;
@@ -199,6 +207,16 @@ export default function TodayPage({
   locked?: { s: number; e: number; label: string; id?: string }[];
   onOpenEvent?: (id: string) => void;
   onEditRoutine?: (blockId?: string) => void;
+  // Same quick adjustments Schedule's day list offers (2026-08-28): shift,
+  // retime, resize, skip today, push tomorrow, plus overlap and attached-task
+  // awareness. Optional throughout - TodayFlow wires whichever it has.
+  conflicts?: Set<string>;
+  attachMap?: Record<string, AttachInfo>;
+  onShift?: (id: string, mins: number) => void;
+  onMoveTo?: (id: string, start: string) => void;
+  onSetEnd?: (id: string, end: string) => void;
+  onSkipToday?: (id: string) => void;
+  onPushTomorrow?: (id: string) => void;
   onSeeAllTasks: () => void;
   // Pick 5: the goal-aware pill lands on the Bigger Picture.
   onGoBigger?: () => void;
@@ -585,6 +603,13 @@ export default function TodayPage({
         blendMap={blendMap}
         title={evening ? "Tonight" : "Your Day"}
         emptyText={evening ? "Nothing else tonight" : "Nothing scheduled today"}
+        conflicts={conflicts}
+        attachMap={attachMap}
+        onShift={onShift}
+        onMoveTo={onMoveTo}
+        onSetEnd={onSetEnd}
+        onSkipToday={onSkipToday}
+        onPushTomorrow={onPushTomorrow}
       />
 
       {/* Sunday evening only: the weekly close-out card. Two lines, no charts;

@@ -9,7 +9,7 @@ import type { Goal } from "../life/types";
 import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import ScheduleUploadFlow from "./screens/ScheduleUploadFlow";
-import { todayISO, weekOf, addDays, addMinutes, minutesBetween, fmtTime, eventsForDate, nextFreeSlot, fmtRange, minToHHMM } from "./calendar";
+import { todayISO, weekOf, addDays, addMinutes, fmtTime, eventsForDate, nextFreeSlot, fmtRange, minToHHMM } from "./calendar";
 import { durLabel } from "./durations";
 import { isKept, keepBoth } from "./overlapAck";
 import OverlapSheet from "./screens/OverlapSheet";
@@ -29,6 +29,12 @@ import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, splitProtectedRange
 import { chronotypeFor, peakWindowFor } from "./energy";
 import { isSuggested, rankCandidates } from "./planMeta";
 import { shiftFutureEvents, restoreShift, type ShiftResult } from "./runningLate";
+import {
+  moveEvent as moveEventAdjust, undoMoveEvent as undoMoveEventAdjust, type MoveOutcome,
+  resizeEvent as resizeEventAdjust, undoResizeEvent as undoResizeEventAdjust, type ResizeOutcome,
+  skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
+  pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust,
+} from "./eventAdjust";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
@@ -732,52 +738,22 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   //   repeating -> exclude this date and drop a standalone copy at the new
   //                time, labelled "just today", with the series untouched
   // Both paths return a single Undo that restores the world exactly.
+  //
+  // 2026-08-28: the actual reads and writes for all five quick adjustments
+  // (shift, retime, resize, skip-today, push-tomorrow) moved to
+  // ./eventAdjust.ts so Today can offer the identical actions instead of a
+  // second implementation of each. This function keeps the label wording and
+  // the toast/undo wiring, which legitimately differ per surface.
   const moveEvent = async (id: string, toStart: string, label: string) => {
-    const e = await svc.event(id);
-    if (!e) return;
-    const repeating = (e.recurrence ?? "none") !== "none";
-    const dur = e.end ? minutesBetween(e.start, e.end) : null;
-    const newEnd = dur !== null ? addMinutes(toStart, dur) : undefined;
-
-    if (!repeating) {
-      const ok = await attemptWrite(async () => {
-        await svc.editTime(id, toStart);
-        if (e.end) await svc.editEnd(id, newEnd!);
-      });
-      await reload();
-      if (!ok) return;
-      showToast({
-        message: label,
-        actionLabel: "Undo",
-        onAction: async () => {
-          await attemptWrite(async () => { await svc.editTime(id, e.start); if (e.end) await svc.editEnd(id, e.end); });
-          await reload();
-        },
-      });
-      return;
-    }
-
-    // Repeating: split just this day off the series.
-    let copyId: string | null = null;
-    const ok = await attemptWrite(async () => {
-      await svc.addExdate(id, selected);
-      copyId = await svc.createEvent(e.title, {
-        date: selected, start: toStart, end: newEnd,
-        category: e.category || undefined, location: e.location || undefined,
-      });
-    });
+    let outcome: MoveOutcome | null = null;
+    const ok = await attemptWrite(async () => { outcome = await moveEventAdjust(id, toStart, selected, svc); });
     await reload();
-    if (!ok) return;
+    const o = outcome as MoveOutcome | null;
+    if (!ok || !o?.ok) return;
     showToast({
-      message: label + " · Just today",
+      message: o.repeating ? label + " · Just today" : label,
       actionLabel: "Undo",
-      onAction: async () => {
-        await attemptWrite(async () => {
-          if (copyId) await svc.deleteEvent(copyId);
-          await svc.removeExdate(id, selected);
-        });
-        await reload();
-      },
+      onAction: async () => { await attemptWrite(() => undoMoveEventAdjust(id, selected, o, svc)); await reload(); },
     });
   };
 
@@ -802,21 +778,16 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // instance just gets longer or shorter. The toast says the new length so
   // there is no guessing what happened.
   const onSetEnd = async (id: string, end: string) => {
-    const e = await svc.event(id);
-    if (!e) return;
-    const before = e.end;
-    const ok = await attemptWrite(() => svc.editEnd(id, end));
+    let r: ResizeOutcome | null = null;
+    const ok = await attemptWrite(async () => { r = await resizeEventAdjust(id, end, svc); });
     await reload();
-    if (!ok) return;
+    const res = r as ResizeOutcome | null;
+    if (!ok || !res?.ok) return;
+    const before = res.before;
     showToast({
-      message: durLabel(minutesBetween(e.start, end)),
+      message: durLabel(res.minutes ?? 0),
       actionLabel: "Undo",
-      onAction: async () => {
-        // A row that never had an end goes back to not having one, rather
-        // than to a default we invented on its behalf.
-        await attemptWrite(() => svc.editEnd(id, before ?? ""));
-        await reload();
-      },
+      onAction: async () => { await attemptWrite(() => undoResizeEventAdjust(id, before, svc)); await reload(); },
     });
   };
 
@@ -829,26 +800,24 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // SKIP JUST THIS ONE: a repeating thing you are not doing today should not
   // need deleting or an editor visit. The series never notices.
   const onSkipToday = async (id: string) => {
-    const e = await svc.event(id);
-    if (!e) return;
-    const ok = await attemptWrite(() => svc.addExdate(id, selected));
+    const ok = await attemptWrite(() => skipEventTodayAdjust(id, selected, svc));
     await reload();
     if (!ok) return;
     showToast({
       message: "Skipped today",
       actionLabel: "Undo",
-      onAction: async () => { await attemptWrite(() => svc.removeExdate(id, selected)); await reload(); },
+      onAction: async () => { await attemptWrite(() => undoSkipEventTodayAdjust(id, selected, svc)); await reload(); },
     });
   };
 
   // Swipe: push one event to tomorrow, same time.
   const onPushTomorrow = async (id: string) => {
-    const e = await svc.event(id);
-    if (!e) return;
-    const ok = await attemptWrite(() => svc.moveDay(id, addDays(e.date, 1)));
+    let fromDate: string | undefined;
+    const ok = await attemptWrite(async () => { const r = await pushEventTomorrowAdjust(id, svc); fromDate = r.fromDate; });
     await reload();
-    if (!ok) return;
-    showToast({ message: "Moved to tomorrow", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => svc.moveDay(id, e.date)); await reload(); } });
+    if (!ok || !fromDate) return;
+    const from = fromDate;
+    showToast({ message: "Moved to tomorrow", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => undoPushEventTomorrowAdjust(id, from, svc)); await reload(); } });
   };
 
   // Running Late: one tap shifts everything left in today as a unit. Recurring
