@@ -63,6 +63,52 @@ export function draftIsStale(d: DayDraft, nowMin: number): boolean {
   return d.blocks.some((b) => toM(b.start) < nowMin);
 }
 
+// A PROPOSAL PROVES ITSELF BEFORE IT RENDERS (Dave 2026-08-29, the Schedule
+// audit; same law the notices learned in SESSION_2026_08_29 Wave 1).
+//
+// The draft is cut once at day-open and deliberately not redrafted intra-day
+// ("candidate churn must not redraft an undecided card out from under the
+// user"), which is right, and it leaves a hole: the day CHANGES under the
+// draft. Dave's screenshot had "Brainstorm for app design company" committed
+// at 1:54 PM (a Start Fifteen block, sourceTaskId set) AND still proposed at
+// 5:00 PM by the standing draft. Two rows, one task, one screen.
+//
+// Accepting would have been worse than the duplicate. The 1:54 block passes
+// isPlanEvent(), so commitPlan's supersede sweep would DELETE the block he
+// was working inside and reschedule the same task for 5:00. Work vanishing
+// on accept is the same failure family as the sweep card's destructive
+// Dismiss, and the cure is the same checkpoint shape as liveMoved(): filter
+// the STORED blocks against LIVE state at render time and at accept time,
+// and never trust the cache to still be true.
+//
+// The stored draft itself is not rewritten. It is the user's undecided card,
+// and this is a view of it, which also means a mistaken event deletion
+// brings the proposal straight back.
+//
+// Three reasons a block is no longer live:
+//   - its task already has a committed event on this day (sourceTaskId
+//     match): the day already answered it, through Start or any commit door;
+//   - its task is done: proposing finished work is a notice lying;
+//   - its task is gone: never place a phantom (seedFrom's own rule).
+// The task checks only run when the caller actually has tasks loaded; an
+// empty list means "unknown", and dropping every block because a list had
+// not arrived yet would be this fix introducing the flicker it exists to
+// prevent.
+export function liveBlocks(
+  blocks: PlanBlock[],
+  dayEvents: readonly { data: { sourceTaskId?: string } }[],
+  tasks: readonly { id: string; data: { done: boolean } }[],
+): PlanBlock[] {
+  const answered = new Set(dayEvents.map((e) => e.data.sourceTaskId).filter(Boolean));
+  const byId = new Map(tasks.map((t) => [t.id, t.data.done]));
+  return blocks.filter((b) => {
+    if (answered.has(b.taskId)) return false;
+    if (byId.size === 0) return true; // tasks not loaded: only the event check
+    const done = byId.get(b.taskId);
+    return done === false; // gone (undefined) or done (true) both drop
+  });
+}
+
 // THE PLAN ALREADY ANSWERED IT (Dave 2026-08-22). His screenshot had
 // "Finish Jarvis Visuals" placed at 12:00 PM by the drafted day AND
 // headlining Heads Up as "Slid 3d · Break It Down": the same task twice on

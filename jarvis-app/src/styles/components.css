@@ -2280,13 +2280,28 @@ button {
    this app already uses for "proposed, not committed" on the blend rows, and
    it sits inset from the committed rows either side so the eye reads it as a
    space rather than an item. */
-.sched-gap { width: 100%; text-align: left; background: rgba(255,43,60,0.05); border: 0;
-  font-family: var(--f); border: 1px dashed var(--accent);
+/* SCHEDULE AUDIT 2026-08-29, THE GAPS GO OFF THE ALARM CHANNEL. These rows
+   wore the full accent kit: red-tinted fill, red dashed border, red plus,
+   red title -- on EVERY open slot, so Dave's day view showed two to four
+   red boxes announcing the calmest fact on the page (nothing is here).
+   Beside Accept the Day, the count line, and Plan My Day, red had stopped
+   meaning anything on this screen, which is the failure L1 and the red
+   diet exist to prevent.
+   The SHAPE was right and stays: dashed border, inset, its own fill --
+   "proposed, not committed", an invitation distinct in kind from the
+   committed rows around it. Only the colour leaves. The dashes carry the
+   invitation; the plus stays tinted as the row's single small verb mark,
+   the same weight a .row-act bare action gets, so "tappable" survives the
+   diet without the whole box shouting. */
+.sched-gap { width: 100%; text-align: left; background: var(--press-1); border: 0;
+  /* --tx-4, not --card-bd: the card hairline is 0.07 alpha in light theme
+     and a dashed line drawn in it disappears, which would trade "shouts"
+     for "invisible". --tx-4 is 0.30 alpha in both themes: quiet, present. */
+  font-family: var(--f); border: 1px dashed var(--tx-4);
   border-radius: var(--r-md); margin: var(--s-1h) var(--s-4); width: auto;
   display: flex; gap: var(--s-3); align-items: center; }
-[data-theme="light"] .sched-gap { background: rgba(218,0,18,0.045); }
 .sched-gap .sched-gap-title { display: flex; align-items: baseline; gap: var(--s-1h);
-  color: var(--accent-tx); font-weight: var(--w-semi); flex-wrap: wrap; }
+  color: var(--tx-2); font-weight: var(--w-semi); flex-wrap: wrap; }
 /* The window it covers, riding the title now that the second line is gone. */
 .sched-gap-win { font-size: var(--t-meta); font-weight: var(--w-regular); color: var(--tx-3); }
 .sched-open-plus { font-size: var(--t-h3); line-height: 1; font-weight: var(--w-bold); color: var(--accent-tx); }
@@ -2533,6 +2548,16 @@ button {
    Ruled Out. Scoped to .grp so category kicker eyebrows keep their colors. */
 .grp .eyebrow { display: flex; align-items: baseline; gap: 9px; color: var(--accent-chrome); letter-spacing: 0.14em; }
 .grp .eyebrow::after { content: ""; flex: 1; border-top: 1px dotted rgba(255, 43, 60, 0.35); align-self: center; }
+/* SCHEDULE AUDIT 2026-08-29: the rule above is for detail-page group labels
+   (Decided, Because, Details...) and its own comment says it is "scoped to
+   .grp so category kicker eyebrows keep their colors". The scoping has a
+   hole: SchedulePage wraps its plan head in a .grp too, so the day's COUNT
+   ("1 Event · 5 Proposed") was rendering in accent red with the dotted
+   rule armed. A count of events wearing the alarm colour is the exact shape
+   L1 bans -- red announcing a status -- and it was never chosen, only
+   inherited. Same collateral family as the Music capsule note above. */
+.grp .plan-head > .eyebrow { color: var(--tx-3); letter-spacing: var(--track-eyebrow); }
+.grp .plan-head > .eyebrow::after { content: none; }
 /* Sheets keep their quiet labels: a bottom sheet is a form, not a page. */
 .sheet-scrim .grp .eyebrow { color: var(--tx-3); letter-spacing: var(--track-caps); }
 .sheet-scrim .grp .eyebrow::after { content: none; }

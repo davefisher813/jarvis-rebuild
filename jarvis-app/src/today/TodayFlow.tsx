@@ -92,7 +92,7 @@ import { scheduleTask, breakDownTask as splitIntoSteps, undoBreakdown, splitLine
 import { identityToText } from "../ai/context";
 import { useAIContext } from "../ai/useAIContext";
 import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
-import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, plannedTaskIds, acceptInto, seedFrom, editDraft, type DayDraft } from "../dayloop/dayLoop";
+import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, plannedTaskIds, acceptInto, seedFrom, editDraft, liveBlocks, type DayDraft } from "../dayloop/dayLoop";
 import { madeBy } from "../shared/provenance";
 import { RowIcon, StatTiles } from "../shared/anatomy";
 import { effectiveLevel } from "../ai/aiGate";
@@ -1175,16 +1175,31 @@ export default function TodayFlow({
     // prior plan event on this day before writing. This card was the second
     // duplicate machine: it committed a cached draft with no check against
     // what the sheet had already planned.
+    // SCHEDULE AUDIT 2026-08-29: committed from the LIVE view, recomputed
+    // here against current state rather than closed over from the render.
+    // Without this, accepting after a Start Fifteen block would hand
+    // commitPlan the already-answered task, whose supersede sweep then
+    // DELETES the committed block mid-work and reschedules it later: work
+    // vanishing on the exact tap that was supposed to lock the day in.
+    const live = liveBlocks(dayDraft.blocks, todayEvents, taskItems);
+    if (live.length === 0) {
+      // Every block got answered some other way while the card stood. The
+      // day is already what the card proposed; there is nothing to write.
+      const done = { ...dayDraft, dismissed: true };
+      writeDraft(done);
+      setDayDraft(done);
+      return;
+    }
     let ids: string[] = [];
     const ok = await attemptWrite(async () => {
-      ids = (await schedule.commitPlan(today, dayDraft.blocks.map((b) => ({
+      ids = (await schedule.commitPlan(today, live.map((b) => ({
         taskId: b.taskId, text: b.text, category: b.category, start: b.start, end: b.end,
         // Accept the Day IS committing a day plan (audit 2026-08-25): picks
         // ride the one event door in the card's own order.
-      })), madeBy("plan"), { picks: dayDraft.blocks.map((b) => b.taskId) })).created;
+      })), madeBy("plan"), { picks: live.map((b) => b.taskId) })).created;
     });
     if (!ok) return;
-    const next = { ...dayDraft, accepted: true, eventIds: ids };
+    const next = { ...dayDraft, blocks: live, accepted: true, eventIds: ids };
     writeDraft(next);
     setDayDraft(next);
     await reload();
@@ -1537,10 +1552,18 @@ export default function TodayFlow({
   // drafted card was the wrong half to keep. The proposal is penciled into
   // Your Day among the real rows now (see ProposedRow); what survives here
   // is the one decision it asks for, drawn under the day.
-  const draftStanding = !evening && dayDraft && !dayDraft.accepted && !dayDraft.dismissed && dayDraft.blocks.length > 0;
+  // SCHEDULE AUDIT 2026-08-29: the card renders and commits the LIVE view of
+  // its blocks, not the cache. A task the day already answered (a committed
+  // event carries its sourceTaskId -- Start Fifteen, a sheet commit on the
+  // Schedule tab), or that is done or gone since the draft was cut, drops
+  // here. Same checkpoint the Schedule tab uses, so the two surfaces cannot
+  // tell different stories about one draft. See liveBlocks() in dayLoop.
+  const liveDraftBlocks = !evening && dayDraft && !dayDraft.accepted && !dayDraft.dismissed
+    ? liveBlocks(dayDraft.blocks, todayEvents, taskItems) : [];
+  const draftStanding = dayDraft !== null && liveDraftBlocks.length > 0;
 
   const proposedDay = draftStanding ? {
-    blocks: dayDraft.blocks,
+    blocks: liveDraftBlocks,
     openId: tuning,
     onToggle: (id: string) => setTuning((t) => (t === id ? null : id)),
     onDuration: (id: string, minutes: number) => applyEdit({ minutes: { [id]: minutes } }),
@@ -1571,7 +1594,14 @@ export default function TodayFlow({
           same sheet on one screen. */}
       <div className="day-foot">
         <button className="btn btn-primary btn-sm" onClick={() => void acceptDraft()}>Accept the Day</button>
-        <button className="btn-sm" onClick={dismissDraft}>Not Today</button>
+        {/* SCHEDULE AUDIT 2026-08-29: bare .btn-sm is press-3 with
+          `color: var(--tint)` -- red TEXT -- and this one sits directly
+          beside the red-filled Accept. Two reds of equal weight arguing
+          about which one you meant, the same bug Just This One had on
+          Tasks. btn-secondary is the identical pill with neutral text; the
+          .btn-sm:not(.btn-secondary) guard in components.css exists
+          precisely so this class combination keeps the small sizing. */}
+        <button className="btn btn-sm btn-secondary" onClick={dismissDraft}>Not Today</button>
       </div>
     </>
   ) : null;

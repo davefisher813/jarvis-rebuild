@@ -24,7 +24,7 @@ import { showToast } from "../shared/toast";
 import { catColor } from "../shared/categories";
 import { attemptWrite } from "../shared/guard";
 import PlanDaySheet from "./screens/PlanDaySheet";
-import { readDraft, writeDraft, acceptInto, seedFrom, editDraft, plannedTaskIds as draftClaims } from "../dayloop/dayLoop";
+import { readDraft, writeDraft, acceptInto, seedFrom, editDraft, liveBlocks, plannedTaskIds as draftClaims } from "../dayloop/dayLoop";
 import { aiPlanDay } from "./planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, splitProtectedRanges, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "./energy";
@@ -88,7 +88,13 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // so a tap opens a short form instead of leaving the screen.
   const [blockSheet, setBlockSheet] = useState<{ id: string; initial: BlockDraft } | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [mode, setMode] = useState<"day" | "week" | "month" | "repeats">("month");
+  // SCHEDULE AUDIT 2026-08-29: opens on DAY, not month. The tab's whole
+  // day machinery -- the timeline, gaps, proposals, Accept, scroll-to-now
+  // (which is day-mode-gated) -- answers "what is my day", and the month
+  // grid answers "what is my month", which is the browsing question, not
+  // the landing one. Landing on month meant the most-used view was always
+  // one extra tap away and the scroll-to-next-event never fired on arrival.
+  const [mode, setMode] = useState<"day" | "week" | "month" | "repeats">("day");
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
   const tasksSvc = useTasks();
   const [taskItems, setTaskItems] = useState<TaskItem[]>([]);
@@ -232,6 +238,12 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const standingDraft = proposalDraft && proposalDraft.date === selected
     && !proposalDraft.accepted && !proposalDraft.dismissed && proposalDraft.blocks.length > 0
     ? proposalDraft : null;
+  // SCHEDULE AUDIT 2026-08-29: the live view of the standing draft. Blocks
+  // whose task the day has already answered (a committed event with its
+  // sourceTaskId -- a Start Fifteen block, a sheet commit), or whose task is
+  // done or gone, do not render and do not commit. See liveBlocks() for why
+  // the STORED draft is left alone.
+  const liveDraftBlocks = standingDraft ? liveBlocks(standingDraft.blocks, dayEvents, taskItems) : [];
 
   const applyProposalEdit = (op: { minutes?: Record<string, number>; drop?: string; add?: string }) => {
     setProposalDraft((cur) => {
@@ -274,25 +286,25 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // guard UpNextFlow uses on its completion path, for the same reason.
   const accepting = useRef(false);
   const acceptProposal = async () => {
-    if (!standingDraft || accepting.current) return;
+    if (!standingDraft || liveDraftBlocks.length === 0 || accepting.current) return;
     accepting.current = true;
     try {
     let ids: string[] = [];
     const ok = await attemptWrite(async () => {
-      ids = (await svc.commitPlan(selected, standingDraft.blocks.map((b) => ({
+      ids = (await svc.commitPlan(selected, liveDraftBlocks.map((b) => ({
         taskId: b.taskId, text: b.text, category: b.category, start: b.start, end: b.end,
         // Accepting the card IS committing a day plan: the picks ride the
         // same event door as a hand-built one (audit 2026-08-25). Block
         // order is the card's own order.
-      })), undefined, { picks: standingDraft.blocks.map((b) => b.taskId) })).created;
+      })), undefined, { picks: liveDraftBlocks.map((b) => b.taskId) })).created;
     });
     if (!ok) return;
-    const resolved = acceptInto(readDraft(selected), selected, standingDraft.blocks, ids);
+    const resolved = acceptInto(readDraft(selected), selected, liveDraftBlocks, ids);
     if (resolved) { writeDraft(resolved); setProposalDraft(resolved); }
     setTuning(null);
     await reload();
     showToast({
-      message: `Planned ${standingDraft.blocks.length} ${standingDraft.blocks.length === 1 ? "block" : "blocks"}`,
+      message: `Planned ${liveDraftBlocks.length} ${liveDraftBlocks.length === 1 ? "block" : "blocks"}`,
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(async () => { for (const id of ids) await svc.deleteEvent(id); }); await reload(); },
     });
@@ -309,15 +321,22 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     setTuning(null);
   };
 
-  const proposalFooter = standingDraft ? (
+  const proposalFooter = standingDraft && liveDraftBlocks.length > 0 ? (
     <div className="day-foot">
       <button className="btn btn-primary btn-sm" onClick={() => void acceptProposal()}>Accept the Day</button>
-      <button className="btn-sm" onClick={dismissProposal}>Not Today</button>
+      {/* SCHEDULE AUDIT 2026-08-29: bare .btn-sm is press-3 with
+          `color: var(--tint)` -- red TEXT -- and this one sits directly
+          beside the red-filled Accept. Two reds of equal weight arguing
+          about which one you meant, the same bug Just This One had on
+          Tasks. btn-secondary is the identical pill with neutral text; the
+          .btn-sm:not(.btn-secondary) guard in components.css exists
+          precisely so this class combination keeps the small sizing. */}
+        <button className="btn btn-sm btn-secondary" onClick={dismissProposal}>Not Today</button>
     </div>
   ) : null;
 
-  const standingProposal = standingDraft ? {
-    blocks: standingDraft.blocks,
+  const standingProposal = standingDraft && liveDraftBlocks.length > 0 ? {
+    blocks: liveDraftBlocks,
     openId: tuning,
     onToggle: (id: string) => setTuning((t) => (t === id ? null : id)),
     onDuration: (id: string, minutes: number) => applyProposalEdit({ minutes: { [id]: minutes } }),

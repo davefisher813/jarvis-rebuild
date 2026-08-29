@@ -2542,3 +2542,89 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
     expect(categoriesOf({ category: "health", extraCategories: ["health", "money"] })).toEqual(["health", "money"]);
   });
 });
+
+// LAW 8: SCHEDULE AUDIT 2026-08-29. A proposal proves itself before it
+// renders and before it commits -- the day-plan draft joins the law the
+// notices learned in Wave 1.
+describe("LAW 8: a proposal proves itself before it renders, and Accept never deletes work", () => {
+  // THE SCREENSHOT: "Brainstorm for app design company" committed at
+  // 1:54 PM (a Start Fifteen block, sourceTaskId set) AND still proposed at
+  // 5:00 PM by the standing draft. The draft is deliberately not redrafted
+  // intra-day, so the fix is a render/accept-time filter, not a redraft.
+  it("liveBlocks drops a block whose task the day already answered", async () => {
+    const { liveBlocks } = await import("../dayloop/dayLoop");
+    const blocks = [
+      { taskId: "brainstorm", text: "Brainstorm", category: "work", start: "17:00", end: "17:45" },
+      { taskId: "closet", text: "Clean out closet", category: "personal", start: "14:00", end: "14:45" },
+    ];
+    const dayEvents = [{ data: { sourceTaskId: "brainstorm" } }]; // the 1:54 Start block
+    const live = liveBlocks(blocks, dayEvents, []);
+    expect(live.map((b) => b.taskId)).toEqual(["closet"]);
+  });
+
+  it("liveBlocks drops done and deleted tasks, but only once tasks have loaded", async () => {
+    const { liveBlocks } = await import("../dayloop/dayLoop");
+    const blocks = [
+      { taskId: "a", text: "A", category: "", start: "10:00", end: "10:45" },
+      { taskId: "b", text: "B", category: "", start: "11:00", end: "11:45" },
+      { taskId: "gone", text: "G", category: "", start: "12:00", end: "12:45" },
+    ];
+    const tasks = [
+      { id: "a", data: { done: false } },
+      { id: "b", data: { done: true } },
+    ];
+    expect(liveBlocks(blocks, [], tasks).map((b) => b.taskId)).toEqual(["a"]);
+    // Tasks not loaded yet is "unknown", not "everything is deleted": an
+    // empty list must not blank the card during the first paint.
+    expect(liveBlocks(blocks, [], []).map((b) => b.taskId)).toEqual(["a", "b", "gone"]);
+  });
+
+  // Both surfaces go through the checkpoint: render AND accept, Schedule AND
+  // Today. The accept half is the dangerous one -- commitPlan's supersede
+  // sweep deletes a task's existing plan event (isPlanEvent is true for a
+  // Start Fifteen block), so committing a stale draft deletes real work.
+  it("both flows render and commit the live view, never the raw cache", () => {
+    const sched = read(join(SRC, "schedule/ScheduleFlow.tsx"));
+    expect(sched, "Schedule renders the filtered view").toMatch(/blocks: liveDraftBlocks/);
+    expect(sched, "Schedule commits the filtered view").toMatch(/svc\.commitPlan\(selected, liveDraftBlocks\.map/);
+    expect(sched, "and the footer stands down when nothing is live")
+      .toMatch(/standingDraft && liveDraftBlocks\.length > 0 \? \(/);
+
+    const today = read(join(SRC, "today/TodayFlow.tsx"));
+    expect(today, "Today renders the filtered view").toMatch(/blocks: liveDraftBlocks/);
+    expect(today, "Today recomputes live state at accept time, not from the render closure")
+      .toMatch(/const live = liveBlocks\(dayDraft\.blocks, todayEvents, taskItems\);/);
+    expect(today, "and commits exactly that").toMatch(/schedule\.commitPlan\(today, live\.map/);
+  });
+
+  // THE CHROME HALF OF THE AUDIT, pinned so it cannot quietly return.
+  it("Not Today is never accent text beside the red Accept fill", () => {
+    for (const f of ["schedule/ScheduleFlow.tsx", "today/TodayFlow.tsx"]) {
+      const src = read(join(SRC, f));
+      const notToday = [...src.matchAll(/className="([^"]*)"[^>]*>Not Today</g)].map((m) => m[1]!);
+      expect(notToday.length, f + " still offers Not Today").toBeGreaterThan(0);
+      for (const cls of notToday) {
+        expect(cls, f + ": bare .btn-sm is red text; the neutral variant is required beside a fill")
+          .toMatch(/btn-secondary/);
+      }
+    }
+  });
+
+  it("the day count does not wear the detail-page accent", () => {
+    expect(CSS, "the plan head opts back out of .grp's red label styling")
+      .toMatch(/\.grp \.plan-head > \.eyebrow \{ color: var\(--tx-3\)/);
+    expect(CSS, "and the dotted rule goes with it")
+      .toMatch(/\.grp \.plan-head > \.eyebrow::after \{ content: none; \}/);
+  });
+
+  it("an open gap is an invitation, not an alarm", () => {
+    const gap = /\.sched-gap \{[^}]*\}/.exec(CSS)?.[0] ?? "";
+    expect(gap, "no accent fill or border on empty time").not.toMatch(/--accent|255,43,60|218,0,18/);
+    expect(gap, "the dashed invitation shape survives the diet").toMatch(/dashed/);
+  });
+
+  it("Schedule opens on the day, where the action is", () => {
+    const sched = read(join(SRC, "schedule/ScheduleFlow.tsx"));
+    expect(sched).toMatch(/useState<"day" \| "week" \| "month" \| "repeats">\("day"\)/);
+  });
+});
