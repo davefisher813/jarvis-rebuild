@@ -112,6 +112,12 @@ export default function GoalDetailPage({
   // costs two taps and usually fills the goal immediately from work that
   // already exists.
   const empty = projects.length === 0 && !target && reach.taggedIds.length === 0;
+  // WAVE 4, DUPLICATE DOORS (2026-08-29). The page foot renders exactly one
+  // primary, and on an empty untagged goal that primary IS "Add a Project".
+  // Computed once, here, from the same three conditions the foot uses, so the
+  // two can never drift into showing the same door twice or none at all.
+  const bottomAddsProject =
+    !!onAchieve && goal.data.state !== "achieved" && !goal.data.dropped && empty && !canTag;
   // PICK 25 (Dave 2026-08-22): DECISIONS ATTACH TO THE GOAL. They already
   // could -- goals have been in the attach picker all along -- and the goal
   // page was the one place that never showed the result. The project page has
@@ -226,7 +232,14 @@ export default function GoalDetailPage({
             </div>
           );
         })}
-        <button className="row row-act" onClick={onAddProject}>Add Project</button>
+        {/* WAVE 4, DUPLICATE DOORS (2026-08-29). On an untagged empty goal
+            the foot of this card said "Add Project" while a filled
+            "Add a Project" sat at the bottom of the page calling the same
+            handler. The bottom one is the page's single primary move and is
+            impossible to miss; this row is the standing door for a goal that
+            already HAS projects, which is when the primary is not offering
+            the trip. */}
+        {!bottomAddsProject && <button className="row row-act" onClick={onAddProject}>Add Project</button>}
       </div></div>
 
       {/* ARCHITECTURE C, THE HALF THAT WAS MISSING (Dave 2026-08-22, pick C).

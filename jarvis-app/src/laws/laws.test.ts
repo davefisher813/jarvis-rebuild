@@ -2232,3 +2232,176 @@ describe("LAW: dismiss means only dismiss, and it expires", () => {
     expect(feed, "notification dismissals reset with the day").toMatch(/p\.day !== today/);
   });
 });
+
+// LAW 4: RED IS RATIONED, AND NOTHING IS RED BY DEFAULT (Dave 2026-08-29,
+// Wave 3 of the notice audit).
+//
+// L1 already says red is a verb, not a status, and B15 already says one
+// filled red per screen. Neither of them looks at the NOTICE TONE, which is
+// the one red on this app's most-visited surface that nothing was counting.
+//
+// Two holes, both found by reading NoticeCard rather than by walking a
+// screen:
+//
+// 1. THE FALLBACK WAS RED. `tone ?? "cat-fg-red"` meant a producer who
+//    forgot to pass a tone shipped an alarm. Every caller happened to pass
+//    one, so no screen was wrong -- which is precisely why it survived. The
+//    next notice anyone adds would have been red until Dave found it.
+//
+// 2. RED WAS FREE. Any producer could type it, and one had: the monthly
+//    report, a pleasant optional thing, wore the colour of a fire.
+//
+// So red on a notice is now an allowlist with a written reason, in the same
+// shape as the one-filled-red law's EXCLUSIVE map. Adding a red notice means
+// arguing for it here, in front of the other two, which is the point.
+describe("LAW 4: red is rationed, and nothing is red by default", () => {
+  it("NoticeCard's fallback tone is not red", () => {
+    const src = read(join(SRC, "today/NoticeCard.tsx"));
+    expect(src, "the fallback is named once, not typed three times")
+      .toMatch(/const DEFAULT_TONE = "cat-fg-(?!red)[a-z]+"/);
+    expect(src, "no tone fallback may be red").not.toMatch(/tone \?\? "cat-fg-red"/);
+  });
+
+  // Each entry is a render site allowed to be red, and why. The reason has
+  // to be checkable by reading the file.
+  const ALLOWED: Record<string, string> = {
+    "today/TodayFlow.tsx": "the failed-sweep card: an error, with Retry, that is red saying TAP ME (weight FAILING)",
+    "messages/home.ts": "deadlineNotice, gated on byRank(t.by, now) <= 1, so the deadline is TODAY and nothing else reaches it",
+  };
+
+  it("no notice is red unless this law says so, by name and reason", () => {
+    const bad: string[] = [];
+    for (const f of SOURCES) {
+      const name = rel(f);
+      if (ALLOWED[name]) continue;
+      read(f).split("\n").forEach((line, i) => {
+        if (/^\s*(\/\/|\*)/.test(line)) return; // a comment may name the sin
+        if (/tone\s*[=:]\s*["']cat-fg-red["']/.test(line)) bad.push(name + ":" + (i + 1));
+      });
+    }
+    expect(bad, "red on a notice needs an argument, not a keystroke").toEqual([]);
+  });
+
+  // A diet is a number. Two producers, and the third one has to displace a
+  // current holder rather than join them.
+  it("the whole app has at most two red notice producers", () => {
+    let n = 0;
+    for (const f of SOURCES) {
+      read(f).split("\n").forEach((line) => {
+        if (/^\s*(\/\/|\*)/.test(line)) return;
+        if (/tone\s*[=:]\s*["']cat-fg-red["']/.test(line)) n++;
+      });
+    }
+    expect(n, "if a third red is worth having, one of the two is not").toBeLessThanOrEqual(2);
+  });
+
+  // Red claims urgency, so a red notice may not also be the calm one. The
+  // failed sweep declares FAILING; anything red that declares a weight must
+  // declare that band.
+  it("a red notice that names a weight names the top band", () => {
+    const flow = read(join(SRC, "today/TodayFlow.tsx"));
+    const card = flow.slice(flow.indexOf('key="sweepfail"'));
+    const end = card.search(/\n\s*\/>/);
+    const props = card.slice(0, end);
+    expect(props, "the one red card in TodayFlow is the failure").toMatch(/tone="cat-fg-red"/);
+    expect(props, "and it carries FAILING").toMatch(/weight=\{FAILING\}/);
+  });
+});
+
+// LAW 5: ONE DOOR PER DESTINATION, PER SCREEN (Dave 2026-08-29, Wave 4 of
+// the notice audit: "the buttons don't add any real value for the most
+// part. There's no hierarchy").
+//
+// A duplicate door is two visible controls, rendered at the same time, that
+// call the same handler. It looks like generosity and costs like clutter:
+// the second control adds no capability, takes a real slot in the visual
+// hierarchy, and makes the eye ask "are these different?" every single time.
+// For an ADHD user, that question is the tax.
+//
+// The audit found eleven pairs. All eleven were fixed by GATING the weaker
+// door, never by deleting the handler, so the destination is always
+// reachable: it is reached from one place at a time instead of two.
+//
+// This test cannot see across files (TodayPage composing YourDay, the mail
+// band's head over its own foot), so those fixes are pinned by the props
+// that carry the signal, which IS checkable. Within a single file, the
+// duplicate-handler scan is real.
+describe("LAW 5: one door per destination, per screen", () => {
+  // WHAT THIS CANNOT DO, said out loud: a source scan cannot evaluate
+  // branch conditions, so two calls to one handler in a file are only a
+  // finding if nothing gates them apart. The gate is the thing being
+  // asserted, so the check is that a gate EXISTS beside each pair, which is
+  // exactly what the eleven fixes added.
+  const PAIRS: { file: string; handler: RegExp; gate: RegExp; why: string }[] = [
+    {
+      file: "messages/MessagesFlow.tsx",
+      handler: /setWaitDeck\(0\)/g,
+      gate: /triageState !== "ready"|WAVE 4/,
+      why: "One at a Time was a launcher row AND a head link",
+    },
+    {
+      file: "today/TodayPage.tsx",
+      handler: /onClick=\{onSeeAllTasks\}/g,
+      gate: /foldedTasks <= 0/,
+      why: "the evening head See All sat above a fold receipt doing the same thing",
+    },
+    {
+      file: "upnext/UpNextFlow.tsx",
+      handler: /onClick=\{startWins\}/g,
+      gate: /!offerWins &&/,
+      why: "the Quick Wins chip and the Deal Five block button",
+    },
+  ];
+
+  it("every known duplicate pair still has the gate that separated it", () => {
+    for (const p of PAIRS) {
+      const src = read(join(SRC, p.file));
+      const n = [...src.matchAll(p.handler)].length;
+      if (n < 2) continue; // one door left: the pair was collapsed outright
+      expect(src, `${p.file}: ${p.why}`).toMatch(p.gate);
+    }
+  });
+
+  // The cross-file fixes each thread ONE prop whose only job is to tell the
+  // outer component that the inner one is already showing the door. Delete
+  // the prop and the duplicate silently returns, so the props are the law.
+  it("the cross-file gates are still wired end to end", () => {
+    const page = read(join(SRC, "today/TodayPage.tsx"));
+    const yourDay = read(join(SRC, "today/YourDay.tsx"));
+    const flow = read(join(SRC, "today/TodayFlow.tsx"));
+    const mail = read(join(SRC, "today/MailNotices.tsx"));
+
+    // Plan Tomorrow: the Tomorrow section head owns it when there is a
+    // Tomorrow section to head.
+    expect(yourDay, "YourDay accepts tomorrowShown").toMatch(/tomorrowShown\?: boolean/);
+    expect(yourDay, "and uses it to stand down").toMatch(/onPlanTomorrow && !tomorrowShown/);
+    expect(page, "TodayPage supplies it from the section it actually renders")
+      .toMatch(/tomorrowShown=\{!!tomorrowSection\}/);
+
+    // Open Inbox: the band's foot receipt owns it when there is a residual.
+    expect(mail, "MailNotices reports whether it drew a residual").toMatch(/onResidualChange/);
+    expect(flow, "TodayFlow listens").toMatch(/onResidualChange=\{setMailResidual\}/);
+    expect(flow, "and withholds the head's door while the foot has one")
+      .toMatch(/!mailEmpty && !mailResidual/);
+  });
+
+  // The overdue pill was not a duplicate handler but a duplicate
+  // DESTINATION: two pills, two numbers, one unfiltered list. Fixed by
+  // sending it somewhere that matches what it counts.
+  it("the due and overdue pills land in different places", () => {
+    const page = read(join(SRC, "today/TodayPage.tsx"));
+    expect(page, "overdue has its own destination").toMatch(/onSeeAllOverdue \?\? onSeeAllTasks/);
+    const shell = read(join(SRC, "shell/AppShell.tsx"));
+    expect(shell, "and the shell knows the filter to land on")
+      .toMatch(/setTaskFilterIntent\("overdue"\)/);
+  });
+
+  // A label may only promise what its handler performs (catalog W3). The
+  // repeats empty state said "New Repeating Event" over plain onNew.
+  it("no button offers a repeating event from the plain new-event handler", () => {
+    const sched = read(join(SRC, "schedule/screens/SchedulePage.tsx"));
+    const bad = sched.split("\n").filter((l) => !/^\s*(\/\/|\*|\{?\/\*)/.test(l)
+      && /New Repeating Event/.test(l) && /onClick=\{onNew\}/.test(l));
+    expect(bad, "a second door with a false sign is worse than a second door").toEqual([]);
+  });
+});

@@ -316,7 +316,11 @@ export default function SchedulePage({
           // pressed a button elsewhere. The button is here now.
           <div className="empty-state"><div className="empty-title">Nothing Repeats Yet</div>
             <div className="empty-sub">Set one once and it handles itself</div>
-            {onNew && <button className="btn btn-secondary" onClick={onNew}>New Repeating Event</button>}</div>
+            {/* WAVE 4, DUPLICATE DOORS (2026-08-29). This called the same
+                onNew as the bar's "New Event" three rows up, and its label
+                promised a repeating event that onNew does not create. A
+                second door is bad; a second door with a false sign on it is
+                worse, so this one is gone and the bar keeps the job. */}</div>
         ) : (
           <div className="pad-x"><div className="card">
             {repeats.map((r) => (

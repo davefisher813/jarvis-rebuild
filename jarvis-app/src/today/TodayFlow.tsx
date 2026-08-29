@@ -137,6 +137,7 @@ export default function TodayFlow({
   onGoSchedule,
   onGoTasks,
   onGoTasksAll,
+  onGoTasksOverdue,
   onGoEmail,
   onSearch,
   onProfile,
@@ -147,6 +148,11 @@ export default function TodayFlow({
   onGoSchedule: () => void;
   onGoTasks: () => void;
   onGoTasksAll?: () => void;
+  // WAVE 4 (2026-08-29): the red overdue pill and the blue due pill both
+  // landed on the same unfiltered Tasks tab, so two pills carrying two
+  // different numbers were one door drawn twice. Overdue now lands on
+  // overdue.
+  onGoTasksOverdue?: () => void;
   // Picks 3 and 5: the home page can now send him to a goal. With an id it
   // opens that goal; without one it lands on the Bigger Picture itself.
   onGoBigger?: (goalId?: string) => void;
@@ -193,6 +199,10 @@ export default function TodayFlow({
   // Whether the Email band has anything to show. Reported BY MailNotices, so
   // the head and the content can never disagree about being empty.
   const [mailEmpty, setMailEmpty] = useState(true);
+  // WAVE 4: the mail band's foot receipt already opens the inbox and names
+  // what is left there. When it is showing, the head's Open Inbox is a
+  // second door to the same room, so the head stands down.
+  const [mailResidual, setMailResidual] = useState(false);
   const reflowGuard = useRef(0);
 
   // Group B (item 10): the Now line self-updates on a minute tick.
@@ -2117,7 +2127,14 @@ export default function TodayFlow({
       key="report"
       weight={WAITING}
       icon={<TargetGlyph />}
-      tone="cat-fg-red"
+      // WAVE 3, THE RED DIET (2026-08-29). This was red. A monthly report
+      // being ready is not late, not broken, and not destructive: it is a
+      // nice thing that arrived, offered in the colour the app reserves for
+      // "something is on fire". Red on a pleasant optional thing is how red
+      // stops meaning anything, which is the whole failure mode L1 was
+      // written against. Purple is the app's reflective tone and this is the
+      // reflective object.
+      tone="cat-fg-purple"
       title={`Your ${monthTitle(reportMonth)} is ready`}
       sub="Two minutes"
       action={{ label: "Read It", onClick: () => setReportOpen(true) }}
@@ -2164,7 +2181,7 @@ export default function TodayFlow({
         const t = taskItems.find((x) => x.id === id);
         if (t) void startFifteen(t);
       }}
-      onSeeAllMail={!mailEmpty && onGoEmail ? () => onGoEmail() : undefined}
+      onSeeAllMail={!mailEmpty && !mailResidual && onGoEmail ? () => onGoEmail() : undefined}
       mailEmpty={mailEmpty}
       mail={
         <MailNotices
@@ -2181,6 +2198,7 @@ export default function TodayFlow({
           onOpenDraft={onGoEmail ? (id) => onGoEmail(undefined, id) : undefined}
           onOpenEmail={onGoEmail ? () => onGoEmail() : undefined}
           onEmptyChange={setMailEmpty}
+          onResidualChange={setMailResidual}
         />
       }
       billLine={billsLine(taskItems, today) ?? undefined}
@@ -2228,6 +2246,7 @@ export default function TodayFlow({
       onProfile={onProfile}
       onSeeAllSchedule={onGoSchedule}
       onSeeAllTasks={onGoTasks}
+      onSeeAllOverdue={onGoTasksOverdue}
       onGoBigger={onGoBigger ? () => onGoBigger() : undefined}
       movedLine={movedLine(movedGoals)}
       avatar={initials}

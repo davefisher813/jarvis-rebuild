@@ -2979,7 +2979,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 {/* E6: one decision on screen, nothing else. Not a batch
                     verb, which this head is forbidden (a batch here would
                     send real emails); each card still takes its own tap. */}
-                {owed.length > 1 && <button className="see-all" onClick={() => setWaitDeck(0)}>One at a Time</button>}
+                {/* WAVE 4, DUPLICATE DOORS (2026-08-29). "One at a Time"
+                    used to sit here AND as a launcher row a few hundred
+                    lines up, same label, same setWaitDeck(0), same gate
+                    (owed.length > 1 both times, computed from the identical
+                    filter). Two buttons, one destination, one screen. The
+                    launcher wins because it carries the count and the oldest
+                    wait, which is the fact that decides whether you start;
+                    this one carried nothing but its own name. */}
               </div>
               {/* E5: banded by age, because age is this section's organizing
                   fact, and the label on the band is what lets the number
@@ -3283,7 +3290,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {(Object.keys(rules).length > 0 || muted.length > 0) && (
             <button className="quiet-action" onClick={() => setView("rules")}>Standing Rules</button>
           )}
-          {unmutedRows.length > 0 && (
+          {/* WAVE 4, DUPLICATE DOORS (2026-08-29). The Mission Deck's own
+              note says "the tiny links are gone", and this one never went:
+              a Clean Out foot pill sat under a Clean Out mode card carrying
+              the same handler, on every render where triage was ready.
+              It is not deleted, because the deck card is gated on
+              triageState === "ready" and this is the only door before then.
+              It is now the FALLBACK it was supposed to become. */}
+          {unmutedRows.length > 0 && triageState !== "ready" && (
             <button className="quiet-action" onClick={() => { setPurgePicks(null); setView("purge"); }}>Clean Out</button>
           )}
         </div>

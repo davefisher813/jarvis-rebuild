@@ -276,6 +276,7 @@ export default function YourDay({
   onSeeAll,
   onPlanDay,
   onPlanTomorrow,
+  tomorrowShown = false,
   onRunningLate,
   onFocus,
   onOpenEvent,
@@ -305,6 +306,10 @@ export default function YourDay({
   onSeeAll: () => void;
   onPlanDay?: () => void;
   onPlanTomorrow?: () => void;
+  // WAVE 4 (2026-08-29): true when the page is already rendering a Tomorrow
+  // section with its own Plan It pill. This component cannot see that, so it
+  // is told. Defaults false, which is the old behaviour.
+  tomorrowShown?: boolean;
   onRunningLate?: (mins: number) => void;
   onFocus?: () => void;
   onOpenEvent?: (id: string) => void;
@@ -436,7 +441,16 @@ export default function YourDay({
       {(onPlanTomorrow || hasFuture) && (
         <div className="plan-cta-row plan-cta-pair">
           {/* Evening: plan the day that still has all its hours (2026-08-09). */}
-          {onPlanTomorrow && <button className="plan-cta plan-cta-block plan-cta-ghost" onClick={onPlanTomorrow}><CalIcon />Plan Tomorrow</button>}
+          {/* WAVE 4, DUPLICATE DOORS (2026-08-29). onPlanTomorrow is
+              evening-only, and in the evening TodayPage also renders a
+              "Plan It" pill on the Tomorrow section head. Two buttons, one
+              handler, one screen. `tomorrowShown` is the page telling this
+              component that the better-placed door is already on screen:
+              a button sitting on top of tomorrow's own events beats one in
+              a CTA row three sections away. When tomorrow is empty the
+              head's door is gone and this one is the only way through, so
+              it stays. */}
+          {onPlanTomorrow && !tomorrowShown && <button className="plan-cta plan-cta-block plan-cta-ghost" onClick={onPlanTomorrow}><CalIcon />Plan Tomorrow</button>}
           {hasFuture && <button className={"plan-cta plan-cta-block plan-cta-ghost" + (lateOpen ? " late-armed" : "")} onClick={() => setLateOpen((v) => !v)}>Running Late?</button>}
         </div>
       )}

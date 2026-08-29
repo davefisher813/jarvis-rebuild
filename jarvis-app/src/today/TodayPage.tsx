@@ -140,6 +140,7 @@ export default function TodayPage({
   onEditRoutine,
   onOpenBlock,
   onSeeAllTasks,
+  onSeeAllOverdue,
   onGoBigger,
   movedLine,
   onStartTask,
@@ -230,6 +231,9 @@ export default function TodayPage({
   onRetimeBlock?: (id: string, startMin: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
   onSeeAllTasks: () => void;
+  // WAVE 4 (2026-08-29). Optional so the page still works without it; when
+  // absent the red pill falls back to the unfiltered tab it always had.
+  onSeeAllOverdue?: () => void;
   // Pick 5: the goal-aware pill lands on the Bigger Picture.
   onGoBigger?: () => void;
   // Pick 4: what today moved, already built by the flow. Absent most days.
@@ -280,7 +284,13 @@ export default function TodayPage({
         <RollingNumber value={summary.due} />&nbsp;due
       </span>
       {summary.overdue > 0 && (
-        <span className="day-pill dp-red" role="button" tabIndex={0} onClick={onSeeAllTasks}>
+        /* WAVE 4, DUPLICATE DOORS (2026-08-29). This pill and the blue one
+           beside it carried two different numbers to the identical
+           unfiltered Tasks tab: as CONTROLS they were one door drawn twice,
+           and tapping the number you were worried about showed you a list
+           that did not lead with it. The shell already threads a filter
+           intent; overdue now uses it. */
+        <span className="day-pill dp-red" role="button" tabIndex={0} onClick={onSeeAllOverdue ?? onSeeAllTasks}>
           <RollingNumber value={summary.overdue} />&nbsp;overdue
         </span>
       )}
@@ -369,7 +379,14 @@ export default function TodayPage({
   const foldedTasks = tasks.length - shownTasks.length;
   const tasksSection = tasks.length > 0 && (
     <>
-      <div className="sh2 sh2-quiet"><span className="t">{evening ? "Still Open" : "Today’s Tasks"}</span><button className="see-all pill-action" onClick={onSeeAllTasks}>See All</button></div>
+      {/* WAVE 4, DUPLICATE DOORS (2026-08-29). "See All" here and the fold
+          receipt seven rows below both called onSeeAllTasks, and the receipt
+          only exists in the evening, which is exactly when the head button
+          was also on screen. The receipt wins where they overlap because it
+          names the number it is hiding; the head keeps the job the rest of
+          the day, when nothing is folded. */}
+      <div className="sh2 sh2-quiet"><span className="t">{evening ? "Still Open" : "Today’s Tasks"}</span>
+        {foldedTasks <= 0 && <button className="see-all pill-action" onClick={onSeeAllTasks}>See All</button>}</div>
       <div>
         <div>
           {shownTasks.map((t) => (
@@ -608,6 +625,7 @@ export default function TodayPage({
         onSeeAll={onSeeAllSchedule}
         onPlanDay={onPlanDay}
         onPlanTomorrow={onPlanTomorrow}
+        tomorrowShown={!!tomorrowSection}
         onRunningLate={onRunningLate}
         onFocus={evening ? undefined : onUpNext}
         onOpenEvent={onOpenEvent}

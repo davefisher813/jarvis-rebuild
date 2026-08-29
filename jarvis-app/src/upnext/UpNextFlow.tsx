@@ -163,7 +163,13 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
         <div className="pad-x">
           <div className="chip-wrap">
             <div className="chip active" role="button" tabIndex={0}>Next</div>
-            <div className="chip" role="button" tabIndex={0} onClick={startWins}>Quick Wins</div>
+            {/* WAVE 4, DUPLICATE DOORS (2026-08-29). Once you have skipped
+                twice, a full-width "Deal Five Quick Ones Instead" appears
+                under the card calling this exact handler, and offerWins is a
+                strict subset of the state this chip renders in. The chip is
+                the standing door; while the block button is offering the
+                same trip with a reason attached, the chip steps back. */}
+            {!offerWins && <div className="chip" role="button" tabIndex={0} onClick={startWins}>Quick Wins</div>}
           </div>
           {/* Music Tier 1 (addendum item 5): the focus context's remembered
               link. One tap when remembered; a picker the first time. */}

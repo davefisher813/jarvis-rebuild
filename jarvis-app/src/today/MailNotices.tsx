@@ -45,6 +45,7 @@ export default function MailNotices({
   onOpenDraft,
   onOpenEmail,
   onEmptyChange,
+  onResidualChange,
   onDraft,
   onSend,
   onTakeMeeting,
@@ -66,6 +67,12 @@ export default function MailNotices({
   onOpenEmail?: () => void;
   // Told to the parent so the section head can disappear with the content.
   onEmptyChange?: (empty: boolean) => void;
+  // WAVE 4, DUPLICATE DOORS (2026-08-29). The residual line at the foot of
+  // this band is a button to the inbox, and so was "Open Inbox" on the band's
+  // head one component up -- byte-identical handlers, both on screen whenever
+  // the band had anything in it. The head cannot see this component's state,
+  // so it is reported, in the same shape as onEmptyChange.
+  onResidualChange?: (has: boolean) => void;
   // U1/U3: draft a reply or a nudge for this notice. Empty string means the
   // model gave us nothing usable, and the card says so rather than offering
   // a blank message to send over his name.
@@ -126,6 +133,7 @@ export default function MailNotices({
   // state while rendering is how a render loop starts.
   const isEmpty = notices.length === 0 && !residual;
   useEffect(() => { onEmptyChange?.(isEmpty); }, [isEmpty, onEmptyChange]);
+  useEffect(() => { onResidualChange?.(!!residual); }, [residual, onResidualChange]);
   const choices = snoozeChoices(nowHHMM);
 
   const canWrite = !!onDraft && !!onSend;

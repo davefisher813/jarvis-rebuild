@@ -23,6 +23,19 @@ import { Quiet, type Heat } from "./quiet";
 // Subs render through the quiet line: words whisper, data pops, heat only
 // where the producer says so.
 
+// THE DEFAULT TONE IS NOT RED (Dave 2026-08-29, the notice audit, Wave 3).
+//
+// This component fell back to `cat-fg-red` when a producer passed no tone,
+// which made ALARM the thing you got by forgetting. Every current caller
+// happens to pass a tone, so nothing on screen was wrong -- and that is
+// exactly the shape of a landmine: the next notice anybody adds is red until
+// somebody notices, and the person noticing is Dave, on his phone, being
+// told a pleasant thing in the colour of a fire.
+//
+// Slate is the fallback because it says "a notice" and nothing more. A
+// notice that wants to shout has to say so.
+const DEFAULT_TONE = "cat-fg-slate";
+
 export interface NoticeAction {
   label: string;
   onClick: () => void;
@@ -167,7 +180,7 @@ export default function NoticeCard({
       // 129px -> 85px, nothing truncated.
       <>
         <div className="notice-hl">
-          <div className={"hl-tile " + (tone ?? "cat-fg-red").replace("cat-fg-", "cat-bg-")}>{icon}</div>
+          <div className={"hl-tile " + (tone ?? DEFAULT_TONE).replace("cat-fg-", "cat-bg-")}>{icon}</div>
           <div className="row-grow"><div className="hl-title">{title}</div></div>
         </div>
         {((subNode && !subDropped) || action || alt || onOpen) && (
@@ -199,7 +212,7 @@ export default function NoticeCard({
         tabIndex={0}
         onClick={() => { if (foot || alt) setExpanded(true); else if (onOpen) onOpen(); }}
       >
-        <div className={"row-glyph notice-disc " + (tone ?? "cat-fg-red").replace("cat-fg-", "cat-bg-")}>{icon}</div>
+        <div className={"row-glyph notice-disc " + (tone ?? DEFAULT_TONE).replace("cat-fg-", "cat-bg-")}>{icon}</div>
         <div className="row-grow vrow-line">
           <span className="conn-name vrow-fact" ref={factRef}>{title}</span>
           {subNode && !subDropped && <span className="conn-meta vrow-sub" ref={subRef}>{subNode}</span>}
@@ -220,7 +233,7 @@ export default function NoticeCard({
           tabIndex={onOpen ? 0 : undefined}
           onClick={onOpen}
         >
-          <div className={"row-glyph notice-disc " + (tone ?? "cat-fg-red").replace("cat-fg-", "cat-bg-")}>{icon}</div>
+          <div className={"row-glyph notice-disc " + (tone ?? DEFAULT_TONE).replace("cat-fg-", "cat-bg-")}>{icon}</div>
           <div className="row-grow">
             <div className="conn-name">{title}</div>
             {subNode && <div className="conn-meta">{subNode}</div>}
