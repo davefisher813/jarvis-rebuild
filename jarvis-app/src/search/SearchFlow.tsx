@@ -195,7 +195,7 @@ export default function SearchFlow({ onClose, onOpen }: { onClose: () => void; o
 
         {results && !empty && results.categories.length > 0 && (
           <>
-            <div className="sh2"><span className="t">Categories</span></div>
+            <div className="sh2"><span className="t">Areas</span></div>
             <div><div className="list-flat">
               {results.categories.map((c) => (
                 <div className="row" role="button" tabIndex={0} key={c.id} onClick={() => open("category", c.id)}><div className="row-grow"><div className="conn-name">{c.name}</div></div><div className="chev"></div></div>

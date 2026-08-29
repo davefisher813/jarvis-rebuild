@@ -86,7 +86,7 @@ describe("OnboardingFlow", () => {
     expect(screen.getByDisplayValue("Clients")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Remove Clients"));
     expect(screen.queryByDisplayValue("Clients")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Add Category"));
+    fireEvent.click(screen.getByText("Add Area"));
     expect(screen.getByDisplayValue("New Area")).toBeInTheDocument();
   });
 });

@@ -190,7 +190,7 @@ export default function TaskSheet({
           </div>
 
           <div className="field">
-            <div className="input-label">Category</div>
+            <div className="input-label">Area</div>
             {/* Picking a category is the same act here as on the Tasks page,
                 so it wears the same selected state. It used to swap the whole
                 chip to the category colour and drop the dot, which meant one

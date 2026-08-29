@@ -31,7 +31,7 @@ export default function CategoriesPage({
   const byId = (id: string) => categories.find((c) => c.id === id)!;
   return (
     <div className="screen">
-      <LargeTitleNav title="Categories" back="Settings" onBack={onBack} />
+      <LargeTitleNav title="Areas" back="Settings" onBack={onBack} />
       <div className="pad-x">
         {onReorder && categories.length > 1 ? (
           <ReorderList
@@ -61,7 +61,7 @@ export default function CategoriesPage({
         </div>
         )}
         <div className="card conn-action">
-          <button className="row row-act" onClick={onAdd}>Add Category</button>
+          <button className="row row-act" onClick={onAdd}>Add Area</button>
         </div>
       </div>
     </div>

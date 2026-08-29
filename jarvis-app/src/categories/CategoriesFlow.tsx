@@ -49,7 +49,7 @@ export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
     if (!ok) return;
     setSheet({ kind: "closed" });
     await reload();
-    showToast({ message: name ? name + " deleted" : "Category deleted" });
+    showToast({ message: name ? name + " deleted" : "Area deleted" });
   };
 
   return (

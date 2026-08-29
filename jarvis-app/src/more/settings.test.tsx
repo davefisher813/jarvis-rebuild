@@ -40,9 +40,9 @@ describe("Settings", () => {
     // (large title + condensed bar title), so queries pick the large one.
     expect(screen.getAllByText("More").length).toBeGreaterThan(0);
     fireEvent.click(screen.getAllByText("Settings")[0]!);
-    await waitFor(() => expect(screen.getByText("Categories")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Categories"));
-    await waitFor(() => expect(screen.getByText("Add Category")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Areas")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Areas"));
+    await waitFor(() => expect(screen.getByText("Add Area")).toBeInTheDocument());
     fireEvent.click(screen.getAllByText("Settings")[0]!);
     await waitFor(() => expect(screen.getByText("Edit Tabs")).toBeInTheDocument());
   });

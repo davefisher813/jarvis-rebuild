@@ -2764,3 +2764,70 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
       .toMatch(/mode-why">\{senderPiles\([^)]*\)\.length \+ " senders \\u00b7 in the inbox"\}/);
   });
 });
+
+// LAW 10: ONE TAXONOMY (Dave 2026-08-29, the unification: "there's just too
+// much disconnect between the life, the areas of the life, the categories,
+// the tasks... the way you would imagine folders are organized").
+//
+// The app ran TWO taxonomies for one concept. Categories: pointed at by id
+// from every task, project, note, event, person and goal-tag -- 79 id-join
+// sites. life_area: pointed at by exactly one optional field (Goal.areaId),
+// created by no onboarding, and called "retired (state nobody maintained)"
+// by GoalSheet's own comment -- while four screens labelled the CATEGORY
+// picker "Area". Dave's screenshot of an Add Area sheet reading "No Areas
+// Yet" beside nine categories is the disconnect photographed.
+//
+// The research pass (Things 3, PARA, Todoist, Linear) was unanimous: never
+// two taxonomies for one concept; shallow spine (Area -> Project -> Task);
+// parents optional but orphans conspicuous; empty containers never render.
+// So: THE CATEGORY IS THE AREA. Your Life's frame is the same category ids
+// Brain lists; the life_area entity is dereferenced from the page; the UI
+// says "Area" everywhere and "Category" nowhere.
+describe("LAW 10: one taxonomy -- the category is the area", () => {
+  it("Your Life's frame is the categories, not a second entity", () => {
+    const flow = read(join(SRC, "bigger/BiggerPictureFlow.tsx"));
+    expect(flow, "the page receives the categories as its sections")
+      .toMatch(/sections=\{\[\.\.\.categories\]/);
+    expect(flow, "the flow no longer reads the retired area entity").not.toMatch(/useAreas/);
+    expect(flow, "and no longer mounts its admin sheet").not.toMatch(/AreasSheet/);
+  });
+
+  it("a goal is homed by its first live tag, and empty areas render nothing", () => {
+    const page = read(join(SRC, "bigger/BiggerPicturePage.tsx"));
+    expect(page, "one home per goal: first tag that names a live section")
+      .toMatch(/\(g\.data\.tags \?\? \[\]\)\.find\(\(t\) => sectionIds\.has\(t\)\)/);
+    expect(page, "PARA: never ship empty containers")
+      .toMatch(/if \(mine\.length === 0 && loose\.length === 0\) return null;/);
+    // The guilt-render this replaces must not come back.
+    expect(page).not.toMatch(/Nothing Live Here Yet/);
+  });
+
+  it("orphans are conspicuous, never forced into a parent", () => {
+    const page = read(join(SRC, "bigger/BiggerPicturePage.tsx"));
+    expect(page, "homeless goals float in Working Toward").toMatch(/Working Toward/);
+    expect(page, "goal-less, area-less projects float in More Work").toMatch(/More Work/);
+  });
+
+  it("the UI says Area; no screen labels the concept Category any more", () => {
+    const bad: string[] = [];
+    // Visible strings only: JSX text nodes and the label-ish props people
+    // actually read. Identifiers, imports, css classes and comments are the
+    // entity's own name and stay.
+    const VISIBLE = /(?:>|label">|title=\{?"|placeholder="|aria-label=\{?")\s*(?:Your )?Categor(?:y|ies)\b/;
+    for (const f of COMPONENTS) {
+      read(f).split("\n").forEach((line, i) => {
+        if (/^\s*(\/\/|\*|\{\/\*)/.test(line)) return;
+        if (VISIBLE.test(line)) bad.push(rel(f) + ":" + (i + 1));
+      });
+    }
+    expect(bad, "one word for one concept, everywhere a user reads").toEqual([]);
+  });
+
+  it("the section head count is a count, never a score", () => {
+    const page = read(join(SRC, "bigger/BiggerPicturePage.tsx"));
+    const heads = page.slice(page.indexOf("sections.map"));
+    const section = heads.slice(0, heads.indexOf("Working Toward"));
+    expect(section, "items shown, not percent done").toMatch(/\{mine\.length \+ loose\.length\}/);
+    expect(section).not.toMatch(/pct|%/);
+  });
+});

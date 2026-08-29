@@ -702,7 +702,7 @@ export default function CategoryDetail({
             onChanged?.();
             onBack();
             showToast({
-              message: "Category deleted",
+              message: "Area deleted",
               actionLabel: "Undo",
               onAction: async () => { if (gone) await catsSvc.create(gone.name, gone.color, gone.icon); onChanged?.(); },
             });

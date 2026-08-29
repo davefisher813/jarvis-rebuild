@@ -16,7 +16,8 @@ describe("BrainPage", () => {
   // are retired.
   it("renders the flat nav list plus the one Your Categories boundary", () => {
     render(<BrainPage onOpen={() => {}} categories={CATS} />);
-    expect(screen.getByText("Your Categories")).toBeInTheDocument();
+    // The unification (2026-08-29): the UI says Areas; the entity stays category.
+    expect(screen.getByText("Your Areas")).toBeInTheDocument();
     ["Who You Know", "How You Think", "How You Live"].forEach((t) =>
       expect(screen.queryByText(t)).not.toBeInTheDocument(),
     );

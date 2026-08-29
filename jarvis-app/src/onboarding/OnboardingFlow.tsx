@@ -292,11 +292,11 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           {seeds.map((s, i) => (
             <div className="row" key={i}>
               <span className={"ob-swatch cat-bg-" + s.color} />
-              <div className="row-grow"><input className="input ob-rename" value={s.name} onChange={(e) => updateSeed(i, e.target.value)} aria-label={"Category " + (i + 1) + " name"} /></div>
+              <div className="row-grow"><input className="input ob-rename" value={s.name} onChange={(e) => updateSeed(i, e.target.value)} aria-label={"Area " + (i + 1) + " name"} /></div>
               <button className="ob-x" aria-label={"Remove " + s.name} onClick={() => removeSeed(i)}>{X}</button>
             </div>
           ))}
-          <button className="row row-act" onClick={addSeed}>Add Category</button>
+          <button className="row row-act" onClick={addSeed}>Add Area</button>
         </div></div>
         <div className="convo-foot"><button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>Continue</button></div>
       </>

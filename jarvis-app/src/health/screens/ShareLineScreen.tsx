@@ -34,7 +34,7 @@ export default function ShareLineScreen({
         <div className="bp-sub">Off by default. Turn on only what you want them to see, one category at a time. Turn it back off whenever you want, no explanation needed.</div>
       </div></div>
 
-      <div className="sec-head"><div className="sec-left"><div className="sec-title">Categories</div></div></div>
+      <div className="sec-head"><div className="sec-left"><div className="sec-title">Areas</div></div></div>
       <div className="pad-x"><div className="card">
         {HEALTH_CATEGORIES.map((c) => (
           <div className="row" key={c}>

@@ -20,7 +20,7 @@ describe("HealthFlow: the Share Line", () => {
   it("everything is off by default except logistics, and the Kid's Room is never a switch", async () => {
     const store = new Store(new InMemoryAdapter());
     render(<HealthFlow store={store} ownerId="u1" initialScreen="share" onExit={() => {}} />);
-    await waitFor(() => expect(screen.getByText("Categories")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Areas")).toBeInTheDocument());
     // The floor: rendered as text, and the switch drawn beside it is locked
     // permanently off. Clicking it does nothing, because it carries no
     // onClick at all (checked statically too, in healthPrivacy.test.ts).

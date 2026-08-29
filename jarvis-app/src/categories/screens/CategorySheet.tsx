@@ -65,14 +65,14 @@ export default function CategorySheet({
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{mode === "new" ? "New Category" : "Edit Category"}</div></div>
+        <div className="grp"><div className="eyebrow">{mode === "new" ? "New Area" : "Edit Area"}</div></div>
 
         <div className="pad-x sheet-form">
           <div className="field">
             <div className="input-label">Name</div>
             <input
               className={"input" + (touched && !valid ? " input-error" : "")}
-              placeholder="Category Name"
+              placeholder="Area Name"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -80,7 +80,7 @@ export default function CategorySheet({
           </div>
 
           <div className="field">
-            <div className="input-label">What Kind of Category</div>
+            <div className="input-label">What Kind of Area</div>
             <div className="chip-row chip-wrap-row">
               {CATEGORY_KINDS.map((k) => (
                 <div key={k} className={"chip" + (kind === k ? " active" : "")} role="button" tabIndex={0} aria-pressed={kind === k}

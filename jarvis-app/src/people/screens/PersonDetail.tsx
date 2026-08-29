@@ -120,7 +120,7 @@ export default function PersonDetail({
           <KV label="Relationship" value={relationship} />
           <KV label="Birthday" value={birthday} />
           <KV label="JARVIS writes" value={writeStyle} />
-          <KV label="Categories" value={categoryNames.length > 0 ? categoryNames.join(", ") : undefined} />
+          <KV label="Areas" value={categoryNames.length > 0 ? categoryNames.join(", ") : undefined} />
         </div></div>
       )}
       {notes && (

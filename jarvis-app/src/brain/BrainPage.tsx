@@ -121,7 +121,7 @@ export default function BrainPage({
         <div>
           {/* The one mini-caps boundary label (Brain 4, Dave's pick): it
               marks where user content begins in a nav list. */}
-          <div className="sh2 sh2-caps"><span className="t">Your Categories</span><span className="n">{categories.length}</span></div>
+          <div className="sh2 sh2-caps"><span className="t">Your Areas</span><span className="n">{categories.length}</span></div>
           {catRows.map(Row)}
         </div>
       )}

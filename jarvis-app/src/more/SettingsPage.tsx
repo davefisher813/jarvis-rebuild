@@ -18,7 +18,7 @@ const ITEMS: Item[] = [
   { label: "Account", route: "account", group: 0 },
   { label: "Notifications", route: "notifsettings", group: 1 },
   { label: "Appearance", route: "appearance", group: 1 },
-  { label: "Categories", route: "categories", group: 1 },
+  { label: "Areas", route: "categories", group: 1 },
   { label: "Edit Tabs", route: "edittabs", group: 1 },
   { label: "Connections", route: "connections", group: 1 },
   { label: "AI Control", route: "aicontrol", group: 1 },

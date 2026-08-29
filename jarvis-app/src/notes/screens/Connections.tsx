@@ -68,7 +68,7 @@ export default function Connections({
             onClick={onChangeCategory ? () => setPicking(!picking) : undefined}
           >
             <div className={"proj-icon cat-bg-" + catColor(category)}><Tag className="ic" /></div>
-            <div className="conn-name">Category</div>
+            <div className="conn-name">Area</div>
             <span className="conn-meta">{categoryLabel}</span>
             {onChangeCategory && <div className="chev"></div>}
           </div>

@@ -279,7 +279,7 @@ export default function EventSheet({
           </div>
 
           <div className="field">
-            <div className="input-label">Category</div>
+            <div className="input-label">Area</div>
             <div className="chip-row cat-pick">
               {categories.map((c) =>
                 c.id === category ? (
