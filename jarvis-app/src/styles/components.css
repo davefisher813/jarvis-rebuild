@@ -2461,6 +2461,18 @@ button {
    is already the work it exists to skip. */
 .pick-one { padding-top: var(--s-2); padding-bottom: var(--s-1); }
 
+/* TASKS AUDIT 2026-08-29 (findings A and B): Pick One and Just This One were
+   two full-width buttons stacked, 106px of chrome answering one question
+   before any task was on screen. Side by side, in the same shape
+   .plan-cta-pair already uses for the Today CTAs, so the pattern is the
+   app's own rather than a new one.
+   min-width:0 is what lets flex actually divide the row: without it each
+   button's intrinsic label width is its floor and the pair overflows at
+   320. Padding drops from --s-6 to --s-3 for the same reason, measured at
+   320 wide where "Just This One" is the longest label either slot takes. */
+.cta-pair { display: flex; gap: var(--s-2h); }
+.cta-pair > .btn { flex: 1; min-width: 0; padding: 0 var(--s-3); white-space: nowrap; }
+
 /* HEADS UP stream (Dave 2026-08-19): cards in the notice stream carry their
    own kicker instead of a page-level head, and any card can host a corner
    dismiss. .card is the positioning context for it. */

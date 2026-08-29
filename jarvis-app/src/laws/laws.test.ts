@@ -2478,3 +2478,67 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
       .toMatch(/new ResizeObserver\(check\)/);
   });
 });
+
+// LAW 7: TASKS AUDIT 2026-08-29, SECOND PASS. The three findings held back
+// from the first pass: the stacked CTAs, the chrome they cost, and a tag
+// wearing another category's colour.
+describe("LAW 7: one question gets one row, and a colour never speaks for a category that is not its own", () => {
+  const page = () => read(join(SRC, "tasks/screens/TasksPage.tsx"));
+
+  // FINDINGS A + B. Pick One and Just This One were two full-width buttons
+  // stacked above the filters, so the first thing on the Tasks screen was a
+  // decision about how to look at tasks, before any task. They answer the
+  // same question (both rank with theOneThing) and now share one row.
+  it("the two Tasks CTAs share a row instead of stacking", () => {
+    const src = page();
+    expect(src, "one wrapper holds both").toMatch(/className="pad-x pick-one cta-pair"/);
+    // Neither may carry btn-block any more: block is width:100%, which
+    // defeats the flex row and puts them back on two lines.
+    const pair = src.slice(src.indexOf('className="pad-x pick-one cta-pair"'));
+    const body = pair.slice(0, pair.indexOf("</div>"));
+    expect(body, "no full-width button inside the pair").not.toMatch(/btn-block/);
+    expect(body, "Pick One is still the fill").toMatch(/btn btn-primary btn-lg/);
+  });
+
+  // Two reds of equal weight side by side is exactly what Law 4 rations.
+  // Bare `.btn` is press-3 with `color: var(--tint)` -- red text -- so the
+  // secondary here must name a neutral variant explicitly.
+  it("the quiet CTA is neutral, not accent-coloured text beside a red fill", () => {
+    const src = page();
+    const pair = src.slice(src.indexOf('className="pad-x pick-one cta-pair"'));
+    const body = pair.slice(0, pair.indexOf("</div>"));
+    expect(body, "the alternative uses the neutral variant").toMatch(/btn btn-secondary btn-lg/);
+    // The CSS this relies on: bare .btn really is accent text, so if that
+    // ever changes this law should be revisited rather than silently kept.
+    expect(CSS, "bare .btn is still accent text, which is why secondary is required")
+      .toMatch(/background: var\(--press-3\); color: var\(--tint\)/);
+  });
+
+  it("the pair divides its row rather than overflowing it", () => {
+    expect(CSS, "flex row").toMatch(/\.cta-pair \{ display: flex;/);
+    // Without min-width:0 each button's label width is its floor and the
+    // pair overflows at 320.
+    expect(CSS, "min-width:0 is what lets flex actually divide").toMatch(/\.cta-pair > \.btn \{[^}]*min-width: 0/);
+  });
+
+  // FINDING C. categoryLine() joined every category into one string and the
+  // whole string wore `cat-fg-{primary}`, so a Health+Money task rendered
+  // MONEY in Health's green: a colour making a false claim, which is worse
+  // than an uncoloured tag. The 2026-08-21 rule ("the primary keeps the
+  // colour; the tags ride as plain facts") was right and unimplemented.
+  it("only the primary category is coloured on a task row", () => {
+    const src = page();
+    expect(src, "the row no longer paints the whole joined line one colour")
+      .not.toMatch(/className=\{"eyebrow cat-fg-" \+ catColor\(t\.category\)\}/);
+    expect(src, "index 0 gets the colour, everything after inherits neutral")
+      .toMatch(/i === 0 \? "cat-fg-" \+ catColor\(c\.id\) : undefined/);
+  });
+
+  it("categoriesOf puts the primary first, which is what the index-0 rule leans on", async () => {
+    const { categoriesOf } = await import("../tasks/categories");
+    expect(categoriesOf({ category: "health", extraCategories: ["money"] })).toEqual(["health", "money"]);
+    // The primary is never duplicated into the tail, so index 0 is always
+    // the one that owns the colour.
+    expect(categoriesOf({ category: "health", extraCategories: ["health", "money"] })).toEqual(["health", "money"]);
+  });
+});

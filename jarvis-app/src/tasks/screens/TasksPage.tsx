@@ -8,7 +8,7 @@ import { Burst } from "../../shared/Burst";
 import type { TaskItem } from "../TasksService";
 import { urgencyFor, type UrgencyKind } from "../grouping";
 import { FILTERS, FILTER_LABEL, type TaskFilter } from "../filters";
-import { categoryLine } from "../categories";
+import { categoriesOf } from "../categories";
 import { catColor, catName } from "../../shared/categories";
 import type { SheetCategory } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
@@ -255,9 +255,23 @@ function Row({
           ) : (
             <div className="conn-name truncate" {...(onRename && !t.done && !selecting ? hold : {})}>{t.text}</div>
           )}
-          {/* The primary keeps the colour; the tags ride the same line as
-              plain facts (2026-08-21). Colouring all of them would spend
-              three colours saying one thing. */}
+          {/* THE PRIMARY KEEPS THE COLOUR; THE TAGS RIDE AS PLAIN FACTS
+              (2026-08-21). Colouring all of them would spend three colours
+              saying one thing.
+
+              TASKS AUDIT 2026-08-29, FINDING C: that decision was right and
+              the code did not implement it. categoryLine() joins every
+              category into ONE string and the whole string went into one
+              span wearing `cat-fg-{primary}`, so a task tagged Health and
+              Money rendered MONEY in Health's green. Not "the tag is
+              uncoloured" -- the tag was wearing the WRONG category's
+              colour, which is worse than neutral: it is a colour making a
+              false claim. Screenshot of "Call Precision · HEALTH · MONEY"
+              is the evidence.
+
+              So this is the 2026-08-21 rule finally being built, not
+              overturned: primary in its own colour, extras inheriting
+              .eyebrow's neutral --tx-3, one separator between them. */}
           {/* TASKS AUDIT 2026-08-29, FINDING #2. A2 (2026-08-21) put Start on
               EVERY row here, deliberately, unlike Today's list where only
               the single dealt card gets it: "the one thing an ADHD app
@@ -272,7 +286,15 @@ function Row({
               no tag, matching how little they need one. */}
           <div className="row-tags">
             {u && u.kind !== "soon" && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
-            <span className={"eyebrow cat-fg-" + catColor(t.category)}>{categoryLine(t, catName)}{t.recurrence ? " \u00b7 " + t.recurrence : ""}</span>
+            <span className="eyebrow">
+              {categoriesOf(t).map((id) => ({ id, name: catName(id) })).filter((c) => c.name).map((c, i) => (
+                <React.Fragment key={c.id}>
+                  {i > 0 && " \u00b7 "}
+                  <span className={i === 0 ? "cat-fg-" + catColor(c.id) : undefined}>{c.name}</span>
+                </React.Fragment>
+              ))}
+              {t.recurrence ? " \u00b7 " + t.recurrence : ""}
+            </span>
           </div>
           {/* A1: the cue, where he will see it while scanning. The whole
               sentence is on the sheet; the row carries the trigger, which is
@@ -404,19 +426,49 @@ export default function TasksPage({
         </div>
       ) : (
         <>
-          {onPickOne && counts.all > 0 && (
-            <div className="pad-x pick-one">
+          {/* TASKS AUDIT 2026-08-29, FINDINGS A AND B: TWO CTAS, ONE
+              QUESTION. These were two full-width buttons STACKED, so the
+              first thing on a screen called Tasks was 106px of decision
+              about how to look at your tasks, before a single task was
+              visible. Side by side they cost one row instead of two, and
+              more importantly they read as what they actually are: one
+              question ("just give me one thing") with two answers, rather
+              than two separate demands.
+
+              They are closer than even that. Pick One now opens What Now,
+              which ranks with theOneThing(); Just This One collapses the
+              list using theOneThing() as well, both with the same constant
+              estimator. Same function, same input, same top task: one shows
+              it in a sheet, the other shows it in the list. Presenting them
+              as a pair is honest about that. Whether the app should ship
+              both at all is a bigger call than this audit, and it is
+              flagged rather than taken.
+
+              Pick One keeps the fill and leads, because starting beats
+              filtering. When counts.all <= 2 it is alone in the row and
+              flex:1 gives it the full width it had before. */}
+          {((onPickOne && counts.all > 0) || (onOverwhelmed && counts.all > 2)) && (
+            <div className="pad-x pick-one cta-pair">
               {/* "Pick One", matching Today's identical action (see the note
                   on the goal nudge in TodayFlow, which named itself after
                   this button). Was "Just Pick One For Me": "Just" reads as
                   begging and "For Me" casts the user as a dependent asking
                   a caretaker, when the app is simply doing its job. */}
-              <button className="btn btn-primary btn-block btn-lg" onClick={onPickOne}>Pick One</button>
-            </div>
-          )}
-          {onOverwhelmed && counts.all > 2 && (
-            <div className="pad-x pick-one">
-              <button className="btn btn-block" onClick={onOverwhelmed}>{OVERWHELM_ENTER}</button>
+              {onPickOne && counts.all > 0 && (
+                <button className="btn btn-primary btn-lg" onClick={onPickOne}>Pick One</button>
+              )}
+              {/* btn-secondary, not bare btn. Bare .btn is press-3 with
+                  `color: var(--tint)`, i.e. RED TEXT, which was survivable
+                  while this sat on its own row and is not survivable beside
+                  a red fill: the rendered pair was two reds of equal weight
+                  arguing about which one you meant. btn-secondary is the
+                  identical pill with --tx-1 text, so the loud one stays
+                  loud and this reads as the quiet alternative it is. Caught
+                  by screenshotting the pair, not by reading the JSX; the
+                  colour lives two files away from the class name. */}
+              {onOverwhelmed && counts.all > 2 && (
+                <button className="btn btn-secondary btn-lg" onClick={onOverwhelmed}>{OVERWHELM_ENTER}</button>
+              )}
             </div>
           )}
         </>
