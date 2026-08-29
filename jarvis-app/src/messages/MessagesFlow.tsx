@@ -2938,7 +2938,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               {/* E14's verb moved again (2026-08-26): off the head and onto
                   the Mission Deck above, where it is the biggest thing on
                   the tab instead of the smallest. The head keeps the count. */}
-              <div className="sh2">
+              {/* I3 REACHES EMAIL (Dave 2026-08-29, approved off a rendered
+                  before/after). That law -- "SIX identical red heads down one
+                  screen; when every head shouts, none of them does" -- was
+                  written in August and applied to Today, which keeps exactly
+                  one accent head (Now). Email was never swept: three bare
+                  .sh2 heads, three accent labels, three dotted red rules,
+                  none of them the reason you opened the tab. The mode deck
+                  above already says where to start, so no head here needs to
+                  compete with it and all three recede into a spine. */}
+              <div className="sh2 sh2-quiet">
                 <span className="t">Needs You</span>
                 <span className="n">{needsYou.length}</span>
               </div>
@@ -2984,7 +2993,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   are past the point where another email helps" on every
                   render where every row was firm, which in a real aged inbox
                   is every render. Permanent helper text is not help. */}
-              <div className="sh2">
+              <div className="sh2 sh2-quiet">
                 <span className="t">Waiting On</span>
                 <span className="n">{owed.length}</span>
                 {/* E6: one decision on screen, nothing else. Not a batch
@@ -3065,7 +3074,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   pretending somebody is late. */}
               {unowed.length > 0 && (
                 <>
-                  <div className="sh2">
+                  <div className="sh2 sh2-quiet">
                     <span className="t">Nothing Owed</span>
                     <span className="n">{unowed.length}</span>
                     <button className="see-all" onClick={() => dropAll(unowed.map(({ w }) => w.threadId))}>Archive These</button>

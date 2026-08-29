@@ -635,6 +635,58 @@ describe("LAW: one filled red per screen", () => {
   // glass. The browser walk found it; this test never could. So this law is
   // the floor, not the ceiling, and the walk that counts PAINTED background
   // colours per screen is the thing that actually enforces B15.
+  // THE LAW COUNTED BUTTONS AND MISSED A PANEL (Dave 2026-08-29, Email).
+  //
+  // The test below scans RENDER SITES for .btn-primary and .plan-cta, which
+  // is the right shape for buttons and blind to everything else. The Email
+  // tab's Mission Deck painted --accent-fill as a CARD BACKGROUND
+  // (.mode-card.mode-hero), 1.35x the width of its neighbour, and the law
+  // could not see it -- the CSS even carried a comment asserting "the
+  // one-filled-red law holds" directly above the rule that broke it.
+  //
+  // So the fill token gets an allowlist at the CSS level. Painting
+  // --accent-fill is how a thing declares itself THE action on a screen, and
+  // the list of things allowed to make that claim should be short enough to
+  // read. A new entry needs a reason here, in front of the others, which is
+  // the same bar the EXCLUSIVE map below sets for render sites.
+  it("only a known control paints the accent fill, never a panel", () => {
+    const ALLOWED = new Set([
+      // Buttons and pills: the fill means "tap this".
+      ".btn-primary", ".plan-cta", ".mode-go", ".mode-hero .mode-go",
+      ".bench-act.prim", ".chip.chip-on",
+      // Small round controls whose whole body is the control.
+      ".ob-check-row", ".convo-send", ".voice-mic", ".voice-orb",
+      ".sel-box.on", ".sched-row.past .sel-box.on",
+      // Identity marks, not actions: an avatar and the user's own chat
+      // bubble. Neither competes for "the thing to tap" because neither is
+      // tappable, and the bubble is the user's own words, not the app's ask.
+      ".av-accent", ".chat-user", ".bubble-user",
+      // The app's own 64px mark on the profile screen. A logotype, exempt
+      // from this law for the same reason the wordmark is exempt from the
+      // contrast bar: it is identity, not an instruction.
+      ".app-icon",
+    ]);
+    const bad: string[] = [];
+    // Comments carry commas and no braces, so a raw [^{}]+ capture swallows
+    // the comment block above a rule and then splits IT on commas. Strip
+    // comments first, and keep only the last line of the capture, which is
+    // the selector itself rather than the blank space above it.
+    const bare = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+    for (const m of bare.matchAll(/([^{}]+)\{[^}]*background:\s*var\(--accent-fill\)/g)) {
+      const line = m[1]!.trim().split("\n").pop() ?? "";
+      for (const sel of line.split(",")) {
+        const clean = sel.trim()
+          .replace(/^\[data-theme="(light|dark)"\]\s*/, "")
+          .replace(/:(hover|active|focus|focus-visible)\b/g, "");
+        if (!clean) continue;
+        // A compound like ".mode-card.mode-hero" is judged whole: the point
+        // is that a CARD may not wear the fill even when a modifier does.
+        if (!ALLOWED.has(clean)) bad.push(clean);
+      }
+    }
+    expect([...new Set(bad)], "the accent fill means TAP THIS, so a panel may not wear it").toEqual([]);
+  });
+
   it("no screen can render more than one filled red at a time", () => {
     const FILLS = /className=\{?["'`][^"'`}]*\b(btn-primary|plan-cta)\b[^"'`}]*["'`]?/g;
 

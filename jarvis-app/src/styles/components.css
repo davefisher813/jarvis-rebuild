@@ -3682,13 +3682,20 @@ body.selecting .voice-dock { display: none; }
 .mode-deck { display: flex; gap: 10px; margin-bottom: var(--s-2); }
 .mode-card { flex: 1; min-width: 0; border-radius: var(--r-lg, 18px);
   background: var(--surface-1); padding: var(--s-4) var(--s-3h) var(--s-3h); cursor: pointer; }
-/* ONE red fill on the screen, and this is it: the recommended action wears
-   the accent, the neighbor stays quiet. The one-filled-red law holds. */
-.mode-card.mode-hero { background: var(--accent-fill); flex: 1.35; }
+/* THE RECOMMENDED ACTION WEARS THE ACCENT; THE PANEL AROUND IT DOES NOT
+   (Dave 2026-08-29, approved off a rendered before/after).
+   This card used to paint --accent-fill across its whole 1.35x panel, and
+   the comment here claimed "the one-filled-red law holds". It did not: that
+   law counts .btn-primary and .plan-cta at their RENDER SITES, so a card
+   BACKGROUND painting the same token was invisible to it. The Email tab
+   therefore showed a full red panel plus three accent section heads plus an
+   accent Play plus a red foot fill, with nothing able to see the biggest
+   one. The hero keeps its size and its position -- it is still obviously
+   the recommended card -- and the accent moves to the one thing you tap.
+   See the CSS half of the one-filled-red law, which now enforces this. */
+.mode-card.mode-hero { background: var(--press-5); flex: 1.35; }
 .mode-name { font-size: var(--t-h2); font-weight: var(--w-bold); letter-spacing: -0.3px; color: var(--tx-1); }
-.mode-hero .mode-name { color: #fff; }
 .mode-n { font-size: var(--t-display); font-weight: var(--w-bold); line-height: 1; margin: var(--s-1h) 0 var(--s-0h); color: var(--tx-1); }
-.mode-hero .mode-n { color: #fff; }
 /* Never wraps. The deck is a flex row with two cards of different width
    (the hero is 1.35x), and a flex row stretches its children to match
    height by default, so a two-line wrap on the narrower Clean Out card
@@ -3698,7 +3705,7 @@ body.selecting .voice-dock { display: none; }
    sender count or theme. */
 .mode-why { font-size: var(--t-meta); color: var(--tx-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mode-hero .mode-why { color: rgba(255,255,255,0.85); }
+
 .mode-go { margin-top: var(--s-3); border-radius: var(--r-pill); text-align: center;
   padding: var(--s-2) 0; font-size: var(--t-body); font-weight: var(--w-bold);
   /* NOT --accent-tx: in dark that token is deliberately WHITE (the chip
@@ -3707,9 +3714,11 @@ body.selecting .voice-dock { display: none; }
      on white, correct here in BOTH themes because the pill is white in
      both. */
   background: #fff; color: #DA0012; }
+/* The hero's button is the screen's one fill now that its panel is not. */
+.mode-hero .mode-go { background: var(--accent-fill); color: #fff; }
 .mode-go.mode-go-quiet { background: var(--press-5); color: var(--tx-1); }
 [data-theme="light"] .mode-card { background: #FFFFFF; box-shadow: var(--shadow-card); }
-[data-theme="light"] .mode-card.mode-hero { background: var(--accent-fill); box-shadow: var(--shadow-card); }
+[data-theme="light"] .mode-card.mode-hero { background: #FFFFFF; box-shadow: var(--shadow-card); }
 [data-theme="light"] .mode-go { box-shadow: 0 0 0 0.5px rgba(0,0,0,0.06); }
 
 /* The launcher row: one mode, full width, its count and its reason. */
