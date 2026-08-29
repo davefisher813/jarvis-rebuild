@@ -11,7 +11,7 @@ import { Store, InMemoryAdapter } from "@core";
 import { TasksService } from "./TasksService";
 import { recordSpot, touchActivity, restorableSpot, SESSION_GAP_MS, EXPIRY_MS } from "../restore/whereYouWere";
 import { nextBest, chainQuietToday, dismissChain, chainReason } from "./momentum";
-import { runAutoSweep, undoSweep, sweepable, setAsideCandidate, markOffered, readReceipt, retrySweep } from "./autoSweep";
+import { runAutoSweep, undoSweep, sweepable, setAsideCandidate, markOffered, readReceipt, retrySweep, liveMoved, dismissSweepCard, sweepCardDismissed } from "./autoSweep";
 
 const TODAY = "2026-08-15";
 const U = "user1";
@@ -108,7 +108,7 @@ describe("Auto-Sweep", () => {
     expect(readReceipt(TODAY)).toBeNull();
   });
 
-  it("the third consecutive move offers Set Aside exactly once", async () => {
+  it("the third consecutive move offers Set Aside, then goes quiet for three days", async () => {
     const tasks = svc();
     const a = (await tasks.createTask("Renew the domain", { due: "2026-08-12" }))!;
     await tasks.setDue(a, "2026-08-13"); // slip 1
@@ -116,10 +116,50 @@ describe("Auto-Sweep", () => {
     // reset ran-marker between simulated days
     localStorage.removeItem("jarvis.sweep.last.v1");
     const receipt = (await runAutoSweep(tasks, TODAY))!; // slip 3 via sweep
-    const cand = setAsideCandidate(receipt);
+    const moved = liveMoved(receipt, await tasks.listTasks(), TODAY);
+    const cand = setAsideCandidate(moved, TODAY);
     expect(cand!.id).toBe(a);
-    markOffered(a);
-    expect(setAsideCandidate(receipt)).toBeNull(); // asked once, ever
+    markOffered(a, TODAY);
+    expect(setAsideCandidate(moved, TODAY)).toBeNull();
+    // LAW 2 (2026-08-29): the old offered-list had no expiry, so one
+    // dismissal muted a task forever however long it kept sliding. Quiet
+    // is three days, then it may speak again.
+    expect(setAsideCandidate(moved, "2026-08-17")).toBeNull(); // day 2, still quiet
+    expect(setAsideCandidate(moved, "2026-08-19")!.id).toBe(a); // past the window
+  });
+
+  // LAW 1 (Dave 2026-08-29): "notifications show up on things that are
+  // already done". The receipt is history and stays whole for Undo; every
+  // card reads through liveMoved instead, against the live tasks.
+  it("liveMoved drops what has since been done, deleted, or re-dated", async () => {
+    const tasks = svc();
+    const done = (await tasks.createTask("Get gas tank", { due: "2026-08-13" }))!;
+    const gone = (await tasks.createTask("Deleted later", { due: "2026-08-13" }))!;
+    const moved = (await tasks.createTask("Pushed to Friday", { due: "2026-08-13" }))!;
+    const open = (await tasks.createTask("Still open", { due: "2026-08-13" }))!;
+    const receipt = (await runAutoSweep(tasks, TODAY))!;
+    expect(receipt.moved).toHaveLength(4);
+
+    await tasks.toggleDone(done);
+    await tasks.deleteTask(gone);
+    await tasks.setDue(moved, "2026-08-21");
+
+    const live = liveMoved(receipt, await tasks.listTasks(), TODAY);
+    expect(live.map((m) => m.id)).toEqual([open]);
+    // The receipt itself is untouched: Undo still needs every entry.
+    expect(readReceipt(TODAY)!.moved).toHaveLength(4);
+  });
+
+  it("the moved card can be dismissed for the day without moving anything back", async () => {
+    const tasks = svc();
+    const a = (await tasks.createTask("Old one", { due: "2026-08-13" }))!;
+    await runAutoSweep(tasks, TODAY);
+    expect(sweepCardDismissed(TODAY)).toBe(false);
+    dismissSweepCard(TODAY);
+    expect(sweepCardDismissed(TODAY)).toBe(true);
+    // The whole point: a dismiss is not an undo (it used to be one).
+    expect((await tasks.task(a))!.due).toBe(TODAY);
+    expect(sweepCardDismissed("2026-08-16")).toBe(false); // tomorrow speaks again
   });
 
   it("sweepable never includes done, undated, or future tasks", async () => {

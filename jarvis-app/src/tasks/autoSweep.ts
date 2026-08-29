@@ -26,8 +26,15 @@ export interface SweepReceipt {
 
 const LAST_KEY = "jarvis.sweep.last.v1";
 const RECEIPT_KEY = "jarvis.sweep.receipt.v1";
-const OFFERED_KEY = "jarvis.sweep.offered.v1";
+// v2: the offered list used to be a bare array of ids that never expired, so
+// one dismissal muted a task forever (Law 2, below). Now each entry carries
+// the day it was dismissed and ages out.
+const OFFERED_KEY = "jarvis.sweep.offered.v2";
 export const SET_ASIDE_AFTER = 3;
+// LAW 2: A DISMISSAL EXPIRES. Three days is long enough that waving a card
+// off actually buys quiet, and short enough that a task sliding for a week
+// gets to speak again. Forever-silence and daily-nagging are both failures.
+export const DISMISS_DAYS = 3;
 
 function storage(): Storage | null {
   try {
@@ -112,26 +119,91 @@ export async function retrySweep(svc: TasksService, today: string): Promise<Swee
 }
 
 // Undo the whole sweep: every task back to its prior date. The receipt goes
-// with it (undone means nothing to report).
+// with it (undone means nothing to report). Only ever reached from a control
+// LABELLED as an undo -- see the note on Dismiss in TodayFlow.
 export async function undoSweep(svc: TasksService, receipt: SweepReceipt): Promise<void> {
   for (const m of receipt.moved) await svc.setDue(m.id, m.prevDue);
   clearReceipt();
 }
 
-// The third-move fact + Set Aside offer, once per task ever.
-export function setAsideCandidate(receipt: SweepReceipt): SweepMoved | null {
-  const s = storage();
-  let offered: string[] = [];
-  try { offered = JSON.parse(s?.getItem(OFFERED_KEY) || "[]") as string[]; } catch { /* fresh list */ }
-  return receipt.moved.find((m) => m.slips >= SET_ASIDE_AFTER && !offered.includes(m.id)) ?? null;
+// LAW 1: A NOTICE MUST PROVE ITSELF BEFORE IT RENDERS (Dave 2026-08-29,
+// "notifications show up on things that are already done").
+//
+// The receipt records what the sweep DID at first open this morning. That is
+// history, and it has to stay whole -- Undo reads every entry, including the
+// ones already handled. But it is NOT an answer to "what still needs me",
+// and the cards were reading it as though it were: finish all six moved
+// tasks and "6 Moved to Today" still said six, because nothing between the
+// receipt and the card ever looked at a task again.
+//
+// So every display read goes through here, against the live list. A moved
+// task that has since been completed, deleted, set aside, or given some
+// other date is no longer part of what these cards are reporting. The
+// receipt is a hint about what to check; the tasks are the truth.
+export function liveMoved(receipt: SweepReceipt | null, items: TaskItem[], today: string): SweepMoved[] {
+  if (!receipt) return [];
+  const byId = new Map(items.map((t) => [t.id, t] as const));
+  return receipt.moved.filter((m) => {
+    const t = byId.get(m.id);
+    if (!t) return false;                 // deleted since the sweep
+    if (t.data.done) return false;        // THE bug Dave photographed
+    return t.data.due === today;          // re-dated or set aside: not today's news
+  });
 }
 
-export function markOffered(id: string): void {
+// The "N Moved to Today" card, waved off for the day. Same day-keyed shape
+// as every other dismissal here: tomorrow's sweep is a new fact and gets to
+// speak. Separate from undoSweep, which is a real edit under its own label.
+const SWEEP_DISMISSED_KEY = "jarvis.sweep.dismissed.v1";
+
+export function dismissSweepCard(today: string): void {
+  const s = storage();
+  if (!s) return;
+  try { s.setItem(SWEEP_DISMISSED_KEY, today); } catch { /* the card stays; harmless */ }
+}
+
+export function sweepCardDismissed(today: string): boolean {
+  const s = storage();
+  if (!s) return false;
+  try { return s.getItem(SWEEP_DISMISSED_KEY) === today; } catch { return false; }
+}
+
+type Offer = { id: string; day: string };
+
+function readOffered(today: string): Offer[] {
+  const s = storage();
+  if (!s) return [];
+  try {
+    const raw = JSON.parse(s.getItem(OFFERED_KEY) || "[]") as Offer[];
+    const cutoff = dayShift(today, -DISMISS_DAYS);
+    return raw.filter((o) => o && typeof o.id === "string" && o.day > cutoff);
+  } catch {
+    return [];
+  }
+}
+
+// today minus n days, as an ISO date. Local-noon arithmetic so a DST shift
+// cannot round the date backwards.
+function dayShift(today: string, days: number): string {
+  const d = new Date(today + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+// The third-move fact + Set Aside offer. Takes the LIVE-filtered moved list
+// (see liveMoved) rather than the raw receipt, so it can never nominate a
+// task that is already done. A dismissal quiets it for DISMISS_DAYS.
+export function setAsideCandidate(moved: SweepMoved[], today: string): SweepMoved | null {
+  const offered = readOffered(today);
+  return moved.find((m) => m.slips >= SET_ASIDE_AFTER && !offered.some((o) => o.id === m.id)) ?? null;
+}
+
+export function markOffered(id: string, today: string): void {
   const s = storage();
   if (!s) return;
   try {
-    const offered = JSON.parse(s.getItem(OFFERED_KEY) || "[]") as string[];
-    if (!offered.includes(id)) offered.push(id);
+    const offered = readOffered(today).filter((o) => o.id !== id);
+    offered.push({ id, day: today });
     s.setItem(OFFERED_KEY, JSON.stringify(offered));
   } catch { /* asked-once is best effort */ }
 }

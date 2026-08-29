@@ -424,7 +424,7 @@ export default function TodayPage({
   // Library chassis (Design 2, approved 2026-08-18): the JARVIS bar is the
   // sticky glass bar; it condenses over the hero with the red energy line
   // once the greeting scrolls away. Nothing collides with the clock.
-  const [condProbe, condensed] = useCondensed();
+  const [condProbe, condensed, scrolled] = useCondensed();
   // Everything JARVIS noticed, in one stream: the priority cards from the
   // flow first, then the standing facts (money, email), then the quiet
   // offers. Each is one tap from resolved; nothing here is a dead end.
@@ -463,7 +463,7 @@ export default function TodayPage({
 
   return (
     <div className="screen">
-      <div className={"pagebar today-pagebar" + (condensed ? " on" : "")}>
+      <div className={"pagebar today-pagebar" + (condensed ? " on" : "") + (scrolled ? " solid" : "")}>
       <div className="today-bar pagebar-row">
         <button className="today-av" aria-label="Account" onClick={onProfile}>
           <div className="av av-32 av-accent">{avatar}</div>

@@ -13,6 +13,7 @@ export interface WorkSpot {
 }
 
 const KEY = "jarvis.whereyouwere.v1";
+const DISMISSED_KEY = "jarvis.whereyouwere.dismissed.v1";
 // Younger than this = the current sitting, no banner. Older = a return.
 export const SESSION_GAP_MS = 5 * 60_000;
 export const EXPIRY_MS = 12 * 3600e3;
@@ -50,8 +51,21 @@ export function touchActivity(now: () => number = Date.now): void {
   } catch { /* nothing to refresh */ }
 }
 
-// The banner's read: a spot from a prior sitting, not yet expired.
-export function restorableSpot(now: () => number = Date.now): WorkSpot | null {
+// The banner's read: a spot from a prior sitting, not yet expired, not
+// waved off, and -- when the caller can say -- still pointing at something
+// that exists.
+//
+// LAW 1 (Dave 2026-08-29): the spot is a bookmark, and a bookmark outlives
+// the page. Deleting the note it names left "Journal · Left 5h ago · Resume"
+// on the home page for up to twelve hours, offering to reopen nothing. The
+// only clearSpot caller was the Resume button itself, so nothing else could
+// ever retire it. `exists` lets the caller -- which is the one holding the
+// live lists -- answer for it. Omitting the check keeps the old behaviour
+// for callers with nothing to check against (tests, the gym flow).
+export function restorableSpot(
+  now: () => number = Date.now,
+  exists?: (spot: WorkSpot) => boolean,
+): WorkSpot | null {
   const s = storage();
   if (!s) return null;
   try {
@@ -61,16 +75,38 @@ export function restorableSpot(now: () => number = Date.now): WorkSpot | null {
     const age = now() - spot.ts;
     if (age < SESSION_GAP_MS || age > EXPIRY_MS) return null;
     if (!spot.id || !spot.label) return null;
+    if (isSpotDismissed(spot, s)) return null;
+    if (exists && !exists(spot)) return null;
     return spot;
   } catch {
     return null;
   }
 }
 
+// LAW 2: the Resume card had no dismiss at all -- swiping it revealed an
+// empty rail, so the only exits were taking it or waiting out the twelve
+// hours, and any visit longer than five minutes ago re-armed it. Dismissal
+// is keyed to the exact spot (kind + id + timestamp): coming back to the
+// same note later records a NEW spot, which is a fresh offer, not the one
+// that was waved off.
+function spotKey(spot: WorkSpot): string {
+  return `${spot.kind}:${spot.id}:${spot.ts}`;
+}
+
+function isSpotDismissed(spot: WorkSpot, s: Storage): boolean {
+  try { return s.getItem(DISMISSED_KEY) === spotKey(spot); } catch { return false; }
+}
+
+export function dismissSpot(spot: WorkSpot): void {
+  const s = storage();
+  if (!s) return;
+  try { s.setItem(DISMISSED_KEY, spotKey(spot)); } catch { /* the card reappears; harmless */ }
+}
+
 export function clearSpot(): void {
   const s = storage();
   if (!s) return;
-  try { s.removeItem(KEY); } catch { /* gone is gone */ }
+  try { s.removeItem(KEY); s.removeItem(DISMISSED_KEY); } catch { /* gone is gone */ }
 }
 
 // "Training Plan note · 25 min ago"

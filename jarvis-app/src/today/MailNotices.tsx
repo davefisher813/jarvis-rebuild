@@ -96,6 +96,28 @@ export default function MailNotices({
   const [drafts, setDrafts] = useState<Record<string, MailDraft>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
+  // LAW 1 (Dave 2026-08-29): HANDLED HAS TO OUTLIVE THE TAB.
+  //
+  // `done` was in-memory only, while a mere swipe-dismiss was persisted for
+  // the day. That is exactly backwards -- acting on a card is the strongest
+  // possible evidence the card is finished -- and it meant switching tabs
+  // (AppShell remounts each flow by key) brought back a reply he had already
+  // sent, until the Messages tab happened to rewrite the snapshot. The
+  // snapshot is the slow, 36-hour-stale part of this system; the record of
+  // what he did today is the fast part, so the fast part wins.
+  //
+  // Rides the same day-keyed store dismissals already use: tomorrow's inbox
+  // is a new question and nothing here carries over.
+  const markDone = (key: string) => {
+    setDone((d) => (d.includes(key) ? d : [...d, key]));
+    setHidden(dismissNotice(key, today));
+  };
+  // Undo path: the write was rolled back, so the card is owed its place back.
+  const unmarkDone = (key: string) => {
+    setDone((d) => d.filter((k) => k !== key));
+    setHidden((h) => setDismissed(h.filter((k) => k !== key), today));
+  };
+
   const snap = loadMailSnapshot();
   const asleep = sleepingNow(snoozed, nowHHMM);
   const notices = mailNotices(snap, today, new Date(), max, [...hidden, ...done, ...asleep]);
@@ -110,7 +132,7 @@ export default function MailNotices({
   const writable = (n: MailNotice) => canWrite && (n.kind === "reply" || n.kind === "nudge" || n.kind === "chase");
 
   const finish = (n: MailNotice, message: string) => {
-    setDone((d) => [...d, n.key]);
+    markDone(n.key);
     setDrafts((d) => { const x = { ...d }; delete x[n.key]; return x; });
     showToast({ message });
   };
@@ -133,11 +155,11 @@ export default function MailNotices({
         // Undo is not politeness here. This is the only card that writes to
         // the schedule without opening anything, so the wrong one has to be
         // one tap from gone, in the same place the receipt appears.
-        setDone((d) => [...d, n.key]);
+        markDone(n.key);
         setDrafts((d) => { const x = { ...d }; delete x[n.key]; return x; });
         showToast({
           message: done.receipt,
-          ...(done.undo ? { actionLabel: "Undo", onAction: () => { void done.undo!(); setDone((d) => d.filter((k) => k !== n.key)); } } : {}),
+          ...(done.undo ? { actionLabel: "Undo", onAction: () => { void done.undo!(); unmarkDone(n.key); } } : {}),
         });
       })();
       return;
@@ -216,11 +238,11 @@ export default function MailNotices({
         showToast({ message: "Couldn't delete it · Still in your inbox" });
         return;
       }
-      setDone((d) => [...d, n.key]);
+      markDone(n.key);
       setDrafts((d) => { const x = { ...d }; delete x[n.key]; return x; });
       showToast({
         message: "Deleted · In trash 30 days",
-        ...(done.undo ? { actionLabel: "Undo", onAction: () => { void done.undo!(); setDone((d) => d.filter((k) => k !== n.key)); } } : {}),
+        ...(done.undo ? { actionLabel: "Undo", onAction: () => { void done.undo!(); unmarkDone(n.key); } } : {}),
       });
     })();
   };

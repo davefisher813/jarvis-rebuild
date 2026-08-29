@@ -828,11 +828,18 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 /* Day progress ring in the Today hero (RDB, Dave 2026-07-29): fills as
    due-today tasks complete; pops once full. Hidden when nothing is due. */
 .today-hero-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
-.day-ring { position: relative; width: 44px; height: 44px; flex-shrink: 0; }
+/* The ring gets a caption so its number cannot be misread as the evening
+   line's (Dave 2026-08-29). Sits under the ring; the wrapper grows to hold
+   it, the 44px ring itself is unchanged. */
+.day-ring { position: relative; width: 44px; flex-shrink: 0; }
+.day-ring .ring-cap { text-align: center; font-size: 9px; font-weight: var(--w-semi);
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-4); margin-top: 1px; }
 .day-ring svg { transform: rotate(-90deg); }
 .day-ring .track { stroke: var(--press-5); }
 .day-ring .fill { stroke: var(--good); stroke-linecap: round; transition: stroke-dashoffset 500ms var(--ease-out); }
-.day-ring .count { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--tx-2); }
+/* Pinned to the RING's 44px, not to the wrapper: the caption below grew the
+   wrapper, and a full-box inset would have slid the count off centre. */
+.day-ring .count { position: absolute; top: 0; left: 0; right: 0; height: 44px; display: flex; align-items: center; justify-content: center; font-size: var(--t-eyebrow); font-weight: var(--w-semi); color: var(--tx-2); }
 .day-ring.done { animation: ringPop 480ms var(--ease-spring); }
 @keyframes ringPop { 0% { transform: scale(1); } 45% { transform: scale(1.18); } 100% { transform: scale(1); } }
 
@@ -2058,9 +2065,14 @@ button {
   font-weight: var(--w-bold); color: var(--tx-1); opacity: 0; transition: opacity var(--dur-fast) var(--ease-out);
   pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pagebar-acts { display: flex; gap: var(--s-2); }
-.pagebar.on { background: rgba(12,12,14,0.82); backdrop-filter: blur(22px) saturate(160%);
+/* THE GLASS COMES WITH THE SCROLL, NOT WITH THE TITLE (Dave 2026-08-29).
+   Both states wear the same material; .solid arrives the instant the page
+   moves, .on additionally brings the centered title. Tying the material to
+   the title left a band as tall as the hero where "Good Evening, Dave" was
+   sliding up through the iOS clock with nothing behind it. See useCondensed. */
+.pagebar.on, .pagebar.solid { background: rgba(12,12,14,0.82); backdrop-filter: blur(22px) saturate(160%);
   -webkit-backdrop-filter: blur(22px) saturate(160%); box-shadow: 0 0.5px 0 var(--divider); }
-[data-theme="light"] .pagebar.on { background: rgba(249,249,251,0.86); }
+[data-theme="light"] .pagebar.on, [data-theme="light"] .pagebar.solid { background: rgba(249,249,251,0.86); }
 .pagebar.on .pagebar-title { opacity: 1; }
 /* The energy line takes the Apple Music icon gradient (red into its lighter
    stop) before fading out. Pure decoration, no text near it, so the light

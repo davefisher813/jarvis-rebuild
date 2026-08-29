@@ -2119,3 +2119,116 @@ describe("LAW: a back-off week is never called deload and never rendered red", (
     expect(src, "back-off reads through .pill-subdued (the app's neutral pill)").toMatch(/backOff[\s\S]{0,80}pill-subdued|pill-subdued[\s\S]{0,80}week-back-off/);
   });
 });
+
+// ============================================================
+// THE NOTICE LAWS (Dave 2026-08-29, after a full functional audit:
+// "notifications show up on things that are already done. The buttons don't
+// add any real value for the most part").
+//
+// The stale-notice bugs were not nine separate mistakes. They were one
+// missing rule, broken nine times: a notice was built from something written
+// down earlier -- a sweep receipt, a mail snapshot, a bookmark -- and then
+// trusted for the rest of the day without ever asking the live data whether
+// it was still true. These lock the rule in.
+// ============================================================
+describe("LAW: a notice proves itself before it renders", () => {
+  it("the sweep receipt is never read straight into a card", () => {
+    // liveMoved() is the checkpoint: it takes the receipt and the live task
+    // list and drops everything since done, deleted, or re-dated. Anything
+    // reaching for receipt.moved to DISPLAY, rather than through liveMoved,
+    // is the bug Dave photographed coming back.
+    const src = read(join(SRC, "today/TodayFlow.tsx"));
+    const bad = src.split("\n")
+      .map((l, i) => ({ l, i }))
+      .filter(({ l }) => /sweepReceipt[?.]*\.moved/.test(l))
+      // undoSweep and the welcome-back count are about what the sweep DID,
+      // which is the one honest use of the raw receipt: it is history there,
+      // not status.
+      .filter(({ l }) => !/welcomeBack|undoSweep/.test(l))
+      .map(({ l, i }) => `TodayFlow.tsx:${i + 1} ${l.trim().slice(0, 80)}`);
+    expect(bad, "read the receipt through liveMoved(), never straight into a card").toEqual([]);
+  });
+
+  it("liveMoved actually checks done, existence, and the date", () => {
+    const src = read(join(SRC, "tasks/autoSweep.ts"));
+    const fn = src.slice(src.indexOf("export function liveMoved"));
+    const body = fn.slice(0, fn.indexOf("\n}"));
+    expect(body, "a task deleted since the sweep is not news").toMatch(/if \(!t\) return false/);
+    expect(body, "a task finished since the sweep is not news -- the whole complaint").toMatch(/t\.data\.done/);
+    expect(body, "a task re-dated since the sweep is not today's news").toMatch(/due === today/);
+  });
+
+  it("the Where You Were bookmark can be asked whether its thing still exists", () => {
+    const src = read(join(SRC, "restore/whereYouWere.ts"));
+    expect(src, "restorableSpot takes an existence check").toMatch(/exists\?: \(spot: WorkSpot\) => boolean/);
+    expect(src, "and honours it").toMatch(/if \(exists && !exists\(spot\)\) return null/);
+    // The caller has to actually pass one, or the parameter is decoration.
+    const flow = read(join(SRC, "today/TodayFlow.tsx"));
+    expect(flow, "Today looks the spot's target up before offering Resume").toMatch(/notesSvc\.note\(s\.id\)/);
+  });
+
+  it("acting on a mail card outlives the tab switch", () => {
+    // AppShell remounts each flow by key, so in-memory "I handled this"
+    // state resurrected replies he had already sent. Handled has to persist.
+    const src = read(join(SRC, "today/MailNotices.tsx"));
+    expect(src, "markDone persists, it does not only setState").toMatch(/const markDone[\s\S]{0,220}dismissNotice\(key, today\)/);
+    const bad = src.split("\n")
+      .map((l, i) => ({ l, i }))
+      .filter(({ l }) => /setDone\(\(d\) => \[\.\.\.d,/.test(l))
+      .map(({ i }) => `MailNotices.tsx:${i + 1}`);
+    expect(bad, "mark a card handled through markDone(), which writes it down").toEqual([]);
+  });
+
+  it("the notifications feed is given a clock, so a finished event stops notifying", () => {
+    const feed = read(join(SRC, "notifications/feed.ts"));
+    expect(feed, "buildFeed takes the time of day").toMatch(/nowHHMM\?: string/);
+    expect(feed, "and drops events already over").toMatch(/e\.data\.end \?\? e\.data\.start\) > nowHHMM/);
+    const flow = read(join(SRC, "notifications/NotificationsFlow.tsx"));
+    expect(flow, "and the screen actually passes one").toMatch(/buildFeed\([\s\S]{0,120}nowHHMM/);
+  });
+});
+
+describe("LAW: dismiss means only dismiss, and it expires", () => {
+  it("no control labelled Dismiss performs a write", () => {
+    // The sweep card's Dismiss used to run undoSweep: a swipe that silently
+    // rewrote every moved task's due date back to yesterday, emptying Today
+    // of work he had already seen arrive. Undo is a real action and keeps
+    // its place -- under its own name, in the toast.
+    const src = read(join(SRC, "today/TodayFlow.tsx"));
+    const bad = src.split("\n")
+      .map((l, i) => ({ l, i }))
+      .filter(({ l }) => /onDismiss=/.test(l) && /undoSweep|setDue|deleteTask|setAside\(/.test(l))
+      .map(({ l, i }) => `TodayFlow.tsx:${i + 1} ${l.trim().slice(0, 80)}`);
+    expect(bad, "a dismiss hides a card; it never edits the user's data").toEqual([]);
+  });
+
+  it("every notice on Today can be dismissed", () => {
+    // The Resume card shipped with an empty swipe rail: the only exits were
+    // taking it or waiting twelve hours, and any visit older than five
+    // minutes re-armed it. A notice you cannot wave off is a notice you
+    // learn to resent.
+    const src = read(join(SRC, "today/TodayFlow.tsx"));
+    const cards = src.split(/<NoticeCard\b/).slice(1);
+    const bad = cards
+      // To the closing tag on its OWN line. Plain indexOf("/>") stopped at
+      // the first self-closing glyph inside a prop -- icon={<TargetGlyph />}
+      // -- and truncated the card before its later props were seen.
+      .map((c) => { const e = c.search(/\n\s*\/>/); return e === -1 ? c : c.slice(0, e); })
+      .filter((c) => /key="/.test(c))
+      .filter((c) => !/onDismiss|onDelete/.test(c))
+      // A receipt reports something already finished and has nothing to
+      // dismiss; the failed-sweep card is an error that must not be
+      // swipeable away while the failure stands.
+      .filter((c) => !/key="(sweepfail|revisit)"/.test(c))
+      .map((c) => (c.match(/key="([^"]+)"/) ?? [])[1] ?? "?");
+    expect(bad, "these notices offer no way out").toEqual([]);
+  });
+
+  it("a dismissal is day-keyed or expiring, never permanent", () => {
+    const sweep = read(join(SRC, "tasks/autoSweep.ts"));
+    expect(sweep, "the offered list ages out").toMatch(/DISMISS_DAYS/);
+    expect(sweep, "and stores when, not just what").toMatch(/\{ id: string; day: string \}|Offer = \{ id/);
+    const feed = read(join(SRC, "notifications/feed.ts"));
+    expect(feed, "notification dismissals reset with the day").toMatch(/p\.day !== today/);
+  });
+});

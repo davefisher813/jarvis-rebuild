@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions } from "../data/NotesProvider";
+import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes } from "../data/NotesProvider";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
 import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
 import type { Category } from "../categories/types";
@@ -12,7 +12,7 @@ import { greetingFor, longDate, shortDate } from "./greeting";
 import { tomorrowISO, nowHHMM, daySummary, todaysTasks, billsLine, billsDueSoon } from "./todayData";
 import TodayPage from "./TodayPage";
 import MailNotices from "./MailNotices";
-import ReportFlow, { reportSeen } from "../review/ReportPage";
+import ReportFlow, { reportSeen, markReportSeen } from "../review/ReportPage";
 import { monthName as monthTitle } from "../review/report";
 import { useOptionalSeal } from "../data/NotesProvider";
 import NoticeCard from "./NoticeCard";
@@ -78,8 +78,13 @@ import ReminderSheet from "../tasks/screens/ReminderSheet";
 import { todaysReminders, snoozeTime } from "../tasks/reminders";
 import { remindersToIcs, downloadIcs } from "../tasks/ics";
 import type { ReminderInfo } from "../notes/types";
-import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, type SweepReceipt } from "../tasks/autoSweep";
-import { restorableSpot, clearSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
+import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
+import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
+import { isQuiet, goQuiet, localQuietStore } from "../shared/quietFor";
+
+// "All its work is done" is an observation, not a verdict: a project he is
+// deliberately holding open can refuse the Close It offer for a few days.
+const closeOfferStore = localQuietStore("jarvis.closeoffer.dismissed.v1");
 import DecisionCaptureSheet, { type AttachOption } from "../decisions/DecisionCaptureSheet";
 import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
@@ -156,6 +161,9 @@ export default function TodayFlow({
   const gatherContext = useAIContext();
   const google = useGoogle();
   const schedule = useSchedule();
+  // Only ever read to answer "does the thing this bookmark names still
+  // exist" (Law 1); Today renders no note content of its own.
+  const notesSvc = useNotes();
   const tasks = useTasks();
   const profile = useProfile();
   const routine = useRoutine();
@@ -205,7 +213,26 @@ export default function TodayFlow({
   const [sweepReceipt, setSweepReceipt] = useState<SweepReceipt | null>(null);
   const [spot, setSpot] = useState<WorkSpot | null>(null);
   useEffect(() => {
-    setSpot(restorableSpot());
+    // LAW 1 (Dave 2026-08-29): the spot is a bookmark, and a bookmark
+    // outlives the page. Offering to resume a note that was deleted hours
+    // ago is the home page confidently pointing at nothing, so the offer
+    // has to ask whether the thing is still there before it renders. A gym
+    // spot has no record to look up; it stands on its timestamp alone.
+    void (async () => {
+      const s = restorableSpot();
+      if (!s) { setSpot(null); return; }
+      try {
+        const there =
+          s.kind === "note" ? !!(await notesSvc.note(s.id))
+          : s.kind === "task" ? !!(await tasks.task(s.id))
+          : s.kind === "event" ? !!(await schedule.event(s.id))
+          : true;
+        setSpot(there ? s : null);
+      } catch {
+        // A lookup that fails is not proof the thing is gone; keep the offer.
+        setSpot(s);
+      }
+    })();
     void (async () => {
       try {
         const r = await runAutoSweep(tasks, todayISO());
@@ -270,6 +297,9 @@ export default function TodayFlow({
   const [projList, setProjList] = useState<Project[]>([]);
   // Bumps after a goal nudge is waved off so the derivation re-reads storage.
   const [goalNudgeTick, setGoalNudgeTick] = useState(0);
+  // Same pattern for the two sweep cards: their dismissals live in storage,
+  // so a bump is what tells the render to go read it again.
+  const [sweepDismissTick, setSweepDismissTick] = useState(0);
   const [goalList, setGoalList] = useState<Goal[]>([]);
   useEffect(() => {
     let on = true;
@@ -989,7 +1019,11 @@ export default function TodayFlow({
   // The tick-time toast already offers this at the instant of the last tap;
   // this is for every other way a project reaches the end (a sweep, an
   // import, the toast missed while the phone was in a pocket). One at a time.
-  const finishedProject = rankProjects(projList, taskItems, samples, Date.now()).filter(closable)[0] ?? null;
+  // LAW 2: "every task in it is finished" is not the same claim as "this
+  // project is over", so the offer has to be refusable (see its onDismiss).
+  const finishedProject = rankProjects(projList, taskItems, samples, Date.now())
+    .filter(closable)
+    .filter((p) => !isQuiet(p.project.id, today, closeOfferStore))[0] ?? null;
   const closeProject = async (id: string) => {
     const proj = projList.find((p) => p.id === id);
     if (!proj) return;
@@ -1008,7 +1042,14 @@ export default function TodayFlow({
   const ring = { done: dueToday.filter((t) => t.data.done).length, total: dueToday.length };
   // GROUP A banners (items 6 and 9), above the day. Success is quiet;
   // failure is louder, and tappable to retry.
-  const sweepCand = sweepReceipt && !sweepReceipt.failed ? setAsideCandidate(sweepReceipt) : null;
+  // LAW 1: every read of the sweep receipt for DISPLAY goes through
+  // liveMoved first, against the live task list. The receipt itself stays
+  // whole -- Undo needs every entry it wrote, including the ones since
+  // handled -- but no card is allowed to speak about a task that is done,
+  // deleted, or has moved on. See autoSweep.ts for the full reasoning.
+  void sweepDismissTick; // re-derive after a sweep-card dismissal
+  const movedNow = liveMoved(sweepReceipt, taskItems, today);
+  const sweepCand = sweepReceipt && !sweepReceipt.failed ? setAsideCandidate(movedNow, today) : null;
   // THE DAY LOOP (Group C item 14). Draft at first open, deterministic and
   // instant; Accept stays the one honest commit moment.
   const todayDow = new Date().getDay();
@@ -1266,10 +1307,10 @@ export default function TodayFlow({
   };
 
   const planned = useMemo(() => plannedTaskIds(dayDraft), [dayDraft]);
-  const unplannedMoved = useMemo(
-    () => (sweepReceipt?.moved ?? []).filter((m) => !planned.has(m.id)),
-    [sweepReceipt, planned],
-  );
+  // movedNow is already the live-checked list (Law 1); this drops the ones
+  // the day draft has since given a time. Not memoized: liveMoved rebuilds
+  // each render anyway, so a memo keyed on it would never hit.
+  const unplannedMoved = movedNow.filter((m) => !planned.has(m.id));
 
   const [ritual, setRitual] = useState<Ritual | null>(null);
 
@@ -1626,7 +1667,7 @@ export default function TodayFlow({
         }}
       />
     ) : null,
-    sweepReceipt && !sweepReceipt.failed && unplannedMoved.length > 0 ? (
+    sweepReceipt && !sweepReceipt.failed && unplannedMoved.length > 0 && !sweepCardDismissed(today) ? (
       <NoticeCard
         key="sweep"
         weight={NEW}
@@ -1648,22 +1689,55 @@ export default function TodayFlow({
         alt={sweepCand && !planned.has(sweepCand.id) ? {
           label: "Set Aside",
           onClick: () => void (async () => {
-            markOffered(sweepCand.id);
+            markOffered(sweepCand.id, today);
             const ok = await attemptWrite(() => tasks.setAside([sweepCand.id]));
             setSweepReceipt(readReceipt(today));
             await reload();
             if (ok) showToast({ message: "Set aside · Keeps its place", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreAside([sweepCand.id])); await reload(); } });
           })(),
         } : undefined}
-        onDismiss={() => void (async () => { await attemptWrite(() => undoSweep(tasks, sweepReceipt)); setSweepReceipt(null); await reload(); })()}
+        // LAW 2: DISMISS MEANS ONLY DISMISS (Dave 2026-08-29). This used to
+        // run undoSweep -- a swipe labelled "Dismiss" that silently rewrote
+        // every moved task's due date back to yesterday, emptying Today of
+        // work he had already seen arrive. Undoing the sweep is a real and
+        // occasionally wanted action, but it has to be asked for by name, so
+        // it now rides the toast below under its own words. Dismissing hides
+        // the card and touches nothing.
+        onDismiss={() => {
+          dismissSweepCard(today);
+          setSweepDismissTick((n) => n + 1);
+          showToast({
+            message: "Hidden for today",
+            actionLabel: "Undo the Move",
+            onAction: async () => {
+              if (!sweepReceipt) return;
+              await attemptWrite(() => undoSweep(tasks, sweepReceipt));
+              setSweepReceipt(null);
+              await reload();
+            },
+          });
+        }}
       />
     ) : null,
-    // THE FIVE-DAY SLIDE (2026-08-21). The app already counted the slips and
-    // then offered nothing but Undo. A task that has moved five days running
-    // is not being avoided out of laziness: it is too vague or too big to
-    // start, which is what Break It Down exists for (catalog O.10). Gated on
-    // the AI, so the button never promises something it cannot do.
-    sweepCand && sweepCand.slips >= 3 && ai.available && !planned.has(sweepCand.id) ? (
+    // THE FIVE-DAY SLIDE (2026-08-21). A task that has moved three days
+    // running is not being avoided out of laziness: it is too vague or too
+    // big to start, which is what Break It Down exists for (catalog O.10).
+    //
+    // LAW 3, ONE VERB, AND IT IS "OPEN THE THING" (Dave 2026-08-29). The
+    // card used to fire Break It Down directly: a heavyweight AI operation,
+    // launched from a one-line row he reads in about a second, that silently
+    // replaces the task with several new ones. That is not a glance
+    // decision, and offering it here also meant the only two answers this
+    // card accepted were "rewrite it with AI" or "never mention it again".
+    //
+    // Now the card states the fact and opens the task. Break It Down is the
+    // second button in the sheet that opens, alongside Add to Schedule,
+    // rename, re-date and delete -- the full set of honest answers to a task
+    // that keeps sliding, in the one place that has the context to choose
+    // between them. No longer gated on the AI either: the fact that
+    // something has slid three days is worth saying whether or not a model
+    // is available to reword it.
+    sweepCand && sweepCand.slips >= 3 && !planned.has(sweepCand.id) ? (
       <NoticeCard
         key="slide"
         weight={FAILING}
@@ -1672,11 +1746,11 @@ export default function TodayFlow({
         title={sweepCand.text}
         sub={`Slid ${sweepCand.slips}d`}
         heat="warm"
-        action={{
-          label: "Break It Down",
-          onClick: () => { markOffered(sweepCand.id); void breakDownTask(sweepCand.id); },
-        }}
-        onDismiss={() => markOffered(sweepCand.id)}
+        onOpen={() => { markOffered(sweepCand.id, today); void onOpenTask(sweepCand.id); }}
+        // Quiet for DISMISS_DAYS, not forever: the old markOffered list had
+        // no expiry, so one dismissal meant this task could never be flagged
+        // again however long it kept sliding (Law 2).
+        onDismiss={() => { markOffered(sweepCand.id, today); setSweepDismissTick((n) => n + 1); }}
       />
     ) : null,
     spot ? (
@@ -1688,6 +1762,10 @@ export default function TodayFlow({
         title={spot.label}
         sub={spotAgo(spot)}
         action={{ label: "Resume", onClick: () => { clearSpot(); setSpot(null); onRestoreSpot?.(spot.kind, spot.id); } }}
+        // LAW 2: this card had no dismiss at all -- its swipe rail was
+        // empty, so the only exits were taking it or waiting out twelve
+        // hours, and every visit longer than five minutes ago re-armed it.
+        onDismiss={() => { dismissSpot(spot); setSpot(null); }}
       />
     ) : null,
     // PICK 2: A FINISHED THING SURFACES WHERE HE IS (Dave 2026-08-22). Wave 1
@@ -1705,6 +1783,12 @@ export default function TodayFlow({
         title={finishedProject.project.data.title}
         sub={capAfterNumber(`All ${finishedProject.progress?.total ?? 0} done`)}
         action={{ label: "Close It", onClick: () => void closeProject(finishedProject.project.id) }}
+        // LAW 2 (2026-08-29): "every task in it is finished" is not the same
+        // claim as "the project is over", and a project he is deliberately
+        // keeping open had no way to say so -- the card returned every day
+        // until he closed something he did not want closed. Quiet for three
+        // days, the same window every other dismissal here uses.
+        onDismiss={() => { goQuiet(finishedProject.project.id, today, closeOfferStore); setSweepDismissTick((n) => n + 1); }}
       />
     ) : null,
     // PICK 3: THE GOAL NOTHING TODAY TOUCHES. Not a scolding and not a
@@ -2037,6 +2121,12 @@ export default function TodayFlow({
       title={`Your ${monthTitle(reportMonth)} is ready`}
       sub="Two minutes"
       action={{ label: "Read It", onClick: () => setReportOpen(true) }}
+      // LAW 2 (2026-08-29): it had no way out. Reading the report marked it
+      // seen; NOT wanting to read it had no expression at all, so the card
+      // sat there every day until he gave in. Dismiss marks the same month
+      // seen -- "I have dealt with this" is the same fact either way -- and
+      // next month's report is a new card.
+      onDismiss={() => { markReportSeen(reportMonth); setReportMonth(null); }}
     />
   ) : null;
   const notices = [reportNotice, ...alertCards, reflowSection, overflowSection].filter(Boolean);
