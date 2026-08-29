@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useGoals, useProjects, useOptionalSeal } from "../data/NotesProvider";
 import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
-import { readSamples } from "../shared/timeSense";
+import { completionSamples } from "../events/completions";
 import { todayISO } from "../tasks/grouping";
 import { monthName, movedIn } from "./report";
 import ReportFlow from "./ReportPage";
@@ -45,10 +45,11 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
     setGoals(gl);
     setProjects(pj);
     setSeals(sl);
-    // The This Month card's one number: seen completions this month. Cheap,
-    // local, and honest about being the device's view (Still Open says so).
+    // The This Month card's one number: seen completions this month. Still a
+    // local read (Still Open says so), but now off the same unified log the
+    // category page counts from (2026-08-29), not the smaller sample array.
     const monthStart = new Date(today.slice(0, 7) + "-01T00:00:00").getTime();
-    setLiveDone(readSamples().filter((s) => s.t >= monthStart).length);
+    setLiveDone(completionSamples().filter((s) => s.t >= monthStart).length);
   }, [goalsSvc, projectsSvc, sealSvc, today]);
   useEffect(() => { void reload(); }, [reload]);
 

@@ -23,7 +23,7 @@ import { weekReceipt, receiptLine, afterHoursLine, type WeekEvent } from "../cat
 import { categoryRecord, type RecordEntry } from "../categories/record";
 import { StatTiles, DayDivide, RowIcon } from "../shared/anatomy";
 import { eventLog } from "../events";
-import { readSamples } from "../shared/timeSense";
+import { completionSamples } from "../events/completions";
 import { todayISO } from "../tasks/grouping";
 import { nextActionOf } from "../bigger/related";
 import { goalTitleOf } from "../schedule/planMeta";
@@ -284,7 +284,10 @@ export default function CategoryDetail({
   const kind = effectiveKind(cat.data);
   const isOrg = kind === "org";
   const paused = isOrg && cat.data.season === "paused";
-  const samples = readSamples();
+  // Done, the Record, and the weekday insight now read the SAME log the
+  // Pushed tile reads (2026-08-29, Brain wiring audit): one source, one cap,
+  // numbers on this screen can no longer disagree with each other.
+  const samples = completionSamples();
   const receipt = weekReceipt(categoryId, samples, events, today, cat.data.workHours ? work : null);
   const line = receiptLine(receipt);
   const ahLine = cat.data.workHours ? afterHoursLine(receipt) : null;
@@ -527,7 +530,7 @@ export default function CategoryDetail({
               const projTasks = allTasks.filter((t) => t.data.projectId === p.id);
               const taskIds = new Set(projTasks.map((t) => t.id));
               const weekAgoMs = nowMs - 7 * 86400000;
-              const doneWeek = readSamples().filter((s) => s.t >= weekAgoMs && s.id && taskIds.has(s.id)).length;
+              const doneWeek = completionSamples().filter((s) => s.t >= weekAgoMs && s.id && taskIds.has(s.id)).length;
               const overdue = projTasks.filter((t) => !t.data.done && !!t.data.due && t.data.due < today).length;
               const goal = goalTitleOf(projects, goals, p.id);
               // V2 anatomy: state leads in its color (red = stalled, muted =
