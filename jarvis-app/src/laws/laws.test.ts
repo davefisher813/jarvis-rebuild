@@ -2628,3 +2628,87 @@ describe("LAW 8: a proposal proves itself before it renders, and Accept never de
     expect(sched).toMatch(/useState<"day" \| "week" \| "month" \| "repeats">\("day"\)/);
   });
 });
+
+// LAW 9: EMAIL AUDIT 2026-08-29. The ask decides the action -- in EVERY
+// branch, and off a classifier that actually classifies.
+describe("LAW 9: the ask decides the action, in every branch", () => {
+  // Dave's four real Waiting On rows, verbatim from the 2026-08-29
+  // screenshot. Three of the four said "Ask To Call", which is the exact
+  // complaint mailAction.ts was written to fix, still live in the one
+  // branch nothing tested.
+  const REAL = [
+    "Fisher v JAT",
+    "Invoice",
+    "18u east coast battle royal",
+    "Nike Strength Re: Nike Strength / Order #51161",
+  ];
+
+  it("his real inbox no longer repeats one label down the section", async () => {
+    const { decide } = await import("../messages/mailAction");
+    const labels = REAL.map((s) => decide(s, "", 60).primary.label);
+    // Was: Ask To Call / Ask For Status / Ask To Call / Ask To Call.
+    expect(labels).toEqual(["Ask Again", "Ask For Status", "Ask Again", "Open a Dispute"]);
+    // Two rows sharing "Ask Again" is CORRECT and not the bug: they are
+    // genuinely the same ask, and the sender line under each distinguishes
+    // them. The bug was three quarters of the section reading identically.
+    expect(new Set(labels).size).toBeGreaterThanOrEqual(3);
+  });
+
+  // The law "the wait sets the tone, not the words on the button" already
+  // existed and only ever exercised money_in, which already obeyed. Every
+  // branch answers to it now, including the fallback that did not.
+  it("no ask kind changes its verb purely because the thread got old", async () => {
+    const { decide, askKindOf } = await import("../messages/mailAction");
+    const perKind: Record<string, string> = {
+      answer: "Fisher v JAT",
+      money_in: "Invoice",
+      goods: "Missing Items From Order #D2565",
+      they_asked: "CALL ME",
+      nothing: "Reservation Receipt",
+    };
+    for (const [kind, subject] of Object.entries(perKind)) {
+      expect(askKindOf(subject), subject).toBe(kind);
+      const labels = [2, 10, 60, 200].map((d) => decide(subject, "", d).primary.label);
+      // goods is the one deliberate exception and says so in its branch:
+      // Escalate hardens into Open a Dispute, which is a different ACTION
+      // (a formal dispute), not the same ask reworded.
+      if (kind === "goods") continue;
+      expect(new Set(labels).size, `${kind} changed its verb with age: ${labels.join(" / ")}`).toBe(1);
+    }
+  });
+
+  // A fake channel change may not take the primary slot. A.askToCall's own
+  // channel is "email", so with no phone number it is another email, not a
+  // new channel, and letting it lead is what collapsed the labels.
+  it("only a real dial displaces Ask Again on a dead thread", async () => {
+    const { decide } = await import("../messages/mailAction");
+    const withPhone = decide("Fisher v JAT", "", 60, 0, { hasPhone: true });
+    expect(withPhone.primary.label).toBe("Call Them");
+    expect(withPhone.primary.channel).toBe("call");
+
+    const without = decide("Fisher v JAT", "", 60);
+    expect(without.primary.label).toBe("Ask Again");
+    // Still reachable, never removed: it steps back one slot.
+    expect(without.alternates.map((a) => a.label)).toContain("Ask To Call");
+  });
+
+  // The classifier bug: the group's closing \b sat right after \d, so the
+  // order-number rule only matched a SINGLE digit. Every real order number
+  // is longer than that, so that half of the goods rule never once fired.
+  it("an order number classifies as goods at any length", async () => {
+    const { askKindOf } = await import("../messages/mailAction");
+    for (const s of ["Order #5", "Order #51161", "order 51161", "order#7", "Re: Order #D2565"]) {
+      expect(askKindOf(s), s).toBe("goods");
+    }
+    // And the fix stays narrow: a bare word is still not an order problem.
+    expect(askKindOf("ordering lunch")).toBe("answer");
+  });
+
+  // The mode card's one-line clamp is deliberate (equal card heights). What
+  // it clips must therefore be the inferable half.
+  it("Clean Out leads its sub with the fact the card cannot otherwise show", () => {
+    const src = read(join(SRC, "messages/MessagesFlow.tsx"));
+    expect(src, "the sender count leads, so an overflow costs the filler")
+      .toMatch(/mode-why">\{senderPiles\([^)]*\)\.length \+ " senders \\u00b7 in the inbox"\}/);
+  });
+});

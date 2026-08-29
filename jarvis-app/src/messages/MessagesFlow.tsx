@@ -2788,7 +2788,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   onClick={() => { setPurgePicks(null); setView("purge"); }}>
                   <div className="mode-name">Clean Out</div>
                   <div className="mode-n">{unmutedRows.length}</div>
-                  <div className="mode-why">{"in the inbox \u00b7 " + senderPiles(unmutedRows, effTriage, vips).length + " senders"}</div>
+                  {/* THE SURVIVING HALF IS THE USEFUL HALF (Dave 2026-08-29).
+                      .mode-why is deliberately clamped to one nowrap line so
+                      every mode card is the same height whatever the sender
+                      count -- that is right and stays. But the string read
+                      "in the inbox \u00b7 12 senders", so the ellipsis ate the
+                      NUMBER and left the filler: his screenshot shows
+                      "in the inbox \u00b7 12 se...". The card already says Clean
+                      Out and already shows 16 in display type, so "in the
+                      inbox" is the half a reader can infer and the sender
+                      count is the half they cannot. Leading with the count
+                      means an overflow now costs the inferable words. */}
+                  <div className="mode-why">{senderPiles(unmutedRows, effTriage, vips).length + " senders \u00b7 in the inbox"}</div>
                   <div className="mode-go mode-go-quiet">Open</div>
                 </div>
               )}

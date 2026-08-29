@@ -59,7 +59,21 @@ const TONE_NOTE: Record<Tone, string> = {
 const RX = {
   theyAsked: /\b(call me|give me a call|can you call|please call|ring me|let'?s talk|hop on a call)\b/i,
   money: /\b(invoice|payment|remittance|past due|balance|amount due|receipt requested|reimburse\w*)\b/i,
-  goods: /\b(missing|damaged|broken|never (arrived|shipped|came)|not received|wrong item|refund|return|order #?\d|defect\w*)\b/i,
+  // `order #?\d` USED TO END AT ONE DIGIT (Dave 2026-08-29, from his real
+  // inbox). The `\b` closing this group sits right after `\d`, so the rule
+  // only ever matched a SINGLE-digit order number: "Order #5" classified as
+  // goods, "Order #51161" did not, because after the first "5" comes "1",
+  // which is no word boundary at all. Every real order number is multi-digit,
+  // so the order-number half of this rule had never fired in production.
+  // It survived because the test fixture reads "Missing Items From Order
+  // #D2565", which matches on "missing" and never exercises the number.
+  // `\d+` consumes the whole number, and the boundary then lands where it
+  // was always meant to. `\s*` also allows "order 51161" and "order#51161",
+  // and `[a-z]{0,4}` admits the letter-prefixed numbers real vendors use --
+  // "Order #D2565", the very format this file's own test fixture carries,
+  // which until now only ever matched on the word "Missing" beside it.
+  // Bounded at four so "ordering lunch" stays an ordinary thread.
+  goods: /\b(missing|damaged|broken|never (arrived|shipped|came)|not received|wrong item|refund|return|order\s*#?\s*[a-z]{0,4}\d+|defect\w*)\b/i,
   nothing: /\b(receipt|confirmation|confirmed|order placed|itinerary|ticket|statement ready|no reply needed|do not reply|noreply)\b/i,
 };
 
@@ -208,14 +222,39 @@ export function decide(
       ];
       note = "Money is owed to you";
       break;
-    default:
-      primary = dead ? callOrAsk(opts) : A.askAgain(tone);
+    default: {
+      // THE LAST BRANCH WHERE THE WAIT STILL PICKED THE WORDS (Dave
+      // 2026-08-29). This file's own thesis is "the ASK decides the action,
+      // and the WAIT decides the tone of the draft", and four of the five
+      // branches obey it. This one -- the FALLBACK, which catches every
+      // thread the regexes above do not classify, i.e. most mail -- still
+      // read `dead ? callOrAsk : askAgain`. Every thread in a real inbox is
+      // weeks old, so every one of them was dead, so every one of them said
+      // "Ask To Call": the exact complaint at the top of this file,
+      // un-fixed in the branch that matters most. Three of the four rows in
+      // his screenshot were this line.
+      //
+      // There is even a law for it, "the wait sets the tone, not the words
+      // on the button", and it only ever exercised money_in, which already
+      // obeyed. The law's own branch went untested.
+      //
+      // What survives: a real dial IS a real channel change and deserves to
+      // lead when email has stopped working. What does not: "Ask To Call"
+      // with no phone number is ITSELF AN EMAIL (see A.askToCall's channel),
+      // so it is not a channel change at all, just a differently worded ask
+      // -- and letting a fake channel change take the primary slot is what
+      // put one label on every aged row. Without a number it steps back to
+      // the alternates, where it is still one swipe away.
+      const realCall = dead && opts.hasPhone === true;
+      primary = realCall ? A.call("Call Them") : A.askAgain(tone);
       alternates = [
-        ...(dead ? [A.askAgain(tone)] : [callOrAsk(opts)]),
+        ...(realCall ? [A.askAgain(tone)] : [callOrAsk(opts)]),
         ...(alt ? [alt] : []),
         A.forward(), ...block, A.stop(),
       ];
       note = dead ? "Email has stopped working here" : "Waiting on a reply";
+      break;
+    }
   }
   // Never offer the same key twice, and never offer the primary again.
   const seen = new Set([primary.key]);
