@@ -310,6 +310,12 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
 .t-body { font-size: var(--t-body); font-weight: var(--w-normal); line-height: var(--lh-relaxed); }
 .t-meta { font-size: var(--t-meta); font-weight: var(--w-normal); color: var(--tx-3); }
 .eyebrow { font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-eyebrow); color: var(--tx-3); }
+/* TASKS AUDIT 2026-08-29: an urgency tag riding beside the category on the
+   same line, instead of fighting Start for the trailing slot. Its own font
+   size (not inherited from .urgency, which is tuned for a lone trailing
+   pill) so it sits at the same scale as the .eyebrow text beside it. */
+.row-tags { display: flex; align-items: center; gap: var(--s-2); }
+.row-tags .urgency { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-eyebrow); }
 
 /* CARD. Dark = frosted glass. Light = solid white. Both pop with elevation. */
 .card {

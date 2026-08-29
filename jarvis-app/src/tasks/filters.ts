@@ -37,7 +37,18 @@ export function partition(items: TaskItem[], today: string = todayISO()): Partit
     p[filterOf(it.data, today)].push(it);
     if (it.data.recurrence === "daily" && !it.data.done) p.daily.push(it);
   }
-  const key = (it: TaskItem) => it.data.due ?? "9999-99-99";
+  // TASKS AUDIT 2026-08-29, FINDING #3. This used to sort by DATE only. Every
+  // row inside "Today" shares the same date, so among them the sort was a
+  // no-op and the list fell back to insertion order: an if-then plan cued
+  // for 8:30 AM (see ifThen.ts) could sit under three tasks with no time
+  // attached at all, which is exactly what the screenshot that started this
+  // audit showed. A task with a time-kind cue is the closest thing this data
+  // model has to "when today", so it is now the tie-break within a date:
+  // timed tasks lead, earliest first, and everything with no cue keeps the
+  // order it already had (no cue means no claim about when, so nothing here
+  // invents one).
+  const timeOf = (it: TaskItem) => (it.data.plan?.cue.kind === "time" ? it.data.plan.cue.what : "99:99");
+  const key = (it: TaskItem) => (it.data.due ?? "9999-99-99") + "T" + timeOf(it);
   p.today.sort((a, b) => key(a).localeCompare(key(b)));
   p.overdue.sort((a, b) => key(a).localeCompare(key(b)));
   p.upcoming.sort((a, b) => key(a).localeCompare(key(b)));

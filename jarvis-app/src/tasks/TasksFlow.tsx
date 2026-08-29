@@ -34,7 +34,20 @@ import { ENTITY_TASK } from "../notes/types";
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
 
-export default function TasksFlow({ openId, openFilter, onOpenNote }: { openId?: string; openFilter?: string; onOpenNote?: (id: string) => void } = {}) {
+export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow }: {
+  openId?: string; openFilter?: string; onOpenNote?: (id: string) => void;
+  // TASKS AUDIT 2026-08-29, FINDING #1: "Pick One" used to call openEdit(),
+  // landing on the full metadata form -- title, category, due date, project,
+  // recurrence, plan -- for a button whose whole job was to remove a
+  // decision. AppShell already has the right primitive one tap over on the
+  // capture bar's lightning bolt: openWhatNow -> RightNowSheet, one task,
+  // Start or Something Else, no form. Two "give me one task" buttons a few
+  // hundred pixels apart doing different things was the bug the 2026-08-21
+  // ADHD audit named and it was only ever fixed at the shell level. This
+  // prop is how Tasks' own Pick One reaches the same single mechanism
+  // instead of running a second, weaker one.
+  onWhatNow?: () => void;
+} = {}) {
   const svc = useTasks();
   const cats = useCategories();
   const schedule = useSchedule();
@@ -493,10 +506,18 @@ export default function TasksFlow({ openId, openFilter, onOpenNote }: { openId?:
     </div>
   ) : null;
 
-  // JUST PICK ONE FOR ME (Dave 2026-08-19): the same ranking Up Next uses,
-  // taken down to one and opened. The point is that he never reads a list:
-  // one tap goes from "Tasks" straight to a task that is already open.
+  // JUST PICK ONE FOR ME (Dave 2026-08-19). The point is that he never
+  // reads a list: one tap goes from "Tasks" straight to a task that is
+  // already moving. TASKS AUDIT 2026-08-29: "already moving" means the
+  // What Now sheet (Start / Something Else), not the edit form, so this
+  // hands off to the same mechanism the lightning bolt uses whenever the
+  // shell has wired it up. The old rankOpen-then-openEdit path survives
+  // only as the fallback for a caller that mounts TasksFlow without
+  // onWhatNow (tests, or a future embed), so Pick One is never a dead
+  // button; it is just the weaker of the two behaviours instead of the
+  // only one.
   const pickOne = () => {
+    if (onWhatNow) { onWhatNow(); return; }
     const best = rankOpen(parts.all, today)[0];
     if (!best) { showToast({ message: "Nothing open · Enjoy it" }); return; }
     openEdit(best.id);

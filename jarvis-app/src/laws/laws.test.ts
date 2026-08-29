@@ -2405,3 +2405,76 @@ describe("LAW 5: one door per destination, per screen", () => {
     expect(bad, "a second door with a false sign is worse than a second door").toEqual([]);
   });
 });
+
+// LAW 6: TASKS AUDIT 2026-08-29. Four findings from a screenshot review of
+// the Tasks tab, each locked in so the fix cannot silently regress.
+describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, more is signalled", () => {
+  // FINDING #1. "Pick One" opened the full edit sheet -- title, category,
+  // due date, project, recurrence, plan -- for a button whose entire job was
+  // to remove a decision. The app already had the right tool one tap over on
+  // the capture bar (the lightning bolt, AppShell's openWhatNow ->
+  // RightNowSheet), and it was never wired to this button.
+  it("Tasks' Pick One reaches for onWhatNow before it reaches for the edit sheet", () => {
+    const flow = read(join(SRC, "tasks/TasksFlow.tsx"));
+    const pickOne = flow.slice(flow.indexOf("const pickOne = () => {"));
+    const body = pickOne.slice(0, pickOne.indexOf("\n  };") + 5);
+    expect(body, "onWhatNow is checked first").toMatch(/if \(onWhatNow\) \{ onWhatNow\(\); return; \}/);
+    const shell = read(join(SRC, "shell/AppShell.tsx"));
+    expect(shell, "and AppShell actually wires it to the same What Now the lightning bolt uses")
+      .toMatch(/<TasksFlow[^>]*onWhatNow=\{\(\) => void openWhatNow\(\)\}/);
+  });
+
+  // FINDING #2. onStartTask is passed to every row unconditionally, so the
+  // urgency label (OVERDUE, TODAY) can never reach the trailing slot: Start
+  // always wins. Start is worth keeping on every row (A2, 2026-08-21), so
+  // the fix is not to remove it; it is to stop the trailing slot from being
+  // the only place urgency could ever render.
+  it("an overdue or due-today row carries its urgency tag independent of whether Start renders", () => {
+    const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
+    expect(page, "row-tags renders the tag for overdue/today, not just soon")
+      .toMatch(/u && u\.kind !== "soon" && <span className=\{"urgency " \+ URGENCY_CLASS\[u\.kind\]\}/);
+    // The trailing-slot fallback must be narrowed to "soon" only, or it
+    // would render the SAME tag a second time whenever onStart is absent.
+    expect(page, "the trailing fallback cannot double up with row-tags")
+      .toMatch(/: u && u\.kind === "soon" && <span className=\{"urgency " \+ URGENCY_CLASS\[u\.kind\]\}/);
+  });
+
+  // FINDING #3. partition() sorted by date only. Every row in "Today" shares
+  // one date, so the sort was a no-op among them and an 8:30 AM if-then cue
+  // could sit under three tasks with no time at all.
+  it("today's list breaks a date tie by an if-then plan's time cue", () => {
+    const filters = read(join(SRC, "tasks/filters.ts"));
+    expect(filters, "the sort key reads the plan's time cue").toMatch(/plan\?\.cue\.kind === "time"/);
+    expect(filters, "and folds it into the same key date alone used to be").toMatch(/\+ "T" \+ timeOf\(it\)/);
+  });
+
+  it("timeOf actually orders a timed task ahead of an untimed one on the same day", async () => {
+    const { partition } = await import("../tasks/filters");
+    const T = (id: string, due: string, time?: string) => ({
+      id, data: { text: id, category: "", done: false, due, ...(time ? { plan: { cue: { kind: "time" as const, what: time }, then: "x" } } : {}) },
+    });
+    const items = [T("no-time-a", "2026-08-29"), T("timed", "2026-08-29", "08:30"), T("no-time-b", "2026-08-29")];
+    const p = partition(items as never, "2026-08-29");
+    expect(p.today.map((t) => t.id)[0], "the timed task leads its day").toBe("timed");
+  });
+
+  // FINDING #4. chip-row's own mask clips CONTENT to transparent, revealing
+  // whatever sits behind it -- in dark theme, near-black behind a chip that
+  // is already six-percent white on black, so the "fade" was invisible and
+  // the screenshot that started this audit shows a hard cut on "Up". A
+  // colour cue cannot work on that token pair; the fix is geometric.
+  it("the Tasks chip rows measure real overflow before claiming there is more", () => {
+    const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
+    expect(page, "ChipRow exists and both chip rows go through it")
+      .toMatch(/function ChipRow\(/);
+    const filterRow = page.slice(page.indexOf("<ChipRow>"));
+    expect(filterRow.slice(0, 200), "the filter chips use it").toMatch(/FILTERS\.map/);
+    expect(page, "the category chips use it too").toMatch(/<ChipRow>\s*\n\s*<button className=\{"chip" \+ \(!catFilter/);
+    // Measured, not assumed at mount: scrollWidth vs clientWidth, the same
+    // shape NoticeCard's shredded-sub check uses.
+    expect(page, "overflow is measured against actual scroll geometry")
+      .toMatch(/el\.scrollWidth - el\.clientWidth - el\.scrollLeft > 4/);
+    expect(page, "and re-measured on resize, not just once at mount")
+      .toMatch(/new ResizeObserver\(check\)/);
+  });
+});

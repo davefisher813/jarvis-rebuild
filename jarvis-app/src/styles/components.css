@@ -1441,6 +1441,30 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
 }
 .chip-row > .chip { scroll-snap-align: start; }
 
+/* TASKS AUDIT 2026-08-29: chip-row's own mask (above) clips CONTENT to
+   transparent, which only reads as "more to see" when what's revealed
+   behind it contrasts with the chip. A chip's fill is rgba(255,255,255,0.06)
+   in dark theme, six percent white on a black page: fading it toward --bg
+   fades it toward something it already looked like. Tried a colour-overlay
+   version of the same idea first and it produced the identical invisible
+   result for the identical reason, confirmed with a real Chromium render.
+   The overlay stays (it costs nothing and softens the true edge case where a
+   chip's own fill IS lighter, e.g. .chip.active), but the signal that
+   actually reads is TasksPage's ChipRow component: a real .chev, in a real
+   stroke colour, shown only when JS has measured genuine overflow. z-index
+   puts it above this overlay, which is also position:absolute and would
+   otherwise paint over it in DOM order. */
+.chip-row-fade { position: relative; }
+.chip-row-fade::after {
+  content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 40px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--bg) 70%);
+}
+.chip-row-more {
+  position: absolute; top: 50%; right: var(--s-2); transform: translateY(-50%);
+  z-index: 1; pointer-events: none;
+}
+
 /* === Screen height chain (2026-08-02) ===
    AppShell wraps each tab's content in a keyed <div> so switching tabs
    remounts the flow. That wrapper has auto height, so `.app-shell .screen {

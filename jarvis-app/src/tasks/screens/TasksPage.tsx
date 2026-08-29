@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
@@ -53,6 +53,46 @@ function emptySub(filter: TaskFilter, counts: Record<TaskFilter, number>): strin
     return capAfterNumber(`${counts.overdue} overdue waiting`);
   }
   return null;
+}
+
+// TASKS AUDIT 2026-08-29, FINDING #4. .chip-row already carried a
+// right-edge mask (2026-08-02, "the right-edge fade reads as keep going"),
+// clipping the row's own content to transparent over its last 32px. What
+// that reveals is whatever sits BEHIND the row -- in dark theme, --bg,
+// #000000 -- and a chip's own fill is rgba(255,255,255,0.06): six percent
+// white on black. Fading a six-percent-white chip toward black is fading
+// toward something it was already almost indistinguishable from, so the
+// clip is real and invisible at once. Confirmed with an actual Chromium
+// render before writing this, not assumed from the CSS; painting a colour
+// overlay instead of clipping alpha was tried first and produces the
+// identical result for the same reason.
+//
+// A colour fade cannot signal "more" against a token pair this close in
+// luminance. Geometry can: .chev is drawn in --tx-4, a real stroke colour
+// with genuine contrast in both themes, already the app's standing "this
+// goes somewhere" mark. It renders only when the row can actually still
+// scroll right, measured the same way NoticeCard measures a shredded sub
+// (ResizeObserver, not assumed at mount), so it never claims more content
+// exists when there isn't any, and disappears once you've reached the end.
+function ChipRow({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const check = () => setMore(el.scrollWidth - el.clientWidth - el.scrollLeft > 4);
+    check();
+    el.addEventListener("scroll", check, { passive: true });
+    let ro: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== "undefined") { ro = new ResizeObserver(check); ro.observe(el); }
+    return () => { el.removeEventListener("scroll", check); ro?.disconnect(); };
+  });
+  return (
+    <div className="chip-row-fade">
+      <div className="chip-row" ref={ref}>{children}</div>
+      {more && <div className="chip-row-more" aria-hidden="true"><div className="chev" /></div>}
+    </div>
+  );
 }
 
 function Row({
@@ -218,7 +258,22 @@ function Row({
           {/* The primary keeps the colour; the tags ride the same line as
               plain facts (2026-08-21). Colouring all of them would spend
               three colours saying one thing. */}
-          <div className={"eyebrow cat-fg-" + catColor(t.category)}>{categoryLine(t, catName)}{t.recurrence ? " \u00b7 " + t.recurrence : ""}</div>
+          {/* TASKS AUDIT 2026-08-29, FINDING #2. A2 (2026-08-21) put Start on
+              EVERY row here, deliberately, unlike Today's list where only
+              the single dealt card gets it: "the one thing an ADHD app
+              exists to help with... same pill, same behaviour, same place
+              in the row." That was the right call for beginning something,
+              and it has a real cost the original audit did not weigh: the
+              trailing slot is where urgencyFor's label used to live, so
+              nine rows with Start all look identical whether one is
+              overdue and the rest are someday. Start stays on every row;
+              the missing signal comes back here instead, where it does not
+              have to fight Start for the same pixel. Soon/no-date rows get
+              no tag, matching how little they need one. */}
+          <div className="row-tags">
+            {u && u.kind !== "soon" && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
+            <span className={"eyebrow cat-fg-" + catColor(t.category)}>{categoryLine(t, catName)}{t.recurrence ? " \u00b7 " + t.recurrence : ""}</span>
+          </div>
           {/* A1: the cue, where he will see it while scanning. The whole
               sentence is on the sheet; the row carries the trigger, which is
               the half that has to be recognisable in the moment. */}
@@ -231,9 +286,14 @@ function Row({
             Today: knowing a thing is due is worth less than a way to begin
             it, and two pills on one row is the clutter that made the audit
             flag this list in the first place. */}
+        {/* The urgency fallback below only fires for a caller that mounts
+            Row with no onStart. It is guarded against u.kind !== "soon" so
+            it can never double up with the tag row-tags now renders above:
+            the two were written to divide the same information, not repeat
+            it. */}
         {selecting ? null : onStart && !shownDone
           ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(item.id); }}>Start</button>
-          : u && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
+          : u && u.kind === "soon" && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
       </div>
     </div>
   );
@@ -362,7 +422,7 @@ export default function TasksPage({
         </>
       )}
 
-      <div className="chip-row">
+      <ChipRow>
         {FILTERS.map((f) => (
           <button
             key={f}
@@ -372,17 +432,17 @@ export default function TasksPage({
             {FILTER_LABEL[f]} &middot; {counts[f]}
           </button>
         ))}
-      </div>
+      </ChipRow>
 
       {categories && categories.length > 0 && (
-        <div className="chip-row">
+        <ChipRow>
           <button className={"chip" + (!catFilter || catFilter === "all" ? " active" : "")} onClick={() => onCatFilter?.("all")}>All</button>
           {categories.map((c) => (
             <button key={c.id} className={"chip" + (catFilter === c.id ? " active" : "")} onClick={() => onCatFilter?.(c.id)}>
               <span className={"cat-dot cat-bg-" + c.color} />{c.name}
             </button>
           ))}
-        </div>
+        </ChipRow>
       )}
 
       {/* THE DUPLICATE ADD BOX IS GONE (2026-08-21, Dave: "Add task type box
