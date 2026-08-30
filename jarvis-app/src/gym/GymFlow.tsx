@@ -1044,7 +1044,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
               <div className="nav-title truncate">{openDay.name}</div>
               <button className="nav-action-text" onClick={() => setSheet({ kind: "day", weekId: activeWeek.id, dayId: openDay.id })}>Edit</button>
             </div>
-            <div className="sh2"><span className="t">Exercises</span></div>
+            <div className="sh2 sh2-quiet"><span className="t">Exercises</span></div>
             <div><div className="list-flat">
               <ReorderList
                 ids={openDay.exercises.map((e) => e.id)}
@@ -1101,7 +1101,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
           {activeWeek.backOff && (
             <div className="pad-x"><span className="pill pill-subdued">Back-Off Week</span></div>
           )}
-          <div className="sh2"><span className="t">Days</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Days</span></div>
           <div><div className="list-flat">
             <ReorderList
               ids={activeWeek.days.map((d) => d.id)}
@@ -1185,7 +1185,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
 
             {multiWeek ? (
               <>
-                <div className="sh2"><span className="t">Weeks</span></div>
+                <div className="sh2 sh2-quiet"><span className="t">Weeks</span></div>
                 <div><div className="list-flat">
                   {weeks.map((w) => (
                     <div className="row" role="button" tabIndex={0} key={w.id} onClick={() => setOpenWeekId(w.id)}>
@@ -1204,7 +1204,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
               </>
             ) : (
               <>
-                <div className="sh2"><span className="t">Days</span></div>
+                <div className="sh2 sh2-quiet"><span className="t">Days</span></div>
                 <div><div className="list-flat">
                   {singleWeek && (
                     <ReorderList
@@ -1242,7 +1242,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
 
             {recent.length > 0 && (
               <>
-                <div className="sh2"><span className="t">Recent</span><button className="see-all" onClick={() => setHistoryOpen(true)}>History</button></div>
+                <div className="sh2 sh2-quiet"><span className="t">Recent</span><button className="see-all" onClick={() => setHistoryOpen(true)}>History</button></div>
                 <div><div className="list-flat">
                   {recent.map((w) => {
                     const logged = w.data.exercises.filter((e) => e.sets.some((s) => !s.skipped)).length;

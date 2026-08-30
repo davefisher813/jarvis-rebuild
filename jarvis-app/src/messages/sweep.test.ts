@@ -97,9 +97,9 @@ describe("10A: the honest streak", () => {
 
 describe("the deck card's estimate", () => {
   it("rounds UP, because an estimate that runs over breaks the promise", () => {
-    expect(sweepEstimate(1)).toBe("about 1 min");
-    expect(sweepEstimate(3)).toBe("about 2 min");
-    expect(sweepEstimate(9)).toBe("about 6 min");
+    expect(sweepEstimate(1)).toBe("About 1 min");
+    expect(sweepEstimate(3)).toBe("About 2 min");
+    expect(sweepEstimate(9)).toBe("About 6 min");
   });
   it("says nothing about an empty hand", () => {
     expect(sweepEstimate(0)).toBe("");

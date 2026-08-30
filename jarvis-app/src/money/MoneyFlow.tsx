@@ -300,7 +300,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
                 )}
               </div></div>
 
-              <div className="sh2"><span className="t">Set Aside</span></div>
+              <div className="sh2 sh2-quiet"><span className="t">Set Aside</span></div>
               <div>
                 {envelopes.map((e) => (
                   <div className="row" key={e.id}>
@@ -350,7 +350,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               <div className="money-hero-label">As you last entered it{balanceAsOf ? ` · ${monthDay(balanceAsOf)}` : ""}</div>
             </div></div>
           )}
-          <div className="sh2"><span className="t">Bills</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Bills</span></div>
           <div>{billRows}</div>
 
           {/* PICK 24 (Dave 2026-08-22): MONEY FLOWS INTO SAVINGS GOALS.
@@ -363,7 +363,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               can be kept honest in the same breath. */}
           {savingsGoals.length > 0 && (
             <>
-              <div className="sh2"><span className="t">Saving Toward</span></div>
+              <div className="sh2 sh2-quiet"><span className="t">Saving Toward</span></div>
               <div>
                 {savingsGoals.map((g) => (
                   <div className="row" key={g.id}>
@@ -392,7 +392,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
 
           {tagged.length > 0 && (
             <>
-              <div className="sh2"><span className="t">Also Tagged Money</span></div>
+              <div className="sh2 sh2-quiet"><span className="t">Also Tagged Money</span></div>
               <div>
                 {/* These are TASKS, so they wear the task anatomy (locked
                     law: all task lists look identical). Bare text with a
@@ -413,7 +413,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               </div>
             </>
           )}
-          <div className="sh2"><span className="t">Accounts</span><span className="n">{accounts.length}</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Accounts</span><span className="n">{accounts.length}</span></div>
           <div>
             {accounts.map((a) => {
               const m = ACCOUNT_META[a.data.kind];

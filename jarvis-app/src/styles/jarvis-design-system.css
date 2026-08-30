@@ -316,6 +316,16 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
    pill) so it sits at the same scale as the .eyebrow text beside it. */
 .row-tags { display: flex; align-items: center; gap: var(--s-2); }
 .row-tags .urgency { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: var(--track-eyebrow); }
+/* THE TAG IS A CHIP (Dave 2026-08-29: "it blends in too much"). Same size
+   and weight as the eyebrow beside it meant the only difference was hue,
+   and hue alone does not survive a fast scan. A faint tint of the tag's own
+   colour gives it a SHAPE without adding a third text style: the colour
+   still names the fact (warn = due today, red = overdue), the tint only
+   makes it findable. Text-tint pairs stay same-hue, so no new colour
+   enters the row. */
+.urgency-chip { padding: 2px 6.5px; border-radius: var(--r-pill); }
+.urgency-chip.urgency-warn { background: color-mix(in srgb, var(--warn) 14%, transparent); }
+.urgency-chip.urgency-red { background: color-mix(in srgb, var(--sys-red) 14%, transparent); }
 
 /* CARD. Dark = frosted glass. Light = solid white. Both pop with elevation. */
 .card {

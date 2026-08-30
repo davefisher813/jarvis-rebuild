@@ -294,7 +294,12 @@ export default function NotesFlow({
   const pickTemplate = async (key: TemplateKey) => {
     let id: string | null = null;
     await attemptWrite(async () => {
-      id = await svc.createNote(TEMPLATE_TITLE[key], defaultCatId);
+      // NO SILENT FILING (Dave 2026-08-29). This passed defaultCatId --
+      // whatever category happens to sort first -- so every note was born
+      // wearing a category nobody chose, and the list's "color-coded" icons
+      // were really one color: the first category's. A new note starts
+      // unfiled; choosing its home is the editor's job, on the user's tap.
+      id = await svc.createNote(TEMPLATE_TITLE[key], "");
       if (id && key !== "blank") await svc.applyTemplate(id, key);
     });
     if (!id) return;

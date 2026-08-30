@@ -99,7 +99,7 @@ export default function HistoryScreen({ workouts, onBack }: { workouts: Workout[
 
       {doneRows.length > 0 && (
         <>
-          <div className="sh2"><span className="t">Done Work</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Done Work</span></div>
           <div><div className="list-flat">
             {doneRows.map((d) => (
               <div className="row" key={d.name}>

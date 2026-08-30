@@ -107,12 +107,19 @@ function Row({
   selecting = false,
   picked = false,
   onPick,
+  muteToday = false,
 }: {
   item: TaskItem;
   today: string;
   // Select mode: the row picks instead of opening, and the swipe is off
   // because a half-swiped row under a selection is two gestures fighting.
   selecting?: boolean;
+  // TODAY SAYS NOTHING ON THE TODAY FILTER (Dave 2026-08-29: "it blends in
+  // too much"). Half the fix is the chip treatment below; the other half is
+  // that a tag repeated on every row of a filter NAMED for it carries zero
+  // information there. OVERDUE still shows everywhere: that one is a fact
+  // the filter name does not already state.
+  muteToday?: boolean;
   picked?: boolean;
   onPick?: (id: string) => void;
   onToggle?: (id: string) => void;
@@ -285,7 +292,13 @@ function Row({
               have to fight Start for the same pixel. Soon/no-date rows get
               no tag, matching how little they need one. */}
           <div className="row-tags">
-            {u && u.kind !== "soon" && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
+            {/* CHIP, NOT TEXT (Dave 2026-08-29): the tag sat at the same
+                size and weight as the category words beside it, differing
+                only in colour, which is exactly "blends in too much". A
+                tinted chip separates it from the eyebrow line by FORM, the
+                way every other status in the app earns its own shape. */}
+            {u && u.kind !== "soon" && !(muteToday && u.kind === "today") &&
+              <span className={"urgency urgency-chip " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
             <span className="eyebrow">
               {categoriesOf(t).map((id) => ({ id, name: catName(id) })).filter((c) => c.name).map((c, i) => (
                 <React.Fragment key={c.id}>
@@ -506,7 +519,7 @@ export default function TasksPage({
       {banner}
 
       {filter === "overdue" && items.length > 0 && onMoveAllToToday && (
-        <div className="sh2">
+        <div className="sh2 sh2-quiet">
           <span className="t">Overdue</span>
           <span className="n">{items.length}</span>
           <button className="see-all" onClick={onMoveAllToToday}>Move All to Today</button>
@@ -554,7 +567,7 @@ export default function TasksPage({
                 item={it} today={today} onToggle={onToggle} onOpen={onOpenTask}
                 onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} onRename={onRenameTask}
                 selecting={sel.active} picked={sel.isSelected(it.id)}
-                onPick={sel.toggle}
+                onPick={sel.toggle} muteToday={filter === "today"}
               />
               {/* Momentum Chain (addendum item 7): the suggestion slides
                   into the just-finished slot, right below its row. */}

@@ -2484,7 +2484,7 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
   it("an overdue or due-today row carries its urgency tag independent of whether Start renders", () => {
     const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
     expect(page, "row-tags renders the tag for overdue/today, not just soon")
-      .toMatch(/u && u\.kind !== "soon" && <span className=\{"urgency " \+ URGENCY_CLASS\[u\.kind\]\}/);
+      .toMatch(/u && u\.kind !== "soon" && !\(muteToday && u\.kind === "today"\) &&\s*<span className=\{"urgency urgency-chip " \+ URGENCY_CLASS\[u\.kind\]\}/);
     // The trailing-slot fallback must be narrowed to "soon" only, or it
     // would render the SAME tag a second time whenever onStart is absent.
     expect(page, "the trailing fallback cannot double up with row-tags")
@@ -2761,7 +2761,7 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
   it("Clean Out leads its sub with the fact the card cannot otherwise show", () => {
     const src = read(join(SRC, "messages/MessagesFlow.tsx"));
     expect(src, "the sender count leads, so an overflow costs the filler")
-      .toMatch(/mode-why">\{senderPiles\([^)]*\)\.length \+ " senders \\u00b7 in the inbox"\}/);
+      .toMatch(/mode-why">\{capAfterNumber\(senderPiles\([^)]*\)\.length \+ " senders"\) \+ " \\u00b7 In the inbox"\}/);
   });
 });
 
@@ -2829,5 +2829,91 @@ describe("LAW 10: one taxonomy -- the category is the area", () => {
     const section = heads.slice(0, heads.indexOf("Working Toward"));
     expect(section, "items shown, not percent done").toMatch(/\{mine\.length \+ loose\.length\}/);
     expect(section).not.toMatch(/pct|%/);
+  });
+});
+
+// LAW 11: THE FIVE-SCREEN SWEEP (Dave 2026-08-29, second screenshot pass).
+// Five findings across Today, Tasks, Notes and Email, each with the same
+// shape: a good rule already existed and one screen was quietly exempt.
+describe("LAW 11: cards show their work, tags earn their shape, and no screen is exempt from the diet", () => {
+  // FINDING 1. The evening check-in feeds daySizing and pattern awareness,
+  // and said none of it: "does how did today feel actually provide value?"
+  // is a question the card itself should have answered. The card states its
+  // purpose, and the confirmation states the CONSEQUENCE of the answer
+  // given -- only "under" resizes tomorrow, so only "under" may claim to.
+  it("the mood card says what it is for, and the answer states its real consequence", () => {
+    const src = read(join(SRC, "today/CheckIn.tsx"));
+    expect(src, "the card carries its purpose line").toMatch(/sub="Shapes tomorrow's plan"/);
+    expect(src, "an underwater answer confirms the lighter tomorrow")
+      .toMatch(/v === "under" \? "Noted · Tomorrow runs lighter on purpose"/);
+    // The claim must stay honest: daySizing only lightens on "under", so no
+    // other answer may promise a change of shape.
+    expect(src).not.toMatch(/"fire" \? "Noted · Tomorrow/);
+  });
+
+  // FINDING 2. The urgency tag sat at the same size and weight as the
+  // category text beside it, differing only in hue: "it blends in too
+  // much". Form, not colour, is what survives a fast scan, so the tag is a
+  // tinted chip now -- and on the Today filter the TODAY chip does not
+  // render at all, because a tag repeated on every row of a filter named
+  // for it says nothing. OVERDUE still shows everywhere.
+  it("the urgency tag is a chip, and TODAY never renders on the filter that already says it", () => {
+    const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
+    expect(page, "chip class on the row tag").toMatch(/urgency urgency-chip/);
+    expect(page, "TODAY muted where redundant, OVERDUE untouched")
+      .toMatch(/!\(muteToday && u\.kind === "today"\)/);
+    expect(page, "the mute is the today filter, nothing else")
+      .toMatch(/muteToday=\{filter === "today"\}/);
+    expect(CSS, "the chip is a tint of the tag's own colour, not a new colour")
+      .toMatch(/\.urgency-chip\.urgency-warn \{ background: color-mix\(in srgb, var\(--warn\)/);
+    expect(CSS).toMatch(/\.urgency-chip\.urgency-red \{ background: color-mix\(in srgb, var\(--sys-red\)/);
+  });
+
+  // FINDING 3. I3 (2026-08-24) quieted Today's heads and said "one accent
+  // head per screen"; every other tab kept shouting. Search had ELEVEN red
+  // heads down one screen. The diet is app-wide now: the only plain .sh2
+  // left is YourDay's, which is Today's sanctioned "Now".
+  it("one accent section head in the whole app: Today's Now", () => {
+    const offenders: string[] = [];
+    for (const f of COMPONENTS) {
+      if (rel(f) === "today/YourDay.tsx") continue;
+      read(f).split("\n").forEach((line, i) => {
+        if (line.includes('className="sh2"')) offenders.push(rel(f) + ":" + (i + 1));
+      });
+    }
+    expect(offenders, "every other head takes sh2-quiet").toEqual([]);
+  });
+
+  // FINDING 4. Every new note was born wearing defaultCatId -- whatever
+  // category happens to sort first -- so the "color-coded" library was one
+  // color: the first category's. Filing is a choice; nothing files itself.
+  it("a new note is born unfiled, and an unfiled note wears yellow, not a category's colour", () => {
+    const flow = read(join(SRC, "notes/NotesFlow.tsx"));
+    expect(flow, "creation passes no category")
+      .toMatch(/createNote\(TEMPLATE_TITLE\[key\], ""\)/);
+    const list = read(join(SRC, "notes/screens/NotesList.tsx"));
+    expect(list, "unfiled renders yellow; filed keeps its category's colour")
+      .toMatch(/n\.category \? catColor\(n\.category\) : "yellow"/);
+  });
+
+  // FINDING 5. The casing law ("every dot-segment leads with a capital")
+  // stopped at the mode deck, where the sublines shipped as lowercase
+  // fragments; and Read It to Me was the last plain card in a column of
+  // launch-rows. One casing law, one launcher chassis.
+  it("scorecard sublines lead capitalized, and Read It to Me rides the launcher chassis", () => {
+    const flow = read(join(SRC, "messages/MessagesFlow.tsx"));
+    expect(flow, "Sweep subline leads capitalized").toMatch(/"Needs you" : "Need you"/);
+    expect(flow, "Clean Out subline caps its count and its tail")
+      .toMatch(/capAfterNumber\(senderPiles\(unmutedRows, effTriage, vips\)\.length \+ " senders"\) \+ " \\u00b7 In the inbox"/);
+    const rimIdx = flow.indexOf("Read It to Me");
+    const rim = flow.slice(Math.max(0, rimIdx - 900), rimIdx + 900);
+    expect(rim, "same chassis as its neighbours").toMatch(/launch-row/);
+    expect(rim, "a row that performs carries a control, not a chevron").not.toMatch(/launch-chev/);
+  });
+
+  it("the sweep estimate itself leads with a capital", async () => {
+    const { sweepEstimate } = await import("../messages/sweep");
+    expect(sweepEstimate(6)).toBe("About 4 min");
+    expect(sweepEstimate(0)).toBe("");
   });
 });

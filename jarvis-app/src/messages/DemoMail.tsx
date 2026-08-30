@@ -109,17 +109,17 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
         <div className="mode-card mode-hero" role="button" tabIndex={0} onClick={demoTap}>
           <div className="mode-name">The Sweep</div>
           <div className="mode-n">{NEEDS.length}</div>
-          <div className="mode-why">need you &middot; about 2 min</div>
+          <div className="mode-why">Need you &middot; About 2 min</div>
           <div className="mode-go">Start</div>
         </div>
         <div className="mode-card" role="button" tabIndex={0} onClick={demoTap}>
           <div className="mode-name">Clean Out</div>
           <div className="mode-n">14</div>
-          <div className="mode-why">in the inbox &middot; 6 senders</div>
+          <div className="mode-why">6 Senders &middot; In the inbox</div>
           <div className="mode-go mode-go-quiet">Open</div>
         </div>
       </div>
-      <div className="sh2">
+      <div className="sh2 sh2-quiet">
         <span className="t">Needs You</span>
         <span className="n">{NEEDS.length}</span>
       </div>
@@ -139,7 +139,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
       </div></div>
       <ListFloor />
 
-      <div className="sh2"><span className="t">Waiting On</span><span className="n">{WAITING.length}</span></div>
+      <div className="sh2 sh2-quiet"><span className="t">Waiting On</span><span className="n">{WAITING.length}</span></div>
       <div><div className="list-flat">
         {WAITING.map((w) => {
           const d = decide(w.sub, "", w.days);

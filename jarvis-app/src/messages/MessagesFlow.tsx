@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, lazy, Suspense } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare } from "../shared/icons";
+import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2 } from "../shared/icons";
 import type { AIService } from "../ai/AIService";
 import { useGoogle } from "../connections/google/GoogleSession";
 
@@ -2779,7 +2779,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   onClick={() => { setDeckRows(needsYou); setView("deck"); }}>
                   <div className="mode-name">The Sweep</div>
                   <div className="mode-n">{needsYou.length}</div>
-                  <div className="mode-why">{(needsYou.length === 1 ? "needs you" : "need you") + " \u00b7 " + sweepEstimate(needsYou.length)}</div>
+                  {/* CASING LAW APPLIES TO SCORECARDS (Dave 2026-08-29).
+                      The line read as a continuation of the display number
+                      above it, so it shipped lowercase -- but it is its own
+                      element, and every other sub in the app leads each
+                      segment with a capital ("A timed drain \u00b7 It stops
+                      itself"). Same rule here, no exception for cards. */}
+                  <div className="mode-why">{(needsYou.length === 1 ? "Needs you" : "Need you") + " \u00b7 " + sweepEstimate(needsYou.length)}</div>
                   <div className="mode-go">Start</div>
                 </div>
               )}
@@ -2799,7 +2805,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       inbox" is the half a reader can infer and the sender
                       count is the half they cannot. Leading with the count
                       means an overflow now costs the inferable words. */}
-                  <div className="mode-why">{senderPiles(unmutedRows, effTriage, vips).length + " senders \u00b7 in the inbox"}</div>
+                  <div className="mode-why">{capAfterNumber(senderPiles(unmutedRows, effTriage, vips).length + " senders") + " \u00b7 In the inbox"}</div>
                   <div className="mode-go mode-go-quiet">Open</div>
                 </div>
               )}
@@ -2868,18 +2874,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               It says the SAME things the cards say, and never reads a body
               aloud: a private message read out with other people in the car
               is a real harm and nothing here is worth it. */}
+          {/* ONE CHASSIS FOR EVERY LAUNCHER (Dave 2026-08-29: "I don't like
+              the display at the bottom of the screen"). This was the last
+              plain card in the launcher column: two launch-rows and then one
+              odd card doing the same job in older clothes. Same chassis as
+              its neighbours now -- icon tile, title, promise -- with the
+              play control as the trailing pill, because this row performs
+              rather than navigates and a chevron would lie about that. */}
           {needsYou.length > 0 && canSpeak() && (
-            <div className="pad-x"><div className="card"><div className="row">
-              <div className="row-grow">
-                <div className="conn-name">Read It to Me</div>
-                <div className="conn-meta">Senders and gists only · Never the message</div>
-              </div>
-              <button className="pill-act" onClick={() => {
+            <div className="pad-x">
+              <div className="launch-row" role="button" tabIndex={0} onClick={() => {
                 if (speaking) { stopSpeaking(); setSpeaking(false); return; }
                 const notices = mailNotices(loadMailSnapshot(), todayISO());
                 setSpeaking(speak(speakable(notices, inboxSentence(notices, loadMailSnapshot()))));
-              }}>{speaking ? "Stop" : "Play"}</button>
-            </div></div></div>
+              }}>
+                <span className="launch-ic" aria-hidden="true"><Volume2 className="ic" /></span>
+                <div className="row-grow">
+                  <div className="launch-tt">Read It to Me</div>
+                  <div className="launch-ss">Senders and gists only · Never the message</div>
+                </div>
+                <span className="pill-act">{speaking ? "Stop" : "Play"}</span>
+              </div>
+            </div>
           )}
 
           {/* N14: once a week, everything nobody chased. Needs-you is NEVER

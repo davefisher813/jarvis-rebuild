@@ -35,7 +35,17 @@ describe("TasksPage", () => {
     );
     expect(container.querySelector(".task-check.cat-bd-sky")).toBeTruthy();
     expect(container.querySelector(".urgency-red")).toBeTruthy();
-    expect(container.querySelector(".urgency-warn")).toBeTruthy();
+    // LAW 11 (2026-08-29): TODAY never renders on the filter named for it,
+    // so the due-today row wears no tag here...
+    expect(container.querySelector(".urgency-warn")).toBeFalsy();
+  });
+
+  it("shows the TODAY chip where it carries information (the All filter)", () => {
+    const { container } = render(
+      <TasksPage filter="all" counts={counts} items={[tk("due", "2026-05-20")]} today="2026-05-20" />,
+    );
+    // ...and wears it as a chip everywhere the filter does not already say it.
+    expect(container.querySelector(".urgency-chip.urgency-warn")).toBeTruthy();
   });
 
   it("shows an empty state when the filter has no items", () => {

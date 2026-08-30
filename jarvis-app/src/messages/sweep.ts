@@ -143,5 +143,8 @@ export function streakView(d: SweepDays, todayISO: string): StreakView {
 export function sweepEstimate(n: number): string {
   if (n <= 0) return "";
   const mins = Math.max(1, Math.ceil((n * 40) / 60));
-  return "about " + mins + " min";
+  // Leads with a capital because it renders as its own dot-segment on the
+  // Sweep scorecard, and segments lead capitalized everywhere else in the
+  // app (casing law, extended to scorecards 2026-08-29).
+  return "About " + mins + " min";
 }

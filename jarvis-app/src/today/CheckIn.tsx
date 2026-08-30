@@ -12,6 +12,15 @@ import { SunGlyph } from "../shared/glyphs";
 // answers "what's my one thing," and overdue triage lives on the Tasks page.
 // The mood answer stays because nothing else collects it: it sizes tomorrow's
 // plan (daySizing) and feeds pattern awareness.
+//
+// THE CARD SHOWS ITS WORK (Dave 2026-08-29: "does how did today feel actually
+// provide value?"). It did -- an Underwater answer caps tomorrow at four
+// blocks with extra slack, and fourteen days of answers feed the pattern
+// observations -- but none of that was visible, so the card read as a mood
+// diary with no reader. Two fixes, both honest: the card itself says what the
+// answer is FOR ("Shapes tomorrow's plan"), and the confirmation states the
+// actual consequence of the answer given. Underwater is the only answer that
+// changes tomorrow's shape, so it is the only one that claims to.
 
 const SPARK = (
   <SunGlyph />
@@ -73,6 +82,7 @@ export default function CheckIn({ onChanged }: { onChanged?: () => void }) {
       icon={SPARK}
       tone="cat-fg-blue"
       title="How Did Today Feel?"
+      sub="Shapes tomorrow's plan"
       onDismiss={async () => { await saveDay({ addSkip: "mood" }); haptics.selection(); setShow(false); }}
       foot={
         <div className="row check-moods">
@@ -80,7 +90,9 @@ export default function CheckIn({ onChanged }: { onChanged?: () => void }) {
             <div className="chip" role="button" tabIndex={0} key={v} onClick={async () => {
               await saveDay({ mood: v });
               haptics.selection();
-              setAffirm("Noted · Helps me plan");
+              // The consequence, not a pleasantry. Only "under" resizes
+              // tomorrow (daySizing), so only "under" says it will.
+              setAffirm(v === "under" ? "Noted · Tomorrow runs lighter on purpose" : "Noted · Helps me plan tomorrow");
               setShow(false);
               onChanged?.();
               window.setTimeout(() => setAffirm(null), 3500);

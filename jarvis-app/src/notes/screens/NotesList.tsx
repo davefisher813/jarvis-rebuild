@@ -62,7 +62,10 @@ export default function NotesList({
         </div>
       </PageHeader>
 
-      <div className="sh2"><span className="t">All Notes</span><span className="n">{shown.length}</span></div>
+      {/* I3 APPLIES HERE TOO (Dave 2026-08-29: "mirror the home page red
+          rules on all pages"). A library index is not the thing on this
+          screen most worth looking at; the notes are. */}
+      <div className="sh2 sh2-quiet"><span className="t">All Notes</span><span className="n">{shown.length}</span></div>
       {shown.map((n) => (
         <div
           className={"lib-row" + (sel.isSelected(n.id) ? " picked" : "")}
@@ -82,7 +85,12 @@ export default function NotesList({
               onClick={(e) => { e.stopPropagation(); sel.toggle(n.id); }}
             >{sel.isSelected(n.id) && <Check className="ic" />}</button>
           ) : (
-            <div className={"lib-ico cat-fg-" + catColor(n.category)}><FileText className="ic" /></div>
+            /* An unfiled note wears yellow (Dave 2026-08-29: "default
+               should be yellow") -- a legal-pad color that says "a note",
+               deliberately not any category's claim. A filed note keeps its
+               category's own color, which is what makes the yellow readable
+               as "not filed yet". */
+            <div className={"lib-ico cat-fg-" + (n.category ? catColor(n.category) : "yellow")}><FileText className="ic" /></div>
           )}
           <div className="lib-stack">
             <div className="lib-name">{n.title}</div>

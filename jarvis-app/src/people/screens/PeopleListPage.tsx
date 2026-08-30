@@ -113,7 +113,7 @@ export default function PeopleListPage({
         <>
         {/* V2 anatomy: the section carries the teal people tile; each row's
             avatar IS its type, so rows never double up with a RowIcon. */}
-        <div className="sh2"><span className="t">Your People</span></div>
+        <div className="sh2 sh2-quiet"><span className="t">Your People</span></div>
         <div><div className="list-flat">
           {shown.map((p) => (
             <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onOpen(p.id)}>
