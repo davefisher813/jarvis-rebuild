@@ -6,7 +6,7 @@ import { monthDay } from "../money/bills";
 import type { Exercise, Program, ProgramDay, ProgramWeek, Workout, SetEntry, WorkoutExercise } from "./types";
 import { targetLine } from "./measures";
 import { receiptFor, type Receipt } from "./prs";
-import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, queueFinished, flushPending, hasWork, type LiveSession } from "./liveSession";
+import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, queueFinished, flushPending, hasWork, isStillActive, type LiveSession } from "./liveSession";
 import { bumpStrip, newSetId } from "./strip";
 import { buildLibrary } from "./library";
 import { pairLabels, pairExercises, unpairExercise } from "./pairs";
@@ -307,9 +307,12 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
   // workout on mount (a logged set is never lost), and an empty one clears.
   // LOG IT LATER (catalog §3.8): a backdated session is not "stale" just
   // because its date is not today, so it is kept on the same terms.
+  // SESSIONS RESUME, NOT FRAGMENT (2026-08-30): isStillActive also keeps a
+  // session whose date rolled past midnight while it was genuinely still
+  // being logged -- see its doc comment in liveSession.ts.
   const [live, setLive] = useState<LiveSession | null>(() => {
     const s = readLive();
-    return s && (s.date === todayISO() || s.backdated) ? s : null;
+    return s && isStillActive(s, todayISO()) ? s : null;
   });
   const [receipt, setReceipt] = useState<{ receipt: Receipt; dayName: string } | null>(null);
   const [viewWorkout, setViewWorkout] = useState<Workout | null>(null);
@@ -526,13 +529,19 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
   // gets saved as the partial workout it was; an empty shell just clears.
   // Without this, the next startDay would have silently destroyed it.
   // A BACKDATED session (catalog §3.8) is not stale just because its date is
-  // not today, so it is left alone here.
+  // not today, so it is left alone here. SESSIONS RESUME, NOT FRAGMENT
+  // (2026-08-30): isStillActive also spares a session that crossed midnight
+  // while still being actively logged -- only real inactivity lands here.
+  // endedAt uses the session's last real write, not its start, so a
+  // genuinely-recovered partial workout reports the time actually spent
+  // rather than a 0-minute stamp.
   useEffect(() => {
     const s = readLive();
-    if (!s || s.date === todayISO() || s.backdated) return;
+    if (!s || isStillActive(s, todayISO())) return;
     clearLive();
     if (hasWork(s.exercises)) {
-      queueFinished({ programId: s.programId, dayId: s.dayId, dayName: s.dayName, date: s.date, startedAt: s.startedAt, endedAt: s.startedAt, exercises: s.exercises });
+      const endedAt = s.lastActivityAt ?? s.startedAt;
+      queueFinished({ programId: s.programId, dayId: s.dayId, dayName: s.dayName, date: s.date, startedAt: s.startedAt, endedAt, exercises: s.exercises });
       void flushPending((w) => svc.saveWorkout(w)).then(() => reload());
       showToast({ message: `Saved unfinished ${s.dayName} · ${monthDay(s.date)}` });
     }
@@ -563,9 +572,10 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
     const exercises = last
       ? sessionExercisesSameAsLastTime(day, last.data)
       : day.exercises.map((e) => ({ exerciseId: e.id, name: e.name, kind: e.kind, unit: e.unit, timeUnit: e.timeUnit, exerciseKey: e.exerciseKey, sets: [] }));
+    const startedAt = Date.now();
     const s: LiveSession = {
       programId: program.id, dayId: day.id, dayName: day.name, date,
-      startedAt: Date.now(), idx: 0, exercises,
+      startedAt, lastActivityAt: startedAt, idx: 0, exercises,
       ...(backdated ? { backdated: true } : {}),
       ...(opts.sameAsLastTime ? { sameAsLastTime: true } : {}),
     };
@@ -573,7 +583,15 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
     setLive(s);
     if (opts.sameAsLastTime && !last) showToast({ message: "No prior session for this day yet · Starting fresh" });
   };
-  const update = (next: LiveSession) => { writeLive(next); setLive(next); };
+  // Every logged change re-stamps lastActivityAt (2026-08-30, sessions
+  // resume not fragment): this is the one door all of SessionScreen's
+  // mutations pass through, so it is the one place that needs to know a
+  // session is still being actively used.
+  const update = (next: LiveSession) => {
+    const stamped = { ...next, lastActivityAt: Date.now() };
+    writeLive(stamped);
+    setLive(stamped);
+  };
 
   const finish = async () => {
     if (!live) return;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readLive, writeLive, clearLive, logSet, setLoggedSets, undoLast, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, queueFinished, readPending, flushPending, hasWork, type LiveSession, type Storage2 } from "./liveSession";
+import { readLive, writeLive, clearLive, logSet, setLoggedSets, undoLast, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, queueFinished, readPending, flushPending, hasWork, isStillActive, STALE_GRACE_MS, type LiveSession, type Storage2 } from "./liveSession";
 import type { ProgramDay, SetEntry, WorkoutData, WorkoutExercise } from "./types";
 
 // The offline contract: a set logged in a basement is never lost, and a
@@ -143,6 +143,53 @@ describe("addExerciseMidSession: catalog §3.10", () => {
     l = addExerciseMidSession(l, { name: "Face Pulls", kind: "reps", plan: [] });
     const ids = l.exercises.map((e) => e.exerciseId);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("isStillActive: sessions resume, not fragment (2026-08-30)", () => {
+  const NOON_AUG_24 = Date.parse("2026-08-24T12:00:00");
+
+  it("a same-day session is always active, no matter how stale lastActivityAt looks", () => {
+    const s = live();
+    expect(isStillActive({ ...s, date: "2026-08-24", startedAt: NOON_AUG_24, lastActivityAt: NOON_AUG_24 - 999 * STALE_GRACE_MS }, "2026-08-24", NOON_AUG_24)).toBe(true);
+  });
+
+  it("a backdated session is always active regardless of date or activity", () => {
+    const s = live();
+    expect(isStillActive({ ...s, date: "2026-08-01", backdated: true, lastActivityAt: NOON_AUG_24 - 999 * STALE_GRACE_MS }, "2026-08-24", NOON_AUG_24)).toBe(true);
+  });
+
+  // THE BUG (training catalog audit, §5.4): a workout started at 11:58pm and
+  // still being logged at 12:05am used to look identical to one abandoned
+  // the night before, because both have date !== today. Recent real activity
+  // is what tells them apart.
+  it("crossed midnight but logged a set 2 minutes ago -- still active", () => {
+    const startedAt = Date.parse("2026-08-24T23:58:00");
+    const lastActivityAt = Date.parse("2026-08-25T00:05:00");
+    const now = Date.parse("2026-08-25T00:07:00"); // remount right after
+    const s: LiveSession = { ...live(), date: "2026-08-24", startedAt, lastActivityAt };
+    expect(isStillActive(s, "2026-08-25", now)).toBe(true);
+  });
+
+  it("crossed midnight and nothing logged in 7 hours -- genuinely stale, recovered", () => {
+    const startedAt = Date.parse("2026-08-24T23:58:00");
+    const lastActivityAt = Date.parse("2026-08-25T00:05:00");
+    const now = Date.parse("2026-08-25T07:10:00"); // 7+ hours of silence
+    const s: LiveSession = { ...live(), date: "2026-08-24", startedAt, lastActivityAt };
+    expect(isStillActive(s, "2026-08-25", now)).toBe(false);
+  });
+
+  it("right at the edge of the grace window: just under is active, just over is not", () => {
+    const s: LiveSession = { ...live(), date: "2026-08-24", startedAt: NOON_AUG_24, lastActivityAt: NOON_AUG_24 };
+    expect(isStillActive(s, "2026-08-25", NOON_AUG_24 + STALE_GRACE_MS - 1)).toBe(true);
+    expect(isStillActive(s, "2026-08-25", NOON_AUG_24 + STALE_GRACE_MS + 1)).toBe(false);
+  });
+
+  it("a session persisted before this field existed falls back to startedAt", () => {
+    const s: LiveSession = { ...live(), date: "2026-08-24", startedAt: NOON_AUG_24 };
+    delete (s as { lastActivityAt?: number }).lastActivityAt;
+    expect(isStillActive(s, "2026-08-25", NOON_AUG_24 + 60_000)).toBe(true); // 1 min since start: active
+    expect(isStillActive(s, "2026-08-25", NOON_AUG_24 + STALE_GRACE_MS + 60_000)).toBe(false); // well past grace: stale
   });
 });
 

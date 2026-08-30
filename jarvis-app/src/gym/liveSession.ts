@@ -32,6 +32,11 @@ export interface LiveSession {
    *  WorkoutExercise below carries the prior actual numbers instead of the
    *  program's own target strip. */
   sameAsLastTime?: boolean;
+  /** SESSIONS RESUME, NOT FRAGMENT (2026-08-30, training catalog audit).
+   *  Stamped at start and on every logged change. Optional only so a session
+   *  already sitting in a user's storage from before this field existed
+   *  still reads -- isStillActive falls back to startedAt for those. */
+  lastActivityAt?: number;
 }
 
 export interface Storage2 { read(k: string): string | null; write(k: string, v: string): void; remove(k: string): void }
@@ -59,6 +64,32 @@ export function writeLive(s: LiveSession, store: Storage2 = browserStorage()): v
 
 export function clearLive(store: Storage2 = browserStorage()): void {
   store.remove(LIVE_KEY);
+}
+
+/**
+ * SESSIONS RESUME, NOT FRAGMENT (2026-08-30, from the training catalog
+ * audit). GymFlow used to decide a session was abandoned purely by comparing
+ * its `date` to today -- so a workout that started at 11:58pm and was still
+ * being actively logged at 12:05am crossed a calendar day through no fault
+ * of the user, and the very next remount (phone lock, a notification, a tab
+ * switch) silently closed it out as a truncated "unfinished" workout and
+ * started a fresh one underneath their thumb. A handful of backgroundings
+ * near midnight produced exactly the reported symptom: several short
+ * "Pull Day 1" workouts on one night instead of one continuous session.
+ *
+ * Staleness is about elapsed time since the last real write, not calendar
+ * dates. `date === today` is kept as a fast path so every same-day case
+ * behaves exactly as before; the grace window only rescues the specific
+ * case that broke: real, recent activity on a session whose date has
+ * rolled over. A session nobody has touched in GRACE still gets recovered,
+ * whatever the date says -- that part of the original design was right.
+ */
+export const STALE_GRACE_MS = 6 * 60 * 60 * 1000; // 6 hours of no activity
+
+export function isStillActive(s: LiveSession, todayIso: string, now: number = Date.now()): boolean {
+  if (s.backdated) return true;
+  if (s.date === todayIso) return true;
+  return now - (s.lastActivityAt ?? s.startedAt) < STALE_GRACE_MS;
 }
 
 /** Log one entry against the exercise at `idx`. Returns the updated session. */
