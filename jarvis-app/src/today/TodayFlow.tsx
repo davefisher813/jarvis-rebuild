@@ -6,7 +6,9 @@ import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import { todayISO, fmtTime, addMinutes, minToHHMM } from "../schedule/calendar";
-import type { EventItem } from "../schedule/types";
+import { ENTITY_EVENT, type EventItem } from "../schedule/types";
+import { ENTITY_TASK } from "../notes/types";
+import { useFreshLists } from "../data/useFreshLists";
 import type { TaskItem } from "../tasks/TasksService";
 import { greetingFor, longDate, shortDate } from "./greeting";
 import { tomorrowISO, nowHHMM, daySummary, todaysTasks, billsLine, billsDueSoon } from "./todayData";
@@ -16,7 +18,7 @@ import ReportFlow, { reportSeen, markReportSeen } from "../review/ReportPage";
 import { monthName as monthTitle } from "../review/report";
 import { useOptionalSeal } from "../data/NotesProvider";
 import NoticeCard from "./NoticeCard";
-import { FAILING, WAITING, NEW, RESUME } from "./stream";
+import { FAILING, WAITING, NEW, RESUME, spotIsDuplicate } from "./stream";
 import { capAfterNumber } from "../shared/casing";
 import { movedBy, celebrationLine, type Moved } from "../shared/completion";
 import { birthdaysOn, type BirthdayHit } from "../people/birthdays";
@@ -386,6 +388,13 @@ export default function TodayFlow({
   }, [schedule, tasks, profile, today, tmrw]);
 
   useEffect(() => { reload(); }, [reload]);
+  // THE REPAINT TODAY NEVER GOT (Dave 2026-08-30: "things aren't clearing").
+  // useFreshLists shipped 2026-08-24 with the comment "no surface ever
+  // subscribed"; Tasks and Schedule were wired that day and the HOME PAGE was
+  // not. So when the background refresh detected that what he was looking at
+  // was stale, every surface repainted except the one he opens first. Today
+  // draws both tasks and events, so it listens for both.
+  useFreshLists([ENTITY_TASK, ENTITY_EVENT], reload);
 
   // WHAT THE TICK MOVED (dopamine layer, 2026-08-20). The strongest finding
   // in the motivation literature is Amabile's: nothing drives people like
@@ -1672,6 +1681,13 @@ export default function TodayFlow({
   // are the ones you never open again. No count of the pile, what is still
   // true, and one thing to start with.
   const back = welcomeBack(lastSeenRef.current, today, sweepReceipt?.moved.length ?? 0);
+  // Which task Your Move is already showing on its own. The dealt row is
+  // evening-gated in TodayPage (`!evening ? upNext?.[0] : undefined`), so
+  // this mirrors that gate: in the evening there is no dealt row, and the
+  // Resume offer is then the only mention of the task and must stand.
+  const dealtTaskId = evening ? undefined : upNextRows[0]?.id;
+  const slideTaskId = sweepCand && sweepCand.slips >= 3 && !planned.has(sweepCand.id) ? sweepCand.id : undefined;
+  const spotAlreadyShown = spotIsDuplicate(spot, { dealtTaskId, slideTaskId });
   const alertCards = [
     // The welcome-back recap is a RECEIPT: it reports, it does not ask.
     // One quiet line; tapping it opens the pile it describes.
@@ -1793,7 +1809,27 @@ export default function TodayFlow({
         onDismiss={() => { markOffered(sweepCand.id, today); setSweepDismissTick((n) => n + 1); }}
       />
     ) : null,
-    spot ? (
+    // ONE THING, ONE ROW (Dave 2026-08-30, from a screenshot of Your Move
+    // holding "Clean out closet" twice: "same tasks are showing in your
+    // move").
+    //
+    // The spot is a bookmark and can point at ANY entity, including one this
+    // section is already showing for its own reasons. Open a task, come back
+    // four hours later, and if the ranker also deals that same task you get
+    // it twice in the same stream, wearing two different verbs: Start on the
+    // dealt row and Resume here. Two rows, one task, and a reader has to
+    // work out they are the same thing before deciding which button is the
+    // real one.
+    //
+    // The dealt row wins where they collide. It is the section's anchor and
+    // it carries more: the completion circle, the urgency chip, and the
+    // reason the ranker chose it, against this card's one age line. Nothing
+    // is destroyed -- the bookmark still stands, it just is not offered as a
+    // second row while the same task is already the headline move.
+    //
+    // The slide card is checked for the same reason: it also names a task by
+    // title, so it can collide the same way.
+    spot && !spotAlreadyShown ? (
       <NoticeCard
         key="spot"
         weight={RESUME}

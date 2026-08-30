@@ -22,8 +22,37 @@ export type FreshListener = (entityType: string) => void;
 export class CachedAdapter implements DataAdapter {
   constructor(private inner: DataAdapter, private onFresh?: FreshListener) {}
 
+  // THE REFRESH THAT ARRIVED LATE (Dave 2026-08-30: "things aren't clearing.
+  // There's bugs with tasks and reminders. They eventually did but it took a
+  // couple of tries").
+  //
+  // Read-your-writes above is only true while no refresh is open. A refresh
+  // is a network round trip, and the one fired by the render he is looking at
+  // is still in flight when he ticks something a second later. That refresh
+  // captured the server's list BEFORE the tick; on arrival it called
+  // writePreload unconditionally and overwrote the write-through that had
+  // just marked the task done. The next reload read the clobbered cache and
+  // the task came back undone. Ticking again usually worked, because the
+  // second tick landed with nothing in flight -- "a couple of tries" is the
+  // signature of this exact race.
+  //
+  // Every mutation bumps this counter. A refresh notes it on the way out and
+  // checks it on the way back: if it moved, a write landed mid-flight and the
+  // fresh list is by definition older than what the cache now holds, so it is
+  // dropped. The write always wins; the next list call opens a new refresh
+  // that will include it, so nothing from another device is lost for longer
+  // than one round trip.
+  //
+  // One counter for all types rather than one per type, because patchCaches
+  // and dropFromCaches genuinely do not know an id's type (see below) and so
+  // cannot say which type they touched. The cost of the coarser signal is a
+  // redundant refresh; the cost of a finer one that guessed wrong is losing
+  // the user's write. Err toward the write.
+  private writes = 0;
+
   async create(ownerId: string, entityType: string, data: ItemData): Promise<string> {
     const id = await this.inner.create(ownerId, entityType, data);
+    this.writes++;
     const cached = readPreload(ownerId, entityType);
     if (cached) {
       writePreload(ownerId, entityType, [...cached, { id, ownerId, entityType, data, serverTime: Date.now() }]);
@@ -33,6 +62,7 @@ export class CachedAdapter implements DataAdapter {
 
   async createMany(ownerId: string, entityType: string, datas: ItemData[]): Promise<string[]> {
     const ids = await this.inner.createMany(ownerId, entityType, datas);
+    this.writes++;
     const cached = readPreload(ownerId, entityType);
     if (cached) {
       const now = Date.now();
@@ -50,12 +80,13 @@ export class CachedAdapter implements DataAdapter {
 
   async apply(ownerId: string, id: string, patch: ItemData, serverTime?: ServerTime): Promise<boolean> {
     const ok = await this.inner.apply(ownerId, id, patch, serverTime);
-    if (ok) this.patchCaches(ownerId, id, patch);
+    if (ok) { this.writes++; this.patchCaches(ownerId, id, patch); }
     return ok;
   }
 
   async del(ownerId: string, id: string): Promise<void> {
     await this.inner.del(ownerId, id);
+    this.writes++;
     this.dropFromCaches(ownerId, id);
   }
 
@@ -68,9 +99,13 @@ export class CachedAdapter implements DataAdapter {
       // Answer stale, refresh in background. Errors are swallowed: the user
       // is looking at yesterday's list, which is exactly what SWR promises
       // when the network is down.
+      const sentAt = this.writes;
       void this.inner
         .listForUser(ownerId, entityType)
         .then((fresh) => {
+          // A write landed while this was in flight. The fresh list predates
+          // it, so writing it back would undo the user's own action.
+          if (this.writes !== sentAt) return;
           const changed = listSignature(fresh) !== listSignature(cached);
           writePreload(ownerId, entityType, fresh);
           if (changed) this.onFresh?.(entityType);
@@ -79,8 +114,13 @@ export class CachedAdapter implements DataAdapter {
       return cached;
     }
 
+    // A cold read has no cached copy to protect, but it can still be
+    // overtaken: a write can land between the request going out and the
+    // answer coming back. Same rule, same reason -- and the counter must be
+    // read BEFORE the await, or it is comparing a value to itself.
+    const coldSentAt = this.writes;
     const fresh = await this.inner.listForUser(ownerId, entityType);
-    writePreload(ownerId, entityType, fresh);
+    if (this.writes === coldSentAt) writePreload(ownerId, entityType, fresh);
     return fresh;
   }
 

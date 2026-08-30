@@ -2,7 +2,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { rankStream, FAILING, DEALT, WAITING, NEW, RESUME, AMBIENT } from "./stream";
+import { rankStream, spotIsDuplicate, FAILING, DEALT, WAITING, NEW, RESUME, AMBIENT } from "./stream";
 import NoticeCard from "./NoticeCard";
 import { Quiet } from "./quiet";
 import { cloneElement } from "react";
@@ -265,5 +265,45 @@ describe("the quiet line", () => {
     render(<div data-testid="p"><Quiet s="No times yet" /></div>);
     expect(document.querySelector(".qd")).toBeNull();
     expect(screen.getByTestId("p").textContent).toBe("No times yet");
+  });
+});
+
+// ONE THING, ONE ROW (Dave 2026-08-30, screenshot of Your Move holding
+// "Clean out closet" twice: "same tasks are showing in your move"). The spot
+// is a bookmark and can name something the stream is already showing; when it
+// does, the richer row keeps the slot and the Resume offer stands down.
+describe("the Resume offer never repeats a row the stream already has", () => {
+  const spot = (id: string, kind = "task") => ({ kind, id });
+
+  it("suppresses the spot when it names the dealt task", () => {
+    expect(spotIsDuplicate(spot("t1"), { dealtTaskId: "t1" })).toBe(true);
+  });
+
+  it("suppresses it when it names the slide card's task", () => {
+    expect(spotIsDuplicate(spot("t2"), { slideTaskId: "t2" })).toBe(true);
+  });
+
+  it("leaves a spot pointing at something else alone", () => {
+    expect(spotIsDuplicate(spot("t3"), { dealtTaskId: "t1", slideTaskId: "t2" })).toBe(false);
+  });
+
+  // In the evening TodayPage renders no dealt row, so the Resume offer is the
+  // only mention of the task and must survive. TodayFlow passes undefined for
+  // dealtTaskId then; this is the half that must not treat that as a match.
+  it("[edge] an absent dealt row means nothing is shown, not that everything matches", () => {
+    expect(spotIsDuplicate(spot("t1"), {})).toBe(false);
+    expect(spotIsDuplicate(spot("t1"), { dealtTaskId: undefined, slideTaskId: undefined })).toBe(false);
+  });
+
+  it("[edge] only a task can collide; a note keeps its own row", () => {
+    // Nothing else in this stream is keyed by a note/event/gym id, so a
+    // same-string id across kinds is a coincidence, not a duplicate.
+    expect(spotIsDuplicate(spot("t1", "note"), { dealtTaskId: "t1" })).toBe(false);
+    expect(spotIsDuplicate(spot("t1", "gym"), { dealtTaskId: "t1" })).toBe(false);
+  });
+
+  it("[edge] no spot at all is not a duplicate", () => {
+    expect(spotIsDuplicate(null, { dealtTaskId: "t1" })).toBe(false);
+    expect(spotIsDuplicate(undefined, { dealtTaskId: "t1" })).toBe(false);
   });
 });

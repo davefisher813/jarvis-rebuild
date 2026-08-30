@@ -45,6 +45,40 @@ export interface Ranked {
   receipts: ReactElement[];
 }
 
+// ONE THING, ONE ROW (Dave 2026-08-30, from a screenshot of Your Move holding
+// "Clean out closet" twice: "same tasks are showing in your move").
+//
+// The Where You Were spot is a bookmark and can name ANY entity, including
+// one this stream is already showing for its own reasons. Open a task, come
+// back four hours later, and if the ranker also deals that same task it
+// renders twice in one stream wearing two different verbs -- Start on the
+// dealt row, Resume on the spot card -- and the reader has to work out they
+// are the same thing before deciding which button is the real one.
+//
+// The dealt row wins where they collide: it is the stream's anchor and it
+// carries the completion circle, the urgency chip and the ranker's reason,
+// against this card's single age line. The bookmark itself is not destroyed,
+// it just is not offered as a second row while the same task is already on
+// screen.
+//
+// Pure and here rather than inline in TodayFlow, for the same reason
+// rankStream is: a rule that decides what he sees is a rule worth being able
+// to test directly.
+export function spotIsDuplicate(
+  spot: { kind: string; id: string } | null | undefined,
+  shown: { dealtTaskId?: string | undefined; slideTaskId?: string | undefined },
+): boolean {
+  // Only a task can collide today: nothing else in this stream is keyed by a
+  // note, event or gym id. A spot of another kind is always its own row.
+  if (!spot || spot.kind !== "task") return false;
+  // An absent id is "nothing is shown", never "matches everything" -- the
+  // trap this being a real function instead of an inline && exists to catch.
+  return (
+    (shown.dealtTaskId !== undefined && spot.id === shown.dealtTaskId) ||
+    (shown.slideTaskId !== undefined && spot.id === shown.slideTaskId)
+  );
+}
+
 export function rankStream(children: ReactNode): Ranked {
   const ranked: { el: ReactElement; w: number; i: number; anchor: boolean }[] = [];
   const receipts: ReactElement[] = [];

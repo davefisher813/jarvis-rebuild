@@ -2917,3 +2917,87 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
     expect(sweepEstimate(0)).toBe("");
   });
 });
+
+// LAW 12: WHAT HE TAPS, STAYS TAPPED (Dave 2026-08-30, from his phone:
+// "things aren't clearing. There's bugs with tasks and reminders. They
+// eventually did but it took a couple of tries" -- with a screenshot of Your
+// Move holding "Clean out closet" twice).
+//
+// Three findings, and the first two are the same bug seen from two sides: the
+// app knew the screen was stale and could not get that knowledge onto the
+// screen he was looking at.
+describe("LAW 12: a write survives the refresh racing it, and one thing never renders twice", () => {
+  // FINDING 1. CachedAdapter is stale-while-revalidate: a list answers from
+  // cache and a refresh runs behind it. Mutations write through to the cache
+  // so a flow reads its own writes -- but the refresh, when it landed, called
+  // writePreload UNCONDITIONALLY with a server list it had fetched BEFORE the
+  // write. Tick a task while the render's own refresh is still open and the
+  // tick was overwritten; the next reload showed it undone. "A couple of
+  // tries" is the signature: the second tick usually lands with nothing in
+  // flight. The delete case was worse -- a deleted row came back, which is
+  // the tombstone resurrection this whole rebuild exists to kill.
+  it("a refresh that was overtaken by a write is dropped, never written back", () => {
+    const src = read(join(SRC, "data/CachedAdapter.ts"));
+    expect(src, "the counter every mutation bumps").toMatch(/private writes = 0;/);
+    for (const m of [/async create\(/, /async createMany\(/, /async del\(/]) {
+      const at = src.search(m);
+      expect(at, "mutation exists").toBeGreaterThan(-1);
+      expect(src.slice(at, at + 600), "it bumps the counter").toMatch(/this\.writes\+\+/);
+    }
+    expect(src, "apply bumps only on a write the backend accepted")
+      .toMatch(/if \(ok\) \{ this\.writes\+\+; this\.patchCaches/);
+    expect(src, "the refresh notes the counter before going out").toMatch(/const sentAt = this\.writes;/);
+    expect(src, "and refuses to write back if it moved")
+      .toMatch(/if \(this\.writes !== sentAt\) return;/);
+  });
+
+  it("the cold path reads the counter BEFORE its await, not after", () => {
+    // Written wrong once in this very session: capturing the counter after
+    // the await compares a value to itself and guards nothing, while looking
+    // exactly like a guard. The order is the whole mechanism.
+    const src = read(join(SRC, "data/CachedAdapter.ts"));
+    const capture = src.indexOf("const coldSentAt = this.writes;");
+    const await_ = src.indexOf("const fresh = await this.inner.listForUser(ownerId, entityType);", capture);
+    expect(capture, "the cold guard exists").toBeGreaterThan(-1);
+    expect(await_, "and the await follows it").toBeGreaterThan(capture);
+  });
+
+  // FINDING 2. useFreshLists shipped 2026-08-24 to fix "the repaint that
+  // never arrived", and its own comment records that no surface had ever
+  // subscribed. Tasks and Schedule were wired that day. The HOME PAGE was
+  // not -- so the one screen he opens first was the one screen that never
+  // repainted when the app detected it was stale.
+  it("every surface that draws a cached list subscribes to the repaint", () => {
+    const subscribers = COMPONENTS.filter((f) => read(f).includes("useFreshLists(")).map(rel).sort();
+    expect(subscribers, "Today included, not just Tasks and Schedule").toEqual([
+      "schedule/ScheduleFlow.tsx",
+      "tasks/TasksFlow.tsx",
+      "today/TodayFlow.tsx",
+    ]);
+    const today = read(join(SRC, "today/TodayFlow.tsx"));
+    expect(today, "Today draws both tasks and events, so it listens for both")
+      .toMatch(/useFreshLists\(\[ENTITY_TASK, ENTITY_EVENT\], reload\)/);
+  });
+
+  // FINDING 3. The Where You Were spot is a bookmark and can name any entity,
+  // including one Your Move is already showing. Open a task, come back four
+  // hours later, and if the ranker deals that same task you get it twice in
+  // one stream wearing two different verbs: Start on the dealt row, Resume on
+  // the spot card. The dealt row wins -- it is the anchor and carries the
+  // completion circle, the urgency chip and the ranker's reason, against one
+  // age line. The bookmark itself is untouched.
+  it("the Resume offer never repeats a task the same stream already shows", async () => {
+    const src = read(join(SRC, "today/TodayFlow.tsx"));
+    expect(src, "the spot card is gated on it").toMatch(/spot && !spotAlreadyShown \?/);
+    expect(src, "the rule is the shared pure one, not a second copy inline")
+      .toMatch(/spotIsDuplicate\(spot, \{ dealtTaskId, slideTaskId \}\)/);
+    // The dealt row is evening-gated in TodayPage; in the evening there is no
+    // dealt row, so the Resume offer is the only mention and must survive.
+    expect(src, "the evening gate is mirrored, not ignored")
+      .toMatch(/const dealtTaskId = evening \? undefined : upNextRows\[0\]\?\.id;/);
+    // And the rule itself behaves, not just reads right.
+    const { spotIsDuplicate } = await import("../today/stream");
+    expect(spotIsDuplicate({ kind: "task", id: "t1" }, { dealtTaskId: "t1" })).toBe(true);
+    expect(spotIsDuplicate({ kind: "task", id: "t1" }, {})).toBe(false);
+  });
+});
