@@ -2104,6 +2104,25 @@ button {
 .pagebar.on::after { content: ""; position: absolute; left: var(--s-4); bottom: 0; height: 2px; width: 64px;
   border-radius: 2px; background: linear-gradient(90deg, #FA233B, #FB5C74 55%, rgba(251,92,116,0)); }
 .pagehead-title { padding: var(--s-1) var(--s-4) 0; font-size: 34px; font-weight: var(--w-bold); letter-spacing: -0.03em; }
+/* THE SIGNATURE STROKE (Dave 2026-08-30, approved from rendered previews).
+   Reverses part of the previous day's red diet -- see LAW 11 in laws.test.ts
+   for the history. "Mirror the home page red rules on all pages" meant ADD
+   home's red presence elsewhere; it was first read as EXTEND THE DIET and
+   every section head app-wide went grey, which is what produced "the red used
+   on the home page isn't applied on the schedule page or anywhere else".
+
+   The large title now wears the SAME energy line the condensed pagebar wears
+   (.pagebar.on::after, right above): same gradient, same 2px, same 64px, same
+   left edge -- .pagehead-title's own var(--s-4) padding puts its content edge
+   exactly where the bar's `left: var(--s-4)` puts the line. So scrolling the
+   large title away and condensing the bar reads as ONE element moving, not as
+   two different headers trading places.
+
+   Decoration only: no text sits on this, which is what makes the light stop
+   of the gradient safe here, exactly as the pagebar's comment says of its
+   own. */
+.pagehead-title::after { content: ""; display: block; margin-top: var(--s-1h); height: 2px; width: 64px;
+  border-radius: 2px; background: linear-gradient(90deg, #FA233B, #FB5C74 55%, rgba(251,92,116,0)); }
 .barbtn { width: 32px; height: 32px; border-radius: var(--r-circle); background: var(--press-3); border: 0;
   display: flex; align-items: center; justify-content: center; color: var(--accent-tx); flex-shrink: 0; }
 .barbtn .ic { width: 17px; height: 17px; }
@@ -2556,7 +2575,16 @@ button {
    rule armed. A count of events wearing the alarm colour is the exact shape
    L1 bans -- red announcing a status -- and it was never chosen, only
    inherited. Same collateral family as the Music capsule note above. */
-.grp .plan-head > .eyebrow { color: var(--tx-3); letter-spacing: var(--track-eyebrow); }
+/* THE RED COMES HOME (Dave 2026-08-30, approved from rendered previews).
+   The quieting above was right about the RULE and wrong about the COLOUR.
+   What L1 bans is red announcing a status, and what made this offensive was
+   the dotted alarm rule armed beside it -- inherited from .grp's detail-page
+   group labels, never chosen for a day head. The rule stays gone. The colour
+   comes back as --accent-chrome, which is the chrome accent the Now line and
+   the nav already wear, deliberately chosen here so Schedule has the one red
+   head per page that every other surface got. See LAW 8 for the full history;
+   Search, Money and Gym stay quiet. */
+.grp .plan-head > .eyebrow { color: var(--accent-chrome); letter-spacing: var(--track-eyebrow); }
 .grp .plan-head > .eyebrow::after { content: none; }
 /* Sheets keep their quiet labels: a bottom sheet is a form, not a page. */
 .sheet-scrim .grp .eyebrow { color: var(--tx-3); letter-spacing: var(--track-caps); }

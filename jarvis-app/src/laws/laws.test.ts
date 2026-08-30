@@ -2662,10 +2662,30 @@ describe("LAW 8: a proposal proves itself before it renders, and Accept never de
     }
   });
 
-  it("the day count does not wear the detail-page accent", () => {
-    expect(CSS, "the plan head opts back out of .grp's red label styling")
-      .toMatch(/\.grp \.plan-head > \.eyebrow \{ color: var\(--tx-3\)/);
-    expect(CSS, "and the dotted rule goes with it")
+  // HISTORY, and the reason this law reads oddly if you meet it cold.
+  //
+  // 2026-08-29 (Schedule audit): the day count ("1 Event · 5 Proposed") was
+  // rendering in accent red WITH .grp's dotted alarm rule armed, inherited
+  // from the detail-page group labels (Decided, Because, Details) because
+  // SchedulePage happens to wrap its plan head in a .grp too. Red announcing
+  // a status is the exact shape L1 bans, and nothing had chosen it -- it was
+  // collateral. Both the colour and the rule were taken away.
+  //
+  // 2026-08-30 (the red comes home, approved from rendered previews): taking
+  // the COLOUR was an overcorrection, and part of what produced "the red used
+  // on the home page isn't applied on the schedule page or anywhere else".
+  // The offence was the inherited alarm rule, not the hue. So the rule stays
+  // gone permanently, and the colour returns as --accent-chrome -- the chrome
+  // accent the Now line and nav already wear -- now DELIBERATELY chosen as
+  // Schedule's one accent head rather than inherited from a selector meant
+  // for something else.
+  //
+  // The invariant that survived both passes, and the real content of this
+  // law: the day count never wears the detail-page GROUP-LABEL treatment.
+  it("the day count is chrome-accented by choice, never the detail-page group label", () => {
+    expect(CSS, "the colour is the chrome accent, chosen, not .grp's inherited label red")
+      .toMatch(/\.grp \.plan-head > \.eyebrow \{ color: var\(--accent-chrome\)/);
+    expect(CSS, "and the dotted alarm rule stays gone, which was always the real offence")
       .toMatch(/\.grp \.plan-head > \.eyebrow::after \{ content: none; \}/);
   });
 
@@ -2869,19 +2889,60 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
     expect(CSS).toMatch(/\.urgency-chip\.urgency-red \{ background: color-mix\(in srgb, var\(--sys-red\)/);
   });
 
-  // FINDING 3. I3 (2026-08-24) quieted Today's heads and said "one accent
-  // head per screen"; every other tab kept shouting. Search had ELEVEN red
-  // heads down one screen. The diet is app-wide now: the only plain .sh2
-  // left is YourDay's, which is Today's sanctioned "Now".
-  it("one accent section head in the whole app: Today's Now", () => {
+  // FINDING 3, AND ITS REVERSAL. Read the history before changing this.
+  //
+  // 2026-08-24 (I3): Today's heads were quieted, "one accent head per
+  // screen"; every other tab kept shouting. Search had ELEVEN red heads down
+  // one screen.
+  //
+  // 2026-08-29 (five-screen sweep): the diet went app-wide and the only plain
+  // .sh2 left was YourDay's "Now".
+  //
+  // 2026-08-30 (the red comes home): that was a misread of the direction, and
+  // it is the most expensive mistake of the week. "Mirror the home page red
+  // rules on all pages" meant ADD home's red presence to the other pages; it
+  // was implemented as EXTEND THE DIET, and Dave's reaction was "the red used
+  // on the home page isn't applied on the schedule page or anywhere else".
+  //
+  // The corrected rule, approved from rendered previews: ONE accent head per
+  // page, as an ALLOWLIST, not a ban. Today keeps "Now", Notes gets "All
+  // Notes", and Schedule's day count is handled in LAW 8 (a .grp eyebrow, not
+  // an .sh2, so it does not appear in this check). Search, Money, Gym and the
+  // rest stay quiet -- the diet was never wrong about them.
+  //
+  // The allowlist is asserted by name rather than counted, so adding a third
+  // shouting head is a decision someone has to write down here.
+  const ACCENT_HEADS = ["notes/screens/NotesList.tsx", "today/YourDay.tsx"];
+  it("one accent section head per page, by allowlist, not a ban", () => {
     const offenders: string[] = [];
     for (const f of COMPONENTS) {
-      if (rel(f) === "today/YourDay.tsx") continue;
+      if (ACCENT_HEADS.includes(rel(f))) continue;
       read(f).split("\n").forEach((line, i) => {
         if (line.includes('className="sh2"')) offenders.push(rel(f) + ":" + (i + 1));
       });
     }
-    expect(offenders, "every other head takes sh2-quiet").toEqual([]);
+    expect(offenders, "every head outside the allowlist takes sh2-quiet").toEqual([]);
+    // And the allowlisted ones really are shouting, so this cannot pass by
+    // everything having gone quiet again.
+    for (const f of ACCENT_HEADS) {
+      expect(read(join(SRC, f)), f + " carries its one accent head").toMatch(/className="sh2"/);
+    }
+  });
+
+  // The other half of the reversal: the large page title wears the same
+  // energy line the condensed pagebar wears, so the two read as one element
+  // rather than as two headers trading places on scroll.
+  it("the signature stroke wears the condensed bar's exact energy line", () => {
+    const line = /linear-gradient\(90deg, #FA233B, #FB5C74 55%, rgba\(251,92,116,0\)\)/;
+    const stroke = /\.pagehead-title::after \{[^}]*\}/.exec(CSS)?.[0] ?? "";
+    expect(stroke, "the stroke exists").not.toBe("");
+    expect(stroke, "same gradient as .pagebar.on::after, not a lookalike").toMatch(line);
+    expect(stroke, "same 2px weight").toMatch(/height: 2px/);
+    expect(stroke, "same 64px run").toMatch(/width: 64px/);
+    // Both must stay identical: if one is ever retuned, the other has to move
+    // with it or the condense animation stops reading as one object.
+    const bar = /\.pagebar\.on::after \{[^}]*\}/.exec(CSS)?.[0] ?? "";
+    expect(bar, "the bar still wears it too").toMatch(line);
   });
 
   // FINDING 4. Every new note was born wearing defaultCatId -- whatever
