@@ -2896,6 +2896,34 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
       .toMatch(/n\.category \? catColor\(n\.category\) : "yellow"/);
   });
 
+  // FINDING 4, SECOND HALF: THE GREAT UNFILING (2026-08-30). Fixing creation
+  // only helps notes written from now on. Every note written BEFORE it still
+  // carried the category the bug chose (catList[0], for Dave his Family), so
+  // his library stayed one uniform colour and the fix looked like it had done
+  // nothing. The cleanup runs once per account on the next Notes open.
+  it("the one-time unfiling runs once per account, and skips demo builds", async () => {
+    const flow = read(join(SRC, "notes/NotesFlow.tsx"));
+    expect(flow, "gated on the profile flag, not a local one")
+      .toMatch(/if \(p && !p\.notesUnfiled\)/);
+    expect(flow, "the flag is only written after the clear succeeded")
+      .toMatch(/await svc\.unfileAllNotes\(\);\s*\n\s*await profile\.save\(\{ notesUnfiled: true \}\)/);
+    expect(flow, "demo builds keep their deliberately filed showcase library")
+      .toMatch(/!__DEMO_SEED__ && profile && !unfiled\.current/);
+    const types = read(join(SRC, "profile/types.ts"));
+    expect(types, "the flag rides the synced profile, so a second device cannot re-run it")
+      .toMatch(/notesUnfiled\?: boolean/);
+
+    // And it behaves: idempotent, and it never touches a note that has no
+    // category to lose (the ones he has refiled by hand after a run).
+    const { NotesService } = await import("../notes/NotesService");
+    const { Store, InMemoryAdapter } = await import("@core");
+    const svc = new NotesService(new Store(new InMemoryAdapter()), "u-law");
+    await svc.createNote("Filed by the bug", "cat-family");
+    await svc.createNote("Born unfiled", "");
+    expect(await svc.unfileAllNotes(), "clears only what carries a category").toBe(1);
+    expect(await svc.unfileAllNotes(), "a second run is a no-op").toBe(0);
+  });
+
   // FINDING 5. The casing law ("every dot-segment leads with a capital")
   // stopped at the mode deck, where the sublines shipped as lowercase
   // fragments; and Read It to Me was the last plain card in a column of

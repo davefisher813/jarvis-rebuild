@@ -68,6 +68,40 @@ export class NotesService {
     this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
   }
 
+  /**
+   * THE GREAT UNFILING (2026-08-30). A one-time cleanup for the notes written
+   * before creation was fixed to be born unfiled (Law 11, finding 4).
+   *
+   * The old createNote silently filed every note into catList[0] -- whatever
+   * category happened to sort first, which for Dave is Family -- so a library
+   * he never filed by hand rendered as one uniform colour and the colour said
+   * nothing. Fixing creation only helps notes written from now on; the
+   * existing library still wears a category nobody chose. This clears it, so
+   * those notes fall back to the unfiled yellow and filing becomes a real
+   * choice again.
+   *
+   * Idempotent by construction: it only touches notes that still HAVE a
+   * category, so a second run is a no-op and the notes he has since refiled by
+   * hand are the ones it must not touch. Returns how many it cleared, which is
+   * what makes "it already ran" observable in a test rather than assumed.
+   *
+   * setCategory refuses an empty string on purpose (an empty category is not a
+   * category), so this writes through the store directly rather than lying to
+   * that guard.
+   */
+  async unfileAllNotes(): Promise<number> {
+    const items = await this.store.listForUser(this.ownerId, ENTITY_NOTE);
+    let cleared = 0;
+    for (const it of items) {
+      const data = it.data as unknown as NoteData;
+      if (!data.category) continue;
+      await this.store.update(this.ownerId, it.id, { category: "" } as unknown as ItemData);
+      this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: it.id });
+      cleared++;
+    }
+    return cleared;
+  }
+
   async addBlock(id: string, block: Omit<Block, "id">): Promise<string | null> {
     const note = await this.getNote(id);
     if (!note) return null;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNotes, useCategories, useTasks, useSchedule, useProjects, useGoals, usePeople } from "../data/NotesProvider";
+import { useNotes, useCategories, useTasks, useSchedule, useProjects, useGoals, usePeople, useOptionalProfile } from "../data/NotesProvider";
 import { catName } from "../shared/categories";
 import type { Category } from "../categories/types";
 import type { Block, Connection, NoteData, TemplateKey } from "./types";
@@ -210,6 +210,15 @@ export default function NotesFlow({
   const [linkGoals, setLinkGoals] = useState<{ id: string; title: string }[]>([]);
   const [linkPeople, setLinkPeople] = useState<{ id: string; name: string }[]>([]);
   const seeded = useRef(false);
+  // Optional, not required: several tests and the standalone Notes harness
+  // mount this flow without a ProfileProvider, and a one-time cleanup is not
+  // worth making the whole screen refuse to render.
+  const profile = useOptionalProfile();
+  // Guards the one-time unfiling against a second run within this mount (the
+  // effect re-runs when its deps change). The PROFILE flag is what makes it
+  // once per account; this ref only stops two runs racing each other before
+  // the first has written that flag.
+  const unfiled = useRef(false);
 
   const loadList = useCallback(async () => {
     const items = await svc.listNotes();
@@ -248,9 +257,33 @@ export default function NotesFlow({
           await seedDemoNotes(svc, cl);
         }
       }
+      // THE GREAT UNFILING (2026-08-30), once per account, on the first Notes
+      // open after this ships. Law 11 made new notes born unfiled; every note
+      // written BEFORE that still carries the category the bug chose for it
+      // (catList[0]), which is why the library looked uniformly pink.
+      //
+      // Demo builds are exempt: the demo library is seeded WITH deliberate
+      // categories to show the colour system working, and unfiling it would
+      // turn the showcase into a wall of yellow.
+      //
+      // Failure is silent by design. This is a nicety running behind a screen
+      // he opened to read a note; a toast about a background migration he
+      // never asked for would be worse than the smudged colours it fixes. The
+      // flag is only set after the clear SUCCEEDS, so a failed run simply
+      // tries again on the next open.
+      if (!__DEMO_SEED__ && profile && !unfiled.current) {
+        unfiled.current = true;
+        try {
+          const p = await profile.get();
+          if (p && !p.notesUnfiled) {
+            await svc.unfileAllNotes();
+            await profile.save({ notesUnfiled: true });
+          }
+        } catch { /* retried on the next open */ }
+      }
       await loadList();
     })();
-  }, [seed, svc, cats, loadList]);
+  }, [seed, svc, cats, loadList, profile]);
 
   useEffect(() => {
     onChrome?.({ tabBar: screen === "list" });

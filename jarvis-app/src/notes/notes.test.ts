@@ -202,3 +202,52 @@ describe("Notes editing helpers", () => {
     expect(await svc.toggleChecklistItem(id, "nope", 0)).toBe(false);
   });
 });
+
+// THE GREAT UNFILING (2026-08-30). Law 11 fixed note CREATION so a new note is
+// born unfiled. Every note written before that fix still carries the category
+// the bug picked for it -- catList[0], which for Dave is Family -- which is
+// why his library rendered as one uniform colour. This is the one-time cleanup
+// for the notes that already exist.
+describe("unfileAllNotes: the one-time cleanup for notes the bug filed", () => {
+  it("clears a filed note's category and reports how many it cleared", async () => {
+    const svc = freshService();
+    const a = await svc.createNote("Filed one", "cat-family");
+    const b = await svc.createNote("Filed two", "cat-work");
+    expect(await svc.unfileAllNotes()).toBe(2);
+    expect((await svc.note(a!))!.category).toBe("");
+    expect((await svc.note(b!))!.category).toBe("");
+  });
+
+  it("is idempotent: a second run clears nothing", async () => {
+    const svc = freshService();
+    await svc.createNote("Filed", "cat-family");
+    expect(await svc.unfileAllNotes()).toBe(1);
+    // The flag lives on the profile, but the method must be safe on its own --
+    // a failed profile write would otherwise unfile his library twice.
+    expect(await svc.unfileAllNotes()).toBe(0);
+  });
+
+  it("leaves an already-unfiled note alone rather than rewriting it", async () => {
+    const svc = freshService();
+    await svc.createNote("Born unfiled", "");
+    expect(await svc.unfileAllNotes()).toBe(0);
+  });
+
+  // The case that matters most on a second device: he runs the cleanup, refiles
+  // some notes by hand, and nothing may undo that work. The profile flag is
+  // what prevents a re-run, and this proves the method itself would only ever
+  // touch what still carries a category.
+  it("a note refiled by hand after the cleanup is only cleared by an explicit re-run", async () => {
+    const svc = freshService();
+    const id = await svc.createNote("Filed", "cat-family");
+    await svc.unfileAllNotes();
+    await svc.setCategory(id!, "cat-money");
+    expect((await svc.note(id!))!.category).toBe("cat-money");
+    // Still one to clear, so the count is honest about what a re-run would do.
+    expect(await svc.unfileAllNotes()).toBe(1);
+  });
+
+  it("[edge] an empty library is not an error", async () => {
+    expect(await freshService().unfileAllNotes()).toBe(0);
+  });
+});

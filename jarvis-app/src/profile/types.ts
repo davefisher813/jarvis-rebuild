@@ -43,6 +43,15 @@ export interface ProfileData {
   // Stored on the profile so it syncs; mirrored into the levelStore singleton
   // and enforced server-side by the proxy, which reads THIS record.
   ai?: import("../ai/aiGate").AIControlState;
+  // THE GREAT UNFILING (2026-08-30). Law 11 fixed note creation so a new note
+  // is born unfiled, but every note written before that fix still carries the
+  // category the bug picked for it -- catList[0], which for Dave is Family --
+  // so his library stayed one uniform colour. This flag marks the one-time
+  // cleanup as done. It rides the PROFILE rather than localStorage on purpose:
+  // the cleanup is a change to synced data, so the record of having run it has
+  // to sync too, or a second device would happily unfile everything again
+  // after he had refiled it by hand.
+  notesUnfiled?: boolean;
 }
 
 export const EMPTY_PROFILE: ProfileData = {
