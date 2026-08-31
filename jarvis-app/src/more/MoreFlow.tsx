@@ -4,6 +4,7 @@ import MorePage, { type MoreRoute } from "./MorePage";
 import { usePushDepth } from "../shared/pushNav";
 import ProfilePage from "../settings/ProfilePage";
 import AppearancePage from "../settings/AppearancePage";
+import TrainingPage from "../settings/TrainingPage";
 import SettingsPage from "./SettingsPage";
 import AccountPage from "../settings/AccountPage";
 import NotificationsPage from "../settings/NotificationsPage";
@@ -78,6 +79,7 @@ export default function MoreFlow({
   if (route === "settings") return <SettingsPage onNavigate={(r) => setRoute(r)} onBack={() => setRoute("hub")} />;
   if (route === "profile") return <ProfilePage onBack={() => setRoute("account")} />;
   if (route === "appearance") return <AppearancePage onBack={() => setRoute("settings")} />;
+  if (route === "training") return <TrainingPage onBack={() => setRoute("settings")} />;
   if (route === "categories") return <CategoriesFlow onBack={() => setRoute("settings")} />;
   if (route === "connections") return <ConnectionsPage onBack={() => setRoute("settings")} />;
   if (route === "edittabs") return <EditTabsPage tabKeys={tabKeys} onToggle={onToggleTab} onReorder={onReorderTabs} onBack={() => setRoute("settings")} />;

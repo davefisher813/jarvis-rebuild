@@ -36,6 +36,9 @@ export interface EventDraft {
   // what every repeat used to be.
   until?: string;
   taskIds?: string[]; // attached tasks (Session 4 connections)
+  // THE TRAINING DOOR (D4-C): this block opens the gym. By the athlete's own
+  // hand only -- the sheet never guesses from the title.
+  gym?: boolean;
 }
 
 // A task the sheet can attach or show attached: open tasks plus any already
@@ -97,6 +100,7 @@ export default function EventSheet({
   const [category, setCategory] = useState(initial?.category ?? categories[0]?.id ?? "");
   const [location, setLocation] = useState(initial?.location ?? "");
   const [recurrence, setRecurrence] = useState<EventRecurrence>(initial?.recurrence ?? "none");
+  const [gym, setGym] = useState(!!initial?.gym);
   const [until, setUntil] = useState(initial?.until ?? "");
   const untilBad = recurrence !== "none" ? untilError(date, until) : null;
   const [scope, setScope] = useState<"this" | "series">("series");
@@ -119,7 +123,7 @@ export default function EventSheet({
       setErr(true);
       return;
     }
-    const draft = { title: title.trim(), date, start, end, category, location: location.trim(), recurrence, until: recurrence === "none" ? "" : until, taskIds: recurrence === "none" ? taskIds : [] };
+    const draft = { title: title.trim(), date, start, end, category, location: location.trim(), recurrence, until: recurrence === "none" ? "" : until, taskIds: recurrence === "none" ? taskIds : [], gym };
     recurringEdit ? onSave(draft, scope) : onSave(draft);
   };
 
@@ -396,6 +400,23 @@ export default function EventSheet({
                 ))}
               </div>
             )}
+          </div>
+
+          {/* THE TRAINING DOOR (D4-C). Same doctrine as the season link's
+              game category: the calendar has no built-in idea of which block
+              is the gym, so the athlete says so here, once, by hand. */}
+          <div className="field">
+            <div className="input-label">Training</div>
+            <div className="card">
+              <div className="row">
+                <div className="row-grow">
+                  <div className="conn-name">{gym ? "This Block Opens the Gym" : "Training Door"}</div>
+                  <div className="conn-meta">{gym ? "Names the day's lift, starts the session, stamps the real minutes" : "Make this block the door to your training"}</div>
+                </div>
+                <div className={"switch" + (gym ? "" : " off")} role="switch" aria-checked={gym} tabIndex={0}
+                  onClick={() => setGym((g) => !g)} />
+              </div>
+            </div>
           </div>
 
           {endInvalid && <div className="input-error">End must be after start</div>}

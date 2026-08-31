@@ -242,6 +242,9 @@ export function useGym(): GymService {
   if (!s) throw new Error("useGym must be used inside NotesProvider");
   return s;
 }
+/** D4-C: the schedule reads the gym (pinned day, estimate, last trained)
+ *  without demanding it exists -- same shape as every other optional hook. */
+export function useOptionalGym(): GymService | null { return useContext(GymContext) ?? null; }
 
 export function useRoutine(): RoutineService {
   const s = useContext(RoutineContext);

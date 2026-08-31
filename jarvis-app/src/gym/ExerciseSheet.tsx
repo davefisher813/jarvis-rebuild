@@ -1,8 +1,11 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
-import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, type Exercise, type MeasureKind, type SetEntry } from "./types";
-import { fieldsFor, targetLine } from "./measures";
-import { uniformStrip } from "./strip";
+import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, type Exercise, type MeasureKind, type SetEntry, type Workout } from "./types";
+import { fieldsFor, targetLine, formatSet, isUniformStrip } from "./measures";
+import { uniformStrip, resizeStrip, applyToAll } from "./strip";
+import { rampFor } from "./ramp";
+import { lastSessionFor } from "./prs";
+import { readGymSettings, rackFrom } from "./settings";
 import SetStrip from "./SetStrip";
 import Stepper from "../shared/Stepper";
 import { Trash2 } from "../shared/icons";
@@ -24,11 +27,15 @@ function freshTarget(kind: MeasureKind): { w?: number; r?: number; v?: number; t
 // Any exercise, in the user's words. The kind carries its own direction, so a
 // sprint and a plank are both "time" without a separate which-way-wins toggle.
 //
-// THE SET STRIP (catalog §3.1): the actual storage is `sets: SetEntry[]`, one
-// chip per set. "Quick Setup" below is the CONVENIENCE INPUT the catalog's
-// open question 6 resolved for: typing a count and one target once expands
-// into a uniform strip, which the strip then lets you edit set by set.
-export default function ExerciseSheet({ mode, initial, library, onSave, onDelete, onCancel }: {
+// ONE EDITOR, NOT TWO -- D1 (Training Catalog V2, approved 2026-08-31).
+// Dave: "What purpose does the quick set up serve? It makes no sense having
+// that and the sets section underneath." The strip is the ONLY editor now:
+// a summary row on top speaks the whole plan, and its Edit All Sets
+// steppers write count / reps / weight across every chip at once
+// (resizeStrip / applyToAll). A new exercise opens with the bulk editor
+// expanded so creation stays as fast as the old convenience section ever
+// was; that section and its Generate button are gone.
+export default function ExerciseSheet({ mode, initial, library, history, onSave, onDelete, onCancel }: {
   mode: "new" | "edit";
   initial?: Exercise;
   /** THE EXERCISE LIBRARY (catalog §3.5): every exercise name ever used,
@@ -36,6 +43,9 @@ export default function ExerciseSheet({ mode, initial, library, onSave, onDelete
    *  library yet (or a context where it does not apply) just gets a plain
    *  name field, same as before the library existed. */
   library?: LibraryEntry[];
+  /** LAST TIME, D2: finished workouts, for the per-chip "Last: 250 × 3"
+   *  reference lines. Optional -- with no history the sheet just plans. */
+  history?: Workout[];
   onSave: (e: Omit<Exercise, "id">) => void;
   onDelete?: () => void;
   onCancel: () => void;
@@ -55,16 +65,16 @@ export default function ExerciseSheet({ mode, initial, library, onSave, onDelete
   const [nameFocused, setNameFocused] = useState(false);
   const [restSec, setRestSec] = useState(initial?.restSec ?? 0);
   const [filler, setFiller] = useState(!!initial?.filler);
+  const [ramp, setRamp] = useState(!!initial?.ramp);
 
   const suggestions = library && nameFocused && name.trim().length > 0
     ? searchLibrary(library, name, 5).filter((s) => s.name.toLowerCase() !== name.trim().toLowerCase())
     : [];
 
-  // Quick Setup state: independent of the strip until "Generate" is tapped,
-  // so it never silently clobbers a set you already hand-edited.
-  const [quickCount, setQuickCount] = useState(initial?.sets.length ?? 3);
-  const [quickTarget, setQuickTarget] = useState<{ w?: number; r?: number; v?: number; t?: number }>(
-    initial?.sets[0] ?? freshTarget(kind));
+  // ONE EDITOR (D1): the bulk steppers write straight into the strip, so a
+  // new exercise opens with them out -- creation stays one glance -- while
+  // an edit opens on the chips themselves.
+  const [bulkOpen, setBulkOpen] = useState(mode === "new");
 
   // Picking a suggestion carries kind, unit and the last-used target forward
   // (catalog §3.5) -- exactness, not just proximity, is what stops the fork.
@@ -76,8 +86,6 @@ export default function ExerciseSheet({ mode, initial, library, onSave, onDelete
     setExerciseKey(entry.exerciseKey);
     if (entry.lastSets.length > 0) {
       setSets(entry.lastSets.map((s) => ({ ...s, id: `${s.id}p` })));
-      setQuickTarget(entry.lastSets[0] ?? freshTarget(entry.kind));
-      setQuickCount(entry.lastSets.length);
     }
     setNameFocused(false);
   };
@@ -85,20 +93,21 @@ export default function ExerciseSheet({ mode, initial, library, onSave, onDelete
   const pickKind = (k: MeasureKind) => {
     setKind(k);
     setUnit(defaultUnit(k));
-    const fresh = freshTarget(k);
-    setQuickTarget(fresh);
     // A leftover weight or time should never ride along onto a new kind: the
     // strip regenerates uniformly, same count, the new kind's own fields.
-    setSets(uniformStrip(quickCount, k === "done" ? {} : fresh));
-  };
-
-  const generate = () => {
-    setSets(uniformStrip(quickCount, kind === "done" ? {} : quickTarget));
+    setSets((s) => uniformStrip(s.length, k === "done" ? {} : freshTarget(k)));
   };
 
   const units = unitsFor(kind);
   const fields = fieldsFor(kind);
   const valid = name.trim().length > 0 && sets.length > 0;
+
+  // LAST TIME, D2: the same per-position reference the live session shows,
+  // here as quiet planning context ("Last: 250 × 3" under each chip). Reads
+  // the name as typed, so picking a library suggestion lights it up.
+  const lastHit = history && readGymSettings().showLast && name.trim()
+    ? lastSessionFor(history, name.trim(), kind)
+    : null;
 
   const draft: Exercise = {
     id: "draft", name: name.trim() || "Exercise", kind,
@@ -107,6 +116,7 @@ export default function ExerciseSheet({ mode, initial, library, onSave, onDelete
     sets,
   };
   const saveLabel = kind === "done" ? "Save" : `Save · ${targetLine(draft)}`;
+  const rampPreview = ramp ? rampFor(draft, rackFrom(readGymSettings())) : [];
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
@@ -158,57 +168,70 @@ export default function ExerciseSheet({ mode, initial, library, onSave, onDelete
           </div>
 
           <div className="field">
-            <div className="input-label">Quick Setup</div>
+            <div className="input-label">{countLabel(kind)}</div>
+            {/* ONE EDITOR (D1): the summary row speaks the whole plan; Edit
+                All Sets writes count and targets across every chip at once,
+                straight into the strip below -- one object, one editor. */}
             <div className="card">
               <div className="row">
-                <div className="row-grow"><div className="conn-name">{countLabel(kind)}</div></div>
-                <Stepper value={quickCount} step={1} min={1} label={countLabel(kind)} onChange={setQuickCount} />
+                <div className="row-grow">
+                  <div className="conn-name">{targetLine(draft)}</div>
+                  <div className="conn-meta">{isUniformStrip(kind, sets) ? "Uniform" : "Varies by set"}</div>
+                </div>
+                {/* The sanctioned in-row pill (.pill-act): tinted verb on a
+                    press surface, 44px hit box via its own ::after. */}
+                <button className="pill-act" aria-expanded={bulkOpen} onClick={() => setBulkOpen((o) => !o)}>
+                  {bulkOpen ? "Done" : "Edit All Sets"}
+                </button>
               </div>
-              {kind !== "done" && fields.map((f) => (
-                <div className="row" key={f.key}>
-                  <div className="row-grow">
-                    <div className="conn-name">{f.label}</div>
-                    {/* Helper hints are quiet meta, not SHOUTING CAPS (gym
-                        reformat 2026-08-31). */}
-                    {(f.key === "w" || f.key === "v") && unit && <div className="conn-meta">{unit} · Tap number to type</div>}
-                    {f.key === "t" && <div className="conn-meta">{timeUnit}</div>}
+              {bulkOpen && (
+                <>
+                  <div className="row">
+                    <div className="row-grow"><div className="conn-name">{countLabel(kind)}</div></div>
+                    <Stepper value={sets.length} step={1} min={1} label={countLabel(kind)} onChange={(n) => setSets((s) => resizeStrip(s, n))} />
                   </div>
-                  <Stepper value={quickTarget[f.key] ?? 0} step={f.step} label={f.label} onChange={(n) => setQuickTarget((t) => ({ ...t, [f.key]: n }))} />
-                </div>
-              ))}
-              {units.length > 1 && (
-                <div className="row">
-                  {/* Same label anatomy as the Weight and Reps rows above --
-                      this row was the sheet's odd one out. */}
-                  <div className="row-grow"><div className="conn-name">Unit</div></div>
-                  <div className="chip-row">
-                    {units.map((u) => (
-                      <div key={u} className={"chip" + (unit === u ? " active" : "")} role="button" tabIndex={0} aria-pressed={unit === u}
-                        onClick={() => setUnit(u)}>{u}</div>
-                    ))}
-                  </div>
-                </div>
+                  {kind !== "done" && fields.map((f) => (
+                    <div className="row" key={f.key}>
+                      <div className="row-grow">
+                        <div className="conn-name">{f.label}</div>
+                        {/* Helper hints are quiet meta, not SHOUTING CAPS (gym
+                            reformat 2026-08-31). */}
+                        {(f.key === "w" || f.key === "v") && unit && <div className="conn-meta">{unit} · Every set at once</div>}
+                        {f.key === "t" && <div className="conn-meta">{timeUnit}</div>}
+                      </div>
+                      <Stepper value={sets.find((s) => !s.skipped)?.[f.key] ?? 0} step={f.step} label={f.label}
+                        onChange={(n) => setSets((s) => applyToAll(kind, s, f.key, n))} />
+                    </div>
+                  ))}
+                  {units.length > 1 && (
+                    <div className="row">
+                      {/* Same label anatomy as the Weight and Reps rows above --
+                          this row was the sheet's odd one out. */}
+                      <div className="row-grow"><div className="conn-name">Unit</div></div>
+                      <div className="chip-row">
+                        {units.map((u) => (
+                          <div key={u} className={"chip" + (unit === u ? " active" : "")} role="button" tabIndex={0} aria-pressed={unit === u}
+                            onClick={() => setUnit(u)}>{u}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {kind === "distance_time" && (
+                    <div className="row">
+                      <div className="row-grow"><div className="conn-name">Time Unit</div></div>
+                      <div className="chip-row">
+                        {TIME_UNITS.map((u) => (
+                          <div key={u} className={"chip" + (timeUnit === u ? " active" : "")} role="button" tabIndex={0} aria-pressed={timeUnit === u}
+                            onClick={() => setTimeUnit(u)}>{u}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
-              {kind === "distance_time" && (
-                <div className="row">
-                  <div className="row-grow"><div className="conn-name">Time Unit</div></div>
-                  <div className="chip-row">
-                    {TIME_UNITS.map((u) => (
-                      <div key={u} className={"chip" + (timeUnit === u ? " active" : "")} role="button" tabIndex={0} aria-pressed={timeUnit === u}
-                        onClick={() => setTimeUnit(u)}>{u}</div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <button className="row row-act" onClick={generate}>
-                {kind === "done" ? `Generate ${quickCount} Identical ${quickCount === 1 ? "Time" : "Times"}` : "Generate Identical Sets"}
-              </button>
             </div>
-          </div>
-
-          <div className="field">
-            <div className="input-label">Sets</div>
-            <SetStrip kind={kind} unit={unit} timeUnit={timeUnit} entries={sets} onChange={setSets} />
+            <SetStrip kind={kind} unit={unit} timeUnit={timeUnit} entries={sets} onChange={setSets}
+              lastFor={lastHit ? (i) => (lastHit.sets[i] ? `Last: ${formatSet(lastHit.fx, lastHit.sets[i]!)}` : null) : undefined} />
             {touched && sets.length === 0 && <div className="input-error">Add at least one set.</div>}
           </div>
 
@@ -226,6 +249,32 @@ export default function ExerciseSheet({ mode, initial, library, onSave, onDelete
               <div className="row">
                 <div className="row-grow"><div className="conn-name">{restSec > 0 ? `${Math.floor(restSec / 60)}:${String(restSec % 60).padStart(2, "0")}` : "Off"}</div></div>
                 <Stepper value={restSec} step={15} min={0} label="Rest Timer" onChange={setRestSec} />
+              </div>
+            </div>
+          )}
+
+          {/* THE RAMP (D3-A). Warm-up sets are DERIVED from the first working
+              weight, never stored here: the plan stays the work, and editing
+              the weight re-ramps for free. The preview below is the real
+              derivation, so what it says is what the session offers. */}
+          {kind === "weight_reps" && (
+            <div className="field">
+              <div className="input-label">Warm-Up Ramp</div>
+              <div className="card">
+                <div className="row">
+                  <div className="row-grow">
+                    <div className="conn-name">{ramp ? "On" : "Off"}</div>
+                    <div className="conn-meta">
+                      {ramp
+                        ? (rampPreview.length
+                            ? rampPreview.map((r) => formatSet(draft, r)).join(" · ")
+                            : "Nothing to ramp at this weight")
+                        : "Build warm-up sets from your first working weight"}
+                    </div>
+                  </div>
+                  <div className={"switch" + (ramp ? "" : " off")} role="switch" aria-checked={ramp} tabIndex={0}
+                    onClick={() => setRamp((r) => !r)} />
+                </div>
               </div>
             </div>
           )}
@@ -254,6 +303,7 @@ export default function ExerciseSheet({ mode, initial, library, onSave, onDelete
               exerciseKey: exerciseKey ?? newExerciseKey(),
               ...(restSec > 0 ? { restSec } : {}),
               ...(filler ? { filler: true } : {}),
+              ...(ramp ? { ramp: true } : {}),
             });
           }}>{saveLabel}</button>
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>

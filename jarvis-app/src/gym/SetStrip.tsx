@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import type { MeasureKind, SetEntry } from "./types";
 import { entryNoun, fieldsFor, formatSet } from "./measures";
+import { plateLine } from "./ramp";
+import { readGymSettings, rackFrom } from "./settings";
 import { duplicateEntry, blankEntry } from "./strip";
 import ReorderList from "../shared/ReorderList";
 import { useSwipe } from "../shared/useSwipe";
@@ -24,7 +26,7 @@ const LONG_PRESS_MS = 550;
  * filled chips are the record.
  */
 export default function SetStrip({
-  kind, unit, timeUnit, entries, onChange, ghost, onLogGhost, disabled, prAt, moveTracking,
+  kind, unit, timeUnit, entries, onChange, ghost, onLogGhost, disabled, prAt, moveTracking, lastFor, onMatchLast,
 }: {
   kind: MeasureKind;
   unit?: string;
@@ -43,10 +45,21 @@ export default function SetStrip({
    *  ExerciseSheet (planning) never passes this -- only the live session and
    *  a finished workout's editor do. */
   moveTracking?: boolean;
+  /** LAST TIME, D2 (Training Catalog V2, 2026-08-31): "Last: 250 × 3" for
+   *  the chip at strip position `index` (logged chips first, then ghosts).
+   *  Null where last session had no set at that position. Quiet reference
+   *  on filled chips; on a ghost it pairs with onMatchLast. */
+  lastFor?: (index: number) => string | null;
+  /** D2 tap-to-match (live session only): log exactly what last session's
+   *  set at this position did. Offered on ghost chips beside the plan tap. */
+  onMatchLast?: (index: number) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const fields = fieldsFor(kind);
   const fx = { kind, unit, timeUnit };
+  // PLATE MATH (D8-A): the athlete's own bar and rack, so an open chip can
+  // say what to load instead of making them do arithmetic on a gym floor.
+  const rack = rackFrom(readGymSettings());
 
   const patch = (id: string, p: Partial<SetEntry>) =>
     onChange(entries.map((e) => (e.id === id ? { ...e, ...p } : e)));
@@ -89,12 +102,14 @@ export default function SetStrip({
                 open={openId === id}
                 disabled={!!disabled}
                 pr={!!prAt?.(i)}
+                last={lastFor?.(i) ?? null}
                 onToggle={() => setOpenId(openId === id ? null : id)}
                 onDelete={() => remove(id)}
                 onDuplicate={() => duplicate(id)}
               />
               {openId === id && !disabled && (
-                <SetChipEditor kind={kind} fields={fields} entry={e} onPatch={(p) => patch(id, p)} moveTracking={moveTracking} />
+                <SetChipEditor kind={kind} fields={fields} entry={e} onPatch={(p) => patch(id, p)} moveTracking={moveTracking}
+                  plates={kind === "weight_reps" && unit !== "kg" ? plateLine(e.w ?? 0, rack.bar, rack.plates) : null} />
               )}
             </div>
           );
@@ -105,15 +120,28 @@ export default function SetStrip({
       )}
       {ghost && ghost.length > 0 && (
         <div className="set-strip-ghosts">
-          {ghost.map((g, i) => (
-            <div className="row set-chip-ghost" role="button" tabIndex={0} key={g.id}
-              onClick={() => onLogGhost?.(i)}>
-              <div className="row-grow">
-                <div className="eyebrow">Not Logged Yet</div>
-                <div className="conn-name">{kind === "done" ? "Mark Done" : formatSet(fx, g)}</div>
+          {ghost.map((g, i) => {
+            const pos = entries.length + i;
+            const lastText = lastFor?.(pos) ?? null;
+            return (
+              <div className="row set-chip-ghost" role="button" tabIndex={0} key={g.id}
+                onClick={() => onLogGhost?.(i)}>
+                <div className="row-grow">
+                  <div className="eyebrow">Not Logged Yet</div>
+                  <div className="conn-name">{kind === "done" ? "Mark Done" : formatSet(fx, g)}</div>
+                  {/* D2 tap-to-match: the faint last-time line is itself the
+                      door to logging those exact numbers -- the row still
+                      logs the plan, the line logs what last time did. */}
+                  {lastText && (onMatchLast
+                    ? <button className="set-last-act" aria-label={`Log ${lastText.replace(/^Last: /, "")}, same as last time`}
+                        onClick={(e) => { e.stopPropagation(); onMatchLast(pos); }}>
+                        {lastText}<span className="act">Match</span>
+                      </button>
+                    : <div className="conn-meta">{lastText}</div>)}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
@@ -121,7 +149,7 @@ export default function SetStrip({
 }
 
 function SetChipRow({
-  index, entry, kind, fx, open, disabled, pr, onToggle, onDelete, onDuplicate,
+  index, entry, kind, fx, open, disabled, pr, last, onToggle, onDelete, onDuplicate,
 }: {
   index: number;
   entry: SetEntry;
@@ -130,6 +158,8 @@ function SetChipRow({
   open: boolean;
   disabled: boolean;
   pr?: boolean;
+  /** D2: "Last: 250 × 3", quiet reference under the chip's own numbers. */
+  last?: string | null;
   onToggle: () => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -144,18 +174,21 @@ function SetChipRow({
   };
 
   const label = entry.skipped ? "Skipped" : kind === "done" ? (entry.done ? "Done" : "Not Marked Yet") : formatSet(fx, entry);
+  // A ramp set is real work but not the work: it says so, and it counts
+  // toward nothing (D3-A).
+  const kicker = entry.warmup ? "Warm-Up" : `Set ${index + 1}`;
 
   return (
     <div className="task-swipe set-chip-swipe">
       <button className="task-del" aria-label={`Delete set ${index + 1}`} onClick={() => swipe.closeThen(onDelete)}><Trash2 className="ic" /></button>
       <div
-        className={"set-chip" + (entry.skipped ? " set-chip-skipped" : "") + (swipe.dragging ? " swiping" : "")}
+        className={"set-chip" + (entry.skipped ? " set-chip-skipped" : "") + (entry.warmup ? " set-chip-warm" : "") + (swipe.dragging ? " swiping" : "")}
         style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
         {...swipe.handlers}
         role="button"
         tabIndex={0}
         aria-expanded={open}
-        aria-label={`Set ${index + 1}, ${label}, tap to edit, hold to duplicate`}
+        aria-label={`${kicker}, ${label}, tap to edit, hold to duplicate`}
         onPointerDown={disabled ? undefined : (e) => {
           startXY.current = { x: e.clientX, y: e.clientY };
           firedLongPress.current = false;
@@ -175,8 +208,9 @@ function SetChipRow({
         }}
       >
         <div className="row-grow">
-          <div className="eyebrow">Set {index + 1}</div>
+          <div className="eyebrow">{kicker}</div>
           <div className="conn-name">{label}</div>
+          {last && <div className="conn-meta">{last}</div>}
         </div>
         {pr && <span className="pill pill-good">PR</span>}
       </div>
@@ -189,16 +223,27 @@ const MOVED_OPTIONS: { value: "clean" | "grind" | "missed"; label: string }[] = 
   { value: "grind", label: "Last One Was a Grind" },
   { value: "missed", label: "Missed One" },
 ];
+// A warm-up is supposed to move well, so marking one says nothing about the
+// work and the progression engine ignores it (D6). No chips on a ramp set.
 
-function SetChipEditor({ kind, fields, entry, onPatch, moveTracking }: {
+function SetChipEditor({ kind, fields, entry, onPatch, moveTracking, plates }: {
   kind: MeasureKind;
   fields: ReturnType<typeof fieldsFor>;
   entry: SetEntry;
   onPatch: (p: Partial<SetEntry>) => void;
   moveTracking?: boolean;
+  /** PLATE MATH (D8-A): what goes on each side, or null when this rack
+   *  cannot build the number exactly -- silence beats a wrong answer. */
+  plates?: string | null;
 }) {
   return (
     <div className="set-chip-editor">
+      {plates && !entry.skipped && (
+        <div className="row"><div className="row-grow">
+          <div className="conn-name">{plates}</div>
+          <div className="conn-meta">Per side</div>
+        </div></div>
+      )}
       {kind === "done" ? (
         <div className="row" role="button" tabIndex={0} onClick={() => onPatch({ done: !entry.done, skipped: false })}>
           <div className="row-grow"><div className="conn-name">{entry.done ? "Done" : "Mark Done"}</div></div>
@@ -215,7 +260,7 @@ function SetChipEditor({ kind, fields, entry, onPatch, moveTracking }: {
       {/* HOW IT MOVED (catalog §4.5): observable events, never an
           interoception/feelings scale. Optional -- tapping the already-active
           chip clears it rather than forcing a choice. */}
-      {moveTracking && !entry.skipped && (
+      {moveTracking && !entry.skipped && !entry.warmup && (
         <div className="field">
           <div className="input-label">How Did It Move?</div>
           <div className="chip-row chip-wrap-row">

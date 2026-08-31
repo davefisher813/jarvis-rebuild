@@ -3251,3 +3251,143 @@ describe("LAW 15: the gym speaks one grammar", () => {
     expect(css).toMatch(/\.row-press \{[^}]*display: flex/);
   });
 });
+
+// ===========================================================================
+// LAW 16: A RAMP IS NOT THE WORK, AND A SUGGESTION IS NOT AN EDIT
+//
+// Wave 2 of Training Catalog V2 (D3-A ramps, D6-A progression, D8-A plate
+// math) adds two things the app has never had: sets it generates itself, and
+// an opinion about next time. Both are dangerous in exactly one way, and it
+// is the same way -- they can quietly become facts.
+//
+// A warm-up set is real work the athlete did, so it is logged. It is not the
+// work being measured, so it must never win a record, never add tonnage, and
+// never make a strip stop speaking as one line. There is exactly ONE gate
+// every record path runs through (scoreOf), and this pins the exclusion
+// there rather than in each caller -- the callers are the part that keeps
+// getting added to.
+//
+// A suggestion is an offer. Only applySuggestion writes, and only a caller
+// holding an explicit accept may call it. "The program updates on save" was
+// Dave's own wording on D6-A, and the failure it rules out is the app moving
+// someone's numbers while they were not looking.
+// ===========================================================================
+describe("LAW 16: derived work never becomes a fact on its own", () => {
+  const gym = (f: string) => read(join(SRC, "gym", f));
+
+  it("the one scoring gate excludes warm-ups, so no record path has to remember", () => {
+    const src = gym("measures.ts");
+    const fn = src.slice(src.indexOf("export function scoreOf"));
+    expect(fn.slice(0, fn.indexOf("switch (kind)")), "scoreOf lets a warm-up compete")
+      .toMatch(/if \(s\.warmup\) return null/);
+  });
+
+  it("tonnage and the uniformity read skip the approach too", () => {
+    const src = gym("measures.ts");
+    const vol = src.slice(src.indexOf("export function setVolume"), src.indexOf("export function scoreOf"));
+    expect(vol, "a warm-up adds tonnage").toMatch(/s\.warmup/);
+    const uni = src.slice(src.indexOf("export function isUniformStrip"));
+    expect(uni.slice(0, 400), "a ramp breaks the plan line").toMatch(/warmup/);
+  });
+
+  it("the ramp is derived, never stored in a program", () => {
+    const sheet = gym("ExerciseSheet.tsx");
+    expect(sheet, "the editor saves generated warm-up sets into the plan")
+      .not.toMatch(/setSets\([^)]*rampFor/);
+    expect(gym("ramp.ts"), "the ramp module writes state").not.toMatch(/localStorage|writeGymSettings/);
+  });
+
+  it("only applySuggestion writes a plan, and only behind an explicit accept", () => {
+    const prog = gym("progression.ts");
+    const suggest = prog.slice(prog.indexOf("export function suggestFor"), prog.indexOf("export function applySuggestion"));
+    expect(suggest, "suggestFor assigns into the exercise").not.toMatch(/ex\.sets\s*=|ex\.sets\.(push|splice|sort|reverse)/);
+    const flow = gym("GymFlow.tsx");
+    expect(flow).toMatch(/onAcceptSuggestion=\{/);
+    expect([...flow.matchAll(/applySuggestion\(/g)].length,
+      "applySuggestion is called from more than the accept path").toBe(1);
+  });
+
+  it("a suggestion says what it is moving from, so it can never be silent", () => {
+    expect(gym("progression.ts"), "a suggestion carries no reason").toMatch(/why:/);
+    expect(gym("SessionScreen.tsx"), "the offer does not show its evidence").toMatch(/suggestion\.why/);
+  });
+
+  it("plate math says nothing rather than a wrong answer", () => {
+    const src = gym("ramp.ts");
+    const fn = src.slice(src.indexOf("export function platesPerSide"));
+    expect(fn.slice(0, fn.indexOf("\n}")), "an unbuildable weight is rounded instead of refused")
+      .toMatch(/return null/);
+  });
+});
+
+// ===========================================================================
+// LAW 17: THE FIT IS A STANCE, NEVER AN EDIT -- AND ESTIMATES NAME THEIR
+// EVIDENCE
+//
+// Wave 3 of Training Catalog V2 (D4-C pins + the door, D5-C fit + live pace)
+// gives the app a clock and a calendar claim, and both invite the same two
+// sins. The first: "fitting" a session by quietly editing the program --
+// Fitbod's move, the one the catalog explicitly rejects. Every lever
+// (rest cut, superset, trim, skip cool-down) lives on the LIVE SESSION and
+// dies with it; fit.ts must never import the program-writing door, and the
+// trim may never touch the day's first exercise -- "never the top set of
+// your main lift" is Dave's approved wording. The second: an estimate that
+// dresses a default up as a measurement. Every pace is either learned from
+// logged stamps or named a default, out loud, every time.
+//
+// And the calendar side inherits the gameCategoryId doctrine: the schedule
+// never GUESSES which block is the gym. Only the athlete's own hand (the
+// event sheet's switch -> editGymDoor) marks a door, and a stamp lands only
+// on an event that is one.
+// ===========================================================================
+describe("LAW 17: the fit is a stance, never an edit", () => {
+  const gym = (f: string) => read(join(SRC, "gym", f));
+
+  it("fit.ts prices; it never writes -- no service, no program door, no storage", () => {
+    const src = gym("fit.ts");
+    expect(src, "fit.ts reaches a write door").not.toMatch(/GymService|updateProgram|saveDays|localStorage|writeLive/);
+  });
+
+  it("the trim never touches the day's first exercise", () => {
+    const src = gym("fit.ts");
+    const fn = src.slice(src.indexOf("export function trimTargets"));
+    expect(fn.slice(0, fn.indexOf("\n}")), "trimTargets can name the main lift")
+      .toMatch(/i === 0/);
+    const next = src.slice(src.indexOf("export function nextLever"));
+    expect(next, "the catch-up banner can trim the main lift").toMatch(/i >= 1/);
+  });
+
+  it("a lever is applied only by the athlete's own tap, through the one door", () => {
+    const screen = gym("SessionScreen.tsx");
+    // The banner's apply path exists and goes through onFit; nothing in the
+    // session screen writes the program when a lever lands.
+    expect(screen).toMatch(/applyLever/);
+    expect(screen.slice(screen.indexOf("const applyLever")), "a lever edits the program")
+      .not.toMatch(/updateProgram|saveDays/);
+  });
+
+  it("every estimate names its evidence: learned, or a default that says so", () => {
+    expect(gym("pacing.ts"), "the honesty line lost its default wording")
+      .toMatch(/default pace · improves as you log/);
+    expect(gym("pacing.ts"), "the honesty line lost its learned wording")
+      .toMatch(/learned from your last/);
+    expect(gym("FitSheet.tsx"), "the fit sheet hides where its estimate came from")
+      .toMatch(/default pace · improves as you log/);
+  });
+
+  it("pacing never learns from a backdated session's stamps", () => {
+    const fn = gym("pacing.ts").slice(gym("pacing.ts").indexOf("export function workGaps"));
+    expect(fn.slice(0, fn.indexOf("\n}")), "typed-in times teach the pace model")
+      .toMatch(/backdated/);
+  });
+
+  it("the calendar never guesses which block is the gym", () => {
+    const svc = read(join(SRC, "schedule", "ScheduleService.ts"));
+    const stamp = svc.slice(svc.indexOf("async stampTrained"));
+    expect(stamp.slice(0, stamp.indexOf("\n  }")), "a stamp can land on a non-door event")
+      .toMatch(/!e\.gym/);
+    const sheet = read(join(SRC, "schedule", "screens", "EventSheet.tsx"));
+    expect(sheet, "the door is not the athlete's own switch").toMatch(/setGym/);
+    expect(sheet, "the sheet guesses the gym from the title").not.toMatch(/title\.(match|includes)\([^)]*[Gg]ym/);
+  });
+});

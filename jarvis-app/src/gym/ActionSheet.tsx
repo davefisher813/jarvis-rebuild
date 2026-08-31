@@ -49,15 +49,22 @@ export interface PickItem { id: string; label: string; sub?: string }
  * Move to Program, Switch Program, Pair With. One primitive, configured, per
  * the app's own rule against a second implementation of a shared shape.
  */
-export function PickSheet({ title, items, multi, onPick, onCancel, emptyText }: {
+export function PickSheet({ title, items, multi, initial, allowEmpty, confirmLabel, onPick, onCancel, emptyText }: {
   title: string;
   items: PickItem[];
   multi?: boolean;
+  /** Pre-checked ids, for editors (pin days) as opposed to one-shot moves. */
+  initial?: string[];
+  /** Confirming with nothing picked is a legal answer (unpin everything). */
+  allowEmpty?: boolean;
+  /** The confirm button's words, by count. Default keeps the copy-to-days
+   *  label this sheet grew up with. */
+  confirmLabel?: (count: number) => string;
   onPick: (ids: string[]) => void;
   onCancel: () => void;
   emptyText?: string;
 }) {
-  const [chosen, setChosen] = useState<string[]>([]);
+  const [chosen, setChosen] = useState<string[]>(initial ?? []);
   const toggle = (id: string) => {
     if (!multi) { onPick([id]); return; }
     setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : [...c, id]));
@@ -84,8 +91,10 @@ export function PickSheet({ title, items, multi, onPick, onCancel, emptyText }: 
         )}
         <div className="pad-x sheet-actions">
           {multi && (
-            <button className="btn btn-primary btn-block" disabled={chosen.length === 0} onClick={() => onPick(chosen)}>
-              {chosen.length > 0 ? `Copy to ${chosen.length} ${chosen.length === 1 ? "Day" : "Days"}` : "Pick at Least One"}
+            <button className="btn btn-primary btn-block" disabled={!allowEmpty && chosen.length === 0} onClick={() => onPick(chosen)}>
+              {confirmLabel
+                ? confirmLabel(chosen.length)
+                : chosen.length > 0 ? `Copy to ${chosen.length} ${chosen.length === 1 ? "Day" : "Days"}` : "Pick at Least One"}
             </button>
           )}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>

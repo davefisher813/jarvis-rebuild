@@ -137,3 +137,45 @@ describe("isSessionPR (audit 2026-08-25)", () => {
     expect(isSessionPR([], "Bench", "weight_reps", sets, 2)).toBe(true);
   });
 });
+
+// D2, LAST TIME ALWAYS IN SIGHT (Training Catalog V2, approved 2026-08-31).
+describe("lastSessionFor + lastHeader", () => {
+  const history = [
+    wk("2026-08-10", [wex("Bench", "weight_reps", [{ w: 285, r: 3 }], "lb")]),
+    wk("2026-08-24", [wex("Bench", "weight_reps", [{ w: 275, r: 5 }, { w: 275, r: 5 }, { w: 275, r: 4 }, { skipped: true }], "lb")]),
+  ];
+
+  it("finds the most recent session with real logged sets, skips filtered", async () => {
+    const { lastSessionFor } = await import("./prs");
+    const hit = lastSessionFor(history, "Bench", "weight_reps")!;
+    expect(hit.date).toBe("2026-08-24");
+    expect(hit.sets).toHaveLength(3); // the skipped chip never shows as a ghost
+    expect(hit.sets[0]!.w).toBe(275);
+  });
+
+  it("null when the exercise has never been trained", async () => {
+    const { lastSessionFor } = await import("./prs");
+    expect(lastSessionFor(history, "Squat", "weight_reps")).toBeNull();
+  });
+
+  it("compresses a same-weight strip to one line and carries the all-time best", async () => {
+    const { lastHeader } = await import("./prs");
+    const h = lastHeader(history, "Bench", "weight_reps")!;
+    expect(h.last).toBe("275 lb × 5, 5, 4");
+    expect(h.date).toBe("2026-08-24");
+    expect(h.best).toBe("285 lb × 3"); // the older, heavier single is still the best
+  });
+
+  it("mixed weights fall back to listing the sets", async () => {
+    const { lastHeader } = await import("./prs");
+    const hist = [wk("2026-08-20", [wex("Row", "weight_reps", [{ w: 225, r: 5 }, { w: 245, r: 3 }], "lb")])];
+    const h = lastHeader(hist, "Row", "weight_reps")!;
+    expect(h.last).toBe("225 lb × 5, 245 lb × 3");
+  });
+
+  it("distance_time never speaks a cross-distance best", async () => {
+    const { lastHeader } = await import("./prs");
+    const hist = [wk("2026-08-20", [wex("Tempo Run", "distance_time", [{ v: 1, t: 8 }], "mi")])];
+    expect(lastHeader(hist, "Tempo Run", "distance_time")!.best).toBeNull();
+  });
+});

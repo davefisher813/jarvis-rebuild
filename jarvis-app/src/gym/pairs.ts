@@ -60,3 +60,28 @@ export function unpairExercise(exercises: Exercise[], id: string): Exercise[] {
     return e;
   });
 }
+
+/**
+ * SUPERSET FLOW (D8-C). Which exercise the session should offer next after a
+ * set of `exercise`, or null to stay put. A true A1/A2 pair alternates: if
+ * the partner is behind on sets, it is next. A filler is NOT this -- it is
+ * offered during rest by fillerFor and never takes the pair's turn.
+ *
+ * `logged` is how many sets each exercise id has recorded this session, so
+ * this stays a pure function of the plan plus a count.
+ */
+export function nextInPair(
+  exercise: Exercise,
+  exercises: Exercise[],
+  logged: Record<string, number>,
+): string | null {
+  if (!exercise.pairWith) return null;
+  const partner = exercises.find((e) => e.id === exercise.pairWith);
+  if (!partner || partner.pairWith !== exercise.id) return null; // stale half-link
+  if (partner.filler) return null;                                // rest's job, not the pair's
+  const mine = logged[exercise.id] ?? 0;
+  const theirs = logged[partner.id] ?? 0;
+  if (theirs >= mine) return null;                                // they are caught up
+  if (theirs >= partner.sets.length) return null;                 // nothing left to offer
+  return partner.id;
+}

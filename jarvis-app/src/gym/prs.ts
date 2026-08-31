@@ -1,4 +1,4 @@
-import type { Workout, SetLog, MeasureKind, WorkoutExercise } from "./types";
+import type { Workout, SetLog, SetEntry, MeasureKind, WorkoutExercise } from "./types";
 import { beats, hasVolume, setVolume, formatSet, scoreOf } from "./measures";
 
 // PRs and the finish receipt. Every number here is DERIVED from logged work.
@@ -143,12 +143,64 @@ export function isSessionPR(
   return true;
 }
 
+/**
+ * LAST TIME, ALWAYS IN SIGHT -- D2 (Training Catalog V2, approved
+ * 2026-08-31). The most recent session that actually trained this exercise:
+ * its date, its logged sets in order (skipped chips filtered -- there is
+ * nothing to match against a set that didn't happen), and the format
+ * context to render them with. Per-set ghosts pair positionally: ghost for
+ * chip i is sets[i], the Hevy convention.
+ */
+export interface LastSessionHit {
+  date: string;
+  fx: { kind: MeasureKind; unit?: string; timeUnit?: string };
+  sets: SetEntry[];
+}
+
+export function lastSessionFor(history: Workout[], name: string, kind: MeasureKind): LastSessionHit | null {
+  for (let i = history.length - 1; i >= 0; i--) {
+    const w = history[i]!;
+    const ex = w.data.exercises.find((e) => e.name === name && e.kind === kind);
+    // Working sets only: a warm-up is not what happened last time (D3-A).
+    const logged = ex?.sets.filter((s) => !s.skipped && !s.warmup) ?? [];
+    if (ex && logged.length) {
+      return { date: w.data.date, fx: { kind: ex.kind, unit: ex.unit, timeUnit: ex.timeUnit }, sets: logged };
+    }
+  }
+  return null;
+}
+
+/**
+ * The D2-C header line: the whole last session, compact, plus the all-time
+ * best. A same-weight strip compresses to "275 lb × 5, 5, 4"; anything else
+ * lists sets the way lastTimeLine always has. Best stays quiet for
+ * distance_time -- records there are per-distance, and one line must not
+ * compare a mile to a ten-miler.
+ */
+export interface LastHeader { last: string; date: string; best: string | null }
+
+export function lastHeader(history: Workout[], name: string, kind: MeasureKind): LastHeader | null {
+  const hit = lastSessionFor(history, name, kind);
+  if (!hit) return null;
+  const { fx, sets } = hit;
+  let last: string;
+  const sameWeight = kind === "weight_reps" && sets.length > 1 &&
+    sets.every((s) => (s.w ?? 0) > 0 && s.w === sets[0]!.w && (s.r ?? 0) > 0);
+  if (sameWeight) {
+    last = formatSet(fx, sets[0]!) + sets.slice(1).map((s) => `, ${s.r}`).join("");
+  } else {
+    last = sets.map((s) => formatSet(fx, s)).join(", ");
+  }
+  const best = kind === "distance_time" ? null : bestBefore(history, name, kind);
+  return { last, date: hit.date, best: best ? formatSet(fx, best.set) : null };
+}
+
 /** "Last time: 135 lb × 8, 8, 7" for the in-gym header. Null when new. */
 export function lastTimeLine(history: Workout[], name: string, kind: MeasureKind): string | null {
   for (let i = history.length - 1; i >= 0; i--) {
     const w = history[i]!;
     const ex = w.data.exercises.find((e) => e.name === name && e.kind === kind);
-    const logged = ex?.sets.filter((s) => !s.skipped) ?? [];
+    const logged = ex?.sets.filter((s) => !s.skipped && !s.warmup) ?? [];
     if (ex && logged.length) {
       return "Last time: " + logged.map((s) => formatSet(ex, s)).join(", ");
     }

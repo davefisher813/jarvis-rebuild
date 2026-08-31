@@ -1,4 +1,5 @@
 import type { Exercise, MeasureKind, Program, SetEntry, Workout } from "./types";
+import { entryFrom } from "./strip";
 
 // THE EXERCISE LIBRARY (catalog §3.5). Every exercise name ever used, offered
 // as autocomplete the moment you start typing. Picking a suggestion binds the
@@ -49,10 +50,13 @@ function record(
       unit: e.unit,
       timeUnit: e.timeUnit,
       lastUsed: seenAt,
-      lastSets: sets.length ? sets : (existing?.lastSets ?? []),
+      // entryFrom picks only the numbers: a logged sighting's moved marks
+      // and D7 stamps belong to the sets that happened, never to the plan
+      // chips a picked suggestion prefills (same rule as same-as-last-time).
+      lastSets: sets.length ? sets.map(entryFrom) : (existing?.lastSets ?? []),
     });
   } else if (!existing.lastSets.length && sets.length) {
-    existing.lastSets = sets;
+    existing.lastSets = sets.map(entryFrom);
   }
 }
 

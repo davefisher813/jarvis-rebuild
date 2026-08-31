@@ -24,7 +24,7 @@ describe("EventSheet", () => {
     expect(screen.getByText("Needs title · Date · Start")).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Standup" } });
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith({ title: "Standup", date: "2026-05-24", start: "09:00", end: "10:00", category: "c1", location: "", recurrence: "none", until: "", taskIds: [] });
+    expect(onSave).toHaveBeenCalledWith({ title: "Standup", date: "2026-05-24", start: "09:00", end: "10:00", category: "c1", location: "", recurrence: "none", until: "", taskIds: [], gym: false });
   });
 
   it("category switch wears its slot color and saves its id", () => {
@@ -35,7 +35,7 @@ describe("EventSheet", () => {
     expect(document.querySelector(".chip.cat-bg-teal")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Lunch" } });
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith({ title: "Lunch", date: "2026-05-24", start: "09:00", end: "10:00", category: "c2", location: "", recurrence: "none", until: "", taskIds: [] });
+    expect(onSave).toHaveBeenCalledWith({ title: "Lunch", date: "2026-05-24", start: "09:00", end: "10:00", category: "c2", location: "", recurrence: "none", until: "", taskIds: [], gym: false });
   });
 
   it("edit mode: prefilled, delete fires", () => {

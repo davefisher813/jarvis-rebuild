@@ -185,3 +185,40 @@ describe("empty is legal: no surface manufactures a zero", () => {
     expect(targetLine(e)).not.toContain("0 lb");
   });
 });
+
+// THE RAMP IS NOT THE WORK (D3-A, 2026-08-31). A warm-up set is real work
+// the athlete did, but it is never a record, never volume, and never part of
+// what makes a strip speak as one line.
+describe("warm-up sets stay out of the numbers", () => {
+  it("a strip of ramp + working sets is still uniform on its working sets", async () => {
+    const { isUniformStrip } = await import("./measures");
+    const strip = [
+      { id: "w1", w: 45, r: 10, warmup: true },
+      { id: "w2", w: 135, r: 5, warmup: true },
+      { id: "s1", w: 225, r: 5 },
+      { id: "s2", w: 225, r: 5 },
+    ];
+    expect(isUniformStrip("weight_reps", strip)).toBe(true);
+  });
+
+  it("the plan line speaks the work, not the approach", async () => {
+    const { targetLine } = await import("./measures");
+    const ex = { id: "e", name: "Bench", kind: "weight_reps" as const, unit: "lb", sets: [
+      { id: "w1", w: 45, r: 10, warmup: true },
+      { id: "s1", w: 225, r: 5 }, { id: "s2", w: 225, r: 5 },
+    ] };
+    expect(targetLine(ex)).toBe("2 × 225 lb × 5");
+  });
+
+  it("volume counts the work only", async () => {
+    const { setVolume } = await import("./measures");
+    expect(setVolume("weight_reps", { w: 45, r: 10, warmup: true })).toBe(0);
+    expect(setVolume("weight_reps", { w: 225, r: 5 })).toBe(1125);
+  });
+
+  it("a warm-up has no comparable score, so it can never be a record", async () => {
+    const { scoreOf } = await import("./measures");
+    expect(scoreOf("weight_reps", { w: 315, r: 1, warmup: true })).toBeNull();
+    expect(scoreOf("weight_reps", { w: 225, r: 5 })).not.toBeNull();
+  });
+});

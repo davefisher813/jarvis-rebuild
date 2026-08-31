@@ -45,7 +45,7 @@ function weekRange(cells: WeekCell[]): string {
 }
 
 export default function SchedulePage({
-  year, month, selected, todayDate, dots, dayEvents, conflicts,
+  year, month, selected, todayDate, dots, dayEvents, conflicts, gymDoorFor,
   mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload, onDeleteMany,
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
@@ -56,6 +56,9 @@ export default function SchedulePage({
 }: {
   year: number; month: number; selected: string; todayDate: string;
   dots: Record<number, string[]>; dayEvents: EventItem[]; conflicts?: Set<string>;
+  // THE TRAINING DOOR (D4-C): the flow derives what a gym block says for
+  // this date; the page just hands it to the row.
+  gymDoorFor?: (e: EventItem) => import("./DayRow").GymDoorView | null;
   mode?: Mode; onMode?: (m: Mode) => void; weekCells?: WeekCell[]; loading?: boolean;
   // W1: the repeating series, already derived by the flow.
   repeats?: import("../repeats").RepeatRow[];
@@ -538,6 +541,7 @@ export default function SchedulePage({
                   onPick={() => sel.toggle(en.e.id)}
                   onSkipToday={onSkipToday ? () => onSkipToday(en.e.id) : undefined}
                   onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.e.id) : undefined}
+                  gymDoor={gymDoorFor?.(en.e) ?? null}
                 />
                 {/* The blend offer. It sits UNDER the block it belongs to,
                     because that is the sentence it is making: this task goes

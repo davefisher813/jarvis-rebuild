@@ -113,6 +113,22 @@ export class ScheduleService {
     return this.patch(id, { location: location.trim() });
   }
 
+  // THE TRAINING DOOR, D4-C. On/off by the athlete's own hand in the event
+  // sheet -- the calendar never guesses which block is the gym (the
+  // gameCategoryId doctrine). Turning the door off clears its receipts too:
+  // stamps belong to the door, not to the event that remains.
+  editGymDoor(id: string, gym: boolean): Promise<boolean> {
+    return this.patch(id, gym ? { gym: true } : { gym: undefined, trained: undefined });
+  }
+  // "When you finish, the block stamps itself done with the real minutes."
+  // One stamp per occurrence date; a second session the same day overwrites
+  // with the newer truth rather than inventing a ledger.
+  async stampTrained(id: string, date: string, minutes: number): Promise<boolean> {
+    const e = await this.get(id);
+    if (!e || !e.gym) return false;
+    return this.patch(id, { trained: { ...(e.trained ?? {}), [date]: Math.max(1, Math.round(minutes)) } });
+  }
+
   async deleteEvent(id: string): Promise<void> {
     await this.store.delete(this.ownerId, id);
     this.onEvent({ type: "entity.deleted", entityType: ENTITY_EVENT, entityId: id });

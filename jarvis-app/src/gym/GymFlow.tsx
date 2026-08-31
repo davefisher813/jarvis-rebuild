@@ -3,8 +3,9 @@ import { createPortal } from "react-dom";
 import { useGym, useOptionalSchedule, useOptionalCategories } from "../data/NotesProvider";
 import { todayISO } from "../tasks/grouping";
 import { monthDay } from "../money/bills";
-import type { Exercise, Program, ProgramDay, ProgramWeek, Workout, SetEntry, WorkoutExercise } from "./types";
-import { targetLine } from "./measures";
+import type { DayBlock, Exercise, Program, ProgramDay, ProgramWeek, Workout, SetEntry, WorkoutExercise } from "./types";
+import { targetLine, formatSet } from "./measures";
+import { applySuggestion, type Suggestion } from "./progression";
 import { receiptFor, type Receipt } from "./prs";
 import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, queueFinished, flushPending, hasWork, isStillActive, type LiveSession } from "./liveSession";
 import { bumpStrip, newSetId } from "./strip";
@@ -14,6 +15,10 @@ import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
   moveExerciseToDay, copyExerciseToDays, extractDay, appendDayToWeek,
 } from "./edit";
+import { pinLabel, todayDow, pinnedTo, nextPinnedDay, WEEKDAY_ABBR, WEEKDAY_FULL } from "./pins";
+import { estimateDay, type FitPlan } from "./fit";
+import { readGymSettings, rackFrom } from "./settings";
+import FitSheet from "./FitSheet";
 import ExerciseSheet from "./ExerciseSheet";
 import SessionScreen from "./SessionScreen";
 import ReceiptSheet from "./ReceiptSheet";
@@ -53,7 +58,7 @@ function findDay(weeks: ProgramWeek[], dayId: string): ProgramDay | undefined {
   return undefined;
 }
 
-function readActiveProgramId(): string | null {
+export function readActiveProgramId(): string | null {
   try { return localStorage.getItem(ACTIVE_PROGRAM_KEY); } catch { return null; }
 }
 function writeActiveProgramId(id: string): void {
@@ -241,7 +246,12 @@ function DayRow({ day, onOpen, onMenu }: { day: ProgramDay; onOpen: () => void; 
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
       <div className="row-grow">
         <div className="conn-name truncate">{day.name}</div>
-        <div className="conn-meta">{day.exercises.length} {day.exercises.length === 1 ? "exercise" : "exercises"}</div>
+        <div className="conn-meta">
+          {day.exercises.length} {day.exercises.length === 1 ? "exercise" : "exercises"}
+          {/* PINS, D4: the weekday claim rides the meta line, quiet, in the
+              gym's own Mon-first order. */}
+          {day.pinDays?.length ? ` · ${pinLabel(day.pinDays)}` : ""}
+        </div>
       </div>
       {CHEV}
     </div>
@@ -280,7 +290,8 @@ type Sheet =
   | { kind: "week"; weekId?: string }
   | { kind: "day"; weekId: string; dayId?: string }
   | { kind: "exercise"; weekId: string; dayId: string; exId?: string }
-  | { kind: "bump"; weekId: string };
+  | { kind: "bump"; weekId: string }
+  | { kind: "block"; weekId: string; dayId: string; which: "warmUp" | "coolDown" };
 
 type RowMenu =
   | { kind: "day"; weekId: string; day: ProgramDay }
@@ -292,12 +303,109 @@ type Picker =
   | { kind: "copyExerciseToDays"; weekId: string; dayId: string; exId: string }
   | { kind: "pairWith"; weekId: string; dayId: string; exId: string }
   | { kind: "moveDayProgram"; weekId: string; day: ProgramDay }
-  | { kind: "moveDayWeek"; targetProgramId: string; day: ProgramDay };
+  | { kind: "moveDayWeek"; targetProgramId: string; day: ProgramDay }
+  | { kind: "pinDays"; weekId: string; day: ProgramDay };
+
+/** THE BLOCKS, read view (D3-C). Renders nothing but its own door when a day
+ *  has none: an empty block is not a zero to display, it is a day that has
+ *  not been given one. */
+function BlockList({ title, blocks, minutes, onEdit }: {
+  title: string;
+  blocks?: DayBlock[];
+  minutes?: number;
+  onEdit: () => void;
+}) {
+  const has = !!blocks?.length;
+  return (
+    <>
+      <div className="sh2 sh2-quiet">
+        <span className="t">{title}</span>
+        <button className="see-all pill-action" onClick={onEdit}>{has ? "Edit" : "Add"}</button>
+      </div>
+      {has && (
+        <div><div className="list-flat">
+          {blocks!.map((b) => (
+            <div className="row" key={b.id}>
+              <div className="row-grow">
+                <div className="conn-name">{b.name}</div>
+                {b.amount && <div className="conn-meta">{b.amount}</div>}
+              </div>
+            </div>
+          ))}
+          {(minutes ?? 0) > 0 && (
+            <div className="row"><div className="row-grow">
+              <div className="conn-meta">{minutes} min, counted toward the session</div>
+            </div></div>
+          )}
+        </div></div>
+      )}
+    </>
+  );
+}
+
+/** THE BLOCK EDITOR (D3-C). Free text on purpose: a warm-up is not a
+ *  measured lift, so "Bike, easy" and "2 x 15" are the whole model. */
+function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
+  title: string;
+  blocks: DayBlock[];
+  minutes: number;
+  onSave: (blocks: DayBlock[], minutes: number) => void;
+  onCancel: () => void;
+}) {
+  const [rows, setRows] = useState<DayBlock[]>(blocks.length ? blocks : [{ id: nid("b"), name: "" }]);
+  const [mins, setMins] = useState(minutes);
+  const patch = (id: string, p: Partial<DayBlock>) => setRows((r) => r.map((x) => (x.id === id ? { ...x, ...p } : x)));
+  return createPortal(
+    <div className="sheet-scrim" onClick={onCancel}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="grp"><div className="eyebrow">{title}</div></div>
+        <div className="pad-x sheet-form">
+          {rows.map((b, i) => (
+            <div className="field" key={b.id}>
+              <div className="input-label">{`Item ${i + 1}`}</div>
+              <input className="input" placeholder="e.g. Bike, easy" value={b.name}
+                onChange={(e) => patch(b.id, { name: e.target.value })} />
+              <input className="input" placeholder="e.g. 5 min, 2 x 15" value={b.amount ?? ""}
+                onChange={(e) => patch(b.id, { amount: e.target.value })} />
+            </div>
+          ))}
+          <button className="row row-act" onClick={() => setRows((r) => [...r, { id: nid("b"), name: "" }])}>Add Another</button>
+          <div className="field">
+            <div className="input-label">Minutes</div>
+            <div className="row">
+              <div className="row-grow">
+                <div className="conn-name">{mins > 0 ? `${mins} min` : "Not counted"}</div>
+                <div className="conn-meta">Counted toward the session estimate</div>
+              </div>
+              <Stepper value={mins} step={1} min={0} label="Minutes" onChange={setMins} />
+            </div>
+          </div>
+        </div>
+        <div className="pad-x sheet-actions">
+          <button className="btn btn-primary btn-block"
+            onClick={() => onSave(rows.filter((r) => r.name.trim()).map((r) => ({ ...r, name: r.name.trim(), ...(r.amount?.trim() ? { amount: r.amount.trim() } : {}) })), mins)}>
+            Save
+          </button>
+          <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
 
 // The gym track: programs in the user's own words, weeks as the time axis,
 // the set strip as the same object in the plan and in the live session, the
 // in-gym loop, live PRs, and an honest receipt.
-export default function GymFlow({ onBack }: { onBack: () => void }) {
+export default function GymFlow({ onBack, door }: {
+  onBack: () => void;
+  /** D4-C: this mount came through a calendar gym block. The session that
+   *  starts here carries the event id so finishing can stamp the block done
+   *  with the real minutes, and the block's own length pre-fills the fit
+   *  sheet's budget. */
+  door?: { eventId: string; budgetMin?: number };
+}) {
   const svc = useGym();
   const ai = useAI();
   const schedule = useOptionalSchedule();
@@ -321,6 +429,14 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
     const s = readLive();
     return s && isStillActive(s, todayISO()) ? s : null;
   });
+  const [loaded, setLoaded] = useState(false);
+  // D5: the fit sheet between the tap and the session. Holds the day plus
+  // any door context until the athlete says Start.
+  const [fitFor, setFitFor] = useState<{ day: ProgramDay; doorEventId?: string; budgetMin?: number } | null>(null);
+  // D4-C "No pin set, it asks once": the one-time day picker for a door tap
+  // on a day no program day is pinned to.
+  const [doorPick, setDoorPick] = useState(false);
+  const [doorHandled, setDoorHandled] = useState(false);
   const [receipt, setReceipt] = useState<{ receipt: Receipt; dayName: string } | null>(null);
   const [viewWorkout, setViewWorkout] = useState<Workout | null>(null);
   const [workoutDraft, setWorkoutDraft] = useState<WorkoutExercise[] | null>(null);
@@ -374,6 +490,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
     setPrograms(all.filter((p) => !p.data.archived));
     setWorkouts(ws);
     setLive(readLive());
+    setLoaded(true);
   }, [svc]);
   useEffect(() => { void reload(); }, [reload]);
 
@@ -562,7 +679,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
     return null;
   }, [workouts]);
 
-  const startDay = (day: ProgramDay, opts: { date?: string; sameAsLastTime?: boolean } = {}) => {
+  const startDay = (day: ProgramDay, opts: { date?: string; sameAsLastTime?: boolean; fit?: FitPlan; doorEventId?: string } = {}) => {
     if (!program) return;
     // Never overwrite logged work (2026-08-09): if a session with real sets
     // is already going -- today's or a still-open backdated one -- starting a
@@ -585,11 +702,39 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
       startedAt, lastActivityAt: startedAt, idx: 0, exercises,
       ...(backdated ? { backdated: true } : {}),
       ...(opts.sameAsLastTime ? { sameAsLastTime: true } : {}),
+      ...(opts.fit ?? {}),
+      ...(opts.doorEventId ? { doorEventId: opts.doorEventId } : {}),
     };
     writeLive(s);
     setLive(s);
     if (opts.sameAsLastTime && !last) showToast({ message: "No prior session for this day yet · Starting fresh" });
   };
+  // D5: every live start passes through the fit sheet -- except the paths
+  // whose whole point is speed or the past: a resume (the sheet was already
+  // answered), Same As Last Time (the fastest possible entry), a backdated
+  // log (there is no clock to fit against), and an empty day (nothing to
+  // price).
+  const requestStart = (day: ProgramDay, extra: { doorEventId?: string; budgetMin?: number } = {}) => {
+    const existing = readLive();
+    if (existing && hasWork(existing.exercises)) { startDay(day); return; }
+    if (day.exercises.length === 0) { startDay(day, { doorEventId: extra.doorEventId }); return; }
+    setFitFor({ day, doorEventId: extra.doorEventId, budgetMin: extra.budgetMin });
+  };
+
+  // THE DOOR OPENS (D4-C): mounted from the calendar's gym block. The
+  // pinned day walks straight into the fit sheet; no pin, it asks once.
+  useEffect(() => {
+    if (!door || doorHandled || !loaded) return;
+    setDoorHandled(true);
+    const existing = readLive();
+    if (existing && hasWork(existing.exercises) && isStillActive(existing, todayISO())) { setLive(existing); return; }
+    if (!program) return;
+    const days = program.data.weeks.flatMap((w) => w.days);
+    const pinned = pinnedTo(days, todayDow());
+    if (pinned) requestStart(pinned, { doorEventId: door.eventId, budgetMin: door.budgetMin });
+    else setDoorPick(true);
+  }, [door, doorHandled, loaded, program]);
+
   // Every logged change re-stamps lastActivityAt (2026-08-30, sessions
   // resume not fragment): this is the one door all of SessionScreen's
   // mutations pass through, so it is the one place that needs to know a
@@ -598,6 +743,21 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
     const stamped = { ...next, lastActivityAt: Date.now() };
     writeLive(stamped);
     setLive(stamped);
+  };
+
+  // D6-A. The suggestion was a ghost until here: accepting writes the new
+  // target into the PROGRAM day this exercise belongs to, through the same
+  // saveDays door every other program edit uses, and says so out loud.
+  const acceptSuggestion = async (ex: Exercise, sug: Suggestion) => {
+    if (!program || !live) return;
+    const week = program.data.weeks.find((w) => w.days.some((d) => d.id === live.dayId));
+    const day = week?.days.find((d) => d.id === live.dayId);
+    if (!week || !day || !day.exercises.some((e) => e.id === ex.id)) return;
+    const days = week.days.map((d) => (d.id !== day.id ? d : {
+      ...d, exercises: d.exercises.map((e) => (e.id === ex.id ? applySuggestion(e, sug) : e)),
+    }));
+    await saveDays(week.id, days);
+    showToast({ message: `${ex.name} plan moved to ${formatSet(ex, sug.next)}` });
   };
 
   const finish = async () => {
@@ -619,6 +779,12 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
       // Queue first, then try: a failed write must never lose the session.
       queueFinished(data);
       await flushPending((w) => svc.saveWorkout(w));
+      // D4-C: "when you finish, the block stamps itself done with the real
+      // minutes." Only a session that walked in through the door stamps it,
+      // and a failed stamp never blocks the receipt.
+      if (live.doorEventId && schedule) {
+        try { await schedule.stampTrained(live.doorEventId, live.date, r.minutes); } catch { /* offline: the workout is safe, the stamp can wait */ }
+      }
       setReceipt({ receipt: r, dayName: live.dayName });
     } else {
       showToast({ message: "Nothing logged · Nothing saved" });
@@ -714,6 +880,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
         live={live}
         exercise={exercise}
         dayExercises={liveEx?.custom ? [] : (day?.exercises ?? [])}
+        programDay={day ?? null}
         history={workouts}
         library={library}
         onLog={(s: SetEntry) => update(logSet(live, live.idx, s))}
@@ -722,6 +889,8 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
         onMove={(i) => update({ ...live, idx: i })}
         onSwap={(sub) => { update(swapExercise(live, live.idx, sub)); showToast({ message: `Swapped in ${sub.name}` }); }}
         onAddMidSession={(draft) => { update(addExerciseMidSession(live, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, plan: draft.sets })); showToast({ message: `Added ${draft.name}` }); }}
+        onAcceptSuggestion={(sug) => { void acceptSuggestion(exercise, sug); }}
+        onFit={(patch) => update({ ...live, ...patch })}
         onFinish={() => void finish()}
         onBack={() => setLive(null)}
       />
@@ -734,13 +903,22 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
   // day comes next across a multi-week block is a real product decision the
   // catalog itself leaves open (PART 8, Q3), so it is not guessed at here.
   const singleWeek = !multiWeek ? weeks[0] ?? null : null;
+  // PINS, D4 (Training Catalog V2, approved 2026-08-31): "Up Next follows
+  // the pins; unpinned programs keep the current rotation." A day pinned to
+  // today wins outright; a program with pins but none today offers the
+  // soonest pinned day; a program with no pins at all keeps rotating.
+  const pinnedToday = singleWeek ? pinnedTo(singleWeek.days, todayDow()) : null;
+  const upcomingPin = singleWeek && !pinnedToday ? nextPinnedDay(singleWeek.days, todayDow()) : null;
   const nextDay = (() => {
     if (!singleWeek || singleWeek.days.length === 0) return null;
+    if (pinnedToday) return pinnedToday;
+    if (upcomingPin) return upcomingPin.day;
     const last = recent[0];
     if (!last) return singleWeek.days[0]!;
     const i = singleWeek.days.findIndex((d) => d.id === last.data.dayId);
     return singleWeek.days[(i + 1) % singleWeek.days.length] ?? singleWeek.days[0]!;
   })();
+  const nextEst = nextDay ? estimateDay(nextDay, workouts, rackFrom(readGymSettings())).min : 0;
 
   function sheetEl() {
     if (sheet.kind === "closed") return null;
@@ -850,6 +1028,34 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
         />
       );
     }
+    if (sheet.kind === "block") {
+      const week = program.data.weeks.find((w) => w.id === sheet.weekId);
+      const day = week?.days.find((d) => d.id === sheet.dayId);
+      if (!week || !day) return null;
+      const warm = sheet.which === "warmUp";
+      return (
+        <BlockSheet
+          title={warm ? "Warm-Up" : "Cool-Down"}
+          blocks={(warm ? day.warmUp : day.coolDown) ?? []}
+          minutes={(warm ? day.warmUpMin : day.coolDownMin) ?? (warm ? 8 : 5)}
+          onSave={async (blocks, minutes) => {
+            const days = week.days.map((d) => {
+              if (d.id !== day.id) return d;
+              const next = { ...d };
+              if (warm) {
+                if (blocks.length) { next.warmUp = blocks; next.warmUpMin = minutes; }
+                else { delete next.warmUp; delete next.warmUpMin; }
+              } else if (blocks.length) { next.coolDown = blocks; next.coolDownMin = minutes; }
+              else { delete next.coolDown; delete next.coolDownMin; }
+              return next;
+            });
+            setSheet({ kind: "closed" });
+            await saveDays(week.id, days);
+          }}
+          onCancel={() => setSheet({ kind: "closed" })}
+        />
+      );
+    }
     if (sheet.kind === "exercise") {
       const week = program.data.weeks.find((w) => w.id === sheet.weekId);
       const day = week?.days.find((d) => d.id === sheet.dayId);
@@ -859,6 +1065,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
           mode={existing ? "edit" : "new"}
           initial={existing}
           library={library}
+          history={workouts}
           onSave={async (draft) => {
             if (!week || !day) return;
             const days = week.days.map((d) => {
@@ -889,6 +1096,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
     if (rowMenu.kind === "day") {
       const { weekId, day } = rowMenu;
       const actions: SheetAction[] = [
+        { label: "Pin Days...", onClick: () => setPicker({ kind: "pinDays", weekId, day }) },
         { label: "Duplicate", onClick: () => void duplicateDayAction(weekId, day.id) },
       ];
       if (programs.filter((p) => p.id !== program?.id).length > 0) {
@@ -931,6 +1139,38 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
     return null;
   }
 
+  function fitEl() {
+    if (!fitFor) return null;
+    return (
+      <FitSheet
+        day={fitFor.day}
+        history={workouts}
+        rack={rackFrom(readGymSettings())}
+        defaultBudgetMin={fitFor.budgetMin}
+        onStart={(fit) => { const f = fitFor; setFitFor(null); startDay(f.day, { fit, doorEventId: f.doorEventId }); }}
+        onCancel={() => setFitFor(null)}
+      />
+    );
+  }
+
+  function doorPickEl() {
+    if (!doorPick || !door || !program) return null;
+    const days = program.data.weeks.flatMap((w) => w.days).filter((d) => d.exercises.length > 0);
+    return (
+      <PickSheet
+        title="Which Day Is This"
+        items={days.map((d) => ({ id: d.id, label: d.name, sub: `${d.exercises.length} ${d.exercises.length === 1 ? "exercise" : "exercises"}` }))}
+        emptyText="No days with exercises yet · Build one first"
+        onPick={(ids) => {
+          const d = days.find((x) => x.id === ids[0]);
+          setDoorPick(false);
+          if (d) requestStart(d, { doorEventId: door.eventId, budgetMin: door.budgetMin });
+        }}
+        onCancel={() => setDoorPick(false)}
+      />
+    );
+  }
+
   function pickerEl() {
     if (!picker) return null;
     if (picker.kind === "moveExerciseToDay" || picker.kind === "copyExerciseToDays") {
@@ -961,6 +1201,35 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
           title="Pair With"
           items={items}
           onPick={(ids) => { setPicker(null); void pairAction(picker.weekId, picker.dayId, picker.exId, ids[0]!); }}
+          onCancel={() => setPicker(null)}
+        />
+      );
+    }
+    if (picker.kind === "pinDays") {
+      const { weekId, day } = picker;
+      const items: PickItem[] = WEEKDAY_FULL.map((label, i) => ({ id: String(i), label }));
+      return (
+        <PickSheet
+          title={`Pin ${day.name}`}
+          items={items}
+          multi
+          allowEmpty
+          initial={(day.pinDays ?? []).map(String)}
+          confirmLabel={(count) => (count === 0 ? "No Pins · Keep the Rotation" : "Pin")}
+          onPick={(ids) => {
+            setPicker(null);
+            const pins = ids.map(Number).sort((a, b) => a - b);
+            const week = program?.data.weeks.find((w) => w.id === weekId);
+            if (!week) return;
+            const days = week.days.map((d) => {
+              if (d.id !== day.id) return d;
+              if (!pins.length) { const { pinDays: _gone, ...rest } = d; return rest as ProgramDay; }
+              return { ...d, pinDays: pins };
+            });
+            void saveDays(weekId, days).then(() => {
+              showToast({ message: pins.length ? `${day.name} pinned · ${pinLabel(pins)}` : `${day.name} unpinned · Rotation decides` });
+            });
+          }}
           onCancel={() => setPicker(null)}
         />
       );
@@ -1074,6 +1343,15 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
               <div className="nav-title truncate">{openDay.name}</div>
               <button className="nav-action-text" onClick={() => setSheet({ kind: "day", weekId: activeWeek.id, dayId: openDay.id })}>Edit</button>
             </div>
+            {/* THE BLOCKS (D3-C): what readies the body rather than one
+                lift. A checklist with its own minutes, skippable as a unit,
+                and those minutes count toward what D5 fits against. */}
+            <BlockList
+              title="Warm-Up"
+              blocks={openDay.warmUp}
+              minutes={openDay.warmUpMin}
+              onEdit={() => setSheet({ kind: "block", weekId: activeWeek.id, dayId: openDay.id, which: "warmUp" })}
+            />
             <div className="sh2 sh2-quiet"><span className="t">Exercises</span></div>
             <div><div className="list-flat">
               <ReorderList
@@ -1094,9 +1372,28 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
               />
               <button className="row row-act" onClick={() => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id })}>Add Exercise</button>
             </div></div>
+            <BlockList
+              title="Cool-Down"
+              blocks={openDay.coolDown}
+              minutes={openDay.coolDownMin}
+              onEdit={() => setSheet({ kind: "block", weekId: activeWeek.id, dayId: openDay.id, which: "coolDown" })}
+            />
+            {/* PINS, D4: where this day lives in the week. The row is the
+                editor's door; "None" is a legal, honest state (rotation
+                keeps its job). */}
+            <div className="sh2 sh2-quiet"><span className="t">Schedule</span></div>
+            <div><div className="list-flat">
+              <div className="row" role="button" tabIndex={0} onClick={() => setPicker({ kind: "pinDays", weekId: activeWeek.id, day: openDay })}>
+                <div className="row-grow">
+                  <div className="conn-name">Pinned Days</div>
+                  <div className="conn-meta">{openDay.pinDays?.length ? pinLabel(openDay.pinDays) : "None · Rotation decides"}</div>
+                </div>
+                {CHEV}
+              </div>
+            </div></div>
             {openDay.exercises.length > 0 && (
               <div className="pad-x gym-log">
-                <button className="btn btn-primary btn-block btn-lg" onClick={() => startDay(openDay)}>Start {openDay.name}</button>
+                <button className="btn btn-primary btn-block btn-lg" onClick={() => requestStart(openDay)}>Start {openDay.name}</button>
                 {lastForDay && (
                   // SAME AS LAST TIME (catalog §3.13): the fastest possible
                   // entry, pre-filled with what actually happened last time.
@@ -1111,6 +1408,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
           {sheetEl()}
           {rowMenuEl()}
           {pickerEl()}
+          {fitEl()}
           {backdateEl}
           {receiptEl}
         </>
@@ -1158,6 +1456,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
         {sheetEl()}
         {rowMenuEl()}
         {pickerEl()}
+        {fitEl()}
         {receiptEl}
       </>
     );
@@ -1224,9 +1523,19 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
               <div className="pad-x"><div className="card pad">
                 <div className="eyebrow">Up Next</div>
                 <div className="conn-name">{nextDay.name}</div>
-                <div className="conn-meta">{nextDay.exercises.length} {nextDay.exercises.length === 1 ? "exercise" : "exercises"}{recent[0] ? ` · Last trained ${monthDay(recent[0].data.date)}` : ""}</div>
+                {/* D4: when a pin chose this day, the meta says so; D5: the
+                    estimate rides along once there is anything to price. */}
+                <div className="conn-meta">
+                  {[
+                    pinnedToday === nextDay ? "Pinned today" : null,
+                    upcomingPin?.day === nextDay ? (upcomingPin.inDays === 1 ? "Pinned tomorrow" : `Pinned ${WEEKDAY_ABBR[(todayDow() + upcomingPin.inDays) % 7]}`) : null,
+                    `${nextDay.exercises.length} ${nextDay.exercises.length === 1 ? "exercise" : "exercises"}`,
+                    nextEst > 0 ? `Est ${nextEst} min` : null,
+                    recent[0] ? `Last trained ${monthDay(recent[0].data.date)}` : null,
+                  ].filter(Boolean).join(" · ")}
+                </div>
                 <div className="offer-row">
-                  <button className="btn btn-primary" onClick={() => startDay(nextDay)}>Start {nextDay.name}</button>
+                  <button className="btn btn-primary" onClick={() => requestStart(nextDay)}>Start {nextDay.name}</button>
                 </div>
               </div></div>
             )}
@@ -1322,6 +1631,8 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
       {sheetEl()}
       {rowMenuEl()}
       {pickerEl()}
+      {fitEl()}
+      {doorPickEl()}
       {switcherEl}
       {receiptEl}
     </>

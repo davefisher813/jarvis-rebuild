@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useOptionalStrands, useOptionalProfile } from "../data/NotesProvider";
+import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useOptionalStrands, useOptionalProfile, useOptionalGym } from "../data/NotesProvider";
+import GymFlow, { readActiveProgramId } from "../gym/GymFlow";
+import { doorInfoFor } from "../gym/door";
+import { readGymSettings, rackFrom } from "../gym/settings";
+import type { Program, Workout } from "../gym/types";
 import { pausedCategoryIds } from "../categories/kinds";
 import { workWindowOf } from "./planMeta";
 import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
@@ -116,6 +120,12 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const [routineSet, setRoutineSet] = useState(true);
   const [loading, setLoading] = useState(true);
   const [newStart, setNewStart] = useState<string | null>(null);
+  // THE TRAINING DOOR (D4-C). The gym's programs and history, read only so a
+  // door event can name the day's lift and price it -- and the overlay that
+  // opens when the athlete walks through.
+  const gymSvc = useOptionalGym();
+  const [gymData, setGymData] = useState<{ programs: Program[]; workouts: Workout[] } | null>(null);
+  const [gymDoorOpen, setGymDoorOpen] = useState<{ eventId: string; budgetMin?: number } | null>(null);
   // Soft anchor guard (roadmap v2): the one gentle nudge, at most once per day.
   const [guard, setGuard] = useState<{ id: string; date: string } | null>(null);
   const nudgedDays = useRef<Set<string>>(new Set());
@@ -401,7 +411,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     if (!e) return;
     // Use the event's own date, not the currently selected day: editing an
     // event from another day must not silently move it to the selected date.
-    setSheet({ mode: "edit", id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", taskIds: e.taskIds ?? [] } });
+    setSheet({ mode: "edit", id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", taskIds: e.taskIds ?? [], gym: !!e.gym } });
   };
 
   // When arriving via a note connection, jump to the event's own date and open
@@ -414,7 +424,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
       if (!on || !e) return;
       setSelected(e.date);
       syncView(e.date);
-      setSheet({ mode: "edit", id: openId, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", taskIds: e.taskIds ?? [] } });
+      setSheet({ mode: "edit", id: openId, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", taskIds: e.taskIds ?? [], gym: !!e.gym } });
     })();
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -437,6 +447,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     if (sheet?.mode === "new") {
       const created = await attemptWrite(async () => {
         newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, until: draft.until || undefined, taskIds: draft.taskIds });
+        if (newEventId && draft.gym) await svc.editGymDoor(newEventId, true);
       });
       if (!created) newEventId = null;
       newEventDate = draft.date;
@@ -447,7 +458,8 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         // Split one occurrence off the series into a standalone event.
         await attemptWrite(async () => {
           await svc.addExdate(id, selected);
-          await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined });
+          const splitId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined });
+          if (splitId && draft.gym) await svc.editGymDoor(splitId, true);
         });
       } else {
         await attemptWrite(async () => {
@@ -460,6 +472,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           await svc.editCategory(id, draft.category);
           await svc.editLocation(id, draft.location);
           await svc.editTaskIds(id, draft.taskIds ?? []);
+          await svc.editGymDoor(id, !!draft.gym);
         });
       }
     }
@@ -1054,6 +1067,41 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     });
   };
 
+  // D4-C: the gym is read lazily -- only when a door event is actually on
+  // the calendar -- and re-read when the overlay closes (a finished session
+  // may have stamped the block and moved history).
+  const anyDoor = allEvents.some((e) => e.data.gym);
+  useEffect(() => {
+    if (!anyDoor || !gymSvc || gymDoorOpen) return;
+    let on = true;
+    void (async () => {
+      const [programs, workouts] = await Promise.all([gymSvc.listPrograms(), gymSvc.listWorkouts()]);
+      if (on) setGymData({ programs, workouts });
+    })();
+    return () => { on = false; };
+  }, [anyDoor, gymSvc, gymDoorOpen]);
+
+  const gymDoorFor = useCallback((e: EventItem) => {
+    if (!e.data.gym || !gymSvc) return null;
+    const trainedMin = e.data.trained?.[selected];
+    if (trainedMin != null) return { trainedMin };
+    const info = gymData ? doorInfoFor(gymData.programs, readActiveProgramId(), gymData.workouts, rackFrom(readGymSettings()), selected) : null;
+    // Start only where starting is true: today's occurrence. A future date's
+    // door still names its pinned lift; a past one stays quiet.
+    const startable = selected === todayISO();
+    const budgetMin = e.data.end ? Math.max(0, (Number(e.data.end.slice(0, 2)) * 60 + Number(e.data.end.slice(3))) - (Number(e.data.start.slice(0, 2)) * 60 + Number(e.data.start.slice(3)))) : 0;
+    return {
+      ...(info ? { dayName: info.day.name, meta: info.meta } : {}),
+      ...(startable ? { onStart: () => setGymDoorOpen({ eventId: e.id, ...(budgetMin > 0 ? { budgetMin } : {}) }) } : {}),
+    };
+  }, [gymSvc, gymData, selected]);
+
+  // Walking through the door mounts the gym whole, as an overlay -- same
+  // pattern Brain uses. Coming back re-reads events so a fresh stamp shows.
+  if (gymDoorOpen) {
+    return <GymFlow door={gymDoorOpen} onBack={() => { setGymDoorOpen(null); void reload(); }} />;
+  }
+
   return (
     <>
       <SchedulePage
@@ -1065,6 +1113,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         todayDate={today}
         dots={dots}
         dayEvents={dayEvents}
+        gymDoorFor={gymDoorFor}
         conflicts={conflicts}
         loading={loading}
         mode={mode}

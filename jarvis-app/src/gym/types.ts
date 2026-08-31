@@ -68,6 +68,14 @@ export interface SetLog {
   t?: number; // paired time, distance_time only
   done?: boolean; // filled with no numbers -- the "done, no numbers" mark
   skipped?: boolean;
+  /** THE RAMP, D3 (Training Catalog V2, approved 2026-08-31). A warm-up set:
+   *  real work the athlete did, but never a PR, never volume, and never part
+   *  of what makes a strip "uniform" -- a ramp is by definition not uniform
+   *  with its working sets. Sits here beside `skipped` because every
+   *  derivation that takes a bare SetLog (scoreOf, setVolume) has to see it.
+   *  Absent means an ordinary working set, so everything logged before this
+   *  field existed reads correctly. */
+  warmup?: boolean;
 }
 
 /**
@@ -85,6 +93,16 @@ export interface SetEntry extends SetLog {
    *  "missed one"), never an interoception/feelings scale. Feeds history as
    *  a fact, never a prescription. */
   moved?: "clean" | "grind" | "missed";
+  /** LEARNED PACING, D7 (Training Catalog V2, approved 2026-08-31).
+   *  Wall-clock ms when this entry was LOGGED in a live session -- stamped
+   *  by liveSession's two write doors (logSet / setLoggedSets), never asked
+   *  of the user, never rendered as a judgment. Plan chips never carry one;
+   *  a duplicated chip is a new event and drops it; a backdated session's
+   *  stamps say when it was typed in, so pacing derivations (Wave 3) must
+   *  skip backdated workouts. Additive: absent on everything logged before
+   *  this field existed, and a legacy chip is never back-stamped with a
+   *  guess. */
+  at?: number;
 }
 
 export interface Exercise {
@@ -110,12 +128,43 @@ export interface Exercise {
   /** Offered during the rest of its paired parent lift instead of standing
    *  around (catalog §4.2): "Rest 2:00 -- or do your T-Spine Rotations." */
   filler?: boolean;
+  /** THE RAMP, D3-A. On means the session offers warm-up sets built from
+   *  this exercise's own first working weight (see ramp.ts). The generated
+   *  sets are never stored in the program: the plan is the work, and a ramp
+   *  is derived from it, so changing the working weight re-ramps for free. */
+  ramp?: boolean;
+}
+
+/**
+ * A DAY BLOCK, D3-C. What readies the body rather than one lift: "Bike, easy
+ * 5 min", "Couch stretch". A checklist with its own minutes, skippable as
+ * one unit, and its minutes count toward the session estimate D5 fits
+ * against -- eight real minutes are eight minutes.
+ */
+export interface DayBlock {
+  id: string;
+  name: string;
+  /** The user's own words for how much: "5 min", "2 x 15". Free text on
+   *  purpose; a warm-up is not a measured lift. */
+  amount?: string;
 }
 
 export interface ProgramDay {
   id: string;
   name: string; // free text: "Pull", "Speed Work", "Tuesday"
   exercises: Exercise[];
+  /** PINS, D4 (Training Catalog V2, approved 2026-08-31). The weekdays this
+   *  day is trained, Mon=0..Sun=6 (the gym module's own week convention,
+   *  see summary.ts). Absent means unpinned: the program keeps its rotation
+   *  and the calendar claims nothing. */
+  pinDays?: number[];
+  /** D3-C. Opening and closing blocks, each with its own budgeted minutes.
+   *  Absent means the day has none, which is the state every existing day
+   *  is in -- no migration. */
+  warmUp?: DayBlock[];
+  coolDown?: DayBlock[];
+  warmUpMin?: number;
+  coolDownMin?: number;
 }
 
 /**

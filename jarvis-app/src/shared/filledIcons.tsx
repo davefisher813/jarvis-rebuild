@@ -10,7 +10,7 @@ import {
   Brain, Note, Target, EnvelopeSimple, BellSimple, Wallet, Sparkle, GearSix,
   House, CheckSquare, CalendarBlank, UsersThree, GitFork, Compass, PenNib,
   Flag, Clock, UserCircle, Palette, Tag, SquaresFour, LinkSimple, Lightbulb,
-  CloudArrowUp, SlidersHorizontal, Info, Circle, CalendarCheck,
+  CloudArrowUp, SlidersHorizontal, Info, Circle, CalendarCheck, Barbell,
 } from "@phosphor-icons/react";
 
 const P = { weight: "fill" as const, className: "ic" };
@@ -54,6 +54,7 @@ export const FILLED_SETTINGS: Record<string, ReactNode> = {
   backup: <CloudArrowUp {...P} />,
   advanced: <SlidersHorizontal {...P} />,
   about: <Info {...P} />,
+  training: <Barbell {...P} />,
 };
 
 // A nav destination with no drawn filled glyph yet falls back to a filled

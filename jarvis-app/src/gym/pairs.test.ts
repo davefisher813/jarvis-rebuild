@@ -70,3 +70,47 @@ describe("pairExercises / unpairExercise", () => {
     expect(unpaired.find((e) => e.id === "e2")!.pairWith).toBeUndefined();
   });
 });
+
+// SUPERSET FLOW (D8-C, approved 2026-08-31). Hevy calls it smart superset
+// scrolling: after A1's set the session offers A2, and the rest belongs to
+// the PAIR, not to either half.
+describe("nextInPair", () => {
+  const ex = (id: string, over: Partial<Exercise> = {}): Exercise =>
+    ({ id, name: id, kind: "weight_reps", sets: [{ id: id + "s1" }, { id: id + "s2" }], ...over });
+
+  it("sends you to the partner when it is behind", async () => {
+    const { nextInPair } = await import("./pairs");
+    const a = ex("a", { pairWith: "b" }), b = ex("b", { pairWith: "a" });
+    expect(nextInPair(a, [a, b], { a: 1, b: 0 })).toBe("b");
+  });
+
+  it("comes back to you once the partner has caught up", async () => {
+    const { nextInPair } = await import("./pairs");
+    const a = ex("a", { pairWith: "b" }), b = ex("b", { pairWith: "a" });
+    expect(nextInPair(a, [a, b], { a: 1, b: 1 })).toBeNull();
+  });
+
+  it("never sends you to a partner with no sets left", async () => {
+    const { nextInPair } = await import("./pairs");
+    const a = ex("a", { pairWith: "b" }), b = ex("b", { pairWith: "a" });
+    expect(nextInPair(a, [a, b], { a: 2, b: 2 })).toBeNull();
+  });
+
+  it("an unpaired exercise has no next half", async () => {
+    const { nextInPair } = await import("./pairs");
+    const a = ex("a");
+    expect(nextInPair(a, [a], { a: 1 })).toBeNull();
+  });
+
+  it("a stale one-sided link is not a pair", async () => {
+    const { nextInPair } = await import("./pairs");
+    const a = ex("a", { pairWith: "b" }), b = ex("b");
+    expect(nextInPair(a, [a, b], { a: 1, b: 0 })).toBeNull();
+  });
+
+  it("a filler is offered during rest, not interleaved as a superset half", async () => {
+    const { nextInPair } = await import("./pairs");
+    const a = ex("a", { pairWith: "b" }), b = ex("b", { pairWith: "a", filler: true });
+    expect(nextInPair(a, [a, b], { a: 1, b: 0 })).toBeNull();
+  });
+});

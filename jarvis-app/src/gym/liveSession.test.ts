@@ -53,12 +53,16 @@ describe("live session survives with no network", () => {
     l = logSet(l, 0, mkSet({ w: 135, r: 8 }));
     const reordered = [mkSet({ w: 145, r: 5 }), ...l.exercises[0]!.sets];
     l = setLoggedSets(l, 0, reordered);
-    expect(l.exercises[0]!.sets).toEqual(reordered);
+    // Since D7 the new chip gains an `at` stamp on the way in; everything
+    // else about the array is exactly what was handed over.
+    expect(l.exercises[0]!.sets.map(({ at: _, ...rest }) => rest)).toEqual(
+      reordered.map(({ at: _, ...rest }) => rest));
     expect(l.exercises[1]!.sets).toHaveLength(0); // the other exercise is untouched
 
     // Deleting a chip (swipe) is just a shorter array through the same call.
-    l = setLoggedSets(l, 0, [reordered[1]!]);
-    expect(l.exercises[0]!.sets).toEqual([reordered[1]]);
+    const kept = l.exercises[0]!.sets[1]!;
+    l = setLoggedSets(l, 0, [kept]);
+    expect(l.exercises[0]!.sets).toEqual([kept]);
   });
 
   it("corrupt storage reads as no session rather than throwing mid-gym", () => {
@@ -222,5 +226,75 @@ describe("sessionExercisesSameAsLastTime: catalog §3.13", () => {
     };
     const out = sessionExercisesSameAsLastTime(day, last);
     expect(out[0]!.custom).toBeUndefined();
+  });
+});
+
+// D7, LEARNED PACING (Training Catalog V2, approved 2026-08-31). Every entry
+// that enters the live log gets a wall-clock stamp at its two write doors --
+// never asked of the user, never shown as a judgment. Pacing derivations
+// (Wave 3) read the stamps; here we only guarantee they exist and are honest.
+describe("D7: logged sets carry `at` stamps", () => {
+  it("logSet stamps the moment the entry lands", () => {
+    const out = logSet(live(), 0, mkSet({ w: 135, r: 8 }), 1111);
+    expect(out.exercises[0]!.sets[0]!.at).toBe(1111);
+  });
+
+  it("logSet keeps a stamp the entry already carries", () => {
+    const out = logSet(live(), 0, mkSet({ w: 135, r: 8, at: 42 }), 1111);
+    expect(out.exercises[0]!.sets[0]!.at).toBe(42);
+  });
+
+  it("setLoggedSets stamps only NEW chips; edited survivors keep their own", () => {
+    let s = logSet(live(), 0, mkSet({ w: 135, r: 8 }), 1000);
+    const first = s.exercises[0]!.sets[0]!;
+    const edited = { ...first, r: 9 };
+    const added = mkSet({ w: 135, r: 8 });
+    s = setLoggedSets(s, 0, [edited, added], 2000);
+    expect(s.exercises[0]!.sets[0]!.at).toBe(1000); // edit is a correction, not a new event
+    expect(s.exercises[0]!.sets[1]!.at).toBe(2000);
+  });
+
+  it("a legacy chip (id existed before, no stamp) is never back-stamped with a lie", () => {
+    const base = live();
+    const legacy = mkSet({ w: 95, r: 5 }); // pre-D7 entry already in the strip
+    const withLegacy = { ...base, exercises: base.exercises.map((e, i) => (i === 0 ? { ...e, sets: [legacy] } : e)) };
+    const out = setLoggedSets(withLegacy, 0, [{ ...legacy, r: 6 }], 3000);
+    expect(out.exercises[0]!.sets[0]!.at).toBeUndefined();
+  });
+
+  it("same-as-last-time plan chips never inherit last session's stamps", () => {
+    const day: ProgramDay = { id: "d1", name: "Push", exercises: [{ id: "e1", name: "Bench", kind: "weight_reps", unit: "lb", sets: [] }] };
+    const last: WorkoutData = {
+      programId: "p", dayId: "d1", dayName: "Push", date: "2026-08-01", startedAt: 0, endedAt: 1,
+      exercises: [{ exerciseId: "e1", name: "Bench", kind: "weight_reps", sets: [mkSet({ w: 135, r: 8, at: 777, moved: "clean" })] }],
+    };
+    const out = sessionExercisesSameAsLastTime(day, last);
+    expect(out[0]!.plan![0]!.at).toBeUndefined();
+    expect(out[0]!.plan![0]!.moved).toBeUndefined();
+    expect(out[0]!.plan![0]!.w).toBe(135);
+  });
+});
+
+// THE RAMP SHIFTED THE PLAN (found by driving a real session, 2026-08-31).
+// Warm-ups live in the SAME logged strip as the work, so anything that walks
+// the plan has to count working sets, never the strip's length.
+describe("D3: a ramp never advances the athlete's place in the plan", () => {
+  it("the working count ignores warm-ups", () => {
+    const sets: SetEntry[] = [
+      mkSet({ w: 45, r: 10, warmup: true }),
+      mkSet({ w: 135, r: 5, warmup: true }),
+      mkSet({ w: 225, r: 5 }),
+    ];
+    expect(sets.filter((s) => !s.warmup).length).toBe(1);
+    expect(sets.length).toBe(3); // the strip is longer than the work, on purpose
+  });
+
+  it("plannedEntryAt reads the plan by working position", async () => {
+    const { plannedEntryAt } = await import("./measures");
+    const ex = { sets: [{ id: "p1", w: 225, r: 5 }, { id: "p2", w: 225, r: 5 }] };
+    // Two warm-ups and one work set logged: the next plan entry is the
+    // SECOND working set, not the third slot of the strip.
+    expect(plannedEntryAt(ex, 1)!.id).toBe("p2");
+    expect(plannedEntryAt(ex, 3)).toBeUndefined();
   });
 });

@@ -100,7 +100,7 @@ export function plannedEntryAt(ex: Pick<Exercise, "sets">, i: number): SetEntry 
 export function hasTarget(ex: Pick<Exercise, "kind" | "sets">): boolean {
   if (ex.kind === "done") return false;
   const keys = fieldsFor(ex.kind).map((f) => f.key);
-  return ex.sets.some((s) => keys.some((k) => (s[k] ?? 0) > 0));
+  return ex.sets.some((s) => !s.warmup && keys.some((k) => (s[k] ?? 0) > 0));
 }
 
 /**
@@ -122,11 +122,15 @@ export function logButtonLabel(ex: Exercise, loggedCount: number): string {
  *  chip agrees, or the chips listed out when they do not ("135 lb × 5, 135
  *  lb × 5, 135 lb × 8"). */
 export function targetLine(ex: Exercise): string {
-  const n = ex.sets.length;
+  // The plan is the WORK. A ramp is derived and never stored in a program,
+  // but a logged strip carries its warm-ups, and this line speaks for both.
+  const sets = ex.sets.filter((s) => !s.warmup);
+  const n = sets.length;
+  if (n === 0) return `${ex.sets.length} ${entryNoun(ex.kind, ex.sets.length !== 1).toLowerCase()}`;
   if (ex.kind === "done") return `${n} ${n === 1 ? "time" : "times"}`;
-  if (!hasTarget(ex)) return `${n} ${entryNoun(ex.kind, n !== 1).toLowerCase()}`;
-  if (isUniformStrip(ex.kind, ex.sets)) return `${n} × ${formatSet(ex, ex.sets[0]!)}`;
-  return ex.sets.map((s) => formatSet(ex, s)).join(", ");
+  if (!hasTarget({ kind: ex.kind, sets })) return `${n} ${entryNoun(ex.kind, n !== 1).toLowerCase()}`;
+  if (isUniformStrip(ex.kind, sets)) return `${n} × ${formatSet(ex, sets[0]!)}`;
+  return sets.map((s) => formatSet(ex, s)).join(", ");
 }
 
 /** True when every entry in the strip carries the same numbers, so the plan
@@ -134,10 +138,13 @@ export function targetLine(ex: Exercise): string {
  *  trivially uniform. Lives here (not strip.ts) so targetLine has it with no
  *  import cycle -- strip.ts imports fieldsFor FROM this file. */
 export function isUniformStrip(kind: MeasureKind, sets: SetEntry[]): boolean {
-  if (sets.length <= 1) return true;
+  // A ramp is by definition not uniform with the work it leads into, so it
+  // is not part of the question (D3-A).
+  const work = sets.filter((s) => !s.warmup);
+  if (work.length <= 1) return true;
   const keys = fieldsFor(kind).map((f) => f.key);
-  const first = sets[0]!;
-  return sets.every((s) =>
+  const first = work[0]!;
+  return work.every((s) =>
     keys.every((k) => (s[k] ?? 0) === (first[k] ?? 0)) &&
     !s.skipped === !first.skipped &&
     !s.done === !first.done);
@@ -149,6 +156,7 @@ export function hasVolume(kind: MeasureKind): boolean {
 }
 
 export function setVolume(kind: MeasureKind, s: SetLog): number {
+  if (s.warmup) return 0; // the approach is not the tonnage
   return hasVolume(kind) ? (s.w ?? 0) * (s.r ?? 0) : 0;
 }
 
@@ -157,6 +165,11 @@ export function setVolume(kind: MeasureKind, s: SetLog): number {
  * kind has no score at all (Done), so it can never produce a PR.
  */
 export function scoreOf(kind: MeasureKind, s: SetLog): { value: number; lowerWins: boolean } | null {
+  // THE RAMP IS NOT THE WORK (D3-A). Every record path in the app -- isPR,
+  // bestBefore, the receipt, the history row -- asks this one question
+  // first, so a warm-up leaves the running here and cannot become anyone's
+  // personal best by being the heaviest thing in a strip.
+  if (s.warmup) return null;
   switch (kind) {
     case "weight_reps":
       return { value: s.w ?? 0, lowerWins: false };

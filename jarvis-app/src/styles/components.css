@@ -3825,6 +3825,24 @@ body.selecting .voice-dock { display: none; }
    page-black slab on the sheet's grey. Same chip, same job, per-surface
    paint. */
 .sheet-scrim .set-chip { background: var(--surface-2); }
+/* THE RAMP (D3-A, 2026-08-31): a warm-up chip is quieter than the work it
+   leads into -- present, tappable, and visibly not the set that counts. */
+.set-chip-warm { opacity: 0.72; }
+/* THE SUGGESTION'S TWO DOORS (D6-A, 2026-08-31). Accept and Keep sit side
+   by side because they are the same size of decision; the quiet one is the
+   one that changes nothing. Both are capsules -- a bare text pair here
+   would be two links pretending to be buttons. */
+.row-pair { display: flex; gap: var(--s-2); margin-top: var(--s-3); flex-wrap: wrap; }
+.row-pair .pill-act { align-self: auto; max-width: none; }
+.pill-act.pill-quiet { color: var(--tx-2); }
+.set-chip-warm .conn-name { font-weight: var(--w-medium); }
+/* TAP-TO-MATCH, D2 (Training Catalog V2, 2026-08-31). On a ghost chip the
+   faint "Last: 250 × 2" line is itself the door to logging those numbers.
+   The reference text stays quiet meta; the one-word verb wears the accent,
+   because RED IS A VERB and this one really is tappable. */
+.set-last-act { background: none; border: 0; padding: 0; margin-top: 1px; display: block; text-align: left;
+  font-family: var(--f); font-size: var(--t-meta); color: var(--tx-3); }
+.set-last-act .act { color: var(--accent-chrome); font-weight: var(--w-semi); margin-left: var(--s-2); }
 /* The gym feature cards open with a kicker (Up Next; Exercise N of M). Give
    the kicker its breathing room once, here -- the only .card.pad > .eyebrow
    in the app is on these gym cards. */
@@ -3902,3 +3920,21 @@ body.selecting .voice-dock { display: none; }
 .rest-timer { text-align: center; }
 .rest-clock { font-variant-numeric: tabular-nums; margin: var(--s-1) 0; }
 .rest-filler-btn { text-align: center; }
+
+/* THE FIT SHEET (D5-C, 2026-08-31). The fits line is the sheet's verdict
+   row: what the plan costs vs what the athlete has. Over wears amber (time
+   pressure, never red -- RED IS A VERB), under wears green. */
+.fit-line { display: flex; justify-content: space-between; align-items: baseline; font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); margin-top: var(--s-2); }
+.fit-over { color: var(--warn); font-weight: var(--w-semi); }
+.fit-under { color: var(--good); font-weight: var(--w-semi); }
+/* THE CATCH-UP BANNER (D5-C): one quiet amber-railed line, an offer and a
+   loosener. Wears the app's own .banner-warn rail, never a red anything. */
+.catchup { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2h) var(--s-3); border-radius: var(--r-md); }
+.catchup .grow { flex: 1; min-width: 0; font-size: var(--t-meta); color: var(--tx-1); }
+/* THE TRAINING DOOR on the schedule row (D4-C, 2026-08-31). The block grows
+   the day's lift and the way in; Start is a capsule because the schedule
+   page's one filled red is Plan My Day. */
+.sched-gym { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-1); margin-top: var(--s-1); }
+.sched-gym-name { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
+.sched-gym-line { display: flex; align-items: center; gap: var(--s-2); }
+.sched-gym-start { margin-top: 2px; }

@@ -42,7 +42,57 @@ export function uniformStrip(count: number, target: SetLog = {}): SetEntry[] {
 const has = (n: number | undefined): n is number => (n ?? 0) > 0;
 
 export function duplicateEntry(e: SetEntry): SetEntry {
-  return { ...e, id: newSetId() };
+  // A duplicate is a NEW event: the copy must not inherit the original's
+  // log stamp (D7) or the moment it happened would be recorded twice.
+  const copy: SetEntry = { ...e, id: newSetId() };
+  delete copy.at;
+  return copy;
+}
+
+/** TAP-TO-MATCH, D2 (Training Catalog V2, approved 2026-08-31). A fresh
+ *  loggable entry carrying ONLY the numbers of `src`: no stamp, no moved
+ *  mark, no skipped flag -- those belong to the set that already happened,
+ *  not the one about to. Same field picking sessionExercisesSameAsLastTime
+ *  uses for its plan chips. */
+export function entryFrom(src: SetLog): SetEntry {
+  return {
+    id: newSetId(),
+    ...(src.w !== undefined ? { w: src.w } : {}),
+    ...(src.r !== undefined ? { r: src.r } : {}),
+    ...(src.v !== undefined ? { v: src.v } : {}),
+    ...(src.t !== undefined ? { t: src.t } : {}),
+    ...(src.done ? { done: true } : {}),
+  };
+}
+
+/** ONE EDITOR, D1 (Training Catalog V2, approved 2026-08-31). The count
+ *  stepper edits the strip in place: growing duplicates the last chip's
+ *  numbers (fresh ids), shrinking drops from the end, and surviving chips
+ *  are never touched -- resizing must not clobber a set someone hand-edited. */
+export function resizeStrip(sets: SetEntry[], count: number): SetEntry[] {
+  const n = Math.max(1, Math.round(count) || 1);
+  if (n <= sets.length) return sets.slice(0, n);
+  const grown = [...sets];
+  while (grown.length < n) {
+    const last = grown[grown.length - 1];
+    grown.push(last ? { ...duplicateEntry(last), skipped: false } : blankEntry());
+  }
+  return grown;
+}
+
+/** EDIT ALL SETS, D1. One field written across every live chip at once.
+ *  Zero means "didn't say": the field comes OFF the chips rather than a
+ *  zero going on (empty is legal). Skipped chips are left alone, same as
+ *  bumpStrip, and a field the kind does not use is refused outright. */
+export function applyToAll(kind: MeasureKind, sets: SetEntry[], key: "w" | "r" | "v" | "t", n: number): SetEntry[] {
+  if (!fieldsFor(kind).some((f) => f.key === key)) return sets;
+  return sets.map((s) => {
+    if (s.skipped) return s;
+    const next: SetEntry = { ...s };
+    if (n > 0) next[key] = n;
+    else delete next[key];
+    return next;
+  });
 }
 
 export { isUniformStrip };

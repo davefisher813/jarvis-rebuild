@@ -119,6 +119,37 @@ d2("event location", () => {
   });
 });
 
+import { describe as dg, it as ig, expect as eg } from "vitest";
+dg("the training door (D4-C)", () => {
+  ig("gym is set by hand, and turning the door off clears its receipts", async () => {
+    const { Store, InMemoryAdapter } = await import("@core");
+    const { ScheduleService } = await import("./ScheduleService");
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    const id = await svc.createEvent("Gym", { date: "2026-08-31", start: "17:30" });
+    eg((await svc.event(id!))!.gym).toBeUndefined(); // never guessed from the title
+    await svc.editGymDoor(id!, true);
+    eg((await svc.event(id!))!.gym).toBe(true);
+    await svc.stampTrained(id!, "2026-08-31", 49.4);
+    eg((await svc.event(id!))!.trained).toEqual({ "2026-08-31": 49 });
+    await svc.editGymDoor(id!, false);
+    const e = (await svc.event(id!))!;
+    eg(e.gym).toBeUndefined();
+    eg(e.trained).toBeUndefined();
+  });
+  ig("stamps land per occurrence date, and never on a non-door event", async () => {
+    const { Store, InMemoryAdapter } = await import("@core");
+    const { ScheduleService } = await import("./ScheduleService");
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    const id = await svc.createEvent("Gym", { date: "2026-08-01", start: "17:30", recurrence: "daily" });
+    eg(await svc.stampTrained(id!, "2026-08-30", 40)).toBe(false); // door not open
+    await svc.editGymDoor(id!, true);
+    await svc.stampTrained(id!, "2026-08-30", 40);
+    await svc.stampTrained(id!, "2026-08-31", 52);
+    await svc.stampTrained(id!, "2026-08-31", 49); // same day again: newer truth wins
+    eg((await svc.event(id!))!.trained).toEqual({ "2026-08-30": 40, "2026-08-31": 49 });
+  });
+});
+
 import { describe as d3, it as i3, expect as e3 } from "vitest";
 d3("week helpers", () => {
   i3("weekOf is Monday-anchored; addDays steps", async () => {

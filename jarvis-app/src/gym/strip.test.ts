@@ -135,3 +135,82 @@ describe("uniformStrip never mints a zero", () => {
     expect("w" in s).toBe(false);
   });
 });
+
+// D7 + D1 (Training Catalog V2, approved 2026-08-31).
+describe("duplicateEntry never copies a log stamp", () => {
+  it("a duplicated chip is a new event: no `at` rides along", () => {
+    const src = { id: "s1", w: 135, r: 8, at: 999 };
+    const copy = duplicateEntry(src);
+    expect(copy.w).toBe(135);
+    expect("at" in copy).toBe(false);
+    expect(copy.id).not.toBe("s1");
+  });
+});
+
+describe("entryFrom: tap-to-match builds a clean loggable entry (D2)", () => {
+  it("carries only the numbers, fresh id, no moved/at/skipped", async () => {
+    const { entryFrom } = await import("./strip");
+    const e = entryFrom({ w: 250, r: 3, skipped: false });
+    expect(e.w).toBe(250);
+    expect(e.r).toBe(3);
+    expect(e.id).toBeTruthy();
+    expect("at" in e).toBe(false);
+    expect("moved" in e).toBe(false);
+    expect("skipped" in e).toBe(false);
+  });
+  it("carries the bare done mark through", async () => {
+    const { entryFrom } = await import("./strip");
+    expect(entryFrom({ done: true }).done).toBe(true);
+  });
+});
+
+describe("resizeStrip: the count stepper edits the strip in place (D1)", () => {
+  it("growing duplicates the last chip's numbers with fresh ids", async () => {
+    const { resizeStrip } = await import("./strip");
+    const sets = uniformStrip(2, { w: 135, r: 8 });
+    const out = resizeStrip(sets, 4);
+    expect(out).toHaveLength(4);
+    expect(out[0]).toBe(sets[0]); // survivors untouched, same object
+    expect(out[3]!.w).toBe(135);
+    expect(new Set(out.map((s) => s.id)).size).toBe(4);
+  });
+  it("shrinking drops from the end and keeps the head intact", async () => {
+    const { resizeStrip } = await import("./strip");
+    const sets = uniformStrip(3, { w: 135, r: 8 });
+    const out = resizeStrip(sets, 1);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toBe(sets[0]);
+  });
+  it("never goes below one chip", async () => {
+    const { resizeStrip } = await import("./strip");
+    expect(resizeStrip(uniformStrip(2), 0)).toHaveLength(1);
+  });
+});
+
+describe("applyToAll: Edit All Sets writes one field across the strip (D1)", () => {
+  it("sets the field on every live chip", async () => {
+    const { applyToAll } = await import("./strip");
+    const sets = uniformStrip(3, { w: 135, r: 8 });
+    const out = applyToAll("weight_reps", sets, "w", 145);
+    for (const s of out) expect(s.w).toBe(145);
+    for (const s of out) expect(s.r).toBe(8);
+  });
+  it("zero means didn't-say: the field comes OFF, never a stored zero", async () => {
+    const { applyToAll } = await import("./strip");
+    const out = applyToAll("weight_reps", uniformStrip(2, { w: 135, r: 8 }), "w", 0);
+    for (const s of out) expect("w" in s).toBe(false);
+  });
+  it("skipped chips are left alone, same as bumpStrip", async () => {
+    const { applyToAll } = await import("./strip");
+    const sets = [...uniformStrip(1, { w: 100, r: 5 }), { id: "sk", skipped: true as const }];
+    const out = applyToAll("weight_reps", sets, "w", 200);
+    expect(out[0]!.w).toBe(200);
+    expect("w" in out[1]!).toBe(false);
+  });
+  it("a field the kind does not use is refused, not stored", async () => {
+    const { applyToAll } = await import("./strip");
+    const sets = uniformStrip(2, { r: 10 });
+    const out = applyToAll("reps", sets, "w", 45);
+    for (const s of out) expect("w" in s).toBe(false);
+  });
+});

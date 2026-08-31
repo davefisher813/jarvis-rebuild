@@ -24,6 +24,18 @@ import { EventWeatherLine } from "../../weather/WeatherLine";
 // unreachable with a mouse or a keyboard, on a row whose every other action
 // was not. The chevron is the same reveal, announced and operable by anyone.
 
+export interface GymDoorView {
+  /** Real minutes stamped for this date -- the block already earned its
+   *  receipt. */
+  trainedMin?: number;
+  /** The pinned day's name, when the athlete's pins claim this weekday. */
+  dayName?: string;
+  /** Derived facts: "7 exercises · Est 52 min · Last trained Aug 24". */
+  meta?: string;
+  /** Present only when starting makes sense (today). Opens the gym. */
+  onStart?: () => void;
+}
+
 export default function DayRow({
   e,
   conflict,
@@ -42,6 +54,7 @@ export default function DayRow({
   picked = false,
   onPick,
   weatherDateIso,
+  gymDoor,
 }: {
   e: EventItem;
   conflict: boolean;
@@ -71,6 +84,9 @@ export default function DayRow({
   // Today passes a date: an event with a location happening TODAY is where
   // weather matters, and a past row never shows it.
   weatherDateIso?: string;
+  // THE TRAINING DOOR (D4-C): present only on events the athlete marked as
+  // the gym. The row grows the day's lift, its facts, and the way in.
+  gymDoor?: GymDoorView | null;
 }) {
   const t = fmtTime(e.data.start);
   const endT = e.data.end ? fmtTime(e.data.end) : null;
@@ -213,6 +229,31 @@ export default function DayRow({
               <PinGlyph />
               {e.data.location}
             </a>
+          )}
+          {/* THE TRAINING DOOR (D4-C): "it names the day's lift, taps
+              straight into the session, and when you finish, the block
+              stamps itself done with the real minutes." Start is a capsule,
+              not a filled red -- the schedule page already spends its one
+              red on Plan My Day. */}
+          {gymDoor && !selecting && (
+            <div className="sched-gym" onClick={(ev) => ev.stopPropagation()}>
+              {gymDoor.trainedMin != null ? (
+                <div className="sched-cat sched-gym-line">
+                  <span className="pill pill-good">Trained</span>
+                  <span>{gymDoor.trainedMin} min</span>
+                </div>
+              ) : (
+                <>
+                  {gymDoor.dayName && <div className="sched-gym-name">{gymDoor.dayName}</div>}
+                  {gymDoor.meta && <div className="sched-cat">{gymDoor.meta}</div>}
+                  {gymDoor.onStart && (
+                    <button type="button" className="pill-act sched-gym-start" onClick={gymDoor.onStart}>
+                      {gymDoor.dayName ? `Start ${gymDoor.dayName}` : "Start Training"}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           )}
         </div>
         {swipeable && (

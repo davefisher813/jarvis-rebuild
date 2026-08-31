@@ -26,6 +26,20 @@ export interface EventData {
   // Provenance (addendum item 8): set on every AUTO-created event, absent on
   // hand-made ones. Lives in JSONB, no migration needed.
   source?: import("../shared/provenance").Source;
+  // THE TRAINING DOOR, D4-C (Training Catalog V2, approved 2026-08-31).
+  // Dave: "Right now I have a daily block for the gym. It should have the
+  // option to insert the lift for the day." Marked by the athlete's own hand
+  // in the event sheet -- same doctrine as gameCategoryId: the calendar
+  // never GUESSES which block is the gym, whatever the title says. A door
+  // event's row names the day's pinned lift and starts the session; it is
+  // still an ordinary event everywhere else.
+  gym?: boolean;
+  // The door's receipts: occurrence date -> real minutes, stamped when a
+  // session that walked in through this block finishes ("the block stamps
+  // itself done with the real minutes"). A per-date record on the event, NOT
+  // a general completion concept -- the schedule still has no idea of "done"
+  // for anything else, and this dies with the event like taskIds does.
+  trained?: Record<string, number>;
 }
 
 export interface EventItem {

@@ -121,3 +121,25 @@ describe("draftFromLibrary", () => {
     expect(draft.exerciseKey).toBeTruthy();
   });
 });
+
+// D7 hygiene (Training Catalog V2, 2026-08-31): a logged sighting's `at`
+// stamps and moved marks must never leak into the plan chips a picked
+// suggestion prefills.
+describe("lastSets carry only the numbers", () => {
+  it("strips moved and at from logged sightings", async () => {
+    const { buildLibrary } = await import("./library");
+    const w = {
+      id: "w1",
+      data: {
+        programId: "p", dayId: "d", dayName: "Pull", date: "2026-08-24", startedAt: 5, endedAt: 6,
+        exercises: [{ exerciseId: "e1", name: "Rows", kind: "weight_reps" as const, unit: "lb",
+          sets: [{ id: "s1", w: 250, r: 3, at: 1234, moved: "clean" as const }] }],
+      },
+    };
+    const lib = buildLibrary([], [w]);
+    const entry = lib.find((e) => e.name === "Rows")!;
+    expect(entry.lastSets[0]!.w).toBe(250);
+    expect("at" in entry.lastSets[0]!).toBe(false);
+    expect("moved" in entry.lastSets[0]!).toBe(false);
+  });
+});
