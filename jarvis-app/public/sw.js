@@ -18,8 +18,14 @@
 //     itself cached, the pair always works: the v1 poison cannot recur.
 //   - Old caches are purged on activate; the asset cache is trimmed so it
 //     holds roughly the last couple of deploys.
+// v5 (assets only): the asset handler used to cache any res.ok response,
+// and a host that answers a MISSING /assets/ file with the SPA's index.html
+// (200, text/html) would poison that chunk's cache entry -- cache-first
+// forever meant the tab it belonged to could never load again without
+// clearing site data. The handler now refuses to cache HTML under an asset
+// URL, and the cache name bump purges any entry the old handler poisoned.
 const HTML_CACHE = "jarvis-html-v4";
-const ASSET_CACHE = "jarvis-assets-v4";
+const ASSET_CACHE = "jarvis-assets-v5";
 const STABLE_CACHE = "jarvis-shell-v4";
 const KEEP = [HTML_CACHE, ASSET_CACHE, STABLE_CACHE];
 const STABLE = ["/manifest.webmanifest", "/icon-192.png", "/icon-512.png"];
@@ -94,7 +100,11 @@ self.addEventListener("fetch", (e) => {
       const hit = await cache.match(req);
       if (hit) return hit;
       const res = await fetch(req);
-      if (res && res.ok) {
+      // Only cache what is actually a bundle. An SPA-fallback index.html
+      // served for a missing chunk is a 200 too, and caching IT under the
+      // chunk's URL would poison this cache-first entry forever (see v5).
+      const type = (res && res.headers.get("content-type")) || "";
+      if (res && res.ok && !type.includes("text/html")) {
         await cache.put(req, res.clone());
         e.waitUntil(trimAssets());
       }

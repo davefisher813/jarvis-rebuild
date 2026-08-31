@@ -2662,7 +2662,7 @@ describe("LAW 8: a proposal proves itself before it renders, and Accept never de
     }
   });
 
-  // HISTORY, and the reason this law reads oddly if you meet it cold.
+  // HISTORY, three chapters now. Read all of them before touching this again.
   //
   // 2026-08-29 (Schedule audit): the day count ("1 Event · 5 Proposed") was
   // rendering in accent red WITH .grp's dotted alarm rule armed, inherited
@@ -2671,21 +2671,25 @@ describe("LAW 8: a proposal proves itself before it renders, and Accept never de
   // a status is the exact shape L1 bans, and nothing had chosen it -- it was
   // collateral. Both the colour and the rule were taken away.
   //
-  // 2026-08-30 (the red comes home, approved from rendered previews): taking
-  // the COLOUR was an overcorrection, and part of what produced "the red used
-  // on the home page isn't applied on the schedule page or anywhere else".
-  // The offence was the inherited alarm rule, not the hue. So the rule stays
-  // gone permanently, and the colour returns as --accent-chrome -- the chrome
-  // accent the Now line and nav already wear -- now DELIBERATELY chosen as
-  // Schedule's one accent head rather than inherited from a selector meant
-  // for something else.
+  // 2026-08-30 morning (the red comes home, approved from rendered previews):
+  // the colour returned as --accent-chrome, reasoning that the offence had
+  // been the inherited alarm rule, not the hue.
   //
-  // The invariant that survived both passes, and the real content of this
-  // law: the day count never wears the detail-page GROUP-LABEL treatment.
-  it("the day count is chrome-accented by choice, never the detail-page group label", () => {
-    expect(CSS, "the colour is the chrome accent, chosen, not .grp's inherited label red")
-      .toMatch(/\.grp \.plan-head > \.eyebrow \{ color: var\(--accent-chrome\)/);
-    expect(CSS, "and the dotted alarm rule stays gone, which was always the real offence")
+  // 2026-08-30 evening (RED IS A VERB, from his phone): that lasted one
+  // deploy. The selector's blast radius was wider than the previews showed --
+  // the Anytime strip's "ANYTIME"/"N OPEN" sit in a .plan-head too, so the
+  // screen grew THREE red labels while every tappable verb on it stayed
+  // white: the exact inversion of Today, the page he holds up as the law
+  // ("the today page is exactly how I want headers and buttons to deal with
+  // red"). Heads and counts are information; information stays quiet. Red
+  // belongs to the things a thumb can press.
+  //
+  // The invariant that survived all three passes: the dotted alarm rule
+  // never comes back to a day head.
+  it("day heads are quiet information; the alarm rule stays gone", () => {
+    expect(CSS, "the day count and every .plan-head label read as information")
+      .toMatch(/\.grp \.plan-head > \.eyebrow \{ color: var\(--tx-3\)/);
+    expect(CSS, "and the dotted alarm rule stays gone, the original offence")
       .toMatch(/\.grp \.plan-head > \.eyebrow::after \{ content: none; \}/);
   });
 
@@ -2889,7 +2893,7 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
     expect(CSS).toMatch(/\.urgency-chip\.urgency-red \{ background: color-mix\(in srgb, var\(--sys-red\)/);
   });
 
-  // FINDING 3, AND ITS REVERSAL. Read the history before changing this.
+  // FINDING 3, FOUR CHAPTERS. Read the history before changing this.
   //
   // 2026-08-24 (I3): Today's heads were quieted, "one accent head per
   // screen"; every other tab kept shouting. Search had ELEVEN red heads down
@@ -2898,35 +2902,40 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
   // 2026-08-29 (five-screen sweep): the diet went app-wide and the only plain
   // .sh2 left was YourDay's "Now".
   //
-  // 2026-08-30 (the red comes home): that was a misread of the direction, and
-  // it is the most expensive mistake of the week. "Mirror the home page red
-  // rules on all pages" meant ADD home's red presence to the other pages; it
-  // was implemented as EXTEND THE DIET, and Dave's reaction was "the red used
-  // on the home page isn't applied on the schedule page or anywhere else".
+  // 2026-08-30 morning (the red comes home): read Dave's "mirror the home
+  // page red rules" as an allowlist of accent heads and gave Notes "All
+  // Notes" in accent, approved from rendered previews.
   //
-  // The corrected rule, approved from rendered previews: ONE accent head per
-  // page, as an ALLOWLIST, not a ban. Today keeps "Now", Notes gets "All
-  // Notes", and Schedule's day count is handled in LAW 8 (a .grp eyebrow, not
-  // an .sh2, so it does not appear in this check). Search, Money, Gym and the
-  // rest stay quiet -- the diet was never wrong about them.
+  // 2026-08-30 evening (RED IS A VERB, from his phone): the reference is
+  // Today itself -- "the today page is exactly how I want headers and
+  // buttons to deal with red laws. Apply them." Today's heads (EMAIL,
+  // REMINDERS) are quiet; its red lives on the verbs (Take 1:00 PM, Draft
+  // It, Ask Again, Clear All) and on the ONE sanctioned head naming the
+  // screen's live moment: "Now". So: heads are quiet everywhere, "Now" is
+  // the single exception, and red text belongs to tappable things (.pill-act
+  // verbs, .see-all, .block-add -- all buttons, all correctly red).
   //
-  // The allowlist is asserted by name rather than counted, so adding a third
-  // shouting head is a decision someone has to write down here.
-  const ACCENT_HEADS = ["notes/screens/NotesList.tsx", "today/YourDay.tsx"];
-  it("one accent section head per page, by allowlist, not a ban", () => {
+  // This pass also closed a hole: the old scan matched the exact string
+  // className="sh2", so a head wearing a VARIANT class (sh2-caps on
+  // Templates and Brain's "Your Areas", which re-stated the accent) slid
+  // straight past the law. The scan now flags any .sh2 that does not carry
+  // sh2-quiet, whatever else rides in the className.
+  it("every section head is quiet except Today's Now; red text is for verbs", () => {
     const offenders: string[] = [];
     for (const f of COMPONENTS) {
-      if (ACCENT_HEADS.includes(rel(f))) continue;
+      if (rel(f) === "today/YourDay.tsx") continue;
       read(f).split("\n").forEach((line, i) => {
-        if (line.includes('className="sh2"')) offenders.push(rel(f) + ":" + (i + 1));
+        const m = line.match(/className="([^"]*\bsh2\b[^"]*)"/);
+        if (m && !m[1]!.includes("sh2-quiet")) offenders.push(rel(f) + ":" + (i + 1));
       });
     }
-    expect(offenders, "every head outside the allowlist takes sh2-quiet").toEqual([]);
-    // And the allowlisted ones really are shouting, so this cannot pass by
-    // everything having gone quiet again.
-    for (const f of ACCENT_HEADS) {
-      expect(read(join(SRC, f)), f + " carries its one accent head").toMatch(/className="sh2"/);
-    }
+    expect(offenders, "a head outside YourDay must carry sh2-quiet").toEqual([]);
+    // The one sanctioned loud head still exists, so this cannot pass by
+    // everything having gone quiet.
+    expect(read(join(SRC, "today/YourDay.tsx"))).toMatch(/className="sh2"/);
+    // And the variant that hid two red heads from the old scan is retired.
+    expect(CSS, "sh2-caps must not come back as an accent restatement")
+      .not.toMatch(/\.sh2\.sh2-caps \.t \{ color: var\(--accent-chrome\)/);
   });
 
   // The other half of the reversal: the large page title wears the same
@@ -3088,5 +3097,54 @@ describe("LAW 12: a write survives the refresh racing it, and one thing never re
     const { spotIsDuplicate } = await import("../today/stream");
     expect(spotIsDuplicate({ kind: "task", id: "t1" }, { dealtTaskId: "t1" })).toBe(true);
     expect(spotIsDuplicate({ kind: "task", id: "t1" }, {})).toBe(false);
+  });
+});
+
+// LAW 13: A TAB HEALS OR SPEAKS, NEVER SKELETONS FOREVER (Dave 2026-08-30,
+// screenshot: the More tab frozen on the two-card Suspense skeleton while
+// every other tab worked).
+//
+// Every tab is a lazy() chunk, and React.lazy memoizes the FIRST import
+// promise for the life of the page. A chunk fetch that hangs on a bad cell
+// link, or 404s because a cached index.html names hashes a deploy replaced,
+// left that tab dead until a full app relaunch -- rendering a skeleton that
+// looks like progress and is not. Two layers close it:
+//
+//   1. lazyWithRecovery: timeout -> retry -> one reload per session -> loud
+//      throw to the root ErrorBoundary's Reload card. (Behaviour tested in
+//      shell/chunkRecovery.test.ts; this law pins the WIRING.)
+//   2. The service worker refuses to cache an SPA-fallback HTML response
+//      under an /assets/ chunk URL -- cache-first-forever plus one poisoned
+//      entry was a tab that could never load again without clearing site
+//      data. The v5 cache-name bump purges anything the old handler kept.
+describe("LAW 13: a tab heals or speaks, never skeletons forever", () => {
+  it("every lazy chunk in the app goes through the recovery ladder", () => {
+    const offenders: string[] = [];
+    for (const f of SOURCES) {
+      if (rel(f) === "shell/chunkRecovery.ts") continue;
+      read(f).split("\n").forEach((line, i) => {
+        if (/\blazy\(\s*\(\)\s*=>\s*import\(/.test(line)) offenders.push(rel(f) + ":" + (i + 1));
+      });
+    }
+    expect(offenders, "bare React.lazy memoizes one failed fetch forever; use lazyWithRecovery").toEqual([]);
+    // And the ladder is actually in use, not just unviolated.
+    const uses = SOURCES.filter((f) => read(f).includes("lazyWithRecovery(() => import(")).map(rel);
+    expect(uses.length, "the tabs really ride the ladder").toBeGreaterThanOrEqual(4);
+    expect(uses).toContain("shell/AppShell.tsx");
+  });
+
+  it("the reload rung fires once per session, so a broken deploy cannot loop", () => {
+    const src = read(join(SRC, "shell/chunkRecovery.ts"));
+    expect(src, "the guard is read before reloading").toMatch(/alreadyReloaded = storage\?\.getItem\(RELOADED_KEY\)/);
+    expect(src, "and set before reloading").toMatch(/storage\?\.setItem\(RELOADED_KEY, "1"\)/);
+    expect(src, "second-time failures throw to the boundary instead").toMatch(/throw second/);
+  });
+
+  it("the service worker never caches HTML under a chunk URL", () => {
+    const sw = read(join(process.cwd(), "public/sw.js"));
+    expect(sw, "content-type guard on the asset cache")
+      .toMatch(/res\.ok && !type\.includes\("text\/html"\)/);
+    expect(sw, "v5 bump purges any entry the old handler poisoned")
+      .toMatch(/ASSET_CACHE = "jarvis-assets-v5"/);
   });
 });

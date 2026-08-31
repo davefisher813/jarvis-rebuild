@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { lazyWithRecovery } from "../shell/chunkRecovery";
 import MorePage, { type MoreRoute } from "./MorePage";
 import { usePushDepth } from "../shared/pushNav";
 import ProfilePage from "../settings/ProfilePage";
@@ -19,7 +20,7 @@ import AIControlPage from "../settings/AIControlPage";
 import LearnedRulesPage from "../settings/LearnedRulesPage";
 import type { Destination } from "../shell/destinations";
 // Admin is a hidden owner-only surface; its chunk loads on first open.
-const AdminPanel = lazy(() => import("../admin/AdminPanel"));
+const AdminPanel = lazyWithRecovery(() => import("../admin/AdminPanel"));
 import { createAdminApi, makeSampleAdminSource } from "../admin/AdminService";
 import { useIsAdmin } from "../admin/useIsAdmin";
 import { useAuth } from "../auth/AuthProvider";

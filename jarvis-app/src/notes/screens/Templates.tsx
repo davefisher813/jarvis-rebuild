@@ -36,7 +36,7 @@ export default function Templates({
 
       {/* V4: templates are a content list, the Library form. Bare colored
           glyphs, flat rows, one mini-caps label. */}
-      <div className="sh2 sh2-caps"><span className="t">Templates</span></div>
+      <div className="sh2 sh2-quiet"><span className="t">Templates</span></div>
       {TEMPLATES_LIST.map(({ key, name, desc, cat, Icon }) => (
         <div className="lib-row" key={key} role="button" tabIndex={0} onClick={() => onSelect?.(key)}>
           <div className={"lib-ico cat-fg-" + cat}>

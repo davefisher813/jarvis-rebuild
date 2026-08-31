@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState, lazy, Suspense } from "react";
+import { useCallback, useEffect, useRef, useState, Suspense } from "react";
+import { lazyWithRecovery } from "../shell/chunkRecovery";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { Mail, Plus, Archive, Trash2, CornerUpLeft, Forward, Send, Tag, Clock, MessageSquare, Volume2 } from "../shared/icons";
 import type { AIService } from "../ai/AIService";
@@ -109,7 +110,7 @@ import { laterTaskTitle } from "./deck";
 // has to guard the IMPORT, not just the render: a lazy import that is always
 // constructed still emits a fetchable chunk, so the fixtures would sit on the
 // server for anyone who knew the filename.
-const DemoMail = __DEMO_SEED__ ? lazy(() => import("./DemoMail")) : null;
+const DemoMail = __DEMO_SEED__ ? lazyWithRecovery(() => import("./DemoMail")) : null;
 import { noDashes } from "../ai/suggestions";
 import { useOptionalAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";

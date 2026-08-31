@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { lazyWithRecovery } from "./shell/chunkRecovery";
 import { useAuth } from "./auth/AuthProvider";
 import { NotesProvider, useProfile } from "./data/NotesProvider";
 import { backendConfigured } from "./data/store";
@@ -8,7 +9,7 @@ import { GoogleSessionProvider } from "./connections/google/GoogleSession";
 
 // Onboarding is a one-time surface; keep it out of the startup bundle that
 // every returning user pays for.
-const OnboardingFlow = lazy(() => import("./onboarding/OnboardingFlow"));
+const OnboardingFlow = lazyWithRecovery(() => import("./onboarding/OnboardingFlow"));
 
 // First-run gate (inside the provider so it can read the profile): show the
 // conversational onboarding until there is an onboarded profile, then the app.

@@ -99,7 +99,8 @@ import { madeBy } from "../shared/provenance";
 import { RowIcon, StatTiles } from "../shared/anatomy";
 import { effectiveLevel } from "../ai/aiGate";
 import { getAIControl } from "../ai/levelStore";
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
+import { lazyWithRecovery } from "../shell/chunkRecovery";
 import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
@@ -131,8 +132,8 @@ const GOAL_ICO = (
 const WIN_ICO = (
   <CheckCircleGlyph />
 );
-const UpNextFlow = lazy(() => import("../upnext/UpNextFlow"));
-const FreshStartFlow = lazy(() => import("../upnext/FreshStartFlow"));
+const UpNextFlow = lazyWithRecovery(() => import("../upnext/UpNextFlow"));
+const FreshStartFlow = lazyWithRecovery(() => import("../upnext/FreshStartFlow"));
 
 // Read-only aggregation over the (already tested) Schedule and Tasks services.
 export default function TodayFlow({

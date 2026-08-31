@@ -65,9 +65,11 @@ export default function NotesList({
       {/* I3 APPLIES HERE TOO (Dave 2026-08-29: "mirror the home page red
           rules on all pages"). A library index is not the thing on this
           screen most worth looking at; the notes are. */}
-      {/* THE RED COMES HOME (2026-08-30): Notes' one accent head. The diet is
-          an allowlist, not a ban -- see LAW 11 for the history. */}
-      <div className="sh2"><span className="t">All Notes</span><span className="n">{shown.length}</span></div>
+      {/* RED IS A VERB (Dave 2026-08-30, chapter three -- history on LAW 11).
+          This head spent one deploy in accent as "Notes' one red head"; his
+          phone verdict made Today the reference, and Today's heads are quiet.
+          A library index is information, not a verb. */}
+      <div className="sh2 sh2-quiet"><span className="t">All Notes</span><span className="n">{shown.length}</span></div>
       {shown.map((n) => (
         <div
           className={"lib-row" + (sel.isSelected(n.id) ? " picked" : "")}

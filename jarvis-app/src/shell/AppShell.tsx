@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { lazyWithRecovery } from "./chunkRecovery";
 import TabBar from "./TabBar";
 import VoiceBar from "./VoiceBar";
 // TODAY IS EAGER, THE REST ARE NOT (2026-08-26, build queue item 13).
@@ -9,10 +10,10 @@ import VoiceBar from "./VoiceBar";
 // them costs a skeleton frame on first visit and saves everyone the bytes
 // on every cold load.
 import TodayFlow from "../today/TodayFlow";
-const MoreFlow = lazy(() => import("../more/MoreFlow"));
-const TasksFlow = lazy(() => import("../tasks/TasksFlow"));
-const ScheduleFlow = lazy(() => import("../schedule/ScheduleFlow"));
-const BrainFlow = lazy(() => import("../brain/BrainFlow"));
+const MoreFlow = lazyWithRecovery(() => import("../more/MoreFlow"));
+const TasksFlow = lazyWithRecovery(() => import("../tasks/TasksFlow"));
+const ScheduleFlow = lazyWithRecovery(() => import("../schedule/ScheduleFlow"));
+const BrainFlow = lazyWithRecovery(() => import("../brain/BrainFlow"));
 import { dismissSplash } from "../shared/splash";
 import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
@@ -25,15 +26,15 @@ import GoogleAutoImport from "../connections/google/AutoImport";
 // Heavier, less-visited surfaces load on demand so the startup bundle stays
 // small: the default tabs (Today, Tasks, Schedule, Brain) plus More are enough
 // to launch. Everything else fetches its chunk on first open.
-const NotesFlow = lazy(() => import("../notes/NotesFlow"));
-const BiggerPictureFlow = lazy(() => import("../bigger/BiggerPictureFlow"));
-const MessagesFlow = lazy(() => import("../messages/MessagesFlow"));
-const NotificationsFlow = lazy(() => import("../notifications/NotificationsFlow"));
-const MoneyFlow = lazy(() => import("../money/MoneyFlow"));
-const ChatFlow = lazy(() => import("../chat/ChatFlow"));
+const NotesFlow = lazyWithRecovery(() => import("../notes/NotesFlow"));
+const BiggerPictureFlow = lazyWithRecovery(() => import("../bigger/BiggerPictureFlow"));
+const MessagesFlow = lazyWithRecovery(() => import("../messages/MessagesFlow"));
+const NotificationsFlow = lazyWithRecovery(() => import("../notifications/NotificationsFlow"));
+const MoneyFlow = lazyWithRecovery(() => import("../money/MoneyFlow"));
+const ChatFlow = lazyWithRecovery(() => import("../chat/ChatFlow"));
 
-const QuickCapture = lazy(() => import("../capture/QuickCapture"));
-const SearchFlow = lazy(() => import("../search/SearchFlow"));
+const QuickCapture = lazyWithRecovery(() => import("../capture/QuickCapture"));
+const SearchFlow = lazyWithRecovery(() => import("../search/SearchFlow"));
 
 import { setCategoryRegistry } from "../shared/categories";
 import ToastHost from "../shared/ToastHost";

@@ -2282,10 +2282,12 @@ button {
    with it. A glyph carries no words and answers to 3:1, so it keeps the real
    brand red. Same bug as the sweep this comment is about, one layer up. */
 .lib-ico-brand { color: var(--accent-glyph); }
-/* sh2-caps (Brain 4 pick) is absorbed by the app-wide steel head: one
-   small-label style everywhere means the variant adds nothing. Kept as a
-   no-op selector so existing markup stays legal. */
-.sh2.sh2-caps .t { color: var(--accent-chrome); }
+/* sh2-caps is gone (RED IS A VERB, 2026-08-30). Its comment called it a
+   no-op, but it re-stated the accent, which meant its two consumers
+   (Templates, Brain's "Your Areas") were red heads hiding from LAW 11's
+   allowlist scan -- the scan matched the exact string className="sh2" and a
+   variant class slid straight past it. The markup now says sh2-quiet like
+   every other head, and the law scans for sh2 WITHOUT quiet instead. */
 
 /* A GAP IS A ROW (Dave 2026-08-19): open time renders in the timeline at the
    hour it falls, dashed so it reads as absence, tappable so it becomes a
@@ -2575,16 +2577,16 @@ button {
    rule armed. A count of events wearing the alarm colour is the exact shape
    L1 bans -- red announcing a status -- and it was never chosen, only
    inherited. Same collateral family as the Music capsule note above. */
-/* THE RED COMES HOME (Dave 2026-08-30, approved from rendered previews).
-   The quieting above was right about the RULE and wrong about the COLOUR.
-   What L1 bans is red announcing a status, and what made this offensive was
-   the dotted alarm rule armed beside it -- inherited from .grp's detail-page
-   group labels, never chosen for a day head. The rule stays gone. The colour
-   comes back as --accent-chrome, which is the chrome accent the Now line and
-   the nav already wear, deliberately chosen here so Schedule has the one red
-   head per page that every other surface got. See LAW 8 for the full history;
-   Search, Money and Gym stay quiet. */
-.grp .plan-head > .eyebrow { color: var(--accent-chrome); letter-spacing: var(--track-eyebrow); }
+/* RED IS A VERB (Dave 2026-08-30, from his phone, chapter three -- the full
+   history lives on LAW 8). The accent-chrome experiment above lasted one
+   deploy: on the real phone it painted the day count AND the Anytime strip's
+   "ANYTIME"/"N OPEN" red (they sit in a .plan-head too, wider blast radius
+   than the previews showed), while every tappable verb on the screen stayed
+   white -- the exact inversion of Today, the page he holds up as the law.
+   Heads and counts are information; information stays quiet. Red belongs to
+   the things a thumb can press. The dotted alarm rule stays gone from both
+   passes. */
+.grp .plan-head > .eyebrow { color: var(--tx-3); letter-spacing: var(--track-eyebrow); }
 .grp .plan-head > .eyebrow::after { content: none; }
 /* Sheets keep their quiet labels: a bottom sheet is a form, not a page. */
 .sheet-scrim .grp .eyebrow { color: var(--tx-3); letter-spacing: var(--track-caps); }
