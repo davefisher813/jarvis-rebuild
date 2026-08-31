@@ -23,8 +23,23 @@ export function blankEntry(): SetEntry {
  */
 export function uniformStrip(count: number, target: SetLog = {}): SetEntry[] {
   const n = Math.max(1, Math.round(count) || 1);
-  return Array.from({ length: n }, () => ({ id: newSetId(), ...target }));
+  // EMPTY IS LEGAL (Dave 2026-08-31, from a screenshot of "0 lb × 8" sets he
+  // never gave a weight). The convenience input expands only the numbers
+  // that are actually there: a zero in a Quick Setup stepper means "didn't
+  // say", and copying it into every chip stored the exact placeholder the
+  // model bans. The AI extractor and the old-shape migration route through
+  // here too, so their parsed zeros stop being minted as facts as well.
+  const real: SetLog = {};
+  if (has(target.w)) real.w = target.w;
+  if (has(target.r)) real.r = target.r;
+  if (has(target.v)) real.v = target.v;
+  if (has(target.t)) real.t = target.t;
+  if (target.done) real.done = true;
+  if (target.skipped) real.skipped = true;
+  return Array.from({ length: n }, () => ({ id: newSetId(), ...real }));
 }
+
+const has = (n: number | undefined): n is number => (n ?? 0) > 0;
 
 export function duplicateEntry(e: SetEntry): SetEntry {
   return { ...e, id: newSetId() };

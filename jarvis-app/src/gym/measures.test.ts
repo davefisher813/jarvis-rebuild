@@ -140,3 +140,48 @@ describe("THE SET STRIP: uniform vs heterogeneous programming (catalog §1.2, §
     expect(isUniformStrip("weight_reps", strip(1, { w: 200, r: 1 }))).toBe(true);
   });
 });
+
+// EMPTY IS A LEGAL VALUE (decision catalog 2026-08-30, and Dave 2026-08-31
+// with a screenshot of his own editor showing "SET 2 · 0 lb × 8" on sets he
+// never gave a weight: "Wasn't all this supposed to be changed?"). A set
+// speaks only the numbers it actually has; nothing manufactures a zero.
+// Zero and absent read the same, which is what heals his already-stored
+// zeros with no migration.
+describe("empty is legal: no surface manufactures a zero", () => {
+  const lb = ex("weight_reps", { unit: "lb" });
+
+  it("his exact screenshot: weight never said reads as reps, not 0 lb", () => {
+    expect(formatSet(lb, { r: 8 })).toBe("8 reps");
+    expect(formatSet(lb, { w: 0, r: 8 })).toBe("8 reps"); // stored zero heals too
+    expect(formatSet(lb, { r: 8 })).not.toContain("0 lb");
+  });
+
+  it("reps never said reads as the weight alone", () => {
+    expect(formatSet(lb, { w: 115 })).toBe("115 lb");
+  });
+
+  it("the bare done mark is a valid fact and says so", () => {
+    expect(formatSet(lb, { done: true })).toBe("Done");
+  });
+
+  it("a chip with nothing in it says Empty, never 0 × 0", () => {
+    expect(formatSet(lb, {})).toBe("Empty");
+    expect(formatSet(ex("reps"), {})).toBe("Empty");
+    expect(formatSet(ex("distance", { unit: "m" }), {})).toBe("Empty");
+  });
+
+  it("distance_time renders only the half that exists", () => {
+    const dt = ex("distance_time", { unit: "mi", timeUnit: "min" });
+    expect(formatSet(dt, { v: 3 })).toBe("3 mi");
+    expect(formatSet(dt, { t: 24 })).toBe("24 min");
+    expect(formatSet(dt, {})).toBe("Empty");
+  });
+
+  it("the Save line for his screenshot data lists real numbers only", () => {
+    const e = ex("weight_reps", { unit: "lb", sets: [
+      { id: "a", w: 115, r: 8 }, { id: "b", w: 0, r: 8 }, { id: "c", r: 8 },
+    ] });
+    expect(targetLine(e)).toBe("115 lb × 8, 8 reps, 8 reps");
+    expect(targetLine(e)).not.toContain("0 lb");
+  });
+});

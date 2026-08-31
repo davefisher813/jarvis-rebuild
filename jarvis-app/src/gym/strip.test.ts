@@ -109,3 +109,29 @@ describe("newExercise", () => {
     expect(ex.unit).toBe("kg");
   });
 });
+
+// EMPTY IS LEGAL, the storage half (Dave 2026-08-31). The convenience input
+// expands only real numbers: a zero stepper means "didn't say", and minting
+// it into every chip is how "0 lb × 8" got stored in the first place.
+describe("uniformStrip never mints a zero", () => {
+  it("drops zero fields from the target and keeps the real ones", () => {
+    const strip = uniformStrip(3, { w: 0, r: 8 });
+    expect(strip).toHaveLength(3);
+    for (const s of strip) {
+      expect(s.r).toBe(8);
+      expect("w" in s).toBe(false);
+    }
+  });
+
+  it("keeps a genuine weight untouched", () => {
+    const s = uniformStrip(2, { w: 115, r: 8 })[0]!;
+    expect(s.w).toBe(115);
+    expect(s.r).toBe(8);
+  });
+
+  it("carries the done mark through without inventing numbers", () => {
+    const s = uniformStrip(2, { done: true, w: 0 })[0]!;
+    expect(s.done).toBe(true);
+    expect("w" in s).toBe(false);
+  });
+});

@@ -3148,3 +3148,36 @@ describe("LAW 13: a tab heals or speaks, never skeletons forever", () => {
       .toMatch(/ASSET_CACHE = "jarvis-assets-v5"/);
   });
 });
+
+// LAW 14: EMPTY IS A LEGAL VALUE (decision catalog 2026-08-30, "Yes, allow
+// blanks"; Dave 2026-08-31 with a screenshot of his own Edit Exercise sheet
+// reading "SET 2 · 0 lb × 8" on sets he never gave a weight: "Wasn't all
+// this supposed to be changed?").
+//
+// The model was already right -- SetLog's own comment defines
+// done-with-no-numbers as a valid state -- but the one renderer every gym
+// surface reads through (formatSet) filled absent fields with zeros, so
+// chips, ghosts, the Save line, history and PRs all spoke placeholders as
+// facts. And the convenience input (uniformStrip) MINTED those zeros into
+// storage from untouched Quick Setup steppers. Zero and absent read the
+// same everywhere (the reading hasTarget and scoreOf always used), which is
+// what heals his already-stored zeros with no migration.
+describe("LAW 14: empty is a legal value; nothing manufactures a zero", () => {
+  it("a set speaks only the numbers it has", async () => {
+    const { formatSet, targetLine } = await import("../gym/measures");
+    const lb = { kind: "weight_reps" as const, unit: "lb" };
+    expect(formatSet(lb, { r: 8 })).toBe("8 reps");
+    expect(formatSet(lb, { w: 0, r: 8 })).toBe("8 reps");
+    expect(formatSet(lb, { done: true })).toBe("Done");
+    expect(formatSet(lb, {})).toBe("Empty");
+    // His screenshot's Save line, healed:
+    const e = { id: "x", name: "Bench", kind: "weight_reps" as const, unit: "lb",
+      sets: [{ id: "a", w: 115, r: 8 }, { id: "b", w: 0, r: 8 }, { id: "c", r: 8 }] };
+    expect(targetLine(e)).toBe("115 lb × 8, 8 reps, 8 reps");
+  });
+
+  it("the convenience input never mints a zero into storage", async () => {
+    const { uniformStrip } = await import("../gym/strip");
+    for (const s of uniformStrip(3, { w: 0, r: 8 })) expect("w" in s).toBe(false);
+  });
+});

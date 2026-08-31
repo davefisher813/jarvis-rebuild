@@ -15,25 +15,51 @@ function trim(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(2)));
 }
 
-/** How one logged entry reads: "135 × 8", "4.64 s", "12 rounds", "Done". */
+/** A field is present when it carries a real number. Zero and absent both
+ *  mean "didn't say" -- the same reading hasTarget, logButtonLabel and
+ *  scoreOf have always used, which is what lets a stored zero from the old
+ *  editor heal with no migration. */
+const has = (n: number | undefined): n is number => (n ?? 0) > 0;
+
+/** How one logged entry reads: "135 lb × 8", "4.64 s", "12 rounds", "Done".
+ *
+ *  EMPTY IS LEGAL (Dave 2026-08-31, screenshot of his own editor: "SET 2 ·
+ *  0 lb × 8" on sets he never gave a weight -- "Wasn't all this supposed to
+ *  be changed?"). This function used to render every absent field as a
+ *  zero, which is the manufactured placeholder the whole set model bans:
+ *  SetLog's own comment defines done-with-no-numbers as a valid state, and
+ *  every screen reads through here, so one fabricating renderer put fake
+ *  zeros on chips, ghosts, the Save line, history and PRs at once. Now a
+ *  set speaks only the numbers it actually has: "115 lb × 8", "8 reps" when
+ *  no weight was said, "115 lb" when no reps were, "Done" for the bare done
+ *  mark, and "Empty" for a chip with nothing in it yet. */
 export function formatSet(ex: Pick<Exercise, "kind" | "unit" | "timeUnit">, s: SetLog): string {
   const u = ex.unit ?? "";
+  const bare = s.done ? "Done" : "Empty";
   switch (ex.kind) {
-    case "weight_reps":
-      return `${trim(s.w ?? 0)} ${u} × ${trim(s.r ?? 0)}`;
+    case "weight_reps": {
+      const w = has(s.w) ? `${trim(s.w)} ${u}`.trim() : null;
+      const r = has(s.r) ? trim(s.r) : null;
+      if (w && r) return `${w} × ${r}`;
+      if (r) return `${r} reps`;
+      if (w) return w;
+      return bare;
+    }
     case "reps":
-      return `${trim(s.r ?? 0)} reps`;
+      return has(s.r) ? `${trim(s.r)} reps` : bare;
     case "rounds":
-      return `${trim(s.r ?? 0)} ${(s.r ?? 0) === 1 ? "round" : "rounds"}`;
+      return has(s.r) ? `${trim(s.r)} ${s.r === 1 ? "round" : "rounds"}` : bare;
     case "time_faster":
     case "time_longer":
-      return `${trim(s.v ?? 0)} ${u}`;
     case "distance":
-      return `${trim(s.v ?? 0)} ${u}`;
-    case "distance_time":
-      return `${trim(s.v ?? 0)} ${u} in ${trim(s.t ?? 0)} ${ex.timeUnit ?? "min"}`;
     case "height":
-      return `${trim(s.v ?? 0)} ${u}`;
+      return has(s.v) ? `${trim(s.v)} ${u}`.trim() : bare;
+    case "distance_time": {
+      const v = has(s.v) ? `${trim(s.v)} ${u}`.trim() : null;
+      const t = has(s.t) ? `${trim(s.t)} ${ex.timeUnit ?? "min"}` : null;
+      if (v && t) return `${v} in ${t}`;
+      return v ?? t ?? bare;
+    }
     case "done":
       return "Done";
   }
