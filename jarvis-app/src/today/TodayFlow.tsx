@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes } from "../data/NotesProvider";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
+import { goalTone } from "../shared/categories";
 import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
@@ -1884,7 +1885,11 @@ export default function TodayFlow({
            line comes back on the expand. */
         weight={RESUME}
         icon={GOAL_ICO}
-        tone="cat-fg-purple"
+        /* The goal's own area color, brand red when unhomed (Dave
+           2026-08-31) -- same goalTone as Your Life and Money. The card's
+           reflective purple stays where reflection lives (revisit, monthly
+           report); this card is about a GOAL, so it wears the goal's color. */
+        tone={goalTone(untouched.data.tags)}
         title={untouched.data.title}
         sub={untouchedLine(openWorkOf(goalReach(untouched.id)))}
         // "Pick One", not "Pick Something" (2026-08-25). Measured on the

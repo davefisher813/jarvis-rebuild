@@ -148,7 +148,9 @@ export default function SessionScreen({
         />
       )}
 
-      <div className="sec-head"><div className="sec-left"><div className="sec-title">{noun}</div></div></div>
+      {/* One head grammar across the gym pages (reformat 2026-08-31): the
+          quiet sh2, same as the program page's Days and Recent. */}
+      <div className="sh2 sh2-quiet"><span className="t">{noun}</span></div>
       <div className="pad-x">
         {current.skipped ? (
           <div className="card"><div className="row"><div className="row-grow"><div className="conn-name">Skipped</div></div></div></div>
@@ -176,13 +178,15 @@ export default function SessionScreen({
         )}
       </div>
 
-      <div className="sec-head"><div className="sec-left"><div className="sec-title">This Session</div></div></div>
+      <div className="sh2 sh2-quiet"><span className="t">This Session</span></div>
       <div className="pad-x"><div className="card">
         {live.exercises.map((e, i) => (
           <div className={"row" + (i === idx ? " ob-addrow" : "")} role="button" tabIndex={0} key={e.exerciseId + i} onClick={() => onMove(i)}>
             <div className="row-grow">
               <div className="conn-name truncate">{e.name}</div>
-              <div className="eyebrow">{e.skipped ? "Skipped" : e.sets.length > 0 ? `${e.sets.length} Logged` : "Not started"}</div>
+              {/* Row meta is quiet sentence case, never a shouting eyebrow
+                  (gym reformat 2026-08-31). */}
+              <div className="conn-meta">{e.skipped ? "Skipped" : e.sets.length > 0 ? `${e.sets.length} Logged` : "Not started"}</div>
             </div>
             {CHEV}
           </div>

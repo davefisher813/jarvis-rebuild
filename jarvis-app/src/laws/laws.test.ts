@@ -3181,3 +3181,73 @@ describe("LAW 14: empty is a legal value; nothing manufactures a zero", () => {
     for (const s of uniformStrip(3, { w: 0, r: 8 })) expect("w" in s).toBe(false);
   });
 });
+
+// LAW 15: A SURFACE SPEAKS ONE GRAMMAR (Dave 2026-08-31, from the 5 Day
+// Program and Edit Exercise screenshots: "I want a complete reformatting of
+// the health pages. Styling is random and doesn't align. Even one page has
+// different styled sections." -- with the research verdict to mirror the
+// Apple Health grouped-list language the design system already derives
+// from).
+//
+// What the reformat fixed, pinned so it stays fixed: gym rows shouted their
+// meta as .eyebrow caps while the app's lists speak .conn-meta; heads split
+// between sec-head and sh2; two of the three in-list creates dressed as
+// chevron nav rows; ReorderList hard-coded card chrome so one list floated
+// as glass between full-bleed neighbours; and the set chip -- the one swipe
+// row without position:relative -- let its absolutely-positioned delete
+// button PAINT OVER it at rest (his screenshot's visible trash), while its
+// hard-coded page-ground fill rendered as black slabs inside surface-2
+// sheets.
+describe("LAW 15: the gym speaks one grammar", () => {
+  const gymFiles = ["GymFlow.tsx", "SessionScreen.tsx", "HistoryScreen.tsx", "ExerciseSheet.tsx", "UploadFlow.tsx", "ReceiptSheet.tsx", "ActionSheet.tsx", "LibraryPickSheet.tsx"];
+
+  it("no gym row writes its meta as a shouting eyebrow, and no gym head is a sec-head", () => {
+    const bad: string[] = [];
+    for (const f of gymFiles) {
+      const src = read(join(SRC, "gym", f));
+      // A conn-name with an .eyebrow as the very next line is the old row
+      // grammar; kickers that LEAD a block (Set N, sheet titles) stay legal.
+      const lines = src.split("\n");
+      for (let i = 0; i < lines.length - 1; i++) {
+        if (lines[i]!.includes('className="conn-name') && /className="eyebrow"/.test(lines[i + 1]!)) {
+          bad.push(`${f}:${i + 2} eyebrow riding under a conn-name`);
+        }
+      }
+      if (src.includes("sec-head")) bad.push(`${f} still uses sec-head`);
+    }
+    expect(bad).toEqual([]);
+  });
+
+  it("the set chip is a real swipe row: positioned, and surface-matched inside sheets", () => {
+    const css = read(join(SRC, "styles", "components.css"));
+    const chip = css.match(/\.set-chip\s*\{[^}]*\}/)?.[0] ?? "";
+    // position:relative is what keeps the absolute delete button PAINTED
+    // beneath the chip at rest -- the exact visible-trash bug in his
+    // screenshot. Geometry never covered it; paint order does.
+    expect(chip).toContain("position: relative");
+    expect(chip).toContain("background: var(--bg)");
+    expect(css).toMatch(/\.sheet-scrim \.set-chip\s*\{\s*background:\s*var\(--surface-2\)/);
+    // And the reorder wrapper sheds its card chrome where rows are the
+    // surface (full-bleed lists, the strip itself).
+    expect(css).toMatch(/\.list-flat \.reorder-list, \.set-strip \.reorder-list \{[^}]*background: none/);
+  });
+
+  it("every in-list create on the program page is the one row-act affordance", () => {
+    const src = read(join(SRC, "gym", "GymFlow.tsx"));
+    for (const label of ["Add Day", "Upload a Program", "Add a Week", "Add Exercise"]) {
+      // Same line: the arrow handler's => sits between the class and the
+      // label, so the gap crosses anything but a newline.
+      expect(src).toMatch(new RegExp('className="row row-act"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
+    }
+    // The old chevron-nav dress for Upload / Add a Week stays gone.
+    expect(src).not.toMatch(/onClick=\{\(\) => setUploadOpen\(true\)\}>\s*<div className="row-grow"/);
+  });
+
+  it("the gym's long-press rows lay out as rows (the chevron never wraps under the text)", () => {
+    const src = read(join(SRC, "gym", "GymFlow.tsx"));
+    const wrappers = src.match(/className="row-grow row-press"/g) ?? [];
+    expect(wrappers.length).toBeGreaterThanOrEqual(3);
+    const css = read(join(SRC, "styles", "components.css"));
+    expect(css).toMatch(/\.row-press \{[^}]*display: flex/);
+  });
+});

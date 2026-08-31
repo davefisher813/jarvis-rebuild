@@ -84,8 +84,9 @@ export async function recoverImport<T>(load: () => Promise<T>, fx: RecoveryEffec
 
 /** Drop-in for React.lazy on every route/tab chunk. Same signature as
  *  React.lazy itself, including its `any`: the constraint is "a component",
- *  and each call site's own props stay fully typed through T. */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ *  and each call site's own props stay fully typed through T. (This config
+ *  has no no-explicit-any rule, so no disable comment -- naming a rule the
+ *  config lacks is itself a lint ERROR here, caught 2026-08-31.) */
 export function lazyWithRecovery<T extends ComponentType<any>>(
   load: () => Promise<{ default: T }>,
 ): LazyExoticComponent<T> {

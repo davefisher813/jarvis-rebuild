@@ -31,6 +31,21 @@ export function catColor(ref: string | undefined): ColorSlot {
   return "graphite";
 }
 
+// THE COLOR A GOAL'S OWN GLYPH WEARS (Dave 2026-08-31, from the Your Life
+// screenshot: "the purple icons should be color coated based on category and
+// default to Jarvis red"). A goal is homed by the first of its tags that
+// names a live category -- the exact rule Your Life already uses to FILE the
+// goal under a section -- so the glyph and the section it sits in can never
+// disagree. A goal with no home wears the brand red (cat-fg-brand /
+// cat-bg-brand, --accent-glyph, the same red in both themes). Registry-backed
+// so Money and Today answer identically without carrying a section list.
+// Type-mark surfaces (anatomy's RowIcon/RowGlyph in mixed-type lists) keep
+// their type purple: there the icon says WHAT a row is, not whose area it is.
+export function goalTone(tags: string[] | undefined): string {
+  const home = (tags ?? []).find((t) => REGISTRY[t] !== undefined);
+  return home ? "cat-fg-" + catColor(home) : "cat-fg-brand";
+}
+
 // An opaque id: a UUID, or any long dashed hex-ish token. Never a display
 // word. Kept loose on purpose: a false positive hides a name we could not
 // have rendered readably anyway.

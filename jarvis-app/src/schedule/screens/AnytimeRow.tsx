@@ -1,5 +1,4 @@
 import { useState, type PointerEvent as RPointerEvent } from "react";
-import { ChevronDown, ChevronUp } from "../../shared/icons";
 import type { TaskItem } from "../../tasks/TasksService";
 import { catColor } from "../../shared/categories";
 
@@ -8,6 +7,14 @@ import { catColor } from "../../shared/categories";
 // pushes the day off screen; tap the name to give the task a time, tap the
 // circle to complete it. One row component (same check + category color as the
 // Tasks page), laid out for the all-day band.
+//
+// ONE DOOR (Dave 2026-08-31, Schedule screenshot: "'9 open' should be in a
+// white/black button like the home page"). The count IS the expand toggle
+// now, wearing the same ghost pill every home-page head action wears
+// (.see-all.pill-action), and the old "N more" footer door is gone -- two
+// controls that opened the same list was the duplicate-door pattern. When
+// the list fits under the cap there is nothing to expand, so the count
+// stays a quiet label: a button that does nothing is not a button.
 const DEFAULT_CAP = 5;
 
 export default function AnytimeRow({
@@ -34,7 +41,18 @@ export default function AnytimeRow({
       <div className="grp">
         <div className="plan-head">
           <div className="eyebrow">Anytime</div>
-          <div className="eyebrow anytime-open">{items.length} Open</div>
+          {overflow > 0 ? (
+            <button
+              className="see-all pill-action"
+              onClick={() => setExpanded((v) => !v)}
+              aria-expanded={expanded}
+              aria-label={expanded ? "Show fewer anytime tasks" : `Show all ${items.length} anytime tasks`}
+            >
+              {expanded ? "Show Less" : `${items.length} Open`}
+            </button>
+          ) : (
+            <div className="eyebrow anytime-open">{items.length} Open</div>
+          )}
         </div>
       </div>
       <div className="pad-x">
@@ -67,19 +85,6 @@ export default function AnytimeRow({
               </div>
             );
           })}
-          {overflow > 0 && (
-            <button
-              className="anytime-more"
-              onClick={() => setExpanded((v) => !v)}
-              aria-expanded={expanded}
-            >
-              {expanded ? (
-                <>Show less <ChevronUp className="ic" /></>
-              ) : (
-                <>{overflow} more <ChevronDown className="ic" /></>
-              )}
-            </button>
-          )}
         </div>
       </div>
     </>

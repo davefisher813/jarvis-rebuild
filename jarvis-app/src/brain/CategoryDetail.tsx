@@ -422,13 +422,19 @@ export default function CategoryDetail({
         <>
           {/* What keeps happening here: live streaks on this category's
               recurring tasks. Scoreboard, not a to-do list. */}
+          {/* ROW META IS QUIET SENTENCE CASE (gym/health reformat
+              2026-08-31): this page's row sublines were .eyebrow caps while
+              Tasks and Today write .conn-meta. Converted page-wide here --
+              one template, one grammar -- as part of Dave's "styling is
+              random and doesn't align" pass; eyebrows on this page are
+              kickers and tags only now. */}
           <div className="sec-head"><div className="sec-left"><div className="sec-title">Streaks</div></div></div>
           <div className="pad-x"><div className="card">
             {streaks.map((t) => (
               <div className="row" key={t.id}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{t.data.text}</div>
-                  <div className="eyebrow">{capAfterNumber(`${t.data.runLen} in a row${(t.data.bestRun ?? 0) > (t.data.runLen ?? 0) ? ` · Best ${t.data.bestRun}` : (t.data.runLen ?? 0) >= 3 ? " · Your best" : ""}`)}</div>
+                  <div className="conn-meta">{capAfterNumber(`${t.data.runLen} in a row${(t.data.bestRun ?? 0) > (t.data.runLen ?? 0) ? ` · Best ${t.data.bestRun}` : (t.data.runLen ?? 0) >= 3 ? " · Your best" : ""}`)}</div>
                 </div>
               </div>
             ))}
@@ -451,7 +457,7 @@ export default function CategoryDetail({
               <div className="row">
                 <div className="row-grow">
                   <div className="conn-name">No People Here Yet</div>
-                  <div className="eyebrow">Open someone in Contacts and tag them {cat.data.name}</div>
+                  <div className="conn-meta">Open someone in Contacts and tag them {cat.data.name}</div>
                 </div>
               </div>
             )}
@@ -580,7 +586,7 @@ export default function CategoryDetail({
                     rather than read off one flat list. Mechanical follow-on
                     of the gym module's type change, not a gym feature --
                     this file stays the read-without-opening summary it was. */}
-                {programs[0] && <div className="eyebrow">{capAfterNumber(`${programs[0].data.weeks.reduce((n, w) => n + w.days.length, 0)} ${programs[0].data.weeks.reduce((n, w) => n + w.days.length, 0) === 1 ? "day" : "days"}`)}</div>}
+                {programs[0] && <div className="conn-meta">{capAfterNumber(`${programs[0].data.weeks.reduce((n, w) => n + w.days.length, 0)} ${programs[0].data.weeks.reduce((n, w) => n + w.days.length, 0) === 1 ? "day" : "days"}`)}</div>}
               </div>
               {training && training.weekDots.some(Boolean) && (
                 <span className="week-dots" aria-label="Days trained this week">
@@ -593,7 +599,7 @@ export default function CategoryDetail({
               <div className="row" role="button" tabIndex={0} onClick={() => setGymOpen(true)}>
                 <div className="row-grow">
                   <div className="conn-name">Last Session · {training.last.dayName}</div>
-                  <div className="eyebrow">{capAfterNumber(`${agoPhrase(training.last.date, today)} · ${training.last.minutes}m · ${training.last.exercises} ${training.last.exercises === 1 ? "exercise" : "exercises"}`)}</div>
+                  <div className="conn-meta">{capAfterNumber(`${agoPhrase(training.last.date, today)} · ${training.last.minutes}m · ${training.last.exercises} ${training.last.exercises === 1 ? "exercise" : "exercises"}`)}</div>
                 </div>
                 {CHEV}
               </div>
@@ -602,7 +608,7 @@ export default function CategoryDetail({
               <div className="row">
                 <div className="row-grow">
                   <div className="conn-name truncate">{training.pr.name} · {training.pr.text}</div>
-                  <div className="eyebrow">New best · {agoPhrase(training.pr.date, today)}</div>
+                  <div className="conn-meta">New best · {agoPhrase(training.pr.date, today)}</div>
                 </div>
                 <span className="pill pill-good">PR</span>
               </div>
@@ -611,7 +617,7 @@ export default function CategoryDetail({
               <div className="row">
                 <div className="row-grow">
                   <div className="conn-name truncate">{training.trending.name}</div>
-                  <div className="eyebrow">Trending up · {training.trending.line}</div>
+                  <div className="conn-meta">Trending up · {training.trending.line}</div>
                 </div>
               </div>
             )}
@@ -627,7 +633,7 @@ export default function CategoryDetail({
               <div className="row" key={g.id}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{g.title}</div>
-                  <div className="eyebrow">{g.line}</div>
+                  <div className="conn-meta">{g.line}</div>
                 </div>
                 {g.flag && <span className={"eyebrow " + HEALTH_CLASS[g.flag]}>{HEALTH_LABEL[g.flag]}</span>}
               </div>
@@ -655,7 +661,7 @@ export default function CategoryDetail({
               <div className="row-grow" role={onOpenTask ? "button" : undefined} tabIndex={onOpenTask ? 0 : undefined}
                 onClick={onOpenTask ? () => onOpenTask(t.id) : undefined}>
                 <div className="conn-name truncate">{t.data.text}</div>
-                {due && <div className="eyebrow">{due}</div>}
+                {due && <div className="conn-meta">{due}</div>}
               </div>
               {onOpenTask && CHEV}
             </div>

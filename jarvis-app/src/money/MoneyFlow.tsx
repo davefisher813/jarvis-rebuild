@@ -13,7 +13,7 @@ import BillSheet, { type BillDraft } from "./BillSheet";
 import type { TaskItem } from "../tasks/TasksService";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
-import { catColor } from "../shared/categories";
+import { catColor, goalTone } from "../shared/categories";
 import { DollarGlyph, RepeatGlyph, WalletGlyph, TargetGlyph } from "../shared/glyphs";
 import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
@@ -367,7 +367,9 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               <div>
                 {savingsGoals.map((g) => (
                   <div className="row" key={g.id}>
-                    <div className="row-glyph cat-fg-purple"><TargetGlyph /></div>
+                    {/* Area color, brand red when unhomed -- the same
+                        goalTone every goal glyph wears (2026-08-31). */}
+                    <div className={"row-glyph " + goalTone(g.data.tags)}><TargetGlyph /></div>
                     <div className="row-grow">
                       <div className="conn-name truncate">{g.data.title}</div>
                       <div className="conn-meta">{savingsLine(g.data.moneyTarget!, g.data.saved)}</div>

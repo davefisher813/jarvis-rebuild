@@ -75,7 +75,7 @@ export function PickSheet({ title, items, multi, onPick, onCancel, emptyText }: 
               <div className="row" role="button" tabIndex={0} key={it.id} onClick={() => toggle(it.id)}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{it.label}</div>
-                  {it.sub && <div className="eyebrow">{it.sub}</div>}
+                  {it.sub && <div className="conn-meta">{it.sub}</div>}
                 </div>
                 {multi && <span className={"chip" + (chosen.includes(it.id) ? " active" : "")} aria-pressed={chosen.includes(it.id)}>{chosen.includes(it.id) ? "Picked" : "Pick"}</span>}
               </div>

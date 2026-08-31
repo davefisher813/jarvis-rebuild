@@ -85,13 +85,14 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
           </div></div>
           {days.map((day, di) => (
             <div key={day.id}>
-              <div className="sec-head"><div className="sec-left"><div className="sec-title">{day.name}</div></div></div>
+              {/* One head grammar across the gym pages (reformat 2026-08-31). */}
+              <div className="sh2 sh2-quiet"><span className="t">{day.name}</span></div>
               <div className="pad-x"><div className="card">
                 {day.exercises.map((e, ei) => (
                   <div className="row" role="button" tabIndex={0} key={e.id} onClick={() => setFix({ dayIdx: di, exIdx: ei })}>
                     <div className="row-grow">
                       <div className="conn-name truncate">{e.name}</div>
-                      <div className="eyebrow">{targetLine(e)} · {MEASURE_LABEL[e.kind]}</div>
+                      <div className="conn-meta">{targetLine(e)} · {MEASURE_LABEL[e.kind]}</div>
                     </div>
                     {CHEV}
                   </div>

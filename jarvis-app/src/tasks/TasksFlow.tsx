@@ -475,32 +475,42 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow }:
     if (ok) { haptics.selection(); showToast({ message: `Fifteen minutes on ${t.text}` }); }
   };
 
-  // One offer, one line, one action. The subtitle used to read "Want the
-  // smallest possible first step?", which is helper text describing the button
-  // sitting under it, and the dismiss was a full-weight secondary button
-  // competing with the thing being offered. Today's Check In already offers and
-  // dismisses this way; this card was the odd one out.
+  // THE CARD SAYS WHAT IT IS BEFORE IT SAYS ANYTHING ELSE (Dave 2026-08-31,
+  // Tasks screenshot: "the big task up top actually doesn't render as such.
+  // The user has no idea what it is and why it's like that."). The old form
+  // was the confusion: a quoted task name folded into a sentence and worn as
+  // .conn-name -- a ROW class, nowrap-ellipsized -- so a long title arrived
+  // as '"Fix the..." keeps sliding.' with no kicker naming the card. Now it
+  // reads like every other offer in the app: an eyebrow says WHY the card
+  // exists (KEEPS SLIDING; FIRST STEP once the answer lands), the payload is
+  // a real wrapping title, and in the answer state the STEP takes the title
+  // slot with the task demoted to a quiet For: line -- the step is what the
+  // button adds, so the step is what renders big. Verbs unchanged (B15
+  // 2026-08-23 still applies: this banner acts on ONE stalled task; the
+  // screen's own red stays Pick One).
   const fsBanner = fsCandidate && (filter === "today" || filter === "overdue" || filter === "all") ? (
     <div className="pad-x">
-      <div className="card pad">
-        <div className="conn-name">&ldquo;{fsCandidate.data.text}&rdquo; keeps sliding.</div>
+      <div className="card pad fs-card">
         {fsStep && fsStep.taskId === fsCandidate.id ? (
           <>
+            <div className="eyebrow">First Step</div>
             {/* This line IS the answer, not a description of the button. */}
-            <div className="conn-meta">Start with: {fsStep.step}</div>
+            <div className="fs-title">{fsStep.step}</div>
+            <div className="fs-for">For: {fsCandidate.data.text}</div>
             <div className="offer-row">
-              {/* B15 (2026-08-23): this banner acts on ONE stalled task. The
-                  screen's own red is Pick One, which collapses
-                  the whole page to a single open task. */}
               <button className="pill-act" onClick={fsAccept}>Add This Step</button>
               <button className="quiet-action" onClick={fsDismiss}>Not Now</button>
             </div>
           </>
         ) : (
-          <div className="offer-row">
-            <button className="pill-act" onClick={fsAsk} disabled={fsBusy}>{fsBusy ? "Thinking..." : "First Step"}</button>
-            <button className="quiet-action" onClick={fsDismiss}>Not Now</button>
-          </div>
+          <>
+            <div className="eyebrow">Keeps Sliding</div>
+            <div className="fs-title">{fsCandidate.data.text}</div>
+            <div className="offer-row">
+              <button className="pill-act" onClick={fsAsk} disabled={fsBusy}>{fsBusy ? "Thinking..." : "First Step"}</button>
+              <button className="quiet-action" onClick={fsDismiss}>Not Now</button>
+            </div>
+          </>
         )}
       </div>
     </div>

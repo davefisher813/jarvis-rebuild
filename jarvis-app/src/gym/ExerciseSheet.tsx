@@ -139,7 +139,7 @@ export default function ExerciseSheet({ mode, initial, library, onSave, onDelete
                   <div className="row" role="button" tabIndex={0} key={s.key} onMouseDown={() => pickSuggestion(s)}>
                     <div className="row-grow">
                       <div className="conn-name truncate">{s.name}</div>
-                      <div className="eyebrow">{MEASURE_LABEL[s.kind]}</div>
+                      <div className="conn-meta">{MEASURE_LABEL[s.kind]}</div>
                     </div>
                   </div>
                 ))}
@@ -168,15 +168,19 @@ export default function ExerciseSheet({ mode, initial, library, onSave, onDelete
                 <div className="row" key={f.key}>
                   <div className="row-grow">
                     <div className="conn-name">{f.label}</div>
-                    {(f.key === "w" || f.key === "v") && unit && <div className="eyebrow">{unit} · Tap number to type</div>}
-                    {f.key === "t" && <div className="eyebrow">{timeUnit}</div>}
+                    {/* Helper hints are quiet meta, not SHOUTING CAPS (gym
+                        reformat 2026-08-31). */}
+                    {(f.key === "w" || f.key === "v") && unit && <div className="conn-meta">{unit} · Tap number to type</div>}
+                    {f.key === "t" && <div className="conn-meta">{timeUnit}</div>}
                   </div>
                   <Stepper value={quickTarget[f.key] ?? 0} step={f.step} label={f.label} onChange={(n) => setQuickTarget((t) => ({ ...t, [f.key]: n }))} />
                 </div>
               ))}
               {units.length > 1 && (
                 <div className="row">
-                  <div className="row-grow"><div className="eyebrow">Unit</div></div>
+                  {/* Same label anatomy as the Weight and Reps rows above --
+                      this row was the sheet's odd one out. */}
+                  <div className="row-grow"><div className="conn-name">Unit</div></div>
                   <div className="chip-row">
                     {units.map((u) => (
                       <div key={u} className={"chip" + (unit === u ? " active" : "")} role="button" tabIndex={0} aria-pressed={unit === u}
@@ -187,7 +191,7 @@ export default function ExerciseSheet({ mode, initial, library, onSave, onDelete
               )}
               {kind === "distance_time" && (
                 <div className="row">
-                  <div className="row-grow"><div className="eyebrow">Time unit</div></div>
+                  <div className="row-grow"><div className="conn-name">Time Unit</div></div>
                   <div className="chip-row">
                     {TIME_UNITS.map((u) => (
                       <div key={u} className={"chip" + (timeUnit === u ? " active" : "")} role="button" tabIndex={0} aria-pressed={timeUnit === u}

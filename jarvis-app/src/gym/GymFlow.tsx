@@ -228,13 +228,20 @@ function BackdateSheet({ dayName, onStart, onCancel }: { dayName: string; onStar
 // ReorderList's own render) would attach a variable number of hooks to
 // ReorderList itself, which is exactly the bug rules-of-hooks exists to
 // catch. Same shape as SetStrip's SetChipRow.
+// ROW META IS QUIET SENTENCE CASE (the 2026-08-31 gym reformat; Dave, from
+// the 5 Day Program screenshot: "Styling is random and doesn't align").
+// Every gym row wrote its second line as an .eyebrow -- 11px SHOUTING CAPS
+// -- while the app's primary lists (Tasks rows, Today's rows, the category
+// page) write row meta as .conn-meta. One grammar now, across every gym
+// surface and the health page's Training card; eyebrows go back to being
+// kickers (SET N, sheet titles, card leads).
 function DayRow({ day, onOpen, onMenu }: { day: ProgramDay; onOpen: () => void; onMenu: () => void }) {
   const hold = useLongPress({ onLongPress: onMenu });
   return (
-    <div className="row-grow" role="button" tabIndex={0} onClick={onOpen} {...hold}>
+    <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
       <div className="row-grow">
         <div className="conn-name truncate">{day.name}</div>
-        <div className="eyebrow">{day.exercises.length} {day.exercises.length === 1 ? "exercise" : "exercises"}</div>
+        <div className="conn-meta">{day.exercises.length} {day.exercises.length === 1 ? "exercise" : "exercises"}</div>
       </div>
       {CHEV}
     </div>
@@ -244,10 +251,10 @@ function DayRow({ day, onOpen, onMenu }: { day: ProgramDay; onOpen: () => void; 
 function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: { exercise: Exercise; pairLabel?: string; onOpen: () => void; onMenu: () => void }) {
   const hold = useLongPress({ onLongPress: onMenu });
   return (
-    <div className="row-grow" role="button" tabIndex={0} onClick={onOpen} {...hold}>
+    <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
       <div className="row-grow">
         <div className="conn-name truncate">{pairLabel ? `${pairLabel} · ` : ""}{exercise.name}</div>
-        <div className="eyebrow">{targetLine(exercise)}</div>
+        <div className="conn-meta">{targetLine(exercise)}</div>
       </div>
       {CHEV}
     </div>
@@ -257,10 +264,10 @@ function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: { exercise: Exerci
 function ProgramRow({ program, active, onSwitch, onMenu }: { program: Program; active: boolean; onSwitch: () => void; onMenu: () => void }) {
   const hold = useLongPress({ onLongPress: onMenu });
   return (
-    <div className="row-grow" role="button" tabIndex={0} onClick={onSwitch} {...hold}>
+    <div className="row-grow row-press" role="button" tabIndex={0} onClick={onSwitch} {...hold}>
       <div className="row-grow">
         <div className="conn-name truncate">{program.data.name}</div>
-        <div className="eyebrow">{active ? "Active" : program.data.archived ? "Archived" : ""}</div>
+        {program.data.archived && !active && <div className="conn-meta">Archived</div>}
       </div>
       {active && <span className="pill pill-good">Active</span>}
     </div>
@@ -637,7 +644,10 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
           <div className="nav-title">{w.data.dayName}</div>
           <span className="nav-action"></span>
         </div>
-        <div className="grp"><div className="eyebrow">{monthDay(w.data.date)} · {mins} min{w.data.backdated ? " · Logged Later" : ""}</div></div>
+        {/* Meta, not a kicker: inside .grp a bare eyebrow inherits the
+            accent-chrome kicker red, and this line is information (RED IS A
+            VERB). Quiet sentence-case meta like every other date line. */}
+        <div className="pad-x"><div className="conn-meta">{monthDay(w.data.date)} · {mins} min{w.data.backdated ? " · Logged Later" : ""}</div></div>
         {/* EDIT A FINISHED WORKOUT (catalog §3.7): tap any set to edit or
             delete it, add one you forgot, all through the same set strip
             that planned and logged it. PRs and the receipt are both derived
@@ -645,7 +655,9 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
             every number downstream for free. */}
         {w.data.exercises.map((e, ei) => (
           <div key={e.exerciseId + ei}>
-            <div className="sec-head"><div className="sec-left"><div className="sec-title">{e.name}</div></div></div>
+            {/* The one head grammar of the gym pages (reformat 2026-08-31):
+                quiet sh2, same as Days / Recent / Exercises. */}
+            <div className="sh2 sh2-quiet"><span className="t">{e.name}</span></div>
             <div className="pad-x">
               <SetStrip
                 kind={e.kind}
@@ -1169,32 +1181,50 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
           </div>
         ) : (
           <>
+            {/* ONE SYSTEM ON THIS PAGE (Dave 2026-08-31, 5 Day Program
+                screenshot: "Styling is random and doesn't align. Even one
+                page has different styled sections."). This page now speaks
+                only the app's inset-grouped language -- quiet sh2 head, one
+                list-flat card per section, row-act for every in-list create,
+                eyebrow+title+meta anatomy on the one feature card -- the
+                same grammar Today and Tasks already settled on, which is
+                itself the Apple Health/Fitness grouped-card language the
+                design system was benchmarked against (2026-08-31 research:
+                mirror Apple Health; execute with ADA-lineage restraint). */}
             {/* MULTIPLE PROGRAMS & ARCHIVE (catalog §3.11): always reachable,
                 even with just one program today, so creating a second one
-                and archiving a retired block are never a hunt. */}
-            <div className="pad-x">
+                and archiving a retired block are never a hunt. The switcher
+                is a grouped row like everything else -- it floated bare in
+                pad-x before, the page's one row outside any card. THE SEASON
+                LINK (catalog §4.7) rides its meta line: strictly a fact,
+                never a prescription -- the day a game lands on, nothing
+                about what to do with the lift. It floated too. */}
+            <div className="sh2 sh2-quiet"><span className="t">Program</span></div>
+            <div><div className="list-flat">
               <div className="row" role="button" tabIndex={0} onClick={() => setSwitcherOpen(true)}>
                 <div className="row-grow">
-                  <div className="eyebrow">Program</div>
-                  <div className="conn-name">{program.data.name}{programs.length > 1 ? ` · ${programs.length} Active` : ""}</div>
+                  <div className="conn-name truncate">{program.data.name}</div>
+                  {(programs.length > 1 || program.data.inSeason) && (
+                    <div className="conn-meta">
+                      {[
+                        programs.length > 1 ? `${programs.length} Active` : null,
+                        program.data.inSeason ? (nextGame ? `Next Game: ${monthDay(nextGame)}` : "In-Season") : null,
+                      ].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
                 </div>
                 {CHEV}
               </div>
-            </div>
-
-            {program.data.inSeason && (
-              // THE SEASON LINK (catalog §4.7): strictly a fact, never a
-              // prescription -- the calendar day a game lands on, nothing
-              // about what to do with the lift.
-              <div className="pad-x"><div className="bp-sub">
-                {nextGame ? `Next Game: ${monthDay(nextGame)}` : "In-Season"}
-              </div></div>
-            )}
+            </div></div>
 
             {nextDay && nextDay.exercises.length > 0 && (
+              // The launch card wears the offer anatomy the First Step card
+              // settled (eyebrow says WHAT the card is; the old "Next: X"
+              // folded that into the title).
               <div className="pad-x"><div className="card pad">
-                <div className="conn-name">Next: {nextDay.name}</div>
-                <div className="bp-sub">{nextDay.exercises.length} {nextDay.exercises.length === 1 ? "exercise" : "exercises"}{recent[0] ? ` · Last trained ${monthDay(recent[0].data.date)}` : ""}</div>
+                <div className="eyebrow">Up Next</div>
+                <div className="conn-name">{nextDay.name}</div>
+                <div className="conn-meta">{nextDay.exercises.length} {nextDay.exercises.length === 1 ? "exercise" : "exercises"}{recent[0] ? ` · Last trained ${monthDay(recent[0].data.date)}` : ""}</div>
                 <div className="offer-row">
                   <button className="btn btn-primary" onClick={() => startDay(nextDay)}>Start {nextDay.name}</button>
                 </div>
@@ -1212,7 +1242,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
                           {w.label}
                           {w.backOff && <span className="pill pill-subdued week-back-off">Back-Off</span>}
                         </div>
-                        <div className="eyebrow">{w.days.length} {w.days.length === 1 ? "day" : "days"}</div>
+                        <div className="conn-meta">{w.days.length} {w.days.length === 1 ? "day" : "days"}</div>
                       </div>
                       {CHEV}
                     </div>
@@ -1241,18 +1271,16 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
                       }}
                     />
                   )}
+                  {/* All three creates wear the ONE in-list create
+                      affordance (.row-act). Upload and Add a Week dressed as
+                      chevron nav rows before -- three row treatments in one
+                      card was this page's "different styled sections". */}
                   {singleWeek && <button className="row row-act" onClick={() => setSheet({ kind: "day", weekId: singleWeek.id })}>Add Day</button>}
                   {ai.available && (
-                    <div className="row" role="button" tabIndex={0} onClick={() => setUploadOpen(true)}>
-                      <div className="row-grow"><div className="conn-name">Upload a Program</div></div>
-                      {CHEV}
-                    </div>
+                    <button className="row row-act" onClick={() => setUploadOpen(true)}>Upload a Program</button>
                   )}
                   {singleWeek && (
-                    <div className="row" role="button" tabIndex={0} onClick={() => openWeekSheet()}>
-                      <div className="row-grow"><div className="conn-name">Add a Week</div></div>
-                      {CHEV}
-                    </div>
+                    <button className="row row-act" onClick={() => openWeekSheet()}>Add a Week</button>
                   )}
                 </div></div>
               </>
@@ -1260,7 +1288,9 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
 
             {recent.length > 0 && (
               <>
-                <div className="sh2 sh2-quiet"><span className="t">Recent</span><button className="see-all" onClick={() => setHistoryOpen(true)}>History</button></div>
+                {/* History wears the home-page head pill (Dave 2026-08-26's
+                    rule, spread here 2026-08-31 with the count-pill wave). */}
+                <div className="sh2 sh2-quiet"><span className="t">Recent</span><button className="see-all pill-action" onClick={() => setHistoryOpen(true)}>History</button></div>
                 <div><div className="list-flat">
                   {recent.map((w) => {
                     const logged = w.data.exercises.filter((e) => e.sets.some((s) => !s.skipped)).length;
@@ -1275,7 +1305,7 @@ export default function GymFlow({ onBack }: { onBack: () => void }) {
                           <div className="conn-name truncate">{w.data.dayName}</div>
                           {/* Partial work is stated as the fact it is: never a
                               percentage, never a shortfall. */}
-                          <div className="eyebrow">{monthDay(w.data.date)} · {mins} min · {logged === total ? capAfterNumber(`${total} ${total === 1 ? "exercise" : "exercises"}`) : capAfterNumber(`${logged} of ${total} exercises`)}</div>
+                          <div className="conn-meta">{monthDay(w.data.date)} · {mins} min · {logged === total ? capAfterNumber(`${total} ${total === 1 ? "exercise" : "exercises"}`) : capAfterNumber(`${logged} of ${total} exercises`)}</div>
                         </div>
                         {CHEV}
                       </div>

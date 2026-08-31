@@ -68,7 +68,10 @@ export default function HistoryScreen({ workouts, onBack }: { workouts: Workout[
                 <div className="row" role="button" tabIndex={0} aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : key)}>
                   <div className="row-grow">
                     <div className="conn-name truncate">{r.name}</div>
-                    <div className="eyebrow">{trendLine(r)}</div>
+                    {/* Row meta is quiet sentence case app-wide (gym
+                        reformat 2026-08-31); eyebrows are kickers, not
+                        sublines. */}
+                    <div className="conn-meta">{trendLine(r)}</div>
                   </div>
                   {/* V2 anatomy: the session count is a pill, not prose. */}
                   <span className="pill pill-good">{r.sessions}</span>
@@ -105,7 +108,7 @@ export default function HistoryScreen({ workouts, onBack }: { workouts: Workout[
               <div className="row" key={d.name}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{d.name}</div>
-                  <div className="eyebrow">{d.n > 1 ? `Done ${d.n} times` : "Done"}</div>
+                  <div className="conn-meta">{d.n > 1 ? `Done ${d.n} times` : "Done"}</div>
                 </div>
               </div>
             ))}

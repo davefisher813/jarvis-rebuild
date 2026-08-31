@@ -234,6 +234,13 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .cat-bg-mint { background: var(--cat-mint); color: var(--on-fill-dark); } .cat-bd-mint { border-color: var(--cat-mint); } .cat-fg-mint { color: var(--cat-mint); }
 .cat-bg-olive { background: var(--cat-olive); color: var(--on-fill-dark); } .cat-bd-olive { border-color: var(--cat-olive); } .cat-fg-olive { color: var(--cat-olive); }
 .cat-bg-slate { background: var(--cat-slate); color: var(--on-fill-dark); } .cat-bd-slate { border-color: var(--cat-slate); } .cat-fg-slate { color: var(--cat-slate); }
+/* The slot the category palette deliberately excludes (see lib-ico-brand:
+   categories never wear red; brand red is interactive-only). A goal glyph
+   with no live area to borrow a color from wears the JARVIS red itself
+   (Dave 2026-08-31, "default to Jarvis red"). --accent-glyph is #FF2B3C in
+   BOTH themes, so no light/dark tx overrides exist or are needed; black
+   clears it at 5.7:1 for the fill. */
+.cat-bg-brand { background: var(--accent-glyph); color: var(--on-fill-dark); } .cat-fg-brand { color: var(--accent-glyph); }
 
 /* CATEGORY COLOURS DRAWN AS TEXT, IN LIGHT THEME (chip-derived, parity
    pass 2026-08-22). The chip behind a kicker is now mixed from the slot's
@@ -1274,11 +1281,18 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .anytime-name { flex: 1; min-width: 0; text-align: left; background: transparent; border: 0; padding: 0;
   font-family: inherit; font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); cursor: pointer;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.anytime-more { display: flex; align-items: center; justify-content: center; gap: var(--s-1h);
-  width: 100%; padding: var(--s-3) 0; background: transparent; border: 0; border-top: 0.5px solid var(--divider);
-  font-family: inherit; font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase;
-  letter-spacing: var(--track-eyebrow); color: var(--tx-3); cursor: pointer; }
-.anytime-more .ic { width: 13px; height: 13px; }
+/* .anytime-more retired 2026-08-31: the head's count-pill is the one expand
+   door now (see AnytimeRow), so the footer door's rules went with it. */
+
+/* THE FIRST STEP CARD (Dave 2026-08-31; the full story sits on fsBanner in
+   TasksFlow). Kicker, wrapping title, quiet For: line. The title class
+   exists because .conn-name is a row class and nowrap-ellipsizes -- the
+   exact rendering he flagged. */
+.fs-card .eyebrow { display: block; margin-bottom: var(--s-1h); }
+.fs-title { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1);
+  line-height: var(--lh-snug); overflow-wrap: anywhere; }
+.fs-for { margin-top: var(--s-1); font-size: var(--t-meta); color: var(--tx-3);
+  overflow-wrap: anywhere; }
 
 /* === Roadmap v2: Plan My Day, pick your three === */
 .p3-q { font-size: var(--t-h1); font-weight: var(--w-bold); letter-spacing: var(--track-h1); line-height: var(--lh-snug); margin-bottom: var(--s-2); }
@@ -2546,12 +2560,17 @@ button {
    link a 44px hit box without inflating the row; a filled pill does that
    with its own padding plus the same after-inset expansion .plan-cta uses,
    so both are reset here instead of stacking on top of visible chrome. */
-.sh2 .see-all.pill-action {
+/* .plan-head joined the scope 2026-08-31 (Dave, Schedule screenshot: "'9
+   open' should be in a white/black button like the home page") -- the
+   Anytime strip's count-toggle sits in a .plan-head, not an .sh2, and one
+   pill grammar should not fork per head type. plan-head's space-between
+   seats it; only sh2 needs the order/margin trick. */
+.sh2 .see-all.pill-action, .plan-head .see-all.pill-action {
   background: var(--press-3); color: var(--tx-1); border-radius: var(--r-pill);
   padding: var(--s-1h) var(--s-3); font-size: var(--t-meta); letter-spacing: normal;
   min-height: 0; margin: 0; position: relative;
 }
-.sh2 .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
+.sh2 .see-all.pill-action::after, .plan-head .see-all.pill-action::after { content: ""; position: absolute; inset: -7px 0; }
 /* Small pill: the one small doing-button (Add to Today, Link, Not Now).
    It always has a body; text-only small buttons are the head action's job.
    A small button that is ALSO a primary/danger keeps that fill: the
@@ -3773,7 +3792,16 @@ body.selecting .voice-dock { display: none; }
 .set-strip { margin-top: 0; }
 .set-chip-col { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
 .set-chip-swipe { width: 100%; border-radius: var(--r-sm); }
+/* position: relative is LOAD-BEARING (Dave 2026-08-31, Edit Exercise
+   screenshot: the red trash visible at rest on every chip). The delete
+   button behind a swipe row is position:absolute, and an absolutely
+   positioned element paints ABOVE a static sibling no matter the DOM order
+   -- so the opaque chip "covering" it geometrically never covered it in
+   paint. Every other swipe row in the app (.task-row, .sched-row) already
+   carries position:relative for exactly this reason; the chip was the one
+   that forgot. */
 .set-chip { display: flex; align-items: center; min-height: var(--tap-min);
+  position: relative;
   padding: var(--s-1) 0; background: var(--bg); cursor: pointer;
   -webkit-user-select: none; user-select: none; touch-action: pan-y;
   transition: transform 0.28s cubic-bezier(0.32,0.72,0,1), background var(--dur-fast) var(--ease-out); }
@@ -3789,6 +3817,34 @@ body.selecting .voice-dock { display: none; }
 .set-strip-ghosts { margin: 0; }
 .set-chip-ghost { opacity: 0.6; }
 .set-chip-ghost .conn-name { color: var(--tx-3); }
+/* THE CHIP WEARS THE SURFACE IT SITS ON (Dave 2026-08-31, Edit Exercise
+   screenshot; part of "even one page has different styled sections"). The
+   chip's fill exists so the swipe-delete button hides behind it, and it was
+   hard-coded to the PAGE ground (--bg) -- correct on SessionScreen and the
+   workout editor, but inside a sheet (surface-2) every chip rendered as a
+   page-black slab on the sheet's grey. Same chip, same job, per-surface
+   paint. */
+.sheet-scrim .set-chip { background: var(--surface-2); }
+/* The gym feature cards open with a kicker (Up Next; Exercise N of M). Give
+   the kicker its breathing room once, here -- the only .card.pad > .eyebrow
+   in the app is on these gym cards. */
+.card.pad > .eyebrow { margin-bottom: var(--s-1h); }
+/* ONE LIST LOOK PER PAGE (gym reformat 2026-08-31, from the 5 Day Program
+   render: the Days group arrived as a floating glass card between
+   full-bleed rows, because ReorderList hard-codes .card chrome while
+   .list-flat is the deliberate full-bleed list). Inside a list-flat group
+   the reorder list sheds the card and its rows read like every neighbouring
+   row; the drag handle is the only difference left. */
+/* .set-strip joins the scope: the chips are their own surface, and half the
+   strip (ghosts, Add Set) renders outside ReorderList anyway, so the glass
+   card wrapped only the top half of one control. */
+.list-flat .reorder-list, .set-strip .reorder-list { background: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+  border-radius: 0; box-shadow: none; border: 0; overflow: visible; }
+/* The gym rows bind long-press on a wrapper INSIDE ReorderList's .row; that
+   wrapper needs the row's own flex so the chevron sits beside the text
+   instead of wrapping under it (visible in Dave's 2026-08-31 screenshot:
+   every day row's chevron beached on its own line). */
+.row-press { display: flex; align-items: center; gap: var(--s-3); flex: 1; min-width: 0; }
 
 /* THE WEEK STRIP (gym catalog §4.1). A week is a row like any other; the
    back-off tag reuses .pill-subdued (the app's existing neutral pill) on

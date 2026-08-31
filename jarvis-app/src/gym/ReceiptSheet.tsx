@@ -60,7 +60,9 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone }: {
                     <div className="row" key={name}>
                       <div className="row-grow">
                         <div className="conn-name truncate">{name}</div>
-                        <div className="eyebrow">{n > 1 ? `Done ${n} times` : "Done"}</div>
+                        {/* Row meta is quiet sentence case (gym reformat
+                            2026-08-31); eyebrows are kickers. */}
+                        <div className="conn-meta">{n > 1 ? `Done ${n} times` : "Done"}</div>
                       </div>
                     </div>
                   );
@@ -76,7 +78,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone }: {
                   <div className="row" key={p.name}>
                     <div className="row-grow">
                       <div className="conn-name truncate">{p.name}</div>
-                      <div className="eyebrow">{p.text}{p.from ? ` · Up from ${p.from}` : " · First time"}</div>
+                      <div className="conn-meta">{p.text}{p.from ? ` · Up from ${p.from}` : " · First time"}</div>
                     </div>
                     <span className="pill pill-good">PR</span>
                   </div>

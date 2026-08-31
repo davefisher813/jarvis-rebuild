@@ -6,7 +6,7 @@ import { progressLabel, bucketOf, closable, rankGoals } from "./progress";
 import type { GoalReach } from "./reach";
 import { reachLine } from "./reach";
 import type { MeasureState } from "./measure";
-import { catColor } from "../shared/categories";
+import { catColor, goalTone } from "../shared/categories";
 import SkeletonRows from "../shared/SkeletonRows";
 import { FolderOpenGlyph, TargetGlyph } from "../shared/glyphs";
 import { capAfterNumber } from "../shared/casing";
@@ -145,7 +145,11 @@ export default function BiggerPicturePage({
     return (
       <div key={g.id}>
         <div className="row bp-goal" role="button" tabIndex={0} onClick={() => onOpenGoal(g.id)}>
-          <div className="row-glyph cat-fg-purple">{TARGET}</div>
+          {/* The glyph wears the goal's own area color, brand red when it
+              has none (Dave 2026-08-31; goalTone applies the same first-
+              live-tag rule homeOf uses below, so glyph and section always
+              agree). */}
+          <div className={"row-glyph " + goalTone(g.data.tags)}>{TARGET}</div>
           <div className="row-grow">
             <div className="conn-name">{g.data.title}</div>
             <div className={"bp-sub" + (extra ? (extra.tone === "good" ? " rep-good-glyph" : " bp-stalled") : "")}>{extra ? extra.text + " · " + body : body}</div>

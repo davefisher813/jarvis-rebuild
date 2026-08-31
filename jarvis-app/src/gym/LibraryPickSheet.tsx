@@ -42,7 +42,7 @@ export default function LibraryPickSheet({
             <div className="row" role="button" tabIndex={0} key={entry.key} onClick={() => onPick(entry)}>
               <div className="row-grow">
                 <div className="conn-name truncate">{entry.name}</div>
-                <div className="eyebrow">{MEASURE_LABEL[entry.kind]}</div>
+                <div className="conn-meta">{MEASURE_LABEL[entry.kind]}</div>
               </div>
             </div>
           ))}
