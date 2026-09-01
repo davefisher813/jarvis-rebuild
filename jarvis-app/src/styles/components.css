@@ -4071,3 +4071,57 @@ body.selecting .voice-dock { display: none; }
 .set-chip-editor { background: var(--surface-1); border-radius: 0 0 var(--r-md) var(--r-md);
   padding: 0 var(--s-3) var(--s-2); }
 .sheet-scrim .set-chip-editor { background: var(--surface-3); }
+
+/* ==========================================================================
+   THE TRAINING SKIN (2026-09-01, Dave: link to the approved Health Preview,
+   "THIS IS WHAT I WANT"). The training surface wears the preview's exact
+   dress: flat #1C1C1E cards -- no glass, no rims, no glow shadows -- 18px
+   radius, and section identity as a gradient WASH from the tint into the
+   card ground (preview .card.tb/.ta/.ty/.tg), never a border rail. Scoped
+   by .train-skin on gym screens, gym sheets, the lift detail, and the
+   Health category page; nothing outside the training surface repaints. */
+.train-skin .card, .card.train-skin {
+  background: var(--surface-1);
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: none; border: 0; border-radius: 18px;
+}
+[data-theme="light"] .train-skin .card, [data-theme="light"] .card.train-skin {
+  background: #FFFFFF; box-shadow: var(--shadow-card);
+}
+/* The wash replaces the rail: same banner class names in the TSX, the skin
+   just re-dresses them (preview: linear-gradient(160deg, tint, ground 62%)). */
+.train-skin .banner-blue { border-left: 0; background: linear-gradient(160deg, var(--blue-tint), var(--surface-1) 62%); }
+.train-skin .banner-warn { border-left: 0; background: linear-gradient(160deg, var(--warn-tint), var(--surface-1) 62%); }
+.train-skin .banner-yellow { border-left: 0; background: linear-gradient(160deg, var(--yellow-tint), var(--surface-1) 62%); }
+.train-skin .banner-good { border-left: 0; background: linear-gradient(160deg, var(--good-tint), var(--surface-1) 62%); }
+[data-theme="light"] .train-skin .banner-blue { background: linear-gradient(160deg, var(--blue-tint), #FFFFFF 62%); }
+[data-theme="light"] .train-skin .banner-warn { background: linear-gradient(160deg, var(--warn-tint), #FFFFFF 62%); }
+[data-theme="light"] .train-skin .banner-yellow { background: linear-gradient(160deg, var(--yellow-tint), #FFFFFF 62%); }
+[data-theme="light"] .train-skin .banner-good { background: linear-gradient(160deg, var(--good-tint), #FFFFFF 62%); }
+/* Sheets sit at the preview's own ground (#1C1C1E); what rides on them
+   steps one up, exactly like the preview's s1 sheet / s2 chips. */
+.sheet-scrim .card.train-skin { background: var(--surface-1); }
+.card.train-skin .sheet-form .card:not(.reorder-list) { background: var(--surface-2); }
+.card.train-skin .set-chip { background: var(--surface-2); }
+.card.train-skin .set-chip-editor { background: var(--surface-2); }
+[data-theme="light"] .sheet-scrim .card.train-skin { background: #FFFFFF; }
+/* Preview chip voice: the set's numbers are the chip (16/700). */
+.train-skin .set-chip .conn-name { font-size: 16px; font-weight: var(--w-bold); }
+/* The day-row pin pill (preview: "Pin Days" red verb until a pin exists,
+   then the weekday claim as a quiet fact). Steps aside in reorder mode
+   with the chevron. */
+.day-pin { flex-shrink: 0; }
+.list-card .reorder-live .day-pin { display: none; }
+/* The row's own note echo (preview .ghost: a fact, quoted, above meta
+   legibility). */
+.row-ghost { font-size: var(--t-meta); color: var(--tx-2); margin-top: 2px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A neutral in-row pill (preview's white "Edit All Sets"). */
+.pill-act.pill-neutral { color: var(--tx-1); }
+/* Label + trailing pill on one line (the sheet's Sets head, preview
+   anatomy). */
+.label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s-1h); }
+.label-row .input-label { margin-bottom: 0; }
+/* In reorder mode the chip's chevron steps aside for the grip, same as the
+   page lists. */
+.set-strip .reorder-live .chev { display: none; }

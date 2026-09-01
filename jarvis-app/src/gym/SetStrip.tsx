@@ -26,7 +26,7 @@ const LONG_PRESS_MS = 550;
  * filled chips are the record.
  */
 export default function SetStrip({
-  kind, unit, timeUnit, entries, onChange, ghost, onLogGhost, disabled, prAt, moveTracking, lastFor, onMatchLast,
+  kind, unit, timeUnit, entries, onChange, ghost, onLogGhost, disabled, prAt, moveTracking, lastFor, onMatchLast, handles = false,
 }: {
   kind: MeasureKind;
   unit?: string;
@@ -53,6 +53,10 @@ export default function SetStrip({
   /** D2 tap-to-match (live session only): log exactly what last session's
    *  set at this position did. Offered on ghost chips beside the plan tap. */
   onMatchLast?: (index: number) => void;
+  /** REORDER IS A MODE (Health Preview, approved 2026-08-31): grips appear
+   *  only while the caller's Reorder pill has them on. Default off -- a
+   *  resting chip is a kicker, its numbers and one door. */
+  handles?: boolean;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const fields = fieldsFor(kind);
@@ -88,6 +92,7 @@ export default function SetStrip({
       <ReorderList
         ids={entries.map((e) => e.id)}
         onReorder={reorder}
+        handles={handles}
         renderRow={(id) => {
           const i = entries.findIndex((x) => x.id === id);
           const e = entries[i];
@@ -215,6 +220,8 @@ function SetChipRow({
           {last && <div className="conn-meta">{last}</div>}
         </div>
         {pr && <span className="pill pill-good">PR</span>}
+        {/* The chip is a door (preview anatomy): say so. */}
+        {!disabled && <div className="chev" />}
       </div>
     </div>
   );

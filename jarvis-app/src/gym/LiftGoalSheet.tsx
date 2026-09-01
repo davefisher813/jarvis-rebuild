@@ -68,7 +68,7 @@ export default function LiftGoalSheet({
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{initial ? "Edit Goal" : "New Goal"}</div></div>
         <div className="pad-x sheet-form">

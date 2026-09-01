@@ -70,7 +70,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
     const fixing: Exercise | null = fix ? days[fix.dayIdx]?.exercises[fix.exIdx] ?? null : null;
     return (
       <>
-        <div className="screen">
+        <div className="screen train-skin">
           <div className="nav-bar">
             <button className="nav-back" aria-label="Back" onClick={() => setDraft(null)}></button>
             <div className="nav-title truncate">{draft.name}</div>
@@ -134,7 +134,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
   // ---- source pick ----
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Upload a Program</div></div>
         <div className="pad-x sheet-form">

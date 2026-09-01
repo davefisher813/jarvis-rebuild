@@ -416,7 +416,10 @@ export default function CategoryDetail({
   const sheetCats: SheetCategory[] = allCats.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }));
 
   return (
-    <div className="screen">
+    // THE TRAINING SKIN (2026-09-01): the Health page is the preview's own
+    // first screen, so it wears the flat-card dress with everything else on
+    // the training surface. Other categories keep the app's default card.
+    <div className={"screen" + (kind === "health" ? " train-skin" : "")}>
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title"><span className={"cat-dot cat-bg-" + cat.data.color} /> {cat.data.name}</div>

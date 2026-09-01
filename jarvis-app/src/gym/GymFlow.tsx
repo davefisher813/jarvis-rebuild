@@ -97,7 +97,7 @@ function NameSheet({ title, initial, placeholder, backOff, season, gameCategory,
   const [armed, setArmed] = useState(false);
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{title}</div></div>
         <div className="pad-x sheet-form">
@@ -174,7 +174,7 @@ function BumpSheet({ weekLabel, onSave, onCancel }: {
   const [backOff, setBackOff] = useState(false);
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Duplicate {weekLabel} & Bump</div></div>
         <div className="pad-x sheet-form">
@@ -215,7 +215,7 @@ function BackdateSheet({ dayName, onStart, onCancel }: { dayName: string; onStar
   const [date, setDate] = useState(todayISO());
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Log a Past {dayName}</div></div>
         <div className="pad-x sheet-form">
@@ -247,7 +247,7 @@ function BackdateSheet({ dayName, onStart, onCancel }: { dayName: string; onStar
 // page) write row meta as .conn-meta. One grammar now, across every gym
 // surface and the health page's Training card; eyebrows go back to being
 // kickers (SET N, sheet titles, card leads).
-function DayRow({ day, onOpen, onMenu }: { day: ProgramDay; onOpen: () => void; onMenu: () => void }) {
+function DayRow({ day, onOpen, onPin, onMenu }: { day: ProgramDay; onOpen: () => void; onPin?: () => void; onMenu: () => void }) {
   const hold = useLongPress({ onLongPress: onMenu });
   return (
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
@@ -255,11 +255,14 @@ function DayRow({ day, onOpen, onMenu }: { day: ProgramDay; onOpen: () => void; 
         <div className="conn-name truncate">{day.name}</div>
         <div className="conn-meta">
           {day.exercises.length} {day.exercises.length === 1 ? "exercise" : "exercises"}
-          {/* PINS, D4: the weekday claim rides the meta line, quiet, in the
-              gym's own Mon-first order. */}
-          {day.pinDays?.length ? ` · ${pinLabel(day.pinDays)}` : ""}
         </div>
       </div>
+      {/* PINS, D4, preview dress: the weekday claim is the row's trailing
+          pill -- "Pin Days" is a verb (red) until a pin exists, then the
+          claim is a quiet fact (white). Both open the picker. */}
+      {onPin && (day.pinDays?.length
+        ? <button className="pill-act pill-neutral day-pin" onClick={(e) => { e.stopPropagation(); onPin(); }}>{pinLabel(day.pinDays)}</button>
+        : <button className="pill-act day-pin" onClick={(e) => { e.stopPropagation(); onPin(); }}>Pin Days</button>)}
       {CHEV}
     </div>
   );
@@ -288,6 +291,9 @@ function ExerciseRow({ exercise, pairLabel, last, onOpen, onMenu }: {
           {exercise.filler && <span className="xtag xtag-dim xtag-after">Filler</span>}
         </div>
         <div className="conn-meta">{targetLine(exercise)}{last ? ` · Last: ${last}` : ""}</div>
+        {/* The athlete's own note echoes on the row, quoted (preview
+            anatomy) -- reference, never coaching. */}
+        {exercise.note && <div className="row-ghost">&ldquo;{exercise.note}&rdquo;</div>}
       </div>
       {CHEV}
     </div>
@@ -341,14 +347,14 @@ function BlockList({ title, blocks, minutes, onEdit }: {
   const has = !!blocks?.length;
   return (
     // THE PREVIEW IS THE SPEC (2026-09-01): warm-up and cool-down wear the
-    // amber prep wash and their own kicker, an Apple-Fitness colored card on
-    // black -- not a bare grey section floating over nothing. Empty stays
-    // legal: no items means the card is just its door.
+    // amber prep wash, the kicker carries the minutes ("WARM-UP · 8 MIN"),
+    // and each item states its amount at the row's far right -- the exact
+    // preview anatomy. Empty stays legal: no items means the card is just
+    // its door.
     <div className="pad-x"><div className={"card" + (has ? " banner-warn" : "")}>
       <div className="row">
         <div className="row-grow">
-          <div className={"eyebrow" + (has ? " eyebrow-warn" : "")}>{title}</div>
-          {(minutes ?? 0) > 0 && <div className="conn-meta">{minutes} min, counted toward the session</div>}
+          <div className={"eyebrow" + (has ? " eyebrow-warn" : "")}>{title}{(minutes ?? 0) > 0 ? ` · ${minutes} Min` : ""}</div>
         </div>
         <button className="pill-act" onClick={onEdit}>{has ? "Edit" : "Add"}</button>
       </div>
@@ -356,8 +362,8 @@ function BlockList({ title, blocks, minutes, onEdit }: {
         <div className="row" key={b.id}>
           <div className="row-grow">
             <div className="conn-name">{b.name}</div>
-            {b.amount && <div className="conn-meta">{b.amount}</div>}
           </div>
+          {b.amount && <div className="conn-meta">{b.amount}</div>}
         </div>
       ))}
     </div></div>
@@ -378,7 +384,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
   const patch = (id: string, p: Partial<DayBlock>) => setRows((r) => r.map((x) => (x.id === id ? { ...x, ...p } : x)));
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{title}</div></div>
         <div className="pad-x sheet-form">
@@ -926,7 +932,7 @@ export default function GymFlow({ onBack, door }: {
     const dirty = JSON.stringify(workoutDraft) !== JSON.stringify(w.data.exercises);
     const closeWorkout = () => { setViewWorkout(null); setWorkoutDraft(null); };
     return (
-      <div className="screen">
+      <div className="screen train-skin">
         <div className="nav-bar">
           <button className="nav-back" aria-label="Back" onClick={closeWorkout}></button>
           <div className="nav-title">{w.data.dayName}</div>
@@ -996,7 +1002,7 @@ export default function GymFlow({ onBack, door }: {
     const exercise: Exercise | undefined = liveEx?.custom
       ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, exerciseKey: liveEx.exerciseKey, sets: liveEx.plan ?? [] }
       : planned ?? (liveEx ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, sets: [] } : undefined);
-    if (!exercise) return <div className="screen" />;
+    if (!exercise) return <div className="screen train-skin" />;
     return (
       <SessionScreen
         live={live}
@@ -1406,7 +1412,7 @@ export default function GymFlow({ onBack, door }: {
   const switcherEl = switcherOpen ? (
     createPortal(
       <div className="sheet-scrim" onClick={() => setSwitcherOpen(false)}>
-        <div className="card" onClick={(e) => e.stopPropagation()}>
+        <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
           <div className="grp"><div className="eyebrow">Programs</div></div>
           <div><div className="list-flat">
@@ -1459,7 +1465,7 @@ export default function GymFlow({ onBack, door }: {
       const lastForDay = lastWorkoutForDay(openDay.id);
       return (
         <>
-          <div className="screen">
+          <div className="screen train-skin">
             <div className="nav-bar">
               <button className="nav-back" aria-label="Back" onClick={() => setOpenDayId(null)}></button>
               <div className="nav-title truncate">{openDay.name}</div>
@@ -1551,7 +1557,7 @@ export default function GymFlow({ onBack, door }: {
   if (multiWeek && openWeekId && activeWeek) {
     return (
       <>
-        <div className="screen">
+        <div className="screen train-skin">
           <div className="nav-bar">
             <button className="nav-back" aria-label="Back" onClick={() => setOpenWeekId(null)}></button>
             <div className="nav-title truncate">{activeWeek.label}</div>
@@ -1579,6 +1585,7 @@ export default function GymFlow({ onBack, door }: {
                   <DayRow
                     day={d}
                     onOpen={() => { setReorderTarget(null); setOpenDayId(d.id); }}
+                    onPin={() => setPicker({ kind: "pinDays", weekId: activeWeek.id, day: d })}
                     onMenu={() => setRowMenu({ kind: "day", weekId: activeWeek.id, day: d })}
                   />
                 );
@@ -1602,7 +1609,7 @@ export default function GymFlow({ onBack, door }: {
 
   return (
     <>
-      <div className="screen">
+      <div className="screen train-skin">
         <div className="nav-bar">
           <button className="nav-back" aria-label="Back" onClick={onBack}></button>
           <div className="nav-title truncate">{program ? program.data.name : "Training"}</div>
@@ -1676,7 +1683,7 @@ export default function GymFlow({ onBack, door }: {
                   ].filter(Boolean).join(" · ")}
                 </div>
                 <div className="offer-row">
-                  <button className="btn btn-primary btn-launch" onClick={() => requestStart(nextDay)}>Start {nextDay.name}</button>
+                  <button className="btn btn-primary btn-launch btn-block" onClick={() => requestStart(nextDay)}>Start {nextDay.name}</button>
                 </div>
               </div></div>
             )}
@@ -1722,6 +1729,7 @@ export default function GymFlow({ onBack, door }: {
                           <DayRow
                             day={d}
                             onOpen={() => { setReorderTarget(null); setOpenDayId(d.id); }}
+                            onPin={() => setPicker({ kind: "pinDays", weekId: singleWeek.id, day: d })}
                             onMenu={() => setRowMenu({ kind: "day", weekId: singleWeek.id, day: d })}
                           />
                         );

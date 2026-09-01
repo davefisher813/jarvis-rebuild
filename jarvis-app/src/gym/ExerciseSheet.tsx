@@ -77,6 +77,9 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   // new exercise opens with them out -- creation stays one glance -- while
   // an edit opens on the chips themselves.
   const [bulkOpen, setBulkOpen] = useState(mode === "new");
+  // REORDER IS A MODE (Health Preview): the strip's grips come out from the
+  // label's own Reorder pill and go away on Done.
+  const [reorderSets, setReorderSets] = useState(false);
 
   // Picking a suggestion carries kind, unit and the last-used target forward
   // (catalog §3.5) -- exactness, not just proximity, is what stops the fork.
@@ -122,7 +125,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{mode === "new" ? "New Exercise" : "Edit Exercise"}</div></div>
         <div className="pad-x sheet-form">
@@ -170,7 +173,12 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
           </div>
 
           <div className="field">
-            <div className="input-label">{countLabel(kind)}</div>
+            <div className="label-row">
+              <div className="input-label">{countLabel(kind)}</div>
+              {sets.length > 1 && (
+                <button className="pill-act pill-neutral" onClick={() => setReorderSets((r) => !r)}>{reorderSets ? "Done" : "Reorder"}</button>
+              )}
+            </div>
             {/* ONE EDITOR (D1): the summary row speaks the whole plan; Edit
                 All Sets writes count and targets across every chip at once,
                 straight into the strip below -- one object, one editor. */}
@@ -180,9 +188,9 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                   <div className="conn-name">{targetLine(draft)}</div>
                   <div className="conn-meta">{isUniformStrip(kind, sets) ? "Uniform" : "Varies by set"}</div>
                 </div>
-                {/* The sanctioned in-row pill (.pill-act): tinted verb on a
-                    press surface, 44px hit box via its own ::after. */}
-                <button className="pill-act" aria-expanded={bulkOpen} onClick={() => setBulkOpen((o) => !o)}>
+                {/* The sanctioned in-row pill, neutral (preview: white
+                    "Edit All Sets"), 44px hit box via its own ::after. */}
+                <button className="pill-act pill-neutral" aria-expanded={bulkOpen} onClick={() => setBulkOpen((o) => !o)}>
                   {bulkOpen ? "Done" : "Edit All Sets"}
                 </button>
               </div>
@@ -232,7 +240,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 </>
               )}
             </div>
-            <SetStrip kind={kind} unit={unit} timeUnit={timeUnit} entries={sets} onChange={setSets}
+            <SetStrip kind={kind} unit={unit} timeUnit={timeUnit} entries={sets} onChange={setSets} handles={reorderSets}
               lastFor={lastHit ? (i) => (lastHit.sets[i] ? `Last: ${formatSet(lastHit.fx, lastHit.sets[i]!)}` : null) : undefined} />
             {touched && sets.length === 0 && <div className="input-error">Add at least one set.</div>}
           </div>

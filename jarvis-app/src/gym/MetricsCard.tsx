@@ -64,7 +64,7 @@ export function MetricLogSheet({ def, date, initial, onSave, onCancel }: {
   const step = def.data.type === "minutes" ? 5 : 0.5;
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{def.data.name}</div></div>
         <div className="pad-x sheet-form">
@@ -127,7 +127,7 @@ export function AddMetricSheet({ defs, onEnablePreset, onToggleHidden, onCreateC
   const defFor = (key: string) => defs.find((d) => d.data.presetKey === key);
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Add a Metric</div></div>
         <div className="pad-x sheet-form">

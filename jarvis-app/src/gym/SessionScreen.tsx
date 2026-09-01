@@ -218,7 +218,7 @@ export default function SessionScreen({
   };
 
   return (
-    <div className="screen">
+    <div className="screen train-skin">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title truncate">{live.dayName}</div>

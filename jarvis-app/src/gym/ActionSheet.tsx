@@ -21,7 +21,7 @@ export default function ActionSheet({ title, actions, onClose }: {
 }) {
   return createPortal(
     <div className="sheet-scrim" onClick={onClose}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{title}</div></div>
         <div className="pad-x sheet-actions">
@@ -71,7 +71,7 @@ export function PickSheet({ title, items, multi, initial, allowEmpty, confirmLab
   };
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{title}</div></div>
         {items.length === 0 ? (

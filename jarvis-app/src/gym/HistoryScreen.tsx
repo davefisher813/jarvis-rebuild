@@ -53,7 +53,7 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
   }, [workouts]);
 
   return (
-    <div className="screen">
+    <div className="screen train-skin">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">History</div>
