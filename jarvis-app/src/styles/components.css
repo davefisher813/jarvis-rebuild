@@ -3810,13 +3810,16 @@ body.selecting .voice-dock { display: none; }
    paint. Every other swipe row in the app (.task-row, .sched-row) already
    carries position:relative for exactly this reason; the chip was the one
    that forgot. */
+/* THE PREVIEW IS THE SPEC (2026-09-01): a chip is its own surface, one
+   elevation step above its ground -- surface-1 on the page, surface-3
+   inside a surface-2 sheet (overridden below). The old page-black fill made
+   every chip an invisible slab. position: relative stays LOAD-BEARING. */
 .set-chip { display: flex; align-items: center; min-height: var(--tap-min);
   position: relative;
-  padding: var(--s-1) 0; background: var(--bg); cursor: pointer;
+  padding: var(--s-1) 0; background: var(--surface-1); cursor: pointer;
   -webkit-user-select: none; user-select: none; touch-action: pan-y;
   transition: transform 0.28s cubic-bezier(0.32,0.72,0,1), background var(--dur-fast) var(--ease-out); }
 .set-chip.swiping { transition: none; }
-.set-chip[aria-expanded="true"] { background: var(--surface-2); }
 /* Skipped reads as a fact, not a failure: struck text, no red anywhere. */
 .set-chip-skipped .conn-name { color: var(--tx-3); text-decoration: line-through; }
 .set-chip-editor { padding: 0 0 var(--s-2); }
@@ -3825,7 +3828,14 @@ body.selecting .voice-dock { display: none; }
    and not draggable or swipeable -- there is nothing there to reorder or
    delete until it is logged. */
 .set-strip-ghosts { margin: 0; }
-.set-chip-ghost { opacity: 0.6; }
+/* THE PREVIEW IS THE SPEC (2026-09-01): a ghost is a quiet chip -- its own
+   rounded surface like the logged chips it will become, dashed edge, no
+   list hairlines. */
+.set-chip-ghost { opacity: 0.75; background: var(--press-1); border: 1px dashed var(--tx-4);
+  border-radius: var(--r-md); margin-bottom: var(--s-2); }
+/* The list hairline rule (.row + .row) must not thin a ghost's own dashed
+   top edge. */
+.set-strip-ghosts .row + .row { border-top: 1px dashed var(--tx-4); }
 .set-chip-ghost .conn-name { color: var(--tx-3); }
 /* THE CHIP WEARS THE SURFACE IT SITS ON (Dave 2026-08-31, Edit Exercise
    screenshot; part of "even one page has different styled sections"). The
@@ -3834,7 +3844,7 @@ body.selecting .voice-dock { display: none; }
    workout editor, but inside a sheet (surface-2) every chip rendered as a
    page-black slab on the sheet's grey. Same chip, same job, per-surface
    paint. */
-.sheet-scrim .set-chip { background: var(--surface-2); }
+.sheet-scrim .set-chip { background: var(--surface-3); }
 /* THE RAMP (D3-A, 2026-08-31): a warm-up chip is quieter than the work it
    leads into -- present, tappable, and visibly not the set that counts. */
 .set-chip-warm { opacity: 0.72; }
@@ -3964,3 +3974,100 @@ body.selecting .voice-dock { display: none; }
 .sched-gym-name { font-size: var(--t-body); font-weight: var(--w-semi); color: var(--tx-1); }
 .sched-gym-line { display: flex; align-items: center; gap: var(--s-2); }
 .sched-gym-start { margin-top: 2px; }
+
+/* ==========================================================================
+   THE PREVIEW IS THE SPEC (2026-09-01, Dave's three editor screenshots:
+   "look at everything I approved INCLUDING visuals"). The approved shape of
+   the training surface is art/health-preview.html (HEALTH_PREVIEW_SPEC,
+   final-approved 2026-08-31). Waves 2-4 shipped its FEATURES into the old
+   editor chrome; this block ships its LOOK: rows grouped in cards, creates
+   as in-card red-text rows (not floating pills), wash identities on the
+   feature cards, gradient launch CTAs, bare-red destructive text. Scoped to
+   the gym editor surfaces; nothing here repaints Tasks or Schedule. */
+
+/* The in-card create row, straight from the preview's .rowact: full width,
+   centered red text, a hairline above, no pill ground. It ends a grouped
+   card the way iOS grouped lists end ("Add Card..."), instead of a pill
+   floating in dead space. */
+.row-create { display: flex; width: 100%; align-items: center; justify-content: center;
+  min-height: 48px; background: none; border: 0; border-top: 0.5px solid var(--divider);
+  color: var(--tint); font-family: var(--f); font-size: var(--t-body);
+  font-weight: var(--w-semi); cursor: pointer; position: relative; }
+.row-create:first-child { border-top: 0; }
+/* Outside a card (the day screen's quiet log alternatives) the hairline has
+   nothing to divide. */
+.row-create.row-create-bare { border-top: 0; }
+
+/* A grouped gym list: the page's rows live INSIDE a card (preview: every
+   list sits in a #1C1C1E rounded card). Same pad-x > card > rows shape the
+   lift detail and the health page already wear; ReorderList sheds its own
+   card chrome inside it exactly as it does inside .list-flat. */
+.list-card .reorder-list { background: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+  border-radius: 0; box-shadow: none; border: 0; overflow: visible; padding: 0; }
+/* In reorder mode a row is cargo, not a door: the chevron steps aside for
+   the grip (preview: trailing controls step aside while moving). Scoped to
+   the gym's grouped lists; Categories keeps its always-on handles+chevrons. */
+.list-card .reorder-live .chev { display: none; }
+
+/* THE LAUNCH BUTTON (preview .btn.p; Dave's dopamine directive #4, approved
+   2026-08-31: "gradient Start/Log buttons"). The gym's Start / Log / Save
+   verbs wear the gradient and its soft glow; everything else keeps the flat
+   brand fill. One filled red per screen still holds -- this is the same one,
+   dressed for the gym. */
+.btn-launch { background: linear-gradient(135deg, #FF3B4E, #E01230);
+  box-shadow: 0 6px 22px rgba(255, 43, 60, 0.28); }
+[data-theme="light"] .btn-launch { background: linear-gradient(135deg, #F02539, #C90E28);
+  box-shadow: 0 6px 18px rgba(218, 0, 18, 0.24); color: #fff; }
+
+/* Destructive text, bare (preview .btn.danger): red words on nothing. The
+   grey pill made Delete read like Cancel's sibling. */
+.btn-ghost-danger { background: transparent; color: var(--danger-tx); }
+[data-theme="light"] .btn-ghost-danger { background: transparent; color: var(--danger-tx); }
+
+/* Row tags (preview .tag): A1/A2 pairing wears data blue, Ramp wears prep
+   amber, Filler stays quiet. 10.5/800 caps chips, tinted grounds. */
+.xtag { display: inline-block; font-size: 10.5px; font-weight: var(--w-bold);
+  letter-spacing: 0.04em; text-transform: uppercase; border-radius: var(--r-pill);
+  padding: 2px 7px; margin-right: var(--s-1h); vertical-align: 2px; }
+.xtag-blue { background: var(--blue-tint); color: var(--blue); }
+.xtag-warn { background: var(--warn-tint); color: var(--warn); }
+.xtag-dim { background: var(--press-3); color: var(--tx-3); }
+.xtag-after { margin-right: 0; margin-left: var(--s-1h); }
+
+/* Wash kickers: the block cards' eyebrows carry their section's color
+   (preview .kick.a / .kick.b). */
+.eyebrow-warn { color: var(--warn); }
+.eyebrow-blue { color: var(--blue); }
+
+/* A card INSIDE a sheet sits one elevation step above the sheet, flat --
+   never the page-card's glass float (the Sets summary hovered as a glossy
+   slab over flat set rows in Dave's Edit Exercise screenshot). */
+.sheet-form .card:not(.reorder-list) { background: var(--surface-3); box-shadow: none; border: 0;
+  backdrop-filter: none; -webkit-backdrop-filter: none; }
+[data-theme="light"] .sheet-form .card:not(.reorder-list) { background: var(--surface-3); box-shadow: none; }
+
+/* Set chips are chips (preview .chip; Dave's cleanup directive #2, approved
+   2026-08-31: "the chip and its expanded editor are a single rounded
+   card"). Each set gets its own rounded surface one step above its ground,
+   and the expanded editor continues that surface instead of floating
+   naked below it. */
+.set-chip { border-radius: var(--r-md); padding-left: var(--s-3); padding-right: var(--s-3); }
+.set-chip-col { margin-bottom: var(--s-2); }
+/* The swipe wrapper clips at the SAME radius the chip draws, or the red
+   delete rectangle behind peeks through the corner notches -- the faint red
+   crescents on every set row in Dave's Edit Exercise screenshot. And the
+   delete stays fully hidden until a swipe actually moves the chip: an
+   opaque chip composited over red still leaks a red rim through the
+   anti-aliased curve. */
+.set-chip-swipe { border-radius: var(--r-md); }
+.set-chip-swipe .task-del { opacity: 0; transition: opacity 0.12s var(--ease-out); }
+.set-chip-swipe.swipe-open .task-del { opacity: 1; }
+/* Chips are separate surfaces with gaps, not hairlined rows (preview
+   .chipset): the strip's reorder rows shed the card row chrome. */
+.set-strip .reorder-list .reorder-row { padding: 0; }
+.set-strip .reorder-list .reorder-row + .reorder-row { border-top: 0; }
+.set-strip .reorder-list .reorder-row + .reorder-row::before { display: none; }
+.set-chip[aria-expanded="true"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.set-chip-editor { background: var(--surface-1); border-radius: 0 0 var(--r-md) var(--r-md);
+  padding: 0 var(--s-3) var(--s-2); }
+.sheet-scrim .set-chip-editor { background: var(--surface-3); }

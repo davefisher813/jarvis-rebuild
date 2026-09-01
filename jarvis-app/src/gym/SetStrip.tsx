@@ -115,9 +115,6 @@ export default function SetStrip({
           );
         }}
       />
-      {!disabled && (
-        <button className="row row-act set-strip-add" onClick={add}>Add {entryNoun(kind, false)}</button>
-      )}
       {ghost && ghost.length > 0 && (
         <div className="set-strip-ghosts">
           {ghost.map((g, i) => {
@@ -143,6 +140,11 @@ export default function SetStrip({
             );
           })}
         </div>
+      )}
+      {/* The add lands after the plan (live session: after the ghosts), so
+          "Add a Set" reads as extra work past it, never a step before it. */}
+      {!disabled && (
+        <button className="row-create set-strip-add" onClick={add}>Add {entryNoun(kind, false)}</button>
       )}
     </div>
   );
@@ -179,7 +181,7 @@ function SetChipRow({
   const kicker = entry.warmup ? "Warm-Up" : `Set ${index + 1}`;
 
   return (
-    <div className="task-swipe set-chip-swipe">
+    <div className={"task-swipe set-chip-swipe" + (swipe.dx ? " swipe-open" : "")}>
       <button className="task-del" aria-label={`Delete set ${index + 1}`} onClick={() => swipe.closeThen(onDelete)}><Trash2 className="ic" /></button>
       <div
         className={"set-chip" + (entry.skipped ? " set-chip-skipped" : "") + (entry.warmup ? " set-chip-warm" : "") + (swipe.dragging ? " swiping" : "")}

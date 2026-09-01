@@ -36,11 +36,11 @@ export default function RestTimer({ seconds, fillerName, onLogFiller, onDismiss 
       <div className="eyebrow">{over ? "Rest Over" : "Resting"}</div>
       <div className="p3-q rest-clock">{mmss(remaining)}</div>
       {fillerName && !over && (
-        <button className="row row-act rest-filler-btn" onClick={onLogFiller}>
+        <button className="row-create rest-filler-btn" onClick={onLogFiller}>
           Or Do {fillerName}
         </button>
       )}
-      <button className="row row-act" onClick={onDismiss}>{over ? "Continue" : "Skip Rest"}</button>
+      <button className="row-create" onClick={onDismiss}>{over ? "Continue" : "Skip Rest"}</button>
     </div></div>
   );
 }

@@ -107,7 +107,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
         </div>
 
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={start}>Start · {est.min} Min</button>
+          <button className="btn btn-primary btn-launch btn-block" onClick={start}>Start · {est.min} Min</button>
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>

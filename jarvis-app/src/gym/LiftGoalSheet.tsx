@@ -138,7 +138,7 @@ export default function LiftGoalSheet({
           </div>
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => {
+          <button className="btn btn-primary btn-launch btn-block" onClick={() => {
             if (!valid) { setTouched(true); return; }
             onSave({
               title: title.trim(), state: "on_track",

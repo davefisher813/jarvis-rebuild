@@ -3226,22 +3226,35 @@ describe("LAW 15: the gym speaks one grammar", () => {
     // beneath the chip at rest -- the exact visible-trash bug in his
     // screenshot. Geometry never covered it; paint order does.
     expect(chip).toContain("position: relative");
-    expect(chip).toContain("background: var(--bg)");
-    expect(css).toMatch(/\.sheet-scrim \.set-chip\s*\{\s*background:\s*var\(--surface-2\)/);
+    // SPEC MOVED 2026-09-01 (THE PREVIEW IS THE SPEC): a chip is its own
+    // surface, one elevation step above its ground -- surface-1 on the
+    // page, surface-3 inside a surface-2 sheet. The job is unchanged: an
+    // opaque fill that keeps the swipe-delete painted beneath, matched to
+    // the surface the chip sits on.
+    expect(chip).toContain("background: var(--surface-1)");
+    expect(css).toMatch(/\.sheet-scrim \.set-chip\s*\{\s*background:\s*var\(--surface-3\)/);
     // And the reorder wrapper sheds its card chrome where rows are the
     // surface (full-bleed lists, the strip itself).
     expect(css).toMatch(/\.list-flat \.reorder-list, \.set-strip \.reorder-list \{[^}]*background: none/);
   });
 
-  it("every in-list create on the program page is the one row-act affordance", () => {
+  // SPEC MOVED 2026-09-01 (THE PREVIEW IS THE SPEC): the one in-list create
+  // affordance in the gym is now .row-create -- the approved health
+  // preview's full-width red-text card row -- not the floating .row-act
+  // pill (Dave's three editor screenshots). The law keeps its job: every
+  // create wears the SAME affordance, and the chevron-nav dress stays gone.
+  it("every in-list create on the program page is the one row-create affordance", () => {
     const src = read(join(SRC, "gym", "GymFlow.tsx"));
     for (const label of ["Add Day", "Upload a Program", "Add a Week", "Add Exercise"]) {
       // Same line: the arrow handler's => sits between the class and the
       // label, so the gap crosses anything but a newline.
-      expect(src).toMatch(new RegExp('className="row row-act"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
+      expect(src).toMatch(new RegExp('className="row-create"[^\\n]*>' + label.replace(/ /g, "\\s+"))); // eslint-disable-line
     }
-    // The old chevron-nav dress for Upload / Add a Week stays gone.
+    // The retired dresses stay retired.
     expect(src).not.toMatch(/onClick=\{\(\) => setUploadOpen\(true\)\}>\s*<div className="row-grow"/);
+    for (const f of ["GymFlow.tsx", "SessionScreen.tsx", "SetStrip.tsx", "RestTimer.tsx", "ExerciseSheet.tsx"]) {
+      expect(read(join(SRC, "gym", f))).not.toContain('className="row row-act"');
+    }
   });
 
   it("the gym's long-press rows lay out as rows (the chevron never wraps under the text)", () => {

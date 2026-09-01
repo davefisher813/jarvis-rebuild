@@ -14,10 +14,17 @@ export default function ReorderList({
   ids,
   renderRow,
   onReorder,
+  handles = true,
 }: {
   ids: string[];
   renderRow: (id: string) => ReactNode;
   onReorder: (next: string[]) => void;
+  /** REORDER IS A MODE (Health Preview, approved 2026-08-31, gestures
+   *  ruling): a row crowded with a name, a chevron and a grip has no clean
+   *  tap target. When false the grips stay off-screen and the list is a
+   *  plain list; the caller's "Reorder" head pill turns them on. Defaults
+   *  true so every existing call site keeps its always-on drag. */
+  handles?: boolean;
 }) {
   const [order, setOrder] = useState<string[]>(ids);
   const orderRef = useRef(order);
@@ -70,11 +77,11 @@ export default function ReorderList({
   };
 
   return (
-    <div className={"card reorder-list" + (idx !== null ? " dragging-active" : "")} ref={listRef}>
+    <div className={"card reorder-list" + (idx !== null ? " dragging-active" : "") + (handles ? " reorder-live" : "")} ref={listRef}>
       {order.map((id, i) => (
         <div className={"row reorder-row" + (idx === i ? " dragging" : "")} key={id}>
           {renderRow(id)}
-          <div className="drag-handle" onPointerDown={(e) => start(e, i)} aria-label="Reorder" role="button">{GRIP}</div>
+          {handles && <div className="drag-handle" onPointerDown={(e) => start(e, i)} aria-label="Reorder" role="button">{GRIP}</div>}
         </div>
       ))}
     </div>

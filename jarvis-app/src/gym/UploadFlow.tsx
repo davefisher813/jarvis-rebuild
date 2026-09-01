@@ -101,7 +101,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
             </div>
           ))}
           <div className="pad-x sheet-actions">
-            <button className="btn btn-primary btn-block" onClick={() => onSave(draft)}>Looks Right, Save It</button>
+            <button className="btn btn-primary btn-launch btn-block" onClick={() => onSave(draft)}>Looks Right, Save It</button>
             <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
           </div>
           <div className="screen-foot" />
@@ -140,7 +140,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
         <div className="pad-x sheet-form">
           <input ref={fileRef} className="visually-hidden-input" type="file" accept="image/*"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); e.target.value = ""; }} />
-          <button className="btn btn-primary btn-block" disabled={busy} onClick={() => fileRef.current?.click()}>
+          <button className="btn btn-primary btn-launch btn-block" disabled={busy} onClick={() => fileRef.current?.click()}>
             {busy ? "Reading..." : "Photo or Screenshot"}
           </button>
           <div className="field">

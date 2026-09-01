@@ -7,7 +7,7 @@ import { agoPhraseLower } from "./summary";
 import type { DayBlock, Exercise, Program, ProgramDay, ProgramWeek, Workout, SetEntry, WorkoutExercise, MeasureKind } from "./types";
 import { targetLine, formatSet } from "./measures";
 import { applySuggestion, type Suggestion } from "./progression";
-import { receiptFor, type Receipt } from "./prs";
+import { receiptFor, lastSessionFor, type Receipt } from "./prs";
 import { effectiveKind } from "../categories/kinds";
 import type { Goal } from "../life/types";
 import { liftMeasureState, trainingMeasureState, type LiftMeasure, type TrainingMeasure } from "./goalMeasures";
@@ -146,7 +146,7 @@ function NameSheet({ title, initial, placeholder, backOff, season, gameCategory,
           )}
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" disabled={busy}
+          <button className="btn btn-primary btn-launch btn-block" disabled={busy}
             onClick={() => { if (v.trim()) { setBusy(true); onSave(v.trim()); } }}>{busy ? "Saving..." : "Save"}</button>
           {onDelete && (
             <button className={"btn btn-block " + (armed ? "btn-danger" : "btn-secondary btn-danger-text")}
@@ -200,7 +200,7 @@ function BumpSheet({ weekLabel, onSave, onCancel }: {
           </div>
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => onSave({ w, r }, backOff)}>Duplicate & Bump</button>
+          <button className="btn btn-primary btn-launch btn-block" onClick={() => onSave({ w, r }, backOff)}>Duplicate & Bump</button>
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>
@@ -225,7 +225,7 @@ function BackdateSheet({ dayName, onStart, onCancel }: { dayName: string; onStar
           </div>
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => onStart(date || todayISO())}>Start Logging</button>
+          <button className="btn btn-primary btn-launch btn-block" onClick={() => onStart(date || todayISO())}>Start Logging</button>
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>
@@ -265,13 +265,29 @@ function DayRow({ day, onOpen, onMenu }: { day: ProgramDay; onOpen: () => void; 
   );
 }
 
-function ExerciseRow({ exercise, pairLabel, onOpen, onMenu }: { exercise: Exercise; pairLabel?: string; onOpen: () => void; onMenu: () => void }) {
+function ExerciseRow({ exercise, pairLabel, last, onOpen, onMenu }: {
+  exercise: Exercise;
+  pairLabel?: string;
+  /** LAST TIME, D2, on the day list too (preview: "3 × 275 lb × 5 ·
+   *  Last: 295 lb × 5"). Null when history has nothing for this lift. */
+  last?: string | null;
+  onOpen: () => void;
+  onMenu: () => void;
+}) {
   const hold = useLongPress({ onLongPress: onMenu });
   return (
     <div className="row-grow row-press" role="button" tabIndex={0} onClick={onOpen} {...hold}>
       <div className="row-grow">
-        <div className="conn-name truncate">{pairLabel ? `${pairLabel} · ` : ""}{exercise.name}</div>
-        <div className="conn-meta">{targetLine(exercise)}</div>
+        {/* THE PREVIEW IS THE SPEC (2026-09-01): pairing wears the blue data
+            tag, a ramp wears the amber prep tag, a filler stays quiet --
+            colored facts, not more prose in the name. */}
+        <div className="conn-name truncate">
+          {pairLabel && <span className="xtag xtag-blue">{pairLabel}</span>}
+          {exercise.name}
+          {exercise.ramp && <span className="xtag xtag-warn xtag-after">Ramp</span>}
+          {exercise.filler && <span className="xtag xtag-dim xtag-after">Filler</span>}
+        </div>
+        <div className="conn-meta">{targetLine(exercise)}{last ? ` · Last: ${last}` : ""}</div>
       </div>
       {CHEV}
     </div>
@@ -324,29 +340,27 @@ function BlockList({ title, blocks, minutes, onEdit }: {
 }) {
   const has = !!blocks?.length;
   return (
-    <>
-      <div className="sh2 sh2-quiet">
-        <span className="t">{title}</span>
-        <button className="see-all pill-action" onClick={onEdit}>{has ? "Edit" : "Add"}</button>
+    // THE PREVIEW IS THE SPEC (2026-09-01): warm-up and cool-down wear the
+    // amber prep wash and their own kicker, an Apple-Fitness colored card on
+    // black -- not a bare grey section floating over nothing. Empty stays
+    // legal: no items means the card is just its door.
+    <div className="pad-x"><div className={"card" + (has ? " banner-warn" : "")}>
+      <div className="row">
+        <div className="row-grow">
+          <div className={"eyebrow" + (has ? " eyebrow-warn" : "")}>{title}</div>
+          {(minutes ?? 0) > 0 && <div className="conn-meta">{minutes} min, counted toward the session</div>}
+        </div>
+        <button className="pill-act" onClick={onEdit}>{has ? "Edit" : "Add"}</button>
       </div>
-      {has && (
-        <div><div className="list-flat">
-          {blocks!.map((b) => (
-            <div className="row" key={b.id}>
-              <div className="row-grow">
-                <div className="conn-name">{b.name}</div>
-                {b.amount && <div className="conn-meta">{b.amount}</div>}
-              </div>
-            </div>
-          ))}
-          {(minutes ?? 0) > 0 && (
-            <div className="row"><div className="row-grow">
-              <div className="conn-meta">{minutes} min, counted toward the session</div>
-            </div></div>
-          )}
-        </div></div>
-      )}
-    </>
+      {blocks?.map((b) => (
+        <div className="row" key={b.id}>
+          <div className="row-grow">
+            <div className="conn-name">{b.name}</div>
+            {b.amount && <div className="conn-meta">{b.amount}</div>}
+          </div>
+        </div>
+      ))}
+    </div></div>
   );
 }
 
@@ -377,7 +391,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
                 onChange={(e) => patch(b.id, { amount: e.target.value })} />
             </div>
           ))}
-          <button className="row row-act" onClick={() => setRows((r) => [...r, { id: nid("b"), name: "" }])}>Add Another</button>
+          <button className="row-create" onClick={() => setRows((r) => [...r, { id: nid("b"), name: "" }])}>Add Another</button>
           <div className="field">
             <div className="input-label">Minutes</div>
             <div className="row">
@@ -390,7 +404,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
           </div>
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block"
+          <button className="btn btn-primary btn-launch btn-block"
             onClick={() => onSave(rows.filter((r) => r.name.trim()).map((r) => ({ ...r, name: r.name.trim(), ...(r.amount?.trim() ? { amount: r.amount.trim() } : {}) })), mins)}>
             Save
           </button>
@@ -425,6 +439,13 @@ export default function GymFlow({ onBack, door }: {
   const [activeProgramId, setActiveProgramId] = useState<string | null>(() => readActiveProgramId());
   const [openWeekId, setOpenWeekId] = useState<string | null>(null);
   const [openDayId, setOpenDayId] = useState<string | null>(null);
+  // REORDER IS A MODE (Health Preview, approved 2026-08-31): the grips come
+  // out when the Reorder head pill asks for them and step away when it says
+  // Done, so a resting row is a name, a fact and one door.
+  const [reorderTarget, setReorderTarget] = useState<"days" | "exercises" | null>(null);
+  // LAST TIME, D2: the same Settings -> Training toggle the sheet and the
+  // live session already obey.
+  const showLast = readGymSettings().showLast;
   // Seed from storage (2026-08-09): an in-progress session used to be
   // invisible until startDay silently overwrote it. Same-day sessions resume
   // right where they were; an older one with real work is SAVED as a partial
@@ -939,7 +960,7 @@ export default function GymFlow({ onBack, door }: {
         ))}
         <div className="pad-x sheet-actions">
           {dirty && (
-            <button className="btn btn-primary btn-block" onClick={async () => {
+            <button className="btn btn-primary btn-launch btn-block" onClick={async () => {
               await svc.updateWorkout(w.id, { exercises: workoutDraft });
               await reload();
               showToast({ message: "Workout updated" });
@@ -1401,7 +1422,7 @@ export default function GymFlow({ onBack, door }: {
                 return <ProgramRow program={p} active={p.id === program?.id} onSwitch={() => switchProgram(p.id)} onMenu={() => setRowMenu({ kind: "program", program: p })} />;
               }}
             />
-            <button className="row row-act" onClick={() => { setSwitcherOpen(false); openProgramSheet(); }}>Add Program</button>
+            <button className="row-create" onClick={() => { setSwitcherOpen(false); openProgramSheet(); }}>Add Program</button>
           </div></div>
           {allPrograms.some((p) => p.data.archived) && (
             <>
@@ -1453,25 +1474,34 @@ export default function GymFlow({ onBack, door }: {
               minutes={openDay.warmUpMin}
               onEdit={() => setSheet({ kind: "block", weekId: activeWeek.id, dayId: openDay.id, which: "warmUp" })}
             />
-            <div className="sh2 sh2-quiet"><span className="t">Exercises</span></div>
-            <div><div className="list-flat">
+            <div className="sh2 sh2-quiet"><span className="t">Exercises</span>
+              {openDay.exercises.length > 1 && (
+                <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "exercises" ? null : "exercises"))}>
+                  {reorderTarget === "exercises" ? "Done" : "Reorder"}
+                </button>
+              )}
+            </div>
+            <div className="pad-x list-card"><div className="card">
               <ReorderList
                 ids={openDay.exercises.map((e) => e.id)}
                 onReorder={(ids) => void reorderExercises(activeWeek.id, openDay.id, ids)}
+                handles={reorderTarget === "exercises"}
                 renderRow={(id) => {
                   const e = openDay.exercises.find((x) => x.id === id);
                   if (!e) return null;
+                  const hit = showLast ? lastSessionFor(workouts, e.name, e.kind) : null;
                   return (
                     <ExerciseRow
                       exercise={e}
                       pairLabel={labels.get(e.id)}
+                      last={hit?.sets[0] ? formatSet(hit.fx, hit.sets[0]) : null}
                       onOpen={() => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id, exId: e.id })}
                       onMenu={() => setRowMenu({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id, exercise: e })}
                     />
                   );
                 }}
               />
-              <button className="row row-act" onClick={() => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id })}>Add Exercise</button>
+              <button className="row-create" onClick={() => setSheet({ kind: "exercise", weekId: activeWeek.id, dayId: openDay.id })}>Add Exercise</button>
             </div></div>
             <BlockList
               title="Cool-Down"
@@ -1483,7 +1513,7 @@ export default function GymFlow({ onBack, door }: {
                 editor's door; "None" is a legal, honest state (rotation
                 keeps its job). */}
             <div className="sh2 sh2-quiet"><span className="t">Schedule</span></div>
-            <div><div className="list-flat">
+            <div className="pad-x"><div className="card">
               <div className="row" role="button" tabIndex={0} onClick={() => setPicker({ kind: "pinDays", weekId: activeWeek.id, day: openDay })}>
                 <div className="row-grow">
                   <div className="conn-name">Pinned Days</div>
@@ -1494,14 +1524,14 @@ export default function GymFlow({ onBack, door }: {
             </div></div>
             {openDay.exercises.length > 0 && (
               <div className="pad-x gym-log">
-                <button className="btn btn-primary btn-block btn-lg" onClick={() => requestStart(openDay)}>Start {openDay.name}</button>
+                <button className="btn btn-primary btn-launch btn-block btn-lg" onClick={() => requestStart(openDay)}>Start {openDay.name}</button>
                 {lastForDay && (
                   // SAME AS LAST TIME (catalog §3.13): the fastest possible
                   // entry, pre-filled with what actually happened last time.
-                  <button className="row row-act" onClick={() => startDay(openDay, { sameAsLastTime: true })}>Same As Last Time</button>
+                  <button className="row-create row-create-bare" onClick={() => startDay(openDay, { sameAsLastTime: true })}>Same As Last Time</button>
                 )}
                 {/* LOG IT LATER (catalog §3.8): the phone was in a locker. */}
-                <button className="row row-act" onClick={() => setBackdateDay(openDay)}>Log a Past Workout</button>
+                <button className="row-create row-create-bare" onClick={() => setBackdateDay(openDay)}>Log a Past Workout</button>
               </div>
             )}
             <div className="screen-foot" />
@@ -1530,24 +1560,31 @@ export default function GymFlow({ onBack, door }: {
           {activeWeek.backOff && (
             <div className="pad-x"><span className="pill pill-subdued">Back-Off Week</span></div>
           )}
-          <div className="sh2 sh2-quiet"><span className="t">Days</span></div>
-          <div><div className="list-flat">
+          <div className="sh2 sh2-quiet"><span className="t">Days</span>
+            {activeWeek.days.length > 1 && (
+              <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "days" ? null : "days"))}>
+                {reorderTarget === "days" ? "Done" : "Reorder"}
+              </button>
+            )}
+          </div>
+          <div className="pad-x list-card"><div className="card">
             <ReorderList
               ids={activeWeek.days.map((d) => d.id)}
               onReorder={(ids) => void reorderDays(activeWeek.id, ids)}
+              handles={reorderTarget === "days"}
               renderRow={(id) => {
                 const d = activeWeek.days.find((x) => x.id === id);
                 if (!d) return null;
                 return (
                   <DayRow
                     day={d}
-                    onOpen={() => setOpenDayId(d.id)}
+                    onOpen={() => { setReorderTarget(null); setOpenDayId(d.id); }}
                     onMenu={() => setRowMenu({ kind: "day", weekId: activeWeek.id, day: d })}
                   />
                 );
               }}
             />
-            <button className="row row-act" onClick={() => setSheet({ kind: "day", weekId: activeWeek.id })}>Add Day</button>
+            <button className="row-create" onClick={() => setSheet({ kind: "day", weekId: activeWeek.id })}>Add Day</button>
           </div></div>
           <div className="pad-x">
             <button className="btn btn-secondary btn-block" onClick={() => setSheet({ kind: "bump", weekId: activeWeek.id })}>Duplicate {activeWeek.label} & Bump</button>
@@ -1576,7 +1613,7 @@ export default function GymFlow({ onBack, door }: {
           <div className="empty-state">
             <div className="empty-icon">{DUMBBELL}</div>
             <div className="empty-title">No Program Yet</div>
-            <button className="btn btn-primary" onClick={() => openProgramSheet()}>Create a Program</button>
+            <button className="btn btn-primary btn-launch" onClick={() => openProgramSheet()}>Create a Program</button>
             {ai.available && <button className="btn btn-secondary" onClick={() => setUploadOpen(true)}>Upload One Instead</button>}
           </div>
         ) : (
@@ -1585,7 +1622,7 @@ export default function GymFlow({ onBack, door }: {
                 screenshot: "Styling is random and doesn't align. Even one
                 page has different styled sections."). This page now speaks
                 only the app's inset-grouped language -- quiet sh2 head, one
-                list-flat card per section, row-act for every in-list create,
+                grouped card per section, row-create for every in-list create,
                 eyebrow+title+meta anatomy on the one feature card -- the
                 same grammar Today and Tasks already settled on, which is
                 itself the Apple Health/Fitness grouped-card language the
@@ -1600,7 +1637,7 @@ export default function GymFlow({ onBack, door }: {
                 never a prescription -- the day a game lands on, nothing
                 about what to do with the lift. It floated too. */}
             <div className="sh2 sh2-quiet"><span className="t">Program</span></div>
-            <div><div className="list-flat">
+            <div className="pad-x"><div className="card">
               <div className="row" role="button" tabIndex={0} onClick={() => setSwitcherOpen(true)}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{program.data.name}</div>
@@ -1621,8 +1658,11 @@ export default function GymFlow({ onBack, door }: {
               // The launch card wears the offer anatomy the First Step card
               // settled (eyebrow says WHAT the card is; the old "Next: X"
               // folded that into the title).
-              <div className="pad-x"><div className="card pad">
-                <div className="eyebrow">Up Next</div>
+              // THE PREVIEW IS THE SPEC (2026-09-01): the launch card wears
+              // the blue performance wash (preview "card tb"), same identity
+              // as the Health page's training surfaces.
+              <div className="pad-x"><div className="card pad banner-blue">
+                <div className="eyebrow eyebrow-blue">Up Next</div>
                 <div className="conn-name">{nextDay.name}</div>
                 {/* D4: when a pin chose this day, the meta says so; D5: the
                     estimate rides along once there is anything to price. */}
@@ -1636,7 +1676,7 @@ export default function GymFlow({ onBack, door }: {
                   ].filter(Boolean).join(" · ")}
                 </div>
                 <div className="offer-row">
-                  <button className="btn btn-primary" onClick={() => requestStart(nextDay)}>Start {nextDay.name}</button>
+                  <button className="btn btn-primary btn-launch" onClick={() => requestStart(nextDay)}>Start {nextDay.name}</button>
                 </div>
               </div></div>
             )}
@@ -1644,7 +1684,7 @@ export default function GymFlow({ onBack, door }: {
             {multiWeek ? (
               <>
                 <div className="sh2 sh2-quiet"><span className="t">Weeks</span></div>
-                <div><div className="list-flat">
+                <div className="pad-x"><div className="card">
                   {weeks.map((w) => (
                     <div className="row" role="button" tabIndex={0} key={w.id} onClick={() => setOpenWeekId(w.id)}>
                       <div className="row-grow">
@@ -1657,24 +1697,31 @@ export default function GymFlow({ onBack, door }: {
                       {CHEV}
                     </div>
                   ))}
-                  <button className="row row-act" onClick={() => openWeekSheet()}>Add Week</button>
+                  <button className="row-create" onClick={() => openWeekSheet()}>Add Week</button>
                 </div></div>
               </>
             ) : (
               <>
-                <div className="sh2 sh2-quiet"><span className="t">Days</span></div>
-                <div><div className="list-flat">
+                <div className="sh2 sh2-quiet"><span className="t">Days</span>
+                  {singleWeek && singleWeek.days.length > 1 && (
+                    <button className="see-all pill-action" onClick={() => setReorderTarget((t) => (t === "days" ? null : "days"))}>
+                      {reorderTarget === "days" ? "Done" : "Reorder"}
+                    </button>
+                  )}
+                </div>
+                <div className="pad-x list-card"><div className="card">
                   {singleWeek && (
                     <ReorderList
                       ids={singleWeek.days.map((d) => d.id)}
                       onReorder={(ids) => void reorderDays(singleWeek.id, ids)}
+                      handles={reorderTarget === "days"}
                       renderRow={(id) => {
                         const d = singleWeek.days.find((x) => x.id === id);
                         if (!d) return null;
                         return (
                           <DayRow
                             day={d}
-                            onOpen={() => setOpenDayId(d.id)}
+                            onOpen={() => { setReorderTarget(null); setOpenDayId(d.id); }}
                             onMenu={() => setRowMenu({ kind: "day", weekId: singleWeek.id, day: d })}
                           />
                         );
@@ -1682,15 +1729,16 @@ export default function GymFlow({ onBack, door }: {
                     />
                   )}
                   {/* All three creates wear the ONE in-list create
-                      affordance (.row-act). Upload and Add a Week dressed as
-                      chevron nav rows before -- three row treatments in one
-                      card was this page's "different styled sections". */}
-                  {singleWeek && <button className="row row-act" onClick={() => setSheet({ kind: "day", weekId: singleWeek.id })}>Add Day</button>}
+                      affordance -- .row-create, the approved preview's own
+                      full-width red-text card row (THE PREVIEW IS THE SPEC,
+                      2026-09-01). The floating .row-act pills were this
+                      page's "looks like absolute shit". */}
+                  {singleWeek && <button className="row-create" onClick={() => setSheet({ kind: "day", weekId: singleWeek.id })}>Add Day</button>}
                   {ai.available && (
-                    <button className="row row-act" onClick={() => setUploadOpen(true)}>Upload a Program</button>
+                    <button className="row-create" onClick={() => setUploadOpen(true)}>Upload a Program</button>
                   )}
                   {singleWeek && (
-                    <button className="row row-act" onClick={() => openWeekSheet()}>Add a Week</button>
+                    <button className="row-create" onClick={() => openWeekSheet()}>Add a Week</button>
                   )}
                 </div></div>
               </>
@@ -1701,7 +1749,7 @@ export default function GymFlow({ onBack, door }: {
                 {/* History wears the home-page head pill (Dave 2026-08-26's
                     rule, spread here 2026-08-31 with the count-pill wave). */}
                 <div className="sh2 sh2-quiet"><span className="t">Recent</span><button className="see-all pill-action" onClick={() => setHistoryOpen(true)}>History</button></div>
-                <div><div className="list-flat">
+                <div className="pad-x"><div className="card">
                   {recent.map((w) => {
                     const logged = w.data.exercises.filter((e) => e.sets.some((s) => !s.skipped)).length;
                     const total = w.data.exercises.length;

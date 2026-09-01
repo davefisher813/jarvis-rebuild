@@ -91,7 +91,7 @@ export function PickSheet({ title, items, multi, initial, allowEmpty, confirmLab
         )}
         <div className="pad-x sheet-actions">
           {multi && (
-            <button className="btn btn-primary btn-block" disabled={!allowEmpty && chosen.length === 0} onClick={() => onPick(chosen)}>
+            <button className="btn btn-primary btn-launch btn-block" disabled={!allowEmpty && chosen.length === 0} onClick={() => onPick(chosen)}>
               {confirmLabel
                 ? confirmLabel(chosen.length)
                 : chosen.length > 0 ? `Copy to ${chosen.length} ${chosen.length === 1 ? "Day" : "Days"}` : "Pick at Least One"}

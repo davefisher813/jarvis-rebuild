@@ -307,7 +307,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
           </div>
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => {
+          <button className="btn btn-primary btn-launch btn-block" onClick={() => {
             if (!valid) { setTouched(true); return; }
             onSave({
               name: name.trim(), kind, sets,
@@ -326,8 +326,11 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
           }}>{saveLabel}</button>
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
           {mode === "edit" && onDelete && (
+            // THE PREVIEW IS THE SPEC (2026-09-01): destructive text is bare
+            // red words (preview .btn.danger), not Cancel's grey pill with a
+            // warning sticker on it.
             !armDelete
-              ? <button className="btn btn-secondary btn-block btn-danger-text" onClick={() => setArmDelete(true)}><Trash2 className="ic" />Delete Exercise</button>
+              ? <button className="btn btn-ghost-danger btn-block" onClick={() => setArmDelete(true)}><Trash2 className="ic" />Delete Exercise</button>
               : <button className="btn btn-danger btn-block" onClick={onDelete}>Tap Again to Confirm</button>
           )}
         </div>

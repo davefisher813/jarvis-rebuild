@@ -109,7 +109,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone }: {
           )}
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={onDone}>Done</button>
+          <button className="btn btn-primary btn-launch btn-block" onClick={onDone}>Done</button>
         </div>
       </div>
     </div>,

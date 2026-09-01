@@ -95,7 +95,7 @@ export function MetricLogSheet({ def, date, initial, onSave, onCancel }: {
           )}
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => {
+          <button className="btn btn-primary btn-launch btn-block" onClick={() => {
             if (def.data.type === "yesno") onSave({ yes });
             else if (def.data.type === "scale5") onSave({ value: scale });
             else onSave({ value: num });
@@ -177,7 +177,7 @@ export function AddMetricSheet({ defs, onEnablePreset, onToggleHidden, onCreateC
               {type === "number" && (
                 <input className="input field-gap" placeholder="Unit, e.g. mg" value={unit} onChange={(e) => setUnit(e.target.value)} />
               )}
-              <button className="btn btn-primary btn-block field-gap" disabled={!name.trim()} onClick={() => {
+              <button className="btn btn-primary btn-launch btn-block field-gap" disabled={!name.trim()} onClick={() => {
                 onCreateCustom(name.trim(), type, unit.trim());
                 setName(""); setUnit(""); setType("number"); setCustomOpen(false);
               }}>Add {name.trim() || "Metric"}</button>

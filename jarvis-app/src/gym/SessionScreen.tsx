@@ -284,7 +284,7 @@ export default function SessionScreen({
               </div>
             );
           })}
-          <button className="row row-act" onClick={() => onFit({ warmSkipped: true })}>Skip the Warm-Up</button>
+          <button className="row-create" onClick={() => onFit({ warmSkipped: true })}>Skip the Warm-Up</button>
         </div></div>
       )}
 
@@ -311,7 +311,7 @@ export default function SessionScreen({
           otherwise it is the plain switch it always was. */}
       {partner && partnerLiveIdx >= 0 && (
         <div className="pad-x">
-          <button className="row row-act" onClick={() => onMove(pairNextLiveIdx >= 0 ? pairNextLiveIdx : partnerLiveIdx)}>
+          <button className="row-create" onClick={() => onMove(pairNextLiveIdx >= 0 ? pairNextLiveIdx : partnerLiveIdx)}>
             {pairNext && pairNextLiveIdx >= 0
               ? `Next · ${labels.get(pairNext.id) ?? ""} ${pairNext.name}`.trim()
               : `Switch to ${partnerLabel} · ${partner.name}`}
@@ -324,7 +324,7 @@ export default function SessionScreen({
 
       {!current.skipped && (
         <div className="pad-x gym-log">
-          <button className="btn btn-primary btn-block btn-lg" onClick={log}>
+          <button className="btn btn-primary btn-launch btn-block btn-lg" onClick={log}>
             {logButtonLabel(planEx, workLogged)}
           </button>
         </div>
@@ -369,8 +369,8 @@ export default function SessionScreen({
             {/* SWAP (catalog §3.9): the rack is taken, the shoulder is
                 cranky. The program day is never touched -- only this
                 session's entry changes. */}
-            <button className="row row-act" role="button" tabIndex={0} onClick={() => setSwapOpen(true)}>Swap</button>
-            <button className="row row-act" role="button" tabIndex={0} onClick={onSkip}>Skip This Exercise</button>
+            <button className="row-create" role="button" tabIndex={0} onClick={() => setSwapOpen(true)}>Swap</button>
+            <button className="row-create" role="button" tabIndex={0} onClick={onSkip}>Skip This Exercise</button>
           </>
         )}
       </div>
@@ -392,26 +392,29 @@ export default function SessionScreen({
               </div>
             );
           })}
-          <button className="row row-act" onClick={() => onFit({ coolSkipped: true })}>Skip the Cool-Down</button>
+          <button className="row-create" onClick={() => onFit({ coolSkipped: true })}>Skip the Cool-Down</button>
         </div></div>
       )}
 
       <div className="sh2 sh2-quiet"><span className="t">This Session</span></div>
       <div className="pad-x"><div className="card">
         {live.exercises.map((e, i) => (
-          <div className={"row" + (i === idx ? " ob-addrow" : "")} role="button" tabIndex={0} key={e.exerciseId + i} onClick={() => onMove(i)}>
+          // RED IS A VERB: "you are here" is a fact, not an action, so the
+          // current exercise marks itself with weight and a quiet Now pill,
+          // never a red name (spec sweep 2026-09-01).
+          <div className="row" role="button" tabIndex={0} key={e.exerciseId + i} onClick={() => onMove(i)}>
             <div className="row-grow">
               <div className="conn-name truncate">{e.name}</div>
               {/* Row meta is quiet sentence case, never a shouting eyebrow
                   (gym reformat 2026-08-31). */}
               <div className="conn-meta">{e.skipped ? "Skipped" : e.sets.length > 0 ? `${e.sets.length} Logged` : "Not started"}</div>
             </div>
-            {CHEV}
+            {i === idx ? <span className="pill pill-subdued">Now</span> : CHEV}
           </div>
         ))}
         {/* ADD MID-SESSION (catalog §3.10): an exercise that was never in
             the plan, without editing the program. */}
-        <button className="row row-act" onClick={() => setAddOpen(true)}>Add Exercise</button>
+        <button className="row-create" onClick={() => setAddOpen(true)}>Add Exercise</button>
       </div></div>
       <div className="screen-foot" />
 
