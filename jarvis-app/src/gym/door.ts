@@ -2,7 +2,7 @@ import type { Program, Workout, ProgramDay } from "./types";
 import type { RackConfig } from "./ramp";
 import { pinnedTo } from "./pins";
 import { estimateDay } from "./fit";
-import { monthDay } from "../money/bills";
+import { agoPhraseLower } from "./summary";
 
 // THE TRAINING DOOR's facts (D4-C, Training Catalog V2, approved
 // 2026-08-31): "your existing gym block becomes the door: it names the
@@ -39,7 +39,10 @@ export function doorInfoFor(
   const meta = [
     `${day.exercises.length} ${day.exercises.length === 1 ? "exercise" : "exercises"}`,
     est > 0 ? `Est ${est} min` : null,
-    last ? `Last trained ${monthDay(last)}` : null,
+    // Live-render audit 2026-09-01: monthDay said "Last trained Aug 31" ON
+    // Aug 31 while the Health page said "Today" for the same session. One
+    // clock, one phrase: agoPhrase, lowercased where it is a relative word.
+    last ? `Last trained ${agoPhraseLower(last, dateIso)}` : null,
   ].filter(Boolean).join(" · ");
   return { day, meta };
 }

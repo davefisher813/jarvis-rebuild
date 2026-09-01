@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics } from "../data/NotesProvider";
 import { todayISO } from "../tasks/grouping";
 import { monthDay } from "../money/bills";
+import { agoPhraseLower } from "./summary";
 import type { DayBlock, Exercise, Program, ProgramDay, ProgramWeek, Workout, SetEntry, WorkoutExercise, MeasureKind } from "./types";
 import { targetLine, formatSet } from "./measures";
 import { applySuggestion, type Suggestion } from "./progression";
@@ -1631,7 +1632,7 @@ export default function GymFlow({ onBack, door }: {
                     upcomingPin?.day === nextDay ? (upcomingPin.inDays === 1 ? "Pinned tomorrow" : `Pinned ${WEEKDAY_ABBR[(todayDow() + upcomingPin.inDays) % 7]}`) : null,
                     `${nextDay.exercises.length} ${nextDay.exercises.length === 1 ? "exercise" : "exercises"}`,
                     nextEst > 0 ? `Est ${nextEst} min` : null,
-                    recent[0] ? `Last trained ${monthDay(recent[0].data.date)}` : null,
+                    recent[0] ? `Last trained ${agoPhraseLower(recent[0].data.date, todayISO())}` : null,
                   ].filter(Boolean).join(" · ")}
                 </div>
                 <div className="offer-row">

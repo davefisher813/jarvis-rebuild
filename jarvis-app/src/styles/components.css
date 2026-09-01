@@ -3948,6 +3948,11 @@ body.selecting .voice-dock { display: none; }
    the genuinely-empty state; once a value is actually in, it is green and
    carries weight, never a grey line. */
 .metric-logged { color: var(--good); font-weight: var(--w-semi); }
+/* Lift detail charts (live-render audit 2026-09-01): an inline SVG rides
+   the text baseline and opens a phantom gap under itself, which read as
+   broken spacing inside the Weekly Work card. Charts are blocks, full
+   card width, so the viewBox is the only scale in play. */
+.lift-chart, .lift-bars { display: block; width: 100%; height: auto; }
 /* THE CATCH-UP BANNER (D5-C): one quiet amber-railed line, an offer and a
    loosener. Wears the app's own .banner-warn rail, never a red anything. */
 .catchup { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2h) var(--s-3); border-radius: var(--r-md); }

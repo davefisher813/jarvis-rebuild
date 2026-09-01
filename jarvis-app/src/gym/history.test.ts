@@ -90,6 +90,8 @@ describe("movedFact: how it moved, as a fact (catalog §4.5)", () => {
 
   it("all clean reads as a plain fact", () => {
     const workouts = [wk("2026-07-01", [wex3([{ w: 135, r: 8, moved: "clean" }])])];
-    expect(movedFact(workouts, "Bench")).toBe("All clean across the last 1 marked sets");
+    // Spec moved 2026-09-01: the singular case reads as a sentence now
+    // ("the last 1 marked sets" was a live-render copy bug, not a behavior).
+    expect(movedFact(workouts, "Bench")).toBe("All clean across the last marked set");
   });
 });

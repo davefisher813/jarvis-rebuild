@@ -116,8 +116,11 @@ export function movedFact(workouts: Workout[], name: string): string | null {
   }
   if (total === 0) return null;
   const bits: string[] = [];
-  if (grind > 0) bits.push(`a grind ${grind} of the last ${total} sets`);
+  // Live-render audit 2026-09-01 (Dave's screenshot): "a grind 1 of the last
+  // 3 sets" is not a sentence, and "1 marked sets" is not a plural. Copy
+  // reads as written, so it gets the same review the numbers do.
+  if (grind > 0) bits.push(`a grind in ${grind} of the last ${total} ${total === 1 ? "set" : "sets"}`);
   if (missed > 0) bits.push(`missed ${missed} of ${total}`);
-  if (bits.length === 0) return `All clean across the last ${total} marked sets`;
+  if (bits.length === 0) return total === 1 ? "All clean across the last marked set" : `All clean across the last ${total} marked sets`;
   return bits.map((b, i) => (i === 0 ? b.charAt(0).toUpperCase() + b.slice(1) : b)).join(", ");
 }

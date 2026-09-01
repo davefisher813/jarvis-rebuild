@@ -101,3 +101,10 @@ export function agoPhrase(iso: string, today: string): string {
   if (gap <= 6) return WD[d.getDay()]!;
   return `${MO[d.getMonth()]} ${d.getDate()}`;
 }
+
+/** agoPhrase shaped for mid-sentence use ("Last trained today"): the
+ *  relative words drop their caps; weekday and month forms keep theirs. */
+export function agoPhraseLower(iso: string, today: string): string {
+  const p = agoPhrase(iso, today);
+  return p === "Today" || p === "Yesterday" ? p.toLowerCase() : p;
+}
