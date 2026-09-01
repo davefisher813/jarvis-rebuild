@@ -13,6 +13,7 @@ import { MoneyService } from "../money/MoneyService";
 import { BackupService } from "../backup/BackupService";
 import { RoutineService } from "../routine/RoutineService";
 import { GymService } from "../gym/GymService";
+import { MetricsService } from "../gym/MetricsService";
 import { LearnedRulesService } from "../rules/LearnedRulesService";
 import { ChatService } from "../chat/ChatService";
 import { DecisionService } from "../decisions/DecisionService";
@@ -36,6 +37,7 @@ const GoalContext = createContext<GoalService | null>(null);
 const ProjectContext = createContext<ProjectsService | null>(null);
 const MoneyContext = createContext<MoneyService | null>(null);
 const GymContext = createContext<GymService | null>(null);
+const MetricsContext = createContext<MetricsService | null>(null);
 const RulesContext = createContext<LearnedRulesService | null>(null);
 const BackupContext = createContext<BackupService | null>(null);
 const RoutineContext = createContext<RoutineService | null>(null);
@@ -56,7 +58,7 @@ export function NotesProvider({
   accessToken?: string;
   children: ReactNode;
 }) {
-  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, rules, chat, decisions, strands, seal } = useMemo(() => {
+  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, metrics, rules, chat, decisions, strands, seal } = useMemo(() => {
     const store = makeStore(accessToken);
     return {
       rules: new LearnedRulesService(store, userId),
@@ -74,6 +76,7 @@ export function NotesProvider({
       backup: new BackupService(store, userId),
       routine: new RoutineService(store, userId),
       gym: new GymService(store, userId, (e) => emit(e)),
+      metrics: new MetricsService(store, userId, (e) => emit(e)),
       chat: new ChatService(store, userId),
       decisions: new DecisionService(store, userId, (e) => emit(e)),
       strands: new StrandsService(store, userId, (e) => emit(e)),
@@ -96,6 +99,7 @@ export function NotesProvider({
                       <BackupContext.Provider value={backup}>
                       <RoutineContext.Provider value={routine}>
                       <GymContext.Provider value={gym}>
+                      <MetricsContext.Provider value={metrics}>
                       <RulesContext.Provider value={rules}>
                       <ChatContext.Provider value={chat}>
                       <DecisionContext.Provider value={decisions}>
@@ -103,6 +107,7 @@ export function NotesProvider({
                       </DecisionContext.Provider>
                       </ChatContext.Provider>
                       </RulesContext.Provider>
+                      </MetricsContext.Provider>
                       </GymContext.Provider>
                       </RoutineContext.Provider>
                       </BackupContext.Provider>
@@ -245,6 +250,15 @@ export function useGym(): GymService {
 /** D4-C: the schedule reads the gym (pinned day, estimate, last trained)
  *  without demanding it exists -- same shape as every other optional hook. */
 export function useOptionalGym(): GymService | null { return useContext(GymContext) ?? null; }
+
+export function useMetrics(): MetricsService {
+  const s = useContext(MetricsContext);
+  if (!s) throw new Error("useMetrics must be used inside NotesProvider");
+  return s;
+}
+/** D10-B: the Health page reads metrics without demanding they exist, same
+ *  shape as useOptionalGym. */
+export function useOptionalMetrics(): MetricsService | null { return useContext(MetricsContext) ?? null; }
 
 export function useRoutine(): RoutineService {
   const s = useContext(RoutineContext);

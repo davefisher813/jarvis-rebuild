@@ -133,6 +133,12 @@ export interface Exercise {
    *  sets are never stored in the program: the plan is the work, and a ramp
    *  is derived from it, so changing the working weight re-ramps for free. */
   ramp?: boolean;
+  /** PUBLISHED RANGES, D13-C. Which muscle this lift trains, for the weekly
+   *  hard-set row against the published growth range -- set by hand in the
+   *  editor, same doctrine as gameCategoryId and the Training Door: the app
+   *  never guesses a lift's muscle from its free-text name. Absent means the
+   *  range row simply never claims this exercise. */
+  muscleGroup?: import("./muscles").MuscleGroup;
 }
 
 /**

@@ -30,6 +30,7 @@ import {
   GitFork as GitForkFill,
   Lock as LockFill,
   MapPin as MapPinFill,
+  Pulse as PulseFill,
   Sun as SunFill,
   SunHorizon as SunHorizonFill,
   Target as TargetFill,
@@ -250,6 +251,18 @@ export function CloudGlyph({ className = "ic" }: { className?: string }) {
     <>
       <svg className={className + " ic-out"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M17.5 19a4.5 4.5 0 1 0 0-9h-1.8A7 7 0 1 0 4 14.9" /></svg>
       <CloudFill className={className + " ic-fill"} weight="fill" />
+    </>
+  );
+}
+
+// D10-B, health metrics strip. The outline half is MetricsCard.tsx's own
+// original markup, moved here character for character (icon ratchet, LAW:
+// hand-drawn icon SVGs do not multiply) rather than redrawn.
+export function PulseGlyph({ className = "ic" }: { className?: string }) {
+  return (
+    <>
+      <svg className={className + " ic-out"} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 12 8 12 10 6 14 18 16 12 21 12" /></svg>
+      <PulseFill className={className + " ic-fill"} weight="fill" />
     </>
   );
 }

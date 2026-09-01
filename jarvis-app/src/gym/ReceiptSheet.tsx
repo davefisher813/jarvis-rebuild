@@ -70,6 +70,27 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone }: {
               </div>
             </>
           )}
+          {receipt.goalHits.length > 0 && (
+            <>
+              {/* D12: the celebration. Styled exactly like New Best below --
+                  the app's one established "dopamine" pattern (stat tiles,
+                  pills) -- rather than a separate full-screen confetti
+                  moment the preview mocked but the real app has no
+                  precedent for. */}
+              <div className="grp"><div className="eyebrow">Goal Hit</div></div>
+              <div className="card banner-good">
+                {receipt.goalHits.map((g) => (
+                  <div className="row" key={g.title}>
+                    <div className="row-grow">
+                      <div className="conn-name truncate">{g.title}</div>
+                      <div className="conn-meta">{g.line}</div>
+                    </div>
+                    <span className="pill pill-good">Goal</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
           {receipt.prs.length > 0 && (
             <>
               <div className="grp"><div className="eyebrow">New Best</div></div>

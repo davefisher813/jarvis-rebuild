@@ -2,6 +2,9 @@ import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import type { GoalReach } from "./reach";
+import type { Workout } from "../gym/types";
+import type { LiftMeasure, TrainingMeasure } from "../gym/goalMeasures";
+import { liftMeasureState, trainingMeasureState } from "../gym/goalMeasures";
 import { daysBetween } from "../upnext/upnext";
 import { capAfterNumber } from "../shared/casing";
 
@@ -39,7 +42,15 @@ export type Cadence = "week" | "month";
 export interface CountMeasure { kind: "count"; target: number; since?: string }
 export interface CadenceMeasure { kind: "cadence"; times: number; per: Cadence }
 export interface ProjectsMeasure { kind: "projects" }
-export type Measure = CountMeasure | CadenceMeasure | ProjectsMeasure;
+// D12-A/C (Training Catalog V2, approved 2026-08-31): a goal set from the
+// gym rides this SAME union rather than inventing a parallel goal system.
+// LiftMeasure/TrainingMeasure and their state functions live in
+// gym/goalMeasures.ts (workouts are a gym concern; this module composes
+// goals across the whole app and does not know how a set is logged), and
+// are re-exported here so a caller importing "the measure kinds" finds all
+// five in one place.
+export type Measure = CountMeasure | CadenceMeasure | ProjectsMeasure | LiftMeasure | TrainingMeasure;
+export type { LiftMeasure, TrainingMeasure } from "../gym/goalMeasures";
 
 export const CADENCE_LABEL: Record<Cadence, string> = { week: "Week", month: "Month" };
 
@@ -60,6 +71,13 @@ export interface MeasureContext {
   samples: { id?: string; t: number }[];
   today: string;
   now: number;
+  /** D12: finished gym sessions, for lift/training measures only. Optional
+   *  and additive -- every existing call site (Bigger Picture, Category
+   *  Detail's non-health pages) builds a MeasureContext with no idea a gym
+   *  exists, and none of that breaks: a lift/training goal simply reads as
+   *  unmeasured until a caller that HAS the workout list (the Health page)
+   *  passes it. */
+  workouts?: Workout[];
 }
 
 const DAY = 86400000;
@@ -96,6 +114,14 @@ export function completionsIn(ctx: MeasureContext, from: number): number {
 
 export function measureState(m: Measure | undefined, ctx: MeasureContext): MeasureState | null {
   if (!m) return null;
+
+  // D12: lift/training goals read the workout list, never Time Sense --
+  // a gym session already carries its own dated record. Without
+  // ctx.workouts (a caller that has not wired the gym in) this reads as no
+  // measure at all rather than guessing; healthOf() still shows "Achieved"
+  // correctly regardless, because it checks goal.data.state first.
+  if (m.kind === "lift") return ctx.workouts ? liftMeasureState(m, ctx.workouts) : null;
+  if (m.kind === "training") return ctx.workouts ? trainingMeasureState(m, ctx.workouts, ctx.now) : null;
 
   if (m.kind === "cadence") {
     const done = completionsIn(ctx, windowStart(m.per, ctx.now));
@@ -172,7 +198,11 @@ export function paceLine(
   by: string | undefined,
   today: string,
 ): string | null {
+  // A rhythm has no end to pace against, whichever goal kind carries one:
+  // task cadence, or a "twice a week" training goal (block still counts
+  // down like an ordinary count, so it is not excluded here).
   if (!by || !state || !m || m.kind === "cadence") return null;
+  if (m.kind === "training" && m.per !== "block") return null;
   if (state.met) return null;
   const left = state.target - state.done;
   const days = daysBetween(today, by);
@@ -229,17 +259,28 @@ export function healthOf(
   // Behind is only claimable against a date AND a finish line. Without both,
   // there is no pace to be behind of, and saying so would be a guess.
   if (goal.data.by && state && m && m.kind !== "cadence" && state.target > 0) {
-    const total = state.target;
     const days = daysBetween(ctx.today, goal.data.by);
-    if (days < 0) return "behind";
-    // Straight-line: the share of the run that should be finished by now is
-    // unknowable without a start, so this compares what is LEFT against what
-    // is left of the time, in the same unit.
-    const left = total - state.done;
-    if (days > 0 && left > 0) {
-      const needPerDay = left / days;
-      const seenPerDay = seenRate(ctx);
-      if (seenPerDay > 0 && seenPerDay < needPerDay * 0.6) return "behind";
+    if (m.kind === "lift" || m.kind === "training") {
+      // seenRate below reads Time Sense TASK completions -- the wrong
+      // evidence for a gym goal, and a lift/training goal's own tags may
+      // legitimately match unrelated Health-category tasks (that is how it
+      // surfaces in Bigger Picture at all, see reach.ts). Rather than pace
+      // against evidence that has nothing to do with the bar, the only
+      // claim available this wave is the undisputed one: the date passed
+      // and it is still not met.
+      if (days < 0) return "behind";
+    } else {
+      const total = state.target;
+      if (days < 0) return "behind";
+      // Straight-line: the share of the run that should be finished by now is
+      // unknowable without a start, so this compares what is LEFT against what
+      // is left of the time, in the same unit.
+      const left = total - state.done;
+      if (days > 0 && left > 0) {
+        const needPerDay = left / days;
+        const seenPerDay = seenRate(ctx);
+        if (seenPerDay > 0 && seenPerDay < needPerDay * 0.6) return "behind";
+      }
     }
   }
 
@@ -287,6 +328,8 @@ export function measureLabel(m: Measure | undefined, moneyTarget?: number): stri
   if (!m) return "No Finish Line";
   if (m.kind === "count") return capAfterNumber(`${m.target} to Finish`);
   if (m.kind === "cadence") return capAfterNumber(`${m.times} a ${m.per}`);
+  if (m.kind === "lift") return "On the Bar";
+  if (m.kind === "training") return m.per === "block" ? capAfterNumber(`${m.times} Sessions`) : capAfterNumber(`${m.times} a ${m.per}`);
   return "Every Project Done";
 }
 

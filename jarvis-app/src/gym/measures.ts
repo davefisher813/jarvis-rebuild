@@ -18,8 +18,9 @@ function trim(n: number): string {
 /** A field is present when it carries a real number. Zero and absent both
  *  mean "didn't say" -- the same reading hasTarget, logButtonLabel and
  *  scoreOf have always used, which is what lets a stored zero from the old
- *  editor heal with no migration. */
-const has = (n: number | undefined): n is number => (n ?? 0) > 0;
+ *  editor heal with no migration. Exported: D12's lift-goal matching
+ *  (goalMeasures.ts) needs the identical "did they say a number" read. */
+export const has = (n: number | undefined): n is number => (n ?? 0) > 0;
 
 /** How one logged entry reads: "135 lb × 8", "4.64 s", "12 rounds", "Done".
  *

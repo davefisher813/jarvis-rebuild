@@ -33,7 +33,7 @@ import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/
 import ProjectSheet from "../projects/ProjectSheet";
 import CategorySheet, { type CategoryDraft } from "../categories/screens/CategorySheet";
 import GymFlow from "../gym/GymFlow";
-import { useGym } from "../data/NotesProvider";
+import { useGym, useMetrics } from "../data/NotesProvider";
 import type { Program } from "../gym/types";
 import { capAfterNumber } from "../shared/casing";
 import { BarbellGlyph, CalendarGlyph, FolderGlyph, TargetGlyph } from "../shared/glyphs";
@@ -42,6 +42,12 @@ import type { Workout } from "../gym/types";
 import { buildGoalIndex, liveGoals, reachOf, reachLine } from "../bigger/reach";
 import { measureState, healthOf, HEALTH_LABEL, HEALTH_CLASS, type MeasureContext } from "../bigger/measure";
 import { openWorkOf } from "../today/goalPulse";
+import { MetricsCard, MetricLogSheet, AddMetricSheet } from "../gym/MetricsCard";
+import type { MetricDef, MetricLog } from "../gym/metrics";
+import { newMetricDefData, activeMetrics } from "../gym/metrics";
+import { chartableExercises, liftSessions } from "../gym/chartData";
+import { correlate, plateauFlag, hardSetRows, muscleMapFromProgram, backOffSignal, shouldOfferLighterWeek } from "../gym/insights";
+import { MUSCLE_LABEL } from "../gym/muscles";
 
 const CHEV = (
   <div className="chev" />
@@ -140,9 +146,16 @@ export default function CategoryDetail({
   const [pushedWeek, setPushedWeek] = useState(0);
   const [sheet, setSheet] = useState<SheetState>({ kind: "closed" });
   const gymSvc = useGym();
+  const metricsSvc = useMetrics();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [gymOpen, setGymOpen] = useState(false);
+  // D10-B/D11-C/D13-C: the metric strip and the insight cards, health-kind
+  // pages only. Reloaded alongside the gym read (gymOpen dep) so a metric
+  // logged from the strip and a set logged in the gym both show up fresh.
+  const [metricDefs, setMetricDefs] = useState<MetricDef[]>([]);
+  const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
+  const [metricSheet, setMetricSheet] = useState<{ kind: "log"; def: MetricDef } | { kind: "add" } | null>(null);
   // Full project list, unfiltered: goal reach is computed across ALL
   // projects (a goal tagged here can be filed anywhere).
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -210,6 +223,22 @@ export default function CategoryDetail({
     gymSvc.listWorkouts().then((w) => { if (on) setWorkouts(w); }).catch(() => {});
     return () => { on = false; };
   }, [gymSvc, gymOpen]);
+
+  // D10-B: the metric strip's own read, alongside the gym read (same
+  // gymOpen dep) so a set logged in the gym and a metric logged from the
+  // strip both show up fresh without a second trigger to track.
+  useEffect(() => {
+    let on = true;
+    metricsSvc.listDefs().then((d) => { if (on) setMetricDefs(d); }).catch(() => {});
+    metricsSvc.listLogs().then((l) => { if (on) setMetricLogs(l); }).catch(() => {});
+    return () => { on = false; };
+  }, [metricsSvc, gymOpen]);
+
+  const reloadMetrics = async () => {
+    const [d, l] = await Promise.all([metricsSvc.listDefs(), metricsSvc.listLogs()]);
+    setMetricDefs(d);
+    setMetricLogs(l);
+  };
 
   // Last contact (2026-08-10): one cached Gmail lookup per person with an
   // email. Silent degrade: no Google session or no email means the subline
@@ -280,7 +309,12 @@ export default function CategoryDetail({
   };
 
   if (!cat) return <div className="screen" />;
-  if (gymOpen) return <GymFlow onBack={() => setGymOpen(false)} />;
+  // reload() on the way back out, not just gymOpen's own workouts/programs
+  // effect: a lift/training goal set from inside the gym (D12-A/C) writes
+  // straight to GoalService, bypassing this page's own goals state, so
+  // without this the new goal is invisible under Goals Here until some
+  // OTHER trigger happens to reload the page.
+  if (gymOpen) return <GymFlow onBack={() => { setGymOpen(false); void reload(); }} />;
   const kind = effectiveKind(cat.data);
   const isOrg = kind === "org";
   const paused = isOrg && cat.data.season === "paused";
@@ -312,6 +346,35 @@ export default function CategoryDetail({
   // opening it. Null on every other kind, and every row degrades to absent.
   const training = kind === "health" ? trainingSummary(workouts, today) : null;
 
+  // D11-C/D13-A/C: the insight surfaces, health-kind pages only. Every piece
+  // degrades to absent on its own (INSIGHT_MIN_PAIRED inside correlate(),
+  // PLATEAU_MIN_SESSIONS inside plateauFlag(), zero-is-a-verdict inside
+  // hardSetRows()) -- this block just gathers what already qualified.
+  const activeDefs = kind === "health" ? activeMetrics(metricDefs) : [];
+  const correlations = kind === "health"
+    ? chartableExercises(workouts).flatMap((ex) => {
+        const sessions = liftSessions(workouts, ex.name, ex.kind);
+        return activeDefs
+          .map((def) => correlate(sessions, ex.kind, ex.name, def, metricLogs))
+          .filter((c): c is NonNullable<typeof c> => c != null);
+      })
+    : [];
+  const plateaus = kind === "health"
+    ? chartableExercises(workouts)
+        .map((ex) => {
+          const sessions = liftSessions(workouts, ex.name, ex.kind);
+          const metricsFor = activeDefs.map((def) => ({ def, logs: metricLogs }));
+          const flag = plateauFlag(sessions, ex.kind, ex.name, workouts, metricsFor);
+          return flag ? { ...flag, name: ex.name } : null;
+        })
+        .filter((p): p is NonNullable<typeof p> => p != null)
+    : [];
+  const muscleMap = kind === "health" ? muscleMapFromProgram(programs[0] ?? null) : new Map();
+  const rangeRows = kind === "health" ? hardSetRows(workouts, muscleMap, nowMs) : [];
+  const backOff = kind === "health" ? backOffSignal(workouts, nowMs) : null;
+  const offerLighter = kind === "health" && shouldOfferLighterWeek(backOff);
+  const hasInsights = plateaus.length > 0 || correlations.length > 0 || rangeRows.length > 0 || offerLighter;
+
   // Goals reaching this category through tags (Architecture C). The page
   // shows their pulse; Bigger Picture owns the goal itself. Health earns a
   // word only when the eye should catch it, the same law as the BP list.
@@ -322,7 +385,7 @@ export default function CategoryDetail({
     .slice(0, 3)
     .map((g) => {
       const reach = reachOf(allTasks, allProjects, g);
-      const ctx: MeasureContext = { reach, tasks: allTasks, projects: allProjects.filter((p) => p.data.goalId === g.id), samples, today, now: nowMs };
+      const ctx: MeasureContext = { reach, tasks: allTasks, projects: allProjects.filter((p) => p.data.goalId === g.id), samples, today, now: nowMs, workouts };
       const ms = measureState(g.data.measure, ctx);
       const h = healthOf(g, ms, g.data.measure, ctx, openWorkOf(reach));
       return { id: g.id, title: g.data.title, line: ms ? ms.line : reachLine(reach), flag: h === "behind" || h === "idle" ? h : null };
@@ -622,6 +685,59 @@ export default function CategoryDetail({
               </div>
             )}
           </div></div>
+
+          <MetricsCard
+            defs={metricDefs}
+            logs={metricLogs}
+            date={today}
+            onOpen={(def) => setMetricSheet({ kind: "log", def })}
+            onManage={() => setMetricSheet({ kind: "add" })}
+          />
+
+          {hasInsights && (
+            <>
+              <div className="sec-head"><div className="sec-left"><div className="sec-title">Insights</div></div></div>
+              <div className="pad-x">
+                {plateaus.map((p) => (
+                  <div className="card rep-gap banner-warn" key={"plateau-" + p.name}>
+                    <div className="row">
+                      <div className="row-grow">
+                        <div className="conn-name">{capAfterNumber(`${p.name} · ${p.flatSessions} sessions with no new best`)}</div>
+                        <div className="conn-meta">Best was {p.peakValue} on {p.peakDate} · Now {p.currentValue}</div>
+                      </div>
+                    </div>
+                    {p.whatChanged.map((r) => (
+                      <div className="row" key={r.label}>
+                        <div className="row-grow"><div className="conn-name">{r.label}</div></div>
+                        <div className="conn-meta">{r.moving}{r.unit ? ` ${r.unit}` : ""} to {r.flat}{r.unit ? ` ${r.unit}` : ""}</div>
+                      </div>
+                    ))}
+                    <div className="row"><div className="row-grow"><div className="conn-meta">Correlation, not cause</div></div></div>
+                  </div>
+                ))}
+                {correlations.map((c) => (
+                  <div className="card pad rep-gap banner-blue" key={c.exerciseName + "-" + c.metricName}>
+                    <div className="conn-name">{c.exerciseName} × {c.metricName}</div>
+                    <div className="conn-meta">{c.line}</div>
+                  </div>
+                ))}
+                {rangeRows.map((r) => (
+                  <div className="card rep-gap" key={r.muscle}>
+                    <div className="row">
+                      <div className="row-grow"><div className="conn-name">{MUSCLE_LABEL[r.muscle]} · {r.sets} sets this week</div><div className="conn-meta">{r.range.note}</div></div>
+                    </div>
+                    <div className="row"><div className="row-grow"><div className="conn-meta">{r.range.source}</div></div></div>
+                  </div>
+                ))}
+                {offerLighter && (
+                  <div className="card pad rep-gap banner-warn">
+                    <div className="conn-name">A Lighter Week, If You Want It</div>
+                    <div className="conn-meta">Several grinds and misses lately · Never a prescription, just an offer</div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </>
       )}
 
@@ -717,6 +833,25 @@ export default function CategoryDetail({
             });
           }}
           onCancel={() => setSheet({ kind: "closed" })} />
+      )}
+
+      {metricSheet?.kind === "log" && (
+        <MetricLogSheet
+          def={metricSheet.def}
+          date={today}
+          initial={metricLogs.find((l) => l.data.metricId === metricSheet.def.id && l.data.date === today)}
+          onSave={async (value) => { await metricsSvc.logMetric(metricSheet.def.id, today, value); setMetricSheet(null); await reloadMetrics(); }}
+          onCancel={() => setMetricSheet(null)}
+        />
+      )}
+      {metricSheet?.kind === "add" && (
+        <AddMetricSheet
+          defs={metricDefs}
+          onEnablePreset={async (preset) => { await metricsSvc.createDef(newMetricDefData(preset.name, preset.type, preset.unit, preset.key, today, metricDefs.length)); await reloadMetrics(); }}
+          onToggleHidden={async (def) => { await metricsSvc.updateDef(def.id, { hidden: !def.data.hidden }); await reloadMetrics(); }}
+          onCreateCustom={async (name, type, unit) => { await metricsSvc.createDef(newMetricDefData(name, type, unit || undefined, undefined, today, metricDefs.length)); await reloadMetrics(); }}
+          onCancel={() => setMetricSheet(null)}
+        />
       )}
     </div>
   );

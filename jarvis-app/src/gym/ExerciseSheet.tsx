@@ -10,6 +10,7 @@ import SetStrip from "./SetStrip";
 import Stepper from "../shared/Stepper";
 import { Trash2 } from "../shared/icons";
 import { searchLibrary, newExerciseKey, type LibraryEntry } from "./library";
+import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 
 // The count row in the user's language, never "How many" (Dave, 2026-08-15).
 const countLabel = (kind: MeasureKind): string => {
@@ -66,6 +67,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   const [restSec, setRestSec] = useState(initial?.restSec ?? 0);
   const [filler, setFiller] = useState(!!initial?.filler);
   const [ramp, setRamp] = useState(!!initial?.ramp);
+  const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | undefined>(initial?.muscleGroup);
 
   const suggestions = library && nameFocused && name.trim().length > 0
     ? searchLibrary(library, name, 5).filter((s) => s.name.toLowerCase() !== name.trim().toLowerCase())
@@ -288,6 +290,21 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               {filler ? "This Is a Filler" : "Mark As a Filler"}
             </div>
           </div>
+
+          {/* PUBLISHED RANGES, D13-C: set by hand, same doctrine as
+              gameCategoryId and the Training Door -- the app never guesses a
+              lift's muscle from its free-text name. Absent (no chip picked)
+              means the weekly hard-set row simply never claims this lift. */}
+          <div className="field">
+            <div className="input-label">Muscle</div>
+            <div className="chip-row">
+              {MUSCLE_GROUPS.map((m) => (
+                <div key={m} className={"chip" + (muscleGroup === m ? " active" : "")} role="button" tabIndex={0}
+                  onClick={() => setMuscleGroup((cur) => (cur === m ? undefined : m))}>{MUSCLE_LABEL[m]}</div>
+              ))}
+            </div>
+            <div className="input-hint">Optional · Feeds the weekly hard-set range on the Health page</div>
+          </div>
         </div>
         <div className="pad-x sheet-actions">
           <button className="btn btn-primary btn-block" onClick={() => {
@@ -304,6 +321,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               ...(restSec > 0 ? { restSec } : {}),
               ...(filler ? { filler: true } : {}),
               ...(ramp ? { ramp: true } : {}),
+              ...(muscleGroup ? { muscleGroup } : {}),
             });
           }}>{saveLabel}</button>
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>

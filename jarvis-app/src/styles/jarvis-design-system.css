@@ -180,6 +180,10 @@
   --accent-chip-bd: #FF2B3C;
   --accent-chip-tx: #FF2B3C;
   --red-tint: rgba(255,43,60,0.16); --warn-tint: rgba(255,159,10,0.14); --good-tint: rgba(48,209,88,0.16);
+  /* D9/D12 (Training Catalog V2, HEALTH_PREVIEW_SPEC): blue = performance
+     data (charts, trends), yellow = a goal in flight. Same 13-16% wash the
+     three tints above already use -- no new opacity convention. */
+  --blue-tint: rgba(10,132,255,0.16); --yellow-tint: rgba(255,214,10,0.16);
   --glass-bg: rgba(28,28,30,0.55);
   /* rim raised 0.14 -> 0.20 so glass edges catch light on OLED (RDB, Dave 2026-07-29) */
   --rim-card: rgba(255,255,255,0.20); --rim-bottom: rgba(0,0,0,0.55);
@@ -266,6 +270,7 @@
   --accent-chip-bd: #DA0012;
   --accent-chip-tx: #DA0012;
   --red-tint: rgba(204,5,27,0.10); --warn-tint: rgba(255,149,0,0.14); --good-tint: rgba(52,199,89,0.14);
+  --blue-tint: rgba(0,122,255,0.12); --yellow-tint: rgba(255,204,0,0.14);
   --glass-bg: rgba(255,255,255,0.78);
   --rim-card: rgba(255,255,255,0.9); --rim-bottom: rgba(0,0,0,0.04);
   --nav-bg: rgba(250,250,252,0.86);

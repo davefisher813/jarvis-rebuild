@@ -61,6 +61,13 @@ export interface Receipt {
    *  mobility get a receipt line of their own, not just folded into the
    *  exercise count. */
   doneNames: string[];
+  /** D12: any goal (lift or training) that crossed from not-met to met
+   *  BECAUSE of this session -- the celebration. receiptFor itself has no
+   *  idea goals exist (it is a pure function of the workout + history, same
+   *  as always); GymFlow.finish computes this separately, against the SAME
+   *  before/after evidence goalMeasures.ts already reads, and attaches it
+   *  here so ReceiptSheet has one Receipt to read, not two data sources. */
+  goalHits: { title: string; line: string }[];
 }
 
 /**
@@ -115,6 +122,7 @@ export function receiptFor(
     prs,
     otherSets,
     doneNames,
+    goalHits: [], // GymFlow.finish attaches the real list once it has the goal list
   };
 }
 

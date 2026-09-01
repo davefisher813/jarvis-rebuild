@@ -37,10 +37,19 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
   // self-reported status; it earns its field.
   const [target, setTarget] = useState(initial?.moneyTarget ? String(initial.moneyTarget) : "");
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
+  // D12 (2026-08-31): a lift or training measure is set FROM THE GYM (its
+  // own sheet knows how to pick an exercise and a target set; this one does
+  // not). This sheet neither edits nor destroys one: it is carried through
+  // on save exactly as it arrived, and the segmented picker below reads
+  // "None" for it rather than pretending the goal has no finish line.
+  const externalMeasure = initial?.measure?.kind === "lift" || initial?.measure?.kind === "training" ? initial.measure : undefined;
   // PICKS 13 + 14: the finish line and the date. Both optional, both derived
   // once set: nothing here asks him to report a status, only to say what
   // "done" means and when he wants it.
-  const [kind, setKind] = useState<MeasureKind>(initial?.measure?.kind ?? "none");
+  const initialKind: MeasureKind =
+    initial?.measure?.kind === "count" || initial?.measure?.kind === "cadence" || initial?.measure?.kind === "projects"
+      ? initial.measure.kind : "none";
+  const [kind, setKind] = useState<MeasureKind>(initialKind);
   const [count, setCount] = useState(initial?.measure?.kind === "count" ? String(initial.measure.target) : "");
   const [times, setTimes] = useState(initial?.measure?.kind === "cadence" ? String(initial.measure.times) : "3");
   const [per, setPer] = useState<Cadence>(initial?.measure?.kind === "cadence" ? initial.measure.per : "week");
@@ -59,7 +68,7 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
     };
     if (kind === "cadence") return { kind: "cadence", times: Number(times), per };
     if (kind === "projects") return { kind: "projects" };
-    return undefined;
+    return externalMeasure; // "None" here means "untouched", not "cleared", when a gym goal owns it
   };
   const toggleTag = (id: string) => setTags((t) => (t.includes(id) ? t.filter((x) => x !== id) : [...t, id]));
   return createPortal(
@@ -104,9 +113,13 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
                 </div>
               </>
             )}
-            <div className="input-hint">What finished looks like. Progress is counted from your real completions, never typed in.</div>
+            <div className="input-hint">
+              {externalMeasure
+                ? "Set from the gym · Picking one of these replaces it"
+                : "What finished looks like · Progress counted from real completions, never typed in"}
+            </div>
           </div>
-          {kind !== "none" && (
+          {(kind !== "none" || externalMeasure) && (
             <div className="field">
               <div className="input-label">Wanted By</div>
               <input type="date" className="input" value={by} onChange={(e) => setBy(e.target.value)} />
@@ -120,7 +133,7 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
           </div>
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), state: initial?.state ?? "on_track", ...(initial?.areaId ? { areaId: initial.areaId } : {}), ...(initial?.saved ? { saved: initial.saved } : {}), ...(initial?.dropped ? { dropped: initial.dropped } : {}), ...(tags.length ? { tags } : {}), measure: measureOf(), by: kind !== "none" && by ? by : undefined, moneyTarget: target.trim() ? Number(target) : undefined }); }}>Save</button>
+          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), state: initial?.state ?? "on_track", ...(initial?.areaId ? { areaId: initial.areaId } : {}), ...(initial?.saved ? { saved: initial.saved } : {}), ...(initial?.dropped ? { dropped: initial.dropped } : {}), ...(tags.length ? { tags } : {}), measure: measureOf(), by: (kind !== "none" || externalMeasure) && by ? by : undefined, moneyTarget: target.trim() ? Number(target) : undefined }); }}>Save</button>
           {mode === "edit" && onDelete && <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>{TRASH}Delete Goal</button>}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>

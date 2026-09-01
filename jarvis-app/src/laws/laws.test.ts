@@ -712,6 +712,7 @@ describe("LAW: one filled red per screen", () => {
       "people/CallPrepSheet.tsx": "Call and Save Note are exclusive on `dialed`",
       "schedule/screens/PlanDaySheet.tsx": "count === 0 ternary: replan or commit, never both",
       "schedule/ScheduleFlow.tsx": "the Anytime guard is a modal over the page, not a second button in it",
+      "gym/MetricsCard.tsx": "MetricLogSheet and AddMetricSheet are separate portals, each mounted alone by CategoryDetail's metricSheet state; never both on screen together",
     };
 
     const bad: string[] = [];
@@ -3389,5 +3390,84 @@ describe("LAW 17: the fit is a stance, never an edit", () => {
     const sheet = read(join(SRC, "schedule", "screens", "EventSheet.tsx"));
     expect(sheet, "the door is not the athlete's own switch").toMatch(/setGym/);
     expect(sheet, "the sheet guesses the gym from the title").not.toMatch(/title\.(match|includes)\([^)]*[Gg]ym/);
+  });
+});
+
+// ===========================================================================
+// LAW 18: WHEN IS A FACT, WHY IS NEVER CLAIMED (Training Catalog V2, Wave 4:
+// D9-A trend charts, D10-B metrics, D11-C correlation, D12-A/C lift and
+// training goals, D13-A/C plateau flags and the published range row --
+// approved 2026-08-31, riding the health doctrine override Dave signed off
+// verbatim: "Take out that ban... plenty of high school students who can
+// track their physical data in a healthy way," with everything ELSE in the
+// override doc -- opt-in, hide-never-delete, no score, no calories, honest
+// correlation -- unmoved). A flat e1RM, a muscle's weekly set count, a
+// metric's own logged value: all facts, all computable. A REASON one of
+// those moved is not computable from one person's logs, and nothing in this
+// wave is allowed to imply it found one.
+// ===========================================================================
+describe("LAW 18: when is a fact, why is never claimed", () => {
+  const gym = (f: string) => read(join(SRC, "gym", f));
+
+  it("muscle mapping is never guessed from an exercise's name", () => {
+    // Exercise.muscleGroup (gym/types.ts) is a hand-set field, the same
+    // never-guess doctrine as gameCategoryId. insights.ts's own program join
+    // must read that field and nothing else -- no keyword match standing in
+    // for it.
+    const src = gym("insights.ts");
+    const fn = src.slice(src.indexOf("export function muscleMapFromProgram"));
+    const body = fn.slice(0, fn.indexOf("\n}"));
+    expect(body, "muscleMapFromProgram infers a muscle from the exercise name instead of reading the hand-set field")
+      .not.toMatch(/\.name\.(match|includes|toLowerCase\(\)\.includes)/);
+    expect(body, "muscleMapFromProgram lost the hand-set field read").toMatch(/ex\.muscleGroup/);
+  });
+
+  it("every correlation card ends its own line honestly", () => {
+    const src = gym("insights.ts");
+    const fn = src.slice(src.indexOf("export function correlate"));
+    expect(fn.slice(0, fn.indexOf("\nfunction round1")), "a correlation card can render without its own disclaimer")
+      .toMatch(/Correlation, not cause/);
+  });
+
+  it("a plateau's what-changed receipt never grows a field for the reason", () => {
+    const src = gym("insights.ts");
+    expect(src, "WhatChangedRow grew a field naming the reason something changed")
+      .not.toMatch(/interface WhatChangedRow[^}]*\b(why|reason|because|cause)\b/i);
+    for (const screen of ["gym/LiftDetailScreen.tsx", "brain/CategoryDetail.tsx"]) {
+      const s = read(join(SRC, screen));
+      expect(s, screen + " renders a plateau card without the correlation-not-cause line")
+        .toMatch(/Correlation, not cause/);
+    }
+  });
+
+  it("zero hard sets is a verdict: the range row renders nothing, never a 0", () => {
+    const src = gym("insights.ts");
+    const fn = src.slice(src.indexOf("export function hardSetRows"));
+    const body = fn.slice(0, fn.indexOf("\n}"));
+    expect(body, "hardSetRows stopped filtering out muscles with zero sets this week")
+      .toMatch(/\(totals\.get\(m\) \?\? 0\) > 0/);
+  });
+
+  it("a metric can be hidden, never deleted", () => {
+    const src = read(join(SRC, "gym", "MetricsService.ts"));
+    expect(src, "MetricsService grew a way to delete a metric definition")
+      .not.toMatch(/deleteDef|removeDef|delete\([^)]*ENTITY_METRIC_DEF/);
+    expect(src, "MetricsService lost hide (updateDef with a hidden patch)").toMatch(/updateDef/);
+  });
+
+  it("the metric library is opt-in: nothing pre-enables a preset on its own", () => {
+    // METRIC_PRESETS is read-only data; a def is only ever created from the
+    // athlete's own tap (AddMetricSheet's onEnablePreset/onCreateCustom ->
+    // MetricsService.createDef), never seeded by the provider on init.
+    const providerSrc = read(join(SRC, "data", "NotesProvider.tsx"));
+    expect(providerSrc, "NotesProvider seeds a metric definition on its own")
+      .not.toMatch(/metrics\.createDef|MetricsService[^;]*createDef/);
+  });
+
+  it("no composite health or readiness score, ever", () => {
+    for (const f of ["gym/metrics.ts", "gym/insights.ts", "gym/MetricsCard.tsx"]) {
+      const src = read(join(SRC, f));
+      expect(src, f + " computes a composite/readiness score").not.toMatch(/composite[A-Z]?[Ss]core|readiness[A-Z]?[Ss]core|healthScore/);
+    }
   });
 });

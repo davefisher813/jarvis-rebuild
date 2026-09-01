@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { useGym, useOptionalSchedule, useOptionalCategories } from "../data/NotesProvider";
+import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics } from "../data/NotesProvider";
 import { todayISO } from "../tasks/grouping";
 import { monthDay } from "../money/bills";
-import type { DayBlock, Exercise, Program, ProgramDay, ProgramWeek, Workout, SetEntry, WorkoutExercise } from "./types";
+import type { DayBlock, Exercise, Program, ProgramDay, ProgramWeek, Workout, SetEntry, WorkoutExercise, MeasureKind } from "./types";
 import { targetLine, formatSet } from "./measures";
 import { applySuggestion, type Suggestion } from "./progression";
 import { receiptFor, type Receipt } from "./prs";
+import { effectiveKind } from "../categories/kinds";
+import type { Goal } from "../life/types";
+import { liftMeasureState, trainingMeasureState, type LiftMeasure, type TrainingMeasure } from "./goalMeasures";
+import type { MetricDef, MetricLog } from "./metrics";
+import LiftDetailScreen from "./LiftDetailScreen";
+import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, queueFinished, flushPending, hasWork, isStillActive, type LiveSession } from "./liveSession";
 import { bumpStrip, newSetId } from "./strip";
 import { buildLibrary } from "./library";
@@ -410,6 +416,8 @@ export default function GymFlow({ onBack, door }: {
   const ai = useAI();
   const schedule = useOptionalSchedule();
   const categoriesSvc = useOptionalCategories();
+  const goalsSvc = useOptionalGoals();
+  const metricsSvc = useOptionalMetrics();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [allPrograms, setAllPrograms] = useState<Program[]>([]); // active + archived
   const [workouts, setWorkouts] = useState<Workout[]>([]);
@@ -449,6 +457,16 @@ export default function GymFlow({ onBack, door }: {
   const [backdateDay, setBackdateDay] = useState<ProgramDay | null>(null);
   const [nextGame, setNextGame] = useState<string | null>(null);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  // D12: which of the athlete's own categories mean "Health" (Architecture
+  // C tag route) -- a gym goal tags these, silently, so it surfaces in
+  // Bigger Picture under Health with zero new grouping UI (catalog build
+  // notes). D9/D11: goals and metrics for the lift detail screen.
+  const [healthCategoryIds, setHealthCategoryIds] = useState<string[]>([]);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [metricDefs, setMetricDefs] = useState<MetricDef[]>([]);
+  const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
+  const [liftDetailFor, setLiftDetailFor] = useState<{ name: string; kind: MeasureKind; unit?: string; timeUnit?: string } | null>(null);
+  const [liftGoalSheetOpen, setLiftGoalSheetOpen] = useState(false);
   // The week sheet's "Normal / Back-Off" choice, held at the top level so it
   // is one plain useState called unconditionally on every render -- NOT
   // inside sheetEl(), which is called from different branches depending on
@@ -523,10 +541,32 @@ export default function GymFlow({ onBack, door }: {
     void (async () => {
       if (!categoriesSvc) return;
       const list = await categoriesSvc.list();
-      if (!cancelled) setCategories(list.map((c) => ({ id: c.id, name: c.data.name })));
+      if (cancelled) return;
+      setCategories(list.map((c) => ({ id: c.id, name: c.data.name })));
+      setHealthCategoryIds(list.filter((c) => effectiveKind(c.data) === "health").map((c) => c.id));
     })();
     return () => { cancelled = true; };
   }, [categoriesSvc]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!goalsSvc) return;
+      const list = await goalsSvc.list();
+      if (!cancelled) setGoals(list);
+    })();
+    return () => { cancelled = true; };
+  }, [goalsSvc, receipt]); // reload after a session finishes, so a fresh Achieved shows up
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!metricsSvc) return;
+      const [d, l] = await Promise.all([metricsSvc.listDefs(), metricsSvc.listLogs()]);
+      if (!cancelled) { setMetricDefs(d); setMetricLogs(l); }
+    })();
+    return () => { cancelled = true; };
+  }, [metricsSvc]);
 
   usePushDepth(
     live
@@ -785,7 +825,28 @@ export default function GymFlow({ onBack, door }: {
       if (live.doorEventId && schedule) {
         try { await schedule.stampTrained(live.doorEventId, live.date, r.minutes); } catch { /* offline: the workout is safe, the stamp can wait */ }
       }
-      setReceipt({ receipt: r, dayName: live.dayName });
+      // D12: did this session cross a goal from not-met to met? Checked
+      // against the SAME before/after evidence goalMeasures.ts always
+      // reads (workouts before this session, then with it) -- never a
+      // separate "did I hit it" heuristic. A goal already achieved is
+      // never re-celebrated.
+      const goalHits: { title: string; line: string }[] = [];
+      if (goalsSvc) {
+        const after: Workout[] = [...workouts, { id: "pending", data }];
+        for (const g of goals) {
+          if (g.data.state === "achieved") continue;
+          const m = g.data.measure;
+          if (!m || (m.kind !== "lift" && m.kind !== "training")) continue;
+          const before = m.kind === "lift" ? liftMeasureState(m as LiftMeasure, workouts) : trainingMeasureState(m as TrainingMeasure, workouts, endedAt);
+          if (before.met) continue;
+          const afterState = m.kind === "lift" ? liftMeasureState(m as LiftMeasure, after) : trainingMeasureState(m as TrainingMeasure, after, endedAt);
+          if (afterState.met) {
+            goalHits.push({ title: g.data.title, line: afterState.line });
+            try { await goalsSvc.update(g.id, { state: "achieved" }); } catch { /* offline: the session is saved either way, and healthOf derives "done" straight from the workout the next time it reads it */ }
+          }
+        }
+      }
+      setReceipt({ receipt: { ...r, goalHits }, dayName: live.dayName });
     } else {
       showToast({ message: "Nothing logged · Nothing saved" });
     }
@@ -796,7 +857,46 @@ export default function GymFlow({ onBack, door }: {
     return <UploadFlow ai={ai} onSave={(p) => void saveUploaded(p)} onCancel={() => setUploadOpen(false)} />;
   }
   if (historyOpen) {
-    return <HistoryScreen workouts={workouts} onBack={() => setHistoryOpen(false)} />;
+    return <HistoryScreen workouts={workouts} onBack={() => setHistoryOpen(false)} onOpenLift={(row) => { setHistoryOpen(false); setLiftDetailFor(row); }} />;
+  }
+  if (liftDetailFor) {
+    // Muscle group is a PROGRAM fact (D13-C), read off the CURRENT program's
+    // own exercise by name -- absent when untagged, or when the lift has
+    // since been renamed or removed from the plan; the range row simply
+    // does not claim it then.
+    const muscleGroup = program?.data.weeks
+      .flatMap((w) => w.days)
+      .flatMap((d) => d.exercises)
+      .find((e) => e.name === liftDetailFor.name)?.muscleGroup;
+    const goal = goals.find((g) => g.data.state !== "achieved" && g.data.measure?.kind === "lift" && (g.data.measure as LiftMeasure).exercise === liftDetailFor.name);
+    return (
+      <>
+        <LiftDetailScreen
+          {...liftDetailFor}
+          workouts={workouts}
+          muscleGroup={muscleGroup}
+          defs={metricDefs}
+          logs={metricLogs}
+          goal={goal}
+          onSetGoal={() => setLiftGoalSheetOpen(true)}
+          onBack={() => setLiftDetailFor(null)}
+        />
+        {liftGoalSheetOpen && (
+          <LiftGoalSheet
+            exercise={liftDetailFor.name}
+            kind={liftDetailFor.kind}
+            unit={liftDetailFor.unit}
+            timeUnit={liftDetailFor.timeUnit}
+            healthCategoryIds={healthCategoryIds}
+            onSave={async (data) => {
+              if (goalsSvc) { await goalsSvc.create(data); setGoals(await goalsSvc.list()); }
+              setLiftGoalSheetOpen(false);
+            }}
+            onCancel={() => setLiftGoalSheetOpen(false)}
+          />
+        )}
+      </>
+    );
   }
   if (viewWorkout && workoutDraft) {
     const w = viewWorkout;
