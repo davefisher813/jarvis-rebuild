@@ -5,7 +5,7 @@ import { todayISO } from "../tasks/grouping";
 import { monthDay } from "../money/bills";
 import { agoPhraseLower } from "./summary";
 import type { DayBlock, Exercise, Program, ProgramDay, ProgramWeek, Workout, SetEntry, WorkoutExercise, MeasureKind } from "./types";
-import { targetLine, formatSet } from "./measures";
+import { targetLine, formatSet, isCompactPlan } from "./measures";
 import { applySuggestion, type Suggestion } from "./progression";
 import { receiptFor, lastSessionFor, type Receipt } from "./prs";
 import { effectiveKind } from "../categories/kinds";
@@ -290,7 +290,12 @@ function ExerciseRow({ exercise, pairLabel, last, onOpen, onMenu }: {
           {exercise.ramp && <span className="xtag xtag-warn xtag-after">Ramp</span>}
           {exercise.filler && <span className="xtag xtag-dim xtag-after">Filler</span>}
         </div>
-        <div className="conn-meta">{targetLine(exercise)}{last ? ` · Last: ${last}` : ""}</div>
+        {/* THE ROW IS A RECEIPT, NOT A LEDGER (2026-09 sweep, Dave's Pull day
+            2 screenshot: a real pyramid set wrapped two lines of dense grey
+            numbers). A verbose per-set listing already fills the line on its
+            own -- "Last: X" only tacks on when the plan collapsed to one
+            short clause, which is exactly when the row has room for it. */}
+        <div className="conn-meta">{targetLine(exercise)}{last && isCompactPlan(exercise) ? ` · Last: ${last}` : ""}</div>
         {/* The athlete's own note echoes on the row, quoted (preview
             anatomy) -- reference, never coaching. */}
         {exercise.note && <div className="row-ghost">&ldquo;{exercise.note}&rdquo;</div>}

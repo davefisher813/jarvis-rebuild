@@ -134,6 +134,21 @@ export function targetLine(ex: Exercise): string {
   return sets.map((s) => formatSet(ex, s)).join(", ");
 }
 
+/** True when targetLine() collapses the plan to one short clause (a count, a
+ *  bare "N attempts"/"N times", or an "N × ..." repeat) rather than listing
+ *  every set out. A caller appending more after targetLine() -- "Last: X" on
+ *  the program row -- should only do it here: the verbose per-set listing is
+ *  already as much text as the row can carry, and tacking more onto it is
+ *  exactly what pushed a real pyramid set (Dave's Pull day 2 screenshot,
+ *  2026-09 sweep) into a cramped two-line wrap. */
+export function isCompactPlan(ex: Exercise): boolean {
+  const sets = ex.sets.filter((s) => !s.warmup);
+  if (sets.length === 0) return true;
+  if (ex.kind === "done") return true;
+  if (!hasTarget({ kind: ex.kind, sets })) return true;
+  return isUniformStrip(ex.kind, sets);
+}
+
 /** True when every entry in the strip carries the same numbers, so the plan
  *  can still be spoken as one line instead of a listing. A strip of one is
  *  trivially uniform. Lives here (not strip.ts) so targetLine has it with no

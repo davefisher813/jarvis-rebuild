@@ -28,7 +28,7 @@ export function MetricsCard({ defs, logs, date, onOpen, onManage }: {
       {shown.length === 0 ? (
         <div className="pad-x"><div className="card">
           <div className="row" role="button" tabIndex={0} onClick={onManage}>
-            <div className="row-grow"><div className="conn-name">Track Anything You Want</div><div className="conn-meta">Off by default · Sleep, bodyweight, soreness, or your own</div></div>
+            <div className="row-grow"><div className="conn-name">Track Anything You Want</div><div className="conn-meta">Sleep, bodyweight, soreness, or your own</div></div>
             {CHEV}
           </div>
         </div></div>
@@ -131,7 +131,7 @@ export function AddMetricSheet({ defs, onEnablePreset, onToggleHidden, onCreateC
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Add a Metric</div></div>
         <div className="pad-x sheet-form">
-          <div className="input-hint">Off by default · No targets, no streaks, just your own numbers</div>
+          <div className="input-hint">No targets, no streaks, just your own numbers</div>
           <div className="field">
             <div className="input-label">The Library</div>
             <div className="card">
