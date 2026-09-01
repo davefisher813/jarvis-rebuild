@@ -43,12 +43,21 @@ describe("TodayPage", () => {
     const { container } = render(<TodayPage {...base} />);
     expect(screen.getByText("Good Morning")).toBeInTheDocument();
     expect(screen.getByText("Wednesday, May 20")).toBeInTheDocument();
-    // SPEC MOVED (Catalog V3.1, 2026-08-18): the workload line is tappable
-    // colored pills, not floating text; overdue rides the red pill.
+    // SPEC MOVED AGAIN (ruled 2026-09-01, superseding Catalog V3.1): the
+    // workload line is stat TILES, number big with the word small beneath.
+    // Time is blue, due is a quiet count, late wears amber (red from three),
+    // goals are green, and a zero tile does not render at all.
     const summary = container.querySelector(".today-summary")!;
-    expect(summary).toHaveTextContent("2 events");
-    expect(summary).toHaveTextContent("1 due");
-    expect(summary.querySelector(".day-pill.dp-red")).toHaveTextContent("1 overdue");
+    const tiles = summary.querySelectorAll(".stat-tile");
+    expect(tiles.length).toBe(3);
+    expect(summary.querySelector(".st-time .st-n")).toHaveTextContent("2");
+    expect(summary.querySelector(".st-time .st-w")).toHaveTextContent("events");
+    expect(summary.querySelector(".st-quiet .st-n")).toHaveTextContent("1");
+    expect(summary.querySelector(".st-quiet .st-w")).toHaveTextContent("due");
+    expect(summary.querySelector(".st-warn .st-n")).toHaveTextContent("1");
+    expect(summary.querySelector(".st-warn .st-w")).toHaveTextContent("late");
+    expect(summary.querySelector(".st-late")).toBeNull(); // one late is amber, not red
+    expect(summary.querySelector(".day-pill")).toBeNull(); // the old pills are gone
   });
 
   it("Your Move deals ONE task into the stream with its reason and the deck receipt", () => {
@@ -66,14 +75,34 @@ describe("TodayPage", () => {
     expect(screen.getByText("Your Move")).toBeInTheDocument();
     expect(screen.queryByText("Up Next")).toBeNull(); // the section is gone, not renamed twice
     expect(screen.queryByText("See All")).toBeNull();
-    expect(container.querySelector(".urgency-red")).toBeTruthy(); // overdue
-    expect(container.querySelector(".task-check.cat-bd-sky")).toBeTruthy();
-    expect(screen.getByText("Waiting 2 days")).toBeInTheDocument();
+    // THE RULED ROW (2026-09-01): the ring is never category-coloured, the
+    // category rides the kicker bar, and urgency is a chip on the kicker line
+    // that says the DISTANCE. Two days past 2026-05-18 on 2026-05-20.
+    expect(container.querySelector(".task-check.cat-bd-sky")).toBeNull();
+    expect(container.querySelector(".task-row .r-bar.cat-bg-sky")).toBeTruthy();
+    expect(container.querySelector(".uchip.u-late")).toHaveTextContent("2 DAYS LATE");
+    expect(container.querySelector(".urgency-red")).toBeNull(); // the trailing label is gone
+    // SAY IT ONCE: the reason's due-part ("Waiting 2 days") is what the chip
+    // now says, so it is not printed a second time under the kicker.
+    expect(screen.queryByText("Waiting 2 days")).toBeNull();
     expect(screen.getByText("2 More waiting \u00b7 Skip deals the next one")).toBeInTheDocument();
     // one dealt card means one task row, however deep the deck is
     expect(container.querySelectorAll(".task-row").length).toBe(1);
     // the old daytime task list stays replaced
     expect(screen.queryByText("Today\u2019s Tasks")).toBeNull();
+  });
+
+  it("the reason line keeps only what the chip does not already say", () => {
+    // "Due today · your focus peak": the chip says TODAY, so the line says
+    // just the peak. A reason that is ONLY the due-part renders no line.
+    const { container, rerender } = render(
+      <TodayPage {...base} upNext={[tk("due", "2026-05-20")]} upNextReason={"Due today \u00b7 your focus peak"} onUpNext={() => {}} />,
+    );
+    expect(container.querySelector(".uchip.u-today")).toHaveTextContent("TODAY");
+    expect(container.querySelector(".task-title .eyebrow")).toHaveTextContent("your focus peak");
+    expect(screen.queryByText(/Due today/)).toBeNull();
+    rerender(<TodayPage {...base} upNext={[tk("due", "2026-05-20")]} upNextReason="Due today" onUpNext={() => {}} />);
+    expect(container.querySelector(".task-title .eyebrow")).toBeNull();
   });
 
   it("shows three, folds the rest behind See All in the head, Less refolds", () => {

@@ -45,6 +45,38 @@ export function urgencyFor(task: TaskData, today: string): Urgency | null {
   return { label: `${MO[dt.getMonth()]} ${dt.getDate()}`, kind: "soon" };
 }
 
+// THE URGENCY CHIP SAYS THE DISTANCE, NOT THE STATE (ruled 2026-09-01,
+// "Where Urgency Sits"). OVERDUE told him nothing about which of two late
+// things to do first; "2 DAYS LATE" and "3 WEEKS LATE" are the same width and
+// strictly more information. Nothing due tomorrow or later gets a chip at all,
+// which is what keeps the chip rare enough to be loud. The ladder:
+//   due today            TODAY          (amber)
+//   1 day past           1 DAY LATE     (red)
+//   2 to 6 days          N DAYS LATE
+//   7 to 29 days         N WEEKS LATE   (rounded down)
+//   30 days and beyond   OVER A MONTH   (capped, so a long-dead task never
+//                                       prints a chip wider than its name)
+// Dailies never go overdue (same rule urgencyFor already keeps): a missed
+// daily is simply TODAY.
+export interface Distance {
+  label: string;
+  kind: "today" | "late";
+}
+
+export function distanceFor(task: TaskData, today: string): Distance | null {
+  if (task.done || !task.due) return null;
+  const diff = Math.round((atMidnight(today).getTime() - atMidnight(task.due).getTime()) / DAY);
+  if (diff < 0) return null;
+  if (diff === 0 || task.recurrence) return { label: "TODAY", kind: "today" };
+  if (diff === 1) return { label: "1 DAY LATE", kind: "late" };
+  if (diff < 7) return { label: `${diff} DAYS LATE`, kind: "late" };
+  if (diff < 30) {
+    const w = Math.floor(diff / 7);
+    return { label: w === 1 ? "1 WEEK LATE" : `${w} WEEKS LATE`, kind: "late" };
+  }
+  return { label: "OVER A MONTH", kind: "late" };
+}
+
 // Next occurrence of a recurring task, given its current due date (or today).
 export function nextDue(fromISO: string, rec: Recurrence): string {
   const d = atMidnight(fromISO);

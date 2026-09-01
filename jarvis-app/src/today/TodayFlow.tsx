@@ -2236,6 +2236,7 @@ export default function TodayFlow({
       tomorrowTasks={taskItems.filter((t) => !t.data.done && t.data.recurrence && t.data.recurrence !== "daily" && t.data.due === tmrw)}
       tomorrowDate={shortDate(new Date(tmrw + "T00:00:00"))}
       tasks={todaysTasks(taskItems, today)}
+      goalOf={(t) => goalTitleForTask(goalIdx, t)}
       evening={evening}
       ring={ring}
       daypart={daypart}

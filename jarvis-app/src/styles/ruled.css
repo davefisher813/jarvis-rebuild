@@ -1,0 +1,111 @@
+/* ============================================================
+   THE RULED SYSTEM (2026-09-01)
+   Every visual decision Dave ruled across five catalogs, as CSS, scoped by
+   ONE class. A screen opts in by carrying `.ruled` on its root; nothing
+   outside that root changes. Today is the first screen to wear it. Each
+   later screen port adds the class and deletes whatever local overrides it
+   no longer needs; when every screen wears it, these rules move into the
+   design system and this file goes away.
+
+   The rulings, with their source, so nobody has to open the catalog:
+     VISUAL_CATALOG_RULINGS_2026_09_01.md   every pick, verbatim
+     JARVIS_UI_CONTRACT.md §0.5             the same picks, folded into rows
+   ============================================================ */
+
+/* ---------- CARDS: flat, 14pt, rim and shadow, no hairline, no glass ----
+   "Keep glass on chrome and sheets, flat cards." Measured on this very
+   page: glass versus flat differed by 0.009% of pixels, four card corners
+   and the tab bar labels, because a blur of black is black. The rim stays
+   because the rim is the part that was ever visible. */
+.ruled .card {
+  background: var(--surface-1);
+  /* prefix FIRST, standard LAST: the minifier keeps the last of a pair
+     (see f056f06). Written the other way, only -webkit- survived and the
+     card kept its blur. */
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  border-radius: 14px;
+  border: 0;
+  box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0, 0, 0, 0.55);
+}
+[data-theme="light"] .ruled .card { box-shadow: var(--shadow-card); }
+
+/* ---------- SECTION HEADS: 12.5 / 700 / 0.1em caps, leader stays ---------
+   Q-02, ruled at phone size against the 11 and the 12. */
+.ruled .sh2 .t { font-size: 12.5px; font-weight: var(--w-semi); letter-spacing: 0.1em; }
+
+/* ---------- STAT TILES under the greeting -------------------------------
+   "Tinted, coloured by what it counts" (time blue, goal green, owed neutral)
+   + "Number big, word small underneath" + "Neutral until something is
+   actually late, then amber, then red." The number is what you read; the
+   word sits under it at label size so it is present without competing.
+   Zero tiles do not render at all (contract §4.11, and the clean build
+   showed a stranger meeting three zeros). */
+.ruled .stat-tiles { display: flex; gap: var(--s-2); margin-top: var(--s-2h); flex-wrap: wrap; }
+.ruled .stat-tile {
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  border-radius: 13px; padding: 7px 13px 8px; position: relative; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.ruled .stat-tile::after { content: ""; position: absolute; inset: -6px 0; } /* 44pt reach */
+.ruled .stat-tile:active { opacity: 0.7; }
+.ruled .stat-tile .st-n { font-size: 19px; font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.05; }
+.ruled .stat-tile .st-w { font-size: 9.5px; font-weight: var(--w-bold); letter-spacing: 0.09em;
+  text-transform: uppercase; opacity: 0.72; }
+/* kinds. Blue is the app's data/time colour, green is completion and goal
+   movement, amber and red are the two urgency steps. Neutral is the raised
+   chip layer, which is what a plain count deserves. */
+.ruled .st-time  { background: var(--blue-tint);  color: var(--blue); }
+.ruled .st-goal  { background: var(--good-tint);  color: var(--good); }
+.ruled .st-quiet { background: var(--press-3);    color: var(--tx-2); }
+.ruled .st-quiet .st-n { color: var(--tx-1); }
+.ruled .st-warn  { background: var(--warn-tint);  color: var(--warn); }
+.ruled .st-late  { background: var(--red-tint);   color: var(--sys-red); }
+/* Light needs the darker text steps the pills already learned to use. */
+[data-theme="light"] .ruled .st-time { color: #005CBF; }
+[data-theme="light"] .ruled .st-goal { color: #1B7A3A; }
+[data-theme="light"] .ruled .st-late { color: var(--on-light-red, #B8001A); }
+[data-theme="light"] .ruled .st-warn { color: #8A4B00; }
+
+/* ---------- THE DAY RING: flat, one colour, no gradient, no glow ---------
+   "Keep them completely separate." The ring counts due work and captions
+   itself DUE; the capacity bar is time and lives on Schedule. The
+   red-to-orange gradient and drop-shadow it wore broke both the one-red
+   law and the no-glow ruling, so the fill is the completion green, the same
+   green a task ring turns when it is done. */
+.ruled .day-ring .fill { stroke: var(--good); filter: none; }
+
+/* ---------- THE RULED ROW -------------------------------------------------
+   [ ring 24 neutral ][ 10 ][ name 16/500 / kicker: bar · goal · chip ][ Start ]
+   Name truncates LAST, goal truncates FIRST, the chip and the trailing slot
+   never shrink. That order is the whole fix: the old row had two things
+   fighting for the trailing slot and the name lost. */
+.ruled .task-row { min-height: 56px; padding: 8px var(--s-4); gap: 10px; }
+.ruled .task-row .task-check { border-color: var(--tx-4); }           /* never category-coloured */
+.ruled .task-row .task-check.done { border-color: var(--good); background: var(--good); }
+.ruled .task-row .task-title { font-size: 16px; font-weight: var(--w-regular); letter-spacing: -0.01em;
+  min-width: 0; }
+.ruled .task-row .task-title > .task-name { display: block; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
+.ruled .r-k { display: flex; align-items: center; gap: 7px; margin-top: 4px; min-width: 0; }
+.ruled .r-bar { width: 4px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+.ruled .r-goal { font-size: 12.5px; font-weight: var(--w-normal); color: var(--tx-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ruled .r-goal.r-orphan { color: var(--tx-4); font-style: italic; }
+/* the dealt row's reason line keeps its place as the optional third line */
+.ruled .task-row .task-title > .eyebrow { margin-top: 3px; }
+/* The urgency chip: 10/800, 0.06em, 3x7, capsule, 16% tint. Distance words. */
+.ruled .uchip { font-size: 10px; font-weight: var(--w-bold); letter-spacing: 0.06em; padding: 3px 7px;
+  border-radius: var(--r-pill); flex-shrink: 0; white-space: nowrap; text-transform: uppercase; }
+.ruled .uchip.u-today { color: var(--warn); background: var(--warn-tint); }
+.ruled .uchip.u-late  { color: var(--sys-red); background: var(--red-tint); }
+[data-theme="light"] .ruled .uchip.u-today { color: #8A4B00; }
+[data-theme="light"] .ruled .uchip.u-late  { color: var(--on-light-red, #B8001A); }
+
+/* ---------- ONE ACTION COLUMN on the stream and mail rows ---------------
+   "The urgency chip makes the call to action button look misaligned." It
+   did, and three things caused it: verbs of different lengths, buttons
+   sized to their text, and chips shoving rows around. The column is a
+   column now whether or not a row has a chip. Verb copy is untouched here;
+   producers own their verbs and the Email port sweeps them. */
+.ruled .stream-card .pill-act,
+.ruled .heads-up-stream .pill-act { min-width: 100px; justify-content: center; text-align: center; }

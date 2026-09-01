@@ -2001,7 +2001,8 @@ button {
   background: linear-gradient(160deg, rgba(255,31,48,0.13), rgba(255,120,40,0.06) 45%, transparent 80%); }
 [data-theme="dark"] .today-hero.hero-evening {
   background: linear-gradient(160deg, rgba(94,120,255,0.12), rgba(140,90,255,0.05) 45%, transparent 80%); }
-.day-ring .fill { stroke: url(#ringGrad); filter: drop-shadow(0 0 5px rgba(255,60,40,0.45)); }
+/* The gradient-and-glow fill that lived here was removed 2026-09-01 (ruled:
+   the ring is flat, one colour, no glow; see ruled.css). */
 .row[role="button"]:active, .lib-row:active, .tip-banner .tip-x:active {
   background: var(--press-3); }
 .row[role="button"]:active { transform: scale(0.985); border-radius: var(--r-md); }
@@ -2093,7 +2094,7 @@ button {
 .boot-stagger .card > *:nth-child(8) { animation-delay: 210ms; }
 /* Glass chrome: the bar keeps its blur and gains saturation so color under
    it stays alive (solid --nav-bg remains the fallback tint). */
-.tab-bar { backdrop-filter: blur(22px) saturate(160%); -webkit-backdrop-filter: blur(22px) saturate(160%); }
+.tab-bar { -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); }
 @media (prefers-reduced-motion: reduce) {
   .restore-banner, .sweep-receipt, .tip-banner, .boot-stagger .card > * { animation: none; }
 }
@@ -2118,8 +2119,7 @@ button {
    moves, .on additionally brings the centered title. Tying the material to
    the title left a band as tall as the hero where "Good Evening, Dave" was
    sliding up through the iOS clock with nothing behind it. See useCondensed. */
-.pagebar.on, .pagebar.solid { background: rgba(12,12,14,0.82); backdrop-filter: blur(22px) saturate(160%);
-  -webkit-backdrop-filter: blur(22px) saturate(160%); box-shadow: 0 0.5px 0 var(--divider); }
+.pagebar.on, .pagebar.solid { background: rgba(12,12,14,0.82); -webkit-backdrop-filter: blur(22px) saturate(160%); backdrop-filter: blur(22px) saturate(160%); box-shadow: 0 0.5px 0 var(--divider); }
 [data-theme="light"] .pagebar.on, [data-theme="light"] .pagebar.solid { background: rgba(249,249,251,0.86); }
 .pagebar.on .pagebar-title { opacity: 1; }
 /* The energy line takes the Apple Music icon gradient (red into its lighter
@@ -2788,7 +2788,7 @@ button {
    the row and read as two labels stacked on one tap target. */
 .notice-card { position: relative; z-index: 1; transition: transform var(--dur-fast) var(--ease-out);
   background-color: var(--surface-1);
-  backdrop-filter: none; -webkit-backdrop-filter: none; }
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
 .notice-card.swiping { transition: none; }
 .notice-dismiss, .notice-alt, .notice-delete { position: absolute; top: 0; bottom: 0; width: 88px; border: 0;
   font-family: var(--f); font-size: var(--t-meta); font-weight: var(--w-semi);
@@ -3876,7 +3876,7 @@ body.selecting .voice-dock { display: none; }
 /* .set-strip joins the scope: the chips are their own surface, and half the
    strip (ghosts, Add Set) renders outside ReorderList anyway, so the glass
    card wrapped only the top half of one control. */
-.list-flat .reorder-list, .set-strip .reorder-list { background: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+.list-flat .reorder-list, .set-strip .reorder-list { background: none; -webkit-backdrop-filter: none; backdrop-filter: none;
   border-radius: 0; box-shadow: none; border: 0; overflow: visible; }
 /* The gym rows bind long-press on a wrapper INSIDE ReorderList's .row; that
    wrapper needs the row's own flex so the chevron sits beside the text
@@ -4002,7 +4002,7 @@ body.selecting .voice-dock { display: none; }
    list sits in a #1C1C1E rounded card). Same pad-x > card > rows shape the
    lift detail and the health page already wear; ReorderList sheds its own
    card chrome inside it exactly as it does inside .list-flat. */
-.list-card .reorder-list { background: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+.list-card .reorder-list { background: none; -webkit-backdrop-filter: none; backdrop-filter: none;
   border-radius: 0; box-shadow: none; border: 0; overflow: visible; padding: 0; }
 /* In reorder mode a row is cargo, not a door: the chevron steps aside for
    the grip (preview: trailing controls step aside while moving). Scoped to
@@ -4043,7 +4043,7 @@ body.selecting .voice-dock { display: none; }
    never the page-card's glass float (the Sets summary hovered as a glossy
    slab over flat set rows in Dave's Edit Exercise screenshot). */
 .sheet-form .card:not(.reorder-list) { background: var(--surface-3); box-shadow: none; border: 0;
-  backdrop-filter: none; -webkit-backdrop-filter: none; }
+  -webkit-backdrop-filter: none; backdrop-filter: none; }
 [data-theme="light"] .sheet-form .card:not(.reorder-list) { background: var(--surface-3); box-shadow: none; }
 
 /* Set chips are chips (preview .chip; Dave's cleanup directive #2, approved
@@ -4082,7 +4082,7 @@ body.selecting .voice-dock { display: none; }
    Health category page; nothing outside the training surface repaints. */
 .train-skin .card, .card.train-skin {
   background: var(--surface-1);
-  backdrop-filter: none; -webkit-backdrop-filter: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
   box-shadow: none; border: 0; border-radius: 18px;
 }
 [data-theme="light"] .train-skin .card, [data-theme="light"] .card.train-skin {

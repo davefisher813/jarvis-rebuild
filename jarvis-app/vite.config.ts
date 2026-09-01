@@ -21,10 +21,19 @@ function buildSha(): string {
 // app/ and jarvis-core/ are siblings under jarvis-rebuild/. @core is the single
 // engine source. SINGLEFILE=1 inlines everything into one openable index.html
 // (used for the demo build); normal builds are unaffected.
+//
+// CLEAN=1 (2026-09-01, Dave: "a back up clean new user version available as a
+// back up at all times") also inlines to one file, but deliberately does NOT
+// turn on __DEMO_SEED__ or emit the DEMO_BUILD marker. That is the whole point
+// of it: a CLEAN build is a REAL build — no demo names, no fixture chunks —
+// that happens to be openable as a single page, so it shows exactly what a
+// stranger sees on first launch. Because it carries no marker, the no-demo-data
+// law in src/laws/noDemoData.test.ts judges it as a real build rather than
+// skipping it, which is the correct treatment and worth keeping that way.
 export default defineConfig({
   plugins: [
     react(),
-    ...(process.env.SINGLEFILE ? [viteSingleFile()] : []),
+    ...(process.env.SINGLEFILE || process.env.CLEAN ? [viteSingleFile()] : []),
     // A demo build leaves a marker so the no-demo-data law can tell the two
     // apart. Without it the law fails whenever someone has built a demo
     // locally, which trains people to ignore it: a law that cries wolf is
@@ -70,12 +79,13 @@ export default defineConfig({
   //   supabase - the backend client, upgraded rarely
   //   icons    - lucide, large and almost never touched
   //
-  // SINGLEFILE inlines everything into one openable index.html, so chunking
-  // is skipped there: splitting a bundle that is about to be concatenated
-  // just adds boundaries for no benefit.
+  // SINGLEFILE and CLEAN inline everything into one openable index.html, so
+  // chunking is skipped for both: splitting a bundle that is about to be
+  // concatenated just adds boundaries for no benefit, and rolldown rejects
+  // manualChunks outright once code splitting is off.
   ...(process.env.TESTPANEL
     ? { build: { rollupOptions: { input: resolve(__dirname, "test.html") } } }
-    : process.env.SINGLEFILE
+    : process.env.SINGLEFILE || process.env.CLEAN
       ? {}
       : {
           build: {

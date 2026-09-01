@@ -7,7 +7,7 @@ import type { EventItem } from "../schedule/types";
 import type { AttachInfo } from "../schedule/attachments";
 import type { TaskItem } from "../tasks/TasksService";
 import { fmtTime } from "../schedule/calendar";
-import { urgencyFor, type UrgencyKind } from "../tasks/grouping";
+import { urgencyFor, distanceFor, type UrgencyKind } from "../tasks/grouping";
 import { catColor, catName } from "../shared/categories";
 import { useRef, useState } from "react";
 import type { DaySummary } from "./todayData";
@@ -17,7 +17,6 @@ import DayRing from "./DayRing";
 import { useCondensed } from "../shared/PageHeader";
 import { Burst, useBurst } from "../shared/Burst";
 import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats, type WeekRecap } from "./evening";
-import { movesPillLabel } from "./goalPulse";
 import { capAfterNumber } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
 import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph } from "../shared/glyphs";
@@ -27,11 +26,6 @@ const localISODate = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-const URGENCY_CLASS: Record<UrgencyKind, string> = {
-  overdue: "urgency-red",
-  today: "urgency-warn",
-  soon: "urgency-muted",
-};
 
 // One task row with the completion micro-burst wired to the check tap.
 // Completion is optimistic: the check flips and the burst plays immediately,
@@ -44,7 +38,23 @@ function StreamMember(props: { weight: number; anchor?: boolean; children: React
   return <>{props.children}</>;
 }
 
-function TaskRow({ t, u, sub, onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; sub?: string | null; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
+// THE RULED ROW (2026-09-01, "Where Urgency Sits" + the Focus contract §4.1).
+//   [ ring 24, neutral ][ name 16/500 / kicker: category bar · goal · chip ][ Start ]
+// Three things changed from the row this replaced, and each one is a Dave
+// ruling, not taste:
+//   1. The ring is never category-coloured. It is the completion control
+//      only; the category rides the 4x11 bar on the kicker line.
+//   2. The kicker names the GOAL the task moves (the "why"), with the
+//      category as the bar's colour. A task with no goal says so quietly
+//      and stays adoptable, instead of hiding it.
+//   3. The urgency chip moved OFF the trailing slot onto the kicker line,
+//      and it says the distance ("2 DAYS LATE"), not the state. Start is
+//      alone in the trailing slot now, so the name gets its width back and
+//      stops truncating; nothing due tomorrow or later gets a chip at all.
+// `u` is still accepted and still decides whether the row is urgent at all
+// (the flow passes null in the evening to keep the recap calm), but the
+// chip's WORDS come from distanceFor.
+function TaskRow({ t, u, sub, goal, today, onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; sub?: string | null; goal?: string | null; today?: string; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
   const [bursting, fireBurst] = useBurst();
   const [localDone, setLocalDone] = useState(false);
   const pending = useRef(false);
@@ -57,26 +67,41 @@ function TaskRow({ t, u, sub, onToggle, onOpen, onStart }: { t: TaskItem; u: { k
     fireBurst();
     setTimeout(() => { pending.current = false; setLocalDone(false); onToggle?.(); }, 600);
   };
+  const dist = u && today ? distanceFor(t.data, today) : null;
+  // SAY IT ONCE. The reason line the dealt card owes (reasonFor) leads with
+  // the due distance: "Due today", "Waiting 2 days". The kicker chip now says
+  // exactly that, so when a chip renders, the reason's due-part is dropped
+  // and only what the chip does NOT say survives ("your focus peak"). A
+  // reason with nothing left after that renders no line at all.
+  const reason = (() => {
+    if (!sub) return null;
+    if (!dist) return sub;
+    const kept = sub.split(" \u00b7 ").filter((part) => !/^(due today|waiting )/i.test(part));
+    return kept.length ? kept.join(" \u00b7 ") : null;
+  })();
   return (
     <div className={"task-row" + (localDone ? " just-done" : "")}>
       <div className="task-check-tap" role="checkbox" aria-checked={done} aria-label={done ? "Mark not done" : "Mark done"} onClick={tap}>
-        <div className={"task-check " + (done ? "done" : "cat-bd-" + catColor(t.data.category))} />
+        <div className={"task-check" + (done ? " done" : "")} />
         <Burst show={bursting} />
       </div>
       <div className="task-title" role="button" tabIndex={0} onClick={onOpen}>
-        {t.data.text}
+        <span className="task-name">{t.data.text}</span>
+        <div className="r-k">
+          <span className={"r-bar cat-bg-" + catColor(t.data.category)} />
+          {goal
+            ? <span className="r-goal">{goal}</span>
+            : <span className="r-goal r-orphan">No goal</span>}
+          {dist && !done && <span className={"uchip " + (dist.kind === "late" ? "u-late" : "u-today")}>{dist.label}</span>}
+        </div>
         {/* The dealt card explains itself (Up Next Option 1, 2026-08-26):
-            the reason rides under the title, same law as every automatic
+            the reason rides under the kicker, same law as every automatic
             pick. List rows pass no sub and render exactly as before. */}
-        {sub && <div className="eyebrow">{sub}</div>}
+        {reason && <div className="eyebrow">{reason}</div>}
       </div>
-      {/* The urgency label steps aside for Start: knowing a thing is due is
-          not the problem, beginning it is. Done rows keep the label. */}
-      {onStart && !done ? (
+      {onStart && !done && (
         <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(); }}>Start</button>
-      ) : u ? (
-        <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -174,8 +199,14 @@ export default function TodayPage({
   onShiftBlock,
   onRetimeBlock,
   onResizeBlock,
+  goalOf,
 }: {
   greeting: string;
+  // The goal a task moves, for the ruled row's kicker (2026-09-01). The flow
+  // derives it from the same goal index Pick 5 already builds; the page never
+  // reads goals itself. Absent means the row says "No goal" and stays
+  // adoptable, which is the Things rule: orphans conspicuous, never hidden.
+  goalOf?: (t: TaskItem) => string | null;
   dateLong: string;
   // Email as WORK, not a count (Dave 2026-08-20: the old "14 emails need you
   // → deal with it here" line "serves absolutely no purpose"). The flow hands
@@ -272,36 +303,53 @@ export default function TodayPage({
   // things"). Session-local, like a row's own expansion: navigating away and
   // back re-folds, which is the right default for a triage surface.
   const [streamOpen, setStreamOpen] = useState(false);
-  // Catalog V3.1 (approved 2026-08-18): the workload line is tappable pills,
-  // not floating text. Sky events land on Schedule, blue due and red overdue
-  // land on Tasks. Rolling numbers kept.
+  // THE STAT TILES (ruled 2026-09-01, superseding Catalog V3.1's pills and
+  // the contract's D5). Three rulings, one element:
+  //   "Tinted, coloured by what it counts": time is blue, goal movement is
+  //     green. These counts span every category, so category colour has
+  //     nothing to derive from; the colour has to mean the KIND of count.
+  //   "Number big, word small underneath": the number is what you read; the
+  //     word sits under it at label size, present without competing.
+  //   "Neutral until something is actually late, then amber, then red": a
+  //     plain count of due work is quiet. Colour on the owed tiles appears
+  //     only when something has slipped, so it always means one thing.
+  // Zero tiles do not render (contract §4.11; the clean build greeted a new
+  // user with three zeros). Every tile keeps the door it had: events land on
+  // Schedule, due on Tasks, late on the Overdue filter, goals on the Bigger
+  // Picture. Rolling numbers kept.
+  const lateKind = summary.overdue >= 3 ? "st-late" : "st-warn";
   const parts = (
-    <div className="day-pills">
-      <span className="day-pill dp-sky" role="button" tabIndex={0} onClick={onSeeAllSchedule}>
-        <RollingNumber value={summary.events} />&nbsp;{summary.events === 1 ? "event" : "events"}
-      </span>
-      <span className="day-pill dp-blue" role="button" tabIndex={0} onClick={onSeeAllTasks}>
-        <RollingNumber value={summary.due} />&nbsp;due
-      </span>
-      {summary.overdue > 0 && (
-        /* WAVE 4, DUPLICATE DOORS (2026-08-29). This pill and the blue one
-           beside it carried two different numbers to the identical
-           unfiltered Tasks tab: as CONTROLS they were one door drawn twice,
-           and tapping the number you were worried about showed you a list
-           that did not lead with it. The shell already threads a filter
-           intent; overdue now uses it. */
-        <span className="day-pill dp-red" role="button" tabIndex={0} onClick={onSeeAllOverdue ?? onSeeAllTasks}>
-          <RollingNumber value={summary.overdue} />&nbsp;overdue
+    <div className="stat-tiles">
+      {summary.events > 0 && (
+        <span className="stat-tile st-time" role="button" tabIndex={0} onClick={onSeeAllSchedule}>
+          <span className="st-n"><RollingNumber value={summary.events} /></span>
+          <span className="st-w">{summary.events === 1 ? "event" : "events"}</span>
         </span>
       )}
-      {/* PICK 5 (Dave 2026-08-22). Events, due and overdue all count work by
-          its SHAPE. None of them can tell him whether any of today is worth
-          doing. This one counts what moves something he said he wants, in the
-          goal colour the Bigger Picture already uses, and lands there. It is
-          absent on a day that moves nothing, which is a fact, not a scolding. */}
+      {summary.due > 0 && (
+        <span className="stat-tile st-quiet" role="button" tabIndex={0} onClick={onSeeAllTasks}>
+          <span className="st-n"><RollingNumber value={summary.due} /></span>
+          <span className="st-w">due</span>
+        </span>
+      )}
+      {summary.overdue > 0 && (
+        /* WAVE 4, DUPLICATE DOORS (2026-08-29) still holds: this tile lands
+           on the Overdue filter, not the unfiltered tab. It is the one tile
+           that wears colour, because it is the one that means you are
+           behind: amber for one or two, red from three. */
+        <span className={"stat-tile " + lateKind} role="button" tabIndex={0} onClick={onSeeAllOverdue ?? onSeeAllTasks}>
+          <span className="st-n"><RollingNumber value={summary.overdue} /></span>
+          <span className="st-w">late</span>
+        </span>
+      )}
+      {/* PICK 5 (Dave 2026-08-22) survives as the goal tile: it counts what
+          moves something he said he wants, and lands on the Bigger Picture.
+          Green, because moving a goal is the completion colour's job. Absent
+          on a day that moves nothing, which is a fact, not a scolding. */}
       {summary.moves > 0 && onGoBigger && (
-        <span className="day-pill dp-purple" role="button" tabIndex={0} onClick={() => onGoBigger()}>
-          <RollingNumber value={summary.moves} />&nbsp;{movesPillLabel(summary.moves)}
+        <span className="stat-tile st-goal" role="button" tabIndex={0} onClick={() => onGoBigger()}>
+          <span className="st-n"><RollingNumber value={summary.moves} /></span>
+          <span className="st-w">{summary.moves === 1 ? "goal" : "goals"}</span>
         </span>
       )}
     </div>
@@ -355,6 +403,8 @@ export default function TodayPage({
       <TaskRow
         t={upNextTop}
         u={urgencyFor(upNextTop.data, today)}
+        goal={goalOf?.(upNextTop)}
+        today={today}
         sub={upNextReason ?? undefined}
         onToggle={() => onToggleTask?.(upNextTop.id)}
         onOpen={() => onOpenTask?.(upNextTop.id)}
@@ -390,7 +440,7 @@ export default function TodayPage({
       <div>
         <div>
           {shownTasks.map((t) => (
-            <TaskRow key={t.id} t={t} u={evening ? null : urgencyFor(t.data, today)} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
+            <TaskRow key={t.id} t={t} u={evening ? null : urgencyFor(t.data, today)} goal={goalOf?.(t)} today={today} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
           ))}
           {foldedTasks > 0 && (
             <button className="receipt-line" onClick={onSeeAllTasks}>
@@ -479,7 +529,7 @@ export default function TodayPage({
   ].filter(Boolean);
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className={"pagebar today-pagebar" + (condensed ? " on" : "") + (scrolled ? " solid" : "")}>
       <div className="today-bar pagebar-row">
         <button className="today-av" aria-label="Account" onClick={onProfile}>

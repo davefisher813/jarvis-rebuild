@@ -1956,9 +1956,34 @@ describe("LAW L1: red is a verb, never a status", () => {
   // exact object the catalog was written against, and scoping the law to the
   // surface that happened to prompt it was the mistake. A law that only
   // holds where you first noticed the problem is a preference.
-  it("no class anywhere paints lateness or a count in red", () => {
-    const bad = [...CSS.matchAll(GUILT)].map((m) => m[0].split("{")[0]!.trim());
+  // NARROWED 2026-09-01, BY RULING. Three separate catalog decisions that day
+  // put red on lateness on purpose, each with the mechanic stated:
+  //   the urgency chip: "Red: past due, distance in days, then weeks, capped"
+  //   the due tile:     "Neutral until something is actually late, then
+  //                      amber, then red"
+  //   the count badge:  "Red only when something is genuinely overdue"
+  // None of them is the object this law was widened against. That object was
+  // a PERMANENT red pill counting overdue plus due-today, so red fired on a
+  // day when nothing was late. The ruled classes are the opposite mechanic:
+  // they do not exist at all until something has actually slipped, and the
+  // late tile is a tap that lands on the Overdue filter, which is the law's
+  // own definition of legal red ("a red thing you tap to fix the problem it
+  // names"). So the two classes are named here, one by one, and everything
+  // else stays under the rule. Adding a third means writing its ruling here.
+  const RULED_LATENESS = new Set([".st-late", ".u-late"]); // both scoped under .ruled in ruled.css
+  it("no class anywhere paints lateness or a count in red, except the two ruled on 2026-09-01", () => {
+    const bad = [...CSS.matchAll(GUILT)]
+      .map((m) => m[0].split("{")[0]!.trim())
+      .filter((sel) => !RULED_LATENESS.has(sel));
     expect(bad, "red means tap me, never you are behind").toEqual([]);
+  });
+  it("the ruled lateness classes render only when something is actually late", () => {
+    // The exemption above is earned by the render condition, not by the
+    // class name. Both sites must be gated in TodayPage.
+    const page = readFileSync(join(SRC, "today/TodayPage.tsx"), "utf8");
+    expect(page).toMatch(/summary\.overdue >= 3 \? "st-late" : "st-warn"/);
+    expect(page).toMatch(/summary\.overdue > 0 && \(/);
+    expect(page).toMatch(/dist\.kind === "late" \? "u-late" : "u-today"/);
   });
 
   // THE SIN IS RED PLUS A NUMBER, not the word "badge" in a class name.

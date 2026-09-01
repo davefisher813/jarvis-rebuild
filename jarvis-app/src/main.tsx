@@ -12,6 +12,7 @@ import { initMonitoring } from "./monitoring/monitor";
 import "./styles/jarvis-design-system.css";
 import "./styles/uniformity.css";
 import "./styles/components.css";
+import "./styles/ruled.css";
 
 initMonitoring();
 

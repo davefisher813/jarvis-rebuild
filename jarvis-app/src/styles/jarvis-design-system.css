@@ -335,14 +335,13 @@ html[data-theme="light"], html[data-theme="light"] body { background-color: #F3F
 /* CARD. Dark = frosted glass. Light = solid white. Both pop with elevation. */
 .card {
   background: linear-gradient(180deg, var(--press-3), rgba(255,255,255,0) 35%), var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
   border-radius: var(--r-xl); overflow: hidden;
   box-shadow: inset 0 0.5px 0 var(--rim-card), inset 0 -0.5px 0 var(--rim-bottom), 0 8px 24px rgba(0,0,0,0.55);
 }
 [data-theme="light"] .card {
   background: #FFFFFF;
-  backdrop-filter: none; -webkit-backdrop-filter: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
   /* Elevation only. Border + shadow together was the mud: the hairline drew
      a gray outline through the shadow's softest part. */
   box-shadow: var(--shadow-card);
@@ -479,7 +478,7 @@ button:disabled, .btn:disabled { opacity: 0.38; cursor: default; }
 .chip.active, .chip.on { background: var(--sel-bg); color: var(--sel-fg); }
 
 /* TAB BAR */
-.tab-bar { display: flex; background: var(--nav-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-top: 0.5px solid var(--divider); padding: var(--s-1h) 0 calc(var(--s-3) + env(safe-area-inset-bottom, 0)); }
+.tab-bar { display: flex; background: var(--nav-bg); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); border-top: 0.5px solid var(--divider); padding: var(--s-1h) 0 calc(var(--s-3) + env(safe-area-inset-bottom, 0)); }
 /* Unselected tab labels ride systemGray, not tertiaryLabel. tertiaryLabel
    is Apple's colour for text that has been deliberately de-emphasised
    INSIDE content; iOS tab bars use the opaque grey, because the tab bar is
