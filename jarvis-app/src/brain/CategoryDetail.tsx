@@ -19,9 +19,9 @@ import { showToast } from "../shared/toast";
 import type { TaskItem } from "../tasks/TasksService";
 import { streakAlive } from "../tasks/lifecycle";
 import { effectiveKind } from "../categories/kinds";
-import { weekReceipt, receiptLine, afterHoursLine, type WeekEvent } from "../categories/receipts";
+import { weekReceipt, afterHoursLine, type WeekEvent } from "../categories/receipts";
 import { categoryRecord, type RecordEntry } from "../categories/record";
-import { StatTiles, DayDivide, RowIcon } from "../shared/anatomy";
+import { DayDivide } from "../shared/anatomy";
 import { eventLog } from "../events";
 import { completionSamples } from "../events/completions";
 import { todayISO } from "../tasks/grouping";
@@ -39,11 +39,13 @@ import GymFlow from "../gym/GymFlow";
 import { useGym, useMetrics } from "../data/NotesProvider";
 import type { Program } from "../gym/types";
 import { capAfterNumber } from "../shared/casing";
-import { BarbellGlyph, CalendarGlyph, FolderGlyph, TargetGlyph } from "../shared/glyphs";
+import { ProjectPie } from "../shared/glyphs";
+import GoalRowRuled from "../bigger/GoalRowRuled";
+import { TaskRow } from "../tasks/screens/TasksPage";
 import { trainingSummary } from "../gym/summary";
 import type { Workout } from "../gym/types";
 import { buildGoalIndex, liveGoals, reachOf, reachLine } from "../bigger/reach";
-import { measureState, healthOf, HEALTH_LABEL, HEALTH_CLASS, type MeasureContext } from "../bigger/measure";
+import { measureState, healthOf, HEALTH_LABEL, type MeasureContext } from "../bigger/measure";
 import { goalTone } from "../shared/categories";
 import HealthBody, { type HealthGoalRow } from "./HealthBody";
 import { openWorkOf } from "../today/goalPulse";
@@ -57,23 +59,7 @@ import { MUSCLE_LABEL } from "../gym/muscles";
 const CHEV = (
   <div className="chev" />
 );
-// The shared target glyph, not a 44th hand-drawn svg: the icon ratchet
-// exists precisely so this file reaches for glyphs.tsx instead.
-const TARGET_ICO = <TargetGlyph />;
-const PLUS = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-);
-
 const UP_NEXT_CAP = 6;
-const CHECK_ICO = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-);
-const CAL_ICO = (
-  <CalendarGlyph />
-);
-const FOLDER_ICO = (
-  <FolderGlyph />
-);
 
 // V2 anatomy: one day label per group, not one per row.
 function groupByDay(recent: RecordEntry[]): { day: string; rows: RecordEntry[] }[] {
@@ -341,7 +327,7 @@ export default function CategoryDetail({
   // numbers on this screen can no longer disagree with each other.
   const samples = completionSamples();
   const receipt = weekReceipt(categoryId, samples, events, today, cat.data.workHours ? work : null);
-  const line = receiptLine(receipt);
+  // (The receipt sentence itself retired with the tinted tiles, 2026-09-02.)
   const ahLine = cat.data.workHours ? afterHoursLine(receipt) : null;
   // The Record (2026-08-10, Dave: "records and insight... tracking what
   // someone has done is important"). Named history that survives the Monday
@@ -487,7 +473,7 @@ export default function CategoryDetail({
     // glass cards, quiet caps heads, ruled rows, and its own composition
     // (HealthBody). The training skin stays on the gym's own screens. Other
     // categories keep the app's default card.
-    <div className={"screen" + (kind === "health" ? " ruled health-ruled" : "")}>
+    <div className={"screen ruled" + (kind === "health" ? " health-ruled" : " area-ruled")}>
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title"><span className={"cat-dot cat-bg-" + cat.data.color} /> {cat.data.name}</div>
@@ -628,51 +614,48 @@ export default function CategoryDetail({
         />
       ) : (
         <>
-      {(line || rec.lastWeek > 0 || rec.recent.length > 0) && (
+      {/* THE AREA PAGE WEARS THE RULINGS (Brain onto the rulings, Dave
+          2026-09-02, picked "Today's own tiles, then the receipt" and "The
+          quiet caps head every ruled page wears"). Under the name: the home
+          page's quiet number tiles, each earning its place with a real
+          number (zeros go silent, 2026-08-25), then This Week as a card of
+          done rows under one day divider each. Then the quiet caps head
+          every ruled page wears over the rows the rest of the app already
+          has: the Schedule's event row, the Projects lens's pie row, the
+          goal row, the task row with its check and swipe, the note row. The
+          filled section tiles and the tinted stat tiles are gone. */}
+      {(receipt.done > 0 || receipt.events > 0 || pushedWeek > 0 || rec.lastWeek > 0) && (
+        <div className="pad-x"><div className="stat-tiles area-tiles">
+          {receipt.done > 0 && <span className="stat-tile st-quiet"><span className="st-n">{receipt.done}</span><span className="st-w">done</span></span>}
+          {receipt.events > 0 && <span className="stat-tile st-time"><span className="st-n">{receipt.events}</span><span className="st-w">{receipt.events === 1 ? "event" : "events"}</span></span>}
+          {pushedWeek > 0 && <span className="stat-tile st-warn"><span className="st-n">{pushedWeek}</span><span className="st-w">pushed</span></span>}
+          {rec.lastWeek > 0 && <span className="stat-tile st-quiet"><span className="st-n">{(receipt.done - rec.lastWeek >= 0 ? "+" : "") + (receipt.done - rec.lastWeek)}</span><span className="st-w">vs last week</span></span>}
+        </div></div>
+      )}
+      {(ahLine || rec.insight) && (
+        <div className="pad-x"><div className="area-facts">
+          {ahLine && <div className="area-fact">{ahLine}</div>}
+          {rec.insight && <div className="area-fact">{rec.insight}</div>}
+        </div></div>
+      )}
+      {rec.recent.length > 0 && (
         <>
-          {/* The Record replaces the bare This Week count (2026-08-10). It
-              keeps the receipt but adds what the count was hiding: the actual
-              things that got done with their days, how this week compares to
-              last, and the pattern once there is enough history. Still fully
-              derived; still silent when nothing has ever happened here. */}
-          {/* V2 anatomy (approved 2026-08-15): numbers as tinted stat tiles,
-              completions grouped under one day divider each, a done check on
-              every row. The old version was prose lines and repeated
-              all-caps day labels; Dave: unreadable. */}
-          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green">{CHECK_ICO}</div><div className="sec-title">This Week</div></div></div>
+          <div className="sh2 sh2-quiet"><span className="t">This Week</span><span className="n">{rec.recent.length}</span>
+            {!weekOpen && dayGroups.length > 2 && <button className="see-all pill-action" onClick={() => setWeekOpen(true)}>See All</button>}</div>
           <div className="pad-x">
-            {/* Zeros go silent (2026-08-25): a green 0 leading the page is a
-                verdict, not a receipt. Every tile earns its place with a real
-                number, and the health kind adds the week's training count. */}
-            <StatTiles stats={[
-              ...(receipt.done > 0 ? [{ num: receipt.done, label: "Done", tint: "good" as const }] : []),
-              ...(training && training.sessionsThisWeek > 0 ? [{ num: training.sessionsThisWeek, label: training.sessionsThisWeek === 1 ? "Session" : "Sessions", tint: "blue" as const }] : []),
-              ...(receipt.events > 0 ? [{ num: receipt.events, label: receipt.events === 1 ? "Event" : "Events", tint: "sky" as const }] : []),
-              ...(pushedWeek > 0 ? [{ num: pushedWeek, label: "Pushed", tint: "warn" as const }] : []),
-              ...(rec.lastWeek > 0 ? [{ num: (receipt.done - rec.lastWeek >= 0 ? "+" : "") + (receipt.done - rec.lastWeek), label: "vs Last Week", tint: "plain" as const }] : []),
-            ]} />
-            {(ahLine || rec.insight) && (
-              <div className="card stat-row-gap">
-                {ahLine && <div className="row"><div className="conn-meta">{ahLine}</div></div>}
-                {rec.insight && <div className="row"><div className="conn-meta">{rec.insight}</div></div>}
-              </div>
-            )}
             {shownGroups.map((g) => (
               <div key={g.day}>
                 <DayDivide label={g.day} />
-                <div className="card">
+                <div className="card list-card-ruled">
                   {g.rows.map((r) => (
-                    <div className="row" key={r.key}>
-                      <div className="task-check done" />
-                      <div className="row-grow"><div className="conn-name truncate">{r.text}</div></div>
+                    <div className="task-row p2" key={r.key}>
+                      <div className="task-check-tap"><div className="task-check done" /></div>
+                      <div className="task-title"><span className="task-name">{r.text}</span></div>
                     </div>
                   ))}
                 </div>
               </div>
             ))}
-            {!weekOpen && dayGroups.length > 2 && (
-              <div className="card"><button className="row row-act" onClick={() => setWeekOpen(true)}>See All</button></div>
-            )}
           </div>
         </>
       )}
@@ -681,19 +664,13 @@ export default function CategoryDetail({
         <>
           {/* What keeps happening here: live streaks on this category's
               recurring tasks. Scoreboard, not a to-do list. */}
-          {/* ROW META IS QUIET SENTENCE CASE (gym/health reformat
-              2026-08-31): this page's row sublines were .eyebrow caps while
-              Tasks and Today write .conn-meta. Converted page-wide here --
-              one template, one grammar -- as part of Dave's "styling is
-              random and doesn't align" pass; eyebrows on this page are
-              kickers and tags only now. */}
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Streaks</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Streaks</span><span className="n">{streaks.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {streaks.map((t) => (
-              <div className="row" key={t.id}>
-                <div className="row-grow">
-                  <div className="conn-name truncate">{t.data.text}</div>
-                  <div className="conn-meta">{capAfterNumber(`${t.data.runLen} in a row${(t.data.bestRun ?? 0) > (t.data.runLen ?? 0) ? ` · Best ${t.data.bestRun}` : (t.data.runLen ?? 0) >= 3 ? " · Your best" : ""}`)}</div>
+              <div className="task-row p2" key={t.id}>
+                <div className="task-title">
+                  <span className="task-name">{t.data.text}</span>
+                  <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(`${t.data.runLen} in a row${(t.data.bestRun ?? 0) > (t.data.runLen ?? 0) ? ` · Best ${t.data.bestRun}` : (t.data.runLen ?? 0) >= 3 ? " · Your best" : ""}`)}</span></div>
                 </div>
               </div>
             ))}
@@ -710,13 +687,13 @@ export default function CategoryDetail({
               (derived from Gmail when connected, silent when not). Orgs get
               the same section when they have tagged people (clients, a team);
               on an org it stays hidden while empty instead of nagging. */}
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">{isOrg ? "People" : "Your People"}</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">{isOrg ? "People" : "Your People"}</span>{catPeople.length > 0 && <span className="n">{catPeople.length}</span>}</div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {catPeople.length === 0 && (
-              <div className="row">
-                <div className="row-grow">
-                  <div className="conn-name">No People Here Yet</div>
-                  <div className="conn-meta">Open someone in Contacts and tag them {cat.data.name}</div>
+              <div className="task-row p2">
+                <div className="task-title">
+                  <span className="task-name">No People Here Yet</span>
+                  <div className="r-k"><span className="r-goal r-cat">Open someone in Contacts and tag them {cat.data.name}</span></div>
                 </div>
               </div>
             )}
@@ -733,19 +710,18 @@ export default function CategoryDetail({
               else if (last != null) bits.push(`Last talked ${agoLabel(last, nowMs)}`);
               const nudgeable = !!p.data.email && (quiet || !!wrow);
               return (
-                <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onOpenPerson?.(p.id)}>
-                  <div className={"av " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div>
-                  <div className="row-grow">
-                    <div className="conn-name truncate">{p.data.name}</div>
-                    {bits.length > 0 && <div className="eyebrow truncate">{bits.join(" · ")}</div>}
+                <div className="task-row p2 person-row-ruled" role="button" tabIndex={0} key={p.id} onClick={() => onOpenPerson?.(p.id)}>
+                  <div className="task-check-tap"><div className={"av " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div></div>
+                  <div className="task-title">
+                    <span className="task-name">{p.data.name}</span>
+                    {bits.length > 0 && <div className="r-k"><span className="r-goal r-cat">{bits.join(" · ")}</span></div>}
                   </div>
-                  {nudgeable && (
-                    <button className="btn-sm" disabled={nudging === p.id}
+                  {nudgeable ? (
+                    <button className="pill-act" disabled={nudging === p.id}
                       onClick={(e) => { e.stopPropagation(); void nudge(p); }}>
-                      {nudging === p.id ? "Drafting…" : "Nudge"}
+                      {nudging === p.id ? "Drafting" : "Nudge"}
                     </button>
-                  )}
-                  {CHEV}
+                  ) : CHEV}
                 </div>
               );
             })}
@@ -759,67 +735,66 @@ export default function CategoryDetail({
       {upcoming.length > 0 && (
         <>
           {/* What is on the calendar for this part of life. Read-only rows on
-              purpose: the schedule tab owns editing. */}
-          {/* V2 anatomy: type icon leads, the WHEN rides right as a colored
-              time (orange = today, muted = later), never a repeated eyebrow. */}
-          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-sky">{CAL_ICO}</div><div className="sec-title">Coming Up</div></div></div>
-          <div className="pad-x"><div className="card">
+              purpose: the schedule tab owns editing. The Schedule's own row:
+              the time in its column, the title, the day under it. */}
+          <div className="sh2 sh2-quiet"><span className="t">Coming Up</span><span className="n">{upcoming.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled sched-card"><div className="sched-list">
             {upcoming.map((e) => {
               const p = dayPhrase(e.date, today);
               const when = p.charAt(0).toUpperCase() + p.slice(1);
-              const isToday = e.date === today;
-              const label = isToday && e.start ? `${fmtTime(e.start).time} ${fmtTime(e.start).ap}` : when;
+              const t = e.start ? fmtTime(e.start) : null;
               return (
-                <div className="row" key={e.id}>
-                  <RowIcon kind="event" />
-                  <div className="row-grow"><div className="conn-name truncate">{e.title}</div></div>
-                  <span className={"urgency " + (isToday ? "urgency-warn" : "urgency-muted")}>{label}</span>
+                <div className="sched-row" key={e.id}>
+                  <div className="sched-time">{t ? <>{t.time}<span className="ampm">{t.ap}</span></> : <span className="ampm">All day</span>}</div>
+                  <div className="sched-body">
+                    <div className="sched-title">{e.title}</div>
+                    <div className="sched-cat"><span className={"cat-dot cat-bg-" + cat.data.color} />{cat.data.name}<span className="sched-sep">{"\u00b7"}</span>{when}</div>
+                  </div>
                 </div>
               );
             })}
-          </div></div>
+          </div></div></div>
         </>
       )}
 
       {isOrg && (
         <>
           {/* Project health, not a project list (2026-08-10, Dave: "make it
-              more than just a list"). Every row answers: what moves it next,
-              is it moving (done this week, from real completions), is it
-              slipping (overdue count), and what goal it advances. A project
-              with no open task says "Stalled" out loud instead of hiding it. */}
-          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-indigo">{FOLDER_ICO}</div><div className="sec-title">Projects</div></div></div>
-          <div className="pad-x"><div className="card">
+              more than just a list"). The Projects lens's own row: the pie
+              in the area's colour, the state and what it moves on the
+              second line, the next action under it, the week's count as a
+              chip. A project with no open task says Stalled out loud. */}
+          <div className="sh2 sh2-quiet"><span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}</div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {projects.map((p) => {
               const next = nextActionOf(allTasks, p.id);
               const projTasks = allTasks.filter((t) => t.data.projectId === p.id);
               const taskIds = new Set(projTasks.map((t) => t.id));
               const weekAgoMs = nowMs - 7 * 86400000;
               const doneWeek = completionSamples().filter((s) => s.t >= weekAgoMs && s.id && taskIds.has(s.id)).length;
+              const doneAll = projTasks.filter((t) => t.data.done).length;
+              const pct = projTasks.length > 0 ? Math.round((doneAll / projTasks.length) * 100) : null;
               const overdue = projTasks.filter((t) => !t.data.done && !!t.data.due && t.data.due < today).length;
               const goal = goalTitleOf(projects, goals, p.id);
-              // V2 anatomy: state leads in its color (red = stalled, muted =
-              // moving/paused), the week's count rides as a pill, goal link
-              // stays a short fact.
-              const bits: string[] = [];
+              const stalled = !next && p.data.status !== "on_hold";
+              const state = p.data.status === "on_hold" ? "Paused" : next ? "Moving" : "Stalled";
+              const bits: string[] = [state];
               if (overdue > 0) bits.push(capAfterNumber(overdue === 1 ? "1 overdue" : `${overdue} overdue`));
               if (goal) bits.push(`Moves ${goal}`);
-              const state = p.data.status === "on_hold"
-                ? { cls: "urgency-muted", label: "Paused" }
-                : next
-                  ? { cls: "urgency-muted", label: "Moving" }
-                  : { cls: "urgency-red", label: "Stalled" };
-              const stateSub = next
-                ? `next: ${next.data.text}${next.data.due ? ` · ${dayPhrase(next.data.due, today)}` : ""}`
-                : p.data.status === "on_hold" ? "on purpose" : "no next action";
+              const nextLine = next
+                ? `${next.data.text}${next.data.due ? ` \u00b7 ${dayPhrase(next.data.due, today)}` : ""}`
+                : p.data.status === "on_hold" ? "On purpose" : "No next action";
               return (
-                <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onOpenProject?.(p.id)}>
-                  <div className="row-grow">
-                    <div className="conn-name truncate">{p.data.title}</div>
-                    <div className="bp-sub truncate"><span className={"urgency " + state.cls}>{state.label}</span> · {stateSub}</div>
-                    {bits.length > 0 && <div className="eyebrow truncate">{bits.join(" · ")}</div>}
+                <div className="task-row p2 proj-row-ruled" role="button" tabIndex={0} key={p.id} onClick={() => onOpenProject?.(p.id)}>
+                  <div className="task-check-tap"><span className={"pp-slot cat-fg-" + cat.data.color}><ProjectPie pct={pct} /></span></div>
+                  <div className="task-title">
+                    <span className="task-name">{p.data.title}</span>
+                    <div className="r-k">
+                      {doneWeek > 0 && <span className="uchip u-done">{doneWeek} done</span>}
+                      <span className={"r-goal r-cat" + (stalled ? " r-stalled" : "")}>{bits.join(" \u00b7 ")}</span>
+                    </div>
+                    <div className="r-next">Next: {nextLine}</div>
                   </div>
-                  {doneWeek > 0 && <span className="pill pill-good">{doneWeek} done</span>}
                   {CHEV}
                 </div>
               );
@@ -831,44 +806,35 @@ export default function CategoryDetail({
 
       {goalsHere.length > 0 && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-red">{TARGET_ICO}</div><div className="sec-title">Goals Here</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Goals Here</span><span className="n">{goalsHere.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {goalsHere.map((g) => (
-              <div className="row" key={g.id}>
-                <div className="row-grow">
-                  <div className="conn-name truncate">{g.title}</div>
-                  <div className="conn-meta">{g.line}</div>
-                </div>
-                {g.flag && <span className={"eyebrow " + HEALTH_CLASS[g.flag]}>{HEALTH_LABEL[g.flag]}</span>}
-              </div>
+              <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.line} status={g.status} bar={g.bar} />
             ))}
           </div></div>
         </>
       )}
 
-      <div className="sec-head"><div className="sec-left"><div className="sec-title">Up Next</div></div></div>
-      <div className="pad-x"><div className="card">
+      <div className="sh2 sh2-quiet"><span className="t">Up Next</span>{open.length > 0 && <span className="n">{open.length}</span>}</div>
+      {/* THE SAME ROW AS EVERYWHERE (Dave 2026-09-02, on the Health page:
+          "should render as a task there like it does everywhere else. It
+          should have the same clearing ability as well"). */}
+      <div className="pad-x"><div className="card list-card-ruled">
         {open.map((t) => {
-          // The line under a task: a due date when it has one, otherwise the
-          // reminder's ping time, so the meds rows read as the day's plan.
           const rem = t.data.reminder?.time;
-          const due = dueLabel(t) ?? (rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null);
           return (
-            <div className="row" key={t.id}>
-              <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={() => void toggle(t.id)}>
-                <div className={"task-check cat-bd-" + cat.data.color} />
-              </div>
-              {/* B3 (audit 2026-08-21): these rows could ONLY be ticked. A
-                  task you can finish but cannot open is a task you cannot
-                  reschedule, edit, or read the rest of, and every other list
-                  in the app opens on the body tap. */}
-              <div className="row-grow" role={onOpenTask ? "button" : undefined} tabIndex={onOpenTask ? 0 : undefined}
-                onClick={onOpenTask ? () => onOpenTask(t.id) : undefined}>
-                <div className="conn-name truncate">{t.data.text}</div>
-                {due && <div className="conn-meta">{due}</div>}
-              </div>
-              {onOpenTask && CHEV}
-            </div>
+            <TaskRow
+              key={t.id}
+              item={t}
+              today={today}
+              kicker={t.data.reminder && rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null}
+              parent={parentForTask(parentIdx, t)}
+              onToggle={(id) => void toggle(id)}
+              onOpen={onOpenTask}
+              onDelete={(id) => void deleteTask(id)}
+              onSnooze={t.data.reminder ? undefined : (id) => void snoozeTask(id)}
+              onStart={t.data.reminder ? undefined : (id) => void startTask(id)}
+            />
           );
         })}
         <button className="row row-act" onClick={() => setSheet({ kind: "task" })}>Add Task</button>
@@ -876,11 +842,11 @@ export default function CategoryDetail({
 
       {notes.length > 0 && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Notes</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Notes</span><span className="n">{notes.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {notes.map((n) => (
-              <div className="row" role="button" tabIndex={0} key={n.id} onClick={() => onOpenNote?.(n.id)}>
-                <div className="row-grow"><div className="conn-name truncate">{n.title}</div></div>
+              <div className="task-row p2 note-row" role="button" tabIndex={0} key={n.id} onClick={() => onOpenNote?.(n.id)}>
+                <div className="task-title"><span className="task-name">{n.title}</span></div>
                 {CHEV}
               </div>
             ))}

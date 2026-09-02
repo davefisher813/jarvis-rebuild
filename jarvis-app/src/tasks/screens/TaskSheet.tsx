@@ -1,12 +1,15 @@
 import { createPortal } from "react-dom";
 import { categoriesOf, setCategories } from "../categories";
-import { useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import type { ColorSlot } from "../../categories/types";
 import Provenance from "../../shared/Provenance";
 import type { Source } from "../../shared/provenance";
 import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, type IfThen, type CueKind } from "../ifThen";
-import { FileText } from "../../shared/icons";
+import { FileText, CheckSquare, Clock, Tag, FolderKanban, Calendar, Sparkles } from "../../shared/icons";
+import { RepeatGlyph, PinGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
+import SheetBar from "../../shared/SheetBar";
+import HeadMenu from "../../shared/HeadMenu";
 
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
 export interface TaskDraft {
@@ -25,9 +28,29 @@ const isoOf = (d: Date) => {
 };
 const todayISO = () => isoOf(new Date());
 const addDaysISO = (base: string, n: number) => isoOf(new Date(new Date(base + "T00:00:00").getTime() + n * DAY));
+// The coming Saturday (today, when today is one) and the coming Monday.
+const weekendISO = (today: string) => { const d = new Date(today + "T00:00:00"); return addDaysISO(today, (6 - d.getDay() + 7) % 7); };
+const nextWeekISO = (today: string) => { const d = new Date(today + "T00:00:00"); return addDaysISO(today, ((8 - d.getDay()) % 7) || 7); };
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const dateWord = (iso: string) => { const d = new Date(iso + "T00:00:00"); return `${MONTHS[d.getMonth()]} ${d.getDate()}`; };
 
-// Bottom sheet to create or edit a task. All saves call existing TaskService
-// methods; this is presentational + local form state only.
+// The glyph tile every grouped row leads with (shared/anatomy's .row-ico
+// and the nav-tile palette), one hue per row so the eye finds a field by
+// colour before it reads the word. The exercise sheet's own Tile.
+function Tile({ tone, children }: { tone: string; children: ReactNode }) {
+  return <div className={"row-ico nav-tile-" + tone}>{children}</div>;
+}
+
+// THE TASK SHEET ONTO THE RULINGS (Brain and the Task Sheet catalog, Dave
+// 2026-09-02, picked "The sheet bar and grouped rows" and "A menu drops from
+// the value"). The sheet you open on every task was an eyebrow, a name
+// field, a red pill, a row of area chips, two segmented controls, project
+// chips, a notes box and four stacked buttons. It is the exercise sheet's
+// anatomy now: Cancel, the title and Save in the bar; groups with a glyph
+// tile and the value on the right (TASK, WHEN, WHERE, MORE); the last group
+// the two actions. Every value opens the Tasks head's own dropdown; Pick a
+// Date opens the phone's date wheel. All saves call the same TaskService
+// methods; this is presentational and local form state only.
 export default function TaskSheet({
   mode,
   initial,
@@ -63,14 +86,14 @@ export default function TaskSheet({
   onSave: (draft: TaskDraft) => void;
   onSchedule?: () => void;
   // Break It Down: hands the current text back so the flow can split it into
-  // real tasks. Absent when AI is off, so the button never promises nothing.
+  // real tasks. Absent when AI is off, so the row never promises nothing.
   onBreakDown?: (text: string) => void;
   onDelete?: () => void;
   onCancel: () => void;
   // LINKED NOTES (Dave 2026-08-28, "very very easy to connect things"): the
   // same reverse-lookup Person/Project/Goal detail already show, brought to
   // the task sheet. onAddNote mirrors Project's "born connected" note (PICK
-  // 27) rather than a picker -- one tap makes a new note already linked to
+  // 27) rather than a picker: one tap makes a new note already linked to
   // this task, instead of making you go create one and link it back.
   linkedNotes?: { id: string; title: string; category: string }[];
   onOpenNote?: (id: string) => void;
@@ -78,18 +101,22 @@ export default function TaskSheet({
 }) {
   const today = todayISO();
   const tomorrow = addDaysISO(today, 1);
+  const weekend = weekendISO(today);
+  const nextWeek = nextWeekISO(today);
   const [text, setText] = useState(initial?.text ?? "");
   // No default category (2026-08-09): defaulting to whichever category was
   // first silently mis-tagged every "+" task, the exact poisoning the
   // quick-add path fixed on 2026-08-03. Untagged is honest; tagging is a tap.
-  // MULTIPLE CATEGORIES (2026-08-21). One ordered list, primary first. Tapping
-  // an unpicked chip adds it; tapping a picked one removes it; tapping the
-  // primary again promotes the next in line, so the dot can be changed without
-  // a second control.
+  // MULTIPLE CATEGORIES (2026-08-21). One ordered list, primary first. Picking
+  // an unpicked area adds it; picking a picked one removes it; picking the
+  // primary again promotes the next in line, so the dot can be changed
+  // without a second control. The menu stays open while you pick (HeadMenu
+  // multi); None clears and closes.
   const [cats, setCats] = useState<string[]>(() =>
     categoriesOf({ category: initial?.category, extraCategories: initial?.extraCategories }));
   const category = cats[0] ?? "";
   const toggleCat = (id: string) => setCats((cur) => {
+    if (id === "") return [];
     if (!cur.includes(id)) return [...cur, id];
     if (cur[0] === id && cur.length > 1) return [...cur.slice(1)];  // demote, keep
     return cur.filter((c) => c !== id);
@@ -98,6 +125,7 @@ export default function TaskSheet({
   const [repeat, setRepeat] = useState(initial?.repeat ?? "");
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
   const [err, setErr] = useState(false);
+  const dateRef = useRef<HTMLInputElement>(null);
   // A1: the if-then. Off until he opens it, because a required field on the
   // task sheet would break the three-second capture rule this app lives by.
   const [cueKind, setCueKind] = useState<CueKind>(initial?.plan?.cue.kind ?? "after");
@@ -112,7 +140,26 @@ export default function TaskSheet({
     ? findClash(otherPlans, draftPlan.cue, selfId)
     : null;
 
-  const dueMode = due === "" ? "none" : due === today ? "today" : due === tomorrow ? "tomorrow" : "pick";
+  const dueMode = due === "" ? "none" : due === today ? "today" : due === tomorrow ? "tomorrow"
+    : due === weekend ? "weekend" : due === nextWeek ? "nextweek" : "pick";
+  const dueWord = dueMode === "pick" ? dateWord(due) : undefined;
+  const pickDue = (v: string) => {
+    if (v === "none") setDue("");
+    else if (v === "today") setDue(today);
+    else if (v === "tomorrow") setDue(tomorrow);
+    else if (v === "weekend") setDue(weekend);
+    else if (v === "nextweek") setDue(nextWeek);
+    else {
+      // Pick a Date: the phone's own wheel, on the date row that appears
+      // under Due; the wheel opens itself where the browser allows.
+      if (dueMode !== "pick") setDue(addDaysISO(today, 2));
+      setTimeout(() => { const el = dateRef.current; if (el) { try { (el as HTMLInputElement & { showPicker?: () => void }).showPicker?.(); } catch { /* the row itself is the fallback */ } } }, 0);
+    }
+  };
+
+  const primaryName = categories.find((c) => c.id === category)?.name ?? "";
+  const areaWord = cats.length === 0 ? "None" : cats.length === 1 ? primaryName : `${primaryName} +${cats.length - 1}`;
+  const projectWord = projects.find((p) => p.id === projectId)?.title ?? "None";
 
   const save = () => {
     if (!text.trim()) {
@@ -127,33 +174,98 @@ export default function TaskSheet({
     });
   };
 
+  const showNotes = mode === "edit" && (linkedNotes.length > 0 || !!onAddNote);
+  const showActions = mode === "edit" && (!!onSchedule || (!!onBreakDown && !!text.trim()) || !!onDelete);
+  const planLine = planOpen ? null : planTouched ? (planWeak ?? sentence(draftPlan)) : "Not set";
+
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
+      <div className="card xs task-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{mode === "new" ? "New Task" : "Edit Task"}</div></div>
-        <div className="pad-x sheet-form">
+        <SheetBar title={mode === "new" ? "New Task" : "Edit Task"} onCancel={onCancel} onSave={save} />
+        <div className="sheet-form">
           <Provenance source={source} />
-          <div className="field">
-            <label className="input-label">Task <span className="input-req">*</span></label>
-            <input
-              className="input"
-              placeholder="What needs doing?"
-              value={text}
-              onChange={(e) => { setText(e.target.value); if (err) setErr(false); }}
-            />
-            {err && <div className="input-error">Add a task name.</div>}
-          </div>
 
-          {/* A1 · IF-THEN. Gollwitzer and Sheeran: d = 0.65 across 94
-              studies. The single highest-leverage field on this sheet, and
-              collapsed by default so capture stays one line and one tap. */}
-          <div className="field">
-            {!planOpen ? (
-              <button className="row-act" onClick={() => setPlanOpen(true)}>Add a When and Where</button>
-            ) : (
-              <>
-                <div className="input-label">When You'll Do It</div>
+          <div className="grp xs-grp"><div className="eyebrow">Task</div></div>
+          <div className="pad-x"><div className="card xs-group">
+            <div className="row xs-row">
+              <Tile tone="red"><CheckSquare className="ic" /></Tile>
+              <input
+                className={"xs-input" + (err ? " input-error" : "")}
+                placeholder="What needs doing?"
+                aria-label="Task"
+                value={text}
+                onChange={(e) => { setText(e.target.value); if (err) setErr(false); }}
+              />
+            </div>
+          </div></div>
+          {err && <div className="input-error xs-error">Add a task name.</div>}
+
+          <div className="grp xs-grp"><div className="eyebrow">When</div></div>
+          <div className="pad-x"><div className="card xs-group">
+            <div className="row xs-row">
+              <Tile tone="orange"><Clock className="ic" /></Tile>
+              <div className="conn-name">Due</div>
+              <HeadMenu variant="value" ariaLabel="Due" value={dueMode} label={dueWord} off={dueMode === "none"}
+                options={[
+                  { value: "none", label: "None" }, { value: "today", label: "Today" }, { value: "tomorrow", label: "Tomorrow" },
+                  { value: "weekend", label: "This Weekend" }, { value: "nextweek", label: "Next Week" }, { value: "pick", label: "Pick a Date" },
+                ]}
+                onPick={pickDue} />
+            </div>
+            {dueMode === "pick" && (
+              <div className="row xs-row xs-date">
+                <input ref={dateRef} type="date" className="xs-input" aria-label="Due date" value={due} onChange={(e) => setDue(e.target.value)} />
+              </div>
+            )}
+            <div className="row xs-row">
+              <Tile tone="green"><RepeatGlyph /></Tile>
+              <div className="conn-name">Repeat</div>
+              <HeadMenu variant="value" ariaLabel="Repeat" value={repeat} off={repeat === ""}
+                options={[{ value: "", label: "None" }, { value: "daily", label: "Daily" }, { value: "weekly", label: "Weekly" }, { value: "monthly", label: "Monthly" }]}
+                onPick={setRepeat} />
+            </div>
+          </div></div>
+
+          <div className="grp xs-grp"><div className="eyebrow">Where</div></div>
+          <div className="pad-x"><div className="card xs-group">
+            <div className="row xs-row">
+              <Tile tone="blue"><Tag className="ic" /></Tile>
+              <div className="row-grow">
+                <div className="conn-name">Area</div>
+                {cats.length > 1 && <div className="conn-meta">{primaryName} is the main one</div>}
+              </div>
+              <HeadMenu variant="value" ariaLabel="Area" value={category} label={areaWord} off={cats.length === 0} multi picked={cats}
+                options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color as string }))]}
+                onPick={toggleCat} />
+            </div>
+            {projects.length > 0 && (
+              <div className="row xs-row">
+                <Tile tone="indigo"><FolderKanban className="ic" /></Tile>
+                <div className="conn-name">Project</div>
+                <HeadMenu variant="value" ariaLabel="Project" value={projectId} label={projectWord} off={projectId === ""}
+                  options={[{ value: "", label: "None" }, ...projects.map((p) => ({ value: p.id, label: p.title }))]}
+                  onPick={setProjectId} />
+              </div>
+            )}
+          </div></div>
+
+          <div className="grp xs-grp"><div className="eyebrow">More</div></div>
+          <div className="pad-x"><div className="card xs-group">
+            {/* A1 · IF-THEN. Gollwitzer and Sheeran: d = 0.65 across 94
+                studies. The single highest-leverage field on this sheet, and
+                folded by default so capture stays one line and one tap. */}
+            <div className="row xs-row" role="button" tabIndex={0} aria-expanded={planOpen} onClick={() => setPlanOpen((o) => !o)}>
+              <Tile tone="sky"><PinGlyph /></Tile>
+              <div className="row-grow">
+                <div className="conn-name">When and Where</div>
+                {planLine && planLine !== "Not set" && <div className="conn-meta">{planLine}</div>}
+              </div>
+              {planLine === "Not set" && <span className="conn-meta">Not set</span>}
+              <div className={"chev chev-down" + (planOpen ? " chev-open" : "")} />
+            </div>
+            {planOpen && (
+              <div className="xs-plan">
                 <div className="segmented">
                   {(["after", "time", "place"] as CueKind[]).map((k) => (
                     <div
@@ -185,116 +297,46 @@ export default function TaskSheet({
                 {!planWeak && !clash && planTouched && (
                   <div className="input-hint">{sentence(draftPlan)}</div>
                 )}
-              </>
+              </div>
             )}
-          </div>
+            {showNotes && linkedNotes.map((n) => (
+              <div
+                className="row xs-row"
+                role={onOpenNote ? "button" : undefined}
+                tabIndex={onOpenNote ? 0 : undefined}
+                key={n.id}
+                onClick={onOpenNote ? () => onOpenNote(n.id) : undefined}
+              >
+                <div className={"proj-icon cat-bg-" + (n.category ? catColor(n.category) : "yellow")}><FileText className="ic" /></div>
+                <div className="conn-name">{n.title}</div>
+                {onOpenNote && <div className="chev"></div>}
+              </div>
+            ))}
+            {showNotes && onAddNote && <button className="row row-act" onClick={onAddNote}>Add a Note</button>}
+          </div></div>
 
-          <div className="field">
-            <div className="input-label">Area</div>
-            {/* Picking a category is the same act here as on the Tasks page,
-                so it wears the same selected state. It used to swap the whole
-                chip to the category colour and drop the dot, which meant one
-                idea had two looks on two screens, and it spent a colour on a
-                thing the dot was already saying. */}
-            <div className="chip-row cat-pick">
-              <div className={"chip" + (cats.length === 0 ? " active" : "")} role="button" tabIndex={0} aria-pressed={cats.length === 0} onClick={() => setCats([])}>None</div>
-              {categories.map((c) => {
-                const at = cats.indexOf(c.id);
-                return (
-                <div
-                  key={c.id}
-                  className={"chip" + (at >= 0 ? " active" : "")}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={at >= 0}
-                  onClick={() => toggleCat(c.id)}
-                >
-                  <span className={"cat-dot cat-bg-" + c.color} />
-                  {c.name}
-                  {/* Only the primary is marked, and only when there is more
-                      than one: a badge on a single pick would be noise. */}
-                  {at === 0 && cats.length > 1 && <span className="cat-main">Main</span>}
+          {showActions && (
+            <div className="pad-x xs-actions"><div className="card xs-group">
+              {onSchedule && (
+                <div className="row xs-row" role="button" tabIndex={0} onClick={onSchedule}>
+                  <Tile tone="sky"><Calendar className="ic" /></Tile>
+                  <div className="conn-name">Add to Schedule</div>
+                  <div className="chev"></div>
                 </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {cats.length > 1 && (
-            <div className="input-help">{categories.find((c) => c.id === category)?.name ?? "The first"} is the main one · Tap it to pass that to the next</div>
+              )}
+              {/* The task is big and he is looking at it: the moment to offer
+                  splitting it is here, not on some other screen (2026-08-19). */}
+              {onBreakDown && text.trim() && (
+                <div className="row xs-row" role="button" tabIndex={0} onClick={() => onBreakDown(text.trim())}>
+                  <Tile tone="purple"><Sparkles className="ic" /></Tile>
+                  <div className="conn-name">Break It Down</div>
+                  <div className="chev"></div>
+                </div>
+              )}
+              {onDelete && <button className="row xs-row xs-del" onClick={onDelete}>Delete Task</button>}
+            </div></div>
           )}
-
-          <div className="field">
-            <div className="input-label">Due</div>
-            <div className="segmented">
-              <div className={"seg" + (dueMode === "none" ? " active" : "")} role="button" tabIndex={0} onClick={() => setDue("")}>None</div>
-              <div className={"seg" + (dueMode === "today" ? " active" : "")} role="button" tabIndex={0} onClick={() => setDue(today)}>Today</div>
-              <div className={"seg" + (dueMode === "tomorrow" ? " active" : "")} role="button" tabIndex={0} onClick={() => setDue(tomorrow)}>Tomorrow</div>
-              <div className={"seg" + (dueMode === "pick" ? " active" : "")} role="button" tabIndex={0} onClick={() => setDue(dueMode === "pick" && due ? due : addDaysISO(today, 2))}>Pick</div>
-            </div>
-            {dueMode === "pick" && (
-              <input type="date" className="input field-gap" value={due} onChange={(e) => setDue(e.target.value)} />
-            )}
-          </div>
-
-          <div className="field">
-            <div className="input-label">Repeat</div>
-            <div className="segmented">
-              {([["", "None"], ["daily", "Daily"], ["weekly", "Weekly"], ["monthly", "Monthly"]] as const).map(([val, label]) => (
-                <div key={val} className={"seg" + (repeat === val ? " active" : "")} role="button" tabIndex={0} onClick={() => setRepeat(val)}>{label}</div>
-              ))}
-            </div>
-          </div>
-
-          {projects.length > 0 && (
-            <div className="field">
-              <div className="input-label">Project</div>
-              <div className="chip-row">
-                <div className={"chip" + (projectId === "" ? " active" : "")} role="button" tabIndex={0} onClick={() => setProjectId("")}>None</div>
-                {projects.map((p) => (
-                  <div key={p.id} className={"chip" + (projectId === p.id ? " active" : "")} role="button" tabIndex={0} onClick={() => setProjectId(p.id)}>{p.title}</div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {mode === "edit" && (linkedNotes.length > 0 || onAddNote) && (
-            <div className="field">
-              <div className="input-label">Linked Notes</div>
-              <div className="card">
-                {linkedNotes.map((n) => (
-                  <div
-                    className="row"
-                    role={onOpenNote ? "button" : undefined}
-                    tabIndex={onOpenNote ? 0 : undefined}
-                    key={n.id}
-                    onClick={onOpenNote ? () => onOpenNote(n.id) : undefined}
-                  >
-                    <div className={"proj-icon cat-bg-" + (n.category ? catColor(n.category) : "graphite")}><FileText className="ic" /></div>
-                    <div className="conn-name">{n.title}</div>
-                    {onOpenNote && <div className="chev"></div>}
-                  </div>
-                ))}
-                {onAddNote && <button className="row row-act" onClick={onAddNote}>Add a Note</button>}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={save}>Save</button>
-          {mode === "edit" && onSchedule && (
-            <button className="btn btn-secondary btn-block" onClick={onSchedule}>Add to Schedule</button>
-          )}
-          {/* The task is big and he is looking at it: the moment to offer
-              splitting it is here, not on some other screen (2026-08-19). */}
-          {mode === "edit" && onBreakDown && text.trim() && (
-            <button className="btn btn-secondary btn-block" onClick={() => onBreakDown(text.trim())}>Break It Down</button>
-          )}
-          {mode === "edit" && onDelete && (
-            <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>Delete Task</button>
-          )}
-          <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
+          <div className="xs-foot" />
         </div>
       </div>
     </div>

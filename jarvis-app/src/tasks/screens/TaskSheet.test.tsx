@@ -32,32 +32,52 @@ describe("TaskSheet", () => {
     expect(onSave).toHaveBeenCalledWith({ text: "Pay rent", category: "", due: "", repeat: "" });
   });
 
-  it("selected category chip wears the app-wide selected state and is switchable", () => {
+  // THE VALUE ON THE RIGHT (Brain and the Task Sheet, 2026-09-02): Area is
+  // a row whose value opens the Tasks head's own dropdown, many at once.
+  it("the area value opens a menu; a pick adds the area, wears its dot, and stays open for more", () => {
     const onSave = vi.fn();
     render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
-    // Selection is the same everywhere (.chip.active), never the category
-    // colour: the dot already carries identity, and one idea gets one look.
-    const selected = () => document.querySelector(".chip.active");
-    expect(selected()?.textContent).toBe("None"); // honest default (2026-08-09)
-    // every chip keeps its dot, selected or not
-    expect(document.querySelectorAll(".chip .cat-dot")).toHaveLength(CATS.length);
-    expect(document.querySelector(".chip.cat-bg-blue")).toBeNull(); // never fills with the slot colour
-    fireEvent.click(screen.getByText("Money"));
-    expect(selected()?.textContent).toContain("Money");
-    expect(selected()?.querySelector(".cat-dot.cat-bg-yellow")).toBeTruthy();
-    expect(selected()?.getAttribute("aria-pressed")).toBe("true");
+    const area = screen.getByLabelText("Area");
+    expect(area.textContent).toContain("None"); // honest default (2026-08-09)
+    expect(area).toHaveClass("dd-off");
+    fireEvent.click(area);
+    // every option keeps its dot, picked or not; None leads
+    expect(document.querySelectorAll(".hmenu-item .cat-dot")).toHaveLength(CATS.length);
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Money/ }));
+    expect(document.querySelector(".hmenu"), "the menu stays open for a second area").toBeTruthy();
+    expect(screen.getByRole("menuitemcheckbox", { name: /Money/ }).getAttribute("aria-checked")).toBe("true");
+    expect(area.textContent).toContain("Money");
+    expect(area.querySelector(".cat-dot.cat-bg-yellow")).toBeTruthy();
+    fireEvent.click(screen.getByRole("menuitemcheckbox", { name: /Work/ }));
+    expect(area.textContent).toContain("Money +1");
+    expect(screen.getByText("Money is the main one")).toBeInTheDocument();
+    fireEvent.click(document.querySelector(".hmenu-scrim")!);
+    expect(document.querySelector(".hmenu")).toBeNull();
     fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "X" } });
     fireEvent.click(screen.getByText("Save"));
-    expect(onSave).toHaveBeenCalledWith({ text: "X", category: "c2", due: "", repeat: "" });
+    expect(onSave).toHaveBeenCalledWith({ text: "X", category: "c2", extraCategories: ["c1"], due: "", repeat: "" });
   });
 
-  it("due quick-picks set the date", () => {
+  it("the due value opens a menu and Today sets the date", () => {
     const onSave = vi.fn();
     render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
     fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "X" } });
-    fireEvent.click(screen.getByText("Today"));
+    fireEvent.click(screen.getByLabelText("Due"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Today" }));
+    expect(document.querySelector(".hmenu"), "a single pick closes the menu").toBeNull();
+    expect(screen.getByLabelText("Due").textContent).toContain("Today");
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith({ text: "X", category: "", due: today, repeat: "" });
+  });
+
+  it("Pick a Date shows the date row under Due", () => {
+    render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Due"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Pick a Date" }));
+    const date = screen.getByLabelText("Due date") as HTMLInputElement;
+    expect(date.type).toBe("date");
+    fireEvent.change(date, { target: { value: "2026-12-24" } });
+    expect(screen.getByLabelText("Due").textContent).toContain("Dec 24");
   });
 
   it("edit mode: prefilled, delete present and fires", () => {
@@ -149,7 +169,7 @@ describe("TaskSheet linked notes", () => {
 
   it("stays hidden in edit mode when there's nothing to show and no way to add one", () => {
     render(<TaskSheet mode="edit" initial={{ text: "X", category: "c1", due: "", repeat: "" }} categories={CATS} onSave={() => {}} onCancel={() => {}} />);
-    expect(screen.queryByText("Linked Notes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Add a Note")).not.toBeInTheDocument();
   });
 
   it("lists linked notes and opens one on tap", () => {
@@ -158,7 +178,8 @@ describe("TaskSheet linked notes", () => {
       <TaskSheet mode="edit" initial={{ text: "X", category: "c1", due: "", repeat: "" }} categories={CATS}
         onSave={() => {}} onCancel={() => {}} linkedNotes={NOTES} onOpenNote={onOpenNote} />,
     );
-    expect(screen.getByText("Linked Notes")).toBeInTheDocument();
+    // A note is a row in the More group (the grouped sheet, 2026-09-02).
+    expect(screen.getByText("Renewal Terms").closest(".xs-row")).toBeTruthy();
     fireEvent.click(screen.getByText("Renewal Terms"));
     expect(onOpenNote).toHaveBeenCalledWith("n1");
   });
@@ -169,7 +190,6 @@ describe("TaskSheet linked notes", () => {
       <TaskSheet mode="edit" initial={{ text: "X", category: "c1", due: "", repeat: "" }} categories={CATS}
         onSave={() => {}} onCancel={() => {}} onAddNote={onAddNote} />,
     );
-    expect(screen.getByText("Linked Notes")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Add a Note"));
     expect(onAddNote).toHaveBeenCalled();
   });

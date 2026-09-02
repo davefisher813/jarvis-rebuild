@@ -545,3 +545,32 @@
    the name, the date and size under it, the trash at the right. */
 .ruled .file-row { cursor: pointer; }
 .ruled .file-row .gm-slot .ic { width: 20px; height: 20px; }
+
+/* ---------- THE NAV LISTS, IN CARDS (Brain onto the rulings, 2026-09-02) --
+   The Brain hub and More keep the library row (the filled brand glyph, the
+   name, the chevron) and gain the card every other list on a ruled screen
+   wears. Hairlines inset past the glyph column, as the bare list's did. */
+.ruled .nav-card > .lib-row { padding: 11px var(--s-4); min-height: 54px; }
+.ruled .nav-card > .lib-row:active { background: var(--press-1); }
+.ruled .nav-card > .lib-row + .lib-row::before { left: calc(var(--s-4) + 30px + var(--s-3h)); }
+.ruled .nav-card-gap { margin-top: var(--s-5); }
+
+/* ---------- THE AREA PAGE (Brain onto the rulings, 2026-09-02) ----------
+   Work, Family, Friends, Personal wear what Health does. Under the name the
+   home page's quiet number tiles, then This Week as done rows under a day
+   divider, then the quiet caps head over the app's own rows. The tiles are
+   facts, not doors, so they do not press. */
+.ruled .area-tiles { padding-top: var(--s-3); margin-top: 0; }
+.ruled .area-tiles .stat-tile { cursor: default; }
+.ruled .area-tiles .stat-tile:active { opacity: 1; }
+.ruled .area-facts { padding-top: var(--s-2h); }
+.ruled .area-fact { font-size: 12.5px; color: var(--tx-3); line-height: 1.45; }
+.ruled .area-fact + .area-fact { margin-top: 3px; }
+.ruled.area-ruled .day-divide, .ruled.health-ruled .day-divide { padding-left: 0; }
+.ruled.area-ruled .day-divide + .list-card-ruled, .ruled.health-ruled .day-divide + .list-card-ruled { margin-bottom: var(--s-2); }
+/* A card one wrapper below .pad-x (a day's group) keeps the same edge. */
+.ruled .pad-x > div > .list-card-ruled { margin-left: 0; margin-right: 0; }
+/* The week's count on a project row: done is good, not urgent. */
+.ruled .uchip.u-done { color: var(--good); background: var(--good-tint); }
+/* A person's row: the avatar takes the check column at the row's size. */
+.ruled .person-row-ruled .task-check-tap .av { width: 30px; height: 30px; font-size: 12px; }

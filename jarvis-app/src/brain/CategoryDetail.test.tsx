@@ -143,19 +143,22 @@ function SeededOrg({ onOpenPerson }: { onOpenPerson?: (id: string) => void }) {
 describe("CategoryDetail org health (2026-08-10)", () => {
   it("project rows carry next action with due, overdue count, and the goal they move", async () => {
     render(<NotesProvider userId="org1"><SeededOrg /></NotesProvider>);
-    await waitFor(() => expect(screen.getByText("Sponsor Push")).toBeInTheDocument());
-    // SPEC MOVED (V2): the state leads in its color, the next action follows
-    // as a lowercase fragment.
-    expect(screen.getByText("Moving")).toBeInTheDocument();
-    expect(screen.getByText(/next: Email sponsors/)).toBeInTheDocument();
-    expect(screen.getByText(/1 Overdue · Moves Grow the league/)).toBeInTheDocument();
+    // The project's name is the row, and the task under Up Next names it as
+    // its parent line too (the shared task row), so it appears twice.
+    await waitFor(() => expect(screen.getAllByText("Sponsor Push").length).toBeGreaterThan(0));
+    // The Projects lens's own row (Brain onto the rulings, 2026-09-02): the
+    // state, the overdue count and the goal on one line, the next action
+    // under it.
+    expect(screen.getByText(/Moving · 1 Overdue · Moves Grow the league/)).toBeInTheDocument();
+    expect(screen.getByText(/Next: Email sponsors/)).toBeInTheDocument();
   });
 
   it("a project with no open task says Stalled out loud", async () => {
     render(<NotesProvider userId="org2"><SeededOrg /></NotesProvider>);
     // SPEC MOVED (V2): "Stalled" is a red state span, the reason follows.
-    await waitFor(() => expect(screen.getByText("Stalled")).toBeInTheDocument());
-    expect(screen.getByText(/no next action/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/Stalled/)).toBeInTheDocument());
+    expect(screen.getByText(/Stalled/)).toHaveClass("r-stalled");
+    expect(screen.getByText(/No next action/)).toBeInTheDocument();
   });
 
   it("an org with tagged people gets the People section, tap-through included", async () => {
@@ -193,7 +196,9 @@ describe("CategoryDetail record (2026-08-10)", () => {
   it("shows the count as a stat tile and the completion under its day", async () => {
     render(<NotesProvider userId="rec1"><SeededRecord /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("This Week")).toBeInTheDocument());
-    expect(screen.getByText("Done")).toBeInTheDocument();
+    // The home page's quiet tile (Brain onto the rulings, 2026-09-02): a
+    // number and a lowercase word, the word ALL CAPS only through CSS.
+    expect(screen.getByText("done")).toHaveClass("st-w");
     expect(screen.getByText("Take out trash")).toBeInTheDocument();
     expect(screen.getByText("Today")).toBeInTheDocument();
     // done, so it must not also sit in Up Next

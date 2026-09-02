@@ -37,6 +37,8 @@ export default function HeadMenu({
   lead = false,
   variant = "capsule",
   off = false,
+  multi = false,
+  picked,
 }: {
   value: string;
   options: MenuOption[];
@@ -52,6 +54,12 @@ export default function HeadMenu({
   variant?: "capsule" | "value";
   /** A value that means nothing is set (Off, None) reads in the quiet ink. */
   off?: boolean;
+  /** MANY AT ONCE (the task sheet's areas, 2026-09-02): every option in
+      `picked` wears a tick, a tap toggles one and leaves the menu open,
+      and only the clearing option (value "") closes it. The caller keeps
+      the list and says what the closed value reads (`label`). */
+  multi?: boolean;
+  picked?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const [box, setBox] = useState<{ top: number; bottom: number; left: number; right: number; fromRight: boolean; up: boolean; maxH: number } | null>(null);
@@ -80,10 +88,11 @@ export default function HeadMenu({
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  const isOn = (v: string) => (multi ? (v === "" ? (picked?.length ?? 0) === 0 : (picked ?? []).includes(v)) : v === value);
   const pick = (v: string) => {
     haptics.selection();
-    setOpen(false);
-    if (v !== value) onPick(v);
+    if (!multi || v === "") setOpen(false);
+    if (multi || v !== value) onPick(v);
   };
 
   return (
@@ -115,12 +124,12 @@ export default function HeadMenu({
               <button
                 key={o.value}
                 type="button"
-                className={"hmenu-item" + (o.value === value ? " on" : "")}
-                role="menuitemradio"
-                aria-checked={o.value === value}
+                className={"hmenu-item" + (isOn(o.value) ? " on" : "")}
+                role={multi ? "menuitemcheckbox" : "menuitemradio"}
+                aria-checked={isOn(o.value)}
                 onClick={() => pick(o.value)}
               >
-                <span className="hmenu-tick">{o.value === value && <Check className="ic" />}</span>
+                <span className="hmenu-tick">{isOn(o.value) && <Check className="ic" />}</span>
                 {o.dot && <span className={"cat-dot cat-bg-" + o.dot} />}
                 <span className="hmenu-l">{o.label}</span>
                 {o.count != null && <span className="hmenu-n">{o.count}</span>}

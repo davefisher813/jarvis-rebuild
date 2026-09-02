@@ -113,16 +113,21 @@ export default function BrainPage({
     .flatMap((kind) => categories.filter((c) => (c.kind ?? "plain") === kind))
     .map(catRow);
 
+  // THE HUB IS TWO CARDS (Brain onto the rulings, 2026-09-02; Dave's 09-01
+  // ruling "Go with pic 1. Apply that everywhere": every list on a ruled
+  // screen is a card). JARVIS's own rows in one, Your Areas in the other
+  // under the one boundary head. The rows keep the library anatomy and
+  // the filled brand glyph (ICON LAW 2026-08-22); only the ground changed.
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <PageHeader title="Brain" />
-      {NAV_ROWS.map(Row)}
+      <div className="pad-x"><div className="card list-card-ruled nav-card">{NAV_ROWS.map(Row)}</div></div>
       {catRows.length > 0 && (
         <div>
           {/* The one mini-caps boundary label (Brain 4, Dave's pick): it
               marks where user content begins in a nav list. */}
           <div className="sh2 sh2-quiet"><span className="t">Your Areas</span><span className="n">{categories.length}</span></div>
-          {catRows.map(Row)}
+          <div className="pad-x"><div className="card list-card-ruled nav-card">{catRows.map(Row)}</div></div>
         </div>
       )}
       <div className="screen-foot" />

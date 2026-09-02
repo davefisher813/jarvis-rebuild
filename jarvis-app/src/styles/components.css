@@ -4258,3 +4258,20 @@ body.selecting .voice-dock { display: none; }
 .note-photo + .row, .row + .note-photo { border-top: 0.5px solid var(--divider); }
 .note-photo-row .conn-name { flex: 1; min-width: 0; }
 .note-file-open { cursor: pointer; }
+
+/* THE TASK SHEET ON THE GROUPED TABLE (Brain and the Task Sheet, 2026-09-02).
+   The exercise sheet's .xs anatomy without the training skin: the date row
+   under Due when a date is picked, the if-then plan folded under its row,
+   the last group the actions, Delete in the system red and centred, the
+   way iOS sets a destructive row. */
+.task-sheet .xs-date { padding-left: calc(var(--s-4) + 28px + var(--s-3)); }
+.task-sheet .xs-date .xs-input { color: var(--tx-2); font-size: 15px; }
+.task-sheet .xs-plan { padding: var(--s-1) var(--s-4) var(--s-3) calc(var(--s-4) + 28px + var(--s-3)); }
+.task-sheet .xs-plan .segmented { margin-bottom: var(--s-2); }
+.task-sheet .xs-actions { padding-top: var(--s-5); }
+.task-sheet .xs-del { width: 100%; justify-content: center; border: 0; background: transparent; font-family: var(--f);
+  font-size: 16px; font-weight: var(--w-medium); color: var(--sys-red); cursor: pointer; }
+.task-sheet .xs-del:active { background: var(--press-1); }
+.task-sheet .xs-group .proj-icon { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; }
+.task-sheet .xs-group .proj-icon .ic { width: 16px; height: 16px; }
+.task-sheet .row-grow .conn-meta { margin-top: 2px; }
