@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { createPortal } from "react-dom";
-import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals } from "../data/NotesProvider";
+import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useOptionalFiles, useFileStore } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
 import { ACCOUNT_META, ACCOUNT_KINDS, formatMoney, totalBalance, type Account, type AccountData, type AccountKind } from "./types";
 import {
@@ -21,6 +21,9 @@ import { attemptWrite } from "../shared/guard";
 import { capAfterNumber } from "../shared/casing";
 import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
+import { usePickFile } from "../shared/usePickFile";
+import { sizeLabel, type UserFile } from "../files/types";
+import { Paperclip, Image as ImageGlyph, FileText } from "../shared/icons";
 
 const CHEV = <div className="chev" />;
 const PLUS = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
@@ -178,6 +181,60 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
   const [envName, setEnvName] = useState("");
   const [envAmt, setEnvAmt] = useState("");
   const today = todayISO();
+
+  // RECEIPTS (Dave 2026-09-02: "both pages need to have a pic/file upload
+  // button (that's fully wired)"; picked "A Receipts card on the page").
+  // The clip in the bar opens the phone's own sheet (camera, library,
+  // files); the file goes to the user's private storage and lands in the
+  // Receipts card, newest first: name, date, size. Tap opens it; the trash
+  // removes it with Undo. The row is made first because the storage path
+  // carries its id; a failed upload takes the row back with it.
+  const filesSvc = useOptionalFiles();
+  const fileStore = useFileStore();
+  const [receipts, setReceipts] = useState<UserFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const loadReceipts = useCallback(async () => {
+    if (!filesSvc) return;
+    setReceipts(await filesSvc.list("money"));
+  }, [filesSvc]);
+  useEffect(() => { void loadReceipts(); }, [loadReceipts]);
+  const addReceipt = async (f: File) => {
+    if (!filesSvc || !fileStore || uploading) return;
+    setUploading(true);
+    let id: string | null = null;
+    try {
+      id = await filesSvc.create({ name: f.name, path: "", mime: f.type, bytes: f.size, scope: "money", addedAt: today });
+      const stored = await fileStore.upload(id, f);
+      await filesSvc.update(id, { path: stored.path, name: stored.name, mime: stored.mime, bytes: stored.bytes });
+      await loadReceipts();
+      showToast({ message: "Receipt added" });
+    } catch (e) {
+      if (id) await filesSvc.remove(id).catch(() => undefined);
+      showToast({ message: e instanceof Error && e.message ? e.message : "Couldn't upload that file." });
+    } finally {
+      setUploading(false);
+    }
+  };
+  const picker = usePickFile((f) => void addReceipt(f));
+  const openReceipt = async (r: UserFile) => {
+    const url = fileStore ? await fileStore.url(r.data.path) : null;
+    if (!url) { showToast({ message: "Couldn't open that file." }); return; }
+    window.open(url, "_blank", "noopener");
+  };
+  const removeReceipt = async (r: UserFile) => {
+    if (!filesSvc) return;
+    const ok = await attemptWrite(() => filesSvc.remove(r.id));
+    if (!ok) return;
+    await loadReceipts();
+    // The bytes go a beat after the row, so Undo can bring the row back
+    // whole. Undo re-creates the row on the same path and cancels the sweep.
+    let undone = false;
+    const sweep = setTimeout(() => { if (!undone) void fileStore?.remove([r.data.path]); }, 6000);
+    showToast({
+      message: "Receipt removed", actionLabel: "Undo",
+      onAction: async () => { undone = true; clearTimeout(sweep); await attemptWrite(() => filesSvc.create(r.data)); await loadReceipts(); },
+    });
+  };
 
   const reload = useCallback(async () => {
     // Autopay bills whose date passed roll themselves forward first, so the
@@ -344,7 +401,11 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
 
   return (
     <div className="screen ruled">
-      <PageHeader title="Money" actions={<BarAction label="Add Account" onClick={() => setSheet({ kind: "new" })}>{PLUS}</BarAction>} />
+      <PageHeader title="Money" actions={<>
+        {filesSvc && fileStore && <BarAction label={uploading ? "Uploading" : "Add a Receipt"} onClick={() => !uploading && picker.open()}><Paperclip className="ic" /></BarAction>}
+        <BarAction label="Add Account" onClick={() => setSheet({ kind: "new" })}>{PLUS}</BarAction>
+      </>} />
+      {picker.input}
       {accounts.length === 0 && bills.length === 0 && tagged.length === 0 ? (
         <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No Accounts Yet</div>
           <button className="btn btn-primary" onClick={() => setSheet({ kind: "new" })}>Add an Account</button>
@@ -501,6 +562,29 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
                     onOpen={onOpenTask}
                     onDelete={(id) => void deleteTagged(id)}
                   />
+                ))}
+              </div></div>
+            </>
+          )}
+
+          {receipts.length > 0 && (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">Receipts</span><span className="n">{receipts.length}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
+                {receipts.map((r) => (
+                  <div className="task-row p2 file-row" role="button" tabIndex={0} key={r.id} onClick={() => void openReceipt(r)}>
+                    {/* The type is the glyph's colour: a picture in blue, a
+                        document in the brand red, the editor's own pairing. */}
+                    <div className="task-check-tap"><span className={"gm-slot " + (r.data.mime.startsWith("image/") ? "cat-fg-blue" : "cat-fg-brand")}>
+                      {r.data.mime.startsWith("image/") ? <ImageGlyph className="ic" /> : <FileText className="ic" />}
+                    </span></div>
+                    <div className="task-title">
+                      <span className="task-name">{r.data.name}</span>
+                      <div className="r-k"><span className="r-goal r-cat">{monthDay(r.data.addedAt)}{r.data.bytes > 0 ? ` \u00b7 ${sizeLabel(r.data.bytes)}` : ""}</span></div>
+                    </div>
+                    <button className="conn-remove" aria-label={"Remove " + r.data.name}
+                      onClick={(e) => { e.stopPropagation(); void removeReceipt(r); }}>{TRASH}</button>
+                  </div>
                 ))}
               </div></div>
             </>

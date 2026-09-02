@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNotes, useCategories, useTasks, useSchedule, useProjects, useGoals, usePeople, useOptionalProfile } from "../data/NotesProvider";
+import { useNotes, useCategories, useTasks, useSchedule, useProjects, useGoals, usePeople, useOptionalProfile, useFileStore } from "../data/NotesProvider";
 import { catName } from "../shared/categories";
 import type { Category } from "../categories/types";
 import type { Block, Connection, NoteData, TemplateKey } from "./types";
@@ -12,6 +12,8 @@ import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
 import { showToast } from "../shared/toast";
 import { parseRich } from "./richtext";
+import { usePickFile, PICK_ANY, PICK_IMAGE } from "../shared/usePickFile";
+import { fileStem, sizeLabel } from "../files/types";
 
 import { attemptWrite } from "../shared/guard";
 import { recordSpot } from "../restore/whereYouWere";
@@ -49,8 +51,8 @@ function toEditorNote(data: NoteData): EditorNote {
         case "numbered_list":
           return { id: b.id, type: "numbered_list", items: (b.items ?? []).map((it) => typeof it === "string" ? it : it.text) };
         case "table": return { id: b.id, type: "table", header: b.columns ?? [], rows: b.rows ?? [] };
-        case "file": return { id: b.id, type: "file", name: b.name ?? "File", size: b.size ?? "" };
-        case "photo": return { id: b.id, type: "photo", name: b.name ?? "Photo", size: b.size ?? "" };
+        case "file": return { id: b.id, type: "file", name: b.name ?? "File", size: b.size ?? "", path: b.path, mime: b.mime };
+        case "photo": return { id: b.id, type: "photo", name: b.name ?? "Photo", size: b.size ?? "", path: b.path, mime: b.mime };
         default: return null;
       }
     })
@@ -362,8 +364,67 @@ export default function NotesFlow({
     setScreen("editor");
   };
 
+  // A PHOTO OR FILE WITH REAL BYTES (Dave 2026-09-02: "fully wired"). The
+  // Photo and File blocks used to add a placeholder that said "Photo" and
+  // held nothing. Now they open the phone's own sheet (camera, library,
+  // files); the bytes go to the user's private storage under the note's
+  // id and the block carries the path, so the editor can show the picture
+  // and open the file. Same door from the list page: the clip in the bar
+  // makes a note titled after the file and opens it.
+  const fileStore = useFileStore();
+  const [uploading, setUploading] = useState(false);
+  const pendingPick = useRef<{ noteId: string | null; type: "photo" | "file" }>({ noteId: null, type: "photo" });
+  const attachFile = async (noteId: string, file: File, type: "photo" | "file"): Promise<boolean> => {
+    if (!fileStore) return false;
+    setUploading(true);
+    try {
+      const stored = await fileStore.upload(noteId, file);
+      const kind: "photo" | "file" = type === "photo" || stored.mime.startsWith("image/") ? "photo" : "file";
+      const ok = await attemptWrite(() => svc.addBlock(noteId, {
+        type: kind, name: stored.name, size: sizeLabel(stored.bytes), path: stored.path, mime: stored.mime,
+      }));
+      if (!ok) { void fileStore.remove([stored.path]); return false; }
+      return true;
+    } catch (e) {
+      showToast({ message: e instanceof Error && e.message ? e.message : "Couldn't upload that file." });
+      return false;
+    } finally {
+      setUploading(false);
+    }
+  };
+  const onPicked = async (file: File) => {
+    const { noteId, type } = pendingPick.current;
+    if (noteId) {
+      // Into the open note.
+      await snap();
+      const ok = await attachFile(noteId, file, type);
+      await loadCurrent(noteId);
+      if (ok) showToast({ message: type === "photo" ? "Photo added" : "File added" });
+      return;
+    }
+    // From the list: a new note, titled after the file, opened on the file.
+    let id: string | null = null;
+    await attemptWrite(async () => { id = await svc.createNote(fileStem(file.name), ""); });
+    if (!id) return;
+    const ok = await attachFile(id, file, file.type.startsWith("image/") ? "photo" : "file");
+    if (!ok) { await attemptWrite(() => svc.deleteNote(id!)); await loadList(); return; }
+    setCurrentId(id);
+    await loadCurrent(id);
+    setScreen("editor");
+  };
+  const picker = usePickFile((f) => void onPicked(f));
+  const pickInto = (noteId: string | null, type: "photo" | "file") => {
+    pendingPick.current = { noteId, type };
+    picker.open(type === "photo" ? PICK_IMAGE : PICK_ANY);
+  };
+
   const addBlock = async (type: BlockType) => {
     if (!currentId) return;
+    if ((type === "photo" || type === "file") && fileStore) {
+      setAddBlockOpen(false);
+      pickInto(currentId, type);
+      return;
+    }
     await snap();
     let newId: string | null = null;
     await attemptWrite(async () => { newId = await svc.addBlock(currentId, starterBlock(type)); });
@@ -371,6 +432,14 @@ export default function NotesFlow({
     await loadCurrent(currentId);
     // Writing toolbar (V4): the caret lands in the block you just added.
     if (newId) setFocusBlockId(newId);
+  };
+
+  // What a deleted note leaves in storage goes a beat after the note, so
+  // Undo can bring the note back with its pictures; Undo cancels the sweep.
+  const sweepAfter = (ids: string[]): { cancel: () => void } => {
+    let undone = false;
+    const t = setTimeout(() => { if (!undone) for (const id of ids) void fileStore?.removeAll(id); }, 6000);
+    return { cancel: () => { undone = true; clearTimeout(t); } };
   };
 
   const openLinkPicker = async (from: Screen) => {
@@ -527,10 +596,12 @@ export default function NotesFlow({
     await loadList();
     if (gone === 0) return;
     const n = gone;
+    const sweep = sweepAfter(ids.slice(0, n));
     showToast({
       message: n === 1 ? "Note deleted" : n + " notes deleted",
       actionLabel: "Undo",
       onAction: async () => {
+        sweep.cancel();
         await attemptWrite(async () => { for (const note of kept.slice(0, n)) await svc.restoreNote(note); });
         await loadList();
       },
@@ -544,8 +615,11 @@ export default function NotesFlow({
         notes={list}
         onOpen={openNote}
         onNewNote={() => setScreen("templates")}
+        onAddFile={fileStore ? () => pickInto(null, "file") : undefined}
+        uploading={uploading}
         onDeleteMany={onDeleteManyNotes}
       />
+      {picker.input}
       </div>
     );
   }
@@ -624,6 +698,7 @@ export default function NotesFlow({
     <div className={pushCls} key="editor">
       {current && (
         <NoteEditor
+          fileStore={fileStore}
           focusBlockId={focusBlockId}
           onEnterAt={enterAt}
           onBackspaceAt={backspaceAt}
@@ -643,6 +718,7 @@ export default function NotesFlow({
             const snapshot = await svc.note(currentId);
             const ok = await attemptWrite(() => svc.deleteNote(currentId));
             if (!ok) return;
+            const sweep = sweepAfter([currentId]);
             setCurrentId(null);
             await loadList();
             setScreen("list");
@@ -650,6 +726,7 @@ export default function NotesFlow({
               message: "Note deleted",
               actionLabel: "Undo",
               onAction: async () => {
+                sweep.cancel();
                 if (snapshot) await attemptWrite(() => svc.restoreNote(snapshot));
                 await loadList();
               },
@@ -687,6 +764,7 @@ export default function NotesFlow({
       {addBlockOpen && (
         <AddBlockSheet onSelect={addBlock} onCancel={() => setAddBlockOpen(false)} />
       )}
+      {picker.input}
     </div>
   );
 }

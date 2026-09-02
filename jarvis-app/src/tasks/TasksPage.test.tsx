@@ -99,6 +99,30 @@ describe("TasksPage", () => {
     expect(empty.querySelector(".empty-state")).toBeTruthy();
   });
 
+  // ONE ROW PER TASK (Dave 2026-09-02: "'email Danielle' shows up twice,
+  // kill the bug"). The task that keeps sliding is its own row, first, with
+  // the sliding line in the warning ink and First Step in place of Start;
+  // it is not ALSO in its group.
+  it("the stalled task is one row, hoisted first, with its line and its pill", () => {
+    const onFirst = vi.fn();
+    const { container } = render(
+      <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20"), tk("b", "2026-05-20"), tk("c", "2026-05-20")]} today="2026-05-20"
+        onStartTask={() => {}}
+        stalled={{ id: "b", line: "Keeps sliding \u00b7 Pushed 5 times", action: { label: "First Step", onClick: onFirst } }} />,
+    );
+    const names = [...container.querySelectorAll(".task-row .task-name")].map((e) => e.textContent);
+    expect(names).toEqual(["b", "a", "c"]);
+    expect(names.filter((n) => n === "b")).toHaveLength(1);
+    const row = container.querySelector(".task-row")!;
+    expect(row.querySelector(".r-goal.r-stalled")).toHaveTextContent("Keeps sliding");
+    expect(row.querySelector(".task-check")).toBeTruthy();
+    const pill = row.querySelector(".pill-act")!;
+    expect(pill).toHaveTextContent("First Step");
+    fireEvent.click(pill);
+    expect(onFirst).toHaveBeenCalled();
+    expect([...container.querySelectorAll(".pill-act")].map((e) => e.textContent)).toEqual(["First Step", "Start", "Start"]);
+  });
+
   it("renders the ruled row: neutral ring, the parent's glyph, distance chip", () => {
     const { container } = render(
       <TasksPage filter="today" counts={counts} items={[tk("over", "2026-05-18"), tk("due", "2026-05-20")]} today="2026-05-20"

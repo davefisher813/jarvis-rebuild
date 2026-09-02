@@ -6,29 +6,42 @@ import { slidingLine } from "./lifecycle";
 // THE KEEPS SLIDING ROW (Fewer Buttons, Dave 2026-09-02: "I don't like all
 // those floating buttons"). The First Step offer was a card floating above
 // the list (08-31: "the big task up top actually doesn't render as such");
-// it is the list's first row now, the notice row the one ask on Goals
-// wears. Source-pinned because the flow needs a provider stack to mount;
-// the rendered look is verified by the screen renders. What must stay
-// true: both states are the stacked notice row in the stalled tone, the
-// row says why it exists on its second line, the answer state puts the
-// step in the name slot with the task demoted to a For: line, and the row
-// is handed to the page as its notice, never rendered above the list.
+// it became the list's first row, the notice row the one ask on Goals
+// wears. Then the second half (Dave 2026-09-02, same day: "'email Danielle'
+// shows up twice, kill the bug"): a notice row ABOUT the task beside the
+// task's own row is the task twice. The offer is the task's own row now,
+// hoisted first (TasksPage `stalled`), the sliding line in the warning ink
+// and First Step in place of Start. Only the ANSWER state keeps a notice
+// row, because the drafted step is a new thing, not the task. Source-pinned
+// because the flow needs a provider stack to mount.
 describe("The Keeps Sliding row", () => {
   const src = readFileSync(join(__dirname, "TasksFlow.tsx"), "utf8");
   const notice = src.slice(src.indexOf("const fsNotice"), src.indexOf(") : null;", src.indexOf("const fsNotice")));
+  const stalled = src.slice(src.indexOf("const fsStalled"), src.indexOf(": null;", src.indexOf("const fsStalled")));
 
-  it("both states are the stacked notice row in the stalled tone", () => {
-    expect(notice.match(/<NoticeCard/g)?.length).toBe(2);
-    expect(notice.match(/form="card"/g)?.length).toBe(2);
-    expect(notice.match(/tone="cat-fg-orange"/g)?.length).toBe(2);
-    expect(notice.match(/onDismiss=\{fsDismiss\}/g)?.length).toBe(2);
+  it("the offer is the task's own row: its id, the sliding line, First Step as the pill", () => {
+    expect(stalled).toContain("id: fsCandidate.id");
+    expect(stalled).toContain("line: slidingLine(fsCandidate, today)");
+    expect(stalled).toMatch(/label: fsBusy \? "Thinking\.\.\." : "First Step"/);
+    expect(stalled, "the offer never renders as a notice row").not.toContain("<NoticeCard");
+    expect(src).toContain("stalled={fsStalled}");
   });
 
-  it("the stalled state names the task and says why; the answer state leads with the step", () => {
-    expect(notice).toContain("title={fsCandidate.data.text}");
-    expect(notice).toContain("sub={slidingLine(fsCandidate, today)}");
+  it("only the answer state is a notice row, in the stalled tone, leading with the step", () => {
+    expect(notice.match(/<NoticeCard/g)?.length).toBe(1);
+    expect(notice).toContain('form="card"');
+    expect(notice).toContain('tone="cat-fg-orange"');
+    expect(notice).toContain("onDismiss={fsDismiss}");
     expect(notice).toContain("title={fsStep.step}");
     expect(notice).toContain('sub={"First step for: " + fsCandidate.data.text}');
+    expect(notice, "the offer state is gone from the notice").not.toContain("title={fsCandidate.data.text}");
+  });
+
+  it("the page pulls the stalled task out of its group and renders it once, first", () => {
+    const page = readFileSync(join(__dirname, "screens", "TasksPage.tsx"), "utf8");
+    expect(page).toMatch(/groupItems\(stalledItem \? items\.filter\(\(it\) => it\.id !== stalledItem\.id\) : items/);
+    expect(page).toMatch(/\{gi === 0 && stalledRow\}/);
+    expect(page).toMatch(/kicker=\{stalled\.line\} kickerTone="stalled" action=\{stalled\.action\}/);
   });
 
   it("the old card anatomy stays gone, and the row is the page's notice", () => {

@@ -1,6 +1,6 @@
 import { Fragment, useState } from "react";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
-import { Check, FileText, PenLine, Search } from "../../shared/icons";
+import { Check, FileText, Paperclip, PenLine, Search } from "../../shared/icons";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
 import { catColor, catName } from "../../shared/categories";
@@ -62,11 +62,17 @@ export default function NotesList({
   notes,
   onOpen,
   onNewNote,
+  onAddFile,
+  uploading = false,
   onDeleteMany,
 }: {
   notes: NoteListItem[];
   onOpen?: (id: string) => void;
   onNewNote?: () => void;
+  // THE CLIP (Dave 2026-09-02: "both pages need to have a pic/file upload
+  // button"): a photo or file becomes a new note, titled after it, opened.
+  onAddFile?: () => void;
+  uploading?: boolean;
   onDeleteMany?: (ids: string[]) => void;
 }) {
   const [q, setQ] = useState("");
@@ -168,6 +174,7 @@ export default function NotesList({
           ) : (
             <>
               {onDeleteMany && shown.length > 0 && <BarText label="Select" onClick={() => sel.enter()} />}
+              {onAddFile && <BarAction label={uploading ? "Uploading" : "Add a Photo or File"} onClick={() => !uploading && onAddFile()}><Paperclip className="ic" /></BarAction>}
               <BarAction label="New Note" onClick={onNewNote}><PenLine className="ic" /></BarAction>
             </>
           )

@@ -46,6 +46,34 @@ function fullDay(iso: string): string {
   const d = new Date(iso + "T00:00:00");
   return `${WKLONG[d.getDay()]!.slice(0, 3)}, ${MONTHS[d.getMonth()]!.slice(0, 3)} ${d.getDate()}`;
 }
+// THE LIST HAS A NAME (Dave 2026-09-02, from the Week screenshot: "maybe
+// add 'the day' or 'today' to the top of the schedule because the week
+// page has a title above it. If one should, all should"). Every mode's
+// list opens on the same quiet head the Week wears: the day's word on the
+// left, the fact on the right. Today, Tomorrow and Yesterday by name, any
+// other day by its weekday; the date itself is the page head above.
+function dayWord(iso: string, todayISO: string): string {
+  const d = Math.round((new Date(iso + "T00:00:00").getTime() - new Date(todayISO + "T00:00:00").getTime()) / 86400000);
+  if (d === 0) return "Today";
+  if (d === 1) return "Tomorrow";
+  if (d === -1) return "Yesterday";
+  return WKLONG[new Date(iso + "T00:00:00").getDay()]!;
+}
+// The week's word by the same rule: This Week, Next Week, Last Week, and
+// otherwise "Week of Sep 7".
+function weekWord(cells: WeekCell[], todayISO: string): string {
+  if (cells.length < 7) return "This Week";
+  const first = new Date(cells[0]!.date + "T00:00:00");
+  const t = new Date(todayISO + "T00:00:00");
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const inWeek = (d: Date) => cells[0]!.date <= iso(d) && iso(d) <= cells[6]!.date;
+  if (inWeek(t)) return "This Week";
+  const next = new Date(t); next.setDate(t.getDate() + 7);
+  if (inWeek(next)) return "Next Week";
+  const last = new Date(t); last.setDate(t.getDate() - 7);
+  if (inWeek(last)) return "Last Week";
+  return `Week of ${MONTHS[first.getMonth()]!.slice(0, 3)} ${first.getDate()}`;
+}
 function weekRange(cells: WeekCell[]): string {
   if (cells.length < 7) return "";
   const a = new Date(cells[0]!.date + "T00:00:00"), b = new Date(cells[6]!.date + "T00:00:00");
@@ -454,7 +482,7 @@ export default function SchedulePage({
           : [];
         const tickLabel = (m: number) => { const h = Math.floor(m / 60) % 24; const r = m % 60; if (h === 12 && r === 0) return "noon"; return `${h % 12 || 12}${r ? ":" + String(r).padStart(2, "0") : ""} ${h >= 12 ? "PM" : "AM"}`; };
         return (<>
-        <div className="sh2 sh2-quiet wk-head"><span className="t">This Week</span>
+        <div className="sh2 sh2-quiet wk-head"><span className="t">{weekWord(weekCells, todayDate)}</span>
           <span className="n">{ahead.length === 0 ? "Over" : totalOpen > 0 ? `${spanShort(totalOpen)} open` : "Full"}</span></div>
         <div className="pad-x"><div className="card list-card-ruled week-rows">
           {weekRows.map((r) => {
@@ -508,10 +536,14 @@ export default function SchedulePage({
           Running Late? moved onto the Now rule, where the minute it is
           about actually is; Copy Yesterday moved into the empty state, the
           only place it ever rendered. */}
-      <div className="plan-head sc-sub">
-        <div className="sc-fact">
+      {/* THE LIST HAS A NAME (Dave 2026-09-02): the same quiet head the
+          Week's list wears, so the three modes open their lists alike. The
+          day's word on the left, the fact on the right, Plan My Day past it. */}
+      <div className="sh2 sh2-quiet wk-head sc-dayhead">
+        <span className="t">{dayWord(selected, todayDate)}</span>
+        <span className="n sc-fact">
           {countLine.map((c, i) => <React.Fragment key={i}>{i > 0 && <span className="sched-sep">{"\u00b7"}</span>}{c}</React.Fragment>)}
-        </div>
+        </span>
         {onPlanDay && <button className="see-all pill-action" onClick={onPlanDay}>Plan My Day</button>}
       </div>
       {/* N5: the day says when it does not fit, WHERE it does not fit, and

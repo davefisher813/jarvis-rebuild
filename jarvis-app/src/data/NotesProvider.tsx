@@ -19,6 +19,9 @@ import { ChatService } from "../chat/ChatService";
 import { DecisionService } from "../decisions/DecisionService";
 import { StrandsService } from "../brain/strands/StrandsService";
 import { SealService } from "../review/seal";
+import { FilesService } from "../files/FilesService";
+import { MemoryFileStore, SupabaseFileStore, type FileStore } from "../files/FileStore";
+import { supabase } from "../auth/supabaseClient";
 import { makeStore } from "./store";
 import { emit } from "../events";
 
@@ -45,6 +48,8 @@ const ChatContext = createContext<ChatService | null>(null);
 const DecisionContext = createContext<DecisionService | null>(null);
 const StrandsContext = createContext<StrandsService | null>(null);
 const SealContext = createContext<SealService | null>(null);
+const FilesContext = createContext<FilesService | null>(null);
+const FileStoreContext = createContext<FileStore | null>(null);
 // The Supabase access token, for callers that hit privileged endpoints (e.g.
 // the admin check). Undefined when signed out or in the local harness.
 const TokenContext = createContext<string | undefined>(undefined);
@@ -58,9 +63,12 @@ export function NotesProvider({
   accessToken?: string;
   children: ReactNode;
 }) {
-  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, metrics, rules, chat, decisions, strands, seal } = useMemo(() => {
+  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, metrics, rules, chat, decisions, strands, seal, files, fileStore } = useMemo(() => {
     const store = makeStore(accessToken);
     return {
+      files: new FilesService(store, userId, (e) => emit(e)),
+      // The bytes: Supabase Storage when signed in, the demo's shelf otherwise.
+      fileStore: supabase && accessToken ? new SupabaseFileStore(supabase, userId) : new MemoryFileStore(userId),
       rules: new LearnedRulesService(store, userId),
       notes: new NotesService(store, userId, (e) => emit(e)),
       tasks: new TasksService(store, userId, (e) => emit(e)),
@@ -103,7 +111,9 @@ export function NotesProvider({
                       <RulesContext.Provider value={rules}>
                       <ChatContext.Provider value={chat}>
                       <DecisionContext.Provider value={decisions}>
-                      <StrandsContext.Provider value={strands}><SealContext.Provider value={seal}>{children}</SealContext.Provider></StrandsContext.Provider>
+                      <StrandsContext.Provider value={strands}><SealContext.Provider value={seal}>
+                      <FilesContext.Provider value={files}><FileStoreContext.Provider value={fileStore}>{children}</FileStoreContext.Provider></FilesContext.Provider>
+                      </SealContext.Provider></StrandsContext.Provider>
                       </DecisionContext.Provider>
                       </ChatContext.Provider>
                       </RulesContext.Provider>
@@ -238,6 +248,13 @@ export function useSeal(): SealService {
   return s;
 }
 export function useOptionalSeal(): SealService | null { return useContext(SealContext) ?? null; }
+export function useFiles(): FilesService {
+  const v = useContext(FilesContext);
+  if (!v) throw new Error("useFiles must be used within NotesProvider");
+  return v;
+}
+export function useOptionalFiles(): FilesService | null { return useContext(FilesContext) ?? null; }
+export function useFileStore(): FileStore | null { return useContext(FileStoreContext) ?? null; }
 export function useOptionalRules(): LearnedRulesService | null {
   return useContext(RulesContext) ?? null;
 }

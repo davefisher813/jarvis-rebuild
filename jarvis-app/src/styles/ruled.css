@@ -456,10 +456,12 @@
   background: none; border: 0; color: inherit; }
 .ruled .sc-step .ic { width: 17px; height: 17px; }
 .ruled .sc-step:active { color: var(--tx-1); }
-/* The fact and the one action. .plan-head seats the pill at the right and
-   .see-all.pill-action is the same ghost capsule Today's heads wear. */
-.ruled .plan-head.sc-sub { padding: 7px var(--s-4) 0; }
-.ruled .sc-fact { font-size: 12.5px; color: var(--tx-3); min-width: 0; }
+/* The list's head (Dave 2026-09-02, "if one should, all should"): the same
+   quiet .sh2 the Week's list wears. The day's word, the dotted rule, the
+   fact in the Week head's un-capped number style, and Plan My Day in the
+   ghost capsule Today's heads wear. */
+.ruled .sc-dayhead .sc-fact { font-weight: var(--w-regular); font-size: 12.5px; color: var(--tx-3); min-width: 0;
+  white-space: nowrap; }
 .ruled .sc-fact b { color: var(--tx-2); font-weight: var(--w-semi); }
 .ruled .sc-fact .sched-sep { margin: 0 5px; opacity: 0.55; }
 
@@ -539,3 +541,7 @@
 .ruled .note-first { font-size: 12.5px; color: var(--tx-3); margin-top: 3px; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; min-width: 0; }
 .ruled .note-row .gm-slot .ic { width: 20px; height: 20px; }
+/* A file's row (a receipt on Money): the type glyph in the check column,
+   the name, the date and size under it, the trash at the right. */
+.ruled .file-row { cursor: pointer; }
+.ruled .file-row .gm-slot .ic { width: 20px; height: 20px; }

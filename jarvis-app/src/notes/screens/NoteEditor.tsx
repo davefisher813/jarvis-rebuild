@@ -9,6 +9,8 @@ import { connIcon, type Conn } from "./Connections";
 // Editorial layout is a way of writing, not a property of one note, so the
 // choice is global and remembered.
 import { capAfterNumber } from "../../shared/casing";
+import { useFileUrl } from "../../files/useFileUrl";
+import type { FileStore } from "../../files/FileStore";
 
 const EDITORIAL_KEY = "jarvis.notes.editorial.v1";
 
@@ -26,8 +28,8 @@ type EditorBlock =
   | { id: string; type: "bulleted_list"; items: string[] }
   | { id: string; type: "numbered_list"; items: string[] }
   | { id: string; type: "table"; header: string[]; numCol?: number; rows: string[][]; sum?: string[] }
-  | { id: string; type: "file"; name: string; size: string }
-  | { id: string; type: "photo"; name: string; size: string };
+  | { id: string; type: "file"; name: string; size: string; path?: string; mime?: string }
+  | { id: string; type: "photo"; name: string; size: string; path?: string; mime?: string };
 
 export interface EditorNote {
   category: string;
@@ -401,6 +403,47 @@ function SelectionBar({ onApply }: { onApply: (bid: string, start: number, end: 
   );
 }
 
+// A PHOTO OR FILE WITH REAL BYTES (Dave 2026-09-02, "fully wired"). A
+// photo block with a path is the picture itself, full width on the canvas;
+// a file block with a path is a row that opens it. Either can be removed
+// from its own row. A block without a path is the old placeholder and
+// renders as its name alone, so nothing that was saved goes blank.
+function Attachment({ a, store, onRemove }: {
+  a: Extract<EditorBlock, { type: "file" | "photo" }>;
+  store: FileStore | null;
+  onRemove?: (blockId: string) => void;
+}) {
+  const url = useFileUrl(store, a.path);
+  const open = () => { if (url) window.open(url, "_blank", "noopener"); };
+  const trash = onRemove && (
+    <button className="conn-remove" aria-label={"Remove " + a.name} onClick={(e) => { e.stopPropagation(); onRemove(a.id); }}>
+      <Trash2 className="ic" />
+    </button>
+  );
+  if (a.type === "photo" && url) {
+    return (
+      <div className="note-photo">
+        <img className="note-photo-img" src={url} alt={a.name} onClick={open} />
+        <div className="row note-photo-row">
+          <div className="conn-name truncate">{a.name}</div>
+          {a.size && <div className="conn-meta">{a.size}</div>}
+          {trash}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className={"row" + (url ? " note-file-open" : "")} role={url ? "button" : undefined} tabIndex={url ? 0 : undefined} onClick={url ? open : undefined}>
+      <span className={a.type === "file" ? "fg-red" : "fg-blue"}>
+        {a.type === "file" ? <FileText className="ic" /> : <Image className="ic" />}
+      </span>
+      <div className="conn-name truncate">{a.name}</div>
+      {a.size && <div className="conn-meta">{a.size}</div>}
+      {trash}
+    </div>
+  );
+}
+
 export default function NoteEditor({
   note,
   onBack,
@@ -435,8 +478,11 @@ export default function NoteEditor({
   onRemoveConnection,
   onOpenConnection,
   onOpenTask,
+  fileStore = null,
 }: {
   note: EditorNote;
+  // Where a photo or file block's bytes live, for showing and opening them.
+  fileStore?: FileStore | null;
   onBack?: () => void;
   onConnections?: () => void;
   onDeleteNote?: () => void;
@@ -739,15 +785,7 @@ export default function NoteEditor({
       {attachments.length > 0 && (
         <div className="pad-x">
           <div className="card">
-            {attachments.map((a) => (
-              <div className="row" key={a.id}>
-                <span className={a.type === "file" ? "fg-red" : "fg-blue"}>
-                  {a.type === "file" ? <FileText className="ic" /> : <Image className="ic" />}
-                </span>
-                <div className="conn-name truncate">{a.name}</div>
-                {a.size && <div className="conn-meta">{a.size}</div>}
-              </div>
-            ))}
+            {attachments.map((a) => <Attachment a={a} store={fileStore} onRemove={onDeleteBlock} key={a.id} />)}
           </div>
         </div>
       )}

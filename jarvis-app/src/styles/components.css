@@ -4134,12 +4134,16 @@ body.selecting .voice-dock { display: none; }
    sheet): no capsule, the value in the row's ink, the chevron in the quiet
    ink, so a row that opens a menu reads like one. */
 .dd { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 11px; border: 0;
-  border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-3); font-family: var(--f);
+  border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-1); font-family: var(--f);
   font-size: 12.5px; font-weight: var(--w-semi); letter-spacing: 0.1em; text-transform: uppercase;
   white-space: nowrap; position: relative; cursor: pointer; }
 .dd::after { content: ""; position: absolute; inset: -7px 0; }   /* the 44px rule */
 .dd .dd-w { min-width: 0; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
-.dd.dd-lead { color: var(--tx-1); font-size: 13px; }
+/* Every capsule speaks in the same ink (Dave 2026-09-02: "area and group
+   drop downs should have white font to match today not grey"); the lead one
+   is only a touch larger. The chevron stays quiet. */
+.dd.dd-lead { font-size: 13px; }
+.dd .dd-cv { color: var(--tx-3); }
 .dd.dd-open { background: var(--press-5); }
 .dd .dd-n { color: var(--tx-4); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
 .dd .dd-cv { width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
@@ -4246,3 +4250,11 @@ body.selecting .voice-dock { display: none; }
    page as a sheet of paper would. */
 .mail-html { display: block; width: 100%; border: 0; border-radius: 12px; background: transparent; min-height: 40px;
   margin: var(--s-2) 0; }
+
+/* A PHOTO IN A NOTE (2026-09-02, "fully wired"): the picture itself on the
+   canvas, full width of its card, rounded like the card, its name and size
+   on one row under it. A file with bytes is a row that opens it. */
+.note-photo-img { display: block; width: 100%; max-height: 60vh; object-fit: cover; cursor: pointer; }
+.note-photo + .row, .row + .note-photo { border-top: 0.5px solid var(--divider); }
+.note-photo-row .conn-name { flex: 1; min-width: 0; }
+.note-file-open { cursor: pointer; }

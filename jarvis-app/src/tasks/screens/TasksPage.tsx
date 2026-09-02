@@ -121,6 +121,8 @@ export function TaskRow({
   muteToday = false,
   parent = null,
   kicker = null,
+  kickerTone = null,
+  action = null,
 }: {
   item: TaskItem;
   today: string;
@@ -154,6 +156,12 @@ export function TaskRow({
   // A caller's own second line (a reminder's time on the Health page),
   // in place of the parent or category words.
   kicker?: string | null;
+  // The kicker in the warning ink: the line is a fact about the task
+  // stalling, not where it lives (the First Step offer, 2026-09-02).
+  kickerTone?: "stalled" | null;
+  // A caller's own trailing pill in place of Start (First Step on the
+  // task that keeps sliding). One pill per row, always.
+  action?: { label: string; onClick: () => void } | null;
 }) {
   const t = item.data;
   const u = urgencyFor(t, today);
@@ -294,7 +302,7 @@ export function TaskRow({
           <div className="r-k">
             {chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}
             {kicker
-              ? <span className="r-goal r-cat">{kicker}</span>
+              ? <span className={"r-goal r-cat" + (kickerTone === "stalled" ? " r-stalled" : "")}>{kicker}</span>
               : parent
               ? <ParentLineGlyph p={parent} />
               : <span className="r-goal r-cat">
@@ -319,7 +327,9 @@ export function TaskRow({
             it can never double up with the tag row-tags now renders above:
             the two were written to divide the same information, not repeat
             it. */}
-        {selecting ? null : onStart && !shownDone
+        {selecting ? null : action && !shownDone
+          ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>{action.label}</button>
+          : onStart && !shownDone
           ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(item.id); }}>Start</button>
           : u && u.kind === "soon" && <span className={"urgency " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
       </div>
@@ -346,6 +356,7 @@ export default function TasksPage({
   catFilter,
   onCatFilter,
   notice,
+  stalled = null,
   momentum,
   onPickOne,
   onCalm,
@@ -379,6 +390,15 @@ export default function TasksPage({
   // for this list (the task that keeps sliding), rendered as the first row
   // of the first card, never as a card floating above the list.
   notice?: React.ReactNode;
+  // THE TASK THAT KEEPS SLIDING IS ONE ROW (Dave 2026-09-02: "'email
+  // Danielle' shows up twice, kill the bug"). The First Step offer used to
+  // be a notice row above the list while the task itself sat in it, so
+  // the stalled task appeared twice. Now the offer is the task's OWN row,
+  // pulled to the top of the first card: the sliding line in the warning
+  // ink where the parent would be, First Step in place of Start, and the
+  // check, swipe and open it always had. Nothing to dismiss; the row costs
+  // no space the task was not already taking.
+  stalled?: { id: string; line: string; action: { label: string; onClick: () => void } } | null;
   // Momentum Chain: a suggestion element pinned under the row it follows.
   momentum?: { afterId: string; el: React.ReactNode } | null;
   // The goal a task moves, from the flow's goal index (see Row.goal).
@@ -414,7 +434,18 @@ export default function TasksPage({
   // the session, reset on launch, like the segment.
   const [groupBy, setGroupBy] = useState<GroupBy>(lastGroupBy);
   const setGroup = (g: GroupBy) => { lastGroupBy = g; setGroupBy(g); };
-  const groups = groupItems(items, groupBy, goalOf, today);
+  // The stalled task's own row leads the first card; in select mode it
+  // stays where it sorts, a plain row like the rest.
+  const stalledItem = stalled && !sel.active ? items.find((it) => it.id === stalled.id) ?? null : null;
+  const groups = groupItems(stalledItem ? items.filter((it) => it.id !== stalledItem.id) : items, groupBy, goalOf, today);
+  const stalledRow = stalled && stalledItem ? (
+    <TaskRow
+      item={stalledItem} today={today} onToggle={onToggle} onOpen={onOpenTask}
+      onDelete={onDeleteTask} onSnooze={onSnoozeTask} onRename={onRenameTask}
+      muteToday={filter === "today"}
+      kicker={stalled.line} kickerTone="stalled" action={stalled.action}
+    />
+  ) : null;
   return (
     <div className="screen ruled">
       {/* Select is a HEADER BUTTON, not a hidden long press. Dave asked for
@@ -581,6 +612,7 @@ export default function TasksPage({
                 </div>
               )}
               <div className="card list-card-ruled">
+                {gi === 0 && stalledRow}
                 {gi === 0 && notice}
                 {g.items.map((it) => (
                   <React.Fragment key={it.id}>

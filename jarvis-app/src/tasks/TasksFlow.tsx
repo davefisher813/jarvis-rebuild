@@ -507,28 +507,28 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
   // (B15 2026-08-23 still applies: this row acts on ONE stalled task; the
   // screen's own red stays Pick One). The 08-31 rule that the card must say
   // what it is before anything else survives as the line under the name.
-  const fsNotice = fsCandidate && (filter === "today" || filter === "overdue" || filter === "all") ? (
-    fsStep && fsStep.taskId === fsCandidate.id ? (
-      <NoticeCard
-        form="card"
-        icon={<TargetGlyph />}
-        tone="cat-fg-orange"
-        title={fsStep.step}
-        sub={"First step for: " + fsCandidate.data.text}
-        action={{ label: "Add", onClick: () => void fsAccept() }}
-        onDismiss={fsDismiss}
-      />
-    ) : (
-      <NoticeCard
-        form="card"
-        icon={<TargetGlyph />}
-        tone="cat-fg-orange"
-        title={fsCandidate.data.text}
-        sub={slidingLine(fsCandidate, today)}
-        action={{ label: fsBusy ? "Thinking..." : "First Step", onClick: () => void fsAsk() }}
-        onDismiss={fsDismiss}
-      />
-    )
+  //
+  // ONE ROW PER TASK (Dave 2026-09-02: "'email Danielle' shows up twice,
+  // kill the bug"). The offer is no longer a notice row beside the task's
+  // own row; it IS the task's row, hoisted to the top of the first card
+  // (TasksPage `stalled`), the sliding line in the warning ink and First
+  // Step in place of Start. Once the step is drafted it is a new thing,
+  // not the task, so that state keeps the notice row: the step's words,
+  // "First step for" the task, Add, and the swipe to decline.
+  const fsOn = !!fsCandidate && (filter === "today" || filter === "overdue" || filter === "all");
+  const fsStalled = fsOn && fsCandidate && !(fsStep && fsStep.taskId === fsCandidate.id)
+    ? { id: fsCandidate.id, line: slidingLine(fsCandidate, today), action: { label: fsBusy ? "Thinking..." : "First Step", onClick: () => void fsAsk() } }
+    : null;
+  const fsNotice = fsOn && fsCandidate && fsStep && fsStep.taskId === fsCandidate.id ? (
+    <NoticeCard
+      form="card"
+      icon={<TargetGlyph />}
+      tone="cat-fg-orange"
+      title={fsStep.step}
+      sub={"First step for: " + fsCandidate.data.text}
+      action={{ label: "Add", onClick: () => void fsAccept() }}
+      onDismiss={fsDismiss}
+    />
   ) : null;
 
   // JUST PICK ONE FOR ME (Dave 2026-08-19). The point is that he never
@@ -616,6 +616,7 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
           ? [theOneThing(allItems, () => 30)].filter((t): t is TaskItem => !!t)
           : byCategory(parts[filter], catFilter)}
         notice={fsNotice}
+        stalled={fsStalled}
         categories={categories}
         catFilter={catFilter}
         onCatFilter={setCatFilter}

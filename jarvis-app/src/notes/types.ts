@@ -31,6 +31,11 @@ export interface Block {
   rows?: string[][];
   name?: string;
   size?: string;
+  // A photo or file block with real bytes (2026-09-02): where they live in
+  // the user's private storage, and what they are. A block without a path
+  // is the old placeholder and renders as its name alone.
+  path?: string;
+  mime?: string;
 }
 
 // (Audit 2026-08-10: the always-null `category` field was removed. Every

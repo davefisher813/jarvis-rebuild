@@ -1559,13 +1559,10 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     "contactsMatch.ts": "iOS only: needs the Contacts bridge",
     "eventKitDedupe.ts": "iOS only: needs the EventKit bridge",
     "healthDedupe.ts": "iOS only: needs the HealthKit bridge",
-    // The upload pipeline for Supabase Storage. The app's current adapters do
-    // not store files, so there is no upload path to route through it yet.
-    // Track 3 work, kept because the size gate and the type gate in it are
-    // the part that is easy to get wrong twice.
-    "fileStorage.ts": "Supabase Storage: no upload surface in this build yet",
-    // Same shape as fileStorage.ts above: real, tested code with nowhere to
-    // plug in yet. HealthFlow composes the Share Line and the five loggers
+    // (fileStorage.ts left this list on 2026-09-02: files/FileStore routes
+    // every upload through it, from the clip on Notes and Money.)
+    // Real, tested code with nowhere to plug in yet: HealthFlow composes
+    // the Share Line and the five loggers
     // over a real HealthService, but wiring it into AppShell/destinations.tsx
     // is its own task (student-athlete health track, Track 3) and out of
     // scope for the session that built the module itself. Every screen and
