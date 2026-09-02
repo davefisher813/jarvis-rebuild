@@ -230,11 +230,32 @@
    rule and light theme's repaint. Full-bleed rows (08-18 library form) are
    gone from this page; every list on a ruled screen is a card. */
 .ruled .list-card-ruled { margin: 0 var(--s-4); overflow: hidden; padding: 0; }
+/* THE LEFT EDGE (Dave 2026-09-02, the Health page: "make it align all the
+   way to the left like the home page"). The list card carries the page
+   margin itself; inside a .pad-x wrapper that doubled to 32px on Health,
+   the Life lenses, the Week and the Repeats foot. One edge, everywhere. */
+.ruled .pad-x > .list-card-ruled { margin-left: 0; margin-right: 0; }
 .ruled .list-card-ruled > .task-swipe + .task-swipe { position: relative; }
 .ruled .list-card-ruled > .task-swipe + .task-swipe::before {
   content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 44px + var(--s-3)); right: 0; top: 0;
   height: 0.5px; background: var(--divider); pointer-events: none; }
 .ruled .list-card-ruled + .list-foot { margin-top: var(--s-3); }
+/* THE NOTICE ROW IN THE LIST (Fewer Buttons, 2026-09-02): the Keeps Sliding
+   card stops floating above the list and is its first row, the same notice
+   row the one ask on Goals wears: the tile in orange, the task's name, one
+   line of why, one pill. NoticeCard wraps itself in .pad-x and a swipe
+   shell; inside the list card both flatten to a row, the disc rides in the
+   check column, and the hairline under it is the list's own. */
+.ruled .list-card-ruled > .pad-x { padding: 0; }
+.ruled .list-card-ruled > .pad-x .notice-swipe { border-radius: 0; }
+.ruled .list-card-ruled .notice-card { min-height: 56px; }
+.ruled .list-card-ruled .notice-card .notice-disc { margin: 0 7px; border-radius: 9px; }
+.ruled .list-card-ruled .notice-card .conn-name { font-size: 16px; font-weight: var(--w-regular); letter-spacing: -0.01em; }
+.ruled .list-card-ruled .notice-card .conn-meta { font-size: 12.5px; }
+.ruled .list-card-ruled > .pad-x + .task-swipe { position: relative; }
+.ruled .list-card-ruled > .pad-x + .task-swipe::before {
+  content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 44px + var(--s-3)); right: 0; top: 0;
+  height: 0.5px; background: var(--divider); pointer-events: none; }
 /* Done rows strike the name, not the whole block: the kicker stays legible. */
 .ruled .task-row.completed .task-title { text-decoration: none; }
 .ruled .task-row.completed .task-name { text-decoration: line-through; color: var(--tx-4); }
@@ -242,14 +263,17 @@
 /* Renaming in place: the editable name keeps the row's own type. */
 .ruled .task-row .task-title .task-name[contenteditable] { display: block; white-space: nowrap; overflow: hidden; }
 
-/* The list head: the filter's name, the count, the group-by pill. */
-.ruled .list-head { margin-top: var(--s-2); }
-.ruled .gb { display: inline-flex; align-items: center; gap: 7px; }
-.ruled .gb-cv { width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
-  transform: rotate(45deg) translateY(-2px); opacity: 0.7; }
-/* Open: the options replace the head's right side, chips in a row. */
-.ruled .gb-open { order: 2; display: flex; gap: var(--s-1h); flex-wrap: wrap; margin: -13px 0; }
-.ruled .gb-open .chip { height: 30px; font-size: 13px; padding: 0 11px; }
+/* ---------- THE LIST HEAD IS THE CONTROLS (Fewer Buttons, Dave 2026-09-02:
+   "I don't like all those floating buttons. There's way too many."; picked
+   "One line of dropdowns on the list head"). Two chip rows and the Group by
+   pill are one line of three capsules: the view on the left, the head's
+   own word with the list's count; the area and the grouping on the right.
+   Each is a dropdown (shared/HeadMenu). The old .list-head, .gb and
+   .gb-open are retired with the chips. */
+.ruled .dd-line { display: flex; align-items: center; gap: 8px; padding: 14px var(--s-4) 6px; }
+.ruled .dd-line .dd-sp { flex: 1; }
+/* The capsule itself lives in components.css (.dd): it is a shared primitive now. */
+/* Group heads: dot and caps, the same head the Goals view wears. */
 /* Group heads: dot and caps, the same head the Goals view wears. */
 .ruled .grp-head { display: flex; align-items: center; gap: 8px; padding: 18px var(--s-4) 6px;
   font-size: 12.5px; font-weight: var(--w-semi); letter-spacing: 0.1em; text-transform: uppercase; color: var(--tx-3); }
@@ -408,3 +432,10 @@
 .ruled .wk-ticks span.last { transform: translateX(-100%); }
 .ruled .wk-note { padding: 10px var(--s-4) 0; font-size: 12.5px; color: var(--tx-3); }
 .ruled .wk-note b { color: var(--tx-1); font-weight: var(--w-semi); }
+
+/* ---------- THE MAIL AS SENT (2026-09-02) --------------------------------
+   A sandboxed frame that grows to its content; the page scrolls, never the
+   frame. Rounded like a card so a white-ground newsletter sits in the dark
+   page as a sheet of paper would. */
+.mail-html { display: block; width: 100%; border: 0; border-radius: 12px; background: transparent; min-height: 40px;
+  margin: var(--s-2) 0; }

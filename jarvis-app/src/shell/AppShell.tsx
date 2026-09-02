@@ -47,6 +47,7 @@ import { ENTITY_CATEGORY } from "../categories/types";
 import { todayISO } from "../tasks/grouping";
 import RightNowSheet from "../tasks/screens/RightNowSheet";
 import { rightNow, endOf, type RightNow } from "../tasks/rightNow";
+import { setOverwhelmed } from "../tasks/overwhelmed";
 import { showToast } from "../shared/toast";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
@@ -90,7 +91,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [goalIntent, setGoalIntent] = useState<string | undefined>(undefined);
   // Which Life segment a deep link wants. Undefined lets the tab remember.
   const [lifeSegment, setLifeSegment] = useState<"tasks" | "projects" | "goals" | undefined>(undefined);
-  const goLife = (seg: "tasks" | "projects" | "goals") => { setLifeSegment(seg); setActive("life"); };
+  // The nonce makes a repeat of the same segment a navigation too: LifeFlow
+  // may already be mounted on another lens, and a stale prop is not a move.
+  const [lifeNav, setLifeNav] = useState(0);
+  const goLife = (seg: "tasks" | "projects" | "goals") => { setLifeSegment(seg); setLifeNav((n) => n + 1); setActive("life"); };
   // Person deep-link: BrainFlow opens Contacts, PeopleFlow opens the person.
   const [personIntent, setPersonIntent] = useState<{ groupKey: string; id: string } | undefined>(undefined);
   const [noteIntent, setNoteIntent] = useState<string | undefined>(undefined);
@@ -250,7 +254,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         <Suspense fallback={<SkeletonScreen hero={false} />}>
         <div key={active}>
         {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); goLife("tasks"); }} onGoTasksOverdue={() => { setTaskFilterIntent("overdue"); goLife("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { setMailIntent(threadId); setDraftIntent(draftId); setActive("messages"); }} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") setActive("brain"); else void navigateToEntity(kind, id); }} onGoBigger={(goalId?: string) => { setGoalIntent(goalId); goLife("goals"); }} />}
-        {active === "life" && <LifeFlow segment={lifeSegment} taskOpenId={taskIntent} taskFilter={taskFilterIntent} projectOpenId={projectIntent} goalOpenId={goalIntent} onOpenNote={navigateToNote} onWhatNow={() => void openWhatNow()} onOpenDecision={(id) => void navigateToEntity("decision", id)} />}
+        {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent} taskFilter={taskFilterIntent} projectOpenId={projectIntent} goalOpenId={goalIntent} onOpenNote={navigateToNote} onWhatNow={() => void openWhatNow()} onOpenDecision={(id) => void navigateToEntity("decision", id)} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
         {active === "brain" && <BrainFlow openKey={brainIntent} routineBlockId={routineBlockIntent} onRoutineBlockConsumed={() => setRoutineBlockIntent(undefined)} personOpenId={personIntent?.id} decisionOpenId={decisionIntent} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => setActive("money")} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
@@ -298,6 +302,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           // next smallest. Hiding, never deferring: nothing is written, so a
           // task he skipped past is exactly where it was tomorrow.
           onOther={() => { const next = [...skipped, whatNow.task.id]; setSkipped(next); void openWhatNow(next); }}
+          // JUST THIS ONE (Fewer Buttons, 2026-09-02): the same pick, in the
+          // list, everything else hidden until Show Everything. The flag is
+          // day-keyed in overwhelmed.ts; TasksFlow hears the write.
+          onJustThisOne={() => { setWhatNow(null); setOverwhelmed(true, todayISO()); goLife("tasks"); }}
           onStart={() => void startFifteen(whatNow)}
         />
       )}

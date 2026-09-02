@@ -28,6 +28,17 @@ export function loadOverwhelmed(
   try { return storage.getItem(KEY) === todayISO; } catch { return false; }
 }
 
+// THE DOOR IN MOVED (Fewer Buttons, Dave 2026-09-02: "Pick One alone; Just
+// This One lives inside it"). The flag is set from the What Now sheet,
+// which lives in the shell, while the list that collapses lives in
+// TasksFlow, which may already be mounted. So a write here tells whoever
+// is listening; TasksFlow re-reads the flag when told.
+const listeners = new Set<() => void>();
+export function subscribeOverwhelmed(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
+}
+
 // Same-day only. An overwhelmed Tuesday must not silently hide Wednesday.
 export function setOverwhelmed(
   on: boolean,
@@ -38,6 +49,7 @@ export function setOverwhelmed(
     if (on) storage.setItem(KEY, todayISO);
     else storage.removeItem(KEY);
   } catch { /* private mode */ }
+  for (const fn of listeners) fn();
   return on;
 }
 

@@ -235,6 +235,20 @@ export default function CategoryDetail({
     return () => { on = false; };
   }, [metricsSvc, gymOpen]);
 
+  // A WRITE THAT FAILS SAYS SO (Dave 2026-09-02, "the metrics page literally
+  // doesn't work"). For weeks every switch on Add a Metric threw at the
+  // database (the entity types were never registered, migration 0029) and
+  // the sheet swallowed it, so a dead button was all he could see. Same
+  // rule the Routine save learned on 2026-07-30: try, catch, toast.
+  const metricWrite = async (write: () => Promise<unknown>, then?: () => void) => {
+    try {
+      await write();
+      then?.();
+      await reloadMetrics();
+    } catch (e) {
+      showToast({ message: "Couldn't save that metric. " + (e instanceof Error && e.message ? e.message : "Check your connection and try again.") });
+    }
+  };
   const reloadMetrics = async () => {
     const [d, l] = await Promise.all([metricsSvc.listDefs(), metricsSvc.listLogs()]);
     setMetricDefs(d);
@@ -867,16 +881,16 @@ export default function CategoryDetail({
           def={metricSheet.def}
           date={today}
           initial={metricLogs.find((l) => l.data.metricId === metricSheet.def.id && l.data.date === today)}
-          onSave={async (value) => { await metricsSvc.logMetric(metricSheet.def.id, today, value); setMetricSheet(null); await reloadMetrics(); }}
+          onSave={(value) => void metricWrite(() => metricsSvc.logMetric(metricSheet.def.id, today, value), () => setMetricSheet(null))}
           onCancel={() => setMetricSheet(null)}
         />
       )}
       {metricSheet?.kind === "add" && (
         <AddMetricSheet
           defs={metricDefs}
-          onEnablePreset={async (preset) => { await metricsSvc.createDef(newMetricDefData(preset.name, preset.type, preset.unit, preset.key, today, metricDefs.length)); await reloadMetrics(); }}
-          onToggleHidden={async (def) => { await metricsSvc.updateDef(def.id, { hidden: !def.data.hidden }); await reloadMetrics(); }}
-          onCreateCustom={async (name, type, unit) => { await metricsSvc.createDef(newMetricDefData(name, type, unit || undefined, undefined, today, metricDefs.length)); await reloadMetrics(); }}
+          onEnablePreset={(preset) => void metricWrite(() => metricsSvc.createDef(newMetricDefData(preset.name, preset.type, preset.unit, preset.key, today, metricDefs.length)))}
+          onToggleHidden={(def) => void metricWrite(() => metricsSvc.updateDef(def.id, { hidden: !def.data.hidden }))}
+          onCreateCustom={(name, type, unit) => void metricWrite(() => metricsSvc.createDef(newMetricDefData(name, type, unit || undefined, undefined, today, metricDefs.length)))}
           onCancel={() => setMetricSheet(null)}
         />
       )}

@@ -1623,7 +1623,7 @@ button {
   margin-top: var(--s-1); }
 .msg-offer-line { color: var(--tx-1); }
 
-/* Hand off: the people list is a picker, not a menu — same rows as everywhere
+/* Hand off: the people list is a picker, not a menu -- same rows as everywhere
    else so choosing a person feels like the rest of the app. */
 .msg-hand { margin-top: var(--s-2); }
 .msg-hand-pick { margin-top: var(--s-3); }
@@ -4125,3 +4125,116 @@ body.selecting .voice-dock { display: none; }
 /* In reorder mode the chip's chevron steps aside for the grip, same as the
    page lists. */
 .set-strip .reorder-live .chev { display: none; }
+
+/* ==========================================================================
+   THE DROPDOWN CAPSULE (shared/HeadMenu, Fewer Buttons 2026-09-02). Closed,
+   one capsule stating the current value: caps, the head's own voice, the
+   list's count quiet beside the lead one. The .dd-value variant is the same
+   control worn as a row's trailing value on a grouped table (the exercise
+   sheet): no capsule, the value in the row's ink, the chevron in the quiet
+   ink, so a row that opens a menu reads like one. */
+.dd { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 11px; border: 0;
+  border-radius: var(--r-pill); background: var(--press-3); color: var(--tx-3); font-family: var(--f);
+  font-size: 12.5px; font-weight: var(--w-semi); letter-spacing: 0.1em; text-transform: uppercase;
+  white-space: nowrap; position: relative; cursor: pointer; }
+.dd::after { content: ""; position: absolute; inset: -7px 0; }   /* the 44px rule */
+.dd .dd-w { min-width: 0; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
+.dd.dd-lead { color: var(--tx-1); font-size: 13px; }
+.dd.dd-open { background: var(--press-5); }
+.dd .dd-n { color: var(--tx-4); letter-spacing: 0.06em; font-variant-numeric: tabular-nums; }
+.dd .dd-cv { width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px); opacity: 0.7; margin-left: 1px; flex-shrink: 0; }
+.dd .cat-dot { width: 8px; height: 8px; }
+/* The mode with no menus (Just This One): the head states the mode, that is all. */
+.dd.dd-static { pointer-events: none; }
+/* As a row's value. */
+.dd.dd-value { background: transparent; padding: 0; min-height: 0; color: var(--tx-1); font-size: 15.5px;
+  font-weight: var(--w-regular); letter-spacing: 0; text-transform: none; }
+.dd.dd-value.dd-off { color: var(--tx-3); }
+.dd.dd-value .dd-cv { color: var(--tx-4); opacity: 1; width: 7px; height: 7px; margin-left: 4px; }
+.dd.dd-value .dd-w { max-width: 52vw; }
+.dd.dd-value.dd-open { background: transparent; opacity: 0.6; }
+
+/* ==========================================================================
+   THE DROPDOWN MENU (shared/HeadMenu, Fewer Buttons 2026-09-02). Portaled
+   to body and fixed to the capsule that opened it, so nothing clips it. A
+   glass panel, 14pt corners, the rim and the shadow the ruled card wears;
+   rows 44px with the tick column on the left (iOS's own menu anatomy), a
+   category dot where the option is an area, the count quiet on the right.
+   The scrim is invisible: the page stays readable while the menu is up,
+   and any tap outside closes it unchanged. */
+.hmenu-scrim { position: fixed; inset: 0; z-index: 300; }   /* above sheets (200): a sheet's rows open menus too */
+.hmenu { position: fixed; min-width: 200px; max-width: calc(100vw - 32px); padding: 6px 0;
+  border-radius: 14px; background: rgba(44, 44, 46, 0.96);   /* iOS's thick menu material: the list must not read through */
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat)); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  box-shadow: inset 0 0.5px 0 var(--rim-card), 0 12px 32px rgba(0, 0, 0, 0.55);
+  transform-origin: top left; animation: hmenuIn var(--dur-fast) var(--ease-out); }
+.hmenu.hmenu-right { transform-origin: top right; }
+.hmenu.hmenu-up { transform-origin: bottom left; }
+.hmenu.hmenu-up.hmenu-right { transform-origin: bottom right; }
+.hmenu { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+[data-theme="light"] .hmenu { background: rgba(255, 255, 255, 0.96); box-shadow: var(--shadow-card), 0 12px 32px rgba(0, 0, 0, 0.14); }
+@keyframes hmenuIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .hmenu { animation: none; } }
+.hmenu-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 0 16px 0 12px;
+  border: 0; background: transparent; color: var(--tx-1); font-family: var(--f); font-size: 16px; text-align: left;
+  cursor: pointer; position: relative; }
+.hmenu-item + .hmenu-item::before { content: ""; position: absolute; left: 42px; right: 0; top: 0; height: 0.5px; background: var(--divider); }
+.hmenu-item:active { background: var(--press-3); }
+.hmenu-tick { width: 20px; display: inline-flex; justify-content: center; flex-shrink: 0; color: var(--tx-1); }
+.hmenu-tick .ic { width: 16px; height: 16px; }
+.hmenu-l { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hmenu-item.on .hmenu-l { font-weight: var(--w-semi); }
+.hmenu-n { color: var(--tx-3); font-size: 15px; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.hmenu-item .cat-dot { width: 9px; height: 9px; }
+
+/* ==========================================================================
+   THE SHEET BAR (shared/SheetBar; ruled 2026-09-01 "Cancel, title, Save
+   bar", first worn 2026-09-02). Three seats: Cancel in the quiet ink, the
+   name in the middle, the verb in the tint. 44px tall, so the buttons meet
+   the tap minimum with no expansion trick. */
+.sheet-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
+  padding: 0 var(--s-4) var(--s-2); min-height: 44px; flex-shrink: 0; }
+.sheet-bar-cancel, .sheet-bar-save { min-height: 44px; padding: 0; border: 0; background: transparent;
+  font-family: var(--f); font-size: 17px; cursor: pointer; flex: 0 0 auto; min-width: 64px; }
+.sheet-bar-cancel { color: var(--tx-2); text-align: left; }
+.sheet-bar-save { color: var(--tint); font-weight: var(--w-semi); text-align: right; }
+.sheet-bar-save.dim { opacity: 0.4; }
+.sheet-bar-title { flex: 1; min-width: 0; text-align: center; font-size: 17px; font-weight: var(--w-semi); color: var(--tx-1);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ==========================================================================
+   THE EXERCISE SHEET AS A GROUPED TABLE (Fewer Buttons, Dave 2026-09-02:
+   "way too many pills as well. I also hate the entire design it looks
+   outdated now compared to the rest of the app"; picked "iOS grouped rows,
+   value on the right"; "Add a little color or something to the exercise
+   page too"). Four groups under quiet caps: Sets, Tracks, In the Session,
+   Note. Every chip row is one row that states its value; the value that
+   opens a menu wears the dropdown chevron. The colour is the tile that
+   leads each row, iOS Settings' own anatomy (.row-ico, the nav-tile
+   palette), one hue per row so the eye finds Clock or Rest without reading.
+   The set strip keeps its chips (approved 2026-08-31), as the last row of
+   the Sets group, one elevation step above the group. */
+.xs .sheet-form { padding-left: 0; padding-right: 0; padding-top: 0; }
+.xs .grp.xs-grp { display: flex; align-items: center; justify-content: space-between; padding-top: var(--s-5); padding-bottom: var(--s-1h); }
+.xs .grp.xs-grp .eyebrow { font-size: 12.5px; font-weight: var(--w-semi); letter-spacing: 0.1em; }
+.xs .card.xs-group { margin-bottom: 0; }
+.xs .row.xs-row { min-height: 48px; padding-top: var(--s-2); padding-bottom: var(--s-2); }
+.xs .row.xs-row > .conn-name { flex: 1; min-width: 0; }
+.xs .row.xs-row .row-grow .conn-name { font-size: 16px; }
+.xs .row.xs-row .row-grow .conn-meta { margin-top: 2px; }
+/* The row that IS an input: no box inside a box, the field is the row. */
+.xs .xs-input { flex: 1; min-width: 0; height: 32px; padding: 0; background: transparent; border: 0; outline: none;
+  font-family: var(--f); font-size: 16px; color: var(--tx-1); }
+.xs .xs-input::placeholder { color: var(--tx-4); }
+.xs .xs-error { padding: var(--s-1h) var(--s-4) 0 calc(var(--s-4) + 28px + var(--s-3)); }
+/* Suggestions from the library ride as rows under the name. */
+.xs .xs-suggest .conn-name { font-size: 16px; }
+/* The strip inside the group: chips one step up from the group's ground. */
+.xs .row.xs-strip { display: block; padding: var(--s-1) var(--s-3) var(--s-2); }
+.xs .row.xs-strip .set-strip { margin: 0; }
+.card.train-skin.xs .set-chip, .card.train-skin.xs .set-chip-editor { background: var(--surface-3); }
+/* Delete at the very bottom, separated (ruled 2026-09-01). */
+.xs .xs-delete { padding-top: var(--s-6); padding-bottom: max(var(--s-6), env(safe-area-inset-bottom)); }
+.xs .xs-delete .btn { width: 100%; }
+.xs .xs-foot { height: max(var(--s-6), env(safe-area-inset-bottom)); }

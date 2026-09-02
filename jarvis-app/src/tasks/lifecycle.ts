@@ -51,6 +51,17 @@ export function firstStepCandidate(tasks: TaskItem[], today: string, pausedCats?
   return slipping[0] ?? null;
 }
 
+// The row's one line of why (Fewer Buttons, 2026-09-02: the Keeps Sliding
+// card is a row in the list now, and a row gets one line). It states the
+// fact that qualified the task, in the distance words the rows already use:
+// the pushes when it has been pushed enough, else the days late.
+export function slidingLine(t: TaskItem, today: string): string {
+  const slips = t.data.slips ?? 0;
+  if (slips >= FIRST_STEP_SLIPS) return `Keeps sliding \u00b7 Pushed ${slips} times`;
+  const days = t.data.due ? daysBetween(t.data.due, today) : 0;
+  return days > 0 ? `Keeps sliding \u00b7 ${days} days late` : "Keeps sliding";
+}
+
 // Dismissal memory (same shape as pattern dismissals): a dismissed First Step
 // offer stays gone for 7 days per task.
 const FS_DISMISS_KEY = "jarvis.firststep.dismissed";

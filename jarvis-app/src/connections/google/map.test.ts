@@ -61,3 +61,28 @@ describe("gmail read + send mappers", () => {
     expect(decoded).toContain("In-Reply-To: <abc>");
   });
 });
+
+// HTML IS NEVER TEXT (2026-09-02, the TikTok mail that rendered as markup).
+describe("extractBody and extractHtml on HTML mail", () => {
+  const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  it("a single-part text/html message reads as words, and keeps its markup for the reader", async () => {
+    const { extractBody, extractHtml } = await import("./map");
+    const html = "<html><head><meta charset=\"utf-8\"></head><body><p>Hola <b>Dave</b></p><img src=\"https://x/y.png\"></body></html>";
+    const payload = { mimeType: "text/html", body: { data: b64(html) } } as never;
+    expect(extractBody(payload)).toBe("Hola Dave");
+    expect(extractHtml(payload)).toBe(html);
+  });
+  it("a plain part that is really markup is stripped too", async () => {
+    const { extractBody, extractHtml } = await import("./map");
+    const html = "<!DOCTYPE html><html><body><div>Suele pasar</div></body></html>";
+    const payload = { mimeType: "multipart/alternative", parts: [{ mimeType: "text/plain", body: { data: b64(html) } }] } as never;
+    expect(extractBody(payload)).toBe("Suele pasar");
+    expect(extractHtml(payload)).toBe(html);
+  });
+  it("real plain text stays plain and has no html", async () => {
+    const { extractBody, extractHtml } = await import("./map");
+    const payload = { mimeType: "text/plain", body: { data: b64("Just words. <3") } } as never;
+    expect(extractBody(payload)).toBe("Just words. <3");
+    expect(extractHtml(payload)).toBeNull();
+  });
+});

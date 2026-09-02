@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout } from "./types";
 import { condCap, condSummary, mmss } from "./conditioning";
 import { fieldsFor, targetLine, formatSet, isUniformStrip } from "./measures";
@@ -9,7 +9,9 @@ import { lastSessionFor } from "./prs";
 import { readGymSettings, rackFrom } from "./settings";
 import SetStrip from "./SetStrip";
 import Stepper from "../shared/Stepper";
-import { Trash2 } from "../shared/icons";
+import SheetBar from "../shared/SheetBar";
+import HeadMenu from "../shared/HeadMenu";
+import { Trash2, Gauge, Timer, PersonStanding, Hourglass, Flame, Shuffle, StickyNote } from "../shared/icons";
 import { searchLibrary, newExerciseKey, type LibraryEntry } from "./library";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 
@@ -26,6 +28,16 @@ function freshTarget(kind: MeasureKind): { w?: number; r?: number; v?: number; t
   return fresh;
 }
 
+// THE ROW'S TILE (Fewer Buttons, Dave 2026-09-02: "Add a little color or
+// something to the exercise page too"). Each row of the table leads with
+// the glyph that names it in a coloured tile, iOS Settings' own anatomy
+// (shared/anatomy's .row-ico and the nav-tile palette), one hue per row so
+// the eye lands on Clock or Rest without reading. Colour on the tile only;
+// the words stay in the row's ink.
+function Tile({ tone, children }: { tone: string; children: ReactNode }) {
+  return <div className={"row-ico nav-tile-" + tone}>{children}</div>;
+}
+
 // Any exercise, in the user's words. The kind carries its own direction, so a
 // sprint and a plank are both "time" without a separate which-way-wins toggle.
 //
@@ -37,6 +49,19 @@ function freshTarget(kind: MeasureKind): { w?: number; r?: number; v?: number; t
 // (resizeStrip / applyToAll). A new exercise opens with the bulk editor
 // expanded so creation stays as fast as the old convenience section ever
 // was; that section and its Generate button are gone.
+//
+// A GROUPED TABLE, NOT A FORM OF PILLS (Fewer Buttons, Dave 2026-09-02:
+// "the workout exercise modal has way too many pills as well. I also hate
+// the entire design it looks outdated now compared to the rest of the
+// app"; picked "iOS grouped rows, value on the right"). Counted on his
+// screenshot: nine kind chips, five clock chips, a filler chip, eight
+// muscle chips, plus a stepper card and a switch card. Every chip row is
+// one row now that states its current value, and the value opens a menu
+// (shared/HeadMenu, the Tasks head's own dropdown). Four groups: Sets (the
+// summary row, the bulk editor, the strip), Tracks (Measure, Clock, Muscle),
+// In the Session (Rest Timer, Warm-Up Ramp, Filler), Note. The header is
+// the ruled sheet bar (Cancel, the name, Save); Delete sits alone at the
+// very bottom. The set strip keeps its chips, which he approved.
 export default function ExerciseSheet({ mode, initial, library, history, onSave, onDelete, onCancel }: {
   mode: "new" | "edit";
   initial?: Exercise;
@@ -101,7 +126,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   // an edit opens on the chips themselves.
   const [bulkOpen, setBulkOpen] = useState(mode === "new");
   // REORDER IS A MODE (Health Preview): the strip's grips come out from the
-  // label's own Reorder pill and go away on Done.
+  // group's own Reorder pill and go away on Done.
   const [reorderSets, setReorderSets] = useState(false);
 
   // Picking a suggestion carries kind, unit and the last-used target forward
@@ -144,274 +169,267 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
     ...(kind === "distance_time" ? { timeUnit } : {}),
     sets,
   };
-  const saveLabel = kind === "done" ? "Save" : `Save · ${targetLine(draft)}`;
   const rampPreview = ramp ? rampFor(draft, rackFrom(readGymSettings())) : [];
+
+  const save = () => {
+    if (!valid) { setTouched(true); return; }
+    onSave({
+      name: name.trim(), kind, sets: condBlock ? [] : sets,
+      ...(unit ? { unit } : {}),
+      ...(kind === "distance_time" ? { timeUnit } : {}),
+      ...(note.trim() ? { note: note.trim() } : {}),
+      // A stable identity, never derived from the name: keep the one
+      // carried from a picked suggestion or an edited exercise's own
+      // key, else mint a fresh one now (catalog §3.5).
+      exerciseKey: exerciseKey ?? newExerciseKey(),
+      ...(restSec > 0 ? { restSec } : {}),
+      ...(filler ? { filler: true } : {}),
+      ...(ramp ? { ramp: true } : {}),
+      ...(muscleGroup ? { muscleGroup } : {}),
+      ...(condBlock ? { cond: condBlock } : {}),
+    });
+  };
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
+      <div className="card train-skin xs" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{mode === "new" ? "New Exercise" : "Edit Exercise"}</div></div>
-        <div className="pad-x sheet-form">
-          <div className="field">
-            <div className="input-label">Name</div>
-            <input
-              className={"input" + (touched && !name.trim() ? " input-error" : "")}
-              placeholder="e.g. Barbell Row, 40 Yard Dash"
-              value={name}
-              // Typing (including renaming an existing exercise) never
-              // touches exerciseKey -- a rename must keep the SAME history,
-              // which is the entire bug the library exists to fix (catalog
-              // §1.3). The key only ever changes by picking a suggestion.
-              onChange={(e) => setName(e.target.value)}
-              onFocus={() => setNameFocused(true)}
-              onBlur={() => setTimeout(() => setNameFocused(false), 150)}
-            />
-            {touched && !name.trim() && <div className="input-error">Add a name.</div>}
+        <SheetBar title={mode === "new" ? "New Exercise" : "Edit Exercise"} onCancel={onCancel} onSave={save} saveDisabled={!valid} />
+        <div className="sheet-form">
+          {/* THE NAME is the first group, no label: the field is the row. */}
+          <div className="pad-x"><div className="card xs-group">
+            <div className="row xs-row">
+              <input
+                className={"xs-input" + (touched && !name.trim() ? " input-error" : "")}
+                placeholder="Exercise Name"
+                aria-label="Exercise name"
+                value={name}
+                // Typing (including renaming an existing exercise) never
+                // touches exerciseKey -- a rename must keep the SAME history,
+                // which is the entire bug the library exists to fix (catalog
+                // §1.3). The key only ever changes by picking a suggestion.
+                onChange={(e) => setName(e.target.value)}
+                onFocus={() => setNameFocused(true)}
+                onBlur={() => setTimeout(() => setNameFocused(false), 150)}
+              />
+            </div>
             {/* THE EXERCISE LIBRARY (catalog §3.5): offered the moment there is
                 anything to match against. Picking one carries the EXACT name
                 forward, which is what stops "Trap Bar Deadlift" and "Trap bar
                 DL" from ever becoming two histories in the first place. */}
-            {suggestions.length > 0 && (
-              <div className="card lib-suggest">
-                {suggestions.map((s) => (
-                  <div className="row" role="button" tabIndex={0} key={s.key} onMouseDown={() => pickSuggestion(s)}>
-                    <div className="row-grow">
-                      <div className="conn-name truncate">{s.name}</div>
-                      <div className="conn-meta">{MEASURE_LABEL[s.kind]}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {!condBlock && <div className="field">
-            <div className="input-label">What You Track</div>
-            <div className="chip-row chip-wrap-row">
-              {MEASURE_KINDS.map((k) => (
-                <div key={k} className={"chip" + (kind === k ? " active" : "")} role="button" tabIndex={0} aria-pressed={kind === k}
-                  onClick={() => pickKind(k)}>{MEASURE_LABEL[k]}</div>
-              ))}
-            </div>
-          </div>}
-
-          {/* THE CONDITIONING BLOCK (2026-09-02). A format turns the strip
-              into a clock: the session offers Start the Clock instead of a
-              set to log, and writes a receipt with round splits after. */}
-          <div className="field">
-            <div className="input-label">Clock</div>
-            <div className="chip-row chip-wrap-row">
-              <div className={"chip" + (condFormat === null ? " active" : "")} role="button" tabIndex={0} aria-pressed={condFormat === null} onClick={() => pickFormat(null)}>Off</div>
-              {COND_FORMATS.map((f) => (
-                <div key={f} className={"chip" + (condFormat === f ? " active" : "")} role="button" tabIndex={0} aria-pressed={condFormat === f}
-                  onClick={() => pickFormat(f)}>{COND_LABEL[f]}</div>
-              ))}
-            </div>
-            {condBlock && (
-              <div className="card">
-                <div className="row">
-                  <div className="row-grow"><div className="conn-name">{condSummary(condBlock)}</div>
-                    <div className="conn-meta">{condFormat === "amrap" ? "Rounds and reps in the window" : condFormat === "for_time" ? "Your time, under the cap" : condFormat === "emom" ? "Every interval, on the beep" : "Work and rest, on the beep"}</div></div>
+            {suggestions.map((s) => (
+              <div className="row xs-row xs-suggest" role="button" tabIndex={0} key={s.key} onMouseDown={() => pickSuggestion(s)}>
+                <div className="row-grow">
+                  <div className="conn-name truncate">{s.name}</div>
+                  <div className="conn-meta">{MEASURE_LABEL[s.kind]}</div>
                 </div>
-                {(condFormat === "amrap" || condFormat === "for_time") && (
-                  <div className="row">
-                    <div className="row-grow"><div className="conn-name">{condFormat === "amrap" ? "Window" : "Time Cap"}</div><div className="conn-meta">{condMin} min</div></div>
-                    <Stepper value={condMin} step={1} min={1} label="Minutes" onChange={setCondMin} />
-                  </div>
+              </div>
+            ))}
+          </div></div>
+          {touched && !name.trim() && <div className="input-error xs-error">Add a name.</div>}
+
+          {/* SETS. The summary row speaks the whole plan; Edit All Sets writes
+              count and targets across every chip at once, straight into the
+              strip below -- one object, one editor (D1). */}
+          {!condBlock && (
+            <>
+              <div className="grp xs-grp">
+                <div className="eyebrow">{countLabel(kind)}</div>
+                {sets.length > 1 && (
+                  <button className="pill-act pill-neutral" onClick={() => setReorderSets((r) => !r)}>{reorderSets ? "Done" : "Reorder"}</button>
                 )}
-                {(condFormat === "emom" || condFormat === "tabata") && (
+              </div>
+              <div className="pad-x"><div className="card xs-group">
+                <div className="row xs-row">
+                  <div className="row-grow">
+                    <div className="conn-name">{targetLine(draft)}</div>
+                    <div className="conn-meta">{isUniformStrip(kind, sets) ? "Uniform" : "Varies by set"}</div>
+                  </div>
+                  {/* The sanctioned in-row pill, neutral, 44px hit box via its own ::after. */}
+                  <button className="pill-act pill-neutral" aria-expanded={bulkOpen} onClick={() => setBulkOpen((o) => !o)}>
+                    {bulkOpen ? "Done" : "Edit All Sets"}
+                  </button>
+                </div>
+                {bulkOpen && (
                   <>
-                    <div className="row">
-                      <div className="row-grow"><div className="conn-name">{condFormat === "emom" ? "Interval" : "Work"}</div><div className="conn-meta">{mmss(condInterval)}</div></div>
-                      <Stepper value={condInterval} step={condFormat === "tabata" ? 5 : 15} min={5} label="Interval" onChange={setCondInterval} />
+                    <div className="row xs-row">
+                      <div className="row-grow"><div className="conn-name">{countLabel(kind)}</div></div>
+                      <Stepper value={sets.length} step={1} min={1} label={countLabel(kind)} onChange={(n) => setSets((s) => resizeStrip(s, n))} />
                     </div>
-                    {condFormat === "tabata" && (
-                      <div className="row">
-                        <div className="row-grow"><div className="conn-name">Rest</div><div className="conn-meta">{mmss(condRest)}</div></div>
-                        <Stepper value={condRest} step={5} min={5} label="Rest" onChange={setCondRest} />
+                    {kind !== "done" && fields.map((f) => (
+                      <div className="row xs-row" key={f.key}>
+                        <div className="row-grow">
+                          <div className="conn-name">{f.label}</div>
+                          {/* Helper hints are quiet meta, not SHOUTING CAPS (gym
+                              reformat 2026-08-31). */}
+                          {(f.key === "w" || f.key === "v") && unit && <div className="conn-meta">{unit} · Every set at once</div>}
+                          {f.key === "t" && <div className="conn-meta">{timeUnit}</div>}
+                        </div>
+                        <Stepper value={sets.find((s) => !s.skipped)?.[f.key] ?? 0} step={f.step} label={f.label}
+                          onChange={(n) => setSets((s) => applyToAll(kind, s, f.key, n))} />
+                      </div>
+                    ))}
+                    {units.length > 1 && (
+                      <div className="row xs-row">
+                        <div className="conn-name">Unit</div>
+                        <HeadMenu variant="value" ariaLabel="Unit" value={unit ?? units[0]!}
+                          options={units.map((u) => ({ value: u, label: u }))} onPick={setUnit} />
                       </div>
                     )}
-                    <div className="row">
-                      <div className="row-grow"><div className="conn-name">Rounds</div><div className="conn-meta">{condRounds}</div></div>
-                      <Stepper value={condRounds} step={1} min={1} label="Rounds" onChange={setCondRounds} />
-                    </div>
+                    {kind === "distance_time" && (
+                      <div className="row xs-row">
+                        <div className="conn-name">Time Unit</div>
+                        <HeadMenu variant="value" ariaLabel="Time unit" value={timeUnit}
+                          options={TIME_UNITS.map((u) => ({ value: u, label: u }))} onPick={setTimeUnit} />
+                      </div>
+                    )}
                   </>
                 )}
+                <div className="row xs-strip">
+                  <SetStrip kind={kind} unit={unit} timeUnit={timeUnit} entries={sets} onChange={setSets} handles={reorderSets}
+                    lastFor={lastHit ? (i) => (lastHit.sets[i] ? `Last: ${formatSet(lastHit.fx, lastHit.sets[i]!)}` : null) : undefined} />
+                </div>
+              </div></div>
+              {touched && sets.length === 0 && <div className="input-error xs-error">Add at least one set.</div>}
+            </>
+          )}
+
+          {/* TRACKS: what a set records, whether a clock runs it, which
+              muscle it feeds. Each a row whose value opens a menu. */}
+          <div className="grp xs-grp"><div className="eyebrow">Tracks</div></div>
+          <div className="pad-x"><div className="card xs-group">
+            {!condBlock && (
+              <div className="row xs-row">
+                <Tile tone="blue"><Gauge className="ic" /></Tile>
+                <div className="conn-name">Measure</div>
+                <HeadMenu variant="value" ariaLabel="Measure" value={kind}
+                  options={MEASURE_KINDS.map((k) => ({ value: k, label: MEASURE_LABEL[k] }))} onPick={(k) => pickKind(k as MeasureKind)} />
               </div>
             )}
-          </div>
-
-          {!condBlock && <div className="field">
-            <div className="label-row">
-              <div className="input-label">{countLabel(kind)}</div>
-              {sets.length > 1 && (
-                <button className="pill-act pill-neutral" onClick={() => setReorderSets((r) => !r)}>{reorderSets ? "Done" : "Reorder"}</button>
-              )}
-            </div>
-            {/* ONE EDITOR (D1): the summary row speaks the whole plan; Edit
-                All Sets writes count and targets across every chip at once,
-                straight into the strip below -- one object, one editor. */}
-            <div className="card">
-              <div className="row">
-                <div className="row-grow">
-                  <div className="conn-name">{targetLine(draft)}</div>
-                  <div className="conn-meta">{isUniformStrip(kind, sets) ? "Uniform" : "Varies by set"}</div>
-                </div>
-                {/* The sanctioned in-row pill, neutral (preview: white
-                    "Edit All Sets"), 44px hit box via its own ::after. */}
-                <button className="pill-act pill-neutral" aria-expanded={bulkOpen} onClick={() => setBulkOpen((o) => !o)}>
-                  {bulkOpen ? "Done" : "Edit All Sets"}
-                </button>
+            {/* THE CONDITIONING BLOCK (2026-09-02). A format turns the strip
+                into a clock: the session offers Start the Clock instead of a
+                set to log, and writes a receipt with round splits after. */}
+            <div className="row xs-row">
+              <Tile tone="orange"><Timer className="ic" /></Tile>
+              <div className="row-grow">
+                <div className="conn-name">Clock</div>
+                {condBlock && <div className="conn-meta">{condSummary(condBlock)}</div>}
               </div>
-              {bulkOpen && (
-                <>
-                  <div className="row">
-                    <div className="row-grow"><div className="conn-name">{countLabel(kind)}</div></div>
-                    <Stepper value={sets.length} step={1} min={1} label={countLabel(kind)} onChange={(n) => setSets((s) => resizeStrip(s, n))} />
-                  </div>
-                  {kind !== "done" && fields.map((f) => (
-                    <div className="row" key={f.key}>
-                      <div className="row-grow">
-                        <div className="conn-name">{f.label}</div>
-                        {/* Helper hints are quiet meta, not SHOUTING CAPS (gym
-                            reformat 2026-08-31). */}
-                        {(f.key === "w" || f.key === "v") && unit && <div className="conn-meta">{unit} · Every set at once</div>}
-                        {f.key === "t" && <div className="conn-meta">{timeUnit}</div>}
-                      </div>
-                      <Stepper value={sets.find((s) => !s.skipped)?.[f.key] ?? 0} step={f.step} label={f.label}
-                        onChange={(n) => setSets((s) => applyToAll(kind, s, f.key, n))} />
-                    </div>
-                  ))}
-                  {units.length > 1 && (
-                    <div className="row">
-                      {/* Same label anatomy as the Weight and Reps rows above --
-                          this row was the sheet's odd one out. */}
-                      <div className="row-grow"><div className="conn-name">Unit</div></div>
-                      <div className="chip-row">
-                        {units.map((u) => (
-                          <div key={u} className={"chip" + (unit === u ? " active" : "")} role="button" tabIndex={0} aria-pressed={unit === u}
-                            onClick={() => setUnit(u)}>{u}</div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {kind === "distance_time" && (
-                    <div className="row">
-                      <div className="row-grow"><div className="conn-name">Time Unit</div></div>
-                      <div className="chip-row">
-                        {TIME_UNITS.map((u) => (
-                          <div key={u} className={"chip" + (timeUnit === u ? " active" : "")} role="button" tabIndex={0} aria-pressed={timeUnit === u}
-                            onClick={() => setTimeUnit(u)}>{u}</div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
+              <HeadMenu variant="value" ariaLabel="Clock" value={condFormat ?? "off"} off={!condFormat}
+                options={[{ value: "off", label: "Off" }, ...COND_FORMATS.map((f) => ({ value: f, label: COND_LABEL[f] }))]}
+                onPick={(v) => pickFormat(v === "off" ? null : (v as CondFormat))} />
             </div>
-            <SetStrip kind={kind} unit={unit} timeUnit={timeUnit} entries={sets} onChange={setSets} handles={reorderSets}
-              lastFor={lastHit ? (i) => (lastHit.sets[i] ? `Last: ${formatSet(lastHit.fx, lastHit.sets[i]!)}` : null) : undefined} />
-            {touched && sets.length === 0 && <div className="input-error">Add at least one set.</div>}
-          </div>}
+            {(condFormat === "amrap" || condFormat === "for_time") && (
+              <div className="row xs-row">
+                <div className="row-grow"><div className="conn-name">{condFormat === "amrap" ? "Window" : "Time Cap"}</div><div className="conn-meta">{condMin} min</div></div>
+                <Stepper value={condMin} step={1} min={1} label="Minutes" onChange={setCondMin} />
+              </div>
+            )}
+            {(condFormat === "emom" || condFormat === "tabata") && (
+              <>
+                <div className="row xs-row">
+                  <div className="row-grow"><div className="conn-name">{condFormat === "emom" ? "Interval" : "Work"}</div><div className="conn-meta">{mmss(condInterval)}</div></div>
+                  <Stepper value={condInterval} step={condFormat === "tabata" ? 5 : 15} min={5} label="Interval" onChange={setCondInterval} />
+                </div>
+                {condFormat === "tabata" && (
+                  <div className="row xs-row">
+                    <div className="row-grow"><div className="conn-name">Rest</div><div className="conn-meta">{mmss(condRest)}</div></div>
+                    <Stepper value={condRest} step={5} min={5} label="Rest" onChange={setCondRest} />
+                  </div>
+                )}
+                <div className="row xs-row">
+                  <div className="row-grow"><div className="conn-name">Rounds</div><div className="conn-meta">{condRounds}</div></div>
+                  <Stepper value={condRounds} step={1} min={1} label="Rounds" onChange={setCondRounds} />
+                </div>
+              </>
+            )}
+            {/* PUBLISHED RANGES, D13-C: set by hand, same doctrine as
+                gameCategoryId and the Training Door -- the app never guesses a
+                lift's muscle from its free-text name. None means the weekly
+                hard-set row simply never claims this lift. */}
+            <div className="row xs-row">
+              <Tile tone="pink"><PersonStanding className="ic" /></Tile>
+              <div className="row-grow">
+                <div className="conn-name">Muscle</div>
+                <div className="conn-meta">Weekly hard sets on Health</div>
+              </div>
+              <HeadMenu variant="value" ariaLabel="Muscle" value={muscleGroup ?? "none"} off={!muscleGroup}
+                options={[{ value: "none", label: "None" }, ...MUSCLE_GROUPS.map((m) => ({ value: m, label: MUSCLE_LABEL[m] }))]}
+                onPick={(v) => setMuscleGroup(v === "none" ? undefined : (v as MuscleGroup))} />
+            </div>
+          </div></div>
 
-          <div className="field">
-            <div className="input-label">Note</div>
-            {/* Reference, never coaching: the app does not tell anyone how to lift. */}
-            <input className="input" placeholder="Optional Note" value={note} onChange={(e) => setNote(e.target.value)} />
-          </div>
-
-          {/* REST TIMER (catalog §4.3), optional and per-exercise. 0 means no
-              timer offered in-session -- most "done" and reps work has none. */}
-          {kind !== "done" && (
-            <div className="field">
-              <div className="input-label">Rest Timer</div>
-              <div className="row">
-                <div className="row-grow"><div className="conn-name">{restSec > 0 ? `${Math.floor(restSec / 60)}:${String(restSec % 60).padStart(2, "0")}` : "Off"}</div></div>
+          {/* IN THE SESSION: what the live screen does with this exercise. */}
+          <div className="grp xs-grp"><div className="eyebrow">In the Session</div></div>
+          <div className="pad-x"><div className="card xs-group">
+            {/* REST TIMER (catalog §4.3), optional and per-exercise. 0 means no
+                timer offered in-session -- most "done" and reps work has none. */}
+            {kind !== "done" && (
+              <div className="row xs-row">
+                <Tile tone="teal"><Hourglass className="ic" /></Tile>
+                <div className="row-grow">
+                  <div className="conn-name">Rest Timer</div>
+                  <div className="conn-meta">{restSec > 0 ? mmss(restSec) : "Off"}</div>
+                </div>
                 <Stepper value={restSec} step={15} min={0} label="Rest Timer" onChange={setRestSec} />
               </div>
-            </div>
-          )}
-
-          {/* THE RAMP (D3-A). Warm-up sets are DERIVED from the first working
-              weight, never stored here: the plan stays the work, and editing
-              the weight re-ramps for free. The preview below is the real
-              derivation, so what it says is what the session offers. */}
-          {kind === "weight_reps" && (
-            <div className="field">
-              <div className="input-label">Warm-Up Ramp</div>
-              <div className="card">
-                <div className="row">
-                  <div className="row-grow">
-                    <div className="conn-name">{ramp ? "On" : "Off"}</div>
-                    <div className="conn-meta">
-                      {ramp
-                        ? (rampPreview.length
-                            ? rampPreview.map((r) => formatSet(draft, r)).join(" · ")
-                            : "Nothing to ramp at this weight")
-                        : "Build warm-up sets from your first working weight"}
-                    </div>
+            )}
+            {/* THE RAMP (D3-A). Warm-up sets are DERIVED from the first working
+                weight, never stored here: the plan stays the work, and editing
+                the weight re-ramps for free. The preview below is the real
+                derivation, so what it says is what the session offers. */}
+            {kind === "weight_reps" && (
+              <div className="row xs-row">
+                <Tile tone="yellow"><Flame className="ic" /></Tile>
+                <div className="row-grow">
+                  <div className="conn-name">Warm-Up Ramp</div>
+                  <div className="conn-meta">
+                    {ramp
+                      ? (rampPreview.length
+                          ? rampPreview.map((r) => formatSet(draft, r)).join(" · ")
+                          : "Nothing to ramp at this weight")
+                      : "Built from your first working weight"}
                   </div>
-                  <div className={"switch" + (ramp ? "" : " off")} role="switch" aria-checked={ramp} tabIndex={0}
-                    onClick={() => setRamp((r) => !r)} />
                 </div>
+                <div className={"switch" + (ramp ? "" : " off")} role="switch" aria-checked={ramp} aria-label="Warm-up ramp" tabIndex={0}
+                  onClick={() => setRamp((r) => !r)} />
               </div>
+            )}
+            {/* FILLER (catalog §4.2): offered during the rest of whatever it is
+                paired with, instead of the athlete standing around. Pairing
+                itself is set from the day list's long-press menu, once both
+                exercises exist. */}
+            <div className="row xs-row">
+              <Tile tone="purple"><Shuffle className="ic" /></Tile>
+              <div className="row-grow">
+                <div className="conn-name">Filler</div>
+                <div className="conn-meta">Offered during a pair's rest</div>
+              </div>
+              <div className={"switch" + (filler ? "" : " off")} role="switch" aria-checked={filler} aria-label="Filler" tabIndex={0}
+                onClick={() => setFiller((f) => !f)} />
             </div>
-          )}
+          </div></div>
 
-          {/* FILLER (catalog §4.2): offered during the rest of whatever it is
-              paired with, instead of the athlete standing around. Pairing
-              itself is set from the day list's long-press menu, once both
-              exercises exist. */}
-          <div className="field">
-            <div className={"chip" + (filler ? " active" : "")} role="button" tabIndex={0} aria-pressed={filler} onClick={() => setFiller((f) => !f)}>
-              {filler ? "This Is a Filler" : "Mark As a Filler"}
+          <div className="grp xs-grp"><div className="eyebrow">Note</div></div>
+          <div className="pad-x"><div className="card xs-group">
+            <div className="row xs-row">
+              <Tile tone="graphite"><StickyNote className="ic" /></Tile>
+              {/* Reference, never coaching: the app does not tell anyone how to lift. */}
+              <input className="xs-input" placeholder="Optional" aria-label="Note" value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
-          </div>
+          </div></div>
 
-          {/* PUBLISHED RANGES, D13-C: set by hand, same doctrine as
-              gameCategoryId and the Training Door -- the app never guesses a
-              lift's muscle from its free-text name. Absent (no chip picked)
-              means the weekly hard-set row simply never claims this lift. */}
-          <div className="field">
-            <div className="input-label">Muscle</div>
-            <div className="chip-row">
-              {MUSCLE_GROUPS.map((m) => (
-                <div key={m} className={"chip" + (muscleGroup === m ? " active" : "")} role="button" tabIndex={0}
-                  onClick={() => setMuscleGroup((cur) => (cur === m ? undefined : m))}>{MUSCLE_LABEL[m]}</div>
-              ))}
-            </div>
-            <div className="input-hint">Optional · Feeds the weekly hard-set range on the Health page</div>
-          </div>
-        </div>
-        <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-launch btn-block" onClick={() => {
-            if (!valid) { setTouched(true); return; }
-            onSave({
-              name: name.trim(), kind, sets: condBlock ? [] : sets,
-              ...(unit ? { unit } : {}),
-              ...(kind === "distance_time" ? { timeUnit } : {}),
-              ...(note.trim() ? { note: note.trim() } : {}),
-              // A stable identity, never derived from the name: keep the one
-              // carried from a picked suggestion or an edited exercise's own
-              // key, else mint a fresh one now (catalog §3.5).
-              exerciseKey: exerciseKey ?? newExerciseKey(),
-              ...(restSec > 0 ? { restSec } : {}),
-              ...(filler ? { filler: true } : {}),
-              ...(ramp ? { ramp: true } : {}),
-              ...(muscleGroup ? { muscleGroup } : {}),
-              ...(condBlock ? { cond: condBlock } : {}),
-            });
-          }}>{saveLabel}</button>
-          <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
           {mode === "edit" && onDelete && (
-            // THE PREVIEW IS THE SPEC (2026-09-01): destructive text is bare
-            // red words (preview .btn.danger), not Cancel's grey pill with a
-            // warning sticker on it.
-            !armDelete
-              ? <button className="btn btn-ghost-danger btn-block" onClick={() => setArmDelete(true)}><Trash2 className="ic" />Delete Exercise</button>
-              : <button className="btn btn-danger btn-block" onClick={onDelete}>Tap Again to Confirm</button>
+            // DELETE SITS ALONE AT THE VERY BOTTOM (ruled 2026-09-01). THE
+            // PREVIEW IS THE SPEC: destructive text is bare red words, not
+            // Cancel's grey pill with a warning sticker on it.
+            <div className="pad-x xs-delete">
+              {!armDelete
+                ? <button className="btn btn-ghost-danger btn-block" onClick={() => setArmDelete(true)}><Trash2 className="ic" />Delete Exercise</button>
+                : <button className="btn btn-danger btn-block" onClick={onDelete}>Tap Again to Confirm</button>}
+            </div>
           )}
+          {!(mode === "edit" && onDelete) && <div className="xs-foot" />}
         </div>
       </div>
     </div>,

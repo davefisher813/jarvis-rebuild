@@ -1,40 +1,47 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { slidingLine } from "./lifecycle";
 
-// THE FIRST STEP CARD SAYS WHAT IT IS (Dave 2026-08-31: "the big task up top
-// actually doesn't render as such. The user has no idea what it is and why
-// it's like that."). Source-pinned because the flow needs a provider stack to
-// mount; the rendered look is verified by the screen renders. What must stay
-// true: both states open with an eyebrow naming the card, the payload wears
-// the wrapping .fs-title (never .conn-name, the nowrap ROW class that
-// ellipsized his task into a mystery), and the quoted-sentence form is gone.
-describe("First Step card anatomy", () => {
+// THE KEEPS SLIDING ROW (Fewer Buttons, Dave 2026-09-02: "I don't like all
+// those floating buttons"). The First Step offer was a card floating above
+// the list (08-31: "the big task up top actually doesn't render as such");
+// it is the list's first row now, the notice row the one ask on Goals
+// wears. Source-pinned because the flow needs a provider stack to mount;
+// the rendered look is verified by the screen renders. What must stay
+// true: both states are the stacked notice row in the stalled tone, the
+// row says why it exists on its second line, the answer state puts the
+// step in the name slot with the task demoted to a For: line, and the row
+// is handed to the page as its notice, never rendered above the list.
+describe("The Keeps Sliding row", () => {
   const src = readFileSync(join(__dirname, "TasksFlow.tsx"), "utf8");
-  const banner = src.slice(src.indexOf("const fsBanner"), src.indexOf(") : null;", src.indexOf("const fsBanner")));
+  const notice = src.slice(src.indexOf("const fsNotice"), src.indexOf(") : null;", src.indexOf("const fsNotice")));
 
-  it("both states open with a kicker, payloads wrap as fs-title", () => {
-    expect(banner).toContain(">First Step</div>");
-    expect(banner).toContain(">Keeps Sliding</div>");
-    expect(banner.match(/className="eyebrow"/g)?.length).toBe(2);
-    expect(banner).toContain('<div className="fs-title">{fsStep.step}</div>');
-    expect(banner).toContain('<div className="fs-title">{fsCandidate.data.text}</div>');
-    expect(banner).toContain("For: {fsCandidate.data.text}");
+  it("both states are the stacked notice row in the stalled tone", () => {
+    expect(notice.match(/<NoticeCard/g)?.length).toBe(2);
+    expect(notice.match(/form="card"/g)?.length).toBe(2);
+    expect(notice.match(/tone="cat-fg-orange"/g)?.length).toBe(2);
+    expect(notice.match(/onDismiss=\{fsDismiss\}/g)?.length).toBe(2);
   });
 
-  it("the row classes and the quoted sentence stay gone", () => {
-    expect(banner).not.toContain("conn-name");
-    expect(banner).not.toContain("conn-meta");
-    expect(banner).not.toContain("ldquo");
-    expect(banner).not.toContain("keeps sliding.");
+  it("the stalled state names the task and says why; the answer state leads with the step", () => {
+    expect(notice).toContain("title={fsCandidate.data.text}");
+    expect(notice).toContain("sub={slidingLine(fsCandidate, today)}");
+    expect(notice).toContain("title={fsStep.step}");
+    expect(notice).toContain('sub={"First step for: " + fsCandidate.data.text}');
   });
 
-  it("the styles it names exist, and the title actually wraps", () => {
-    const css = readFileSync(join(__dirname, "..", "styles", "components.css"), "utf8");
-    const title = css.match(/\.fs-title\s*\{[^}]*\}/)?.[0] ?? "";
-    expect(title).toContain("overflow-wrap: anywhere");
-    expect(title).not.toContain("nowrap");
-    expect(css).toMatch(/\.fs-for\s*\{/);
-    expect(css).toMatch(/\.fs-card \.eyebrow\s*\{/);
+  it("the old card anatomy stays gone, and the row is the page's notice", () => {
+    expect(notice).not.toContain("fs-card");
+    expect(notice).not.toContain("eyebrow");
+    expect(notice).not.toContain("fs-title");
+    expect(src).toContain("notice={fsNotice}");
+    expect(src).not.toContain("banner=");
+  });
+
+  it("the why line states the fact that qualified the task", () => {
+    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: "2026-08-25" } }, "2026-09-02")).toBe("Keeps sliding \u00b7 8 days late");
+    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: "2026-09-01", slips: 3 } }, "2026-09-02")).toBe("Keeps sliding \u00b7 Pushed 3 times");
+    expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: null } }, "2026-09-02")).toBe("Keeps sliding");
   });
 });

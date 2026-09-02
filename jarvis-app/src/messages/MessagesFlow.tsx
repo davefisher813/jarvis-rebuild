@@ -32,6 +32,7 @@ import { madeBy } from "../shared/provenance";
 import { effectiveLevel } from "../ai/aiGate";
 import { getAIControl } from "../ai/levelStore";
 import { cleanBody, isLong, leadIn, wordCount } from "./bodyText";
+import MailHtmlView from "./MailHtmlView";
 import { recordToss, markAsked, tossOffer, tossLine, loadTossed, loadAsked } from "./selfClean";
 import { sweepCandidates, sweepTitle, sweepSub, sweepReceipt, type SweepCandidate } from "./unsubSweep";
 import { PRESETS, loadMinutes, saveMinutes, clampMinutes } from "./drain";
@@ -2231,19 +2232,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             const clean = cleanBody(m.body);
             const long = isLong(clean);
             const open = openBodies[m.id] === true;
+            // AS SENT (Dave 2026-09-02, "I can't read emails or see pics"):
+            // a mail with an HTML version opens into it, pictures and all,
+            // in a frame that cannot run anything (MailHtmlView). The text
+            // view stays the first thing shown, because it is the shortest.
+            const asSent = !!m.html;
             return (
             <div className="msg-turn" key={m.id}>
               <div className="msg-turn-head">
                 <span className="msg-turn-from">{m.from}</span>
                 <span className="conn-meta">{m.date}</span>
               </div>
-              <div className="msg-body">{long && !open ? leadIn(clean) : clean}</div>
-              {long && (
+              {open && asSent
+                ? <MailHtmlView html={m.html!} />
+                : <div className="msg-body">{long && !open ? leadIn(clean) : clean}</div>}
+              {(long || asSent) && (
                 <button
                   className="quiet-action msg-more"
                   onClick={() => setOpenBodies((o) => ({ ...o, [m.id]: !open }))}
                 >
-                  {open ? "Fold it back" : "Read the whole thing · " + wordCount(clean) + " words"}
+                  {open ? (asSent ? "Show as text" : "Fold it back")
+                    : long ? "Read the whole thing · " + wordCount(clean) + " words" + (asSent ? " · as sent" : "")
+                    : "Show as sent"}
                 </button>
               )}
               {m.attachments.length > 0 && (

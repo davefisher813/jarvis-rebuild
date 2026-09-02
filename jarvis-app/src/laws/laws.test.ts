@@ -2552,20 +2552,27 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
   // whatever sits behind it -- in dark theme, near-black behind a chip that
   // is already six-percent white on black, so the "fade" was invisible and
   // the screenshot that started this audit shows a hard cut on "Up". A
-  // colour cue cannot work on that token pair; the fix is geometric.
-  it("the Tasks chip rows measure real overflow before claiming there is more", () => {
+  // colour cue cannot work on that token pair; the fix was geometric.
+  //
+  // AMENDED 2026-09-02 (Fewer Buttons, Dave: "I don't like all those
+  // floating buttons. There's way too many."; picked "One line of
+  // dropdowns on the list head"). The chip rows are gone, and ChipRow with
+  // them: the list head carries three menus (the view with the list's
+  // count, the area, the grouping), each a shared HeadMenu whose panel is a
+  // portal fixed to its capsule, so nothing overflows sideways and nothing
+  // needs a "more" mark. The counts the chips carried live inside the
+  // view menu, one per option.
+  it("the Tasks head is three menus, not chip rows", () => {
     const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
-    expect(page, "ChipRow exists and both chip rows go through it")
-      .toMatch(/function ChipRow\(/);
-    const filterRow = page.slice(page.indexOf("<ChipRow>"));
-    expect(filterRow.slice(0, 200), "the filter chips use it").toMatch(/FILTERS\.map/);
-    expect(page, "the category chips use it too").toMatch(/<ChipRow>\s*\n\s*<button className=\{"chip" \+ \(!catFilter/);
-    // Measured, not assumed at mount: scrollWidth vs clientWidth, the same
-    // shape NoticeCard's shredded-sub check uses.
-    expect(page, "overflow is measured against actual scroll geometry")
-      .toMatch(/el\.scrollWidth - el\.clientWidth - el\.scrollLeft > 4/);
-    expect(page, "and re-measured on resize, not just once at mount")
-      .toMatch(/new ResizeObserver\(check\)/);
+    expect(page, "no chip row survives on the page").not.toMatch(/ChipRow|chip-row/);
+    expect(page.match(/<HeadMenu/g)?.length, "three menus: view, area, group").toBe(3);
+    expect(page, "the view menu leads, with the list's count and every filter's count")
+      .toMatch(/lead\s+ariaLabel="Show"[\s\S]*?count=\{items\.length\}[\s\S]*?options=\{FILTERS\.map\(\(f\) => \(\{ value: f, label: FILTER_LABEL\[f\], count: counts\[f\] \}\)\)\}/);
+    const menu = read(join(SRC, "shared/HeadMenu.tsx"));
+    expect(menu, "the panel is a portal fixed to the capsule, never clipped by a card")
+      .toMatch(/createPortal\(/);
+    expect(menu).toMatch(/getBoundingClientRect\(\)/);
+    expect(CSS, "the panel is position: fixed").toMatch(/\.hmenu \{ position: fixed;/);
   });
 });
 
@@ -2578,37 +2585,42 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
   // FINDINGS A + B. Pick One and Just This One were two full-width buttons
   // stacked above the filters, so the first thing on the Tasks screen was a
   // decision about how to look at tasks, before any task. They answer the
-  // same question (both rank with theOneThing) and now share one row.
-  it("the two Tasks CTAs share a row instead of stacking", () => {
+  // same question (both rank with theOneThing) and shared one row from
+  // 2026-08-29. The audit flagged whether the page should carry both.
+  //
+  // AMENDED 2026-09-02 (Fewer Buttons, Dave picked "Pick One alone; Just
+  // This One lives inside it"). One red button on the page, full width.
+  // Just This One is an action on the What Now sheet that button opens:
+  // the same ranking, one door. The pair and its class are retired here.
+  it("the Tasks page carries one decision killer, full width", () => {
     const src = page();
-    expect(src, "one wrapper holds both").toMatch(/className="pad-x pick-one cta-pair"/);
-    // Neither may carry btn-block any more: block is width:100%, which
-    // defeats the flex row and puts them back on two lines.
-    const pair = src.slice(src.indexOf('className="pad-x pick-one cta-pair"'));
-    const body = pair.slice(0, pair.indexOf("</div>"));
-    expect(body, "no full-width button inside the pair").not.toMatch(/btn-block/);
-    expect(body, "Pick One is still the fill").toMatch(/btn btn-primary btn-lg/);
+    expect(src, "the pair is gone").not.toMatch(/cta-pair|onOverwhelmed/);
+    const row = src.slice(src.indexOf('className="pad-x pick-one">\n          {/* "Pick One"'));
+    const body = row.slice(0, row.indexOf("</div>"));
+    expect(body, "Pick One is the fill, and it has the row").toMatch(/btn btn-primary btn-lg btn-block/);
+    expect(body, "nothing sits beside it").not.toMatch(/OVERWHELM_ENTER/);
+  });
+
+  it("Just This One is an action on the What Now sheet, wired to the same flag", () => {
+    const sheet = read(join(SRC, "tasks/screens/RightNowSheet.tsx"));
+    expect(sheet, "the sheet offers it under the same vocabulary").toMatch(/onJustThisOne && <button className="btn btn-secondary btn-block" onClick=\{onJustThisOne\}>\{OVERWHELM_ENTER\}<\/button>/);
+    const shell = read(join(SRC, "shell/AppShell.tsx"));
+    expect(shell, "the shell sets the day-keyed flag and goes to the list")
+      .toMatch(/onJustThisOne=\{\(\) => \{ setWhatNow\(null\); setOverwhelmed\(true, todayISO\(\)\); goLife\("tasks"\); \}\}/);
+    const flow = read(join(SRC, "tasks/TasksFlow.tsx"));
+    expect(flow, "a mounted Tasks page hears the write").toMatch(/subscribeOverwhelmed\(\(\) => setOverwhelmed\(loadOverwhelmed\(todayISO\(\)\)\)\)/);
   });
 
   // Two reds of equal weight side by side is exactly what Law 4 rations.
   // Bare `.btn` is press-3 with `color: var(--tint)` -- red text -- so the
-  // secondary here must name a neutral variant explicitly.
+  // secondary beside the sheet's red fill must name a neutral variant.
   it("the quiet CTA is neutral, not accent-coloured text beside a red fill", () => {
-    const src = page();
-    const pair = src.slice(src.indexOf('className="pad-x pick-one cta-pair"'));
-    const body = pair.slice(0, pair.indexOf("</div>"));
-    expect(body, "the alternative uses the neutral variant").toMatch(/btn btn-secondary btn-lg/);
+    const sheet = read(join(SRC, "tasks/screens/RightNowSheet.tsx"));
+    expect(sheet, "the alternative uses the neutral variant").toMatch(/btn btn-secondary btn-block" onClick=\{onJustThisOne\}/);
     // The CSS this relies on: bare .btn really is accent text, so if that
     // ever changes this law should be revisited rather than silently kept.
     expect(CSS, "bare .btn is still accent text, which is why secondary is required")
       .toMatch(/background: var\(--press-3\); color: var\(--tint\)/);
-  });
-
-  it("the pair divides its row rather than overflowing it", () => {
-    expect(CSS, "flex row").toMatch(/\.cta-pair \{ display: flex;/);
-    // Without min-width:0 each button's label width is its floor and the
-    // pair overflows at 320.
-    expect(CSS, "min-width:0 is what lets flex actually divide").toMatch(/\.cta-pair > \.btn \{[^}]*min-width: 0/);
   });
 
   // FINDING C. categoryLine() joined every category into one string and the

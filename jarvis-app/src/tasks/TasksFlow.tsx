@@ -17,7 +17,7 @@ import { todayISO } from "./grouping";
 import { nextFreeSlot, addMinutes } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
-import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage } from "./lifecycle";
+import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage, slidingLine } from "./lifecycle";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { identityToText } from "../ai/context";
@@ -30,7 +30,9 @@ import { chainQuietToday, dismissChain, nextBest, chainReason } from "./momentum
 import { RowIcon } from "../shared/anatomy";
 import { touchActivity, recordSpot } from "../restore/whereYouWere";
 import { capAfterNumber } from "../shared/casing";
-import { loadOverwhelmed, setOverwhelmed as setOverwhelmedFlag, theOneThing } from "./overwhelmed";
+import { loadOverwhelmed, setOverwhelmed as setOverwhelmedFlag, subscribeOverwhelmed, theOneThing } from "./overwhelmed";
+import NoticeCard from "../today/NoticeCard";
+import { TargetGlyph } from "../shared/glyphs";
 import { haptics } from "../shared/haptics";
 import { useFreshLists } from "../data/useFreshLists";
 import { ENTITY_TASK } from "../notes/types";
@@ -66,6 +68,9 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
   const [parts, setParts] = useState<Partitioned>(EMPTY);
   const [allItems, setAllItems] = useState<TaskItem[]>([]);
   const [overwhelmed, setOverwhelmed] = useState(() => loadOverwhelmed(todayISO()));
+  // The door in is on the What Now sheet now (Fewer Buttons, 2026-09-02),
+  // which lives in the shell; when it writes the flag, this page re-reads it.
+  useEffect(() => subscribeOverwhelmed(() => setOverwhelmed(loadOverwhelmed(todayISO()))), []);
   const [filter, setFilter] = useState<TaskFilter>(
     openFilter && (FILTERS as string[]).includes(openFilter) ? (openFilter as TaskFilter) : "today",
   );
@@ -492,45 +497,38 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
     if (ok) { haptics.selection(); showToast({ message: `Fifteen minutes on ${t.text}` }); }
   };
 
-  // THE CARD SAYS WHAT IT IS BEFORE IT SAYS ANYTHING ELSE (Dave 2026-08-31,
-  // Tasks screenshot: "the big task up top actually doesn't render as such.
-  // The user has no idea what it is and why it's like that."). The old form
-  // was the confusion: a quoted task name folded into a sentence and worn as
-  // .conn-name -- a ROW class, nowrap-ellipsized -- so a long title arrived
-  // as '"Fix the..." keeps sliding.' with no kicker naming the card. Now it
-  // reads like every other offer in the app: an eyebrow says WHY the card
-  // exists (KEEPS SLIDING; FIRST STEP once the answer lands), the payload is
-  // a real wrapping title, and in the answer state the STEP takes the title
-  // slot with the task demoted to a quiet For: line -- the step is what the
-  // button adds, so the step is what renders big. Verbs unchanged (B15
-  // 2026-08-23 still applies: this banner acts on ONE stalled task; the
-  // screen's own red stays Pick One).
-  const fsBanner = fsCandidate && (filter === "today" || filter === "overdue" || filter === "all") ? (
-    <div className="pad-x">
-      <div className="card pad fs-card">
-        {fsStep && fsStep.taskId === fsCandidate.id ? (
-          <>
-            <div className="eyebrow">First Step</div>
-            {/* This line IS the answer, not a description of the button. */}
-            <div className="fs-title">{fsStep.step}</div>
-            <div className="fs-for">For: {fsCandidate.data.text}</div>
-            <div className="offer-row">
-              <button className="pill-act" onClick={fsAccept}>Add This Step</button>
-              <button className="quiet-action" onClick={fsDismiss}>Not Now</button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="eyebrow">Keeps Sliding</div>
-            <div className="fs-title">{fsCandidate.data.text}</div>
-            <div className="offer-row">
-              <button className="pill-act" onClick={fsAsk} disabled={fsBusy}>{fsBusy ? "Thinking..." : "First Step"}</button>
-              <button className="quiet-action" onClick={fsDismiss}>Not Now</button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+  // THE KEEPS SLIDING ROW (Fewer Buttons, Dave 2026-09-02: "I don't like all
+  // those floating buttons"). The offer stops floating above the list as a
+  // card and is the list's first row, the same notice row the one ask on
+  // Goals wears: the tile in orange (the tile is what says "stalled"), the
+  // task's name, one line of why, one pill. Not Now is the swipe. Once the
+  // answer lands the step takes the name slot and the task demotes to the
+  // For: line, because the step is what the pill adds. Verbs unchanged
+  // (B15 2026-08-23 still applies: this row acts on ONE stalled task; the
+  // screen's own red stays Pick One). The 08-31 rule that the card must say
+  // what it is before anything else survives as the line under the name.
+  const fsNotice = fsCandidate && (filter === "today" || filter === "overdue" || filter === "all") ? (
+    fsStep && fsStep.taskId === fsCandidate.id ? (
+      <NoticeCard
+        form="card"
+        icon={<TargetGlyph />}
+        tone="cat-fg-orange"
+        title={fsStep.step}
+        sub={"First step for: " + fsCandidate.data.text}
+        action={{ label: "Add", onClick: () => void fsAccept() }}
+        onDismiss={fsDismiss}
+      />
+    ) : (
+      <NoticeCard
+        form="card"
+        icon={<TargetGlyph />}
+        tone="cat-fg-orange"
+        title={fsCandidate.data.text}
+        sub={slidingLine(fsCandidate, today)}
+        action={{ label: fsBusy ? "Thinking..." : "First Step", onClick: () => void fsAsk() }}
+        onDismiss={fsDismiss}
+      />
+    )
   ) : null;
 
   // JUST PICK ONE FOR ME (Dave 2026-08-19). The point is that he never
@@ -608,7 +606,6 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
         segments={segments}
         onPickOne={pickOne}
         overwhelmed={overwhelmed}
-        onOverwhelmed={() => { haptics.selection(); setOverwhelmed(setOverwhelmedFlag(true, today)); }}
         onCalm={() => { haptics.selection(); setOverwhelmed(setOverwhelmedFlag(false, today)); }}
         onMoveAllToToday={() => void moveAllToToday()}
         filter={filter}
@@ -618,7 +615,7 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
           // rescheduled; this is a view, and everything returns on one tap.
           ? [theOneThing(allItems, () => 30)].filter((t): t is TaskItem => !!t)
           : byCategory(parts[filter], catFilter)}
-        banner={fsBanner}
+        notice={fsNotice}
         categories={categories}
         catFilter={catFilter}
         onCatFilter={setCatFilter}

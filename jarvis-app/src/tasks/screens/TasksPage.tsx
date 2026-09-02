@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
@@ -17,6 +17,7 @@ import { capAfterNumber } from "../../shared/casing";
 import { cueLine } from "../ifThen";
 import { OVERWHELM_ENTER, OVERWHELM_EXIT } from "../overwhelmed";
 import InlineEdit from "../../shared/InlineEdit";
+import HeadMenu from "../../shared/HeadMenu";
 import { useLongPress } from "../../shared/useLongPress";
 import { haptics } from "../../shared/haptics";
 import { ParentLineGlyph } from "../../shared/glyphs";
@@ -35,7 +36,7 @@ const URGENCY_CLASS: Record<UrgencyKind, string> = {
 // Session memory, not storage: the segment forgets on launch and so does this.
 type GroupBy = "none" | "category" | "goal" | "due";
 let lastGroupBy: GroupBy = "none";
-const GROUP_LABEL: Record<GroupBy, string> = { none: "None", category: "Category", goal: "Goal", due: "Due" };
+const GROUP_LABEL: Record<GroupBy, string> = { none: "None", category: "Area", goal: "Goal", due: "Due" };
 
 interface Group { key: string; head: string | null; color?: string; items: TaskItem[]; }
 
@@ -68,30 +69,6 @@ function groupItems(items: TaskItem[], by: GroupBy, goalOf: ((t: TaskItem) => st
   return order.map((k) => buckets.get(k)!).sort((a, b) => rank(a.key) - rank(b.key));
 }
 
-// The group-by control: a pill in the list head; tapped, its options open
-// in place and the tap on one is the save (the ChipPicker mechanic, with
-// the head's own type). Closed again on pick or on a second tap.
-function GroupPicker({ value, onPick }: { value: GroupBy; onPick: (g: GroupBy) => void }) {
-  const [open, setOpen] = useState(false);
-  if (!open) {
-    return (
-      <button className="see-all pill-action gb" onClick={() => { haptics.selection(); setOpen(true); }} aria-label="Group by">
-        Group by {"\u00b7"} {GROUP_LABEL[value]}<span className="gb-cv" />
-      </button>
-    );
-  }
-  return (
-    <div className="gb-open" role="radiogroup" aria-label="Group by">
-      {(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => (
-        <button key={g} className={"chip" + (g === value ? " active" : "")} role="radio" aria-checked={g === value}
-          onClick={() => { haptics.selection(); setOpen(false); if (g !== value) onPick(g); }}>
-          {GROUP_LABEL[g]}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // Empty-state copy, written per filter. The old version built the line from
 // the filter label ("No " + label + " tasks"), which produced "No today
 // tasks", "No done tasks" and "No all tasks". A template that reads wrong in
@@ -118,45 +95,10 @@ function emptySub(filter: TaskFilter, counts: Record<TaskFilter, number>): strin
   return null;
 }
 
-// TASKS AUDIT 2026-08-29, FINDING #4. .chip-row already carried a
-// right-edge mask (2026-08-02, "the right-edge fade reads as keep going"),
-// clipping the row's own content to transparent over its last 32px. What
-// that reveals is whatever sits BEHIND the row -- in dark theme, --bg,
-// #000000 -- and a chip's own fill is rgba(255,255,255,0.06): six percent
-// white on black. Fading a six-percent-white chip toward black is fading
-// toward something it was already almost indistinguishable from, so the
-// clip is real and invisible at once. Confirmed with an actual Chromium
-// render before writing this, not assumed from the CSS; painting a colour
-// overlay instead of clipping alpha was tried first and produces the
-// identical result for the same reason.
-//
-// A colour fade cannot signal "more" against a token pair this close in
-// luminance. Geometry can: .chev is drawn in --tx-4, a real stroke colour
-// with genuine contrast in both themes, already the app's standing "this
-// goes somewhere" mark. It renders only when the row can actually still
-// scroll right, measured the same way NoticeCard measures a shredded sub
-// (ResizeObserver, not assumed at mount), so it never claims more content
-// exists when there isn't any, and disappears once you've reached the end.
-function ChipRow({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [more, setMore] = useState(false);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const check = () => setMore(el.scrollWidth - el.clientWidth - el.scrollLeft > 4);
-    check();
-    el.addEventListener("scroll", check, { passive: true });
-    let ro: ResizeObserver | undefined;
-    if (typeof ResizeObserver !== "undefined") { ro = new ResizeObserver(check); ro.observe(el); }
-    return () => { el.removeEventListener("scroll", check); ro?.disconnect(); };
-  });
-  return (
-    <div className="chip-row-fade">
-      <div className="chip-row" ref={ref}>{children}</div>
-      {more && <div className="chip-row-more" aria-hidden="true"><div className="chev" /></div>}
-    </div>
-  );
-}
+// THE CHIP ROWS ARE GONE (Fewer Buttons, Dave 2026-09-02). The 08-29 audit's
+// scrolling row (measured overflow, the geometric "more" mark) went with
+// them; the menus on the list head carry every filter and every count the
+// chips did, and a menu never overflows sideways. The laws keep the record.
 
 function Row({
   item,
@@ -389,10 +331,9 @@ export default function TasksPage({
   categories,
   catFilter,
   onCatFilter,
-  banner,
+  notice,
   momentum,
   onPickOne,
-  onOverwhelmed,
   onCalm,
   overwhelmed = false,
   onMoveAllToToday,
@@ -420,7 +361,10 @@ export default function TasksPage({
   categories?: SheetCategory[];
   catFilter?: string;
   onCatFilter?: (id: string) => void;
-  banner?: React.ReactNode;
+  // THE NOTICE ROW (Fewer Buttons, 2026-09-02): the one offer the flow has
+  // for this list (the task that keeps sliding), rendered as the first row
+  // of the first card, never as a card floating above the list.
+  notice?: React.ReactNode;
   // Momentum Chain: a suggestion element pinned under the row it follows.
   momentum?: { afterId: string; el: React.ReactNode } | null;
   // The goal a task moves, from the flow's goal index (see Row.goal).
@@ -437,7 +381,8 @@ export default function TasksPage({
   // All resets an overdue pile in one tap instead of one tap per shame.
   onPickOne?: () => void;
   // F1: hide everything but the one smallest thing. A view, never a write.
-  onOverwhelmed?: () => void;
+  // The door in is on the What Now sheet (Fewer Buttons, 2026-09-02); the
+  // page carries only the door out.
   onCalm?: () => void;
   overwhelmed?: boolean;
   onMoveAllToToday?: () => void;
@@ -451,10 +396,8 @@ export default function TasksPage({
   // Select mode owns the ids currently ON SCREEN, so a filter change or a
   // reload can never leave a selection pointing at rows that are gone.
   const sel = useSelection(items.map((i) => i.id));
-  // GROUP BY (ruled 2026-09-01: "a group-by dropdown; chips stay filters").
-  // Off by default: the chips already cut the list, and heads on top of a
-  // cut are a second cut nobody asked for. Remembered within the session,
-  // reset on launch, like the segment.
+  // GROUP BY (ruled 2026-09-01: "a group-by dropdown"). Remembered within
+  // the session, reset on launch, like the segment.
   const [groupBy, setGroupBy] = useState<GroupBy>(lastGroupBy);
   const setGroup = (g: GroupBy) => { lastGroupBy = g; setGroupBy(g); };
   const groups = groupItems(items, groupBy, goalOf, today);
@@ -482,91 +425,75 @@ export default function TasksPage({
       />
       {segments}
 
-      {/* F1 · JUST THIS ONE. When it is on, the page IS the one thing:
-          everything else is hidden, nothing is moved, and one tap brings it
-          all back. The research is specific that the cut has to be to one,
-          because three is still a decision.
-          Both labels live in overwhelmed.ts, next to each other, because
-          the door in and the door out are one vocabulary and drifting them
-          apart is how a screen ends up telling you two different stories
-          about the same mode. The note on OVERWHELM_ENTER carries why the
-          old "I'm Overwhelmed" had to go. */}
+      {/* ONE DECISION KILLER (Fewer Buttons, Dave 2026-09-02, picked "Pick
+          One alone; Just This One lives inside it"). The row above the
+          head carries one red button. Just This One is an action on the
+          What Now sheet that button opens (the shell's RightNowSheet), so
+          the same ranking has one door. While the mode is on, the page IS
+          the one thing and this row is the way back out. */}
       {overwhelmed ? (
         <div className="pad-x pick-one">
           <button className="btn btn-block" onClick={onCalm}>{OVERWHELM_EXIT}</button>
         </div>
-      ) : (
-        <>
-          {/* TASKS AUDIT 2026-08-29, FINDINGS A AND B: TWO CTAS, ONE
-              QUESTION. These were two full-width buttons STACKED, so the
-              first thing on a screen called Tasks was 106px of decision
-              about how to look at your tasks, before a single task was
-              visible. Side by side they cost one row instead of two, and
-              more importantly they read as what they actually are: one
-              question ("just give me one thing") with two answers, rather
-              than two separate demands.
-
-              They are closer than even that. Pick One now opens What Now,
-              which ranks with theOneThing(); Just This One collapses the
-              list using theOneThing() as well, both with the same constant
-              estimator. Same function, same input, same top task: one shows
-              it in a sheet, the other shows it in the list. Presenting them
-              as a pair is honest about that. Whether the app should ship
-              both at all is a bigger call than this audit, and it is
-              flagged rather than taken.
-
-              Pick One keeps the fill and leads, because starting beats
-              filtering. When counts.all <= 2 it is alone in the row and
-              flex:1 gives it the full width it had before. */}
-          {((onPickOne && counts.all > 0) || (onOverwhelmed && counts.all > 2)) && (
-            <div className="pad-x pick-one cta-pair">
-              {/* "Pick One", matching Today's identical action (see the note
-                  on the goal nudge in TodayFlow, which named itself after
-                  this button). Was "Just Pick One For Me": "Just" reads as
-                  begging and "For Me" casts the user as a dependent asking
-                  a caretaker, when the app is simply doing its job. */}
-              {onPickOne && counts.all > 0 && (
-                <button className="btn btn-primary btn-lg" onClick={onPickOne}>Pick One</button>
-              )}
-              {/* btn-secondary, not bare btn. Bare .btn is press-3 with
-                  `color: var(--tint)`, i.e. RED TEXT, which was survivable
-                  while this sat on its own row and is not survivable beside
-                  a red fill: the rendered pair was two reds of equal weight
-                  arguing about which one you meant. btn-secondary is the
-                  identical pill with --tx-1 text, so the loud one stays
-                  loud and this reads as the quiet alternative it is. Caught
-                  by screenshotting the pair, not by reading the JSX; the
-                  colour lives two files away from the class name. */}
-              {onOverwhelmed && counts.all > 2 && (
-                <button className="btn btn-secondary btn-lg" onClick={onOverwhelmed}>{OVERWHELM_ENTER}</button>
-              )}
-            </div>
-          )}
-        </>
+      ) : onPickOne && counts.all > 0 && (
+        <div className="pad-x pick-one">
+          {/* "Pick One", matching Today's identical action (see the note on
+              the goal nudge in TodayFlow, which named itself after this
+              button). Was "Just Pick One For Me": "Just" reads as begging
+              and "For Me" casts the user as a dependent asking a
+              caretaker, when the app is simply doing its job. */}
+          <button className="btn btn-primary btn-lg btn-block" onClick={onPickOne}>Pick One</button>
+        </div>
       )}
 
-      <ChipRow>
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            className={"chip" + (f === filter ? " active" : "")}
-            onClick={() => onFilter?.(f)}
-          >
-            {FILTER_LABEL[f]} &middot; {counts[f]}
-          </button>
-        ))}
-      </ChipRow>
-
-      {categories && categories.length > 0 && (
-        <ChipRow>
-          <button className={"chip" + (!catFilter || catFilter === "all" ? " active" : "")} onClick={() => onCatFilter?.("all")}>All</button>
-          {categories.map((c) => (
-            <button key={c.id} className={"chip" + (catFilter === c.id ? " active" : "")} onClick={() => onCatFilter?.(c.id)}>
-              <span className={"cat-dot cat-bg-" + c.color} />{c.name}
-            </button>
-          ))}
-        </ChipRow>
-      )}
+      {/* THE HEAD IS THE CONTROLS (Fewer Buttons, Dave 2026-09-02: "I don't
+          like all those floating buttons. There's way too many."; picked
+          "One line of dropdowns on the list head"). Counted from his
+          screenshot: two big buttons, a row of six filter chips, a row of
+          area chips, a floating card, then the head with its Group by
+          pill; six things before the first task. This line is the head
+          now, and it is the controls: the view on the left, the head's
+          own word with the list's count, opening every filter with its
+          count; the area and the grouping on the right. Every count the
+          chips carried is still one tap away, inside its menu. In the Just
+          This One mode the head states the mode and carries no menu, since
+          the list is one thing whatever the view says. */}
+      <div className="dd-line">
+        {overwhelmed ? (
+          <span className="dd dd-lead dd-static">{OVERWHELM_ENTER}</span>
+        ) : (
+          <>
+            <HeadMenu
+              lead
+              ariaLabel="Show"
+              value={filter}
+              label={FILTER_LABEL[filter]}
+              count={items.length}
+              options={FILTERS.map((f) => ({ value: f, label: FILTER_LABEL[f], count: counts[f] }))}
+              onPick={(v) => onFilter?.(v as TaskFilter)}
+            />
+            <span className="dd-sp" />
+            {categories && categories.length > 0 && (
+              <HeadMenu
+                ariaLabel="Area"
+                value={!catFilter || catFilter === "all" ? "all" : catFilter}
+                options={[{ value: "all", label: "All Areas" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
+                onPick={(v) => onCatFilter?.(v)}
+              />
+            )}
+            {/* GROUP BY (ruled 2026-09-01: "a group-by dropdown"). Off by
+                default: the view already cuts the list, and heads on top
+                of a cut are a second cut nobody asked for. */}
+            <HeadMenu
+              ariaLabel="Group by"
+              value={groupBy}
+              label={groupBy === "none" ? "Group" : "By " + GROUP_LABEL[groupBy]}
+              options={(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => ({ value: g, label: GROUP_LABEL[g] }))}
+              onPick={(g) => setGroup(g as GroupBy)}
+            />
+          </>
+        )}
+      </div>
 
       {/* THE DUPLICATE ADD BOX IS GONE (2026-08-21, Dave: "Add task type box
           makes no sense"). It was a plain text field that parsed dates and
@@ -574,13 +501,12 @@ export default function TasksPage({
           does the same job and also reads categories, people and projects.
           Two boxes, one job, and the worse one was on top. */}
 
-      {banner}
-
+      {/* The two bulk verbs a view can carry, both the neutral pill, both
+          in the same seat under the head: an overdue pile resets in one
+          tap instead of one tap per shame; a done list clears. */}
       {filter === "overdue" && items.length > 0 && onMoveAllToToday && (
-        <div className="sh2 sh2-quiet">
-          <span className="t">Overdue</span>
-          <span className="n">{items.length}</span>
-          <button className="see-all" onClick={onMoveAllToToday}>Move All to Today</button>
+        <div className="pad-x clear-done">
+          <button className="btn btn-secondary" onClick={onMoveAllToToday}>Move All to Today</button>
         </div>
       )}
 
@@ -593,6 +519,8 @@ export default function TasksPage({
       {loading ? (
         <SkeletonRows />
       ) : items.length === 0 ? (
+        <>
+        {notice && <div className="card list-card-ruled">{notice}</div>}
         <div className="empty-state">
           <div className="empty-icon"><ListChecks className="ic" /></div>
           <div className="empty-title">{EMPTY_TITLE[filter]}</div>
@@ -615,6 +543,7 @@ export default function TasksPage({
             <button className="btn btn-primary" onClick={onNew}>New Task</button>
           )}
         </div>
+        </>
       ) : (
         <div>
           {/* ONE CARD (Dave 2026-09-01: "Go with pic 1. Apply that
@@ -624,15 +553,7 @@ export default function TasksPage({
               now, hairlines inset past the check, the same material as
               Your Move. With grouping on, each group is its own card under
               its own head. */}
-          <div className="sh2 sh2-quiet list-head">
-            {/* The head names the cut and carries the group-by control.
-                One tap opens the options in place (the app's one picker
-                mechanic, ChipPicker's); the pick is the save. */}
-            <span className="t">{FILTER_LABEL[filter]}</span>
-            <span className="n">{items.length}</span>
-            <GroupPicker value={groupBy} onPick={setGroup} />
-          </div>
-          {groups.map((g) => (
+          {groups.map((g, gi) => (
             <React.Fragment key={g.key}>
               {g.head && (
                 <div className="grp-head">
@@ -642,6 +563,7 @@ export default function TasksPage({
                 </div>
               )}
               <div className="card list-card-ruled">
+                {gi === 0 && notice}
                 {g.items.map((it) => (
                   <React.Fragment key={it.id}>
                     <Row

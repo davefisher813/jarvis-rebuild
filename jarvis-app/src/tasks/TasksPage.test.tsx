@@ -23,10 +23,77 @@ const tk = (id: string, due: string | null, cat = "orgB"): TaskItem => ({ id, da
 const counts: Record<TaskFilter, number> = { all: 6, daily: 0, today: 2, overdue: 1, upcoming: 3, done: 1 };
 
 describe("TasksPage", () => {
-  it("renders the filter chip row with counts", () => {
-    const { container } = render(<TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20" />);
-    expect(container.querySelector(".chip-row")).toBeTruthy();
-    expect(container.textContent).toContain("3"); // an upcoming count surfaces
+  it("the head is one line of menus: the view with its count, then the area, then the grouping", () => {
+    const { container } = render(
+      <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
+        categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }]} />,
+    );
+    // Fewer Buttons (2026-09-02): no chip rows anywhere on the page.
+    expect(container.querySelector(".chip-row")).toBeNull();
+    const dds = container.querySelectorAll(".dd-line .dd");
+    expect([...dds].map((d) => d.getAttribute("aria-label"))).toEqual(["Show", "Area", "Group by"]);
+    expect(dds[0]).toHaveClass("dd-lead");
+    expect(dds[0]).toHaveTextContent("Today1");
+    // The counts the chips carried live inside the view menu.
+    fireEvent.click(dds[0]!);
+    const items = screen.getAllByRole("menuitemradio");
+    expect(items.map((i) => i.textContent)).toEqual(["All6", "Daily0", "Today2", "Overdue1", "Upcoming3", "Done1"]);
+    expect(screen.getByRole("menuitemradio", { name: /Today/ })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("picking from the view menu fires the filter and closes the menu", () => {
+    const onFilter = vi.fn();
+    const { container } = render(<TasksPage filter="today" counts={counts} items={[]} today="2026-05-20" onFilter={onFilter} />);
+    fireEvent.click(container.querySelector(".dd-lead")!);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Overdue/ }));
+    expect(onFilter).toHaveBeenCalledWith("overdue");
+    expect(screen.queryByRole("menu")).toBeNull();
+    // The current option is a no-op pick.
+    fireEvent.click(container.querySelector(".dd-lead")!);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Today/ }));
+    expect(onFilter).toHaveBeenCalledTimes(1);
+  });
+
+  it("the area menu names areas with their dots, and All Areas leads", () => {
+    const onCat = vi.fn();
+    const { container } = render(
+      <TasksPage filter="all" counts={counts} items={[]} today="2026-05-20" catFilter="orgB" onCatFilter={onCat}
+        categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }, { id: "money", name: "Money", color: "yellow" }]} />,
+    );
+    const area = container.querySelector('.dd[aria-label="Area"]')!;
+    expect(area).toHaveTextContent("Ridgeley");
+    expect(area.querySelector(".cat-dot.cat-bg-sky")).toBeTruthy();
+    fireEvent.click(area);
+    expect(screen.getAllByRole("menuitemradio").map((i) => i.textContent)).toEqual(["All Areas", "Ridgeley", "Money"]);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "All Areas" }));
+    expect(onCat).toHaveBeenCalledWith("all");
+  });
+
+  it("one decision killer: Pick One alone, full width; the mode's way out replaces it", () => {
+    const onPickOne = vi.fn();
+    const { container, rerender } = render(<TasksPage filter="all" counts={counts} items={[tk("a", null)]} today="2026-05-20" onPickOne={onPickOne} />);
+    expect(container.querySelectorAll(".pick-one .btn")).toHaveLength(1);
+    expect(container.querySelector(".pick-one .btn")).toHaveClass("btn-primary", "btn-block");
+    expect(container.textContent).not.toContain("Just This One");
+    rerender(<TasksPage filter="all" counts={counts} items={[tk("a", null)]} today="2026-05-20" onPickOne={onPickOne} overwhelmed onCalm={() => {}} />);
+    expect(container.querySelector(".pick-one .btn")).toHaveTextContent("Show Everything");
+    // The head states the mode and carries no menu.
+    expect(container.querySelector(".dd-line .dd-static")).toHaveTextContent("Just This One");
+    expect(container.querySelectorAll(".dd-line button")).toHaveLength(0);
+  });
+
+  it("the notice rides as the first row of the first card", () => {
+    const { container } = render(
+      <TasksPage filter="all" counts={counts} items={[tk("a", null)]} today="2026-05-20"
+        notice={<div className="pad-x"><div className="notice-swipe"><div className="card notice-card">Keeps sliding</div></div></div>} />,
+    );
+    const card = container.querySelector(".list-card-ruled")!;
+    expect(card.firstElementChild).toHaveClass("pad-x");
+    expect(card.querySelector(".pad-x + .task-swipe")).toBeTruthy();
+    // With an empty list the notice still has a card of its own, above the empty state.
+    const empty = render(<TasksPage filter="today" counts={counts} items={[]} today="2026-05-20" notice={<div className="pad-x">n</div>} />).container;
+    expect(empty.querySelector(".list-card-ruled .pad-x")).toBeTruthy();
+    expect(empty.querySelector(".empty-state")).toBeTruthy();
   });
 
   it("renders the ruled row: neutral ring, the parent's glyph, distance chip", () => {
@@ -75,26 +142,30 @@ describe("TasksPage", () => {
     expect(container.querySelector(".r-goal.r-cat")).toHaveTextContent("No category");
   });
 
-  it("rows ride inside one card, under a head that names the cut and carries group-by", () => {
+  it("rows ride inside one card, under a head whose menus name the cut and carry group-by", () => {
     const { container } = render(
       <TasksPage filter="all" counts={counts} items={[tk("a", "2026-05-18", "money"), tk("b", null, "family")]} today="2026-05-20"
         goalOf={(t) => (t.id === "a" ? "Get Paid On Time" : null)} />,
     );
     expect(container.querySelectorAll(".list-card-ruled")).toHaveLength(1);
     expect(container.querySelectorAll(".list-card-ruled .task-row")).toHaveLength(2);
-    expect(container.querySelector(".list-head .t")).toHaveTextContent("All");
-    // Open the picker, group by category: two cards under two heads.
-    fireEvent.click(container.querySelector(".gb")!);
-    fireEvent.click(screen.getByRole("radio", { name: "Category" }));
+    expect(container.querySelector(".dd-lead")).toHaveTextContent("All2");
+    const group = () => container.querySelector('.dd[aria-label="Group by"]')!;
+    expect(group()).toHaveTextContent("Group");
+    // Open the menu, group by area: two cards under two heads, and the
+    // capsule says what it is grouped by.
+    fireEvent.click(group());
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Area" }));
     expect(container.querySelectorAll(".list-card-ruled")).toHaveLength(2);
     expect([...container.querySelectorAll(".grp-head")].map((h) => h.textContent)).toEqual(["Money1", "Family1"]);
+    expect(group()).toHaveTextContent("By Area");
     // By goal: the goalless bucket comes last.
-    fireEvent.click(container.querySelector(".gb")!);
-    fireEvent.click(screen.getByRole("radio", { name: "Goal" }));
+    fireEvent.click(group());
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Goal" }));
     expect([...container.querySelectorAll(".grp-head")].map((h) => h.textContent)).toEqual(["Get Paid On Time1", "No goal1"]);
     // Back to none, for the next test: the memory is session-wide.
-    fireEvent.click(container.querySelector(".gb")!);
-    fireEvent.click(screen.getByRole("radio", { name: "None" }));
+    fireEvent.click(group());
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "None" }));
   });
 
   it("shows an empty state when the filter has no items", () => {

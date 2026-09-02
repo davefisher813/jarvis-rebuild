@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import TasksFlow from "../tasks/TasksFlow";
 import BiggerPictureFlow from "../bigger/BiggerPictureFlow";
 import LifeSegments, { type LifeSegment } from "./LifeSegments";
@@ -13,9 +13,12 @@ import LifeSegments, { type LifeSegment } from "./LifeSegments";
 let lastSegment: LifeSegment = "tasks";
 
 export default function LifeFlow({
-  segment, taskOpenId, taskFilter, projectOpenId, goalOpenId, onOpenNote, onWhatNow, onOpenDecision,
+  segment, segmentNav, taskOpenId, taskFilter, projectOpenId, goalOpenId, onOpenNote, onWhatNow, onOpenDecision,
 }: {
   segment?: LifeSegment;
+  /** Bumped by the shell on every deep link, so a link to the lens already
+   *  remembered still moves a page that has since changed lens. */
+  segmentNav?: number;
   taskOpenId?: string; taskFilter?: string;
   projectOpenId?: string; goalOpenId?: string;
   onOpenNote?: (id: string) => void;
@@ -24,6 +27,9 @@ export default function LifeFlow({
 }) {
   const [seg, setSeg] = useState<LifeSegment>(segment ?? lastSegment);
   const pick = (s: LifeSegment) => { lastSegment = s; setSeg(s); };
+  // A deep link that arrives while this flow is mounted (What Now's Just
+  // This One from the Goals lens, say) still wins, once.
+  useEffect(() => { if (segment) pick(segment); }, [segment, segmentNav]);
   const segments = <LifeSegments value={seg} onPick={pick} />;
   if (seg === "tasks") {
     return <TasksFlow title="Life" segments={segments} openId={taskOpenId} openFilter={taskFilter} onOpenNote={onOpenNote} onWhatNow={onWhatNow} />;

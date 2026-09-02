@@ -105,6 +105,8 @@ export interface MailFull extends MailRow {
   /** The instant, for anything that needs to sort or compare rather than show. */
   dateMs: number;
   body: string;
+  /** The HTML version when the sender wrote one; null for plain mail. */
+  html?: string | null;
   threadId: string;
   messageId: string;
   attachments: MailAttachment[];
@@ -153,14 +155,38 @@ function findPart(part: GmailPart | undefined, mime: string): string | null {
   }
   return null;
 }
+// HTML IS NEVER TEXT (Dave 2026-09-02, a TikTok mail rendering as
+// "<html xmlns=...><head><meta content=..."). A single-part message whose
+// one part is text/html used to come back raw, and so did a "plain" part
+// that was really markup. Anything that reads as markup is stripped for the
+// text body; the markup itself is kept separately (extractHtml) for the
+// reader that renders it.
+const LOOKS_HTML = /^\s*(<!doctype\s+html|<html[\s>]|<body[\s>]|<head[\s>]|<div[\s>]|<table[\s>])/i;
 export function extractBody(payload?: GmailFull["payload"]): string {
   if (!payload) return "";
-  if (payload.body?.data && !payload.parts) return b64urlDecode(payload.body.data).trim();
+  if (payload.body?.data && !payload.parts) {
+    const one = b64urlDecode(payload.body.data);
+    return ((payload.mimeType || "").toLowerCase() === "text/html" || LOOKS_HTML.test(one) ? stripHtml(one) : one).trim();
+  }
   const root: GmailPart = { mimeType: payload.mimeType, body: payload.body, parts: payload.parts };
   const plain = findPart(root, "text/plain");
-  if (plain) return plain.trim();
+  if (plain) return (LOOKS_HTML.test(plain) ? stripHtml(plain) : plain).trim();
   const html = findPart(root, "text/html");
   return html ? stripHtml(html) : "";
+}
+/** The message's HTML, when it has one, untouched: the reader sanitises it
+ *  at render time (messages/mailHtml.ts) and never sends it anywhere. */
+export function extractHtml(payload?: GmailFull["payload"]): string | null {
+  if (!payload) return null;
+  if (payload.body?.data && !payload.parts) {
+    const one = b64urlDecode(payload.body.data);
+    return (payload.mimeType || "").toLowerCase() === "text/html" || LOOKS_HTML.test(one) ? one : null;
+  }
+  const root: GmailPart = { mimeType: payload.mimeType, body: payload.body, parts: payload.parts };
+  const html = findPart(root, "text/html");
+  if (html) return html;
+  const plain = findPart(root, "text/plain");
+  return plain && LOOKS_HTML.test(plain) ? plain : null;
 }
 // "7:41 AM" for today, "Yesterday", "Mon 7:41 AM" inside a week, "Aug 4"
 // beyond it. Anything unparseable comes back as the original string rather
@@ -231,6 +257,7 @@ export function mapGmailFull(m: GmailFull): MailFull {
     date: mailDate(headerOf(hs, "Date")),
     dateMs: dateMsOf(headerOf(hs, "Date"), m.internalDate),
     body: extractBody(m.payload),
+    html: extractHtml(m.payload),
     threadId: m.threadId || "",
     messageId: headerOf(hs, "Message-ID"),
     listUnsubscribe: headerOf(hs, "List-Unsubscribe"),
