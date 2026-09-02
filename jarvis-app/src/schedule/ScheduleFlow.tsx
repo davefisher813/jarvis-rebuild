@@ -8,6 +8,7 @@ import { pausedCategoryIds } from "../categories/kinds";
 import { workWindowOf } from "./planMeta";
 import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
 import { buildParentIndex, parentForTask } from "../life/parent";
+import { weekRowsFor } from "./weekRows";
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
@@ -401,6 +402,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     return nextFreeSlot(allEvents.filter((e) => e.id !== exclude), date, new Date());
   };
 
+  // THE WEEK (D2): seven rows from the same window and open-slot rule the
+  // Day view uses. Sorted by the flow, painted by the page.
+  const weekRows = weekRowsFor(weekOf(selected), allEvents, routineData, { date: today, nowMin: (() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); })() });
   const weekCells = weekOf(selected).map((date) => {
     const evs = eventsForDate(allEvents, date);
     const day = new Date(date + "T00:00:00").getDate();
@@ -1128,6 +1132,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onOverlapBadge={openOverlapFix}
         onCopyDay={() => void copyYesterday()}
         weekCells={weekCells}
+        weekRows={weekRows}
         onPrev={onPrev}
         onNext={onNext}
         onSelect={setSelected}

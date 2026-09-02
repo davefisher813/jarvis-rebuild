@@ -22,6 +22,10 @@ import { dropInto } from "../dayEdit";
 const DROP_MINUTES = 60;
 
 // A protected block from Your Routine, rendered on the day it applies.
+import type { WeekRow } from "../weekRows";
+import { capAfterNumber } from "../../shared/casing";
+import { spanShort } from "../weekRows";
+
 export interface LockedRange { s: number; e: number; label: string; soft?: boolean; kind?: string; id?: string }
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -47,7 +51,7 @@ function weekRange(cells: WeekCell[]): string {
 
 export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts, gymDoorFor,
-  mode = "month", onMode, weekCells = [], loading, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
+  mode = "month", onMode, weekCells = [], weekRows = [], loading, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload, onDeleteMany,
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
   onShiftBlock, onRetimeBlock, onResizeBlock,
@@ -61,6 +65,10 @@ export default function SchedulePage({
   // this date; the page just hands it to the row.
   gymDoorFor?: (e: EventItem) => import("./DayRow").GymDoorView | null;
   mode?: Mode; onMode?: (m: Mode) => void; weekCells?: WeekCell[]; loading?: boolean;
+  // THE WEEK (D2, approved 2026-09-01): seven day-rows with capacity bars,
+  // derived by the flow (schedule/weekRows.ts) from the same window and the
+  // same open-slot rule the Day view uses.
+  weekRows?: WeekRow[];
   // W1: the repeating series, already derived by the flow.
   repeats?: import("../repeats").RepeatRow[];
   // N5: the worst collision on this day, and the one-tap fix.
@@ -291,9 +299,12 @@ export default function SchedulePage({
         <BarAction label="New Event" onClick={onNew}><Plus className="ic" /></BarAction>
       </>} />
 
+      {/* D1 (approved 2026-09-01): the segment is Day / Week / Month. Repeats
+          left it and lives at the foot of Month (and the + menu); while the
+          repeats list is open, Month stays the lit segment it came from. */}
       <div className="sched-seg"><div className="segmented">
-        {(["day", "week", "month", "repeats"] as Mode[]).map((m) => (
-          <button key={m} className={"seg" + (mode === m ? " active" : "")} onClick={() => onMode?.(m)}>{m[0]!.toUpperCase() + m.slice(1)}</button>
+        {(["day", "week", "month"] as Mode[]).map((m) => (
+          <button key={m} className={"seg" + (mode === m || (m === "month" && mode === "repeats") ? " active" : "")} onClick={() => onMode?.(m)}>{m[0]!.toUpperCase() + m.slice(1)}</button>
         ))}
       </div></div>
 
@@ -354,23 +365,43 @@ export default function SchedulePage({
         )
       )}
 
+      {/* THE WEEK (D2, approved 2026-09-01; The Week catalog, 2026-09-02).
+          Seven day-rows, one card. Each row: weekday and date on the left
+          (today's date in a white disc), the capacity bar (one track placed
+          by time across the day's waking window, blocks filled in their
+          category colour, a container as a hollow outline, a now-line on
+          today), and the open time on the right. Not a day picker: a row
+          opens its day. */}
       {mode === "week" && (
-        <div className="week-strip">
-          {weekCells.map((c, i) => {
-            const isSel = c.date === selected, isToday = c.date === todayDate;
+        <div className="pad-x"><div className="card list-card-ruled week-rows">
+          {weekRows.map((r) => {
+            const isToday = r.date === todayDate;
+            const past = r.date < todayDate;
+            const span = Math.max(1, r.windowE - r.windowS);
+            const pctOf = (m: number) => Math.max(0, Math.min(100, ((m - r.windowS) / span) * 100));
+            const nowMinLocal = isToday && now ? toMin(now) : null;
             return (
-              <div className={"wk-cell" + (isSel ? " sel" : isToday ? " today" : "")} key={c.date} onClick={() => onSelect?.(c.date)}>
-                <div className="wk-wd">{WK[i]}</div>
-                <div className="wk-day">{c.day}</div>
-                <div className="cal-dots">{c.colors.map((col, j) => <div className={"cal-dot cat-bg-" + catColor(col)} key={j} />)}</div>
-                {/* W2: a day carrying something STANDING gets a mark. Not a
-                    count: the mark says "there is a fixture here", and a
-                    number would be one more thing to read. */}
-                {repeatMarks.has(c.date) && <div className="wk-rep" aria-label="Has a repeating event" />}
+              <div className={"wk-row" + (isToday ? " today" : "") + (past ? " past" : "")} role="button" tabIndex={0} key={r.date}
+                onClick={() => { onSelect?.(r.date); onMode?.("day"); }} aria-label={`Open ${WK[r.dow]} ${r.day}`}>
+                <div className="wk-d"><span className="wk-w">{WK[r.dow]}</span><span className="wk-n">{r.day}</span></div>
+                <div className="wk-b">
+                  <div className="wk-bar" aria-hidden="true">
+                    {r.blocks.map((b, i) => (
+                      <span key={i} className={"wk-seg" + (b.hollow ? " hollow" : "") + " " + (b.hollow ? "cat-fg-" : "cat-bg-") + catColor(b.category)}
+                        style={{ left: pctOf(b.s) + "%", width: Math.max(1.2, pctOf(b.e) - pctOf(b.s)) + "%" }} />
+                    ))}
+                    {nowMinLocal != null && <span className="wk-now" style={{ left: pctOf(nowMinLocal) + "%" }} />}
+                  </div>
+                </div>
+                {past
+                  ? <span className="wk-open">{r.count > 0 ? <><b>{r.count}</b> {r.count === 1 ? "block" : "blocks"}</> : ""}</span>
+                  : r.openMin > 0
+                    ? <span className="wk-open"><b>{spanShort(r.openMin)}</b> open</span>
+                    : <span className="wk-open wk-full">Full</span>}
               </div>
             );
           })}
-        </div>
+        </div></div>
       )}
 
       {/* A3 (audit 2026-08-21): everything below here is the DAY, and it was
@@ -378,7 +409,7 @@ export default function SchedulePage({
           stands on the calendar forever; the day it happens to be showing
           underneath is a different question, glued to the bottom of the
           answer. Four modes, one of which has no day list. */}
-      {mode !== "repeats" && (<>
+      {mode !== "repeats" && mode !== "week" && (<>
       <div className="grp"><div className="plan-head">
         {/* Date lives in the nav above; repeating it here wrapped the row (no-repetition law). */}
         {/* It must not read "0 Events" over a day full of proposals. The
@@ -599,6 +630,17 @@ export default function SchedulePage({
         </>
       )}
       </>)}
+
+      {/* D1: Repeats lives at the foot of Month. One row, the count, the door. */}
+      {mode === "month" && (
+        <div className="pad-x"><div className="card list-card-ruled">
+          <div className="task-row p2" role="button" tabIndex={0} onClick={() => onMode?.("repeats")}>
+            <div className="task-title"><span className="task-name">Repeats</span>
+              <div className="r-k"><span className="r-goal r-cat">{repeats.length === 0 ? "Nothing repeats yet" : capAfterNumber(`${repeats.length} standing`)}</span></div></div>
+            <div className="chev" />
+          </div>
+        </div></div>
+      )}
 
       {drag && (
         <div className="anytime-ghost" style={{ left: drag.x, top: drag.y }}>{drag.label}</div>

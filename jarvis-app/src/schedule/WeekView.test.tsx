@@ -6,7 +6,7 @@ import { NotesProvider } from "../data/NotesProvider";
 import ScheduleFlow from "./ScheduleFlow";
 
 describe("Schedule views", () => {
-  it("Week shows a 7-day strip; Day hides the month grid", async () => {
+  it("Week shows seven day-rows with bars, Repeats sits at the foot of Month, a row opens its day", async () => {
     const { container } = render(<NotesProvider userId="u1"><ScheduleFlow /></NotesProvider>);
     // SPEC MOVED (Library chassis 2026-08-18): the title renders twice
     // (large + condensed bar); wait on the pair.
@@ -17,12 +17,21 @@ describe("Schedule views", () => {
     expect(container.querySelector(".cal-grid")).toBeFalsy();
     fireEvent.click(screen.getByText("Month"));
     await waitFor(() => expect(container.querySelector(".cal-grid")).toBeTruthy());
+    // D1 (approved 2026-09-01): Repeats is out of the segment and at the foot of Month.
+    expect(container.querySelectorAll(".sched-seg .seg")).toHaveLength(3);
+    expect(screen.getByText("Repeats")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Week"));
-    await waitFor(() => expect(container.querySelectorAll(".wk-cell").length).toBe(7));
-    fireEvent.click(screen.getByText("Day"));
+    // D2: seven day-rows with capacity bars, no strip, no day list under it.
+    await waitFor(() => expect(container.querySelectorAll(".wk-row").length).toBe(7));
+    expect(container.querySelectorAll(".wk-bar")).toHaveLength(7);
+    expect(container.querySelector(".week-strip")).toBeFalsy();
+    expect(container.querySelector(".plan-head")).toBeFalsy();
+    // A row is a door to its day, not a picker under a list.
+    fireEvent.click(container.querySelectorAll(".wk-row")[3]!);
+    await waitFor(() => expect(container.querySelector(".sched-seg .seg.active")).toHaveTextContent("Day"));
     await waitFor(() => {
       expect(container.querySelector(".cal-grid")).toBeFalsy();
-      expect(container.querySelector(".week-strip")).toBeFalsy();
+      expect(container.querySelector(".wk-row")).toBeFalsy();
     });
   });
 });

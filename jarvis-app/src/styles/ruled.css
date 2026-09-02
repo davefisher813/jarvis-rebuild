@@ -374,3 +374,28 @@
 .ruled .ht-none { font-size: 15px; font-weight: var(--w-semi); color: var(--tx-4); }
 .ruled .ht-m { font-size: 11.5px; color: var(--tx-4); margin-top: 4px; }
 .ruled .ht-spark { position: absolute; right: 10px; bottom: 10px; width: 64px; height: 22px; color: var(--blue); }
+
+/* ---------- THE WEEK (D2, approved 2026-09-01; The Week catalog, 2026-09-02)
+   Seven day-rows in one card. Weekday and date left (today in a white disc),
+   the capacity bar (one track placed by time; blocks filled in the category
+   colour; a container as a hollow outline; a now-line on today), the open
+   time on the right in the ruled number style. A past day says how many
+   blocks it held; a full day says Full in amber, the one warning colour. */
+.ruled .week-rows { padding: 0; overflow: hidden; }
+.ruled .wk-row { display: flex; align-items: center; gap: 12px; padding: 10px var(--s-4); min-height: 58px; cursor: pointer; }
+.ruled .wk-row + .wk-row { border-top: 0.5px solid var(--divider); }
+.ruled .wk-row:active { background: var(--press-3); }
+.ruled .wk-row.past { opacity: 0.62; }
+.ruled .wk-d { width: 34px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ruled .wk-w { font-size: 10px; font-weight: var(--w-bold); letter-spacing: 0.08em; color: var(--tx-4); text-transform: uppercase; }
+.ruled .wk-n { font-size: 17px; font-weight: var(--w-semi); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-variant-numeric: tabular-nums; color: var(--tx-1); }
+.ruled .wk-row.today .wk-n { background: var(--tx-1); color: var(--bg, #000); }
+.ruled .wk-b { flex: 1; min-width: 0; }
+.ruled .wk-bar { position: relative; height: 10px; border-radius: 5px; background: var(--press-3); overflow: hidden; }
+.ruled .wk-seg { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+.ruled .wk-seg.hollow { background: transparent; box-shadow: inset 0 0 0 1.5px currentColor; opacity: 0.9; }
+.ruled .wk-now { position: absolute; top: -2px; bottom: -2px; width: 2px; background: var(--tx-1); border-radius: 1px; }
+.ruled .wk-open { font-size: 12.5px; color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 52px; text-align: right; }
+.ruled .wk-open b { color: var(--tx-1); font-weight: var(--w-semi); }
+.ruled .wk-open.wk-full { color: var(--warn); font-weight: var(--w-semi); }
