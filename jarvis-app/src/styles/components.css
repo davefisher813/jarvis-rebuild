@@ -2488,13 +2488,12 @@ button {
    schedule row taller, and the row itself already opens the full editor. */
 .sched-until-btn::after { content: ""; position: absolute; inset: -3px -8px -5px; }
 .sched-until-btn:active { color: var(--accent-tx); }
-/* "Until 9:00 AM" is information that happens to be tappable, so it stays the
-   colour of the facts beside it. "Set Length" is an OFFER with nothing to
-   read, and grey floating text that is actually a button is the exact thing
-   Dave called out: "this looks nothing like something to click on". It takes
-   the tappable colour the location link on this same row already uses.
-   Deliberately not both: every row wearing accent text is a wall of red. */
-.sched-until-empty { color: var(--accent-tx); font-weight: var(--w-semi); }
+/* RETIRED 2026-09-02 (A Cleaner Top). The empty-length offer wore the
+   tappable accent, which put a red word on nearly every row of the day, and
+   the location link beside it wore the same. Dave, off the whole page:
+   "This looks extremely sloppy." A block with no length says nothing now,
+   and the time popover is where a length is given. The class is gone; the
+   ruled system paints the length and the place in the quiet ink. */
 /* No .dur-pop: the duration editor expands in place under the row, reusing
    .draft-edit-body and .plan-controls, which is what ProposedRow already
    does. A floating version shipped for about an hour and the browser walk

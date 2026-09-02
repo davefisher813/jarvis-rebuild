@@ -315,13 +315,19 @@
   left: calc(var(--s-4) + 62px + 11px); }
 /* Locked (protected) rows dim as they did; the lock rides at 11px in --tx-4. */
 .ruled .sched-locked .sched-title { color: var(--tx-3); font-weight: 550; }
-/* "Set Length" is an offer with nothing to read, so it is a capsule, not
-   bare words (ruled: a text button is always a capsule). "Until 9:00 AM"
-   is information that happens to be tappable and stays text. */
-.ruled .sched-until-btn.sched-until-empty { display: inline-flex; align-items: center; height: 22px; padding: 0 9px;
-  border-radius: var(--r-pill); background: var(--press-3); color: var(--tint); font-weight: var(--w-semi);
-  font-size: 12px; white-space: nowrap; }
-.ruled .sched-until-btn.sched-until-empty::after { inset: -6px -4px; }
+/* THE ROW SPENDS NO RED (A Cleaner Top, Dave 2026-09-02). "Set Length" was
+   an accent capsule on nearly every row of the day, and the place was an
+   accent link under it: two reds per row for a blank field and an address.
+   The length is a quiet fact on the meta line now, the place is a quiet
+   link on the same line, and a block with no length says nothing at all
+   (the time popover sets it). The capsule rule is retired with it. */
+.ruled .sched-cat { flex-wrap: nowrap; min-width: 0; }
+/* The place is the one item on the line with no ceiling on its length, so
+   it is the one that gives: everything else keeps its width and the address
+   ellipsizes into whatever is left. */
+.ruled .sched-cat .sched-loc { color: var(--tx-3); font-weight: var(--w-regular); text-decoration: none;
+  margin-top: 0; min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.ruled .sched-cat .sched-until-btn { color: var(--tx-3); }
 /* The gap: dashed --tx-4, no fill, the plus is the row's one verb mark. */
 .ruled .sched-gap { background: transparent; margin: 6px var(--s-4); padding: 8px var(--s-3); gap: 11px; }
 .ruled .sched-gap .sched-time { width: 62px; }
@@ -433,3 +439,57 @@
 .ruled .wk-note { padding: 10px var(--s-4) 0; font-size: 12.5px; color: var(--tx-3); }
 .ruled .wk-note b { color: var(--tx-1); font-weight: var(--w-semi); }
 
+
+/* ---------- THE SCHEDULE HEAD (A Cleaner Top, Dave 2026-09-02: "This looks
+   extremely sloppy. Send me an updated preview of a much cleaner look for
+   the top of this page"). Picked: "The date leads, the counts sit under
+   it". Five bands became two: the date with bare chevrons, then one quiet
+   line carrying the day's one derived number with Plan My Day at its right
+   in the head-action pill. The caps count eyebrow, the circular steppers
+   and the floating button row are all gone. --------------------------- */
+.ruled .sc-head { display: flex; align-items: center; gap: 10px; padding: var(--s-4) var(--s-4) 0; }
+.ruled .sc-date { font-size: 22px; font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.1; }
+.ruled .sc-date .yr { color: var(--tx-3); font-weight: var(--w-semi); margin-left: 7px; }
+.ruled .sc-sp { flex: 1; }
+.ruled .sc-steps { display: inline-flex; align-items: center; gap: 2px; color: var(--tx-3); flex-shrink: 0; }
+.ruled .sc-step { width: 34px; height: 34px; display: grid; place-items: center; padding: 0;
+  background: none; border: 0; color: inherit; }
+.ruled .sc-step .ic { width: 17px; height: 17px; }
+.ruled .sc-step:active { color: var(--tx-1); }
+/* The fact and the one action. .plan-head seats the pill at the right and
+   .see-all.pill-action is the same ghost capsule Today's heads wear. */
+.ruled .plan-head.sc-sub { padding: 7px var(--s-4) 0; }
+.ruled .sc-fact { font-size: 12.5px; color: var(--tx-3); min-width: 0; }
+.ruled .sc-fact b { color: var(--tx-2); font-weight: var(--w-semi); }
+.ruled .sc-fact .sched-sep { margin: 0 5px; opacity: 0.55; }
+
+/* ---------- THE DAY STARTS AT NOW (same catalog, picked "Everything behind
+   you folds to one line, and the day starts at Now"). The day used to open
+   on a dashed box offering to fill an hour that ended before breakfast. */
+.ruled .sched-earlier { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 44px;
+  padding: 0 var(--s-4); background: none; border: 0; font-family: var(--f); font-size: 13px;
+  color: var(--tx-3); text-align: left; }
+.ruled .sched-earlier .n { color: var(--tx-4); }
+.ruled .sched-earlier .chev { margin-left: auto; }
+.ruled .sched-earlier:active { background: var(--press-1); }
+/* The rule: the one place on this page the system red says "here", and it
+   is a fact about the minute rather than an action, so it is a hairline and
+   a word, never a fill. */
+.ruled .sched-now { display: flex; align-items: center; gap: 9px; padding: 9px var(--s-4) 7px; }
+.ruled .sched-now .w { font-size: 10px; font-weight: var(--w-bold); letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--sys-red); flex-shrink: 0; }
+.ruled .sched-now .l { flex: 1; height: 1px; background: var(--sys-red); opacity: 0.4; }
+.ruled .sched-now .t { font-size: 11px; color: var(--tx-4); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+/* Running Late? rides the rule it is about. Neutral capsule: the rule's own
+   red is the signal, and two reds on one line is the thing being fixed. */
+.ruled .sched-late { flex-shrink: 0; background: var(--press-3); color: var(--tx-1); border: 0;
+  border-radius: var(--r-pill); font-family: var(--f); font-size: 12px; font-weight: var(--w-semi);
+  padding: var(--s-1) var(--s-2h); position: relative; }
+.ruled .sched-late::after { content: ""; position: absolute; inset: -9px -4px; }
+.ruled .sched-late.on { background: var(--press-5); }
+.ruled .sched-list > .late-chips { padding-top: var(--s-1); padding-bottom: var(--s-2); }
+/* The merged time popover: when it starts, and how long it runs. */
+.ruled .time-pop-durs { margin-top: var(--s-3); }
+.ruled .time-pop-durs .input-label { margin-bottom: var(--s-1h); }
+.ruled .time-pop-durs .plan-durs { padding: 0; }
+.ruled .sched-list > .sched-copy { margin: var(--s-2) auto var(--s-3); }

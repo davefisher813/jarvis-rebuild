@@ -6,7 +6,6 @@ import { fmtTime, fmtDistance } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
 import { attachLabel } from "../attachments";
 import { DUR_CHOICES, durLabel, minutesBetween, endFor } from "../durations";
-import { PinGlyph } from "../../shared/glyphs";
 import { Check as CheckGlyph } from "../../shared/icons";
 import { EventWeatherLine } from "../../weather/WeatherLine";
 
@@ -164,7 +163,7 @@ export default function DayRow({
           <button
             type="button"
             className="sched-time sched-time-btn"
-            aria-label={"Change time, currently " + t.time + " " + t.ap}
+            aria-label={"Change time or length, currently " + t.time + " " + t.ap}
             onClick={(ev) => { ev.stopPropagation(); setPicking(true); }}
           >{t.time}<span className="ampm">{t.ap}</span></button>
         ) : (
@@ -203,19 +202,55 @@ export default function DayRow({
 
                 A row with no end has no length to state, so instead of
                 rendering nothing it offers to give it one. */}
-            {(onSetEnd || endT) && <span className="sched-sep">&middot;</span>}
-            {onSetEnd && !selecting ? (
-              <button
-                type="button"
-                className={"sched-until sched-until-btn" + (endT ? "" : " sched-until-empty")}
-                aria-label={endT ? "Change length, currently " + (mins ?? 0) + " minutes" : "Set a length"}
-                aria-expanded={sizing}
-                onClick={(ev) => { ev.stopPropagation(); setSizing(!sizing); }}
-              >{endT ? <>Until {endT.time} {endT.ap}</> : "Set Length"}</button>
-            ) : endT ? (
-              <span className="sched-until">Until {endT.time} {endT.ap}</span>
-            ) : null}
-            {rep && <><span className="sched-sep">&middot;</span><span className="sched-rep">Repeats {rep}</span></>}
+            {/* ONE GREY LINE (A Cleaner Top, Dave 2026-09-02, picked "In the
+                one grey meta line"). It reads area, length, repeat, place,
+                in that order, all in the same quiet ink.
+
+                THE RED CAPSULE IS GONE. A block with no end wore "Set
+                Length" as an accent capsule, which put a red verb on nearly
+                every row of the day: red is a verb in this app and it was
+                being spent on a field that happens to be blank. A block
+                with no length now says nothing, and the way to give it one
+                is the same tap that moves it (see the time popover below,
+                which carries both) -- his own note on the pick: "I would
+                like the same functionality as the option you recommended as
+                well". The length, once set, is still the door to changing
+                it, so nothing that was reachable stopped being reachable.
+
+                The length is the SPAN, not the end time: "30m" is what you
+                are deciding when you pick a duration chip, and "Until 9:00
+                AM" made every row do arithmetic to answer "how long". */}
+            {mins != null && (
+              <>
+                <span className="sched-sep">&middot;</span>
+                {onSetEnd && !selecting ? (
+                  <button
+                    type="button"
+                    className="sched-until sched-until-btn"
+                    aria-label={"Change length, currently " + mins + " minutes"}
+                    aria-expanded={sizing}
+                    onClick={(ev) => { ev.stopPropagation(); setSizing(!sizing); }}
+                  >{durLabel(mins)}</button>
+                ) : (
+                  <span className="sched-until">{durLabel(mins)}</span>
+                )}
+              </>
+            )}
+            {rep && <><span className="sched-sep">&middot;</span><span className="sched-rep">{rep.charAt(0).toUpperCase() + rep.slice(1)}</span></>}
+            {/* The place joins the line instead of taking one of its own in
+                accent red. It is still the link it was. */}
+            {e.data.location && (
+              <>
+                <span className="sched-sep">&middot;</span>
+                <a
+                  className="sched-loc truncate"
+                  href={"https://maps.apple.com/?q=" + encodeURIComponent(e.data.location)}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(ev) => ev.stopPropagation()}
+                >{e.data.location}</a>
+              </>
+            )}
             {weatherDateIso && !isPast && e.data.location && <EventWeatherLine dateIso={weatherDateIso} start={e.data.start} />}
           </div>
           {attach && (
@@ -223,12 +258,6 @@ export default function DayRow({
               <svg className="ic clip-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
               {attachLabel(attach)}
             </div>
-          )}
-          {e.data.location && (
-            <a className="sched-loc" href={"https://maps.apple.com/?q=" + encodeURIComponent(e.data.location)} target="_blank" rel="noreferrer" onClick={(ev) => ev.stopPropagation()}>
-              <PinGlyph />
-              {e.data.location}
-            </a>
           )}
           {/* THE TRAINING DOOR (D4-C): "it names the day's lift, taps
               straight into the session, and when you finish, the block
@@ -302,7 +331,15 @@ export default function DayRow({
           </div>
         </div>
       )}
-      {/* TAP THE TIME (M3): a time change should not cost the whole editor. */}
+      {/* TAP THE TIME (M3): a time change should not cost the whole editor.
+          AMENDED 2026-09-02 (A Cleaner Top, Dave on the meta-line pick: "I
+          would like the same functionality as the option you recommended as
+          well"). The recommended shape put the length under the time and
+          set it by tapping there. He took the other line but wants that
+          reach, so the time popover carries both halves of the block now:
+          when it starts, and how long it runs. That is also what makes the
+          red "Set Length" capsule removable -- a block with no length is
+          still one tap from having one, at the control you would tap. */}
       {picking && onMoveTo && (
         <>
           <div className="time-pop-scrim" onClick={() => setPicking(false)} />
@@ -314,6 +351,22 @@ export default function DayRow({
               defaultValue={e.data.start}
               onChange={(ev) => { const v = ev.target.value; if (v) { setPicking(false); onMoveTo(v); } }}
             />
+            {onSetEnd && (
+              <div className="time-pop-durs">
+                <div className="input-label">How Long</div>
+                <div className="chip-row plan-durs">
+                  {DUR_CHOICES.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={"chip" + (mins === d ? " chip-on" : "")}
+                      aria-label={e.data.title + ": " + d + " minutes"}
+                      onClick={() => { setPicking(false); onSetEnd(endFor(e.data.start, d)); }}
+                    >{durLabel(d)}</button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

@@ -38,9 +38,13 @@ const WKLONG = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday"
 type Mode = "day" | "week" | "month" | "repeats";
 interface WeekCell { date: string; day: number; colors: string[]; }
 
+// THE DATE IS THE HEAD (A Cleaner Top, Dave 2026-09-02: "This looks
+// extremely sloppy"; picked "The date leads, the counts sit under it"). It
+// is set at 22/800 now, so the weekday is short: "Wed, Sep 2", not
+// "Wednesday, Sep 2", which wrapped beside the arrows on a 390px phone.
 function fullDay(iso: string): string {
   const d = new Date(iso + "T00:00:00");
-  return `${WKLONG[d.getDay()]}, ${MONTHS[d.getMonth()]!.slice(0, 3)} ${d.getDate()}`;
+  return `${WKLONG[d.getDay()]!.slice(0, 3)}, ${MONTHS[d.getMonth()]!.slice(0, 3)} ${d.getDate()}`;
 }
 function weekRange(cells: WeekCell[]): string {
   if (cells.length < 7) return "";
@@ -160,6 +164,9 @@ export default function SchedulePage({
   );
   const navLabel = mode === "month" ? null : mode === "week" ? weekRange(weekCells) : fullDay(selected);
   const [lateOpen, setLateOpen] = useState(false);
+  // The morning folds shut on every visit: the point of the fold is that
+  // the page opens on what is next, and a remembered "open" would undo it.
+  const [earlierOpen, setEarlierOpen] = useState(false);
   const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
 
   // Drag an Anytime row down onto the grid to give it a time (roadmap v2's one
@@ -229,7 +236,14 @@ export default function SchedulePage({
     | { kind: "event"; e: EventItem; s: number }
     | { kind: "locked"; l: LockedRange; s: number }
     | { kind: "gap"; start: string; end: string; s: number }
-    | { kind: "proposed"; b: import("../planDay").PlanBlock; s: number };
+    | { kind: "proposed"; b: import("../planDay").PlanBlock; s: number }
+    // THE DAY STARTS AT NOW (A Cleaner Top, Dave 2026-09-02, picked
+    // "Everything behind you folds to one line, and the day starts at
+    // Now"). Two markers ride the same list as the rows, so the order is
+    // decided in one place: the fold that holds the morning, and the rule
+    // that says where you are.
+    | { kind: "earlier"; n: number; s: number }
+    | { kind: "now"; s: number };
   // NESTING (2026-08-21, Dave: "why are blocks greyed out... we were supposed
   // to have blending options and the ability to do tasks in events").
   // A block that HOLDS tasks says "tasks land here" and they do land there,
@@ -282,13 +296,60 @@ export default function SchedulePage({
   // screen. Blocks are everything that occupies time (events and protected
   // blocks); proposed is separate; open is the gaps the page already found.
   // Zero terms drop out; a day with nothing reads "Nothing scheduled".
-  const openMin = entries.filter((en) => en.kind === "gap").reduce((acc, en) => acc + (toMin(en.end) - toMin(en.start)), 0);
+  //
+  // AMENDED 2026-09-02 (A Cleaner Top; Dave: "Does the count at the top
+  // really have value? I don't think the user cares how many open blocks
+  // there are"). He is right about two of the three. The block count is
+  // visible by looking at the list, so it says nothing the page is not
+  // already saying. What survives is the number you cannot see: open time
+  // is the sum of every gap in the day, and it is the number that answers
+  // "can I take this on" -- the same number the Week head carries, so the
+  // two views now count the same thing. Proposals join it only while some
+  // are standing, because that is a decision waiting, not decoration.
+  //
+  // THE DAY STARTS AT NOW (same catalog): on today the open time counts
+  // FORWARD from now. An hour that has gone is not open.
+  // The same day list renders under the month grid, so the fold belongs to
+  // the LIST, not to Day mode: a past gap under a month grid is the same
+  // dead offer it is anywhere else. Week has no day list, Repeats has no day.
+  const foldable = isToday && mode !== "week" && mode !== "repeats";
+  const endOfEntry = (en: Entry): number =>
+    en.kind === "event" ? (en.e.data.end ? toMin(en.e.data.end) : toMin(en.e.data.start) + 60)
+      : en.kind === "locked" ? en.l.e
+      : en.kind === "gap" ? toMin(en.end)
+      : en.s + 30;
+  const pastEntries = foldable ? entries.filter((en) => endOfEntry(en) <= nowMin) : [];
+  // A gap you are standing in the middle of is not the gap it says it is:
+  // at 12:51 the 11:00 slot has nine minutes left, not two hours. Every gap
+  // that straddles now is trimmed to now (rounded up to the next quarter,
+  // the granularity everything else on this page uses), and one that has
+  // less than fifteen minutes left stops being an offer at all.
+  const ahead = (foldable ? entries.filter((en) => endOfEntry(en) > nowMin) : entries).flatMap((en): Entry[] => {
+    if (!foldable || en.kind !== "gap" || toMin(en.start) >= nowMin) return [en];
+    const from = Math.ceil(nowMin / 15) * 15;
+    if (toMin(en.end) - from < 15) return [];
+    return [{ ...en, start: minToHHMM(from), s: from }];
+  });
+  // An open slot that has gone is not an offer, so a past gap never renders,
+  // folded or not. Past EVENTS are a record of the day and keep their rows.
+  const pastShown = pastEntries.filter((en) => en.kind !== "gap");
+  const openMin = ahead.filter((en) => en.kind === "gap").reduce((acc, en) => acc + (toMin(en.end) - toMin(en.start)), 0);
   const blockCount = entries.filter((en) => en.kind === "event" || en.kind === "locked").length;
   const countLine: React.ReactNode[] = [];
-  if (blockCount > 0) countLine.push(<span key="b"><b>{blockCount}</b> {blockCount === 1 ? "block" : "blocks"}</span>);
-  if (proposedBusy.length > 0) countLine.push(<span key="p"><b>{proposedBusy.length}</b> proposed</span>);
   if (openMin > 0) countLine.push(<span key="o"><b>{gapLabel(openMin)}</b> open</span>);
+  else if (blockCount > 0) countLine.push(<span key="f">No open time</span>);
+  if (proposedBusy.length > 0) countLine.push(<span key="p"><b>{proposedBusy.length}</b> proposed</span>);
   if (countLine.length === 0) countLine.push(<span key="n">Nothing scheduled</span>);
+  // The list as it renders: the fold, what it holds when it is open, the
+  // rule, then the day ahead. Off today (a past or future date) nothing is
+  // "earlier" and nothing is "now", so the list is the entries themselves.
+  const display: Entry[] = !foldable ? entries : [
+    ...(pastShown.length > 0 ? [{ kind: "earlier", n: pastShown.length, s: 0 } as Entry] : []),
+    ...(earlierOpen ? pastShown : []),
+    ...(pastEntries.length > 0 ? [{ kind: "now", s: nowMin } as Entry] : []),
+    ...ahead,
+  ];
+
   return (
     <div className="screen ruled">
       <PageHeader title="Schedule" actions={sel.active ? <BarText label="Done" strong onClick={sel.exit} /> : <>
@@ -308,13 +369,18 @@ export default function SchedulePage({
         ))}
       </div></div>
 
-      <div className="cal-nav">
-        <div className="mo">
+      {/* THE HEAD (A Cleaner Top, 2026-09-02). The date leads at 22/800 and
+          the two arrows are bare chevrons at the right edge: the circles
+          they wore were the only two circles on the page, and they read as
+          buttons competing with the date rather than as its navigation. */}
+      <div className="sc-head">
+        <div className="sc-date">
           {mode === "month" ? <>{MONTHS[month]}<span className="yr">{year}</span></> : navLabel}
         </div>
-        <div className="cal-steps">
-          <button className="cal-step" onClick={onPrev} aria-label="Previous"><ChevronLeft className="ic" /></button>
-          <button className="cal-step" onClick={onNext} aria-label="Next"><ChevronRight className="ic" /></button>
+        <span className="sc-sp" />
+        <div className="sc-steps">
+          <button className="sc-step" onClick={onPrev} aria-label="Previous"><ChevronLeft className="ic" /></button>
+          <button className="sc-step" onClick={onNext} aria-label="Next"><ChevronRight className="ic" /></button>
         </div>
       </div>
 
@@ -434,32 +500,20 @@ export default function SchedulePage({
           underneath is a different question, glued to the bottom of the
           answer. Four modes, one of which has no day list. */}
       {mode !== "repeats" && mode !== "week" && (<>
-      <div className="grp"><div className="plan-head">
-        {/* Date lives in the nav above; repeating it here wrapped the row (no-repetition law). */}
-        {/* It must not read "0 Events" over a day full of proposals. The
-            count says what is committed and, separately, what is proposed;
-            neither number pretends to be the other. */}
-        <div className="eyebrow count-line">
+      {/* ONE QUIET LINE, AND ONE ACTION (A Cleaner Top, 2026-09-02). This
+          was a caps eyebrow floating on the page ground with a right-aligned
+          row of buttons under it: three bands of chrome before the first
+          block. It is one row now, the fact on the left and Plan My Day at
+          the right in the ghost pill the home page's head actions wear.
+          Running Late? moved onto the Now rule, where the minute it is
+          about actually is; Copy Yesterday moved into the empty state, the
+          only place it ever rendered. */}
+      <div className="plan-head sc-sub">
+        <div className="sc-fact">
           {countLine.map((c, i) => <React.Fragment key={i}>{i > 0 && <span className="sched-sep">{"\u00b7"}</span>}{c}</React.Fragment>)}
         </div>
-        <div className="plan-head-acts">
-          {hasFuture && onRunningLate && (
-            <button className={"plan-cta plan-cta-ghost" + (lateOpen ? " late-armed" : "")} onClick={() => setLateOpen((v) => !v)}>Running Late?</button>
-          )}
-          {/* N7: most days are a variation on a day you already had. */}
-          {mode === "day" && onCopyDay && n === 0 && (
-            <button className="plan-cta plan-cta-ghost" onClick={onCopyDay}>Copy Yesterday</button>
-          )}
-          {/* B15 (2026-08-23): ghosted while a draft is standing.
-              The runtime walk caught this and the source law could not: Plan
-              My Day lives in this file and Accept the Day lives in
-              ScheduleFlow's dayFooter, so a per-FILE scan sees one fill in
-              each and two on the glass. Same resolution as Today's Focus
-              button, and the same honest signal: dayFooter is only ever
-              passed while a proposal is waiting to be accepted. */}
-          {onPlanDay && <button className={"plan-cta" + (dayFooter ? " plan-cta-ghost" : "")} onClick={onPlanDay}>Plan My Day</button>}
-        </div>
-      </div></div>
+        {onPlanDay && <button className="see-all pill-action" onClick={onPlanDay}>Plan My Day</button>}
+      </div>
       {/* N5: the day says when it does not fit, WHERE it does not fit, and
           offers the fix in the same breath. Before this the overlap was
           something you discovered by being late to the second thing.
@@ -484,18 +538,6 @@ export default function SchedulePage({
         </div>
       )}
 
-      {lateOpen && onRunningLate && (
-        <div className="pad-x late-chips">
-          <div className="segmented">
-            {LATE_CHOICES.map((m) => (
-              <button className="seg" key={m} onClick={() => { setLateOpen(false); onRunningLate(m); }}>
-                {m === 60 ? "1 hour" : `${m} min`}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {loading ? (
         <SkeletonRows />
       ) : entries.every((en) => en.kind === "gap") ? (
@@ -504,7 +546,17 @@ export default function SchedulePage({
         // secondary. This is the tab's most common first-run state and it was
         // showing two fills.
         <>
-          <div className="empty-state"><div className="t-body">No events</div><button className="btn btn-secondary" onClick={onNew}>New Event</button></div>
+          <div className="empty-state">
+            <div className="t-body">No events</div>
+            <button className="btn btn-secondary" onClick={onNew}>New Event</button>
+            {/* N7: most days are a variation on a day you already had. It
+                only ever rendered on an empty day, so this is where it
+                belongs; in the head it was a third button on a row that
+                already had two. */}
+            {mode === "day" && onCopyDay && n === 0 && (
+              <button className="row-act" onClick={onCopyDay}>Copy Yesterday</button>
+            )}
+          </div>
           {mode === "day" && (
             <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onDragStart={beginDrag} parentOf={parentOf} />
           )}
@@ -516,8 +568,52 @@ export default function SchedulePage({
             Whole Day wears, rows together, hairlines between. */}
         <div className="pad-x"><div className="card sched-card">
         <div className={"sched-list" + (mode === "day" && drag?.over ? " drop-target" : "")} ref={gridZoneRef}>
-          {entries.map((en, i) =>
-            en.kind === "gap" ? (
+          {display.map((en, i) =>
+            en.kind === "earlier" ? (
+              // Everything behind you, in one line. It says how much it
+              // holds and nothing about how it went: a block that has
+              // passed is a record, not a verdict.
+              <button
+                type="button"
+                className="sched-earlier"
+                key="earlier"
+                aria-expanded={earlierOpen}
+                onClick={() => setEarlierOpen((v) => !v)}
+              >
+                Earlier<span className="n">{en.n} {en.n === 1 ? "block" : "blocks"}</span>
+                <span className={"chev chev-down" + (earlierOpen ? " chev-open" : "")} />
+              </button>
+            ) : en.kind === "now" ? (
+              <React.Fragment key="now">
+                <div className="sched-now">
+                  <span className="w">Now</span>
+                  <span className="l" />
+                  {/* RUNNING LATE? LIVES ON THE RULE (A Cleaner Top): it is
+                      an action about this minute, so it belongs on the line
+                      that marks this minute, not in the page head. */}
+                  {hasFuture && onRunningLate && (
+                    <button
+                      type="button"
+                      className={"sched-late" + (lateOpen ? " on" : "")}
+                      aria-expanded={lateOpen}
+                      onClick={() => setLateOpen((v) => !v)}
+                    >Running Late?</button>
+                  )}
+                  <span className="t">{fmtTime(now!).time} {fmtTime(now!).ap}</span>
+                </div>
+                {lateOpen && onRunningLate && (
+                  <div className="pad-x late-chips">
+                    <div className="segmented">
+                      {LATE_CHOICES.map((m) => (
+                        <button className="seg" key={m} onClick={() => { setLateOpen(false); onRunningLate(m); }}>
+                          {m === 60 ? "1 hour" : `${m} min`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
+            ) : en.kind === "gap" ? (
               <button
                 className={"sched-row sched-gap" + (isToday && toMin(en.end) <= nowMin ? " past" : "")}
                 key={"gap-" + i}
@@ -633,6 +729,15 @@ export default function SchedulePage({
                 )}
               </div>
             ),
+          )}
+          {/* N7: most days are a variation on a day you already had. It only
+              ever offered itself on a day with no events of its own, so it
+              is the last row of that day rather than a third button in the
+              head (A Cleaner Top, 2026-09-02). A day with events never sees
+              it; the empty state carries its own copy for the day that has
+              no rows at all. */}
+          {mode === "day" && onCopyDay && n === 0 && (
+            <button className="row-act sched-copy" onClick={onCopyDay}>Copy Yesterday</button>
           )}
         </div>
         </div></div>

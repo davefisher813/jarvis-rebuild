@@ -3548,3 +3548,105 @@ describe("LAW 18: when is a fact, why is never claimed", () => {
     }
   });
 });
+
+// ===========================================================================
+// LAW 17: THE SCHEDULE TOP (A Cleaner Top, Dave 2026-09-02, from one
+// screenshot: "This looks extremely sloppy. Send me an updated preview of a
+// much cleaner look for the top of this page and beginning of the
+// schedule").
+//
+// Counted on that screenshot, before the first block: the title, the
+// segment, the date beside two circular steppers, a caps eyebrow of counts
+// floating on the page ground, and a right-aligned row of two buttons. Then
+// the day opened on a dashed box offering to fill an hour that had ended
+// four hours earlier, over rows each carrying a red "Set Length" capsule
+// and a red address.
+//
+// His three picks, and his two notes, are what this law holds in place.
+// ===========================================================================
+describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the row spends no red", () => {
+  const page = () => read(join(SRC, "schedule/screens/SchedulePage.tsx"));
+  const dayRow = () => read(join(SRC, "schedule/screens/DayRow.tsx"));
+
+  // PICK 1: "The date leads, the counts sit under it". Plus his note, which
+  // is the real ruling here: "Does the count at the top really have value? I
+  // don't think the user cares how many open blocks there are". The block
+  // count is visible by looking at the list, so it never renders. Open time
+  // is the one number the page cannot show by existing: it is the sum of
+  // every gap, and it is the same number the Week head carries.
+  it("the head states open time, never a block count", () => {
+    const src = page();
+    expect(src, "the caps count eyebrow is gone").not.toMatch(/eyebrow count-line/);
+    expect(src, "the head is the date and the arrows").toMatch(/<div className="sc-head">/);
+    expect(src, "open time leads the fact line")
+      .toMatch(/if \(openMin > 0\) countLine\.push\(<span key="o"><b>\{gapLabel\(openMin\)\}<\/b> open<\/span>\);/);
+    const facts = src.slice(src.indexOf("const countLine"), src.indexOf("return ("));
+    expect(facts, "a block count is never pushed onto the line").not.toMatch(/blockCount\}<\/b>/);
+    // On today the number counts FORWARD: an hour that has gone is not open.
+    expect(src, "open time is summed over what is ahead, not the whole day")
+      .toMatch(/const openMin = ahead\.filter\(\(en\) => en\.kind === "gap"\)/);
+  });
+
+  // The head carries ONE action and it is not a fill. Running Late? and Copy
+  // Yesterday left the head for the two places they are actually about.
+  it("the head carries one action, in the ghost pill, and the other two moved", () => {
+    const src = page();
+    expect(src, "Plan My Day is the head action pill").toMatch(/<button className="see-all pill-action" onClick=\{onPlanDay\}>Plan My Day<\/button>/);
+    expect(src, "the schedule head spends no accent fill").not.toMatch(/plan-cta/);
+    expect(src, "the button row is gone").not.toMatch(/plan-head-acts/);
+    expect(src, "Running Late? rides the Now rule").toMatch(/className=\{"sched-late"[^}]*\}[\s\S]{0,220}Running Late\?/);
+    expect(src, "Copy Yesterday lives in the empty state").toMatch(/empty-state[\s\S]{0,600}Copy Yesterday/);
+  });
+
+  // PICK 2: "Everything behind you folds to one line, and the day starts at
+  // Now." Two halves, and the second is the one that matters: an open slot
+  // that has gone is not an offer, so it never renders at all.
+  it("the morning folds to one line and a past gap never renders", () => {
+    const src = page();
+    expect(src, "the fold and the rule ride the entry list").toMatch(/\| \{ kind: "earlier"; n: number; s: number \}/);
+    expect(src, "and the rule with it").toMatch(/\| \{ kind: "now"; s: number \}/);
+    expect(src, "past gaps are dropped, past events are kept")
+      .toMatch(/const pastShown = pastEntries\.filter\(\(en\) => en\.kind !== "gap"\);/);
+    expect(src, "the fold names what it holds, and claims nothing about how it went")
+      .toMatch(/Earlier<span className="n">\{en\.n\} \{en\.n === 1 \? "block" : "blocks"\}<\/span>/);
+    expect(src, "the fold is shut on arrival").toMatch(/const \[earlierOpen, setEarlierOpen\] = useState\(false\)/);
+    // Only on today: on another date nothing is behind you and nothing is now.
+    expect(src, "the fold is a today-only shape, on every mode that draws the day")
+      .toMatch(/const foldable = isToday && mode !== "week" && mode !== "repeats";/);
+    // A gap you are standing in the middle of is trimmed to now, or dropped.
+    expect(src, "a straddling gap is trimmed to now").toMatch(/const from = Math\.ceil\(nowMin \/ 15\) \* 15;/);
+  });
+
+  it("the Now rule is a hairline and a word, never a fill", () => {
+    expect(CSS, "the rule paints a 1px line in the system red")
+      .toMatch(/\.ruled \.sched-now \.l \{ flex: 1; height: 1px; background: var\(--sys-red\)/);
+    expect(CSS, "and Running Late? beside it stays neutral")
+      .toMatch(/\.ruled \.sched-late \{[^}]*background: var\(--press-3\); color: var\(--tx-1\)/);
+  });
+
+  // PICK 3: "In the one grey meta line", with his note: "I would like the
+  // same functionality as the option you recommended as well" -- the
+  // recommended shape set the length by tapping the time, and that reach is
+  // what makes the red capsule removable.
+  it("a block with no length says nothing, and the time popover sets both", () => {
+    const src = dayRow();
+    // The words may survive in the comments that record why they went; what
+    // must not survive is a rendered capsule or the class that painted it.
+    expect(src, "the Set Length capsule is retired").not.toMatch(/>Set Length<|: "Set Length"|sched-until-empty"/);
+    expect(CSS, "and its rule with it").not.toMatch(/\.sched-until-empty\s*\{/);
+    expect(src, "the length renders only when there is one").toMatch(/\{mins != null && \(/);
+    expect(src, "and it is the span, not the end time").toMatch(/>\{durLabel\(mins\)\}<\/button>/);
+    const pop = src.slice(src.indexOf('<div className="time-pop">'));
+    expect(pop, "the time popover carries the length too").toMatch(/time-pop-durs/);
+    expect(pop, "and its chips write an end time").toMatch(/onSetEnd\(endFor\(e\.data\.start, d\)\)/);
+    expect(src, "and says so").toMatch(/"Change time or length, currently "/);
+  });
+
+  it("the place is a fact on the meta line, not an accent link on its own", () => {
+    const src = dayRow();
+    const meta = src.slice(src.indexOf('<div className="sched-cat">'), src.indexOf("{attach && ("));
+    expect(meta, "the location sits inside the meta line").toMatch(/sched-loc truncate/);
+    expect(src, "the pin glyph went with the line it led").not.toMatch(/<PinGlyph \/>/);
+    expect(CSS, "and it is quiet there").toMatch(/\.ruled \.sched-cat \.sched-loc \{ color: var\(--tx-3\)/);
+  });
+});

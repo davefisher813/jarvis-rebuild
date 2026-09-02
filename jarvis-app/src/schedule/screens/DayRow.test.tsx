@@ -100,7 +100,7 @@ describe("DayRow quick actions", () => {
 
   it("tapping the TIME changes just the time, without opening the editor", () => {
     const { onMoveTo, onOpen } = render1();
-    fireEvent.click(screen.getByLabelText("Change time, currently 10:00 AM"));
+    fireEvent.click(screen.getByLabelText("Change time or length, currently 10:00 AM"));
     expect(onOpen).not.toHaveBeenCalled();
     fireEvent.change(screen.getByLabelText("New time"), { target: { value: "14:30" } });
     expect(onMoveTo).toHaveBeenCalledWith("14:30");
@@ -120,22 +120,51 @@ describe("DayRow resize", () => {
     return { onSetEnd, onOpen };
   };
 
-  it("turns the until line into a control instead of leaving it as text", () => {
+  // AMENDED 2026-09-02 (A Cleaner Top, picked "In the one grey meta line"):
+  // the length is the SPAN now, not the end time. "Until 11:00 AM" made
+  // every row do arithmetic to answer "how long is this"; "1h" answers it.
+  it("turns the length into a control instead of leaving it as text, and states the span", () => {
     withEnd();
     const btn = screen.getByLabelText("Change length, currently 60 minutes");
     expect(btn.tagName).toBe("BUTTON");
-    expect(btn).toHaveTextContent("Until");
+    expect(btn).toHaveTextContent("1h");
+    expect(btn).not.toHaveTextContent("Until");
   });
 
   it("stays plain text when the row has no way to resize", () => {
     render(<DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} onOpen={() => {}} />);
     expect(screen.queryByLabelText(/Change length/)).toBeNull();
-    expect(screen.getByText(/Until/)).toBeInTheDocument();
+    expect(screen.getByText("1h")).toBeInTheDocument();
   });
 
-  it("offers a length to a row that has none, rather than rendering nothing", () => {
+  // THE RED CAPSULE IS GONE (A Cleaner Top): a block with no end wore a
+  // "Set Length" accent capsule on nearly every row of the day. A blank
+  // field is not a verb, and red is a verb here. The row says nothing, and
+  // the length is set from the time popover, which now carries both halves.
+  it("says nothing about a length the block does not have", () => {
     withEnd({}, { end: undefined });
-    expect(screen.getByLabelText("Set a length")).toHaveTextContent("Set Length");
+    expect(screen.queryByText("Set Length")).toBeNull();
+    expect(screen.queryByLabelText(/Change length/)).toBeNull();
+  });
+
+  it("the time popover sets the length as well as the time", () => {
+    const onMoveTo = vi.fn();
+    const { onSetEnd } = withEnd({ onMoveTo }, { end: undefined });
+    fireEvent.click(screen.getByLabelText("Change time or length, currently 10:00 AM"));
+    expect(screen.getByText("How Long")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Client Call: 45 minutes"));
+    expect(onSetEnd).toHaveBeenCalledWith("10:45");
+    expect(onMoveTo).not.toHaveBeenCalled();
+  });
+
+  // The place is a fact on the same grey line, not an accent link on one of
+  // its own: two reds per row for a blank field and an address was the
+  // whole complaint.
+  it("the place joins the meta line, quiet", () => {
+    const { container } = render(<DayRow e={ev({ location: "Ridgeline Fields" })} conflict={false} isNext={false} isPast={false} now={null} onOpen={() => {}} />);
+    const loc = container.querySelector(".sched-cat .sched-loc");
+    expect(loc).toHaveTextContent("Ridgeline Fields");
+    expect(container.querySelector(".sched-body > .sched-loc")).toBeNull();
   });
 
   it("sends back an END time, not a duration, and does not open the editor", () => {

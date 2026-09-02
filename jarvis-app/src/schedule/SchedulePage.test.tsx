@@ -48,7 +48,7 @@ describe("SchedulePage", () => {
   it("fires month navigation", () => {
     const onNext = vi.fn();
     const { container } = render(<SchedulePage {...base} onNext={onNext} />);
-    const steps = container.querySelectorAll(".cal-step");
+    const steps = container.querySelectorAll(".sc-step");
     fireEvent.click(steps[steps.length - 1] as HTMLElement);
     expect(onNext).toHaveBeenCalled();
   });
