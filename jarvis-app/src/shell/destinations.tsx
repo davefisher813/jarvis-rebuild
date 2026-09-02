@@ -1,4 +1,4 @@
-import { Home, ListChecks, Calendar, Brain, FileText, Target, MessageSquare, Bell, Wallet, Sparkles, type LucideIcon } from "../shared/icons";
+import { Home, ListChecks, Calendar, Brain, FileText, MessageSquare, Bell, Wallet, Sparkles, type LucideIcon } from "../shared/icons";
 
 // Every page that can live in the bottom tab bar. Whatever the user does not put
 // in the bar falls into More. "More" itself is always the fixed last tab and is
@@ -26,13 +26,16 @@ export const tabLabelOf = (d: Destination): string => d.tabLabel ?? d.label;
 
 export const DESTINATIONS: Destination[] = [
   { key: "today", label: "Today", Icon: Home },
-  { key: "tasks", label: "Tasks", Icon: ListChecks },
+  // LIFE (ruled 2026-09-01, "Tasks becomes Focus": "The Lens plus Lineage
+  // rows", tab called Life, segments Tasks / Projects / Goals). Tasks and
+  // Your Life were two tabs for one tree; they are one tab with three zoom
+  // levels now, and the daily path still lands on tasks. The icon is the
+  // list because that is what opens. Saved bars holding "tasks" or "bigger"
+  // migrate below.
+  { key: "life", label: "Life", Icon: ListChecks },
   { key: "schedule", label: "Schedule", Icon: Calendar },
   { key: "brain", label: "Brain", Icon: Brain },
   { key: "notes", label: "Notes", Icon: FileText },
-  // THE LIFE MERGE (Dave 2026-08-26): the page absorbed the life layer and
-  // became Your Life. Key stays "bigger" so saved tabs and deep links hold.
-  { key: "bigger", label: "Your Life", tabLabel: "Life", Icon: Target },
   { key: "messages", label: "Email", Icon: MessageSquare },
   // Thirteen characters, and it would have wrapped exactly the way Bigger
   // Picture did the moment anyone put it in the bar. Found by the law rather
@@ -42,11 +45,11 @@ export const DESTINATIONS: Destination[] = [
   { key: "chat", label: "Chat", Icon: Sparkles },
 ];
 
-export const DEFAULT_TABS = ["today", "tasks", "schedule", "brain"];
+export const DEFAULT_TABS = ["today", "life", "schedule", "brain"];
 // New users start with three tabs: fewer choices on day one, and Brain is one
 // tap away in More. Persisted at onboarding completion so existing users (who
 // fall back to DEFAULT_TABS above) keep their current layout untouched.
-export const NEW_USER_TABS = ["today", "tasks", "schedule"];
+export const NEW_USER_TABS = ["today", "life", "schedule"];
 export const MAX_TABS = 5;
 
 export const destOf = (key: string): Destination | undefined =>
@@ -63,9 +66,13 @@ export function extrasFor(tabKeys: string[]): Destination[] {
 // tab bars still hold the retired keys, so every load repairs them: retired
 // keys map forward or drop, order and de-dupe are preserved, and the result is
 // capped. A saved bar must never render a tab that resolves to nothing.
+// 2026-09-01: Tasks and Your Life ("bigger") became Life. A saved bar that
+// held both collapses to one Life tab in the earlier one's slot.
 const RETIRED: Record<string, string | null> = {
-  goals: "bigger",
-  projects: "bigger",
+  goals: "life",
+  projects: "life",
+  tasks: "life",
+  bigger: "life",
   insights: null,
 };
 

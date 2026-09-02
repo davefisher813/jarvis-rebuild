@@ -7,13 +7,13 @@ import EditTabsPage from "../more/EditTabsPage";
 
 describe("TabBar", () => {
   it("renders chosen tabs plus a fixed More, highlighting the active one", () => {
-    render(<TabBar tabKeys={["today", "tasks", "notes"]} active="tasks" onTab={() => {}} />);
-    ["Today", "Tasks", "Notes", "More"].forEach((l) => expect(screen.getByText(l)).toBeInTheDocument());
-    expect(screen.getByText("Tasks").closest(".tab")).toHaveClass("active");
+    render(<TabBar tabKeys={["today", "life", "notes"]} active="life" onTab={() => {}} />);
+    ["Today", "Life", "Notes", "More"].forEach((l) => expect(screen.getByText(l)).toBeInTheDocument());
+    expect(screen.getByText("Life").closest(".tab")).toHaveClass("active");
   });
 
   it("highlights More when the active page is not a tab", () => {
-    render(<TabBar tabKeys={["today", "tasks"]} active="brain" onTab={() => {}} />);
+    render(<TabBar tabKeys={["today", "life"]} active="brain" onTab={() => {}} />);
     expect(screen.getByText("More").closest(".tab")).toHaveClass("active");
   });
 });
@@ -21,7 +21,7 @@ describe("TabBar", () => {
 describe("EditTabsPage", () => {
   it("toggles a page in or out of the tab bar", () => {
     const onToggle = vi.fn();
-    render(<EditTabsPage tabKeys={["today", "tasks", "schedule"]} onToggle={onToggle} onBack={() => {}} />);
+    render(<EditTabsPage tabKeys={["today", "life", "schedule"]} onToggle={onToggle} onBack={() => {}} />);
     fireEvent.click(screen.getByRole("switch", { name: "Notes" }));
     expect(onToggle).toHaveBeenCalledWith("notes");
   });
@@ -32,9 +32,9 @@ describe("EditTabsPage", () => {
     fireEvent.click(screen.getByRole("switch", { name: "Today" }));
     expect(onToggle).not.toHaveBeenCalled(); // can't remove the last tab
 
-    rerender(<EditTabsPage tabKeys={["today", "tasks", "schedule", "brain", "notes"]} onToggle={onToggle} onBack={() => {}} />);
-    // Renamed in the Life Merge (2026-08-26): the destination is Your Life.
-    fireEvent.click(screen.getByRole("switch", { name: "Your Life" }));
+    rerender(<EditTabsPage tabKeys={["today", "life", "schedule", "brain", "notes"]} onToggle={onToggle} onBack={() => {}} />);
+    // Email is a real destination not in this bar; at the cap it cannot be added.
+    fireEvent.click(screen.getByRole("switch", { name: "Email" }));
     expect(onToggle).not.toHaveBeenCalled(); // already at max (5)
   });
 });

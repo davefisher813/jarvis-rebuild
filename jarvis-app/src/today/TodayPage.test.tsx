@@ -99,10 +99,16 @@ describe("TodayPage", () => {
       <TodayPage {...base} upNext={[tk("due", "2026-05-20")]} upNextReason={"Due today \u00b7 your focus peak"} onUpNext={() => {}} />,
     );
     expect(container.querySelector(".uchip.u-today")).toHaveTextContent("TODAY");
-    expect(container.querySelector(".task-title .eyebrow")).toHaveTextContent("your focus peak");
-    expect(screen.queryByText(/Due today/)).toBeNull();
-    rerender(<TodayPage {...base} upNext={[tk("due", "2026-05-20")]} upNextReason="Due today" onUpNext={() => {}} />);
+    // "Together" (2026-09-01): the reason is the second line now, sentence
+    // case, after the chip. No third line, no caps eyebrow.
+    expect(container.querySelector(".r-k .r-why")).toHaveTextContent("Your focus peak");
     expect(container.querySelector(".task-title .eyebrow")).toBeNull();
+    expect(screen.queryByText(/Due today/)).toBeNull();
+    // A reason that was only the due-part leaves the line to the goal, or,
+    // with no goal, the category.
+    rerender(<TodayPage {...base} upNext={[tk("due", "2026-05-20")]} upNextReason="Due today" onUpNext={() => {}} />);
+    expect(container.querySelector(".r-k .r-why")).toBeNull();
+    expect(container.querySelector(".r-k .r-goal")).toBeTruthy();
   });
 
   it("shows three, folds the rest behind See All in the head, Less refolds", () => {

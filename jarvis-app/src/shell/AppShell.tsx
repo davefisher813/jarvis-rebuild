@@ -11,7 +11,9 @@ import VoiceBar from "./VoiceBar";
 // on every cold load.
 import TodayFlow from "../today/TodayFlow";
 const MoreFlow = lazyWithRecovery(() => import("../more/MoreFlow"));
-const TasksFlow = lazyWithRecovery(() => import("../tasks/TasksFlow"));
+// LIFE (2026-09-01): Tasks and Your Life are one tab. LifeFlow owns the
+// segment and mounts TasksFlow or BiggerPictureFlow under it.
+const LifeFlow = lazyWithRecovery(() => import("../life/LifeFlow"));
 const ScheduleFlow = lazyWithRecovery(() => import("../schedule/ScheduleFlow"));
 const BrainFlow = lazyWithRecovery(() => import("../brain/BrainFlow"));
 import { dismissSplash } from "../shared/splash";
@@ -27,7 +29,6 @@ import GoogleAutoImport from "../connections/google/AutoImport";
 // small: the default tabs (Today, Tasks, Schedule, Brain) plus More are enough
 // to launch. Everything else fetches its chunk on first open.
 const NotesFlow = lazyWithRecovery(() => import("../notes/NotesFlow"));
-const BiggerPictureFlow = lazyWithRecovery(() => import("../bigger/BiggerPictureFlow"));
 const MessagesFlow = lazyWithRecovery(() => import("../messages/MessagesFlow"));
 const NotificationsFlow = lazyWithRecovery(() => import("../notifications/NotificationsFlow"));
 const MoneyFlow = lazyWithRecovery(() => import("../money/MoneyFlow"));
@@ -87,6 +88,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [projectIntent, setProjectIntent] = useState<string | undefined>(undefined);
   const [eventIntent, setEventIntent] = useState<string | undefined>(undefined);
   const [goalIntent, setGoalIntent] = useState<string | undefined>(undefined);
+  // Which Life segment a deep link wants. Undefined lets the tab remember.
+  const [lifeSegment, setLifeSegment] = useState<"tasks" | "projects" | "goals" | undefined>(undefined);
+  const goLife = (seg: "tasks" | "projects" | "goals") => { setLifeSegment(seg); setActive("life"); };
   // Person deep-link: BrainFlow opens Contacts, PeopleFlow opens the person.
   const [personIntent, setPersonIntent] = useState<{ groupKey: string; id: string } | undefined>(undefined);
   const [noteIntent, setNoteIntent] = useState<string | undefined>(undefined);
@@ -100,10 +104,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [decisionIntent, setDecisionIntent] = useState<string | undefined>(undefined);
   const navigateToNote = (id: string) => { setNoteIntent(id); setActive("notes"); };
   const navigateToEntity = async (kind: string, targetId: string) => {
-    if (kind === "task") { setTaskIntent(targetId); setActive("tasks"); }
-    else if (kind === "project") { setProjectIntent(targetId); setActive("bigger"); }
+    if (kind === "task") { setTaskIntent(targetId); goLife("tasks"); }
+    else if (kind === "project") { setProjectIntent(targetId); goLife("projects"); }
     else if (kind === "event") { setEventIntent(targetId); setActive("schedule"); }
-    else if (kind === "goal") { setGoalIntent(targetId); setActive("bigger"); }
+    else if (kind === "goal") { setGoalIntent(targetId); goLife("goals"); }
     else if (kind === "decision") {
       setDecisionIntent(targetId);
       setBrainIntent("decisions");
@@ -245,13 +249,12 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             are instant, like native iOS (RDB, Dave 2026-07-29) */}
         <Suspense fallback={<SkeletonScreen hero={false} />}>
         <div key={active}>
-        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => setActive("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); setActive("tasks"); }} onGoTasksOverdue={() => { setTaskFilterIntent("overdue"); setActive("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { setMailIntent(threadId); setDraftIntent(draftId); setActive("messages"); }} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") setActive("brain"); else void navigateToEntity(kind, id); }} onGoBigger={(goalId?: string) => { setGoalIntent(goalId); setActive("bigger"); }} />}
-        {active === "tasks" && <TasksFlow openId={taskIntent} openFilter={taskFilterIntent} onOpenNote={navigateToNote} onWhatNow={() => void openWhatNow()} />}
+        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); goLife("tasks"); }} onGoTasksOverdue={() => { setTaskFilterIntent("overdue"); goLife("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { setMailIntent(threadId); setDraftIntent(draftId); setActive("messages"); }} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") setActive("brain"); else void navigateToEntity(kind, id); }} onGoBigger={(goalId?: string) => { setGoalIntent(goalId); goLife("goals"); }} />}
+        {active === "life" && <LifeFlow segment={lifeSegment} taskOpenId={taskIntent} taskFilter={taskFilterIntent} projectOpenId={projectIntent} goalOpenId={goalIntent} onOpenNote={navigateToNote} onWhatNow={() => void openWhatNow()} onOpenDecision={(id) => void navigateToEntity("decision", id)} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
         {active === "brain" && <BrainFlow openKey={brainIntent} routineBlockId={routineBlockIntent} onRoutineBlockConsumed={() => setRoutineBlockIntent(undefined)} personOpenId={personIntent?.id} decisionOpenId={decisionIntent} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => setActive("money")} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
         
-        {active === "bigger" && <BiggerPictureFlow openId={projectIntent} openGoalId={goalIntent} onOpenNote={navigateToNote} onOpenDecision={(id) => void navigateToEntity("decision", id)} />}
         {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent} openDraftId={draftIntent} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
         {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} />}
@@ -284,7 +287,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       {showDock && (
         <>
           <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={() => void openWhatNow()} />
-          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setRoutineBlockIntent(undefined); setTaskIntent(undefined); setTaskFilterIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setDecisionIntent(undefined); setActive(k); }} />
+          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setRoutineBlockIntent(undefined); setTaskIntent(undefined); setTaskFilterIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setLifeSegment(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setDecisionIntent(undefined); setActive(k); }} />
         </>
       )}
       {whatNow && (

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
+import React, { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from "react";
 import { LATE_CHOICES } from "../durations";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
 import { useSelection } from "../../shared/useSelection";
@@ -51,7 +51,7 @@ export default function SchedulePage({
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
   onShiftBlock, onRetimeBlock, onResizeBlock,
   proposed, dayFooter,
-  anytimeItems = [], onToggleTask, onScheduleTask, attachMap = {}, blendMap = {},
+  anytimeItems = [], onToggleTask, onScheduleTask, goalOf, attachMap = {}, blendMap = {},
   windowStartMin, windowEndMin,
 }: {
   year: number; month: number; selected: string; todayDate: string;
@@ -105,6 +105,8 @@ export default function SchedulePage({
   onRetimeBlock?: (id: string, startMin: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
   anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string, startHHMM?: string) => void;
+  // The goal an Anytime task moves, by its short name (the ruled row).
+  goalOf?: (t: TaskItem) => string | null;
   attachMap?: Record<string, AttachInfo>;
   // BLENDING (Dave, 2026-08-21). One confident offer per block, keyed by
   // event id: the task that fits this block well enough that adding it is a
@@ -267,8 +269,19 @@ export default function SchedulePage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, selected, loading]);
 
+  // THE COUNT LINE (Schedule handoff §4.3, ruled 2026-09-01): what is on
+  // screen. Blocks are everything that occupies time (events and protected
+  // blocks); proposed is separate; open is the gaps the page already found.
+  // Zero terms drop out; a day with nothing reads "Nothing scheduled".
+  const openMin = entries.filter((en) => en.kind === "gap").reduce((acc, en) => acc + (toMin(en.end) - toMin(en.start)), 0);
+  const blockCount = entries.filter((en) => en.kind === "event" || en.kind === "locked").length;
+  const countLine: React.ReactNode[] = [];
+  if (blockCount > 0) countLine.push(<span key="b"><b>{blockCount}</b> {blockCount === 1 ? "block" : "blocks"}</span>);
+  if (proposedBusy.length > 0) countLine.push(<span key="p"><b>{proposedBusy.length}</b> proposed</span>);
+  if (openMin > 0) countLine.push(<span key="o"><b>{gapLabel(openMin)}</b> open</span>);
+  if (countLine.length === 0) countLine.push(<span key="n">Nothing scheduled</span>);
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <PageHeader title="Schedule" actions={sel.active ? <BarText label="Done" strong onClick={sel.exit} /> : <>
         {/* Select only appears in Day mode: a month grid has no rows to tick,
             and offering it there would be a control that does nothing. */}
@@ -370,9 +383,8 @@ export default function SchedulePage({
         {/* It must not read "0 Events" over a day full of proposals. The
             count says what is committed and, separately, what is proposed;
             neither number pretends to be the other. */}
-        <div className="eyebrow">
-          {n} {n === 1 ? "Event" : "Events"}
-          {proposedBusy.length > 0 && ` \u00b7 ${proposedBusy.length} Proposed`}
+        <div className="eyebrow count-line">
+          {countLine.map((c, i) => <React.Fragment key={i}>{i > 0 && <span className="sched-sep">{"\u00b7"}</span>}{c}</React.Fragment>)}
         </div>
         <div className="plan-head-acts">
           {hasFuture && onRunningLate && (
@@ -428,10 +440,6 @@ export default function SchedulePage({
         </div>
       )}
 
-      {mode === "day" && !loading && (
-        <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onDragStart={beginDrag} />
-      )}
-
       {loading ? (
         <SkeletonRows />
       ) : entries.every((en) => en.kind === "gap") ? (
@@ -439,9 +447,18 @@ export default function SchedulePage({
         // fills the whole day. New Event adds one row, so it takes the
         // secondary. This is the tab's most common first-run state and it was
         // showing two fills.
-        <div className="empty-state"><div className="t-body">No events</div><button className="btn btn-secondary" onClick={onNew}>New Event</button></div>
+        <>
+          <div className="empty-state"><div className="t-body">No events</div><button className="btn btn-secondary" onClick={onNew}>New Event</button></div>
+          {mode === "day" && (
+            <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onDragStart={beginDrag} goalOf={goalOf} />
+          )}
+        </>
       ) : (
         <>
+        {/* ONE CARD (Dave 2026-09-01, "Go with pic 1. Apply that
+            everywhere"): the day's timeline rides in the same card Today's
+            Whole Day wears, rows together, hairlines between. */}
+        <div className="pad-x"><div className="card sched-card">
         <div className={"sched-list" + (mode === "day" && drag?.over ? " drop-target" : "")} ref={gridZoneRef}>
           {entries.map((en, i) =>
             en.kind === "gap" ? (
@@ -562,9 +579,16 @@ export default function SchedulePage({
             ),
           )}
         </div>
+        </div></div>
         {/* NO DEAD ENDS. A proposal you can see and edit but not accept is
             decoration. The same decision Today offers, under the same day. */}
         {dayFooter}
+        {/* ANYTIME LIVES BELOW THE TIMELINE (ruled 2026-09-01, "Where does
+            Anytime live? A section below the timeline"). It sat above,
+            which put the unplaced work in front of the day it was not in. */}
+        {mode === "day" && (
+          <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onDragStart={beginDrag} goalOf={goalOf} />
+        )}
         {/* The trailing "Open ..." list is retired in EVERY mode now (B4,
             2026-08-23). It survived for week and month on the reasoning that
             those views have no timeline, which was never true: the day list

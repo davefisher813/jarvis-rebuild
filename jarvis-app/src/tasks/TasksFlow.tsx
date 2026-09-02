@@ -1,9 +1,12 @@
+import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTasks, useCategories, useSchedule, useRoutine, useNotes } from "../data/NotesProvider";
 import { pausedCategoryIds, offHoursCategoryIds } from "../categories/kinds";
 import TasksPage from "./screens/TasksPage";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
-import { useProjects } from "../data/NotesProvider";
+import { useProjects, useGoals } from "../data/NotesProvider";
+import type { Goal } from "../life/types";
+import { buildGoalIndex, liveGoals, goalShortForTask } from "../bigger/reach";
 import { movedBy, celebrationLine, type Moved } from "../shared/completion";
 import type { Project } from "../projects/types";
 import { partition, byCategory, filterOf, FILTERS, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
@@ -34,8 +37,11 @@ import { ENTITY_TASK } from "../notes/types";
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
 
-export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow }: {
+export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, title, segments }: {
   openId?: string; openFilter?: string; onOpenNote?: (id: string) => void;
+  // LIFE (2026-09-01): when this list is the Tasks segment of the Life tab,
+  // the head says Life and carries the segment control. Alone, it is Tasks.
+  title?: string; segments?: React.ReactNode;
   // TASKS AUDIT 2026-08-29, FINDING #1: "Pick One" used to call openEdit(),
   // landing on the full metadata form -- title, category, due date, project,
   // recurrence, plan -- for a button whose whole job was to remove a
@@ -66,6 +72,13 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow }:
   const projectsSvc = useProjects();
   const [projects, setProjects] = useState<Project[]>([]);
   useEffect(() => { let on = true; projectsSvc.list().then((p) => { if (on) setProjects(p); }); return () => { on = false; }; }, [projectsSvc]);
+  // THE RULED ROW NAMES THE GOAL (2026-09-01). One index, the same
+  // derivation Today and Schedule read (buildGoalIndex over live goals), so
+  // a task cannot say one goal here and another on the home page.
+  const goalsSvc = useGoals();
+  const [goals, setGoals] = useState<Goal[]>([]);
+  useEffect(() => { let on = true; goalsSvc.list().then((g) => { if (on) setGoals(g); }); return () => { on = false; }; }, [goalsSvc]);
+  const goalIdx = buildGoalIndex(projects, liveGoals(goals));
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
   // Work-hours quiet set (audit 2026-08-10): after hours, work-category tasks
@@ -587,6 +600,8 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow }:
   return (
     <>
       <TasksPage
+        title={title}
+        segments={segments}
         onPickOne={pickOne}
         overwhelmed={overwhelmed}
         onOverwhelmed={() => { haptics.selection(); setOverwhelmed(setOverwhelmedFlag(true, today)); }}
@@ -615,6 +630,7 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow }:
           if (ok) await reload();
         })()}
         onStartTask={(id) => void onStartTask(id)}
+        goalOf={(t) => goalShortForTask(goalIdx, t)}
         momentum={momentum && {
           afterId: momentum.afterId,
           el: (

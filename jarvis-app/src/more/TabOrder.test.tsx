@@ -7,7 +7,7 @@ import EditTabsPage from "./EditTabsPage";
 describe("Tab reorder", () => {
   it("shows a Tab order list with a drag handle per enabled tab", () => {
     const { container } = render(
-      <EditTabsPage tabKeys={["today", "tasks", "schedule"]} onToggle={() => {}} onReorder={() => {}} onBack={() => {}} />,
+      <EditTabsPage tabKeys={["today", "life", "schedule"]} onToggle={() => {}} onReorder={() => {}} onBack={() => {}} />,
     );
     expect(screen.getByText("Tab Order")).toBeInTheDocument();
     expect(container.querySelectorAll(".reorder-row").length).toBe(3);

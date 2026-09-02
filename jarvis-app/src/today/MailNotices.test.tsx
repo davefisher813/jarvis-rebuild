@@ -41,13 +41,15 @@ describe("MailNotices: Clear All", () => {
     const { container } = render(
       <MailNotices today={TODAY} nowHHMM="09:00" onAddTask={async () => true} />,
     );
+    // ONE CARD (2026-09-01): the rows ride inside one .stream-card; Clear
+    // All sits under that card, the last thing in the band.
     const kids = [...container.children];
     const clearIdx = kids.findIndex((el) => el.classList.contains("notice-clear-row"));
-    const cardIdxs = kids.map((el, i) => (el.classList.contains("pad-x") ? i : -1)).filter((i) => i >= 0);
+    const cardIdx = kids.findIndex((el) => el.classList.contains("stream-card"));
     expect(clearIdx).toBeGreaterThan(-1);
-    expect(cardIdxs).toHaveLength(2);
-    // Every card comes before Clear All -- it is the last thing in the band.
-    expect(Math.max(...cardIdxs)).toBeLessThan(clearIdx);
+    expect(cardIdx).toBeGreaterThan(-1);
+    expect(kids[cardIdx]!.querySelectorAll(".pad-x")).toHaveLength(2);
+    expect(cardIdx).toBeLessThan(clearIdx);
   });
 
   it("[edge] stays hidden at one notice, same as before the move", () => {

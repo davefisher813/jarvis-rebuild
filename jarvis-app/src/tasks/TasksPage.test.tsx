@@ -29,15 +29,22 @@ describe("TasksPage", () => {
     expect(container.textContent).toContain("3"); // an upcoming count surfaces
   });
 
-  it("renders task rows with category check and urgency colors", () => {
+  it("renders the ruled row: neutral ring, category bar, distance chip", () => {
     const { container } = render(
       <TasksPage filter="today" counts={counts} items={[tk("over", "2026-05-18"), tk("due", "2026-05-20")]} today="2026-05-20" />,
     );
-    expect(container.querySelector(".task-check.cat-bd-sky")).toBeTruthy();
-    expect(container.querySelector(".urgency-red")).toBeTruthy();
+    // Ruled 2026-09-01: the ring is never category-coloured; the bar on the
+    // second line carries the category.
+    expect(container.querySelector(".task-check[class*=cat-bd]")).toBeNull();
+    expect(container.querySelector(".r-bar.cat-bg-sky")).toBeTruthy();
+    // The chip says the distance, in the late colour.
+    expect(container.querySelector(".uchip.u-late")).toHaveTextContent("2 DAYS LATE");
     // LAW 11 (2026-08-29): TODAY never renders on the filter named for it,
-    // so the due-today row wears no tag here...
-    expect(container.querySelector(".urgency-warn")).toBeFalsy();
+    // so the due-today row wears no chip here...
+    expect(container.querySelector(".uchip.u-today")).toBeNull();
+    // ...and with no goal, the second line names the category, plainly.
+    expect(container.querySelector(".r-goal.r-cat")).toHaveTextContent("Ridgeley");
+    expect(container.querySelector(".r-is-goal")).toBeNull();
   });
 
   it("shows the TODAY chip where it carries information (the All filter)", () => {
@@ -45,7 +52,40 @@ describe("TasksPage", () => {
       <TasksPage filter="all" counts={counts} items={[tk("due", "2026-05-20")]} today="2026-05-20" />,
     );
     // ...and wears it as a chip everywhere the filter does not already say it.
-    expect(container.querySelector(".urgency-chip.urgency-warn")).toBeTruthy();
+    expect(container.querySelector(".uchip.u-today")).toHaveTextContent("TODAY");
+  });
+
+  it("a goal wears the goal mark and its own class; a category never does", () => {
+    const { container } = render(
+      <TasksPage filter="all" counts={counts} items={[tk("a", null), tk("b", null)]} today="2026-05-20"
+        goalOf={(t) => (t.id === "a" ? "Get Paid On Time" : null)} />,
+    );
+    const goal = container.querySelector(".r-goal.r-is-goal")!;
+    expect(goal).toHaveTextContent("Get Paid On Time");
+    expect(goal.querySelector(".r-gm")).toBeTruthy();
+    expect(container.querySelectorAll(".r-goal.r-cat")).toHaveLength(1);
+  });
+
+  it("rows ride inside one card, under a head that names the cut and carries group-by", () => {
+    const { container } = render(
+      <TasksPage filter="all" counts={counts} items={[tk("a", "2026-05-18", "money"), tk("b", null, "family")]} today="2026-05-20"
+        goalOf={(t) => (t.id === "a" ? "Get Paid On Time" : null)} />,
+    );
+    expect(container.querySelectorAll(".list-card-ruled")).toHaveLength(1);
+    expect(container.querySelectorAll(".list-card-ruled .task-row")).toHaveLength(2);
+    expect(container.querySelector(".list-head .t")).toHaveTextContent("All");
+    // Open the picker, group by category: two cards under two heads.
+    fireEvent.click(container.querySelector(".gb")!);
+    fireEvent.click(screen.getByRole("radio", { name: "Category" }));
+    expect(container.querySelectorAll(".list-card-ruled")).toHaveLength(2);
+    expect([...container.querySelectorAll(".grp-head")].map((h) => h.textContent)).toEqual(["Money1", "Family1"]);
+    // By goal: the goalless bucket comes last.
+    fireEvent.click(container.querySelector(".gb")!);
+    fireEvent.click(screen.getByRole("radio", { name: "Goal" }));
+    expect([...container.querySelectorAll(".grp-head")].map((h) => h.textContent)).toEqual(["Get Paid On Time1", "No goal1"]);
+    // Back to none, for the next test: the memory is session-wide.
+    fireEvent.click(container.querySelector(".gb")!);
+    fireEvent.click(screen.getByRole("radio", { name: "None" }));
   });
 
   it("shows an empty state when the filter has no items", () => {
@@ -100,7 +140,7 @@ describe("TasksPage editing in place", () => {
       <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
         onRenameTask={onRenameTask} onOpenTask={onOpenTask} />,
     );
-    const title = container.querySelector(".conn-name")!;
+    const title = container.querySelector(".task-name")!;
     // Not editable at rest: nothing to fall into.
     expect(title.getAttribute("contenteditable")).not.toBe("true");
     fireEvent.click(title);
@@ -116,7 +156,7 @@ describe("TasksPage editing in place", () => {
       <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
         onRenameTask={onRenameTask} onOpenTask={onOpenTask} />,
     );
-    hold(container.querySelector(".conn-name")!);
+    hold(container.querySelector(".task-name")!);
     const field = container.querySelector('[contenteditable="true"]')!;
     expect(field).toBeTruthy();
     field.textContent = "Renamed";
@@ -134,7 +174,7 @@ describe("TasksPage editing in place", () => {
     const { container } = render(
       <TasksPage filter="today" counts={counts} items={[done]} today="2026-05-20" onRenameTask={onRenameTask} />,
     );
-    hold(container.querySelector(".conn-name")!);
+    hold(container.querySelector(".task-name")!);
     expect(container.querySelector('[contenteditable="true"]')).toBeNull();
     vi.useRealTimers();
   });
@@ -145,7 +185,7 @@ describe("TasksPage editing in place", () => {
       <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
         onRenameTask={() => {}} onOpenTask={onOpenTask} />,
     );
-    fireEvent.click(container.querySelector(".eyebrow")!);
+    fireEvent.click(container.querySelector(".r-k")!);
     expect(onOpenTask).toHaveBeenCalledWith("a");
   });
 
@@ -155,7 +195,7 @@ describe("TasksPage editing in place", () => {
       <TasksPage filter="today" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
         onRenameTask={onRenameTask} />,
     );
-    const title = container.querySelector(".conn-name")!;
+    const title = container.querySelector(".task-name")!;
     title.textContent = "   ";
     fireEvent.blur(title);
     expect(onRenameTask).not.toHaveBeenCalled();

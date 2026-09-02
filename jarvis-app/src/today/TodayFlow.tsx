@@ -37,7 +37,7 @@ import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventRemi
 import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap } from "./evening";
 import { readSamples } from "../shared/timeSense";
-import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask } from "../bigger/reach";
+import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask, goalShortForTask } from "../bigger/reach";
 import { inheritFromThread } from "../messages/threadTasks";
 import { endOfAct, type MailAct } from "../messages/mailAct";
 import { dayPhrase } from "../money/bills";
@@ -2236,7 +2236,7 @@ export default function TodayFlow({
       tomorrowTasks={taskItems.filter((t) => !t.data.done && t.data.recurrence && t.data.recurrence !== "daily" && t.data.due === tmrw)}
       tomorrowDate={shortDate(new Date(tmrw + "T00:00:00"))}
       tasks={todaysTasks(taskItems, today)}
-      goalOf={(t) => goalTitleForTask(goalIdx, t)}
+      goalOf={(t) => goalShortForTask(goalIdx, t)}
       evening={evening}
       ring={ring}
       daypart={daypart}

@@ -6,7 +6,7 @@ import { Plus, Trash2, Clock, ListChecks, Check } from "../../shared/icons";
 import SkeletonRows from "../../shared/SkeletonRows";
 import { Burst } from "../../shared/Burst";
 import type { TaskItem } from "../TasksService";
-import { urgencyFor, type UrgencyKind } from "../grouping";
+import { urgencyFor, distanceFor, type UrgencyKind } from "../grouping";
 import { FILTERS, FILTER_LABEL, type TaskFilter } from "../filters";
 import { categoriesOf } from "../categories";
 import { catColor, catName } from "../../shared/categories";
@@ -19,6 +19,7 @@ import { OVERWHELM_ENTER, OVERWHELM_EXIT } from "../overwhelmed";
 import InlineEdit from "../../shared/InlineEdit";
 import { useLongPress } from "../../shared/useLongPress";
 import { haptics } from "../../shared/haptics";
+import { GoalMark } from "../../shared/glyphs";
 
 // Tasks page. Two-line rows with a large (44pt) completion target on the left
 // and swipe-left-to-delete, so completing or removing a task is one easy action.
@@ -28,6 +29,67 @@ const URGENCY_CLASS: Record<UrgencyKind, string> = {
   today: "urgency-warn",
   soon: "urgency-muted",
 };
+
+// GROUP BY. "none" is one flat list; the other three cut it under heads.
+// Session memory, not storage: the segment forgets on launch and so does this.
+type GroupBy = "none" | "category" | "goal" | "due";
+let lastGroupBy: GroupBy = "none";
+const GROUP_LABEL: Record<GroupBy, string> = { none: "None", category: "Category", goal: "Goal", due: "Due" };
+
+interface Group { key: string; head: string | null; color?: string; items: TaskItem[]; }
+
+// Category heads follow the user's category order as the items arrive;
+// goal heads put No Goal last; due heads run late to far.
+function groupItems(items: TaskItem[], by: GroupBy, goalOf: ((t: TaskItem) => string | null) | undefined, today: string): Group[] {
+  if (by === "none") return [{ key: "all", head: null, items }];
+  const order: string[] = [];
+  const buckets = new Map<string, Group>();
+  const put = (key: string, head: string, item: TaskItem, color?: string) => {
+    let g = buckets.get(key);
+    if (!g) { g = { key, head, color, items: [] }; buckets.set(key, g); order.push(key); }
+    g.items.push(item);
+  };
+  for (const it of items) {
+    const t = it.data;
+    if (by === "category") {
+      const id = categoriesOf(t)[0] ?? "";
+      put(id || "none", catName(id) || "No category", it, id ? catColor(id) : undefined);
+    } else if (by === "goal") {
+      const g = goalOf?.(it) ?? null;
+      put(g ? "g:" + g : "none", g ?? "No goal", it);
+    } else {
+      const d = t.done ? null : distanceFor(t, today);
+      const key = d ? d.kind : t.due ? "later" : "undated";
+      put(key, { today: "Today", late: "Overdue", later: "Later", undated: "No date" }[key] ?? key, it);
+    }
+  }
+  const rank = (k: string) => by === "due" ? ["late", "today", "later", "undated"].indexOf(k) : k === "none" ? 1 : 0;
+  return order.map((k) => buckets.get(k)!).sort((a, b) => rank(a.key) - rank(b.key));
+}
+
+// The group-by control: a pill in the list head; tapped, its options open
+// in place and the tap on one is the save (the ChipPicker mechanic, with
+// the head's own type). Closed again on pick or on a second tap.
+function GroupPicker({ value, onPick }: { value: GroupBy; onPick: (g: GroupBy) => void }) {
+  const [open, setOpen] = useState(false);
+  if (!open) {
+    return (
+      <button className="see-all pill-action gb" onClick={() => { haptics.selection(); setOpen(true); }} aria-label="Group by">
+        Group by {"\u00b7"} {GROUP_LABEL[value]}<span className="gb-cv" />
+      </button>
+    );
+  }
+  return (
+    <div className="gb-open" role="radiogroup" aria-label="Group by">
+      {(Object.keys(GROUP_LABEL) as GroupBy[]).map((g) => (
+        <button key={g} className={"chip" + (g === value ? " active" : "")} role="radio" aria-checked={g === value}
+          onClick={() => { haptics.selection(); setOpen(false); if (g !== value) onPick(g); }}>
+          {GROUP_LABEL[g]}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 // Empty-state copy, written per filter. The old version built the line from
 // the filter label ("No " + label + " tasks"), which produced "No today
@@ -108,6 +170,7 @@ function Row({
   picked = false,
   onPick,
   muteToday = false,
+  goal = null,
 }: {
   item: TaskItem;
   today: string;
@@ -133,9 +196,19 @@ function Row({
   // with -- getting going -- was only reachable from a card on Today that
   // showed one task. Same pill, same behaviour, same place in the row.
   onStart?: (id: string) => void;
+  // THE RULED ROW (2026-09-01): the second line names the goal this task
+  // moves. Null when it moves none; the row then says the category, so
+  // every row keeps two lines and a fact. Derived by the flow from one
+  // goal index, the same one Today reads, so the two pages cannot disagree.
+  goal?: string | null;
 }) {
   const t = item.data;
   const u = urgencyFor(t, today);
+  // The distance chip: TODAY, 2 DAYS LATE, 3 WEEKS LATE, OVER A MONTH.
+  // Same ladder as Today's dealt row (distanceFor). Muted on the Today
+  // filter, where every row would say the same word.
+  const dist = distanceFor(t, today);
+  const chip = dist && !t.done && !(muteToday && dist.kind === "today") ? dist : null;
   const prevDone = useRef(t.done);
   const [burst, setBurst] = useState(false);
   // Optimistic completion: flip + burst immediately, hold the real toggle
@@ -224,32 +297,25 @@ function Row({
             aria-checked={shownDone}
             aria-label={shownDone ? "Mark not done" : "Mark done"}
           >
-            <div className={"task-check " + (shownDone ? "done" : "cat-bd-" + catColor(t.category))} />
+            {/* Always neutral, green when done (ruled 2026-09-01). The bar on the
+                second line carries the category now; a coloured ring said
+                the same thing twice and made the done state a colour change
+                instead of a state change. */}
+            <div className={"task-check" + (shownDone ? " done" : "")} />
             <Burst show={burst} />
           </div>
         )}
-        <div className="row-stack" role="button" tabIndex={0} onClick={() => (selecting ? onPick?.(item.id) : onOpen?.(item.id))}>
+        <div className="task-title" role="button" tabIndex={0} onClick={() => (selecting ? onPick?.(item.id) : onOpen?.(item.id))}>
           {/* THE TAP OPENS. RENAME IS THE LONG PRESS (Dave 2026-08-24: "when
               I tap to edit a task it now edits the text instead... it's WAY
               more important that I can easily click and edit the tasks").
-
-              B6 gave the title's tap to InlineEdit, on the reasoning that
-              the rest of the row still opened the editor. That reasoning was
-              wrong in the only way that matters: the title IS the row to
-              anyone using it. It is the biggest thing there, it is what the
-              row is ABOUT, and it is where a thumb goes when the intent is
-              "open this". Renaming took the gesture opening needed and left
-              opening with the margins.
-
-              Rename is still here and still edits where it stands, on the
-              press-and-hold that every phone already uses for "the other
-              thing this can do". It cannot be hit by accident, and it costs
-              the primary gesture nothing. Held rows say so with .renaming
-              so the gesture is not invisible while it is happening. */}
+              The title IS the row to anyone using it, so its tap opens;
+              rename lives on the press-and-hold and edits where it stands.
+              Held rows say so with .renaming. */}
           {renaming && onRename && !t.done ? (
             <div onClick={(ev) => ev.stopPropagation()}>
               <InlineEdit
-                className="conn-name truncate"
+                className="task-name"
                 value={t.text}
                 focused
                 onSave={(v) => {
@@ -260,54 +326,26 @@ function Row({
               />
             </div>
           ) : (
-            <div className="conn-name truncate" {...(onRename && !t.done && !selecting ? hold : {})}>{t.text}</div>
+            <span className="task-name" {...(onRename && !t.done && !selecting ? hold : {})}>{t.text}</span>
           )}
-          {/* THE PRIMARY KEEPS THE COLOUR; THE TAGS RIDE AS PLAIN FACTS
-              (2026-08-21). Colouring all of them would spend three colours
-              saying one thing.
-
-              TASKS AUDIT 2026-08-29, FINDING C: that decision was right and
-              the code did not implement it. categoryLine() joins every
-              category into ONE string and the whole string went into one
-              span wearing `cat-fg-{primary}`, so a task tagged Health and
-              Money rendered MONEY in Health's green. Not "the tag is
-              uncoloured" -- the tag was wearing the WRONG category's
-              colour, which is worse than neutral: it is a colour making a
-              false claim. Screenshot of "Call Precision · HEALTH · MONEY"
-              is the evidence.
-
-              So this is the 2026-08-21 rule finally being built, not
-              overturned: primary in its own colour, extras inheriting
-              .eyebrow's neutral --tx-3, one separator between them. */}
-          {/* TASKS AUDIT 2026-08-29, FINDING #2. A2 (2026-08-21) put Start on
-              EVERY row here, deliberately, unlike Today's list where only
-              the single dealt card gets it: "the one thing an ADHD app
-              exists to help with... same pill, same behaviour, same place
-              in the row." That was the right call for beginning something,
-              and it has a real cost the original audit did not weigh: the
-              trailing slot is where urgencyFor's label used to live, so
-              nine rows with Start all look identical whether one is
-              overdue and the rest are someday. Start stays on every row;
-              the missing signal comes back here instead, where it does not
-              have to fight Start for the same pixel. Soon/no-date rows get
-              no tag, matching how little they need one. */}
-          <div className="row-tags">
-            {/* CHIP, NOT TEXT (Dave 2026-08-29): the tag sat at the same
-                size and weight as the category words beside it, differing
-                only in colour, which is exactly "blends in too much". A
-                tinted chip separates it from the eyebrow line by FORM, the
-                way every other status in the app earns its own shape. */}
-            {u && u.kind !== "soon" && !(muteToday && u.kind === "today") &&
-              <span className={"urgency urgency-chip " + URGENCY_CLASS[u.kind]}>{u.label}</span>}
-            <span className="eyebrow">
-              {categoriesOf(t).map((id) => ({ id, name: catName(id) })).filter((c) => c.name).map((c, i) => (
-                <React.Fragment key={c.id}>
-                  {i > 0 && " \u00b7 "}
-                  <span className={i === 0 ? "cat-fg-" + catColor(c.id) : undefined}>{c.name}</span>
-                </React.Fragment>
-              ))}
-              {t.recurrence ? " \u00b7 " + t.recurrence : ""}
-            </span>
+          {/* THE RULED ROW'S SECOND LINE (Dave 2026-09-01, "Together" catalog).
+              Bar first, so the category mark sits at one x on every row.
+              Chip next, so it sits at one x whenever it appears. Words last,
+              taking whatever is left: the goal this task moves, or, when it
+              moves none, the category. The 08-21 rule stands (the primary
+              category keeps its colour, extras ride plain): the colour is
+              the bar now, and the words are all one quiet grey.
+              The old caps eyebrow, the urgency chip that sat beside it, and
+              the row-tags line they shared are gone; this line is all three. */}
+          <div className="r-k">
+            <span className={"r-bar cat-bg-" + catColor(t.category)} />
+            {chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}
+            {goal
+              ? <span className="r-goal r-is-goal"><GoalMark /><span className="r-goal-t">{goal}{t.recurrence ? " \u00b7 " + t.recurrence : ""}</span></span>
+              : <span className="r-goal r-cat">
+                  {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ")}
+                  {t.recurrence ? " \u00b7 " + t.recurrence : ""}
+                </span>}
           </div>
           {/* A1: the cue, where he will see it while scanning. The whole
               sentence is on the sheet; the row carries the trigger, which is
@@ -361,6 +399,9 @@ export default function TasksPage({
   onMoveAllToToday,
   onDeleteMany,
   onDoneMany,
+  goalOf,
+  title = "Tasks",
+  segments,
 }: {
   filter: TaskFilter;
   counts: Record<TaskFilter, number>;
@@ -382,6 +423,12 @@ export default function TasksPage({
   banner?: React.ReactNode;
   // Momentum Chain: a suggestion element pinned under the row it follows.
   momentum?: { afterId: string; el: React.ReactNode } | null;
+  // The goal a task moves, from the flow's goal index (see Row.goal).
+  goalOf?: (t: TaskItem) => string | null;
+  // LIFE (2026-09-01): the head's word and the segment control under it,
+  // when this page is the Tasks lens of the Life tab.
+  title?: string;
+  segments?: React.ReactNode;
   // THE DECISION KILLERS (Dave 2026-08-19, ADHD round). Pick One opens the
   // single best task for right now so the list never has to be read; Move
   // All resets an overdue pile in one tap instead of one tap per shame.
@@ -401,15 +448,22 @@ export default function TasksPage({
   // Select mode owns the ids currently ON SCREEN, so a filter change or a
   // reload can never leave a selection pointing at rows that are gone.
   const sel = useSelection(items.map((i) => i.id));
+  // GROUP BY (ruled 2026-09-01: "a group-by dropdown; chips stay filters").
+  // Off by default: the chips already cut the list, and heads on top of a
+  // cut are a second cut nobody asked for. Remembered within the session,
+  // reset on launch, like the segment.
+  const [groupBy, setGroupBy] = useState<GroupBy>(lastGroupBy);
+  const setGroup = (g: GroupBy) => { lastGroupBy = g; setGroupBy(g); };
+  const groups = groupItems(items, groupBy, goalOf, today);
   return (
-    <div className="screen">
+    <div className="screen ruled">
       {/* Select is a HEADER BUTTON, not a hidden long press. Dave asked for
           this to be easy, and a bulk action nobody can find is not easy: the
           long press is a shortcut for people who already know it exists, and
           the button is how they find out. Done replaces it while selecting,
           because the way out is the one control that must never move. */}
       <PageHeader
-        title="Tasks"
+        title={title}
         actions={
           sel.active ? (
             <BarText label="Done" strong onClick={sel.exit} />
@@ -423,6 +477,7 @@ export default function TasksPage({
           )
         }
       />
+      {segments}
 
       {/* F1 · JUST THIS ONE. When it is on, the page IS the one thing:
           everything else is hidden, nothing is moved, and one tap brings it
@@ -559,19 +614,46 @@ export default function TasksPage({
         </div>
       ) : (
         <div>
-          {/* Library form (Design 2, approved 2026-08-18): full-bleed rows,
-              dividers inset past the checkbox, no card. */}
-          {items.map((it) => (
-            <React.Fragment key={it.id}>
-              <Row
-                item={it} today={today} onToggle={onToggle} onOpen={onOpenTask}
-                onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} onRename={onRenameTask}
-                selecting={sel.active} picked={sel.isSelected(it.id)}
-                onPick={sel.toggle} muteToday={filter === "today"}
-              />
-              {/* Momentum Chain (addendum item 7): the suggestion slides
-                  into the just-finished slot, right below its row. */}
-              {momentum?.afterId === it.id && momentum.el}
+          {/* ONE CARD (Dave 2026-09-01: "Go with pic 1. Apply that
+              everywhere"). The 08-18 library form put bare rows on the
+              page ground; every other list on Today wears a card, and this
+              was the one that did not. Rows ride inside one grouped card
+              now, hairlines inset past the check, the same material as
+              Your Move. With grouping on, each group is its own card under
+              its own head. */}
+          <div className="sh2 sh2-quiet list-head">
+            {/* The head names the cut and carries the group-by control.
+                One tap opens the options in place (the app's one picker
+                mechanic, ChipPicker's); the pick is the save. */}
+            <span className="t">{FILTER_LABEL[filter]}</span>
+            <span className="n">{items.length}</span>
+            <GroupPicker value={groupBy} onPick={setGroup} />
+          </div>
+          {groups.map((g) => (
+            <React.Fragment key={g.key}>
+              {g.head && (
+                <div className="grp-head">
+                  {g.color && <span className={"cat-dot cat-bg-" + g.color} />}
+                  {g.head}
+                  <span className="n">{g.items.length}</span>
+                </div>
+              )}
+              <div className="card list-card-ruled">
+                {g.items.map((it) => (
+                  <React.Fragment key={it.id}>
+                    <Row
+                      item={it} today={today} onToggle={onToggle} onOpen={onOpenTask}
+                      onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} onRename={onRenameTask}
+                      selecting={sel.active} picked={sel.isSelected(it.id)}
+                      onPick={sel.toggle} muteToday={filter === "today"}
+                      goal={goalOf?.(it) ?? null}
+                    />
+                    {/* Momentum Chain (addendum item 7): the suggestion slides
+                        into the just-finished slot, right below its row. */}
+                    {momentum?.afterId === it.id && momentum.el}
+                  </React.Fragment>
+                ))}
+              </div>
             </React.Fragment>
           ))}
           {/* B8 (2026-08-23): EVERY LIST ENDS WITH THE WAY TO GROW IT.

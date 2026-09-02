@@ -39,10 +39,12 @@ describe("AnytimeRow: the count is the one expand door", () => {
 
   it("under the cap: a quiet label, never a dead button", () => {
     const { container, queryByRole } = render(<AnytimeRow items={[task(1), task(2)]} />);
-    const label = container.querySelector(".anytime-open");
-    expect(label).toHaveTextContent("2 Open");
+    // The ruled head (2026-09-02): the count sits in the head's own count
+    // slot, a label, never a button.
+    const label = container.querySelector(".anytime-head .n");
+    expect(label).toHaveTextContent("2");
     expect(label?.tagName).not.toBe("BUTTON");
-    expect(container.querySelector(".plan-head .pill-action")).toBeNull();
+    expect(container.querySelector(".anytime-head .pill-action")).toBeNull();
     expect(queryByRole("button", { name: /show all/i })).toBeNull();
   });
 });

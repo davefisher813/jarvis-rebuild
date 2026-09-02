@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { shortGoalName } from "../life/shortName";
 import PageHeader from "../shared/PageHeader";
 import type { Goal } from "../life/types";
 import type { ProjectRow, Progress } from "./progress";
@@ -8,7 +9,7 @@ import { reachLine } from "./reach";
 import type { MeasureState } from "./measure";
 import { catColor, goalTone } from "../shared/categories";
 import SkeletonRows from "../shared/SkeletonRows";
-import { FolderOpenGlyph, TargetGlyph } from "../shared/glyphs";
+import { FolderOpenGlyph, TargetGlyph, GoalMark } from "../shared/glyphs";
 import { capAfterNumber } from "../shared/casing";
 
 // YOUR LIFE (the Life Merge, Dave 2026-08-26: "it's stupid having them
@@ -47,7 +48,19 @@ function Bar({ p }: { p: Progress }) {
 
 export default function BiggerPicturePage({
   goals, reachOfGoal, measureOfGoal, extraOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, sizeLineOf, onCloseProject,
+  lens = "goals", title = "Your Life", segments,
 }: {
+  // THE LENS (ruled 2026-09-01, "The Lens plus Lineage rows"). One tree,
+  // two zoom levels on this page: the Projects lens is every open project
+  // under its category, each saying the goal it is filed to; the Goals lens
+  // is every live goal under its category, Working Toward last. What used
+  // to be one frame (goals with their projects nested) is two lenses now,
+  // each one kind of thing, which is what a segment promises.
+  lens?: "projects" | "goals";
+  // The head's word and the segment control under it, when this page is a
+  // segment of the Life tab. Alone it is still Your Life.
+  title?: string;
+  segments?: ReactNode;
   goals: Goal[];
   // ARCHITECTURE C: both routes into a goal's work, computed once by the flow.
   reachOfGoal: (id: string) => GoalReach;
@@ -82,21 +95,32 @@ export default function BiggerPicturePage({
   if (loading) {
     return (
       <div className="screen">
-        <PageHeader title="Your Life" />
+        <PageHeader title={title} />
+        {segments}
         <SkeletonRows />
       </div>
     );
   }
 
-  if (goals.length === 0 && projectRows.length === 0) {
+  const projectsLens = lens === "projects";
+  // lensed: this page is one segment of Life (either lens); unlensed is the
+  // old single frame, kept for anything that still mounts it alone.
+  const lensed = !!segments;
+  const empty = projectsLens ? projectRows.length === 0
+    : lensed ? goals.length === 0
+    : goals.length === 0 && projectRows.length === 0;
+  if (empty) {
+    // Each lens names its own emptiness and offers its own first move; a
+    // Goals lens that says "add a project" is the wrong door.
     return (
       <div className="screen">
-        <PageHeader title="Your Life" />
+        <PageHeader title={title} />
+        {segments}
         <div className="empty-state">
-          <div className="empty-icon">{TARGET}</div>
-          <div className="empty-title">Nothing Here Yet</div>
-          <div className="empty-sub">Add a project · Progress fills itself</div>
-          <button className="btn btn-primary" onClick={onAddProject}>Add a Project</button>
+          <div className="empty-icon">{projectsLens ? FOLDER : TARGET}</div>
+          <div className="empty-title">{projectsLens ? "No Projects Yet" : "No Goals Yet"}</div>
+          <div className="empty-sub">{projectsLens ? "A project is a few tasks with a finish" : "A goal is what the work is for"}</div>
+          <button className="btn btn-primary" onClick={projectsLens ? onAddProject : onAddGoal}>{projectsLens ? "Add a Project" : "Add a Goal"}</button>
         </div>
       </div>
     );
@@ -106,8 +130,14 @@ export default function BiggerPicturePage({
   const doneRows = projectRows.filter((r) => bucketOf(r) === "done");
   const liveGoals = goals.filter((g) => !g.data.dropped);
 
+  const goalById = new Map(goals.map((g) => [g.id, g] as const));
   const projRow = ({ project, progress, stalled }: ProjectRow, nested: boolean) => {
     const next = nextActionTextOf?.(project.id);
+    // LINEAGE ROW (ruled 2026-09-01): on the Projects lens the project says
+    // the goal it is filed to, by its short name with the goal mark, the
+    // same line a task row wears. Nested under its goal it says nothing,
+    // because the goal is right above it.
+    const filed = !nested && project.data.goalId ? goalById.get(project.data.goalId) : undefined;
     const hold = holdLineOf?.(project.id) ?? null;
     const sized = sizeLineOf?.(project.id) ?? null;
     const canClose = closable({ project, progress, stalled, lastAt: null });
@@ -116,6 +146,9 @@ export default function BiggerPicturePage({
         <div className={"row-glyph cat-fg-" + catColor(project.data.category ?? "")}>{FOLDER}</div>
         <div className="proj-meta">
           <div className="proj-title">{project.data.title}</div>
+          {filed && !filed.data.dropped && (
+            <div className="bp-sub r-k"><span className="r-goal r-is-goal"><GoalMark /><span className="r-goal-t">{shortGoalName(filed.data)}</span></span></div>
+          )}
           {/* THE NEXT MOVE LEADS (pick 19): "Call Ridgeline" tells you more
               than a status word or a fraction ever will. */}
           {next && <div className="bp-sub bp-next truncate">Next: {next}</div>}
@@ -157,9 +190,10 @@ export default function BiggerPicturePage({
           </div>
           {CHEV}
         </div>
-        {/* The goal's own projects ride under it, indented: what this work
-            is FOR is visible without opening anything. */}
-        {mine.map((row) => projRow(row, true))}
+        {/* The goal's own projects ride under it, indented, on the single
+            frame; on the Goals lens they live one segment over, and the
+            goal page lists them. */}
+        {!lensed && mine.map((row) => projRow(row, true))}
       </div>
     );
   };
@@ -181,13 +215,20 @@ export default function BiggerPicturePage({
   // A project filed to a live goal renders nested under that goal (goalRow
   // already carries its own filter); everything else with a category renders
   // under the category directly.
-  const looseRows = openRows.filter((r) => !r.project.data.goalId || !goalIds.has(r.project.data.goalId));
-  const unassigned = liveGoals.filter((g) => homeOf(g) === null);
+  // On the Projects lens every open project is loose: nothing nests, so
+  // every row lands under its category with its goal on its own line.
+  const looseRows = projectsLens
+    ? openRows
+    : openRows.filter((r) => !r.project.data.goalId || !goalIds.has(r.project.data.goalId));
+  const unassigned = projectsLens ? [] : liveGoals.filter((g) => homeOf(g) === null);
   const orphanRows = looseRows.filter((r) => !sectionIds.has(r.project.data.category ?? ""));
+  const showGoals = !projectsLens;
+  const showProjects = !lensed || projectsLens;
 
   return (
-    <div className="screen">
-      <PageHeader title="Your Life" />
+    <div className={"screen" + (lensed ? " ruled" : "")}>
+      <PageHeader title={title} />
+      {segments}
 
       {offer}
 
@@ -199,8 +240,8 @@ export default function BiggerPicturePage({
           area's own color, the same dot every task row already wears, so
           the two tabs read as one system at a glance. */}
       {sections.map((c) => {
-        const mine = ranked(liveGoals.filter((g) => homeOf(g) === c.id));
-        const loose = looseRows.filter((r) => (r.project.data.category ?? "") === c.id);
+        const mine = showGoals ? ranked(liveGoals.filter((g) => homeOf(g) === c.id)) : [];
+        const loose = showProjects ? looseRows.filter((r) => (r.project.data.category ?? "") === c.id) : [];
         if (mine.length === 0 && loose.length === 0) return null;
         return (
           <div key={c.id}>
@@ -228,7 +269,7 @@ export default function BiggerPicturePage({
 
       {/* Work with no goal AND no area: the true orphans float here, at the
           bottom but never hidden. */}
-      {orphanRows.length > 0 && (
+      {showProjects && orphanRows.length > 0 && (
         <div>
           <div className="sh2 sh2-quiet"><span className="t">More Work</span><span className="n">{orphanRows.length}</span></div>
           <div><div className="list-flat">{orphanRows.map((r) => projRow(r, false))}</div></div>
@@ -237,7 +278,7 @@ export default function BiggerPicturePage({
 
       {/* Done folds to a receipt: the shelf is Insights' job, but a closed
           project must stay one tap from reachable, not vanish. */}
-      {doneRows.length > 0 && (
+      {showProjects && doneRows.length > 0 && (
         <div><div className="list-flat">
           <button className="receipt-line" onClick={() => setDoneOpen((v) => !v)}>
             <span className="rl-t">{capAfterNumber(`${doneRows.length} Done ${doneRows.length === 1 ? "project" : "projects"}`)}</span>
@@ -248,8 +289,8 @@ export default function BiggerPicturePage({
       )}
 
       <div><div className="list-flat">
-        <button className="row row-act" onClick={onAddProject}>Add Project</button>
-        <button className="row row-act" onClick={onAddGoal}>Add Goal</button>
+        {showProjects && <button className="row row-act" onClick={onAddProject}>Add Project</button>}
+        {showGoals && <button className="row row-act" onClick={onAddGoal}>Add Goal</button>}
         {/* Manage Areas / Group Into Areas retired 2026-08-29: areas are the
             categories now, and categories are managed where they live, in
             Settings. A second admin door here was the two-taxonomy world. */}

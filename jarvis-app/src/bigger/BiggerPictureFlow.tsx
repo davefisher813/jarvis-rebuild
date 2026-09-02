@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProjects, useCategories, useGoals, useTasks, useNotes, useDecisions } from "../data/NotesProvider";
 import type { Project, ProjectData } from "../projects/types";
@@ -50,7 +51,12 @@ type Sheet =
 // openGoalId (2026-08-09): goal deep-links used to be set by the shell and
 // then dropped on the floor here, so tapping a linked goal landed on the
 // list instead of the goal.
-export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOpenDecision }: { openId?: string; openGoalId?: string; onOpenNote?: (id: string) => void; onOpenDecision?: (id: string) => void } = {}) {
+export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOpenDecision, lens = "goals", title, segments }: {
+  openId?: string; openGoalId?: string; onOpenNote?: (id: string) => void; onOpenDecision?: (id: string) => void;
+  // LIFE (2026-09-01): which zoom level this render is, and the head it
+  // wears when it is a segment of the Life tab. See BiggerPicturePage.
+  lens?: "projects" | "goals"; title?: string; segments?: ReactNode;
+} = {}) {
   const projectsSvc = useProjects();
   const goalsSvc = useGoals();
   const catsSvc = useCategories();
@@ -633,6 +639,9 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   return (
     <>
       <BiggerPicturePage
+        lens={lens}
+        title={title}
+        segments={segments}
         goals={goals}
         reachOfGoal={reachOfGoal}
         measureOfGoal={(id: string) => { const g = goals.find((x) => x.id === id); return g ? measureState(g.data.measure, measureCtxFor(g)) : null; }}

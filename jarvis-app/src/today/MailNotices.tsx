@@ -281,6 +281,14 @@ export default function MailNotices({
           needs an answer and someone has been waiting 59 days on you" was a
           paragraph ABOUT the rows sitting directly above the rows; the rows
           say it themselves now, in one line each. */}
+      {/* ONE CARD (Dave 2026-09-01: "Go with pic 1. Apply that everywhere.
+          My issue with the glass is when it's stacked and not together").
+          The band wore one card per mail, each its own height. It wears
+          the same grouped card Your Move wears: rows together, hairlines
+          between, the verbs in one column. The rows are uniform (two
+          lines, one each for sender and subject) because a grouped list
+          is a list of rows, and rows share a shape. */}
+      {notices.length > 0 && <div className="card stream-card">
       {notices.map((n) => {
         const draft = drafts[n.key];
         const loading = busy === n.key;
@@ -304,9 +312,11 @@ export default function MailNotices({
                is a short fused datum (Slid 3d, 9h ago), which is what the
                one-line contract was written for. */
             form="card"
-            // Mail stays stacked (Dave 2026-08-25). A sender is any length
-            // the world chooses; see the note on the prop.
-            uniform={false}
+            // Stacked (Dave 2026-08-25): sender over subject, never fused
+            // onto one line. Uniform (Dave 2026-09-01): one line each, so
+            // every row in the card is the same shape. A sender longer
+            // than the line ellipses and the tap opens the thread.
+            uniform
             icon={ICON[n.kind]}
             tone={n.tone}
             title={n.title}
@@ -366,6 +376,7 @@ export default function MailNotices({
           />
         );
       })}
+      </div>}
 
       {/* CLEAR THEM ALL (Dave 2026-08-24), moved under the cards it clears
           (Dave 2026-08-26, from a screenshot: "Clear all should be under

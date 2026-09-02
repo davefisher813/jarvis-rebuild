@@ -1,6 +1,7 @@
 import { useState, type PointerEvent as RPointerEvent } from "react";
 import type { TaskItem } from "../../tasks/TasksService";
-import { catColor } from "../../shared/categories";
+import { catColor, catName } from "../../shared/categories";
+import { GoalMark } from "../../shared/glyphs";
 
 // Roadmap v2, the Anytime strip on the Schedule day view. Tasks with no time,
 // checkable, above the timed grid. Collapses to a cap so a long list never
@@ -23,12 +24,16 @@ export default function AnytimeRow({
   onSchedule,
   onDragStart,
   cap = DEFAULT_CAP,
+  goalOf,
 }: {
   items: TaskItem[];
   onToggle?: (id: string) => void;
   onSchedule?: (id: string) => void;
   onDragStart?: (id: string, label: string, e: RPointerEvent) => void;
   cap?: number;
+  // THE RULED ROW (2026-09-01): the second line names the goal the task
+  // moves, by its short name, or the category when it moves none.
+  goalOf?: (t: TaskItem) => string | null;
 }) {
   const [expanded, setExpanded] = useState(false);
   if (items.length === 0) return null;
@@ -38,9 +43,9 @@ export default function AnytimeRow({
 
   return (
     <>
-      <div className="grp">
-        <div className="plan-head">
-          <div className="eyebrow">Anytime</div>
+      {/* The ruled section head: caps, leader, the count or the door. */}
+      <div className="sh2 sh2-quiet anytime-head">
+          <span className="t">Anytime</span>
           {overflow > 0 ? (
             <button
               className="see-all pill-action"
@@ -51,17 +56,21 @@ export default function AnytimeRow({
               {expanded ? "Show Less" : `${items.length} Open`}
             </button>
           ) : (
-            <div className="eyebrow anytime-open">{items.length} Open</div>
+            <span className="n">{items.length}</span>
           )}
-        </div>
       </div>
       <div className="pad-x">
         <div className="card anytime-card">
+          {/* THE RULED ROW (2026-09-01), the same anatomy as Today and Tasks:
+              neutral ring, name, then bar + goal (short name, with the mark)
+              or the category. The trailing slot is Drop, the contract's verb
+              for "give this a time in the day" (§4.4: Start on Tasks, Drop
+              on Anytime). Tapping the row opens the same placement. */}
           {shown.map((it) => {
-            const color = catColor(it.data.category);
+            const goal = goalOf?.(it) ?? null;
             return (
               <div
-                className="anytime-row"
+                className="task-row anytime-row"
                 key={it.id}
                 onPointerDown={(e) => onDragStart?.(it.id, it.data.text, e)}
               >
@@ -74,14 +83,16 @@ export default function AnytimeRow({
                 >
                   <div className="task-check" />
                 </div>
-                <span className={"cat-dot cat-bg-" + color} />
-                <button
-                  className="anytime-name truncate"
-                  onClick={() => onSchedule?.(it.id)}
-                  aria-label={"Give " + it.data.text + " a time"}
-                >
-                  {it.data.text}
-                </button>
+                <div className="task-title" role="button" tabIndex={0} onClick={() => onSchedule?.(it.id)} aria-label={"Give " + it.data.text + " a time"}>
+                  <span className="task-name">{it.data.text}</span>
+                  <div className="r-k">
+                    <span className={"r-bar cat-bg-" + catColor(it.data.category)} />
+                    {goal
+                      ? <span className="r-goal r-is-goal"><GoalMark /><span className="r-goal-t">{goal}</span></span>
+                      : <span className="r-goal r-cat">{catName(it.data.category) || "No category"}</span>}
+                  </div>
+                </div>
+                <button className="pill-act" onClick={(e) => { e.stopPropagation(); onSchedule?.(it.id); }}>Drop</button>
               </div>
             );
           })}

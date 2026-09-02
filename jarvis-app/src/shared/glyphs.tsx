@@ -266,3 +266,15 @@ export function PulseGlyph({ className = "ic" }: { className?: string }) {
     </>
   );
 }
+
+// THE GOAL MARK (Dave 2026-09-01, "Goals can't render like typical subtext").
+// The target the Goals page already wears, at kicker size, in goal green,
+// before a goal's name on a task row. Shape says "goal" before the words
+// do; a category on the same line wears nothing and reads plainer for it.
+export function GoalMark() {
+  return (
+    <svg className="r-gm" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.5" />
+    </svg>
+  );
+}

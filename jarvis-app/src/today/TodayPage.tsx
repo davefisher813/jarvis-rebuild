@@ -19,7 +19,7 @@ import { Burst, useBurst } from "../shared/Burst";
 import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats, type WeekRecap } from "./evening";
 import { capAfterNumber } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
-import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph } from "../shared/glyphs";
+import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, GoalMark } from "../shared/glyphs";
 
 const localISODate = () => {
   const d = new Date();
@@ -87,17 +87,24 @@ function TaskRow({ t, u, sub, goal, today, onToggle, onOpen, onStart }: { t: Tas
       </div>
       <div className="task-title" role="button" tabIndex={0} onClick={onOpen}>
         <span className="task-name">{t.data.text}</span>
+        {/* THE SECOND LINE ANSWERS THE PAGE'S QUESTION (Dave 2026-09-01,
+            "Together" catalog, on the row he hated). Bar first, so the
+            category mark sits at one x on every row. Chip next, so it sits
+            at one x whenever it appears. Words last, taking what is left:
+            on Today the question is WHY THIS, NOW, so the dealt card's
+            reason ("Your focus peak") rides here, folded up from the caps
+            eyebrow it used to be; a row with no reason says the goal it
+            moves, with the goal mark so it never reads as plain subtext;
+            a row that moves nothing says the category. Two lines, always. */}
         <div className="r-k">
           <span className={"r-bar cat-bg-" + catColor(t.data.category)} />
-          {goal
-            ? <span className="r-goal">{goal}</span>
-            : <span className="r-goal r-orphan">No goal</span>}
           {dist && !done && <span className={"uchip " + (dist.kind === "late" ? "u-late" : "u-today")}>{dist.label}</span>}
+          {reason
+            ? <span className="r-goal r-why">{reason.charAt(0).toUpperCase() + reason.slice(1)}</span>
+            : goal
+              ? <span className="r-goal r-is-goal"><GoalMark /><span className="r-goal-t">{goal}</span></span>
+              : <span className="r-goal r-cat">{catName(t.data.category) || "No category"}</span>}
         </div>
-        {/* The dealt card explains itself (Up Next Option 1, 2026-08-26):
-            the reason rides under the kicker, same law as every automatic
-            pick. List rows pass no sub and render exactly as before. */}
-        {reason && <div className="eyebrow">{reason}</div>}
       </div>
       {onStart && !done && (
         <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(); }}>Start</button>
@@ -660,7 +667,9 @@ export default function TodayPage({
           {onSeeAllMail && <button className="see-all pill-action" onClick={onSeeAllMail}>Open Inbox</button>}
         </div>
       )}
-      {mail && <div className="heads-up-stream">{mail}</div>}
+      {/* stream-grouped: the mail rows ride inside one card (MailNotices
+          wraps them); the Clear All row and the receipt sit under it. */}
+      {mail && <div className="heads-up-stream stream-grouped">{mail}</div>}
 
       {reminders}
 

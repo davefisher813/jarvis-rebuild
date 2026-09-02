@@ -2497,9 +2497,13 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
     const pickOne = flow.slice(flow.indexOf("const pickOne = () => {"));
     const body = pickOne.slice(0, pickOne.indexOf("\n  };") + 5);
     expect(body, "onWhatNow is checked first").toMatch(/if \(onWhatNow\) \{ onWhatNow\(\); return; \}/);
+    // LIFE (2026-09-01): TasksFlow mounts inside LifeFlow now; the shell
+    // hands the same What Now to LifeFlow, and LifeFlow passes it through.
     const shell = read(join(SRC, "shell/AppShell.tsx"));
     expect(shell, "and AppShell actually wires it to the same What Now the lightning bolt uses")
-      .toMatch(/<TasksFlow[^>]*onWhatNow=\{\(\) => void openWhatNow\(\)\}/);
+      .toMatch(/<LifeFlow[^>]*onWhatNow=\{\(\) => void openWhatNow\(\)\}/);
+    const life = read(join(SRC, "life/LifeFlow.tsx"));
+    expect(life, "LifeFlow passes it through untouched").toMatch(/<TasksFlow[^>]*onWhatNow=\{onWhatNow\}/);
   });
 
   // FINDING #2. onStartTask is passed to every row unconditionally, so the
@@ -2509,11 +2513,17 @@ describe("LAW 6: Pick One picks, urgency survives Start, timed beats untimed, mo
   // the only place urgency could ever render.
   it("an overdue or due-today row carries its urgency tag independent of whether Start renders", () => {
     const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
-    expect(page, "row-tags renders the tag for overdue/today, not just soon")
-      .toMatch(/u && u\.kind !== "soon" && !\(muteToday && u\.kind === "today"\) &&\s*<span className=\{"urgency urgency-chip " \+ URGENCY_CLASS\[u\.kind\]\}/);
-    // The trailing-slot fallback must be narrowed to "soon" only, or it
-    // would render the SAME tag a second time whenever onStart is absent.
-    expect(page, "the trailing fallback cannot double up with row-tags")
+    // AMENDED 2026-09-01 (the ruled row, "Together" catalog). The tag is
+    // the distance chip now (TODAY, 2 DAYS LATE, ...), computed by
+    // distanceFor and rendered on the second line inside .r-k, which the
+    // Start button never touches. Same law, new anatomy: the chip must not
+    // depend on onStart, and the trailing fallback stays narrowed to "soon"
+    // so it can never double up with the line above.
+    expect(page, "the chip comes from the distance ladder, gated only by the Today mute")
+      .toMatch(/const chip = dist && !t\.done && !\(muteToday && dist\.kind === "today"\) \? dist : null;/);
+    expect(page, "the chip renders on the second line, never in the trailing slot")
+      .toMatch(/\{chip && <span className=\{"uchip " \+ \(chip\.kind === "late" \? "u-late" : "u-today"\)\}>\{chip\.label\}<\/span>\}/);
+    expect(page, "the trailing fallback cannot double up with the chip")
       .toMatch(/: u && u\.kind === "soon" && <span className=\{"urgency " \+ URGENCY_CLASS\[u\.kind\]\}/);
   });
 
@@ -2606,10 +2616,17 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
   // colour; the tags ride as plain facts") was right and unimplemented.
   it("only the primary category is coloured on a task row", () => {
     const src = page();
+    // AMENDED 2026-09-01 (the ruled row). The colour is the 4x11 bar at the
+    // head of the second line, painted from the PRIMARY category and nothing
+    // else; the category words, when they render, are all one plain grey.
+    // Same law, stricter: not "only the first word is coloured" but "no
+    // word is coloured", so a second category can never wear a colour that
+    // is not its own.
     expect(src, "the row no longer paints the whole joined line one colour")
       .not.toMatch(/className=\{"eyebrow cat-fg-" \+ catColor\(t\.category\)\}/);
-    expect(src, "index 0 gets the colour, everything after inherits neutral")
-      .toMatch(/i === 0 \? "cat-fg-" \+ catColor\(c\.id\) : undefined/);
+    expect(src, "the bar carries the primary category's colour")
+      .toMatch(/<span className=\{"r-bar cat-bg-" \+ catColor\(t\.category\)\} \/>/);
+    expect(src, "no category word is coloured").not.toMatch(/cat-fg-/);
   });
 
   it("categoriesOf puts the primary first, which is what the index-0 rule leans on", async () => {
@@ -2909,14 +2926,17 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
   // for it says nothing. OVERDUE still shows everywhere.
   it("the urgency tag is a chip, and TODAY never renders on the filter that already says it", () => {
     const page = read(join(SRC, "tasks/screens/TasksPage.tsx"));
-    expect(page, "chip class on the row tag").toMatch(/urgency urgency-chip/);
-    expect(page, "TODAY muted where redundant, OVERDUE untouched")
-      .toMatch(/!\(muteToday && u\.kind === "today"\)/);
+    // AMENDED 2026-09-01 (the ruled row): the chip is .uchip, the same one
+    // Today's dealt row wears, tinted from its own colour (warn for today,
+    // the system red for late). The mute rule is unchanged.
+    expect(page, "chip class on the row tag").toMatch(/"uchip " \+ \(chip\.kind === "late" \? "u-late" : "u-today"\)/);
+    expect(page, "TODAY muted where redundant, LATE untouched")
+      .toMatch(/!\(muteToday && dist\.kind === "today"\)/);
     expect(page, "the mute is the today filter, nothing else")
       .toMatch(/muteToday=\{filter === "today"\}/);
     expect(CSS, "the chip is a tint of the tag's own colour, not a new colour")
-      .toMatch(/\.urgency-chip\.urgency-warn \{ background: color-mix\(in srgb, var\(--warn\)/);
-    expect(CSS).toMatch(/\.urgency-chip\.urgency-red \{ background: color-mix\(in srgb, var\(--sys-red\)/);
+      .toMatch(/\.ruled \.uchip\.u-today \{ color: var\(--warn\); background: var\(--warn-tint\); \}/);
+    expect(CSS).toMatch(/\.ruled \.uchip\.u-late  \{ color: var\(--sys-red\); background: var\(--red-tint\); \}/);
   });
 
   // FINDING 3, FOUR CHAPTERS. Read the history before changing this.

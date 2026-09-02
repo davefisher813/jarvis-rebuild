@@ -29,6 +29,26 @@
 }
 [data-theme="light"] .ruled .card { box-shadow: var(--shadow-card); }
 
+/* ---------- A CARD INSIDE A CARD IS A ROW (Dave 2026-09-01, pic 2) --------
+   The rows in Your Move are NoticeCards, which carry .card, riding inside
+   the one grouped .card. The rule above gave every .card a corner, a rim
+   and a shadow, and did not stop at the outer one: three rows each grew
+   their own, and the band read as three cards stacked. "My issue with the
+   glass is when it's stacked and not together." A card inside a card has
+   no corners and no shadow. It is a row; the hairlines say where it ends.
+   Three classes deep so it beats .ruled .card without an !important. */
+.ruled .card .card { border-radius: 0; box-shadow: none; }
+
+/* ---------- EVERY BAND IS ONE CARD ("Go with pic 1. Apply that everywhere.")
+   The Email band on Today wore three separate cards, each its own height.
+   It wears the grouped card now, same as Your Move: two-line rows, sender
+   over subject, one line each, the verb in the action column. Row type
+   inside a ruled stream card is the ruled row's: 16/500 for the name. */
+.ruled .stream-grouped .notice-card-uniform { min-height: 56px; }
+.ruled .stream-card .conn-name, .ruled .stream-card .vrow-fact {
+  font-size: 16px; font-weight: var(--w-regular); letter-spacing: -0.01em; }
+.ruled .stream-card .notice-card .conn-meta { font-size: 12.5px; }
+
 /* ---------- SECTION HEADS: 12.5 / 700 / 0.1em caps, leader stays ---------
    Q-02, ruled at phone size against the 11 and the 12. */
 .ruled .sh2 .t { font-size: 12.5px; font-weight: var(--w-semi); letter-spacing: 0.1em; }
@@ -90,6 +110,19 @@
 .ruled .r-bar { width: 4px; height: 11px; border-radius: 2px; flex-shrink: 0; }
 .ruled .r-goal { font-size: 12.5px; font-weight: var(--w-normal); color: var(--tx-3);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* THE GOAL LINE (Dave 2026-09-01: "Goals can't render like typical
+   subtext"). A goal wears the goal mark in goal green and its name one step
+   brighter at medium weight; the category, the reason and everything else
+   on this line stay plain grey. Shape and weight split them, not a fill,
+   so a row with a chip never carries two capsules. */
+.ruled .r-goal.r-is-goal { display: inline-flex; align-items: center; gap: 5px; color: var(--tx-2);
+  font-weight: var(--w-medium); min-width: 0; }
+.ruled .r-goal.r-is-goal .r-goal-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled .r-gm { width: 12px; height: 12px; color: var(--good); flex-shrink: 0; }
+[data-theme="light"] .ruled .r-gm { color: #1B7A3A; }
+/* The plain second-line texts: a category (no goal to name) and, on Today's
+   dealt row, the reason it was dealt. Both are subtext and look like it. */
+.ruled .r-goal.r-cat, .ruled .r-goal.r-why { color: var(--tx-3); }
 .ruled .r-goal.r-orphan { color: var(--tx-4); font-style: italic; }
 /* the dealt row's reason line keeps its place as the optional third line */
 .ruled .task-row .task-title > .eyebrow { margin-top: 3px; }
@@ -109,3 +142,97 @@
    producers own their verbs and the Email port sweeps them. */
 .ruled .stream-card .pill-act,
 .ruled .heads-up-stream .pill-act { min-width: 100px; justify-content: center; text-align: center; }
+
+/* ---------- THE TASKS LIST, PORTED (2026-09-01, second surface) -----------
+   One card per group, rows inside, hairlines inset past the check. Base
+   .task-row paints page ground for the swipe shell; inside the card it
+   wears the card's surface, three classes deep so it beats both the base
+   rule and light theme's repaint. Full-bleed rows (08-18 library form) are
+   gone from this page; every list on a ruled screen is a card. */
+.ruled .list-card-ruled { margin: 0 var(--s-4); overflow: hidden; padding: 0; }
+.ruled .list-card-ruled .task-row { background: var(--surface-1); }
+.ruled .list-card-ruled > .task-swipe + .task-swipe { position: relative; }
+.ruled .list-card-ruled > .task-swipe + .task-swipe::before {
+  content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 44px + var(--s-3)); right: 0; top: 0;
+  height: 0.5px; background: var(--divider); pointer-events: none; }
+.ruled .list-card-ruled + .list-foot { margin-top: var(--s-3); }
+/* Done rows strike the name, not the whole block: the kicker stays legible. */
+.ruled .task-row.completed .task-title { text-decoration: none; }
+.ruled .task-row.completed .task-name { text-decoration: line-through; color: var(--tx-4); }
+.ruled .task-row.completed .r-goal, .ruled .task-row.completed .r-bar { opacity: 0.5; }
+/* Renaming in place: the editable name keeps the row's own type. */
+.ruled .task-row .task-title .task-name[contenteditable] { display: block; white-space: nowrap; overflow: hidden; }
+
+/* The list head: the filter's name, the count, the group-by pill. */
+.ruled .list-head { margin-top: var(--s-2); }
+.ruled .gb { display: inline-flex; align-items: center; gap: 7px; }
+.ruled .gb-cv { width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+  transform: rotate(45deg) translateY(-2px); opacity: 0.7; }
+/* Open: the options replace the head's right side, chips in a row. */
+.ruled .gb-open { order: 2; display: flex; gap: var(--s-1h); flex-wrap: wrap; margin: -13px 0; }
+.ruled .gb-open .chip { height: 30px; font-size: 13px; padding: 0 11px; }
+/* Group heads: dot and caps, the same head the Goals view wears. */
+.ruled .grp-head { display: flex; align-items: center; gap: 8px; padding: 18px var(--s-4) 6px;
+  font-size: 12.5px; font-weight: var(--w-semi); letter-spacing: 0.1em; text-transform: uppercase; color: var(--tx-3); }
+.ruled .grp-head .cat-dot { width: 8px; height: 8px; }
+.ruled .grp-head .n { font-weight: var(--w-medium); letter-spacing: 0.06em; color: var(--tx-4); }
+
+/* ---------- LIFE: the segment control under the head -----------------------
+   Tasks / Projects / Goals, the app's own .segmented, one row under the page
+   head. The Projects and Goals lenses wear .ruled too, so their rows and
+   heads take the ruled type; their row anatomy port is a later push. */
+.life-seg { padding-top: var(--s-1); padding-bottom: var(--s-2); }
+.life-seg .segmented .seg { min-height: 34px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; font-family: inherit; }
+/* buttons, so the UA ground has to go; the active one keeps the system's. */
+.life-seg .segmented .seg:not(.active) { background: transparent; }
+/* A project row's lineage line: the goal it is filed to, short name and mark. */
+.ruled .proj-row .r-k { margin-top: 3px; }
+
+/* ---------- SCHEDULE, PORTED (2026-09-02, fourth surface) ------------------
+   The block row (contract §4.9, Schedule handoff §5.5): gutter 62, rail 3,
+   11 to the body. Time 14.5/650 tabular, meridiem 10/700, name 15.5/600,
+   sub 12.5. The four kinds keep the shapes the live page already draws
+   (solid category rail, dashed proposed rail, dimmed locked rows); this is
+   their type and spacing brought onto the ruled scale. The day's timeline
+   rides in one card, the same one Today's Whole Day wears. */
+.ruled .sched-card { padding: 0; overflow: hidden; }
+.ruled .sched-card .sched-row, .ruled .sched-card .sched-swipe-wrap .sched-row { background: var(--surface-1); }
+.ruled .sched-card .sched-list { padding: var(--s-1) 0; }
+.ruled .sched-row { padding: 9px var(--s-4) 9px var(--s-4); gap: 11px; }
+.ruled .sched-time { width: 62px; font-size: 14.5px; font-weight: 650; color: var(--tx-2); letter-spacing: -0.01em;
+  padding-top: 2px; text-align: right; }
+.ruled .sched-time .ampm { font-size: 10px; font-weight: var(--w-semi); color: var(--tx-4); letter-spacing: 0.02em; margin-left: 2px; }
+.ruled .sched-bar { width: 3px; border-radius: 2px; left: calc(var(--s-4) + 62px + 4px); top: 7px; bottom: 7px; }
+.ruled .sched-body { padding-left: 3px; }
+.ruled .sched-title { font-size: 15.5px; font-weight: var(--w-medium); letter-spacing: -0.01em; margin-bottom: 3px; }
+.ruled .sched-cat, .ruled .sched-until, .ruled .sched-rep, .ruled .sched-sep, .ruled .sched-until-btn { font-size: 12.5px; }
+.ruled .sched-cat .cat-dot { width: 7px; height: 7px; }
+.ruled .sched-rep, .ruled .sched-until { white-space: nowrap; } /* an item wraps whole or not at all */
+.ruled .sched-row + .sched-row::before, .ruled .sched-swipe-wrap + .sched-swipe-wrap .sched-row::before {
+  left: calc(var(--s-4) + 62px + 11px); }
+/* Locked (protected) rows dim as they did; the lock rides at 11px in --tx-4. */
+.ruled .sched-locked .sched-title { color: var(--tx-3); font-weight: 550; }
+/* "Set Length" is an offer with nothing to read, so it is a capsule, not
+   bare words (ruled: a text button is always a capsule). "Until 9:00 AM"
+   is information that happens to be tappable and stays text. */
+.ruled .sched-until-btn.sched-until-empty { display: inline-flex; align-items: center; height: 22px; padding: 0 9px;
+  border-radius: var(--r-pill); background: var(--press-3); color: var(--tint); font-weight: var(--w-semi);
+  font-size: 12px; white-space: nowrap; }
+.ruled .sched-until-btn.sched-until-empty::after { inset: -6px -4px; }
+/* The gap: dashed --tx-4, no fill, the plus is the row's one verb mark. */
+.ruled .sched-gap { background: transparent; margin: 6px var(--s-4); padding: 8px var(--s-3); gap: 11px; }
+.ruled .sched-gap .sched-time { width: 62px; }
+.ruled .sched-gap .sched-gap-title { font-size: 14px; }
+.ruled .sched-gap-win { font-size: 12.5px; }
+/* The count line: numbers bold in --tx-1, the words quiet (contract: inline
+   number emphasis). */
+.ruled .count-line { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.ruled .count-line b { color: var(--tx-1); font-weight: var(--w-bold); }
+/* Anytime: one card, the ruled row, Drop in the trailing slot. */
+.ruled .anytime-head { margin-top: var(--s-4); }
+.ruled .anytime-card { padding: 0; overflow: hidden; }
+.ruled .anytime-row { background: var(--surface-1); touch-action: pan-y; }
+.ruled .anytime-row + .anytime-row { border-top: 0; }
+.ruled .anytime-row + .anytime-row::before { content: ""; position: absolute; left: calc(var(--s-4) + 44px + var(--s-3)); right: 0; top: 0;
+  height: 0.5px; background: var(--divider); }

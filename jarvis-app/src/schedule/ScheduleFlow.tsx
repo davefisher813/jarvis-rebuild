@@ -6,7 +6,7 @@ import { readGymSettings, rackFrom } from "../gym/settings";
 import type { Program, Workout } from "../gym/types";
 import { pausedCategoryIds } from "../categories/kinds";
 import { workWindowOf } from "./planMeta";
-import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
+import { buildGoalIndex, liveGoals, goalTitleForTask, goalShortForTask } from "../bigger/reach";
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
@@ -1152,6 +1152,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onRunningLate={onRunningLate}
         onFillBlock={onFillBlock}
         anytimeItems={anytimeItems}
+        goalOf={(t) => goalShortForTask(goalIdx, t)}
         onToggleTask={onToggleTask}
         onScheduleTask={onScheduleTask}
         attachMap={attachMap}

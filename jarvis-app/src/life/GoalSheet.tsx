@@ -4,6 +4,7 @@ import type { GoalData } from "./types";
 import type { Category } from "../categories/types";
 import type { Measure, Cadence } from "../bigger/measure";
 import { todayISO } from "../tasks/grouping";
+import { defaultShortName, SHORT_MAX } from "./shortName";
 
 type MeasureKind = "none" | "count" | "cadence" | "projects";
 const KINDS: { key: MeasureKind; label: string }[] = [
@@ -32,6 +33,10 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
   onSave: (d: GoalData) => void; onDelete?: () => void; onCancel: () => void;
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
+  // THE SHORT NAME (2026-09-01, "Fewer Words"): what task rows print after
+  // the goal mark. Empty means "use the two-word default", shown as the
+  // placeholder so he can see what the rows will say before typing.
+  const [short, setShort] = useState(initial?.short ?? "");
   // Money v1: an optional dollar target turns this into a savings goal.
   // Progress stays DERIVED (from logged entries), so this is a target, not a
   // self-reported status; it earns its field.
@@ -81,6 +86,11 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
             <div className="input-label">Goal</div>
             <input className={"input" + (touched && !title.trim() ? " input-error" : "")} placeholder="e.g. Run a half marathon" value={title} onChange={(e) => setTitle(e.target.value)} />
             {touched && !title.trim() && <div className="input-error">Add a goal.</div>}
+          </div>
+          <div className="field">
+            <div className="input-label">Short Name</div>
+            <input className="input" maxLength={SHORT_MAX} placeholder={title.trim() ? defaultShortName(title) : "e.g. Half marathon"} value={short} onChange={(e) => setShort(e.target.value)} />
+            <div className="input-hint">What task rows say after the goal mark. Two words is the idea.</div>
           </div>
           {categories.length > 0 && (
             <div className="field">
@@ -133,7 +143,7 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
           </div>
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), state: initial?.state ?? "on_track", ...(initial?.areaId ? { areaId: initial.areaId } : {}), ...(initial?.saved ? { saved: initial.saved } : {}), ...(initial?.dropped ? { dropped: initial.dropped } : {}), ...(tags.length ? { tags } : {}), measure: measureOf(), by: (kind !== "none" || externalMeasure) && by ? by : undefined, moneyTarget: target.trim() ? Number(target) : undefined }); }}>Save</button>
+          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), ...(short.trim() ? { short: short.trim() } : {}), state: initial?.state ?? "on_track", ...(initial?.areaId ? { areaId: initial.areaId } : {}), ...(initial?.saved ? { saved: initial.saved } : {}), ...(initial?.dropped ? { dropped: initial.dropped } : {}), ...(tags.length ? { tags } : {}), measure: measureOf(), by: (kind !== "none" || externalMeasure) && by ? by : undefined, moneyTarget: target.trim() ? Number(target) : undefined }); }}>Save</button>
           {mode === "edit" && onDelete && <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>{TRASH}Delete Goal</button>}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
