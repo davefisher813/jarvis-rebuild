@@ -1,13 +1,14 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { PROJECT_META, type Project, type ProjectData } from "./types";
 import { catColor, catName } from "../shared/categories";
-import { FileText } from "../shared/icons";
 import { useOptionalDecisions, useOptionalProjects, useOptionalGoals, useOptionalCategories } from "../data/NotesProvider";
 import type { DecisionRecord } from "../decisions/types";
 import type { Goal } from "../life/types";
 import type { Category } from "../categories/types";
 import { fmtDay } from "../decisions/DecisionsFlow";
-import ChipPicker from "../shared/ChipPicker";
+import HeadMenu from "../shared/HeadMenu";
+import { distanceFor } from "../tasks/grouping";
+import { dayPhrase } from "../money/bills";
 import { attemptWrite } from "../shared/guard";
 import { capAfterNumber } from "../shared/casing";
 import { areaFromTasks } from "./backfill";
@@ -55,7 +56,8 @@ export default function ProjectDetailPage({
   // sheet and then never see it from the project again.
   steps?: ProjectStep[];
   onToggleStep?: (id: string) => void;
-  onAddStep?: (text: string) => void;
+  // Opens the task sheet for a new step (the flow owns the sheet).
+  onAddStep?: () => void;
   onOpenStep?: (id: string) => void;
   // PICK 22: the learned per-category estimate the planner already uses, so a
   // project's size and its calendar footprint cannot disagree. Passed in
@@ -92,17 +94,9 @@ export default function ProjectDetailPage({
   // Add a step without leaving the project. The task sheet asks for a
   // category, a due date, a repeat and a project; a step here needs a
   // sentence, and the project it belongs to is already known.
-  const [newStep, setNewStep] = useState("");
   const [doneOpen, setDoneOpen] = useState(false);
   const openSteps = steps.filter((t) => !t.done);
   const doneSteps = steps.filter((t) => t.done);
-  const addStep = () => {
-    const text = newStep.trim();
-    if (!text || !onAddStep) return;
-    setNewStep("");
-    haptics.selection();
-    onAddStep(text);
-  };
 
   const m = PROJECT_META[data.status];
   const size = estimateFor ? sizeOf(steps, estimateFor) : null;
@@ -128,9 +122,9 @@ export default function ProjectDetailPage({
   }, [decisions, project.id]);
 
   return (
-    <div className="screen">
+    <div className="screen ruled proj-ruled">
       <div className="nav-bar"><button className="nav-back" aria-label="Back" onClick={onBack}></button><div className="nav-title">Project</div><button className="nav-action-text" onClick={onEdit}>Edit</button></div>
-      <div className="pad-x"><div className="card proj-detail-hero">
+      <div className="pad-x"><div className="card list-card-ruled proj-detail-hero">
         <div className={"proj-icon cat-bg-" + (hasCat ? catColor(data.category!) : "graphite")}>{initialOf(tag || data.title)}</div>
         <div className="proj-detail-title">{data.title}</div>
         <span className={"lm-qual lm-" + m.cls}>{m.label}</span>
@@ -168,17 +162,14 @@ export default function ProjectDetailPage({
           </div>
         </div>
       )}
-      <div className="grp"><div className="eyebrow">Details</div></div>
-      <div className="pad-x"><div className="card">
+      <div className="sh2 sh2-quiet"><span className="t">Details</span></div>
+      <div className="pad-x"><div className="card list-card-ruled">
         <div className="row"><div className="row-grow"><div className="conn-name">Status</div></div><span className={"lm-qual lm-" + m.cls}>{m.label}</span></div>
         <div className="row"><div className="row-grow"><div className="conn-name">Area</div></div>
           {projectsSvc && catList.length > 0 ? (
-            <ChipPicker
-              ariaLabel="Area"
-              value={data.category ?? ""}
-              options={[{ value: "", label: "None" }, ...catList.map((c) => ({ value: c.id, label: c.data.name, dot: c.data.color }))]}
-              onPick={(v) => saveField({ category: v || undefined })}
-            />
+            <HeadMenu variant="value" ariaLabel="Area" value={data.category ?? ""} off={!hasCat}
+              options={[{ value: "", label: "None" }, ...catList.map((c) => ({ value: c.id, label: c.data.name, dot: c.data.color as string }))]}
+              onPick={(v) => saveField({ category: v || undefined })} />
           ) : hasCat ? <span className="proj-detail-cat"><span className={"cat-dot cat-bg-" + catColor(data.category!)} />{tag}</span> : <span className="row-value">None</span>}</div>
         {guessedArea && (
           <div className="row proj-guess" role="button" tabIndex={0} onClick={() => saveField({ category: guessedArea })}>
@@ -191,12 +182,9 @@ export default function ProjectDetailPage({
         )}
         <div className="row"><div className="row-grow"><div className="conn-name">Goal</div></div>
           {projectsSvc && goalList.length > 0 ? (
-            <ChipPicker
-              ariaLabel="Goal"
-              value={data.goalId ?? ""}
+            <HeadMenu variant="value" ariaLabel="Goal" value={data.goalId ?? ""} off={!data.goalId}
               options={[{ value: "", label: "None" }, ...goalList.filter((g) => g.data.state !== "achieved").map((g) => ({ value: g.id, label: g.data.title }))]}
-              onPick={(v) => saveField({ goalId: v || undefined })}
-            />
+              onPick={(v) => saveField({ goalId: v || undefined })} />
           ) : <span className="row-value">{goalList.find((g) => g.id === data.goalId)?.data.title ?? "None"}</span>}</div>
       </div></div>
       {/* THE STEPS. Open work first, finished work folded away behind its
@@ -216,40 +204,47 @@ export default function ProjectDetailPage({
    them Steps and the Tasks tab called the same records Tasks, so filing
    work into a project looked like moving it somewhere else. The word is
    Tasks everywhere a reader can see it; the props keep their names. */}
-          <div className="grp"><div className="eyebrow">Tasks</div></div>
-          <div className="pad-x"><div className="card">
-            {openSteps.map((t) => (
-              <div className="row proj-step" key={t.id}>
-                <div
-                  className="task-check-tap"
-                  role="checkbox"
-                  aria-checked={false}
-                  aria-label="Mark done"
-                  onClick={() => { haptics.selection(); onToggleStep?.(t.id); }}
-                >
-                  <div className={"task-check " + (hasCat ? "cat-bd-" + catColor(data.category!) : "cat-bd-graphite")} />
+          <div className="sh2 sh2-quiet"><span className="t">Tasks</span>{openSteps.length > 0 && <span className="n">{openSteps.length}</span>}</div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {/* THE SHARED TASK ROW'S SHAPE (the rulings, 2026-09-02): the
+                check in its column, the name, and under it the chip and the
+                day, the way every task row in the app reads. */}
+            {openSteps.map((t) => {
+              const dist = today && t.due ? distanceFor({ text: t.text, done: false, due: t.due, category: t.category ?? data.category ?? "" }, today) : null;
+              return (
+                <div className="task-row p2 proj-step" key={t.id}>
+                  <div
+                    className="task-check-tap"
+                    role="checkbox"
+                    aria-checked={false}
+                    aria-label="Mark done"
+                    onClick={() => { haptics.selection(); onToggleStep?.(t.id); }}
+                  >
+                    <div className={"task-check " + (hasCat ? "cat-bd-" + catColor(data.category!) : "cat-bd-graphite")} />
+                  </div>
+                  <div className="task-title" role={onOpenStep ? "button" : undefined} tabIndex={onOpenStep ? 0 : undefined}
+                    onClick={onOpenStep ? () => onOpenStep(t.id) : undefined}>
+                    <span className="task-name">{t.text}</span>
+                    {t.due && (
+                      <div className="r-k">
+                        {dist && <span className={"uchip " + (dist.kind === "late" ? "u-late" : "u-today")}>{dist.label}</span>}
+                        <span className="r-goal r-cat">{today ? dayPhrase(t.due, today) : fmtDay(t.due)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="row-grow" role={onOpenStep ? "button" : undefined} tabIndex={onOpenStep ? 0 : undefined}
-                  onClick={onOpenStep ? () => onOpenStep(t.id) : undefined}>
-                  <div className="conn-name">{t.text}</div>
-                  {t.due && <div className="conn-meta">{fmtDay(t.due)}</div>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {openSteps.length === 0 && steps.length > 0 && (
-              <div className="row"><div className="row-grow"><div className="conn-meta">Every step is done.</div></div></div>
+              <div className="row"><div className="row-grow"><div className="conn-meta">Every task is done</div></div></div>
             )}
+            {/* THE SAME DOOR AS EVERYWHERE (Dave 2026-09-02: "every place you
+                can add a task must render the add task modal"). This was an
+                inline field that took a name and nothing else; it is the
+                row every list ends on, and it opens the task sheet born
+                into this project and its area. */}
             {onAddStep && (
-              <div className="row proj-add-step">
-                <input
-                  className="input proj-step-input"
-                  placeholder="Add a Task"
-                  value={newStep}
-                  onChange={(e) => setNewStep(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") addStep(); }}
-                />
-                {newStep.trim() && <button className="pill-act" onClick={addStep}>Add</button>}
-              </div>
+              <button className="row row-act" onClick={() => { haptics.selection(); onAddStep(); }}>Add a Task</button>
             )}
           </div></div>
           {doneSteps.length > 0 && (
@@ -258,14 +253,14 @@ export default function ProjectDetailPage({
                 {doneOpen ? "Hide Finished" : capAfterNumber(`${doneSteps.length} finished`)}
               </button>
               {doneOpen && (
-                <div className="card">
+                <div className="card list-card-ruled">
                   {doneSteps.map((t) => (
-                    <div className="row proj-step completed" key={t.id}>
+                    <div className="task-row p2 proj-step completed" key={t.id}>
                       <div className="task-check-tap" role="checkbox" aria-checked aria-label="Mark not done"
                         onClick={() => { haptics.selection(); onToggleStep?.(t.id); }}>
                         <div className="task-check done" />
                       </div>
-                      <div className="row-grow"><div className="conn-name">{t.text}</div></div>
+                      <div className="task-title"><span className="task-name">{t.text}</span></div>
                     </div>
                   ))}
                 </div>
@@ -284,12 +279,12 @@ export default function ProjectDetailPage({
           after you have already solved the problem solves nothing. */}
       {(linkedNotes.length > 0 || onAddNote) && (
         <>
-          <div className="grp"><div className="eyebrow">Linked Notes</div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Linked Notes</span>{linkedNotes.length > 0 && <span className="n">{linkedNotes.length}</span>}</div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {linkedNotes.map((n) => (
-              <div className="row" role={onOpenNote ? "button" : undefined} tabIndex={onOpenNote ? 0 : undefined} key={n.id} onClick={onOpenNote ? () => onOpenNote(n.id) : undefined}>
-                <div className={"proj-icon cat-bg-" + (n.category ? catColor(n.category) : "graphite")}><FileText className="ic" /></div>
-                <div className="conn-name">{n.title}</div>
+              <div className="task-row p2 note-row" role={onOpenNote ? "button" : undefined} tabIndex={onOpenNote ? 0 : undefined} key={n.id} onClick={onOpenNote ? () => onOpenNote(n.id) : undefined}>
+                <div className="task-check-tap gm-slot"><span className={"cat-dot cat-bg-" + (n.category ? catColor(n.category) : "graphite")} /></div>
+                <div className="task-title"><span className="task-name">{n.title}</span></div>
                 {onOpenNote && <div className="chev"></div>}
               </div>
             ))}

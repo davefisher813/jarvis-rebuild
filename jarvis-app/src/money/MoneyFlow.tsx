@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { createPortal } from "react-dom";
 import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useOptionalFiles, useFileStore } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
 import { ACCOUNT_META, ACCOUNT_KINDS, formatMoney, totalBalance, type Account, type AccountData, type AccountKind } from "./types";
@@ -14,7 +13,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
 import { goalTone } from "../shared/categories";
-import { RepeatGlyph, WalletGlyph, TargetGlyph } from "../shared/glyphs";
+import { RepeatGlyph, WalletGlyph, TargetGlyph, DollarGlyph } from "../shared/glyphs";
 import { TaskRow } from "../tasks/screens/TasksPage";
 import { daysBetween } from "../upnext/upnext";
 import { attemptWrite } from "../shared/guard";
@@ -23,7 +22,8 @@ import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
 import { usePickFile } from "../shared/usePickFile";
 import { sizeLabel, type UserFile } from "../files/types";
-import { Paperclip, Image as ImageGlyph, FileText } from "../shared/icons";
+import { Paperclip, Image as ImageGlyph, FileText, Calendar, FolderKanban } from "../shared/icons";
+import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
 
 const CHEV = <div className="chev" />;
 const PLUS = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
@@ -60,32 +60,27 @@ function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
   const [kind, setKind] = useState<AccountKind>(initial?.kind ?? "cash");
   const [touched, setTouched] = useState(false);
   const valid = name.trim().length > 0 && balance.trim() !== "" && Number.isFinite(Number(balance));
-  return createPortal(
-    <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{mode === "new" ? "New Account" : "Edit Account"}</div></div>
-        <div className="pad-x sheet-form">
-          <div className="field"><div className="input-label">Name</div>
-            <input className={"input" + (touched && !name.trim() ? " input-error" : "")} placeholder="e.g. Checking" value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <div className="field"><div className="input-label">Balance (USD)</div>
-            <input className={"input" + (touched && !valid ? " input-error" : "")} inputMode="numeric" placeholder="0" value={balance} onChange={(e) => setBalance(e.target.value)} />
-            {touched && !valid && <div className="input-error">Enter a name and a number.</div>}</div>
-          <div className="field"><div className="input-label">Type</div>
-            <div className="chip-row">{ACCOUNT_KINDS.map((k) => (
-              <button key={k} className={"chip" + (kind === k ? " active" : "")} onClick={() => setKind(k)}>{ACCOUNT_META[k].label}</button>))}</div></div>
-        </div>
-        <div className="pad-x sheet-actions">
-          {/* Every save re-stamps asOf: the dated-balance line depends on it. */}
-          {/* B12: Save creates an account, so two taps created two. */}
-          <button className="btn btn-primary btn-block" disabled={saving} onClick={() => { if (!valid) { setTouched(true); return; } setSaving(true); onSave({ name: name.trim(), balance: Number(balance), kind, asOf: todayISO() }); }}>{saving ? "Saving..." : "Save"}</button>
-          {mode === "edit" && onDelete && <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>{TRASH}Delete Account</button>}
-          <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
-        </div>
-      </div>
-    </div>
-    ,
-    document.body,
+  // Every save re-stamps asOf: the dated-balance line depends on it.
+  // B12: Save creates an account, so two taps created two.
+  const save = () => { if (!valid) { setTouched(true); return; } if (saving) return; setSaving(true); onSave({ name: name.trim(), balance: Number(balance), kind, asOf: todayISO() }); };
+  // THE ACCOUNT SHEET ON THE SHEET BAR (2026-09-02): the name as the row,
+  // the balance typed at the right, the type as a value that opens the
+  // dropdown, Delete as the last group.
+  return (
+    <FormSheet title={mode === "new" ? "New Account" : "Edit Account"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
+      <Group label="Account">
+        <FieldRow tone="blue" glyph={<WalletGlyph />} value={name} onChange={setName} placeholder="e.g. Checking" ariaLabel="Account name"
+          error={touched && !name.trim()} right={false} />
+        <FieldRow tone="green" glyph={<DollarGlyph />} label="Balance" value={balance} onChange={setBalance} placeholder="0" inputMode="numeric"
+          ariaLabel="Balance in dollars" error={touched && !valid && !!name.trim()} />
+        <MenuRow tone="indigo" glyph={<FolderKanban className="ic" />} label="Type" value={kind} ariaLabel="Account type"
+          options={ACCOUNT_KINDS.map((k) => ({ value: k, label: ACCOUNT_META[k].label }))} onPick={(v) => setKind(v as AccountKind)} />
+      </Group>
+      <ErrorLine text={touched && !valid ? "Enter a name and a number." : null} />
+      {mode === "edit" && onDelete && (
+        <Group className="xs-actions"><DeleteRow label="Delete Account" onClick={onDelete} /></Group>
+      )}
+    </FormSheet>
   );
 }
 
@@ -98,33 +93,22 @@ function PaydaySheet({ initial, onSave, onRemove, onCancel }: {
   const [freq, setFreq] = useState<PaydayFreq>(initial?.freq ?? "biweekly");
   const [touched, setTouched] = useState(false);
   const valid = amount.trim() !== "" && Number(amount) > 0 && !!next;
-  return createPortal(
-    <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">Payday</div></div>
-        <div className="pad-x sheet-form">
-          <div className="field"><div className="input-label">Paycheck (USD)</div>
-            <input className={"input" + (touched && !valid ? " input-error" : "")} inputMode="numeric" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
-            {touched && !valid && <div className="input-error">Enter the amount and the next payday.</div>}</div>
-          <div className="field"><div className="input-label">Next Payday</div>
-            <input type="date" className="input" value={next} onChange={(e) => setNext(e.target.value)} /></div>
-          <div className="field"><div className="input-label">How Often</div>
-            <div className="segmented">
-              <button type="button" className={"seg" + (freq === "weekly" ? " active" : "")} onClick={() => setFreq("weekly")}>Weekly</button>
-              <button type="button" className={"seg" + (freq === "biweekly" ? " active" : "")} onClick={() => setFreq("biweekly")}>Every 2 Weeks</button>
-              <button type="button" className={"seg" + (freq === "monthly" ? " active" : "")} onClick={() => setFreq("monthly")}>Monthly</button>
-            </div></div>
-        </div>
-        <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" disabled={saving} onClick={() => { if (!valid) { setTouched(true); return; } setSaving(true); onSave({ amount: Number(amount), next, freq }); }}>{saving ? "Saving..." : "Save"}</button>
-          {onRemove && <button className="btn btn-secondary btn-block btn-danger-text" onClick={onRemove}>{TRASH}Remove Payday</button>}
-          <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
-        </div>
-      </div>
-    </div>
-    ,
-    document.body,
+  const save = () => { if (!valid) { setTouched(true); return; } if (saving) return; setSaving(true); onSave({ amount: Number(amount), next, freq }); };
+  return (
+    <FormSheet title="Payday" onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
+      <Group label="Paycheck">
+        <FieldRow tone="green" glyph={<DollarGlyph />} label="Amount" value={amount} onChange={setAmount} placeholder="0" inputMode="numeric"
+          ariaLabel="Paycheck in dollars" error={touched && !valid} />
+        <FieldRow tone="orange" glyph={<Calendar className="ic" />} label="Next Payday" type="date" value={next} onChange={setNext} ariaLabel="Next payday" />
+        <MenuRow tone="sky" glyph={<RepeatGlyph />} label="How Often" value={freq} ariaLabel="How often"
+          options={[{ value: "weekly", label: "Weekly" }, { value: "biweekly", label: "Every 2 Weeks" }, { value: "monthly", label: "Monthly" }]}
+          onPick={(v) => setFreq(v as PaydayFreq)} />
+      </Group>
+      <ErrorLine text={touched && !valid ? "Enter the amount and the next payday." : null} />
+      {onRemove && (
+        <Group className="xs-actions"><DeleteRow label="Remove Payday" onClick={onRemove} /></Group>
+      )}
+    </FormSheet>
   );
 }
 

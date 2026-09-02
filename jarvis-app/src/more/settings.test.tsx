@@ -13,9 +13,12 @@ import { extrasFor } from "../shell/destinations";
 describe("Settings", () => {
   it("Appearance switches the theme", () => {
     render(<AppearanceProvider><AppearancePage onBack={() => {}} /></AppearanceProvider>);
-    fireEvent.click(screen.getByText("Light"));
+    // the theme is a value that opens the dropdown (the sub-pages onto the rulings, 2026-09-02)
+    fireEvent.click(screen.getByLabelText("Theme"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Light" }));
     expect(document.documentElement.dataset.theme).toBe("light");
-    fireEvent.click(screen.getByText("Dark"));
+    fireEvent.click(screen.getByLabelText("Theme"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Dark" }));
     expect(document.documentElement.dataset.theme).toBe("dark");
   });
 

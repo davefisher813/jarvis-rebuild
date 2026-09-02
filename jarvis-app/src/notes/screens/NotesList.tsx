@@ -1,6 +1,7 @@
-import { Fragment, useState } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import PageHeader, { BarAction, BarText } from "../../shared/PageHeader";
-import { Check, FileText, Paperclip, PenLine, Search } from "../../shared/icons";
+import { Check, FileText, Paperclip, PenLine, Search, Tag, Trash2 } from "../../shared/icons";
+import { useSwipe, type SwipeState } from "../../shared/useSwipe";
 import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
 import { catColor, catName } from "../../shared/categories";
@@ -20,6 +21,34 @@ export interface NoteListItem {
   edited: number; // epoch ms of the last write; 0 when the store cannot say
   category: string; // drives the area dot's colour
   first: string; // the body's first line, as words; "" for a title-only note
+}
+
+// THE SWIPE ON A NOTE (Dave 2026-09-02: "Notes should be able to swipe and
+// take action (delete and whatever else you think is appropriate)"). The
+// task row's own shell: two slots slide in from the right, File (the area
+// picker, since every note on the list said Not Filed) and Delete (with
+// Undo, the flow's own). Off in select mode, where a half-swiped row under
+// a selection is two gestures fighting.
+type RowDrag = { dragging: boolean; style?: React.CSSProperties; handlers?: SwipeState["handlers"] };
+function NoteSwipeRow({ enabled, onFile, onDelete, children }: {
+  enabled: boolean; onFile?: () => void; onDelete?: () => void; children: (drag: RowDrag) => ReactNode;
+}) {
+  const swipe = useSwipe({ revealW: onFile ? 176 : 88, enabled });
+  return (
+    <div className="task-swipe">
+      {onFile && (
+        <button className="task-snooze" onClick={() => swipe.closeThen(onFile)} aria-label="File under an area">
+          <Tag className="ic" />
+          <span className="swipe-label">File</span>
+        </button>
+      )}
+      <button className="task-del" onClick={() => swipe.closeThen(onDelete)} aria-label="Delete note">
+        <Trash2 className="ic" />
+        <span className="swipe-label">Delete</span>
+      </button>
+      {children({ dragging: swipe.dragging, style: swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined, handlers: swipe.handlers })}
+    </div>
+  );
 }
 
 // THE ROW AND THE GROUPING are the catalog's first two picks; the constants
@@ -65,6 +94,8 @@ export default function NotesList({
   onAddFile,
   uploading = false,
   onDeleteMany,
+  onFile,
+  onDelete,
 }: {
   notes: NoteListItem[];
   onOpen?: (id: string) => void;
@@ -74,6 +105,9 @@ export default function NotesList({
   onAddFile?: () => void;
   uploading?: boolean;
   onDeleteMany?: (ids: string[]) => void;
+  // The swipe's two moves (2026-09-02): file under an area, delete one.
+  onFile?: (id: string) => void;
+  onDelete?: (id: string) => void;
 }) {
   const [q, setQ] = useState("");
   const query = q.trim().toLowerCase();
@@ -125,10 +159,12 @@ export default function NotesList({
     const tone = "cat-fg-" + (n.category ? catColor(n.category) : "yellow");
     const area = n.category ? catName(n.category) : "";
     const when = editedLabel(n.edited, now);
-    return (
+    const body = (drag: RowDrag) => (
       <div
-        className="task-row p2 note-row"
-        role="button" tabIndex={0} key={n.id}
+        className={"task-row p2 note-row" + (drag.dragging ? " swiping" : "")}
+        role="button" tabIndex={0}
+        style={drag.style}
+        {...(drag.handlers ?? {})}
         onClick={() => (sel.active ? sel.toggle(n.id) : onOpen?.(n.id))}
       >
         {/* The selection box takes the leading column: on a row with a glyph
@@ -160,6 +196,11 @@ export default function NotesList({
         {!sel.active && <div className="chev"></div>}
       </div>
     );
+    return onDelete ? (
+      <NoteSwipeRow key={n.id} enabled={!sel.active} onFile={onFile ? () => onFile(n.id) : undefined} onDelete={() => onDelete(n.id)}>
+        {body}
+      </NoteSwipeRow>
+    ) : <Fragment key={n.id}>{body({ dragging: false })}</Fragment>;
   };
 
   return (

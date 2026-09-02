@@ -27,12 +27,16 @@ describe("EventSheet", () => {
     expect(onSave).toHaveBeenCalledWith({ title: "Standup", date: "2026-05-24", start: "09:00", end: "10:00", category: "c1", location: "", recurrence: "none", until: "", taskIds: [], gym: false });
   });
 
-  it("category switch wears its slot color and saves its id", () => {
+  // The area is a value that opens the dropdown (the form sheets, 2026-09-02):
+  // the closed value wears the area's dot, never a filled chip.
+  it("the area value wears its dot, opens a menu, and saves the picked id", () => {
     const onSave = vi.fn();
     render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
-    expect(document.querySelector(".chip.cat-bg-blue")).toBeTruthy();
-    fireEvent.click(screen.getByText("Friends"));
-    expect(document.querySelector(".chip.cat-bg-teal")).toBeTruthy();
+    const area = screen.getByLabelText("Area");
+    expect(area.querySelector(".cat-dot.cat-bg-blue")).toBeTruthy();
+    fireEvent.click(area);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Friends/ }));
+    expect(area.querySelector(".cat-dot.cat-bg-teal")).toBeTruthy();
     fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Lunch" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith({ title: "Lunch", date: "2026-05-24", start: "09:00", end: "10:00", category: "c2", location: "", recurrence: "none", until: "", taskIds: [], gym: false });

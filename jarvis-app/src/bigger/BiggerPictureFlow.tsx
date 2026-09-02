@@ -46,7 +46,8 @@ type Sheet =
   // A project STEP is a task. The row had a whole button branch waiting for a
   // handler that no caller ever passed (2026-08-24 audit), so you could tick a
   // step off and never open it.
-  | { kind: "editStep"; id: string };
+  | { kind: "editStep"; id: string }
+  | { kind: "newStep"; projectId: string };
 
 // One surface for goals and projects. Replaces LifeMapFlow and ProjectsFlow.
 // openGoalId (2026-08-09): goal deep-links used to be set by the shell and
@@ -523,15 +524,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
             .map((t) => ({ id: t.id, text: t.data.text, done: !!t.data.done, due: t.data.due ?? null, category: t.data.category }))}
           onToggleStep={async (id) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reload(); }}
           onOpenStep={(id) => setSheet({ kind: "editStep", id })}
-          onAddStep={async (text) => {
-            // The step is born into the project AND its area, because a task
-            // created from inside a project already answered both questions.
-            await attemptWrite(() => tasksSvc.createTask(text, {
-              projectId: detail.id,
-              category: detail.data.category || undefined,
-            }));
-            await reload();
-          }}
+          onAddStep={() => setSheet({ kind: "newStep", projectId: detail.id })}
           onFinish={async () => {
             const p = detail;
             await attemptWrite(() => projectsSvc.update(p.id, { ...p.data, status: "done" }));
@@ -556,6 +549,35 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
             onCancel={() => setSheet({ kind: "closed" })}
           />
         )}
+        {/* THE TASK SHEET FOR A NEW STEP (Dave 2026-09-02, "every place you
+            can add a task must render the add task modal"). Born into the
+            project AND its area, because a task created from inside a
+            project already answered both questions; the sheet lets the rest
+            (due, repeat, the plan) be said in the same breath. */}
+        {sheet.kind === "newStep" && (() => {
+          const proj = projects.find((p) => p.id === sheet.projectId);
+          return (
+            <TaskSheet
+              mode="new"
+              categories={categories.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))}
+              projects={projects.map((p) => ({ id: p.id, title: p.data.title }))}
+              initial={{ category: proj?.data.category ?? "", projectId: sheet.projectId }}
+              onSave={async (d: TaskDraft) => {
+                await attemptWrite(() => tasksSvc.createTask(d.text, {
+                  projectId: d.projectId || sheet.projectId,
+                  category: d.category || undefined,
+                  extraCategories: d.extraCategories,
+                  due: d.due || null,
+                  recurrence: d.repeat ? (d.repeat as "daily" | "weekly" | "monthly") : undefined,
+                  plan: d.plan,
+                }));
+                setSheet({ kind: "closed" });
+                await reload();
+              }}
+              onCancel={() => setSheet({ kind: "closed" })}
+            />
+          );
+        })()}
         {sheet.kind === "editStep" && (() => {
           const t = tasks.find((x) => x.id === sheet.id);
           if (!t) return null;

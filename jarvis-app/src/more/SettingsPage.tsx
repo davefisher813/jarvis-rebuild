@@ -49,14 +49,24 @@ export default function SettingsPage({ onNavigate, onBack }: { onNavigate: (r: M
   // headers, just list the settings"). Group order still drives row order.
   const rows = [0, 1, 2].flatMap((g) => ITEMS.filter((i) => i.group === g && (!ql || i.label.toLowerCase().includes(ql))));
   const anyMatch = rows.length > 0;
+  // THE LIST IN CARDS (Brain onto the rulings, 2026-09-02, the same day the
+  // hub and More moved): the three groups as three cards, still with no
+  // heads (Dave 2026-08-19: "just list the settings"); the gap between
+  // cards is the boundary. A search narrows to one card.
+  const groups = ql ? [rows] : [0, 1, 2].map((g) => rows.filter((i) => i.group === g)).filter((g) => g.length > 0);
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <PageHeader title="Settings" back="More" onBack={onBack}>
         <div className="pad-x settings-search"><div className="search-bar"><Mag /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search" /></div></div>
       </PageHeader>
-      {rows.map((i) => <SettingRow key={i.route} item={i} onClick={() => onNavigate(i.route)} />)}
+      {groups.map((g, gi) => (
+        <div className={"pad-x" + (gi > 0 ? " nav-card-gap" : "")} key={gi}><div className="card list-card-ruled nav-card">
+          {g.map((i) => <SettingRow key={i.route} item={i} onClick={() => onNavigate(i.route)} />)}
+        </div></div>
+      ))}
       {!anyMatch && <div className="empty-state"><div className="empty-title">No Settings Match "{q}"</div>
         <button className="quiet-action" onClick={() => setQ("")}>Clear the Search</button></div>}
+      <div className="screen-foot" />
     </div>
   );
 }

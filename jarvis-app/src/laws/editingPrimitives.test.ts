@@ -111,9 +111,15 @@ describe("law: the primitives exist where surfaces expect them", () => {
   // copy that dropped tap-to-type, which is the only thing that makes a
   // stepper bearable past about ten taps. Nothing caught it, because a
   // primitive that is not named here is a primitive nothing protects.
+  // AMENDED 2026-09-02: the one-field picker is HeadMenu (the value that
+  // opens the dropdown, ruled on the task sheet and worn by every form
+  // sheet and the project page since). ChipPicker, the chip that unfolded
+  // into an option row, had no caller left and is gone; the mechanics it
+  // guaranteed (tap is the answer and the save, no sheet, no navigation)
+  // are HeadMenu's.
   it("all six primitives are present in shared/", () => {
     const names = readdirSync(join(SRC, "shared"));
-    for (const p of ["InlineEdit.tsx", "ChipPicker.tsx", "ReorderList.tsx", "useSwipe.ts", "undoStack.ts", "Stepper.tsx"]) {
+    for (const p of ["InlineEdit.tsx", "HeadMenu.tsx", "ReorderList.tsx", "useSwipe.ts", "undoStack.ts", "Stepper.tsx"]) {
       expect(names).toContain(p);
     }
   });

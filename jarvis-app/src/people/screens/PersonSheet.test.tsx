@@ -19,8 +19,10 @@ describe("PersonSheet", () => {
     fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "Sam Rivera" } });
     // label via chip, one tap (the blank box was why labels stayed empty)
     fireEvent.click(screen.getByText("Coworker"));
-    fireEvent.click(screen.getByText("Casual"));
-    fireEvent.change(screen.getByPlaceholderText("Email"), { target: { value: "sam@work.com" } });
+    // the register is a menu (the form sheets on the sheet bar, 2026-09-02)
+    fireEvent.click(screen.getByLabelText("How JARVIS writes to them"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Casual" }));
+    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "sam@work.com" } });
     fireEvent.click(screen.getByText("Save"));
     expect(onSave).toHaveBeenCalledWith({
       name: "Sam Rivera", relationship: "Coworker", birthday: "", notes: "", color: "red",
@@ -28,14 +30,16 @@ describe("PersonSheet", () => {
     });
   });
 
-  it("free text overrides the chip, and register is un-set by a second tap", () => {
+  it("free text overrides the chip, and register is un-set by Not Set", () => {
     const onSave = vi.fn();
     render(<PersonSheet mode="new" onSave={onSave} onCancel={() => {}} />);
     fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "Ana" } });
     fireEvent.click(screen.getByText("Friend")); // the label CHIP (exact match; the segment says "Close Friend")
     fireEvent.change(screen.getByPlaceholderText("Or Say It Your Way"), { target: { value: "College roommate" } });
-    fireEvent.click(screen.getByText("Professional"));
-    fireEvent.click(screen.getByText("Professional")); // toggle off => unknown => clean prose
+    fireEvent.click(screen.getByLabelText("How JARVIS writes to them"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Professional" }));
+    fireEvent.click(screen.getByLabelText("How JARVIS writes to them"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Not Set" })); // unknown => clean prose
     fireEvent.click(screen.getByText("Save"));
     const draft = onSave.mock.calls[0]![0] as { relationship: string; register?: string };
     expect(draft.relationship).toBe("College roommate");
@@ -46,7 +50,8 @@ describe("PersonSheet", () => {
     const onSave = vi.fn();
     render(<PersonSheet mode="new" onSave={onSave} onCancel={() => {}} />);
     fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "Chris" } });
-    fireEvent.click(screen.getByText("Close Friend"));
+    fireEvent.click(screen.getByLabelText("How JARVIS writes to them"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Close Friend" }));
     fireEvent.click(screen.getByText("Save"));
     const draft = onSave.mock.calls[0]![0] as { register?: string; relationship: string };
     expect(draft.register).toBe("friend");

@@ -1,6 +1,8 @@
-import { createPortal } from "react-dom";
 import { useState } from "react";
 import type { Recurrence, BillInfo } from "../notes/types";
+import { FormSheet, Group, FieldRow, MenuRow, SwitchRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
+import { Calendar, Link2 } from "../shared/icons";
+import { DollarGlyph, RepeatGlyph, WalletGlyph } from "../shared/glyphs";
 
 export interface BillDraft {
   text: string;
@@ -9,12 +11,13 @@ export interface BillDraft {
   bill: BillInfo;
 }
 
-const TRASH = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-);
 
-// The bill sheet (Money v1). ~10 bills entered once, then it runs itself, so
-// this form optimizes for the first five minutes: name, amount, when, done.
+// THE BILL SHEET ON THE SHEET BAR (2026-09-02). ~10 bills entered once, then
+// it runs itself, so this form optimizes for the first five minutes: name,
+// amount, when, done. The name is the row; the amount, the next due date
+// and the pay link are typed at the right of their labels; Repeats opens
+// the dropdown; Autopay is a switch, with the truthful frame under it (it
+// changes what JARVIS SAYS about the bill, never what happens).
 export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }: {
   mode: "new" | "edit";
   initial?: BillDraft;
@@ -47,57 +50,30 @@ export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }:
     });
   };
 
-  return createPortal(
-    <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{mode === "new" ? "New Bill" : "Edit Bill"}</div></div>
-        <div className="pad-x sheet-form">
-          <div className="field">
-            <div className="input-label">Name</div>
-            <input className={"input" + (touched && !text.trim() ? " input-error" : "")} placeholder="e.g. Rent" value={text} onChange={(e) => setText(e.target.value)} />
-          </div>
-          <div className="field">
-            <div className="input-label">Amount (USD)</div>
-            <input className={"input" + (touched && !valid && text.trim() ? " input-error" : "")} inputMode="decimal" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
-            {touched && !valid && <div className="input-error">Add a name and an amount.</div>}
-          </div>
-          <div className="field">
-            <div className="input-label">Next Due</div>
-            <input type="date" className="input" value={due} onChange={(e) => setDue(e.target.value)} />
-          </div>
-          <div className="field">
-            <div className="input-label">Repeats</div>
-            <div className="segmented">
-              <button type="button" className={"seg" + (recurrence === "monthly" ? " active" : "")} onClick={() => setRecurrence("monthly")}>Monthly</button>
-              <button type="button" className={"seg" + (recurrence === "weekly" ? " active" : "")} onClick={() => setRecurrence("weekly")}>Weekly</button>
-              <button type="button" className={"seg" + (recurrence === null ? " active" : "")} onClick={() => setRecurrence(null)}>Once</button>
-            </div>
-          </div>
-          <div className="field">
-            <div className="input-label">Autopay</div>
-            {/* The truthful frame: this changes what JARVIS SAYS about the
-                bill ("set to autopay", never "paid"), not what happens. */}
-            <div className="segmented">
-              <button type="button" className={"seg" + (!autopay ? " active" : "")} onClick={() => setAutopay(false)}>I pay it</button>
-              <button type="button" className={"seg" + (autopay ? " active" : "")} onClick={() => setAutopay(true)}>It pays itself</button>
-            </div>
-          </div>
-          <div className="field">
-            <div className="input-label">Pay Link</div>
-            <input type="url" className="input" placeholder="Pay Link · optional" value={payUrl} onChange={(e) => setPayUrl(e.target.value)} />
-          </div>
-        </div>
-        <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={save}>Save</button>
-          {mode === "edit" && onDelete && (
-            <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>{TRASH}Delete Bill</button>
-          )}
-          <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
-        </div>
-      </div>
-    </div>
-    ,
-    document.body,
+  return (
+    <FormSheet title={mode === "new" ? "New Bill" : "Edit Bill"} onCancel={onCancel} onSave={save} saveDisabled={!valid}>
+      <Group label="Bill">
+        <FieldRow tone="yellow" glyph={<WalletGlyph />} value={text} onChange={setText} placeholder="e.g. Rent" ariaLabel="Bill name"
+          error={touched && !text.trim()} right={false} />
+        <FieldRow tone="green" glyph={<DollarGlyph />} label="Amount" value={amount} onChange={setAmount} placeholder="0" inputMode="decimal"
+          ariaLabel="Amount in dollars" error={touched && !valid && !!text.trim()} />
+      </Group>
+      <ErrorLine text={touched && !valid ? "Add a name and an amount." : null} />
+      <Group label="When">
+        <FieldRow tone="orange" glyph={<Calendar className="ic" />} label="Next Due" type="date" value={due} onChange={setDue} ariaLabel="Next due" />
+        <MenuRow tone="sky" glyph={<RepeatGlyph />} label="Repeats" value={recurrence ?? "once"} ariaLabel="Repeats"
+          options={[{ value: "monthly", label: "Monthly" }, { value: "weekly", label: "Weekly" }, { value: "once", label: "Once" }]}
+          onPick={(v) => setRecurrence(v === "once" ? null : (v as Recurrence))} />
+      </Group>
+      <Group label="Paying">
+        <SwitchRow tone="blue" glyph={<RepeatGlyph />} label="Autopay" meta={autopay ? "It pays itself" : "I pay it"} on={autopay}
+          onToggle={() => setAutopay((a) => !a)} ariaLabel="Autopay" />
+        <FieldRow tone="indigo" glyph={<Link2 className="ic" />} label="Pay Link" type="url" value={payUrl} onChange={setPayUrl}
+          placeholder="Optional" ariaLabel="Pay link" />
+      </Group>
+      {mode === "edit" && onDelete && (
+        <Group className="xs-actions"><DeleteRow label="Delete Bill" onClick={onDelete} /></Group>
+      )}
+    </FormSheet>
   );
 }

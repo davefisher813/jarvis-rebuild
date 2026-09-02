@@ -10,12 +10,18 @@ import { haptics } from "../shared/haptics";
 import { BellGlyph } from "../shared/glyphs";
 import { useSwipe } from "../shared/useSwipe";
 import { X } from "../shared/icons";
+import { fmtTime } from "../schedule/calendar";
+
+// An event's when is its start as HH:MM from the feed; the chip says it the
+// way the Schedule does ("5:30 PM").
+const whenWord = (w: string) => (/^\d\d:\d\d$/.test(w) ? `${fmtTime(w).time} ${fmtTime(w).ap}` : w);
 
 const BELL = <BellGlyph />;
 
 // V2 anatomy: rows lead with the shared TYPE tile, not a per-surface icon
 // set. What a nudge IS (task, event, goal) reads before its words do.
 const KIND: Record<NudgeKind, RowKind> = {
+  sliding: "task",
   overdue: "task",
   due_today: "task",
   event: "event",
@@ -61,7 +67,7 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
     const nowHHMM = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
     const all = buildFeed({ tasks, events, goals, areas }, today, nowHHMM, loadNudgeDismissed(today));
     setFeed(all.filter((x) => {
-      if (x.kind === "overdue" || x.kind === "due_today") return n.overdue;
+      if (x.kind === "sliding" || x.kind === "overdue" || x.kind === "due_today") return n.overdue;
       if (x.kind === "event") return n.events;
       return n.goals; // goal_risk, area_drift
     }));
@@ -74,51 +80,71 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
     setFeed((f) => f.filter((x) => x.id !== n.id));
   };
 
+  // NOTIFICATIONS ONTO THE RULINGS (2026-09-02). One quiet head with the
+  // count, one card, and each nudge as the task row's shape: the type glyph
+  // in the check column, the name, the why under it, the when at the
+  // right, Done as the one pill where finishing IS the answer, Dismiss on
+  // the swipe. The head splits into Needs You (overdue, due today) and
+  // Coming Up (events, goals) when both have rows.
+  const needs = feed.filter((n) => n.kind === "sliding" || n.kind === "overdue" || n.kind === "due_today");
+  const coming = feed.filter((n) => n.kind !== "sliding" && n.kind !== "overdue" && n.kind !== "due_today");
+  const bands = [
+    { key: "needs", head: needs.length > 0 && coming.length > 0 ? "Needs You" : "Today", rows: needs },
+    { key: "coming", head: "Coming Up", rows: coming },
+  ].filter((b) => b.rows.length > 0);
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <PageHeader title="Notifications" />
       {feed.length === 0 ? (
         <div className="empty-state"><div className="empty-icon">{BELL}</div><div className="empty-title">You're All Caught Up</div>
           <div className="empty-sub">Overdue · Today's events · At-risk goals</div></div>
       ) : (
         <div>
-          {feed.map((n) => {
-            return (
-              <NudgeRow key={n.id} onDismiss={() => onDismissNudge(n)}>
-              <div
-                className="msg-row notif-row"
-                role={onOpen ? "button" : undefined}
-                tabIndex={onOpen ? 0 : undefined}
-                onClick={onOpen ? () => onOpen(n.entity === "area" ? "goal" : n.entity, n.entityId) : undefined}
-              >
-                <RowGlyph kind={KIND[n.kind]} />
-                <div className="msg-body">
-                  <div className="msg-head"><div className="msg-name">{n.title}</div>{n.when && <div className="msg-time">{n.when}</div>}</div>
-                  <div className="msg-preview">{n.sub}</div>
+          {bands.map((b) => (
+            <div key={b.key}>
+              <div className="sh2 sh2-quiet"><span className="t">{b.head}</span><span className="n">{b.rows.length}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
+              {b.rows.map((n) => (
+                <NudgeRow key={n.id} onDismiss={() => onDismissNudge(n)}>
+                <div
+                  className="task-row p2 notif-row"
+                  role={onOpen ? "button" : undefined}
+                  tabIndex={onOpen ? 0 : undefined}
+                  onClick={onOpen ? () => onOpen(n.entity === "area" ? "goal" : n.entity, n.entityId) : undefined}
+                >
+                  <div className="task-check-tap"><RowGlyph kind={KIND[n.kind]} /></div>
+                  <div className="task-title">
+                    <span className="task-name">{n.title}</span>
+                    <div className="r-k">
+                      {n.when && <span className="uchip u-today">{whenWord(n.when)}</span>}
+                      <span className={"r-goal r-cat" + (n.kind === "sliding" ? " r-stalled" : "")}>{n.sub}</span>
+                    </div>
+                  </div>
+                  {/* One pill, and only where finishing IS the answer. An
+                      at-risk goal has no one-tap resolution and gets no button
+                      pretending otherwise. */}
+                  {n.entity === "task" && (
+                    <button className="pill-act" onClick={(e) => {
+                      e.stopPropagation();
+                      void (async () => {
+                        const ok = await attemptWrite(() => tasksSvc.toggleDone(n.entityId));
+                        if (!ok) return;
+                        haptics.selection();
+                        setFeed((f) => f.filter((x) => x.id !== n.id));
+                        showToast({
+                          message: "Done",
+                          actionLabel: "Undo",
+                          onAction: async () => { await attemptWrite(() => tasksSvc.toggleDone(n.entityId)); await reload(); },
+                        });
+                      })();
+                    }}>Done</button>
+                  )}
                 </div>
-                {/* One pill, and only where finishing IS the answer. An
-                    at-risk goal has no one-tap resolution and gets no button
-                    pretending otherwise. */}
-                {n.entity === "task" && (
-                  <button className="pill-act" onClick={(e) => {
-                    e.stopPropagation();
-                    void (async () => {
-                      const ok = await attemptWrite(() => tasksSvc.toggleDone(n.entityId));
-                      if (!ok) return;
-                      haptics.selection();
-                      setFeed((f) => f.filter((x) => x.id !== n.id));
-                      showToast({
-                        message: "Done",
-                        actionLabel: "Undo",
-                        onAction: async () => { await attemptWrite(() => tasksSvc.toggleDone(n.entityId)); await reload(); },
-                      });
-                    })();
-                  }}>Done</button>
-                )}
-              </div>
-              </NudgeRow>
-            );
-          })}
+                </NudgeRow>
+              ))}
+              </div></div>
+            </div>
+          ))}
           <div className="screen-foot" />
         </div>
       )}

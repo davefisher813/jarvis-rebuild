@@ -12,9 +12,17 @@ describe("buildFeed", () => {
     const tasks = [T("1", "Pay invoice", "2026-05-01"), T("2", "Call bank", "2026-05-24"), T("3", "Done thing", "2026-05-01", true)];
     const events = [E("9", "Standup", "2026-05-24", "09:00")];
     const feed = buildFeed({ tasks, events, goals: [], areas: [] }, "2026-05-24");
-    expect(feed.map((n) => n.kind)).toEqual(["overdue", "due_today", "event"]);
-    expect(feed[2]!.when).toBe("09:00");
+    // Pay invoice is 23 days late, so it also leads as the task that keeps
+    // sliding (2026-09-02), then reads again as overdue.
+    expect(feed.map((n) => n.kind)).toEqual(["sliding", "overdue", "due_today", "event"]);
+    expect(feed[0]!.sub).toBe("Keeps sliding \u00b7 23 days late");
+    expect(feed[3]!.when).toBe("09:00");
     expect(feed.find((n) => n.title === "Done thing")).toBeUndefined();
+  });
+  it("the sliding nudge leads only when a task qualifies", () => {
+    const tasks = [T("2", "Call bank", "2026-05-24")];
+    const feed = buildFeed({ tasks, events: [], goals: [], areas: [] }, "2026-05-24");
+    expect(feed.map((n) => n.kind)).toEqual(["due_today"]);
   });
   it("includes at-risk goals and drifting areas", () => {
     const goals: Goal[] = [{ id: "g", data: { title: "Ship app", state: "at_risk" } }];
@@ -66,7 +74,8 @@ describe("nudge dismissals", () => {
 
   it("a dismissed nudge stops rendering, and tomorrow it asks again", () => {
     const s = store();
-    const tasks = [T("1", "Pay invoice", "2026-05-01")];
+    // Two days late: overdue, not yet sliding, so one nudge.
+    const tasks = [T("1", "Pay invoice", "2026-05-22")];
     expect(buildFeed({ tasks, events: [], goals: [], areas: [] }, "2026-05-24")).toHaveLength(1);
 
     const ids = dismissNudge("ov-1", "2026-05-24", s);

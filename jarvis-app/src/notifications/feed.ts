@@ -1,8 +1,9 @@
 import type { TaskItem } from "../tasks/TasksService";
 import type { EventItem } from "../schedule/types";
 import type { Area, Goal } from "../life/types";
+import { firstStepCandidate, slidingLine } from "../tasks/lifecycle";
 
-export type NudgeKind = "overdue" | "due_today" | "event" | "goal_risk" | "area_drift";
+export type NudgeKind = "sliding" | "overdue" | "due_today" | "event" | "goal_risk" | "area_drift";
 // A1 (audit 2026-08-21): every row on this screen was a dead end. Ten
 // sentences telling him things with nothing to do about any of them, which
 // is the definition of a notification that trains you to ignore
@@ -37,6 +38,14 @@ export interface FeedInput { tasks: TaskItem[]; events: EventItem[]; goals: Goal
 export function buildFeed(input: FeedInput, today: string, nowHHMM?: string, dismissed: readonly string[] = []): Nudge[] {
   const out: Nudge[] = [];
   const gone = new Set(dismissed);
+  // THE TASK THAT KEEPS SLIDING (Dave 2026-09-02: "the sliding task
+  // notification is no longer present. You can still have that in some
+  // capacity if you want. I didn't like the original format but I do like
+  // the concept"). The concept lives here now, as the first nudge: the one
+  // task the Tasks list hoists (the same pick, lifecycle's), with its
+  // sliding line as the why. Finishing it or waving it off is one tap.
+  const sliding = firstStepCandidate(input.tasks, today);
+  if (sliding) out.push({ id: "sl-" + sliding.id, kind: "sliding", title: sliding.data.text, sub: slidingLine(sliding, today), when: "", entity: "task", entityId: sliding.id });
   for (const t of input.tasks) {
     if (t.data.done || !t.data.due) continue;
     if (t.data.due < today) out.push({ id: "ov-" + t.id, kind: "overdue", title: t.data.text, sub: "Overdue", when: "", entity: "task", entityId: t.id });

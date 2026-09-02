@@ -45,17 +45,17 @@ export default function PeopleListPage({
   const shown = searchPeople(people, q).filter((p) => !pendingIds.has(p.id));
 
   const importRow = onImportFile && (
-    <div className="row" role="button" tabIndex={0} onClick={() => fileRef.current?.click()}>
-      <div className="row-glyph cat-fg-blue">{UPLOAD}</div>
-      <div className="row-grow">
-        <div className="conn-name">Import from File</div>
-        <div className="conn-meta">.vcf from your phone · .csv with a Name column</div>
+    <div className="task-row p2 person-row-ruled" role="button" tabIndex={0} onClick={() => fileRef.current?.click()}>
+      <div className="task-check-tap gm-slot"><span className="row-glyph cat-fg-blue">{UPLOAD}</span></div>
+      <div className="task-title">
+        <span className="task-name">Import from File</span>
+        <div className="r-k"><span className="r-goal r-cat">.vcf from your phone · .csv with a Name column</span></div>
       </div>
     </div>
   );
 
   return (
-    <div className="screen">
+    <div className="screen ruled people-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Contacts</div>
@@ -87,7 +87,7 @@ export default function PeopleListPage({
       {/* Consent-first migration: the flag changes how JARVIS writes to a real
           person, so legacy Adversarial members are confirmed, never converted. */}
       {pendingReview.length > 0 && (
-        <div className="pad-x"><div className="card pad">
+        <div className="pad-x"><div className="card list-card-ruled pad">
           <div className="conn-name">From your old list · Still handle with care?</div>
           {pendingReview.map((p) => (
             <div className="offer-row" key={p.id}>
@@ -107,21 +107,23 @@ export default function PeopleListPage({
             <div className="empty-title">No One Here Yet</div>
             <button className="btn btn-primary" onClick={onAdd}>Add Person</button>
           </div>
-          {importRow && <div><div className="list-flat">{importRow}</div></div>}
+          {importRow && <div className="pad-x"><div className="card list-card-ruled">{importRow}</div></div>}
         </>
       ) : (
         <>
-        {/* V2 anatomy: the section carries the teal people tile; each row's
-            avatar IS its type, so rows never double up with a RowIcon. */}
-        <div className="sh2 sh2-quiet"><span className="t">Your People</span></div>
-        <div><div className="list-flat">
+        {/* THE PERSON ROW (the area page's, 2026-09-02): the avatar in the
+            check column, the name, the label under it in the quiet grey.
+            Each row's avatar IS its type, so rows never double up with a
+            glyph. */}
+        <div className="sh2 sh2-quiet"><span className="t">Your People</span><span className="n">{shown.length}</span></div>
+        <div className="pad-x"><div className="card list-card-ruled">
           {shown.map((p) => (
-            <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onOpen(p.id)}>
-              <div className={"av av-40 " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div>
-              <div className="row-grow">
-                <div className="conn-name">{p.data.name}</div>
+            <div className="task-row p2 person-row-ruled" role="button" tabIndex={0} key={p.id} onClick={() => onOpen(p.id)}>
+              <div className="task-check-tap"><div className={"av " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div></div>
+              <div className="task-title">
+                <span className="task-name">{p.data.name}</span>
                 {/* the label, or the honest absence of one; a fact, not a nag */}
-                <div className="eyebrow">{p.data.relationship || "No label yet"}</div>
+                <div className="r-k"><span className="r-goal r-cat">{p.data.relationship || "No label yet"}</span></div>
               </div>
               {CHEV}
             </div>

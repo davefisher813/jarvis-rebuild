@@ -5,11 +5,7 @@ import { haptics } from "../shared/haptics";
 import { apiUrl } from "../shared/apiBase";
 import { AI_LEVELS, DEFAULT_AI_LEVEL, type AIControlState, type AILevel, type AIPinKey } from "../ai/aiGate";
 import { setAIControl } from "../ai/levelStore";
-
-// AI Control (addendum items 18-21). One master dial, five per-feature pins,
-// and What Ran. Everything applies instantly: tapping a level saves it and
-// the very next AI call obeys it, client and server both. There is no Save
-// button anywhere on this screen by design.
+import { Head, Card, Row, Menu } from "./kit";
 
 const LEVEL_LABEL: Record<AILevel, string> = {
   everything: "Everything",
@@ -17,14 +13,12 @@ const LEVEL_LABEL: Record<AILevel, string> = {
   request: "On Request",
   off: "Off",
 };
-
 const LEVEL_SUB: Record<AILevel, string> = {
   everything: "Acts · Receipts + undo · You send",
   draft: "Drafts ready · Nothing acts",
   request: "Only when you ask",
   off: "Zero AI calls · Nothing deleted",
 };
-
 const PIN_LABEL: Record<AIPinKey, string> = {
   emailDrafts: "Email Drafts",
   morningPlan: "Morning Plan",
@@ -32,9 +26,10 @@ const PIN_LABEL: Record<AIPinKey, string> = {
   messageDrafts: "Message Drafts",
   estimates: "Estimates",
 };
-
 const PIN_KEYS: AIPinKey[] = ["emailDrafts", "morningPlan", "pasteFallback", "messageDrafts", "estimates"];
-const PIN_CYCLE: (AILevel | "match")[] = ["match", "everything", "draft", "request", "off"];
+// Every pin is a menu (2026-09-02): the old row cycled on tap, so the
+// fifth option cost four taps and nobody knew there were five.
+const PIN_OPTIONS = [{ value: "match", label: "Match Master" }, ...AI_LEVELS.map((l) => ({ value: l, label: LEVEL_LABEL[l] }))];
 
 interface Call { at: string; kind: string }
 
@@ -64,65 +59,46 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
       .catch(() => { /* the count is a fact or absent, never a guess */ });
   }, [token]);
 
-  // Applies instantly: local state, the session singleton, then the profile.
   const apply = async (next: AIControlState) => {
     setCtrl(next);
     setAIControl(next);
     await svc.save({ ai: next });
   };
-
   const setLevel = (level: AILevel) => { haptics.selection(); void apply({ ...ctrl, level }); };
-  const cyclePin = (key: AIPinKey) => {
+  const setPin = (key: AIPinKey, v: string) => {
     haptics.selection();
-    const cur = ctrl.pins?.[key] ?? "match";
-    const next = PIN_CYCLE[(PIN_CYCLE.indexOf(cur) + 1) % PIN_CYCLE.length]!;
-    void apply({ ...ctrl, pins: { ...ctrl.pins, [key]: next } });
+    void apply({ ...ctrl, pins: { ...ctrl.pins, [key]: v as AILevel | "match" } });
   };
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <LargeTitleNav title="AI Control" back="Settings" onBack={onBack} />
-      <div className="pad-x">
-        <div className="grp"><div className="eyebrow">AI Level</div></div>
-        <div className="card">
-          {AI_LEVELS.map((l) => (
-            <div key={l} className="row" role="radio" aria-checked={ctrl.level === l} tabIndex={0} onClick={() => setLevel(l)}>
-              <div className="row-stack">
-                <div className="conn-name">{LEVEL_LABEL[l]}</div>
-                <div className="conn-meta">{LEVEL_SUB[l]}</div>
-              </div>
-              <div className={"radio" + (ctrl.level === l ? " on" : "")} />
+      <Head label="AI Level" />
+      <Card>
+        {AI_LEVELS.map((l) => (
+          <div key={l} className="row set-row" role="radio" aria-checked={ctrl.level === l} tabIndex={0} onClick={() => setLevel(l)}>
+            <div className="row-grow">
+              <div className="conn-name">{LEVEL_LABEL[l]}</div>
+              <div className="conn-meta">{LEVEL_SUB[l]}</div>
             </div>
-          ))}
-        </div>
-
-        <div className="grp"><div className="eyebrow">Per-Feature</div></div>
-        <div className="card">
-          {PIN_KEYS.map((k) => {
-            const v = ctrl.pins?.[k] ?? "match";
-            return (
-              <div key={k} className="row" role="button" tabIndex={0} onClick={() => cyclePin(k)}>
-                <div className="row-grow"><div className="conn-name">{PIN_LABEL[k]}</div></div>
-                <span className="row-value">{v === "match" ? "Match Master" : LEVEL_LABEL[v]}</span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="grp"><div className="eyebrow">What Ran</div></div>
-        <div className="card">
-          <div className="row" role="button" tabIndex={0} onClick={() => { if (calls.length) setShowCalls(!showCalls); }}>
-            <div className="row-grow"><div className="conn-name">AI Calls Today</div></div>
-            <span className="row-value">{count === null ? "Not tracked" : String(count)}</span>
+            <div className={"radio" + (ctrl.level === l ? " on" : "")} />
           </div>
-          {showCalls && calls.map((c, i) => (
-            <div key={i} className="row">
-              <div className="row-grow"><div className="conn-meta">{kindLabel(c.kind)}</div></div>
-              <span className="row-value">{new Date(c.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+        ))}
+      </Card>
+      <Head label="Per-Feature" />
+      <Card>
+        {PIN_KEYS.map((k) => (
+          <Menu key={k} label={PIN_LABEL[k]} value={ctrl.pins?.[k] ?? "match"} options={PIN_OPTIONS} onPick={(v) => setPin(k, v)} />
+        ))}
+      </Card>
+      <Head label="What Ran" />
+      <Card>
+        <Row label="AI Calls Today" value={count === null ? "Not tracked" : String(count)} onClick={calls.length ? () => setShowCalls(!showCalls) : undefined} />
+        {showCalls && calls.map((c, i) => (
+          <Row key={i} label={kindLabel(c.kind)} value={new Date(c.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} className="set-sub" />
+        ))}
+      </Card>
+      <div className="screen-foot" />
     </div>
   );
 }

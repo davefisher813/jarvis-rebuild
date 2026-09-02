@@ -1,9 +1,12 @@
-import { createPortal } from "react-dom";
 import { useState } from "react";
 import type { GoalData } from "./types";
 import type { Category } from "../categories/types";
 import type { Measure, Cadence } from "../bigger/measure";
 import { todayISO } from "../tasks/grouping";
+import { FormSheet, Group, Row, FieldRow, MenuRow, DeleteRow, ErrorLine, Note } from "../shared/FormSheet";
+import HeadMenu from "../shared/HeadMenu";
+import { Tag, Calendar } from "../shared/icons";
+import { TargetGlyph, BullseyeGlyph, RepeatGlyph, DollarGlyph } from "../shared/glyphs";
 
 type MeasureKind = "none" | "count" | "cadence" | "projects";
 const KINDS: { key: MeasureKind; label: string }[] = [
@@ -12,8 +15,6 @@ const KINDS: { key: MeasureKind; label: string }[] = [
   { key: "cadence", label: "Rhythm" },
   { key: "projects", label: "Projects" },
 ];
-
-const TRASH = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>;
 
 // A goal is just a name plus the projects pointing at it. Session 6 removed
 // BOTH self-reported controls that used to live here:
@@ -27,14 +28,16 @@ const TRASH = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="curren
 // that lets a goal see work nobody filed, which in Dave's data is nearly all of
 // it. It is a WATCH LIST, not a move: nothing is refiled, nothing is copied,
 // and unpicking an area changes only what the goal can see.
+//
+// ON THE SHEET BAR (2026-09-02, the last form sheets): the name as the row,
+// the areas as the task sheet's multi menu, the finish line as a menu whose
+// choice reveals only the fields that choice needs, the date and the dollar
+// target typed at the right of their labels.
 export default function GoalSheet({ mode, initial, categories = [], onSave, onDelete, onCancel }: {
   mode: "new" | "edit"; initial?: GoalData; categories?: Category[];
   onSave: (d: GoalData) => void; onDelete?: () => void; onCancel: () => void;
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
-  // THE SHORT NAME (2026-09-01, "Fewer Words"): what task rows print after
-  // the goal mark. Empty means "use the two-word default", shown as the
-  // placeholder so he can see what the rows will say before typing.
   // Money v1: an optional dollar target turns this into a savings goal.
   // Progress stays DERIVED (from logged entries), so this is a target, not a
   // self-reported status; it earns its field.
@@ -43,8 +46,8 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
   // D12 (2026-08-31): a lift or training measure is set FROM THE GYM (its
   // own sheet knows how to pick an exercise and a target set; this one does
   // not). This sheet neither edits nor destroys one: it is carried through
-  // on save exactly as it arrived, and the segmented picker below reads
-  // "None" for it rather than pretending the goal has no finish line.
+  // on save exactly as it arrived, and the menu below reads "None" for it
+  // rather than pretending the goal has no finish line.
   const externalMeasure = initial?.measure?.kind === "lift" || initial?.measure?.kind === "training" ? initial.measure : undefined;
   // PICKS 13 + 14: the finish line and the date. Both optional, both derived
   // once set: nothing here asks him to report a status, only to say what
@@ -73,76 +76,77 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
     if (kind === "projects") return { kind: "projects" };
     return externalMeasure; // "None" here means "untouched", not "cleared", when a gym goal owns it
   };
-  const toggleTag = (id: string) => setTags((t) => (t.includes(id) ? t.filter((x) => x !== id) : [...t, id]));
-  return createPortal(
-    <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{mode === "new" ? "New Goal" : "Edit Goal"}</div></div>
-        <div className="pad-x sheet-form">
-          <div className="field">
-            <div className="input-label">Goal</div>
-            <input className={"input" + (touched && !title.trim() ? " input-error" : "")} placeholder="e.g. Run a half marathon" value={title} onChange={(e) => setTitle(e.target.value)} />
-            {touched && !title.trim() && <div className="input-error">Add a goal.</div>}
-          </div>
-          {categories.length > 0 && (
-            <div className="field">
-              <div className="input-label">Areas It Covers</div>
-              <div className="chip-row">
-                {categories.map((c) => (
-                  <button key={c.id} className={"chip" + (tags.includes(c.id) ? " active" : "")} onClick={() => toggleTag(c.id)}>{c.data.name}</button>
-                ))}
-              </div>
-              <div className="input-hint">Tasks in these areas count toward this goal without being filed under a project.</div>
-            </div>
-          )}
-          <div className="field">
-            <div className="input-label">Finish Line</div>
-            <div className="segmented">
-              {KINDS.map((k) => (
-                <button key={k.key} className={"seg" + (kind === k.key ? " active" : "")} onClick={() => setKind(k.key)}>{k.label}</button>
-              ))}
-            </div>
-            {kind === "count" && (
-              <input className={"input field-gap" + (touched && !countOk ? " input-error" : "")} inputMode="numeric" placeholder="How many, e.g. 12" value={count} onChange={(e) => setCount(e.target.value)} />
-            )}
-            {kind === "cadence" && (
-              <>
-                <input className={"input field-gap" + (touched && !timesOk ? " input-error" : "")} inputMode="numeric" placeholder="How many times, e.g. 3" value={times} onChange={(e) => setTimes(e.target.value)} />
-                <div className="segmented field-gap">
-                  {(["week", "month"] as Cadence[]).map((p) => (
-                    <button key={p} className={"seg" + (per === p ? " active" : "")} onClick={() => setPer(p)}>{p === "week" ? "A Week" : "A Month"}</button>
-                  ))}
-                </div>
-              </>
-            )}
-            <div className="input-hint">
-              {externalMeasure
-                ? "Set from the gym · Picking one of these replaces it"
-                : "What finished looks like · Progress counted from real completions, never typed in"}
-            </div>
-          </div>
-          {(kind !== "none" || externalMeasure) && (
-            <div className="field">
-              <div className="input-label">Wanted By</div>
-              <input type="date" className="input" value={by} onChange={(e) => setBy(e.target.value)} />
-              <div className="input-hint">Optional. With a finish line, a date becomes a rate you can check against.</div>
-            </div>
-          )}
-          <div className="field">
-            <div className="input-label">Dollar Target</div>
-            <input className={"input" + (touched && !targetOk ? " input-error" : "")} inputMode="numeric" placeholder="Optional, e.g. 2000" value={target} onChange={(e) => setTarget(e.target.value)} />
-            {touched && !targetOk && <div className="input-error">A number, or empty</div>}
-          </div>
-        </div>
-        <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => { if (!valid) { setTouched(true); return; } onSave({ title: title.trim(), state: initial?.state ?? "on_track", ...(initial?.areaId ? { areaId: initial.areaId } : {}), ...(initial?.saved ? { saved: initial.saved } : {}), ...(initial?.dropped ? { dropped: initial.dropped } : {}), ...(tags.length ? { tags } : {}), measure: measureOf(), by: (kind !== "none" || externalMeasure) && by ? by : undefined, moneyTarget: target.trim() ? Number(target) : undefined }); }}>Save</button>
-          {mode === "edit" && onDelete && <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>{TRASH}Delete Goal</button>}
-          <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
-        </div>
-      </div>
-    </div>
-    ,
-    document.body,
+  const toggleTag = (id: string) => setTags((t) => (id === "" ? [] : t.includes(id) ? t.filter((x) => x !== id) : [...t, id]));
+  const areaNames = tags.map((id) => categories.find((c) => c.id === id)?.data.name).filter((n): n is string => !!n);
+  const areaWord = areaNames.length === 0 ? "None" : areaNames.length === 1 ? areaNames[0]! : `${areaNames[0]} +${areaNames.length - 1}`;
+  const dated = kind !== "none" || !!externalMeasure;
+  const save = () => {
+    if (!valid) { setTouched(true); return; }
+    onSave({
+      title: title.trim(),
+      state: initial?.state ?? "on_track",
+      ...(initial?.areaId ? { areaId: initial.areaId } : {}),
+      ...(initial?.saved ? { saved: initial.saved } : {}),
+      ...(initial?.dropped ? { dropped: initial.dropped } : {}),
+      ...(tags.length ? { tags } : {}),
+      measure: measureOf(),
+      by: dated && by ? by : undefined,
+      moneyTarget: target.trim() ? Number(target) : undefined,
+    });
+  };
+  return (
+    <FormSheet title={mode === "new" ? "New Goal" : "Edit Goal"} onCancel={onCancel} onSave={save} saveDisabled={!valid}>
+      <Group label="Goal">
+        <FieldRow tone="red" glyph={<TargetGlyph />} value={title} onChange={setTitle} placeholder="e.g. Run a half marathon"
+          ariaLabel="Goal title" error={touched && !title.trim()} right={false} />
+      </Group>
+      <ErrorLine text={touched && !title.trim() ? "Add a goal." : null} />
+      {categories.length > 0 && (
+        <>
+          <Group label="Areas It Covers">
+            <Row tone="blue" glyph={<Tag className="ic" />} label="Areas">
+              <HeadMenu variant="value" ariaLabel="Areas" value={tags[0] ?? ""} label={areaWord} off={tags.length === 0} multi picked={tags}
+                options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.data.name, dot: c.data.color as string }))]}
+                onPick={toggleTag} />
+            </Row>
+          </Group>
+          <Note>Tasks in these areas count toward this goal without being filed under a project.</Note>
+        </>
+      )}
+      <Group label="Finish Line">
+        <MenuRow tone="orange" glyph={<BullseyeGlyph />} label="Done Means" value={kind} ariaLabel="Finish line" off={kind === "none"}
+          options={KINDS.map((k) => ({ value: k.key, label: k.label }))} onPick={(v) => setKind(v as MeasureKind)} />
+        {kind === "count" && (
+          <FieldRow tone="green" glyph={<RepeatGlyph />} label="How Many" value={count} onChange={setCount} placeholder="e.g. 12" inputMode="numeric"
+            ariaLabel="How many" error={touched && !countOk} />
+        )}
+        {kind === "cadence" && (
+          <>
+            <FieldRow tone="green" glyph={<RepeatGlyph />} label="Times" value={times} onChange={setTimes} placeholder="e.g. 3" inputMode="numeric"
+              ariaLabel="How many times" error={touched && !timesOk} />
+            <MenuRow tone="sky" glyph={<Calendar className="ic" />} label="Per" value={per} ariaLabel="Per"
+              options={[{ value: "week", label: "A Week" }, { value: "month", label: "A Month" }]} onPick={(v) => setPer(v as Cadence)} />
+          </>
+        )}
+        {dated && (
+          <FieldRow tone="indigo" glyph={<Calendar className="ic" />} label="Wanted By" type="date" value={by} onChange={setBy} ariaLabel="Wanted by" />
+        )}
+      </Group>
+      <Note>
+        {externalMeasure
+          ? "Set from the gym · Picking one of these replaces it"
+          : dated
+            ? "Counted from real completions, never typed in · A date turns it into a rate"
+            : "What finished looks like · Counted from real completions, never typed in"}
+      </Note>
+      <Group label="Money">
+        <FieldRow tone="green" glyph={<DollarGlyph />} label="Dollar Target" value={target} onChange={setTarget} placeholder="Optional" inputMode="numeric"
+          ariaLabel="Dollar target" error={touched && !targetOk} />
+      </Group>
+      <ErrorLine text={touched && !targetOk ? "A number, or empty" : null} />
+      {mode === "edit" && onDelete && (
+        <Group className="xs-actions"><DeleteRow label="Delete Goal" onClick={onDelete} /></Group>
+      )}
+    </FormSheet>
   );
 }

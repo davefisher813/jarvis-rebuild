@@ -1,22 +1,18 @@
 import { useAppearance } from "../appearance/AppearanceProvider";
 import LargeTitleNav from "../shared/LargeTitleNav";
-
-const BACK = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-);
+import { Head, Card, Menu } from "./kit";
 
 export default function AppearancePage({ onBack }: { onBack: () => void }) {
   const { appearance, setTheme } = useAppearance();
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <LargeTitleNav title="Appearance" back="Settings" onBack={onBack} />
-      <div className="grp"><div className="eyebrow">Theme</div></div>
-      <div className="seg-card">
-        <div className="segmented">
-          <div className={"seg" + (appearance.theme === "dark" ? " active" : "")} role="button" tabIndex={0} onClick={() => setTheme("dark")}>Dark</div>
-          <div className={"seg" + (appearance.theme === "light" ? " active" : "")} role="button" tabIndex={0} onClick={() => setTheme("light")}>Light</div>
-        </div>
-      </div>
+      <Head label="Theme" />
+      <Card>
+        <Menu label="Theme" value={appearance.theme} options={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]}
+          onPick={(v) => setTheme(v as "dark" | "light")} />
+      </Card>
+      <div className="screen-foot" />
     </div>
   );
 }

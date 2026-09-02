@@ -141,16 +141,17 @@ function SeededOrg({ onOpenPerson }: { onOpenPerson?: (id: string) => void }) {
 }
 
 describe("CategoryDetail org health (2026-08-10)", () => {
-  it("project rows carry next action with due, overdue count, and the goal they move", async () => {
+  it("project rows carry the next action with its due and the overdue count on one line", async () => {
     render(<NotesProvider userId="org1"><SeededOrg /></NotesProvider>);
     // The project's name is the row, and the task under Up Next names it as
     // its parent line too (the shared task row), so it appears twice.
     await waitFor(() => expect(screen.getAllByText("Sponsor Push").length).toBeGreaterThan(0));
-    // The Projects lens's own row (Brain onto the rulings, 2026-09-02): the
-    // state, the overdue count and the goal on one line, the next action
-    // under it.
-    expect(screen.getByText(/Moving · 1 Overdue · Moves Grow the league/)).toBeInTheDocument();
+    // ONE GREY LINE (Dave 2026-09-02): the next move as the line, the
+    // overdue count as a chip ahead of it; the goal it moves is the Goals
+    // Here card, not a third line.
     expect(screen.getByText(/Next: Email sponsors/)).toBeInTheDocument();
+    expect(screen.getByText("1 late")).toHaveClass("u-late");
+    expect(screen.queryByText(/Moves Grow the league/)).toBeNull();
   });
 
   it("a project with no open task says Stalled out loud", async () => {

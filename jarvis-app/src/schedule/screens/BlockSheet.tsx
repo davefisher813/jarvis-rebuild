@@ -1,7 +1,9 @@
-import { createPortal } from "react-dom";
 import { useState } from "react";
 import { minToHHMM } from "../calendar";
 import { DUR_CHOICES, durLabel } from "../durations";
+import { FormSheet, Group, Row, FieldRow, MenuRow, Strip, DeleteRow, ErrorLine } from "../../shared/FormSheet";
+import { Clock, Hourglass, CalendarDays, PenLine } from "../../shared/icons";
+import { LockGlyph } from "../../shared/glyphs";
 
 // THE SAME TAP AS A REAL EVENT (2026-08-28). Dave, all caps: "when I click on
 // something in the schedule it should allow me to edit it like a normal
@@ -11,6 +13,10 @@ import { DUR_CHOICES, durLabel } from "../durations";
 // Save, Delete, Cancel - carrying only what a tap from the schedule should
 // ever need to touch. Kind, mode, Flexible and location are untouched by it;
 // "Edit Full Details" below is the one link out to the page that owns those.
+//
+// ON THE SHEET BAR (2026-09-02, the last form sheets): the event sheet's own
+// anatomy, since it is the event sheet's own shape. Start and End typed at
+// the right, Length a menu, Move a strip, the days a strip of letters.
 
 const DOW_LETTER = ["S", "M", "T", "W", "T", "F", "S"];
 const DOW_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -64,6 +70,9 @@ export default function BlockSheet({
   };
   const endInvalid = !!end && toMin(end) <= toMin(start);
   const toggleDay = (d: number) => setDays((ds) => (ds.includes(d) ? ds.filter((x) => x !== d) : [...ds, d].sort((a, b) => a - b)));
+  const dur = end && toMin(end) > toMin(start) ? toMin(end) - toMin(start) : 0;
+  const durValue = DUR_CHOICES.includes(dur) ? String(dur) : "";
+  const durWord = dur > 0 ? durLabel(dur) : "None";
 
   const save = () => {
     if (!label.trim() || !start || !end || endInvalid || days.length === 0) {
@@ -73,112 +82,69 @@ export default function BlockSheet({
     onSave({ label: label.trim(), startMin: toMin(start), endMin: toMin(end), days: [...days].sort((a, b) => a - b) });
   };
 
-  return createPortal(
-    <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">Edit Protected Time</div></div>
-        <div className="pad-x sheet-form">
-          <div className="field">
-            <label className="input-label">Name <span className="input-req">*</span></label>
-            <input
-              className="input"
-              placeholder="Gym · Lunch · Deep Work"
-              value={label}
-              onChange={(e) => { setLabel(e.target.value); if (err) setErr(false); }}
-            />
-          </div>
-
-          <div className="field-row">
-            <div className="field">
-              <label className="input-label">Start <span className="input-req">*</span></label>
-              <input type="time" className="input" value={start} onChange={(e) => onStartChange(e.target.value)} />
-            </div>
-            <div className="field">
-              <label className="input-label">End</label>
-              <input type="time" className="input" value={end} onChange={(e) => { setEnd(e.target.value); if (err) setErr(false); }} />
-            </div>
-          </div>
-
-          <div className="field">
-            <div className="input-label">Move</div>
-            <div className="chip-row">
-              {NUDGES.map(([mins, nudgeLabel]) => {
-                const dur = end && toMin(end) > toMin(start) ? toMin(end) - toMin(start) : 0;
-                const nextStart = toMin(start) + mins;
-                const blocked = nextStart < 0 || nextStart + dur > 24 * 60 - 1;
-                return (
-                  <div
-                    key={mins}
-                    className={"chip" + (blocked ? " chip-off" : "")}
-                    role="button"
-                    tabIndex={blocked ? -1 : 0}
-                    aria-disabled={blocked}
-                    onClick={() => {
-                      if (blocked) return;
-                      setStart(minToHHMM(nextStart));
-                      setEnd(minToHHMM(nextStart + dur));
-                      if (err) setErr(false);
-                    }}
-                  >
-                    {nudgeLabel}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="field">
-            <div className="input-label">Length</div>
-            <div className="chip-row">
-              {DUR_CHOICES.map((mins) => {
-                const activeDur = !!end && toMin(end) - toMin(start) === mins;
-                return (
-                  <div
-                    key={mins}
-                    className={"chip" + (activeDur ? " active" : "")}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => { setEnd(minToHHMM(toMin(start) + mins)); if (err) setErr(false); }}
-                  >{durLabel(mins)}</div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="field">
-            <div className="input-label">Days <span className="input-req">*</span></div>
-            <div className="chip-row">
-              {DOW_LETTER.map((ltr, d) => (
-                <div
-                  key={d}
-                  className={"chip" + (days.includes(d) ? " active" : "")}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={days.includes(d)}
-                  aria-label={DOW_ABBR[d]}
-                  onClick={() => { toggleDay(d); if (err) setErr(false); }}
-                >{ltr}</div>
-              ))}
-            </div>
-          </div>
-
-          {endInvalid && <div className="input-error">End must be after start</div>}
-          {err && !endInvalid && <div className="input-error">Needs a name · At least one day</div>}
-        </div>
-
-        <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={save}>Save</button>
-          {onEditFull && (
-            <button className="btn btn-secondary btn-block" onClick={onEditFull}>Edit Full Details</button>
-          )}
-          {onDelete && (
-            <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>Delete Block</button>
-          )}
-          <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+  return (
+    <FormSheet title="Edit Protected Time" onCancel={onCancel} onSave={save}>
+      <Group label="Block">
+        <FieldRow tone="teal" glyph={<LockGlyph />} value={label} onChange={(v) => { setLabel(v); if (err) setErr(false); }}
+          placeholder="Gym · Lunch · Deep Work" ariaLabel="Block name" error={err && !label.trim()} right={false} />
+      </Group>
+      <Group label="When">
+        <FieldRow tone="orange" glyph={<Clock className="ic" />} label="Start" type="time" value={start} onChange={onStartChange} ariaLabel="Start" />
+        <FieldRow tone="orange" glyph={<Clock className="ic" />} label="End" type="time" value={end} onChange={(v) => { setEnd(v); if (err) setErr(false); }}
+          ariaLabel="End" error={endInvalid} />
+        <MenuRow tone="blue" glyph={<Hourglass className="ic" />} label="Length" value={durValue} word={durWord} ariaLabel="Length" off={dur === 0}
+          options={DUR_CHOICES.map((m) => ({ value: String(m), label: durLabel(m) }))}
+          onPick={(v) => { setEnd(minToHHMM(toMin(start) + Number(v))); if (err) setErr(false); }} />
+        <Strip>
+          {NUDGES.map(([mins, nudgeLabel]) => {
+            const nextStart = toMin(start) + mins;
+            const blocked = nextStart < 0 || nextStart + dur > 24 * 60 - 1;
+            return (
+              <div
+                key={mins}
+                className={"chip" + (blocked ? " chip-off" : "")}
+                role="button"
+                tabIndex={blocked ? -1 : 0}
+                aria-disabled={blocked}
+                onClick={() => {
+                  if (blocked) return;
+                  setStart(minToHHMM(nextStart));
+                  setEnd(minToHHMM(nextStart + dur));
+                  if (err) setErr(false);
+                }}
+              >
+                {nudgeLabel}
+              </div>
+            );
+          })}
+        </Strip>
+      </Group>
+      <ErrorLine text={endInvalid ? "End must be after start" : null} />
+      <Group label="Days">
+        <Row tone="sky" glyph={<CalendarDays className="ic" />} label="Every">
+          <span className="xs-field xs-days">{days.length === 7 ? "Day" : days.length === 0 ? "None" : days.map((d) => DOW_ABBR[d]).join(" ")}</span>
+        </Row>
+        <Strip>
+          {DOW_LETTER.map((ltr, d) => (
+            <div
+              key={d}
+              className={"chip" + (days.includes(d) ? " active" : "")}
+              role="button"
+              tabIndex={0}
+              aria-pressed={days.includes(d)}
+              aria-label={DOW_ABBR[d]}
+              onClick={() => { toggleDay(d); if (err) setErr(false); }}
+            >{ltr}</div>
+          ))}
+        </Strip>
+      </Group>
+      <ErrorLine text={err && !endInvalid ? "Needs a name · At least one day" : null} />
+      {(onEditFull || onDelete) && (
+        <Group className="xs-actions">
+          {onEditFull && <Row tone="graphite" glyph={<PenLine className="ic" />} label="Edit Full Details" onClick={onEditFull} chev />}
+          {onDelete && <DeleteRow label="Delete Block" onClick={onDelete} />}
+        </Group>
+      )}
+    </FormSheet>
   );
 }

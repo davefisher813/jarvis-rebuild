@@ -574,3 +574,79 @@
 .ruled .uchip.u-done { color: var(--good); background: var(--good-tint); }
 /* A person's row: the avatar takes the check column at the row's size. */
 .ruled .person-row-ruled .task-check-tap .av { width: 30px; height: 30px; font-size: 12px; }
+/* A nudge on Notifications (2026-09-02): the type glyph in the check column. */
+.ruled .notif-row .task-check-tap .row-glyph { width: auto; height: auto; }
+.ruled .notif-row .task-check-tap .row-glyph .ic { width: 22px; height: 22px; }
+
+/* ---------- ROOM UNDER THE TITLE (Dave 2026-09-02, the Brain page: "a
+   visual bug up top with the title and first section"). A card that is the
+   first thing under the page head sat on the title's red stroke. Every
+   other page has a search bar or a caps head between them; a page whose
+   list opens straight away gets the same breath. */
+.ruled .pagehead + .pad-x > .list-card-ruled, .ruled .pagehead + .visually-hidden-input + .pad-x > .list-card-ruled { margin-top: var(--s-3); }
+
+/* ---------- THE SETTINGS SUB-PAGES (2026-09-02) --------------------------
+   Every page under the Settings hub wears the hub's screen: the quiet caps
+   head, the grouped card, rows with the value at the right. No glyph tiles
+   below the hub (iOS's own way). A typed value sits at the right of its
+   label in the quiet ink, the way the form sheets type theirs. */
+.ruled .set-card > .set-row { min-height: 48px; }
+.ruled .set-card > .set-row[aria-disabled="true"] { opacity: 0.5; }
+.ruled .set-card > .set-row .row-value { color: var(--tx-3); }
+.ruled .set-card > .set-row .conn-meta { margin-top: 2px; }
+.ruled .set-field { flex: 1; min-width: 0; height: 32px; padding: 0; background: transparent; border: 0; outline: none;
+  font-family: var(--f); font-size: 16px; color: var(--tx-2); text-align: right; }
+.ruled .set-field::placeholder { color: var(--tx-4); }
+.ruled .set-gap { margin-top: var(--s-5); }
+.ruled .set-foot { padding-top: var(--s-2); font-size: 12.5px; color: var(--tx-3); line-height: 1.45; }
+.ruled .set-card > .set-act .conn-name { color: var(--tint); font-weight: var(--w-semi); }
+.ruled .set-card > .set-quiet .conn-name { color: var(--tx-3); }
+.ruled .set-card > .set-sub .conn-name { font-size: 14px; color: var(--tx-3); }
+.ruled .set-card > .row-act { margin: var(--s-1) auto; }
+.ruled .set-card > .row-act:disabled { opacity: 0.4; }
+.ruled .row-act-pill { font-size: 13px; }
+.ruled .legal-card { padding: var(--s-2) var(--s-4); }
+.ruled .legal-card .legal-body { padding-bottom: var(--s-2); }
+.ruled .set-card.about-hero, .ruled .set-card.account-hero { padding: var(--s-6) var(--s-4); }
+
+/* ---------- THE PROJECT PAGE (2026-09-02) --------------------------------
+   The hero card, then the quiet caps heads over the app's own rows: the
+   task row's shape for its tasks (check, name, chip and day), the note row
+   for its notes, the dropdown for its area and goal. */
+.ruled .list-card-ruled.proj-detail-hero { padding: var(--s-6) var(--s-4); margin-bottom: var(--s-3); }
+.ruled.proj-ruled .proj-done-fold { margin-top: var(--s-3); }
+.ruled.proj-ruled .proj-done-fold .list-card-ruled { margin-left: 0; margin-right: 0; }
+.ruled.proj-ruled .task-row .task-check-tap[role="checkbox"] { cursor: pointer; }
+.ruled.proj-ruled .note-row .gm-slot .cat-dot { width: 10px; height: 10px; }
+.ruled.proj-ruled .conn-action { padding-top: var(--s-5); }
+/* The goal page (2026-09-02): its projects wear the area page's project
+   row with the folder in the check column; a saving is a row with the
+   dollar in that column. */
+.ruled.goal-ruled .proj-row-ruled .pp-slot .ic { width: 20px; height: 20px; }
+.ruled.goal-ruled .gm-slot .ic { width: 20px; height: 20px; color: var(--good); }
+.ruled.goal-ruled .suggestion-row { padding: var(--s-3) var(--s-4); }
+/* The people list (2026-09-02): the area page's person row, in the card. */
+.ruled.people-ruled .person-row-ruled .gm-slot .row-glyph { width: auto; height: auto; }
+.ruled.people-ruled .person-row-ruled .gm-slot .row-glyph .ic { width: 22px; height: 22px; }
+.ruled.people-ruled .list-search { padding-top: var(--s-2); }
+.ruled .list-card-ruled.conn-action { margin-top: var(--s-3); }
+/* The person page (2026-09-02): the quiet heads over the grouped cards; the
+   open things with them wear the nudge row (the type glyph in the check
+   column); the notes wear the note row. */
+.ruled.person-ruled .person-hero { padding-bottom: var(--s-2); }
+.ruled.person-ruled .person-notes .note-body { padding: var(--s-3) var(--s-4); }
+.ruled.person-ruled .kv-val { color: var(--tx-3); }
+/* Connections (2026-09-02): quiet heads over the grouped cards; the second
+   card a breath below the first. */
+.ruled .list-card-ruled.conn-mail-card { margin-top: var(--s-3); }
+/* Chat (2026-09-02): the Try head is the quiet caps head; the provenance
+   line under a bubble is the ruled row's quiet grey, not a caps eyebrow. */
+.ruled.chat-ruled .chat-starter-head { padding-left: 0; padding-right: 0; }
+.ruled.chat-ruled .chat-prov { text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: var(--w-regular); color: var(--tx-3); }
+.ruled.chat-ruled .chat-jarvis { background: var(--press-3); }
+/* Search (2026-09-02): every result list is a card, every head the quiet
+   caps head, same as the screens the results open. */
+.search-overlay.ruled .search-results > .sh2 + .pad-x > .list-card-ruled { margin-bottom: var(--s-1); }
+/* The decision banner on a project or goal keeps the one left edge. */
+.ruled .pad-x > .promo-card { margin-left: 0; margin-right: 0; }
+.ruled .proj-detail-hero .proj-prog .conn-meta { text-align: center; }

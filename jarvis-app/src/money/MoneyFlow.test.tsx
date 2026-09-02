@@ -36,7 +36,8 @@ describe("MoneyFlow", () => {
     fireEvent.click(screen.getByText("Add Bill"));
     fireEvent.change(screen.getByPlaceholderText("e.g. Rent"), { target: { value: "Rent" } });
     fireEvent.change(screen.getByPlaceholderText("0"), { target: { value: "1850" } });
-    fireEvent.click(screen.getByText("It pays itself"));
+    // Autopay is a switch on the bill sheet (the form sheets, 2026-09-02).
+    fireEvent.click(screen.getByLabelText("Autopay"));
     fireEvent.click(screen.getByText("Save"));
     await waitFor(() => expect(screen.getByText("Rent")).toBeInTheDocument());
     expect(screen.getByText(/Set to autopay/)).toBeInTheDocument();

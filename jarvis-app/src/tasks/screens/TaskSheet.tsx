@@ -180,7 +180,7 @@ export default function TaskSheet({
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card xs task-sheet" onClick={(e) => e.stopPropagation()}>
+      <div className="card xs form-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <SheetBar title={mode === "new" ? "New Task" : "Edit Task"} onCancel={onCancel} onSave={save} />
         <div className="sheet-form">

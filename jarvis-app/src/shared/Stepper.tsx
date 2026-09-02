@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 // THE STEPPER (B7, 2026-08-23). One implementation, the way InlineEdit,
-// ChipPicker, ReorderList, useSwipe and undoStack are each one.
+// HeadMenu, ReorderList, useSwipe and undoStack are each one.
 //
 // It existed twice: a full one in gym/ExerciseSheet and a stripped one in
 // gym/SessionScreen that dropped the single feature that makes a stepper

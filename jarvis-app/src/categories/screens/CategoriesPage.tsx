@@ -30,8 +30,9 @@ export default function CategoriesPage({
 }) {
   const byId = (id: string) => categories.find((c) => c.id === id)!;
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <LargeTitleNav title="Areas" back="Settings" onBack={onBack} />
+      <div className="sh2 sh2-quiet"><span className="t">Your Areas</span><span className="n">{categories.length}</span></div>
       <div className="pad-x">
         {onReorder && categories.length > 1 ? (
           <ReorderList
@@ -50,7 +51,7 @@ export default function CategoriesPage({
             }}
           />
         ) : (
-        <div className="card">
+        <div className="card list-card-ruled">
           {categories.map((c) => (
             <div className="row" role="button" tabIndex={0} key={c.id} onClick={() => onEdit(c.id)}>
               <div className={"sec-ico cat-bg-" + c.data.color}>{catIcon(c.data.icon)}</div>
@@ -60,7 +61,7 @@ export default function CategoriesPage({
           ))}
         </div>
         )}
-        <div className="card conn-action">
+        <div className="card list-card-ruled conn-action">
           <button className="row row-act" onClick={onAdd}>Add Area</button>
         </div>
       </div>

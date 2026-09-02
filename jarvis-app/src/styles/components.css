@@ -1066,12 +1066,9 @@ a.row.person-reach { color: inherit; text-decoration: none; }
   overflow: hidden; margin-bottom: var(--s-1h);
 }
 .proj-prog-bar > span { display: block; height: 100%; background: var(--good); border-radius: 2px; }
-.proj-step { align-items: flex-start; }
-.proj-add-step { gap: var(--s-2); }
-.proj-step-input { flex: 1; min-width: 0; }
+.proj-step.completed .task-name { color: var(--tx-3); text-decoration: line-through; }
 .proj-done-fold { margin-top: var(--s-2); display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; }
 .proj-done-fold .card { width: 100%; }
-.proj-step.completed .conn-name { color: var(--tx-3); text-decoration: line-through; }
 .proj-finish-note { margin-top: var(--s-2); text-align: center; }
 .proj-guess .conn-name { color: var(--tint); }
 .notif-scope { margin-top: var(--s-3); }
@@ -1844,10 +1841,9 @@ button {
 .prov-link { color: var(--tx-3); text-decoration: none; cursor: pointer; }
 .prov-link:active { opacity: 0.6; }
 
-/* Chip picker (editing primitives, LOCKED-CSS CHANGE FLAGGED): the open state
-   of the one-field in-place picker. The chips themselves are the standard
-   .chip anatomy; this class only lets the option row wrap in place instead of
-   scrolling off, so the picker opens where the value stood. */
+/* A chip row that wraps in place instead of scrolling off (the music
+   presets). ChipPicker, the picker this class was born for, retired
+   2026-09-02 in favour of HeadMenu. */
 .chip-picker-open { flex-wrap: wrap; overflow-x: visible; }
 
 /* Smart Paste (addendum item 1, LOCKED-CSS CHANGE FLAGGED): the saved
@@ -4259,19 +4255,51 @@ body.selecting .voice-dock { display: none; }
 .note-photo-row .conn-name { flex: 1; min-width: 0; }
 .note-file-open { cursor: pointer; }
 
-/* THE TASK SHEET ON THE GROUPED TABLE (Brain and the Task Sheet, 2026-09-02).
-   The exercise sheet's .xs anatomy without the training skin: the date row
-   under Due when a date is picked, the if-then plan folded under its row,
-   the last group the actions, Delete in the system red and centred, the
-   way iOS sets a destructive row. */
-.task-sheet .xs-date { padding-left: calc(var(--s-4) + 28px + var(--s-3)); }
-.task-sheet .xs-date .xs-input { color: var(--tx-2); font-size: 15px; }
-.task-sheet .xs-plan { padding: var(--s-1) var(--s-4) var(--s-3) calc(var(--s-4) + 28px + var(--s-3)); }
-.task-sheet .xs-plan .segmented { margin-bottom: var(--s-2); }
-.task-sheet .xs-actions { padding-top: var(--s-5); }
-.task-sheet .xs-del { width: 100%; justify-content: center; border: 0; background: transparent; font-family: var(--f);
+/* THE FORM SHEETS ON THE GROUPED TABLE (Brain and the Task Sheet, 2026-09-02;
+   the rest of the form sheets the same day). The exercise sheet's .xs
+   anatomy without the training skin, shared through shared/FormSheet: a
+   typed value at the right of its label, the date row under Due when a
+   date is picked, the if-then plan folded under its row, the last group
+   the actions, Delete in the system red and centred, the way iOS sets a
+   destructive row. */
+.form-sheet .xs-field { text-align: right; color: var(--tx-2); font-size: 16px; }
+.form-sheet .xs-field::placeholder { color: var(--tx-4); }
+.form-sheet .xs-field[type="date"], .form-sheet .xs-field[type="time"] { flex: 0 1 auto; width: auto; max-width: 60%; }
+.form-sheet .xs-date { padding-left: calc(var(--s-4) + 28px + var(--s-3)); }
+.form-sheet .xs-date .xs-input { color: var(--tx-2); font-size: 15px; }
+.form-sheet .xs-plan { padding: var(--s-1) var(--s-4) var(--s-3) calc(var(--s-4) + 28px + var(--s-3)); }
+.form-sheet .xs-plan .segmented { margin-bottom: var(--s-2); }
+.form-sheet .xs-actions { padding-top: var(--s-5); }
+.form-sheet .xs-del { width: 100%; justify-content: center; border: 0; background: transparent; font-family: var(--f);
   font-size: 16px; font-weight: var(--w-medium); color: var(--sys-red); cursor: pointer; }
-.task-sheet .xs-del:active { background: var(--press-1); }
-.task-sheet .xs-group .proj-icon { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; }
-.task-sheet .xs-group .proj-icon .ic { width: 16px; height: 16px; }
-.task-sheet .row-grow .conn-meta { margin-top: 2px; }
+.form-sheet .xs-del:active { background: var(--press-1); }
+.form-sheet .xs-group .proj-icon { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; }
+.form-sheet .xs-group .proj-icon .ic { width: 16px; height: 16px; }
+.form-sheet .row-grow .conn-meta { margin-top: 2px; }
+/* A chip strip as a row of the group (the event's Move and Length, the
+   loose tasks): one step up from the group's ground, wrapping. */
+.form-sheet .row.xs-strip { display: block; padding: var(--s-2) var(--s-3) var(--s-2h); }
+.form-sheet .row.xs-strip .chip-row { margin: 0; flex-wrap: wrap; overflow: visible; padding: 0; }
+.form-sheet .row.xs-strip .chip { background: var(--press-3); }
+/* A note under a group (an overlap, a hint), in the quiet ink. */
+.form-sheet .xs-note { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2);
+  padding: var(--s-1h) var(--s-4) 0; font-size: 12.5px; color: var(--tx-3); }
+.form-sheet .xs-note .note-fix { flex-shrink: 0; }
+/* A photo-only note: the canvas keeps no room for words it does not have. */
+.screen-editor .doc.doc-lean, .doc.doc-lean { padding-top: 0; padding-bottom: var(--s-2); }
+/* File Under (the note swipe, 2026-09-02): the dot leads, the tick says which. */
+.form-sheet .xs-row > .cat-dot { order: -1; width: 10px; height: 10px; flex-shrink: 0; }
+.form-sheet .file-under-tick { width: 18px; height: 18px; color: var(--tint); flex-shrink: 0; }
+/* The last form sheets onto the kit (2026-09-02): a paragraph row, and
+   the visual picks (a colour, an icon, a day) as strips of the group. */
+.form-sheet .xs-textrow { align-items: stretch; }
+.form-sheet .xs-textarea { height: auto; min-height: 72px; padding: var(--s-1) 0; resize: none; line-height: var(--lh-relaxed); font-family: inherit; }
+.form-sheet .row.xs-strip .pick-fam { margin: 0 0 var(--s-1h); }
+.form-sheet .row.xs-strip .pick-fam + .swatch-pick, .form-sheet .row.xs-strip .pick-fam + .icon-pick { margin-bottom: var(--s-1); }
+.form-sheet .row.xs-strip .swatch-row { margin: 0; }
+.form-sheet .row.xs-strip .icpick { background: var(--press-3); }
+.form-sheet .row.xs-strip .icpick.sel { background: var(--sel-bg); color: var(--sel-fg); }
+.form-sheet .row.xs-strip .auto-line { padding: 0; }
+.form-sheet .row.xs-strip .auto-text { margin-top: var(--s-1h); }
+.form-sheet .xs-days { flex: 1; min-width: 0; text-align: right; font-size: 15px; color: var(--tx-2); }
+.form-sheet .xs-row > .row-ico .ic { width: 15px; height: 15px; }

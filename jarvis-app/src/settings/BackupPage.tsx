@@ -1,15 +1,13 @@
 import { useRef, useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { useBackup } from "../data/NotesProvider";
+import { Head, Card, Row, Foot } from "./kit";
 
 export default function BackupPage({ onBack }: { onBack: () => void }) {
   const backup = useBackup();
   const fileRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
-  // Import confirms before writing (2026-08-09): the file's own date and
-  // count, then a second deliberate tap. Unconfirmable data writes into your
-  // whole life should not ride on one file-picker dismissal.
   const [pending, setPending] = useState<{ bundle: unknown; label: string } | null>(null);
   const [lastExport, setLastExport] = useState<string>(() => {
     try { return localStorage.getItem("jarvis.backup.lastExport") ?? ""; } catch { return ""; }
@@ -40,7 +38,6 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
   };
 
   const onPickFile = () => fileRef.current?.click();
-
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -72,47 +69,32 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <LargeTitleNav title="Backup" back="Settings" onBack={onBack} />
-
-      <div className="grp"><div className="eyebrow">Your Data</div></div>
-      <div className="pad-x"><div className="card">
-        <div className="row" role="button" tabIndex={0} aria-disabled={busy} onClick={() => !busy && onExport()}>
-          <div className="row-grow"><div className="conn-name">Export All Data</div><div className="conn-meta">{lastExport ? `Last exported ${lastExport}` : "One JSON file · Everything here"}</div></div>
-        </div>
-        <div className="row" role="button" tabIndex={0} aria-disabled={busy} onClick={() => !busy && onPickFile()}>
-          <div className="row-grow"><div className="conn-name">Import from File</div><div className="conn-meta">Adds from a backup file</div></div>
-        </div>
-      </div></div>
-
+      <Head label="Your Data" />
+      <Card>
+        <Row label="Export All Data" meta={lastExport ? `Last exported ${lastExport}` : "One JSON file · Everything here"} onClick={onExport} disabled={busy} chev />
+        <Row label="Import from File" meta="Adds from a backup file" onClick={onPickFile} disabled={busy} chev />
+      </Card>
       {pending && (
-        <div className="pad-x"><div className="card pad">
-          <div className="conn-name">{pending.label}</div>
-          <div className="conn-meta">Identical items skipped</div>
-          <div className="offer-row">
-            <button className="btn btn-primary" disabled={busy} onClick={() => void runImport()}>{busy ? "Importing..." : "Import"}</button>
-            <button className="quiet-action" disabled={busy} onClick={() => setPending(null)}>Cancel</button>
-          </div>
-        </div></div>
+        <div className="set-gap"><Card>
+          <Row label={pending.label} meta="Identical items skipped" />
+          <Row label={busy ? "Importing..." : "Import"} onClick={() => void runImport()} disabled={busy} className="set-act" />
+          <Row label="Cancel" onClick={() => setPending(null)} disabled={busy} className="set-quiet" />
+        </Card></div>
       )}
-
       {/* Catalog V3.1: the import receipt is a card row, not floating text. */}
-      {status && (
-        <div className="pad-x"><div className="card">
-          <div className="row"><div className="row-stack"><div className="conn-meta">{status}</div></div></div>
-        </div></div>
-      )}
-
-      <div className="grp"><div className="eyebrow">Account Sync</div></div>
+      {status && <Foot>{status}</Foot>}
+      <Head label="Account Sync" />
       {/* Catalog V3.1: the explainer paragraph became three short card rows. */}
-      <div className="pad-x"><div className="card">
-        <div className="row"><div className="row-grow"><div className="conn-name">iCloud / Account Sync</div></div><span className="row-value">Off</span></div>
-        <div className="row"><div className="row-stack"><div className="conn-name">Data Lives on This Device</div><div className="conn-meta">Export keeps your own copy</div></div></div>
-        <div className="row"><div className="row-stack"><div className="conn-name">Import Adds, Never Removes</div><div className="conn-meta">Duplicates skipped · Nothing overwritten</div></div></div>
-        <div className="row"><div className="row-stack"><div className="conn-name">Sync Follows Your Account</div><div className="conn-meta">Turns on with a synced sign-in</div></div></div>
-      </div></div>
-
+      <Card>
+        <Row label="iCloud / Account Sync" value="Off" />
+        <Row label="Data Lives on This Device" meta="Export keeps your own copy" />
+        <Row label="Import Adds, Never Removes" meta="Duplicates skipped · Nothing overwritten" />
+        <Row label="Sync Follows Your Account" meta="Turns on with a synced sign-in" />
+      </Card>
       <input ref={fileRef} className="visually-hidden-input" type="file" accept="application/json,.json" onChange={onFile} />
+      <div className="screen-foot" />
     </div>
   );
 }

@@ -26,7 +26,6 @@ import { eventLog } from "../events";
 import { completionSamples } from "../events/completions";
 import { todayISO } from "../tasks/grouping";
 import { nextActionOf } from "../bigger/related";
-import { goalTitleOf } from "../schedule/planMeta";
 import { dayPhrase } from "../money/bills";
 import { fmtTime, addMinutes } from "../schedule/calendar";
 import { FIFTEEN } from "../tasks/rightNow";
@@ -775,15 +774,16 @@ export default function CategoryDetail({
               const doneAll = projTasks.filter((t) => t.data.done).length;
               const pct = projTasks.length > 0 ? Math.round((doneAll / projTasks.length) * 100) : null;
               const overdue = projTasks.filter((t) => !t.data.done && !!t.data.due && t.data.due < today).length;
-              const goal = goalTitleOf(projects, goals, p.id);
+              // ONE GREY LINE (Dave 2026-09-02, from the area page: "way too
+              // much sub grey text. Reformat it"). The title, then one line:
+              // the next move, or the one word for a project that has none
+              // (Paused, Stalled in the warning ink). The week's count and
+              // any overdue ride as chips ahead of it; the goal it moves is
+              // the Goals Here card two sections down, not a third line.
               const stalled = !next && p.data.status !== "on_hold";
-              const state = p.data.status === "on_hold" ? "Paused" : next ? "Moving" : "Stalled";
-              const bits: string[] = [state];
-              if (overdue > 0) bits.push(capAfterNumber(overdue === 1 ? "1 overdue" : `${overdue} overdue`));
-              if (goal) bits.push(`Moves ${goal}`);
-              const nextLine = next
-                ? `${next.data.text}${next.data.due ? ` \u00b7 ${dayPhrase(next.data.due, today)}` : ""}`
-                : p.data.status === "on_hold" ? "On purpose" : "No next action";
+              const line = next
+                ? `Next: ${next.data.text}${next.data.due ? ` \u00b7 ${dayPhrase(next.data.due, today)}` : ""}`
+                : p.data.status === "on_hold" ? "Paused" : "Stalled \u00b7 No next action";
               return (
                 <div className="task-row p2 proj-row-ruled" role="button" tabIndex={0} key={p.id} onClick={() => onOpenProject?.(p.id)}>
                   <div className="task-check-tap"><span className={"pp-slot cat-fg-" + cat.data.color}><ProjectPie pct={pct} /></span></div>
@@ -791,9 +791,9 @@ export default function CategoryDetail({
                     <span className="task-name">{p.data.title}</span>
                     <div className="r-k">
                       {doneWeek > 0 && <span className="uchip u-done">{doneWeek} done</span>}
-                      <span className={"r-goal r-cat" + (stalled ? " r-stalled" : "")}>{bits.join(" \u00b7 ")}</span>
+                      {overdue > 0 && <span className="uchip u-late">{overdue} late</span>}
+                      <span className={"r-goal r-cat" + (stalled ? " r-stalled" : "")}>{line}</span>
                     </div>
-                    <div className="r-next">Next: {nextLine}</div>
                   </div>
                   {CHEV}
                 </div>

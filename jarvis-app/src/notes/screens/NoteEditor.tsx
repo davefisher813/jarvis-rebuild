@@ -628,7 +628,7 @@ export default function NoteEditor({
   };
 
   return (
-    <div className="screen screen-editor">
+    <div className="screen screen-editor ruled">
       <div className="nav-bar">
         <button className="nav-back" onClick={onBack}>Notes</button>
         <span className="nav-title"></span>
@@ -662,7 +662,10 @@ export default function NoteEditor({
         </div>
       </div>
 
-      <div className={"doc" + (editorial ? " doc-editorial" : "")}>
+      {/* A PHOTO LEADS A PHOTO-ONLY NOTE (2026-09-02): with no words yet
+          and a picture or file attached, the canvas gives up its room and
+          the placeholder, so the note opens on the thing it holds. */}
+      <div className={"doc" + (editorial ? " doc-editorial" : "") + (inline.length === 0 && attachments.length > 0 ? " doc-lean" : "")}>
         <div className="inline-dot">
           <div className={"proj-icon cat-bg-" + catColor(note.category)}>
             <FileText className="ic" />
@@ -777,14 +780,14 @@ export default function NoteEditor({
           })
         )}
 
-        {inline.length === 0 && (
+        {inline.length === 0 && attachments.length === 0 && (
           <div className="note-empty">Nothing here yet</div>
         )}
       </div>
 
       {attachments.length > 0 && (
         <div className="pad-x">
-          <div className="card">
+          <div className="card list-card-ruled">
             {attachments.map((a) => <Attachment a={a} store={fileStore} onRemove={onDeleteBlock} key={a.id} />)}
           </div>
         </div>

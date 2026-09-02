@@ -1,6 +1,5 @@
 import type { Person } from "../types";
 import { personInitials, avatarClass } from "../types";
-import { FileText } from "../../shared/icons";
 import { catColor } from "../../shared/categories";
 import { RowGlyph } from "../../shared/anatomy";
 
@@ -17,6 +16,7 @@ function KV({ label, value }: { label: string; value?: string }) {
     <div className="row">
       <div className="row-grow"><div className="conn-name">{label}</div></div>
       <span className="kv-val">{value}</span>
+      <div className="screen-foot" />
     </div>
   );
 }
@@ -65,7 +65,7 @@ export default function PersonDetail({
     : register === "professional" ? "Professional"
     : undefined;
   return (
-    <div className="screen">
+    <div className="screen ruled proj-ruled person-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <button className="nav-action" aria-label="Edit" onClick={onEdit}>{EDIT}</button>
@@ -78,7 +78,10 @@ export default function PersonDetail({
           since the person pass, finally shown, and tappable so the card is a
           launchpad, not a filing cabinet. */}
       {(email || phone) && (
-        <div className="pad-x"><div className="card">
+        <div className="sh2 sh2-quiet"><span className="t">Reach Them</span></div>
+      )}
+      {(email || phone) && (
+        <div className="pad-x"><div className="card list-card-ruled">
           {phone && onCallPrep && (
             // Call Prep (addendum item 2): the call action opens the prep
             // card, which carries the dial. Context first, then the phone.
@@ -115,8 +118,9 @@ export default function PersonDetail({
           )}
         </div></div>
       )}
+      {hasAttrs && <div className="sh2 sh2-quiet"><span className="t">About</span></div>}
       {hasAttrs && (
-        <div className="pad-x"><div className="card">
+        <div className="pad-x"><div className="card list-card-ruled">
           <KV label="Relationship" value={relationship} />
           <KV label="Birthday" value={birthday} />
           <KV label="JARVIS writes" value={writeStyle} />
@@ -125,8 +129,8 @@ export default function PersonDetail({
       )}
       {notes && (
         <>
-          <div className="grp"><div className="eyebrow">Notes</div></div>
-          <div className="pad-x"><div className="card"><div className="note-body">{notes}</div></div></div>
+          <div className="sh2 sh2-quiet"><span className="t">Notes</span></div>
+          <div className="pad-x"><div className="card list-card-ruled person-notes"><div className="note-body">{notes}</div></div></div>
         </>
       )}
       {/* What is STILL between you, not a history: open tasks with their name
@@ -135,16 +139,16 @@ export default function PersonDetail({
           scrapbook, and he opened this card to know what he owes. */}
       {openWith.length > 0 && (
         <>
-          <div className="grp"><div className="eyebrow">Still Open</div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Still Open</span><span className="n">{openWith.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {openWith.map((m) => (
-              <div className="row" key={m.kind + m.id}
+              <div className="task-row p2 notif-row" key={m.kind + m.id}
                 role={onOpenItem ? "button" : undefined} tabIndex={onOpenItem ? 0 : undefined}
                 onClick={onOpenItem ? () => onOpenItem(m.kind, m.id) : undefined}>
-                <RowGlyph kind={m.kind} />
-                <div className="row-grow">
-                  <div className="conn-name">{m.title}</div>
-                  {m.sub && <div className="conn-meta">{m.sub}</div>}
+                <div className="task-check-tap"><RowGlyph kind={m.kind} /></div>
+                <div className="task-title">
+                  <span className="task-name">{m.title}</span>
+                  {m.sub && <div className="r-k"><span className="r-goal r-cat">{m.sub}</span></div>}
                 </div>
                 {onOpenItem && <div className="chev"></div>}
               </div>
@@ -154,18 +158,19 @@ export default function PersonDetail({
       )}
       {linkedNotes.length > 0 && (
         <>
-          <div className="grp"><div className="eyebrow">Linked Notes</div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Linked Notes</span><span className="n">{linkedNotes.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {linkedNotes.map((n) => (
-              <div className="row" role={onOpenNote ? "button" : undefined} tabIndex={onOpenNote ? 0 : undefined} key={n.id} onClick={onOpenNote ? () => onOpenNote(n.id) : undefined}>
-                <div className={"proj-icon cat-bg-" + (n.category ? catColor(n.category) : "graphite")}><FileText className="ic" /></div>
-                <div className="conn-name">{n.title}</div>
+              <div className="task-row p2 note-row" role={onOpenNote ? "button" : undefined} tabIndex={onOpenNote ? 0 : undefined} key={n.id} onClick={onOpenNote ? () => onOpenNote(n.id) : undefined}>
+                <div className="task-check-tap gm-slot"><span className={"cat-dot cat-bg-" + (n.category ? catColor(n.category) : "graphite")} /></div>
+                <div className="task-title"><span className="task-name">{n.title}</span></div>
                 {onOpenNote && <div className="chev"></div>}
               </div>
             ))}
           </div></div>
         </>
       )}
+      <div className="screen-foot" />
     </div>
   );
 }

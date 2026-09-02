@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
 import type { GoalReach } from "./reach";
@@ -13,7 +12,10 @@ import { fmtDay } from "../decisions/DecisionsFlow";
 import { formatMoney } from "../money/types";
 import { monthDay } from "../money/bills";
 import { capAfterNumber } from "../shared/casing";
-import { TargetGlyph, ForkGlyph } from "../shared/glyphs";
+import { TargetGlyph, ForkGlyph, FolderGlyph, DollarGlyph } from "../shared/glyphs";
+import { FormSheet, Group, FieldRow, Note } from "../shared/FormSheet";
+import { distanceFor, todayISO } from "../tasks/grouping";
+import { PenLine } from "../shared/icons";
 import { useOptionalDecisions } from "../data/NotesProvider";
 import type { DecisionRecord } from "../decisions/types";
 
@@ -141,14 +143,14 @@ export default function GoalDetailPage({
   const [savingsAmt, setSavingsAmt] = useState("");
   const savingsValid = Number.isFinite(Number(savingsAmt)) && Number(savingsAmt) > 0;
   return (
-    <div className="screen">
+    <div className="screen ruled proj-ruled goal-ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Goal</div>
         <button className="nav-action-text" onClick={onEdit}>Edit</button>
       </div>
 
-      <div className="pad-x"><div className="card proj-detail-hero">
+      <div className="pad-x"><div className="card list-card-ruled proj-detail-hero">
         <div className="proj-icon cat-bg-graphite">{TARGET}</div>
         {/* proj-detail-title, not nav-large: goal titles run long and the
             34px screen-title size wraps them badly */}
@@ -188,11 +190,12 @@ export default function GoalDetailPage({
 
       {target && onAddSavings && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Savings</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Savings</span>{goal.data.saved && goal.data.saved.length > 0 && <span className="n">{goal.data.saved.length}</span>}</div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {savedNewestFirst(goal.data.saved).slice(0, 5).map((e, i) => (
-              <div className="row" key={e.d + "-" + i}>
-                <div className="row-grow"><div className="conn-name">{formatMoney(e.amount)}</div><div className="eyebrow">{monthDay(e.d)}</div></div>
+              <div className="task-row p2" key={e.d + "-" + i}>
+                <div className="task-check-tap gm-slot"><DollarGlyph /></div>
+                <div className="task-title"><span className="task-name">{formatMoney(e.amount)}</span><div className="r-k"><span className="r-goal r-cat">{monthDay(e.d)}</span></div></div>
               </div>
             ))}
             <button className="row row-act" onClick={() => { setSavingsAmt(""); setSavingsOpen(true); }}>Add to Savings</button>
@@ -216,17 +219,19 @@ export default function GoalDetailPage({
         </div>
       )}
 
-      <div className="sec-head"><div className="sec-left"><div className="sec-title">Projects</div></div></div>
-      <div className="pad-x"><div className="card">
+      <div className="sh2 sh2-quiet"><span className="t">Projects</span>{projects.length > 0 && <span className="n">{projects.length}</span>}</div>
+      <div className="pad-x"><div className="card list-card-ruled">
         {projects.map((p) => {
           const next = nextActionTextOf(p.id);
+          const stalled = !next && p.data.status !== "on_hold";
           return (
-            <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onOpenProject(p.id)}>
-              <div className="row-grow">
-                <div className="conn-name truncate">{p.data.title}</div>
+            <div className="task-row p2 proj-row-ruled" role="button" tabIndex={0} key={p.id} onClick={() => onOpenProject(p.id)}>
+              <div className="task-check-tap"><span className={"pp-slot cat-fg-" + (p.data.category ? catColor(p.data.category) : "graphite")}><FolderGlyph /></span></div>
+              <div className="task-title">
+                <span className="task-name">{p.data.title}</span>
                 {/* Next action, not counts: what would move this, in one line.
                     No next action is an honest synonym for stuck. */}
-                <div className="bp-sub truncate">{next ? `Next: ${next}` : "No next action"}</div>
+                <div className="r-k"><span className={"r-goal r-cat" + (stalled ? " r-stalled" : "")}>{next ? `Next: ${next}` : p.data.status === "on_hold" ? "Paused" : "Stalled · No next action"}</span></div>
               </div>
               {CHEV}
             </div>
@@ -257,25 +262,33 @@ export default function GoalDetailPage({
           nowhere. */}
       {shown.length > 0 && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">From Your Areas</div></div></div>
-          <div className="pad-x"><div className="card">
-            {shown.map((t) => (
-              <div className="row proj-step" key={t.id}>
-                <div
-                  className="task-check-tap"
-                  role="checkbox"
-                  aria-checked={false}
-                  aria-label="Mark done"
-                  onClick={() => { haptics.selection(); onToggleTagged?.(t.id); }}
-                >
-                  <div className={"task-check cat-bd-" + catColor(t.category ?? "")} />
+          <div className="sh2 sh2-quiet"><span className="t">From Your Areas</span><span className="n">{taggedOpen.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {shown.map((t) => {
+              const dist = t.due ? distanceFor({ text: t.text, done: false, due: t.due, category: t.category ?? "" }, todayISO()) : null;
+              return (
+                <div className="task-row p2 proj-step" key={t.id}>
+                  <div
+                    className="task-check-tap"
+                    role="checkbox"
+                    aria-checked={false}
+                    aria-label="Mark done"
+                    onClick={() => { haptics.selection(); onToggleTagged?.(t.id); }}
+                  >
+                    <div className={"task-check cat-bd-" + catColor(t.category ?? "")} />
+                  </div>
+                  <div className="task-title">
+                    <span className="task-name">{t.text}</span>
+                    {t.due && (
+                      <div className="r-k">
+                        {dist && <span className={"uchip " + (dist.kind === "late" ? "u-late" : "u-today")}>{dist.label}</span>}
+                        <span className="r-goal r-cat">{fmtDay(t.due)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="row-grow">
-                  <div className="conn-name">{t.text}</div>
-                  {t.due && <div className="conn-meta">{fmtDay(t.due)}</div>}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {moreTagged > 0 && (
               <div className="row"><div className="row-grow"><div className="conn-meta">{capAfterNumber(`${moreTagged} more in these areas`)}</div></div></div>
             )}
@@ -285,11 +298,11 @@ export default function GoalDetailPage({
 
       {suggestion && onLinkSuggestion && onDismissSuggestion && (
         <>
-          <div className="sec-head">
-            <div className="sec-left"><div className="sec-title">Looks Related</div></div>
-            <button className="see-all quiet-action" aria-label="Dismiss suggestion" onClick={() => onDismissSuggestion(suggestion.id)}>&times;</button>
+          <div className="sh2 sh2-quiet">
+            <span className="t">Looks Related</span>
+            <button className="see-all pill-action" aria-label="Dismiss suggestion" onClick={() => onDismissSuggestion(suggestion.id)}>Dismiss</button>
           </div>
-          <div className="pad-x"><div className="card">
+          <div className="pad-x"><div className="card list-card-ruled">
             <div className="suggestion-row">
               <div className="sug-title">&ldquo;{suggestion.data.title}&rdquo;</div>
               <button className="btn-sm" onClick={() => onLinkSuggestion(suggestion.id)}>Link</button>
@@ -298,24 +311,13 @@ export default function GoalDetailPage({
         </>
       )}
       <div className="screen-foot" />
-      {savingsOpen && onAddSavings && createPortal(
-        <div className="sheet-scrim" onClick={() => setSavingsOpen(false)}>
-          <div className="card" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-handle" />
-            <div className="grp"><div className="eyebrow">Add to Savings</div></div>
-            <div className="pad-x sheet-form">
-              <div className="field">
-                <div className="input-label">Amount (USD)</div>
-                <input className="input" inputMode="numeric" placeholder="0" value={savingsAmt} onChange={(e) => setSavingsAmt(e.target.value)} />
-              </div>
-            </div>
-            <div className="pad-x sheet-actions">
-              <button className="btn btn-primary btn-block" onClick={() => { if (!savingsValid) return; onAddSavings(Number(savingsAmt)); setSavingsOpen(false); }}>Save</button>
-              <button className="btn btn-secondary btn-block" onClick={() => setSavingsOpen(false)}>Cancel</button>
-            </div>
-          </div>
-        </div>,
-        document.body,
+      {savingsOpen && onAddSavings && (
+        <FormSheet title="Add to Savings" onCancel={() => setSavingsOpen(false)} saveDisabled={!savingsValid}
+          onSave={() => { if (!savingsValid) return; onAddSavings(Number(savingsAmt)); setSavingsOpen(false); }}>
+          <Group label="Amount">
+            <FieldRow tone="green" glyph={<DollarGlyph />} label="Dollars" value={savingsAmt} onChange={setSavingsAmt} placeholder="0" inputMode="decimal" ariaLabel="Amount in dollars" />
+          </Group>
+        </FormSheet>
       )}
 
       {/* WHAT THE PAGE OFFERS IS WHAT IS AVAILABLE (Dave 2026-08-22, picks 11
@@ -361,28 +363,16 @@ export default function GoalDetailPage({
           <div className="conn-meta">Dropped {monthDay(goal.data.dropped.on)} · The reason is in your decisions</div>
         </div>
       )}
-      {dropOpen && onDrop && createPortal(
-        <div className="sheet-scrim" onClick={() => setDropOpen(false)}>
-          <div className="card" onClick={(e) => e.stopPropagation()}>
-            <div className="sheet-handle" />
-            <div className="grp"><div className="eyebrow">Drop This Goal</div></div>
-            <div className="pad-x sheet-form">
-              <div className="field">
-                <div className="input-label">Why</div>
-                <input className="input" placeholder="e.g. the season ended" value={dropWhy} onChange={(e) => setDropWhy(e.target.value)} />
-                {/* Never disabled. A reason you cannot articulate at 11pm is
-                    still a real reason, and a Save that refuses to save is
-                    how a record stops getting written at all. */}
-                <div className="input-hint">Optional. Whatever you write is kept with the decision.</div>
-              </div>
-            </div>
-            <div className="pad-x sheet-actions">
-              <button className="btn btn-primary btn-block" onClick={() => { onDrop(dropWhy.trim()); setDropOpen(false); }}>Drop It</button>
-              <button className="btn btn-secondary btn-block" onClick={() => setDropOpen(false)}>Cancel</button>
-            </div>
-          </div>
-        </div>,
-        document.body,
+      {dropOpen && onDrop && (
+        <FormSheet title="Drop This Goal" saveLabel="Drop It" onCancel={() => setDropOpen(false)} onSave={() => { onDrop(dropWhy.trim()); setDropOpen(false); }}>
+          <Group label="Why">
+            {/* Never disabled. A reason you cannot articulate at 11pm is
+                still a real reason, and a Save that refuses to save is
+                how a record stops getting written at all. */}
+            <FieldRow tone="purple" glyph={<PenLine className="ic" />} value={dropWhy} onChange={setDropWhy} placeholder="e.g. the season ended" ariaLabel="Why" right={false} />
+          </Group>
+          <Note>Optional · Whatever you write is kept with the decision</Note>
+        </FormSheet>
       )}
 
     </div>

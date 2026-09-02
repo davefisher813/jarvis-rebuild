@@ -65,26 +65,26 @@ export default function ConnectionsPage({
   });
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar"><button className="nav-back" onClick={onBack}>Settings</button></div>
       <div className="nav-large">Connections</div>
 
       {!configured && (
-        <div className="pad-x"><div className="card"><div className="empty-state">
+        <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
           <div className="empty-icon"><Link2 className="ic" /></div>
           <div className="empty-title">Google Setup Required</div>
           <div className="empty-sub">Needs Google setup first</div>
         </div></div></div>
       )}
 
-      <div className="grp"><div className="eyebrow">Google Accounts</div></div>
+      <div className="sh2 sh2-quiet"><span className="t">Google Accounts</span>{g.accounts.length > 0 && <span className="n">{g.accounts.length}</span>}</div>
       {g.accounts.length === 0 ? (
-        <div className="pad-x"><div className="card"><div className="empty-state">
+        <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
           <div className="empty-icon"><Mail className="ic" /></div>
           <div className="empty-title">No Accounts Yet</div>
         </div></div></div>
       ) : (
-        <div className="pad-x"><div className="card">
+        <div className="pad-x"><div className="card list-card-ruled">
           {g.accounts.map((a) => {
             const signedOut = !g.tokenEmails.includes(a.email);
             return (
@@ -135,8 +135,9 @@ export default function ConnectionsPage({
         )}
       </div>
 
+      {(g.accounts.some((a) => a.cal) || g.accounts.some((a) => a.mail)) && <div className="sh2 sh2-quiet"><span className="t">What Flows In</span></div>}
       {g.accounts.some((a) => a.cal) && (
-        <div className="pad-x"><div className="card"><div className="row">
+        <div className="pad-x"><div className="card list-card-ruled"><div className="row">
           <div className="proj-icon cat-bg-sky"><CalendarDays className="ic" /></div>
           <div className="row-grow">
             <div className="conn-name">Calendar Import</div>
@@ -146,7 +147,7 @@ export default function ConnectionsPage({
       )}
 
       {g.accounts.some((a) => a.mail) && (
-        <div className="pad-x"><div className="card"><div className="row">
+        <div className="pad-x"><div className="card list-card-ruled conn-mail-card"><div className="row">
           <div className="row-grow">
             <div className="conn-name">Know When Your Email Is Opened</div>
             <div className="conn-meta">Read receipts on sent mail · Powers Opened</div>
@@ -163,6 +164,7 @@ export default function ConnectionsPage({
 
       {status && <div className="pad-x conn-status">{status}</div>}
       {error && <div className="pad-x conn-error">{error}</div>}
+      <div className="screen-foot" />
     </div>
   );
 }

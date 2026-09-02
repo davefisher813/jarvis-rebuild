@@ -14,6 +14,8 @@ import { showToast } from "../shared/toast";
 import { parseRich } from "./richtext";
 import { usePickFile, PICK_ANY, PICK_IMAGE } from "../shared/usePickFile";
 import { fileStem, sizeLabel } from "../files/types";
+import { FormSheet, Group, Row } from "../shared/FormSheet";
+import { Check } from "../shared/icons";
 
 import { attemptWrite } from "../shared/guard";
 import { recordSpot } from "../restore/whereYouWere";
@@ -434,6 +436,14 @@ export default function NotesFlow({
     if (newId) setFocusBlockId(newId);
   };
 
+  // The swipe's File: an area, or "" to unfile. Closes on the pick.
+  const [filing, setFiling] = useState<string | null>(null);
+  const fileUnder = async (id: string, category: string) => {
+    setFiling(null);
+    const ok = await attemptWrite(() => svc.fileUnder(id, category));
+    if (ok) await loadList();
+  };
+
   // What a deleted note leaves in storage goes a beat after the note, so
   // Undo can bring the note back with its pictures; Undo cancels the sweep.
   const sweepAfter = (ids: string[]): { cancel: () => void } => {
@@ -618,8 +628,27 @@ export default function NotesFlow({
         onAddFile={fileStore ? () => pickInto(null, "file") : undefined}
         uploading={uploading}
         onDeleteMany={onDeleteManyNotes}
+        onDelete={(id) => void onDeleteManyNotes([id])}
+        onFile={(id) => setFiling(id)}
       />
       {picker.input}
+      {/* FILE UNDER (the swipe's File, 2026-09-02): the areas as rows with
+          their dots, Not Filed to clear. One tap files and closes. */}
+      {filing && (
+        <FormSheet title="File Under" onCancel={() => setFiling(null)} onSave={() => setFiling(null)} saveLabel="Done">
+          <Group label="Area">
+            {[{ id: "", name: "Not Filed", color: "yellow" }, ...catList.map((c) => ({ id: c.id, name: catName(c.id), color: c.data.color as string }))].map((a) => {
+              const cur = list.find((n) => n.id === filing)?.category ?? "";
+              return (
+                <Row key={a.id || "none"} label={a.name} onClick={() => void fileUnder(filing, a.id)}>
+                  <span className={"cat-dot cat-bg-" + a.color} />
+                  {cur === a.id && <Check className="ic file-under-tick" />}
+                </Row>
+              );
+            })}
+          </Group>
+        </FormSheet>
+      )}
       </div>
     );
   }

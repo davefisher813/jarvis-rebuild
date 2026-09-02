@@ -184,7 +184,7 @@ export default function ChatFlow() {
   };
 
   return (
-    <div className="screen">
+    <div className="screen ruled chat-ruled">
       <PageHeader title="Chat" hero={<div className="pagehead-title">JARVIS</div>} />
       <div className="chat-thread">
         {/* B4 (audit 2026-08-21): Chat opened on a blank wall with a text
@@ -196,7 +196,7 @@ export default function ChatFlow() {
             immediately is a button that lies about being a suggestion. */}
         {msgs.length === 0 && (
           <div className="chat-starters">
-            <div className="chat-starter-head">Try</div>
+            <div className="sh2 sh2-quiet chat-starter-head"><span className="t">Try</span></div>
             <div className="chip-row">
               {[
                 { label: "What's on today?", fill: "What's on today?" },

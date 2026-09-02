@@ -1,9 +1,12 @@
-import { createPortal } from "react-dom";
 import { useState } from "react";
 import type { PersonData } from "../types";
 import type { ColorSlot } from "../../categories/types";
 import { AVATAR_COLORS, avatarClass } from "../types";
 import { LABEL_CHIPS } from "../views";
+import { FormSheet, Group, Row, FieldRow, MenuRow, TextRow, Strip, DeleteRow, ErrorLine } from "../../shared/FormSheet";
+import HeadMenu from "../../shared/HeadMenu";
+import { User, Tag, PenLine } from "../../shared/icons";
+import { PeopleGlyph, EnvelopeGlyph, GiftGlyph, PhoneGlyph } from "../../shared/glyphs";
 
 export interface SheetCategoryOpt { id: string; name: string; color: ColorSlot }
 
@@ -20,10 +23,24 @@ export interface PersonDraft {
   categoryIds: string[];
 }
 
-const TRASH = (
-  <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-);
+type Register = NonNullable<PersonDraft["register"]>;
+// Register, deliberately NOT closeness: nobody taps "Not really" about
+// their mother. Unset = unknown = clean prose. Ordered as a looseness
+// scale; "Close Friend" (not "Friend") so the option never shares its
+// exact title with the label chip above.
+const REGISTERS: { value: Register | ""; label: string }[] = [
+  { value: "", label: "Not Set" },
+  { value: "friend", label: "Close Friend" },
+  { value: "casual", label: "Casual" },
+  { value: "professional", label: "Professional" },
+];
 
+// THE PERSON SHEET ON THE SHEET BAR (2026-09-02, the last form sheets): the
+// name as the row; who they are as the chip strip (chips first, typing
+// second: the label field existed for months and stayed empty because it
+// was a blank box) with the free line under it; how JARVIS writes to them
+// as a menu; email and phone typed at the right; the areas as the multi
+// menu; the colour as a strip of swatches; birthday and notes last.
 export default function PersonSheet({
   mode,
   initial,
@@ -46,12 +63,16 @@ export default function PersonSheet({
   const [color, setColor] = useState<ColorSlot>(initial?.color ?? "red");
   const [email, setEmail] = useState(initial?.email ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
-  const [register, setRegister] = useState<"casual" | "professional" | "friend" | undefined>(initial?.register);
+  const [register, setRegister] = useState<Register | undefined>(initial?.register);
   const [categoryIds, setCategoryIds] = useState<string[]>(initial?.categoryIds ?? []);
   const [touched, setTouched] = useState(false);
 
+  // MULTI-select on purpose: a person can be Family AND Bridge. Single-tag
+  // here would rebuild the exclusive-bucket mistake one layer down.
   const toggleCategory = (id: string) =>
-    setCategoryIds((cur) => (cur.includes(id) ? cur.filter((c) => c !== id) : [...cur, id]));
+    setCategoryIds((cur) => (id === "" ? [] : cur.includes(id) ? cur.filter((c) => c !== id) : [...cur, id]));
+  const areaNames = categoryIds.map((id) => categories.find((c) => c.id === id)?.name).filter((n): n is string => !!n);
+  const areaWord = areaNames.length === 0 ? "None" : areaNames.length === 1 ? areaNames[0]! : `${areaNames[0]} +${areaNames.length - 1}`;
 
   const valid = name.trim().length > 0;
   const save = () => {
@@ -69,90 +90,54 @@ export default function PersonSheet({
     });
   };
 
-  return createPortal(
-    <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{mode === "new" ? "New Person" : "Edit Person"}</div></div>
-        <div className="pad-x sheet-form">
-          <div className="field">
-            <div className="input-label">Name</div>
-            <input className={"input" + (touched && !valid ? " input-error" : "")} placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} />
-            {touched && !valid && <div className="input-error">Add a name.</div>}
+  return (
+    <FormSheet title={mode === "new" ? "New Person" : "Edit Person"} onCancel={onCancel} onSave={save} saveDisabled={!valid}>
+      <Group label="Person">
+        <FieldRow tone="pink" glyph={<User className="ic" />} value={name} onChange={setName} placeholder="Full Name" ariaLabel="Name"
+          error={touched && !valid} right={false} />
+      </Group>
+      <ErrorLine text={touched && !valid ? "Add a name." : null} />
+      <Group label="Who They Are to You">
+        <Strip>
+          {LABEL_CHIPS.map((l) => (
+            <div key={l} className={"chip" + (relationship === l ? " active" : "")} role="button" tabIndex={0} aria-pressed={relationship === l}
+              onClick={() => setRelationship(relationship === l ? "" : l)}>{l}</div>
+          ))}
+        </Strip>
+        <FieldRow tone="purple" glyph={<PeopleGlyph />} value={(LABEL_CHIPS as readonly string[]).includes(relationship) ? "" : relationship}
+          onChange={setRelationship} placeholder="Or Say It Your Way" ariaLabel="Who they are to you" right={false} />
+        <MenuRow tone="indigo" glyph={<PenLine className="ic" />} label="JARVIS Writes" value={register ?? ""} ariaLabel="How JARVIS writes to them"
+          off={!register} options={REGISTERS} onPick={(v) => setRegister(v === "" ? undefined : (v as Register))} />
+      </Group>
+      <Group label="Contact">
+        <FieldRow tone="blue" glyph={<EnvelopeGlyph />} label="Email" type="email" value={email} onChange={setEmail} placeholder="Optional" ariaLabel="Email" />
+        <FieldRow tone="green" glyph={<PhoneGlyph />} label="Phone" type="tel" value={phone} onChange={setPhone} placeholder="Optional" ariaLabel="Phone" />
+      </Group>
+      {categories.length > 0 && (
+        <Group label="Part Of">
+          <Row tone="sky" glyph={<Tag className="ic" />} label="Areas">
+            <HeadMenu variant="value" ariaLabel="Areas" value={categoryIds[0] ?? ""} label={areaWord} off={categoryIds.length === 0} multi picked={categoryIds}
+              options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color as string }))]}
+              onPick={toggleCategory} />
+          </Row>
+        </Group>
+      )}
+      <Group label="Color">
+        <Strip plain>
+          <div className="swatch-row">
+            {AVATAR_COLORS.map((sl) => (
+              <button key={sl} type="button" aria-label={sl} aria-pressed={color === sl} className={"av-swatch " + avatarClass(sl) + (color === sl ? " sel" : "")} onClick={() => setColor(sl)} />
+            ))}
           </div>
-          <div className="field">
-            <div className="input-label">Who They Are to You</div>
-            {/* Chips first, typing second: the label field existed for months
-                and stayed empty because it was a blank box. One universal set
-                for v1; kind-aware sets arrive when category kinds exist. */}
-            <div className="chip-row chip-wrap-row">
-              {LABEL_CHIPS.map((l) => (
-                <div key={l} className={"chip" + (relationship === l ? " active" : "")} role="button" tabIndex={0} aria-pressed={relationship === l}
-                  onClick={() => setRelationship(relationship === l ? "" : l)}>{l}</div>
-              ))}
-            </div>
-            <input className="input" placeholder="Or Say It Your Way" value={(LABEL_CHIPS as readonly string[]).includes(relationship) ? "" : relationship} onChange={(e) => setRelationship(e.target.value)} />
-          </div>
-          <div className="field">
-            <div className="input-label">How JARVIS Writes to Them</div>
-            {/* Register, deliberately NOT closeness: nobody taps "Not really"
-                about their mother. Unset = unknown = clean prose. Ordered as a
-                looseness scale; "Close Friend" (not "Friend") so the segment
-                never shares its exact title with the label chip above. */}
-            <div className="segmented">
-              <button type="button" className={"seg" + (register === "friend" ? " active" : "")} onClick={() => setRegister(register === "friend" ? undefined : "friend")}>Close Friend</button>
-              <button type="button" className={"seg" + (register === "casual" ? " active" : "")} onClick={() => setRegister(register === "casual" ? undefined : "casual")}>Casual</button>
-              <button type="button" className={"seg" + (register === "professional" ? " active" : "")} onClick={() => setRegister(register === "professional" ? undefined : "professional")}>Professional</button>
-            </div>
-          </div>
-          <div className="field">
-            <div className="input-label">Contact</div>
-            <input className="input input-stack" type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <input className="input" type="tel" placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-          </div>
-          {categories.length > 0 && (
-            <div className="field">
-              <div className="input-label">Part Of</div>
-              {/* MULTI-select on purpose: a person can be Family AND Bridge.
-                  Single-tag here would rebuild the exclusive-bucket mistake
-                  one layer down. */}
-              <div className="chip-row chip-wrap-row">
-                {categories.map((c) => (
-                  <div key={c.id} className={"chip" + (categoryIds.includes(c.id) ? " active" : "")} role="button" tabIndex={0} aria-pressed={categoryIds.includes(c.id)}
-                    onClick={() => toggleCategory(c.id)}>
-                    <span className={"cat-dot cat-bg-" + c.color} />{c.name}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="field">
-            <div className="input-label">Color</div>
-            <div className="swatch-row">
-              {AVATAR_COLORS.map((sl) => (
-                <button key={sl} type="button" aria-label={sl} aria-pressed={color === sl} className={"av-swatch " + avatarClass(sl) + (color === sl ? " sel" : "")} onClick={() => setColor(sl)} />
-              ))}
-            </div>
-          </div>
-          <div className="field">
-            <div className="input-label">Birthday</div>
-            <input className="input" placeholder="e.g. March 4" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
-          </div>
-          <div className="field">
-            <div className="input-label">Notes</div>
-            <textarea className="input input-multiline" rows={3} placeholder="What JARVIS Should Remember" value={notes} onChange={(e) => setNotes(e.target.value)} />
-          </div>
-        </div>
-        <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={save}>Save</button>
-          {mode === "edit" && onDelete && (
-            <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>{TRASH}Delete Person</button>
-          )}
-          <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
-        </div>
-      </div>
-    </div>
-    ,
-    document.body,
+        </Strip>
+      </Group>
+      <Group label="More">
+        <FieldRow tone="orange" glyph={<GiftGlyph />} label="Birthday" value={birthday} onChange={setBirthday} placeholder="e.g. March 4" ariaLabel="Birthday" />
+        <TextRow value={notes} onChange={setNotes} placeholder="What JARVIS Should Remember" ariaLabel="Notes" />
+      </Group>
+      {mode === "edit" && onDelete && (
+        <Group className="xs-actions"><DeleteRow label="Delete Person" onClick={onDelete} /></Group>
+      )}
+    </FormSheet>
   );
 }

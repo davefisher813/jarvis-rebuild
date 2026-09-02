@@ -68,6 +68,12 @@ export class NotesService {
     this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
   }
 
+  /** File a note under an area, or "" to unfile it (the swipe's File, 2026-09-02). */
+  async fileUnder(id: string, category: string): Promise<void> {
+    await this.store.update(this.ownerId, id, { category } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_NOTE, entityId: id });
+  }
+
   /**
    * THE GREAT UNFILING (2026-08-30). A one-time cleanup for the notes written
    * before creation was fixed to be born unfiled (Law 11, finding 4).
