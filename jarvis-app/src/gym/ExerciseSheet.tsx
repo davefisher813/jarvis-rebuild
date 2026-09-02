@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
-import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, type Exercise, type MeasureKind, type SetEntry, type Workout } from "./types";
+import { MEASURE_KINDS, MEASURE_LABEL, unitsFor, defaultUnit, TIME_UNITS, COND_FORMATS, COND_LABEL, type CondBlock, type CondFormat, type Exercise, type MeasureKind, type SetEntry, type Workout } from "./types";
+import { condCap, condSummary, mmss } from "./conditioning";
 import { fieldsFor, targetLine, formatSet, isUniformStrip } from "./measures";
 import { uniformStrip, resizeStrip, applyToAll } from "./strip";
 import { rampFor } from "./ramp";
@@ -68,6 +69,28 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   const [filler, setFiller] = useState(!!initial?.filler);
   const [ramp, setRamp] = useState(!!initial?.ramp);
   const [muscleGroup, setMuscleGroup] = useState<MuscleGroup | undefined>(initial?.muscleGroup);
+  // THE CONDITIONING BLOCK (ruled 2026-09-01, built 2026-09-02). Off means
+  // this is a strip; a format makes it a clock. The kind follows the format
+  // (an AMRAP scores rounds, a For Time scores time, EMOM and Tabata count
+  // the intervals they complete), so the athlete never has to know that.
+  const [condFormat, setCondFormat] = useState<CondFormat | null>(initial?.cond?.format ?? null);
+  const [condMin, setCondMin] = useState<number>(initial?.cond && (initial.cond.format === "amrap" || initial.cond.format === "for_time") ? Math.round(initial.cond.capSec / 60) : 12);
+  const [condInterval, setCondInterval] = useState<number>(initial?.cond?.intervalSec ?? (initial?.cond?.format === "tabata" ? 20 : 60));
+  const [condRest, setCondRest] = useState<number>(initial?.cond?.restSec ?? 10);
+  const [condRounds, setCondRounds] = useState<number>(initial?.cond?.rounds ?? (initial?.cond?.format === "tabata" ? 8 : 10));
+  const condBlock: CondBlock | null = condFormat ? {
+    format: condFormat,
+    capSec: condCap(condFormat, { minutes: condMin, intervalSec: condFormat === "tabata" ? condInterval : condFormat === "emom" ? condInterval : undefined, restSec: condRest, rounds: condRounds }),
+    ...(condFormat === "emom" || condFormat === "tabata" ? { intervalSec: condInterval, rounds: condRounds } : {}),
+    ...(condFormat === "tabata" ? { restSec: condRest } : {}),
+  } : null;
+  const pickFormat = (f: CondFormat | null) => {
+    setCondFormat(f);
+    if (f === "tabata") { setCondInterval(20); setCondRest(10); setCondRounds(8); }
+    if (f === "emom") { setCondInterval(60); setCondRounds(10); }
+    if (f === "for_time") { setKind("time_faster"); setUnit("sec"); }
+    else if (f) { setKind("rounds"); setUnit(undefined); }
+  };
 
   const suggestions = library && nameFocused && name.trim().length > 0
     ? searchLibrary(library, name, 5).filter((s) => s.name.toLowerCase() !== name.trim().toLowerCase())
@@ -105,7 +128,8 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
 
   const units = unitsFor(kind);
   const fields = fieldsFor(kind);
-  const valid = name.trim().length > 0 && sets.length > 0;
+  // A clock has no strip to plan: its plan is the format.
+  const valid = name.trim().length > 0 && (sets.length > 0 || condBlock != null);
 
   // LAST TIME, D2: the same per-position reference the live session shows,
   // here as quiet planning context ("Last: 250 × 3" under each chip). Reads
@@ -162,7 +186,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
             )}
           </div>
 
-          <div className="field">
+          {!condBlock && <div className="field">
             <div className="input-label">What You Track</div>
             <div className="chip-row chip-wrap-row">
               {MEASURE_KINDS.map((k) => (
@@ -170,9 +194,55 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                   onClick={() => pickKind(k)}>{MEASURE_LABEL[k]}</div>
               ))}
             </div>
+          </div>}
+
+          {/* THE CONDITIONING BLOCK (2026-09-02). A format turns the strip
+              into a clock: the session offers Start the Clock instead of a
+              set to log, and writes a receipt with round splits after. */}
+          <div className="field">
+            <div className="input-label">Clock</div>
+            <div className="chip-row chip-wrap-row">
+              <div className={"chip" + (condFormat === null ? " active" : "")} role="button" tabIndex={0} aria-pressed={condFormat === null} onClick={() => pickFormat(null)}>Off</div>
+              {COND_FORMATS.map((f) => (
+                <div key={f} className={"chip" + (condFormat === f ? " active" : "")} role="button" tabIndex={0} aria-pressed={condFormat === f}
+                  onClick={() => pickFormat(f)}>{COND_LABEL[f]}</div>
+              ))}
+            </div>
+            {condBlock && (
+              <div className="card">
+                <div className="row">
+                  <div className="row-grow"><div className="conn-name">{condSummary(condBlock)}</div>
+                    <div className="conn-meta">{condFormat === "amrap" ? "Rounds and reps in the window" : condFormat === "for_time" ? "Your time, under the cap" : condFormat === "emom" ? "Every interval, on the beep" : "Work and rest, on the beep"}</div></div>
+                </div>
+                {(condFormat === "amrap" || condFormat === "for_time") && (
+                  <div className="row">
+                    <div className="row-grow"><div className="conn-name">{condFormat === "amrap" ? "Window" : "Time Cap"}</div><div className="conn-meta">{condMin} min</div></div>
+                    <Stepper value={condMin} step={1} min={1} label="Minutes" onChange={setCondMin} />
+                  </div>
+                )}
+                {(condFormat === "emom" || condFormat === "tabata") && (
+                  <>
+                    <div className="row">
+                      <div className="row-grow"><div className="conn-name">{condFormat === "emom" ? "Interval" : "Work"}</div><div className="conn-meta">{mmss(condInterval)}</div></div>
+                      <Stepper value={condInterval} step={condFormat === "tabata" ? 5 : 15} min={5} label="Interval" onChange={setCondInterval} />
+                    </div>
+                    {condFormat === "tabata" && (
+                      <div className="row">
+                        <div className="row-grow"><div className="conn-name">Rest</div><div className="conn-meta">{mmss(condRest)}</div></div>
+                        <Stepper value={condRest} step={5} min={5} label="Rest" onChange={setCondRest} />
+                      </div>
+                    )}
+                    <div className="row">
+                      <div className="row-grow"><div className="conn-name">Rounds</div><div className="conn-meta">{condRounds}</div></div>
+                      <Stepper value={condRounds} step={1} min={1} label="Rounds" onChange={setCondRounds} />
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="field">
+          {!condBlock && <div className="field">
             <div className="label-row">
               <div className="input-label">{countLabel(kind)}</div>
               {sets.length > 1 && (
@@ -243,7 +313,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
             <SetStrip kind={kind} unit={unit} timeUnit={timeUnit} entries={sets} onChange={setSets} handles={reorderSets}
               lastFor={lastHit ? (i) => (lastHit.sets[i] ? `Last: ${formatSet(lastHit.fx, lastHit.sets[i]!)}` : null) : undefined} />
             {touched && sets.length === 0 && <div className="input-error">Add at least one set.</div>}
-          </div>
+          </div>}
 
           <div className="field">
             <div className="input-label">Note</div>
@@ -318,7 +388,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
           <button className="btn btn-primary btn-launch btn-block" onClick={() => {
             if (!valid) { setTouched(true); return; }
             onSave({
-              name: name.trim(), kind, sets,
+              name: name.trim(), kind, sets: condBlock ? [] : sets,
               ...(unit ? { unit } : {}),
               ...(kind === "distance_time" ? { timeUnit } : {}),
               ...(note.trim() ? { note: note.trim() } : {}),
@@ -330,6 +400,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
               ...(filler ? { filler: true } : {}),
               ...(ramp ? { ramp: true } : {}),
               ...(muscleGroup ? { muscleGroup } : {}),
+              ...(condBlock ? { cond: condBlock } : {}),
             });
           }}>{saveLabel}</button>
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>

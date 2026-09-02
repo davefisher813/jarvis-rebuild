@@ -12,17 +12,16 @@
      JARVIS_UI_CONTRACT.md §0.5             the same picks, folded into rows
    ============================================================ */
 
-/* ---------- CARDS: flat, 14pt, rim and shadow, no hairline, no glass ----
-   "Keep glass on chrome and sheets, flat cards." Measured on this very
-   page: glass versus flat differed by 0.009% of pixels, four card corners
-   and the tab bar labels, because a blur of black is black. The rim stays
-   because the rim is the part that was ever visible. */
+/* ---------- CARDS: GLASS, 14pt, rim and shadow, no hairline ---------------
+   Dave 2026-09-02, off the pushed build: "I wanted to stay with the glass
+   look that I originally had. This is the flat look. I wanted the glass
+   look, but I didn't want the pills or containers stacked on top of each
+   other with space. I wanted them all together. Exactly how you have it
+   now, but just with a glass effect." So the card keeps the design
+   system's own glass (the top sheen, the translucent ground, the blur) and
+   the ruled system adds only the 14pt corner, the rim and the shadow, no
+   hairline. The grouping is the ruling; the flat ground was never it. */
 .ruled .card {
-  background: var(--surface-1);
-  /* prefix FIRST, standard LAST: the minifier keeps the last of a pair
-     (see f056f06). Written the other way, only -webkit- survived and the
-     card kept its blur. */
-  -webkit-backdrop-filter: none; backdrop-filter: none;
   border-radius: 14px;
   border: 0;
   box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0, 0, 0, 0.55);
@@ -37,7 +36,27 @@
    glass is when it's stacked and not together." A card inside a card has
    no corners and no shadow. It is a row; the hairlines say where it ends.
    Three classes deep so it beats .ruled .card without an !important. */
-.ruled .card .card { border-radius: 0; box-shadow: none; }
+.ruled .card .card { border-radius: 0; box-shadow: none;
+  /* a row inside a glass card is see-through: the card's glass is the
+     ground, and a second sheen or blur here would paint a card on a card.
+     prefix FIRST, standard LAST (see f056f06). */
+  background: transparent; -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* ---------- ROWS ARE SEE-THROUGH; THE SWIPE REVEAL HIDES AT REST -----------
+   Every row inside a ruled card used to paint an opaque ground (--surface-1)
+   so the swipe buttons under it could not show through. With glass cards
+   that ground would cover the glass, so rows are transparent and the reveal
+   buttons are hidden until a swipe moves the row: a row mid-swipe or left
+   open carries an inline translateX, and :has() reads it. */
+.ruled .card .task-row, .ruled .card .sched-row, .ruled .card .row, .ruled .card .anytime-row,
+.ruled .card .notice-card, .ruled .card .notice-card-row, .ruled .card .stream-card > .task-row { background: transparent; }
+.ruled .card .task-swipe > .task-del, .ruled .card .task-swipe > .task-snooze,
+.ruled .card .task-swipe > .mail-arch, .ruled .card .task-swipe > .mail-letgo,
+.ruled .card .notice-swipe > .notice-dismiss, .ruled .card .notice-swipe > .notice-alt, .ruled .card .notice-swipe > .notice-delete,
+.ruled .card .sched-strip > .sched-actions { visibility: hidden; }
+.ruled .card .task-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > *,
+.ruled .card .notice-swipe:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > *,
+.ruled .card .sched-strip:has(> [style*="translateX"]:not([style*="translateX(0px)"])) > * { visibility: visible; }
 
 /* ---------- EVERY BAND IS ONE CARD ("Go with pic 1. Apply that everywhere.")
    The Email band on Today wore three separate cards, each its own height.
@@ -100,7 +119,7 @@
    never shrink. That order is the whole fix: the old row had two things
    fighting for the trailing slot and the name lost. */
 .ruled .task-row { min-height: 56px; padding: 8px var(--s-4); gap: 10px; }
-.ruled .task-row .task-check { border-color: var(--tx-4); }           /* never category-coloured */
+.ruled .task-row .task-check { border-color: var(--tx-4); }           /* never category-coloured; a rounded square since 2026-09-02 */
 .ruled .task-row .task-check.done { border-color: var(--good); background: var(--good); }
 .ruled .task-row .task-title { font-size: 16px; font-weight: var(--w-regular); letter-spacing: -0.01em;
   min-width: 0; }
@@ -120,6 +139,67 @@
 .ruled .r-goal.r-is-goal .r-goal-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .r-gm { width: 12px; height: 12px; color: var(--good); flex-shrink: 0; }
 [data-theme="light"] .ruled .r-gm { color: #1B7A3A; }
+/* THE MARK'S COLOUR (Goals and Projects, Dave 2026-09-02: "The goal's
+   category colour, always"). Wherever the mark sits inside a cat-fg-*
+   wrapper it takes that colour; the goal-green above is only the fallback
+   for a mark nobody has coloured yet. One colour means one thing across the
+   app: Bridge goals wear sky, Health goals wear green, and green goes back
+   to meaning Health and done. */
+.ruled [class*="cat-fg-"] > .r-gm, .ruled .r-goal.r-is-goal[class*="cat-fg-"] > .r-gm { color: currentColor; }
+.ruled .r-goal.r-is-goal[class*="cat-fg-"] > .r-goal-t { color: var(--tx-2); }
+
+/* ---------- THE PARENT LINE (The Row and Health, Dave 2026-09-02: "The
+   parent's own glyph leads the line"; the vertical bar is gone) -----------
+   The second line opens with the glyph of whatever the task belongs to,
+   in that parent's category colour, then the parent's full name in the
+   same quiet grey as any other subtext. The pie is the Projects page's pie
+   at 13px, the target is the Goals page's mark, the dot is the category
+   head's dot. The name is never shortened; it is cut with an ellipsis. */
+.ruled .r-goal.r-parent { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--tx-3); }
+.ruled .r-goal.r-parent .r-goal-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled .r-pg { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 13px; height: 13px; }
+.ruled .r-pg .r-gm { width: 13px; height: 13px; color: currentColor; }
+.ruled .r-pg .pp-sm { width: 13px; height: 13px; }
+.ruled .r-pdot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; display: block; }
+.ruled .r-goal.r-rec { flex-shrink: 0; }
+
+/* ---------- THE PROJECTS LENS: the pie row (Goals and Projects, 2026-09-02:
+   "The progress pie, three lines", "Under their goal") ----------------------
+   Things 3's project mark, in the check slot: a ring in the category colour
+   that fills as tasks close. The folder is gone; no bar under the row,
+   because the glyph is the progress. Line two is the fraction, the open
+   count and the learned size; line three is the next move, quieter. */
+.ruled .pp-slot, .ruled .gm-slot { display: inline-flex; width: 24px; height: 24px; align-items: center; justify-content: center; }
+.ruled .pp { width: 24px; height: 24px; display: block; }
+.ruled .gm-slot .ic { width: 22px; height: 22px; }
+.ruled .proj-row-ruled .task-title, .ruled .goal-row-ruled .task-title { min-width: 0; }
+.ruled .r-next { font-size: 12.5px; color: var(--tx-4); margin-top: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ruled .r-goal.r-stalled { color: var(--warn); }
+.ruled .task-row .r-goal b { font-weight: var(--w-semi); color: var(--tx-2); }
+/* The goal as a head over its projects: the mark in the goal's colour, then
+   the title in the same quiet caps every other head wears. Written once. */
+.ruled .sh2.gh-goal .gh-mark { display: inline-flex; order: 0; align-self: center; flex-shrink: 0; }
+.ruled .sh2.gh-goal .gh-mark .r-gm { width: 13px; height: 13px; color: currentColor; }
+
+/* ---------- THE GOALS LENS: one card, status capsule on the right ---------
+   Each goal a ruled row: the target in the goal's category colour where the
+   check sits, the measure line, the status word as a capsule right-aligned,
+   and the thin bar. The capsule is the fact the page exists to show, so it
+   is the one thing on the row allowed a fill. */
+.ruled .goal-row-ruled .r-k { gap: 8px; }
+.ruled .goal-row-ruled .bp-bar { margin-top: 6px; }
+.ruled .gstat { margin-left: auto; flex-shrink: 0; font-size: 10px; font-weight: var(--w-bold); letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 3px 7px; border-radius: var(--r-pill); white-space: nowrap; }
+.ruled .gstat-good { color: var(--good); background: var(--good-tint); }
+.ruled .gstat-warn { color: var(--warn); background: var(--warn-tint); }
+/* The one ask sits in the list as a notice row, not over it as a promo
+   card. The tile is orange, because the tile is what says "stalled". */
+/* The done fold, as a row of the card it closes. */
+.ruled .card .receipt-line { min-height: 44px; padding: 0 var(--s-4); background: transparent; border: 0;
+  margin: 0; border-radius: 0; width: 100%; box-shadow: none; }
+.ruled .one-ask-row { margin-top: var(--s-2); }
+.ruled .one-ask-row .card.stream-card { margin: 0 var(--s-4); }
 /* The plain second-line texts: a category (no goal to name) and, on Today's
    dealt row, the reason it was dealt. Both are subtext and look like it. */
 .ruled .r-goal.r-cat, .ruled .r-goal.r-why { color: var(--tx-3); }
@@ -150,7 +230,6 @@
    rule and light theme's repaint. Full-bleed rows (08-18 library form) are
    gone from this page; every list on a ruled screen is a card. */
 .ruled .list-card-ruled { margin: 0 var(--s-4); overflow: hidden; padding: 0; }
-.ruled .list-card-ruled .task-row { background: var(--surface-1); }
 .ruled .list-card-ruled > .task-swipe + .task-swipe { position: relative; }
 .ruled .list-card-ruled > .task-swipe + .task-swipe::before {
   content: ""; position: absolute; z-index: 2; left: calc(var(--s-4) + 44px + var(--s-3)); right: 0; top: 0;
@@ -197,7 +276,6 @@
    their type and spacing brought onto the ruled scale. The day's timeline
    rides in one card, the same one Today's Whole Day wears. */
 .ruled .sched-card { padding: 0; overflow: hidden; }
-.ruled .sched-card .sched-row, .ruled .sched-card .sched-swipe-wrap .sched-row { background: var(--surface-1); }
 .ruled .sched-card .sched-list { padding: var(--s-1) 0; }
 .ruled .sched-row { padding: 9px var(--s-4) 9px var(--s-4); gap: 11px; }
 .ruled .sched-time { width: 62px; font-size: 14.5px; font-weight: 650; color: var(--tx-2); letter-spacing: -0.01em;
@@ -232,7 +310,7 @@
 /* Anytime: one card, the ruled row, Drop in the trailing slot. */
 .ruled .anytime-head { margin-top: var(--s-4); }
 .ruled .anytime-card { padding: 0; overflow: hidden; }
-.ruled .anytime-row { background: var(--surface-1); touch-action: pan-y; }
+.ruled .anytime-row { touch-action: pan-y; }
 .ruled .anytime-row + .anytime-row { border-top: 0; }
 .ruled .anytime-row + .anytime-row::before { content: ""; position: absolute; left: calc(var(--s-4) + 44px + var(--s-3)); right: 0; top: 0;
   height: 0.5px; background: var(--divider); }
@@ -250,7 +328,6 @@
 .ruled .outcome-seg .segmented .seg:not(.active) { background: transparent; }
 .ruled .seg-n { font-size: 11px; font-weight: var(--w-bold); opacity: 0.6; font-variant-numeric: tabular-nums; }
 .ruled .outcome-head { margin-top: var(--s-2); }
-.ruled .list-card-ruled .row { background: var(--surface-1); }
 .ruled .list-card-ruled > .task-swipe + .task-swipe .row::before { display: none; }
 .ruled .msg-from { font-size: 15.5px; font-weight: var(--w-regular); }
 .ruled .msg-headline { font-size: 15px; }
@@ -259,3 +336,41 @@
 .ruled .msg-gist { font-size: 12.5px; color: var(--tx-3); }
 .ruled .mail-arch[aria-label="Archive"] { background: #0A84FF; color: #fff; } /* More moves keeps the neutral fill */
 .ruled .msg-fold-head { padding-left: var(--s-4); }
+
+/* ---------- THE HEALTH PAGE (Check, Health, Stop, Dave 2026-09-02: "The
+   next session, then the week, then the numbers") ---------------------------
+   The hero is the next session with Start on it; the week is seven dots
+   under it, trained days filled, today ringed; the numbers are tiles with
+   a sparkline where there is history. Everything else on the page is the
+   ruled row. */
+.ruled .h-hero-wrap { padding-top: var(--s-2); }
+.ruled .h-hero-card { overflow: hidden; }
+.ruled .h-hero { display: flex; align-items: center; gap: 12px; padding: 14px 16px 10px; cursor: pointer; }
+.ruled .h-hero-ico { width: 40px; height: 40px; border-radius: 12px; background: var(--blue-tint); color: var(--blue);
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ruled .h-hero-ico .ic { width: 22px; height: 22px; }
+.ruled .h-hero-b { flex: 1; min-width: 0; }
+.ruled .h-hero-t { font-size: 19px; font-weight: var(--w-semi); letter-spacing: -0.015em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled .h-hero-s { font-size: 13px; color: var(--tx-3); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled .h-week { display: flex; justify-content: space-between; padding: 2px 18px 14px; }
+.ruled .h-day { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 10.5px; font-weight: var(--w-bold);
+  letter-spacing: 0.06em; color: var(--tx-4); }
+.ruled .h-day i { width: 10px; height: 10px; border-radius: 50%; background: var(--press-3); display: block; }
+.ruled .h-day.on i { background: var(--good); }
+.ruled .h-day.today i { box-shadow: 0 0 0 2px var(--tx-1); }
+.ruled .h-day.today { color: var(--tx-1); }
+.ruled .h-last .task-name { font-weight: var(--w-medium); }
+.ruled .h-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ruled .h-tile { position: relative; overflow: hidden; border-radius: 14px; padding: 12px 13px 11px; cursor: pointer;
+  background: var(--glass-bg, var(--surface-1)); box-shadow: inset 0 0.5px 0 var(--rim-card), 0 8px 24px rgba(0,0,0,0.55);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8); backdrop-filter: blur(40px) saturate(1.8); }
+[data-theme="light"] .ruled .h-tile { background: var(--surface-1); box-shadow: var(--shadow-card); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.ruled .h-tile:active { opacity: 0.8; }
+.ruled .ht-w { font-size: 10.5px; font-weight: var(--w-bold); letter-spacing: 0.09em; text-transform: uppercase; color: var(--tx-3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ruled .ht-n { font-size: 26px; font-weight: var(--w-bold); letter-spacing: -0.03em; line-height: 1.05; margin-top: 6px;
+  font-variant-numeric: tabular-nums; display: flex; gap: 6px; align-items: baseline; }
+.ruled .ht-n small { font-size: 12px; font-weight: var(--w-semi); color: var(--tx-3); letter-spacing: 0; margin-left: 2px; }
+.ruled .ht-none { font-size: 15px; font-weight: var(--w-semi); color: var(--tx-4); }
+.ruled .ht-m { font-size: 11.5px; color: var(--tx-4); margin-top: 4px; }
+.ruled .ht-spark { position: absolute; right: 10px; bottom: 10px; width: 64px; height: 22px; color: var(--blue); }

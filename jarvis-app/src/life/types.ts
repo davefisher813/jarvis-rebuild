@@ -43,9 +43,10 @@ export interface SavedEntry { d: string; amount: number }
 // the goal was created with (see healthOf, which derives instead).
 export interface GoalData {
   title: string; state: GoalState; areaId?: string; order?: number;
-  // THE SHORT NAME (2026-09-01): what a task row prints after the goal
-  // mark. Optional; life/shortName.ts derives a two-word default from the
-  // title until the user types one. Never shown on the goal's own page.
+  // RETIRED (2026-09-02, The Row and Health): the short name lived one day.
+  // Task rows print the parent's full name now (life/parent.ts). The field
+  // stays on the type so a goal saved with one still reads; nothing writes
+  // or shows it.
   short?: string;
   moneyTarget?: number; saved?: SavedEntry[]; tags?: string[];
   // Stamped by GoalService.update on the transition INTO achieved (audit

@@ -19,7 +19,8 @@ import { Burst, useBurst } from "../shared/Burst";
 import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats, type WeekRecap } from "./evening";
 import { capAfterNumber } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
-import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, GoalMark } from "../shared/glyphs";
+import { CheckCircleGlyph, GiftGlyph, SunriseGlyph, SweepGlyph, ParentLineGlyph } from "../shared/glyphs";
+import type { ParentLine } from "../life/parent";
 
 const localISODate = () => {
   const d = new Date();
@@ -54,7 +55,7 @@ function StreamMember(props: { weight: number; anchor?: boolean; children: React
 // `u` is still accepted and still decides whether the row is urgent at all
 // (the flow passes null in the evening to keep the recap calm), but the
 // chip's WORDS come from distanceFor.
-function TaskRow({ t, u, sub, goal, today, onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; sub?: string | null; goal?: string | null; today?: string; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
+function TaskRow({ t, u, sub, parent, today, onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; sub?: string | null; parent?: ParentLine | null; today?: string; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
   const [bursting, fireBurst] = useBurst();
   const [localDone, setLocalDone] = useState(false);
   const pending = useRef(false);
@@ -93,17 +94,17 @@ function TaskRow({ t, u, sub, goal, today, onToggle, onOpen, onStart }: { t: Tas
             at one x whenever it appears. Words last, taking what is left:
             on Today the question is WHY THIS, NOW, so the dealt card's
             reason ("Your focus peak") rides here, folded up from the caps
-            eyebrow it used to be; a row with no reason says the goal it
-            moves, with the goal mark so it never reads as plain subtext;
-            a row that moves nothing says the category. Two lines, always. */}
+            eyebrow it used to be; a row with no reason says where it lives
+            (The Row and Health, 2026-09-02): the parent's own glyph in its
+            category colour, then the parent's full name. The vertical bar is
+            gone; the glyph carries the colour now. Two lines, always. */}
         <div className="r-k">
-          <span className={"r-bar cat-bg-" + catColor(t.data.category)} />
           {dist && !done && <span className={"uchip " + (dist.kind === "late" ? "u-late" : "u-today")}>{dist.label}</span>}
           {reason
             ? <span className="r-goal r-why">{reason.charAt(0).toUpperCase() + reason.slice(1)}</span>
-            : goal
-              ? <span className="r-goal r-is-goal"><GoalMark /><span className="r-goal-t">{goal}</span></span>
-              : <span className="r-goal r-cat">{catName(t.data.category) || "No category"}</span>}
+            : parent
+              ? <ParentLineGlyph p={parent} />
+              : <span className="r-goal r-cat">No category</span>}
         </div>
       </div>
       {onStart && !done && (
@@ -206,14 +207,16 @@ export default function TodayPage({
   onShiftBlock,
   onRetimeBlock,
   onResizeBlock,
-  goalOf,
+  parentOf,
 }: {
   greeting: string;
-  // The goal a task moves, for the ruled row's kicker (2026-09-01). The flow
-  // derives it from the same goal index Pick 5 already builds; the page never
-  // reads goals itself. Absent means the row says "No goal" and stays
-  // adoptable, which is the Things rule: orphans conspicuous, never hidden.
-  goalOf?: (t: TaskItem) => string | null;
+  // Where a task lives, for the ruled row's second line (The Row and Health,
+  // 2026-09-02): its project, else the goal it moves, else its category,
+  // each with its own glyph. The flow derives it from the same index Pick 5
+  // already builds; the page never reads projects or goals itself. Null
+  // means the row says "No category" and stays adoptable, which is the
+  // Things rule: orphans conspicuous, never hidden.
+  parentOf?: (t: TaskItem) => ParentLine | null;
   dateLong: string;
   // Email as WORK, not a count (Dave 2026-08-20: the old "14 emails need you
   // → deal with it here" line "serves absolutely no purpose"). The flow hands
@@ -410,7 +413,7 @@ export default function TodayPage({
       <TaskRow
         t={upNextTop}
         u={urgencyFor(upNextTop.data, today)}
-        goal={goalOf?.(upNextTop)}
+        parent={parentOf?.(upNextTop)}
         today={today}
         sub={upNextReason ?? undefined}
         onToggle={() => onToggleTask?.(upNextTop.id)}
@@ -447,7 +450,7 @@ export default function TodayPage({
       <div>
         <div>
           {shownTasks.map((t) => (
-            <TaskRow key={t.id} t={t} u={evening ? null : urgencyFor(t.data, today)} goal={goalOf?.(t)} today={today} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
+            <TaskRow key={t.id} t={t} u={evening ? null : urgencyFor(t.data, today)} parent={parentOf?.(t)} today={today} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
           ))}
           {foldedTasks > 0 && (
             <button className="receipt-line" onClick={onSeeAllTasks}>

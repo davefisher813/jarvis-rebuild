@@ -14,6 +14,7 @@ import LockedRow from "./LockedRow";
 import AnytimeRow from "./AnytimeRow";
 import ProposedRow from "./ProposedRow";
 import type { TaskItem } from "../../tasks/TasksService";
+import type { ParentLine } from "../../life/parent";
 import type { AttachInfo } from "../attachments";
 import { dropInto } from "../dayEdit";
 
@@ -51,7 +52,7 @@ export default function SchedulePage({
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
   onShiftBlock, onRetimeBlock, onResizeBlock,
   proposed, dayFooter,
-  anytimeItems = [], onToggleTask, onScheduleTask, goalOf, attachMap = {}, blendMap = {},
+  anytimeItems = [], onToggleTask, onScheduleTask, parentOf, attachMap = {}, blendMap = {},
   windowStartMin, windowEndMin,
 }: {
   year: number; month: number; selected: string; todayDate: string;
@@ -106,7 +107,7 @@ export default function SchedulePage({
   onResizeBlock?: (id: string, endMin: number) => void;
   anytimeItems?: TaskItem[]; onToggleTask?: (id: string) => void; onScheduleTask?: (id: string, startHHMM?: string) => void;
   // The goal an Anytime task moves, by its short name (the ruled row).
-  goalOf?: (t: TaskItem) => string | null;
+  parentOf?: (t: TaskItem) => ParentLine | null;
   attachMap?: Record<string, AttachInfo>;
   // BLENDING (Dave, 2026-08-21). One confident offer per block, keyed by
   // event id: the task that fits this block well enough that adding it is a
@@ -450,7 +451,7 @@ export default function SchedulePage({
         <>
           <div className="empty-state"><div className="t-body">No events</div><button className="btn btn-secondary" onClick={onNew}>New Event</button></div>
           {mode === "day" && (
-            <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onDragStart={beginDrag} goalOf={goalOf} />
+            <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onDragStart={beginDrag} parentOf={parentOf} />
           )}
         </>
       ) : (
@@ -587,7 +588,7 @@ export default function SchedulePage({
             Anytime live? A section below the timeline"). It sat above,
             which put the unplaced work in front of the day it was not in. */}
         {mode === "day" && (
-          <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onDragStart={beginDrag} goalOf={goalOf} />
+          <AnytimeRow items={anytimeItems} onToggle={onToggleTask} onSchedule={onScheduleTask} onDragStart={beginDrag} parentOf={parentOf} />
         )}
         {/* The trailing "Open ..." list is retired in EVERY mode now (B4,
             2026-08-23). It survived for week and month on the reasoning that

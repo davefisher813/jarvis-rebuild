@@ -1,5 +1,4 @@
 import { useState, type ReactNode } from "react";
-import { shortGoalName } from "../life/shortName";
 import PageHeader from "../shared/PageHeader";
 import type { Goal } from "../life/types";
 import type { ProjectRow, Progress } from "./progress";
@@ -9,7 +8,8 @@ import { reachLine } from "./reach";
 import type { MeasureState } from "./measure";
 import { catColor, goalTone } from "../shared/categories";
 import SkeletonRows from "../shared/SkeletonRows";
-import { FolderOpenGlyph, TargetGlyph, GoalMark } from "../shared/glyphs";
+import { FolderOpenGlyph, TargetGlyph, GoalMark, ProjectPie } from "../shared/glyphs";
+import GoalRowRuled, { Bar, Nums } from "./GoalRowRuled";
 import { capAfterNumber } from "../shared/casing";
 
 // YOUR LIFE (the Life Merge, Dave 2026-08-26: "it's stupid having them
@@ -42,12 +42,8 @@ const CHEV = <div className="chev" />;
 const TARGET = <TargetGlyph />;
 const FOLDER = <FolderOpenGlyph />;
 
-function Bar({ p }: { p: Progress }) {
-  return <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, p.pct) + "%" }} /></div>;
-}
-
 export default function BiggerPicturePage({
-  goals, reachOfGoal, measureOfGoal, extraOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, sizeLineOf, onCloseProject,
+  goals, reachOfGoal, measureOfGoal, extraOf, statusOf, projectRows, sections = [], loading, offer, onAddGoal, onOpenGoal, onAddProject, onOpenProject, nextActionTextOf, holdLineOf, sizeLineOf, onCloseProject,
   lens = "goals", title = "Your Life", segments,
 }: {
   // THE LENS (ruled 2026-09-01, "The Lens plus Lineage rows"). One tree,
@@ -72,6 +68,12 @@ export default function BiggerPicturePage({
   // leads as a win, effort without movement reads as weight, and only then
   // does a bare Behind or Idle speak. Derived by the flow, one place.
   extraOf?: (id: string) => { text: string; tone: "good" | "warn" } | null;
+  // THE STATUS CAPSULE (Goals and Projects, Dave 2026-09-02: "One card,
+  // status capsule on the right"). The Goals lens prints one word per goal
+  // in a capsule: a comeback or a heavy word when there is one, else the
+  // measure's own health (On Track, Behind, Idle, Done). Null when the goal
+  // has no measure and no work, because then the app has nothing to claim.
+  statusOf?: (id: string) => { text: string; tone: "good" | "warn" } | null;
   projectRows: ProjectRow[];
   // THE FRAME: the user's categories, ordered as the Brain tab orders them.
   // Same ids everything on this page already carries; no second taxonomy.
@@ -147,7 +149,7 @@ export default function BiggerPicturePage({
         <div className="proj-meta">
           <div className="proj-title">{project.data.title}</div>
           {filed && !filed.data.dropped && (
-            <div className="bp-sub r-k"><span className="r-goal r-is-goal"><GoalMark /><span className="r-goal-t">{shortGoalName(filed.data)}</span></span></div>
+            <div className="bp-sub r-k"><span className={"r-goal r-is-goal " + goalTone(filed.data.tags)}><GoalMark /><span className="r-goal-t">{filed.data.title}</span></span></div>
           )}
           {/* THE NEXT MOVE LEADS (pick 19): "Call Ridgeline" tells you more
               than a status word or a fraction ever will. */}
@@ -198,6 +200,69 @@ export default function BiggerPicturePage({
     );
   };
 
+
+  // ---- THE RULED LENSES (Goals and Projects, Dave 2026-09-02) ----
+  //
+  // Projects lens: "The progress pie, three lines" and "Under their goal".
+  // The folder is gone. A project's glyph is a ring in its category colour
+  // that fills as its tasks close, sitting where a task's check sits, so a
+  // project row and a task row are the same skeleton. Line two is the
+  // fraction, the open count and the learned size; line three is the next
+  // move. Projects group under the goal they climb to, the goal written once
+  // as a head with its mark, never on a row; a project with no live goal
+  // sits under its category head instead.
+  const pieRow = ({ project, progress, stalled }: ProjectRow) => {
+    const next = nextActionTextOf?.(project.id);
+    const hold = holdLineOf?.(project.id) ?? null;
+    const sized = sizeLineOf?.(project.id) ?? null;
+    const canClose = closable({ project, progress, stalled, lastAt: null });
+    const line = hold ?? (progressLabel(progress, stalled) + (sized ? " \u00b7 " + sized : ""));
+    return (
+      <div className="task-row p2 proj-row-ruled" role="button" tabIndex={0} key={project.id} onClick={() => onOpenProject(project.id)}>
+        <div className="task-check-tap"><span className={"pp-slot cat-fg-" + catColor(project.data.category ?? "")}><ProjectPie pct={progress ? progress.pct : null} /></span></div>
+        <div className="task-title">
+          <span className="task-name">{project.data.title}</span>
+          <div className="r-k"><span className={"r-goal" + (hold || stalled ? " r-stalled" : "")}><Nums text={line} /></span></div>
+          {next && <div className="r-next">Next: {next}</div>}
+        </div>
+        {canClose && onCloseProject
+          ? <button className="pill-act" onClick={(e) => { e.stopPropagation(); onCloseProject(project.id); }}>Close</button>
+          : CHEV}
+      </div>
+    );
+  };
+
+  // Goals lens: "One card, status capsule on the right." One card per
+  // category; each goal a row with the target in the goal's own category
+  // colour (the mark colour rule: always the category's, never a goal
+  // green), the measure line, the status capsule right-aligned, and the
+  // thin bar. The same two-line skeleton as every other ruled row.
+  const goalRowRuled = (g: Goal) => {
+    const r = reachOfGoal(g.id);
+    const ms = measureOfGoal?.(g.id) ?? null;
+    return (
+      <GoalRowRuled key={g.id} title={g.data.title} tone={goalTone(g.data.tags)}
+        body={ms ? ms.line : reachLine(r)} status={statusOf?.(g.id) ?? null}
+        bar={ms ? { done: ms.done, total: ms.target, pct: ms.pct } : r.progress} onOpen={() => onOpenGoal(g.id)} />
+    );
+  };
+
+  const goalHead = (g: Goal, n: number) => (
+    <div className="sh2 sh2-quiet gh-goal">
+      <span className={"gh-mark " + goalTone(g.data.tags)}><GoalMark /></span>
+      <span className="t">{g.data.title}</span>
+      <span className="n">{n}</span>
+    </div>
+  );
+  const catHead = (c: { id: string; name: string }, n: number) => (
+    <div className="sh2 sh2-quiet">
+      <span className={"cat-dot cat-bg-" + catColor(c.id)} />
+      <span className="t">{c.name}</span>
+      <span className="n">{n}</span>
+    </div>
+  );
+  const ruledCard = (rows: ReactNode) => <div className="pad-x"><div className="card list-card-ruled">{rows}</div></div>;
+
   const ranked = (gs: Goal[]) =>
     rankGoals(gs.map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g }; }))
       .map(({ goal: g }) => goalRow(g));
@@ -225,8 +290,75 @@ export default function BiggerPicturePage({
   const showGoals = !projectsLens;
   const showProjects = !lensed || projectsLens;
 
+  if (lensed) {
+    const goalIdsHomed = (c: { id: string }) => rankGoals(
+      liveGoals.filter((g) => homeOf(g) === c.id).map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g }; }),
+    ).map((x) => x.goal);
+    // Goals in the frame's order: homed goals section by section, then the
+    // ones with no home. The Projects lens walks this list for its heads.
+    const unhomed = liveGoals.filter((g) => homeOf(g) === null);
+    const orderedGoals = [...sections.flatMap((c) => goalIdsHomed(c)), ...unhomed];
+    // A project climbs to a live goal or it does not; the ones that do not
+    // sit under their category, and the true orphans under More Work.
+    const goalless = openRows.filter((r) => !(r.project.data.goalId && goalIds.has(r.project.data.goalId)));
+    const goallessOrphans = goalless.filter((r) => !sectionIds.has(r.project.data.category ?? ""));
+    return (
+      <div className="screen ruled">
+        <PageHeader title={title} />
+        {segments}
+        {offer}
+        {projectsLens ? (
+          <>
+            {orderedGoals.map((g) => {
+              const mine = openRows.filter((r) => r.project.data.goalId === g.id);
+              if (mine.length === 0) return null;
+              return <div key={g.id}>{goalHead(g, mine.length)}{ruledCard(mine.map(pieRow))}</div>;
+            })}
+            {sections.map((c) => {
+              const loose = goalless.filter((r) => (r.project.data.category ?? "") === c.id);
+              if (loose.length === 0) return null;
+              return <div key={c.id}>{catHead(c, loose.length)}{ruledCard(loose.map(pieRow))}</div>;
+            })}
+            {goallessOrphans.length > 0 && (
+              <div>
+                <div className="sh2 sh2-quiet"><span className="t">More Work</span><span className="n">{goallessOrphans.length}</span></div>
+                {ruledCard(goallessOrphans.map(pieRow))}
+              </div>
+            )}
+            {doneRows.length > 0 && (
+              <div className="pad-x"><div className="card list-card-ruled">
+                <button className="receipt-line" onClick={() => setDoneOpen((v) => !v)}>
+                  <span className="rl-t">{capAfterNumber(`${doneRows.length} Done ${doneRows.length === 1 ? "project" : "projects"}`)}</span>
+                  <div className="chev" />
+                </button>
+                {doneOpen && doneRows.map(pieRow)}
+              </div></div>
+            )}
+            <div className="pad-x"><div className="card list-card-ruled"><button className="row row-act" onClick={onAddProject}>Add Project</button></div></div>
+          </>
+        ) : (
+          <>
+            {sections.map((c) => {
+              const mine = goalIdsHomed(c);
+              if (mine.length === 0) return null;
+              return <div key={c.id}>{catHead(c, mine.length)}{ruledCard(mine.map(goalRowRuled))}</div>;
+            })}
+            {unhomed.length > 0 && (
+              <div>
+                <div className="sh2 sh2-quiet"><span className="t">Working Toward</span><span className="n">{unhomed.length}</span></div>
+                {ruledCard(unhomed.map(goalRowRuled))}
+              </div>
+            )}
+            <div className="pad-x"><div className="card list-card-ruled"><button className="row row-act" onClick={onAddGoal}>Add Goal</button></div></div>
+          </>
+        )}
+        <div className="screen-foot" />
+      </div>
+    );
+  }
+
   return (
-    <div className={"screen" + (lensed ? " ruled" : "")}>
+    <div className="screen">
       <PageHeader title={title} />
       {segments}
 

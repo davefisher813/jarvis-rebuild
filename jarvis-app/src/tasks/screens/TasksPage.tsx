@@ -19,7 +19,8 @@ import { OVERWHELM_ENTER, OVERWHELM_EXIT } from "../overwhelmed";
 import InlineEdit from "../../shared/InlineEdit";
 import { useLongPress } from "../../shared/useLongPress";
 import { haptics } from "../../shared/haptics";
-import { GoalMark } from "../../shared/glyphs";
+import { ParentLineGlyph } from "../../shared/glyphs";
+import type { ParentLine } from "../../life/parent";
 
 // Tasks page. Two-line rows with a large (44pt) completion target on the left
 // and swipe-left-to-delete, so completing or removing a task is one easy action.
@@ -170,7 +171,7 @@ function Row({
   picked = false,
   onPick,
   muteToday = false,
-  goal = null,
+  parent = null,
 }: {
   item: TaskItem;
   today: string;
@@ -196,11 +197,11 @@ function Row({
   // with -- getting going -- was only reachable from a card on Today that
   // showed one task. Same pill, same behaviour, same place in the row.
   onStart?: (id: string) => void;
-  // THE RULED ROW (2026-09-01): the second line names the goal this task
+  // THE RULED ROW (2026-09-01, 2026-09-02): the second line says where this task
   // moves. Null when it moves none; the row then says the category, so
   // every row keeps two lines and a fact. Derived by the flow from one
   // goal index, the same one Today reads, so the two pages cannot disagree.
-  goal?: string | null;
+  parent?: ParentLine | null;
 }) {
   const t = item.data;
   const u = urgencyFor(t, today);
@@ -328,24 +329,22 @@ function Row({
           ) : (
             <span className="task-name" {...(onRename && !t.done && !selecting ? hold : {})}>{t.text}</span>
           )}
-          {/* THE RULED ROW'S SECOND LINE (Dave 2026-09-01, "Together" catalog).
-              Bar first, so the category mark sits at one x on every row.
-              Chip next, so it sits at one x whenever it appears. Words last,
-              taking whatever is left: the goal this task moves, or, when it
-              moves none, the category. The 08-21 rule stands (the primary
-              category keeps its colour, extras ride plain): the colour is
-              the bar now, and the words are all one quiet grey.
+          {/* THE RULED ROW'S SECOND LINE (Dave 2026-09-01, "Together" catalog;
+              The Row and Health, 2026-09-02). Chip first, so it sits at one
+              x whenever it appears. Then where the task lives: the parent's
+              own glyph in its category colour (the project's pie, the goal's
+              target, the category dot) and the parent's full name in one
+              quiet grey. The vertical bar is gone; the glyph is the colour.
               The old caps eyebrow, the urgency chip that sat beside it, and
               the row-tags line they shared are gone; this line is all three. */}
           <div className="r-k">
-            <span className={"r-bar cat-bg-" + catColor(t.category)} />
             {chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}
-            {goal
-              ? <span className="r-goal r-is-goal"><GoalMark /><span className="r-goal-t">{goal}{t.recurrence ? " \u00b7 " + t.recurrence : ""}</span></span>
+            {parent
+              ? <ParentLineGlyph p={parent} />
               : <span className="r-goal r-cat">
-                  {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ")}
-                  {t.recurrence ? " \u00b7 " + t.recurrence : ""}
+                  {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || "No category"}
                 </span>}
+            {t.recurrence && <span className="r-goal r-cat r-rec">{"\u00b7 " + t.recurrence}</span>}
           </div>
           {/* A1: the cue, where he will see it while scanning. The whole
               sentence is on the sheet; the row carries the trigger, which is
@@ -400,6 +399,7 @@ export default function TasksPage({
   onDeleteMany,
   onDoneMany,
   goalOf,
+  parentOf,
   title = "Tasks",
   segments,
 }: {
@@ -424,7 +424,10 @@ export default function TasksPage({
   // Momentum Chain: a suggestion element pinned under the row it follows.
   momentum?: { afterId: string; el: React.ReactNode } | null;
   // The goal a task moves, from the flow's goal index (see Row.goal).
+  // Group-by Goal reads the goal a task moves, by title, so the heads read
+  // as goals. The row itself reads parentOf (2026-09-02).
   goalOf?: (t: TaskItem) => string | null;
+  parentOf?: (t: TaskItem) => ParentLine | null;
   // LIFE (2026-09-01): the head's word and the segment control under it,
   // when this page is the Tasks lens of the Life tab.
   title?: string;
@@ -646,7 +649,7 @@ export default function TasksPage({
                       onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} onRename={onRenameTask}
                       selecting={sel.active} picked={sel.isSelected(it.id)}
                       onPick={sel.toggle} muteToday={filter === "today"}
-                      goal={goalOf?.(it) ?? null}
+                      parent={parentOf?.(it) ?? null}
                     />
                     {/* Momentum Chain (addendum item 7): the suggestion slides
                         into the just-finished slot, right below its row. */}

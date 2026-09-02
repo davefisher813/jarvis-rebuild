@@ -37,7 +37,8 @@ import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventRemi
 import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap } from "./evening";
 import { readSamples } from "../shared/timeSense";
-import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask, goalShortForTask } from "../bigger/reach";
+import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask } from "../bigger/reach";
+import { buildParentIndex, parentForTask } from "../life/parent";
 import { inheritFromThread } from "../messages/threadTasks";
 import { endOfAct, type MailAct } from "../messages/mailAct";
 import { dayPhrase } from "../money/bills";
@@ -1031,6 +1032,9 @@ export default function TodayFlow({
   // render pass, shared by the hero pill, the Now card, both new notices and
   // the evening line, so no two of them can disagree about what moves what.
   const goalIdx = buildGoalIndex(projList, liveGoals(goalList));
+  // WHERE A TASK LIVES (The Row and Health, 2026-09-02): the row's second
+  // line, project first, then the goal it moves, then the category.
+  const parentIdx = useMemo(() => buildParentIndex(projList, goalList, taskItems), [projList, goalList, taskItems]);
   const goalReach = (id: string) => {
     const g = goalList.find((x) => x.id === id);
     return g ? reachOf(taskItems, projList, g) : { filedIds: [], taggedIds: [], openTagged: 0, progress: null };
@@ -2236,7 +2240,7 @@ export default function TodayFlow({
       tomorrowTasks={taskItems.filter((t) => !t.data.done && t.data.recurrence && t.data.recurrence !== "daily" && t.data.due === tmrw)}
       tomorrowDate={shortDate(new Date(tmrw + "T00:00:00"))}
       tasks={todaysTasks(taskItems, today)}
-      goalOf={(t) => goalShortForTask(goalIdx, t)}
+      parentOf={(t) => parentForTask(parentIdx, t)}
       evening={evening}
       ring={ring}
       daypart={daypart}

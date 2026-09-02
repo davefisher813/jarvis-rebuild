@@ -23,6 +23,7 @@ import {
   moveExerciseToDay, copyExerciseToDays, extractDay, appendDayToWeek,
 } from "./edit";
 import { pinLabel, todayDow, pinnedTo, nextPinnedDay, WEEKDAY_ABBR, WEEKDAY_FULL } from "./pins";
+import { nextDayFor } from "./nextDay";
 import { estimateDay, type FitPlan } from "./fit";
 import { readGymSettings, rackFrom } from "./settings";
 import FitSheet from "./FitSheet";
@@ -430,13 +431,17 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
 // The gym track: programs in the user's own words, weeks as the time axis,
 // the set strip as the same object in the plan and in the live session, the
 // in-gym loop, live PRs, and an honest receipt.
-export default function GymFlow({ onBack, door }: {
+export default function GymFlow({ onBack, door, startDayId }: {
   onBack: () => void;
   /** D4-C: this mount came through a calendar gym block. The session that
    *  starts here carries the event id so finishing can stamp the block done
    *  with the real minutes, and the block's own length pre-fills the fit
    *  sheet's budget. */
   door?: { eventId: string; budgetMin?: number };
+  /** THE HEALTH PAGE'S START (2026-09-02): the hero's Start pill names the
+   *  day it showed, and the gym walks into that day's fit sheet on mount,
+   *  exactly as tapping Start on the program page would. */
+  startDayId?: string;
 }) {
   const svc = useGym();
   const ai = useAI();
@@ -794,6 +799,20 @@ export default function GymFlow({ onBack, door }: {
     setFitFor({ day, doorEventId: extra.doorEventId, budgetMin: extra.budgetMin });
   };
 
+  // THE HEALTH HERO'S START (2026-09-02): the same walk-in the door makes,
+  // for the day the Health page named. A live session in progress resumes
+  // instead, which is what the door does too.
+  const [startHandled, setStartHandled] = useState(false);
+  useEffect(() => {
+    if (!startDayId || startHandled || !loaded) return;
+    setStartHandled(true);
+    const existing = readLive();
+    if (existing && hasWork(existing.exercises) && isStillActive(existing, todayISO())) { setLive(existing); return; }
+    if (!program) return;
+    const day = program.data.weeks.flatMap((w) => w.days).find((d) => d.id === startDayId);
+    if (day) requestStart(day);
+  }, [startDayId, startHandled, loaded, program]);
+
   // THE DOOR OPENS (D4-C): mounted from the calendar's gym block. The
   // pinned day walks straight into the fit sheet; no pin, it asks once.
   useEffect(() => {
@@ -1042,15 +1061,8 @@ export default function GymFlow({ onBack, door }: {
   // soonest pinned day; a program with no pins at all keeps rotating.
   const pinnedToday = singleWeek ? pinnedTo(singleWeek.days, todayDow()) : null;
   const upcomingPin = singleWeek && !pinnedToday ? nextPinnedDay(singleWeek.days, todayDow()) : null;
-  const nextDay = (() => {
-    if (!singleWeek || singleWeek.days.length === 0) return null;
-    if (pinnedToday) return pinnedToday;
-    if (upcomingPin) return upcomingPin.day;
-    const last = recent[0];
-    if (!last) return singleWeek.days[0]!;
-    const i = singleWeek.days.findIndex((d) => d.id === last.data.dayId);
-    return singleWeek.days[(i + 1) % singleWeek.days.length] ?? singleWeek.days[0]!;
-  })();
+  // One derivation, shared with the Health page's hero (gym/nextDay.ts).
+  const nextDay = nextDayFor(program, workouts, todayDow())?.day ?? null;
   const nextEst = nextDay ? estimateDay(nextDay, workouts, rackFrom(readGymSettings())).min : 0;
 
   function sheetEl() {

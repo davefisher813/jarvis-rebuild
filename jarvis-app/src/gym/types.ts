@@ -66,6 +66,17 @@ export interface SetLog {
   r?: number; // reps or rounds
   v?: number; // magnitude: time, distance, or height
   t?: number; // paired time, distance_time only
+  /** THE CONDITIONING BLOCK (ruled 2026-09-01, built 2026-09-02). Reps past
+   *  the last full round on an AMRAP: "7 + 12". Only the rounds kind reads
+   *  it. */
+  extra?: number;
+  /** Seconds the clock ran for this attempt, when the app's own clock ran
+   *  it. Absent on anything typed in by hand. */
+  elapsed?: number;
+  /** ROUND SPLITS, captured free: the clock's elapsed seconds at each round
+   *  boundary, in order (cumulative, so per-round time is the difference).
+   *  The single most-praised feature of the timer apps this borrows from. */
+  splits?: number[];
   done?: boolean; // filled with no numbers -- the "done, no numbers" mark
   skipped?: boolean;
   /** THE RAMP, D3 (Training Catalog V2, approved 2026-08-31). A warm-up set:
@@ -139,6 +150,32 @@ export interface Exercise {
    *  never guesses a lift's muscle from its free-text name. Absent means the
    *  range row simply never claims this exercise. */
   muscleGroup?: import("./muscles").MuscleGroup;
+  /** THE CONDITIONING BLOCK (Closing Round, ruled 2026-09-01: "Two states:
+   *  timer while it runs, log after, round splits captured free"). Present
+   *  on an exercise that is a clock, not a strip: the format and its cap.
+   *  The kind still says what the score is (rounds for an AMRAP, time_faster
+   *  for a For Time, done for an EMOM or Tabata that is simply completed). */
+  cond?: CondBlock;
+}
+
+export type CondFormat = "amrap" | "emom" | "for_time" | "tabata";
+
+export const COND_LABEL: Record<CondFormat, string> = {
+  amrap: "AMRAP", emom: "EMOM", for_time: "For Time", tabata: "Tabata",
+};
+export const COND_FORMATS: CondFormat[] = ["amrap", "emom", "for_time", "tabata"];
+
+export interface CondBlock {
+  format: CondFormat;
+  /** The clock's whole length in seconds: an AMRAP's window, a For Time's
+   *  cap, an EMOM's rounds × interval, a Tabata's rounds × (work + rest). */
+  capSec: number;
+  /** EMOM: the interval (60 for a true minute). Tabata: the work length. */
+  intervalSec?: number;
+  /** Tabata only: the rest length. */
+  restSec?: number;
+  /** EMOM and Tabata: how many intervals. */
+  rounds?: number;
 }
 
 /**

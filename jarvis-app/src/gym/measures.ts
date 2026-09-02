@@ -49,7 +49,8 @@ export function formatSet(ex: Pick<Exercise, "kind" | "unit" | "timeUnit">, s: S
     case "reps":
       return has(s.r) ? `${trim(s.r)} reps` : bare;
     case "rounds":
-      return has(s.r) ? `${trim(s.r)} ${s.r === 1 ? "round" : "rounds"}` : bare;
+      // An AMRAP's reps past the last full round ride the score: "7 rounds + 12".
+      return has(s.r) ? `${trim(s.r)} ${s.r === 1 ? "round" : "rounds"}${has(s.extra) ? ` + ${trim(s.extra)}` : ""}` : bare;
     case "time_faster":
     case "time_longer":
     case "distance":

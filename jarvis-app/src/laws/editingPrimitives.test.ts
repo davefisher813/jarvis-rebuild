@@ -60,10 +60,14 @@ describe("law: one drag controller", () => {
     // sibling order, and no drop index; there is one axis mapping x to a
     // minute. Forcing it through the reorder primitive would mean teaching
     // that primitive about time, which is how a primitive stops being one.
+    // The conditioning face's slide-to-finish (2026-09-02) is the same
+    // exception for the same reason: one knob on one axis, no list, no
+    // drop index. A finish gesture is not a reorder.
     const SANCTIONED = new Set([
       "shared/ReorderList.tsx",
       "schedule/screens/SchedulePage.tsx",
       "schedule/screens/PlanStrip.tsx",
+      "gym/ConditioningFace.tsx",
     ]);
     const offenders = FILES.filter(
       (f) => !SANCTIONED.has(rel(f)) && /setPointerCapture|releasePointerCapture/.test(read(f)),

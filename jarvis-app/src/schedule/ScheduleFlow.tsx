@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useOptionalStrands, useOptionalProfile, useOptionalGym } from "../data/NotesProvider";
 import GymFlow, { readActiveProgramId } from "../gym/GymFlow";
 import { doorInfoFor } from "../gym/door";
@@ -6,7 +6,8 @@ import { readGymSettings, rackFrom } from "../gym/settings";
 import type { Program, Workout } from "../gym/types";
 import { pausedCategoryIds } from "../categories/kinds";
 import { workWindowOf } from "./planMeta";
-import { buildGoalIndex, liveGoals, goalTitleForTask, goalShortForTask } from "../bigger/reach";
+import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
+import { buildParentIndex, parentForTask } from "../life/parent";
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
@@ -211,6 +212,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
 
   // PICK 23: one upward index per render pass, the same shape Today builds.
   const goalIdx = buildGoalIndex(projList, liveGoals(goalList));
+  const parentIdx = useMemo(() => buildParentIndex(projList, goalList, taskItems), [projList, goalList, taskItems]);
   const realToday = todayISO();
   const plannedTaskIds = new Set(dayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x));
   const planCandidates = taskItems
@@ -1152,7 +1154,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onRunningLate={onRunningLate}
         onFillBlock={onFillBlock}
         anytimeItems={anytimeItems}
-        goalOf={(t) => goalShortForTask(goalIdx, t)}
+        parentOf={(t) => parentForTask(parentIdx, t)}
         onToggleTask={onToggleTask}
         onScheduleTask={onScheduleTask}
         attachMap={attachMap}

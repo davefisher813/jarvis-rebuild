@@ -713,6 +713,7 @@ describe("LAW: one filled red per screen", () => {
       "schedule/screens/PlanDaySheet.tsx": "count === 0 ternary: replan or commit, never both",
       "schedule/ScheduleFlow.tsx": "the Anytime guard is a modal over the page, not a second button in it",
       "gym/MetricsCard.tsx": "MetricLogSheet and AddMetricSheet are separate portals, each mounted alone by CategoryDetail's metricSheet state; never both on screen together",
+      "gym/SessionScreen.tsx": "cond ternary: Start the Clock for a conditioning block, Log Set for a strip, never both",
     };
 
     const bad: string[] = [];
@@ -1540,6 +1541,7 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     "vite.config.ts", "vitest.config.ts",  // build config
     "notesSpec.ts", "tasksSpec.ts",        // written specs, read by people
     "emailBench.tsx",                      // bench harness, run by hand
+    "condBench.tsx",                       // bench harness, run by hand
     "score.ts",                            // golden-set scorer, run by hand
   ];
 
@@ -2616,17 +2618,19 @@ describe("LAW 7: one question gets one row, and a colour never speaks for a cate
   // colour; the tags ride as plain facts") was right and unimplemented.
   it("only the primary category is coloured on a task row", () => {
     const src = page();
-    // AMENDED 2026-09-01 (the ruled row). The colour is the 4x11 bar at the
-    // head of the second line, painted from the PRIMARY category and nothing
-    // else; the category words, when they render, are all one plain grey.
-    // Same law, stricter: not "only the first word is coloured" but "no
-    // word is coloured", so a second category can never wear a colour that
-    // is not its own.
+    // AMENDED 2026-09-01 (the ruled row) and again 2026-09-02 (The Row and
+    // Health): the colour is the parent's glyph at the head of the second
+    // line (ParentLineGlyph, whose tone is the parent's own category), and
+    // nothing else; the category words, when they render, are all one
+    // plain grey. Same law, stricter: not "only the first word is coloured"
+    // but "no word is coloured", so a second category can never wear a
+    // colour that is not its own.
     expect(src, "the row no longer paints the whole joined line one colour")
       .not.toMatch(/className=\{"eyebrow cat-fg-" \+ catColor\(t\.category\)\}/);
-    expect(src, "the bar carries the primary category's colour")
-      .toMatch(/<span className=\{"r-bar cat-bg-" \+ catColor\(t\.category\)\} \/>/);
+    expect(src, "the parent's glyph carries the colour")
+      .toMatch(/<ParentLineGlyph p=\{parent\} \/>/);
     expect(src, "no category word is coloured").not.toMatch(/cat-fg-/);
+    expect(src, "the old bar is gone").not.toMatch(/r-bar/);
   });
 
   it("categoriesOf puts the primary first, which is what the index-0 rule leans on", async () => {
@@ -2894,7 +2898,9 @@ describe("LAW 10: one taxonomy -- the category is the area", () => {
     const page = read(join(SRC, "bigger/BiggerPicturePage.tsx"));
     const heads = page.slice(page.indexOf("sections.map"));
     const section = heads.slice(0, heads.indexOf("Working Toward"));
-    expect(section, "items shown, not percent done").toMatch(/\{mine\.length \+ loose\.length\}/);
+    // The single frame counts goals plus loose projects; the ruled lenses
+    // (2026-09-02) count through catHead(c, n), one kind of thing per lens.
+    expect(section, "items shown, not percent done").toMatch(/\{mine\.length \+ loose\.length\}|catHead\(c, (?:mine|loose)\.length\)/);
     expect(section).not.toMatch(/pct|%/);
   });
 });

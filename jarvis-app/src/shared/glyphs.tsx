@@ -278,3 +278,47 @@ export function GoalMark() {
     </svg>
   );
 }
+
+// THE PROJECT PIE (Goals and Projects, Dave 2026-09-02: "The progress pie,
+// three lines"). Things 3's project mark: a ring in the category colour that
+// fills like a pie as the project's tasks close. The glyph IS the progress,
+// so the row needs no bar and no folder. currentColor paints it; the row's
+// cat-fg-* class picks the colour. 0% is an empty ring, 100% a full disc,
+// and a project with no tasks yet (pct null) is the empty ring too, which is
+// the truth of it.
+export function ProjectPie({ pct, className = "pp" }: { pct: number | null; className?: string }) {
+  const p = Math.max(0, Math.min(100, pct ?? 0));
+  const r = 8;
+  let wedge: string | null = null;
+  if (p >= 100) wedge = "full";
+  else if (p > 0) {
+    const a = (p / 100) * 2 * Math.PI;
+    const x = 12 + r * Math.sin(a);
+    const y = 12 - r * Math.cos(a);
+    wedge = `M12 12 L12 ${12 - r} A${r} ${r} 0 ${p > 50 ? 1 : 0} 1 ${x.toFixed(3)} ${y.toFixed(3)} Z`;
+  }
+  return (
+    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" strokeWidth={2} opacity={0.38} />
+      {wedge === "full" ? <circle cx="12" cy="12" r={r} fill="currentColor" /> : wedge ? <path d={wedge} fill="currentColor" /> : null}
+    </svg>
+  );
+}
+
+// THE PARENT LINE'S GLYPH (The Row and Health, Dave 2026-09-02). The second
+// line of a task row opens with the glyph of whatever the task belongs to,
+// in that parent's category colour, then the parent's name in plain grey.
+// Same pie as the Projects page, same target as the Goals page, same dot as
+// the category head: one glyph per kind, learned once.
+export function ParentLineGlyph({ p }: { p: { kind: "project" | "goal" | "category"; name: string; tone: string; pct: number | null } }) {
+  return (
+    <span className="r-goal r-parent">
+      <span className={"r-pg " + p.tone}>
+        {p.kind === "project" ? <ProjectPie pct={p.pct} className="pp pp-sm" />
+          : p.kind === "goal" ? <GoalMark />
+          : <span className="r-pdot" />}
+      </span>
+      <span className="r-goal-t">{p.name}</span>
+    </span>
+  );
+}

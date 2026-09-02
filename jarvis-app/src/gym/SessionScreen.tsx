@@ -14,6 +14,9 @@ import type { LibraryEntry } from "./library";
 import { newExerciseKey } from "./library";
 import SetStrip from "./SetStrip";
 import RestTimer from "./RestTimer";
+import ConditioningFace from "./ConditioningFace";
+import CondReceipt from "./CondReceipt";
+import { condResultEntry } from "./conditioning";
 import LibraryPickSheet from "./LibraryPickSheet";
 import ExerciseSheet from "./ExerciseSheet";
 import MusicChip from "../music/MusicChip";
@@ -106,6 +109,12 @@ export default function SessionScreen({
   const [addOpen, setAddOpen] = useState(false);
   const [restTick, setRestTick] = useState(0);
   const [showRest, setShowRest] = useState(false);
+  // THE CONDITIONING BLOCK (ruled 2026-09-01, built 2026-09-02): an exercise
+  // that is a clock, not a strip. The big button opens the face; the face
+  // writes one entry when it stops; the strip's place is taken by the
+  // receipt. Two states, one exercise.
+  const cond = exercise.cond ?? null;
+  const [clockOpen, setClockOpen] = useState(false);
   // THE PROGRESSION ENGINE (D6-A): a ghost with its reason, offered once,
   // before the first working set. Accepting logs it AND moves the plan;
   // Keep dismisses it and changes nothing at all.
@@ -324,10 +333,22 @@ export default function SessionScreen({
 
       {!current.skipped && (
         <div className="pad-x gym-log">
-          <button className="btn btn-primary btn-launch btn-block btn-lg" onClick={log}>
-            {logButtonLabel(planEx, workLogged)}
-          </button>
+          {cond
+            ? <button className="btn btn-primary btn-launch btn-block btn-lg" onClick={() => setClockOpen(true)}>
+                {logged.length === 0 ? "Start the Clock" : "Run It Again"}
+              </button>
+            : <button className="btn btn-primary btn-launch btn-block btn-lg" onClick={log}>
+                {logButtonLabel(planEx, workLogged)}
+              </button>}
         </div>
+      )}
+      {clockOpen && cond && (
+        <ConditioningFace
+          name={exercise.name}
+          cond={cond}
+          onFinish={(r) => { onLog(condResultEntry(exercise, r.elapsed, r.splits)); setClockOpen(false); }}
+          onCancel={() => setClockOpen(false)}
+        />
       )}
 
       {/* REST TIMER + FILLER (catalog §4.3, §4.2). key={restTick} remounts
@@ -349,6 +370,13 @@ export default function SessionScreen({
       <div className="pad-x">
         {current.skipped ? (
           <div className="card"><div className="row"><div className="row-grow"><div className="conn-name">Skipped</div></div></div></div>
+        ) : cond ? (
+          <CondReceipt
+            exercise={exercise}
+            entries={logged}
+            onChange={onSetLogged}
+            lastLine={header ? `Last: ${header.last} · ${monthDay(header.date)}` : null}
+          />
         ) : (
           <SetStrip
             kind={exercise.kind}

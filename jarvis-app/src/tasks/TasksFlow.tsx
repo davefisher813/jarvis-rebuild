@@ -1,12 +1,13 @@
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTasks, useCategories, useSchedule, useRoutine, useNotes } from "../data/NotesProvider";
 import { pausedCategoryIds, offHoursCategoryIds } from "../categories/kinds";
 import TasksPage from "./screens/TasksPage";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
 import { useProjects, useGoals } from "../data/NotesProvider";
 import type { Goal } from "../life/types";
-import { buildGoalIndex, liveGoals, goalShortForTask } from "../bigger/reach";
+import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
+import { buildParentIndex, parentForTask } from "../life/parent";
 import { movedBy, celebrationLine, type Moved } from "../shared/completion";
 import type { Project } from "../projects/types";
 import { partition, byCategory, filterOf, FILTERS, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
@@ -79,6 +80,9 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
   const [goals, setGoals] = useState<Goal[]>([]);
   useEffect(() => { let on = true; goalsSvc.list().then((g) => { if (on) setGoals(g); }); return () => { on = false; }; }, [goalsSvc]);
   const goalIdx = buildGoalIndex(projects, liveGoals(goals));
+  // WHERE A TASK LIVES (The Row and Health, 2026-09-02): project, goal or
+  // category, with the project's progress for its pie. Built once per pass.
+  const parentIdx = useMemo(() => buildParentIndex(projects, goals, allItems), [projects, goals, allItems]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
   // Work-hours quiet set (audit 2026-08-10): after hours, work-category tasks
@@ -630,7 +634,8 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
           if (ok) await reload();
         })()}
         onStartTask={(id) => void onStartTask(id)}
-        goalOf={(t) => goalShortForTask(goalIdx, t)}
+        goalOf={(t) => goalTitleForTask(goalIdx, t)}
+        parentOf={(t) => parentForTask(parentIdx, t)}
         momentum={momentum && {
           afterId: momentum.afterId,
           el: (

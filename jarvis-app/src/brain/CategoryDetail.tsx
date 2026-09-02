@@ -37,12 +37,14 @@ import { useGym, useMetrics } from "../data/NotesProvider";
 import type { Program } from "../gym/types";
 import { capAfterNumber } from "../shared/casing";
 import { BarbellGlyph, CalendarGlyph, FolderGlyph, TargetGlyph } from "../shared/glyphs";
-import { trainingSummary, agoPhrase } from "../gym/summary";
+import { trainingSummary } from "../gym/summary";
 import type { Workout } from "../gym/types";
 import { buildGoalIndex, liveGoals, reachOf, reachLine } from "../bigger/reach";
 import { measureState, healthOf, HEALTH_LABEL, HEALTH_CLASS, type MeasureContext } from "../bigger/measure";
+import { goalTone } from "../shared/categories";
+import HealthBody, { type HealthGoalRow } from "./HealthBody";
 import { openWorkOf } from "../today/goalPulse";
-import { MetricsCard, MetricLogSheet, AddMetricSheet } from "../gym/MetricsCard";
+import { MetricLogSheet, AddMetricSheet } from "../gym/MetricsCard";
 import type { MetricDef, MetricLog } from "../gym/metrics";
 import { newMetricDefData, activeMetrics } from "../gym/metrics";
 import { chartableExercises, liftSessions } from "../gym/chartData";
@@ -84,9 +86,6 @@ const NOTES_CAP = 4;
 
 type SheetState = { kind: "closed" } | { kind: "task" } | { kind: "project" } | { kind: "edit" };
 
-const DUMBBELL = (
-  <BarbellGlyph />
-);
 
 // The category page (2026-08-03), replacing the read-only archive. Pages are
 // RECEIPTS for behavior happening elsewhere: the Record is derived from real
@@ -150,6 +149,8 @@ export default function CategoryDetail({
   const [programs, setPrograms] = useState<Program[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [gymOpen, setGymOpen] = useState(false);
+  // The Health hero's Start names the day; the gym walks into it (2026-09-02).
+  const [gymStartDay, setGymStartDay] = useState<string | null>(null);
   // D10-B/D11-C/D13-C: the metric strip and the insight cards, health-kind
   // pages only. Reloaded alongside the gym read (gymOpen dep) so a metric
   // logged from the strip and a set logged in the gym both show up fresh.
@@ -314,7 +315,7 @@ export default function CategoryDetail({
   // straight to GoalService, bypassing this page's own goals state, so
   // without this the new goal is invisible under Goals Here until some
   // OTHER trigger happens to reload the page.
-  if (gymOpen) return <GymFlow onBack={() => { setGymOpen(false); void reload(); }} />;
+  if (gymOpen) return <GymFlow startDayId={gymStartDay ?? undefined} onBack={() => { setGymOpen(false); setGymStartDay(null); void reload(); }} />;
   const kind = effectiveKind(cat.data);
   const isOrg = kind === "org";
   const paused = isOrg && cat.data.season === "paused";
@@ -388,7 +389,15 @@ export default function CategoryDetail({
       const ctx: MeasureContext = { reach, tasks: allTasks, projects: allProjects.filter((p) => p.data.goalId === g.id), samples, today, now: nowMs, workouts };
       const ms = measureState(g.data.measure, ctx);
       const h = healthOf(g, ms, g.data.measure, ctx, openWorkOf(reach));
-      return { id: g.id, title: g.data.title, line: ms ? ms.line : reachLine(reach), flag: h === "behind" || h === "idle" ? h : null };
+      return {
+        id: g.id, title: g.data.title, line: ms ? ms.line : reachLine(reach), flag: h === "behind" || h === "idle" ? h : null,
+        // The ruled goal row's facts (the Health page, 2026-09-02): the
+        // home colour, the capsule, the bar. Same words the Goals lens uses.
+        tone: goalTone(g.data.tags),
+        status: (h === "behind" || h === "idle") ? { text: HEALTH_LABEL[h], tone: "warn" as const }
+          : (h === "on_track" || h === "done") ? { text: HEALTH_LABEL[h], tone: "good" as const } : null,
+        bar: ms ? { done: ms.done, total: ms.target, pct: ms.pct } : reach.progress,
+      };
     });
 
   // This Week's completion groups, capped until See All (2026-08-25): a busy
@@ -416,10 +425,11 @@ export default function CategoryDetail({
   const sheetCats: SheetCategory[] = allCats.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }));
 
   return (
-    // THE TRAINING SKIN (2026-09-01): the Health page is the preview's own
-    // first screen, so it wears the flat-card dress with everything else on
-    // the training surface. Other categories keep the app's default card.
-    <div className={"screen" + (kind === "health" ? " train-skin" : "")}>
+    // THE HEALTH PAGE WEARS THE RULINGS (2026-09-02, Check, Health, Stop):
+    // glass cards, quiet caps heads, ruled rows, and its own composition
+    // (HealthBody). The training skin stays on the gym's own screens. Other
+    // categories keep the app's default card.
+    <div className={"screen" + (kind === "health" ? " ruled health-ruled" : "")}>
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title"><span className={"cat-dot cat-bg-" + cat.data.color} /> {cat.data.name}</div>
@@ -435,6 +445,126 @@ export default function CategoryDetail({
         </div></div>
       )}
 
+      {kind === "health" ? (
+        <HealthBody
+          program={programs[0] ?? null}
+          workouts={workouts}
+          training={training}
+          today={today}
+          isEvening={new Date().getHours() >= 17}
+          gymEvent={(() => { const e = upcoming.find((x) => x.date === today && x.start); return e ? { start: e.start } : null; })()}
+          metricDefs={metricDefs}
+          metricLogs={metricLogs}
+          goals={goalsHere.map((g): HealthGoalRow => ({ id: g.id, title: g.title, tone: g.tone, body: g.line, status: g.status, bar: g.bar }))}
+          tasks={open.map((t) => ({ id: t.id, text: t.data.text }))}
+          dueOf={(id) => { const t = open.find((x) => x.id === id); if (!t) return null; const rem = t.data.reminder?.time; return dueLabel(t) ?? (rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null); }}
+          onStart={(dayId) => { setGymStartDay(dayId); setGymOpen(true); }}
+          onOpenGym={() => setGymOpen(true)}
+          onOpenMetric={(def) => setMetricSheet({ kind: "log", def })}
+          onManageMetrics={() => setMetricSheet({ kind: "add" })}
+          onToggleTask={(id) => void toggle(id)}
+          onOpenTask={onOpenTask}
+          onAddTask={() => setSheet({ kind: "task" })}
+          insights={hasInsights ? (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">Insights</span></div>
+              <div className="pad-x">
+                {plateaus.map((p) => (
+                  <div className="card rep-gap banner-warn" key={"plateau-" + p.name}>
+                    <div className="row">
+                      <div className="row-grow">
+                        <div className="conn-name">{capAfterNumber(`${p.name} · ${p.flatSessions} sessions with no new best`)}</div>
+                        <div className="conn-meta">Best was {p.peakValue} on {p.peakDate} · Now {p.currentValue}</div>
+                      </div>
+                    </div>
+                    {p.whatChanged.map((r) => (
+                      <div className="row" key={r.label}>
+                        <div className="row-grow"><div className="conn-name">{r.label}</div></div>
+                        <div className="conn-meta">{r.moving}{r.unit ? ` ${r.unit}` : ""} to {r.flat}{r.unit ? ` ${r.unit}` : ""}</div>
+                      </div>
+                    ))}
+                    <div className="row"><div className="row-grow"><div className="conn-meta">Correlation, not cause</div></div></div>
+                  </div>
+                ))}
+                {correlations.map((c) => (
+                  <div className="card pad rep-gap banner-blue" key={c.exerciseName + "-" + c.metricName}>
+                    <div className="conn-name">{c.exerciseName} × {c.metricName}</div>
+                    <div className="conn-meta">{c.line}</div>
+                  </div>
+                ))}
+                {rangeRows.map((r) => (
+                  <div className="card rep-gap" key={r.muscle}>
+                    <div className="row">
+                      <div className="row-grow"><div className="conn-name">{MUSCLE_LABEL[r.muscle]} · {r.sets} sets this week</div><div className="conn-meta">{r.range.note}</div></div>
+                    </div>
+                    <div className="row"><div className="row-grow"><div className="conn-meta">{r.range.source}</div></div></div>
+                  </div>
+                ))}
+                {offerLighter && (
+                  <div className="card pad rep-gap banner-warn">
+                    <div className="conn-name">A Lighter Week, If You Want It</div>
+                    <div className="conn-meta">Several grinds and misses lately · Never a prescription, just an offer</div>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : null}
+          more={
+            <>
+              {streaks.length > 0 && (
+                <>
+                  <div className="sh2 sh2-quiet"><span className="t">Streaks</span><span className="n">{streaks.length}</span></div>
+                  <div className="pad-x"><div className="card list-card-ruled">
+                    {streaks.map((t) => (
+                      <div className="task-row p2" key={t.id}>
+                        <div className="task-title">
+                          <span className="task-name">{t.data.text}</span>
+                          <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(`${t.data.runLen} in a row${(t.data.bestRun ?? 0) > (t.data.runLen ?? 0) ? ` · Best ${t.data.bestRun}` : (t.data.runLen ?? 0) >= 3 ? " · Your best" : ""}`)}</span></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div></div>
+                </>
+              )}
+              {rec.recent.length > 0 && (
+                <>
+                  <div className="sh2 sh2-quiet"><span className="t">This Week</span><span className="n">{rec.recent.length}</span>
+                    {!weekOpen && dayGroups.length > 2 && <button className="see-all pill-action" onClick={() => setWeekOpen(true)}>See All</button>}</div>
+                  <div className="pad-x">
+                    {shownGroups.map((g) => (
+                      <div key={g.day}>
+                        <DayDivide label={g.day} />
+                        <div className="card list-card-ruled">
+                          {g.rows.map((r) => (
+                            <div className="task-row p2" key={r.key}>
+                              <div className="task-check-tap"><div className="task-check done" /></div>
+                              <div className="task-title"><span className="task-name">{r.text}</span></div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+              {notes.length > 0 && (
+                <>
+                  <div className="sh2 sh2-quiet"><span className="t">Notes</span><span className="n">{notes.length}</span></div>
+                  <div className="pad-x"><div className="card list-card-ruled">
+                    {notes.map((n) => (
+                      <div className="task-row p2" role="button" tabIndex={0} key={n.id} onClick={() => onOpenNote?.(n.id)}>
+                        <div className="task-title"><span className="task-name">{n.title}</span></div>
+                        {CHEV}
+                      </div>
+                    ))}
+                  </div></div>
+                </>
+              )}
+            </>
+          }
+        />
+      ) : (
+        <>
       {(line || rec.lastWeek > 0 || rec.recent.length > 0) && (
         <>
           {/* The Record replaces the bare This Week count (2026-08-10). It
@@ -636,114 +766,6 @@ export default function CategoryDetail({
         </>
       )}
 
-      {kind === "health" && (
-        <>
-          {/* The gym without opening the gym (2026-08-25): the strongest data
-              in the app finally shows up on its own page. Program, last
-              session, the week's dots, a fresh PR, one climber. Every row
-              degrades to absent; an empty gym is one quiet setup row. */}
-          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-blue">{DUMBBELL}</div><div className="sec-title">Training</div></div></div>
-          <div className="pad-x"><div className="card">
-            <div className="row" role="button" tabIndex={0} onClick={() => setGymOpen(true)}>
-              <div className="row-grow">
-                <div className="conn-name">{programs[0]?.data.name ?? "Set Up a Program"}</div>
-                {/* Track 3 gym rebuild (2026-08-27): ProgramData gained a
-                    week axis, so a day count is now summed across weeks
-                    rather than read off one flat list. Mechanical follow-on
-                    of the gym module's type change, not a gym feature --
-                    this file stays the read-without-opening summary it was. */}
-                {programs[0] && <div className="conn-meta">{capAfterNumber(`${programs[0].data.weeks.reduce((n, w) => n + w.days.length, 0)} ${programs[0].data.weeks.reduce((n, w) => n + w.days.length, 0) === 1 ? "day" : "days"}`)}</div>}
-              </div>
-              {training && training.weekDots.some(Boolean) && (
-                <span className="week-dots" aria-label="Days trained this week">
-                  {training.weekDots.map((on, i) => <i key={i} className={on ? "on" : undefined} />)}
-                </span>
-              )}
-              {CHEV}
-            </div>
-            {training?.last && (
-              <div className="row" role="button" tabIndex={0} onClick={() => setGymOpen(true)}>
-                <div className="row-grow">
-                  <div className="conn-name">Last Session · {training.last.dayName}</div>
-                  <div className="conn-meta">{capAfterNumber(`${agoPhrase(training.last.date, today)} · ${training.last.minutes}m · ${training.last.exercises} ${training.last.exercises === 1 ? "exercise" : "exercises"}`)}</div>
-                </div>
-                {CHEV}
-              </div>
-            )}
-            {training?.pr && (
-              <div className="row">
-                <div className="row-grow">
-                  <div className="conn-name truncate">{training.pr.name} · {training.pr.text}</div>
-                  <div className="conn-meta">New best · {agoPhrase(training.pr.date, today)}</div>
-                </div>
-                <span className="pill pill-good">PR</span>
-              </div>
-            )}
-            {training?.trending && (
-              <div className="row">
-                <div className="row-grow">
-                  <div className="conn-name truncate">{training.trending.name}</div>
-                  <div className="conn-meta">Trending up · {training.trending.line}</div>
-                </div>
-              </div>
-            )}
-          </div></div>
-
-          <MetricsCard
-            defs={metricDefs}
-            logs={metricLogs}
-            date={today}
-            onOpen={(def) => setMetricSheet({ kind: "log", def })}
-            onManage={() => setMetricSheet({ kind: "add" })}
-          />
-
-          {hasInsights && (
-            <>
-              <div className="sec-head"><div className="sec-left"><div className="sec-title">Insights</div></div></div>
-              <div className="pad-x">
-                {plateaus.map((p) => (
-                  <div className="card rep-gap banner-warn" key={"plateau-" + p.name}>
-                    <div className="row">
-                      <div className="row-grow">
-                        <div className="conn-name">{capAfterNumber(`${p.name} · ${p.flatSessions} sessions with no new best`)}</div>
-                        <div className="conn-meta">Best was {p.peakValue} on {p.peakDate} · Now {p.currentValue}</div>
-                      </div>
-                    </div>
-                    {p.whatChanged.map((r) => (
-                      <div className="row" key={r.label}>
-                        <div className="row-grow"><div className="conn-name">{r.label}</div></div>
-                        <div className="conn-meta">{r.moving}{r.unit ? ` ${r.unit}` : ""} to {r.flat}{r.unit ? ` ${r.unit}` : ""}</div>
-                      </div>
-                    ))}
-                    <div className="row"><div className="row-grow"><div className="conn-meta">Correlation, not cause</div></div></div>
-                  </div>
-                ))}
-                {correlations.map((c) => (
-                  <div className="card pad rep-gap banner-blue" key={c.exerciseName + "-" + c.metricName}>
-                    <div className="conn-name">{c.exerciseName} × {c.metricName}</div>
-                    <div className="conn-meta">{c.line}</div>
-                  </div>
-                ))}
-                {rangeRows.map((r) => (
-                  <div className="card rep-gap" key={r.muscle}>
-                    <div className="row">
-                      <div className="row-grow"><div className="conn-name">{MUSCLE_LABEL[r.muscle]} · {r.sets} sets this week</div><div className="conn-meta">{r.range.note}</div></div>
-                    </div>
-                    <div className="row"><div className="row-grow"><div className="conn-meta">{r.range.source}</div></div></div>
-                  </div>
-                ))}
-                {offerLighter && (
-                  <div className="card pad rep-gap banner-warn">
-                    <div className="conn-name">A Lighter Week, If You Want It</div>
-                    <div className="conn-meta">Several grinds and misses lately · Never a prescription, just an offer</div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </>
-      )}
-
       {goalsHere.length > 0 && (
         <>
           <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-red">{TARGET_ICO}</div><div className="sec-title">Goals Here</div></div></div>
@@ -800,6 +822,8 @@ export default function CategoryDetail({
               </div>
             ))}
           </div></div>
+        </>
+      )}
         </>
       )}
       <div className="screen-foot" />

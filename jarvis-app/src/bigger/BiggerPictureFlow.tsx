@@ -32,6 +32,7 @@ import { firstStepPrompt, parseFirstStep } from "../tasks/firstStep";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
 import { TargetGlyph } from "../shared/glyphs";
+import NoticeCard from "../today/NoticeCard";
 
 // Hoisted: a fresh object per render would make every consumer's memo stale.
 const EMPTY_REACH: GoalReach = { filedIds: [], taggedIds: [], openTagged: 0, progress: null };
@@ -264,7 +265,29 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   const mustUpdate = async (p: Promise<boolean>) => { if (!(await p)) throw new Error("row missing"); };
   // THE ONE ASK. The quiet-area card retired with the area entity; the
   // stalled project is the ask now, still at most one.
-  const oneAsk = stalledOffer;
+  // THE ONE ASK AS A NOTICE ROW (Goals and Projects, Dave 2026-09-02: "A
+  // notice row"). On the Life tab the stalled-project ask wears the same
+  // anatomy as a mail notice on Today: the tile in orange, the project's
+  // name, one line of why, one pill. Not Now is the swipe. It sits in the
+  // list instead of over it. The promo card stays for the unlensed frame.
+  const stalledRow = stalled ? (
+    <div className="heads-up-stream stream-grouped one-ask-row">
+      <div className="card stream-card">
+        <NoticeCard
+          form="row"
+          icon={<TargetGlyph />}
+          tone="cat-fg-orange"
+          title={stalled.data.title}
+          sub={projStep && projStep.projectId === stalled.id ? "Start with: " + projStep.step : "Nothing is moving here"}
+          action={projStep && projStep.projectId === stalled.id
+            ? { label: projStepBusy ? "Adding..." : "Add", onClick: () => void projStepAccept() }
+            : { label: projStepBusy ? "Thinking..." : "First Step", onClick: () => void projStepAsk() }}
+          onDismiss={projStepDismiss}
+        />
+      </div>
+    </div>
+  ) : null;
+  const oneAsk = segments ? stalledRow : stalledOffer;
 
   // Finishing something big earns a moment. Only on the TRANSITION into done:
   // saving an already-finished project must not re-congratulate anyone.
@@ -369,6 +392,21 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
     if (h === "behind" || h === "idle") return { text: HEALTH_LABEL[h], tone: "warn" };
     return null;
   }, [goals, evidenceOf, measureCtxFor, reachOfGoal, today]);
+  // THE STATUS CAPSULE (Goals and Projects, 2026-09-02). The lensed Goals
+  // page prints one word per goal. Same precedence as extraOf (a comeback,
+  // then a heavy word, then Behind or Idle), and where extraOf falls silent
+  // because nothing is wrong, the measure's own health speaks: On Track or
+  // Done. A goal with no measure and no work gets no capsule at all.
+  const statusOf = useCallback((id: string): { text: string; tone: "good" | "warn" } | null => {
+    const e = extraOf(id);
+    if (e) return e;
+    const g = goals.find((x) => x.id === id);
+    if (!g) return null;
+    const c = measureCtxFor(g);
+    const h = healthOf(g, measureState(g.data.measure, c), g.data.measure, c, openWorkOf(reachOfGoal(id)));
+    if (h === "on_track" || h === "done") return { text: HEALTH_LABEL[h], tone: "good" };
+    return null;
+  }, [extraOf, goals, measureCtxFor, reachOfGoal]);
   // PICK 17: the drop writes the decision FIRST, then marks the goal. Order
   // matters for the same reason the meeting booking's does: a goal marked
   // dropped with no record of why is exactly the state this feature exists
@@ -646,6 +684,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
         reachOfGoal={reachOfGoal}
         measureOfGoal={(id: string) => { const g = goals.find((x) => x.id === id); return g ? measureState(g.data.measure, measureCtxFor(g)) : null; }}
         extraOf={extraOf}
+        statusOf={statusOf}
         projectRows={projectRows}
         // THE FRAME IS THE CATEGORIES (2026-08-29): same ids, Brain's order.
         sections={[...categories].sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0)).map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))}

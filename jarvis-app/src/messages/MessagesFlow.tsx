@@ -45,6 +45,7 @@ import { senderPiles, selectedCount, selectedIds, purgeLabel, purgePromise, defa
 import { readIcs } from "./ics";
 import { isNoReply, isBulk , isMachineAddress } from "./noReply";
 import { humanError } from "../connections/google/humanError";
+import { aiFailureLine } from "../ai/failureLine";
 import { endOfAct } from "./mailAct";
 import { dayPhrase, monthDay } from "../money/bills";
 
@@ -452,7 +453,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             // The raw AI response body used to land here and render under
             // "Couldn't Sort Your Mail", cut off mid-JSON at 140 characters
             // (2026-08-25).
-            lastErr = humanError(e, "The sort didn't come back");
+            // 2026-09-02: the proxy's 502 used to read as "Google's mail
+            // service is having trouble" (humanError knows only Gmail).
+            // The sort is the AI proxy; say what its upstream said.
+            lastErr = aiFailureLine(e, "The sort didn't come back");
           }
         }
         // A batch that failed is still a batch that is no longer pending, so
@@ -2742,7 +2746,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="empty-sub">Nothing lost · All still here</div>
             {triageWhy && <div className="msg-guard">{triageWhy}</div>}
             <div className="conn-action">
-              <button className="btn btn-secondary btn-block" onClick={() => setFilter("all")}>Show All Mail</button>
+              {/* 2026-09-02: a failed sort had no way to run again short of
+                  leaving the tab. Try Again re-runs the same sort over the
+                  rows already loaded; Show All Mail stays the way out. */}
+              <button className="btn btn-secondary btn-block" onClick={() => { setTriageWhy(""); setTriageState("pending"); void runTriage(rows); }}>Try Again</button>
+              <button className="quiet-action" onClick={() => setFilter("all")}>Show All Mail</button>
             </div>
           </div></div></div>
         ) : (

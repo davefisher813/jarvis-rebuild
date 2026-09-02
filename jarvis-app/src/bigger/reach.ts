@@ -1,5 +1,4 @@
 import type { TaskItem } from "../tasks/TasksService";
-import { shortGoalName } from "../life/shortName";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
 import type { Progress } from "./progress";
@@ -133,12 +132,11 @@ export interface GoalIndex {
   byProject: Map<string, string[]>;  // projectId  -> goalIds
   byCategory: Map<string, string[]>; // categoryId -> goalIds
   titleOf: Map<string, string>;      // goalId     -> title
-  shortOf: Map<string, string>;      // goalId     -> short name (life/shortName.ts)
   size: number;
 }
 
 const EMPTY_INDEX: GoalIndex = {
-  byProject: new Map(), byCategory: new Map(), titleOf: new Map(), shortOf: new Map(), size: 0,
+  byProject: new Map(), byCategory: new Map(), titleOf: new Map(), size: 0,
 };
 
 /** Build the upward index. Pass live goals only; achieved ones move nothing. */
@@ -147,7 +145,6 @@ export function buildGoalIndex(projects: Project[], goals: Goal[]): GoalIndex {
   const byProject = new Map<string, string[]>();
   const byCategory = new Map<string, string[]>();
   const titleOf = new Map<string, string>();
-  const shortOf = new Map<string, string>();
   const push = (m: Map<string, string[]>, key: string, goalId: string) => {
     const list = m.get(key);
     if (list) { if (!list.includes(goalId)) list.push(goalId); }
@@ -155,14 +152,13 @@ export function buildGoalIndex(projects: Project[], goals: Goal[]): GoalIndex {
   };
   for (const g of goals) {
     titleOf.set(g.id, g.data.title);
-    shortOf.set(g.id, shortGoalName(g.data));
     for (const t of goalTags(g)) push(byCategory, t, g.id);
   }
   for (const p of projects) {
     const gid = p.data.goalId;
     if (gid && titleOf.has(gid)) push(byProject, p.id, gid);
   }
-  return { byProject, byCategory, titleOf, shortOf, size: goals.length };
+  return { byProject, byCategory, titleOf, size: goals.length };
 }
 
 /** Goal ids this task moves, filed route first. Empty when it moves nothing. */
@@ -191,16 +187,6 @@ export function goalTitleForTask(idx: GoalIndex, task: TaskItem): string | null 
   const ids = goalIdsForTask(idx, task);
   const first = ids[0];
   return first ? idx.titleOf.get(first) ?? null : null;
-}
-
-/**
- * The same goal, by its SHORT name: what a task row prints after the goal
- * mark (Dave 2026-09-01, "Fewer Words"). Sentences stay on the goal's page.
- */
-export function goalShortForTask(idx: GoalIndex, task: TaskItem): string | null {
-  const ids = goalIdsForTask(idx, task);
-  const first = ids[0];
-  return first ? idx.shortOf.get(first) ?? null : null;
 }
 
 /** How many of these tasks move a goal. The goal-aware hero count (pick 5). */

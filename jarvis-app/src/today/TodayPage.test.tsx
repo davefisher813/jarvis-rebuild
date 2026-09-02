@@ -79,7 +79,7 @@ describe("TodayPage", () => {
     // category rides the kicker bar, and urgency is a chip on the kicker line
     // that says the DISTANCE. Two days past 2026-05-18 on 2026-05-20.
     expect(container.querySelector(".task-check.cat-bd-sky")).toBeNull();
-    expect(container.querySelector(".task-row .r-bar.cat-bg-sky")).toBeTruthy();
+    expect(container.querySelector(".task-row .r-bar")).toBeNull(); // the bar retired 2026-09-02
     expect(container.querySelector(".uchip.u-late")).toHaveTextContent("2 DAYS LATE");
     expect(container.querySelector(".urgency-red")).toBeNull(); // the trailing label is gone
     // SAY IT ONCE: the reason's due-part ("Waiting 2 days") is what the chip

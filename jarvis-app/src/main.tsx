@@ -13,6 +13,7 @@ import "./styles/jarvis-design-system.css";
 import "./styles/uniformity.css";
 import "./styles/components.css";
 import "./styles/ruled.css";
+import "./styles/conditioning.css";
 
 initMonitoring();
 

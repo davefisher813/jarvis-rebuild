@@ -29,21 +29,24 @@ describe("TasksPage", () => {
     expect(container.textContent).toContain("3"); // an upcoming count surfaces
   });
 
-  it("renders the ruled row: neutral ring, category bar, distance chip", () => {
+  it("renders the ruled row: neutral ring, the parent's glyph, distance chip", () => {
     const { container } = render(
-      <TasksPage filter="today" counts={counts} items={[tk("over", "2026-05-18"), tk("due", "2026-05-20")]} today="2026-05-20" />,
+      <TasksPage filter="today" counts={counts} items={[tk("over", "2026-05-18"), tk("due", "2026-05-20")]} today="2026-05-20"
+        parentOf={(t) => ({ kind: "category", name: "Ridgeley", tone: "cat-fg-sky", pct: null })} />,
     );
-    // Ruled 2026-09-01: the ring is never category-coloured; the bar on the
-    // second line carries the category.
+    // Ruled 2026-09-01: the ring is never category-coloured. 2026-09-02:
+    // the second line opens with the parent's glyph in its colour; the bar
+    // is gone.
     expect(container.querySelector(".task-check[class*=cat-bd]")).toBeNull();
-    expect(container.querySelector(".r-bar.cat-bg-sky")).toBeTruthy();
+    expect(container.querySelector(".r-bar")).toBeNull();
+    expect(container.querySelector(".r-parent .r-pg.cat-fg-sky .r-pdot")).toBeTruthy();
     // The chip says the distance, in the late colour.
     expect(container.querySelector(".uchip.u-late")).toHaveTextContent("2 DAYS LATE");
     // LAW 11 (2026-08-29): TODAY never renders on the filter named for it,
     // so the due-today row wears no chip here...
     expect(container.querySelector(".uchip.u-today")).toBeNull();
     // ...and with no goal, the second line names the category, plainly.
-    expect(container.querySelector(".r-goal.r-cat")).toHaveTextContent("Ridgeley");
+    expect(container.querySelector(".r-goal.r-parent")).toHaveTextContent("Ridgeley");
     expect(container.querySelector(".r-is-goal")).toBeNull();
   });
 
@@ -55,15 +58,21 @@ describe("TasksPage", () => {
     expect(container.querySelector(".uchip.u-today")).toHaveTextContent("TODAY");
   });
 
-  it("a goal wears the goal mark and its own class; a category never does", () => {
+  it("the parent's own glyph leads the line: pie for a project, target for a goal, dot for a category", () => {
     const { container } = render(
-      <TasksPage filter="all" counts={counts} items={[tk("a", null), tk("b", null)]} today="2026-05-20"
-        goalOf={(t) => (t.id === "a" ? "Get Paid On Time" : null)} />,
+      <TasksPage filter="all" counts={counts} items={[tk("a", null), tk("b", null), tk("c", null, "")]} today="2026-05-20"
+        parentOf={(t) => (t.id === "a" ? { kind: "goal", name: "Get Paid On Time", tone: "cat-fg-yellow", pct: null }
+          : t.id === "b" ? { kind: "project", name: "Kitchen remodel", tone: "cat-fg-sky", pct: 40 } : null)} />,
     );
-    const goal = container.querySelector(".r-goal.r-is-goal")!;
-    expect(goal).toHaveTextContent("Get Paid On Time");
-    expect(goal.querySelector(".r-gm")).toBeTruthy();
+    const lines = container.querySelectorAll(".r-goal.r-parent");
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toHaveTextContent("Get Paid On Time");
+    expect(lines[0]!.querySelector(".r-pg.cat-fg-yellow .r-gm")).toBeTruthy();
+    expect(lines[1]).toHaveTextContent("Kitchen remodel");
+    expect(lines[1]!.querySelector(".r-pg.cat-fg-sky .pp")).toBeTruthy();
+    // No parent at all: the plain words, no glyph.
     expect(container.querySelectorAll(".r-goal.r-cat")).toHaveLength(1);
+    expect(container.querySelector(".r-goal.r-cat")).toHaveTextContent("No category");
   });
 
   it("rows ride inside one card, under a head that names the cut and carries group-by", () => {
