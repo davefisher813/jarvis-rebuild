@@ -3,6 +3,9 @@ import { useRoutine } from "../data/NotesProvider";
 import { DEFAULT_ROUTINE, isOvernight, isWorkOutsideActive, defaultModeFor, freeOf, MODE_LABEL, MODE_HELP, FREE_CHANNELS, type RoutineData, type ProtectedBlock, type BlockKind, type BlockMode, type FreeChannel } from "./types";
 import { fmtTime } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
+import PageHeader from "../shared/PageHeader";
+import { Head, Card, Row, Switch, Foot } from "../settings/kit";
+import { FormSheet, Group, FieldRow, Strip, Note, ErrorLine, DeleteRow } from "../shared/FormSheet";
 
 
 // minutes-from-midnight <-> "HH:MM" for native time inputs.
@@ -68,7 +71,9 @@ function pbId(): string {
 
 // Phase 1 routine editor. Active hours (wake/sleep) set the planner's window;
 // work hours give the AI context for sequencing. Lives in the Brain tab under
-// "How You Live". Editor chrome matches BrainDocPage; fields match EventSheet.
+// "How You Live". Protected Time blocks are added and edited on the form
+// sheet, same as any other record; only the top Save persists the whole
+// routine, blocks included.
 export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBack: () => void; focusId?: string; onFocusConsumed?: () => void }) {
   const routine = useRoutine();
   const [data, setData] = useState<RoutineData>(DEFAULT_ROUTINE);
@@ -88,9 +93,9 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
     setSaved(false);
   };
 
-  // Protected-time editor state. `form` is the block being added or edited, or
-  // null when the list is at rest. Saving a block only patches local `data`:
-  // the top Save button persists it, same as every other field here.
+  // Protected-time editor state. `form` is the block being added or edited on
+  // the sheet, or null when it is closed. Saving a block only patches local
+  // `data`: the top Save button persists it, same as every other field here.
   const [form, setForm] = useState<FormState | null>(null);
   const blocks = data.protectedBlocks ?? [];
   // Shown in time order (2026-08-28): the stored array is insertion order,
@@ -99,15 +104,14 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
   // makes you check every row's time to find the one you came for.
   const sortedBlocks = [...blocks].sort((a, b) => a.startMin - b.startMin);
   const formValid = !!form && form.label.trim() !== "" && form.endMin > form.startMin && form.days.length > 0;
-  const formRef = useRef<HTMLDivElement | null>(null);
 
   const openAdd = () => setForm({ id: null, label: "", startMin: 12 * 60, endMin: 13 * 60, days: [1, 2, 3, 4, 5], kind: "other", soft: false, location: "", mode: null, free: [] });
   const openEdit = (b: ProtectedBlock) => setForm({ id: b.id, label: b.label, startMin: b.startMin, endMin: b.endMin, days: [...b.days], kind: b.kind ?? "other", soft: !!b.soft, location: b.location ?? "", mode: b.mode ?? null, free: b.free ?? [] });
   // Landing straight in the block someone tapped (2026-08-28). A tap on a
   // protected block anywhere else in the app hands its id here; once the
-  // routine has loaded, that block's own editor opens itself instead of
+  // routine has loaded, that block's own sheet opens itself instead of
   // making the person scroll the whole list to find it again. One-shot: the
-  // ref guards against reopening if they close the form and the id is still
+  // ref guards against reopening if they close the sheet and the id is still
   // sitting in props.
   const focusedRef = useRef(false);
   useEffect(() => {
@@ -116,7 +120,6 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
     if (!b) return;
     focusedRef.current = true;
     openEdit(b);
-    requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }));
     // One-shot: tell the parent this id has done its job, so a later visit
     // to Routine that does not come from tapping a block (the hub row, a
     // second look at the whole list) opens on the list, not back on Gym.
@@ -175,213 +178,178 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
   const workOutside = isWorkOutsideActive(data);
 
   return (
-    <div className="screen">
-      <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">Your Routine</div>
-        <button className="nav-action-text" onClick={save} disabled={!dirty || !loaded}>{loaded && !dirty ? "Saved" : "Save"}</button>
-      </div>
+    <div className="screen ruled">
+      <PageHeader
+        title="Your Routine"
+        back="Brain"
+        onBack={onBack}
+        actions={<button className="nav-action-text" onClick={() => void save()} disabled={!dirty || !loaded}>{loaded && !dirty ? "Saved" : "Save"}</button>}
+      />
 
-      <div className="pad-x sheet-form">
-        <div className="grp"><div className="eyebrow">Active Hours</div></div>
-        <div className="field-row">
-          <div className="field">
-            <label className="input-label">Wake Up</label>
-            <input type="time" className="input" value={toHHMM(data.wakeMin)} disabled={!loaded} onChange={(e) => set({ wakeMin: fromHHMM(e.target.value) })} />
-          </div>
-          <div className="field">
-            <label className="input-label">Sleep</label>
-            <input type="time" className="input" value={toHHMM(data.sleepMin)} disabled={!loaded} onChange={(e) => set({ sleepMin: fromHHMM(e.target.value) })} />
-          </div>
-        </div>
-        {overnight && <div className="input-help">Overnight · JARVIS plans the day</div>}
+      <Head label="Active Hours" />
+      <Card>
+        <Row label="Wake Up"><input type="time" className="set-field" aria-label="Wake up" value={toHHMM(data.wakeMin)} disabled={!loaded} onChange={(e) => set({ wakeMin: fromHHMM(e.target.value) })} /></Row>
+        <Row label="Sleep"><input type="time" className="set-field" aria-label="Sleep" value={toHHMM(data.sleepMin)} disabled={!loaded} onChange={(e) => set({ sleepMin: fromHHMM(e.target.value) })} /></Row>
+      </Card>
+      {overnight && <Foot>Overnight · JARVIS plans the day</Foot>}
 
-        <div className="grp"><div className="eyebrow">Work Hours</div></div>
-        <div className="field-row">
-          <div className="field">
-            <label className="input-label">Work Starts</label>
-            <input type="time" className="input" value={toHHMM(data.workStartMin)} disabled={!loaded} onChange={(e) => set({ workStartMin: fromHHMM(e.target.value) })} />
-          </div>
-          <div className="field">
-            <label className="input-label">Work Ends</label>
-            <input type="time" className="input" value={toHHMM(data.workEndMin)} disabled={!loaded} onChange={(e) => set({ workEndMin: fromHHMM(e.target.value) })} />
-          </div>
-        </div>
-        {workOutside && <div className="input-help">Work hours outside active hours · Fine</div>}
+      <Head label="Work Hours" />
+      <Card>
+        <Row label="Work Starts"><input type="time" className="set-field" aria-label="Work starts" value={toHHMM(data.workStartMin)} disabled={!loaded} onChange={(e) => set({ workStartMin: fromHHMM(e.target.value) })} /></Row>
+        <Row label="Work Ends"><input type="time" className="set-field" aria-label="Work ends" value={toHHMM(data.workEndMin)} disabled={!loaded} onChange={(e) => set({ workEndMin: fromHHMM(e.target.value) })} /></Row>
+      </Card>
+      {workOutside && <Foot>Work hours outside active hours · Fine</Foot>}
 
-        <div className="grp"><div className="eyebrow">Protected Time</div></div>
-
+      <Head label="Protected Time" />
+      <Card>
         {sortedBlocks.map((b) => (
-          <div className="field" key={b.id}>
-            <div className="card">
-              {/* The row was a dead end wearing a delete button (Dave,
-                  2026-08-28: "lack of buttons makes that impossible"). It
-                  always opened the full editor on tap - nothing on the row
-                  said so. The chev is the same disclosure mark every other
-                  tappable row in the app wears (Connections, Money, Bigger
-                  Picture): one glance says "there's more here, tap it." */}
-              <div className={"row" + (form?.id === b.id ? " active" : "")} role="button" tabIndex={0} onClick={() => openEdit(b)}>
-                <div className="row-grow">
-                  <div className="conn-name">{b.label}{b.soft ? " · Flexible" : ""}</div>
-                  <div className="conn-meta">{label12(b.startMin)} to {label12(b.endMin)} &middot; {daysSummary(b.days)}{b.location ? ` · ${b.location}` : ""}</div>
-                </div>
-                <div className="chev" />
-                <button className="conn-remove" aria-label={`Remove ${b.label}`} onClick={(e) => { e.stopPropagation(); removeBlock(b.id); }}>&times;</button>
-              </div>
-            </div>
-          </div>
+          <Row
+            key={b.id}
+            label={b.label + (b.soft ? " · Flexible" : "")}
+            meta={`${label12(b.startMin)} to ${label12(b.endMin)} · ${daysSummary(b.days)}${b.location ? ` · ${b.location}` : ""}`}
+            onClick={() => openEdit(b)}
+            chev
+          />
         ))}
+        <button type="button" className="row row-act" onClick={openAdd}>Add Protected Time</button>
+      </Card>
 
-        {form ? (
-          <div className="card pad" ref={formRef}>
-            <div className="field">
-              <label className="input-label">Quick Add</label>
-              <div className="chip-wrap">
-                {PRESETS.map((p) => (
-                  <div className="chip" role="button" tabIndex={0} key={p.label} onClick={() => applyPreset(p)}>{p.label}</div>
-                ))}
-              </div>
-            </div>
-            <div className="field">
-              <label className="input-label">Name</label>
-              <input className="input" placeholder="Gym · Lunch · Deep Work" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
-            </div>
-            <div className="field-row">
-              <div className="field"><label className="input-label">From</label><input type="time" className="input" value={toHHMM(form.startMin)} onChange={(e) => setForm({ ...form, startMin: fromHHMM(e.target.value) })} /></div>
-              <div className="field"><label className="input-label">To</label><input type="time" className="input" value={toHHMM(form.endMin)} onChange={(e) => setForm({ ...form, endMin: fromHHMM(e.target.value) })} /></div>
-            </div>
-            {form.endMin <= form.startMin && <div className="input-help">End must be after start</div>}
-            <div className="field">
-              <label className="input-label">What is it?</label>
-              <div className="chip-wrap">
+      <Head label="Weekends" />
+      <Card>
+        <Switch label="Different on Weekends" on={!!data.weekendDifferent} onToggle={() => set({ weekendDifferent: !data.weekendDifferent })} ariaLabel="Different hours on weekends" />
+        {data.weekendDifferent && (
+          <>
+            <Row label="Weekend Wake"><input type="time" className="set-field" aria-label="Weekend wake" value={toHHMM(data.weekendWakeMin ?? data.wakeMin)} disabled={!loaded} onChange={(e) => set({ weekendWakeMin: fromHHMM(e.target.value) })} /></Row>
+            <Row label="Weekend Sleep"><input type="time" className="set-field" aria-label="Weekend sleep" value={toHHMM(data.weekendSleepMin ?? data.sleepMin)} disabled={!loaded} onChange={(e) => set({ weekendSleepMin: fromHHMM(e.target.value) })} /></Row>
+          </>
+        )}
+      </Card>
+
+      <div className="screen-foot" />
+
+      {form && (() => {
+        const eff = form.mode ?? defaultModeFor(form.kind, form.label);
+        const dflt = defaultModeFor(form.kind, form.label);
+        return (
+          <FormSheet
+            title={form.id ? "Edit Block" : "New Block"}
+            onCancel={() => setForm(null)}
+            onSave={commitForm}
+            saveDisabled={!formValid}
+            saveLabel={form.id ? "Save Block" : "Add Block"}
+          >
+            {!form.id && (
+              <Group label="Quick Add">
+                <Strip>
+                  {PRESETS.map((p) => (
+                    <div className="chip" role="button" tabIndex={0} key={p.label} onClick={() => applyPreset(p)}>{p.label}</div>
+                  ))}
+                </Strip>
+              </Group>
+            )}
+            <Group label="Name">
+              <FieldRow ariaLabel="Name" placeholder="Gym · Lunch · Deep Work" value={form.label} onChange={(v) => setForm({ ...form, label: v })} />
+            </Group>
+            <Group label="When">
+              <FieldRow label="From" type="time" ariaLabel="Start time" value={toHHMM(form.startMin)} onChange={(v) => setForm({ ...form, startMin: fromHHMM(v) })} />
+              <FieldRow label="To" type="time" ariaLabel="End time" value={toHHMM(form.endMin)} onChange={(v) => setForm({ ...form, endMin: fromHHMM(v) })} />
+            </Group>
+            <ErrorLine text={form.endMin <= form.startMin ? "End must be after start" : null} />
+
+            <Group label="What Is It">
+              <Strip>
                 {KINDS.map(({ k, label: kl }) => (
                   <div className={"chip" + (form.kind === k ? " active" : "")} role="button" tabIndex={0} key={k} aria-pressed={form.kind === k} onClick={() => setForm({ ...form, kind: k })}>{kl}</div>
                 ))}
-              </div>
-            </div>
+              </Strip>
+            </Group>
+
             {/* WHAT HAPPENS IN THIS BLOCK (2026-08-21, Dave: "should be able
                 to edit any category like this... some people might be fine
                 putting tasks during eating hours"). The default comes from the
                 kind, so this only has to be touched by someone who disagrees
                 with it. Picking the default back is the same as never having
                 chosen: nothing is stored. */}
-            {(() => {
-              const eff = form.mode ?? defaultModeFor(form.kind, form.label);
-              const dflt = defaultModeFor(form.kind, form.label);
-              return (
-                <div className="field">
-                  <label className="input-label">What Happens in This Block</label>
-                  <div className="segmented seg-tri">
-                    {(["holds", "protects", "blends"] as BlockMode[]).map((m) => (
-                      <button
-                        type="button"
-                        key={m}
-                        className={"seg" + (eff === m ? " active" : "")}
-                        aria-pressed={eff === m}
-                        onClick={() => setForm({ ...form, mode: m === dflt ? null : m })}
-                      >{MODE_LABEL[m]}</button>
-                    ))}
-                  </div>
-                  <div className="input-help">{MODE_HELP[eff]}</div>
-                  {eff === "blends" && (
-                    <>
-                      <label className="input-label">What Is Free</label>
-                      <div className="chip-wrap">
-                        {FREE_CHANNELS.map((c) => {
-                          const on = (form.free.length ? form.free : freeOf({ kind: form.kind })).includes(c);
-                          return (
-                            <div
-                              className={"chip" + (on ? " active" : "")}
-                              role="button"
-                              tabIndex={0}
-                              key={c}
-                              aria-pressed={on}
-                              onClick={() => {
-                                const cur = form.free.length ? form.free : freeOf({ kind: form.kind });
-                                const next = cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c];
-                                // Never let it reach zero: a block with nothing
-                                // free can never receive anything, which is a
-                                // dead setting wearing a live control.
-                                setForm({ ...form, free: next.length ? next : cur });
-                              }}
-                            >{c === "mouth" ? "Mouth" : c === "hands" ? "Hands" : "Ears"}</div>
-                          );
-                        })}
-                      </div>
-                      <div className="input-help">A call fits · Typing does not</div>
-                    </>
-                  )}
-                </div>
-              );
-            })()}
-            <div className="field">
-              <label className="input-label">Where (optional)</label>
-              <input className="input" placeholder="Cortland YMCA · home office" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
-            </div>
-            <div className="row">
-              <div className="row-grow">
-                <div className="conn-name">Flexible</div>
-                <div className="conn-meta">Kept clear when possible · Off means never</div>
+            <Group label="What Happens in This Block">
+              <Strip>
+                {(["holds", "protects", "blends"] as BlockMode[]).map((m) => (
+                  <div
+                    className={"chip" + (eff === m ? " active" : "")}
+                    role="button"
+                    tabIndex={0}
+                    key={m}
+                    aria-pressed={eff === m}
+                    onClick={() => setForm({ ...form, mode: m === dflt ? null : m })}
+                  >{MODE_LABEL[m]}</div>
+                ))}
+              </Strip>
+              <Note>{MODE_HELP[eff]}</Note>
+              {eff === "blends" && (
+                <>
+                  <Strip>
+                    {FREE_CHANNELS.map((c) => {
+                      const on = (form.free.length ? form.free : freeOf({ kind: form.kind })).includes(c);
+                      return (
+                        <div
+                          className={"chip" + (on ? " active" : "")}
+                          role="button"
+                          tabIndex={0}
+                          key={c}
+                          aria-pressed={on}
+                          onClick={() => {
+                            const cur = form.free.length ? form.free : freeOf({ kind: form.kind });
+                            const next = cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c];
+                            // Never let it reach zero: a block with nothing
+                            // free can never receive anything, which is a
+                            // dead setting wearing a live control.
+                            setForm({ ...form, free: next.length ? next : cur });
+                          }}
+                        >{c === "mouth" ? "Mouth" : c === "hands" ? "Hands" : "Ears"}</div>
+                      );
+                    })}
+                  </Strip>
+                  <Note>A call fits · Typing does not</Note>
+                </>
+              )}
+            </Group>
+
+            <Group label="Where">
+              <FieldRow ariaLabel="Location" placeholder="Cortland YMCA · home office (optional)" value={form.location} onChange={(v) => setForm({ ...form, location: v })} />
+            </Group>
+
+            <Group label="Flexible">
+              <div className="row xs-row">
+                <div className="conn-name">Kept Clear When Possible</div>
+                <div
+                  className={"switch" + (form.soft ? "" : " off")}
+                  role="switch"
+                  aria-checked={form.soft}
+                  aria-label="Flexible block"
+                  tabIndex={0}
+                  onClick={() => setForm({ ...form, soft: !form.soft })}
+                  onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setForm({ ...form, soft: !form.soft }); } }}
+                />
               </div>
-              <button
-                className={"switch" + (form.soft ? "" : " off")}
-                role="switch"
-                aria-checked={form.soft}
-                aria-label="Flexible block"
-                onClick={() => setForm({ ...form, soft: !form.soft })}
-              />
-            </div>
-            <div className="field">
-              <label className="input-label">Days</label>
-              <div className="chip-wrap">
+              <Note>Off means never</Note>
+            </Group>
+
+            <Group label="Days">
+              <Strip>
                 {DOW_LETTER.map((ltr, d) => (
                   <div className={"chip" + (form.days.includes(d) ? " active" : "")} role="button" tabIndex={0} key={d} aria-pressed={form.days.includes(d)} aria-label={DOW_ABBR[d]} onClick={() => toggleDay(d)}>{ltr}</div>
                 ))}
-              </div>
-            </div>
-            <div className="field-row">
-              <button className="btn btn-primary btn-block" disabled={!formValid} onClick={commitForm}>{form.id ? "Save Block" : "Add Block"}</button>
-              <button className="btn btn-secondary btn-block" onClick={() => setForm(null)}>Cancel</button>
-            </div>
-            {/* Duplicate (2026-08-28): only meaningful once a block exists to
-                clone. Splitting Gym into a Mon/Wed/Fri 6 AM version and a
-                Saturday 8 AM version used to mean re-typing the whole block;
-                this is the same block, a new id, one tap. */}
-            {form.id && (
-              <button className="btn btn-tertiary btn-block" disabled={!formValid} onClick={duplicateForm}>Duplicate As New Block</button>
-            )}
-          </div>
-        ) : (
-          <button className="btn btn-secondary btn-block" onClick={openAdd}>Add Protected Time</button>
-        )}
+              </Strip>
+            </Group>
 
-        <div className="grp"><div className="eyebrow">Weekends</div></div>
-        <div className="card">
-          <div className="row">
-            <div className="row-grow"><div className="conn-name">Different on Weekends</div></div>
-            <button
-              className={"switch" + (data.weekendDifferent ? "" : " off")}
-              role="switch"
-              aria-checked={!!data.weekendDifferent}
-              aria-label="Different hours on weekends"
-              disabled={!loaded}
-              onClick={() => set({ weekendDifferent: !data.weekendDifferent })}
-            />
-          </div>
-        </div>
-        {data.weekendDifferent && (
-          <div className="field-row">
-            <div className="field">
-              <label className="input-label">Weekend Wake</label>
-              <input type="time" className="input" value={toHHMM(data.weekendWakeMin ?? data.wakeMin)} disabled={!loaded} onChange={(e) => set({ weekendWakeMin: fromHHMM(e.target.value) })} />
-            </div>
-            <div className="field">
-              <label className="input-label">Weekend Sleep</label>
-              <input type="time" className="input" value={toHHMM(data.weekendSleepMin ?? data.sleepMin)} disabled={!loaded} onChange={(e) => set({ weekendSleepMin: fromHHMM(e.target.value) })} />
-            </div>
-          </div>
-        )}
-      </div>
+            {form.id && (
+              <>
+                <button type="button" className="btn btn-tertiary btn-block" disabled={!formValid} onClick={duplicateForm}>Duplicate As New Block</button>
+                <DeleteRow label="Delete Block" onClick={() => { removeBlock(form.id!); setForm(null); }} />
+              </>
+            )}
+          </FormSheet>
+        );
+      })()}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { buildVisionMessage } from "../../ai/AIService";
 import { JARVIS_VOICE } from "../../ai/voice";
 import { fileToAIImage } from "../../shared/imageInput";
 import { showToast } from "../../shared/toast";
+import PageHeader from "../../shared/PageHeader";
 
 const PHOTO = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
@@ -68,12 +69,13 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   };
 
   return (
-    <div className="screen">
-      <div className="nav-bar">
-        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">{meta?.title ?? "Note"}</div>
-        <button className="nav-action-text" onClick={save} disabled={!dirty}>{loaded && !dirty ? "Saved" : "Save"}</button>
-      </div>
+    <div className="screen ruled">
+      <PageHeader
+        title={meta?.title ?? "Note"}
+        back="Brain"
+        onBack={onBack}
+        actions={<button className="nav-action-text" onClick={save} disabled={!dirty}>{loaded && !dirty ? "Saved" : "Save"}</button>}
+      />
       {/* Deep writing pass (2026-08-19): brain docs write on the notes
           canvas, not in a boxed form field. Same typography, same caret. */}
       <div className="pad-x sheet-form">
@@ -93,7 +95,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
               accept="image/*"
               onChange={(e) => { const f = e.target.files?.[0]; if (f) void onPhoto(f); e.target.value = ""; }}
             />
-            <div className="card">
+            <div className="card list-card-ruled">
               <div className="row" role="button" tabIndex={0} onClick={() => !reading && fileRef.current?.click()}>
                 <div className="sec-ico ico-blue">{PHOTO}</div>
                 <div className="row-grow">

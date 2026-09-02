@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
 import type { DecisionLinkType } from "./types";
+import { FormSheet, Group, Row, FieldRow, Strip, ErrorLine } from "../shared/FormSheet";
+import HeadMenu from "../shared/HeadMenu";
 
 // The capture sheet (Screen 03) and the supersede sheet (Screen 05), one
 // component: a supersede is a capture with Attached To and Ruled Out carried
@@ -73,84 +74,63 @@ export default function DecisionCaptureSheet({
     });
   };
 
-  return createPortal(
-    <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle" />
-        <div className="grp"><div className="eyebrow">{mode === "supersede" ? "New Call" : "New Decision"}</div></div>
-        <div className="pad-x sheet-form">
-          <div className="field">
-            <label className="input-label">What You Decided <span className="input-req">*</span></label>
-            <input
-              className="input"
-              placeholder="e.g. Fall clinics run Saturdays only"
-              value={decision}
-              onChange={(e) => { setDecision(e.target.value); if (err) setErr(false); }}
+  const attachLabel = attachOptions.find((o) => o.id === attach)?.label ?? "None";
+
+  return (
+    <FormSheet title={mode === "supersede" ? "New Call" : "New Decision"} onCancel={onCancel} onSave={save}>
+      <Group label="What You Decided">
+        <FieldRow
+          ariaLabel="What you decided"
+          placeholder="e.g. Fall clinics run Saturdays only"
+          value={decision}
+          onChange={(v) => { setDecision(v); if (err) setErr(false); }}
+          error={err}
+        />
+      </Group>
+      <ErrorLine text={err ? "Add the decision." : null} />
+
+      <Group label="Why">
+        <FieldRow ariaLabel="Why" placeholder="The reason you will forget · One line is enough" value={why} onChange={setWhy} />
+      </Group>
+
+      <Group label="Ruled Out">
+        {ruledOut.length > 0 && (
+          <Strip>
+            {ruledOut.map((r) => (
+              <div key={r} className="chip active" role="button" tabIndex={0} onClick={() => setRuledOut(ruledOut.filter((x) => x !== r))}>{r}</div>
+            ))}
+          </Strip>
+        )}
+        <FieldRow ariaLabel="Option you closed" placeholder="Option you closed · Enter adds" value={ruleDraft} onChange={setRuleDraft} onEnter={addRule} />
+      </Group>
+
+      <Group label="Revisit">
+        <Strip>
+          <div className={"chip" + (revisitMode === "none" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit("")}>None</div>
+          <div className={"chip" + (revisitMode === "week" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDaysISO(today, 7))}>Week</div>
+          <div className={"chip" + (revisitMode === "month" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDaysISO(today, 30))}>Month</div>
+          <div className={"chip" + (revisitMode === "pick" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(revisitMode === "pick" && revisit ? revisit : addDaysISO(today, 14))}>Pick</div>
+        </Strip>
+        {revisitMode === "pick" && (
+          <FieldRow ariaLabel="Revisit date" type="date" value={revisit} onChange={setRevisit} />
+        )}
+      </Group>
+
+      {attachOptions.length > 0 && (
+        <Group label="Attached To">
+          <Row label="Link">
+            <HeadMenu
+              variant="value"
+              ariaLabel="Attached to"
+              value={attach}
+              off={attach === ""}
+              label={attachLabel}
+              options={[{ value: "", label: "None" }, ...attachOptions.map((o) => ({ value: o.id, label: o.label }))]}
+              onPick={setAttach}
             />
-            {err && <div className="input-error">Add the decision.</div>}
-          </div>
-
-          <div className="field">
-            <label className="input-label">Why</label>
-            <input
-              className="input"
-              placeholder="The reason you will forget · One line is enough"
-              value={why}
-              onChange={(e) => setWhy(e.target.value)}
-            />
-          </div>
-
-          <div className="field">
-            <div className="input-label">Ruled Out</div>
-            {ruledOut.length > 0 && (
-              <div className="chip-row">
-                {ruledOut.map((r) => (
-                  <div key={r} className="chip active" role="button" tabIndex={0} onClick={() => setRuledOut(ruledOut.filter((x) => x !== r))}>{r}</div>
-                ))}
-              </div>
-            )}
-            <input
-              className="input field-gap"
-              placeholder="Option you closed · Enter adds"
-              value={ruleDraft}
-              onChange={(e) => setRuleDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addRule(); } }}
-              onBlur={addRule}
-            />
-          </div>
-
-          <div className="field">
-            <div className="input-label">Revisit</div>
-            <div className="segmented">
-              <div className={"seg" + (revisitMode === "none" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit("")}>None</div>
-              <div className={"seg" + (revisitMode === "week" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDaysISO(today, 7))}>Week</div>
-              <div className={"seg" + (revisitMode === "month" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDaysISO(today, 30))}>Month</div>
-              <div className={"seg" + (revisitMode === "pick" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(revisitMode === "pick" && revisit ? revisit : addDaysISO(today, 14))}>Pick</div>
-            </div>
-            {revisitMode === "pick" && (
-              <input type="date" className="input field-gap" min={today} value={revisit} onChange={(e) => setRevisit(e.target.value)} />
-            )}
-          </div>
-
-          {attachOptions.length > 0 && (
-            <div className="field">
-              <div className="input-label">Attached To</div>
-              <div className="chip-row">
-                <div className={"chip" + (attach === "" ? " active" : "")} role="button" tabIndex={0} onClick={() => setAttach("")}>None</div>
-                {attachOptions.map((o) => (
-                  <div key={o.id} className={"chip" + (attach === o.id ? " active" : "")} role="button" tabIndex={0} onClick={() => setAttach(o.id)}>{o.label}</div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={save}>Save</button>
-          <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
-        </div>
-      </div>
-    </div>,
-    document.body,
+          </Row>
+        </Group>
+      )}
+    </FormSheet>
   );
 }

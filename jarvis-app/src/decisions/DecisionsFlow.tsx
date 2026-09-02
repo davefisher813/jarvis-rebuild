@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { useDecisions, useProjects, useGoals, useCategories } from "../data/NotesProvider";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import InlineEdit from "../shared/InlineEdit";
+import HeadMenu from "../shared/HeadMenu";
 import DecisionCaptureSheet, { type AttachOption, type DecisionDraft } from "./DecisionCaptureSheet";
 import type { DecisionRecord } from "./types";
 import { attemptWrite } from "../shared/guard";
@@ -70,7 +71,6 @@ export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; 
   const [sheet, setSheet] = useState<{ kind: "closed" } | { kind: "new" } | { kind: "supersede"; oldId: string }>({ kind: "closed" });
   const [editing, setEditing] = useState(false);
   const [armedDelete, setArmedDelete] = useState(false);
-  const [attachOpen, setAttachOpen] = useState(false);
   const [revisitOpen, setRevisitOpen] = useState(false);
 
   const reload = useCallback(async () => {
@@ -104,8 +104,8 @@ export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; 
   const byId = useMemo(() => new Map(all.map((r) => [r.id, r])), [all]);
   const record = view.kind === "record" ? byId.get(view.id) ?? null : null;
 
-  const goRecord = (id: string) => { setEditing(false); setArmedDelete(false); setAttachOpen(false); setRevisitOpen(false); setView({ kind: "record", id }); };
-  const goList = () => { setEditing(false); setArmedDelete(false); setAttachOpen(false); setRevisitOpen(false); setView({ kind: "list" }); };
+  const goRecord = (id: string) => { setEditing(false); setArmedDelete(false); setRevisitOpen(false); setView({ kind: "record", id }); };
+  const goList = () => { setEditing(false); setArmedDelete(false); setRevisitOpen(false); setView({ kind: "list" }); };
 
   const pushCls = usePushDepth(view.kind === "record" ? 1 : 0);
 
@@ -170,7 +170,7 @@ export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; 
     const attachLabel = d.linkedLabel ?? attachOptions.find((o) => o.id === d.linkedId)?.label;
     return (
       <div className={pushCls} key={"r-" + record.id}>
-        <div className="screen">
+        <div className="screen ruled">
           <PageHeader
             title="Decision"
             back="Decisions"
@@ -178,7 +178,7 @@ export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; 
             actions={<BarAction label="Edit" onClick={() => setEditing(true)}>{PEN}</BarAction>}
           />
 
-          <div className="grp"><div className="eyebrow">Decided</div></div>
+          <div className="sh2 sh2-quiet"><span className="t">Decided</span></div>
           <div className="pad-x"><div className="card pad">
             <InlineEdit
               className="dec-main"
@@ -188,7 +188,7 @@ export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; 
             />
           </div></div>
 
-          <div className="grp"><div className="eyebrow">Because</div></div>
+          <div className="sh2 sh2-quiet"><span className="t">Because</span></div>
           <div className="pad-x"><div className="card pad">
             <InlineEdit
               className="dec-why"
@@ -200,7 +200,7 @@ export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; 
 
           {(editing || (d.ruledOut?.length ?? 0) > 0) && (
             <>
-              <div className="grp"><div className="eyebrow">Ruled Out</div></div>
+              <div className="sh2 sh2-quiet"><span className="t">Ruled Out</span></div>
               <div className="pad-x"><div className="card pad">
                 {(d.ruledOut?.length ?? 0) > 0 && (
                   <div className="chip-row">
@@ -219,7 +219,7 @@ export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; 
 
           {(editing || d.revisitOn) && (
             <>
-              <div className="grp"><div className="eyebrow">Revisit</div></div>
+              <div className="sh2 sh2-quiet"><span className="t">Revisit</span></div>
               <div className="pad-x"><div className="card">
                 <div className="row">
                   <div className="row-grow"><div className="conn-name">Shows on Today</div></div>
@@ -243,29 +243,32 @@ export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; 
 
           {(editing || d.linkedId) && (
             <>
-              <div className="grp"><div className="eyebrow">Attached To</div></div>
-              <div className="pad-x"><div className="card pad">
-                {!attachOpen ? (
-                  <div className="chip-row">
-                    <div className="chip active" role="button" tabIndex={0} onClick={() => setAttachOpen(true)}>{attachLabel ?? "None"}</div>
-                  </div>
-                ) : (
-                  <div className="chip-row">
-                    <div className={"chip" + (!d.linkedId ? " active" : "")} role="button" tabIndex={0}
-                      onClick={() => { void patch(record.id, { linkedType: undefined, linkedId: undefined, linkedLabel: undefined }); setAttachOpen(false); }}>None</div>
-                    {attachOptions.map((o) => (
-                      <div key={o.id} className={"chip" + (o.id === d.linkedId ? " active" : "")} role="button" tabIndex={0}
-                        onClick={() => { void patch(record.id, { linkedType: o.type, linkedId: o.id, linkedLabel: o.label }); setAttachOpen(false); }}>{o.label}</div>
-                    ))}
-                  </div>
-                )}
+              <div className="sh2 sh2-quiet"><span className="t">Attached To</span></div>
+              <div className="pad-x"><div className="card">
+                <div className="row">
+                  <div className="row-grow" />
+                  <HeadMenu
+                    variant="value"
+                    ariaLabel="Attached to"
+                    value={d.linkedId ?? ""}
+                    off={!d.linkedId}
+                    label={attachLabel ?? "None"}
+                    options={[{ value: "", label: "None" }, ...attachOptions.map((o) => ({ value: o.id, label: o.label }))]}
+                    onPick={(v) => {
+                      const opt = attachOptions.find((o) => o.id === v);
+                      void patch(record.id, opt
+                        ? { linkedType: opt.type, linkedId: opt.id, linkedLabel: opt.label }
+                        : { linkedType: undefined, linkedId: undefined, linkedLabel: undefined });
+                    }}
+                  />
+                </div>
               </div></div>
             </>
           )}
 
           {older && (
             <>
-              <div className="grp"><div className="eyebrow">Replaces</div></div>
+              <div className="sh2 sh2-quiet"><span className="t">Replaces</span></div>
               <div className="pad-x"><div className="card">
                 <div className="row" role="button" tabIndex={0} onClick={() => goRecord(older.id)}>
                   <div className="row-stack">
@@ -280,7 +283,7 @@ export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; 
 
           {newer && (
             <>
-              <div className="grp"><div className="eyebrow">Replaced By</div></div>
+              <div className="sh2 sh2-quiet"><span className="t">Replaced By</span></div>
               <div className="pad-x"><div className="card">
                 <div className="row" role="button" tabIndex={0} onClick={() => goRecord(newer.id)}>
                   <div className="row-stack">
@@ -351,7 +354,7 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
   onAdd: () => void;
 }) {
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <PageHeader
         title="Decisions"
         back="Brain"
@@ -369,22 +372,26 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
       {/* Universal sectioning law: rows always sit under an sh2 head. No
           count here: a count of decisions is a guilt metric (spec law). */}
       {live.length > 0 && <div className="sh2 sh2-quiet"><span className="t">All Decisions</span></div>}
-      {live.length > 0 && live.map((r) => (
-        <div className="lib-row" key={r.id} role="button" tabIndex={0} onClick={() => onOpen(r.id)}>
-          <div className={"lib-ico " + glyphClass(r, projCat)}>{DECISION_ICO}</div>
-          <div className="lib-stack">
-            <div className="msg-line">
-              <span className="lib-name conn-name dec-name">{r.data.decision}</span>
-              <span className="dec-when">{fmtShort(r.data.createdAt)}</span>
+      {live.length > 0 && (
+        <div className="pad-x"><div className="card list-card-ruled nav-card">
+          {live.map((r) => (
+            <div className="lib-row" key={r.id} role="button" tabIndex={0} onClick={() => onOpen(r.id)}>
+              <div className={"lib-ico " + glyphClass(r, projCat)}>{DECISION_ICO}</div>
+              <div className="lib-stack">
+                <div className="msg-line">
+                  <span className="lib-name conn-name dec-name">{r.data.decision}</span>
+                  <span className="dec-when">{fmtShort(r.data.createdAt)}</span>
+                </div>
+                <div className="lib-sub">
+                  {r.data.why ? "Because " + r.data.why : NO_REASON}
+                  {r.data.linkedLabel && <> · <span className={"fact-link " + glyphClass(r, projCat)}>{r.data.linkedLabel}</span></>}
+                </div>
+              </div>
+              <Chev />
             </div>
-            <div className="lib-sub">
-              {r.data.why ? "Because " + r.data.why : NO_REASON}
-              {r.data.linkedLabel && <> · <span className={"fact-link " + glyphClass(r, projCat)}>{r.data.linkedLabel}</span></>}
-            </div>
-          </div>
-          <Chev />
-        </div>
-      ))}
+          ))}
+        </div></div>
+      )}
       <div className="screen-foot" />
     </div>
   );

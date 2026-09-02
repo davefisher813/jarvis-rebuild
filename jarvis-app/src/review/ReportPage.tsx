@@ -79,7 +79,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
   const maxHour = Math.max(1, ...report.hours?.byHour ?? [1]);
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">{report.monthName}</div>
@@ -109,7 +109,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
 
       {/* THE MONTH: tiles with deltas, the hours strip, where it went. */}
       {(report.tiles.length > 0 || report.hours || report.went) && (
-        <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green"><CheckCircleGlyph /></div><div className="sec-title">The Month</div></div></div>
+        <div className="sh2 sh2-quiet"><span className="t">The Month</span></div>
       )}
       <div className="pad-x">
         {report.tiles.length > 0 && (
@@ -163,10 +163,10 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
       {/* WORTH A LOOK: each gap keeps its exit. */}
       {report.worth.length > 0 && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-orange"><WarningGlyph /></div><div className="sec-title">Worth a Look</div></div></div>
-          <div className="pad-x">
+          <div className="sh2 sh2-quiet"><span className="t">Worth a Look</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {report.worth.map((w) => (
-              <div className="card rep-gap" key={w.id}>
+              <div key={w.id}>
                 <div className="row" role="button" tabIndex={0} onClick={() => setReceipts({ title: w.title, lines: w.receipts })}>
                   {w.id === "cut" && <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>}
                   <div className="row-grow">
@@ -183,15 +183,15 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
                 )}
               </div>
             ))}
-          </div>
+          </div></div>
         </>
       )}
 
       {/* PATTERNS: one line, one number, receipts behind the tap. */}
       {report.patterns.length > 0 && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-red">{TARGET}</div><div className="sec-title">Patterns</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Patterns</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {report.patterns.map((p) => (
               <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => setReceipts({ title: p.title, lines: p.receipts })}>
                 <div className="row-grow">
@@ -208,7 +208,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
 
       {/* JARVIS: what it learned and did, the one change, the seal. */}
       {(report.learned || report.did || report.closer) && (
-        <div className="sec-head"><div className="sec-left"><div className="sec-ico ico-accent">{filledIcon("knows")}</div><div className="sec-title">JARVIS</div></div></div>
+        <div className="sh2 sh2-quiet"><span className="t">JARVIS</span></div>
       )}
       <div className="pad-x">
         {(report.learned || report.did) && (

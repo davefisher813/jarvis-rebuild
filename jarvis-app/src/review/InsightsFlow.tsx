@@ -10,6 +10,7 @@ import type { MonthSeal } from "./seal";
 import { capAfterNumber } from "../shared/casing";
 import { CheckCircleGlyph, SunriseGlyph } from "../shared/glyphs";
 import { usePushDepth } from "../shared/pushNav";
+import PageHeader from "../shared/PageHeader";
 
 // INSIGHTS IS PURE TIME (the Life Merge, Dave 2026-08-26: "it's stupid
 // having them separate"). The life layer this surface carried for one day
@@ -62,18 +63,26 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
     return items.sort((a, b) => b.d.localeCompare(a.d));
   }, [goals, projects]);
 
+  // Grouped by month, one card per month (every band is one card): a run of
+  // items sharing the same header collapse into a single list-card-ruled
+  // instead of each wearing its own.
+  const storyGroups = useMemo(() => {
+    const out: { month: string; items: typeof story }[] = [];
+    for (const it of story) {
+      const m = monthName(it.d.slice(0, 7)) + " " + it.d.slice(0, 4);
+      const g = out[out.length - 1];
+      if (g && g.month === m) g.items.push(it); else out.push({ month: m, items: [it] });
+    }
+    return out;
+  }, [story]);
+
   if (screen?.kind === "live") return <div className={pushCls} key="d-live"><ReportFlow live onBack={() => { setScreen(null); void reload(); }} onOpenTask={onOpenTask} /></div>;
   if (screen?.kind === "month") return <div className={pushCls} key={"d-" + screen.month}><ReportFlow month={screen.month} onBack={() => { setScreen(null); void reload(); }} onOpenTask={onOpenTask} /></div>;
   if (screen?.kind === "story") {
-    let lastMonth = "";
     return (
       <div className={pushCls} key="d-story">
-      <div className="screen">
-        <div className="nav-bar">
-          <button className="nav-back" aria-label="Back" onClick={() => setScreen(null)}></button>
-          <div className="nav-title">The Long Story</div>
-          <span className="nav-action"></span>
-        </div>
+      <div className="screen ruled">
+        <PageHeader title="The Long Story" back="Insights" onBack={() => setScreen(null)} />
         {story.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon"><SunriseGlyph /></div>
@@ -81,25 +90,22 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
             <div className="empty-sub">Everything you achieve lands here, dated, forever</div>
           </div>
         ) : (
-          <div className="pad-x">
-            {story.map((it) => {
-              const m = monthName(it.d.slice(0, 7)) + " " + it.d.slice(0, 4);
-              const head = m !== lastMonth;
-              lastMonth = m;
-              return (
-                <div key={it.kind + it.name + it.d}>
-                  {head && <div className="day-divide">{m}</div>}
-                  <div className="card"><div className="row">
+          storyGroups.map((g) => (
+            <div key={g.month}>
+              <div className="day-divide">{g.month}</div>
+              <div className="pad-x"><div className="card list-card-ruled">
+                {g.items.map((it) => (
+                  <div className="row" key={it.kind + it.name + it.d}>
                     <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>
                     <div className="row-grow">
                       <div className="conn-name truncate">{it.name}</div>
                       <div className="eyebrow">{it.kind === "goal" ? "Achieved" : "Closed"} · {it.d.slice(8, 10).replace(/^0/, "")} {monthName(it.d.slice(0, 7)).slice(0, 3)}</div>
                     </div>
-                  </div></div>
-                </div>
-              );
-            })}
-          </div>
+                  </div>
+                ))}
+              </div></div>
+            </div>
+          ))
         )}
         <div className="screen-foot" />
       </div>
@@ -111,16 +117,12 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
 
   return (
     <div className={pushCls} key="base">
-      <div className="screen">
-        <div className="nav-bar">
-          <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-          <div className="nav-title">Insights</div>
-          <span className="nav-action"></span>
-        </div>
+      <div className="screen ruled">
+        <PageHeader title="Insights" back="Brain" onBack={onBack} />
 
         {/* THIS MONTH: the living report, one tap away, honestly labeled. */}
-        <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-green"><CheckCircleGlyph /></div><div className="sec-title">This Month</div></div></div>
-        <div className="pad-x"><div className="card">
+        <div className="sh2 sh2-quiet"><span className="t">This Month</span></div>
+        <div className="pad-x"><div className="card list-card-ruled">
           <div className="row" role="button" tabIndex={0} onClick={() => setScreen({ kind: "live" })}>
             <div className="row-grow">
               <div className="conn-name">{monthName(monthKey)}, So Far</div>
@@ -131,8 +133,8 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
         </div></div>
 
         {/* YOUR MONTHS: the shelf. Only ever grows; never re-scored. */}
-        <div className="sec-head"><div className="sec-left"><div className="sec-title">Your Months</div></div></div>
-        <div className="pad-x"><div className="card">
+        <div className="sh2 sh2-quiet"><span className="t">Your Months</span></div>
+        <div className="pad-x"><div className="card list-card-ruled">
           {[...seals].reverse().map((s) => {
             const moved = movedIn(s.data.month, goals, projects).length + (s.data.saved > 0 ? 1 : 0);
             return (
@@ -154,7 +156,8 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
         </div></div>
 
         {/* THE LONG STORY: the ledger that only grows. */}
-        <div className="pad-x rep-gap"><div className="card">
+        <div className="sh2 sh2-quiet"><span className="t">The Ledger</span></div>
+        <div className="pad-x"><div className="card list-card-ruled">
           <div className="row" role="button" tabIndex={0} onClick={() => setScreen({ kind: "story" })}>
             <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>
             <div className="row-grow">

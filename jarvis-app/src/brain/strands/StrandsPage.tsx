@@ -6,6 +6,7 @@ import { todayISO } from "../../ai/useAIContext";
 import { haptics } from "../../shared/haptics";
 import { showToast } from "../../shared/toast";
 import { attemptWrite } from "../../shared/guard";
+import PageHeader from "../../shared/PageHeader";
 import {
   STRAND_CATEGORY_LABEL,
   type Strand, type StrandCategory, type StrandEvidence, type DerivationKey,
@@ -147,12 +148,8 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
   };
 
   return (
-    <div className="screen">
-      <div className="nav-bar">
-        <button className="nav-back" onClick={onBack} aria-label="Back" />
-        <span />
-      </div>
-      <div className="nav-large">What JARVIS Knows</div>
+    <div className="screen ruled">
+      <PageHeader title="What JARVIS Knows" back="Brain" onBack={onBack} />
 
       {/* PICK 29 (Dave 2026-08-22): the Noticed offer moved here off Today.
           It renders NOTHING most days, exactly as it did before, so this adds
@@ -167,13 +164,14 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
         </div>
       )}
 
-      {strands.map((s) => (
-        <div className="pad-x" key={s.id}>
-          <div className="card">
+      {strands.length > 0 && (
+        <div className="pad-x"><div className="card list-card-ruled">
+          {strands.map((s) => (
             <div
               className={"row strand-row" + (s.data.status === "paused" ? " paused" : "")}
               role="button"
               tabIndex={0}
+              key={s.id}
               onClick={() => { setOpen(s); setEditing(false); setText(s.data.text); }}
             >
               <div className="row-grow">
@@ -184,9 +182,9 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
               </div>
               <div className="chev" />
             </div>
-          </div>
-        </div>
-      ))}
+          ))}
+        </div></div>
+      )}
 
       <div className="pad-x">
         <button className="row row-act" onClick={() => { setAdding(true); setText(""); }}>Add One Thing</button>

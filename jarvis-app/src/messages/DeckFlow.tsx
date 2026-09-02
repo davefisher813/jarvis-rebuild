@@ -334,7 +334,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
   const ringPct = hand.length ? (remaining / hand.length) * 360 : 0;
 
   return (
-    <div className="screen" key={"deck" + row.id}>
+    <div className="screen ruled" key={"deck" + row.id}>
       <div className="nav-bar">
         <button className="nav-back" onClick={finish}>Email</button>
         {/* 5A: the clock is the title. It only runs down, and zero means

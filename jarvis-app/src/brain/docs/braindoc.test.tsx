@@ -26,7 +26,7 @@ describe("BrainDocPage", () => {
         <BrainDocPage topic="writing" onBack={() => {}} />
       </NotesProvider>,
     );
-    expect(screen.getByText("How You Write")).toBeInTheDocument();
+    expect(screen.getAllByText("How You Write").length).toBeGreaterThan(0);
     const ta = await screen.findByPlaceholderText(/Tone · style/i);
     fireEvent.change(ta, { target: { value: "Short and direct." } });
     fireEvent.click(screen.getByText("Save"));
