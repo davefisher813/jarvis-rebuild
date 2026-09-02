@@ -39,3 +39,21 @@ describe("weekRowsFor", () => {
     expect(rows[2]!.openMin).toBe(0);
   });
 });
+
+describe("the week's own line", () => {
+  it("names the longest open stretch among days not yet over", async () => {
+    const { longestStretch, stretchLabel } = await import("./weekRows");
+    const dates = ["2026-08-31", "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04", "2026-09-05", "2026-09-06"];
+    const events = [ev("All day", "2026-09-05", "07:00", "22:00")];
+    const rows = weekRowsFor(dates, events, DEFAULT_ROUTINE, { date: "2026-09-02", nowMin: 12 * 60 });
+    const best = longestStretch(rows, "2026-09-02");
+    expect(best).not.toBeNull();
+    // Saturday is full, so the best stretch is a whole empty day ahead.
+    expect(best!.row.date).not.toBe("2026-09-05");
+    expect(best!.e - best!.s).toBe(best!.row.windowE - best!.row.windowS);
+    // A finished week has nothing to offer.
+    expect(longestStretch(rows, "2026-09-07")).toBeNull();
+    expect(stretchLabel(13 * 60, 17 * 60 + 30)).toBe("1:00 to 5:30 PM");
+    expect(stretchLabel(9 * 60, 13 * 60)).toBe("9:00 AM to 1:00 PM");
+  });
+});

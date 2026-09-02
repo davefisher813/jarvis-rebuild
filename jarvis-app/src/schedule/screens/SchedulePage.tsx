@@ -24,7 +24,7 @@ const DROP_MINUTES = 60;
 // A protected block from Your Routine, rendered on the day it applies.
 import type { WeekRow } from "../weekRows";
 import { capAfterNumber } from "../../shared/casing";
-import { spanShort } from "../weekRows";
+import { spanShort, longestStretch, stretchLabel } from "../weekRows";
 
 export interface LockedRange { s: number; e: number; label: string; soft?: boolean; kind?: string; id?: string }
 
@@ -372,7 +372,24 @@ export default function SchedulePage({
           category colour, a container as a hollow outline, a now-line on
           today), and the open time on the right. Not a day picker: a row
           opens its day. */}
-      {mode === "week" && (
+      {mode === "week" && (() => {
+        // THE WEEK'S OWN LINE (Dave 2026-09-02, "Lean all the way into it"):
+        // the week's open time as the head's count, and under the card the
+        // clock the bars are drawn on and the one place a long thing would
+        // fit. All derived; a full or finished week says so quietly.
+        const ahead = weekRows.filter((r) => r.date >= todayDate);
+        const totalOpen = ahead.reduce((acc, r) => acc + r.openMin, 0);
+        const best = longestStretch(weekRows, todayDate);
+        const tickWin = weekRows.find((r) => r.date === todayDate) ?? weekRows[0];
+        // Ticks sit where the hours really are: the window's ends and noon.
+        const ticks = tickWin
+          ? [tickWin.windowS, ...(tickWin.windowS < 12 * 60 && tickWin.windowE > 12 * 60 ? [12 * 60] : []), tickWin.windowE]
+              .map((m) => ({ m, pct: ((m - tickWin.windowS) / Math.max(1, tickWin.windowE - tickWin.windowS)) * 100 }))
+          : [];
+        const tickLabel = (m: number) => { const h = Math.floor(m / 60) % 24; const r = m % 60; if (h === 12 && r === 0) return "noon"; return `${h % 12 || 12}${r ? ":" + String(r).padStart(2, "0") : ""} ${h >= 12 ? "PM" : "AM"}`; };
+        return (<>
+        <div className="sh2 sh2-quiet wk-head"><span className="t">This Week</span>
+          <span className="n">{ahead.length === 0 ? "Over" : totalOpen > 0 ? `${spanShort(totalOpen)} open` : "Full"}</span></div>
         <div className="pad-x"><div className="card list-card-ruled week-rows">
           {weekRows.map((r) => {
             const isToday = r.date === todayDate;
@@ -402,7 +419,14 @@ export default function SchedulePage({
             );
           })}
         </div></div>
-      )}
+        {ticks.length > 0 && (
+          <div className="wk-ticks" aria-hidden="true">{ticks.map((t, i) => <span key={i} style={{ left: t.pct + "%" }} className={i === 0 ? "first" : i === ticks.length - 1 ? "last" : undefined}>{tickLabel(t.m)}</span>)}</div>
+        )}
+        {best && (
+          <div className="wk-note">Longest open stretch <b>{WK[best.row.dow]} {stretchLabel(best.s, best.e)}</b> · {spanShort(best.e - best.s)}</div>
+        )}
+        </>);
+      })()}
 
       {/* A3 (audit 2026-08-21): everything below here is the DAY, and it was
           rendering under Repeats too. The repeats view is a list of what

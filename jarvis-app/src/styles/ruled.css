@@ -382,6 +382,7 @@
    time on the right in the ruled number style. A past day says how many
    blocks it held; a full day says Full in amber, the one warning colour. */
 .ruled .week-rows { padding: 0; overflow: hidden; }
+.ruled .sh2.wk-head .n { text-transform: none; letter-spacing: 0; }
 .ruled .wk-row { display: flex; align-items: center; gap: 12px; padding: 10px var(--s-4); min-height: 58px; cursor: pointer; }
 .ruled .wk-row + .wk-row { border-top: 0.5px solid var(--divider); }
 .ruled .wk-row:active { background: var(--press-3); }
@@ -399,3 +400,11 @@
 .ruled .wk-open { font-size: 12.5px; color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; min-width: 52px; text-align: right; }
 .ruled .wk-open b { color: var(--tx-1); font-weight: var(--w-semi); }
 .ruled .wk-open.wk-full { color: var(--warn); font-weight: var(--w-semi); }
+/* The clock the bars are drawn on, and the one line of advice under it. */
+.ruled .wk-ticks { position: relative; height: 16px; margin: 6px calc(var(--s-4) + 64px) 0 calc(var(--s-4) + 46px);
+  font-size: 9.5px; font-weight: var(--w-bold); letter-spacing: 0.06em; color: var(--tx-4); text-transform: uppercase; }
+.ruled .wk-ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.ruled .wk-ticks span.first { transform: none; }
+.ruled .wk-ticks span.last { transform: translateX(-100%); }
+.ruled .wk-note { padding: 10px var(--s-4) 0; font-size: 12.5px; color: var(--tx-3); }
+.ruled .wk-note b { color: var(--tx-1); font-weight: var(--w-semi); }

@@ -24,6 +24,8 @@ export interface WeekRow {
   blocks: WeekBlock[];
   count: number;         // blocks that occupy time (events plus non-focus containers)
   openMin: number;       // open minutes inside the window
+  /** The day's longest open stretch, minutes from midnight; null when none. */
+  longest: { s: number; e: number } | null;
 }
 
 const toMin = (hhmm: string) => { const p = hhmm.split(":"); return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0); };
@@ -44,12 +46,17 @@ export function weekRowsFor(dates: string[], events: EventItem[], routine: Routi
       ...evs.map((e) => ({ s: toMin(e.data.start), e: toMin(e.data.start) + durationOf(e.data), category: e.data.category ?? "", title: e.data.title })),
     ].sort((a, b) => a.s - b.s);
     const busyLocked = locked.filter((l) => !isFocusRange(l)).map((l) => ({ s: l.s, e: l.e }));
-    const openMin = openFrom >= win.endMin ? 0 : openSlots(evs, minToHHMM(openFrom), minToHHMM(win.endMin), 30, busyLocked)
-      .reduce((acc, sl) => acc + (toMin(sl.end) - toMin(sl.start)), 0);
+    const slots = openFrom >= win.endMin ? [] : openSlots(evs, minToHHMM(openFrom), minToHHMM(win.endMin), 30, busyLocked);
+    const openMin = slots.reduce((acc, sl) => acc + (toMin(sl.end) - toMin(sl.start)), 0);
+    let longest: { s: number; e: number } | null = null;
+    for (const sl of slots) {
+      const s = toMin(sl.start), e = toMin(sl.end);
+      if (!longest || e - s > longest.e - longest.s) longest = { s, e };
+    }
     return {
       date, day: new Date(date + "T00:00:00").getDate(), dow,
       windowS: win.wakeMin, windowE: win.endMin,
-      blocks, count: evs.length + busyLocked.length, openMin,
+      blocks, count: evs.length + busyLocked.length, openMin, longest,
     };
   });
 }
@@ -60,4 +67,22 @@ export function spanShort(min: number): string {
   const h = Math.floor(m / 60), r = m % 60;
   if (h === 0) return `${m}m`;
   return r ? `${h}h ${r}m` : `${h}h`;
+}
+
+/** The week's biggest open stretch among days not yet over: where a long
+ *  thing could go. Null when the week is full or over. */
+export function longestStretch(rows: WeekRow[], todayDate: string): { row: WeekRow; s: number; e: number } | null {
+  let best: { row: WeekRow; s: number; e: number } | null = null;
+  for (const row of rows) {
+    if (row.date < todayDate || !row.longest) continue;
+    if (!best || row.longest.e - row.longest.s > best.e - best.s) best = { row, s: row.longest.s, e: row.longest.e };
+  }
+  return best;
+}
+
+/** "1:00 to 5:30 PM": one meridiem when both ends share it. */
+export function stretchLabel(s: number, e: number): string {
+  const fmt = (m: number) => { const h = Math.floor(m / 60) % 24; const r = m % 60; const h12 = h % 12 || 12; return { t: `${h12}:${String(r).padStart(2, "0")}`, ap: h >= 12 ? "PM" : "AM" }; };
+  const a = fmt(s), b = fmt(e);
+  return a.ap === b.ap ? `${a.t} to ${b.t} ${b.ap}` : `${a.t} ${a.ap} to ${b.t} ${b.ap}`;
 }
