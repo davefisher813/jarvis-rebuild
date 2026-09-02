@@ -325,16 +325,26 @@ export default function BiggerPicturePage({
                 {ruledCard(goallessOrphans.map(pieRow))}
               </div>
             )}
-            {doneRows.length > 0 && (
-              <div className="pad-x"><div className="card list-card-ruled">
-                <button className="receipt-line" onClick={() => setDoneOpen((v) => !v)}>
-                  <span className="rl-t">{capAfterNumber(`${doneRows.length} Done ${doneRows.length === 1 ? "project" : "projects"}`)}</span>
-                  <div className="chev" />
-                </button>
-                {doneOpen && doneRows.map(pieRow)}
-              </div></div>
-            )}
-            <div className="pad-x"><div className="card list-card-ruled"><button className="row row-act" onClick={onAddProject}>Add Project</button></div></div>
+            {/* ONE CARD, NOT A STACK OF PILLS (Dave 2026-09-02: "I don't want
+                single pills stacking like this they don't look good"). The
+                done-projects receipt and Add Project used to be two separate
+                cards, each reading as its own floating pill. Now they are
+                two rows of the same card, Add Project ending it the way
+                .row-create already ends every gym list -- flat red text, a
+                hairline only when something sits above it, no pill ground
+                when it is alone (THE PREVIEW IS THE SPEC, 2026-09-01). */}
+            <div className="pad-x"><div className="card list-card-ruled">
+              {doneRows.length > 0 && (
+                <>
+                  <button className="receipt-line" onClick={() => setDoneOpen((v) => !v)}>
+                    <span className="rl-t">{capAfterNumber(`${doneRows.length} Done ${doneRows.length === 1 ? "project" : "projects"}`)}</span>
+                    <div className="chev" />
+                  </button>
+                  {doneOpen && doneRows.map(pieRow)}
+                </>
+              )}
+              <button className="row-create" onClick={onAddProject}>Add Project</button>
+            </div></div>
           </>
         ) : (
           <>
@@ -349,7 +359,7 @@ export default function BiggerPicturePage({
                 {ruledCard(unhomed.map(goalRowRuled))}
               </div>
             )}
-            <div className="pad-x"><div className="card list-card-ruled"><button className="row row-act" onClick={onAddGoal}>Add Goal</button></div></div>
+            <div className="pad-x"><div className="card list-card-ruled"><button className="row-create" onClick={onAddGoal}>Add Goal</button></div></div>
           </>
         )}
         <div className="screen-foot" />

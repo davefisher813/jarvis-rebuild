@@ -59,6 +59,22 @@ describe("suggestCategory", () => {
     expect(suggestCategory(hist, tasks, "water the plants")).toBeNull();
     expect(suggestCategory([], [], "")).toBeNull();
   });
+  // 2026-09-02, Dave: three pasted tasks with no goal chosen got silently
+  // tied to a goal that had nothing to do with them. Root cause: generic
+  // verbs ("call", "send", "text"...) were treated as significant words, so
+  // any two past tasks that merely shared a common verb outvoted the real
+  // content into a category, and from there the upward-look picked up
+  // whatever goal that category happened to be tagged to.
+  it("does not let a shared generic verb outvote into an unrelated category", () => {
+    const noisyHist = [evt("Call the plumber", { category: "money" })];
+    const noisyTasks = [{ text: "Call Grandma", category: "money" }];
+    expect(suggestCategory(noisyHist, noisyTasks, "Call insurance")).toBeNull();
+  });
+  it("still learns from a real content word repeated across history", () => {
+    const realHist = [evt("Renew car insurance", { category: "money" })];
+    const realTasks = [{ text: "Check insurance policy", category: "money" }];
+    expect(suggestCategory(realHist, realTasks, "Call insurance")).toBe("money");
+  });
 });
 
 describe("repeatCandidate", () => {

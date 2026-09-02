@@ -239,7 +239,7 @@ export default function HealthBody({
             onStart={t.data.reminder ? undefined : onStartTask}
           />
         ))}
-        <button className="row row-act" onClick={onAddTask}>Add Task</button>
+        <button className="row-create" onClick={onAddTask}>Add Task</button>
       </div></div>
 
       {more}

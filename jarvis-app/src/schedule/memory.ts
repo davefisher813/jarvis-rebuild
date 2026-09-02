@@ -91,6 +91,24 @@ export function suggestLocations(events: EventItem[], title: string, limit = 3):
     .map(([loc]) => loc);
 }
 
+// Generic verbs and connectors carry no category signal on their own: "call
+// the plumber" and "call the insurance company" share nothing but the fact
+// that somebody called somebody. Left unfiltered, a title built from these
+// (send, call, text, back...) racks up stray votes from ANY past task that
+// happens to share one, and whichever category has the most history becomes
+// a magnet for words that never meant it (Dave 2026-09-02: three pasted
+// tasks with no goal chosen got silently tied to a goal they had nothing to
+// do with, because the category under it wins this vote on generic-word
+// noise alone). A real content word -- "invoice", "insurance" -- stays a
+// signal; only the words too common to mean anything are cut.
+const STOPWORDS = new Set([
+  "back", "call", "come", "does", "doing", "done", "down", "each", "from",
+  "have", "here", "into", "just", "keep", "know", "like", "make", "more",
+  "need", "next", "note", "once", "only", "over", "past", "reply", "send",
+  "some", "such", "sure", "take", "text", "than", "that", "them", "then",
+  "they", "this", "very", "want", "what", "when", "will", "with", "your",
+]);
+
 // Category learned from history: exact-title event match first, then the
 // category whose past titles (events AND tasks) share a significant word with
 // the text. Used to prefill capture when nothing chose a category.
@@ -103,7 +121,7 @@ export function suggestCategory(
   if (!q) return null;
   const exact = byTitle(events).get(q);
   if (exact?.[0]?.data.category) return exact[0].data.category;
-  const words = new Set(q.split(/\s+/).filter((w) => w.length >= 4));
+  const words = new Set(q.split(/\s+/).filter((w) => w.length >= 4 && !STOPWORDS.has(w)));
   if (words.size === 0) return null;
   const votes = new Map<string, number>();
   const vote = (title: string, cat: string) => {

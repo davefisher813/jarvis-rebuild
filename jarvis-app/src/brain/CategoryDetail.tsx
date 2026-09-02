@@ -799,7 +799,7 @@ export default function CategoryDetail({
                 </div>
               );
             })}
-            <button className="row row-act" onClick={() => setSheet({ kind: "project" })}>Add Project</button>
+            <button className="row-create" onClick={() => setSheet({ kind: "project" })}>Add Project</button>
           </div></div>
         </>
       )}
@@ -837,7 +837,7 @@ export default function CategoryDetail({
             />
           );
         })}
-        <button className="row row-act" onClick={() => setSheet({ kind: "task" })}>Add Task</button>
+        <button className="row-create" onClick={() => setSheet({ kind: "task" })}>Add Task</button>
       </div></div>
 
       {notes.length > 0 && (
