@@ -260,7 +260,7 @@ function draftNotice(d: MailDraftRow): MailNotice {
     threadId: d.threadId || d.id,
     title: d.subject.trim() ? "Unsent: " + d.subject.trim() : "An Unsent Draft",
     sub: d.line,
-    action: "Finish It",
+    action: "Finish",
     tone: "cat-fg-magenta",
     draftId: d.id,
   };

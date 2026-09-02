@@ -3,6 +3,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { NotesProvider } from "../data/NotesProvider";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";
@@ -86,19 +88,23 @@ describe("MessagesFlow (threads)", () => {
     ]));
     render(wrap(<MessagesFlow ai={ai} configured />));
     fireEvent.click(await screen.findByText("Connect Google"));
-    expect(await screen.findByText("Needs You")).toBeInTheDocument();
+    // THE OUTCOME SWITCH (ruled 2026-09-01, built 2026-09-02): Needs You is
+    // a segment now, with its count on the label, and the only one that
+    // renders when nothing is waiting. The rows ride in one card.
+    const tab = await screen.findByRole("tab", { name: /Needs You/ });
+    expect(tab).toHaveAttribute("aria-selected", "true");
+    expect(tab.querySelector(".seg-n")).toHaveTextContent("1");
+    expect(screen.queryByRole("tab", { name: /Waiting On/ })).toBeNull();
+    expect(document.querySelector(".list-card-ruled .row")).toBeTruthy();
     // SPEC MOVED (E14, 2026-08-23): the promo card that carried the count and
-    // the verb is retired. The head carries both, which is a whole card of
-    // height back. "1 Thread Needs You" said in three lines what
-    // "Needs You · 1 · Deal With It" says in one.
+    // the verb is retired. "1 Thread Needs You" said in three lines what the
+    // switch says in one.
     expect(screen.queryByText("1 Thread Needs You")).toBeNull();
     expect(screen.getByText("The Sweep")).toBeInTheDocument();
     expect(screen.getByText(/Ridgeley needs the waiver by Friday/)).toBeInTheDocument();
     // THE FOLD: everything that does not need him is one line, not a section.
     // SPEC MOVED (V2 anatomy, 2026-08-15): the count is a pill beside the line.
     expect(screen.getByText("The Rest")).toBeInTheDocument();
-    // Two counts now: one on the Needs You head, one on the fold.
-    expect(screen.getAllByText("1").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("Noise")).toBeNull();
     expect(screen.queryByText(/machine wrote/i)).toBeNull();
     // It expands in place, and noise inside it is still collapsed to a line.
@@ -393,6 +399,15 @@ describe("MessagesFlow (threads)", () => {
   it("shows an honest setup state when unconfigured", () => {
     render(wrap(<MessagesFlow ai={noAI} configured={false} />));
     expect(screen.getByText("Connect Your Email")).toBeInTheDocument();
+  });
+
+  // THE BLANK EMAIL PAGE (2026-09-02, found by the CLEAN=1 build): a build
+  // with no backend passes demoMail, and a CLEAN build has no fixture
+  // module. The flag alone must never blank the page.
+  it("with demoMail set but no fixture module, the setup state renders, never a blank", () => {
+    const src = readFileSync(join(__dirname, "MessagesFlow.tsx"), "utf8");
+    expect(src, "the demo branch is gated on the module, not the flag alone").toMatch(/if \(demoMail && DemoMail\) \{/);
+    expect(src).not.toMatch(/\) : null;\s*\}\s*return \(\s*<div className=\{"screen " \+ pushCls\} key="connect">/);
   });
 
   it("renders the demo fixture instead of the setup state when demoMail is set", async () => {

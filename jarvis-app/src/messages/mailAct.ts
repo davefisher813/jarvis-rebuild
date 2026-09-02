@@ -161,5 +161,5 @@ export function readAct(p: ActProposal | null | undefined, todayISO: string, now
 // app's own vocabulary anyway, next to Draft It and Finish It, and "Add Bill"
 // is exactly parallel to the "Add Task" on the card above it.
 export function actLabel(a: MailAct): string {
-  return a.verb === "schedule" ? "Schedule It" : a.verb === "bill" ? "Add Bill" : "Add Task";
+  return a.verb === "schedule" ? "Schedule" : a.verb === "bill" ? "Add Bill" : "Add Task";
 }

@@ -1636,7 +1636,7 @@ export default function TodayFlow({
       tone="cat-fg-orange"
       title={overflowOffer.title}
       sub="No room left today"
-      action={{ label: "Leave It", onClick: () => setOverflowOffer(null) }}
+      action={{ label: "Leave", onClick: () => setOverflowOffer(null) }}
       alt={{
         label: "Set Aside",
         onClick: () => void (async () => {
@@ -1707,7 +1707,7 @@ export default function TodayFlow({
         tone="cat-fg-purple"
         title={revisit.data.decision}
         sub="You wanted to revisit this today"
-        action={{ label: "Still Good", onClick: () => void stillGood(revisit) }}
+        action={{ label: "Keep", onClick: () => void stillGood(revisit) }}
         alt={{ label: "Change It", onClick: () => setRevisitSheet(true) }}
       />
     ) : null,
@@ -1741,7 +1741,7 @@ export default function TodayFlow({
           // exactly how a day turns into the one Dave photographed. The list
           // is already assembled and the planner already takes a list, so
           // the forward move costs nothing.
-          label: "Plan Them",
+          label: "Plan",
           onClick: () => void openPlan("today"),
         }}
         alt={sweepCand && !planned.has(sweepCand.id) ? {
@@ -1860,7 +1860,7 @@ export default function TodayFlow({
         tone="cat-fg-green"
         title={finishedProject.project.data.title}
         sub={capAfterNumber(`All ${finishedProject.progress?.total ?? 0} done`)}
-        action={{ label: "Close It", onClick: () => void closeProject(finishedProject.project.id) }}
+        action={{ label: "Close", onClick: () => void closeProject(finishedProject.project.id) }}
         // LAW 2 (2026-08-29): "every task in it is finished" is not the same
         // claim as "the project is over", and a project he is deliberately
         // keeping open had no way to say so -- the card returned every day
@@ -2209,7 +2209,7 @@ export default function TodayFlow({
       tone="cat-fg-purple"
       title={`Your ${monthTitle(reportMonth)} is ready`}
       sub="Two minutes"
-      action={{ label: "Read It", onClick: () => setReportOpen(true) }}
+      action={{ label: "Read", onClick: () => setReportOpen(true) }}
       // LAW 2 (2026-08-29): it had no way out. Reading the report marked it
       // seen; NOT wanting to read it had no expression at all, so the card
       // sat there every day until he gave in. Dismiss marks the same month

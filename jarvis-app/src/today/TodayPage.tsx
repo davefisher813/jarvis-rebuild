@@ -514,7 +514,7 @@ export default function TodayPage({
         sub={billLine.sub}
         // A bill card with no button is the same dead end the old email line
         // was: it tells him he owes money and stops. One tap marks it paid.
-        action={onPayBill ? { label: "Mark Paid", onClick: onPayBill } : undefined}
+        action={onPayBill ? { label: "Paid", onClick: onPayBill } : undefined}
       />
     ) : null,
     freshStart ? (

@@ -274,7 +274,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       icon={<Lightbulb className="ic" />}
       tone="cat-fg-yellow"
       title={aiPick.s.text}
-      action={aiPick.s.task ? { label: "Add to Today", onClick: () => void addToToday(aiPick.i, aiPick.s.task!) } : undefined}
+      action={aiPick.s.task ? { label: "Add", onClick: () => void addToToday(aiPick.i, aiPick.s.task!) } : undefined}
       onDismiss={dismissThis}
     />
   );

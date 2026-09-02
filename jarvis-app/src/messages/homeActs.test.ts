@@ -16,7 +16,7 @@ describe("an email that states a commitment offers the commitment", () => {
     const n = mailNotices(snap([thread("t1", { act: { kind: "appointment", title: "Dental cleaning", date: "2026-08-27", start: "14:00" } })]), TODAY, NOON);
     expect(n).toHaveLength(1);
     expect(n[0]!.kind).toBe("act");
-    expect(n[0]!.action).toBe("Schedule It");
+    expect(n[0]!.action).toBe("Schedule");
     // The sub states what the button will WRITE. This card changes his
     // schedule without opening anything, so it has to show the event first.
     expect(n[0]!.sub).toContain("2:00");

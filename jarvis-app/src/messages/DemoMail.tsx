@@ -70,6 +70,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
   // The compose surface is real typing even in the demo: the fields work,
   // only Send explains itself. Dave sees the page, nothing pretends to mail.
   const [composing, setComposing] = useState(false);
+  const [outcome, setOutcome] = useState<"needs" | "waiting">("needs");
   const [draft, setDraft] = useState({ to: "", subject: "", body: "" });
 
   if (composing) {
@@ -92,7 +93,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
   }
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <PageHeader title="Email" actions={<BarAction label="New Message" onClick={() => setComposing(true)}><Plus className="ic" /></BarAction>} />
       <div className="pad-x">
         <input className="msg-input msg-search" placeholder="Search All Mail" onFocus={demoTap} readOnly />
@@ -119,11 +120,20 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
           <div className="mode-go mode-go-quiet">Open</div>
         </div>
       </div>
-      <div className="sh2 sh2-quiet">
-        <span className="t">Needs You</span>
-        <span className="n">{NEEDS.length}</span>
+      {/* THE OUTCOME SWITCH (ruled 2026-09-01), the same one MessagesFlow
+          draws: one section at a time, counts on the labels. The demo never
+          shows an anatomy the app does not have. */}
+      <div className="pad-x outcome-seg">
+        <div className="segmented" role="tablist" aria-label="Outcome">
+          {(["needs", "waiting"] as const).map((o) => (
+            <button key={o} role="tab" aria-selected={o === outcome} className={"seg" + (o === outcome ? " active" : "")} onClick={() => setOutcome(o)}>
+              {o === "needs" ? "Needs You" : "Waiting On"}<span className="seg-n">{o === "needs" ? NEEDS.length : WAITING.length}</span>
+            </button>
+          ))}
+        </div>
       </div>
-      <div><div className="list-flat">
+      {outcome === "needs" && (<>
+      <div className="pad-x"><div className="card list-card-ruled">
         {NEEDS.map((r) => (
           <div className="row" role="button" tabIndex={0} key={r.from} onClick={demoTap}>
             <span className={railClass(!!r.unread, railToneForDeadline(r.due))}></span>
@@ -138,9 +148,10 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
         ))}
       </div></div>
       <ListFloor />
+      </>)}
 
-      <div className="sh2 sh2-quiet"><span className="t">Waiting On</span><span className="n">{WAITING.length}</span></div>
-      <div><div className="list-flat">
+      {outcome === "waiting" && (<>
+      <div className="pad-x"><div className="card list-card-ruled">
         {WAITING.map((w) => {
           const d = decide(w.sub, "", w.days);
           return (
@@ -158,6 +169,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
         })}
       </div></div>
       <ListFloor />
+      </>)}
 
       <div className="pad-x msg-fold">
         <div className="card">

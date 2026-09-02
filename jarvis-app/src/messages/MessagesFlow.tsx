@@ -122,6 +122,18 @@ type Draft = { to: string; subject: string; body: string; inReplyTo?: string; th
 type DraftRow = { id: string; to: string; subject: string; snippet: string; dateMs?: number; threadId?: string };
 type View = "list" | "detail" | "compose" | "deck" | "dead" | "rules" | "purge";
 type Filter = "triage" | "all" | "drafts";
+type Outcome = "needs" | "waiting" | "owed";
+let lastOutcome: Outcome = "needs";
+const OUTCOME_LABEL: Record<Outcome, string> = { needs: "Needs You", waiting: "Waiting On", owed: "Nothing Owed" };
+// The selection, or the first outcome that has anything when the selected
+// one is empty. The same rule the switch draws by, so the two agree.
+function outcomeShown<W>(sel: Outcome, needsYou: unknown[], waiting: W[], decide: (w: W) => { ask: string }): Outcome | null {
+  const owed = waiting.filter((w) => decide(w).ask !== "nothing").length;
+  const unowed = waiting.length - owed;
+  const counts: Record<Outcome, number> = { needs: needsYou.length, waiting: owed, owed: unowed };
+  if (counts[sel] > 0) return sel;
+  return (["needs", "waiting", "owed"] as Outcome[]).find((o) => counts[o] > 0) ?? null;
+}
 type TriageState = "idle" | "pending" | "ready" | "failed";
 
 // One recipient's name, or "3 people" when a draft has several. The raw To
@@ -375,6 +387,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [draftsLoaded, setDraftsLoaded] = useState(false);
   // No AI build: there is no For You chip at all, so the tab opens on All.
   const [filter, setFilter] = useState<Filter>(ai.available ? "triage" : "all");
+  // THE OUTCOME SWITCH (ruled 2026-09-01: "a segmented switch across the top
+  // for the outcome sections"). For You showed Needs You, Waiting On and
+  // Nothing Owed stacked down one screen; it shows one at a time now, the
+  // switch says which and how many, and The Rest stays the one row under
+  // it. Remembered within the session, reset on launch.
+  const [outcome, setOutcome] = useState<Outcome>(lastOutcome);
+  const pickOutcome = (o: Outcome) => { lastOutcome = o; setOutcome(o); };
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<ThreadRow[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -2071,16 +2090,24 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // the App Store demo read as a working inbox. Off unless the shell says
     // this session is the seeded demo (tests and real builds keep the honest
     // connect state).
-    if (demoMail) {
+    // THE BLANK EMAIL PAGE (2026-09-02, found by the CLEAN=1 build). A build
+    // with no backend mounts the shell with seedDemo on, and that flag
+    // arrives here as demoMail. In a demo build the fixtures render; in a
+    // CLEAN build the fixture module does not exist, and this branch used
+    // to return null on the flag alone, so a new user opening Email got a
+    // black screen with no words on it. The flag only means something when
+    // the module is here; otherwise fall through to the honest connect
+    // screen, which is what a real user without mail should see.
+    if (demoMail && DemoMail) {
       // Lazy AND behind the build constant: the fixtures live in that module,
       // so a static import would ship them to every real user.
-      return DemoMail ? (
+      return (
         <div className={pushCls} key="demo">
           <Suspense fallback={null}>
             <DemoMail onConnect={configured ? connect : onOpenConnections} />
           </Suspense>
         </div>
-      ) : null;
+      );
     }
     return (
       <div className={"screen " + pushCls} key="connect">
@@ -2588,7 +2615,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   };
 
   return (
-    <div className={"screen " + pushCls} key="list">
+    <div className={"screen ruled " + pushCls} key="list">
       <PageHeader title="Email" actions={<BarAction label="New Message" onClick={startCompose}><Plus className="ic" /></BarAction>} />
       {/* The hold. It is the whole point of undo-send that this is loud,
           reachable, and honest about what is happening: the message has NOT
@@ -2944,7 +2971,34 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             );
           })()}
 
-          {needsYou.length > 0 && (
+          {(() => {
+            // The switch: only outcomes that have anything, counts on the
+            // labels, and a selection that has emptied falls to the first
+            // live one. Never renders a zero.
+            const rungsAll = waiting.map((w) => ({ w, d: decideFor(w) }));
+            const counts: Record<Outcome, number> = {
+              needs: needsYou.length,
+              waiting: rungsAll.filter((r) => r.d.ask !== "nothing").length,
+              owed: rungsAll.filter((r) => r.d.ask === "nothing").length,
+            };
+            const live = (Object.keys(OUTCOME_LABEL) as Outcome[]).filter((o) => counts[o] > 0);
+            if (live.length === 0) return null;
+            const cur = live.includes(outcome) ? outcome : live[0]!;
+            return (
+              <div className="pad-x outcome-seg">
+                <div className="segmented" role="tablist" aria-label="Outcome">
+                  {live.map((o) => (
+                    <button key={o} role="tab" aria-selected={o === cur}
+                      className={"seg" + (o === cur ? " active" : "")}
+                      onClick={() => { if (o !== cur) pickOutcome(o); }}>
+                      {OUTCOME_LABEL[o]}<span className="seg-n">{counts[o]}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+          {needsYou.length > 0 && outcomeShown(outcome, needsYou, waiting, decideFor) === "needs" && (
             <>
               {/* E14 (2026-08-23): the verb rides the head.
                   It used to live in a promo card above the whole list that
@@ -2964,11 +3018,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   none of them the reason you opened the tab. The mode deck
                   above already says where to start, so no head here needs to
                   compete with it and all three recede into a spine. */}
-              <div className="sh2 sh2-quiet">
-                <span className="t">Needs You</span>
-                <span className="n">{needsYou.length}</span>
-              </div>
-              <div><div className="list-flat">
+              {/* The switch above names the section and counts it; a head
+                  here would say it twice (the repetition law). */}
+              <div className="pad-x"><div className="card list-card-ruled">
                 {needsYou.map((r) => threadRow(r, effTriage[r.id]?.gist, false, true))}
               </div></div>
               {/* L2: the list ends somewhere and says so. This floor once
@@ -2981,6 +3033,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             </>
           )}
           {waiting.length > 0 && (() => {
+            const shown = outcomeShown(outcome, needsYou, waiting, decideFor);
+            if (shown !== "waiting" && shown !== "owed") return null;
             // Dave, 2026-08-21: "Email buttons suck. Make them useful."
             // They were useless for two reasons, both visible here.
             //
@@ -3005,14 +3059,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             const unowed = rungs.filter((r) => r.d.ask === "nothing");
             return (
             <>
+              {shown === "waiting" && owed.length > 0 && (<>
               {/* E1 (2026-08-23): the count moved onto the head and the
                   standing sentence under it went away. It said "all of these
                   are past the point where another email helps" on every
                   render where every row was firm, which in a real aged inbox
-                  is every render. Permanent helper text is not help. */}
-              <div className="sh2 sh2-quiet">
+                  is every render. Permanent helper text is not help.
+                  2026-09-02: the switch above names and counts the section;
+                  the head stays only as the slot the deck's controls use. */}
+              <div className="sh2 sh2-quiet outcome-head">
                 <span className="t">Waiting On</span>
-                <span className="n">{owed.length}</span>
                 {/* E6: one decision on screen, nothing else. Not a batch
                     verb, which this head is forbidden (a batch here would
                     send real emails); each card still takes its own tap. */}
@@ -3060,7 +3116,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 return bands.map((band) => (
                 <div key={band.label}>
                   {heads && <div className="msg-fold-head">{band.label}<span className="band-n">{band.rows.length}</span></div>}
-                  <div className="list-flat">
+                  <div className="pad-x"><div className="card list-card-ruled">
                   {band.rows.map(({ w, d }) => (
                     <LetGoSwipe
                       key={w.threadId}
@@ -3082,21 +3138,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     </div>
                     </LetGoSwipe>
                   ))}
-                  </div>
+                  </div></div>
                 </div>
                 ));
               })()}
+              </>)}
               {/* Nothing is owed on these, so they get their own quiet band
                   and an honest button instead of sitting in Waiting On
                   pretending somebody is late. */}
-              {unowed.length > 0 && (
+              {shown === "owed" && unowed.length > 0 && (
                 <>
-                  <div className="sh2 sh2-quiet">
+                  <div className="sh2 sh2-quiet outcome-head">
                     <span className="t">Nothing Owed</span>
-                    <span className="n">{unowed.length}</span>
-                    <button className="see-all" onClick={() => dropAll(unowed.map(({ w }) => w.threadId))}>Archive These</button>
+                    <button className="see-all pill-action" onClick={() => dropAll(unowed.map(({ w }) => w.threadId))}>Archive These</button>
                   </div>
-                  <div><div className="list-flat">
+                  <div className="pad-x"><div className="card list-card-ruled">
                     {unowed.map(({ w, d }) => (
                       <LetGoSwipe
                         key={w.threadId}

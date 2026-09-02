@@ -322,10 +322,15 @@ export default function MailNotices({
             title={n.title}
             sub={draft ? undefined : n.sub}
             heat={n.kind === "nudge" ? (days >= 21 ? "hot" : days >= 7 ? "warm" : null) : null}
+            // ONE-WORD VERBS (ruled 2026-09-01, "the email row": one fixed
+            // action column, one-word verbs, so the column aligns with or
+            // without a chip). "Draft It" is "Draft"; Reply stays Reply.
+            // The two that keep their object (Add Task, Add Bill) do so
+            // because the verb alone would not say what it makes.
             action={{
               label: loading
                 ? (n.kind === "meeting" ? "Booking…" : "Writing…")
-                : writable(n) && !draft ? (n.kind === "reply" ? "Draft It" : n.action) : n.action,
+                : writable(n) && !draft ? (n.kind === "reply" ? "Draft" : n.action) : n.action,
               onClick: () => act(n),
             }}
             // U4: "not right now" is not "not today". A snooze names a time

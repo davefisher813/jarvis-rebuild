@@ -236,3 +236,26 @@
 .ruled .anytime-row + .anytime-row { border-top: 0; }
 .ruled .anytime-row + .anytime-row::before { content: ""; position: absolute; left: calc(var(--s-4) + 44px + var(--s-3)); right: 0; top: 0;
   height: 0.5px; background: var(--divider); }
+
+/* ---------- EMAIL, PORTED (2026-09-02, fifth surface) ----------------------
+   The outcome switch under the mode chips: Needs You / Waiting On / Nothing
+   Owed, one at a time, counts on the labels. Lists are cards (rows inside,
+   hairlines). The mail row keeps its own hierarchy (the verdict line is the
+   strong one) and takes the ruled sizes; the ledger row is the ruled row
+   with the person as its kicker. Swipe colours are iOS Mail's: archive
+   blue, delete red. */
+.ruled .outcome-seg { padding-top: var(--s-1); padding-bottom: var(--s-2h); }
+.ruled .outcome-seg .segmented .seg { min-height: 34px; display: inline-flex; align-items: center; justify-content: center;
+  gap: 5px; border: 0; font-family: inherit; white-space: nowrap; padding-inline: var(--s-2); }
+.ruled .outcome-seg .segmented .seg:not(.active) { background: transparent; }
+.ruled .seg-n { font-size: 11px; font-weight: var(--w-bold); opacity: 0.6; font-variant-numeric: tabular-nums; }
+.ruled .outcome-head { margin-top: var(--s-2); }
+.ruled .list-card-ruled .row { background: var(--surface-1); }
+.ruled .list-card-ruled > .task-swipe + .task-swipe .row::before { display: none; }
+.ruled .msg-from { font-size: 15.5px; font-weight: var(--w-regular); }
+.ruled .msg-headline { font-size: 15px; }
+.ruled .msg-headline.msg-strong { font-weight: var(--w-medium); }
+.ruled .msg-line .conn-name { font-size: 16px; font-weight: var(--w-regular); letter-spacing: -0.01em; }
+.ruled .msg-gist { font-size: 12.5px; color: var(--tx-3); }
+.ruled .mail-arch[aria-label="Archive"] { background: #0A84FF; color: #fff; } /* More moves keeps the neutral fill */
+.ruled .msg-fold-head { padding-left: var(--s-4); }

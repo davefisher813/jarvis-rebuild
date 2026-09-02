@@ -60,7 +60,7 @@ describe("law 2: degrade, never upgrade", () => {
   it("an appointment with a time is a schedule action", () => {
     const a = readAct({ kind: "appointment", title: "Video visit", date: "2026-08-27", start: "14:00" }, TODAY);
     expect(a).toEqual({ verb: "schedule", title: "Video visit", date: "2026-08-27", start: "14:00", durationMin: DEFAULT_MIN });
-    expect(actLabel(a!)).toBe("Schedule It");
+    expect(actLabel(a!)).toBe("Schedule");
   });
 
   it("an appointment with no time is a reminder for that day", () => {

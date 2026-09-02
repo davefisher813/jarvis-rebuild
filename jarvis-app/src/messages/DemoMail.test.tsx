@@ -16,14 +16,16 @@ describe("DemoMail fixture", () => {
     // anatomy, which makes a stale copy of it the one thing it must never be.
     expect(screen.queryByText("3 Threads Need You")).toBeNull();
     expect(document.querySelectorAll(".deck-cta").length).toBe(0);
-    expect(screen.getByText("Needs You")).toBeInTheDocument();
-    expect(screen.getByText("Waiting On")).toBeInTheDocument();
+    // THE OUTCOME SWITCH (2026-09-02): the sections are segments now, one
+    // shown at a time, counts on the labels; The Rest stays the one row.
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.map((t) => t.textContent)).toEqual(["Needs You3", "Waiting On4"]);
     expect(screen.getByText("The Rest")).toBeInTheDocument();
-    // The verb and the count moved onto the head, and the counts still match
-    // the fixtures, so the numbers cannot drift.
     expect(screen.getByText("The Sweep")).toBeInTheDocument();
-    const counts = [...document.querySelectorAll(".sh2 .n")].map((e) => e.textContent);
-    expect(counts).toEqual(["3", "4"]);
+    // Needs You shows first; Waiting On's rows are one tap over.
+    expect(screen.getByText("Northwind Cloud")).toBeInTheDocument();
+    expect(screen.queryByText(/Summitgear · Missing Items/)).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: /Waiting On/ }));
     // E2 (2026-08-24): THE ASK LEADS. The verb is the headline and the sender
     // is context beneath it, so the name shares a line with the subject now.
     expect(screen.getByText(/Summitgear · Missing Items/)).toBeInTheDocument();
@@ -40,7 +42,8 @@ describe("DemoMail fixture", () => {
     expect(acts.length).toBeGreaterThan(2);
     expect(new Set(acts).size).toBeGreaterThan(1);
     expect(acts).toContain("Stop Tracking"); // the receipt owes nothing
-    expect(screen.getByText("Northwind Cloud")).toBeInTheDocument();
+    // One section at a time: Needs You's rows left when Waiting On came.
+    expect(screen.queryByText("Northwind Cloud")).toBeNull();
   });
 
   it("shows Connect Google only when a connect handler exists", () => {
