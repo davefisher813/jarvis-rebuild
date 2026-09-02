@@ -11,6 +11,7 @@ import AddBlockSheet from "./screens/AddBlockSheet";
 import Connections from "./screens/Connections";
 import LinkPicker from "./screens/LinkPicker";
 import { showToast } from "../shared/toast";
+import { parseRich } from "./richtext";
 
 import { attemptWrite } from "../shared/guard";
 import { recordSpot } from "../restore/whereYouWere";
@@ -77,6 +78,20 @@ function starterBlock(type: BlockType): Omit<Block, "id"> {
     case "photo": return { type, name: "Photo", size: "" };
     case "file": return { type, name: "Attachment", size: "" };
   }
+}
+
+// The first line of a note's body, as words: the first block that carries
+// text, rich markers stripped, a list's first item. "" when the note is
+// only a title.
+function firstLine(blocks: Block[] | undefined): string {
+  for (const b of blocks ?? []) {
+    if (b.type === "photo" || b.type === "file" || b.type === "table") continue;
+    if (b.text && b.text.trim()) return parseRich(b.text).map((seg) => seg.text).join("").trim();
+    const it = b.items?.[0];
+    const t = typeof it === "string" ? it : it?.text;
+    if (t && t.trim()) return t.trim();
+  }
+  return "";
 }
 
 export default function NotesFlow({
@@ -225,7 +240,13 @@ export default function NotesFlow({
     setList(
       items.map((it) => {
         const d = it.data as unknown as NoteData;
-        return { id: it.id, title: d.title || "Untitled", date: "", category: d.category || "" };
+        // WHEN IT WAS LAST TOUCHED (Notes and Money catalog, 2026-09-02).
+        // The store's server time is the row's updated_at as epoch millis in
+        // production and a bare counter in the in-memory store, so only a
+        // value that reads as a real date (past 2001) is one; anything else
+        // is "unknown" and the row shows no date rather than a wrong one.
+        const edited = it.serverTime > 1e12 ? it.serverTime : 0;
+        return { id: it.id, title: d.title || "Untitled", edited, category: d.category || "", first: firstLine(d.blocks) };
       }),
     );
   }, [svc]);

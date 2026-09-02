@@ -13,8 +13,12 @@ import BillSheet, { type BillDraft } from "./BillSheet";
 import type { TaskItem } from "../tasks/TasksService";
 import { showToast } from "../shared/toast";
 import { todayISO } from "../tasks/grouping";
-import { catColor, goalTone } from "../shared/categories";
-import { DollarGlyph, RepeatGlyph, WalletGlyph, TargetGlyph } from "../shared/glyphs";
+import { goalTone } from "../shared/categories";
+import { RepeatGlyph, WalletGlyph, TargetGlyph } from "../shared/glyphs";
+import { TaskRow } from "../tasks/screens/TasksPage";
+import { daysBetween } from "../upnext/upnext";
+import { attemptWrite } from "../shared/guard";
+import { capAfterNumber } from "../shared/casing";
 import type { Goal } from "../life/types";
 import { savingsLine, savingsPct, savedTotal } from "../bigger/savings";
 
@@ -23,8 +27,24 @@ const PLUS = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="current
 const WALLET = <WalletGlyph />;
 const TRASH = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>;
 const REPEAT = <RepeatGlyph />;
-// V2 anatomy (2026-08-15): money sections carry the green money tile.
-const DOLLAR = <DollarGlyph />;
+
+// THE BILL'S CHIP (ruled 2026-09-01, "Bill rows: amount right, urgency
+// chip"; built 2026-09-02 with the Notes and Money port). The same distance
+// chip a task row wears, in the same two tones: the system red for late,
+// warn for due soon. Beyond six days out, paid, or on autopay, no chip: the
+// second line carries the date words and nothing shouts.
+function billChip(t: TaskItem, today: string): { cls: string; text: string } | null {
+  const b = t.data.bill;
+  const due = t.data.due;
+  if (!b || b.autopay || !due) return null;
+  const over = daysBetween(due, today);
+  if (over > 0) return { cls: "u-late", text: capAfterNumber(over === 1 ? "1 day late" : `${over} days late`) };
+  const gap = daysBetween(today, due);
+  if (gap === 0) return { cls: "u-today", text: "Today" };
+  if (gap === 1) return { cls: "u-today", text: "Tomorrow" };
+  if (gap <= 6) return { cls: "u-today", text: `In ${gap} days` };
+  return null;
+}
 
 const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
 
@@ -218,35 +238,68 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
   const daysLeft = nextPay ? daysUntil(today, nextPay) : 0;
   const balanceAsOf = accounts.map((a) => a.data.asOf).filter((d): d is string => !!d).sort().pop();
 
+  // TASKS TAGGED MONEY ARE TASKS (Health's Up Next got the same row on
+  // 2026-09-02: "like it does everywhere else"): the Tasks page's own row,
+  // check, swipe, Delete with Undo. No Start here: money is not a fifteen-
+  // minute block. No Tomorrow either, for the reason bills never had one.
+  const deleteTagged = async (id: string) => {
+    const t = await tasksSvc.task(id);
+    const ok = await attemptWrite(() => tasksSvc.deleteTask(id));
+    await reload();
+    if (ok && t) {
+      showToast({
+        message: "Task deleted",
+        actionLabel: "Undo",
+        onAction: async () => {
+          await attemptWrite(() => tasksSvc.createTask(t.text, { category: t.category || undefined, due: t.due ?? null, recurrence: t.recurrence }));
+          await reload();
+        },
+      });
+    }
+  };
+
+  // THE BILL ROW (ruled 2026-09-01: amount right, urgency chip; built with the
+  // Notes and Money port 2026-09-02). The task row's own anatomy: the
+  // rounded-square check (autopay wears the repeat glyph in that column,
+  // because there is nothing to tick), the name, one grey line with the
+  // chip and the date words, the amount in the trailing column. The caps
+  // eyebrow that used to carry the date is gone with the rest of them.
   const billRows = (
-    <div>
+    <>
       {anchor && (
-        <div className="row" role="button" tabIndex={0} onClick={() => setPaydayOpen(true)}>
-          <div className="row-grow">
-            <div className="conn-name">{anchor.title}</div>
-            <div className="eyebrow">{anchor.sub}</div>
+        <div className="task-row p2" role="button" tabIndex={0} onClick={() => setPaydayOpen(true)}>
+          <div className="task-title">
+            <span className="task-name">{anchor.title}</span>
+            <div className="r-k"><span className="r-goal r-cat">{anchor.sub}</span></div>
           </div>
+          {CHEV}
         </div>
       )}
       {bills.map((b) => {
         const sub = billSubline(b, today);
         const info = b.data.bill!;
         const paid = sub.state === "paid";
+        const chip = paid ? null : billChip(b, today);
+        // The chip says how close; the words say when. "IN 2 DAYS" over
+        // "Due in 2 days" said one thing twice (caught on the port).
+        const subText = chip && b.data.due ? "Due " + monthDay(b.data.due) : sub.text;
         return (
-          <div className="row" key={b.id}>
+          <div className="task-row p2" key={b.id}>
             {info.autopay ? (
-              <div className="sec-ico ico-blue">{REPEAT}</div>
+              <div className="task-check-tap"><span className="gm-slot cat-fg-blue">{REPEAT}</span></div>
             ) : (
               <div className="task-check-tap" role="checkbox" aria-checked={paid} aria-label={paid ? "Paid" : "Mark paid"}
                 onClick={(e) => { e.stopPropagation(); void markPaid(b); }}>
-                <div className={"task-check " + (paid ? "done" : "cat-bd-green")} />
+                <div className={"task-check" + (paid ? " done" : "")} />
               </div>
             )}
-            <div className="row-grow" role="button" tabIndex={0} onClick={() => setBillSheet({ kind: "edit", id: b.id })}>
-              <div className="conn-name truncate">{b.data.text}</div>
-              {/* V2 anatomy: state carries color (amber, never red); the words
-                  themselves are the money laws' and stay untouched. */}
-              <div className={sub.state === "overdue" ? "urgency urgency-warn" : "eyebrow"}>{sub.text}</div>
+            <div className="task-title" role="button" tabIndex={0} onClick={() => setBillSheet({ kind: "edit", id: b.id })}>
+              <span className="task-name">{b.data.text}</span>
+              <div className="r-k">
+                {chip && <span className={"uchip " + chip.cls}>{chip.text}</span>}
+                {/* The words are the money laws' own (bills.ts) and stay. */}
+                <span className="r-goal r-cat">{subText}</span>
+              </div>
             </div>
             <span className={"money-amt" + (paid ? " paid" : "")}>{formatMoney(info.amount)}</span>
             {!info.autopay && !paid && info.payUrl && (
@@ -255,19 +308,43 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
           </div>
         );
       })}
-      <button className="row row-act" onClick={() => setBillSheet({ kind: "new" })}>Add Bill</button>
       {isPersonal && !payday && bills.length > 0 && (
-        <div className="row" role="button" tabIndex={0} onClick={() => setPaydayOpen(true)}>
-          <div className="row-grow"><div className="conn-name">Set Up Payday</div></div>
+        <div className="task-row p2" role="button" tabIndex={0} onClick={() => setPaydayOpen(true)}>
+          <div className="task-title"><span className="task-name">Set Up Payday</span></div>
           {CHEV}
         </div>
       )}
-    </div>
+      <button className="row row-act" onClick={() => setBillSheet({ kind: "new" })}>Add Bill</button>
+    </>
   );
 
+  // A bare account row, shared by the balance card and the Accounts card.
+  const accountRow = (a: Account) => {
+    const m = ACCOUNT_META[a.data.kind];
+    return (
+      <div className="task-row p2" role="button" tabIndex={0} key={a.id} onClick={() => setSheet({ kind: "edit", id: a.id })}>
+        <div className="task-title">
+          <span className="task-name">{a.data.name}</span>
+          <div className="r-k"><span className="r-goal r-cat">{m.label}</span></div>
+        </div>
+        {/* A negative balance is a fact, not an alarm: it reads in the
+            quiet ink with its sign, never in red (L1, red is a verb). */}
+        <span className={"money-amt" + (a.data.balance < 0 ? " money-neg" : "")}>{formatMoney(a.data.balance)}</span>
+      </div>
+    );
+  };
+
+  // THE TOP OF MONEY (Notes and Money catalog, 2026-09-02). Which shape
+  // leads the page is the catalog's third pick; the constant is the switch.
+  //   "hero-accts": the balance card holds its accounts (recommended)
+  //   "bills-lead": bills first, the balance as one line under the title
+  //   "before":     the old order on the ruled cards, accounts last
+  const MONEY_TOP = "hero-accts" as "hero-accts" | "bills-lead" | "before";
+  const balanceLine = `As you last entered it${balanceAsOf ? ` \u00b7 ${monthDay(balanceAsOf)}` : ""}`;
+
   return (
-    <div className="screen">
-      <PageHeader title="Money" />
+    <div className="screen ruled">
+      <PageHeader title="Money" actions={<BarAction label="Add Account" onClick={() => setSheet({ kind: "new" })}>{PLUS}</BarAction>} />
       {accounts.length === 0 && bills.length === 0 && tagged.length === 0 ? (
         <div className="empty-state"><div className="empty-icon">{WALLET}</div><div className="empty-title">No Accounts Yet</div>
           <button className="btn btn-primary" onClick={() => setSheet({ kind: "new" })}>Add an Account</button>
@@ -279,7 +356,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               nobody needs to re-read the math every single time. */}
           {left && (
             <>
-              <div className="pad-x"><div className="card money-hero" role="button" tabIndex={0} onClick={() => setMathOpen(!mathOpen)}>
+              <div className="pad-x"><div className="card list-card-ruled money-hero" role="button" tabIndex={0} onClick={() => setMathOpen(!mathOpen)}>
                 <div className="money-hero-label">{nextPay ? "Yours until " + monthDay(nextPay) : "Yours"}</div>
                 <div className="money-hero-total">{formatMoney(Math.max(0, left.amount))}</div>
                 {left.amount < 0
@@ -300,11 +377,11 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
                 )}
               </div></div>
 
-              <div className="sh2 sh2-quiet"><span className="t">Set Aside</span></div>
-              <div>
+              <div className="sh2 sh2-quiet"><span className="t">Set Aside</span>{envelopes.length > 0 && <span className="n">{envelopes.length}</span>}</div>
+              <div className="pad-x"><div className="card list-card-ruled">
                 {envelopes.map((e) => (
-                  <div className="row" key={e.id}>
-                    <div className="row-grow"><div className="conn-name truncate">{e.name}</div></div>
+                  <div className="task-row p2" key={e.id}>
+                    <div className="task-title"><span className="task-name">{e.name}</span></div>
                     <span className="money-amt">{formatMoney(e.amount)}</span>
                     <button className="conn-remove" aria-label={"Remove " + e.name}
                       onClick={() => setEnvelopes(saveEnvelopes(envelopes.filter((x) => x.id !== e.id)))}>{TRASH}</button>
@@ -333,7 +410,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
                 ) : (
                   <button className="row row-act" onClick={() => setEnvOpen(true)}>Set Money Aside</button>
                 )}
-              </div>
+              </div></div>
               {envelopes.length === 0 && (
                 <div className="pad-x"><div className="input-help">
                   Reserved · Not spendable · A plan
@@ -342,16 +419,33 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
             </>
           )}
 
-          {accounts.length > 0 && (
-            <div className="pad-x"><div className="card money-hero">
-              <div className="money-hero-label">Total balance</div>
-              <div className="money-hero-total">{formatMoney(totalBalance(accounts))}</div>
-              {/* Self-reported and it says so: the app has no live feed. */}
-              <div className="money-hero-label">As you last entered it{balanceAsOf ? ` · ${monthDay(balanceAsOf)}` : ""}</div>
+          {/* THE BALANCE AND ITS PARTS, ONE CARD (the recommended shape): the
+              total big, then the accounts it is made of as rows under it. */}
+          {MONEY_TOP === "hero-accts" && accounts.length > 0 && (
+            <div className="pad-x"><div className="card list-card-ruled money-hero-card">
+              <div className="money-hero">
+                <div className="money-hero-label">Total balance</div>
+                <div className="money-hero-total">{formatMoney(totalBalance(accounts))}</div>
+                {/* Self-reported and it says so: the app has no live feed. */}
+                <div className="money-hero-label">{balanceLine} · {accounts.length} {accounts.length === 1 ? "account" : "accounts"}</div>
+              </div>
+              {accounts.map(accountRow)}
+              <button className="row row-act" onClick={() => setSheet({ kind: "new" })}>Add Account</button>
             </div></div>
           )}
-          <div className="sh2 sh2-quiet"><span className="t">Bills</span></div>
-          <div>{billRows}</div>
+          {MONEY_TOP === "bills-lead" && accounts.length > 0 && (
+            <div className="money-line"><b>{formatMoney(totalBalance(accounts))}</b> across {accounts.length} {accounts.length === 1 ? "account" : "accounts"} · {balanceLine.charAt(0).toLowerCase() + balanceLine.slice(1)}</div>
+          )}
+          {MONEY_TOP === "before" && accounts.length > 0 && (
+            <div className="pad-x"><div className="card list-card-ruled money-hero">
+              <div className="money-hero-label">Total balance</div>
+              <div className="money-hero-total">{formatMoney(totalBalance(accounts))}</div>
+              <div className="money-hero-label">{balanceLine}</div>
+            </div></div>
+          )}
+
+          <div className="sh2 sh2-quiet"><span className="t">Bills</span>{bills.length > 0 && <span className="n">{bills.length}</span>}</div>
+          <div className="pad-x"><div className="card list-card-ruled">{billRows}</div></div>
 
           {/* PICK 24 (Dave 2026-08-22): MONEY FLOWS INTO SAVINGS GOALS.
               A savings goal has been able to hold real logged money since
@@ -363,22 +457,22 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               can be kept honest in the same breath. */}
           {savingsGoals.length > 0 && (
             <>
-              <div className="sh2 sh2-quiet"><span className="t">Saving Toward</span></div>
-              <div>
+              <div className="sh2 sh2-quiet"><span className="t">Saving Toward</span><span className="n">{savingsGoals.length}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
                 {savingsGoals.map((g) => (
-                  <div className="row" key={g.id}>
+                  <div className="task-row p2 goal-row-ruled" key={g.id}>
                     {/* Area color, brand red when unhomed -- the same
                         goalTone every goal glyph wears (2026-08-31). */}
-                    <div className={"row-glyph " + goalTone(g.data.tags)}><TargetGlyph /></div>
-                    <div className="row-grow">
-                      <div className="conn-name truncate">{g.data.title}</div>
-                      <div className="conn-meta">{savingsLine(g.data.moneyTarget!, g.data.saved)}</div>
+                    <div className="task-check-tap"><span className={"gm-slot " + goalTone(g.data.tags)}><TargetGlyph /></span></div>
+                    <div className="task-title">
+                      <span className="task-name">{g.data.title}</span>
+                      <div className="r-k"><span className="r-goal r-cat">{savingsLine(g.data.moneyTarget!, g.data.saved)}</span></div>
                       {savedTotal(g.data.saved) > 0 && (
                         <div className="bp-bar"><div className="bp-bar-fill" style={{ width: Math.max(2, savingsPct(g.data.moneyTarget!, g.data.saved)) + "%" }} /></div>
                       )}
                     </div>
                     {saveInto === g.id ? (
-                      <div className="row-grow budget-add">
+                      <div className="budget-add">
                         <input className="input budget-amt" inputMode="numeric" placeholder="0" value={saveAmt}
                           onChange={(ev) => setSaveAmt(ev.target.value)} />
                         <button className="btn btn-primary btn-sm" onClick={() => void addSavings(g)}>Add</button>
@@ -388,48 +482,39 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
                     )}
                   </div>
                 ))}
-              </div>
+              </div></div>
             </>
           )}
 
           {tagged.length > 0 && (
             <>
-              <div className="sh2 sh2-quiet"><span className="t">Also Tagged Money</span></div>
-              <div>
-                {/* These are TASKS, so they wear the task anatomy (locked
-                    law: all task lists look identical). Bare text with a
-                    chevron read as floating words, not a row he could act
-                    on (Dave 2026-08-22). Check completes, body opens. */}
+              <div className="sh2 sh2-quiet"><span className="t">Also Tagged Money</span><span className="n">{tagged.length}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
+                {/* These are TASKS, so they wear the task row (locked law: all
+                    task lists look identical), check, swipe and all. */}
                 {tagged.map((t) => (
-                  <div className="row" key={t.id}>
-                    <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Complete"
-                      onClick={(e) => { e.stopPropagation(); void (async () => { await tasksSvc.toggleDone(t.id); await reload(); })(); }}>
-                      <div className={"task-check cat-bd-" + catColor(t.data.category)} />
-                    </div>
-                    <div className="row-grow" role="button" tabIndex={0} onClick={() => onOpenTask?.(t.id)}>
-                      <div className="conn-name truncate">{t.data.text}</div>
-                    </div>
-                    {CHEV}
-                  </div>
+                  <TaskRow
+                    key={t.id}
+                    item={t}
+                    today={today}
+                    onToggle={(id) => void (async () => { await tasksSvc.toggleDone(id); await reload(); })()}
+                    onOpen={onOpenTask}
+                    onDelete={(id) => void deleteTagged(id)}
+                  />
                 ))}
-              </div>
+              </div></div>
             </>
           )}
-          <div className="sh2 sh2-quiet"><span className="t">Accounts</span><span className="n">{accounts.length}</span></div>
-          <div>
-            {accounts.map((a) => {
-              const m = ACCOUNT_META[a.data.kind];
-              return (
-                <div className="proj-row" role="button" tabIndex={0} key={a.id} onClick={() => setSheet({ kind: "edit", id: a.id })}>
-                  <div className={"row-glyph cat-fg-" + m.slot}>{WALLET}</div>
-                  <div className="proj-meta"><div className="proj-title">{a.data.name}</div><div className="bp-sub">{m.label}</div></div>
-                  <span className="money-amt">{formatMoney(a.data.balance)}</span>
-                  {CHEV}
-                </div>
-              );
-            })}
-            <button className="row row-act" onClick={() => setSheet({ kind: "new" })}>Add Account</button>
-          </div>
+
+          {MONEY_TOP !== "hero-accts" && (
+            <>
+              <div className="sh2 sh2-quiet"><span className="t">Accounts</span><span className="n">{accounts.length}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
+                {accounts.map(accountRow)}
+                <button className="row row-act" onClick={() => setSheet({ kind: "new" })}>Add Account</button>
+              </div></div>
+            </>
+          )}
           <div className="screen-foot" />
         </>
       )}

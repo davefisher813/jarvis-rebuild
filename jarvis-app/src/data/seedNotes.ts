@@ -57,6 +57,20 @@ export async function seedDemoNotes(svc: NotesService, cats: Category[]) {
         "First aid kit",
       ]);
     }
+
+    // When each was last touched, so the library's second line and its
+    // Today / Yesterday / Earlier heads have something true to say. Oldest
+    // first: the in-memory clock only moves forward. Every demo write after
+    // this lands as "today", which is what a write today is.
+    const day = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    const stamps: [string | null, number][] = [
+      [invitational, now - 5 * day],
+      [rob, now - 3 * day],
+      [training, now - day],
+      [plan, now - 2 * 60 * 60 * 1000],
+    ];
+    for (const [id, at] of stamps) if (id) await svc.stampEdited(id, at);
   } catch {
     showToast({ message: "Couldn't save · Check your connection" });
   }

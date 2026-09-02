@@ -493,3 +493,49 @@
 .ruled .time-pop-durs .input-label { margin-bottom: var(--s-1h); }
 .ruled .time-pop-durs .plan-durs { padding: 0; }
 .ruled .sched-list > .sched-copy { margin: var(--s-2) auto var(--s-3); }
+
+/* ---------- MONEY, PORTED (Notes and Money catalog, 2026-09-02) ----------
+   The balance is a hero that holds its own accounts: the total big, the
+   "as you last entered it" line under it in quiet ink, then one row per
+   account with the amount at the right. Bills are task rows (square check,
+   the due chip in the kicker), autopay bills wear the repeat glyph where
+   the check would be. Nothing on this page is red: a negative balance is
+   a fact about the account, so it sits in quiet ink with its sign. */
+.ruled .money-hero-card > .money-hero { padding: var(--s-4) var(--s-4) var(--s-3); }
+.ruled .money-hero-card > .money-hero + .task-row { position: relative; border-top: 0; }
+.ruled .money-hero-card > .money-hero + .task-row::before { content: ""; position: absolute; left: var(--s-4); right: 0; top: 0;
+  height: 0.5px; background: var(--divider); pointer-events: none; }
+.ruled .money-hero-label { font-size: 12.5px; color: var(--tx-3); font-weight: var(--w-regular); }
+.ruled .money-hero-total { font-size: 34px; font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.1;
+  font-variant-numeric: tabular-nums; margin: 2px 0 4px; }
+.ruled .money-hero-total + .money-hero-label { margin: 0; }
+.ruled .money-line { padding: 0 var(--s-4) var(--s-2); font-size: 13px; color: var(--tx-3); }
+.ruled .money-line b { color: var(--tx-1); font-weight: var(--w-semi); font-variant-numeric: tabular-nums; }
+.ruled .task-row .money-amt { font-size: 15px; font-weight: var(--w-regular); color: var(--tx-2); flex-shrink: 0;
+  font-variant-numeric: tabular-nums; }
+.ruled .task-row .money-amt.money-neg { color: var(--tx-3); }
+.ruled .task-row .money-amt.paid { color: var(--tx-4); }
+.ruled .task-row .bill-pay { font-size: 14px; font-weight: var(--w-medium); padding-left: var(--s-2h); }
+.ruled .task-row .budget-add { flex-shrink: 0; }
+.ruled .task-row .budget-add .input { height: 34px; font-size: 14px; }
+.ruled .task-row .budget-add .budget-amt { width: 72px; }
+/* Hairlines in a card of bare task rows: inset past the check column (44px
+   tap target, the same edge the swipe shell's rows use) whenever the row on
+   either side has one, so the autopay glyph row rules the same as a check. */
+.ruled .list-card-ruled > .task-row:has(.task-check-tap) + .task-row::before,
+.ruled .list-card-ruled > .task-row + .task-row:has(.task-check-tap)::before {
+  left: calc(var(--s-4) + 44px + var(--s-3)); }
+
+/* ---------- NOTES, PORTED (Notes and Money catalog, 2026-09-02) ----------
+   A note is a row in the list card: the title, then the line every task row
+   uses for where it lives, here the area's dot and name and, past a dot,
+   when it was last touched. The heads are the day (Today, Yesterday,
+   Earlier), quiet like Today's. The page glyph is gone from the line row;
+   the dot is the colour. */
+.ruled .note-row { cursor: pointer; }
+.ruled .note-row .r-k .r-when { flex-shrink: 0; color: var(--tx-4); }
+.ruled .note-row .sel-box { margin: 0; }
+/* The "first" row shape: the note's own first line, in grey, one line. */
+.ruled .note-first { font-size: 12.5px; color: var(--tx-3); margin-top: 3px; white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; min-width: 0; }
+.ruled .note-row .gm-slot .ic { width: 20px; height: 20px; }

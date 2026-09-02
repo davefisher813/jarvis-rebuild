@@ -345,6 +345,18 @@ export class NotesService {
     return this.store.listForUser(this.ownerId, ENTITY_NOTE);
   }
 
+  /**
+   * The demo seed's one door to "edited when". The library's second line
+   * reads each note's server time as its last edit; the in-memory store
+   * hands out a bare counter, so the seed stamps its notes with real epoch
+   * millis (oldest first: the store's clock only moves forward). Production
+   * never calls this, and its server would ignore the stamp anyway: the
+   * live adapter owns time (updated_at) and drops the argument.
+   */
+  async stampEdited(id: string, epochMs: number): Promise<void> {
+    await this.store.update(this.ownerId, id, {}, epochMs);
+  }
+
   // Reverse lookup: every note whose connections point at the given entity id.
   // Returns light summaries so callers (project/task/person screens) can show a
   // "Linked Notes" section without loading full note bodies.
