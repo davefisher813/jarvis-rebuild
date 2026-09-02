@@ -140,7 +140,8 @@ describe("LAW: no inline styles", () => {
 });
 
 describe("LAW: Apple HIG casing", () => {
-  const SMALL = new Set(["a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
+  // "as" joined 2026-09-02 (Show as Sent): a preposition, lowercase mid-title by the same style.
+  const SMALL = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to", "with"]);
   const titleCased = (t: string) => {
     const words = t.split(/\s+/).filter(Boolean);
     return words.every((w, i) =>

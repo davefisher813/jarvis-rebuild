@@ -67,6 +67,9 @@ describe("TasksPage", () => {
     expect(screen.getAllByRole("menuitemradio").map((i) => i.textContent)).toEqual(["All Areas", "Ridgeley", "Money"]);
     fireEvent.click(screen.getByRole("menuitemradio", { name: "All Areas" }));
     expect(onCat).toHaveBeenCalledWith("all");
+    // Unfiltered, the capsule names the control, like Group beside it.
+    const { container: c2 } = render(<TasksPage filter="all" counts={counts} items={[]} today="2026-05-20" catFilter="all" categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }]} />);
+    expect(c2.querySelector('.dd[aria-label="Area"]')).toHaveTextContent(/^Area$/);
   });
 
   it("one decision killer: Pick One alone, full width; the mode's way out replaces it", () => {

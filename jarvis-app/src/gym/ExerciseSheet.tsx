@@ -11,7 +11,7 @@ import SetStrip from "./SetStrip";
 import Stepper from "../shared/Stepper";
 import SheetBar from "../shared/SheetBar";
 import HeadMenu from "../shared/HeadMenu";
-import { Trash2, Gauge, Timer, PersonStanding, Hourglass, Flame, Shuffle, StickyNote } from "../shared/icons";
+import { Trash2, Dumbbell, Gauge, Timer, PersonStanding, Hourglass, Flame, Shuffle, StickyNote } from "../shared/icons";
 import { searchLibrary, newExerciseKey, type LibraryEntry } from "./library";
 import { MUSCLE_GROUPS, MUSCLE_LABEL, type MuscleGroup } from "./muscles";
 
@@ -196,9 +196,15 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
         <div className="sheet-handle" />
         <SheetBar title={mode === "new" ? "New Exercise" : "Edit Exercise"} onCancel={onCancel} onSave={save} saveDisabled={!valid} />
         <div className="sheet-form">
-          {/* THE NAME is the first group, no label: the field is the row. */}
+          {/* THE NAME is the first group, and it wears the same anatomy as
+              the others (Dave 2026-09-02: "I don't like the way the container
+              at the top of the exercise modal renders. Make it render like
+              the rest design wise"): a caps label, a tile with the lift's own
+              glyph in the gym's orange, the field as the row. */}
+          <div className="grp xs-grp"><div className="eyebrow">Name</div></div>
           <div className="pad-x"><div className="card xs-group">
             <div className="row xs-row">
+              <Tile tone="orange"><Dumbbell className="ic" /></Tile>
               <input
                 className={"xs-input" + (touched && !name.trim() ? " input-error" : "")}
                 placeholder="Exercise Name"
@@ -310,7 +316,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 into a clock: the session offers Start the Clock instead of a
                 set to log, and writes a receipt with round splits after. */}
             <div className="row xs-row">
-              <Tile tone="orange"><Timer className="ic" /></Tile>
+              <Tile tone="green"><Timer className="ic" /></Tile>
               <div className="row-grow">
                 <div className="conn-name">Clock</div>
                 {condBlock && <div className="conn-meta">{condSummary(condBlock)}</div>}
@@ -388,7 +394,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                       ? (rampPreview.length
                           ? rampPreview.map((r) => formatSet(draft, r)).join(" · ")
                           : "Nothing to ramp at this weight")
-                      : "Built from your first working weight"}
+                      : "From your first working weight"}
                   </div>
                 </div>
                 <div className={"switch" + (ramp ? "" : " off")} role="switch" aria-checked={ramp} aria-label="Warm-up ramp" tabIndex={0}

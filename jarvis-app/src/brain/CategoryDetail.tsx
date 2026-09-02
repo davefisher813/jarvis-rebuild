@@ -28,7 +28,10 @@ import { todayISO } from "../tasks/grouping";
 import { nextActionOf } from "../bigger/related";
 import { goalTitleOf } from "../schedule/planMeta";
 import { dayPhrase } from "../money/bills";
-import { fmtTime } from "../schedule/calendar";
+import { fmtTime, addMinutes } from "../schedule/calendar";
+import { FIFTEEN } from "../tasks/rightNow";
+import { attemptWrite } from "../shared/guard";
+import { buildParentIndex, parentForTask } from "../life/parent";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
 import ProjectSheet from "../projects/ProjectSheet";
 import CategorySheet, { type CategoryDraft } from "../categories/screens/CategorySheet";
@@ -421,6 +424,47 @@ export default function CategoryDetail({
 
   const toggle = async (id: string) => { await tasksSvc.toggleDone(id); await reload(); };
 
+  // THE SAME CLEARING AS EVERYWHERE (Dave 2026-09-02, the Health page's Up
+  // Next: "the same clearing ability as well"). Delete with an Undo that
+  // brings the task back, Tomorrow on the swipe, Start on the row: the
+  // Tasks page's own three, with the same receipts.
+  const deleteTask = async (id: string) => {
+    const t = await tasksSvc.task(id);
+    const ok = await attemptWrite(() => tasksSvc.deleteTask(id));
+    await reload();
+    if (ok && t) {
+      showToast({
+        message: "Task deleted",
+        actionLabel: "Undo",
+        onAction: async () => {
+          await attemptWrite(() => tasksSvc.createTask(t.text, { category: t.category || undefined, due: t.due ?? null, recurrence: t.recurrence }));
+          await reload();
+        },
+      });
+    }
+  };
+  const snoozeTask = async (id: string) => {
+    const d = new Date(today + "T00:00:00"); d.setDate(d.getDate() + 1);
+    const tomorrow = d.toISOString().slice(0, 10);
+    const ok = await attemptWrite(() => tasksSvc.setDue(id, tomorrow));
+    await reload();
+    if (ok) showToast({ message: "Moved to tomorrow" });
+  };
+  const startTask = async (id: string) => {
+    const t = await tasksSvc.task(id);
+    if (!t) return;
+    const now = new Date();
+    const start = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const ok = await attemptWrite(() => schedule.createEvent(t.text, {
+      date: today, start, end: addMinutes(start, FIFTEEN),
+      category: t.category || undefined, sourceTaskId: id,
+    }));
+    if (ok) showToast({ message: `Fifteen minutes on ${t.text}` });
+  };
+  // The parent line every task row wears (life/parent.ts), from the same
+  // three lists the Life tab reads.
+  const parentIdx = buildParentIndex(allProjects, goals, allTasks);
+
   const saveTask = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;
     await tasksSvc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId });
@@ -470,14 +514,19 @@ export default function CategoryDetail({
           metricDefs={metricDefs}
           metricLogs={metricLogs}
           goals={goalsHere.map((g): HealthGoalRow => ({ id: g.id, title: g.title, tone: g.tone, body: g.line, status: g.status, bar: g.bar }))}
-          tasks={open.map((t) => ({ id: t.id, text: t.data.text }))}
-          dueOf={(id) => { const t = open.find((x) => x.id === id); if (!t) return null; const rem = t.data.reminder?.time; return dueLabel(t) ?? (rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null); }}
+          tasks={open}
+          // A reminder's second line is its time; a task's is its parent.
+          kickerOf={(t) => { const rem = t.data.reminder?.time; return t.data.reminder && rem ? `${fmtTime(rem).time} ${fmtTime(rem).ap}` : null; }}
+          parentOf={(t) => parentForTask(parentIdx, t)}
           onStart={(dayId) => { setGymStartDay(dayId); setGymOpen(true); }}
           onOpenGym={() => setGymOpen(true)}
           onOpenMetric={(def) => setMetricSheet({ kind: "log", def })}
           onManageMetrics={() => setMetricSheet({ kind: "add" })}
           onToggleTask={(id) => void toggle(id)}
           onOpenTask={onOpenTask}
+          onDeleteTask={(id) => void deleteTask(id)}
+          onSnoozeTask={(id) => void snoozeTask(id)}
+          onStartTask={(id) => void startTask(id)}
           onAddTask={() => setSheet({ kind: "task" })}
           insights={hasInsights ? (
             <>

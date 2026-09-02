@@ -79,6 +79,19 @@ describe("extractBody and extractHtml on HTML mail", () => {
     expect(extractBody(payload)).toBe("Suele pasar");
     expect(extractHtml(payload)).toBe(html);
   });
+  it("the stylesheet and the head are never words; block ends become lines", async () => {
+    const { extractBody } = await import("./map");
+    // The shape of the TikTok mail that rendered as CSS on 2026-09-02.
+    const html = "<!DOCTYPE html><html><head><title>TikTok</title><style>@import 'x'; body, html { margin: 0 auto !important; } @media (max-width: 600px) { .pc { display: none; } }</style></head>"
+      + "<body><!-- pre --><table><tr><td><h1>Watch reposted videos from your TikTok community</h1></td></tr><tr><td><a href=\"https://t\">Go to TikTok</a></td></tr></table>"
+      + "<script>track()</script><p>anessajuleisy &middot; Reposted</p><p>Hi babyyyy&nbsp;JAJAJSJS suele pasar</p></body></html>";
+    const payload = { mimeType: "text/html", body: { data: b64(html) } } as never;
+    const body = extractBody(payload);
+    expect(body).not.toMatch(/@import|margin|display|track\(|TikTok<|pre/);
+    expect(body.split("\n")[0]).toBe("Watch reposted videos from your TikTok community");
+    expect(body).toContain("Go to TikTok\n");
+    expect(body).toContain("anessajuleisy \u00b7 Reposted\nHi babyyyy JAJAJSJS suele pasar");
+  });
   it("real plain text stays plain and has no html", async () => {
     const { extractBody, extractHtml } = await import("./map");
     const payload = { mimeType: "text/plain", body: { data: b64("Just words. <3") } } as never;

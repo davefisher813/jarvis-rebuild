@@ -11,23 +11,44 @@
 // Hand-rolled on purpose: the app has no HTML sanitiser dependency, and the
 // allow-list below is the whole policy, readable in one screen.
 
-const DROP_TAGS = ["script", "style", "iframe", "frame", "frameset", "object", "embed", "applet", "form", "input", "button", "select", "textarea", "meta", "link", "base", "svg", "math", "video", "audio", "source", "noscript", "template"];
+const DROP_TAGS = ["script", "iframe", "frame", "frameset", "object", "embed", "applet", "form", "input", "button", "select", "textarea", "meta", "link", "base", "svg", "math", "video", "audio", "source", "noscript", "template"];
 const SAFE_ATTR = new Set(["href", "src", "alt", "title", "width", "height", "colspan", "rowspan", "align", "valign", "bgcolor", "color", "border", "cellpadding", "cellspacing", "dir", "lang", "role"]);
 const SAFE_URL = /^(https?:|mailto:|tel:|cid:|data:image\/(png|jpe?g|gif|webp);base64,)/i;
 
 function cleanStyle(v: string): string {
-  // Inline style survives with anything that fetches or positions out of the box removed.
+  // Inline style survives with anything that runs, loads from anywhere but
+  // https, or positions out of the box removed. A background picture over
+  // https stays, by the same rule an <img> stays.
   return v
     .split(";")
     .map((d) => d.trim())
-    .filter((d) => d && !/url\s*\(|expression\s*\(|position\s*:\s*(fixed|absolute)|behavior\s*:/i.test(d))
+    .filter((d) => d && !/expression\s*\(|position\s*:\s*(fixed|absolute)|behavior\s*:|-moz-binding/i.test(d))
+    .filter((d) => !/url\s*\(/i.test(d) || /url\s*\(\s*['"]?(https:|data:image\/)/i.test(d))
     .join("; ");
+}
+
+// THE MAIL'S OWN STYLESHEET STAYS (2026-09-02, the TikTok mail: its layout
+// is classes in a <style> block, and dropping the block left the picture
+// with no layout around it). A stylesheet cannot run anything; what it can
+// do is fetch, and that is what goes: @import, and any url() that is not a
+// plain https picture. Everything else in it, media queries included, is
+// exactly what "as sent" means.
+function cleanStylesheet(css: string): string {
+  return css
+    .replace(/@import[^;]*;?/gi, "")
+    .replace(/@charset[^;]*;?/gi, "")
+    .replace(/expression\s*\([^)]*\)/gi, "none")
+    .replace(/behavior\s*:[^;}]*/gi, "")
+    .replace(/-moz-binding\s*:[^;}]*/gi, "")
+    .replace(/url\s*\(\s*(['"]?)(?!https?:|data:image\/)[^)]*\)/gi, "none");
 }
 
 /** Sanitise a mail's HTML into a self-contained document for a sandboxed frame. */
 export function sanitizeMailHtml(html: string, opts: { dark?: boolean } = {}): string {
   if (typeof DOMParser === "undefined") return "";
   const doc = new DOMParser().parseFromString(html, "text/html");
+  const sheets = Array.from(doc.querySelectorAll("style")).map((el) => cleanStylesheet(el.textContent || ""));
+  doc.querySelectorAll("style").forEach((el) => el.remove());
   for (const tag of DROP_TAGS) doc.querySelectorAll(tag).forEach((el) => el.remove());
   const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_ELEMENT);
   const els: Element[] = [];
@@ -55,5 +76,11 @@ export function sanitizeMailHtml(html: string, opts: { dark?: boolean } = {}): s
   a { color: #0A84FF; }
   body > * { max-width: 100%; }
 </style>`;
-  return `<!doctype html><html><head>${base}</head><body>${doc.body.innerHTML}</body></html>`;
+  const own = sheets.filter((c) => c.trim()).map((c) => `<style>${c.replace(/<\/style/gi, "")}</style>`).join("\n");
+  // After the mail's own rules, so it wins: the frame is sized to the
+  // content by the reader, and a mail that pins html/body to 100% height
+  // (TikTok's does, with !important) would otherwise grow to meet every
+  // height the reader set, a few pixels a tick, forever.
+  const fit = `<style>html, body { height: auto !important; min-height: 0 !important; max-height: none !important; overflow: visible !important; }</style>`;
+  return `<!doctype html><html><head>${base}\n${own}\n${fit}</head><body>${doc.body.innerHTML}</body></html>`;
 }

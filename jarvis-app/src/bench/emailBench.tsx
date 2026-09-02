@@ -8,6 +8,7 @@ import MessagesFlow from "../messages/MessagesFlow";
 import "../styles/jarvis-design-system.css";
 import "../styles/uniformity.css";
 import "../styles/components.css";
+import "../styles/ruled.css";
 
 // Email bench (dev only): MessagesFlow against a fake Gmail and a scripted AI,
 // so the whole triage flow can be walked end to end without a Google account.
@@ -105,7 +106,35 @@ const full = (id: string, parts: { from: string; subject: string; date: string; 
   })),
 });
 
+// THE MAIL AS SENT (2026-09-02, Dave's TikTok mail beside his Gmail): an
+// HTML-only message in the shape of the real one, a <style> block first
+// (which the old strip rendered as the body), a table layout, a button, a
+// picture. The picture is a data: URL so the bench renders offline.
+const PIC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+const TIKTOK_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>TikTok</title><style>@import 'https://fonts.example/x.css'; body, html { margin: 0 auto !important; padding: 0 !important; height: 100% !important; background: #fff; font-family: Arial, sans-serif, Roboto; } @media (min-width: 600px) { .pixel-pc { display: block !important; } } .btn { background: #FE2C55; color: #fff; border-radius: 8px; padding: 14px 0; text-align: center; font-weight: 700; display: block; text-decoration: none; }</style></head>
+<body><table width="100%" cellpadding="0" cellspacing="0"><tr><td style="padding: 24px 20px 8px"><h1 style="font-size: 24px; margin: 0; color: #161823">Watch reposted videos from your TikTok community</h1></td></tr>
+<tr><td style="padding: 12px 20px"><a class="btn" href="https://www.tiktok.com/">Go to TikTok</a></td></tr>
+<tr><td style="padding: 16px 20px"><table cellpadding="0" cellspacing="0"><tr><td style="vertical-align: top; padding-right: 12px"><img src="${PIC}" width="44" height="44" style="border-radius: 22px; background: #c7b4ff; display: block"></td>
+<td><b style="color: #161823">anessajuleisy</b> <span style="color: #888">&middot; Reposted</span><br><span style="color: #888; font-size: 13px">Friends</span></td></tr></table>
+<div style="margin: 10px 0 0 56px; width: 220px; height: 280px; background: #e9d8d8; border-radius: 8px; position: relative"><img src="${PIC}" width="220" height="280" style="display: block; border-radius: 8px; background: #d9c4c4">
+</div><p style="margin: 8px 0 0 56px; color: #161823">Hi babyyyy jawaryuuuu&nbsp;JAJAJSJS suele pasar</p></td></tr></table>
+<script>track()</script></body></html>`;
+
 const FULLS: Record<string, GmailThreadFull> = {
+  t_tiktok: {
+    id: "t_tiktok",
+    messages: [{
+      id: "t_tiktok_f0", threadId: "t_tiktok", snippet: "",
+      payload: {
+        mimeType: "text/html", body: { data: btoa(unescape(encodeURIComponent(TIKTOK_HTML))) },
+        headers: [
+          { name: "From", value: "TikTok <noreply@account.tiktok.com>" }, { name: "Subject", value: "anessajuleisy reposted: Hi babyyyy jawaryuuuu JAJAJSJS suele pasar" },
+          { name: "Date", value: "Tue, 1 Sep 2026 21:24:00 -0400" }, { name: "Message-ID", value: "<tiktok0@x>" },
+          { name: "List-Unsubscribe", value: "<https://www.tiktok.com/unsub>" },
+        ],
+      },
+    }],
+  },
   t_orgB: full("t_orgB", [
     { from: "Coach Ridgeley <coach@northlake.org>", subject: "Marcus - waiver for Saturday", date: "Mon", body: "Dave - attached the medical waiver. Need it signed and back before the 9th or Marcus can't dress Saturday." },
     { from: "Dave <dave@x.com>", subject: "Re: Marcus - waiver for Saturday", date: "Tue", body: "On it, sending tomorrow." },

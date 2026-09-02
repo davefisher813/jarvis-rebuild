@@ -62,12 +62,12 @@ describe("ExerciseSheet, the grouped table", () => {
     const { baseElement } = render(<ExerciseSheet mode="new" library={[]} history={[]} onSave={onSave} onCancel={onCancel} />);
     expect(baseElement.querySelector(".sheet-bar .sheet-bar-title")).toHaveTextContent("New Exercise");
     expect(baseElement.querySelector(".sheet-bar-cancel")).toHaveTextContent("Cancel");
-    expect([...baseElement.querySelectorAll(".xs-grp .eyebrow")].map((e) => e.textContent)).toEqual(["Sets", "Tracks", "In the Session", "Note"]);
+    expect([...baseElement.querySelectorAll(".xs-grp .eyebrow")].map((e) => e.textContent)).toEqual(["Name", "Sets", "Tracks", "In the Session", "Note"]);
     expect(baseElement.querySelector(".chip-row")).toBeNull();
     expect(baseElement.querySelectorAll(".chip")).toHaveLength(0);
     // The tiles: one hue per row, the glyph names the row.
     const tiles = [...baseElement.querySelectorAll(".row-ico")].map((t) => t.className.replace("row-ico ", ""));
-    expect(tiles).toEqual(["nav-tile-blue", "nav-tile-orange", "nav-tile-pink", "nav-tile-teal", "nav-tile-yellow", "nav-tile-purple", "nav-tile-graphite"]);
+    expect(tiles).toEqual(["nav-tile-orange", "nav-tile-blue", "nav-tile-green", "nav-tile-pink", "nav-tile-teal", "nav-tile-yellow", "nav-tile-purple", "nav-tile-graphite"]);
     // Every value that opens a menu is the dropdown worn as a row value.
     expect([...baseElement.querySelectorAll(".dd.dd-value")].map((d) => d.getAttribute("aria-label"))).toEqual(["Unit", "Measure", "Clock", "Muscle"]);
     fireEvent.click(baseElement.querySelector(".sheet-bar-cancel")!);

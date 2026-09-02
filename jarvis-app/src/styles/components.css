@@ -1561,6 +1561,7 @@ button {
 .msg-due.soft { color: var(--tx-3); }
 /* "Read the whole thing": the way out of a folded body. */
 .msg-more { margin-top: var(--s-2); }
+.msg-more-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 
 /* The drain: the user's number, not ours. The input sits in the chip row so
    the custom case is the same gesture as the presets. */
@@ -4218,6 +4219,7 @@ body.selecting .voice-dock { display: none; }
 .xs .sheet-form { padding-left: 0; padding-right: 0; padding-top: 0; }
 .xs .grp.xs-grp { display: flex; align-items: center; justify-content: space-between; padding-top: var(--s-5); padding-bottom: var(--s-1h); }
 .xs .grp.xs-grp .eyebrow { font-size: 12.5px; font-weight: var(--w-semi); letter-spacing: 0.1em; }
+.xs .sheet-form > .grp.xs-grp:first-child { padding-top: var(--s-1); }
 .xs .card.xs-group { margin-bottom: 0; }
 .xs .row.xs-row { min-height: 48px; padding-top: var(--s-2); padding-bottom: var(--s-2); }
 .xs .row.xs-row > .conn-name { flex: 1; min-width: 0; }
@@ -4238,3 +4240,10 @@ body.selecting .voice-dock { display: none; }
 .xs .xs-delete { padding-top: var(--s-6); padding-bottom: max(var(--s-6), env(safe-area-inset-bottom)); }
 .xs .xs-delete .btn { width: 100%; }
 .xs .xs-foot { height: max(var(--s-6), env(safe-area-inset-bottom)); }
+
+/* ---------- THE MAIL AS SENT (2026-09-02; moved here from ruled.css 2026-09-02, it was never scoped) --------------------------------
+   A sandboxed frame that grows to its content; the page scrolls, never the
+   frame. Rounded like a card so a white-ground newsletter sits in the dark
+   page as a sheet of paper would. */
+.mail-html { display: block; width: 100%; border: 0; border-radius: 12px; background: transparent; min-height: 40px;
+  margin: var(--s-2) 0; }

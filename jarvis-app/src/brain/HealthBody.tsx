@@ -14,6 +14,9 @@ import { BarbellGlyph } from "../shared/glyphs";
 import { capAfterNumber } from "../shared/casing";
 import { fmtTime } from "../schedule/calendar";
 import { dayPhrase } from "../money/bills";
+import { TaskRow } from "../tasks/screens/TasksPage";
+import type { TaskItem } from "../tasks/TasksService";
+import type { ParentLine } from "../life/parent";
 
 // THE HEALTH PAGE (Check, Health, Stop, Dave 2026-09-02: "The next session,
 // then the week, then the numbers"; after "I don't like any of these" on
@@ -66,8 +69,8 @@ function Spark({ pts }: { pts: number[] }) {
 }
 
 export default function HealthBody({
-  program, workouts, training, today, isEvening, gymEvent, metricDefs, metricLogs, goals, tasks, dueOf,
-  onStart, onOpenGym, onOpenMetric, onManageMetrics, onOpenGoal, onToggleTask, onOpenTask, onAddTask, insights, more,
+  program, workouts, training, today, isEvening, gymEvent, metricDefs, metricLogs, goals, tasks, kickerOf, parentOf,
+  onStart, onOpenGym, onOpenMetric, onManageMetrics, onOpenGoal, onToggleTask, onOpenTask, onDeleteTask, onSnoozeTask, onStartTask, onAddTask, insights, more,
 }: {
   program: Program | null;
   workouts: Workout[];
@@ -79,8 +82,13 @@ export default function HealthBody({
   metricDefs: MetricDef[];
   metricLogs: MetricLog[];
   goals: HealthGoalRow[];
-  tasks: { id: string; text: string }[];
-  dueOf: (id: string) => string | null;
+  /** Up Next: the open tasks and reminders tagged here, as the rows the
+   *  Tasks page draws (2026-09-02, "like it does everywhere else"). */
+  tasks: TaskItem[];
+  /** A reminder's time for its second line; null for a task, whose line
+   *  is its parent. */
+  kickerOf: (t: TaskItem) => string | null;
+  parentOf?: (t: TaskItem) => ParentLine | null;
   onStart: (dayId: string) => void;
   onOpenGym: () => void;
   onOpenMetric: (def: MetricDef) => void;
@@ -88,6 +96,10 @@ export default function HealthBody({
   onOpenGoal?: (id: string) => void;
   onToggleTask: (id: string) => void;
   onOpenTask?: (id: string) => void;
+  onDeleteTask?: (id: string) => void;
+  onSnoozeTask?: (id: string) => void;
+  /** Start (fifteen minutes on it) for a task; reminders never get one. */
+  onStartTask?: (id: string) => void;
   onAddTask: () => void;
   /** The insight cards, when any qualified; rendered as handed in. */
   insights?: ReactNode;
@@ -111,14 +123,17 @@ export default function HealthBody({
     const latest = mine[mine.length - 1];
     const val = tileValue(def, latest);
     const pts = def.data.type === "yesno" ? [] : mine.slice(-7).map((l) => numericValue(def.data, l)).filter((n): n is number => n != null);
-    const meta = !latest ? "Not logged yet" : latest.data.date === today ? "Today" : (() => { const p = dayPhrase(latest.data.date, today); return p.charAt(0).toUpperCase() + p.slice(1); })();
+    // One line when empty (Dave 2026-09-02: "Either log it or not logged
+    // yet. No need for both"): the value slot says Log it, and there is no
+    // meta line until there is a log to date.
+    const meta = !latest ? null : latest.data.date === today ? "Today" : (() => { const p = dayPhrase(latest.data.date, today); return p.charAt(0).toUpperCase() + p.slice(1); })();
     return (
       <div className="h-tile" role="button" tabIndex={0} key={def.id} onClick={() => onOpenMetric(def)}>
         <div className="ht-w">{def.data.name}</div>
         <div className="ht-n">
           {val ? val.map((p, i) => <span key={i}>{p.big}{p.small && <small>{p.small}</small>}</span>) : <span className="ht-none">Log it</span>}
         </div>
-        <div className="ht-m">{meta}</div>
+        {meta && <div className="ht-m">{meta}</div>}
         {pts.length >= 2 && <Spark pts={pts} />}
       </div>
     );
@@ -202,23 +217,28 @@ export default function HealthBody({
       )}
 
       <div className="sh2 sh2-quiet"><span className="t">Up Next</span>{tasks.length > 0 && <span className="n">{tasks.length}</span>}</div>
+      {/* THE SAME ROW AS EVERYWHERE (Dave 2026-09-02: "Add task on the same
+          page as well should render as a task there like it does everywhere
+          else after. It should have the same clearing ability as well").
+          The Tasks page's own row: the rounded-square check, the distance
+          chip, the parent line (a reminder shows its time instead), Start
+          on a task, Tomorrow and Delete on the swipe. Nothing here is a
+          second kind of task row any more. */}
       <div className="pad-x"><div className="card list-card-ruled">
-        {tasks.map((t) => {
-          const due = dueOf(t.id);
-          return (
-            <div className="task-row p2" key={t.id}>
-              <div className="task-check-tap" role="checkbox" aria-checked={false} aria-label="Mark done" onClick={() => onToggleTask(t.id)}>
-                <div className="task-check" />
-              </div>
-              <div className="task-title" role={onOpenTask ? "button" : undefined} tabIndex={onOpenTask ? 0 : undefined}
-                onClick={onOpenTask ? () => onOpenTask(t.id) : undefined}>
-                <span className="task-name">{t.text}</span>
-                {due && <div className="r-k"><span className="r-goal r-cat">{due}</span></div>}
-              </div>
-              {onOpenTask && CHEV}
-            </div>
-          );
-        })}
+        {tasks.map((t) => (
+          <TaskRow
+            key={t.id}
+            item={t}
+            today={today}
+            kicker={kickerOf(t)}
+            parent={parentOf?.(t) ?? null}
+            onToggle={onToggleTask}
+            onOpen={onOpenTask}
+            onDelete={onDeleteTask}
+            onSnooze={t.data.reminder ? undefined : onSnoozeTask}
+            onStart={t.data.reminder ? undefined : onStartTask}
+          />
+        ))}
         <button className="row row-act" onClick={onAddTask}>Add Task</button>
       </div></div>
 

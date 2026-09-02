@@ -143,8 +143,24 @@ export function b64urlEncode(s: string): string {
 // Tags first, entities second, and in that order on purpose: decoding
 // entities first could manufacture a "<" that the tag stripper would then eat
 // along with everything after it.
+// WORDS, NOT THE STYLESHEET (Dave 2026-09-02, second screenshot of the same
+// TikTok mail: "@import ' body, html { margin: 0 auto !important; ..." as
+// the body). Stripping tags alone leaves the TEXT of every element, and a
+// marketing mail's first text is its <style> block. So the parts that are
+// never words go first, whole: the head, styles, scripts, comments. Then
+// the block-level ends become line breaks, so paragraphs stay paragraphs
+// instead of one run-on line, and only then do the tags go.
 function stripHtml(h: string): string {
-  return decodeEntities(h.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+  const s = h
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(script|style|head|title|template|noscript)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ")
+    .replace(/<\s*(br|\/p|\/div|\/tr|\/li|\/h[1-6]|\/td|\/th|\/table|\/section|\/article|\/blockquote|\/header|\/footer)\b[^>]*>/gi, "\n")
+    .replace(/<[^>]+>/g, " ");
+  return decodeEntities(s)
+    .replace(/[ \t\u00a0\r]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 function findPart(part: GmailPart | undefined, mime: string): string | null {
   if (!part) return null;

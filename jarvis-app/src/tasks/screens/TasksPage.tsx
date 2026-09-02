@@ -100,7 +100,13 @@ function emptySub(filter: TaskFilter, counts: Record<TaskFilter, number>): strin
 // them; the menus on the list head carry every filter and every count the
 // chips did, and a menu never overflows sideways. The laws keep the record.
 
-function Row({
+// THE TASK ROW, everywhere a task is a row (exported 2026-09-02 for the
+// Health page's Up Next, Dave: "Add task on the same page as well should
+// render as a task there like it does everywhere else after. It should have
+// the same clearing ability as well"). One row, one set of gestures: the
+// check completes, the swipe reveals Tomorrow and Delete, the title opens,
+// the hold renames.
+export function TaskRow({
   item,
   today,
   onToggle,
@@ -114,6 +120,7 @@ function Row({
   onPick,
   muteToday = false,
   parent = null,
+  kicker = null,
 }: {
   item: TaskItem;
   today: string;
@@ -144,6 +151,9 @@ function Row({
   // every row keeps two lines and a fact. Derived by the flow from one
   // goal index, the same one Today reads, so the two pages cannot disagree.
   parent?: ParentLine | null;
+  // A caller's own second line (a reminder's time on the Health page),
+  // in place of the parent or category words.
+  kicker?: string | null;
 }) {
   const t = item.data;
   const u = urgencyFor(t, today);
@@ -162,7 +172,9 @@ function Row({
   // Open tasks also reveal a "tomorrow" action; BILLS DO NOT (Money v1):
   // pushing rent to tomorrow in one gesture is exactly the ADHD-tax move the
   // money track exists to stop. Delete stays; deferral needs the sheet.
-  const snoozable = !t.done && !t.bill;
+  // And only where the caller can move it: a reminder on the Health page
+  // has no Tomorrow, so its reveal is Delete alone.
+  const snoozable = !t.done && !t.bill && !!onSnooze;
   const { dx, dragging, handlers } = useSwipe({ revealW: snoozable ? 176 : 88 });
 
   useEffect(() => {
@@ -281,7 +293,9 @@ function Row({
               the row-tags line they shared are gone; this line is all three. */}
           <div className="r-k">
             {chip && <span className={"uchip " + (chip.kind === "late" ? "u-late" : "u-today")}>{chip.label}</span>}
-            {parent
+            {kicker
+              ? <span className="r-goal r-cat">{kicker}</span>
+              : parent
               ? <ParentLineGlyph p={parent} />
               : <span className="r-goal r-cat">
                   {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || "No category"}
@@ -477,6 +491,10 @@ export default function TasksPage({
               <HeadMenu
                 ariaLabel="Area"
                 value={!catFilter || catFilter === "all" ? "all" : catFilter}
+                // The capsule names the control, like Group beside it (Dave
+                // 2026-09-02: "All areas should read Area to match Group");
+                // the menu's first option still says All Areas.
+                label={!catFilter || catFilter === "all" ? "Area" : undefined}
                 options={[{ value: "all", label: "All Areas" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color }))]}
                 onPick={(v) => onCatFilter?.(v)}
               />
@@ -566,7 +584,7 @@ export default function TasksPage({
                 {gi === 0 && notice}
                 {g.items.map((it) => (
                   <React.Fragment key={it.id}>
-                    <Row
+                    <TaskRow
                       item={it} today={today} onToggle={onToggle} onOpen={onOpenTask}
                       onDelete={onDeleteTask} onSnooze={onSnoozeTask} onStart={onStartTask} onRename={onRenameTask}
                       selecting={sel.active} picked={sel.isSelected(it.id)}

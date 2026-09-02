@@ -433,9 +433,3 @@
 .ruled .wk-note { padding: 10px var(--s-4) 0; font-size: 12.5px; color: var(--tx-3); }
 .ruled .wk-note b { color: var(--tx-1); font-weight: var(--w-semi); }
 
-/* ---------- THE MAIL AS SENT (2026-09-02) --------------------------------
-   A sandboxed frame that grows to its content; the page scrolls, never the
-   frame. Rounded like a card so a white-ground newsletter sits in the dark
-   page as a sheet of paper would. */
-.mail-html { display: block; width: 100%; border: 0; border-radius: 12px; background: transparent; min-height: 40px;
-  margin: var(--s-2) 0; }

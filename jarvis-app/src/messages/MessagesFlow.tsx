@@ -294,7 +294,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // TRIAGE_BATCH, so both numbers were sitting there unread.
   const [sortProg, setSortProg] = useState<{ done: number; total: number } | null>(null);
   const [triageWhy, setTriageWhy] = useState<string>("");
-  const [openBodies, setOpenBodies] = useState<Record<string, boolean>>({});
+  // How each message's body is shown: as sent (the mail's own layout, when
+  // it has one), the text lead-in, or the whole text. Unset means the
+  // default for that message: as sent when it can be, else the lead-in.
+  const [bodyMode, setBodyMode] = useState<Record<string, "sent" | "text" | "full">>({});
   const [restOpen, setRestOpen] = useState(false);
   // E10 (2026-08-24): select mode for the fold. Null when off; a set of
   // thread ids when on. Scoped to Worth Knowing and Noise on purpose: bulk
@@ -2231,30 +2234,33 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             // one tap. The words are never altered, only what is shown first.
             const clean = cleanBody(m.body);
             const long = isLong(clean);
-            const open = openBodies[m.id] === true;
-            // AS SENT (Dave 2026-09-02, "I can't read emails or see pics"):
-            // a mail with an HTML version opens into it, pictures and all,
-            // in a frame that cannot run anything (MailHtmlView). The text
-            // view stays the first thing shown, because it is the shortest.
+            // AS SENT (Dave 2026-09-02, "I can't read emails or see pics";
+            // then, with his Gmail beside it: "Need to fix the email"). A
+            // mail with an HTML version opens AS SENT, pictures and layout,
+            // in a frame that cannot run anything (MailHtmlView), the way
+            // his Gmail shows it. The text is one tap away, and a long text
+            // folds behind its lead-in the way it always did.
             const asSent = !!m.html;
+            const mode = bodyMode[m.id] ?? (asSent ? "sent" : "text");
+            const setMode = (v: "sent" | "text" | "full") => setBodyMode((o) => ({ ...o, [m.id]: v }));
             return (
             <div className="msg-turn" key={m.id}>
               <div className="msg-turn-head">
                 <span className="msg-turn-from">{m.from}</span>
                 <span className="conn-meta">{m.date}</span>
               </div>
-              {open && asSent
+              {mode === "sent"
                 ? <MailHtmlView html={m.html!} />
-                : <div className="msg-body">{long && !open ? leadIn(clean) : clean}</div>}
+                : <div className="msg-body">{long && mode === "text" ? leadIn(clean) : clean}</div>}
               {(long || asSent) && (
-                <button
-                  className="quiet-action msg-more"
-                  onClick={() => setOpenBodies((o) => ({ ...o, [m.id]: !open }))}
-                >
-                  {open ? (asSent ? "Show as text" : "Fold it back")
-                    : long ? "Read the whole thing · " + wordCount(clean) + " words" + (asSent ? " · as sent" : "")
-                    : "Show as sent"}
-                </button>
+                <div className="msg-more-row">
+                  {mode === "sent" && <button className="quiet-action msg-more" onClick={() => setMode("text")}>Show as Text</button>}
+                  {mode === "text" && long && (
+                    <button className="quiet-action msg-more" onClick={() => setMode("full")}>Read the Whole Thing · {wordCount(clean)} words</button>
+                  )}
+                  {mode === "full" && <button className="quiet-action msg-more" onClick={() => setMode("text")}>Fold It Back</button>}
+                  {mode !== "sent" && asSent && <button className="quiet-action msg-more" onClick={() => setMode("sent")}>Show as Sent</button>}
+                </div>
               )}
               {m.attachments.length > 0 && (
                 <div className="msg-quick">
