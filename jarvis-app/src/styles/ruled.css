@@ -7,21 +7,24 @@
    no longer needs; when every screen wears it, these rules move into the
    design system and this file goes away.
 
-   STATUS (2026-09-03, UPDATE40 audit): not yet -- the primary tabs (Today,
-   Life, Schedule, Health, Gym, Brain, Notes' own editor, Search, Settings,
-   Onboarding) all carry .ruled, but a real audit that day found ten more
-   screens that still don't: three Notes pickers (LinkPicker, CreateTasks,
-   Connections) and eight views inside Messages/Email (everything but the
-   ported inbox list -- deck, sweep-finish, purge, rules, the closed-inbox
-   door, connect, compose, thread detail) and its offline demo stand-in
-   (DemoMail). None of those ever had a catalog ruling of their own, so
-   porting them is a design call, not a mechanical class swap, and it
-   belongs to whoever picks up that work next, screen by screen, same as
-   every port before it -- not to a blind file merge. See
-   SESSION_2026_09_03_UPDATE40_CSS_AUDIT.md for the full list and reasoning.
-   conditioning.css, which was never scoped by .ruled at all, has already
-   moved into components.css -- that half of "this file goes away" was safe
-   to do today; this half isn't yet.
+   STATUS (2026-09-03, closed out over updates 41-42-43): the ten-screen gap
+   a UPDATE40 audit found that day is done. Six Messages/Email views (purge,
+   rules, the closed-inbox door, connect, compose, thread detail) and
+   DemoMail's compose state landed in update 41; the three Notes pickers
+   (LinkPicker, CreateTasks, Connections) landed in updates 42 and 43. Two
+   Messages views, deck and sweep-finish ("dead"), stay on the plain
+   default card on purpose -- they're the Mission Deck's own full-bleed,
+   bespoke surfaces, never in scope for the audit's gap list, not a
+   remaining port. See SESSION_2026_09_03_UPDATE40_CSS_AUDIT.md for the
+   original gap list and reasoning, and the UPDATE41/42/43 session docs for
+   how each screen was closed.
+
+   Every screen that was ever meant to carry .ruled now does. conditioning.css
+   moved into components.css back in update 40; ruled.css itself stays a
+   separate file for now -- merging it into the design system proper is a
+   distinct, larger move (auditing every rule for the deck/dead exemption,
+   re-checking nothing here still assumes a non-ruled sibling) that hasn't
+   been done, not a sign anything is still unported.
 
    The rulings, with their source, so nobody has to open the catalog:
      VISUAL_CATALOG_RULINGS_2026_09_01.md   every pick, verbatim
