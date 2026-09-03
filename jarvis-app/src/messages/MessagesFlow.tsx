@@ -50,6 +50,7 @@ import { humanError } from "../connections/google/humanError";
 import { aiFailureLine } from "../ai/failureLine";
 import { endOfAct } from "./mailAct";
 import { dayPhrase, monthDay } from "../money/bills";
+import { Head, Card } from "../settings/kit";
 
 // The words every mail-archive receipt uses, in one place, because the four
 // batch sites used to phrase the same outcome four ways.
@@ -1880,21 +1881,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       setPurgePicks(next);
     };
     return (
-      <div className={"screen " + pushCls} key="purge">
+      <div className={"screen ruled " + pushCls} key="purge">
         <div className="nav-bar">
           <button className="nav-back" onClick={() => { setPurgePicks(null); setView("list"); }}>Email</button>
           <span className="nav-title">Clean Out</span>
           <button className="nav-action" onClick={() => setPurgePicks(new Set())}>None</button>
         </div>
         {piles.length === 0 ? (
-          <div className="pad-x"><div className="card"><div className="empty-state empty-compact">
+          <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
             <div className="empty-title">Nothing to Clean Out</div>
             <div className="empty-sub">Your inbox is already down to what matters.</div>
           </div></div></div>
         ) : (
           <>
-            <div className="grp"><div className="eyebrow">Who fills your inbox</div></div>
-            <div><div className="list-flat">
+            <div className="sh2 sh2-quiet"><span className="t">Who Fills Your Inbox</span></div>
+            <div className="pad-x"><div className="card list-card-ruled">
               {piles.map((p) => (
                 <div className="row" role="button" tabIndex={0} key={p.email}
                   aria-pressed={picks.has(p.email)}
@@ -1946,11 +1947,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   if (view === "rules") {
     const filed = Object.entries(rules);
     return (
-      <div className={"screen " + pushCls} key="rules">
+      <div className={"screen ruled " + pushCls} key="rules">
         <div className="nav-bar"><button className="nav-back" onClick={() => setView("list")}>Email</button>
           <span className="nav-title">Standing Rules</span><span className="nav-action"></span></div>
-        <div className="grp"><div className="eyebrow">Senders You Filed</div></div>
-        <div><div className="list-flat">
+        <Head label="Senders You Filed" />
+        <Card>
           {filed.length === 0 ? (
             <div className="row"><div className="row-grow"><div className="conn-meta">Nothing filed yet.</div></div></div>
           ) : filed.map(([sender, bucket]) => (
@@ -1967,12 +1968,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <button className="quiet-action" onClick={() => setRules(clearRule(sender))}>Undo</button>
             </div>
           ))}
-        </div></div>
+        </Card>
         {/* N8 (2026-08-20). The ONLY thing in this app that sends without a
             tap, so the promise and the guard are the same sentence and it
             lives OFF until he turns it on. */}
-        <div className="grp"><div className="eyebrow">Heads-Down Auto-Reply</div></div>
-        <div><div className="list-flat">
+        <Head label="Heads-Down Auto-Reply" />
+        <Card>
           <div className="row">
             <div className="row-grow">
               <div className="conn-name">{autoReplyOn ? "On During Focus Blocks" : "Off"}</div>
@@ -1989,10 +1990,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="conn-meta">Nobody is a VIP yet, so nothing would send. Mark someone from their thread.</div>
             </div></div>
           )}
-        </div></div>
+        </Card>
 
-        <div className="grp"><div className="eyebrow">Muted Threads</div></div>
-        <div><div className="list-flat">
+        <Head label="Muted Threads" />
+        <Card>
           {muted.length === 0 ? (
             <div className="row"><div className="row-grow"><div className="conn-meta">Nothing muted.</div></div></div>
           ) : muted.map((id) => {
@@ -2004,7 +2005,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               </div>
             );
           })}
-        </div></div>
+        </Card>
         {autoNoise && (
           <div className="pad-x conn-action">
             <button className="btn btn-secondary btn-block" onClick={() => {
@@ -2027,7 +2028,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // through, alone; tapping one opens exactly that thread.
     const vipRows = rows.filter((r) => r.unread && isVip(r.fromEmail, vips)).slice(0, 3);
     return (
-      <div className="screen">
+      <div className="screen ruled">
         <PageHeader title="Email" />
         {/* 1B: THE DOOR. It used to be a card in a stack of cards, which is
             the wrong shape for the idea: a curtain that looks like one more
@@ -2069,7 +2070,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="mail-door-who">You close email outside your windows</div>
         </div>
         {vipRows.length > 0 && (
-          <div className="pad-x"><div className="card">
+          <div className="pad-x"><div className="card list-card-ruled">
             {vipRows.map((r) => (
               <div className="row" role="button" tabIndex={0} key={r.id} onClick={() => { setPeeked(true); void openThread(r.id); }}>
                 <div className="row-grow">
@@ -2119,11 +2120,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       );
     }
     return (
-      <div className={"screen " + pushCls} key="connect">
+      <div className={"screen ruled " + pushCls} key="connect">
         <PageHeader title="Email" />
         {/* Catalog V3.1: the empty state carries its action. Directions to a
             button somewhere else are illegal; the button is here. */}
-        <div className="pad-x"><div className="card"><div className="empty-state">
+        <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
           <div className="empty-icon"><Mail className="ic" /></div>
           <div className="empty-title">Connect Your Email</div>
         </div></div></div>
@@ -2139,7 +2140,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   if (view === "compose") {
     return (
-      <div className={"screen " + pushCls} key="compose">
+      <div className={"screen ruled " + pushCls} key="compose">
         <div className="nav-bar">
           <button className="nav-back" onClick={() => setView(thread && !editingDraftId ? "detail" : "list")}>Cancel</button>
           <span className="nav-title">{editingDraftId ? "Draft" : "New message"}</span>
@@ -2202,7 +2203,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const bulk = isBulk(lastMsg(thread).listUnsubscribe);
     const worthSummarising = thread.messages.length > 1 || isLong(cleanBody(lastMsg(thread).body));
     return (
-      <div className={"screen " + pushCls} key="detail">
+      <div className={"screen ruled " + pushCls} key="detail">
         <div className="nav-bar">
           <button className="nav-back" onClick={() => setView("list")}>Email</button>
           <span className="nav-title"></span>
@@ -2338,7 +2339,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {handTargets !== null && (
             <div className="msg-hand-pick">
               <div className="eyebrow">Hand This To</div>
-              <div className="card">
+              <div className="card list-card-ruled">
                 {handTargets.length === 0 ? (
                   <div className="row"><div className="row-grow">
                     <div className="conn-meta">No emails in People yet</div>

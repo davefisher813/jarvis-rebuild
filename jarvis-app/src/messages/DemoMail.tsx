@@ -75,7 +75,7 @@ export default function DemoMail({ onConnect }: { onConnect?: () => void }) {
 
   if (composing) {
     return (
-      <div className="screen">
+      <div className="screen ruled">
         <div className="nav-bar">
           <button className="nav-back" onClick={() => setComposing(false)}>Cancel</button>
           <span className="nav-title">New Message</span>
