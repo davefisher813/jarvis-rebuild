@@ -8,7 +8,6 @@ import "../styles/jarvis-design-system.css";
 import "../styles/uniformity.css";
 import "../styles/components.css";
 import "../styles/ruled.css";
-import "../styles/conditioning.css";
 
 // Health bench (dev only): walks all 21 src/health/screens/*.tsx with real
 // content, offline of the module's own wiring into AppShell -- HealthFlow

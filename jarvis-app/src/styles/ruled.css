@@ -7,6 +7,22 @@
    no longer needs; when every screen wears it, these rules move into the
    design system and this file goes away.
 
+   STATUS (2026-09-03, UPDATE40 audit): not yet -- the primary tabs (Today,
+   Life, Schedule, Health, Gym, Brain, Notes' own editor, Search, Settings,
+   Onboarding) all carry .ruled, but a real audit that day found ten more
+   screens that still don't: three Notes pickers (LinkPicker, CreateTasks,
+   Connections) and eight views inside Messages/Email (everything but the
+   ported inbox list -- deck, sweep-finish, purge, rules, the closed-inbox
+   door, connect, compose, thread detail) and its offline demo stand-in
+   (DemoMail). None of those ever had a catalog ruling of their own, so
+   porting them is a design call, not a mechanical class swap, and it
+   belongs to whoever picks up that work next, screen by screen, same as
+   every port before it -- not to a blind file merge. See
+   SESSION_2026_09_03_UPDATE40_CSS_AUDIT.md for the full list and reasoning.
+   conditioning.css, which was never scoped by .ruled at all, has already
+   moved into components.css -- that half of "this file goes away" was safe
+   to do today; this half isn't yet.
+
    The rulings, with their source, so nobody has to open the catalog:
      VISUAL_CATALOG_RULINGS_2026_09_01.md   every pick, verbatim
      JARVIS_UI_CONTRACT.md §0.5             the same picks, folded into rows

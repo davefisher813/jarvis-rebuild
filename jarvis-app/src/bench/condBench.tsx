@@ -7,7 +7,6 @@ import "../styles/jarvis-design-system.css";
 import "../styles/uniformity.css";
 import "../styles/components.css";
 import "../styles/ruled.css";
-import "../styles/conditioning.css";
 
 // Conditioning bench (dev only): the face and the receipt, standalone, so
 // both states can be looked at and screenshotted without building a program
