@@ -70,7 +70,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
     const fixing: Exercise | null = fix ? days[fix.dayIdx]?.exercises[fix.exIdx] ?? null : null;
     return (
       <>
-        <div className="screen train-skin">
+        <div className="screen ruled">
           <div className="nav-bar">
             <button className="nav-back" aria-label="Back" onClick={() => setDraft(null)}></button>
             <div className="nav-title truncate">{draft.name}</div>
@@ -87,7 +87,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
             <div key={day.id}>
               {/* One head grammar across the gym pages (reformat 2026-08-31). */}
               <div className="sh2 sh2-quiet"><span className="t">{day.name}</span></div>
-              <div className="pad-x"><div className="card">
+              <div className="pad-x"><div className="card list-card-ruled">
                 {day.exercises.map((e, ei) => (
                   <div className="row" role="button" tabIndex={0} key={e.id} onClick={() => setFix({ dayIdx: di, exIdx: ei })}>
                     <div className="row-grow">
@@ -134,7 +134,7 @@ export default function UploadFlow({ ai, onSave, onCancel }: {
   // ---- source pick ----
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Upload a Program</div></div>
         <div className="pad-x sheet-form">

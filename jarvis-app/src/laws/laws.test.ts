@@ -3346,16 +3346,20 @@ describe("LAW 15: the gym speaks one grammar", () => {
     // 2026-09-01 "chip as its own rounded card" spec. It still needs to be
     // opaque so the swipe-delete track stays hidden until revealed; the
     // default now matches the PAGE ground (SessionScreen has no card around
-    // the strip), and the sheet/train-skin overrides step it up to match a
-    // real nested card where one exists.
+    // the strip), and the sheet override steps it up to match a real nested
+    // card where one exists.
+    // SPEC MOVED 2026-09-03 (the training skin retired): the gym sheets are
+    // plain sheets now, so the one sheet rule is the whole story -- there is
+    // no darker train-skin step for the chip to match any more.
     expect(chip).toContain("background: var(--bg)");
     expect(css).toMatch(/\.sheet-scrim \.set-chip\s*\{\s*background:\s*var\(--surface-3\)/);
-    expect(css).toMatch(/\.card\.train-skin \.set-chip\s*\{\s*background:\s*var\(--surface-2\)/);
+    expect(css).not.toMatch(/\.train-skin/);
+    // A set's numbers stay at the grouped-row 16px without the skin.
+    expect(css).toMatch(/\.set-chip \.conn-name\s*\{\s*font-size:\s*16px/);
     // No radius, no gap, no elevation escalation inside a sheet: a set row
     // reads exactly like its neighbouring .xs-row grouped-table rows.
     expect(chip).not.toMatch(/border-radius/);
     expect(css).not.toMatch(/\.set-chip-col\s*\{[^}]*margin-bottom:\s*var\(--s-2\)/);
-    expect(css).not.toMatch(/\.card\.train-skin\.xs \.set-chip/);
     // The divider between sets is the same .row + .row hairline every other
     // list gets for free -- nothing left zeroing it back out.
     expect(css).not.toMatch(/\.set-strip .*\.reorder-row \+ \.reorder-row\s*\{\s*border-top:\s*0/);

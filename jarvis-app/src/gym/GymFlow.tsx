@@ -98,7 +98,7 @@ function NameSheet({ title, initial, placeholder, backOff, season, gameCategory,
   const [armed, setArmed] = useState(false);
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{title}</div></div>
         <div className="pad-x sheet-form">
@@ -175,7 +175,7 @@ function BumpSheet({ weekLabel, onSave, onCancel }: {
   const [backOff, setBackOff] = useState(false);
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Duplicate {weekLabel} & Bump</div></div>
         <div className="pad-x sheet-form">
@@ -216,7 +216,7 @@ function BackdateSheet({ dayName, onStart, onCancel }: { dayName: string; onStar
   const [date, setDate] = useState(todayISO());
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Log a Past {dayName}</div></div>
         <div className="pad-x sheet-form">
@@ -357,7 +357,7 @@ function BlockList({ title, blocks, minutes, onEdit }: {
     // and each item states its amount at the row's far right -- the exact
     // preview anatomy. Empty stays legal: no items means the card is just
     // its door.
-    <div className="pad-x"><div className={"card" + (has ? " banner-warn" : "")}>
+    <div className="pad-x"><div className={"card list-card-ruled" + (has ? " banner-warn" : "")}>
       <div className="row">
         <div className="row-grow">
           <div className={"eyebrow" + (has ? " eyebrow-warn" : "")}>{title}{(minutes ?? 0) > 0 ? ` · ${minutes} Min` : ""}</div>
@@ -390,7 +390,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
   const patch = (id: string, p: Partial<DayBlock>) => setRows((r) => r.map((x) => (x.id === id ? { ...x, ...p } : x)));
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{title}</div></div>
         <div className="pad-x sheet-form">
@@ -956,7 +956,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
     const dirty = JSON.stringify(workoutDraft) !== JSON.stringify(w.data.exercises);
     const closeWorkout = () => { setViewWorkout(null); setWorkoutDraft(null); };
     return (
-      <div className="screen train-skin">
+      <div className="screen ruled">
         <div className="nav-bar">
           <button className="nav-back" aria-label="Back" onClick={closeWorkout}></button>
           <div className="nav-title">{w.data.dayName}</div>
@@ -1026,7 +1026,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
     const exercise: Exercise | undefined = liveEx?.custom
       ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, exerciseKey: liveEx.exerciseKey, sets: liveEx.plan ?? [] }
       : planned ?? (liveEx ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, sets: [] } : undefined);
-    if (!exercise) return <div className="screen train-skin" />;
+    if (!exercise) return <div className="screen ruled" />;
     return (
       <SessionScreen
         live={live}
@@ -1429,7 +1429,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
   const switcherEl = switcherOpen ? (
     createPortal(
       <div className="sheet-scrim" onClick={() => setSwitcherOpen(false)}>
-        <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
+        <div className="card" onClick={(e) => e.stopPropagation()}>
           <div className="sheet-handle" />
           <div className="grp"><div className="eyebrow">Programs</div></div>
           <div><div className="list-flat">
@@ -1482,7 +1482,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
       const lastForDay = lastWorkoutForDay(openDay.id);
       return (
         <>
-          <div className="screen train-skin">
+          <div className="screen ruled">
             <div className="nav-bar">
               <button className="nav-back" aria-label="Back" onClick={() => setOpenDayId(null)}></button>
               <div className="nav-title truncate">{openDay.name}</div>
@@ -1504,7 +1504,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
                 </button>
               )}
             </div>
-            <div className="pad-x list-card"><div className="card">
+            <div className="pad-x list-card"><div className="card list-card-ruled">
               <ReorderList
                 ids={openDay.exercises.map((e) => e.id)}
                 onReorder={(ids) => void reorderExercises(activeWeek.id, openDay.id, ids)}
@@ -1536,7 +1536,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
                 editor's door; "None" is a legal, honest state (rotation
                 keeps its job). */}
             <div className="sh2 sh2-quiet"><span className="t">Schedule</span></div>
-            <div className="pad-x"><div className="card">
+            <div className="pad-x"><div className="card list-card-ruled">
               <div className="row" role="button" tabIndex={0} onClick={() => setPicker({ kind: "pinDays", weekId: activeWeek.id, day: openDay })}>
                 <div className="row-grow">
                   <div className="conn-name">Pinned Days</div>
@@ -1574,7 +1574,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
   if (multiWeek && openWeekId && activeWeek) {
     return (
       <>
-        <div className="screen train-skin">
+        <div className="screen ruled">
           <div className="nav-bar">
             <button className="nav-back" aria-label="Back" onClick={() => setOpenWeekId(null)}></button>
             <div className="nav-title truncate">{activeWeek.label}</div>
@@ -1590,7 +1590,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
               </button>
             )}
           </div>
-          <div className="pad-x list-card"><div className="card">
+          <div className="pad-x list-card"><div className="card list-card-ruled">
             <ReorderList
               ids={activeWeek.days.map((d) => d.id)}
               onReorder={(ids) => void reorderDays(activeWeek.id, ids)}
@@ -1626,7 +1626,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
 
   return (
     <>
-      <div className="screen train-skin">
+      <div className="screen ruled">
         <div className="nav-bar">
           <button className="nav-back" aria-label="Back" onClick={onBack}></button>
           <div className="nav-title truncate">{program ? program.data.name : "Training"}</div>
@@ -1661,7 +1661,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
                 never a prescription -- the day a game lands on, nothing
                 about what to do with the lift. It floated too. */}
             <div className="sh2 sh2-quiet"><span className="t">Program</span></div>
-            <div className="pad-x"><div className="card">
+            <div className="pad-x"><div className="card list-card-ruled">
               <div className="row" role="button" tabIndex={0} onClick={() => setSwitcherOpen(true)}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{program.data.name}</div>
@@ -1708,7 +1708,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
             {multiWeek ? (
               <>
                 <div className="sh2 sh2-quiet"><span className="t">Weeks</span></div>
-                <div className="pad-x"><div className="card">
+                <div className="pad-x"><div className="card list-card-ruled">
                   {weeks.map((w) => (
                     <div className="row" role="button" tabIndex={0} key={w.id} onClick={() => setOpenWeekId(w.id)}>
                       <div className="row-grow">
@@ -1733,7 +1733,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
                     </button>
                   )}
                 </div>
-                <div className="pad-x list-card"><div className="card">
+                <div className="pad-x list-card"><div className="card list-card-ruled">
                   {singleWeek && (
                     <ReorderList
                       ids={singleWeek.days.map((d) => d.id)}
@@ -1774,7 +1774,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
                 {/* History wears the home-page head pill (Dave 2026-08-26's
                     rule, spread here 2026-08-31 with the count-pill wave). */}
                 <div className="sh2 sh2-quiet"><span className="t">Recent</span><button className="see-all pill-action" onClick={() => setHistoryOpen(true)}>History</button></div>
-                <div className="pad-x"><div className="card">
+                <div className="pad-x"><div className="card list-card-ruled">
                   {recent.map((w) => {
                     const logged = w.data.exercises.filter((e) => e.sets.some((s) => !s.skipped)).length;
                     const total = w.data.exercises.length;

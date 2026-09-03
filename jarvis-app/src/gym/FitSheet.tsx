@@ -54,7 +54,7 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{day.name} · Plan {planMin} Min</div></div>
 

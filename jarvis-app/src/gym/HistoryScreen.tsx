@@ -53,7 +53,7 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
   }, [workouts]);
 
   return (
-    <div className="screen train-skin">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">History</div>
@@ -65,7 +65,13 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
               bare title read as broken instead of as new. */}
           <div className="empty-sub">Log a set in any session and it shows up here</div></div>
       ) : (
-        <div><div className="list-flat">
+        <>
+        {/* THE TRAINING SURFACE ONTO THE RULINGS (2026-09-03): every list on a
+            ruled screen is a card, and the two lists here read alike -- Done
+            Work already had its head, so the lifts get theirs ("if one should,
+            all should", the Schedule heads ruling). */}
+        <div className="sh2 sh2-quiet"><span className="t">Lifts</span></div>
+        <div className="pad-x"><div className="card list-card-ruled">
           {rows.map((r) => (
             <div className="row" role="button" tabIndex={0} key={r.name + r.kind}
               onClick={() => onOpenLift({ name: r.name, kind: r.kind, unit: r.unit, timeUnit: r.timeUnit })}>
@@ -83,12 +89,13 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
             </div>
           ))}
         </div></div>
+        </>
       )}
 
       {doneRows.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Done Work</span></div>
-          <div><div className="list-flat">
+          <div className="pad-x"><div className="card list-card-ruled">
             {doneRows.map((d) => (
               <div className="row" key={d.name}>
                 <div className="row-grow">

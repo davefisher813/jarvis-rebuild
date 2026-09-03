@@ -192,7 +192,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card train-skin xs" onClick={(e) => e.stopPropagation()}>
+      <div className="card xs" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <SheetBar title={mode === "new" ? "New Exercise" : "Edit Exercise"} onCancel={onCancel} onSave={save} saveDisabled={!valid} />
         <div className="sheet-form">

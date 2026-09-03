@@ -30,7 +30,7 @@ export default function ReceiptSheet({ dayName, receipt, workouts, onDone }: {
 
   return createPortal(
     <div className="sheet-scrim" onClick={onDone}>
-      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">Session Done</div></div>
         <div className="pad-x sheet-form">

@@ -707,3 +707,24 @@
 }
 .ruled .card:has(> .row-create:only-child) > .row-create { border-top: 0; }
 .ruled .proj-detail-hero .proj-prog .conn-meta { text-align: center; }
+
+/* ---------- TRAINING, PORTED (2026-09-03) ---------------------------------
+   The program page, the week and day editors, the finished workout, the
+   session, History, the lift detail and the upload review wear .ruled: the
+   14pt glass card, one card per band, the quiet caps head. Their grammar
+   was already the ruled one (the 2026-08-31 reformat and the 2026-09-01
+   editor restyle put every list in a pad-x > card and every head in .sh2);
+   what changed is the dress -- the retired train-skin (flat, 18px, washes)
+   was the flat look Dave reversed on 2026-09-02, and the gym was the last
+   surface still wearing it. The banner cards keep the app's own tint the
+   way the Health page's do.
+
+   The set strip on the session screen is a working list of bare rows, not a
+   card ("cards for summaries, bare hairline rows for working lists"), and
+   ReorderList's root carries .card for the lists that ARE cards. Inside a
+   glass card that root is a card in a card and flattens by the rule above;
+   on the bare strip nothing outranks .ruled .card, and this file loads
+   after components.css, so .set-strip .reorder-list would lose the tie and
+   the logged half of the strip would grow a 14pt corner and a shadow. Three
+   classes deep so the strip stays flat. */
+.ruled .set-strip .reorder-list { border-radius: 0; box-shadow: none; }

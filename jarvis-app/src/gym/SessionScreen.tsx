@@ -227,7 +227,7 @@ export default function SessionScreen({
   };
 
   return (
-    <div className="screen train-skin">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title truncate">{live.dayName}</div>
@@ -279,7 +279,7 @@ export default function SessionScreen({
           off block by block, skippable as one unit. Shows on the first
           exercise until it is done or waved off. */}
       {showWarm && (
-        <div className="pad-x"><div className="card">
+        <div className="pad-x"><div className="card list-card-ruled">
           <div className="grp"><div className="eyebrow">Warm-Up{programDay?.warmUpMin ? ` · ${programDay.warmUpMin} Min` : ""}</div></div>
           {warmBlocks.map((b) => {
             const done = !!live.warmDone?.includes(b.id);
@@ -369,7 +369,7 @@ export default function SessionScreen({
       <div className="sh2 sh2-quiet"><span className="t">{noun}</span></div>
       <div className="pad-x">
         {current.skipped ? (
-          <div className="card"><div className="row"><div className="row-grow"><div className="conn-name">Skipped</div></div></div></div>
+          <div className="card list-card-ruled"><div className="row"><div className="row-grow"><div className="conn-name">Skipped</div></div></div></div>
         ) : cond ? (
           <CondReceipt
             exercise={exercise}
@@ -406,7 +406,7 @@ export default function SessionScreen({
       {/* THE COOL-DOWN (D3-C): offered when the work is done, skippable as
           a unit. Skipping here is the same lever the fit sheet offers. */}
       {showCool && (
-        <div className="pad-x"><div className="card">
+        <div className="pad-x"><div className="card list-card-ruled">
           <div className="grp"><div className="eyebrow">Cool-Down{programDay?.coolDownMin ? ` · ${programDay.coolDownMin} Min` : ""}</div></div>
           {coolBlocks.map((b) => {
             const done = !!live.coolDone?.includes(b.id);
@@ -425,7 +425,7 @@ export default function SessionScreen({
       )}
 
       <div className="sh2 sh2-quiet"><span className="t">This Session</span></div>
-      <div className="pad-x"><div className="card">
+      <div className="pad-x"><div className="card list-card-ruled">
         {live.exercises.map((e, i) => (
           // RED IS A VERB: "you are here" is a fact, not an action, so the
           // current exercise marks itself with weight and a quiet Now pill,

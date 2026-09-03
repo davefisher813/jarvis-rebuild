@@ -123,7 +123,7 @@ export default function LiftDetailScreen({
   const todayIso = todayISO();
 
   return (
-    <div className="screen train-skin">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">{name}</div>
@@ -144,7 +144,7 @@ export default function LiftDetailScreen({
               says when the chart starts. */}
           <div className="sh2 sh2-quiet"><span className="t">Trend</span></div>
           {sessions.length < 2 ? (
-            <div className="pad-x"><div className="card">
+            <div className="pad-x"><div className="card list-card-ruled">
               <div className="row">
                 <div className="row-grow">
                   <div className="conn-name">Best so far · {formatSet({ kind, unit, timeUnit }, sessions[sessions.length - 1]!.top)}</div>
@@ -209,7 +209,7 @@ export default function LiftDetailScreen({
               {goalState.met && <span className="pill pill-good">Goal</span>}
             </div></div>
           ) : (
-            <div className="pad-x"><div className="card">
+            <div className="pad-x"><div className="card list-card-ruled">
               <div className="row" role="button" tabIndex={0} onClick={onSetGoal}>
                 <div className="row-grow"><div className="conn-name">Set a Goal on This Lift</div><div className="conn-meta">A weight, a rep count, or a time to clear</div></div>
                 {CHEV}
@@ -220,7 +220,7 @@ export default function LiftDetailScreen({
           {plateau && (
             <>
               <div className="sh2 sh2-quiet"><span className="t">Plateau</span></div>
-              <div className="pad-x"><div className="card banner-warn">
+              <div className="pad-x"><div className="card list-card-ruled banner-warn">
                 <div className="row">
                   <div className="row-grow">
                     <div className="conn-name">{capAfterNumber(`${plateau.flatSessions} sessions with no new best`)}</div>
@@ -246,7 +246,7 @@ export default function LiftDetailScreen({
           {muscleRow && (
             <>
               <div className="sh2 sh2-quiet"><span className="t">Weekly Hard Sets · {MUSCLE_LABEL[muscleRow.muscle]}</span></div>
-              <div className="pad-x"><div className="card">
+              <div className="pad-x"><div className="card list-card-ruled">
                 <div className="row">
                   <div className="row-grow"><div className="conn-name">{muscleRow.sets} sets this week</div><div className="conn-meta">{muscleRow.range.note}</div></div>
                 </div>
@@ -256,7 +256,7 @@ export default function LiftDetailScreen({
           )}
 
           <div className="sh2 sh2-quiet"><span className="t">Sessions</span></div>
-          <div className="pad-x"><div className="card">
+          <div className="pad-x"><div className="card list-card-ruled">
             {(() => {
               // HOW IT MOVED (catalog §4.5): a fact once there is history to
               // feed, never a headline. Lives INSIDE the card now: floating

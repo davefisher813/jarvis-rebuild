@@ -28,7 +28,7 @@ export default function LibraryPickSheet({
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
-      <div className="card train-skin" onClick={(e) => e.stopPropagation()}>
+      <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{title}</div></div>
         <div className="pad-x sheet-form">

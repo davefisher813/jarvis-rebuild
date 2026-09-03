@@ -3817,9 +3817,8 @@ body.selecting .voice-dock { display: none; }
    instead of cleanly revealing the delete button (exact reason .task-row
    is opaque too). Default is the PAGE ground -- correct on SessionScreen,
    where the strip sits straight on the screen with no card around it; the
-   sheet/train-skin overrides below step it up to match a real card when
-   there is one. position: relative stays LOAD-BEARING for the swipe trick
-   itself. */
+   sheet override below steps it up to match a real card when there is one.
+   position: relative stays LOAD-BEARING for the swipe trick itself. */
 .set-chip { display: flex; align-items: center; min-height: var(--tap-min);
   position: relative;
   padding: var(--s-3) var(--s-4); background: var(--bg); cursor: pointer;
@@ -4064,41 +4063,21 @@ body.selecting .voice-dock { display: none; }
 .sheet-scrim .set-chip-editor { background: var(--surface-3); }
 
 /* ==========================================================================
-   THE TRAINING SKIN (2026-09-01, Dave: link to the approved Health Preview,
-   "THIS IS WHAT I WANT"). The training surface wears the preview's exact
-   dress: flat #1C1C1E cards -- no glass, no rims, no glow shadows -- 18px
-   radius, and section identity as a gradient WASH from the tint into the
-   card ground (preview .card.tb/.ta/.ty/.tg), never a border rail. Scoped
-   by .train-skin on gym screens, gym sheets, the lift detail, and the
-   Health category page; nothing outside the training surface repaints. */
-.train-skin .card, .card.train-skin {
-  background: var(--surface-1);
-  -webkit-backdrop-filter: none; backdrop-filter: none;
-  box-shadow: none; border: 0; border-radius: 18px;
-}
-[data-theme="light"] .train-skin .card, [data-theme="light"] .card.train-skin {
-  background: #FFFFFF; box-shadow: var(--shadow-card);
-}
-/* The wash replaces the rail: same banner class names in the TSX, the skin
-   just re-dresses them (preview: linear-gradient(160deg, tint, ground 62%)). */
-.train-skin .banner-blue { border-left: 0; background: linear-gradient(160deg, var(--blue-tint), var(--surface-1) 62%); }
-.train-skin .banner-warn { border-left: 0; background: linear-gradient(160deg, var(--warn-tint), var(--surface-1) 62%); }
-.train-skin .banner-yellow { border-left: 0; background: linear-gradient(160deg, var(--yellow-tint), var(--surface-1) 62%); }
-.train-skin .banner-good { border-left: 0; background: linear-gradient(160deg, var(--good-tint), var(--surface-1) 62%); }
-[data-theme="light"] .train-skin .banner-blue { background: linear-gradient(160deg, var(--blue-tint), #FFFFFF 62%); }
-[data-theme="light"] .train-skin .banner-warn { background: linear-gradient(160deg, var(--warn-tint), #FFFFFF 62%); }
-[data-theme="light"] .train-skin .banner-yellow { background: linear-gradient(160deg, var(--yellow-tint), #FFFFFF 62%); }
-[data-theme="light"] .train-skin .banner-good { background: linear-gradient(160deg, var(--good-tint), #FFFFFF 62%); }
-/* Sheets sit at the preview's own ground (#1C1C1E); what rides on them
-   steps one up, exactly like the preview's s1 sheet / s2 chips. */
-.sheet-scrim .card.train-skin { background: var(--surface-1); }
-.card.train-skin .sheet-form .card:not(.reorder-list) { background: var(--surface-2); }
-.card.train-skin .set-chip { background: var(--surface-2); }
-.card.train-skin .set-chip-editor { background: var(--surface-2); }
-[data-theme="light"] .sheet-scrim .card.train-skin { background: #FFFFFF; }
+   THE TRAINING SKIN IS RETIRED (2026-09-03). It was the 2026-09-01 "THIS IS
+   WHAT I WANT" flat dress (flat #1C1C1E cards, 18px, no glass, gradient
+   washes for the banners, sheets one step darker than every other sheet),
+   scoped by a train-skin class on the gym screens and sheets. Dave reversed the
+   flat look the next day, off the pushed build ("I wanted to stay with the
+   glass look that I originally had. This is the flat look."), the Health
+   page went back to glass with the rest of the app, and the gym was the one
+   surface still wearing the reversed dress. The gym screens carry .ruled
+   now like every other screen (ruled.css, "TRAINING, PORTED"); the gym
+   sheets are plain .card sheets like the other sixteen. The two rulings
+   that lived here and were never about the skin stay, unscoped:  */
 /* A set's numbers read at the same 16px every other grouped-row value uses
-   in this sheet -- same weight as everything else too now (2026-09-02). */
-.train-skin .set-chip .conn-name { font-size: 16px; }
+   (2026-09-02); the set strip is a gym-only control, so the scope is the
+   chip itself. */
+.set-chip .conn-name { font-size: 16px; }
 /* The day-row pin pill (preview: "Pin Days" red verb until a pin exists,
    then the weekday claim as a quiet fact). Steps aside in reorder mode
    with the chevron. */

@@ -470,8 +470,9 @@ export default function CategoryDetail({
   return (
     // THE HEALTH PAGE WEARS THE RULINGS (2026-09-02, Check, Health, Stop):
     // glass cards, quiet caps heads, ruled rows, and its own composition
-    // (HealthBody). The training skin stays on the gym's own screens. Other
-    // categories keep the app's default card.
+    // (HealthBody). The gym's own screens wear the rulings too now (the
+    // training skin retired 2026-09-03). Other categories keep the app's
+    // default card.
     <div className={"screen ruled" + (kind === "health" ? " health-ruled" : " area-ruled")}>
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
