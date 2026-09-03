@@ -9,7 +9,7 @@ export default function WeekShapeScreen({ shape, onOpenTwoDaysOff, onBack }: {
   onBack: () => void;
 }) {
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Week Shape</div>
@@ -20,7 +20,7 @@ export default function WeekShapeScreen({ shape, onOpenTwoDaysOff, onBack }: {
         <div className="bp-sub">The week as it actually ran, day by day.</div>
       </div></div>
 
-      <div className="pad-x"><div className="card">
+      <div className="pad-x"><div className="card list-card-ruled">
         {shape.days.map((d) => (
           <div className="row" key={d.date}>
             <div className="row-grow"><div className="conn-name">{d.date}</div></div>

@@ -11,7 +11,7 @@ export default function NightBeforeScreen({ offer, onAddWindDown, onBack }: {
   onBack: () => void;
 }) {
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Night Before</div>

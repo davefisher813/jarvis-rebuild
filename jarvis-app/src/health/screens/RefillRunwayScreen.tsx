@@ -18,7 +18,7 @@ export default function RefillRunwayScreen({
   const offer = refillOffer(state);
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Refill Runway</div>
@@ -41,7 +41,7 @@ export default function RefillRunwayScreen({
         </div></div>
       )}
 
-      <div className="sec-head"><div className="sec-left"><div className="sec-title">Log A New Fill</div></div></div>
+      <div className="sh2 sh2-quiet"><span className="t">Log A New Fill</span></div>
       <div className="pad-x"><div className="card pad">
         <div className="field">
           <div className="input-label">Doses In This Fill</div>

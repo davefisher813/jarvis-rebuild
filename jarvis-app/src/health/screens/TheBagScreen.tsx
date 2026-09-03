@@ -16,7 +16,7 @@ export default function TheBagScreen({
 }) {
   const done = allChecked(items);
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Bag</div>
@@ -27,7 +27,7 @@ export default function TheBagScreen({
         <div className="bp-sub">One tap per item, or one tap for all.</div>
       </div></div>
 
-      <div className="pad-x"><div className="card">
+      <div className="pad-x"><div className="card list-card-ruled">
         {BAG_ITEMS.map((def) => {
           const state = items.find((i) => i.key === def.key);
           const checked = state?.checked ?? false;

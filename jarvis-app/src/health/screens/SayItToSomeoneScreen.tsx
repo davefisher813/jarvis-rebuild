@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { telHref, hasTrustedAdult, CRISIS_LINE_LABEL, CRISIS_LINE_NUMBER } from "../trustedAdult";
 
 // SAY IT TO SOMEONE (Part 5). Always present, one tap, no preamble: the
@@ -17,8 +17,18 @@ export default function SayItToSomeoneScreen({
   const [draftName, setDraftName] = useState(name);
   const [draftPhone, setDraftPhone] = useState(phone);
 
+  // A trusted adult saved on a PRIOR visit arrives async: the parent
+  // (HealthFlow) starts this screen with empty name/phone and reloads from
+  // the store after first paint. useState's initializer only runs once, so
+  // without this the edit form stayed put forever on a fresh mount landing
+  // straight on this screen (a deep link, a crisis-button tap) even though
+  // a person was already saved -- the one screen where that has to work on
+  // the very first paint. Only ever clears editing; never sets it, so an
+  // athlete who taps Change Who You Call to replace someone is untouched.
+  useEffect(() => { if (hasTrustedAdult(name, phone)) setEditing(false); }, [name, phone]);
+
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Say It To Someone</div>
@@ -29,7 +39,7 @@ export default function SayItToSomeoneScreen({
         <div className="bp-sub">One tap, no questions first.</div>
       </div></div>
 
-      <div className="pad-x"><div className="card">
+      <div className="pad-x"><div className="card list-card-ruled">
         {hasTrustedAdult(name, phone) && !editing ? (
           <a className="row" href={telHref(phone)}>
             <div className="row-grow"><div className="conn-name">{name}</div><div className="bp-sub">Your chosen person</div></div>

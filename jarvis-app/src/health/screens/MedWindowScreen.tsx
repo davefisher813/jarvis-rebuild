@@ -17,7 +17,7 @@ export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
   onBack: () => void;
 }) {
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Med Window</div>
@@ -36,8 +36,8 @@ export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
       ) : (
         days.map((day) => (
           <div key={day.date}>
-            <div className="sec-head"><div className="sec-left"><div className="sec-title">{day.date}</div></div></div>
-            <div className="pad-x"><div className="card">
+            <div className="sh2 sh2-quiet"><span className="t">{day.date}</span></div>
+            <div className="pad-x"><div className="card list-card-ruled">
               {day.marks.map((m, i) => (
                 <div className="row" key={i}>
                   <div className="row-grow">

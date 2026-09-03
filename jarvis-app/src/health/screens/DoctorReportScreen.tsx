@@ -9,7 +9,7 @@ export default function DoctorReportScreen({ report, onExport, onBack }: {
   onBack: () => void;
 }) {
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Take This To The Doctor</div>
@@ -26,7 +26,7 @@ export default function DoctorReportScreen({ report, onExport, onBack }: {
           <div className="empty-sub">Log a dose, a meal mark, lights out, or a session and it lands here</div>
         </div>
       ) : (
-        <div className="pad-x"><div className="card">
+        <div className="pad-x"><div className="card list-card-ruled">
           {report.rows.map((r, i) => (
             <div className="row" key={i}>
               <div className="row-grow">

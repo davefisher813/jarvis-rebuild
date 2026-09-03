@@ -15,7 +15,7 @@ export default function HandoffScreen({ items, onOpenSeasonFeed, onOpenLocker, o
   onBack: () => void;
 }) {
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Handoff</div>
@@ -32,7 +32,7 @@ export default function HandoffScreen({ items, onOpenSeasonFeed, onOpenLocker, o
           <div className="empty-sub">A ride, a fee, a form, or a refill shows up here the moment it does</div>
         </div>
       ) : (
-        <div className="pad-x"><div className="card">
+        <div className="pad-x"><div className="card list-card-ruled">
           {items.map((item, i) => (
             <div className="row" key={i}><div className="row-grow"><div className="conn-name">{item.line}</div></div></div>
           ))}

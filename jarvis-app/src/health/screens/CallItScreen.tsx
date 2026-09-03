@@ -29,7 +29,7 @@ export default function CallItScreen({ durationMin, history, onLog, onBack }: {
   const recent = [...history].reverse().slice(0, 10);
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Call It</div>
@@ -64,8 +64,8 @@ export default function CallItScreen({ durationMin, history, onLog, onBack }: {
 
       {recent.length > 0 && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Recent Sessions</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Recent Sessions</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {recent.map((p, i) => (
               <div className="row" key={i}>
                 <div className="row-grow"><div className="conn-name">{new Date(p.at).toLocaleDateString()}</div></div>

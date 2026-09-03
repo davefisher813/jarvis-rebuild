@@ -9,7 +9,7 @@ export default function ThirdPracticeScreen({ offers, onProtectGap, onBack }: {
   onBack: () => void;
 }) {
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Third Practice</div>
@@ -26,7 +26,7 @@ export default function ThirdPracticeScreen({ offers, onProtectGap, onBack }: {
           <div className="empty-sub">A day that does shows up here, once</div>
         </div>
       ) : (
-        <div className="pad-x"><div className="card">
+        <div className="pad-x"><div className="card list-card-ruled">
           {offers.map((o, i) => (
             <div className="row" key={i}>
               <div className="row-grow">

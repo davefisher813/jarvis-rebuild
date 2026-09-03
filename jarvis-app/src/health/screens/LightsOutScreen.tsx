@@ -17,7 +17,7 @@ export default function LightsOutScreen({ last, onLog, onBack }: {
   };
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Lights Out</div>
@@ -42,8 +42,8 @@ export default function LightsOutScreen({ last, onLog, onBack }: {
 
       {last && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Last Time</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Last Time</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
             <div className="row"><div className="row-grow"><div className="conn-name">{new Date(last.data.at).toLocaleString()}</div></div></div>
           </div></div>
         </>

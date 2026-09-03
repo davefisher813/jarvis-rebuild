@@ -8,7 +8,7 @@ export default function TwoDaysOffScreen({ offer, onPlaceRestDay, onBack }: {
   onBack: () => void;
 }) {
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Two Days Off</div>

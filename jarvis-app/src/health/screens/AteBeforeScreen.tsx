@@ -23,7 +23,7 @@ export default function AteBeforeScreen({
   const open = candidates.filter((c) => !(c.eventId in answered));
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Ate Before</div>
@@ -40,7 +40,7 @@ export default function AteBeforeScreen({
           <div className="empty-sub">A new practice or game on the calendar will show up here</div>
         </div>
       ) : (
-        <div className="pad-x"><div className="card">
+        <div className="pad-x"><div className="card list-card-ruled">
           {open.map((c) => (
             <div className="row" key={c.eventId}>
               <div className="row-grow"><div className="conn-name truncate">{c.eventTitle}</div></div>
@@ -55,7 +55,7 @@ export default function AteBeforeScreen({
 
       {marks.length > 0 && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">The Timeline</div></div></div>
+          <div className="sh2 sh2-quiet"><span className="t">The Timeline</span></div>
           <div className="pad-x">
             {/* Marks on a timeline, never a fraction: catalog Part 3 bans
                 rendering this as "2 of 6". */}

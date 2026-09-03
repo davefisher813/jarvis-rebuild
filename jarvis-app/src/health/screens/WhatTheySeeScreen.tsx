@@ -28,7 +28,7 @@ export default function WhatTheySeeScreen({
   const visibleBody = sharedView(pointAtIt, grants);
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">What They See</div>
@@ -48,8 +48,8 @@ export default function WhatTheySeeScreen({
         <>
           {grantedCats.includes("sleep") && (
             <>
-              <div className="sec-head"><div className="sec-left"><div className="sec-title">{HEALTH_CATEGORY_LABEL.sleep}</div></div></div>
-              <div className="pad-x"><div className="card">
+              <div className="sh2 sh2-quiet"><span className="t">{HEALTH_CATEGORY_LABEL.sleep}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
                 {visibleSleep.length === 0 ? <div className="row"><div className="row-grow"><div className="conn-name">Nothing Logged Yet</div></div></div> :
                   visibleSleep.map((e) => (
                     <div className="row" key={e.id}><div className="row-grow"><div className="conn-name">{new Date(e.data.at).toLocaleString()}</div></div></div>
@@ -59,8 +59,8 @@ export default function WhatTheySeeScreen({
           )}
           {grantedCats.includes("fuel") && (
             <>
-              <div className="sec-head"><div className="sec-left"><div className="sec-title">{HEALTH_CATEGORY_LABEL.fuel}</div></div></div>
-              <div className="pad-x"><div className="card">
+              <div className="sh2 sh2-quiet"><span className="t">{HEALTH_CATEGORY_LABEL.fuel}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
                 {visibleFuel.length === 0 ? <div className="row"><div className="row-grow"><div className="conn-name">Nothing Logged Yet</div></div></div> :
                   visibleFuel.map((m, i) => (
                     <div className="row" key={i}><div className="row-grow"><div className="conn-name">{m.eventTitle ?? m.date}</div><div className="bp-sub">{m.date}</div></div>
@@ -71,8 +71,8 @@ export default function WhatTheySeeScreen({
           )}
           {grantedCats.includes("medication") && (
             <>
-              <div className="sec-head"><div className="sec-left"><div className="sec-title">{HEALTH_CATEGORY_LABEL.medication}</div></div></div>
-              <div className="pad-x"><div className="card">
+              <div className="sh2 sh2-quiet"><span className="t">{HEALTH_CATEGORY_LABEL.medication}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
                 {visibleMed.length === 0 ? <div className="row"><div className="row-grow"><div className="conn-name">Nothing Logged Yet</div></div></div> :
                   visibleMed.map((m, i) => (
                     <div className="row" key={i}><div className="row-grow"><div className="conn-name">{new Date(m.at).toLocaleString()}</div></div></div>
@@ -82,8 +82,8 @@ export default function WhatTheySeeScreen({
           )}
           {grantedCats.includes("load") && (
             <>
-              <div className="sec-head"><div className="sec-left"><div className="sec-title">{HEALTH_CATEGORY_LABEL.load}</div></div></div>
-              <div className="pad-x"><div className="card">
+              <div className="sh2 sh2-quiet"><span className="t">{HEALTH_CATEGORY_LABEL.load}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
                 {visibleLoad.length === 0 ? <div className="row"><div className="row-grow"><div className="conn-name">Nothing Logged Yet</div></div></div> :
                   visibleLoad.map((p, i) => (
                     <div className="row" key={i}><div className="row-grow"><div className="conn-name">{new Date(p.at).toLocaleDateString()}</div></div><span className="pill">{p.rpe}/10</span></div>
@@ -93,8 +93,8 @@ export default function WhatTheySeeScreen({
           )}
           {grantedCats.includes("body") && (
             <>
-              <div className="sec-head"><div className="sec-left"><div className="sec-title">{HEALTH_CATEGORY_LABEL.body}</div></div></div>
-              <div className="pad-x"><div className="card">
+              <div className="sh2 sh2-quiet"><span className="t">{HEALTH_CATEGORY_LABEL.body}</span></div>
+              <div className="pad-x"><div className="card list-card-ruled">
                 {visibleBody.length === 0 ? <div className="row"><div className="row-grow"><div className="conn-name">Nothing Logged Yet</div></div></div> :
                   visibleBody.map((e) => (
                     <div className="row" key={e.id}><div className="row-grow"><div className="conn-name">{new Date(e.data.at).toLocaleDateString()}</div><div className="bp-sub">{e.data.side}</div></div></div>

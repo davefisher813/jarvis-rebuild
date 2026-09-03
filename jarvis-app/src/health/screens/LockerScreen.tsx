@@ -21,7 +21,7 @@ export default function LockerScreen({
   const missing = LOCKER_DOC_KINDS.filter((k) => !present.some((d) => d.data.kind === k));
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Locker</div>
@@ -34,8 +34,8 @@ export default function LockerScreen({
 
       {expiring.length > 0 && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Worth A Look</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Worth A Look</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {expiring.map((e) => (
               <div className="row" key={e.doc.id}>
                 <div className="row-grow"><div className="conn-name">{LOCKER_DOC_LABEL[e.doc.data.kind]}</div></div>
@@ -46,8 +46,8 @@ export default function LockerScreen({
         </>
       )}
 
-      <div className="sec-head"><div className="sec-left"><div className="sec-title">On File</div></div></div>
-      <div className="pad-x"><div className="card">
+      <div className="sh2 sh2-quiet"><span className="t">On File</span></div>
+      <div className="pad-x"><div className="card list-card-ruled">
         {present.length === 0 ? (
           <div className="row"><div className="row-grow"><div className="conn-name">Nothing On File Yet</div></div></div>
         ) : (
@@ -65,8 +65,8 @@ export default function LockerScreen({
 
       {missing.length > 0 && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Add A Document</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Add A Document</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {missing.map((k) => (
               <div className="row" role="button" tabIndex={0} key={k} onClick={() => setAddingKind(k)}>
                 <div className="row-grow"><div className="conn-name">{LOCKER_DOC_LABEL[k]}</div></div>

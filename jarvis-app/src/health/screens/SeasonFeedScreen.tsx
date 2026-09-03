@@ -51,7 +51,7 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
 
   if (draft) {
     return (
-      <div className="screen">
+      <div className="screen ruled">
         <div className="nav-bar">
           <button className="nav-back" aria-label="Back" onClick={() => setDraft(null)}></button>
           <div className="nav-title truncate">{draft.org}</div>
@@ -59,7 +59,7 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
         <div className="pad-x"><div className="card pad">
           <div className="conn-name">What I Read · Fix Anything Later</div>
         </div></div>
-        <div className="pad-x"><div className="card">
+        <div className="pad-x"><div className="card list-card-ruled">
           {draft.events.map((e, i) => (
             <div className="row" key={i}>
               <div className="row-grow">
@@ -79,7 +79,7 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
   }
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Season Feed</div>

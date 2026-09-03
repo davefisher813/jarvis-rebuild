@@ -29,7 +29,7 @@ export default function PointAtItScreen({ patterns, onLog, onBack, onHandToSomeo
   };
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">Point At It</div>
@@ -72,8 +72,8 @@ export default function PointAtItScreen({ patterns, onLog, onBack, onHandToSomeo
           multiple sessions, a span of days. The only action is a human. */}
       {patterns.length > 0 && (
         <>
-          <div className="sec-head"><div className="sec-left"><div className="sec-title">Still There?</div></div></div>
-          <div className="pad-x"><div className="card">
+          <div className="sh2 sh2-quiet"><span className="t">Still There?</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
             {patterns.map((p, i) => (
               <div className="row" key={i}>
                 <div className="row-grow">

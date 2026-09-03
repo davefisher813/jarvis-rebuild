@@ -9,7 +9,7 @@ export default function AgeRuleScreen({ facts, onProtectAGap, onBack }: {
   onBack: () => void;
 }) {
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Age Rule</div>
@@ -20,7 +20,7 @@ export default function AgeRuleScreen({ facts, onProtectAGap, onBack }: {
         <div className="bp-sub">A fact once a season, never a verdict.</div>
       </div></div>
 
-      <div className="pad-x"><div className="card">
+      <div className="pad-x"><div className="card list-card-ruled">
         {facts.map((f, i) => (
           <div className="row" key={i}>
             <div className="row-grow">

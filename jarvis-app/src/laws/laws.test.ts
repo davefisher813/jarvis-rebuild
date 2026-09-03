@@ -1543,6 +1543,7 @@ describe("LAW: every module is reachable, or is listed as not", () => {
     "notesSpec.ts", "tasksSpec.ts",        // written specs, read by people
     "emailBench.tsx",                      // bench harness, run by hand
     "condBench.tsx",                       // bench harness, run by hand
+    "healthBench.tsx",                     // bench harness, run by hand
     "score.ts",                            // golden-set scorer, run by hand
   ];
 
@@ -1609,8 +1610,12 @@ describe("LAW: every module is reachable, or is listed as not", () => {
       const re = new RegExp('["\'][^"\']*[./]' + stem.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + '["\']');
       // Its own siblings do not count as wiring: that is exactly the shape
       // src/native/ has, four files importing each other and nothing else.
+      // A bench harness (NOT_APP, run by hand and never part of the
+      // production build) does not count either: healthBench.tsx exists
+      // SPECIFICALLY to render HealthFlow for a visual check, which is the
+      // opposite of AppShell reachability, not evidence of it.
       const dir = own.slice(0, own.lastIndexOf("/") + 1);
-      if (text.some((s) => !s.f.startsWith(dir) && re.test(s.t))) {
+      if (text.some((s) => !s.f.startsWith(dir) && !NOT_APP.some((n) => s.f.endsWith("/" + n)) && re.test(s.t))) {
         stale.push(base + " IS wired now, take it off the list");
       }
     }

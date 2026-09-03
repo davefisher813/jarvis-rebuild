@@ -23,7 +23,7 @@ export default function ShareLineScreen({
   const grantedFor = (c: HealthCategoryId) => grants.find((g) => g.category === c)?.granted ?? DEFAULT_GRANTED[c];
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
         <div className="nav-title">The Share Line</div>
@@ -34,8 +34,8 @@ export default function ShareLineScreen({
         <div className="bp-sub">Off by default. Turn on only what you want them to see, one category at a time. Turn it back off whenever you want, no explanation needed.</div>
       </div></div>
 
-      <div className="sec-head"><div className="sec-left"><div className="sec-title">Areas</div></div></div>
-      <div className="pad-x"><div className="card">
+      <div className="sh2 sh2-quiet"><span className="t">Areas</span></div>
+      <div className="pad-x"><div className="card list-card-ruled">
         {HEALTH_CATEGORIES.map((c) => (
           <div className="row" key={c}>
             <div className="row-grow">
@@ -53,8 +53,8 @@ export default function ShareLineScreen({
         ))}
       </div></div>
 
-      <div className="sec-head"><div className="sec-left"><div className="sec-title">Never Shared, No Matter What</div></div></div>
-      <div className="pad-x"><div className="card">
+      <div className="sh2 sh2-quiet"><span className="t">Never Shared, No Matter What</span></div>
+      <div className="pad-x"><div className="card list-card-ruled">
         {KID_ROOM_CATEGORIES.map((c) => (
           <div className="row" key={c}>
             <div className="row-grow">
