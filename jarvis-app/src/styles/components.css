@@ -470,6 +470,15 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .ob-skip { text-align: center; color: var(--tx-3); font-weight: var(--w-medium); padding: var(--s-2) 0 0; }
 .connect-row .chip { margin-left: auto; }
 .ob-brand-lg { font-size: 52px; }
+/* THE TEMPLATE PICK, THREE CARDS (catalog 2026-09-01). Each option is a
+   .card, so under .ob-screen.ruled it wears the app's own 14pt glass; the
+   row inside carries the name and one line of who it is for. Stacked with a
+   gap because these are three separate choices, not a grouped list -- the
+   one place in the flow where cards-with-space is the ruling, not the bug. */
+.ob-templates { display: flex; flex-direction: column; gap: var(--s-3); padding-bottom: var(--s-5); }
+.ob-tpl { cursor: pointer; }
+.ob-tpl:active { transform: scale(0.99); }
+.ob-tpl .conn-name { font-size: 16px; }
 .ob-tagline-1 { margin-top: var(--s-3); font-size: var(--t-h3); }
 .ob-host { height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--tx-1); }
 

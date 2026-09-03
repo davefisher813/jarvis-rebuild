@@ -23,6 +23,17 @@ const CAL = ic('<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y
 const X = ic('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>');
 
 const TEMPLATE_LABEL: Record<TemplateKey, string> = { personal: "Personal", business: "Business", student: "Student" };
+// Who each template is for, one line (the catalog picked "three cards" for
+// this step; a card earns a line the chip never had room for). Straight from
+// the three-template architecture: Personal is the multi-workstream juggler,
+// Business the small owner, Student the athlete-or-parent wedge.
+const TEMPLATE_WHO: Record<TemplateKey, string> = {
+  personal: "Juggling a few workstreams at once",
+  business: "Running a small business",
+  student: "A student athlete, or a parent of one",
+};
+
+const CHEV = <div className="chev" />;
 
 // Work-hour presets seeded by the one-tap workstyle question. "varies" keeps
 // the defaults; everything is refinable later in Brain.
@@ -196,7 +207,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   // ---- intro ----
   if (step.kind === "intro") {
     return (
-      <div className="ob-screen">
+      <div className="ob-screen ruled">
         <div className="ob-body">
           <div className="ob-brand ob-brand-lg"><span className="jr">J</span>ARVIS</div>
           <div className="ob-card-title ob-tagline-1">Your personal operating system</div>
@@ -271,6 +282,28 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
         )}
       </div>
     );
+  } else if (step.kind === "choice" && step.key === "template") {
+    // THE TEMPLATE PICK IS THREE CARDS (catalog 2026-09-01: "Three cards:
+    // Personal, Business, Student"). It is the one branching choice in the
+    // flow -- the wedge for the whole product -- so it earns a card with a
+    // line of who-it's-for, not a chip. Tapping a card picks and advances,
+    // exactly as the chips did. The bubble above still asks the question, so
+    // the conversation is unbroken.
+    control = (
+      <div className="pad-x ob-templates">
+        {step.options!.map((o) => (
+          <div key={o.value} className="card ob-tpl" role="button" tabIndex={0} onClick={() => pickTemplate(o.value as TemplateKey)}>
+            <div className="row">
+              <div className="row-grow">
+                <div className="conn-name">{o.label}</div>
+                <div className="conn-meta">{TEMPLATE_WHO[o.value as TemplateKey]}</div>
+              </div>
+              {CHEV}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   } else if (step.kind === "choice") {
     control = (
       <div className="convo-foot">
@@ -279,7 +312,6 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
             <div key={o.value} className="chip" role="button" tabIndex={0} onClick={() => {
               if (step.key === "workStyle") { setWorkStyle(o.value); setIdx(idx + 1); }
               else if (step.key === "aiChoice") { setAiChoice(o.value); setIdx(idx + 1); }
-              else pickTemplate(o.value as TemplateKey);
             }}>{o.label}</div>
           ))}
         </div>
@@ -353,7 +385,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   }
 
   return (
-    <div className="ob-screen">
+    <div className="ob-screen ruled">
       {transcript}
       {control}
     </div>
@@ -383,7 +415,7 @@ function PayoffScreen({ name, briefLabel, seeds, taskTitle, slotLine, saving, on
 }) {
   useEffect(() => { haptics.success(); }, []);
   return (
-    <div className="ob-screen">
+    <div className="ob-screen ruled">
       <div className="ob-body">
         <div className="ob-card-title">{name ? `You\u2019re set, ${name}.` : "You\u2019re set."}</div>
         <div className="ob-sub">Here\u2019s your day, already moving.</div>
