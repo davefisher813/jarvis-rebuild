@@ -1,4 +1,5 @@
 import { CalendarDays, ListChecks, FolderKanban, User, Target } from "../../shared/icons";
+import { Head, Card } from "../../settings/kit";
 
 // Lists the user's real events, tasks, projects, people, and goals so a note
 // can be linked to any of them. Tapping a row calls onPick with the entity's
@@ -25,7 +26,7 @@ export default function LinkPicker({
     people.length === 0 && goals.length === 0;
 
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" onClick={onBack}>Connections</button>
         <span className="nav-title"></span>
@@ -41,7 +42,7 @@ export default function LinkPicker({
         // the honest action is the way back rather than a create button it
         // has no handler for. The real fix is a create-and-link path, which
         // is a feature and not a copy change.
-        <div className="pad-x"><div className="card"><div className="empty-state">
+        <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state">
           <div className="empty-title">Nothing to Link Yet</div>
           <div className="empty-sub">Tasks, events, projects, people and goals show up here</div>
           {onBack && <button className="btn btn-secondary" onClick={onBack}>Back to the Note</button>}
@@ -50,8 +51,8 @@ export default function LinkPicker({
 
       {events.length > 0 && (
         <>
-          <div className="grp"><div className="eyebrow">Events</div></div>
-          <div className="pad-x"><div className="card">
+          <Head label="Events" />
+          <Card>
             {events.map((e) => (
               <div className="row" role="button" tabIndex={0} key={e.id} onClick={() => onPick("event", e.title, e.id)}>
                 <div className="proj-icon cat-bg-sky"><CalendarDays className="ic" /></div>
@@ -59,14 +60,14 @@ export default function LinkPicker({
                 <div className="chev"></div>
               </div>
             ))}
-          </div></div>
+          </Card>
         </>
       )}
 
       {tasks.length > 0 && (
         <>
-          <div className="grp"><div className="eyebrow">Tasks</div></div>
-          <div className="pad-x"><div className="card">
+          <Head label="Tasks" />
+          <Card>
             {tasks.map((t) => (
               <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => onPick("task", t.text, t.id)}>
                 <div className="proj-icon cat-bg-red"><ListChecks className="ic" /></div>
@@ -74,14 +75,14 @@ export default function LinkPicker({
                 <div className="chev"></div>
               </div>
             ))}
-          </div></div>
+          </Card>
         </>
       )}
 
       {projects.length > 0 && (
         <>
-          <div className="grp"><div className="eyebrow">Projects</div></div>
-          <div className="pad-x"><div className="card">
+          <Head label="Projects" />
+          <Card>
             {projects.map((p) => (
               <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onPick("project", p.title, p.id)}>
                 <div className="proj-icon cat-bg-blue"><FolderKanban className="ic" /></div>
@@ -89,14 +90,14 @@ export default function LinkPicker({
                 <div className="chev"></div>
               </div>
             ))}
-          </div></div>
+          </Card>
         </>
       )}
 
       {people.length > 0 && (
         <>
-          <div className="grp"><div className="eyebrow">People</div></div>
-          <div className="pad-x"><div className="card">
+          <Head label="People" />
+          <Card>
             {people.map((p) => (
               <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onPick("person", p.name, p.id)}>
                 <div className="proj-icon cat-bg-pink"><User className="ic" /></div>
@@ -104,14 +105,14 @@ export default function LinkPicker({
                 <div className="chev"></div>
               </div>
             ))}
-          </div></div>
+          </Card>
         </>
       )}
 
       {goals.length > 0 && (
         <>
-          <div className="grp"><div className="eyebrow">Goals</div></div>
-          <div className="pad-x"><div className="card">
+          <Head label="Goals" />
+          <Card>
             {goals.map((g) => (
               <div className="row" role="button" tabIndex={0} key={g.id} onClick={() => onPick("goal", g.title, g.id)}>
                 <div className="proj-icon cat-bg-green"><Target className="ic" /></div>
@@ -119,7 +120,7 @@ export default function LinkPicker({
                 <div className="chev"></div>
               </div>
             ))}
-          </div></div>
+          </Card>
         </>
       )}
     </div>

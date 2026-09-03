@@ -1,5 +1,6 @@
 // Matches locked frame #51 "Create Tasks". Stays green by design: the tasks
 import { catColor } from "../../shared/categories";
+import { Head, Card } from "../../settings/kit";
 // inherit the note's Health category, so the checkboxes are cat-bd-green. The
 // urgency labels add intent color (warn / muted). No icons on this screen.
 
@@ -29,7 +30,7 @@ export default function CreateTasks({
   onBack?: () => void;
 }) {
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" onClick={onBack}>Connections</button>
         <span className="nav-title"></span>
@@ -43,20 +44,16 @@ export default function CreateTasks({
         </div>
       </div>
 
-      <div className="grp">
-        <div className="eyebrow">{"From \u201c" + source + "\u201d"}</div>
-      </div>
-      <div className="pad-x">
-        <div className="card">
-          {items.map((it, i) => (
-            <div className="task-row" key={i}>
-              <div className={"task-check cat-bd-" + catColor(category)}></div>
-              <div className="task-title">{it.text}</div>
-              <span className={"urgency urgency-" + it.urgency}>{it.due}</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Head label={"From \u201c" + source + "\u201d"} />
+      <Card>
+        {items.map((it, i) => (
+          <div className="task-row" key={i}>
+            <div className={"task-check cat-bd-" + catColor(category)}></div>
+            <div className="task-title">{it.text}</div>
+            <span className={"urgency urgency-" + it.urgency}>{it.due}</span>
+          </div>
+        ))}
+      </Card>
 
       <div className="grp"></div>
       <div className="pad-x">
