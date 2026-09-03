@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Tag, CalendarDays, ListChecks, ListTodo, Plus, X, FolderKanban, User, Target, Link2 as LinkIcon } from "../../shared/icons";
 import { catColor } from "../../shared/categories";
+import { Head, Card } from "../../settings/kit";
 
 export type Conn = { id: string; kind: string; label: string; targetId?: string | null };
 
@@ -48,7 +49,7 @@ export default function Connections({
   // in place rather than pushing a screen for a one-tap choice.
   const [picking, setPicking] = useState(false);
   return (
-    <div className="screen">
+    <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" onClick={onBack}>Note</button>
         <span className="nav-title"></span>
@@ -56,75 +57,67 @@ export default function Connections({
       </div>
       <div className="nav-large">Connections</div>
 
-      <div className="grp">
-        <div className="eyebrow">Linked To</div>
-      </div>
-      <div className="pad-x">
-        <div className="card">
+      <Head label="Linked To" />
+      <Card>
+        <div
+          className="row"
+          role={onChangeCategory ? "button" : undefined}
+          tabIndex={onChangeCategory ? 0 : undefined}
+          onClick={onChangeCategory ? () => setPicking(!picking) : undefined}
+        >
+          <div className={"proj-icon cat-bg-" + catColor(category)}><Tag className="ic" /></div>
+          <div className="conn-name">Area</div>
+          <span className="conn-meta">{categoryLabel}</span>
+          {onChangeCategory && <div className="chev"></div>}
+        </div>
+        {picking && categories.map((c) => (
           <div
-            className="row"
-            role={onChangeCategory ? "button" : undefined}
-            tabIndex={onChangeCategory ? 0 : undefined}
-            onClick={onChangeCategory ? () => setPicking(!picking) : undefined}
+            className="row conn-sub"
+            role="button"
+            tabIndex={0}
+            key={c.id}
+            onClick={() => { onChangeCategory?.(c.id); setPicking(false); }}
           >
-            <div className={"proj-icon cat-bg-" + catColor(category)}><Tag className="ic" /></div>
-            <div className="conn-name">Area</div>
-            <span className="conn-meta">{categoryLabel}</span>
-            {onChangeCategory && <div className="chev"></div>}
+            <div className={"proj-icon cat-bg-" + catColor(c.id)}><Tag className="ic" /></div>
+            <div className="conn-name">{c.name}</div>
+            {c.id === category && <span className="conn-meta">Current</span>}
           </div>
-          {picking && categories.map((c) => (
+        ))}
+        {connections.map((c) => {
+          const ic = connIcon(c.kind);
+          const canOpen = !!(onOpen && c.targetId && (c.kind === "task" || c.kind === "project" || c.kind === "event" || c.kind === "goal" || c.kind === "person"));
+          return (
             <div
-              className="row conn-sub"
-              role="button"
-              tabIndex={0}
+              className="row"
               key={c.id}
-              onClick={() => { onChangeCategory?.(c.id); setPicking(false); }}
+              role={canOpen ? "button" : undefined}
+              tabIndex={canOpen ? 0 : undefined}
+              onClick={canOpen ? () => onOpen!(c.kind, c.targetId!) : undefined}
             >
-              <div className={"proj-icon cat-bg-" + catColor(c.id)}><Tag className="ic" /></div>
-              <div className="conn-name">{c.name}</div>
-              {c.id === category && <span className="conn-meta">Current</span>}
+              <div className={"proj-icon " + ic.cls}>{ic.node}</div>
+              <div className="conn-name">{c.label}</div>
+              {canOpen && <div className="chev"></div>}
+              <button className="conn-remove" aria-label="Remove link" onClick={(e) => { e.stopPropagation(); onRemove?.(c.id); }}>
+                <X className="ic" />
+              </button>
             </div>
-          ))}
-          {connections.map((c) => {
-            const ic = connIcon(c.kind);
-            const canOpen = !!(onOpen && c.targetId && (c.kind === "task" || c.kind === "project" || c.kind === "event" || c.kind === "goal" || c.kind === "person"));
-            return (
-              <div
-                className="row"
-                key={c.id}
-                role={canOpen ? "button" : undefined}
-                tabIndex={canOpen ? 0 : undefined}
-                onClick={canOpen ? () => onOpen!(c.kind, c.targetId!) : undefined}
-              >
-                <div className={"proj-icon " + ic.cls}>{ic.node}</div>
-                <div className="conn-name">{c.label}</div>
-                {canOpen && <div className="chev"></div>}
-                <button className="conn-remove" aria-label="Remove link" onClick={(e) => { e.stopPropagation(); onRemove?.(c.id); }}>
-                  <X className="ic" />
-                </button>
-              </div>
-            );
-          })}
-          <div className="row" role="button" tabIndex={0} onClick={onAddLink}>
-            <div className="proj-icon cat-bg-green"><Plus className="ic" /></div>
-            <div className="conn-name">Add Link</div>
-            <div className="chev"></div>
-          </div>
+          );
+        })}
+        <div className="row" role="button" tabIndex={0} onClick={onAddLink}>
+          <div className="proj-icon cat-bg-green"><Plus className="ic" /></div>
+          <div className="conn-name">Add Link</div>
+          <div className="chev"></div>
         </div>
-      </div>
+      </Card>
 
-      <div className="grp">
-        <div className="eyebrow">Actions</div>
-      </div>
-      <div className="pad-x">
-        <div className="card">
-          <div className="row" role="button" tabIndex={0} onClick={onCreateTasks}>
-            <div className="proj-icon cat-bg-yellow"><ListTodo className="ic" /></div>
-            <div className="conn-name">Create Tasks from Checklist</div>
-            <div className="chev"></div>
-          </div>
+      <Head label="Actions" />
+      <Card>
+        <div className="row" role="button" tabIndex={0} onClick={onCreateTasks}>
+          <div className="proj-icon cat-bg-yellow"><ListTodo className="ic" /></div>
+          <div className="conn-name">Create Tasks from Checklist</div>
+          <div className="chev"></div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }
