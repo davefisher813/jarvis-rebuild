@@ -25,6 +25,8 @@
 
 export const HOLD_SECONDS = 12;
 
+import { weekdayShortDateFromMs } from "../shared/dateFormat";
+
 export type OutboxState = "held" | "sending" | "failed";
 
 export interface OutboxItem {
@@ -92,7 +94,7 @@ export function whenLabel(ms: number, now = new Date()): string {
   if (sameDay) return time;
   const tmr = new Date(now.getTime() + 86400e3);
   if (d.toDateString() === tmr.toDateString()) return "Tomorrow " + time;
-  return d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }) + " " + time;
+  return weekdayShortDateFromMs(ms) + " " + time;
 }
 
 export interface SendSlot { label: string; at: number }

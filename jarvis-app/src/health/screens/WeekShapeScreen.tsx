@@ -1,5 +1,5 @@
 import type { WeekShape } from "../weekShape";
-import { weekdayDay } from "../dayLabel";
+import { weekdayShortDate } from "../../shared/dateFormat";
 
 // WEEK SHAPE (Part 2). The week's sport commitments, flat and honest:
 // sessions, hours, which days had none. No ratio, no target, no decline
@@ -24,7 +24,7 @@ export default function WeekShapeScreen({ shape, onOpenTwoDaysOff, onBack }: {
       <div className="pad-x"><div className="card list-card-ruled">
         {shape.days.map((d) => (
           <div className="row" key={d.date}>
-            <div className="row-grow"><div className="conn-name">{weekdayDay(d.date)}</div></div>
+            <div className="row-grow"><div className="conn-name">{weekdayShortDate(d.date)}</div></div>
             <div className="row-value">{d.sessions === 0 ? "No Sessions" : d.sessions + " · " + d.hours + " Hours"}</div>
           </div>
         ))}

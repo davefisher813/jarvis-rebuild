@@ -1,6 +1,7 @@
 import type { Store, ItemData } from "@core";
 import type { EventInput } from "../events";
 import { madeBy } from "../shared/provenance";
+import { shortDateFromMs } from "../shared/dateFormat";
 import {
   ENTITY_NOTE,
   ENTITY_TASK,
@@ -188,7 +189,7 @@ export class NotesService {
     const blocks: Block[] = template.map((b) => ({ id: genId("b"), ...JSON.parse(JSON.stringify(b)) }));
     // The dated pieces a static template can't carry: a meeting opens with
     // its date and attendee line; a journal opens with today's first entry.
-    const today = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const today = shortDateFromMs(Date.now());
     if (key === "meeting") blocks.unshift({ id: genId("b"), type: "meta", text: today + " · Attendees" });
     if (key === "journal") blocks.push({ id: genId("b"), type: "heading", text: today }, { id: genId("b"), type: "text", text: "" });
     await this.store.update(this.ownerId, id, { blocks } as unknown as ItemData);

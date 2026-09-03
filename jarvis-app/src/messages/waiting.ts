@@ -3,6 +3,7 @@ import type { GoogleApi } from "../connections/google/api";
 import { mapThread, type ThreadRow } from "../connections/google/map";
 import { JARVIS_VOICE } from "../ai/voice";
 import { capAfterNumber } from "../shared/casing";
+import { shortDate } from "../shared/dateFormat";
 
 // Waiting On (email 3): the loops running the OTHER way, emails the user
 // sent that expect a reply and have not gotten one. Derived, never guessed:
@@ -72,8 +73,7 @@ export async function findWaiting(
 export function waitingLine(row: WaitingRow, openedISO: string | null): string {
   const wait = row.waitingDays === 1 ? "1 Day · No reply" : capAfterNumber(row.waitingDays + " days · No reply");
   if (!openedISO) return wait;
-  const d = new Date(openedISO);
-  const when = d.toLocaleDateString([], { month: "short", day: "numeric" });
+  const when = shortDate(openedISO);
   return "Opened " + when + " · No reply";
 }
 

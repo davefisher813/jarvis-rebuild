@@ -60,15 +60,15 @@ export default function FreshStartFlow({ onClose, onDone }: { onClose: () => voi
   );
 
   return (
-    <div className="search-overlay">
+    <div className="search-overlay ruled">
       <div className="nav-bar">
         <div className="nav-large">Fresh Start</div>
         <button className="nav-action-text" onClick={onClose}>Cancel</button>
       </div>
       <div className="sub-bar"><div className="eyebrow">A day you can still win</div></div>
       {loaded && (
-        <div className="pad-x sheet-form">
-          <div className="card">
+        <>
+          <div className="pad-x"><div className="card list-card-ruled">
             {keep.map((t, i) => row(t, i === 0 ? "First, when you're ready" : "Still today"))}
             {move.length > 0 && (
               <div className="row">
@@ -78,11 +78,13 @@ export default function FreshStartFlow({ onClose, onDone }: { onClose: () => voi
                 </div>
               </div>
             )}
+          </div></div>
+          <div className="pad-x sheet-actions">
+            <button className="btn btn-primary btn-block" onClick={run} disabled={running || keep.length + move.length === 0}>
+              Run It
+            </button>
           </div>
-          <button className="btn btn-primary btn-block" onClick={run} disabled={running || keep.length + move.length === 0}>
-            Run It
-          </button>
-        </div>
+        </>
       )}
     </div>
   );

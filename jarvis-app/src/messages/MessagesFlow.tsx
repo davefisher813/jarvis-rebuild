@@ -25,6 +25,7 @@ import { emit } from "../events";
 import { usePushDepth } from "../shared/pushNav";
 import { Burst } from "../shared/Burst";
 import { useOptionalSession } from "../auth/AuthProvider";
+import { shortDateFromMs } from "../shared/dateFormat";
 import { findWaiting, waitingLine, nudgePrompt, type WaitingRow } from "./waiting";
 import { loadTracks, saveTrack, trackForThread, newTrackId, pixelUrlFor, registerTrack, checkOpens } from "./tracking";
 import { loadNetted, saveNetted, netCandidates, guardLine, seedFirstRun } from "./safetyNet";
@@ -207,7 +208,7 @@ function fmtWhen(ms: number): string {
   if (d.toDateString() === now.toDateString()) {
     return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   }
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  return shortDateFromMs(ms);
 }
 
 // Email (rebuild, session Email 1): not an inbox, a status report. One AI

@@ -10,6 +10,8 @@
 // The field lives inside the entity's JSONB data, so no migration is needed
 // (same precedent as projectId and bill on TaskData).
 
+import { shortDateFromMs } from "./dateFormat";
+
 export type SourceType =
   | "paste"
   | "note"
@@ -71,6 +73,6 @@ export function sourceLine(source: Source | undefined, now: () => number = Date.
   const d = new Date(source.ts);
   const when = sameDay(d, new Date(now()))
     ? d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-    : d.toLocaleDateString([], { month: "short", day: "numeric" });
+    : shortDateFromMs(source.ts);
   return `${LABEL[source.type]} · ${when}`;
 }

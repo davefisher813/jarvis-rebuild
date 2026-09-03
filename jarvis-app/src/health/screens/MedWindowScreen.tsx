@@ -1,5 +1,5 @@
 import type { MedWindowDay, MedWindowMarkKind } from "../medWindow";
-import { weekdayDay } from "../dayLabel";
+import { weekdayShortDate } from "../../shared/dateFormat";
 
 const MARK_LABEL: Record<MedWindowMarkKind, string> = {
   dose: "Dose",
@@ -37,7 +37,7 @@ export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
       ) : (
         days.map((day) => (
           <div key={day.date}>
-            <div className="sh2 sh2-quiet"><span className="t">{weekdayDay(day.date)}</span></div>
+            <div className="sh2 sh2-quiet"><span className="t">{weekdayShortDate(day.date)}</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {day.marks.map((m, i) => (
                 <div className="row" key={i}>

@@ -6,6 +6,7 @@
 
 import type { ChatProvenance } from "./types";
 import { capAfterNumber } from "../shared/casing";
+import { shortDate } from "../shared/dateFormat";
 
 export interface AnswerSnapshot {
   today: string;
@@ -41,7 +42,7 @@ const dayWord = (iso: string, today: string): string => {
   if (diff === 1) return "tomorrow";
   const d = new Date(iso + "T12:00:00");
   if (diff > 1 && diff < 7) return d.toLocaleDateString("en-US", { weekday: "long" });
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return shortDate(iso);
 };
 
 // Word-overlap title match with a floor: every query word must appear.

@@ -10,6 +10,7 @@ import { showToast } from "../shared/toast";
 import { usePushDepth } from "../shared/pushNav";
 import { catColor } from "../shared/categories";
 import { effectiveKind } from "../categories/kinds";
+import { shortDate } from "../shared/dateFormat";
 
 // Decision Record (brainstorm shipment 1). It answers one question six weeks
 // later: why did I choose this? No AI anywhere in this folder: the record is
@@ -31,13 +32,13 @@ const Chev = () => (
 // sentence case by design.
 const NO_REASON = "No reason recorded";
 
-// "August 12" from a local ISO date or an ISO datetime.
-// "Aug 12" for the list's trailing date column.
-const fmtShort = (iso: string) =>
-  new Date(iso.length === 10 ? iso + "T00:00:00" : iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+// "Aug 12" for the list's trailing date column (shared/dateFormat: noon-local
+// so a bare date never rolls back a day west of Greenwich).
+const fmtShort = shortDate;
 
+// "August 12" from a local ISO date or an ISO datetime.
 export const fmtDay = (iso: string) =>
-  new Date(iso.length === 10 ? iso + "T00:00:00" : iso).toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  new Date(iso.length === 10 ? iso + "T12:00:00" : iso).toLocaleDateString("en-US", { month: "long", day: "numeric" });
 
 // The list glyph wears the linked entity's color and goes quiet when the
 // decision stands alone.

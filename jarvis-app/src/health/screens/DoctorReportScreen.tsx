@@ -1,5 +1,5 @@
 import type { DoctorReport } from "../doctorReport";
-import { shortDay } from "../dayLabel";
+import { shortDate } from "../../shared/dateFormat";
 
 // TAKE THIS TO THE DOCTOR (Part 4). A plain, dated summary of the last N
 // weeks, family-owned, no interpretation. Labeled clearly as the family's
@@ -32,7 +32,7 @@ export default function DoctorReportScreen({ report, onExport, onBack }: {
             <div className="row" key={i}>
               <div className="row-grow">
                 <div className="conn-name">{r.label}</div>
-                <div className="bp-sub">{shortDay(r.date)}</div>
+                <div className="bp-sub">{shortDate(r.date)}</div>
               </div>
               <div className="row-value">{new Date(r.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</div>
             </div>

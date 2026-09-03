@@ -1,5 +1,6 @@
 import type { CompletionSample } from "../shared/timeSense";
 import { weekStartISO } from "./receipts";
+import { shortDate } from "../shared/dateFormat";
 
 // The Record (2026-08-10, Dave: "we should have records and insight...
 // tracking what someone has done is important"). The This Week line was a
@@ -40,7 +41,7 @@ export function whenLabel(ms: number, todayIso: string): string {
   if (days === 1) return "Yesterday";
   const d = new Date(iso + "T12:00:00");
   if (days > 1 && days < 7) return DOW_FULL[d.getDay()]!;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return shortDate(iso);
 }
 
 // Enough history to call something a pattern, and a single clear winner.

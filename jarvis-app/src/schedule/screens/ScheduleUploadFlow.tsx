@@ -10,16 +10,11 @@ import { showToast } from "../../shared/toast";
 import EventSheet, { type SheetCategory, type EventDraft } from "./EventSheet";
 import type { EventItem, EventData, EventRecurrence } from "../types";
 import type { ScheduleService } from "../ScheduleService";
+import { weekdayShortDate } from "../../shared/dateFormat";
 
 const CHEV = (
   <div className="chev" />
 );
-const WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MO = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-function fmtDate(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return `${WD[d.getDay()]}, ${MO[d.getMonth()]} ${d.getDate()}`;
-}
 
 // A row the user reviews before anything saves: the resolved ScheduleRow plus
 // the UI-only bits (category/recurrence come from the edit sheet defaults;
@@ -193,13 +188,13 @@ export default function ScheduleUploadFlow({
     const active = rows.filter((r) => !r.skip).length;
     return (
       <>
-        <div className="screen">
+        <div className="screen ruled">
           <div className="nav-bar">
             <button className="nav-back" aria-label="Back" onClick={onCancel}></button>
             <div className="nav-title truncate">Review the Schedule</div>
           </div>
           {thumb && (
-            <div className="pad-x"><div className="card pad row">
+            <div className="pad-x"><div className="card list-card-ruled pad row">
               <img className="upload-thumb" src={thumb} alt="Uploaded schedule" />
               <div className="row-grow">
                 <div className="conn-name">{rows.length} {rows.length === 1 ? "event" : "events"} found</div>
@@ -207,13 +202,13 @@ export default function ScheduleUploadFlow({
               </div>
             </div></div>
           )}
-          <div className="pad-x"><div className="card">
+          <div className="pad-x"><div className="card list-card-ruled">
             {rows.map((r, i) => (
               <div className="row" key={r.key}>
                 <div className="row-grow" role="button" tabIndex={0} onClick={() => setFixIdx(i)}>
                   <div className={"conn-name truncate" + (r.skip ? " upload-row-skipped" : "")}>{r.title}</div>
-                  <div className="eyebrow">
-                    {fmtDate(r.date)} · {r.noTime ? "No time found" : fmtRange(r.start, r.end)}
+                  <div className="conn-meta">
+                    {weekdayShortDate(r.date)} · {r.noTime ? "No time found" : fmtRange(r.start, r.end)}
                     {r.matchId ? " · Updates existing" : ""}
                   </div>
                 </div>

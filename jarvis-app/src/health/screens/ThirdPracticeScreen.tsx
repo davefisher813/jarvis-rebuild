@@ -1,5 +1,5 @@
 import type { ThirdPracticeOffer } from "../thirdPractice";
-import { weekdayDay } from "../dayLabel";
+import { weekdayShortDate } from "../../shared/dateFormat";
 
 // THE THIRD PRACTICE (Part 2, rank #1). One day, more than one sport
 // commitment across different orgs. Stated once, as a fact, with an offer.
@@ -31,7 +31,7 @@ export default function ThirdPracticeScreen({ offers, onProtectGap, onBack }: {
           {offers.map((o, i) => (
             <div className="row" key={i}>
               <div className="row-grow">
-                <div className="conn-name">{weekdayDay(o.fact.date)}</div>
+                <div className="conn-name">{weekdayShortDate(o.fact.date)}</div>
                 <div className="bp-sub">{o.fact.orgs.join(" · ")}</div>
               </div>
               <button className="btn btn-secondary btn-sm" onClick={() => onProtectGap(o)}>Protect a Gap</button>

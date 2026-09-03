@@ -1,7 +1,7 @@
 import type { ConsentGrant, LightsOutEntry, AteBeforeEntry, TookItEntry, CallItEntry, PointAtItEntry } from "../types";
 import { HEALTH_CATEGORIES, HEALTH_CATEGORY_LABEL, sharedView } from "../shareLine";
 import { ateBeforeMarks, tookItTimeline, callItHistory } from "../timelines";
-import { shortDay, weekdayDay } from "../dayLabel";
+import { shortDate, weekdayShortDate } from "../../shared/dateFormat";
 
 // WHAT THEY SEE (Part 7). Not a summary of the parent's view. THE SAME
 // FUNCTION (sharedView, from shareLine.ts) that a real parent-facing screen
@@ -64,7 +64,7 @@ export default function WhatTheySeeScreen({
               <div className="pad-x"><div className="card list-card-ruled">
                 {visibleFuel.length === 0 ? <div className="row"><div className="row-grow"><div className="conn-name">Nothing Logged Yet</div></div></div> :
                   visibleFuel.map((m, i) => (
-                    <div className="row" key={i}><div className="row-grow"><div className="conn-name">{m.eventTitle ?? weekdayDay(m.date)}</div><div className="bp-sub">{shortDay(m.date)}</div></div>
+                    <div className="row" key={i}><div className="row-grow"><div className="conn-name">{m.eventTitle ?? weekdayShortDate(m.date)}</div><div className="bp-sub">{shortDate(m.date)}</div></div>
                       <span className={"pill " + (m.ate ? "pill-good" : "")}>{m.ate ? "Ate" : "Did Not Eat"}</span></div>
                   ))}
               </div></div>

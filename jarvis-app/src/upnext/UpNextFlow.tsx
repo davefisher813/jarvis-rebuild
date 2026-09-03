@@ -154,7 +154,7 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <div className="search-overlay">
+    <div className="search-overlay ruled">
       <div className="nav-bar">
         <div className="nav-large">{mode === "next" ? "Up Next" : "Quick Wins"}</div>
         <button className="nav-action-text" onClick={onClose}>Close</button>

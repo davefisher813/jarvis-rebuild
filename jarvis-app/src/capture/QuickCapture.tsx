@@ -10,6 +10,7 @@ import { pasteSeenAge, readRecentCaptures, dropCapture, type RecentCapture } fro
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
+import { weekdayLongDate, shortDateFromMs } from "../shared/dateFormat";
 
 const KIND_LABEL: Record<SavedEntity["kind"], string> = { task: "Task", event: "Event", note: "Note" };
 const KINDS: SavedEntity["kind"][] = ["task", "event", "note"];
@@ -20,8 +21,7 @@ const KINDS: SavedEntity["kind"][] = ["task", "event", "note"];
 function fmtWhen(s: SavedEntity): string {
   const parts: string[] = [];
   if (s.date) {
-    const d = new Date(s.date + "T00:00:00");
-    parts.push(d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" }));
+    parts.push(weekdayLongDate(s.date));
   }
   if (s.start) {
     const [h, m] = s.start.split(":").map((x) => parseInt(x, 10));
@@ -39,7 +39,7 @@ function fmtRecent(ts: number): string {
   if (sameDay) return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   const yd = new Date(today.getTime() - 86400000);
   if (d.toDateString() === yd.toDateString()) return "Yesterday";
-  return d.toLocaleDateString([], { month: "short", day: "numeric" });
+  return shortDateFromMs(ts);
 }
 
 // Smart Paste (addendum item 1). Type or paste; JARVIS saves INSTANTLY,
