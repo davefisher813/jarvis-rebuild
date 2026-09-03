@@ -114,8 +114,14 @@ export function reachLine(r: GoalReach): string {
     const base = capAfterNumber(`${p.done} of ${p.total} done`);
     return r.openTagged > 0 ? `${base} · ${r.openTagged} tagged open` : base;
   }
-  if (r.openTagged > 0) return capAfterNumber(`${r.openTagged} open in your tags`);
-  if (r.taggedIds.length > 0) return "Tagged work all done";
+  // PLAIN WORDS (Dave 2026-09-03, pic 4: "'open in your tags' maybe just
+  // open or something"). "In your tags" is this file's own vocabulary
+  // leaking onto a goal row: the reader does not think in tags, and the
+  // line has to say only what is true, which is that some work under this
+  // goal is still open. The sibling line above names its noun ("2 of 5
+  // Projects done"), so this one does too, and stops there.
+  if (r.openTagged > 0) return capAfterNumber(`${r.openTagged} ${r.openTagged === 1 ? "task" : "tasks"} open`);
+  if (r.taggedIds.length > 0) return "All of it done";
   return "Nothing under it yet";
 }
 

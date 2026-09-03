@@ -76,7 +76,7 @@ describe("HEALTH LAW: no calorie, macro, weight, or body-composition field", () 
 });
 
 describe("HEALTH LAW: no named diagnosis is ever rendered as a system statement", () => {
-  // Rail 4. Point At It and Still There? are the two features that could
+  // Rail 4. Point at It and Still There? are the two features that could
   // plausibly slip into naming a condition; scoped to the whole module
   // because nothing else in src/health needs this vocabulary either.
   it("no diagnosis vocabulary in rendered or typed code", () => {

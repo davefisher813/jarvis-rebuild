@@ -30,7 +30,7 @@ export default function ShareLineScreen({
       </div>
 
       <div className="pad-x"><div className="card pad">
-        <div className="p3-q">What Crosses To Your Parent</div>
+        <div className="p3-q">What Crosses to Your Parent</div>
         <div className="bp-sub">Off by default. Turn on only what you want them to see, one category at a time. Turn it back off whenever you want, no explanation needed.</div>
       </div></div>
 

@@ -37,3 +37,20 @@ describe("Decision list anatomy", () => {
     expect(name!.textContent).toContain("Student template ships");
   });
 });
+
+// ONE LINE, LIKE EVERY OTHER EMPTY STATE (Dave 2026-09-03, pic 1: "too much
+// subtext"). This state ran two full sentences over three lines while its
+// siblings run one short line each. The count is the point: a sub that has
+// to be read twice is not an empty state, it is a paragraph on an empty
+// screen.
+describe("the empty state", () => {
+  it("offers the payoff in one short line, not two sentences", async () => {
+    render(<NotesProvider userId="u-dec-empty"><DecisionsFlow onBack={() => {}} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Worth Remembering")).toBeInTheDocument());
+    const sub = screen.getByText(/reason is still here/);
+    expect(sub.textContent).toBe("The reason is still here in six weeks");
+    expect(sub.textContent!.trim().split(/\s+/).length, "one line's worth").toBeLessThanOrEqual(9);
+    expect(sub.textContent, "one sentence, so no full stop mid-line").not.toMatch(/\.\s/);
+    expect(screen.getByText("Record a Decision")).toBeInTheDocument();
+  });
+});

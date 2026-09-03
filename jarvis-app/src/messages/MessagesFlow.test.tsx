@@ -349,7 +349,7 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Sweep"));
     // SPEC MOVED (short copy, 2026-08-15)
     expect(await screen.findByText(/Archived unread 4 times/)).toBeInTheDocument();
-    expect(screen.queryByText("Clear Noise Automatically From Now On")).toBeNull();
+    expect(screen.queryByText("Clear Noise Automatically from Now On")).toBeNull();
   });
 
   it("archive can be undone from the toast", async () => {

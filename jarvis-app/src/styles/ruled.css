@@ -659,4 +659,51 @@
 .search-overlay.ruled .search-results > .sh2 + .pad-x > .list-card-ruled { margin-bottom: var(--s-1); }
 /* The decision banner on a project or goal keeps the one left edge. */
 .ruled .pad-x > .promo-card { margin-left: 0; margin-right: 0; }
+
+/* ---------- THE FOOT OF A LIST (Dave 2026-09-03, pic 3: "the spacing at
+   the bottom of the screen is awful. Feel free to edit all others like
+   this as well") -------------------------------------------------------
+   Every card on a ruled page gets its breathing room from the caps head
+   above it -- .sh2 carries the padding, so cards never needed a margin of
+   their own. A card that ENDS a page has no head: the done-projects fold
+   and its Add row sat flush against the last category's card, one hairline
+   apart, so the two read as a single card broken in half. Same for a bare
+   Add row. The head's own gap, given to whatever closes the page.
+
+   This is the same fix .conn-action and .conn-mail-card already carry, one
+   at a time, for the same reason; .list-tail is the name for it. */
+.ruled .list-tail { margin-top: var(--s-4); }
+
+/* And the general case of it, which is most of them ("feel free to edit all
+   others like this as well"): anything whose previous sibling is a card,
+   with no head between them. Two cards touching with one hairline of black
+   between read as one card that broke, which is what the hero-then-list
+   shape does on all twenty-one health screens, Age Rule and Week Shape and
+   The Bag among them; a button landing straight on the list it follows is
+   the same defect one element later. A head is worth ~24px here; a plain
+   gap is worth a little less, so the head still reads as the bigger break.
+   On the wrapper, not the card, so one rule covers both. */
+.ruled .pad-x:has(> .card) + .pad-x { margin-top: var(--s-4); }
+
+/* ---------- A CREATE ROW WITH NOTHING TO END IS NOT A CARD ---------------
+   (Dave 2026-09-03, pic 4: "add goal looks ridiculous".)
+
+   .row-create is the END of a grouped list: flat red text closing the card
+   its rows live in, the way iOS grouped lists end with "Add Card...". When
+   the list above it is empty the card holds nothing else, and one line of
+   text inside a 14px glass slab with a rim and a shadow is the pill in a
+   pill that .row-create replaced .row-act to stop being. The Life lenses
+   showed it first; the drift sweep then found it twice more on every one
+   of the five area pages, where a fresh area offers Add Project and Add
+   Task and has neither yet.
+
+   Structural, not per-call-site: every one of these reads
+   `<div className="card list-card-ruled">{rows}<Add/></div>`, so the card
+   cannot know at write time whether it will be empty. :has() can, at paint
+   time, and it covers the call sites nobody has written yet. */
+.ruled .card:has(> .row-create:only-child) {
+  background: transparent; border-radius: 0; box-shadow: none;
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.ruled .card:has(> .row-create:only-child) > .row-create { border-top: 0; }
 .ruled .proj-detail-hero .proj-prog .conn-meta { text-align: center; }

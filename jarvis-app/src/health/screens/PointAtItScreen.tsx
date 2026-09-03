@@ -32,7 +32,7 @@ export default function PointAtItScreen({ patterns, onLog, onBack, onHandToSomeo
     <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">Point At It</div>
+        <div className="nav-title">Point at It</div>
       </div>
 
       <div className="pad-x"><div className="card pad">
@@ -83,7 +83,7 @@ export default function PointAtItScreen({ patterns, onLog, onBack, onHandToSomeo
               </div>
             ))}
             <div className="row" role="button" tabIndex={0} onClick={onHandToSomeone}>
-              <div className="row-grow"><div className="conn-name">Hand It To Someone</div></div>
+              <div className="row-grow"><div className="conn-name">Hand It to Someone</div></div>
             </div>
           </div></div>
         </>

@@ -100,7 +100,12 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
                 <div className="sec-ico ico-blue">{PHOTO}</div>
                 <div className="row-grow">
                   <div className="conn-name">{reading ? "Reading your photo..." : "Add a Photo"}</div>
-                  <div className="conn-meta">{reading ? "A few seconds." : "JARVIS reads it · Learns from it"}</div>
+                  {/* ONE FACT, NOT TWO (Dave 2026-09-03, pic 2). "JARVIS
+                      reads it · Learns from it" was a two-token
+                      concatenation under a title, which the subtext law
+                      forbids outright, and the capital L mid-line was the
+                      casing it made him look at. One sentence says both. */}
+                  <div className="conn-meta">{reading ? "A few seconds." : "JARVIS reads it and learns from it"}</div>
                 </div>
               </div>
             </div>

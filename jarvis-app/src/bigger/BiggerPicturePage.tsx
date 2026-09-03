@@ -263,6 +263,18 @@ export default function BiggerPicturePage({
   );
   const ruledCard = (rows: ReactNode) => <div className="pad-x"><div className="card list-card-ruled">{rows}</div></div>;
 
+  // The page's own Add, which belongs to no one card because the lists are
+  // grouped by area. Written like every other create row in the app; the
+  // ruled system strips the card's ground when the row ends up alone in it
+  // (see "a create row with nothing to end is not a card" in ruled.css), so
+  // this reads as one line of red text rather than a slab holding one.
+  // .list-tail is the breath a caps head would have given it.
+  const addRow = (label: string, onClick: () => void) => (
+    <div className="pad-x"><div className="card list-card-ruled list-tail">
+      <button className="row-create" onClick={onClick}>{label}</button>
+    </div></div>
+  );
+
   const ranked = (gs: Goal[]) =>
     rankGoals(gs.map((g) => { const r = reachOfGoal(g.id); return { id: g.id, progress: r.progress, openTagged: r.openTagged, goal: g }; }))
       .map(({ goal: g }) => goalRow(g));
@@ -332,19 +344,19 @@ export default function BiggerPicturePage({
                 two rows of the same card, Add Project ending it the way
                 .row-create already ends every gym list -- flat red text, a
                 hairline only when something sits above it, no pill ground
-                when it is alone (THE PREVIEW IS THE SPEC, 2026-09-01). */}
-            <div className="pad-x"><div className="card list-card-ruled">
-              {doneRows.length > 0 && (
-                <>
-                  <button className="receipt-line" onClick={() => setDoneOpen((v) => !v)}>
-                    <span className="rl-t">{capAfterNumber(`${doneRows.length} Done ${doneRows.length === 1 ? "project" : "projects"}`)}</span>
-                    <div className="chev" />
-                  </button>
-                  {doneOpen && doneRows.map(pieRow)}
-                </>
-              )}
-              <button className="row-create" onClick={onAddProject}>Add Project</button>
-            </div></div>
+                when it is alone (THE PREVIEW IS THE SPEC, 2026-09-01).
+                ...and when there IS no receipt above it, no card either:
+                see addRow below. */}
+            {doneRows.length > 0 ? (
+              <div className="pad-x"><div className="card list-card-ruled list-tail">
+                <button className="receipt-line" onClick={() => setDoneOpen((v) => !v)}>
+                  <span className="rl-t">{capAfterNumber(`${doneRows.length} Done ${doneRows.length === 1 ? "project" : "projects"}`)}</span>
+                  <div className="chev" />
+                </button>
+                {doneOpen && doneRows.map(pieRow)}
+                <button className="row-create" onClick={onAddProject}>Add Project</button>
+              </div></div>
+            ) : addRow("Add Project", onAddProject)}
           </>
         ) : (
           <>
@@ -359,7 +371,7 @@ export default function BiggerPicturePage({
                 {ruledCard(unhomed.map(goalRowRuled))}
               </div>
             )}
-            <div className="pad-x"><div className="card list-card-ruled"><button className="row-create" onClick={onAddGoal}>Add Goal</button></div></div>
+            {addRow("Add Goal", onAddGoal)}
           </>
         )}
         <div className="screen-foot" />

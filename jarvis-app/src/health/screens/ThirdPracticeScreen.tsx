@@ -1,4 +1,5 @@
 import type { ThirdPracticeOffer } from "../thirdPractice";
+import { weekdayDay } from "../dayLabel";
 
 // THE THIRD PRACTICE (Part 2, rank #1). One day, more than one sport
 // commitment across different orgs. Stated once, as a fact, with an offer.
@@ -16,7 +17,7 @@ export default function ThirdPracticeScreen({ offers, onProtectGap, onBack }: {
       </div>
 
       <div className="pad-x"><div className="card pad">
-        <div className="p3-q">Days With More Than One Team</div>
+        <div className="p3-q">Days with More Than One Team</div>
         <div className="bp-sub">Stated once, no color, no repeat nag.</div>
       </div></div>
 
@@ -30,10 +31,10 @@ export default function ThirdPracticeScreen({ offers, onProtectGap, onBack }: {
           {offers.map((o, i) => (
             <div className="row" key={i}>
               <div className="row-grow">
-                <div className="conn-name">{o.fact.date}</div>
+                <div className="conn-name">{weekdayDay(o.fact.date)}</div>
                 <div className="bp-sub">{o.fact.orgs.join(" · ")}</div>
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => onProtectGap(o)}>Protect A Gap</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => onProtectGap(o)}>Protect a Gap</button>
             </div>
           ))}
         </div></div>

@@ -35,16 +35,16 @@ export default function RefillRunwayScreen({
 
       {needsRefillCall(state) && offer && (
         <div className="pad-x"><div className="card pad">
-          <div className="conn-name">Worth A Call Soon</div>
+          <div className="conn-name">Worth a Call Soon</div>
           <div className="bp-sub">Lands on the parent's list, not here.</div>
-          <button className="btn btn-primary btn-block" onClick={onLandParentTask}>Land It On The Parent's List</button>
+          <button className="btn btn-primary btn-block" onClick={onLandParentTask}>Land It on the Parent's List</button>
         </div></div>
       )}
 
-      <div className="sh2 sh2-quiet"><span className="t">Log A New Fill</span></div>
+      <div className="sh2 sh2-quiet"><span className="t">Log a New Fill</span></div>
       <div className="pad-x"><div className="card pad">
         <div className="field">
-          <div className="input-label">Doses In This Fill</div>
+          <div className="input-label">Doses in This Fill</div>
           <input className="input" type="number" inputMode="numeric" min={1} value={count} onChange={(e) => setCount(e.target.value)} />
         </div>
         <button
@@ -52,7 +52,7 @@ export default function RefillRunwayScreen({
           disabled={!Number(count) || Number(count) <= 0}
           onClick={() => onLogFill(Number(count))}
         >
-          Log The Fill
+          Log the Fill
         </button>
       </div></div>
 

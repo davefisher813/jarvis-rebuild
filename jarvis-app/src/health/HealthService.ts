@@ -130,7 +130,7 @@ export class HealthService {
     return this.listMerged<CallItData>(ENTITY_CALL_IT, storage, (a, b) => a.at - b.at);
   }
 
-  // ---- Point At It ----
+  // ---- Point at It ----
 
   logPointAtIt(input: { x: number; y: number; side: "front" | "back" }, at: number = Date.now(), storage?: Storage2): PointAtItData {
     const data: PointAtItData = { category: "body", ...input, at };
@@ -187,7 +187,7 @@ export class HealthService {
     this.onEvent({ type: "entity.deleted", entityType: ENTITY_LOCKER_DOC, entityId: id });
   }
 
-  // ---- Say It To Someone ----
+  // ---- Say It to Someone ----
   //
   // One standing record, upserted like the Share Line's grants, not an
   // append-only log: there is exactly one current trusted adult, and

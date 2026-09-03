@@ -99,7 +99,7 @@ describe("HealthService: Call It", () => {
   });
 });
 
-describe("HealthService: Point At It", () => {
+describe("HealthService: Point at It", () => {
   it("stores a location only", async () => {
     const s = svc();
     const store = mem();

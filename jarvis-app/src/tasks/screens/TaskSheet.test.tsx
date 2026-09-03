@@ -80,6 +80,49 @@ describe("TaskSheet", () => {
     expect(screen.getByLabelText("Due").textContent).toContain("Dec 24");
   });
 
+  // TWO DAYS A WEEK IT DID NOTHING AT ALL (bug found 2026-09-03; this suite
+  // had been failing on Thursdays and getting waved through as flake).
+  //
+  // Pick a Date seeds today+2 as a starting value, and the mode was read
+  // back OFF that date. From a Thursday, today+2 is the Saturday that "This
+  // Weekend" already means; from a Saturday it is the Monday "Next Week"
+  // means. On those two days the derivation answered with the preset, the
+  // date row it gates never appeared, and the menu quietly moved itself to
+  // an option the user had not picked. The clock is what made it flicker.
+  //
+  // Fake timers pin a real Thursday and a real Saturday so both faces of it
+  // are held down, on every day of the week the suite happens to run.
+  for (const [dayName, when] of [["a Thursday", "2026-09-03"], ["a Saturday", "2026-09-05"]] as const) {
+    it(`Pick a Date still opens the date row on ${dayName}, when today+2 lands on another option`, () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(`${when}T09:00:00`));
+      try {
+        render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+        fireEvent.click(screen.getByLabelText("Due"));
+        fireEvent.click(screen.getByRole("menuitemradio", { name: "Pick a Date" }));
+        const date = screen.getByLabelText("Due date") as HTMLInputElement;
+        expect(date.type).toBe("date");
+        // And the menu still reads as the user's own choice, not the preset
+        // its seed date collides with.
+        expect(screen.getByLabelText("Due").textContent).not.toContain("Weekend");
+        expect(screen.getByLabelText("Due").textContent).not.toContain("Next Week");
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  }
+
+  it("a preset picked after the date wheel wins it back", () => {
+    render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.click(screen.getByLabelText("Due"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Pick a Date" }));
+    expect(screen.getByLabelText("Due date")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Due"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Tomorrow" }));
+    expect(screen.queryByLabelText("Due date")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Due").textContent).toContain("Tomorrow");
+  });
+
   it("edit mode: prefilled, delete present and fires", () => {
     const onDelete = vi.fn();
     render(

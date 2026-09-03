@@ -15,7 +15,7 @@ export default function EatingWindowsScreen({ offers, onTakeOffer, onBack }: {
       </div>
 
       <div className="pad-x"><div className="card pad">
-        <div className="p3-q">Where The Day Leaves No Room</div>
+        <div className="p3-q">Where the Day Leaves No Room</div>
         <div className="bp-sub">A schedule gap, nothing about what or how much.</div>
       </div></div>
 

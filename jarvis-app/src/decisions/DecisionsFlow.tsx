@@ -365,7 +365,13 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
         <div className="empty-state">
           <div className="empty-icon">{DECISION_ICO}</div>
           <div className="empty-title">Worth Remembering</div>
-          <div className="empty-sub">When you make a call worth remembering, write down why. In six weeks the reason is still here.</div>
+          {/* ONE LINE, LIKE EVERY OTHER EMPTY STATE (Dave 2026-09-03, pic 1:
+              "too much subtext"). This ran two sentences and three lines
+              while its siblings run one short line each ("A goal is what the
+              work is for", "Everything you achieve lands here, dated,
+              forever"). The payoff is the only fact worth keeping: the
+              reason outlives the memory of it. */}
+          <div className="empty-sub">The reason is still here in six weeks</div>
           <button className="btn btn-primary" onClick={onAdd}>Record a Decision</button>
         </div>
       )}

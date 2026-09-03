@@ -203,7 +203,7 @@ export default function ScheduleUploadFlow({
               <img className="upload-thumb" src={thumb} alt="Uploaded schedule" />
               <div className="row-grow">
                 <div className="conn-name">{rows.length} {rows.length === 1 ? "event" : "events"} found</div>
-                <div className="eyebrow">Tap a row to fix it</div>
+                <div className="conn-meta">Tap a row to fix it</div>
               </div>
             </div></div>
           )}

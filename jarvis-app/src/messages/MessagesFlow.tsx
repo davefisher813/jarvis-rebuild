@@ -3361,7 +3361,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             </div>
           ) : autoOffer ? (
             <div className="pad-x offer-row">
-              <button className="btn btn-secondary btn-block" onClick={enableAutoNoise}>Clear Noise Automatically From Now On</button>
+              <button className="btn btn-secondary btn-block" onClick={enableAutoNoise}>Clear Noise Automatically from Now On</button>
               <button className="quiet-action" onClick={() => setAutoOffer(false)}>Keep it manual</button>
             </div>
           ) : null}

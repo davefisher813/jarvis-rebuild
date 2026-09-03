@@ -496,7 +496,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
                 <div className="promo-head">
                   <div className="promo-badge b-amber"><TargetGlyph /></div>
                   <div className="promo-body">
-                    <div className="promo-title">Nothing In It Yet</div>
+                    <div className="promo-title">Nothing in It Yet</div>
                     <div className="promo-sub">{openStep && openStep.projectId === detail.id ? <>Start with: {openStep.step}</> : "One small opening move is enough."}</div>
                   </div>
                 </div>

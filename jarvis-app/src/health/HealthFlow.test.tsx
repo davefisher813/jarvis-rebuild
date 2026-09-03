@@ -44,8 +44,8 @@ describe("HealthFlow: the Share Line", () => {
   });
 });
 
-describe("HealthFlow: Point At It hands off to a human, not to exit", () => {
-  it("Still There? routes to Say It To Someone, never straight out of the module", async () => {
+describe("HealthFlow: Point at It hands off to a human, not to exit", () => {
+  it("Still There? routes to Say It to Someone, never straight out of the module", async () => {
     const store = new Store(new InMemoryAdapter());
     render(<HealthFlow store={store} ownerId="u1" initialScreen="pointAtIt" onExit={() => {}} />);
     await waitFor(() => expect(screen.getByText("Where Is It")).toBeInTheDocument());
@@ -62,9 +62,9 @@ describe("HealthFlow: Refill Runway lands the call on the parent's list, not the
     render(<HealthFlow store={store} ownerId="u1" initialScreen="refillRunway" onLandParentTask={onLandParentTask} onExit={() => {}} />);
     await waitFor(() => expect(screen.getByText("No Fill Logged Yet")).toBeInTheDocument());
     fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "5" } });
-    fireEvent.click(screen.getByText("Log The Fill"));
-    await waitFor(() => expect(screen.getByText("Worth A Call Soon")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Land It On The Parent's List"));
+    fireEvent.click(screen.getByText("Log the Fill"));
+    await waitFor(() => expect(screen.getByText("Worth a Call Soon")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Land It on the Parent's List"));
     expect(onLandParentTask).toHaveBeenCalledTimes(1);
     const line = onLandParentTask.mock.calls[0]![0] as string;
     expect(line).toMatch(/pharmacy/i);
@@ -86,7 +86,7 @@ describe("HealthFlow: The Med Window shows facts, never a relationship between t
   });
 });
 
-describe("HealthFlow: Take This To The Doctor is labeled the family's own log", () => {
+describe("HealthFlow: Take This to the Doctor is labeled the family's own log", () => {
   it("never claims to be a medical record", async () => {
     const store = new Store(new InMemoryAdapter());
     render(<HealthFlow store={store} ownerId="u1" initialScreen="doctorReport" onExit={() => {}} />);
@@ -144,8 +144,10 @@ describe("HealthFlow: The Third Practice states the fact once, with an offer", (
       { date: "2026-08-28", org: "Travel Team" },
     ];
     render(<HealthFlow store={store} ownerId="u1" initialScreen="thirdPractice" sportSessions={sessions} onExit={() => {}} />);
-    await waitFor(() => expect(screen.getByText("2026-08-28")).toBeInTheDocument());
-    expect(screen.getByText("Protect A Gap")).toBeInTheDocument();
+    // A date the athlete reads, not the stored ISO string (2026-09-03): this
+    // assertion used to pin "2026-08-28" straight onto the row's title.
+    await waitFor(() => expect(screen.getByText("Fri, Aug 28")).toBeInTheDocument());
+    expect(screen.getByText("Protect a Gap")).toBeInTheDocument();
   });
 
   it("says nothing when every day has at most one org", async () => {
@@ -184,7 +186,7 @@ describe("HealthFlow: The Age Rule cites NATA and never says too much", () => {
   });
 });
 
-describe("HealthFlow: Say It To Someone is always present, never gated", () => {
+describe("HealthFlow: Say It to Someone is always present, never gated", () => {
   it("shows 988 immediately, before any trusted adult is set", async () => {
     const store = new Store(new InMemoryAdapter());
     render(<HealthFlow store={store} ownerId="u1" initialScreen="sayItToSomeone" onExit={() => {}} />);
@@ -213,7 +215,7 @@ describe("HealthFlow: The Locker tracks expiry with zero medical judgment", () =
     const dateInput = document.querySelector('input[type="date"]')!;
     fireEvent.change(dateInput, { target: { value: soon } });
     fireEvent.click(screen.getByText("Save It"));
-    await waitFor(() => expect(screen.getByText("Worth A Look")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Worth a Look")).toBeInTheDocument());
   });
 });
 
@@ -242,10 +244,10 @@ describe("HealthFlow: The Season Feed reads a pasted schedule into draft events"
     const onCommitSeasonFeed = vi.fn();
     render(<HealthFlow store={store} ownerId="u1" initialScreen="seasonFeed" ai={ai} onCommitSeasonFeed={onCommitSeasonFeed} onExit={() => {}} />);
     await waitFor(() => expect(screen.getByText("Or Paste It")).toBeInTheDocument());
-    fireEvent.change(screen.getByPlaceholderText(/Paste The Schedule/), { target: { value: "Practice Wed 5:30pm" } });
-    fireEvent.click(screen.getByText("Read The Pasted Text"));
-    await waitFor(() => expect(screen.getByText("Add These To The Calendar")).toBeInTheDocument());
-    fireEvent.click(screen.getByText("Add These To The Calendar"));
+    fireEvent.change(screen.getByPlaceholderText(/Paste the schedule/), { target: { value: "Practice Wed 5:30pm" } });
+    fireEvent.click(screen.getByText("Read the Pasted Text"));
+    await waitFor(() => expect(screen.getByText("Add These to the Calendar")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Add These to the Calendar"));
     expect(onCommitSeasonFeed).toHaveBeenCalledWith(body);
   });
 });

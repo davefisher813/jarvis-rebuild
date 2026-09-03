@@ -1,4 +1,5 @@
 import type { MedWindowDay, MedWindowMarkKind } from "../medWindow";
+import { weekdayDay } from "../dayLabel";
 
 const MARK_LABEL: Record<MedWindowMarkKind, string> = {
   dose: "Dose",
@@ -24,7 +25,7 @@ export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
       </div>
 
       <div className="pad-x"><div className="card pad">
-        <div className="p3-q">Four Facts A Day</div>
+        <div className="p3-q">Four Facts a Day</div>
         <div className="bp-sub">Dose, food, session start, lights out. Nothing compared, nothing explained.</div>
       </div></div>
 
@@ -36,7 +37,7 @@ export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
       ) : (
         days.map((day) => (
           <div key={day.date}>
-            <div className="sh2 sh2-quiet"><span className="t">{day.date}</span></div>
+            <div className="sh2 sh2-quiet"><span className="t">{weekdayDay(day.date)}</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {day.marks.map((m, i) => (
                 <div className="row" key={i}>
@@ -50,7 +51,7 @@ export default function MedWindowScreen({ days, onOpenDoctorReport, onBack }: {
           </div>
         ))
       )}
-      <div className="pad-x"><button className="btn btn-secondary btn-block" onClick={onOpenDoctorReport}>Take This To The Doctor</button></div>
+      <div className="pad-x"><button className="btn btn-secondary btn-block" onClick={onOpenDoctorReport}>Take This to the Doctor</button></div>
       <div className="screen-foot" />
     </div>
   );

@@ -32,7 +32,7 @@ export default function AgeRuleScreen({ facts, onProtectAGap, onBack }: {
         ))}
       </div></div>
 
-      <div className="pad-x"><button className="btn btn-secondary btn-block" onClick={onProtectAGap}>Protect A Gap On The Calendar</button></div>
+      <div className="pad-x"><button className="btn btn-secondary btn-block" onClick={onProtectAGap}>Protect a Gap on the Calendar</button></div>
       <div className="screen-foot" />
     </div>
   );

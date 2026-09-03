@@ -343,7 +343,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
 
             {form.id && (
               <>
-                <button type="button" className="btn btn-tertiary btn-block" disabled={!formValid} onClick={duplicateForm}>Duplicate As New Block</button>
+                <button type="button" className="btn btn-tertiary btn-block" disabled={!formValid} onClick={duplicateForm}>Duplicate as New Block</button>
                 <DeleteRow label="Delete Block" onClick={() => { removeBlock(form.id!); setForm(null); }} />
               </>
             )}

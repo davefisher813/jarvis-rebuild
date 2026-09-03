@@ -70,7 +70,7 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
           ))}
         </div></div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-block" onClick={() => onCommit(draft)}>Add These To The Calendar</button>
+          <button className="btn btn-primary btn-block" onClick={() => onCommit(draft)}>Add These to the Calendar</button>
           <button className="btn btn-secondary btn-block" onClick={onBack}>Cancel</button>
         </div>
         <div className="screen-foot" />
@@ -85,22 +85,27 @@ export default function SeasonFeedScreen({ ai, onCommit, onBack }: {
         <div className="nav-title">The Season Feed</div>
       </div>
       <div className="pad-x"><div className="card pad">
-        <div className="p3-q">Read A Team Schedule</div>
+        <div className="p3-q">Read a Team Schedule</div>
         <div className="bp-sub">A screenshot or a pasted message, turned into real calendar events.</div>
       </div></div>
       <div className="pad-x">
         <input ref={fileRef} className="visually-hidden-input" type="file" accept="image/*"
           onChange={(e) => { const f = e.target.files?.[0]; if (f) void onFile(f); e.target.value = ""; }} />
         <button className="btn btn-primary btn-block" disabled={busy} onClick={() => fileRef.current?.click()}>
-          {busy ? "Reading..." : "Photo Or Screenshot"}
+          {busy ? "Reading..." : "Photo or Screenshot"}
         </button>
         <div className="field">
           <div className="input-label">Or Paste It</div>
-          <textarea className="input input-multiline" rows={5} placeholder="Paste The Schedule · A Message Or A Spreadsheet Works" value={text} onChange={(e) => setText(e.target.value)} />
+          {/* A placeholder is content, not a label: sentence case, like the
+              two screens that do this identical job (UploadFlow's "Paste the
+              Program · a message or spreadsheet works" and
+              ScheduleUploadFlow's "Paste the Schedule · a message or email
+              works"). This one shipped in Title Case. */}
+          <textarea className="input input-multiline" rows={5} placeholder="Paste the schedule · a message or a spreadsheet works" value={text} onChange={(e) => setText(e.target.value)} />
         </div>
         <button className="btn btn-secondary btn-block" disabled={busy || !text.trim()}
           onClick={() => void extract({ role: "user", content: SEASON_EXTRACT_PROMPT + "\n\nCONTENT:\n" + text.trim().slice(0, 12000) })}>
-          {busy ? "Reading..." : "Read The Pasted Text"}
+          {busy ? "Reading..." : "Read the Pasted Text"}
         </button>
       </div>
       <div className="screen-foot" />

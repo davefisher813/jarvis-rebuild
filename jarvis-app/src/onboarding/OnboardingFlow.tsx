@@ -320,14 +320,14 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
         <div className="pad-x"><div className="card">
           <div className="row connect-row" {...(canConnect ? { role: "button" as const, tabIndex: 0, onClick: () => void connectGoogle() } : {})}>
             <div className="sec-ico ico-accent">{MAIL}</div>
-            <div className="row-grow"><div className="conn-name">Gmail</div><div className="eyebrow">Read and reply from the Email tab</div></div>
+            <div className="row-grow"><div className="conn-name">Gmail</div><div className="conn-meta">Read and reply from the Email tab</div></div>
           </div>
           <div className="row connect-row" {...(canConnect ? { role: "button" as const, tabIndex: 0, onClick: () => void connectGoogle() } : {})}>
             <div className="sec-ico ico-blue">{CAL}</div>
-            <div className="row-grow"><div className="conn-name">Google Calendar</div><div className="eyebrow">Events show up on Today</div></div>
+            <div className="row-grow"><div className="conn-name">Google Calendar</div><div className="conn-meta">Events show up on Today</div></div>
           </div>
           {(google?.accounts.length ?? 0) > 0 && (
-            <div className="row"><div className="row-grow"><div className="conn-name">Connected</div><div className="eyebrow">{google!.accounts.map((a) => a.email).join(", ")}</div></div></div>
+            <div className="row"><div className="row-grow"><div className="conn-name">Connected</div><div className="conn-meta">{google!.accounts.map((a) => a.email).join(", ")}</div></div></div>
           )}
         </div></div>
         <div className="convo-foot">
@@ -399,7 +399,7 @@ function PayoffScreen({ name, briefLabel, seeds, taskTitle, slotLine, saving, on
           {taskTitle && (
             <div className="row">
               <span className="task-check" aria-hidden="true" />
-              <div className="row-grow"><div className="conn-name">{taskTitle}</div><div className="eyebrow">Your Top Priority</div></div>
+              <div className="row-grow"><div className="conn-name">{taskTitle}</div><div className="conn-meta">Your top priority</div></div>
             </div>
           )}
         </div></div>

@@ -140,10 +140,26 @@ export default function TaskSheet({
     ? findClash(otherPlans, draftPlan.cue, selfId)
     : null;
 
-  const dueMode = due === "" ? "none" : due === today ? "today" : due === tomorrow ? "tomorrow"
+  // PICK A DATE DID NOTHING ON THURSDAYS AND SATURDAYS (found 2026-09-03 in
+  // the drift sweep; the failing test was blamed on flakiness twice before
+  // anyone read it). The mode was derived from the DATE alone, and picking
+  // "Pick a Date" seeded today+2 as a starting value. Two days a week that
+  // seed lands exactly on another option: from a Thursday, today+2 IS the
+  // weekend, and from a Saturday it IS next Monday. The derivation then
+  // reported "weekend"/"nextweek", the date row it gates never rendered,
+  // and the menu silently snapped to a preset the user had not chosen.
+  //
+  // A choice is not recoverable from its result. Picking the date wheel is
+  // an intent, so it is held as one, and the derivation is only the
+  // fallback for a due date arriving from outside (edit mode, a task whose
+  // date matches no preset). Any preset clears it, so the two never fight.
+  const [picking, setPicking] = useState(false);
+  const derivedMode = due === "" ? "none" : due === today ? "today" : due === tomorrow ? "tomorrow"
     : due === weekend ? "weekend" : due === nextWeek ? "nextweek" : "pick";
+  const dueMode = picking && due !== "" ? "pick" : derivedMode;
   const dueWord = dueMode === "pick" ? dateWord(due) : undefined;
   const pickDue = (v: string) => {
+    if (v !== "pick") setPicking(false);
     if (v === "none") setDue("");
     else if (v === "today") setDue(today);
     else if (v === "tomorrow") setDue(tomorrow);
@@ -152,6 +168,7 @@ export default function TaskSheet({
     else {
       // Pick a Date: the phone's own wheel, on the date row that appears
       // under Due; the wheel opens itself where the browser allows.
+      setPicking(true);
       if (dueMode !== "pick") setDue(addDaysISO(today, 2));
       setTimeout(() => { const el = dateRef.current; if (el) { try { (el as HTMLInputElement & { showPicker?: () => void }).showPicker?.(); } catch { /* the row itself is the fallback */ } } }, 0);
     }

@@ -91,11 +91,17 @@ describe("reachLine", () => {
   });
   it("speaks in open counts when tags are all there is", () => {
     const tasks = [task("b", { category: "health" }), task("c", { category: "health" })];
-    expect(reachLine(reachOf(tasks, projects, goal("g9", { tags: ["health"] })))).toBe("2 Open in your tags");
+    expect(reachLine(reachOf(tasks, projects, goal("g9", { tags: ["health"] })))).toBe("2 Tasks open");
   });
-  it("says the tagged work is done rather than inventing a percentage", () => {
+  it("counts one task in the singular", () => {
+    const tasks = [task("b", { category: "health" })];
+    expect(reachLine(reachOf(tasks, projects, goal("g9", { tags: ["health"] })))).toBe("1 Task open");
+  });
+  // The row says what is true about the work, never in this file's own
+  // vocabulary: "in your tags" was internal wiring showing through.
+  it("says the work is done rather than inventing a percentage", () => {
     const tasks = [task("b", { category: "health", done: true })];
-    expect(reachLine(reachOf(tasks, projects, goal("g9", { tags: ["health"] })))).toBe("Tagged work all done");
+    expect(reachLine(reachOf(tasks, projects, goal("g9", { tags: ["health"] })))).toBe("All of it done");
   });
   it("admits emptiness", () => {
     expect(reachLine(reachOf([], projects, goal("g9")))).toBe("Nothing under it yet");

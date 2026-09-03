@@ -28,13 +28,13 @@ export default function LockerScreen({
       </div>
 
       <div className="pad-x"><div className="card pad">
-        <div className="p3-q">Every Document In One Place</div>
+        <div className="p3-q">Every Document in One Place</div>
         <div className="bp-sub">Storage and expiry only, nothing read or judged.</div>
       </div></div>
 
       {expiring.length > 0 && (
         <>
-          <div className="sh2 sh2-quiet"><span className="t">Worth A Look</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Worth a Look</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {expiring.map((e) => (
               <div className="row" key={e.doc.id}>
@@ -49,7 +49,7 @@ export default function LockerScreen({
       <div className="sh2 sh2-quiet"><span className="t">On File</span></div>
       <div className="pad-x"><div className="card list-card-ruled">
         {present.length === 0 ? (
-          <div className="row"><div className="row-grow"><div className="conn-name">Nothing On File Yet</div></div></div>
+          <div className="row"><div className="row-grow"><div className="conn-name">Nothing on File Yet</div></div></div>
         ) : (
           present.map((d) => (
             <div className="row" key={d.id}>
@@ -65,7 +65,7 @@ export default function LockerScreen({
 
       {missing.length > 0 && (
         <>
-          <div className="sh2 sh2-quiet"><span className="t">Add A Document</span></div>
+          <div className="sh2 sh2-quiet"><span className="t">Add a Document</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {missing.map((k) => (
               <div className="row" role="button" tabIndex={0} key={k} onClick={() => setAddingKind(k)}>

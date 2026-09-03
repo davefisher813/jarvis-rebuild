@@ -8,6 +8,7 @@ import { monthName, movedIn } from "./report";
 import ReportFlow from "./ReportPage";
 import type { MonthSeal } from "./seal";
 import { capAfterNumber } from "../shared/casing";
+import { Nums } from "../bigger/GoalRowRuled";
 import { CheckCircleGlyph, SunriseGlyph } from "../shared/glyphs";
 import { usePushDepth } from "../shared/pushNav";
 import PageHeader from "../shared/PageHeader";
@@ -99,7 +100,7 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
                     <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>
                     <div className="row-grow">
                       <div className="conn-name truncate">{it.name}</div>
-                      <div className="eyebrow">{it.kind === "goal" ? "Achieved" : "Closed"} · {it.d.slice(8, 10).replace(/^0/, "")} {monthName(it.d.slice(0, 7)).slice(0, 3)}</div>
+                      <div className="r-k"><span className="r-goal r-cat">{it.kind === "goal" ? "Achieved" : "Closed"} · {it.d.slice(8, 10).replace(/^0/, "")} {monthName(it.d.slice(0, 7)).slice(0, 3)}</span></div>
                     </div>
                   </div>
                 ))}
@@ -126,7 +127,17 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
           <div className="row" role="button" tabIndex={0} onClick={() => setScreen({ kind: "live" })}>
             <div className="row-grow">
               <div className="conn-name">{monthName(monthKey)}, So Far</div>
-              <div className="eyebrow">{liveDone != null ? capAfterNumber(`${liveDone} done · Still open`) : "Still open"}</div>
+              {/* THE SUB IS NOT A KICKER (Dave 2026-09-03, pic 5: "too much
+                  same color text"). Every row on this page wrote its second
+                  line as .eyebrow, which CSS shouts in caps at the same
+                  grey, the same size and nearly the same tracking as the
+                  THIS MONTH / YOUR MONTHS / THE LEDGER heads above them.
+                  Six caps-grey runs on one screen, so nothing had a rank.
+                  Caps belong to a kicker ABOVE a title; a line UNDER a
+                  title is the ruled row's quiet sub, with the number bold
+                  in bright ink (the contract's inline number emphasis).
+                  Same treatment gym rows got in LAW 15. */}
+              <div className="r-k"><span className="r-goal r-cat">{liveDone != null ? <Nums text={capAfterNumber(`${liveDone} done · Still open`)} /> : "Still open"}</span></div>
             </div>
             {CHEV}
           </div>
@@ -141,7 +152,7 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
               <div className="row" role="button" tabIndex={0} key={s.id} onClick={() => setScreen({ kind: "month", month: s.data.month })}>
                 <div className="row-grow">
                   <div className="conn-name">{monthName(s.data.month)} {s.data.month.slice(0, 4)}</div>
-                  <div className="eyebrow">{capAfterNumber(`${moved} moved · ${s.data.done} done`)}</div>
+                  <div className="r-k"><span className="r-goal r-cat"><Nums text={capAfterNumber(`${moved} moved · ${s.data.done} done`)} /></span></div>
                 </div>
                 {CHEV}
               </div>
@@ -150,7 +161,7 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
           {seals.length === 0 && (
             <div className="row"><div className="row-grow">
               <div className="conn-name">No Month Sealed Yet</div>
-              <div className="eyebrow">The first seals itself on the 1st</div>
+              <div className="r-k"><span className="r-goal r-cat">The first seals itself on the 1st</span></div>
             </div></div>
           )}
         </div></div>
@@ -162,7 +173,7 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
             <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>
             <div className="row-grow">
               <div className="conn-name">The Long Story</div>
-              <div className="eyebrow">{story.length > 0 ? capAfterNumber(`${story.length} ${story.length === 1 ? "crossing" : "crossings"} and counting`) : "Everything you achieve, dated, forever"}</div>
+              <div className="r-k"><span className="r-goal r-cat">{story.length > 0 ? <Nums text={capAfterNumber(`${story.length} ${story.length === 1 ? "crossing" : "crossings"} and counting`)} /> : "Everything you achieve, dated, forever"}</span></div>
             </div>
             {CHEV}
           </div>

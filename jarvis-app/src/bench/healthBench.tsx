@@ -35,7 +35,7 @@ async function seed() {
   // Call It: recent session RPEs.
   svc.logCallIt({ eventId: "e_sess1", durationMin: 75, rpe: 6 }, NOW - 2 * DAY);
   svc.logCallIt({ eventId: "e_sess2", durationMin: 90, rpe: 8 }, NOW - DAY);
-  // Point At It: a repeated spot, so "Still There?" has a row.
+  // Point at It: a repeated spot, so "Still There?" has a row.
   svc.logPointAtIt({ x: 0.4, y: 0.6, side: "front" }, NOW - 3 * DAY);
   svc.logPointAtIt({ x: 0.42, y: 0.58, side: "front" }, NOW - DAY);
   // Med Refill: a fill logged a while back, drawn down by the TookIt taps
@@ -46,7 +46,7 @@ async function seed() {
   // The Locker: one doc on file, one expiring soon.
   svc.logLockerDoc({ kind: "physical", label: "Physical", expiresAt: day(60) }, NOW - 10 * DAY);
   svc.logLockerDoc({ kind: "insurance", label: "Insurance", expiresAt: day(4) }, NOW - 5 * DAY);
-  // Trusted Adult, so Say It To Someone shows the saved-person row.
+  // Trusted Adult, so Say It to Someone shows the saved-person row.
   await svc.setTrustedAdult("Coach Ridgeley", "555-0139");
   await svc.flush();
 }
@@ -66,10 +66,10 @@ const SCREENS: { key: string; label: string }[] = [
   { key: "ateBefore", label: "Ate Before" },
   { key: "tookIt", label: "Took It" },
   { key: "callIt", label: "Call It" },
-  { key: "pointAtIt", label: "Point At It" },
+  { key: "pointAtIt", label: "Point at It" },
   { key: "refillRunway", label: "Refill Runway" },
   { key: "medWindow", label: "The Med Window" },
-  { key: "doctorReport", label: "Take This To The Doctor" },
+  { key: "doctorReport", label: "Take This to the Doctor" },
   { key: "nightBefore", label: "The Night Before" },
   { key: "eatingWindows", label: "Eating Windows" },
   { key: "theBag", label: "The Bag" },
@@ -77,7 +77,7 @@ const SCREENS: { key: string; label: string }[] = [
   { key: "weekShape", label: "Week Shape" },
   { key: "twoDaysOff", label: "Two Days Off" },
   { key: "ageRule", label: "The Age Rule" },
-  { key: "sayItToSomeone", label: "Say It To Someone" },
+  { key: "sayItToSomeone", label: "Say It to Someone" },
   { key: "seasonFeed", label: "The Season Feed" },
   { key: "locker", label: "The Locker" },
   { key: "handoff", label: "The Handoff" },

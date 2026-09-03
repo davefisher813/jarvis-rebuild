@@ -180,7 +180,7 @@ function BumpSheet({ weekLabel, onSave, onCancel }: {
         <div className="grp"><div className="eyebrow">Duplicate {weekLabel} & Bump</div></div>
         <div className="pad-x sheet-form">
           <div className="field">
-            <div className="input-label">Add To Every Weight</div>
+            <div className="input-label">Add to Every Weight</div>
             <div className="card">
               <div className="row">
                 <div className="row-grow"><div className="conn-name">Weight</div></div>
@@ -789,7 +789,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
   };
   // D5: every live start passes through the fit sheet -- except the paths
   // whose whole point is speed or the past: a resume (the sheet was already
-  // answered), Same As Last Time (the fastest possible entry), a backdated
+  // answered), Same as Last Time (the fastest possible entry), a backdated
   // log (there is no clock to fit against), and an empty day (nothing to
   // price).
   const requestStart = (day: ProgramDay, extra: { doorEventId?: string; budgetMin?: number } = {}) => {
@@ -1276,7 +1276,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
       const actions: SheetAction[] = [
         { label: "Duplicate", onClick: () => void duplicateProgramAction(p) },
         p.data.archived
-          ? { label: "Restore From Archive", onClick: () => void archiveProgramAction(p, false) }
+          ? { label: "Restore from Archive", onClick: () => void archiveProgramAction(p, false) }
           : { label: "Archive", onClick: () => void archiveProgramAction(p, true) },
       ];
       return <ActionSheet title={p.data.name} actions={actions} onClose={() => setRowMenu(null)} />;
@@ -1551,7 +1551,7 @@ export default function GymFlow({ onBack, door, startDayId }: {
                 {lastForDay && (
                   // SAME AS LAST TIME (catalog §3.13): the fastest possible
                   // entry, pre-filled with what actually happened last time.
-                  <button className="row-create row-create-bare" onClick={() => startDay(openDay, { sameAsLastTime: true })}>Same As Last Time</button>
+                  <button className="row-create row-create-bare" onClick={() => startDay(openDay, { sameAsLastTime: true })}>Same as Last Time</button>
                 )}
                 {/* LOG IT LATER (catalog §3.8): the phone was in a locker. */}
                 <button className="row-create row-create-bare" onClick={() => setBackdateDay(openDay)}>Log a Past Workout</button>

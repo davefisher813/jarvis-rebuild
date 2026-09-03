@@ -31,11 +31,11 @@ export default function SayItToSomeoneScreen({
     <div className="screen ruled">
       <div className="nav-bar">
         <button className="nav-back" aria-label="Back" onClick={onBack}></button>
-        <div className="nav-title">Say It To Someone</div>
+        <div className="nav-title">Say It to Someone</div>
       </div>
 
       <div className="pad-x"><div className="card pad">
-        <div className="p3-q">Reach A Human Now</div>
+        <div className="p3-q">Reach a Human Now</div>
         <div className="bp-sub">One tap, no questions first.</div>
       </div></div>
 

@@ -22,7 +22,7 @@ export default function TwoDaysOffScreen({ offer, onPlaceRestDay, onBack }: {
       {offer.needed && offer.suggestedDate && (
         <div className="pad-x"><div className="card pad">
           <div className="conn-name">{offer.suggestedDate} Is Still Open</div>
-          <button className="btn btn-primary btn-block" onClick={() => onPlaceRestDay(offer.suggestedDate!)}>Place A Rest Block There</button>
+          <button className="btn btn-primary btn-block" onClick={() => onPlaceRestDay(offer.suggestedDate!)}>Place a Rest Block There</button>
         </div></div>
       )}
 

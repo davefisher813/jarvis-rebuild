@@ -386,7 +386,8 @@ export default function TodayPage({
               <div className="av av-32 cat-bg-pink">{b.name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</div>
               <div className="row-grow">
                 <div className="conn-name truncate">{b.name}</div>
-                <div className="eyebrow">Turns a year older today</div>
+                {/* A sub under a title is never caps (see InsightsFlow). */}
+                <div className="conn-meta">Turns a year older today</div>
               </div>
             </div>
           ))}

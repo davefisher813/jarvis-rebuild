@@ -16,7 +16,7 @@
 //   3. No calorie, macro, weight, or body-composition field, schema-level.
 //      Ate Before is a boolean tied to a calendar event; there is no amount,
 //      no quality, no number anywhere near food.
-//   4. No named diagnosis. Point At It stores a location, nothing else.
+//   4. No named diagnosis. Point at It stores a location, nothing else.
 //
 // ENTITY NAMING mirrors gym/types.ts and categories/types.ts: one ENTITY_*
 // const per Store-backed shape, a *Data interface for what lives in the
@@ -30,7 +30,7 @@ export const ENTITY_CALL_IT = "health_call_it";
 export const ENTITY_POINT_AT_IT = "health_point_at_it";
 
 // Track 3 addenda (catalog Parts 1-8, 2026-08-27): Refill Runway, The Bag,
-// The Locker, Say It To Someone, The Age Rule's once-per-season gate. Same
+// The Locker, Say It to Someone, The Age Rule's once-per-season gate. Same
 // pattern as the five loggers above -- one ENTITY_* const, a *Data
 // interface, a wrapper -- and the same safety rails apply: no field here
 // carries an expected/target count, a calorie/macro/weight number, or a
@@ -138,7 +138,7 @@ export interface CallItEntry {
   data: CallItData;
 }
 
-/** Point At It (Part 6). A body-map tap: location only. No severity scale,
+/** Point at It (Part 6). A body-map tap: location only. No severity scale,
  *  no diagnosis, no condition name, ever, anywhere in this shape. x/y are
  *  normalized 0-1 coordinates within the body map's drawing area. */
 export interface PointAtItData {
@@ -216,7 +216,7 @@ export interface LockerDocEntry {
   data: LockerDocData;
 }
 
-// ---- Say It To Someone (Part 5) ----
+// ---- Say It to Someone (Part 5) ----
 //
 // The athlete's own chosen trusted adult. Not a log of anything that
 // happened; a standing preference the athlete picks and can change. Not

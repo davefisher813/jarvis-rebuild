@@ -36,7 +36,7 @@ export default function AteBeforeScreen({
 
       {open.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-title">Nothing Left To Answer</div>
+          <div className="empty-title">Nothing Left to Answer</div>
           <div className="empty-sub">A new practice or game on the calendar will show up here</div>
         </div>
       ) : (

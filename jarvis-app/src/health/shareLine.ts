@@ -31,7 +31,7 @@ export const HEALTH_CATEGORY_DESC: Record<HealthCategoryId, string> = {
   load: "Call It, how hard a session felt",
   fuel: "Ate Before, whether food happened around practice",
   medication: "Took It, timestamps only, never a count",
-  body: "Point At It, where something is felt",
+  body: "Point at It, where something is felt",
   logistics: "Rides, forms, and medication refill logistics only, never the medication itself",
 };
 

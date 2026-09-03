@@ -81,7 +81,7 @@ export function callItHistory(entries: CallItEntry[]): CallItPoint[] {
     .sort((a, b) => a.at - b.at);
 }
 
-// ---- Point At It: "Still There?" pattern, never a diagnosis ----
+// ---- Point at It: "Still There?" pattern, never a diagnosis ----
 
 export interface StillTherePattern {
   // A rounded coordinate key, not a body-part name: naming the part in

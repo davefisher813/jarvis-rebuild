@@ -206,9 +206,33 @@ describe("LAW: Apple HIG casing", () => {
       "No, move out", "Leave it scheduled",
     ]);
     const BRAND = /^(iCloud|iPhone|iPad|iOS|iMessage|macOS|kg|lb|min|hr)$/;
+    // THE LAW ONLY EVER LOOKED ONE WAY (Dave 2026-09-03, pics 2 and 4:
+    // "more title case issues"). Every check above asks whether a word is
+    // capitalised ENOUGH, so a small word capitalised mid-title -- "Point
+    // At It", "Take This To The Doctor", "Add To Today" -- sailed through
+    // every one of them. That is not a rare slip: the sweep this law was
+    // written for (commit cc0d5bb) explicitly fixed "Add To Today" to "Add
+    // to Today", and it drifted straight back, because nothing failed when
+    // it did. 26 strings had accumulated by the time Dave caught them by
+    // eye, most of them on the health screens, which had never been read
+    // by a law at all.
+    //
+    // Scoped deliberately: only strings that already READ as Title Case
+    // (every non-small word capitalised) are judged, so sentence-case copy
+    // and the user's own words are untouched. First and last word are
+    // always allowed their capital, which is the rule Apple states.
+    const overCapped = (t: string) => {
+      const words = t.split(/\s+/).filter(Boolean);
+      if (words.length < 3) return [];
+      const big = words.filter((w) => !SMALL.has(w.toLowerCase()));
+      if (big.length === 0 || !big.every((w) => /^[A-Z]/.test(w))) return [];
+      return words.filter((w, i) => i > 0 && i < words.length - 1
+        && SMALL.has(w.toLowerCase()) && /^[A-Z]/.test(w));
+    };
     const passes = (t: string) => {
       if (t.includes("?")) return true; // interrogative talk
       const words = t.split(/\s+/).filter(Boolean);
+      if (overCapped(t).length > 0) return false;
       return words.every((w, i) =>
         BRAND.test(w.replace(/[^A-Za-z]/g, "")) || !/^[a-z]/.test(w) ||
         (i > 0 && i < words.length - 1 && SMALL.has(w.toLowerCase())));
@@ -3285,6 +3309,29 @@ describe("LAW 15: the gym speaks one grammar", () => {
     expect(bad).toEqual([]);
   });
 
+  // THE SAME DEFECT, EVERYWHERE ELSE (Dave 2026-09-03, pic 5: "too much
+  // same color text"). The check above was written for the gym and stopped
+  // at the gym, so Insights kept shouting all five of its row subs in caps
+  // -- at the same grey, size and tracking as the section heads directly
+  // above them, which is exactly why that page read as one flat colour. A
+  // caps line is a KICKER, and a kicker sits ABOVE a title; under one it is
+  // a sub, and a sub is .conn-meta or the ruled row's quiet .r-goal.
+  it("no row anywhere writes its sub as a shouting eyebrow", () => {
+    const bad: string[] = [];
+    for (const f of COMPONENTS) {
+      const lines = read(f).split("\n");
+      for (let i = 0; i < lines.length - 1; i++) {
+        if (!lines[i]!.includes('className="conn-name')) continue;
+        // Same line or the next one: both shapes ship in this codebase.
+        const after = lines[i]!.split('className="conn-name')[1] ?? "";
+        if (/className="eyebrow"/.test(after) || /className="eyebrow"/.test(lines[i + 1]!)) {
+          bad.push(`${rel(f)}:${i + 1} eyebrow riding under a conn-name`);
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
   it("the set chip is a real swipe row: positioned, and surface-matched inside sheets", () => {
     const css = read(join(SRC, "styles", "components.css"));
     const chip = css.match(/\.set-chip\s*\{[^}]*\}/)?.[0] ?? "";
@@ -3663,5 +3710,53 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     expect(meta, "the location sits inside the meta line").toMatch(/sched-loc truncate/);
     expect(src, "the pin glyph went with the line it led").not.toMatch(/<PinGlyph \/>/);
     expect(CSS, "and it is quiet there").toMatch(/\.ruled \.sched-cat \.sched-loc \{ color: var\(--tx-3\)/);
+  });
+});
+
+// ============================================================================
+// LAW: THE FOOT OF A LIST (Dave 2026-09-03, pics 3 and 4: "the spacing at the
+// bottom of the screen is awful" / "add goal looks ridiculous")
+//
+// Two defects, one cause: a block at the END of a ruled page has no caps head
+// above it, and the ruled system had only ever spaced cards BY their heads.
+//
+//   1. A trailing card landed flush against the card above it, one hairline of
+//      black apart, so the two read as one card broken in half. The Life
+//      lenses showed it; the drift sweep found the same shape on all twenty-
+//      one health screens, where a hero card is followed straight away by its
+//      list, and again wherever a button follows a list.
+//   2. A create row alone in a card is one line of red text inside a 14px
+//      glass slab with a rim and a shadow -- the pill in a pill that
+//      .row-create was introduced to stop being. Empty area pages showed it
+//      twice each, once for Add Project and once for Add Task.
+//
+// Both are fixed structurally rather than call site by call site, because no
+// call site can know at write time whether its list will be empty or what
+// will follow it. :has() knows at paint time, and covers the screens nobody
+// has written yet.
+describe("LAW: the foot of a list", () => {
+  it("a block following a card gets the breath a head would have given it", () => {
+    expect(CSS, "the general rule: anything after a card, with no head between")
+      .toMatch(/\.ruled \.pad-x:has\(> \.card\) \+ \.pad-x \{ margin-top: var\(--s-4\); \}/);
+    expect(CSS, "and the named one, for a tail whose previous sibling is a wrapper")
+      .toMatch(/\.ruled \.list-tail \{ margin-top: var\(--s-4\); \}/);
+  });
+
+  it("a create row alone in a card loses the card, not the row", () => {
+    const rule = CSS.match(/\.ruled \.card:has\(> \.row-create:only-child\) \{[^}]*\}/)?.[0] ?? "";
+    expect(rule, "the ground goes").toContain("background: transparent");
+    expect(rule, "the corner goes").toContain("border-radius: 0");
+    expect(rule, "the shadow and rim go").toContain("box-shadow: none");
+    // Light theme paints .ruled .card with its own shadow at equal
+    // specificity, so this rule only wins by sitting after it. If someone
+    // moves it up the file, light mode keeps the slab and nothing fails.
+    const light = CSS.indexOf('[data-theme="light"] .ruled .card {');
+    const strip = CSS.indexOf(".ruled .card:has(> .row-create:only-child)");
+    expect(light, "the light-theme card rule is present").toBeGreaterThan(-1);
+    expect(strip, "and the strip comes after it, or light keeps the slab").toBeGreaterThan(light);
+    // The hairline exists to divide a row from the rows above it. Alone,
+    // there is nothing to divide.
+    expect(CSS, "and the hairline with it")
+      .toMatch(/\.ruled \.card:has\(> \.row-create:only-child\) > \.row-create \{ border-top: 0; \}/);
   });
 });

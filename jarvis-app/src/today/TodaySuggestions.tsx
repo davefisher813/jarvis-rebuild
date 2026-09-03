@@ -21,7 +21,7 @@ import NoticeCard from "./NoticeCard";
 // Proactive nudges on Today, made actionable and polite:
 // - one AI call per day (cached on device), so no burn on every open
 // - yesterday's and today's suggestions are passed back as "do not repeat"
-// - a suggestion tied to a real task gets a one-tap "Add To Today"
+// - a suggestion tied to a real task gets a one-tap "Add to Today"
 // - dismissals persist for the day (an assistant that re-nags gets deleted)
 type DayCache = { items: Suggestion[]; dismissed: number[]; acted: number[] };
 const KEY = (d: string) => "jarvis.suggestions." + d;

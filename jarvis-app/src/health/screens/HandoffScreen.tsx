@@ -40,8 +40,8 @@ export default function HandoffScreen({ items, onOpenSeasonFeed, onOpenLocker, o
       )}
 
       <div className="pad-x sheet-actions">
-        <button className="btn btn-secondary btn-block" onClick={onOpenLocker}>Open The Locker</button>
-        <button className="btn btn-secondary btn-block" onClick={onOpenSeasonFeed}>Add A Team Schedule</button>
+        <button className="btn btn-secondary btn-block" onClick={onOpenLocker}>Open the Locker</button>
+        <button className="btn btn-secondary btn-block" onClick={onOpenSeasonFeed}>Add a Team Schedule</button>
       </div>
       <div className="screen-foot" />
     </div>
