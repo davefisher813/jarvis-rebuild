@@ -16,7 +16,7 @@ export interface Project { id: string; data: ProjectData; }
 
 export const PROJECT_META: Record<ProjectStatus, { label: string; cls: string }> = {
   active: { label: "Active", cls: "ok" },
-  on_hold: { label: "On hold", cls: "muted" },
+  on_hold: { label: "On Hold", cls: "muted" },
   done: { label: "Done", cls: "mute" },
 };
 export const PROJECT_STATES: ProjectStatus[] = ["active", "on_hold", "done"];

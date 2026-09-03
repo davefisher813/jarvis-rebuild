@@ -86,7 +86,13 @@ export default function CheckIn({ onChanged }: { onChanged?: () => void }) {
       onDismiss={async () => { await saveDay({ addSkip: "mood" }); haptics.selection(); setShow(false); }}
       foot={
         <div className="row check-moods">
-          {[["fire", "🔥 Flow"], ["meh", "😐 Meh"], ["under", "🌊 Underwater"]].map(([v, label]) => (
+          {/* Plain text, no emoji (Dave 2026-09-02: "This is an eye sore on
+              the homepage"). This was the only emoji anywhere in the app --
+              everywhere else a tri-state answer is a plain-text chip (the
+              gym's "All Clean" / "Last One Was a Grind" / "Missed One"
+              being the closest sibling), so these three match that instead
+              of standing out as their own thing. */}
+          {[["fire", "Flow"], ["meh", "Meh"], ["under", "Underwater"]].map(([v, label]) => (
             <div className="chip" role="button" tabIndex={0} key={v} onClick={async () => {
               await saveDay({ mood: v });
               haptics.selection();

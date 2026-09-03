@@ -107,14 +107,14 @@ export function snoozeTime(from: string, mins: number): string {
 }
 
 export const DAY_PRESETS: { label: string; days?: number[] }[] = [
-  { label: "Every day" },
+  { label: "Every Day" },
   { label: "Weekdays", days: [1, 2, 3, 4, 5] },
   { label: "Weekends", days: [0, 6] },
 ];
 
 // How the repeat reads on a row. Kept here so every surface says it the same.
 export function cadenceLabel(r: ReminderInfo): string {
-  if (!r.days || r.days.length === 0) return "Every day";
+  if (!r.days || r.days.length === 0) return "Every Day";
   const set = [...r.days].sort();
   if (set.join() === "1,2,3,4,5") return "Weekdays";
   if (set.join() === "0,6") return "Weekends";

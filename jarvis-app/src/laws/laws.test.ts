@@ -3287,13 +3287,26 @@ describe("LAW 15: the gym speaks one grammar", () => {
     // beneath the chip at rest -- the exact visible-trash bug in his
     // screenshot. Geometry never covered it; paint order does.
     expect(chip).toContain("position: relative");
-    // SPEC MOVED 2026-09-01 (THE PREVIEW IS THE SPEC): a chip is its own
-    // surface, one elevation step above its ground -- surface-1 on the
-    // page, surface-3 inside a surface-2 sheet. The job is unchanged: an
-    // opaque fill that keeps the swipe-delete painted beneath, matched to
-    // the surface the chip sits on.
-    expect(chip).toContain("background: var(--surface-1)");
+    // SPEC MOVED 2026-09-02 (Edit All Sets screenshot: "change the entire
+    // format of this container. It should be identical to the rest of the
+    // app. It's the only one in this app that looks like that"): a set is a
+    // grouped-table ROW now, not its own elevated surface -- reverses the
+    // 2026-09-01 "chip as its own rounded card" spec. It still needs to be
+    // opaque so the swipe-delete track stays hidden until revealed; the
+    // default now matches the PAGE ground (SessionScreen has no card around
+    // the strip), and the sheet/train-skin overrides step it up to match a
+    // real nested card where one exists.
+    expect(chip).toContain("background: var(--bg)");
     expect(css).toMatch(/\.sheet-scrim \.set-chip\s*\{\s*background:\s*var\(--surface-3\)/);
+    expect(css).toMatch(/\.card\.train-skin \.set-chip\s*\{\s*background:\s*var\(--surface-2\)/);
+    // No radius, no gap, no elevation escalation inside a sheet: a set row
+    // reads exactly like its neighbouring .xs-row grouped-table rows.
+    expect(chip).not.toMatch(/border-radius/);
+    expect(css).not.toMatch(/\.set-chip-col\s*\{[^}]*margin-bottom:\s*var\(--s-2\)/);
+    expect(css).not.toMatch(/\.card\.train-skin\.xs \.set-chip/);
+    // The divider between sets is the same .row + .row hairline every other
+    // list gets for free -- nothing left zeroing it back out.
+    expect(css).not.toMatch(/\.set-strip .*\.reorder-row \+ \.reorder-row\s*\{\s*border-top:\s*0/);
     // And the reorder wrapper sheds its card chrome where rows are the
     // surface (full-bleed lists, the strip itself).
     expect(css).toMatch(/\.list-flat \.reorder-list, \.set-strip \.reorder-list \{[^}]*background: none/);

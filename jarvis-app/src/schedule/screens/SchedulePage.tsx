@@ -792,8 +792,16 @@ export default function SchedulePage({
       )}
       </>)}
 
-      {/* D1: Repeats lives at the foot of Month. One row, the count, the door. */}
+      {/* D1: Repeats lives at the foot of Month. One row, the count, the door.
+          Wrapped in .ruled (Dave 2026-09-02: "the bottom pill... it looks
+          terrible. No need for a pill there.") -- .list-card-ruled already
+          named it for the ruled card system, but Schedule never wears
+          .ruled anywhere else, so the class was dead: this one card fell
+          back to the base 22px-radius .card and read as a stray pill next
+          to Accept the Day / Not Today. Scoped to just this card, not the
+          page -- the rest of Schedule stays unported. */}
       {mode === "month" && (
+        <div className="ruled">
         <div className="pad-x"><div className="card list-card-ruled">
           <div className="task-row p2" role="button" tabIndex={0} onClick={() => onMode?.("repeats")}>
             <div className="task-title"><span className="task-name">Repeats</span>
@@ -801,6 +809,7 @@ export default function SchedulePage({
             <div className="chev" />
           </div>
         </div></div>
+        </div>
       )}
 
       {drag && (

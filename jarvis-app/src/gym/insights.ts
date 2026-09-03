@@ -171,7 +171,7 @@ export function plateauFlag(
     return counts.length ? counts.reduce((a, b) => a + b, 0) / counts.length : null;
   };
   const flatSets = avgSets(flatWindow), movingSets = avgSets(movingWindow);
-  if (flatSets != null && movingSets != null) whatChanged.push({ label: "Sets a session", flat: round1(flatSets), moving: round1(movingSets) });
+  if (flatSets != null && movingSets != null) whatChanged.push({ label: "Sets a Session", flat: round1(flatSets), moving: round1(movingSets) });
 
   const avgGap = (win: LiftSession[]) => {
     if (win.length < 2) return null;
@@ -180,7 +180,7 @@ export function plateauFlag(
     return total / (win.length - 1);
   };
   const flatGap = avgGap(flatWindow), movingGap = avgGap(movingWindow);
-  if (flatGap != null && movingGap != null) whatChanged.push({ label: "Days between sessions", flat: round1(flatGap), moving: round1(movingGap) });
+  if (flatGap != null && movingGap != null) whatChanged.push({ label: "Days Between Sessions", flat: round1(flatGap), moving: round1(movingGap) });
 
   for (const { def, logs } of metrics) {
     const valuesIn = (win: LiftSession[]) => win

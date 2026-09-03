@@ -3789,15 +3789,19 @@ body.selecting .voice-dock { display: none; }
 .launch-chev { color: var(--tx-4); font-size: 22px; line-height: 1; flex-shrink: 0; }
 [data-theme="light"] .launch-row { background: #FFFFFF; box-shadow: var(--shadow-card); }
 
-/* THE SET STRIP (gym catalog §3.1). One chip per set: tap to edit, hold to
+/* THE SET STRIP (gym catalog §3.1). One row per set: tap to edit, hold to
    duplicate, swipe to delete, drag to reorder via the shared ReorderList
    primitive. Reuses .task-swipe/.task-del (the same swipe-to-delete shape
    as mail and tasks) and .row-act (the same "Add X" affordance as Add Day /
-   Add Exercise), so a set strip looks like the rest of the app, not like a
-   new control language. */
+   Add Exercise). A set is a ROW, not its own floating card (Dave
+   2026-09-02, Edit All Sets screenshot: "change the entire format of this
+   container. It should be identical to the rest of the app. It's the only
+   one in this app that looks like that" -- reverses the 2026-08-31 "chip as
+   its own rounded card" directive below). Same .row + .row hairline every
+   other grouped list in the app already gets for free. */
 .set-strip { margin-top: 0; }
 .set-chip-col { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
-.set-chip-swipe { width: 100%; border-radius: var(--r-sm); }
+.set-chip-swipe { width: 100%; }
 /* position: relative is LOAD-BEARING (Dave 2026-08-31, Edit Exercise
    screenshot: the red trash visible at rest on every chip). The delete
    button behind a swipe row is position:absolute, and an absolutely
@@ -3806,20 +3810,25 @@ body.selecting .voice-dock { display: none; }
    paint. Every other swipe row in the app (.task-row, .sched-row) already
    carries position:relative for exactly this reason; the chip was the one
    that forgot. */
-/* THE PREVIEW IS THE SPEC (2026-09-01): a chip is its own surface, one
-   elevation step above its ground -- surface-1 on the page, surface-3
-   inside a surface-2 sheet (overridden below). The old page-black fill made
-   every chip an invisible slab. position: relative stays LOAD-BEARING. */
+/* A set row wears the SAME background as its neighbours -- no elevation
+   step of its own (2026-09-02 reversal, see above). It still needs to be
+   OPAQUE, matching whatever ground it sits on: the swipe-to-delete track
+   lives behind it, and a transparent row would show through mid-swipe
+   instead of cleanly revealing the delete button (exact reason .task-row
+   is opaque too). Default is the PAGE ground -- correct on SessionScreen,
+   where the strip sits straight on the screen with no card around it; the
+   sheet/train-skin overrides below step it up to match a real card when
+   there is one. position: relative stays LOAD-BEARING for the swipe trick
+   itself. */
 .set-chip { display: flex; align-items: center; min-height: var(--tap-min);
   position: relative;
-  padding: var(--s-1) 0; background: var(--surface-1); cursor: pointer;
+  padding: var(--s-3) var(--s-4); background: var(--bg); cursor: pointer;
   -webkit-user-select: none; user-select: none; touch-action: pan-y;
   transition: transform 0.28s cubic-bezier(0.32,0.72,0,1), background var(--dur-fast) var(--ease-out); }
 .set-chip.swiping { transition: none; }
 /* Skipped reads as a fact, not a failure: struck text, no red anywhere. */
 .set-chip-skipped .conn-name { color: var(--tx-3); text-decoration: line-through; }
-.set-chip-editor { padding: 0 0 var(--s-2); }
-.set-strip-add { margin-top: var(--s-1); }
+.set-strip-add { margin-top: 0; }
 /* Ghost chips are the plan, not yet the record: quieter than a filled chip
    and not draggable or swipeable -- there is nothing there to reorder or
    delete until it is logged. */
@@ -4042,30 +4051,16 @@ body.selecting .voice-dock { display: none; }
   -webkit-backdrop-filter: none; backdrop-filter: none; }
 [data-theme="light"] .sheet-form .card:not(.reorder-list) { background: var(--surface-3); box-shadow: none; }
 
-/* Set chips are chips (preview .chip; Dave's cleanup directive #2, approved
-   2026-08-31: "the chip and its expanded editor are a single rounded
-   card"). Each set gets its own rounded surface one step above its ground,
-   and the expanded editor continues that surface instead of floating
-   naked below it. */
-.set-chip { border-radius: var(--r-md); padding-left: var(--s-3); padding-right: var(--s-3); }
-.set-chip-col { margin-bottom: var(--s-2); }
-/* The swipe wrapper clips at the SAME radius the chip draws, or the red
-   delete rectangle behind peeks through the corner notches -- the faint red
-   crescents on every set row in Dave's Edit Exercise screenshot. And the
-   delete stays fully hidden until a swipe actually moves the chip: an
-   opaque chip composited over red still leaks a red rim through the
-   anti-aliased curve. */
-.set-chip-swipe { border-radius: var(--r-md); }
+/* Sets are grouped-table rows now (2026-09-02, supersedes the 2026-08-31
+   "chip as its own rounded card" directive): no radius of their own, no
+   gap between them, a plain hairline like every other row in the sheet.
+   The reorder row sheds its own padding since .set-chip supplies it (same
+   split .task-swipe/.task-row use everywhere else). */
+.set-chip-col { margin-bottom: 0; }
 .set-chip-swipe .task-del { opacity: 0; transition: opacity 0.12s var(--ease-out); }
 .set-chip-swipe.swipe-open .task-del { opacity: 1; }
-/* Chips are separate surfaces with gaps, not hairlined rows (preview
-   .chipset): the strip's reorder rows shed the card row chrome. */
 .set-strip .reorder-list .reorder-row { padding: 0; }
-.set-strip .reorder-list .reorder-row + .reorder-row { border-top: 0; }
-.set-strip .reorder-list .reorder-row + .reorder-row::before { display: none; }
-.set-chip[aria-expanded="true"] { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-.set-chip-editor { background: var(--surface-1); border-radius: 0 0 var(--r-md) var(--r-md);
-  padding: 0 var(--s-3) var(--s-2); }
+.set-chip-editor { padding: 0 var(--s-4) var(--s-2); border-top: 0.5px solid var(--divider); }
 .sheet-scrim .set-chip-editor { background: var(--surface-3); }
 
 /* ==========================================================================
@@ -4101,8 +4096,9 @@ body.selecting .voice-dock { display: none; }
 .card.train-skin .set-chip { background: var(--surface-2); }
 .card.train-skin .set-chip-editor { background: var(--surface-2); }
 [data-theme="light"] .sheet-scrim .card.train-skin { background: #FFFFFF; }
-/* Preview chip voice: the set's numbers are the chip (16/700). */
-.train-skin .set-chip .conn-name { font-size: 16px; font-weight: var(--w-bold); }
+/* A set's numbers read at the same 16px every other grouped-row value uses
+   in this sheet -- same weight as everything else too now (2026-09-02). */
+.train-skin .set-chip .conn-name { font-size: 16px; }
 /* The day-row pin pill (preview: "Pin Days" red verb until a pin exists,
    then the weekday claim as a quiet fact). Steps aside in reorder mode
    with the chevron. */
@@ -4232,9 +4228,11 @@ body.selecting .voice-dock { display: none; }
 /* Suggestions from the library ride as rows under the name. */
 .xs .xs-suggest .conn-name { font-size: 16px; }
 /* The strip inside the group: chips one step up from the group's ground. */
-.xs .row.xs-strip { display: block; padding: var(--s-1) var(--s-3) var(--s-2); }
+/* No inset of its own: a set's own row padding (var(--s-4)) is what lines
+   its edge up with every other row in the card, the same way .xs-row never
+   adds a second layer of padding on top of its own. */
+.xs .row.xs-strip { display: block; padding: 0; }
 .xs .row.xs-strip .set-strip { margin: 0; }
-.card.train-skin.xs .set-chip, .card.train-skin.xs .set-chip-editor { background: var(--surface-3); }
 /* Delete at the very bottom, separated (ruled 2026-09-01). */
 .xs .xs-delete { padding-top: var(--s-6); padding-bottom: max(var(--s-6), env(safe-area-inset-bottom)); }
 .xs .xs-delete .btn { width: 100%; }

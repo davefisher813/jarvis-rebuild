@@ -175,7 +175,6 @@
 .ruled .proj-row-ruled .task-title, .ruled .goal-row-ruled .task-title { min-width: 0; }
 .ruled .r-next { font-size: 12.5px; color: var(--tx-4); margin-top: 3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.ruled .r-goal.r-stalled { color: var(--warn); }
 .ruled .task-row .r-goal b { font-weight: var(--w-semi); color: var(--tx-2); }
 /* The goal as a head over its projects: the mark in the goal's colour, then
    the title in the same quiet caps every other head wears. Written once. */
@@ -203,6 +202,17 @@
 /* The plain second-line texts: a category (no goal to name) and, on Today's
    dealt row, the reason it was dealt. Both are subtext and look like it. */
 .ruled .r-goal.r-cat, .ruled .r-goal.r-why { color: var(--tx-3); }
+/* Stalled must come AFTER .r-cat/.r-why (Dave 2026-09-02, "Keeps sliding
+   still looks way too normal. Maybe put it in a color or something"):
+   .r-goal.r-stalled and .r-goal.r-cat are both 2-class selectors, so equal
+   specificity ties resolve by source order, not by which one "sounds" more
+   specific. Declared first (above, since 2026-08-something), r-stalled lost
+   every tie to r-cat and rendered as plain quiet grey on Tasks/Life's
+   "Keeps sliding," CategoryDetail and GoalDetailPage's stalled projects,
+   and NotificationsFlow's sliding notices -- everywhere a stalled row also
+   carries r-cat. BiggerPicturePage's bare r-goal (no r-cat) was the one
+   place it accidentally still worked. */
+.ruled .r-goal.r-stalled { color: var(--warn); }
 .ruled .r-goal.r-orphan { color: var(--tx-4); font-style: italic; }
 /* the dealt row's reason line keeps its place as the optional third line */
 .ruled .task-row .task-title > .eyebrow { margin-top: 3px; }

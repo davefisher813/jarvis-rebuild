@@ -94,7 +94,7 @@ describe("the day's list", () => {
 
 describe("cadenceLabel", () => {
   it("names the presets", () => {
-    expect(cadenceLabel({ time: "08:00" })).toBe("Every day");
+    expect(cadenceLabel({ time: "08:00" })).toBe("Every Day");
     expect(cadenceLabel({ time: "08:00", days: [1, 2, 3, 4, 5] })).toBe("Weekdays");
     expect(cadenceLabel({ time: "08:00", days: [0, 6] })).toBe("Weekends");
   });

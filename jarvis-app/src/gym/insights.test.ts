@@ -76,7 +76,7 @@ describe("plateauFlag", () => {
     const flat = [115, 118, 120, 112, 119, 117]; // never exceeds 120
     const rs = [...climb, ...flat];
     const h = rs.map((r, i) => pushups(i, r));
-    // Different working-set counts either side, so "Sets a session" has a real number.
+    // Different working-set counts either side, so "Sets a Session" has a real number.
     h.slice(0, 3).forEach((w) => { w.data.exercises[0]!.sets.push(set({ r: 1 }), set({ r: 1 }), set({ r: 1 }), set({ r: 1 })); }); // 5 sets total, moving window
     h.slice(3).forEach((w) => { w.data.exercises[0]!.sets.push(set({ r: 1 }), set({ r: 1 })); }); // 3 sets total, flat window
     const sessions = liftSessions(h, "Pushups", "reps");
@@ -84,7 +84,7 @@ describe("plateauFlag", () => {
     expect(flag).not.toBeNull();
     expect(flag!.flatSessions).toBe(PLATEAU_MIN_SESSIONS);
     expect(flag!.peakValue).toBe(120);
-    const setsRow = flag!.whatChanged.find((r) => r.label === "Sets a session");
+    const setsRow = flag!.whatChanged.find((r) => r.label === "Sets a Session");
     expect(setsRow).toBeDefined();
     expect(setsRow!.moving).toBe(5);
     expect(setsRow!.flat).toBe(3);

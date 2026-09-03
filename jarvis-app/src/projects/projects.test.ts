@@ -18,6 +18,6 @@ describe("ProjectsService", () => {
   it("rejects empty title; maps status", async () => {
     const p = new ProjectsService(new Store(new InMemoryAdapter()), "u");
     expect(await p.create({ title: "  ", status: "active" })).toBeNull();
-    expect(PROJECT_META.on_hold.label).toBe("On hold");
+    expect(PROJECT_META.on_hold.label).toBe("On Hold");
   });
 });
