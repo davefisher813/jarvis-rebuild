@@ -4,6 +4,7 @@ import type { CondBlock } from "./types";
 import { COND_LABEL } from "./types";
 import { intervalAt, intervalsDone, marksOwnRounds, mmss } from "./conditioning";
 import { haptics } from "../shared/haptics";
+import { useWakeLock } from "../shared/useWakeLock";
 
 // THE FACE (Check, Health, Stop, Dave 2026-09-02: "A ring that drains, and a
 // Round button", plus "add ability to stop"; Closing Round, ruled 09-01:
@@ -56,19 +57,22 @@ export default function ConditioningFace({ name, cond, onFinish, onCancel }: {
   const finishedRef = useRef(false);
   const own = marksOwnRounds(cond);
 
-  // Audio and the wake lock both want a user gesture; the tap that opened
-  // this face is one, so both are asked for on mount.
+  // S5-Q30 (2026-09-04): the screen lock itself now lives in one shared
+  // hook (src/shared/useWakeLock.ts), held for the whole session from
+  // SessionScreen rather than just this clock -- this call stays so the
+  // face still holds it on its own when it renders standalone (a bench
+  // harness, a future caller outside a session), and doubling up costs
+  // nothing: the API is fine with two overlapping requests.
+  useWakeLock();
+
+  // Audio wants a user gesture too; the tap that opened this face is one.
   useEffect(() => {
     try {
       const AC = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext
         ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (AC) audioRef.current = new AC();
     } catch { audioRef.current = null; }
-    let lock: { release: () => Promise<void> } | null = null;
-    const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } };
-    nav.wakeLock?.request("screen").then((l) => { lock = l; }).catch(() => {});
     return () => {
-      lock?.release().catch(() => {});
       audioRef.current?.close().catch(() => {});
     };
   }, []);

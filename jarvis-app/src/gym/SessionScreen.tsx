@@ -22,6 +22,7 @@ import ExerciseSheet from "./ExerciseSheet";
 import MusicChip from "../music/MusicChip";
 import { showToast } from "../shared/toast";
 import { monthDay } from "../money/bills";
+import { useWakeLock } from "../shared/useWakeLock";
 
 const CHEV = (
   <div className="chev" />
@@ -79,6 +80,13 @@ export default function SessionScreen({
   onFinish: () => void;
   onBack: () => void;
 }) {
+  // S5-Q30 (2026-09-04): "the screen sleeps between sets." This screen stays
+  // mounted for the whole session (GymFlow swaps its props, not the
+  // component, as the athlete moves between exercises), so holding the lock
+  // here -- not only inside ConditioningFace's own clock -- is what actually
+  // covers the gaps between sets and during rest, where the old code held
+  // nothing awake at all.
+  useWakeLock();
   const idx = live.idx;
   const current = live.exercises[idx]!;
   const logged = current.sets;

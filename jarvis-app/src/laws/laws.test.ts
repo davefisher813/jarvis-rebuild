@@ -3903,3 +3903,35 @@ describe("LAW: the Health module's highest-value loggers are wired, the rest sta
       .not.toMatch(/HealthFlow/);
   });
 });
+
+// S5-Q30 (2026-09-04): "the screen sleeps between sets." ConditioningFace held
+// its own wake lock for just its clock; nothing held one for the rest of a
+// lifting session, so the phone locked between sets and every set after that
+// started with unlock-and-find-the-app. useWakeLock.ts is now the one
+// implementation, held for the whole session from SessionScreen (which stays
+// mounted from the first exercise to the last) and, redundantly but harmlessly,
+// by ConditioningFace itself for when it renders standalone. Same shape as
+// useSwipe.ts's one-implementation doc comment: a second inline
+// navigator.wakeLock.request call anywhere is the regression this catches.
+describe("LAW: only one file asks for the screen wake lock", () => {
+  it("navigator.wakeLock is requested from useWakeLock.ts alone", () => {
+    const bad: string[] = [];
+    for (const f of ALL) {
+      if (isTest(f) || isBench(f)) continue;
+      if (rel(f) === "shared/useWakeLock.ts") continue;
+      if (/wakeLock/.test(read(f))) bad.push(rel(f));
+    }
+    expect(bad, "only shared/useWakeLock.ts may reference wakeLock").toEqual([]);
+  });
+
+  it("the session screen holds the lock for the whole session, not just the conditioning clock", () => {
+    const session = read(SRC + "/gym/SessionScreen.tsx");
+    expect(session, "SessionScreen must hold the session-long wake lock")
+      .toMatch(/useWakeLock\(\)/);
+    const face = read(SRC + "/gym/ConditioningFace.tsx");
+    expect(face, "ConditioningFace must use the shared hook, not its own inline request")
+      .toMatch(/useWakeLock\(\)/);
+    expect(face, "the inline request this hook replaced must be gone")
+      .not.toMatch(/navigator\.wakeLock/);
+  });
+});
