@@ -91,11 +91,21 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
     await reload();
   };
 
+  // S4-Q22 (2026-09-04): "no control anywhere moves a fact's category,"
+  // and the edit sheet is the only exit for one already filed wrong -- the
+  // receipt only ever catches it at capture time. A refused move (the
+  // target bucket already at its cap) still lets the text edit through:
+  // the two are independent facts about the strand, and a full bucket is a
+  // real, expected outcome, not a reason to lose an unrelated correction.
   const doEdit = async () => {
     if (!open || !text.trim() || saving) return;
     setSaving(true);
     haptics.selection();
     await svc.edit(open, text, today);
+    if (cat !== open.data.category) {
+      const moved = await svc.recategorize(open, cat);
+      if (!moved) showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" });
+    }
     setEditing(false); setOpen(null); setText("");
     setSaving(false);
     await reload();
@@ -183,7 +193,7 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
               role="button"
               tabIndex={0}
               key={s.id}
-              onClick={() => { setOpen(s); setEditing(false); setText(s.data.text); }}
+              onClick={() => { setOpen(s); setEditing(false); setText(s.data.text); setCat(s.data.category); }}
             >
               <div className="row-grow">
                 <div className="strand-eyebrow">
@@ -198,7 +208,7 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
       )}
 
       <div className="pad-x">
-        <button className="row row-act" onClick={() => { setAdding(true); setText(""); }}>Add One Thing</button>
+        <button className="row row-act" onClick={() => { setAdding(true); setText(""); setCat("work_style"); }}>Add One Thing</button>
       </div>
       <div className="screen-foot" />
 
@@ -239,7 +249,10 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
                 <label className="input-label">{adding ? "Something JARVIS should know about you" : "The fact, in your words"}</label>
                 <input className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder="e.g. Brainstorms best at night" />
               </div>
-              {adding && (
+              {/* S4-Q22: the edit sheet is the only exit for a fact already
+                  filed under the wrong bucket, so it gets the same chips
+                  the add flow already has, not just a text field. */}
+              {(adding || (open && editing)) && (
                 <div className="field"><div className="input-label">Where It Belongs</div>
                   <div className="chip-row">{CATS.map((c) => (
                     <button key={c} className={"chip" + (cat === c ? " active" : "")} onClick={() => setCat(c)}>{STRAND_CATEGORY_LABEL[c]}</button>

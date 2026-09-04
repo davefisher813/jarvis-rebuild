@@ -135,6 +135,46 @@ describe("StrandsService", () => {
     expect(active).toHaveLength(1);
     expect(active[0]!.id).toBe(all[1]!.id);
   });
+
+  // S4-Q22 (2026-09-04): "no control anywhere moves a fact's category."
+  // recategorize is what both new chip rows (the capture receipt and the
+  // What JARVIS Knows edit sheet) call.
+  describe("recategorize", () => {
+    it("moves a strand to a different bucket", async () => {
+      await ctx.svc.add("Never schedule calls before 10", "work_style", TODAY);
+      const [s] = await ctx.svc.list();
+      expect(await ctx.svc.recategorize(s!, "routine")).toBe(true);
+      const [after] = await ctx.svc.list();
+      expect(after!.data.category).toBe("routine");
+    });
+
+    it("refuses when the target bucket is already at its cap, and leaves the strand where it was", async () => {
+      for (let i = 0; i < STRAND_CAP_PER_CATEGORY; i++) await ctx.svc.add("v " + i, "values", TODAY);
+      const id = await ctx.svc.add("Never schedule calls before 10", "work_style", TODAY);
+      const strand = (await ctx.svc.list()).find((x) => x.id === id)!;
+      expect(await ctx.svc.recategorize(strand, "values")).toBe(false);
+      const after = (await ctx.svc.list()).find((x) => x.id === id)!;
+      expect(after.data.category).toBe("work_style");
+    });
+
+    it("moving the last slot INTO a full bucket doesn't count itself against the cap", async () => {
+      // A strand already sitting in "values" moving to "values" is a
+      // same-category no-op, not a strand competing with itself for the
+      // twelfth slot.
+      for (let i = 0; i < STRAND_CAP_PER_CATEGORY; i++) await ctx.svc.add("v " + i, "values", TODAY);
+      const [s] = await ctx.svc.list();
+      expect(await ctx.svc.recategorize(s!, "values")).toBe(true);
+    });
+
+    it("does not touch the accuracy record: no event, no rank promotion", async () => {
+      await ctx.svc.accept("x", "energy", "completion_window", [], TODAY);
+      const [s] = await ctx.svc.list();
+      await ctx.svc.recategorize(s!, "routine");
+      expect(ctx.events.map((e) => e.type)).toEqual(["strand.created"]);
+      const [after] = await ctx.svc.list();
+      expect(after!.data.source).toBe("watched");
+    });
+  });
 });
 
 describe("the accuracy record (what makes the nod test operational)", () => {

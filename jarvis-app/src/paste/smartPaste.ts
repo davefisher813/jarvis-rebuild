@@ -56,7 +56,7 @@ export interface PasteDeps {
   // lane is closed and a self-fact lands the way it does today, as a task:
   // degrading to the old behaviour, never dropping the capture on the floor.
   // Same seam shape as `rules` above.
-  strands?: Pick<StrandsService, "add" | "list" | "remove">;
+  strands?: Pick<StrandsService, "add" | "list" | "remove" | "recategorize">;
   // Called when a fact could not be filed because the genome (or its
   // category) is at its cap. A refusal with a real reason has to reach the
   // person: without this the receipt would fall through to "Nothing to save
@@ -279,4 +279,22 @@ export async function recategorizeSaved(
   if (s.kind === "task") await deps.tasks.setCategory(s.id, categoryId);
   else if (s.kind === "event") await deps.schedule.editCategory(s.id, categoryId);
   else await deps.notes.setCategory(s.id, categoryId);
+}
+
+// A fact's bucket, changed on the receipt (S4-Q22): selfFact.ts's own words
+// are "the category is a guess, and it says so... the receipt renders the
+// category with chips to change it, same as every other capture" -- true of
+// every other capture and, until this, not of a fact. Returns false rather
+// than throwing when the target bucket is already at its cap, since that is
+// a real, expected outcome the caller has to say something honest about,
+// not a write failure.
+export async function recategorizeFact(
+  s: SavedEntity,
+  category: StrandCategory,
+  deps: Pick<PasteDeps, "strands">,
+): Promise<boolean> {
+  if (!deps.strands) return false;
+  const hit = (await deps.strands.list()).find((x) => x.id === s.id);
+  if (!hit) return false;
+  return deps.strands.recategorize(hit, category);
 }

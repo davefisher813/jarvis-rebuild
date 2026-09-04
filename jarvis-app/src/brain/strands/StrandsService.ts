@@ -152,6 +152,22 @@ export class StrandsService {
     await this.store.update(this.ownerId, s.id, { status } as unknown as ItemData);
   }
 
+  // Move a strand to a different bucket, in place. Refuses (false) when the
+  // TARGET category is already at its per-category cap, the same ceiling
+  // every other write here respects -- so moving a fact out of a wrong
+  // bucket can never quietly evict one already sitting in the right one, or
+  // breach the cap by relocation instead of creation. The strand itself is
+  // excluded from its own target count, since re-picking the bucket it is
+  // already in is a same-category no-op the caller filters out before this
+  // is ever reached.
+  async recategorize(s: Strand, category: StrandCategory): Promise<boolean> {
+    if (category === s.data.category) return true;
+    const all = await this.list();
+    if (all.filter((x) => x.data.category === category && x.id !== s.id).length >= STRAND_CAP_PER_CATEGORY) return false;
+    await this.store.update(this.ownerId, s.id, { category } as unknown as ItemData);
+    return true;
+  }
+
   async confirm(s: Strand, today: string): Promise<void> {
     await this.store.update(this.ownerId, s.id, { lastConfirmed: today } as unknown as ItemData);
   }

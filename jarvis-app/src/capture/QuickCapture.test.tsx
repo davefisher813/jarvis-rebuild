@@ -6,13 +6,25 @@
 // broken, it was retired.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider } from "../data/NotesProvider";
+import { NotesProvider, useOptionalStrands } from "../data/NotesProvider";
 import { AIService } from "../ai/AIService";
 import QuickCapture from "./QuickCapture";
 
+// S4-Q22 (2026-09-04) needs to see the honest "Brain is full" toast text,
+// which the earlier tests in this file never had to inspect. Same mock shape
+// as ProfilePage.test.tsx: a captured fn standing in for the real module.
+const showToast = vi.fn();
+vi.mock("../shared/toast", () => ({ showToast: (...a: unknown[]) => showToast(...a) }));
+
 beforeEach(() => localStorage.clear());
+
+let strandsRef: ReturnType<typeof useOptionalStrands> | null = null;
+function CaptureStrands() {
+  strandsRef = useOptionalStrands();
+  return null;
+}
 
 describe("QuickCapture (Smart Paste)", () => {
   it("saves instantly with no AI in the build and shows the receipt with refile chips", async () => {
@@ -92,5 +104,75 @@ describe("QuickCapture (Smart Paste)", () => {
     await waitFor(() => expect(screen.getByText(/You captured this exact text/)).toBeInTheDocument());
     fireEvent.click(screen.getByText("Save Anyway"));
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+  });
+});
+
+// S4-Q22 (2026-09-04): selfFact.ts has always said "the receipt renders the
+// category with chips to change it, same as every other capture" -- these
+// prove that sentence is now true. No prior test file touched the fact
+// lane's category chips at all.
+describe("QuickCapture fact category chips (S4-Q22)", () => {
+  beforeEach(() => { showToast.mockReset(); strandsRef = null; });
+
+  it("offers the strand's six buckets, with the guessed one already active", async () => {
+    render(
+      <NotesProvider userId="u-fact-buckets">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    // selfFact.ts's own example sentence: SHAPES matches "I never...", and the
+    // weekday bucket (routine) matches before any other, since "Sundays" hits
+    // no energy words first.
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "I never work out on Sundays" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    expect(screen.getByText("Fact · Routine · From your paste")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "false");
+    for (const label of ["Energy", "Work Style", "Writing", "People", "Values", "Routine"]) {
+      expect(screen.getByRole("radio", { name: label })).toBeInTheDocument();
+    }
+  });
+
+  it("tapping a different bucket moves the fact", async () => {
+    render(
+      <NotesProvider userId="u-fact-move">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "I never work out on Sundays" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("radio", { name: "Energy" }));
+    await waitFor(() => expect(screen.getByText("Fact · Energy · From your paste")).toBeInTheDocument());
+    expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("a full bucket refuses honestly, and the chip stays where it was", async () => {
+    render(
+      <NotesProvider userId="u-fact-full">
+        <CaptureStrands />
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    await waitFor(() => expect(strandsRef).toBeTruthy());
+    await act(async () => {
+      for (let i = 0; i < 12; i++) await strandsRef!.add("v " + i, "energy", "2026-01-01");
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "I never work out on Sundays" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("radio", { name: "Energy" }));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: "The Brain is full · Prune it in What JARVIS Knows" }));
+
+    // The refusal moved nothing: the fact is still under Routine.
+    expect(screen.getByText("Fact · Routine · From your paste")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "false");
   });
 });

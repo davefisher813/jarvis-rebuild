@@ -1,12 +1,12 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
 import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands } from "../data/NotesProvider";
-import { STRAND_CATEGORY_LABEL } from "../brain/strands/types";
+import { STRAND_CATEGORY_LABEL, type StrandCategory } from "../brain/strands/types";
 import { aliasTrigger } from "../rules/triggers";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import type { AIService } from "../ai/AIService";
 import type { Category } from "../categories/types";
-import { smartPasteSave, undoSaved, refileSaved, recategorizeSaved, type SavedEntity } from "../paste/smartPaste";
+import { smartPasteSave, undoSaved, refileSaved, recategorizeSaved, recategorizeFact, type SavedEntity } from "../paste/smartPaste";
 import { pasteSeenAge, readRecentCaptures, dropCapture, type RecentCapture } from "../paste/captureLog";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
@@ -19,6 +19,7 @@ import { weekdayLongDate, shortDateFromMs } from "../shared/dateFormat";
 // direction.
 const KIND_LABEL: Record<SavedEntity["kind"], string> = { task: "Task", event: "Event", note: "Note", fact: "Fact" };
 const KINDS: SavedEntity["kind"][] = ["task", "event", "note", "fact"];
+const FACT_CATEGORIES = Object.keys(STRAND_CATEGORY_LABEL) as StrandCategory[];
 
 // "Thursday Aug 20 · 7:00 PM" on the receipt: the resolved date is shown so a
 // wrong read is visible the moment it happens (Smart Paste law: resolved
@@ -174,6 +175,22 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
       .catch(() => { /* the next identical correction re-observes it */ });
   };
 
+  // S4-Q22 (2026-09-04): a fact's bucket is a guess the same way a task's
+  // category is, but nothing on this receipt could change one -- the chip
+  // row hid app categories for a fact (a strand does not use that
+  // taxonomy) and offered no strand-category chips in their place. This is
+  // that missing control. The cap is a real, expected outcome here (twelve
+  // per bucket), not a write failure, so it gets its own honest line rather
+  // than the generic "couldn't save" toast.
+  const onFactCat = async (s: SavedEntity, category: StrandCategory) => {
+    if (category === s.factCategory) return;
+    let moved = false;
+    const ok = await attemptWrite(async () => { moved = await recategorizeFact(s, category, deps(cats)); });
+    if (!ok) return;
+    if (!moved) { showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" }); return; }
+    setSaved(saved.map((x) => (x.id === s.id ? { ...x, factCategory: category } : x)));
+  };
+
   return createPortal(
     <div className="sheet-scrim" onClick={onClose}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
@@ -217,10 +234,7 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
                     <div className="row-stack">
                       <div className="conn-name">{s.title}</div>
                       {/* A fact says where in the Brain it landed instead of
-                          a date it does not have: "Fact · Values". The strand
-                          category is not an app category, so the category
-                          chips below are hidden for this row rather than
-                          offering buckets a strand cannot go in. */}
+                          a date it does not have: "Fact · Values". */}
                       <div className="conn-meta">{[KIND_LABEL[s.kind], s.kind === "fact" ? (s.factCategory ? STRAND_CATEGORY_LABEL[s.factCategory] : "") : fmtWhen(s)].filter(Boolean).join(" · ")} · From your paste</div>
                     </div>
                     <button className="btn-sm" onClick={() => void onUndo(s)}>Undo</button>
@@ -229,12 +243,23 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
                     {KINDS.map((k) => (
                       <div key={k} className={"chip" + (s.kind === k ? " active" : "")} role="radio" aria-checked={s.kind === k} tabIndex={0} onClick={() => void onKind(s, k)}>{KIND_LABEL[k]}</div>
                     ))}
-                    {s.kind !== "fact" && cats.slice(0, 4).map((c) => (
-                      <div key={c.id} className={"chip" + (s.category === c.id ? " active" : "")} role="radio" aria-checked={s.category === c.id} tabIndex={0} onClick={() => void onCat(s, c.id)}>
-                        <span className={"cat-dot cat-bg-" + c.data.color} />
-                        {c.data.name}
-                      </div>
-                    ))}
+                    {/* A strand does not use the app's category taxonomy, so
+                        a fact's row gets its own six buckets here instead
+                        (S4-Q22): the category is a guess same as any other
+                        capture, and selfFact.ts has always said the receipt
+                        lets it be changed. */}
+                    {s.kind === "fact"
+                      ? FACT_CATEGORIES.map((c) => (
+                          <div key={c} className={"chip" + (s.factCategory === c ? " active" : "")} role="radio" aria-checked={s.factCategory === c} tabIndex={0} onClick={() => void onFactCat(s, c)}>
+                            {STRAND_CATEGORY_LABEL[c]}
+                          </div>
+                        ))
+                      : cats.slice(0, 4).map((c) => (
+                          <div key={c.id} className={"chip" + (s.category === c.id ? " active" : "")} role="radio" aria-checked={s.category === c.id} tabIndex={0} onClick={() => void onCat(s, c.id)}>
+                            <span className={"cat-dot cat-bg-" + c.data.color} />
+                            {c.data.name}
+                          </div>
+                        ))}
                   </div>
                 </div>
               ))}
