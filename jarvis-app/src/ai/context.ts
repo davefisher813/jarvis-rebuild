@@ -49,6 +49,11 @@ export interface AIContextInput {
   // A compressed line per sealed month (handoff item 8). Numbers and counts
   // from the seal, never a score and never the user's own words.
   months?: string[];
+  // THE DAILY PULSE (handoff item 11). One line per health metric the user
+  // logs, in that metric's own units, from brain/pulse.ts. Never a composite
+  // score and never a verdict: the health doctrine forbids both, and this is
+  // the surface most tempted to invent one.
+  pulse?: string[];
 }
 
 export interface AIContext {
@@ -81,6 +86,11 @@ export interface AIContext {
   // A compressed line per sealed month (handoff item 8). Numbers and counts
   // from the seal, never a score and never the user's own words.
   months?: string[];
+  // THE DAILY PULSE (handoff item 11). One line per health metric the user
+  // logs, in that metric's own units, from brain/pulse.ts. Never a composite
+  // score and never a verdict: the health doctrine forbids both, and this is
+  // the surface most tempted to invent one.
+  pulse?: string[];
 }
 
 function minTo12h(min: number): string {
@@ -133,6 +143,7 @@ export function assembleContext(input: AIContextInput): AIContext {
     strands: (input.strands ?? []).map((s) => s.trim()).filter(Boolean),
     decisions: (input.decisions ?? []).map((d) => d.trim()).filter(Boolean),
     months: (input.months ?? []).map((m) => m.trim()).filter(Boolean),
+    pulse: (input.pulse ?? []).map((x) => x.trim()).filter(Boolean),
     cashLine: input.cashFlow
       ? `Next paycheck $${input.cashFlow.paycheck} on ${isoToMonthDay(input.cashFlow.nextPayday)}; bills before then $${input.cashFlow.billsOut}; set aside $${input.cashFlow.setAside}; left to spend $${input.cashFlow.left}${input.cashFlow.short ? " (bills exceed the paycheck)" : ""}`
       : "",
@@ -193,6 +204,7 @@ export function contextToText(ctx: AIContext): string {
   if (ctx.strands?.length) lines.push(`Known about the user (watched or confirmed by them): ${ctx.strands.join("; ")}`);
   if (ctx.decisions?.length) lines.push(`Already decided (do not re-open unless asked): ${ctx.decisions.join("; ")}`);
   if (ctx.months?.length) lines.push(`Recent months: ${ctx.months.join(" | ")}`);
+  if (ctx.pulse?.length) lines.push(`How they have been (their own logs, facts not judgments): ${ctx.pulse.join("; ")}`);
   if (ctx.habits) lines.push(`Known habits: ${ctx.habits}`);
   if (ctx.moneyLine) lines.push(`Money: ${ctx.moneyLine}`);
   if (ctx.billsLine) lines.push(`Bills: ${ctx.billsLine}`);
@@ -260,6 +272,7 @@ export function identityToText(ctx: AIContext): string {
   if (ctx.strands?.length) lines.push(`Known about the user (watched or confirmed by them): ${ctx.strands.join("; ")}`);
   if (ctx.decisions?.length) lines.push(`Already decided (do not re-open unless asked): ${ctx.decisions.join("; ")}`);
   if (ctx.months?.length) lines.push(`Recent months: ${ctx.months.join(" | ")}`);
+  if (ctx.pulse?.length) lines.push(`How they have been (their own logs, facts not judgments): ${ctx.pulse.join("; ")}`);
   if (ctx.habits) lines.push(`Known habits: ${ctx.habits}`);
   if (ctx.billsLine) lines.push(`Bills: ${ctx.billsLine}`);
   if (ctx.cashLine) lines.push(`Cash flow: ${ctx.cashLine}`);

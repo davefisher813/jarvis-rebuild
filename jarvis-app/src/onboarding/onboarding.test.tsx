@@ -51,6 +51,11 @@ describe("OnboardingFlow", () => {
     expect(screen.getByText(/When do you usually work/)).toBeInTheDocument();
     fireEvent.click(screen.getByText("9 to 5"));
 
+    // seeds (handoff item 4): five optional questions, one turn, one skip
+    expect(screen.getByText(/A few quick ones/)).toBeInTheDocument();
+    expect(screen.getByText("When is your head clearest?")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Skip these"));
+
     // AI choice (item 22): two options, no preselection
     expect(screen.getByText(/How much should I do on my own/)).toBeInTheDocument();
     fireEvent.click(screen.getByText("Everything"));
@@ -68,6 +73,42 @@ describe("OnboardingFlow", () => {
     fireEvent.click(screen.getByText("Enter JARVIS"));
 
     await waitFor(() => expect(onFinish).toHaveBeenCalled());
+  });
+
+  it("the seed questions are optional, and answering one turns the skip into a continue", () => {
+    setup();
+    fireEvent.click(screen.getByText("Begin"));
+    fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "Alex" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    fireEvent.click(screen.getByText("Personal"));
+    fireEvent.click(screen.getByText("Continue"));
+    fireEvent.click(screen.getByText(/add people as I go/));
+    fireEvent.click(screen.getByText("Skip for now"));
+    fireEvent.click(screen.getByText("9 to 5"));
+
+    // Nothing tapped: the button says so, rather than pretending an answer.
+    expect(screen.getByText("Skip these")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Early morning"));
+    expect(screen.getByText("Continue")).toBeInTheDocument();
+    // Tapping the same chip again clears it, so no answer is a trap.
+    fireEvent.click(screen.getByText("Early morning"));
+    expect(screen.getByText("Skip these")).toBeInTheDocument();
+  });
+
+  it("asks a student different questions than a personal user", () => {
+    // Template-specific on purpose: "what eats your week" is not a question
+    // you ask a sixteen-year-old with practice at four.
+    setup();
+    fireEvent.click(screen.getByText("Begin"));
+    fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "Alex" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    fireEvent.click(screen.getByText("Student"));
+    fireEvent.click(screen.getByText("Continue"));
+    fireEvent.click(screen.getByText(/add people as I go/));
+    fireEvent.click(screen.getByText("Skip for now"));
+    fireEvent.click(screen.getByText("9 to 5"));
+    expect(screen.getByText("How many days a week do you train?")).toBeInTheDocument();
+    expect(screen.queryByText("When is your head clearest?")).not.toBeInTheDocument();
   });
 
   it("intro Skip finishes immediately", async () => {

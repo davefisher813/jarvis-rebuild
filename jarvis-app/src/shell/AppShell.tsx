@@ -238,7 +238,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // "vs last month" honestly.
   useEffect(() => {
     if (!ready || !sealSvc) return;
-    void sealPreviousMonthIfDue(sealSvc, supabase as unknown as WindowClient | null, gym, goals)
+    void sealPreviousMonthIfDue(sealSvc, supabase as unknown as WindowClient | null, gym, goals, undefined, undefined, schedule)
       .catch(() => { /* a missed boundary retries on the next open */ });
   }, [ready, sealSvc, gym, goals]);
 

@@ -3,13 +3,15 @@ import {
   useProfile, usePeople, useBrainDocs, useTasks, useSchedule, useCategories, useRoutine, useGoals, useProjects, useMoney,
   useOptionalProfile, useOptionalPeople, useOptionalBrainDocs, useOptionalTasks, useOptionalSchedule,
   useOptionalCategories, useOptionalRoutine, useOptionalGoals, useOptionalProjects, useOptionalMoney,
-  useOptionalStrands, useOptionalDecisions, useOptionalSeal,
+  useOptionalStrands, useOptionalDecisions, useOptionalSeal, useOptionalMetrics,
 } from "../data/NotesProvider";
 import type { StrandsService } from "../brain/strands/StrandsService";
 import type { DecisionService } from "../decisions/DecisionService";
 import type { SealService } from "../review/seal";
+import type { MetricsService } from "../gym/MetricsService";
 import { sealLines } from "../review/seal";
 import { rankForRecall } from "../brain/recall";
+import { pulseLines } from "../brain/pulse";
 import { assembleContext, type AIContext } from "./context";
 import { routineToText } from "../routine/types";
 import { readSamples } from "../shared/timeSense";
@@ -44,6 +46,11 @@ interface ContextServices {
   // And for the monthly seals (handoff item 8): Insights was fully automatic
   // and display-only, computing an honest record nothing ever read.
   seal?: SealService | null;
+  // And for the daily pulse (handoff item 11): metric logs have been durable
+  // since D10-B and were read only by the gym's own insight cards, so a month
+  // of logged sleep taught the planner nothing. Optional, same seam as the
+  // three above: no metrics store means a thinner context, never a broken one.
+  metrics?: MetricsService | null;
 }
 
 // Session 5: the ONE assembler behind every AI feature. Routine, goals,
@@ -97,6 +104,16 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
   let monthLines: string[] = [];
   try {
     monthLines = s.seal ? sealLines(await s.seal.list()) : [];
+  } catch { /* same rule again */ }
+  // THE PULSE (handoff item 11, Dave's option A). One line per metric with
+  // enough history, in its own units. See brain/pulse.ts for the three
+  // refusals it keeps: no score, no verdict, and silence below three days.
+  let pulseLinesOut: string[] = [];
+  try {
+    if (s.metrics) {
+      const [defs, logs] = await Promise.all([s.metrics.listDefs(), s.metrics.listLogs()]);
+      pulseLinesOut = pulseLines(defs, logs, today);
+    }
   } catch { /* same rule again */ }
   // The full money picture (2026-08-10): bills with amounts and due dates,
   // and the same cash-flow derivation the Money tab shows (payday, bills
@@ -167,6 +184,7 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
     strands: strandLines,
     decisions: decisionLines,
     months: monthLines,
+    pulse: pulseLinesOut,
   });
 }
 
@@ -185,10 +203,11 @@ export function useAIContext(): () => Promise<AIContext> {
   const strands = useOptionalStrands();
   const decisions = useOptionalDecisions();
   const seal = useOptionalSeal();
+  const metrics = useOptionalMetrics();
 
   return useCallback(
-    () => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal }),
-    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal],
+    () => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics }),
+    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics],
   );
 }
 
@@ -211,9 +230,10 @@ export function useOptionalAIContext(): () => Promise<AIContext | null> {
   const strands = useOptionalStrands();
   const decisions = useOptionalDecisions();
   const seal = useOptionalSeal();
+  const metrics = useOptionalMetrics();
 
   return useCallback(async () => {
     if (!profile || !people || !docs || !tasks || !schedule || !cats || !routine || !goals || !projects || !money) return null;
-    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal });
-  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal]);
+    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics });
+  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics]);
 }

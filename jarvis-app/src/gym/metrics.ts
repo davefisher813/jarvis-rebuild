@@ -98,6 +98,72 @@ export const METRIC_PRESETS: MetricPreset[] = [
   { key: "sick", name: "Feeling Sick", type: "yesno" },
 ];
 
+// THE DAILY PULSE (Brain build handoff item 11, decision c2; Dave took
+// option A on 2026-09-04: "seed the five as preset metrics in the existing
+// Health strip and let the Brain read them. No new surface, no third asker").
+//
+// Two honest corrections to the item's own list of five, both made rather
+// than silently papered over:
+//
+//   FATIGUE is already here, called Energy. They are one axis with opposite
+//   polarity, so shipping both would give a user two 1-5 scales that mean the
+//   same thing inverted, and would let a correlation surface count one signal
+//   twice. Energy is the one that stays.
+//
+//   MOOD is deliberately absent from METRIC_PRESETS, and the reason is
+//   written above it: D11's rule keeps mood out of the correlation surfaces
+//   its data would otherwise feed, so it is not offered at all rather than
+//   offered and then quietly dropped downstream. That is a standing ruling
+//   with a stated reason, and item 11 does not overturn it. Today already
+//   asks about mood in the evening check-in, which is the surface that was
+//   built for it.
+//
+// So the pulse is FOUR of the library's existing presets, grouped so they
+// come on together in one tap instead of four trips through the menu. It adds
+// no metric that was not already offered, and every one of them keeps hide,
+// never delete, and no targets or streaks.
+export const PULSE_KEYS = ["sleep", "energy", "soreness", "stress"] as const;
+
+/** The library entries the pulse turns on, in the order it turns them on. */
+export function pulsePresets(): MetricPreset[] {
+  return PULSE_KEYS.map((k) => METRIC_PRESETS.find((p) => p.key === k)).filter((p): p is MetricPreset => !!p);
+}
+
+/**
+ * Where the pulse stands: every one of them on, some of them, or none.
+ *
+ * "partial" is a real state and is treated as off-but-started, so the one-tap
+ * row turns on only what is missing. It never turns anything OFF: a user who
+ * deliberately hid Stress does not get it switched back on by tapping a group
+ * that happens to contain it.
+ */
+export function pulseState(defs: MetricDef[]): "on" | "partial" | "off" {
+  const on = PULSE_KEYS.filter((k) => defs.some((d) => d.data.presetKey === k && !d.data.hidden)).length;
+  if (on === 0) return "off";
+  return on === PULSE_KEYS.length ? "on" : "partial";
+}
+
+/**
+ * Exactly what one tap has to do, split by which write it needs.
+ *
+ * The split is load-bearing. "Not on" covers two different states: never
+ * enabled, and enabled then hidden. Creating a def for the second would leave
+ * TWO defs carrying the same presetKey, one with the user's logged history
+ * stranded behind it, which is the opposite of HIDE, NEVER DELETE. So a key
+ * with an existing def is un-hidden and keeps its history; only a key with no
+ * def at all is created.
+ */
+export function pulsePlan(defs: MetricDef[]): { create: MetricPreset[]; unhide: MetricDef[] } {
+  const create: MetricPreset[] = [];
+  const unhide: MetricDef[] = [];
+  for (const p of pulsePresets()) {
+    const d = defs.find((x) => x.data.presetKey === p.key);
+    if (!d) create.push(p);
+    else if (d.data.hidden) unhide.push(d);
+  }
+  return { create, unhide };
+}
+
 /** Defs actually shown on the daily strip: on, and not hidden, in order. */
 export function activeMetrics(defs: MetricDef[]): MetricDef[] {
   return defs.filter((d) => !d.data.hidden)

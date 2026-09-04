@@ -108,6 +108,34 @@ export class StrandsService {
     return id;
   }
 
+  // ONBOARDING SEEDS (handoff item 4, decision x4, Dave's option A on
+  // 2026-09-04). Separate from add() on purpose, and the difference is one
+  // word: SOURCE.
+  //
+  // add() writes "told", the top rank, because told is EARNED: the user typed
+  // the sentence, or corrected one JARVIS wrote. A chip tapped during intake
+  // is neither. It is a half-attention self-report made before the app has
+  // watched the person do anything, which is exactly what "asked" is for, and
+  // "asked" sits BELOW "watched" so a month of real behaviour can quietly
+  // overrule a guess made on day one without anyone having to un-teach it.
+  //
+  // Same caps as everything else: a seeded genome that fills the per-category
+  // ceiling would lock real derivations out of that category later.
+  async seed(text: string, category: StrandCategory, today: string): Promise<string | null> {
+    const t = text.trim();
+    if (!t) return null;
+    const all = await this.list();
+    if (all.length >= STRAND_CAP_TOTAL) return null;
+    if (all.filter((s) => s.data.category === category).length >= STRAND_CAP_PER_CATEGORY) return null;
+    const data: StrandData = {
+      text: t, category, source: "asked", strength: "influence", status: "active",
+      createdAt: today, lastConfirmed: today,
+    };
+    const id = await this.store.create(this.ownerId, ENTITY_STRAND, data as unknown as ItemData);
+    this.emit?.({ type: "strand.created", entityType: ENTITY_STRAND, entityId: id, props: { category } });
+    return id;
+  }
+
   // Editing the words of a watched strand is a correction of its derivation
   // (the sentence was not one the user would nod at as written), and the
   // corrected text is EARNED told-rank from then on.

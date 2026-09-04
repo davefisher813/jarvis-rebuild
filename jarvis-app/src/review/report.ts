@@ -3,6 +3,8 @@ import type { Goal } from "../life/types";
 import type { Project } from "../projects/types";
 import type { Workout } from "../gym/types";
 import { capAfterNumber } from "../shared/casing";
+import { hoursRows, hoursLabel } from "./hours";
+import { stillTrueGoals } from "./stillTrue";
 
 // THE MONTHLY REPORT'S MODEL (2026-08-25). Pure functions from a sealed
 // month (plus its predecessor, plus the Store's own dated series) to the
@@ -21,9 +23,22 @@ export interface ReportTile {
   delta: { text: string; up: boolean } | null;
 }
 export interface ReportSegment { id: string; name: string; color: string; n: number }
+// WHERE THE HOURS WENT (handoff item 13, Dave's option A: one more section of
+// the report you already get). A row per area, plus the areas a live goal
+// reaches into that got no scheduled time at all. Facts, in both directions,
+// with no target between them: the report says where the hours went and what
+// had none, and never which of those is the right answer.
+export interface TimeRow { id: string; name: string; color: string; label: string; pct: number }
+export interface TimeSection {
+  rows: TimeRow[];
+  /** Total scheduled time, already formatted. */
+  total: string;
+  /** Live-goal areas with nothing on the calendar. Named, never scored. */
+  quiet: { id: string; name: string }[];
+}
 export interface CarriedTask { id: string; text: string; n: number }
 export interface WorthCard {
-  id: "carried" | "quiet" | "cut";
+  id: "carried" | "quiet" | "cut" | "stillTrue";
   title: string;
   sub: string | null;
   carried?: CarriedTask[];
@@ -49,6 +64,9 @@ export interface MonthReport {
   tiles: ReportTile[];
   hours: { label: string; byHour: number[]; bandStart: number } | null;
   went: ReportSegment[] | null;
+  /** WHERE THE HOURS WENT (item 13). Null below the floor, or on any seal
+   *  written before this shipped. */
+  time: TimeSection | null;
   worth: WorthCard[];
   patterns: PatternRow[];
   learned: { title: string; sub: string | null } | null;
@@ -229,6 +247,31 @@ export function buildReport(inp: ReportInputs): MonthReport {
     .map((s) => ({ id: s.id, name: s.cat!.name, color: s.cat!.color, n: s.n }));
   const went = segments.length >= 2 ? segments : null;
 
+  // WHERE THE HOURS WENT (item 13). Calendar-mined, entirely passive, and
+  // silent below the floor. The uncategorised bucket ("" ) is rendered as
+  // "Everything else" rather than dropped, so the percentages the reader adds
+  // up in their head actually reach a hundred.
+  const timeRows = hoursRows(seal.hours ?? {});
+  const time: TimeSection | null = timeRows.length === 0 ? null : {
+    rows: timeRows.map((r) => {
+      const cat = r.category ? catById.get(r.category) : undefined;
+      return {
+        id: r.category,
+        name: cat?.name ?? "Everything else",
+        color: cat?.color ?? "graphite",
+        label: hoursLabel(r.minutes),
+        pct: r.pct,
+      };
+    }),
+    total: hoursLabel(timeRows.reduce((a, r) => a + r.minutes, 0)),
+    // Only areas that still exist and still have a name. A goal tagged with a
+    // deleted category is not a fact worth reporting.
+    quiet: (seal.goalAreasUnscheduled ?? [])
+      .map((id) => ({ id, name: catById.get(id)?.name ?? "" }))
+      .filter((q) => !!q.name)
+      .slice(0, 3),
+  };
+
   // WORTH A LOOK. Every card that names a gap keeps an exit, and the copy
   // states facts about work, never verdicts about the person.
   const worth: WorthCard[] = [];
@@ -259,6 +302,26 @@ export function buildReport(inp: ReportInputs): MonthReport {
       });
     }
   }
+  // "STILL TRUE?" (handoff item 10, the remnant Dave kept). Only ever asked
+  // about a goal that WAS moving last month and moved in no way at all this
+  // one; see stillTrue.ts for why that standard, and not "no activity", is
+  // the only one that makes this a question rather than a nag. It changes
+  // nothing on its own: cutting a goal is a decision with a record, and that
+  // path is elsewhere.
+  const still = stillTrueGoals(seal, prev, inp.goals);
+  if (still.length > 0) {
+    worth.push({
+      id: "stillTrue",
+      title: still.length === 1 ? `${still[0]!.title}: still true?` : capAfterNumber(`${still.length} goals went still`),
+      sub: "Nothing finished and nothing scheduled this month",
+      receipts: [
+        ...still.map((g) => capAfterNumber(`${g.title}: ${g.wasDone} finished in ${prevName}, none in ${name}`)),
+        "A month off a goal is not the same as dropping it",
+        "Yes is a complete answer",
+      ],
+    });
+  }
+
   const cut = inp.goals.filter((g) => g.data.dropped?.on.startsWith(month));
   if (cut.length > 0) {
     worth.push({
@@ -381,6 +444,7 @@ export function buildReport(inp: ReportInputs): MonthReport {
     tiles,
     hours,
     went,
+    time,
     worth,
     patterns,
     learned,

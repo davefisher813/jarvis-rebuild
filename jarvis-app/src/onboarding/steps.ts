@@ -1,7 +1,7 @@
 // The scripted intake. Each convo step is one JARVIS turn; the engine in
 // OnboardingFlow walks them, accumulating the transcript. AI can make this
 // dynamic later without changing the engine shape.
-export type StepKind = "intro" | "text" | "choice" | "categories" | "people" | "connect" | "time" | "done";
+export type StepKind = "intro" | "text" | "choice" | "categories" | "people" | "seeds" | "connect" | "time" | "done";
 
 export interface Choice { label: string; value: string }
 export interface OnbStep {
@@ -42,6 +42,14 @@ export const STEPS: OnbStep[] = [
       { label: "It varies", value: "varies" },
     ],
   },
+  // ONBOARDING SEEDS (handoff item 4, Dave's option A). Placed here, not
+  // immediately after the template pick: by now the areas have visibly
+  // assembled themselves around their answer and they have named the thing on
+  // their plate, so a short block of questions about how they work reads as
+  // JARVIS paying attention rather than as more forms before any payoff. It
+  // is still one turn of the same conversation, and one tap skips all five.
+  // The questions themselves are template-specific; see seeds.ts.
+  { id: "seeds", kind: "seeds", prompt: "A few quick ones, so I am not starting from nothing. Skip any, or skip all of them." },
   {
     id: "aichoice",
     kind: "choice",

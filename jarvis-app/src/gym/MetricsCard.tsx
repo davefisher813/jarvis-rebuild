@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import {
   METRIC_PRESETS, METRIC_TYPE_LABEL, activeMetrics, logOn, formatMetric,
+  pulseState, pulsePresets,
   type MetricDef, type MetricLog, type MetricType, type MetricPreset,
 } from "./metrics";
 import Stepper from "../shared/Stepper";
@@ -112,11 +113,15 @@ export function MetricLogSheet({ def, date, initial, onSave, onCancel }: {
  *  switch lit; tapping it off HIDES the def (its history stays); tapping an
  *  unstarted preset on creates it. Existing custom metrics get the same
  *  switch, listed below the library under their own name. */
-export function AddMetricSheet({ defs, onEnablePreset, onToggleHidden, onCreateCustom, onCancel }: {
+export function AddMetricSheet({ defs, onEnablePreset, onToggleHidden, onCreateCustom, onEnablePulse, onCancel }: {
   defs: MetricDef[];
   onEnablePreset: (preset: MetricPreset) => void;
   onToggleHidden: (def: MetricDef) => void;
   onCreateCustom: (name: string, type: MetricType, unit: string) => void;
+  /** Optional: no handler means no pulse row, and the sheet is exactly what
+   *  it was. The four are all reachable one at a time from the library below
+   *  either way, so this row is a shortcut, never the only door. */
+  onEnablePulse?: () => void;
   onCancel: () => void;
 }) {
   const [customOpen, setCustomOpen] = useState(false);
@@ -125,6 +130,12 @@ export function AddMetricSheet({ defs, onEnablePreset, onToggleHidden, onCreateC
   const [unit, setUnit] = useState("");
   const custom = defs.filter((d) => !d.data.presetKey);
   const defFor = (key: string) => defs.find((d) => d.data.presetKey === key);
+  // THE DAILY PULSE (handoff item 11). Four presets that are already in the
+  // library below, grouped so they come on together. The row disappears once
+  // they are all on, rather than sitting there as a dead control; while some
+  // are on it offers only the rest, and it never switches anything off.
+  const pulse = pulseState(defs);
+  const pulseNames = pulsePresets().map((p) => p.name).join(", ");
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
@@ -132,6 +143,21 @@ export function AddMetricSheet({ defs, onEnablePreset, onToggleHidden, onCreateC
         <div className="grp"><div className="eyebrow">Add a Metric</div></div>
         <div className="pad-x sheet-form">
           <div className="input-hint">No targets, no streaks, just your own numbers</div>
+          {onEnablePulse && pulse !== "on" && (
+            <div className="field">
+              <div className="input-label">The Daily Pulse</div>
+              <div className="card">
+                <div className="row" role="button" tabIndex={0} onClick={onEnablePulse}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onEnablePulse(); }}>
+                  <div className="row-grow">
+                    <div className="conn-name">{pulse === "partial" ? "Turn On the Rest" : "Turn On All Four"}</div>
+                    <div className="conn-meta">{pulseNames}</div>
+                  </div>
+                  {CHEV}
+                </div>
+              </div>
+            </div>
+          )}
           <div className="field">
             <div className="input-label">The Library</div>
             <div className="card">

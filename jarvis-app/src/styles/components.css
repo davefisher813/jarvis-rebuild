@@ -468,6 +468,14 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .ob-x .ic { width: 18px; height: 18px; }
 .ob-privacy-txt { font-size: var(--t-meta); color: var(--tx-2); line-height: 1.45; }
 .ob-skip { text-align: center; color: var(--tx-3); font-weight: var(--w-medium); padding: var(--s-2) 0 0; }
+/* ONBOARDING SEEDS (2026-09-04). Five optional questions in one turn. No new
+   anatomy: the quiet caps head every ruled page already wears, over the same
+   .convo-chips row the template and time steps use, with the app's own
+   .chip-on for a picked answer. Only the vertical rhythm between question
+   blocks is new, and it is the §12.5 spacing scale. */
+.ob-seed { margin: 0 0 var(--s-4); }
+.ob-seed:last-child { margin-bottom: var(--s-2); }
+.ob-seed .sh2 { padding-left: 0; padding-right: 0; }
 .connect-row .chip { margin-left: auto; }
 .ob-brand-lg { font-size: 52px; }
 /* THE TEMPLATE PICK, THREE CARDS (catalog 2026-09-01). Each option is a
@@ -893,7 +901,13 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .row:active, .task-row:active, .proj-row:active, .sched-row:active, .conn-row:active, .msg-row:active, .lm-row:active, .lifemap-row:active, .suggestion-row:active, .settings-row:active, .cat-row:active, .plan-pick:active { background: var(--press-5); }
 @media (hover: hover) {
   .row[role="button"]:hover, .task-row:hover, .proj-row:hover, .sched-row:hover, .conn-row:hover, .msg-row:hover, .lm-row:hover, .lifemap-row:hover, .suggestion-row:hover, .settings-row:hover, .cat-row:hover, .plan-pick:hover { background: var(--press-3); }
-  .chip[role="button"]:hover:not(.active):not(.on) { background: var(--press-5); }
+  /* .chip-on joined this exclusion 2026-09-04. It is the third selected-chip
+     class (after .active and .on) and it was never added here, so on any
+     pointer device a CHOSEN chip lost its red fill the moment the cursor sat
+     on it: the schedule's duration chips, Plan My Day's Today/Tomorrow, the
+     mail windows' day chips, and the onboarding seed answers all did it.
+     Found by walking the new seeds step in Chromium. */
+  .chip[role="button"]:hover:not(.active):not(.on):not(.chip-on) { background: var(--press-5); }
   .row[role="button"], .plan-pick, .chip[role="button"] { cursor: pointer; }
 }
 .btn { transition: transform var(--dur-fast) var(--ease-out); }

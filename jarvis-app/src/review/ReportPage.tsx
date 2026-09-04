@@ -108,7 +108,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
       </div>
 
       {/* THE MONTH: tiles with deltas, the hours strip, where it went. */}
-      {(report.tiles.length > 0 || report.hours || report.went) && (
+      {(report.tiles.length > 0 || report.hours || report.went || report.time) && (
         <div className="sh2 sh2-quiet"><span className="t">The Month</span></div>
       )}
       <div className="pad-x">
@@ -137,6 +137,35 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
                 />
               ))}
             </div>
+          </div>
+        )}
+
+        {/* WHERE THE HOURS WENT (handoff item 13, Dave's option A). The same
+            stack and legend "Where It Went" already uses, because it is the
+            same shape of fact about a different unit: that one counts things
+            finished, this one counts time scheduled. No target line and no
+            ideal split is drawn, so there is nothing here to fall short of.
+            The quiet line names live-goal areas with nothing on the calendar
+            and stops there; whether that is a problem is the reader's call. */}
+        {report.time && (
+          <div className="card pad rep-gap">
+            <div className="rep-eyebrow rep-quiet">Where the Hours Went</div>
+            <div className="rep-stack">
+              {report.time.rows.map((r) => (
+                <i key={r.id || "rest"} className={"cat-bg-" + r.color} style={{ width: grown ? `${Math.max(4, r.pct)}%` : "25%" }} />
+              ))}
+            </div>
+            <div className="rep-leg">
+              {report.time.rows.map((r) => (
+                <span key={r.id || "rest"}><i className={"cat-bg-" + r.color} />{r.name} {r.label}</span>
+              ))}
+            </div>
+            <div className="eyebrow rep-gap">{report.time.total} on the calendar</div>
+            {report.time.quiet.length > 0 && (
+              <div className="eyebrow">
+                Nothing scheduled for {report.time.quiet.map((q) => q.name).join(", ")}
+              </div>
+            )}
           </div>
         )}
 

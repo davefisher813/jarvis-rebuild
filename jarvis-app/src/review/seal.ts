@@ -1,9 +1,11 @@
 import type { Store, ItemData } from "@core";
 import type { EventInput } from "../events";
+import type { EventItem } from "../schedule/types";
+import { minutesByCategory, unscheduledGoalAreas, hoursRows } from "./hours";
 import type { WindowRow, WindowClient } from "../brain/window";
 import { readWindow } from "../brain/window";
 import { completionBand, taskDone, slipLeader } from "../brain/derive";
-import { liveGoals } from "../bigger/reach";
+import { liveGoals, goalTags } from "../bigger/reach";
 import type { Goal } from "../life/types";
 import type { Workout } from "../gym/types";
 import type { GymService } from "../gym/GymService";
@@ -62,6 +64,14 @@ export interface MonthSealData {
   // 3 or more pushes, at most three of them. Ids only; the report resolves
   // titles against the live Store and silently drops what no longer exists.
   carried: { id: string; n: number }[];
+  // v3 (2026-09-04): WHERE THE HOURS WENT (handoff item 13, Dave's option A).
+  // Scheduled minutes per category id for the month, recurring series
+  // expanded. Ids and numbers only, like everything else here. Absent on
+  // seals written before this shipped, which is why every reader defaults it.
+  hours?: Record<string, number>;
+  // The areas the month's live goals reach into that got no scheduled time at
+  // all. An absence, stated as one; the report never calls it a failing.
+  goalAreasUnscheduled?: string[];
 }
 
 export interface MonthSeal { id: string; data: MonthSealData }
@@ -83,6 +93,10 @@ export interface SealInputs {
   workouts: Workout[];
   goals: Goal[];
   sealedAt: number;
+  // WHERE THE HOURS WENT (item 13). Optional: a seal computed without events
+  // simply has no hours section, which is exactly how every seal written
+  // before 2026-09-04 behaves. It is never a reason to fail a seal.
+  events?: EventItem[];
 }
 
 /** Pure: fold one month's evidence into its seal record. */
@@ -184,6 +198,22 @@ export function computeSeal(month: string, inp: SealInputs): MonthSealData {
     remindersTicked: inMonth.filter((r) => r.type === "reminder.ticked").length,
     deck: { sent: deckRows.length, asWritten: deckRows.filter((r) => r.flag === false).length },
     carried,
+    // WHERE THE HOURS WENT (item 13). Only written when events were handed
+    // in; an older seal and a seal computed without them both simply have no
+    // hours section, and every reader defaults the field.
+    ...(inp.events
+      ? (() => {
+          const hours = minutesByCategory(month, inp.events!);
+          // Held against what they said mattered: the areas their LIVE goals
+          // reach into, which a goal names through its tags (bigger/reach.ts
+          // is the one definition of that reach and liveGoals the one
+          // definition of live). Achieved and dropped goals are not what
+          // matters NOW, so an area reachable only through one is not named:
+          // "you scheduled nothing for a goal you finished in June" is noise.
+          const goalCats = liveGoals(inp.goals).flatMap((g) => goalTags(g));
+          return { hours, goalAreasUnscheduled: unscheduledGoalAreas(hours, goalCats) };
+        })()
+      : {}),
   };
 }
 
@@ -237,6 +267,9 @@ export async function sealPreviousMonthIfDue(
   goalsSvc: GoalService,
   today = todayISO(),
   now = Date.now(),
+  // WHERE THE HOURS WENT (item 13). Optional and last, so every existing
+  // caller keeps working and a seal without it is exactly the seal it was.
+  scheduleSvc?: { listEvents: () => Promise<EventItem[]> } | null,
 ): Promise<string | null> {
   const prev = prevMonthKey(today);
   const mark = () => {
@@ -251,7 +284,12 @@ export async function sealPreviousMonthIfDue(
     gym.listWorkouts(),
     goalsSvc.list(),
   ]);
-  const data = computeSeal(prev, { rows, workouts, goals, sealedAt: now });
+  // Best-effort: a calendar read that fails costs the month its hours
+  // section, never its seal. The seal is the durable record and it has been
+  // written without hours for as long as it has existed.
+  let events: EventItem[] | undefined;
+  try { events = scheduleSvc ? await scheduleSvc.listEvents() : undefined; } catch { events = undefined; }
+  const data = computeSeal(prev, { rows, workouts, goals, sealedAt: now, ...(events ? { events } : {}) });
   if (!worthSealing(data)) { mark(); return null; }
   const id = await svc.create(data);
   if (id) mark();
@@ -277,6 +315,13 @@ export async function sealPreviousMonthIfDue(
 // A month with nothing worth saying renders nothing rather than a row of
 // zeroes, because "0 finished" reads as a verdict and is usually just an
 // artefact of a month the app was barely open.
+/** The biggest named area of a sealed month's hours, or null below the floor. */
+function topHours(hours: Record<string, number> | undefined): { category: string; minutes: number } | null {
+  if (!hours) return null;
+  const named = hoursRows(hours).find((r) => r.category);
+  return named ? { category: named.category, minutes: named.minutes } : null;
+}
+
 function hour12Label(h: number): string {
   const ap = h < 12 ? "AM" : "PM";
   return `${h % 12 || 12} ${ap}`;
@@ -297,6 +342,13 @@ export function sealLine(s: MonthSealData): string {
   if (s.bandStart !== null && s.bandCount > 0) {
     parts.push(`most done between ${hour12Label(s.bandStart)} and ${hour12Label((s.bandStart + 3) % 24)}`);
   }
+  // WHERE THE HOURS WENT (item 13). The single biggest area only, by id, and
+  // only when the month cleared the floor. The prompt says where the time
+  // went; it never says where it should have gone, and it never names the
+  // areas that got none, because "you scheduled nothing for X" reaching a
+  // model as a fact is one paraphrase away from coming back as a reprimand.
+  const hoursTop = topHours(s.hours);
+  if (hoursTop) parts.push(`most scheduled time in area ${hoursTop.category}`);
   if (parts.length === 0) return "";
   return `${monthName(s.month)} ${s.month.slice(0, 4)}: ${parts.join(", ")}`;
 }

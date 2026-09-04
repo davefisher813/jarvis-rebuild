@@ -33,6 +33,26 @@ describe("StrandsService", () => {
     expect(s!.data.derivation).toBeUndefined();
   });
 
+  it("an onboarding seed is asked-rank, BELOW watched, so evidence can overrule it", async () => {
+    // The whole point of item 4. A chip tapped during intake is what someone
+    // says about themselves before the app has watched them do anything. Filed
+    // as told it would outrank a month of real behaviour for the life of the
+    // account; filed as asked, the log quietly wins and nobody un-teaches it.
+    await ctx.svc.seed("My head is clearest early in the morning", "energy", TODAY);
+    const [s] = await ctx.svc.list();
+    expect(s!.data.source).toBe("asked");
+    expect(s!.data.strength).toBe("influence");
+    expect(s!.data.derivation).toBeUndefined();
+  });
+
+  it("a seed obeys the same caps as everything else", async () => {
+    // A seeded genome that filled a category would lock real derivations out
+    // of it later, which is the opposite of what seeding is for.
+    for (let i = 0; i < STRAND_CAP_PER_CATEGORY; i++) await ctx.svc.seed("fact " + i, "values", TODAY);
+    expect(await ctx.svc.seed("one too many", "values", TODAY)).toBeNull();
+    expect((await ctx.svc.list()).filter((x) => x.data.category === "values")).toHaveLength(STRAND_CAP_PER_CATEGORY);
+  });
+
   it("never promotes an influence to a rule on its own", async () => {
     await ctx.svc.accept("x", "energy", "completion_window", [], TODAY);
     const [s] = await ctx.svc.list();

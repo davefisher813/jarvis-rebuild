@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useProfile, useCategories, usePeople, useRoutine, useTasks } from "../data/NotesProvider";
+import { useEffect, useRef, useState } from "react";
+import { useProfile, useCategories, usePeople, useRoutine, useTasks, useOptionalStrands } from "../data/NotesProvider";
 import { wakeFromBrief, DEFAULT_ROUTINE } from "../routine/types";
 import { localParse } from "../ai/capture";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
@@ -10,6 +10,7 @@ import { haptics } from "../shared/haptics";
 import { DEFAULT_CATEGORIES, type CategorySeed, type TemplateKey } from "../categories/defaults";
 import { COLOR_SLOTS } from "../categories/types";
 import { STEPS } from "./steps";
+import { seedQuestions, factsFrom } from "./seeds";
 import { NEW_USER_TABS } from "../shell/destinations";
 import { dismissSplash } from "../shared/splash";
 
@@ -61,6 +62,10 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const peopleSvc = usePeople();
   const routine = useRoutine();
   const tasksSvc = useTasks();
+  // Optional on purpose, same seam as everywhere else the genome is touched:
+  // no strands store means the seed questions simply do not render, and the
+  // rest of intake is unchanged. A missing enhancement is never a broken step.
+  const strandsSvc = useOptionalStrands();
 
   useEffect(() => { dismissSplash(); }, []);
   const [idx, setIdx] = useState(0);
@@ -91,8 +96,24 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     } catch { /* user closed the chooser: the Later path still works */ }
     finally { setConnecting(false); }
   };
+  // Question id -> index of the chosen chip. Absent means unanswered, which
+  // is a first-class outcome here: five optional questions, not a form.
+  const [seedPicks, setSeedPicks] = useState<Record<string, number>>({});
   const [briefTime, setBriefTime] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // THE NEWEST TURN IS THE ONE YOU NEED TO READ (2026-09-04). .convo is a
+  // scrolling region and nothing ever moved it, so from about the sixth step
+  // on, JARVIS's current line sat above the fold while the control for it sat
+  // below: the user saw the start of a conversation and a question they had
+  // not been shown. Surfaced by the seeds step, whose control is tall enough
+  // to squeeze the transcript to a few lines, but it was true of the two
+  // steps before it as well.
+  const convoRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = convoRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [idx]);
 
   const step = STEPS[idx];
   if (!step) return null;
@@ -152,6 +173,15 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
         const due = parsed.date ?? (dayWord === "today" ? today : todayISO(new Date(Date.now() + 86400000)));
         await tasksSvc.createTask(parsed.title || priority, { category: catHit?.id, due });
       }
+      // The seeds become real facts, at source "asked" (see seeds.ts and
+      // StrandsService.seed). Best-effort and last: a genome write must never
+      // be the thing that stops a new account from opening.
+      if (strandsSvc) {
+        const today = todayISO();
+        for (const f of factsFrom(template, seedPicks)) {
+          try { await strandsSvc.seed(f.text, f.category, today); } catch { /* intake still succeeds */ }
+        }
+      }
     }
     onFinish();
   };
@@ -187,6 +217,10 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
       case "priority": return priority || "Skipped";
       case "workstyle": return s.options?.find((o) => o.value === workStyle)?.label ?? "Skipped";
       case "aichoice": return s.options?.find((o) => o.value === aiChoice)?.label ?? "Draft Only";
+      case "seeds": {
+        const n = seedQuestions(template).filter((q) => seedPicks[q.id] != null).length;
+        return n === 0 ? "Skipped" : n + (n === 1 ? " answer" : " answers");
+      }
       case "connect": return "Got it";
       case "time": return s.options?.find((o) => o.value === briefTime)?.label ?? "Skip";
       default: return "";
@@ -242,7 +276,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
 
   // ---- conversation steps ----
   const transcript = (
-    <div className="convo">
+    <div className="convo" ref={convoRef}>
       <div className="convo-sender">JARVIS</div>
       {STEPS.slice(1, idx).map((s) => (
         <Turn key={s.id} prompt={promptOf(s)} answer={answerOf(STEPS.indexOf(s))} />
@@ -345,6 +379,46 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
         </div>
         <button className="btn btn-secondary btn-block" onClick={() => setIdx(idx + 1)}>{people.length ? "Continue" : "Later, I\u2019ll add people as I go"}</button>
       </div>
+    );
+  } else if (step.kind === "seeds") {
+    // All five on one screen rather than five turns. For the brain this app is
+    // built for, one screen you can bail out of beats five sequential asks,
+    // and the item's budget was sixty seconds. Tapping a chip twice clears it,
+    // so no answer is a trap. Chips use the app's own chip-on state; nothing
+    // new was styled for this.
+    const qs = seedQuestions(template);
+    const answered = qs.filter((q) => seedPicks[q.id] != null).length;
+    control = (
+      <>
+        <div className="pad-x">
+          {qs.map((q) => (
+            <div className="ob-seed" key={q.id}>
+              <div className="sh2 sh2-quiet"><span className="t">{q.prompt}</span></div>
+              <div className="convo-chips">
+                {q.options.map((o, i) => (
+                  <div
+                    key={o.label}
+                    className={"chip" + (seedPicks[q.id] === i ? " chip-on" : "")}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={seedPicks[q.id] === i}
+                    onClick={() => setSeedPicks((prev) => {
+                      const next = { ...prev };
+                      if (next[q.id] === i) delete next[q.id]; else next[q.id] = i;
+                      return next;
+                    })}
+                  >{o.label}</div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="convo-foot">
+          <button className="btn btn-primary btn-block" onClick={() => setIdx(idx + 1)}>
+            {answered > 0 ? "Continue" : "Skip these"}
+          </button>
+        </div>
+      </>
     );
   } else if (step.kind === "connect") {
     control = (

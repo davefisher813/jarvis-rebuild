@@ -50,7 +50,7 @@ import HealthBody, { type HealthGoalRow } from "./HealthBody";
 import { openWorkOf } from "../today/goalPulse";
 import { MetricLogSheet, AddMetricSheet } from "../gym/MetricsCard";
 import type { MetricDef, MetricLog } from "../gym/metrics";
-import { newMetricDefData, activeMetrics } from "../gym/metrics";
+import { newMetricDefData, activeMetrics, pulsePlan } from "../gym/metrics";
 import { chartableExercises, liftSessions } from "../gym/chartData";
 import { correlate, plateauFlag, hardSetRows, muscleMapFromProgram, backOffSignal, shouldOfferLighterWeek } from "../gym/insights";
 import { MUSCLE_LABEL } from "../gym/muscles";
@@ -907,6 +907,20 @@ export default function CategoryDetail({
           onEnablePreset={(preset) => void metricWrite(() => metricsSvc.createDef(newMetricDefData(preset.name, preset.type, preset.unit, preset.key, today, metricDefs.length)))}
           onToggleHidden={(def) => void metricWrite(() => metricsSvc.updateDef(def.id, { hidden: !def.data.hidden }))}
           onCreateCustom={(name, type, unit) => void metricWrite(() => metricsSvc.createDef(newMetricDefData(name, type, unit || undefined, undefined, today, metricDefs.length)))}
+          // THE DAILY PULSE (handoff item 11, option A). One tap turns on the
+          // four the pulse is made of. pulsePlan splits the work because "not
+          // on" is two different states: a key with an existing def is
+          // un-hidden and keeps its logged history, and only a key with no def
+          // at all is created. Creating a second def for a hidden one would
+          // strand the first one's history, which is the opposite of HIDE,
+          // NEVER DELETE.
+          onEnablePulse={() => void metricWrite(async () => {
+            const plan = pulsePlan(metricDefs);
+            let order = metricDefs.length;
+            for (const d of plan.unhide) await metricsSvc.updateDef(d.id, { hidden: false });
+            for (const p of plan.create) await metricsSvc.createDef(newMetricDefData(p.name, p.type, p.unit, p.key, today, order++));
+            return true;
+          })}
           onCancel={() => setMetricSheet(null)}
         />
       )}
