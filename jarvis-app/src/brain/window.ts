@@ -56,6 +56,9 @@ const READ_TYPES = [
   // zero readers since layer 1; the deck metric was promoted to durable
   // exactly so it could be read once a month; reminder ticks are new.
   "entity.deleted", "email.deck_sent", "reminder.ticked",
+  // The Brain stops starving (handoff item 1, 2026-09-04): the semantic
+  // act email now emits, read by the email_window derivation.
+  "email.handled",
 ];
 
 export function windowStartISO(nowMs: number, days = WINDOW_DAYS): string {

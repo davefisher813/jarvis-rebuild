@@ -350,3 +350,135 @@ describe("a correction taught on one capture applies to the next", () => {
     expect(other!.category).not.toBe("cat-family");
   });
 });
+
+// QUICK ADD: THE FACT LANE (Brain build handoff 5.0, built 2026-09-04).
+// Dave: manual entry "isn't going away... make it the easiest, quickest, most
+// user-friendly it can possibly be, everywhere in the app." The concrete
+// failure: the one sentence a person most wants remembered was the one shape
+// capture could not hold, so it became a task with a tick box.
+import { selfFact } from "./selfFact";
+import { StrandsService } from "../brain/strands/StrandsService";
+
+function rigWithStrands(aiCalls: { n: number }, available = true): PasteDeps & { strandsSvc: StrandsService } {
+  const store = new Store(new InMemoryAdapter());
+  const strandsSvc = new StrandsService(store, U);
+  const base = {
+    ai: { available, complete: async () => { aiCalls.n++; return "not json"; } } as unknown as AIService,
+    gather: async () => { throw new Error("no context in tests"); },
+    tasks: new TasksService(store, U),
+    schedule: new ScheduleService(store, U),
+    notes: new NotesService(store, U),
+    categories: [],
+    today: TODAY,
+    strands: strandsSvc,
+  } as unknown as PasteDeps;
+  return Object.assign(base, { strandsSvc });
+}
+
+describe("selfFact: the shapes, and everything it refuses", () => {
+  it("reads the stated shapes as facts", () => {
+    expect(selfFact("I never work out on Sundays")?.category).toBe("routine");
+    expect(selfFact("I don't do mornings")?.category).toBe("energy");
+    expect(selfFact("family dinner is non-negotiable")?.category).toBe("people");
+    expect(selfFact("I work best in the morning")?.category).toBe("energy");
+    expect(selfFact("I hate long meetings")?.category).toBe("work_style");
+    expect(selfFact("never schedule anything before 10")).not.toBeNull();
+  });
+
+  it("keeps the sentence verbatim: these are the user's own words about themselves", () => {
+    expect(selfFact("I never work out on Sundays")?.text).toBe("I never work out on Sundays");
+  });
+
+  it("refuses an ordinary to-do, a question, and a paragraph", () => {
+    expect(selfFact("call the dentist")).toBeNull();
+    expect(selfFact("buy milk")).toBeNull();
+    expect(selfFact("what's on today")).toBeNull();
+    expect(selfFact("x".repeat(200))).toBeNull();
+    expect(selfFact("")).toBeNull();
+  });
+});
+
+describe("law: a dated appointment is never a fact", () => {
+  it("a day plus a time stays an event even in first person", () => {
+    // selfFact's own law 2. "I always" would match the shape; the date and
+    // time read wins, because a thing with a clock time is an appointment.
+    const e = classifyLine("I always meet Marco Thursday 7pm", TODAY);
+    expect(e.kind).toBe("event");
+  });
+
+  it("a weekday alone does NOT drag a fact onto a due date", () => {
+    // The bug this ordering exists to prevent: resolveDay matches "Sundays",
+    // and the date branch below would have filed the sentence a person most
+    // wants remembered as a task due next Sunday.
+    const e = classifyLine("I never work out on Sundays", TODAY);
+    expect(e.kind).toBe("fact");
+    expect(e.date).toBeUndefined();
+  });
+});
+
+describe("a fact lands in the Brain, not on a list", () => {
+  it("files a told-rank strand and creates no task", async () => {
+    const calls = { n: 0 };
+    const deps = rigWithStrands(calls);
+    const out = await smartPasteSave("I never work out on Sundays", deps);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.kind).toBe("fact");
+    // No AI call: a model never gets to decide it heard a belief about someone.
+    expect(calls.n).toBe(0);
+    const strands = await deps.strandsSvc.list();
+    expect(strands).toHaveLength(1);
+    expect(strands[0]!.data.text).toBe("I never work out on Sundays");
+    expect(strands[0]!.data.source).toBe("told");
+    expect(strands[0]!.data.category).toBe("routine");
+    expect(await deps.tasks.listTasks()).toHaveLength(0);
+  });
+
+  it("lands on the Recent Captures strip like every other capture", async () => {
+    const deps = rigWithStrands({ n: 0 });
+    await smartPasteSave("I never work out on Sundays", deps);
+    expect(readRecentCaptures()[0]?.kind).toBe("fact");
+  });
+
+  it("undo removes the strand entirely", async () => {
+    const deps = rigWithStrands({ n: 0 });
+    const [s] = await smartPasteSave("I don't do mornings", deps);
+    await undoSaved(s!, deps);
+    expect(await deps.strandsSvc.list()).toHaveLength(0);
+  });
+
+  it("refiles a fact to a task, and a task back to a fact", async () => {
+    const deps = rigWithStrands({ n: 0 });
+    const [fact] = await smartPasteSave("I hate long meetings", deps);
+    const asTask = await refileSaved(fact!, "task", deps);
+    expect(asTask!.kind).toBe("task");
+    expect(await deps.strandsSvc.list()).toHaveLength(0);
+    expect(await deps.tasks.listTasks()).toHaveLength(1);
+    const backToFact = await refileSaved(asTask!, "fact", deps);
+    expect(backToFact!.kind).toBe("fact");
+    expect(await deps.tasks.listTasks()).toHaveLength(0);
+    expect(await deps.strandsSvc.list()).toHaveLength(1);
+  });
+
+  it("says so when the genome is full instead of pretending nothing was read", async () => {
+    const deps = rigWithStrands({ n: 0 });
+    // Fill the values category to its cap (12) with told strands.
+    for (let i = 0; i < 12; i++) await deps.strandsSvc.add("fact " + i, "values", TODAY);
+    let refused: string | null = null;
+    const out = await smartPasteSave("I refuse to answer the phone at dinner", {
+      ...deps,
+      onFactRefused: (t) => { refused = t; },
+    });
+    expect(out).toHaveLength(0);
+    expect(refused).toBe("I refuse to answer the phone at dinner");
+  });
+
+  it("with no strand store the lane closes and the capture still lands", async () => {
+    // The seam rule the learned-rules store already follows: a missing
+    // service means the feature is off, never a lost capture or a crash.
+    const calls = { n: 0 };
+    const deps = rig(calls, false);
+    const out = await smartPasteSave("I never work out on Sundays", deps);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.kind).toBe("task");
+  });
+});

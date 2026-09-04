@@ -5,6 +5,7 @@ import { suggestionsSystemPrompt, parseSuggestions, type Suggestion } from "../a
 import { useTasks, useProfile, useBrainDocs, useSchedule, useRoutine, useOptionalStrands } from "../data/NotesProvider";
 import { readWindow, type WindowClient } from "../brain/window";
 import { brainMoments } from "../brain/moments";
+import { consolidate } from "../brain/nightly";
 import type { Derived } from "../brain/derive";
 import { supabase } from "../auth/supabaseClient";
 import { haptics } from "../shared/haptics";
@@ -90,7 +91,11 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
             readWindow(supabase as unknown as WindowClient | null, Date.now()),
             strandsSvc.list(),
           ]);
-          moments = brainMoments(rows, strands);
+          // THE NIGHTLY PASS (handoff item 2 + decision x3): the day's set is
+          // consolidated once per local day and capped at three, instead of
+          // whichever single gate happened to trip while this screen was
+          // open. See brain/nightly.ts for why holding it steady matters.
+          moments = consolidate(brainMoments(rows, strands), today);
         }
       } catch { /* silence beats a guess, and definitely beats a crash */ }
       const candidates: (PatternObservation & { routineBlock?: ProtectedBlock; moment?: Derived; sub?: string })[] = [

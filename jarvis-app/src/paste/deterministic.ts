@@ -10,10 +10,17 @@
 // copied text is NEVER rewritten, so note bodies keep the paste verbatim).
 
 export interface ParsedEntity {
-  kind: "task" | "event" | "note";
+  // "fact" is Quick Add's lane (Brain handoff 5.0): a standing truth about
+  // the user, filed into the Brain instead of onto a to-do list. It never
+  // reaches the AI fallback and never becomes a CaptureResult; smartPaste
+  // branches on it first. See selfFact.ts for why it is deterministic-only.
+  kind: "task" | "event" | "note" | "fact";
   title: string;
   // Note body: the pasted text verbatim (never rewritten).
   body?: string;
+  // Fact only: which part of the genome it belongs in. A guess, changeable
+  // on the receipt like every other category.
+  factCategory?: StrandCategory;
   date?: string; // yyyy-mm-dd
   start?: string; // HH:MM 24h
   // True when the deterministic rules are sure. False = AI may improve it.
@@ -28,6 +35,9 @@ export interface ParsedEntity {
   // never born. The signal only survives in the original line.
   raw: string;
 }
+
+import { selfFact } from "./selfFact";
+import type { StrandCategory } from "../brain/strands/types";
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 // Title Case is one implementation for the whole app; the number rule lives
@@ -103,6 +113,17 @@ export function classifyLine(line: string, today: string): ParsedEntity {
   // resolveDay) is an event, confidently.
   if (time && date) {
     return { kind: "event", title: titleCase(stripDateWords(t)), date, start: time, confident: true, raw: t };
+  }
+  // QUICK ADD (handoff 5.0): a standing fact about the user, before the
+  // to-do reads. It sits here and not lower because "I never work out on
+  // Sundays" carries a weekday, and the date branch below would file the
+  // sentence a person most wants remembered as a task due next Sunday.
+  // A dated appointment still wins (the branch above), per selfFact's own
+  // law 2. The sentence is kept verbatim: it is the user's words about
+  // themselves, and titleCase does not touch it.
+  const fact = selfFact(t);
+  if (fact) {
+    return { kind: "fact", title: fact.text, factCategory: fact.category, confident: true, raw: t };
   }
   // A date without a time on a to-do-looking line: a task due that day.
   if (TASK_OPENERS.test(t)) {

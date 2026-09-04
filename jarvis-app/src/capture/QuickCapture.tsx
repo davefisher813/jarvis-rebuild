@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
-import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands } from "../data/NotesProvider";
+import { STRAND_CATEGORY_LABEL } from "../brain/strands/types";
 import { aliasTrigger } from "../rules/triggers";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import type { AIService } from "../ai/AIService";
@@ -12,8 +13,12 @@ import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import { weekdayLongDate, shortDateFromMs } from "../shared/dateFormat";
 
-const KIND_LABEL: Record<SavedEntity["kind"], string> = { task: "Task", event: "Event", note: "Note" };
-const KINDS: SavedEntity["kind"][] = ["task", "event", "note"];
+// "Fact" is Quick Add's lane (Brain handoff 5.0): a standing truth about the
+// user, filed into the Brain rather than onto a list. It is a chip like the
+// others, so a sentence read the wrong way is one tap from right in either
+// direction.
+const KIND_LABEL: Record<SavedEntity["kind"], string> = { task: "Task", event: "Event", note: "Note", fact: "Fact" };
+const KINDS: SavedEntity["kind"][] = ["task", "event", "note", "fact"];
 
 // "Thursday Aug 20 · 7:00 PM" on the receipt: the resolved date is shown so a
 // wrong read is visible the moment it happens (Smart Paste law: resolved
@@ -56,6 +61,9 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
   // Optional: QuickCapture renders in surfaces that may sit outside the rules
   // provider, and a missing store must mean "learn nothing", not a crash.
   const rules = useOptionalRules();
+  // Same seam for the genome: no strand store means the fact lane is closed
+  // and a self-fact lands as a task, exactly as it did before Quick Add.
+  const strands = useOptionalStrands();
 
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<"input" | "saving" | "saved">("input");
@@ -68,7 +76,7 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
   // rules is passed IN, not reached for inside smartPaste: the pipeline stays
   // a pure function of its deps, and a surface that has no rules store simply
   // does not learn rather than crashing or reaching for a global.
-  const deps = (categories: Category[]) => ({ ai, gather, tasks, schedule, notes, categories, today: todayISO(), ...(rules ? { rules } : {}) });
+  const deps = (categories: Category[]) => ({ ai, gather, tasks, schedule, notes, categories, today: todayISO(), ...(rules ? { rules } : {}), ...(strands ? { strands } : {}) });
 
   const capture = async (force = false) => {
     const t = text.trim();
@@ -84,9 +92,18 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
     const categories = await categoriesSvc.list().catch(() => []);
     setCats(categories);
     let out: SavedEntity[] = [];
-    const ok = await attemptWrite(async () => { out = await smartPasteSave(t, deps(categories)); });
+    // A full genome refuses a fact, and that refusal has a reason worth
+    // stating: "Nothing to save in that" would be false, since the sentence
+    // was read perfectly and there was simply nowhere to put it.
+    let refused = false;
+    const ok = await attemptWrite(async () => {
+      out = await smartPasteSave(t, { ...deps(categories), onFactRefused: () => { refused = true; } });
+    });
     if (!ok || out.length === 0) {
-      if (ok) setError("Nothing to save in that.");
+      // The middle dot, not a full stop: the short-copy law forbids a
+      // sentence boundary in rendered copy, and this is the exact string
+      // TodaySuggestions already says for the identical refusal.
+      if (ok) setError(refused ? "The Brain is full · Prune it in What JARVIS Knows" : "Nothing to save in that.");
       setPhase("input");
       return;
     }
@@ -192,7 +209,12 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
                   <div className="row">
                     <div className="row-stack">
                       <div className="conn-name">{s.title}</div>
-                      <div className="conn-meta">{[KIND_LABEL[s.kind], fmtWhen(s)].filter(Boolean).join(" · ")} · From your paste</div>
+                      {/* A fact says where in the Brain it landed instead of
+                          a date it does not have: "Fact · Values". The strand
+                          category is not an app category, so the category
+                          chips below are hidden for this row rather than
+                          offering buckets a strand cannot go in. */}
+                      <div className="conn-meta">{[KIND_LABEL[s.kind], s.kind === "fact" ? (s.factCategory ? STRAND_CATEGORY_LABEL[s.factCategory] : "") : fmtWhen(s)].filter(Boolean).join(" · ")} · From your paste</div>
                     </div>
                     <button className="btn-sm" onClick={() => void onUndo(s)}>Undo</button>
                   </div>
@@ -200,7 +222,7 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
                     {KINDS.map((k) => (
                       <div key={k} className={"chip" + (s.kind === k ? " active" : "")} role="radio" aria-checked={s.kind === k} tabIndex={0} onClick={() => void onKind(s, k)}>{KIND_LABEL[k]}</div>
                     ))}
-                    {cats.slice(0, 4).map((c) => (
+                    {s.kind !== "fact" && cats.slice(0, 4).map((c) => (
                       <div key={c.id} className={"chip" + (s.category === c.id ? " active" : "")} role="radio" aria-checked={s.category === c.id} tabIndex={0} onClick={() => void onCat(s, c.id)}>
                         <span className={"cat-dot cat-bg-" + c.data.color} />
                         {c.data.name}

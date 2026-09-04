@@ -141,3 +141,77 @@ describe("deriveAll", () => {
 function deriveFixtureCompletions(): WindowRow[] {
   return done(14, 9);
 }
+
+// THE BRAIN STOPS STARVING (build handoff item 1 and 3, built 2026-09-04).
+// Two new detectors under the gates the original four already use.
+import { deriveTrainingWindow, deriveEmailWindow, workoutDone, emailHandled, taskDone } from "./derive";
+
+const taskDoneCount = (rows: WindowRow[]) => taskDone(rows).length;
+
+const workouts = (n: number, h: number, from = 1): WindowRow[] =>
+  Array.from({ length: n }, (_, i) => row({ h, kind: "workout", day: `2026-08-${String(from + (i % 20)).padStart(2, "0")}` }));
+
+const handled = (n: number, h: number, from = 1): WindowRow[] =>
+  Array.from({ length: n }, (_, i) => row({ type: "email.handled", h, kind: "archive", day: `2026-08-${String(from + (i % 20)).padStart(2, "0")}` }));
+
+describe("training window: the rows that were captured and read by nobody", () => {
+  it("reads the workout rows every other derivation throws away", () => {
+    // The whole point. deriveCompletionWindow filters kind "workout" out on
+    // purpose (a session is not a task) and until now nothing else looked,
+    // so a month of real training taught the Brain nothing at all.
+    const rows = workouts(12, 18);
+    expect(deriveCompletionWindow(rows)).toBeNull();
+    expect(deriveTrainingWindow(rows)).not.toBeNull();
+  });
+
+  it("names the band with its own count", () => {
+    const d = deriveTrainingWindow([...workouts(12, 18), ...workouts(4, 7, 5)])!;
+    expect(d.derivation).toBe("training_window");
+    expect(d.category).toBe("routine");
+    // The band ties to the EARLIEST containing window, which is the
+    // documented behaviour a launch test already pins: a 6 PM mass reads
+    // as "between 4 PM and 7 PM".
+    expect(d.title).toBe("You train between 4 PM and 7 PM");
+    expect(d.sub).toContain("12 Sessions there");
+    expect(d.evidence.length).toBeGreaterThan(0);
+  });
+
+  it("holds the same gates: thin evidence and no dominant band both say nothing", () => {
+    expect(deriveTrainingWindow(workouts(9, 18))).toBeNull();
+    const spread = Array.from({ length: 20 }, (_, i) => row({ h: i, kind: "workout", day: `2026-08-${String((i % 20) + 1).padStart(2, "0")}` }));
+    expect(deriveTrainingWindow(spread)).toBeNull();
+  });
+
+  it("never counts a task as a session, or a session as a task", () => {
+    expect(workoutDone(done(5, 10))).toHaveLength(0);
+    expect(taskDoneCount(workouts(5, 18))).toBe(0);
+  });
+});
+
+describe("email window: the module that did the most and said the least", () => {
+  it("names the band once the evidence is real", () => {
+    const d = deriveEmailWindow([...handled(12, 9), ...handled(3, 20, 5)])!;
+    expect(d.derivation).toBe("email_window");
+    expect(d.category).toBe("work_style");
+    expect(d.title).toBe("Email gets dealt with between 7 AM and 10 AM");
+    expect(d.strandText).toContain("Deals with email");
+  });
+
+  it("holds the same gates", () => {
+    expect(deriveEmailWindow(handled(9, 9))).toBeNull();
+  });
+
+  it("reads only email.handled, never a task completion at the same hour", () => {
+    expect(emailHandled(done(12, 9))).toHaveLength(0);
+    expect(deriveEmailWindow(done(12, 9))).toBeNull();
+  });
+});
+
+describe("deriveAll carries the new detectors", () => {
+  it("offers training and email alongside the launch four", () => {
+    const keys = deriveAll([...done(12, 10), ...workouts(12, 18), ...handled(12, 9)]).map((d) => d.derivation);
+    expect(keys).toContain("completion_window");
+    expect(keys).toContain("training_window");
+    expect(keys).toContain("email_window");
+  });
+});

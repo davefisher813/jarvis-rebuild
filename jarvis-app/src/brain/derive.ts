@@ -162,6 +162,68 @@ export function derivePlanRate(rows: WindowRow[]): Derived | null {
   return null; // the middle is not a pattern, it is a normal life
 }
 
+// 4. Training window: WHEN the sessions actually happen. Same band, same
+// gate, different rows.
+//
+// This one is not new instrumentation. GymService has emitted
+// task.completed with kind "workout" for every finished session since the
+// gym shipped, the sink persists it, and window.ts reads it. Then every
+// derivation dropped it: taskDone filters kind "workout" out on purpose (a
+// session is not a task, and a month of gym evenings must not become "your
+// tasks get done at 6 PM"), and nothing else looked at it. So the rows were
+// captured, durable, correct, and read by nobody -- which is the "starved,
+// not badly designed" verdict from the build handoff, in one function.
+export function workoutDone(rows: WindowRow[]): WindowRow[] {
+  return rows.filter((r) => r.type === "task.completed" && r.kind === "workout");
+}
+
+export function deriveTrainingWindow(rows: WindowRow[]): Derived | null {
+  const done = workoutDone(rows);
+  const band = completionBand(done);
+  if (!band) return null;
+  const { start: best, count: bestCount } = band;
+  const from = hour12(best);
+  const to = hour12(best + 3);
+  const days = [...new Set(done.filter((r) => r.h >= best && r.h < best + 3).map((r) => r.day))].sort().reverse();
+  return {
+    derivation: "training_window",
+    category: "routine",
+    title: `You train between ${from} and ${to}`,
+    sub: capAfterNumber(`${bestCount} sessions there, out of your last ${done.length}`),
+    strandText: `Trains between ${from} and ${to} ${partOfDay(best)}`,
+    evidence: days.slice(0, 6).map((day) => ({ day, a: best })),
+  };
+}
+
+// 5. Email window: when the inbox actually gets dealt with. Reads
+// email.handled, the semantic act instrumented for this (MessagesFlow emits
+// it on a reply, an archive and a sweep). Same band, same gate.
+//
+// It says WHEN, never how much: a count of mail handled is a productivity
+// score, and this app does not keep those. The band is a fact about the
+// shape of a day, which is what the Brain is for.
+export function emailHandled(rows: WindowRow[]): WindowRow[] {
+  return rows.filter((r) => r.type === "email.handled");
+}
+
+export function deriveEmailWindow(rows: WindowRow[]): Derived | null {
+  const done = emailHandled(rows);
+  const band = completionBand(done);
+  if (!band) return null;
+  const { start: best, count: bestCount } = band;
+  const from = hour12(best);
+  const to = hour12(best + 3);
+  const days = [...new Set(done.filter((r) => r.h >= best && r.h < best + 3).map((r) => r.day))].sort().reverse();
+  return {
+    derivation: "email_window",
+    category: "work_style",
+    title: `Email gets dealt with between ${from} and ${to}`,
+    sub: capAfterNumber(`${bestCount} of your last ${done.length} were handled in that stretch`),
+    strandText: `Deals with email between ${from} and ${to} ${partOfDay(best)}`,
+    evidence: days.slice(0, 6).map((day) => ({ day, a: best })),
+  };
+}
+
 // All derivations, in the order they surface. One at a time is the moments
 // layer's job; this just says everything the data supports.
 export function deriveAll(rows: WindowRow[]): Derived[] {
@@ -169,5 +231,7 @@ export function deriveAll(rows: WindowRow[]): Derived[] {
     deriveCompletionWindow(rows),
     deriveSlipCategory(rows),
     derivePlanRate(rows),
+    deriveTrainingWindow(rows),
+    deriveEmailWindow(rows),
   ].filter((d): d is Derived => d !== null);
 }

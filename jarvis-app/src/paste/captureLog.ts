@@ -4,7 +4,10 @@
 
 export interface RecentCapture {
   id: string;
-  kind: "task" | "event" | "note";
+  // "fact" joined the list with Quick Add (2026-09-04): a sentence filed into
+  // the Brain belongs on the same strip as everything else captured, so a
+  // mis-filed fact is as visible and as recoverable as a mis-filed task.
+  kind: "task" | "event" | "note" | "fact";
   title: string;
   ts: number;
 }

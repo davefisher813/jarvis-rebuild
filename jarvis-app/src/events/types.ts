@@ -57,6 +57,18 @@ export type EventType =
   // says whether the voice work is landing). Durable because losing a phone
   // must not zero the one measure of draft quality.
   | "email.deck_sent"
+  // A thread was DEALT WITH (Brain build handoff item 1, 2026-09-04: "only
+  // the task loop is instrumented... a month of heavy use in any of those
+  // teaches the Brain nothing, because nothing is listening"). Email is the
+  // module doing the most daily work and emitting the least meaning, so it
+  // gets the first new write points.
+  //
+  // props.kind is the closed vocabulary the sink already regex-gates:
+  // reply | archive | sweep. What is deliberately NOT here: who it was
+  // from, what it said, what it was about. The row carries an hour and a
+  // day, which is all the band derivation reads, and nothing about the mail
+  // itself can leave the device through this path.
+  | "email.handled"
   // What a plan block actually committed at (category, n = minutes), so the
   // sheet can pre-fill lengths from the user's own history instead of a flat
   // 30 (2026-08-09). Durable for the same reason durations were worth

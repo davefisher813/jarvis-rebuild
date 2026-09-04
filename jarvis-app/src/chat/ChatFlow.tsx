@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { useChat, useTasks, useSchedule, useNotes, useCategories } from "../data/NotesProvider";
+import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands } from "../data/NotesProvider";
 import { useAI } from "../ai/useAI";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
@@ -37,6 +37,7 @@ export default function ChatFlow() {
   const schedule = useSchedule();
   const notes = useNotes();
   const catsSvc = useCategories();
+  const strands = useOptionalStrands();
   const ai = useAI();
   const gather = useAIContext();
 
@@ -155,18 +156,26 @@ export default function ChatFlow() {
       // 4. Everything else is a capture: the Smart Paste pipeline, verbatim.
       const cats = await catsSvc.list().catch(() => []);
       let saved: Awaited<ReturnType<typeof smartPasteSave>> = [];
+      let refusedFact = false;
       const ok = await attemptWrite(async () => {
-        saved = await smartPasteSave(text, { ai, gather, tasks: tasksSvc, schedule, notes, categories: cats, today: todayISO() });
+        // The genome rides along (Quick Add, handoff 5.0): "I never work out
+        // on Sundays" typed into chat is a fact about the person, and the one
+        // box that answers, acts and captures now also remembers.
+        saved = await smartPasteSave(text, { ai, gather, tasks: tasksSvc, schedule, notes, categories: cats, today: todayISO(), ...(strands ? { strands } : {}), onFactRefused: () => { refusedFact = true; } });
       });
       if (!ok) return;
       if (saved.length === 0) {
-        await say("jarvis", "Nothing to save in that", { kind: "records" });
+        await say("jarvis", refusedFact ? "The Brain is full · Prune it in What JARVIS Knows" : "Nothing to save in that", { kind: "records" });
         return;
       }
       const first = saved[0]!;
       await say(
         "jarvis",
-        saved.length === 1 ? `Saved: ${first.title}` : `Saved ${saved.length} items`,
+        saved.length === 1
+          // A fact is not "saved" the way a task is: it was remembered. The
+          // receipt says which, because the two land in different places.
+          ? (first.kind === "fact" ? `JARVIS will remember that: ${first.title}` : `Saved: ${first.title}`)
+          : `Saved ${saved.length} items`,
         { kind: "action", refs: saved.map((s) => ({ kind: s.kind, id: s.id, label: s.title })) },
       );
     } finally {

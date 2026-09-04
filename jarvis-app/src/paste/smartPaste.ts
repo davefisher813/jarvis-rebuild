@@ -14,17 +14,24 @@ import type { NotesService } from "../notes/NotesService";
 import type { Category } from "../categories/types";
 import { madeBy } from "../shared/provenance";
 import { parsePaste, titleCase, type ParsedEntity } from "./deterministic";
+import { selfFact } from "./selfFact";
 import { markPasteSeen, recordCapture } from "./captureLog";
 import { aliasTrigger } from "../rules/triggers";
 import type { LearnedRule, LearnedRulesService } from "../rules/LearnedRulesService";
+import type { StrandsService } from "../brain/strands/StrandsService";
+import type { StrandCategory } from "../brain/strands/types";
 
 export interface SavedEntity {
   id: string;
-  kind: "task" | "event" | "note";
+  // "fact" lands in the Brain (a told-rank strand), not on a list. See
+  // selfFact.ts and the Quick Add block in smartPasteSave below.
+  kind: "task" | "event" | "note" | "fact";
   title: string;
   date?: string;
   start?: string;
   category?: string;
+  // Fact only: the strand category it was filed under.
+  factCategory?: StrandCategory;
   // The line exactly as pasted. Both halves of the learned-rules loop derive
   // their trigger from THIS and never from title, so the correction that
   // teaches a rule and the lookup that applies it key on the same string.
@@ -45,6 +52,17 @@ export interface PasteDeps {
   // a rule, which is what every existing caller and every test gets by
   // default: this can only ever change behaviour where it is passed in.
   rules?: Pick<LearnedRulesService, "resolve" | "announceIfFirstUse">;
+  // The genome, optional (Quick Add, handoff 5.0). Absent means the fact
+  // lane is closed and a self-fact lands the way it does today, as a task:
+  // degrading to the old behaviour, never dropping the capture on the floor.
+  // Same seam shape as `rules` above.
+  strands?: Pick<StrandsService, "add" | "list" | "remove">;
+  // Called when a fact could not be filed because the genome (or its
+  // category) is at its cap. A refusal with a real reason has to reach the
+  // person: without this the receipt would fall through to "Nothing to save
+  // in that", which is the one thing that did not happen. The caller owns
+  // the wording, the way TodaySuggestions already owns its three outcomes.
+  onFactRefused?: (text: string) => void;
 }
 
 // APPLYING WHAT IT LEARNED (2026-08-24). Two identical corrections of the
@@ -90,9 +108,15 @@ async function categoryFromRule(result: CaptureResult, raw: string, deps: PasteD
   return { ...result, category: rule.data.to };
 }
 
-function toCaptureResult(e: ParsedEntity): CaptureResult {
+// Facts never reach here: smartPasteSave branches on them first. The kind is
+// passed separately rather than read off `e` because ParsedEntity is one
+// interface with a union field, not a discriminated union, so narrowing
+// `e.kind` at the call site does not narrow `e` itself. Making the caller
+// hand over the already-narrowed kind is what keeps a fact from silently
+// becoming a CaptureResult if this file changes shape later.
+function toCaptureResult(e: ParsedEntity, kind: CaptureResult["kind"]): CaptureResult {
   return {
-    kind: e.kind,
+    kind,
     title: e.title,
     ...(e.date ? { date: e.date } : {}),
     ...(e.start ? { start: e.start } : {}),
@@ -128,9 +152,37 @@ export async function smartPasteSave(text: string, deps: PasteDeps): Promise<Sav
   const { entities } = parsePaste(text, deps.today);
   const saved: SavedEntity[] = [];
   for (const e of entities) {
+    // QUICK ADD (handoff 5.0). A standing fact about the user goes straight
+    // into the genome as a told-rank strand: no AI call (a model never gets
+    // to decide it heard a belief about someone), no category rules (those
+    // key on app categories, which a strand does not use), no applyCapture.
+    //
+    // With no strand store the lane is closed and the line falls through to
+    // the ordinary reads below, which is exactly today's behaviour. A
+    // capture is never dropped because a service was missing.
+    if (e.kind === "fact" && deps.strands) {
+      const cat = e.factCategory ?? "values";
+      const id = await deps.strands.add(e.title, cat, deps.today);
+      // add() returns null when the genome or the category is at its cap.
+      // That is a real refusal with a real reason, so it must not silently
+      // become a task: the caller says so on the receipt.
+      if (id) {
+        const s: SavedEntity = { id, kind: "fact", title: e.title, factCategory: cat, raw: e.raw };
+        saved.push(s);
+        recordCapture({ id, kind: "fact", title: s.title, ts: Date.now() });
+      } else {
+        deps.onFactRefused?.(e.title);
+      }
+      continue;
+    }
     let result: CaptureResult;
-    if (e.confident) {
-      result = toCaptureResult(e);
+    if (e.kind === "fact") {
+      // The lane is closed (no strand store). Read it the way this pipeline
+      // read it before Quick Add existed: a short line with no date is a
+      // task, reversible with one chip.
+      result = { kind: "task", title: titleCase(e.title) };
+    } else if (e.confident) {
+      result = toCaptureResult(e, e.kind);
     } else {
       const improved = await aiImprove(e.body ?? e.title, deps);
       if (improved) {
@@ -143,7 +195,7 @@ export async function smartPasteSave(text: string, deps: PasteDeps): Promise<Sav
         // No AI in this build: the deterministic guess stands (a short text
         // saved as a task is the cheapest honest read, and it is reversible
         // with one chip).
-        result = toCaptureResult(e);
+        result = toCaptureResult(e, e.kind);
       }
     }
     result = await categoryFromRule(result, e.raw, deps);
@@ -167,7 +219,16 @@ export async function smartPasteSave(text: string, deps: PasteDeps): Promise<Sav
 }
 
 // Undo one created entity: the record disappears entirely.
-export async function undoSaved(s: SavedEntity, deps: Pick<PasteDeps, "tasks" | "schedule" | "notes">): Promise<void> {
+export async function undoSaved(s: SavedEntity, deps: Pick<PasteDeps, "tasks" | "schedule" | "notes" | "strands">): Promise<void> {
+  if (s.kind === "fact") {
+    // remove() takes the strand so it can emit a correction event for a
+    // WATCHED one; a told strand emits nothing. Looked up through list()
+    // rather than adding a delete-by-id door to the service: the genome is
+    // small, and one fewer way to delete a fact is the right trade.
+    const hit = (await deps.strands?.list())?.find((x) => x.id === s.id);
+    if (hit) await deps.strands!.remove(hit);
+    return;
+  }
   if (s.kind === "task") await deps.tasks.deleteTask(s.id);
   else if (s.kind === "event") await deps.schedule.deleteEvent(s.id);
   else await deps.notes.deleteNote(s.id);
@@ -183,6 +244,18 @@ export async function refileSaved(
 ): Promise<SavedEntity | null> {
   if (toKind === s.kind) return s;
   await undoSaved(s, deps);
+  // Refiling INTO the Brain: the sentence becomes a told-rank strand. The
+  // category comes from the same classifier the lane uses, so a line the
+  // shapes did not match still gets a sensible bucket rather than none.
+  if (toKind === "fact") {
+    if (!deps.strands) return null;
+    const cat = selfFact(s.raw ?? s.title)?.category ?? "values";
+    const id = await deps.strands.add(s.raw ?? s.title, cat, deps.today);
+    if (!id) return null;
+    const next: SavedEntity = { ...s, id, kind: "fact", factCategory: cat };
+    recordCapture({ id, kind: "fact", title: next.title, ts: Date.now() });
+    return next;
+  }
   const result: CaptureResult = {
     kind: toKind,
     title: s.title,

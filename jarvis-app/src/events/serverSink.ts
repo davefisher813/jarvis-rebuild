@@ -51,6 +51,7 @@ const PERSISTED: ReadonlySet<string> = new Set([
   "suggestion.dismissed",
   "plan.duration_corrected",
   "email.deck_sent",
+  "email.handled",
   "plan.duration_committed",
   "strand.created",
   "strand.corrected",

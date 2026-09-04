@@ -1310,6 +1310,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // half-failed reported a clean number and the rest came back on the next
     // load. The rows that did not move go back in the list where they were.
     const { ok, failed } = await settleAll(hit, (r) => apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]));
+    // One act per thread that actually moved (handoff item 1). Counted from
+    // `ok`, never from the attempt: the log records what happened.
+    for (let i = 0; i < ok.length; i++) emit({ type: "email.handled", props: { kind: "sweep" } });
     if (failed.length) setRows((rs) => [...failed, ...rs.filter((x) => !failed.some((f) => f.id === x.id))].sort((a, b) => b.dateMs - a.dateMs));
     say(settleLine(ok.length, failed.length, ARCHIVE_WORDS), ok.length ? {
       label: "Undo",
@@ -1456,6 +1459,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   };
 
   const archiveRow = (r: ThreadRow) => {
+    // THE BRAIN IS LISTENING NOW (handoff item 1, 2026-09-04). Email did the
+    // most daily work in the app and emitted the least meaning, so a month of
+    // it taught the Brain nothing. One typed act, no free text: an hour and a
+    // day, which is all the email_window band reads.
+    emit({ type: "email.handled", props: { kind: "archive" } });
     setToss(tossOffer(recordToss(r.fromEmail, r.unread)));
     setRows((rs) => rs.filter((x) => x.id !== r.id));
     setResults((rs) => (rs ? rs.filter((x) => x.id !== r.id) : rs));
@@ -1695,6 +1703,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // sent (flag: true). Unedited sends are logged from the deck's Send &
       // Next. Durable EventType since 2026-08-07, same shape both places.
       if (draft.fromDeck) emit({ type: "email.deck_sent", props: { flag: true } });
+      // A reply is the other way a thread gets dealt with (handoff item 1).
+      emit({ type: "email.handled", props: { kind: "reply" } });
       if (editingDraftId) {
         const id = editingDraftId;
         setDrafts((ds) => ds.filter((d) => d.id !== id));
