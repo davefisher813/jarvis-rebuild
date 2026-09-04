@@ -52,10 +52,16 @@ const READ_TYPES = [
   // Persisted since layer 1, read for the first time by the monthly seal
   // (2026-08-25): days-in-the-app is a seal fact, and it was already durable.
   "app.opened",
-  // Read by the monthly report (2026-08-25): deletions were persisted with
-  // zero readers since layer 1; the deck metric was promoted to durable
-  // exactly so it could be read once a month; reminder ticks are new.
-  "entity.deleted", "email.deck_sent", "reminder.ticked",
+  // Read by the monthly report (2026-08-25): the deck metric was promoted to
+  // durable exactly so it could be read once a month; reminder ticks are new.
+  //
+  // S4-Q28 (2026-09-04): entity.deleted used to sit on this list too, with a
+  // comment claiming the monthly report read it. It never did: nothing
+  // anywhere derives from a WindowRow of that type, so it only crowded the
+  // window's row limit with rows nobody consumed. Still persisted to the
+  // server (serverSink.ts's write side is untouched, in case a future reader
+  // wants "what you let go of"); just no longer pulled into this window.
+  "email.deck_sent", "reminder.ticked",
   // The Brain stops starving (handoff item 1, 2026-09-04): the semantic
   // act email now emits, read by the email_window derivation.
   "email.handled",

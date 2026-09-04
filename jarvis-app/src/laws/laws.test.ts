@@ -1361,7 +1361,13 @@ describe("LAW: stored shapes are versioned", () => {
   // believed.
   it("a project's size uses the planner's own learned durations", () => {
     const src = read(SRC + "/bigger/BiggerPictureFlow.tsx");
-    expect(src).toMatch(/learnedDurations\(readCommittedDurations\(\)/);
+    // S4-Q28 (2026-09-04): the reader moved from the local-only log to the
+    // window (see the law just below), but it is still the exact same
+    // learnedDurations() call every candidate for this pick's evidence runs
+    // through, so a project's stated size and the planner's block still
+    // come from one estimator.
+    expect(src).toMatch(/readCommittedDurationsWindowed\(supabase/);
+    expect(src).toMatch(/setEstimates\(learnedDurations\(samples, Date\.now\(\)\)\)/);
     expect(src).toMatch(/estimateFor = useCallback/);
   });
 
@@ -3837,6 +3843,37 @@ describe("LAW: the plan cap is a real, deletable learned rule", () => {
         .toMatch(/resolve\("plan\.cap",\s*"day"\)/);
       expect(src, `${rel(join(SRC, f))} must not read the dead profile field`)
         .not.toMatch(/\.planCap\b/);
+    }
+  });
+});
+
+// S4-Q28 (2026-09-04): "three event types are stored and read by nobody."
+// entity.deleted sat in the window's read list on the strength of a comment
+// naming the monthly report as its reader; the report never mentioned it,
+// so the row only ever crowded the window's row limit. Separately, the
+// learned-durations reader pulled plan.duration_committed rows into the
+// window but never actually looked at the window's answer -- it read the
+// local device's own log instead, so a duration committed on one phone
+// taught the planner nothing on a second. Checked structurally (source
+// text), same as the plan-cap law above: standing up TodayFlow, ScheduleFlow
+// or BiggerPictureFlow's full provider tree to prove a fetch call exists is
+// expensive and beside the point of what this law protects; the reader
+// itself is proven directly, with real rows, in
+// schedule/learnedDurations.test.ts.
+describe("LAW: the window never carries a type nothing reads, and durations travel between devices", () => {
+  it("entity.deleted is gone from the window's read list", () => {
+    const src = read(SRC + "/brain/window.ts");
+    expect(src, "nothing anywhere derives from an entity.deleted WindowRow; it should not occupy a read slot")
+      .not.toMatch(/"entity\.deleted"/);
+  });
+
+  it("every screen that estimates a duration reads it through the window, not the local log alone", () => {
+    for (const f of ["today/TodayFlow.tsx", "schedule/screens/PlanDaySheet.tsx", "bigger/BiggerPictureFlow.tsx"]) {
+      const src = read(SRC + "/" + f);
+      expect(src, `${f} must read committed durations through the window`)
+        .toMatch(/readCommittedDurationsWindowed\(supabase/);
+      expect(src, `${f} must not still call the removed local-only reader`)
+        .not.toMatch(/readCommittedDurations\(\)/);
     }
   });
 });

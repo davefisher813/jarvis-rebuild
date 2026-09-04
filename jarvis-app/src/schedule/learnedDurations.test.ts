@@ -1,7 +1,27 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { learnedDurations, readCommittedDurations, type CommittedDuration } from "./learnedDurations";
+import { learnedDurations, readCommittedDurationsWindowed, type CommittedDuration } from "./learnedDurations";
+import type { WindowClient } from "../brain/window";
 import { emit, eventLog } from "../events";
+
+// Same shape as brain/window.test.ts's fakeClient: a WindowClient that
+// answers with fixed rows, for exercising the real-server path without a
+// server.
+function fakeWindowClient(rows: unknown[]): WindowClient {
+  return {
+    from: () => ({
+      select: () => ({
+        gte: () => ({
+          in: () => ({
+            order: () => ({
+              limit: () => Promise.resolve({ data: rows, error: null }),
+            }),
+          }),
+        }),
+      }),
+    }),
+  };
+}
 
 const NOW = 1_700_000_000_000;
 const DAY = 86400000;
@@ -35,15 +55,37 @@ describe("learnedDurations", () => {
   });
 });
 
-describe("readCommittedDurations", () => {
+// S4-Q28 (2026-09-04): this used to read the device's own local log only,
+// so a duration committed on one phone never taught a second phone
+// anything. Now it reads through the window, which already carries
+// plan.duration_committed rows in from the server, and falls back to the
+// exact same local log when there is no client (demo mode).
+describe("readCommittedDurationsWindowed", () => {
   beforeEach(() => { eventLog.clear(); });
 
-  it("reads plan.duration_committed back and ignores noise and junk", () => {
+  it("with no client at all, reads the local log back and ignores noise and junk (demo mode)", async () => {
     emit({ type: "plan.duration_committed", entityType: "task", entityId: "t1", props: { category: "work", n: 45 } });
     emit({ type: "plan.duration_committed", entityType: "task", entityId: "t2", props: { category: "", n: 45 } }); // no category: dropped
     emit({ type: "plan.picked", entityType: "task", entityId: "t3", props: { n: 1 } }); // noise
-    const out = readCommittedDurations();
+    const out = await readCommittedDurationsWindowed(null, Date.now());
     expect(out).toHaveLength(1);
     expect(out[0]).toMatchObject({ category: "work", minutes: 45 });
+  });
+
+  it("reads a duration committed on another device back through a real client", async () => {
+    const client = fakeWindowClient([
+      { type: "plan.duration_committed", day: "2026-08-20", h: 9, category: "work", n: 60, flag: null, kind: null },
+    ]);
+    const out = await readCommittedDurationsWindowed(client, Date.now());
+    expect(out).toEqual([{ category: "work", minutes: 60, ts: new Date("2026-08-20T09:00:00").getTime() }]);
+  });
+
+  it("drops a server row missing its category or minutes, same as the local path does", async () => {
+    const client = fakeWindowClient([
+      { type: "plan.duration_committed", day: "2026-08-20", h: 9, category: null, n: 60, flag: null, kind: null },
+      { type: "plan.picked", day: "2026-08-20", h: 9, category: "work", n: 1, flag: null, kind: null },
+    ]);
+    const out = await readCommittedDurationsWindowed(client, Date.now());
+    expect(out).toEqual([]);
   });
 });

@@ -95,7 +95,9 @@ import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { scheduleTask, breakDownTask as splitIntoSteps, undoBreakdown, splitLine, type BreakdownResult } from "../tasks/taskMoves";
 import { identityToText } from "../ai/context";
 import { useAIContext } from "../ai/useAIContext";
-import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
+import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
+import { supabase } from "../auth/supabaseClient";
+import type { WindowClient } from "../brain/window";
 import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, plannedTaskIds, acceptInto, seedFrom, editDraft, liveBlocks, type DayDraft } from "../dayloop/dayLoop";
 import { madeBy } from "../shared/provenance";
 import { RowIcon, StatTiles } from "../shared/anatomy";
@@ -183,6 +185,10 @@ export default function TodayFlow({
   const [routineSet, setRoutineSet] = useState(true);
   const [name, setName] = useState("");
   const [planCap, setPlanCap] = useState<number | undefined>(undefined);
+  // S4-Q28 (2026-09-04): fetched through the window (not the local device log
+  // alone) so a duration committed on one phone teaches the planner on a
+  // second one too. See learnedDurations.ts's readCommittedDurationsWindowed.
+  const [estimates, setEstimates] = useState<Record<string, number>>({});
   const [todayEvents, setTodayEvents] = useState<EventItem[]>([]);
   const [tomorrowEvents, setTomorrowEvents] = useState<EventItem[]>([]);
   const [allEvents, setAllEvents] = useState<EventItem[]>([]);
@@ -384,7 +390,7 @@ export default function TodayFlow({
     const dNow = new Date();
     await schedule.healPlanDuplicates(today, dNow.getHours() * 60 + dNow.getMinutes());
     await schedule.healPlanDuplicates(tmrw, null);
-    const [te, tm, tk, prof, all, capRule] = await Promise.all([
+    const [te, tm, tk, prof, all, capRule, durations] = await Promise.all([
       schedule.eventsOn(today),
       schedule.eventsOn(tmrw),
       tasks.listTasks(),
@@ -394,6 +400,7 @@ export default function TodayFlow({
       // profile field, so deleting the row in What JARVIS Learned
       // genuinely un-caps the day.
       rulesSvc ? rulesSvc.resolve("plan.cap", "day") : Promise.resolve(null),
+      readCommittedDurationsWindowed(supabase as unknown as WindowClient | null, Date.now()),
     ]);
     // create() pre-announces, so this is a no-op in the normal case; see
     // that method's comment for why a second, generic announcement here
@@ -405,6 +412,7 @@ export default function TodayFlow({
     setAllEvents(all);
     setName(prof?.name ?? "");
     setPlanCap(capRule ? Number(capRule.data.to) || undefined : undefined);
+    setEstimates(learnedDurations(durations, Date.now()));
     // Yesterday's evening mood sizes today's plan (Phase 2). Noon anchor keeps
     // the date subtraction clear of any midnight or DST edge.
     const y = new Date(today + "T12:00:00");
@@ -1471,7 +1479,6 @@ export default function TodayFlow({
   // GROUP B (items 10-11): the Now line and the gap offer, derived fresh
   // every render (and the minute tick keeps renders coming).
   const nowCtx = nowContext(todayEvents, blocked, nhm);
-  const estimates = learnedDurations(readCommittedDurations(), Date.now());
   const gapKey = today + ":" + (nowCtx.nextStart ?? "end");
   // Pick 1 + pick 31: the goal this gap task moves, when naming it says
   // something the task title did not already say.

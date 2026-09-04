@@ -9,7 +9,9 @@ import { useOptionalRules } from "../../data/NotesProvider";
 import { FULL_DAY, type DaySizing } from "../daySizing";
 import { emit, eventLog } from "../../events";
 import { planRecord } from "../../events/planOutcome";
-import { learnedDurations, readCommittedDurations } from "../learnedDurations";
+import { learnedDurations, readCommittedDurationsWindowed } from "../learnedDurations";
+import { supabase } from "../../auth/supabaseClient";
+import type { WindowClient } from "../../brain/window";
 import PlanStrip from "./PlanStrip";
 import { splitProtectedRanges, type BlockKind } from "../../routine/types";
 import { openMinutes, loadOf, loadLine, dropToFit, dropLine, hhmm, autoSelect } from "../planLoad";
@@ -151,7 +153,17 @@ export default function PlanDaySheet({
 
   const effEnd = doneBy ? Math.min(endMin, toMin(doneBy)) : endMin;
 
-  const learned = useMemo(() => learnedDurations(readCommittedDurations(), Date.now()), []);
+  // S4-Q28 (2026-09-04): read through the window so a duration committed on
+  // a different device is inherited here too, not just on the device that
+  // committed it. See learnedDurations.ts's readCommittedDurationsWindowed.
+  const [learned, setLearned] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let on = true;
+    readCommittedDurationsWindowed(supabase as unknown as WindowClient | null, Date.now()).then((samples) => {
+      if (on) setLearned(learnedDurations(samples, Date.now()));
+    });
+    return () => { on = false; };
+  }, []);
   const log = useMemo(() => eventLog.all(), []);
   const record = useMemo(() => planRecord(log, Date.now()), [log]);
   const cap = useMemo(() => capOffer(record, planCount(log)), [record, log]);

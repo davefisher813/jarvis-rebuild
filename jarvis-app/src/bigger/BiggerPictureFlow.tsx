@@ -16,7 +16,9 @@ import GoalSheet from "../life/GoalSheet";
 import { rankProjects } from "./progress";
 import { reachOf, type GoalReach } from "./reach";
 import { measureState, paceLine, healthOf, HEALTH_LABEL, type MeasureContext } from "./measure";
-import { learnedDurations, readCommittedDurations } from "../schedule/learnedDurations";
+import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
+import { supabase } from "../auth/supabaseClient";
+import type { WindowClient } from "../brain/window";
 import { holdLine, sizeOf, sizeLine } from "../projects/shape";
 import { openWorkOf } from "../today/goalPulse";
 import GoalDetailPage from "./GoalDetailPage";
@@ -101,7 +103,18 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   // PICK 22: the SAME learned per-category durations Plan My Day places
   // blocks with, so a project's stated size and its calendar footprint can
   // never tell two different stories.
-  const estimates = useMemo(() => learnedDurations(readCommittedDurations(), Date.now()), [tasks]);
+  //
+  // S4-Q28 (2026-09-04): read through the window, not just this device's
+  // local log, so the same durations a second device committed count here
+  // too. See learnedDurations.ts's readCommittedDurationsWindowed.
+  const [estimates, setEstimates] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let on = true;
+    readCommittedDurationsWindowed(supabase as unknown as WindowClient | null, Date.now()).then((samples) => {
+      if (on) setEstimates(learnedDurations(samples, Date.now()));
+    });
+    return () => { on = false; };
+  }, []);
   const estimateFor = useCallback((cat: string) => estimates[cat] ?? 45, [estimates]);
   const projectRows = useMemo(
     () => rankProjects(projects, tasks, samples, Date.now()),

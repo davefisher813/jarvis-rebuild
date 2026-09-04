@@ -1,4 +1,4 @@
-import { eventLog } from "../events";
+import { readWindow, type WindowClient } from "../brain/window";
 
 // Learned plan lengths (2026-08-09). Every committed plan block logs its
 // category and minutes (plan.duration_committed). This turns that history
@@ -19,14 +19,25 @@ const MAX_MIN = 180;
 
 export interface CommittedDuration { category: string; minutes: number; ts: number }
 
-export function readCommittedDurations(): CommittedDuration[] {
-  return eventLog
-    .all()
-    .filter((e) => e.type === "plan.duration_committed")
-    .map((e) => ({
-      category: typeof e.props?.category === "string" ? e.props.category : "",
-      minutes: typeof e.props?.n === "number" ? e.props.n : 0,
-      ts: e.ts,
+// S4-Q28 (2026-09-04): this used to read only the device's own local event
+// log, so a duration committed on one phone taught the planner nothing on a
+// second. The window (brain/window.ts) already carries plan.duration_committed
+// rows pulled from the server, and readWindow falls back to this same local
+// log with no client (demo mode, offline first paint), so this replaces the
+// old local-only reader rather than adding a second source to keep in sync
+// with it.
+export async function readCommittedDurationsWindowed(client: WindowClient | null, nowMs: number): Promise<CommittedDuration[]> {
+  const rows = await readWindow(client, nowMs);
+  return rows
+    .filter((r) => r.type === "plan.duration_committed")
+    .map((r) => ({
+      category: r.category ?? "",
+      minutes: r.n ?? 0,
+      // The window carries a local day and hour, not a millisecond
+      // timestamp (see WindowRow) -- plenty of precision for a thirty-day,
+      // three-sample decision, and the same precision every other
+      // window-fed derivation in the Brain already works with.
+      ts: new Date(`${r.day}T${String(r.h).padStart(2, "0")}:00:00`).getTime(),
     }))
     .filter((c) => c.category !== "" && c.minutes > 0);
 }
