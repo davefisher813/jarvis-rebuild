@@ -342,7 +342,7 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
     // plan rides into the sheet (2026-08-25): without it the sheet's fields
     // start empty, save() sees an untouched plan, and setPlan(id, null) below
     // silently erased the task's if-then on EVERY edit.
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan }, source: t.source });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps }, source: t.source });
   };
 
   // When arriving via a note connection, open that task once on mount.
@@ -355,7 +355,7 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
-      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, plan: draft.plan }));
+      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, plan: draft.plan, steps: draft.steps }));
     } else if (sheet?.mode === "edit") {
       saved = await attemptWrite(async () => {
         await svc.editText(sheet.id, draft.text);
@@ -364,6 +364,10 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
         await svc.setProject(sheet.id, draft.projectId ?? null);
         await svc.setRecurrence(sheet.id, rec || null);
         await svc.setPlan(sheet.id, draft.plan ?? null);
+        await svc.setSteps(sheet.id, draft.steps ?? []);
+        // Close Task: one tap on the sheet's own offer both saves and marks
+        // the task done, once every step is checked.
+        if (draft.closeNow) await svc.toggleDone(sheet.id);
       });
     }
     const wasNew = sheet?.mode === "new" && saved;

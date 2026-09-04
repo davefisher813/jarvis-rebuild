@@ -570,6 +570,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
                   due: d.due || null,
                   recurrence: d.repeat ? (d.repeat as "daily" | "weekly" | "monthly") : undefined,
                   plan: d.plan,
+                  steps: d.steps,
                 }));
                 setSheet({ kind: "closed" });
                 await reload();
@@ -585,13 +586,15 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
             <TaskSheet
               mode="edit"
               categories={categories.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))}
-              initial={{ text: t.data.text, category: t.data.category ?? "", due: t.data.due ?? undefined }}
+              initial={{ text: t.data.text, category: t.data.category ?? "", due: t.data.due ?? undefined, steps: t.data.steps }}
               onSave={async (d: TaskDraft) => {
                 const id = sheet.id;
                 await attemptWrite(async () => {
                   await tasksSvc.editText(id, d.text);
                   await tasksSvc.setDue(id, d.due ?? null);
                   await tasksSvc.setCategory(id, d.category);
+                  await tasksSvc.setSteps(id, d.steps ?? []);
+                  if (d.closeNow) await tasksSvc.toggleDone(id);
                 });
                 setSheet({ kind: "closed" });
                 await reload();

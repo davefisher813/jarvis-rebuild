@@ -144,3 +144,50 @@ describe("bills on the task entity (Money v1)", () => {
     expect(await svc.updateBillTask(plain!, { due: "2026-08-20" })).toBe(false);
   });
 });
+
+describe("steps on the task entity (2026-09-04, 'isn't there supposed to be an option to assign steps to a task?')", () => {
+  it("createTask stores steps, trimmed and stripped of blank lines", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new TasksService(store, "u1");
+    const id = await svc.createTask("Plan the trip", {
+      steps: [{ text: "  Book flights  ", done: false }, { text: "   ", done: false }, { text: "Pack", done: true }],
+    });
+    const t = await svc.task(id!);
+    expect(t!.steps).toEqual([{ text: "Book flights", done: false }, { text: "Pack", done: true }]);
+  });
+
+  it("a task with no steps stores none", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new TasksService(store, "u1");
+    const id = await svc.createTask("Simple task");
+    const t = await svc.task(id!);
+    expect(t!.steps).toBeUndefined();
+  });
+
+  it("setSteps replaces the whole list, and clears it back to undefined when empty", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new TasksService(store, "u1");
+    const id = await svc.createTask("Ship the feature", { steps: [{ text: "Write code", done: true }] });
+    await svc.setSteps(id!, [{ text: "Write code", done: true }, { text: "Write tests", done: false }]);
+    let t = await svc.task(id!);
+    expect(t!.steps).toEqual([{ text: "Write code", done: true }, { text: "Write tests", done: false }]);
+    await svc.setSteps(id!, []);
+    t = await svc.task(id!);
+    expect(t!.steps).toBeFalsy();
+  });
+
+  it("setSteps never touches the task's own done -- display-only, Close Task is the only thing that completes it", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new TasksService(store, "u1");
+    const id = await svc.createTask("Ship the feature");
+    await svc.setSteps(id!, [{ text: "Write code", done: true }, { text: "Write tests", done: true }]);
+    const t = await svc.task(id!);
+    expect(t!.done).toBe(false);
+  });
+
+  it("setSteps on a task that doesn't exist returns false", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new TasksService(store, "u1");
+    expect(await svc.setSteps("nope", [{ text: "x", done: false }])).toBe(false);
+  });
+});

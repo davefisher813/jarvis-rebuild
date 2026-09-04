@@ -252,3 +252,123 @@ describe("TaskSheet linked notes", () => {
     expect(onAddNote).toHaveBeenCalled();
   });
 });
+
+// STEPS (2026-09-04, "isn't there supposed to be an option to assign steps
+// to a task? I don't see that"). A checklist line inside the task: add,
+// check, uncheck, remove on a blank blur, and the one-tap Close offer once
+// every line is checked.
+describe("TaskSheet steps", () => {
+  it("Add Step appends a blank line; typing and a second Add Step build the list", () => {
+    render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    expect(screen.queryByLabelText("Checklist item 1")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Add Item"));
+    const first = screen.getByLabelText("Checklist item 1") as HTMLInputElement;
+    fireEvent.change(first, { target: { value: "Book flights" } });
+    fireEvent.click(screen.getByText("Add Item"));
+    const second = screen.getByLabelText("Checklist item 2") as HTMLInputElement;
+    fireEvent.change(second, { target: { value: "Pack" } });
+    expect(screen.getByText("0 of 2")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Book flights")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Pack")).toBeInTheDocument();
+  });
+
+  it("a blank step left on blur is removed, so no orphaned checkbox lingers", () => {
+    render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.click(screen.getByText("Add Item"));
+    const step = screen.getByLabelText("Checklist item 1");
+    fireEvent.change(step, { target: { value: "  " } });
+    fireEvent.blur(step);
+    expect(screen.queryByLabelText("Checklist item 1")).not.toBeInTheDocument();
+  });
+
+  it("a step with no text can't be checked", () => {
+    render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.click(screen.getByText("Add Item"));
+    fireEvent.click(screen.getByLabelText("Mark item done"));
+    expect(screen.queryByLabelText("Mark item not done")).not.toBeInTheDocument();
+  });
+
+  it("toggling a step flips the rollup count and its own label", () => {
+    render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.click(screen.getByText("Add Item"));
+    fireEvent.change(screen.getByLabelText("Checklist item 1"), { target: { value: "Book flights" } });
+    expect(screen.getByText("0 of 1")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Mark item done"));
+    expect(screen.getByText("1 of 1")).toBeInTheDocument();
+    expect(screen.getByLabelText("Mark item not done")).toBeInTheDocument();
+  });
+
+  it("Remove step deletes it outright", () => {
+    render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
+    fireEvent.click(screen.getByText("Add Item"));
+    fireEvent.change(screen.getByLabelText("Checklist item 1"), { target: { value: "Book flights" } });
+    fireEvent.click(screen.getByLabelText("Remove item"));
+    expect(screen.queryByDisplayValue("Book flights")).not.toBeInTheDocument();
+  });
+
+  it("a new task saves its steps, trimmed, alongside everything else", () => {
+    const onSave = vi.fn();
+    render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "Plan the trip" } });
+    fireEvent.click(screen.getByText("Add Item"));
+    fireEvent.change(screen.getByLabelText("Checklist item 1"), { target: { value: "  Book flights  " } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Plan the trip", steps: [{ text: "  Book flights  ", done: false }] }),
+    );
+  });
+
+  it("an edited task starts from its existing steps", () => {
+    render(
+      <TaskSheet mode="edit" initial={{ text: "Ship it", category: "c1", due: "", repeat: "", steps: [{ text: "Write code", done: true }, { text: "Write tests", done: false }] }}
+        categories={CATS} onSave={() => {}} onCancel={() => {}} />,
+    );
+    expect(screen.getByDisplayValue("Write code")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Write tests")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2")).toBeInTheDocument();
+  });
+
+  it("no Close Task offer while steps remain unchecked", () => {
+    render(
+      <TaskSheet mode="edit" initial={{ text: "Ship it", category: "c1", due: "", repeat: "", steps: [{ text: "Write code", done: true }, { text: "Write tests", done: false }] }}
+        categories={CATS} onSave={() => {}} onCancel={() => {}} />,
+    );
+    expect(screen.queryByText("Close Task")).not.toBeInTheDocument();
+  });
+
+  it("no Close Task offer on a brand new task, even with every seeded step checked", () => {
+    render(
+      <TaskSheet mode="new" categories={CATS} initial={{ steps: [{ text: "Write code", done: true }] }} onSave={() => {}} onCancel={() => {}} />,
+    );
+    expect(screen.queryByText("Close Task")).not.toBeInTheDocument();
+  });
+
+  // "Ticking the last step offers one-tap Close. It never closes the task
+  // for you" (catalog spec) -- the offer appears once every line is
+  // checked, and firing it saves the steps AND asks the caller to close.
+  it("Close Task appears once every step is checked, and one tap saves with closeNow set", () => {
+    const onSave = vi.fn();
+    render(
+      <TaskSheet mode="edit" initial={{ text: "Ship it", category: "c1", due: "", repeat: "", steps: [{ text: "Write code", done: false }] }}
+        categories={CATS} onSave={onSave} onCancel={() => {}} />,
+    );
+    expect(screen.queryByText("Close Task")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Mark item done"));
+    expect(screen.getByText("Checklist Complete")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Close Task"));
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ steps: [{ text: "Write code", done: true }], closeNow: true }),
+    );
+  });
+
+  it("the ordinary Save tap never sets closeNow, even with every step checked", () => {
+    const onSave = vi.fn();
+    render(
+      <TaskSheet mode="edit" initial={{ text: "Ship it", category: "c1", due: "", repeat: "", steps: [{ text: "Write code", done: true }] }}
+        categories={CATS} onSave={onSave} onCancel={() => {}} />,
+    );
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0]![0].closeNow).toBeUndefined();
+  });
+});

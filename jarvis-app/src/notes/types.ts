@@ -22,6 +22,16 @@ export interface ChecklistItem {
   taskId?: string; // set when this item has been promoted to a real task; keeps them in sync
 }
 
+// STEP (catalog: jarvis-lifetasks-final.html data model, FOCUS_PAGE
+// COMPREHENSIVE_HANDOFF's hierarchy chain Category -> Goal -> Project ->
+// Task -> Step). "A checklist line inside one task. No dates, no category,
+// no independent existence." Deliberately narrower than ChecklistItem: a
+// step never gets promoted to its own task, so it carries no taskId.
+export interface TaskStep {
+  text: string;
+  done: boolean;
+}
+
 export interface Block {
   id: string;
   type: BlockType;
@@ -150,6 +160,11 @@ export interface TaskData {
   // migration. Optional and additive: a task without one behaves exactly as
   // it always has.
   plan?: import("../tasks/ifThen").IfThen;
+  // STEPS (2026-09-04, "isn't there supposed to be an option to assign
+  // steps to a task?"): the checklist the catalog spec'd but never built.
+  // Rides the task entity the same way; display-only rollup, never
+  // auto-completes the task (TasksService.setSteps, TaskSheet's Steps group).
+  steps?: TaskStep[];
 }
 
 export type TemplateKey =

@@ -2,10 +2,11 @@ import { createPortal } from "react-dom";
 import { categoriesOf, setCategories } from "../categories";
 import { useRef, useState, type ReactNode } from "react";
 import type { ColorSlot } from "../../categories/types";
+import type { TaskStep } from "../../notes/types";
 import Provenance from "../../shared/Provenance";
 import type { Source } from "../../shared/provenance";
 import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, type IfThen, type CueKind } from "../ifThen";
-import { FileText, CheckSquare, Clock, Tag, FolderKanban, Calendar, Sparkles } from "../../shared/icons";
+import { FileText, CheckSquare, Clock, Tag, FolderKanban, Calendar, Sparkles, Check, X } from "../../shared/icons";
 import { RepeatGlyph, PinGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
 import SheetBar from "../../shared/SheetBar";
@@ -16,6 +17,12 @@ export interface TaskDraft {
   text: string; category: string; extraCategories?: string[]; due: string; repeat: string; projectId?: string;
   // A1 (2026-08-20): the if-then plan, when he set one.
   plan?: IfThen;
+  // STEPS (2026-09-04): the checklist inside this task, whole-array like the
+  // rest of this draft -- see TasksService.setSteps.
+  steps?: TaskStep[];
+  // Set only by the "Close Task" offer under a fully-checked list: this
+  // Save should also mark the task done. Never set by the ordinary Save tap.
+  closeNow?: boolean;
 }
 export interface SheetProject { id: string; title: string }
 
@@ -129,6 +136,31 @@ export default function TaskSheet({
   const [repeat, setRepeat] = useState(initial?.repeat ?? "");
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
   const [err, setErr] = useState(false);
+
+  // STEPS (2026-09-04): a checklist inside the task, edited locally like
+  // every other field here and committed whole on Save (TasksService.setSteps
+  // mirrors setCategories's "one writer for the whole set"). Index-based
+  // addressing, same convention NotesService's checklist items use.
+  const [steps, setSteps] = useState<TaskStep[]>(() => (initial?.steps ?? []).map((s) => ({ ...s })));
+  const stepRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const addStep = () => {
+    const at = steps.length;
+    setSteps((cur) => [...cur, { text: "", done: false }]);
+    // Focuses the new blank line for typing, the same beat as NoteEditor's
+    // "Add Item" (the editor focuses it) and TaskSheet's own Pick a Date.
+    setTimeout(() => stepRefs.current[at]?.focus(), 0);
+  };
+  const editStep = (i: number, text: string) => setSteps((cur) => cur.map((s, idx) => (idx === i ? { ...s, text } : s)));
+  const toggleStep = (i: number) => setSteps((cur) => cur.map((s, idx) => (idx === i ? { ...s, done: !s.done } : s)));
+  // Blank on blur is removed, so no orphaned empty checkbox lingers (same
+  // rule NotesService.deleteChecklistItem enforces for note checklists).
+  const deleteStep = (i: number) => setSteps((cur) => cur.filter((_, idx) => idx !== i));
+  const stepsDone = steps.filter((s) => s.done).length;
+  // Ticking the last step offers one-tap Close; it never closes the task for
+  // you (catalog spec, jarvis-lifetasks-final.html). Level-triggered on the
+  // current list, not the specific tap that finished it, so reopening an
+  // already-fully-checked task still offers it.
+  const allStepsDone = steps.length > 0 && stepsDone === steps.length;
   const dateRef = useRef<HTMLInputElement>(null);
   // A1: the if-then. Off until he opens it, because a required field on the
   // task sheet would break the three-second capture rule this app lives by.
@@ -182,7 +214,10 @@ export default function TaskSheet({
   const areaWord = cats.length === 0 ? "None" : cats.length === 1 ? primaryName : `${primaryName} +${cats.length - 1}`;
   const projectWord = projects.find((p) => p.id === projectId)?.title ?? "None";
 
-  const save = () => {
+  // closeNow: the "Close Task" offer under a fully-checked list calls
+  // save(true) -- one tap both saves the steps and marks the task done. The
+  // ordinary Save button calls save() with no argument.
+  const save = (closeNow = false) => {
     if (!text.trim()) {
       setErr(true);
       return;
@@ -194,6 +229,8 @@ export default function TaskSheet({
       // Only a plan that will actually work is saved. A weak one is worse
       // than none: it feels like a plan and carries no effect.
       plan: planTouched && isUsable(draftPlan) ? draftPlan : undefined,
+      steps: steps.length ? steps : undefined,
+      closeNow: closeNow || undefined,
     });
   };
 
@@ -205,7 +242,11 @@ export default function TaskSheet({
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card xs form-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <SheetBar title={mode === "new" ? "New Task" : "Edit Task"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"} />
+        {/* onSave wraps save() in a zero-arg closure on purpose: SheetBar's
+            button hands its onClick the click event positionally, and
+            save's first parameter is closeNow -- passing `save` directly
+            would read every ordinary click as a truthy closeNow. */}
+        <SheetBar title={mode === "new" ? "New Task" : "Edit Task"} onCancel={onCancel} onSave={() => save()} saveLabel={saving ? "Saving" : "Save"} />
         <div className="sheet-form">
           <Provenance source={source} />
 
@@ -223,6 +264,62 @@ export default function TaskSheet({
             </div>
           </div></div>
           {err && <div className="input-error xs-error">Add a task name.</div>}
+
+          {/* STEPS (2026-09-04, "isn't there supposed to be an option to
+              assign steps to a task?"). A checklist line inside this task:
+              no dates, no category, no independent existence (catalog:
+              jarvis-lifetasks-final.html). Internally these are steps
+              (TaskStep, TasksService.setSteps) -- prop and type names may
+              stay that word. What a reader SEES never does: "no surface
+              calls a task a step" (pick 30, laws.test.ts) is exactly the
+              Project-page-vs-Tasks-tab collision this would repeat, so the
+              rendered vocabulary is Checklist/Item, matching the identical
+              pattern Notes already ships (NoteEditor's checklist block).
+              The rollup is display-only and never auto-completes the task
+              -- that decision stays his, offered by Close Task below once
+              every line is checked. */}
+          <div className="grp xs-grp">
+            <div className="eyebrow">Checklist</div>
+            {steps.length > 0 && <div className="conn-meta">{stepsDone} of {steps.length}</div>}
+          </div>
+          <div className="pad-x"><div className="card xs-group">
+            {steps.map((s, i) => (
+              <div className="row xs-row" key={i}>
+                <button
+                  type="button"
+                  className={"cb" + (s.done ? " on" : "")}
+                  aria-label={s.done ? "Mark item not done" : "Mark item done"}
+                  // A blank line can't be checked, same rule the note
+                  // checklist uses: an orphaned checked box says nothing.
+                  onClick={() => { if (s.text.trim()) toggleStep(i); }}
+                >
+                  {s.done && <Check className="ic" />}
+                </button>
+                <input
+                  ref={(el) => { stepRefs.current[i] = el; }}
+                  className="xs-input"
+                  placeholder="List Item"
+                  aria-label={`Checklist item ${i + 1}`}
+                  value={s.text}
+                  onChange={(e) => editStep(i, e.target.value)}
+                  onBlur={() => { if (!s.text.trim()) deleteStep(i); }}
+                />
+                <button type="button" className="conn-remove" aria-label="Remove item" onClick={() => deleteStep(i)}>
+                  <X className="ic" />
+                </button>
+              </div>
+            ))}
+            <button type="button" className="row row-act" onClick={addStep}>Add Item</button>
+            {allStepsDone && mode === "edit" && (
+              <div className="row xs-row">
+                <div className="row-grow"><div className="conn-name">Checklist Complete</div></div>
+                {/* One tap both saves the checked list and marks the task
+                    done -- "it never closes the task for you" means this is
+                    an offer, not an auto-complete, not that it takes two taps. */}
+                <button type="button" className="pill-act" onClick={() => save(true)}>Close Task</button>
+              </div>
+            )}
+          </div></div>
 
           <div className="grp xs-grp"><div className="eyebrow">When</div></div>
           <div className="pad-x"><div className="card xs-group">

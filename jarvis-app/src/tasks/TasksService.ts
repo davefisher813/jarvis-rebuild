@@ -1,7 +1,7 @@
 import type { Store, Item, ItemData } from "@core";
 import type { EventInput } from "../events";
 import { setCategories as setCategoriesOf } from "./categories";
-import { ENTITY_TASK, type TaskData, type Recurrence, type BillInfo, type ReminderInfo } from "../notes/types";
+import { ENTITY_TASK, type TaskData, type Recurrence, type BillInfo, type ReminderInfo, type TaskStep } from "../notes/types";
 import { groupFor, todayISO, nextDue, type TaskGroup } from "./grouping";
 import { nextStreak } from "./lifecycle";
 import { recordCompletion } from "../shared/timeSense";
@@ -11,6 +11,12 @@ import { isUsable, type IfThen } from "./ifThen";
 export interface TaskItem {
   id: string;
   data: TaskData;
+}
+
+// Blank lines never survive a write (matches NotesService's checklist
+// items: a step left empty on blur is gone before it ever round-trips).
+function cleanSteps(steps: TaskStep[] | undefined): TaskStep[] {
+  return (steps ?? []).filter((s) => s.text.trim().length > 0).map((s) => ({ text: s.text.trim(), done: s.done }));
 }
 export interface GroupedTasks {
   today: TaskItem[];
@@ -41,7 +47,7 @@ export class TasksService {
 
   async createTask(
     text: string,
-    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen } = {},
+    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[] } = {},
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
     const data: TaskData = { text: text.trim(), category: opts.category ?? "", done: false };
@@ -60,6 +66,8 @@ export class TasksService {
     if (opts.reminder) data.reminder = opts.reminder;
     if (opts.source) data.source = opts.source;
     if (opts.plan && isUsable(opts.plan)) data.plan = opts.plan;
+    const steps = cleanSteps(opts.steps);
+    if (steps.length) data.steps = steps;
     const id = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_TASK, entityId: id });
     return id;
@@ -255,6 +263,19 @@ export class TasksService {
     if (!t) return false;
     const next = plan && isUsable(plan) ? plan : null;
     await this.store.update(this.ownerId, id, { plan: next } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
+  // STEPS: one writer for the whole ordered list, exactly like
+  // setCategories -- the sheet edits them locally and this commits the
+  // whole set on Save, never a partial write mid-edit. Display-only rollup;
+  // it never touches the task's own `done`.
+  async setSteps(id: string, steps: TaskStep[]): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t) return false;
+    const clean = cleanSteps(steps);
+    await this.store.update(this.ownerId, id, { steps: clean.length ? clean : null } as unknown as ItemData);
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }

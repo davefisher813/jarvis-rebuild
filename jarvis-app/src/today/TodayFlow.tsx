@@ -460,7 +460,7 @@ export default function TodayFlow({
 
   const onOpenTask = async (id: string) => {
     const t = await tasks.task(id);
-    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "", repeat: t.recurrence ?? "" } });
+    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "", repeat: t.recurrence ?? "", steps: t.steps } });
   };
 
   // Tappable schedule rows (roadmap v2): an event on Today opens the same
@@ -744,6 +744,8 @@ export default function TodayFlow({
         await tasks.setCategory(sheet.id, draft.category);
         await tasks.setDue(sheet.id, draft.due || null);
         await tasks.setRecurrence(sheet.id, rec || null);
+        await tasks.setSteps(sheet.id, draft.steps ?? []);
+        if (draft.closeNow) await tasks.toggleDone(sheet.id);
       });
     }
     setSheet(null);
