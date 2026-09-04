@@ -79,7 +79,7 @@ import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
 import ReminderSheet from "../tasks/screens/ReminderSheet";
-import { todaysReminders, snoozeTime } from "../tasks/reminders";
+import { todaysReminders, missedReminders, snoozeTime } from "../tasks/reminders";
 import { remindersToIcs, downloadIcs } from "../tasks/ics";
 import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
@@ -107,7 +107,7 @@ import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
 import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph } from "../shared/glyphs";
-import { Clock, CircleSlash } from "../shared/icons";
+import { Clock, CircleSlash, BellRing } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
 
 // Up Next and Fresh Start (ADHD strategy Phase 1) load on demand: they are
@@ -1711,7 +1711,17 @@ export default function TodayFlow({
   // two weeks at some point; everyone does. The apps that punish you for it
   // are the ones you never open again. No count of the pile, what is still
   // true, and one thing to start with.
-  const back = welcomeBack(lastSeenRef.current, today, sweepReceipt?.moved.length ?? 0);
+  //
+  // B4 (2026-09-04): the sweep's moved list is the PILE, not the good news.
+  // It is every overdue task the sweep just pushed onto today, still sitting
+  // there undone underneath this very card. Passing its length as "aged out"
+  // said the opposite of what welcomeBack's own design law demands: it read
+  // "N things aged out on their own" over tasks that had done no such thing.
+  // There is no signal yet for tasks that genuinely resolved themselves while
+  // away, so 0 (the honest, already-supported "Nothing was lost" case) is the
+  // correct value until one exists. Building that signal is a real feature,
+  // not a bug fix.
+  const back = welcomeBack(lastSeenRef.current, today, 0);
   // Which task Your Move is already showing on its own. The dealt row is
   // evening-gated in TodayPage (`!evening ? upNext?.[0] : undefined`), so
   // this mirrors that gate: in the evening there is no dealt row, and the
@@ -1956,6 +1966,32 @@ export default function TodayFlow({
     else await attemptWrite(async () => { await tasks.editText(sheet.id, text); await tasks.editReminder(sheet.id, r); });
     await reload();
   };
+  // B4 (2026-09-04): "If You Miss It" defaults every reminder to "Ask Again
+  // in 15m" (ReminderSheet.tsx's onMiss "nag"), but nothing ever read that
+  // value -- missedReminders() was written for exactly this and had zero
+  // callers, so a missed reminder just sat quiet in the strip forever,
+  // whatever it was set to do. This surfaces it in Heads Up (at most two,
+  // missedReminders' own cap) with the one action the setting promised: push
+  // it 15 real minutes from now and ask again then. "Let It Go" reminders
+  // never reach here at all -- missedReminders already drops them.
+  const onAskAgainReminder = async (id: string) => {
+    const to = snoozeTime(nhm, 15);
+    await attemptWrite(() => tasks.snoozeReminder(id, to, today));
+    await reload();
+    showToast({ message: "Asking again at " + fmtTime(to).time + fmtTime(to).ap });
+  };
+  const missedReminderCards = missedReminders(taskItems, today, nhm).map((r) => (
+    <NoticeCard
+      key={"remind-" + r.id}
+      weight={WAITING}
+      icon={<BellRing className="ic" />}
+      tone="cat-fg-slate"
+      title={r.text}
+      sub={"Missed at " + fmtTime(r.time).time + fmtTime(r.time).ap}
+      action={{ label: "Ask Again in 15m", onClick: () => void onAskAgainReminder(r.id) }}
+      alt={{ label: "Done", onClick: () => void onTickReminder(r.id, true) }}
+    />
+  ));
   // B10 (2026-08-23): guarded already, but silent and final. A reminder is one
   // row with everything about it on the client, so it takes the same Undo the
   // event delete four hundred lines up already offers.
@@ -2249,7 +2285,7 @@ export default function TodayFlow({
       onDismiss={() => { markReportSeen(reportMonth); setReportMonth(null); }}
     />
   ) : null;
-  const notices = [reportNotice, ...alertCards, reflowSection, overflowSection].filter(Boolean);
+  const notices = [reportNotice, ...alertCards, ...missedReminderCards, reflowSection, overflowSection].filter(Boolean);
 
   const daypart = evening ? "evening" as const : now.getHours() < 12 ? "morning" as const : null;
   const initials = name.trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase() || "JV";

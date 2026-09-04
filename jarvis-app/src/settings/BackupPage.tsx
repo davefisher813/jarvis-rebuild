@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { useBackup } from "../data/NotesProvider";
+import { backendConfigured } from "../data/store";
 import { Head, Card, Row, Foot } from "./kit";
 
 export default function BackupPage({ onBack }: { onBack: () => void }) {
@@ -86,10 +87,18 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
       {/* Catalog V3.1: the import receipt is a card row, not floating text. */}
       {status && <Foot>{status}</Foot>}
       <Head label="Account Sync" />
-      {/* Catalog V3.1: the explainer paragraph became three short card rows. */}
+      {/* Catalog V3.1: the explainer paragraph became three short card rows.
+          B4 (2026-09-04): these used to be hardcoded "Off" / "on this device"
+          no matter what, so a signed-in build with every record already in
+          Supabase still claimed local-only storage. App.tsx guarantees
+          backendConfigured implies a real session wherever this page can be
+          reached, so it alone is the honest signal. */}
       <Card>
-        <Row label="iCloud / Account Sync" value="Off" />
-        <Row label="Data Lives on This Device" meta="Export keeps your own copy" />
+        <Row label="iCloud / Account Sync" value={backendConfigured ? "On" : "Off"} />
+        <Row
+          label={backendConfigured ? "Data Lives in Your Account" : "Data Lives on This Device"}
+          meta={backendConfigured ? "Synced automatically · Export keeps your own copy" : "Export keeps your own copy"}
+        />
         <Row label="Import Adds, Never Removes" meta="Duplicates skipped · Nothing overwritten" />
         <Row label="Sync Follows Your Account" meta="Turns on with a synced sign-in" />
       </Card>

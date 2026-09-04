@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { buildFeed, dismissNudge, loadNudgeDismissed } from "./feed";
 import type { TaskItem } from "../tasks/TasksService";
 import type { EventItem } from "../schedule/types";
-import type { Goal, Area } from "../life/types";
+import type { Goal } from "../life/types";
 
 const T = (id: string, text: string, due: string | null, done = false): TaskItem => ({ id, data: { text, category: "", done, due } });
 const E = (id: string, title: string, date: string, start: string): EventItem => ({ id, data: { title, date, start, category: "" } });
@@ -11,7 +11,7 @@ describe("buildFeed", () => {
   it("orders overdue, due today, then today's events; respects done", () => {
     const tasks = [T("1", "Pay invoice", "2026-05-01"), T("2", "Call bank", "2026-05-24"), T("3", "Done thing", "2026-05-01", true)];
     const events = [E("9", "Standup", "2026-05-24", "09:00")];
-    const feed = buildFeed({ tasks, events, goals: [], areas: [] }, "2026-05-24");
+    const feed = buildFeed({ tasks, events, goals: [] }, "2026-05-24");
     // Pay invoice is 23 days late, so it also leads as the task that keeps
     // sliding (2026-09-02), then reads again as overdue.
     expect(feed.map((n) => n.kind)).toEqual(["sliding", "overdue", "due_today", "event"]);
@@ -21,14 +21,13 @@ describe("buildFeed", () => {
   });
   it("the sliding nudge leads only when a task qualifies", () => {
     const tasks = [T("2", "Call bank", "2026-05-24")];
-    const feed = buildFeed({ tasks, events: [], goals: [], areas: [] }, "2026-05-24");
+    const feed = buildFeed({ tasks, events: [], goals: [] }, "2026-05-24");
     expect(feed.map((n) => n.kind)).toEqual(["due_today"]);
   });
-  it("includes at-risk goals and drifting areas", () => {
+  it("includes at-risk goals", () => {
     const goals: Goal[] = [{ id: "g", data: { title: "Ship app", state: "at_risk" } }];
-    const areas: Area[] = [{ id: "a", data: { name: "Health", state: "drifting" } }];
-    const feed = buildFeed({ tasks: [], events: [], goals, areas }, "2026-05-24");
-    expect(feed.map((n) => n.kind)).toEqual(["goal_risk", "area_drift"]);
+    const feed = buildFeed({ tasks: [], events: [], goals }, "2026-05-24");
+    expect(feed.map((n) => n.kind)).toEqual(["goal_risk"]);
   });
 });
 
@@ -41,25 +40,25 @@ describe("buildFeed and the clock", () => {
 
   it("drops events that have already finished, keeps the ones still ahead", () => {
     const events = [at("past", "09:00", "09:30"), at("soon", "18:00", "19:00")];
-    const feed = buildFeed({ tasks: [], events, goals: [], areas: [] }, "2026-05-24", "22:00");
+    const feed = buildFeed({ tasks: [], events, goals: [] }, "2026-05-24", "22:00");
     expect(feed).toHaveLength(0);
-    const earlier = buildFeed({ tasks: [], events, goals: [], areas: [] }, "2026-05-24", "10:00");
+    const earlier = buildFeed({ tasks: [], events, goals: [] }, "2026-05-24", "10:00");
     expect(earlier.map((n) => n.entityId)).toEqual(["soon"]);
   });
 
   it("keeps an event that is running right now", () => {
-    const feed = buildFeed({ tasks: [], events: [at("live", "09:00", "10:00")], goals: [], areas: [] }, "2026-05-24", "09:30");
+    const feed = buildFeed({ tasks: [], events: [at("live", "09:00", "10:00")], goals: [] }, "2026-05-24", "09:30");
     expect(feed.map((n) => n.entityId)).toEqual(["live"]);
   });
 
   it("an event with no end is over once it has started: a point in time cannot still be upcoming", () => {
     const events = [at("pt", "09:00")];
-    expect(buildFeed({ tasks: [], events, goals: [], areas: [] }, "2026-05-24", "09:01")).toHaveLength(0);
-    expect(buildFeed({ tasks: [], events, goals: [], areas: [] }, "2026-05-24", "08:59")).toHaveLength(1);
+    expect(buildFeed({ tasks: [], events, goals: [] }, "2026-05-24", "09:01")).toHaveLength(0);
+    expect(buildFeed({ tasks: [], events, goals: [] }, "2026-05-24", "08:59")).toHaveLength(1);
   });
 
   it("without a clock the old all-day behaviour stands", () => {
-    const feed = buildFeed({ tasks: [], events: [at("past", "09:00", "09:30")], goals: [], areas: [] }, "2026-05-24");
+    const feed = buildFeed({ tasks: [], events: [at("past", "09:00", "09:30")], goals: [] }, "2026-05-24");
     expect(feed).toHaveLength(1);
   });
 });
@@ -76,13 +75,13 @@ describe("nudge dismissals", () => {
     const s = store();
     // Two days late: overdue, not yet sliding, so one nudge.
     const tasks = [T("1", "Pay invoice", "2026-05-22")];
-    expect(buildFeed({ tasks, events: [], goals: [], areas: [] }, "2026-05-24")).toHaveLength(1);
+    expect(buildFeed({ tasks, events: [], goals: [] }, "2026-05-24")).toHaveLength(1);
 
     const ids = dismissNudge("ov-1", "2026-05-24", s);
-    expect(buildFeed({ tasks, events: [], goals: [], areas: [] }, "2026-05-24", undefined, ids)).toHaveLength(0);
+    expect(buildFeed({ tasks, events: [], goals: [] }, "2026-05-24", undefined, ids)).toHaveLength(0);
 
     // A new day is a new fact: the dismissal does not carry over.
     expect(loadNudgeDismissed("2026-05-25", s)).toEqual([]);
-    expect(buildFeed({ tasks, events: [], goals: [], areas: [] }, "2026-05-25", undefined, loadNudgeDismissed("2026-05-25", s))).toHaveLength(1);
+    expect(buildFeed({ tasks, events: [], goals: [] }, "2026-05-25", undefined, loadNudgeDismissed("2026-05-25", s))).toHaveLength(1);
   });
 });

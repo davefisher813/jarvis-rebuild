@@ -172,6 +172,36 @@ describe("Notes editing helpers", () => {
     expect(items.every((i) => !!i.taskId)).toBe(true);
   });
 
+  // B4 (2026-09-04): the Create Tasks screen previews the first checklist
+  // filtered to undone items and promises "Completed ones skipped." This
+  // used to create a task for a done item anyway, and to walk every
+  // checklist block instead of just the one shown.
+  it("tasksFromChecklist skips a completed item, matching the screen's promise", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("n", "health"))!;
+    const bid = (await svc.addChecklist(id, ["a", "b"]))!;
+    await svc.toggleChecklistItem(id, bid, 0); // "a" done
+    const made = await svc.tasksFromChecklist(id);
+    expect(made.length).toBe(1);
+    const block = (await svc.note(id))!.blocks.find((b) => b.id === bid)!;
+    const items = block.items as { text: string; done: boolean; taskId?: string }[];
+    expect(items[0]!.done).toBe(true);
+    expect(items[0]!.taskId).toBeUndefined(); // done item never linked
+    expect(items[1]!.taskId).toBeTruthy();
+  });
+
+  it("tasksFromChecklist only converts the first checklist block, matching the preview", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("n", "health"))!;
+    await svc.addChecklist(id, ["a"]);
+    await svc.addBlock(id, { type: "checklist", items: [{ text: "second list item", done: false }] });
+    const made = await svc.tasksFromChecklist(id);
+    expect(made.length).toBe(1);
+    const tasks = await svc.listTasks();
+    expect(tasks.length).toBe(1);
+    expect(tasks[0]!.data.text).toBe("a");
+  });
+
   it("toggling a promoted item updates its task; reconcile pulls task state back", async () => {
     const svc = freshService();
     const id = (await svc.createNote("n", "health"))!;

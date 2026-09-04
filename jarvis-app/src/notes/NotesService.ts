@@ -229,25 +229,32 @@ export class NotesService {
   // Idempotent: items that already have a taskId are skipped (running it twice
   // no longer duplicates every task), blanks are skipped, and each created
   // task's id is stored back on the item so the two stay in sync.
+  //
+  // B4 (2026-09-04): the Create Tasks screen previews exactly ONE checklist
+  // (the note's first) filtered to undone items, and its copy promises
+  // "Completed ones skipped." This used to walk every checklist block and
+  // skip only blanks and already-linked items, so a done item, or a second
+  // checklist the preview never showed, silently produced tasks the button's
+  // own count didn't account for. Now it operates over the same first
+  // checklist, the same way, so what gets created is what was shown.
   async tasksFromChecklist(id: string): Promise<string[]> {
     const note = await this.getNote(id);
     if (!note) return [];
+    const block = note.blocks.find((b) => b.type === "checklist" && !!b.items);
+    if (!block || block.type !== "checklist" || !block.items) return [];
     const made: string[] = [];
-    for (const block of note.blocks) {
-      if (block.type !== "checklist" || !block.items) continue;
-      const items = this.normalizeItems(block.items);
-      let changed = false;
-      for (let i = 0; i < items.length; i++) {
-        const it = items[i]!;
-        if (!it.text.trim() || it.taskId) continue;
-        const data: TaskData = { text: it.text, fromNote: id, category: note.category, done: it.done, source: madeBy("note", id) };
-        const tid = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
-        items[i] = { ...it, taskId: tid };
-        changed = true;
-        made.push(tid);
-      }
-      if (changed) await this.editBlock(id, block.id, { items });
+    const items = this.normalizeItems(block.items);
+    let changed = false;
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i]!;
+      if (!it.text.trim() || it.taskId || it.done) continue;
+      const data: TaskData = { text: it.text, fromNote: id, category: note.category, done: it.done, source: madeBy("note", id) };
+      const tid = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
+      items[i] = { ...it, taskId: tid };
+      changed = true;
+      made.push(tid);
     }
+    if (changed) await this.editBlock(id, block.id, { items });
     return made;
   }
 

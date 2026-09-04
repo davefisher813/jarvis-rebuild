@@ -163,6 +163,13 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
     const to = cats.find((c) => c.id === categoryId)?.data.name ?? categoryId;
     // Never throws into the tap: learning is a side effect of the correction,
     // and a storage failure must not make the recategorise look like it lost.
+    //
+    // `to` here is a display name, used only in the evidence string. The
+    // rule's stored `to` stays the real categoryId: smartPaste.ts's
+    // categoryFromRule matches it against live category ids and writes it
+    // straight onto a new capture's category field, so it has to stay a real
+    // id. What JARVIS Learned resolves ids to names for display instead (B4,
+    // 2026-09-04) rather than storing a name here and breaking that apply.
     void rules.recordCorrection("alias", "capture.category", trigger, categoryId, `"${s.title}" moved to ${to}`)
       .catch(() => { /* the next identical correction re-observes it */ });
   };

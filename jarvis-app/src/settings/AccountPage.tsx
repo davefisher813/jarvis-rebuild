@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useProfile } from "../data/NotesProvider";
 import type { ProfileData } from "../profile/types";
 import LargeTitleNav from "../shared/LargeTitleNav";
+import { backendConfigured } from "../data/store";
 import { Head, Card, Row, DangerRow } from "./kit";
 
 export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBack: () => void; onEditProfile?: () => void; onSignOut?: () => void }) {
@@ -31,7 +32,12 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
       <Card>
         {onEditProfile && <Row label="Edit Profile" onClick={onEditProfile} chev />}
         <Row label="Template" value={tmpl} />
-        <Row label="Status" value="Active" />
+        {/* B4 (2026-09-04): "Active" was a literal string, true only by
+            coincidence when a real account exists. This page also renders in
+            the no-backend local/demo build (App.tsx), where there is no
+            account to be active, so the honest value follows the same signal
+            BackupPage uses. */}
+        <Row label="Status" value={backendConfigured ? "Active" : "Local"} />
         <Row label={redoArmed ? "Tap again to redo setup" : "Redo Setup"} meta={redoArmed ? "Your data stays · Intake runs again" : undefined} chev
           onClick={async () => {
             if (!redoArmed) { setRedoArmed(true); return; }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { useTasks, useSchedule, useGoals, useAreas, useProfile } from "../data/NotesProvider";
+import { useTasks, useSchedule, useGoals, useProfile } from "../data/NotesProvider";
 import { todayISO } from "../ai/useAIContext";
 import { buildFeed, loadNudgeDismissed, dismissNudge, type Nudge, type NudgeKind } from "./feed";
 import { RowGlyph, type RowKind } from "../shared/anatomy";
@@ -26,7 +26,6 @@ const KIND: Record<NudgeKind, RowKind> = {
   due_today: "task",
   event: "event",
   goal_risk: "goal",
-  area_drift: "goal",
 };
 
 // A1 (audit 2026-08-21). Every row here was a static div: ten sentences
@@ -55,23 +54,23 @@ function NudgeRow({ onDismiss, children }: { onDismiss: () => void; children: Re
 }
 
 export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, id: string) => void }) {
-  const tasksSvc = useTasks(); const sched = useSchedule(); const goalsSvc = useGoals(); const areasSvc = useAreas(); const profileSvc = useProfile();
+  const tasksSvc = useTasks(); const sched = useSchedule(); const goalsSvc = useGoals(); const profileSvc = useProfile();
   const [feed, setFeed] = useState<Nudge[]>([]);
   const reload = useCallback(async () => {
-    const [tasks, events, goals, areas, profile] = await Promise.all([tasksSvc.listTasks(), sched.listEvents(), goalsSvc.list(), areasSvc.list(), profileSvc.get()]);
+    const [tasks, events, goals, profile] = await Promise.all([tasksSvc.listTasks(), sched.listEvents(), goalsSvc.list(), profileSvc.get()]);
     const n = { overdue: true, events: true, goals: true, ...(profile?.notify ?? {}) };
     const today = todayISO();
     // The clock and the dismissed list are what make this a status screen
     // rather than a list of everything that was ever true today (Laws 1, 2).
     const now = new Date();
     const nowHHMM = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    const all = buildFeed({ tasks, events, goals, areas }, today, nowHHMM, loadNudgeDismissed(today));
+    const all = buildFeed({ tasks, events, goals }, today, nowHHMM, loadNudgeDismissed(today));
     setFeed(all.filter((x) => {
       if (x.kind === "sliding" || x.kind === "overdue" || x.kind === "due_today") return n.overdue;
       if (x.kind === "event") return n.events;
-      return n.goals; // goal_risk, area_drift
+      return n.goals; // goal_risk
     }));
-  }, [tasksSvc, sched, goalsSvc, areasSvc, profileSvc]);
+  }, [tasksSvc, sched, goalsSvc, profileSvc]);
   useEffect(() => { void reload(); }, [reload]);
 
   const onDismissNudge = (n: Nudge) => {
@@ -110,7 +109,7 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
                   className="task-row p2 notif-row"
                   role={onOpen ? "button" : undefined}
                   tabIndex={onOpen ? 0 : undefined}
-                  onClick={onOpen ? () => onOpen(n.entity === "area" ? "goal" : n.entity, n.entityId) : undefined}
+                  onClick={onOpen ? () => onOpen(n.entity, n.entityId) : undefined}
                 >
                   <div className="task-check-tap"><RowGlyph kind={KIND[n.kind]} /></div>
                   <div className="task-title">
