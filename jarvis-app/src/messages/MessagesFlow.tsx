@@ -93,7 +93,7 @@ import { loadLetGo, letGo, undoLetGo } from "./letGo";
 import { closeCandidates, closeLine, amnestyDue, amnestyLine, amnestyPromise, markClosed, lastClose } from "./weeklyClose";
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
 import { attachOffer, amountIn } from "./attachmentKind";
-import { HOLD_SECONDS } from "./outbox";
+import { loadOutbox, saveOutbox, holdUntil, dueNow, sendSlots, holdLine, whenLabel, type OutboxItem } from "./outbox";
 import { loadWindows, saveWindows, isOpenNow, closedLine, peekLine, type WindowSettings } from "./batching";
 import WindowsSheet from "./WindowsSheet";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
@@ -411,7 +411,6 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [replies, setReplies] = useState<string[]>(DEFAULT_ANSWERS);
   const [draft, setDraft] = useState<Draft>({ to: "", subject: "", body: "" });
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const triageBusy = useRef(false);
 
@@ -1196,35 +1195,177 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   };
   const curtained = windows.on && !peeked && !isOpenNow(windows, new Date());
 
-  const [held, setHeld] = useState<{ at: number; timer: ReturnType<typeof setTimeout> } | null>(null);
-  const heldRef = useRef<typeof held>(null);
-  useEffect(() => { heldRef.current = held; }, [held]);
-  // Fire the send if the app is torn down mid-hold. Losing a message the user
-  // believes they sent is far worse than sending one they meant to catch.
-  useEffect(() => () => { if (heldRef.current) void doSend(); /* eslint-disable-line */ }, []);
+  // S2-1 (2026-09-04): "A failed send destroys the message." Send used to
+  // switch straight to the list and send on a bare setTimeout; a failure
+  // twelve seconds later had nowhere to land -- setError fired at a screen
+  // the user had already left, the draft existed only in React state, and
+  // startCompose clears that state the moment a new message is opened. The
+  // outbox module (outbox.ts) was written for exactly this, tested, and
+  // never wired to anything but its HOLD_SECONDS constant. It is wired here.
+  //
+  // QueuedSend is a superset of OutboxItem: handoffTo and editingDraftId are
+  // MessagesFlow-only bookkeeping the pure module has no reason to know
+  // about, kept alongside the fields it does (round-trips through
+  // load/saveOutbox fine; both only ever read the fields they declare).
+  type QueuedSend = OutboxItem & { handoffTo?: string; editingDraftId?: string };
+  const [outbox, setOutbox] = useState<QueuedSend[]>(() => loadOutbox() as QueuedSend[]);
+  const outboxRef = useRef(outbox);
+  useEffect(() => {
+    outboxRef.current = outbox;
+    saveOutbox(outbox);
+  }, [outbox]);
+  // Ids currently being sent, so a pump tick can never pick the same item up
+  // twice while its network call is still in flight (a double send is worse
+  // than a slow one).
+  const inFlight = useRef(new Set<string>());
+  // Schedule Send popover on the compose screen: a handful of human slots
+  // (sendSlots), never a raw date/time picker.
+  const [showSchedule, setShowSchedule] = useState(false);
 
-  const send = () => {
+  // The actual send, plus every side effect the old doSend carried: draft
+  // cleanup, the commitment catcher, the chase timer, the handoff move, the
+  // nudge count, the sent toast. All of it reads from the QUEUED item's own
+  // fields (or live settings/services in closure), never from `draft`, which
+  // may already belong to a different, later compose by the time this runs.
+  const processSend = useCallback(async (item: QueuedSend) => {
+    const api = apiFor(item.account);
+    if (!api) {
+      // Not connected right now is not necessarily final (a token refresh,
+      // a moment offline): leave it held so the next tick tries again rather
+      // than reporting a failure the user cannot act on differently.
+      inFlight.current.delete(item.id);
+      return;
+    }
+    try {
+      const raw = encodeEmail({
+        to: item.to, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
+        ...(trackOpens ? { pixelUrl: pixelUrlFor(item.trackId ?? newTrackId()) } : {}),
+      });
+      const sent = await api.sendMessage(raw, item.threadId);
+      if (trackOpens && item.trackId) {
+        saveTrack(item.trackId, { threadId: sent.threadId || item.threadId || sent.id, sentAt: Date.now() });
+        void registerTrack(item.trackId, authToken);
+      }
+      if (item.fromDeck) emit({ type: "email.deck_sent", props: { flag: true } });
+      emit({ type: "email.handled", props: { kind: "reply" } });
+      if (item.editingDraftId) {
+        const id = item.editingDraftId;
+        setDrafts((ds) => ds.filter((d) => d.id !== id));
+        void (async () => {
+          const { failed } = await settleAll([id], () => api.deleteDraft(id));
+          if (failed.length) say("Sent · The old draft is still in your drafts");
+        })();
+      }
+      if (item.threadId && chaseDays > 0) {
+        setChase({ threadId: item.threadId, to: item.to, subject: item.subject, setISO: todayISO(), days: chaseDays });
+      }
+      const nudged = item.threadId && waiting.some((w) => w.threadId === item.threadId);
+      if (nudged) setNudgeCounts(countNudge(item.threadId!));
+      if (item.threadId) clearChase(item.threadId);
+      const threadForPromise = item.threadId || sent.threadId;
+      if (tasks && ai.available && !item.handoffTo && threadForPromise && !alreadyPromised(threadForPromise)) {
+        const today = todayISO();
+        void (async () => {
+          try {
+            const raw2 = await ai.complete([{ role: "user", content: commitmentPrompt(item.body, today) }], COMMITMENT_SYSTEM);
+            const c = parseCommitment(raw2, today);
+            if (!c) return;
+            markPromised(threadForPromise);
+            await tasks.createTask(c.text, { due: c.due ?? null, source: madeBy("email", threadForPromise) });
+            emit({ type: "action", props: { name: "email.commitment.caught" } });
+            setToast(commitmentLine(c, todayISO()));
+            setTimeout(() => setToast(null), 4000);
+          } catch { /* a missed catch is silent; a wrong task is not */ }
+        })();
+      }
+      if (item.handoffTo) {
+        const tid = item.threadId || sent.threadId;
+        if (tid) {
+          setRows((rs) => rs.filter((r) => r.id !== tid));
+          void (async () => {
+            const { failed } = await settleAll([tid], () => apiFor(item.account)?.modifyThread(tid, [], ["INBOX"]));
+            if (failed.length) say("Handed off · Still in your inbox");
+          })();
+        }
+        void loadWaiting();
+        emit({ type: "action", props: { name: "email.handoff" } });
+        setToast(handoffLine(item.handoffTo));
+      } else {
+        setToast("Sent");
+      }
+      setTimeout(() => setToast(null), item.handoffTo ? 3000 : 2000);
+      setOutbox((obs) => obs.filter((o) => o.id !== item.id));
+    } catch (e) {
+      setOutbox((obs) => obs.map((o) => (o.id === item.id ? { ...o, state: "failed", error: humanError(e, "Could not send") } : o)));
+    } finally {
+      inFlight.current.delete(item.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackOpens, authToken, chaseDays, waiting, tasks, ai, g]);
+
+  // The pump: once a second, whatever is due (held past its dueMs, or a
+  // scheduled send whose moment arrived) actually goes. Native to this
+  // effect surviving a reload is the whole point of persisting outbox to
+  // storage above, rather than keeping it only in a timer's closure.
+  useEffect(() => {
+    const t = setInterval(() => {
+      for (const item of dueNow(outboxRef.current, Date.now())) {
+        if (inFlight.current.has(item.id)) continue;
+        inFlight.current.add(item.id);
+        setOutbox((obs) => obs.map((o) => (o.id === item.id ? { ...o, state: "sending" } : o)));
+        void processSend(item as QueuedSend);
+      }
+    }, 1000);
+    return () => clearInterval(t);
+  }, [processSend]);
+
+  // Queues the current compose, held for the standard window, and returns to
+  // the list where its hold banner lives. `scheduledAt` overrides the hold
+  // with a chosen future moment (Schedule Send).
+  const send = (scheduledAt?: number) => {
     if (!draft.to.trim()) { setError("Add a recipient"); return; }
-    if (held) return;
     setError(null);
+    const item: QueuedSend = {
+      id: newTrackId(),
+      account: draft.account,
+      to: draft.to.trim(),
+      subject: draft.subject,
+      body: draft.body,
+      inReplyTo: draft.inReplyTo,
+      threadId: draft.threadId,
+      fromDeck: draft.fromDeck,
+      trackId: newTrackId(),
+      dueMs: scheduledAt ?? holdUntil(Date.now()),
+      scheduled: scheduledAt !== undefined,
+      state: "held",
+      handoffTo: draft.handoffTo,
+      editingDraftId: editingDraftId ?? undefined,
+    };
+    setOutbox((obs) => [...obs, item]);
     setView("list");
-    const timer = setTimeout(() => { setHeld(null); void doSend(); }, HOLD_SECONDS * 1000);
-    setHeld({ at: Date.now(), timer });
   };
 
-  const undoSend = () => {
-    if (!held) return;
-    clearTimeout(held.timer);
-    setHeld(null);
+  // Undo (still held) and Edit (already failed) are the same move: pull the
+  // message back out of the outbox and into the composer exactly as it was
+  // queued, not whatever `draft` currently holds (a later compose may have
+  // overwritten it by now).
+  const pullBackToCompose = (id: string) => {
+    const item = outbox.find((o) => o.id === id);
+    if (!item) return;
+    setOutbox((obs) => obs.filter((o) => o.id !== id));
+    setDraft({
+      to: item.to, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
+      threadId: item.threadId, fromDeck: item.fromDeck, account: item.account, handoffTo: item.handoffTo,
+    });
+    setEditingDraftId(item.editingDraftId ?? null);
     setView("compose");
   };
 
-  const sendNow = () => {
-    if (!held) return;
-    clearTimeout(held.timer);
-    setHeld(null);
-    void doSend();
-  };
+  // Send Now: skip the rest of the hold. Retry: a failed item goes straight
+  // back to held, due immediately, so the pump picks it up on its next tick.
+  const sendNowFor = (id: string) => setOutbox((obs) => obs.map((o) => (o.id === id ? { ...o, dueMs: Date.now() } : o)));
+  const retrySend = (id: string) =>
+    setOutbox((obs) => obs.map((o) => (o.id === id ? { ...o, state: "held", dueMs: Date.now(), error: undefined } : o)));
 
   const openThread = async (id: string) => {
     const api = apiFor(accountOfThread(id));
@@ -1700,115 +1841,6 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   };
 
-  // UNDO SEND (2026-08-20, from the complaint research). Send is the only
-  // irreversible button in this app; everything else can be archived back or
-  // untrashed. That asymmetry is why "undo send" tops every email survey and
-  // why Apple finally shipped it in Mail. So nothing leaves immediately.
-  //
-  // The hold is REAL: during it the message has not been handed to Gmail, so
-  // Undo genuinely un-sends rather than asking the recipient nicely. The
-  // composer's state is kept intact for the whole window, so Undo puts him
-  // back exactly where he was, mid-sentence if that is where he was.
-  const doSend = async () => {
-    const api = apiFor(draft.account);
-    if (!api || !draft.to.trim()) {
-      setError(!draft.to.trim() ? "Add a recipient" : "Not connected");
-      return;
-    }
-    setSending(true);
-    setError(null);
-    try {
-      // Every send carries the pixel: that is what powers "Opened" on Waiting
-      // On. The id-to-thread mapping stays on this device; the server knows
-      // only an anonymous id and a timestamp.
-      const trackId = newTrackId();
-      const raw = encodeEmail({ to: draft.to.trim(), subject: draft.subject, body: draft.body, inReplyTo: draft.inReplyTo, ...(trackOpens ? { pixelUrl: pixelUrlFor(trackId) } : {}) });
-      const sent = await api.sendMessage(raw, draft.threadId);
-      if (trackOpens) {
-        saveTrack(trackId, { threadId: sent.threadId || draft.threadId || sent.id, sentAt: Date.now() });
-        void registerTrack(trackId, authToken);
-      }
-      // The voice metric: a deck draft that needed editing before it could be
-      // sent (flag: true). Unedited sends are logged from the deck's Send &
-      // Next. Durable EventType since 2026-08-07, same shape both places.
-      if (draft.fromDeck) emit({ type: "email.deck_sent", props: { flag: true } });
-      // A reply is the other way a thread gets dealt with (handoff item 1).
-      emit({ type: "email.handled", props: { kind: "reply" } });
-      if (editingDraftId) {
-        const id = editingDraftId;
-        setDrafts((ds) => ds.filter((d) => d.id !== id));
-        setEditingDraftId(null);
-        // The mail is SENT by this point, so a failed draft cleanup is not
-        // worth alarming him about; it leaves a stale draft in Gmail. Said
-        // out loud rather than hidden in an empty catch, and reported quietly
-        // so he is not hunting a duplicate later.
-        void (async () => {
-          const { failed } = await settleAll([id], () => api.deleteDraft(id));
-          if (failed.length) say("Sent · The old draft is still in your drafts");
-        })();
-      }
-      // Commitment catcher: if he just promised something, it becomes a task
-      // with the date HE named. Once per thread, and never for a hand-off note
-      // (the promise there is the other person's).
-      // N13: the ladder climbs on what was actually SENT to someone who owes
-      // him, so it cannot be gamed by opening the drafter and closing it.
-      if (draft.threadId && chaseDays > 0) {
-        setChase({
-          threadId: draft.threadId, to: draft.to, subject: draft.subject,
-          setISO: todayISO(), days: chaseDays,
-        });
-      }
-      const nudged = draft.threadId && waiting.some((w) => w.threadId === draft.threadId);
-      if (nudged) setNudgeCounts(countNudge(draft.threadId!));
-      // N3: a chase he set retires the moment he acts on it.
-      if (draft.threadId) clearChase(draft.threadId);
-      const threadForPromise = draft.threadId || sent.threadId;
-      if (tasks && ai.available && !draft.handoffTo && threadForPromise && !alreadyPromised(threadForPromise)) {
-        const today = todayISO();
-        void (async () => {
-          try {
-            const raw = await ai.complete(
-              [{ role: "user", content: commitmentPrompt(draft.body, today) }],
-              COMMITMENT_SYSTEM,
-            );
-            const c = parseCommitment(raw, today);
-            if (!c) return;
-            markPromised(threadForPromise);
-            await tasks.createTask(c.text, { due: c.due ?? null, source: madeBy("email", threadForPromise) });
-            emit({ type: "action", props: { name: "email.commitment.caught" } });
-            setToast(commitmentLine(c, todayISO()));
-            setTimeout(() => setToast(null), 4000);
-          } catch { /* a missed catch is silent; a wrong task is not */ }
-        })();
-      }
-      if (draft.handoffTo) {
-        // It is theirs now: out of the inbox, into Waiting On.
-        const tid = draft.threadId || sent.threadId;
-        if (tid) {
-          setRows((rs) => rs.filter((r) => r.id !== tid));
-          // The handoff note went out; this only moves the thread out of the
-          // inbox. A failure leaves it visible, which is recoverable and
-          // worth one line rather than a silent divergence.
-          void (async () => {
-            const { failed } = await settleAll([tid], () => apiFor(draft.account)?.modifyThread(tid, [], ["INBOX"]));
-            if (failed.length) say("Handed off · Still in your inbox");
-          })();
-        }
-        void loadWaiting();
-        emit({ type: "action", props: { name: "email.handoff" } });
-        setToast(handoffLine(draft.handoffTo));
-      } else {
-        setToast("Sent");
-      }
-      setView("list");
-      setTimeout(() => setToast(null), draft.handoffTo ? 3000 : 2000);
-    } catch (e) {
-      setError(humanError(e, "Could not send"));
-    } finally {
-      setSending(false);
-    }
-  };
-
   const pushCls = usePushDepth(view === "compose" ? 2 : view === "detail" || view === "deck" ? 1 : 0);
 
   // Muted threads never surface, however many replies land. The mail itself is
@@ -2183,8 +2215,24 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         <div className="nav-bar">
           <button className="nav-back" onClick={() => setView(thread && !editingDraftId ? "detail" : "list")}>Cancel</button>
           <span className="nav-title">{editingDraftId ? "Draft" : "New message"}</span>
-          <button className="nav-action" onClick={send} disabled={sending}>{sending ? "..." : "Send"}</button>
+          <div className="nav-actions">
+            <button className="nav-action" onClick={() => setShowSchedule((s) => !s)} aria-label="Schedule Send"><Clock className="ic" /></button>
+            <button className="nav-action" onClick={() => send()}>Send</button>
+          </div>
         </div>
+        {showSchedule && (
+          <div className="pad-x"><div className="card">
+            {sendSlots(Date.now()).map((slot) => (
+              <button
+                key={slot.label}
+                className="pill-act"
+                onClick={() => { setShowSchedule(false); send(slot.at); }}
+              >
+                {slot.label} · {whenLabel(slot.at)}
+              </button>
+            ))}
+          </div></div>
+        )}
         <div className="pad-x msg-compose">
           <input className="msg-input" placeholder="To" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} />
           <input className="msg-input" placeholder="Subject" value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
@@ -2685,10 +2733,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   return (
     <div className={"screen ruled " + pushCls} key="list">
       <PageHeader title="Email" actions={<BarAction label="New Message" onClick={startCompose}><Plus className="ic" /></BarAction>} />
-      {/* The hold. It is the whole point of undo-send that this is loud,
-          reachable, and honest about what is happening: the message has NOT
-          gone yet, and Undo puts him back in the composer where he was. */}
-      {held && <SendHold startedAt={held.at} onUndo={undoSend} onNow={sendNow} />}
+      {/* The hold(s). It is the whole point of undo-send that this is loud,
+          reachable, and honest about what is happening: a held or scheduled
+          message has NOT gone yet, and Undo puts him back in the composer
+          where he was. Failed items stay visible too, with a Retry, rather
+          than vanishing -- nothing in the outbox is ever silently dropped. */}
+      {outbox.map((item) => (
+        <SendHold
+          key={item.id}
+          item={item}
+          onUndo={() => pullBackToCompose(item.id)}
+          onNow={() => sendNowFor(item.id)}
+          onRetry={() => retrySend(item.id)}
+          onEdit={() => pullBackToCompose(item.id)}
+        />
+      ))}
       {/* The tripwire, defused (2026-08-22): this row used to TURN THE
           FEATURE ON, one stray tap and the tab starts closing with no
           explanation. It opens the editor now; nothing closes until Start
@@ -3484,20 +3543,64 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
 // The send hold, counting down. Deliberately a bar and not a toast: a toast
 // that vanishes while he is still deciding is the same as not offering undo.
-function SendHold({ startedAt, onUndo, onNow }: { startedAt: number; onUndo: () => void; onNow: () => void }) {
+//
+// S2-1 (2026-09-04): now one card per outbox item, branching on its state --
+// held (or scheduled): Undo + Send Now, counting down or naming the moment.
+// sending: no actions, it is already in flight. failed: the error, plus
+// Retry (send again as-is) and Edit (pull it back into the composer).
+function SendHold({
+  item, onUndo, onNow, onRetry, onEdit,
+}: { item: OutboxItem; onUndo: () => void; onNow: () => void; onRetry: () => void; onEdit: () => void }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
+    if (item.state !== "held") return;
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
-  }, []);
-  const left = Math.max(0, Math.ceil((startedAt + HOLD_SECONDS * 1000 - now) / 1000));
+  }, [item.state]);
+
+  if (item.state === "failed") {
+    return (
+      <div className="pad-x">
+        <div className="card send-hold">
+          <div className="row">
+            <div className="row-glyph cat-fg-red"><Send className="ic" /></div>
+            <div className="row-grow">
+              <div className="conn-name">Could Not Send</div>
+              <div className="conn-meta">{item.error || "Try again"}</div>
+            </div>
+          </div>
+          <div className="row row-acts">
+            <button className="pill-act" onClick={onEdit}>Edit</button>
+            <button className="btn-sm" onClick={onRetry}>Retry</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (item.state === "sending") {
+    return (
+      <div className="pad-x">
+        <div className="card send-hold">
+          <div className="row">
+            <div className="row-glyph cat-fg-blue"><Send className="ic" /></div>
+            <div className="row-grow">
+              <div className="conn-name">Sending</div>
+              <div className="conn-meta">On its way</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="pad-x">
       <div className="card send-hold">
         <div className="row">
           <div className="row-glyph cat-fg-blue"><Send className="ic" /></div>
           <div className="row-grow">
-            <div className="conn-name">{left > 0 ? "Sending in " + left : "Sending"}</div>
+            <div className="conn-name">{holdLine(item, now)}</div>
             <div className="conn-meta">Nothing has left yet</div>
           </div>
           <button className="pill-act" onClick={onUndo}>Undo</button>

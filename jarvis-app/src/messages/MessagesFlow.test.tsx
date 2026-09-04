@@ -12,6 +12,7 @@ import { AIService } from "../ai/AIService";
 import type { GmailMeta, GmailThreadMeta } from "../connections/google/map";
 import MessagesFlow from "./MessagesFlow";
 import { saveMailSnapshot, loadMailSnapshot } from "./home";
+import { loadOutbox } from "./outbox";
 
 const noAI = new AIService({ available: false });
 
@@ -461,5 +462,72 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     await waitFor(() => expect(loadMailSnapshot().threads.length).toBe(0));
     expect(loadMailSnapshot().needsYou).toBe(0);
+  });
+
+  // S2-1 (2026-09-04): "A failed send destroys the message." The outbox
+  // queue (outbox.ts) is now wired through MessagesFlow. These cover the
+  // three things the old bare-setTimeout send could never do: survive a
+  // failure, give Undo something real to pull back, and survive a reload.
+
+  it("a failed send lands as Retry, not lost, and Retry actually resends it", async () => {
+    let calls = 0;
+    const api = makeApi({
+      sendMessage: async () => {
+        calls += 1;
+        if (calls === 1) throw new Error("network down");
+        return { id: "sent_1" };
+      },
+    });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByLabelText("New Message"));
+    fireEvent.change(screen.getByPlaceholderText("To"), { target: { value: "a@b.com" } });
+    fireEvent.click(screen.getByText("Send"));
+    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Send Now"));
+    // humanError only surfaces sentences it recognizes (rate limits, expired
+    // auth, and so on); a plain network error falls back to the call site's
+    // own wording rather than showing the raw "network down" to a person.
+    await waitFor(() => expect(screen.getByText("Could Not Send")).toBeInTheDocument());
+    expect(screen.getByText("Could not send")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Retry"));
+    await waitFor(() => expect(screen.getByText("Sent")).toBeInTheDocument());
+    expect(calls).toBe(2);
+  });
+
+  it("Undo pulls a still-held send back into the composer, unsent", async () => {
+    let sent = false;
+    const api = makeApi({ sendMessage: async () => { sent = true; return { id: "sent_1" }; } });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByLabelText("New Message"));
+    fireEvent.change(screen.getByPlaceholderText("To"), { target: { value: "a@b.com" } });
+    fireEvent.change(screen.getByPlaceholderText("Subject"), { target: { value: "Hi there" } });
+    fireEvent.click(screen.getByText("Send"));
+    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Undo"));
+    // Back in the composer, with what he was writing intact -- not a blank
+    // draft -- and the message never went out.
+    expect(((await screen.findByPlaceholderText("To")) as HTMLInputElement).value).toBe("a@b.com");
+    expect(((await screen.findByPlaceholderText("Subject")) as HTMLInputElement).value).toBe("Hi there");
+    expect(screen.queryByText("Nothing has left yet")).not.toBeInTheDocument();
+    expect(sent).toBe(false);
+  });
+
+  it("a held send survives a reload: the hold banner is there on remount, not dropped", async () => {
+    const api = makeApi();
+    const { unmount } = render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByLabelText("New Message"));
+    fireEvent.change(screen.getByPlaceholderText("To"), { target: { value: "a@b.com" } });
+    fireEvent.click(screen.getByText("Send"));
+    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+    expect(loadOutbox()).toHaveLength(1);
+    unmount();
+    // Still held in storage, not lost with the component.
+    expect(loadOutbox()[0]!.state).toBe("held");
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
   });
 });
