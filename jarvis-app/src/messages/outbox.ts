@@ -33,6 +33,7 @@ export interface OutboxItem {
   id: string;
   account?: string;
   to: string;
+  cc?: string;
   subject: string;
   body: string;
   inReplyTo?: string;

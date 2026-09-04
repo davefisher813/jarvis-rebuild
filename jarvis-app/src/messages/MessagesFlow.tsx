@@ -7,7 +7,7 @@ import { useGoogle } from "../connections/google/GoogleSession";
 
 import { googleConfigured } from "../connections/google/config";
 import {
-  mapThread, mapThreadFull, mapGmailFull, buildReply, encodeEmail,
+  mapThread, mapThreadFull, mapGmailFull, buildReply, buildReplyAll, encodeEmail,
   type ThreadRow, type ThreadFull, type MailFull,
 } from "../connections/google/map";
 import { selfBlankGuard,
@@ -122,7 +122,7 @@ import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalPr
 import { b64urlDecodeBytes } from "../connections/google/map";
 import { capAfterNumber } from "../shared/casing";
 
-type Draft = { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string };
+type Draft = { to: string; cc?: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string };
 type DraftRow = { id: string; to: string; subject: string; snippet: string; dateMs?: number; threadId?: string };
 type View = "list" | "detail" | "compose" | "deck" | "dead" | "rules" | "purge";
 type Filter = "triage" | "all" | "drafts";
@@ -1247,7 +1247,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
     try {
       const raw = encodeEmail({
-        to: item.to, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
+        to: item.to, cc: item.cc, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
         ...(trackOpens ? { pixelUrl: pixelUrlFor(item.trackId ?? newTrackId()) } : {}),
       });
       const sent = await api.sendMessage(raw, item.threadId);
@@ -1344,6 +1344,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       id: newTrackId(),
       account: draft.account,
       to: draft.to.trim(),
+      cc: draft.cc?.trim() || undefined,
       subject: draft.subject,
       body: draft.body,
       inReplyTo: draft.inReplyTo,
@@ -1391,7 +1392,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (!item) return;
     setOutbox((obs) => obs.filter((o) => o.id !== id));
     setDraft({
-      to: item.to, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
+      to: item.to, cc: item.cc, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
       threadId: item.threadId, fromDeck: item.fromDeck, account: item.account, handoffTo: item.handoffTo,
     });
     setEditingDraftId(item.editingDraftId ?? null);
@@ -1804,6 +1805,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const r = buildReply(lastMsg(t), "");
     setEditingDraftId(null);
     setDraft({ to: r.to, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) });
+    setView("compose");
+  };
+  // S2-4: everyone else on the thread stays on the thread, as Cc, instead of
+  // a plain Reply quietly dropping them to just the last sender.
+  const startReplyAll = (t: ThreadFull) => {
+    const account = accountOfThread(t.id);
+    const self = account || g.accounts[0]?.email || "";
+    const r = buildReplyAll(lastMsg(t), self, "");
+    setEditingDraftId(null);
+    setDraft({ to: r.to, cc: r.cc, subject: r.subject, body: r.body, inReplyTo: r.inReplyTo, threadId: r.threadId, account });
     setView("compose");
   };
   const startForward = (t: ThreadFull) => {
@@ -2272,6 +2283,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         )}
         <div className="pad-x msg-compose">
           <input className="msg-input" placeholder="To" value={draft.to} onChange={(e) => setDraft({ ...draft, to: e.target.value })} />
+          {/* S2-4: only shown once there is a Cc to review -- Reply All fills
+              this in; a plain Reply or a fresh compose never shows an empty
+              row. Still editable: a name gathered off the original To/Cc
+              lines is a starting point, not a decision already made. */}
+          {draft.cc !== undefined && (
+            <input className="msg-input" placeholder="Cc" value={draft.cc} onChange={(e) => setDraft({ ...draft, cc: e.target.value })} />
+          )}
           <input className="msg-input" placeholder="Subject" value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
           <textarea className="msg-textarea" placeholder="Message" value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
 
@@ -2326,6 +2344,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // the two questions stay separate.
     const bulk = isBulk(lastMsg(thread).listUnsubscribe);
     const worthSummarising = thread.messages.length > 1 || isLong(cleanBody(lastMsg(thread).body));
+    // S2-4: Reply All only earns a button when it would actually differ from
+    // Reply -- someone else was on the To/Cc line besides the user.
+    const replyAllSelf = accountOfThread(thread.id) || g.accounts[0]?.email || "";
+    const hasOthers = buildReplyAll(lastMsg(thread), replyAllSelf, "").cc.trim() !== "";
     return (
       <div className={"screen ruled " + pushCls} key="detail">
         <div className="nav-bar">
@@ -2425,6 +2447,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               </div>
               <div className="msg-actions">
                 <button className="btn btn-secondary" onClick={() => startReply(thread)}><CornerUpLeft className="ic" /> Reply</button>
+                {hasOthers && (
+                  <button className="btn btn-secondary" onClick={() => startReplyAll(thread)}><CornerUpLeft className="ic" /> Reply All</button>
+                )}
                 <button className="btn btn-secondary" onClick={() => startForward(thread)}><Forward className="ic" /> Forward</button>
               </div>
             </>

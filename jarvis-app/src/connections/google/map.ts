@@ -96,6 +96,12 @@ export interface GmailFull extends GmailMeta {
 export interface MailAttachment { filename: string; mime: string; attachmentId: string }
 export interface MailFull extends MailRow {
   to: string;
+  // Everyone else the message went to, and the address the sender actually
+  // wants answers at when it differs from From (mailing lists, no-reply
+  // senders with a real desk behind them). A plain Reply never looks at
+  // these; Reply All does (S2-4, 2026-09-04).
+  cc: string;
+  replyTo: string;
   // The sender's own machine-readable "here is how to stop" (RFC 2369/8058).
   listUnsubscribe: string;
   listUnsubscribePost: string;
@@ -262,6 +268,8 @@ export function mapGmailFull(m: GmailFull): MailFull {
   return {
     ...row,
     to: headerOf(hs, "To"),
+    cc: headerOf(hs, "Cc"),
+    replyTo: emailOf(headerOf(hs, "Reply-To")),
     fromEmail: emailOf(headerOf(hs, "From")),
     // A HUMAN TIME, NOT THE TRANSPORT'S (Dave 2026-08-25, on his screenshot
     // reading "Mon, 24 Aug 2026 17:13:10 +0000 (UTC)"). This was the raw
@@ -297,6 +305,53 @@ export function buildReply(orig: MailFull, body: string): {
   };
 }
 
+// A To or Cc header can hold several "Name <addr>" entries separated by
+// commas, and a display name is itself allowed to contain a comma
+// ("Doe, Jane" <jane@x.com>). Split only on the commas that are actually
+// between entries -- outside quotes, outside <...> -- then reduce each to
+// its bare address.
+function splitAddrs(raw: string): string[] {
+  if (!raw.trim()) return [];
+  const parts: string[] = [];
+  let quoted = false, angled = false, cur = "";
+  for (const ch of raw) {
+    if (ch === '"') quoted = !quoted;
+    else if (ch === "<" && !quoted) angled = true;
+    else if (ch === ">" && !quoted) angled = false;
+    if (ch === "," && !quoted && !angled) { parts.push(cur); cur = ""; continue; }
+    cur += ch;
+  }
+  if (cur.trim()) parts.push(cur);
+  return parts.map((p) => emailOf(p.trim())).filter(Boolean);
+}
+
+// Builds the fields for a Reply All: everyone else the message reached
+// stays on the thread as Cc instead of silently dropping to just the last
+// sender (S2-4, 2026-09-04 -- "Reply drops everyone except the last
+// sender"). `selfEmail` is the account the thread arrived on, the one
+// address that never needs to cc itself.
+export function buildReplyAll(orig: MailFull, selfEmail: string, body: string): {
+  to: string; cc: string; subject: string; body: string; inReplyTo: string; threadId: string;
+} {
+  const to = orig.replyTo || orig.fromEmail;
+  const seen = new Set([selfEmail.toLowerCase(), to.toLowerCase()]);
+  const cc: string[] = [];
+  for (const addr of [...splitAddrs(orig.to), ...splitAddrs(orig.cc)]) {
+    const low = addr.toLowerCase();
+    if (seen.has(low)) continue;
+    seen.add(low);
+    cc.push(addr);
+  }
+  return {
+    to,
+    cc: cc.join(", "),
+    subject: replySubject(orig.subject),
+    body,
+    inReplyTo: orig.messageId,
+    threadId: orig.threadId,
+  };
+}
+
 const PLACEHOLDER = /^\((no subject|unknown|empty)\)$/i;
 
 export function replySubject(subject: string): string {
@@ -314,11 +369,13 @@ function escapeHtml(s: string): string {
 // multipart/alternative: the same text, plus an HTML part that is nothing but
 // the escaped text and one 1x1 tracking image. The words the recipient reads
 // are identical either way.
-export function encodeEmail(msg: { to: string; subject: string; body: string; inReplyTo?: string; pixelUrl?: string }): string {
+export function encodeEmail(msg: { to: string; cc?: string; subject: string; body: string; inReplyTo?: string; pixelUrl?: string }): string {
   // Subjects are decoded on the way IN now, so a reply to "Nächste Schritte"
   // carries real UTF-8 that cannot legally sit raw in a header. encodeWord
   // returns an ASCII subject untouched, which is nearly all of them.
-  const headers = ["To: " + encodeWord(msg.to), "Subject: " + encodeWord(msg.subject)];
+  const headers = ["To: " + encodeWord(msg.to)];
+  if (msg.cc && msg.cc.trim()) headers.push("Cc: " + encodeWord(msg.cc));
+  headers.push("Subject: " + encodeWord(msg.subject));
   if (msg.inReplyTo) headers.push("In-Reply-To: " + msg.inReplyTo, "References: " + msg.inReplyTo);
   if (!msg.pixelUrl) {
     headers.push("Content-Type: text/plain; charset=UTF-8");

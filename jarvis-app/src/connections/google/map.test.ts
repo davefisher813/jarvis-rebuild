@@ -31,7 +31,7 @@ describe("google mappers", () => {
   });
 });
 
-import { mapInboxMessage, mapGmailFull, buildReply, encodeEmail } from "./map";
+import { mapInboxMessage, mapGmailFull, buildReply, buildReplyAll, encodeEmail } from "./map";
 
 describe("gmail read + send mappers", () => {
   it("flags unread and parses the timestamp", () => {
@@ -59,6 +59,98 @@ describe("gmail read + send mappers", () => {
     expect(decoded).toContain("To: a@x.com");
     expect(decoded).toContain("Subject: Re: Plan");
     expect(decoded).toContain("In-Reply-To: <abc>");
+  });
+
+  it("parses Cc and Reply-To off a message", () => {
+    const full = mapGmailFull({ id: "m1", threadId: "t", payload: { mimeType: "text/plain", body: { data: btoa("hi") },
+      headers: [
+        { name: "From", value: "A <a@x.com>" }, { name: "To", value: "Dave <d@x.com>, Bob <bob@x.com>" },
+        { name: "Cc", value: "Cara <cara@x.com>" }, { name: "Reply-To", value: "support@x.com" },
+        { name: "Subject", value: "S" },
+      ] } });
+    expect(full.cc).toBe("Cara <cara@x.com>");
+    expect(full.replyTo).toBe("support@x.com");
+  });
+
+  it("leaves cc and replyTo empty when the headers are absent", () => {
+    const full = mapGmailFull({ id: "m1", threadId: "t", payload: { mimeType: "text/plain", body: { data: btoa("hi") },
+      headers: [{ name: "From", value: "A <a@x.com>" }] } });
+    expect(full.cc).toBe("");
+    expect(full.replyTo).toBe("");
+  });
+});
+
+// S2-4 (2026-09-04): "Reply drops everyone except the last sender." A plain
+// Reply is still correct for a one-on-one thread; Reply All is the one that
+// has to actually keep everyone who was on it.
+describe("buildReplyAll", () => {
+  it("replies to the sender and ccs everyone else on the thread, minus the user", () => {
+    const m = mapGmailFull({ id: "m1", threadId: "t9", payload: { mimeType: "text/plain", body: { data: btoa("hi") },
+      headers: [
+        { name: "From", value: "Ridgeley <ridgeley@x.com>" },
+        { name: "To", value: "Dave <dave@x.com>, Bob <bob@x.com>" },
+        { name: "Cc", value: "Cara <cara@x.com>" },
+        { name: "Subject", value: "Waiver" }, { name: "Message-ID", value: "<abc>" },
+      ] } });
+    const r = buildReplyAll(m, "dave@x.com", "ok");
+    expect(r.to).toBe("ridgeley@x.com");
+    expect(r.cc).toBe("bob@x.com, cara@x.com");
+  });
+
+  it("prefers Reply-To over From when the sender named one", () => {
+    const m = mapGmailFull({ id: "m1", threadId: "t9", payload: { mimeType: "text/plain", body: { data: btoa("hi") },
+      headers: [
+        { name: "From", value: "List Bot <bot@list.com>" }, { name: "Reply-To", value: "person@x.com" },
+        { name: "To", value: "Dave <dave@x.com>" }, { name: "Subject", value: "S" }, { name: "Message-ID", value: "<x>" },
+      ] } });
+    expect(buildReplyAll(m, "dave@x.com", "ok").to).toBe("person@x.com");
+  });
+
+  it("never ccs the user their own address, case-insensitively", () => {
+    const m = mapGmailFull({ id: "m1", threadId: "t9", payload: { mimeType: "text/plain", body: { data: btoa("hi") },
+      headers: [
+        { name: "From", value: "Ridgeley <ridgeley@x.com>" },
+        { name: "To", value: "Dave@X.com, Ridgeley <ridgeley@x.com>" },
+        { name: "Subject", value: "S" }, { name: "Message-ID", value: "<x>" },
+      ] } });
+    expect(buildReplyAll(m, "dave@x.com", "ok").cc).toBe("");
+  });
+
+  it("splits a display name's own comma correctly (\"Doe, Jane\" <jane@x.com>)", () => {
+    const m = mapGmailFull({ id: "m1", threadId: "t9", payload: { mimeType: "text/plain", body: { data: btoa("hi") },
+      headers: [
+        { name: "From", value: "Ridgeley <ridgeley@x.com>" },
+        { name: "To", value: '"Doe, Jane" <jane@x.com>, Dave <dave@x.com>' },
+        { name: "Subject", value: "S" }, { name: "Message-ID", value: "<x>" },
+      ] } });
+    expect(buildReplyAll(m, "dave@x.com", "ok").cc).toBe("jane@x.com");
+  });
+
+  it("with no one else on the thread, cc is simply empty -- Reply All degrades to Reply", () => {
+    const m = mapGmailFull({ id: "m1", threadId: "t9", payload: { mimeType: "text/plain", body: { data: btoa("hi") },
+      headers: [
+        { name: "From", value: "Ridgeley <ridgeley@x.com>" }, { name: "To", value: "Dave <dave@x.com>" },
+        { name: "Subject", value: "S" }, { name: "Message-ID", value: "<x>" },
+      ] } });
+    expect(buildReplyAll(m, "dave@x.com", "ok").cc).toBe("");
+  });
+});
+
+describe("encodeEmail with Cc", () => {
+  it("adds a Cc header, between To and Subject, only when one is given", () => {
+    const raw = encodeEmail({ to: "a@x.com", cc: "b@x.com, c@x.com", subject: "S", body: "hi" });
+    const decoded = atob(raw.replace(/-/g, "+").replace(/_/g, "/"));
+    expect(decoded).toContain("Cc: b@x.com, c@x.com");
+    expect(decoded.indexOf("To:")).toBeLessThan(decoded.indexOf("Cc:"));
+    expect(decoded.indexOf("Cc:")).toBeLessThan(decoded.indexOf("Subject:"));
+  });
+
+  it("omits Cc entirely when there is none, blank, or whitespace-only", () => {
+    for (const cc of [undefined, "", "   "]) {
+      const raw = encodeEmail({ to: "a@x.com", cc, subject: "S", body: "hi" });
+      const decoded = atob(raw.replace(/-/g, "+").replace(/_/g, "/"));
+      expect(decoded).not.toContain("Cc:");
+    }
   });
 });
 
