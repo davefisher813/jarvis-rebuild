@@ -81,6 +81,33 @@ describe("the windowed read (the log is never bulk-loaded)", () => {
   });
 });
 
+// B5 (2026-09-04): review/seal.ts has folded suggestion.accepted/dismissed
+// into "You take the AI's offers" and "Links get skipped" since 2026-08-25,
+// and serverSink.ts has persisted both just as long. READ_TYPES was the one
+// place in between that never named them, so those two report lines could
+// never render -- the fold always saw zero rows.
+describe("suggestion accepts and dismisses reach the window (B5)", () => {
+  it("asks the server for suggestion.accepted and suggestion.dismissed", async () => {
+    let seen: { inArg: [string, string[]] } | null = null;
+    await readWindow(fakeClient([], (q) => { seen = q; }), NOW);
+    expect(seen!.inArg[1]).toContain("suggestion.accepted");
+    expect(seen!.inArg[1]).toContain("suggestion.dismissed");
+  });
+
+  it("keeps them from the local log too, kind intact for the monthly fold", async () => {
+    const { eventLog } = await import("../events");
+    eventLog.clear();
+    eventLog.append({ id: "e1", v: 1, ts: NOW, type: "suggestion.accepted", props: { kind: "ai" } });
+    eventLog.append({ id: "e2", v: 1, ts: NOW, type: "suggestion.dismissed", props: { kind: "link" } });
+    const rows = await readWindow(null, NOW);
+    const acc = rows.find((r) => r.type === "suggestion.accepted");
+    const dis = rows.find((r) => r.type === "suggestion.dismissed");
+    expect(acc?.kind).toBe("ai");
+    expect(dis?.kind).toBe("link");
+    eventLog.clear();
+  });
+});
+
 describe("the day an event names for itself", () => {
   it("localWindow dates a row by props.day when the event carries one", async () => {
     const { eventLog } = await import("../events");

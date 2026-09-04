@@ -159,6 +159,13 @@ describe("receiptLine speaks each derivation's own numbers", () => {
     expect(receiptLine("task_timing", { day: "d", a: 30 })).toBe("Ran 30 min past the estimate");
     expect(receiptLine("task_timing", { day: "d", a: -15 })).toBe("Wrapped 15 min early");
   });
+  // B5 (2026-09-04): these two fell through to "Seen" on every row, because
+  // no case named them despite derive.ts writing the band hour the same way
+  // completion_window does.
+  it("renders the training and email band hours, not \"Seen\"", () => {
+    expect(receiptLine("training_window", { day: "d", a: 18 })).toBe("Trained in the 6 PM window");
+    expect(receiptLine("email_window", { day: "d", a: 9 })).toBe("Handled email in the 9 AM window");
+  });
   it("never invents a receipt it cannot render", () => {
     expect(receiptLine(undefined, { day: "d" })).toBe("Seen");
     expect(receiptLine("plan_rate", { day: "d" })).toBe("Seen");

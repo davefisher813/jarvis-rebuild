@@ -102,12 +102,23 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
   // context so JARVIS stops re-asking what was already decided, and can say
   // what changed since. Superseded decisions are excluded by list(); the
   // reason rides along because the reason is the whole point of the record.
+  //
+  // B5 (2026-09-04): ruledOut is the record's whole stop-relitigating block
+  // -- captured, edited, and shown as its own "Ruled Out" section on the
+  // record's page -- and it never rode along here, so JARVIS could propose
+  // back the exact option the record closed. It joins the why clause rather
+  // than getting its own sentence, so the shape stays one line per decision.
   let decisionLines: string[] = [];
   try {
     decisionLines = s.decisions
       ? (await s.decisions.list())
         .slice(0, 12)
-        .map((d) => (d.data.why ? `${d.data.decision} (because ${d.data.why})` : d.data.decision))
+        .map((d) => {
+          const parts: string[] = [];
+          if (d.data.why) parts.push(`because ${d.data.why}`);
+          if (d.data.ruledOut?.length) parts.push(`ruled out: ${d.data.ruledOut.join(", ")}`);
+          return parts.length ? `${d.data.decision} (${parts.join("; ")})` : d.data.decision;
+        })
       : [];
   } catch { /* same rule: thinner, never broken */ }
   // INSIGHTS GETS AN OUTPUT (handoff item 8, decision s2): a compressed line

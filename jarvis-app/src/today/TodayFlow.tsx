@@ -12,7 +12,7 @@ import { ENTITY_TASK } from "../notes/types";
 import { useFreshLists } from "../data/useFreshLists";
 import type { TaskItem } from "../tasks/TasksService";
 import { greetingFor, longDate, shortDate } from "./greeting";
-import { tomorrowISO, nowHHMM, daySummary, todaysTasks, billsLine, billsDueSoon } from "./todayData";
+import { tomorrowISO, nowHHMM, daySummary, todaysTasks, billsLine, payableBill } from "./todayData";
 import TodayPage from "./TodayPage";
 import MailNotices from "./MailNotices";
 import ReportFlow, { reportSeen, markReportSeen } from "../review/ReportPage";
@@ -256,6 +256,20 @@ export default function TodayFlow({
       } catch {
         setSweepReceipt({ date: todayISO(), moved: [], failed: true });
       }
+    })();
+    // B5 (2026-09-04): rollAutopayBills' only caller was Money's own reload,
+    // so a user who never opens Money (not a default tab) saw last month's
+    // autopay bill sit there as Overdue in Notifications and due on Today --
+    // the exact lie the roll-forward exists to prevent (money/bills.ts: an
+    // autopay bill is never "overdue," the app cannot know a payment
+    // cleared). Today is the one screen every user reaches, so it runs here
+    // too. Cheap and idempotent per due date; harmless alongside Money's own
+    // call on whichever session opens it first.
+    void (async () => {
+      try {
+        const n = await tasks.rollAutopayBills(todayISO());
+        if (n > 0) await reload();
+      } catch { /* next open tries again; nothing was lost by waiting */ }
     })();
     // Once, at open: the sweep is a first-open-of-the-day event by definition.
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -857,10 +871,11 @@ export default function TodayFlow({
   const energy = chrono !== "neutral" ? { chronotype: chrono, peakStartMin: peak.s, peakEndMin: peak.e } : undefined;
   const sizing = daySizing(prevMood);
   const onAIPlan = ai.available
-    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => aiPlanDay(ai, picks, planEvents, s, e, {
+    ? (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number, background: boolean) => aiPlanDay(ai, picks, planEvents, s, e, {
         work: { startMin: routineData.workStartMin, endMin: routineData.workEndMin },
         energy,
         gentle: sizing.light,
+        background,
       })
     : undefined;
   const minLabel = (m: number) => {
@@ -2342,10 +2357,16 @@ export default function TodayFlow({
         />
       }
       billLine={billsLine(taskItems, today) ?? undefined}
-      onPayBill={() => {
-        const next = billsDueSoon(taskItems, today)[0];
-        if (next) void onToggleTask(next.id);
-      }}
+      // B5 (2026-09-04): bills.ts's own first rule is that autopay never
+      // says "paid" -- the app cannot know a payment cleared -- but this
+      // offered the button on whatever bill was soonest, autopay or not.
+      // The line above still shows an autopay bill (informational: "Set to
+      // autopay" is exactly what money's law wants said); payableBill()
+      // withholds only the false "Paid" affordance.
+      onPayBill={(() => {
+        const next = payableBill(taskItems, today);
+        return next ? () => void onToggleTask(next.id) : undefined;
+      })()}
       freshStart={offTrack ? () => setFreshOpen(true) : undefined}
       locked={blocked}
       onOpenEvent={onOpenEvent}

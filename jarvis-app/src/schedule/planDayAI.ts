@@ -25,6 +25,14 @@ export interface AIPlanOpts {
   gentle?: boolean;
   profile?: string;
   timeoutMs?: number;
+  // B5 (2026-09-04): this one function serves both a tap ("Plan It") and a
+  // mount-effect auto-refine (PlanDaySheet.tsx's runAI, launched on open, no
+  // tap at all) -- callers must say which, so aiCallAllowed can actually
+  // refuse the auto-refine at "On Request" while still letting the tap
+  // through. Defaults to false (a real request) so a caller that forgets
+  // this fails toward permissive, matching AIService.complete's own default;
+  // both current callers pass it explicitly regardless.
+  background?: boolean;
   // Brain Layer 2 (item 04): the user's strands, each with its real id. When
   // present the model must say WHICH facts changed its plan (leaned_on), and
   // only cited ids that exist survive the parse. Honest attribution became
@@ -188,7 +196,7 @@ export async function aiPlanDay(
   const timeout = new Promise<never>((_res, rej) => { timer = setTimeout(() => rej(new Error("AI planning timed out")), timeoutMs); });
   try {
     const text = await Promise.race([
-      ai.complete(messages, planDaySystem(), { kind: "plan", pin: "morningPlan", schema: PLAN_SCHEMA }),
+      ai.complete(messages, planDaySystem(), { kind: "plan", pin: "morningPlan", background: opts.background ?? false, schema: PLAN_SCHEMA }),
       timeout,
     ]);
     const strandIds = (opts.strands ?? []).map((s) => s.id);

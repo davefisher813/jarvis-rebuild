@@ -59,6 +59,11 @@ const READ_TYPES = [
   // The Brain stops starving (handoff item 1, 2026-09-04): the semantic
   // act email now emits, read by the email_window derivation.
   "email.handled",
+  // B5 (2026-09-04): review/seal.ts has folded these into "You take the AI's
+  // offers" / "Links get skipped" etc. since 2026-08-25, and serverSink.ts
+  // has persisted them just as long -- this list was the one place in
+  // between that never named them, so the fold always saw zero rows.
+  "suggestion.accepted", "suggestion.dismissed",
 ];
 
 export function windowStartISO(nowMs: number, days = WINDOW_DAYS): string {

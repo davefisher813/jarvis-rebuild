@@ -72,10 +72,10 @@ describe("today aggregation", () => {
 });
 
 // Bills where the eyes are (2026-08-09).
-import { billsLine } from "./todayData";
+import { billsLine, payableBill } from "./todayData";
 
-const bill = (id: string, text: string, due: string, amount?: number, done = false): TaskItem =>
-  ({ id, data: { text, done, due, bill: { amount: amount ?? 0 } } }) as TaskItem;
+const bill = (id: string, text: string, due: string, amount?: number, done = false, autopay = false): TaskItem =>
+  ({ id, data: { text, done, due, bill: { amount: amount ?? 0, ...(autopay ? { autopay: true } : {}) } } }) as TaskItem;
 const plain = (id: string, due: string): TaskItem => ({ id, data: { text: id, done: false, due } }) as TaskItem;
 
 describe("billsLine", () => {
@@ -101,5 +101,29 @@ describe("billsLine", () => {
 
   it("ignores a paid bill", () => {
     expect(billsLine([bill("b", "Pay Rent", T, 1850, true)], T)).toBeNull();
+  });
+});
+
+// B5 (2026-09-04): "Today offers Paid on an autopay bill." bills.ts states
+// the rule that autopay never says paid; this is the gate that keeps the
+// button honest without hiding the informational line.
+describe("payableBill", () => {
+  const T = "2026-08-09";
+
+  it("returns the soonest due bill when it is a manual one", () => {
+    expect(payableBill([bill("b", "Pay Rent", T, 1850)], T)?.id).toBe("b");
+  });
+
+  it("withholds an autopay bill: no tap here may claim it was paid", () => {
+    expect(payableBill([bill("b", "Pay Rent", T, 1850, false, true)], T)).toBeNull();
+  });
+
+  it("stays withheld even when a later bill in the window is manual: the button is about THE soonest bill, never a substitute", () => {
+    const bills = [bill("auto", "Pay Rent", T, 1850, false, true), bill("manual", "Pay Electric", "2026-08-11", 120)];
+    expect(payableBill(bills, T)).toBeNull();
+  });
+
+  it("nothing due soon means nothing payable", () => {
+    expect(payableBill([], T)).toBeNull();
   });
 });

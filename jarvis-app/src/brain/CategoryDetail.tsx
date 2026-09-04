@@ -319,7 +319,11 @@ export default function CategoryDetail({
   // straight to GoalService, bypassing this page's own goals state, so
   // without this the new goal is invisible under Goals Here until some
   // OTHER trigger happens to reload the page.
-  if (gymOpen) return <GymFlow startDayId={gymStartDay ?? undefined} onBack={() => { setGymOpen(false); setGymStartDay(null); void reload(); }} />;
+  // B5 (2026-09-04): a session started from here never carried the calendar
+  // gym block's event id, so finishing it had nothing to stamp -- the block
+  // sat offering Start on a session already logged, open to a double entry.
+  // upcoming already carries the id gymEvent below reads .start from.
+  if (gymOpen) return <GymFlow startDayId={gymStartDay ?? undefined} startDoorEventId={upcoming.find((x) => x.date === today && x.start)?.id} onBack={() => { setGymOpen(false); setGymStartDay(null); void reload(); }} />;
   const kind = effectiveKind(cat.data);
   const isOrg = kind === "org";
   const paused = isOrg && cat.data.season === "paused";

@@ -431,7 +431,7 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
 // The gym track: programs in the user's own words, weeks as the time axis,
 // the set strip as the same object in the plan and in the live session, the
 // in-gym loop, live PRs, and an honest receipt.
-export default function GymFlow({ onBack, door, startDayId }: {
+export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: {
   onBack: () => void;
   /** D4-C: this mount came through a calendar gym block. The session that
    *  starts here carries the event id so finishing can stamp the block done
@@ -442,6 +442,12 @@ export default function GymFlow({ onBack, door, startDayId }: {
    *  day it showed, and the gym walks into that day's fit sheet on mount,
    *  exactly as tapping Start on the program page would. */
   startDayId?: string;
+  /** B5 (2026-09-04): this path skipped the door entirely, so a session
+   *  started from the Health hero never carried an event id -- finishing it
+   *  had nothing to stamp, and the calendar's gym block sat offering Start
+   *  on a session already logged. CategoryDetail.tsx already reads today's
+   *  gym block for the hero's own display; this is the same event's id. */
+  startDoorEventId?: string;
 }) {
   const svc = useGym();
   const ai = useAI();
@@ -810,8 +816,8 @@ export default function GymFlow({ onBack, door, startDayId }: {
     if (existing && hasWork(existing.exercises) && isStillActive(existing, todayISO())) { setLive(existing); return; }
     if (!program) return;
     const day = program.data.weeks.flatMap((w) => w.days).find((d) => d.id === startDayId);
-    if (day) requestStart(day);
-  }, [startDayId, startHandled, loaded, program]);
+    if (day) requestStart(day, { doorEventId: startDoorEventId });
+  }, [startDayId, startDoorEventId, startHandled, loaded, program]);
 
   // THE DOOR OPENS (D4-C): mounted from the calendar's gym block. The
   // pinned day walks straight into the fit sheet; no pin, it asks once.

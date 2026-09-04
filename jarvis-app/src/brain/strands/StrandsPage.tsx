@@ -48,6 +48,17 @@ export function receiptLine(derivation: DerivationKey | undefined, e: StrandEvid
   if (derivation === "task_timing" && typeof e.a === "number") {
     return e.a > 0 ? `Ran ${e.a} min past the estimate` : `Wrapped ${-e.a} min early`;
   }
+  // B5 (2026-09-04): derive.ts's two newest detectors (training_window,
+  // email_window) have written the band hour as evidence.a since they
+  // launched, same shape as completion_window; nothing here had a case for
+  // either, so every row under "You train between 6 PM and 9 PM" fell
+  // through to "Seen".
+  if (derivation === "training_window" && typeof e.a === "number") {
+    return `Trained in the ${hour12(e.a)} window`;
+  }
+  if (derivation === "email_window" && typeof e.a === "number") {
+    return `Handled email in the ${hour12(e.a)} window`;
+  }
   return "Seen";
 }
 

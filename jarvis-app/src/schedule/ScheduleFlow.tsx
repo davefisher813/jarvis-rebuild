@@ -357,7 +357,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   } : undefined;
 
   const onAIPlan = ai.available
-    ? async (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number) => {
+    ? async (picks: { id: string; text: string; category: string; overdue: boolean }[], s: number, e: number, background: boolean) => {
         const ctx = await gatherContext();
         // Strands ride with their real ids so the model can HONESTLY say
         // which fact changed the plan (item 04 attribution). Best-effort.
@@ -370,6 +370,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
           energy,
           profile: contextToText(ctx),
           strands: strandList,
+          background,
         });
       }
     : undefined;

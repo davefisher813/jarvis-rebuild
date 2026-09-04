@@ -119,7 +119,9 @@ export default function PlanDaySheet({
   // The user's chosen day cap from the monthly report, when set.
   chosenCap?: number;
   onClose: () => void;
-  onAIPlan?: (picks: { id: string; text: string; category: string; overdue: boolean }[], startMin: number, endMin: number) => Promise<{ items: { id: string; minutes: number }[]; leanedOn: string[] }>;
+  // B5 (2026-09-04): background says whether THIS call is the mount-effect
+  // auto-refine or a real tap, so the AI Control gate can tell them apart.
+  onAIPlan?: (picks: { id: string; text: string; category: string; overdue: boolean }[], startMin: number, endMin: number, background: boolean) => Promise<{ items: { id: string; minutes: number }[]; leanedOn: string[] }>;
 }) {
   // Optional: the plan sheet renders in places that may sit outside the
   // rules provider, and a missing store must mean "learn nothing", not a crash.
@@ -269,7 +271,7 @@ export default function PlanDaySheet({
   // No spinner, no error surface: a failed refine leaves the learned
   // estimates, which are already honest.
   const launchedFor = useRef<string[]>([]);
-  const runAI = async (ids: string[]) => {
+  const runAI = async (ids: string[], background: boolean) => {
     if (!onAIPlan || ids.length === 0 || aiBusy) return;
     launchedFor.current = ids;
     setAiBusy(true);
@@ -277,7 +279,7 @@ export default function PlanDaySheet({
       const picked = allTasks
         .filter((t) => ids.includes(t.id))
         .map((t) => ({ id: t.id, text: t.text, category: t.category, overdue: t.overdue }));
-      const result = await onAIPlan(picked, startMin, effEnd);
+      const result = await onAIPlan(picked, startMin, effEnd, background);
       setPicks((current) => {
         const stillMine = launchedFor.current.join("|") === ids.join("|");
         const order = result.items.map((r) => r.id).filter((id) => current.includes(id));
@@ -313,7 +315,9 @@ export default function PlanDaySheet({
     if (fromDraft.current) return;
     if (aiLaunched.current || picks.length === 0) return;
     aiLaunched.current = true;
-    void runAI(picks);
+    // B5 (2026-09-04): this fires on mount, never a tap -- the definition of
+    // a background call at "On Request".
+    void runAI(picks, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [picks]);
 
@@ -735,7 +739,8 @@ export default function PlanDaySheet({
                 setPicks(chosen);
                 setOverrides({});
                 if (cap?.n != null && chosen.length === cap.n) setUsedUsual(true);
-                void runAI(chosen);
+                // The tap that names this button: a real request, not background.
+                void runAI(chosen, false);
               }}
             >
               Plan It

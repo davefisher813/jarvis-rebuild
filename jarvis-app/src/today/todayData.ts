@@ -71,6 +71,18 @@ export function billsDueSoon(tasks: TaskItem[], today: string): TaskItem[] {
     .sort((a, b) => ((a.data.due as string) || "").localeCompare((b.data.due as string) || ""));
 }
 
+// B5 (2026-09-04): money/bills.ts's first rule is that autopay never says
+// "paid" -- the app cannot know a payment cleared -- but the card's Paid
+// button used to fire on whatever billsDueSoon() returned first, autopay or
+// not. billsLine() still reads billsDueSoon() directly so an autopay bill
+// keeps its informational line ("Set to autopay" is exactly what the law
+// wants said); this is the narrower answer to "which bill, if any, may a tap
+// here mark paid," used only to gate the button.
+export function payableBill(tasks: TaskItem[], today: string): TaskItem | null {
+  const next = billsDueSoon(tasks, today)[0];
+  return next && !next.data.bill?.autopay ? next : null;
+}
+
 // TITLE AND SUB, NOT ONE SENTENCE (2026-08-24, page-by-page walk).
 //
 // This returned the whole thing as one string, and TodayPage passed it as the

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { NotesProvider } from "../data/NotesProvider";
+import { NotesProvider, useDecisions } from "../data/NotesProvider";
 import { useAIContext, useOptionalAIContext, todayISO } from "./useAIContext";
 
 // Brain Personalization Phase 3. Both hooks funnel through one gatherFrom, so
@@ -32,6 +32,39 @@ describe("useAIContext", () => {
   // blank profile.
   it("throws without NotesProvider, unchanged", () => {
     expect(() => renderHook(() => useAIContext())).toThrow();
+  });
+});
+
+// B5 (2026-09-04): ruledOut is the Decision Record's whole stop-relitigating
+// block -- captured, edited, and shown as its own "Ruled Out" section -- and
+// it never reached this read-back, so JARVIS could propose back the exact
+// option a record closed.
+describe("useOptionalAIContext carries ruled-out options (B5)", () => {
+  it("folds ruledOut into the decision's context line", async () => {
+    function Seed({ onDone }: { onDone: () => void }) {
+      const decisions = useDecisions();
+      void decisions.create({
+        decision: "Ship on Supabase",
+        why: "RLS beats hand-rolled auth checks",
+        ruledOut: ["Firebase", "raw Postgres"],
+      }).then(onDone);
+      return null;
+    }
+    let seeded = false;
+    const { result } = renderHook(() => useOptionalAIContext(), {
+      wrapper: ({ children }) => (
+        <NotesProvider userId="u-ruledout">
+          <Seed onDone={() => { seeded = true; }} />
+          {children}
+        </NotesProvider>
+      ),
+    });
+    await waitFor(() => expect(seeded).toBe(true));
+    await waitFor(async () => {
+      const ctx = await result.current();
+      const line = ctx?.decisions?.find((d) => d.startsWith("Ship on Supabase"));
+      expect(line).toBe("Ship on Supabase (because RLS beats hand-rolled auth checks; ruled out: Firebase, raw Postgres)");
+    });
   });
 });
 

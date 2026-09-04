@@ -136,9 +136,14 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         const ctx = await gather();
         const yesterday = readCache(todayISO(new Date(Date.now() - 86400000)));
         const avoid = (yesterday?.items ?? []).map((s) => s.text);
+        // B5 (2026-09-04): this fires from a mount effect, not a tap, and
+        // carried no flag -- so at "On Request" (which is supposed to mean
+        // only calls the user just asked for) it ran anyway. aiGate.ts's
+        // aiCallAllowed refuses exactly this shape when told.
         const raw = await ai.complete(
           [{ role: "user", content: "What should I focus on today?" }],
           suggestionsSystemPrompt(ctx, today, avoid),
+          { kind: "suggestions", background: true },
         );
         if (!on) return;
         const c: DayCache = { items: parseSuggestions(raw), dismissed: [], acted: [] };
