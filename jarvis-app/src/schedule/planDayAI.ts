@@ -2,6 +2,8 @@ import { JARVIS_VOICE } from "../ai/voice";
 import type { AIService, AIMessage } from "../ai/AIService";
 import type { EventItem } from "./types";
 import { fmtTime } from "./calendar";
+import { effectiveLevel, aiCallAllowed, refusalMessage } from "../ai/aiGate";
+import { getAIControl } from "../ai/levelStore";
 
 // The AI's job: order the chosen tasks by priority and estimate a realistic
 // length for each. Placement stays deterministic (planDay), so the model can
@@ -170,13 +172,23 @@ export async function aiPlanDay(
   endMin: number,
   opts: AIPlanOpts = {},
 ): Promise<AIPlanResult> {
+  // B3-9 (2026-09-04): AI Control offers five per-feature pins; this single
+  // call is what BOTH "Morning Plan" and "Estimates" name (its own job
+  // comment above: order the picks AND estimate a length for each), and
+  // neither pin was ever passed to it, so turning either off still ran it
+  // at the master level. One call, gated by the more restrictive of the two:
+  // pin: "morningPlan" is what AIService and the What Ran log see this call
+  // as, and the estimates pin is checked here first so it can refuse the
+  // same call the ordering pin would allow.
+  const estimatesLevel = effectiveLevel(getAIControl(), "estimates");
+  if (!aiCallAllowed(estimatesLevel, false)) throw new Error(refusalMessage(estimatesLevel, false));
   const timeoutMs = opts.timeoutMs ?? AI_PLAN_TIMEOUT_MS;
   const messages: AIMessage[] = [{ role: "user", content: planDayUserMessage(picks, events, startMin, endMin, opts) }];
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_res, rej) => { timer = setTimeout(() => rej(new Error("AI planning timed out")), timeoutMs); });
   try {
     const text = await Promise.race([
-      ai.complete(messages, planDaySystem(), { kind: "plan", schema: PLAN_SCHEMA }),
+      ai.complete(messages, planDaySystem(), { kind: "plan", pin: "morningPlan", schema: PLAN_SCHEMA }),
       timeout,
     ]);
     const strandIds = (opts.strands ?? []).map((s) => s.id);

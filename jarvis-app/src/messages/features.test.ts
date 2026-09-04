@@ -164,6 +164,21 @@ describe("VIPs", () => {
     expect(loadVips(st)).not.toContain("p0@x.com");
   });
 
+  // B3-7 (2026-09-04): "the sixth VIP silently fails and the toast lies."
+  it("tells a refused sixth apart from a real toggle, and never removes anyone to make room", () => {
+    const st = mem();
+    for (let i = 0; i < VIP_MAX; i++) expect(toggleVip(`p${i}@x.com`, st).capped).toBe(false);
+    expect(loadVips(st)).toHaveLength(VIP_MAX);
+    const sixth = toggleVip("p5@x.com", st);
+    expect(sixth.capped).toBe(true);
+    expect(sixth.list).toEqual(loadVips(st)); // unchanged: not added, and nobody bumped
+    expect(sixth.list).not.toContain("p5@x.com");
+    // A real removal still works, and is never reported as capped.
+    const removed = toggleVip("p0@x.com", st);
+    expect(removed.capped).toBe(false);
+    expect(removed.list).not.toContain("p0@x.com");
+  });
+
   it("overrules triage, which is the entire point", () => {
     const map = { t1: { bucket: "noise" as const, gist: "g", lastMsgId: "m" } };
     const rows = [{ id: "t1", fromEmail: "Wei@northlake.org" }];

@@ -78,7 +78,7 @@ const RESTORE_WORDS: SettleWords = {
 };
 import { inboxSentence } from "./inboxBrief";
 import { dueChases, loadChases, clearChase, setChase, CHASE_DAYS, CHASE_DEFAULT } from "./followUp";
-import { loadVips, toggleVip, isVip, applyVips } from "./vip";
+import { loadVips, toggleVip, isVip, applyVips, vipLine, VIP_MAX } from "./vip";
 import { collapseNoise, collapseLine } from "./collapse";
 import { loadNudgeCounts, countNudge } from "./escalate";
 import { decide, type Decision, type MailAction } from "./mailAction";
@@ -685,19 +685,34 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // E14 (2026-08-23): the one batch move that is safe on this list.
   //
   // A Nothing Owed row is a receipt: `decideFor(w).ask === "nothing"` is the
-  // whole definition of the section. Clearing them owes nobody a reply and
+  // whole definition of the section. Archiving them owes nobody a reply and
   // sends nobody an email, which is exactly why Waiting On does NOT get a
   // head verb: the batch move there would be sending six real emails on one
   // tap. One Undo covers the whole batch.
-  const dropAll = (ids: string[]) => {
-    if (!ids.length) return;
-    setWaiting((ws) => ws.filter((x) => !ids.includes(x.threadId)));
-    for (const id of ids) letGo(id);
-    countCleared(ids.length);
-    say(capAfterNumber(ids.length + " cleared"), { label: "Undo", run: () => {
-      for (const id of ids) undoLetGo(id);
-      void loadWaiting();
-    } });
+  //
+  // B3-1 (2026-09-04): this used to only clear local state and call letGo,
+  // which letGo.ts's own header is explicit is NOT archiving ("the mail is
+  // untouched. It only says stop counting the days on this one"). The button
+  // reads "Archive These" and the receipt said "N cleared"; every one of
+  // those conversations stayed in the Gmail inbox. Now it makes the same
+  // real modifyThread call archivePicked already makes on the general inbox
+  // list, counted the same honest way, with an Undo that puts INBOX back.
+  const dropAll = async (rows: (WaitingRow & { account?: string })[]) => {
+    if (!rows.length) return;
+    const ids = new Set(rows.map((w) => w.threadId));
+    setWaiting((ws) => ws.filter((x) => !ids.has(x.threadId)));
+    const { failed } = await settleAll(rows, (w) => apiFor(w.account)?.modifyThread(w.threadId, [], ["INBOX"]));
+    if (failed.length) setWaiting((ws) => [...failed, ...ws]);
+    countCleared(rows.length - failed.length);
+    say(capAfterNumber(settleLine(rows.length - failed.length, failed.length, ARCHIVE_WORDS)), {
+      label: "Undo",
+      run: () => void (async () => {
+        setWaiting((ws) => [...rows, ...ws]);
+        const back = await settleAll(rows, (w) => apiFor(w.account)?.modifyThread(w.threadId, ["INBOX"], []));
+        if (back.failed.length) say(settleLine(back.ok.length, back.failed.length, RESTORE_WORDS));
+        void loadWaiting();
+      })(),
+    });
   };
 
   // Tap a Waiting On row: JARVIS drafts the nudge, the user gets it in
@@ -2425,16 +2440,23 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               his own filing. Short on purpose: a VIP list with twenty people
               on it is an inbox with extra steps. */}
           <div className="msg-filed">
-            <span className="conn-meta">{isVip(lastMsg(thread).fromEmail, vips) ? "Always gets through" : "Not a VIP · waits with everything else"}</span>
+            <span className="conn-meta">{isVip(lastMsg(thread).fromEmail, vips) ? "Always gets through" : vipLine(vips.length)}</span>
             <div className="msg-chips">
               <button
                 className={"chip" + (isVip(lastMsg(thread).fromEmail, vips) ? " on" : "")}
                 onClick={() => {
-                  const next = toggleVip(lastMsg(thread).fromEmail);
-                  setVips(next);
-                  setToast(isVip(lastMsg(thread).fromEmail, next)
-                    ? displayName(lastMsg(thread).from) + " always gets through now"
-                    : displayName(lastMsg(thread).from) + " is back to normal");
+                  // B3-7 (2026-09-04): a capped toggle is neither an add nor
+                  // a removal; saying so, honestly, beats a lying "back to
+                  // normal" about someone who was never a VIP.
+                  const { list, capped } = toggleVip(lastMsg(thread).fromEmail);
+                  if (capped) {
+                    setToast(`VIP is full at ${VIP_MAX} · Remove one first`);
+                  } else {
+                    setVips(list);
+                    setToast(isVip(lastMsg(thread).fromEmail, list)
+                      ? displayName(lastMsg(thread).from) + " always gets through now"
+                      : displayName(lastMsg(thread).from) + " is back to normal");
+                  }
                   setTimeout(() => setToast(null), 2500);
                 }}
               >VIP</button>
@@ -3186,7 +3208,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 <>
                   <div className="sh2 sh2-quiet outcome-head">
                     <span className="t">Nothing Owed</span>
-                    <button className="see-all pill-action" onClick={() => dropAll(unowed.map(({ w }) => w.threadId))}>Archive These</button>
+                    <button className="see-all pill-action" onClick={() => void dropAll(unowed.map(({ w }) => w))}>Archive These</button>
                   </div>
                   <div className="pad-x"><div className="card list-card-ruled">
                     {unowed.map(({ w, d }) => (

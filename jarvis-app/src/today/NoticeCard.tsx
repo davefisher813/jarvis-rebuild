@@ -208,8 +208,14 @@ export default function NoticeCard({
     ) : effForm === "row" ? (
       <div
         className="row notice-vrow"
-        role="button"
-        tabIndex={0}
+        // B3-6 (2026-09-04): this used to set role/tabIndex unconditionally,
+        // so a row with none of foot, alt or onOpen (the bill card, Fresh
+        // Start, Resume, the finished-project offer, the goal nudge, the
+        // monthly report card) announced itself as a button to a screen
+        // reader and took focus in the tab order for a tap that did nothing.
+        // The card form just below already gates the same way; this matches it.
+        role={(foot || alt || onOpen) ? "button" : undefined}
+        tabIndex={(foot || alt || onOpen) ? 0 : undefined}
         onClick={() => { if (foot || alt) setExpanded(true); else if (onOpen) onOpen(); }}
       >
         <div className={"row-glyph notice-disc " + (tone ?? DEFAULT_TONE).replace("cat-fg-", "cat-bg-")}>{icon}</div>

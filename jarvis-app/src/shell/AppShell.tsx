@@ -107,7 +107,13 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // Decision deep-link: BrainFlow opens Decisions, DecisionsFlow opens the record.
   const [decisionIntent, setDecisionIntent] = useState<string | undefined>(undefined);
   const navigateToNote = (id: string) => { setNoteIntent(id); setActive("notes"); };
+  // B3-4 (2026-09-04): search does full text over note bodies and hands its
+  // hits to this function with kind "note" (SearchFlow.tsx's open("note", id)),
+  // but this had no note branch, so tapping a note in a search result closed
+  // the overlay and went nowhere. navigateToNote, one line up, was already
+  // the exact function every other note-opening path in this shell uses.
   const navigateToEntity = async (kind: string, targetId: string) => {
+    if (kind === "note") { navigateToNote(targetId); return; }
     if (kind === "task") { setTaskIntent(targetId); goLife("tasks"); }
     else if (kind === "project") { setProjectIntent(targetId); goLife("projects"); }
     else if (kind === "event") { setEventIntent(targetId); setActive("schedule"); }

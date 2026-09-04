@@ -55,9 +55,14 @@ export function MetricsCard({ defs, logs, date, onOpen, onManage }: {
 /** One metric, one day, one control shaped for its type: a stepper for a
  *  number or minutes, five chips for a 1-5 scale, a switch for yes/no --
  *  never a bare number pad guessing what the type means. */
-export function MetricLogSheet({ def, date, initial, onSave, onCancel }: {
+export function MetricLogSheet({ def, date, initial, onSave, onDelete, onCancel }: {
   def: MetricDef; date: string; initial?: MetricLog;
-  onSave: (value: { value?: number; yes?: boolean }) => void; onCancel: () => void;
+  onSave: (value: { value?: number; yes?: boolean }) => void;
+  /** B3-8 (2026-09-04): the delete this sheet always should have offered.
+   *  removeLog existed in the service, tested, with no caller; this sheet had
+   *  Save and Cancel only. Only rendered when there is something to delete. */
+  onDelete?: () => void;
+  onCancel: () => void;
 }) {
   const [num, setNum] = useState(initial?.data.value ?? 0);
   const [scale, setScale] = useState(initial?.data.value ?? 0);
@@ -101,6 +106,9 @@ export function MetricLogSheet({ def, date, initial, onSave, onCancel }: {
             else if (def.data.type === "scale5") onSave({ value: scale });
             else onSave({ value: num });
           }}>Save</button>
+          {initial && onDelete && (
+            <button className="btn btn-danger btn-block" onClick={onDelete}>Delete</button>
+          )}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>

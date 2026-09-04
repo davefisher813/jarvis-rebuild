@@ -200,8 +200,24 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
     }
   };
   const picker = usePickFile((f) => void addReceipt(f));
-  const openReceipt = async (r: UserFile) => {
-    const url = fileStore ? await fileStore.url(r.data.path) : null;
+  // B3-10 (2026-09-04): opening a receipt used to await fileStore.url()
+  // (a real network round trip for the signed URL) before calling
+  // window.open. Any await between a tap and window.open breaks the user-
+  // gesture chain iOS requires, so Safari silently treats it as a popup and
+  // blocks it: no error, no file, nothing. NoteEditor's Attachment avoids
+  // this by resolving each file's URL ahead of time (useFileUrl) so its own
+  // open() is a synchronous handler; this resolves the whole receipts list
+  // the same way, once, whenever it changes.
+  const [receiptUrls, setReceiptUrls] = useState<Record<string, string | null>>({});
+  useEffect(() => {
+    let live = true;
+    if (!fileStore || receipts.length === 0) { setReceiptUrls({}); return; }
+    void Promise.all(receipts.map(async (r) => [r.id, await fileStore.url(r.data.path)] as const))
+      .then((pairs) => { if (live) setReceiptUrls(Object.fromEntries(pairs)); });
+    return () => { live = false; };
+  }, [fileStore, receipts]);
+  const openReceipt = (r: UserFile) => {
+    const url = receiptUrls[r.id];
     if (!url) { showToast({ message: "Couldn't open that file." }); return; }
     window.open(url, "_blank", "noopener");
   };
@@ -556,7 +572,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
               <div className="sh2 sh2-quiet"><span className="t">Receipts</span><span className="n">{receipts.length}</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
                 {receipts.map((r) => (
-                  <div className="task-row p2 file-row" role="button" tabIndex={0} key={r.id} onClick={() => void openReceipt(r)}>
+                  <div className="task-row p2 file-row" role="button" tabIndex={0} key={r.id} onClick={() => openReceipt(r)}>
                     {/* The type is the glyph's colour: a picture in blue, a
                         document in the brand red, the editor's own pairing. */}
                     <div className="task-check-tap"><span className={"gm-slot " + (r.data.mime.startsWith("image/") ? "cat-fg-blue" : "cat-fg-brand")}>

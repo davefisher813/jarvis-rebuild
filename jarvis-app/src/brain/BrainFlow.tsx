@@ -115,6 +115,7 @@ export default function BrainFlow({ openKey, routineBlockId, onRoutineBlockConsu
           onOpenPerson={(id) => { setPersonId(id); setOpen({ key: "contacts", name: "Contacts" }); }}
           onOpenContacts={() => { setPersonId(undefined); setOpen({ key: "contacts", name: "Contacts" }); }}
           onOpenTask={onOpenEntity ? (id) => onOpenEntity("task", id) : undefined}
+          onOpenGoal={onOpenEntity ? (id) => onOpenEntity("goal", id) : undefined}
           onChanged={() => void loadCats()}
         />
       );

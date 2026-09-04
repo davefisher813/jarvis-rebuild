@@ -446,11 +446,23 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
 
   // Completing a selection is the other thing anyone wants in bulk, and it
   // is the NON-destructive one, so it needs no undo beyond the check itself.
+  //
+  // B3-3 (2026-09-04): "Mark Done" is offered on every filter, including the
+  // Done list itself, but toggleDone truly toggles. Selecting already-done
+  // tasks and tapping it silently un-completed them while the toast still
+  // said "N marked done". Only tasks that are not already done get touched
+  // now, so re-selecting done ones is a no-op for them, never a reversal.
   const onDoneMany = async (ids: string[]) => {
     if (ids.length === 0) return;
-    const ok = await attemptWrite(async () => { for (const id of ids) await svc.toggleDone(id); });
+    const targets: string[] = [];
+    for (const id of ids) {
+      const t = await svc.task(id);
+      if (t && !t.done) targets.push(id);
+    }
+    if (targets.length === 0) { showToast({ message: "Already done" }); return; }
+    const ok = await attemptWrite(async () => { for (const id of targets) await svc.toggleDone(id); });
     await reload();
-    if (ok) showToast({ message: ids.length === 1 ? "Done" : ids.length + " marked done" });
+    if (ok) showToast({ message: targets.length === 1 ? "Done" : targets.length + " marked done" });
   };
 
   // Recreate a just-deleted task if the user taps Undo.
@@ -651,7 +663,11 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
                 )}
               </div>
               <div className="momentum-actions">
-                <button className="pill-act" onClick={() => { const id = momentum.task.id; setMomentum(null); openEdit(id); }}>Start</button>
+                {/* B3-2 (2026-09-04): this called openEdit, which opens the
+                    full metadata form. onStartTask, in the same closure, is
+                    the real Start every other Start pill on this screen
+                    calls: fifteen minutes, right now, as a real block. */}
+                <button className="pill-act" onClick={() => { const id = momentum.task.id; setMomentum(null); void onStartTask(id); }}>Start</button>
                 <button className="btn-sm" onClick={() => { dismissChain(today); setMomentum(null); }}>Not Now</button>
               </div>
             </div>

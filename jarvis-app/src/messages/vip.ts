@@ -33,16 +33,35 @@ function save(list: string[], storage: Pick<Storage, "setItem">): void {
   try { storage.setItem(KEY, JSON.stringify(list.slice(0, VIP_MAX))); } catch { /* private mode */ }
 }
 
+export interface VipToggle {
+  list: string[];
+  /** true when this call tried to ADD a sixth and the cap refused it: the
+   *  list is unchanged, not a removal, and the caller must not say it is. */
+  capped: boolean;
+}
+
+// B3-7 (2026-09-04): this used to slice a would-be sixth entry off silently
+// and return the original five unchanged, indistinguishable from a real
+// toggle. The caller then checked isVip() on the result, found the new
+// address still absent, and reported it as REMOVED ("X is back to normal")
+// about someone who had never been a VIP. `capped` is what lets the caller
+// tell the two cases apart and say the true one.
 export function toggleVip(
   email: string,
   storage: Pick<Storage, "getItem" | "setItem"> = localStorage,
-): string[] {
+): VipToggle {
   const e = email.trim().toLowerCase();
-  if (!e) return loadVips(storage);
+  if (!e) return { list: loadVips(storage), capped: false };
   const cur = loadVips(storage);
-  const next = cur.includes(e) ? cur.filter((x) => x !== e) : [...cur, e].slice(0, VIP_MAX);
+  if (cur.includes(e)) {
+    const next = cur.filter((x) => x !== e);
+    save(next, storage);
+    return { list: next, capped: false };
+  }
+  if (cur.length >= VIP_MAX) return { list: cur, capped: true };
+  const next = [...cur, e];
   save(next, storage);
-  return next;
+  return { list: next, capped: false };
 }
 
 export function isVip(email: string | undefined, vips: string[]): boolean {

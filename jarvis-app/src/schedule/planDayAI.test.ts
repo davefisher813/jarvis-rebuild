@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { parseAIPlan, aiPlanDay, planDayUserMessage, planDaySystem } from "./planDayAI";
+import { setAIControl } from "../ai/levelStore";
 
 describe("parseAIPlan", () => {
   it("parses a clean JSON array, preserving order", () => {
@@ -47,6 +48,36 @@ describe("aiPlanDay", () => {
   it("rejects when the call exceeds the timeout, so the sheet falls back", async () => {
     const ai = { complete: () => new Promise<string>(() => { /* never resolves */ }) } as never;
     await expect(aiPlanDay(ai, [pick("a")], [], 540, 1260, { timeoutMs: 10 })).rejects.toThrow(/timed out/);
+  });
+});
+
+// B3-9 (2026-09-04): "two AI pins change nothing." Morning Plan and
+// Estimates were declared in AI Control and never passed to a call; this is
+// the one call both name (its own header: order the picks AND estimate a
+// length for each).
+describe("aiPlanDay respects the Morning Plan and Estimates pins", () => {
+  afterEach(() => setAIControl(undefined));
+
+  it("passes pin: morningPlan to AIService, so its own gate and What Ran both see this call as Morning Plan", async () => {
+    let seenPin: string | undefined;
+    const ai = { complete: async (_m: unknown, _s: unknown, opts?: { pin?: string }) => { seenPin = opts?.pin; return '[{"id":"a","minutes":30}]'; } } as never;
+    await aiPlanDay(ai, [pick("a")], [], 540, 1260);
+    expect(seenPin).toBe("morningPlan");
+  });
+
+  it("refuses outright, without ever reaching AIService, when Estimates is pinned off", async () => {
+    setAIControl({ level: "everything", pins: { estimates: "off" } });
+    let called = false;
+    const ai = { complete: async () => { called = true; return "[]"; } } as never;
+    await expect(aiPlanDay(ai, [pick("a")], [], 540, 1260)).rejects.toThrow();
+    expect(called).toBe(false);
+  });
+
+  it("still fires when both pins allow it, master off or on", async () => {
+    setAIControl({ level: "everything", pins: { estimates: "everything", morningPlan: "everything" } });
+    const ai = { complete: async () => '[{"id":"a","minutes":30}]' } as never;
+    const r = await aiPlanDay(ai, [pick("a")], [], 540, 1260);
+    expect(r.items).toEqual([{ id: "a", minutes: 30 }]);
   });
 });
 

@@ -88,6 +88,7 @@ export default function CategoryDetail({
   onOpenPerson,
   onOpenContacts,
   onOpenTask,
+  onOpenGoal,
   onChanged,
 }: {
   categoryId: string;
@@ -97,6 +98,7 @@ export default function CategoryDetail({
   onOpenPerson?: (id: string) => void;
   onOpenContacts?: () => void;
   onOpenTask?: (id: string) => void;
+  onOpenGoal?: (id: string) => void;
   onChanged?: () => void;
 }) {
   const tasksSvc = useTasks();
@@ -808,9 +810,13 @@ export default function CategoryDetail({
       {goalsHere.length > 0 && (
         <>
           <div className="sh2 sh2-quiet"><span className="t">Goals Here</span><span className="n">{goalsHere.length}</span></div>
+          {/* B3-5 (2026-09-04): the project rows above open; these had no
+              onOpen at all, so GoalRowRuled (gated on that prop) never
+              rendered a role, a handler or the chevron. */}
           <div className="pad-x"><div className="card list-card-ruled">
             {goalsHere.map((g) => (
-              <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.line} status={g.status} bar={g.bar} />
+              <GoalRowRuled key={g.id} title={g.title} tone={g.tone} body={g.line} status={g.status} bar={g.bar}
+                onOpen={onOpenGoal ? () => onOpenGoal(g.id) : undefined} />
             ))}
           </div></div>
         </>
@@ -892,15 +898,29 @@ export default function CategoryDetail({
           onCancel={() => setSheet({ kind: "closed" })} />
       )}
 
-      {metricSheet?.kind === "log" && (
-        <MetricLogSheet
-          def={metricSheet.def}
-          date={today}
-          initial={metricLogs.find((l) => l.data.metricId === metricSheet.def.id && l.data.date === today)}
-          onSave={(value) => void metricWrite(() => metricsSvc.logMetric(metricSheet.def.id, today, value), () => setMetricSheet(null))}
-          onCancel={() => setMetricSheet(null)}
-        />
-      )}
+      {metricSheet?.kind === "log" && (() => {
+        const existingLog = metricLogs.find((l) => l.data.metricId === metricSheet.def.id && l.data.date === today);
+        return (
+          <MetricLogSheet
+            def={metricSheet.def}
+            date={today}
+            initial={existingLog}
+            onSave={(value) => void metricWrite(() => metricsSvc.logMetric(metricSheet.def.id, today, value), () => setMetricSheet(null))}
+            // B3-8 (2026-09-04): removeLog existed, tested, with no caller.
+            // Undo re-logs the same value, matching every other delete's Undo.
+            onDelete={existingLog ? () => {
+              const kept = { ...existingLog.data };
+              void metricWrite(() => metricsSvc.removeLog(existingLog.id), () => setMetricSheet(null));
+              showToast({
+                message: "Log deleted",
+                actionLabel: "Undo",
+                onAction: () => void metricWrite(() => metricsSvc.logMetric(kept.metricId, kept.date, { value: kept.value, yes: kept.yes })),
+              });
+            } : undefined}
+            onCancel={() => setMetricSheet(null)}
+          />
+        );
+      })()}
       {metricSheet?.kind === "add" && (
         <AddMetricSheet
           defs={metricDefs}
