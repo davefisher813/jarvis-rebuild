@@ -63,6 +63,20 @@ const unescapeText = (v: string): string =>
 
 interface Stamp { date: string; start?: string; ms?: number }
 
+// A TZID naming UTC itself needs no timezone database to resolve -- there is
+// no ambiguity to look up, only an offset of zero. Several real senders
+// (Dave 2026-09-04: a phone-call invite from a tax-prep tool landed 4 hours
+// off, exactly the EDT/UTC gap) write DTSTART;TZID=UTC:... instead of the Z
+// suffix RFC 5545 prefers. Reading that as floating local time was the bug:
+// it took a UTC instant and displayed its digits as if they were already the
+// reader's own wall clock.
+const UTC_TZIDS = new Set(["UTC", "ETC/UTC", "GMT", "Z", "UT"]);
+
+function isUtcTzid(params: string): boolean {
+  const m = /TZID=("?)([^;"]+)\1/.exec(params);
+  return !!m && UTC_TZIDS.has(m[2]!);
+}
+
 /**
  * One DTSTART / DTEND value.
  *
@@ -71,11 +85,14 @@ interface Stamp { date: string; start?: string; ms?: number }
  *   20260923T130000Z    UTC. Converted to the reader's own wall clock.
  *   20260923T130000     floating, or carrying a TZID.
  *
- * The TZID case is read as LOCAL wall time rather than converted, because
- * converting needs a timezone database this app does not ship. That is the
- * right trade for the common case (the invitation is in your own zone) and it
- * is wrong for a genuinely foreign meeting, which is exactly why the card
- * shows the time it is about to write before you tap it.
+ * A TZID that unambiguously means UTC (TZID=UTC, Etc/UTC, GMT...) is folded
+ * into the Z case above -- it is the same zero-offset conversion, just spelled
+ * differently. Any OTHER TZID is read as LOCAL wall time rather than
+ * converted, because converting a real zone needs a timezone database this
+ * app does not ship. That is the right trade for the common case (the
+ * invitation is in your own zone) and it is wrong for a genuinely foreign
+ * meeting, which is exactly why the card shows the time it is about to write
+ * before you tap it.
  */
 function readStamp(params: string, value: string): Stamp | null {
   const dateOnly = /^(\d{4})(\d{2})(\d{2})$/.exec(value);
@@ -87,7 +104,7 @@ function readStamp(params: string, value: string): Stamp | null {
   const full = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?$/.exec(value);
   if (!full) return null;
   const [, y, mo, d, h, mi, , z] = full;
-  if (z) {
+  if (z || isUtcTzid(params)) {
     const at = Date.UTC(+y!, +mo! - 1, +d!, +h!, +mi!);
     const local = new Date(at);
     return {

@@ -266,4 +266,16 @@ describe("TodayPage", () => {
     expect(screen.queryByText("Today\u2019s Tasks")).toBeNull();
     expect(screen.queryByText("Tomorrow")).toBeNull();
   });
+
+  it("a tap on tomorrow's event opens it, same as any other event row (Dave 2026-09-04: \"can't click on the call... to edit it\")", () => {
+    const opened: string[] = [];
+    render(<TodayPage {...base} onOpenEvent={(id) => opened.push(id)} />);
+    fireEvent.click(screen.getByText("t1"));
+    expect(opened).toEqual(["t1"]);
+  });
+
+  it("tomorrow's row is not a tap target when there is nothing to open it into", () => {
+    render(<TodayPage {...base} />);
+    expect(screen.getByText("t1").closest(".sched-row")).not.toHaveAttribute("role", "button");
+  });
 });

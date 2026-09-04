@@ -79,6 +79,27 @@ describe("the formats that actually turn up", () => {
     expect(e.date).toBe("2026-09-23");
   });
 
+  it("a TZID that just spells out UTC converts, it doesn't read as literal local time", () => {
+    // Dave 2026-09-04: a phone-call invite (DTSTART;TZID=UTC:...20260904T140000)
+    // landed on the schedule 4 hours off -- exactly the EDT/UTC gap -- because
+    // this used to fall into the "unknown TZID, trust the digits" branch. UTC
+    // needs no timezone database to resolve; it's the one TZID with zero
+    // ambiguity, so it gets the same conversion a bare Z suffix gets.
+    const e = readIcs(wrap("SUMMARY:Call\r\nDTSTART;TZID=UTC:20260923T170000")).event!;
+    const local = new Date(Date.UTC(2026, 8, 23, 17, 0));
+    const hh = String(local.getHours()).padStart(2, "0");
+    const mm = String(local.getMinutes()).padStart(2, "0");
+    expect(e.start).toBe(`${hh}:${mm}`);
+  });
+
+  it("also folds Etc/UTC and GMT into the same UTC conversion", () => {
+    const a = readIcs(wrap("SUMMARY:X\r\nDTSTART;TZID=Etc/UTC:20260923T170000")).event!;
+    const b = readIcs(wrap("SUMMARY:X\r\nDTSTART;TZID=GMT:20260923T170000")).event!;
+    const z = readIcs(wrap("SUMMARY:X\r\nDTSTART:20260923T170000Z")).event!;
+    expect(a.start).toBe(z.start);
+    expect(b.start).toBe(z.start);
+  });
+
   it("takes a DURATION when there is no DTEND", () => {
     expect(readIcs(wrap("SUMMARY:X\r\nDTSTART:20260923T130000\r\nDURATION:PT45M")).event?.durationMin).toBe(45);
     expect(readIcs(wrap("SUMMARY:X\r\nDTSTART:20260923T130000\r\nDURATION:PT1H30M")).event?.durationMin).toBe(90);

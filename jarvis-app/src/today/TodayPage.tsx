@@ -127,10 +127,19 @@ const SunIcon = () => (
   <SunriseGlyph />
 );
 
-function SchedRow({ ev }: { ev: EventItem }) {
+function SchedRow({ ev, onOpen }: { ev: EventItem; onOpen?: () => void }) {
   const t = fmtTime(ev.data.start);
   return (
-    <div className="sched-row">
+    <div
+      className="sched-row"
+      // Every other event row on this page opens on tap (DayRow's onOpen).
+      // The Tomorrow row never got that wiring, so it was the one event on
+      // the page you could look at but not touch (Dave 2026-09-04: "I can't
+      // click on the call on the home page to edit it").
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
+      onClick={onOpen}
+    >
       {/* Same category bar as every other event row (Dave 2026-08-19): the
           Tomorrow rows are a separate component and would have been the one
           place the signal went missing. */}
@@ -481,7 +490,9 @@ export default function TodayPage({
         {onPlanTomorrow && <button className="see-all pill-action" onClick={onPlanTomorrow}>Plan It</button>}</div>
       <div>
         <div>
-          {tomorrowEvents.map((ev) => <SchedRow ev={ev} key={ev.id} />)}
+          {tomorrowEvents.map((ev) => (
+            <SchedRow ev={ev} key={ev.id} onOpen={onOpenEvent ? () => onOpenEvent(ev.id) : undefined} />
+          ))}
           {/* Weeklies/monthlies surface on their day only; the day before gets
               this one quiet heads-up row (roadmap v2 dailies weaving). */}
           {tomorrowTasks.map((t) => (
