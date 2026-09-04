@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
 import { NotesService } from "../notes/NotesService";
 import { TasksService } from "../tasks/TasksService";
 import { ScheduleService } from "../schedule/ScheduleService";
@@ -23,6 +23,7 @@ import { FilesService } from "../files/FilesService";
 import { MemoryFileStore, SupabaseFileStore, type FileStore } from "../files/FileStore";
 import { supabase } from "../auth/supabaseClient";
 import { makeStore } from "./store";
+import { wireOfflineSync } from "./offlineSync";
 import { emit } from "../events";
 
 // One store per session, shared by Notes, Tasks, and Schedule, so cross-feature
@@ -63,9 +64,10 @@ export function NotesProvider({
   accessToken?: string;
   children: ReactNode;
 }) {
-  const { notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, metrics, rules, chat, decisions, strands, seal, files, fileStore } = useMemo(() => {
-    const store = makeStore(accessToken);
+  const { store, notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, metrics, rules, chat, decisions, strands, seal, files, fileStore } = useMemo(() => {
+    const store = makeStore(accessToken, userId);
     return {
+      store,
       files: new FilesService(store, userId, (e) => emit(e)),
       // The bytes: Supabase Storage when signed in, the demo's shelf otherwise.
       fileStore: supabase && accessToken ? new SupabaseFileStore(supabase, userId) : new MemoryFileStore(userId),
@@ -91,6 +93,11 @@ export function NotesProvider({
       seal: new SealService(store, userId, (e) => emit(e)),
     };
   }, [userId, accessToken]);
+  // S3-Q14: real connectivity, not a pass-through only a test ever calls.
+  // Tied to `store` itself (not [] ) so a token refresh or a different
+  // signed-in user, each of which builds a fresh Store above, re-wires
+  // against the new one instead of leaking a listener onto an abandoned one.
+  useEffect(() => wireOfflineSync(store), [store]);
   return (
     <TokenContext.Provider value={accessToken}>
     <NotesContext.Provider value={notes}>

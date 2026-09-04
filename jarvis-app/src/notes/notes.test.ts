@@ -71,6 +71,25 @@ describe("Notes permanent guard: sync loss (R17)", () => {
   });
 });
 
+// S3-Q14 (2026-09-04): "Nothing is held when the signal drops." Before this,
+// createNote made offline threw straight out of the adapter's network call --
+// the core Store had no offline branch for create at all. Now it queues, and
+// (the actual point of a capture app) the note it made is visible right away,
+// not only after reconnect.
+describe("Notes permanent guard: an offline capture is never lost or invisible (S3-Q14)", () => {
+  it("createNote made offline shows up immediately and survives reconnect", async () => {
+    const svc = freshService();
+    svc.goOffline();
+    const id = (await svc.createNote("Grocery list", "life"))!;
+    expect(id).toBeTruthy();
+    expect((await svc.note(id))?.title).toBe("Grocery list");
+    expect((await svc.listNotes()).map((n) => n.id)).toContain(id);
+    await svc.reconnect();
+    expect(svc.queueLen()).toBe(0);
+    expect((await svc.note(id))?.title).toBe("Grocery list");
+  });
+});
+
 describe("Notes permanent guard: tasks survive note deletion (R13)", () => {
   it("tasks created from a checklist outlive the note", async () => {
     const svc = freshService();

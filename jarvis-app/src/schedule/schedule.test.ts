@@ -56,12 +56,16 @@ describe("Schedule behavior contract (approved harness)", () => {
     expect(await svc.createEvent("   ", { date: TODAY, start: "09:00" })).toBeNull();
     expect((await svc.listEvents()).length).toBe(before);
   });
-  it("[edge] offline create queues, syncs on reconnect", async () => {
+  // S3-Q14 (2026-09-04): creates queue offline now too, not just updates --
+  // and the created event is visible right away, before reconnect, which is
+  // the actual point (a calendar entry that only appears once you're back
+  // online is, to the person who just made it, still lost in the meantime).
+  it("[edge] offline create AND its edit both queue; the create is visible before reconnect too", async () => {
     svc.goOffline();
-    // create still works offline (only updates queue); use an edit to exercise the queue
     const id = (await svc.createEvent("Call Wei", { date: TODAY, start: "16:00", category: "elite" }))!;
+    expect((await svc.event(id))?.title).toBe("Call Wei");
     await svc.editTime(id, "16:30");
-    expect(svc.queueLen()).toBe(1);
+    expect(svc.queueLen()).toBe(2); // the create, and the edit queued to replay after it
     await svc.reconnect();
     expect(svc.queueLen()).toBe(0);
     expect((await svc.event(id))!.start).toBe("16:30");

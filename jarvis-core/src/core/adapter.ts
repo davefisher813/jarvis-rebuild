@@ -14,8 +14,13 @@ import type { Item, ItemData, ServerTime } from "./types.js";
 // in-memory adapter resolves immediately. The approved behavior is identical
 // either way; only the await differs.
 export interface DataAdapter {
-  // Create a record for an owner. Assigns id and the initial server time.
-  create(ownerId: string, entityType: string, data: ItemData): Promise<string>;
+  // Create a record for an owner. Assigns id and the initial server time,
+  // unless `id` is given, in which case it is used as-is. Store passes one
+  // when a create made offline replays on reconnect (S3-Q14, 2026-09-04):
+  // the id was already handed to the caller and possibly to further queued
+  // updates the moment it was made, so the record this creates has to land
+  // under that SAME id rather than a fresh one nothing else knows about.
+  create(ownerId: string, entityType: string, data: ItemData, id?: string): Promise<string>;
 
   // Create many records of one entity type in a single round trip, in order.
   // Exists for bulk flows (contact import); behavior per row is identical to

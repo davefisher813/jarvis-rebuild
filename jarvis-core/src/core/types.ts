@@ -34,9 +34,30 @@ export interface Item {
 // not owner, or stale), "queued" = held offline for replay on reconnect.
 export type ApplyResult = boolean | "queued";
 
-export interface QueuedOp {
-  ownerId: string;
+// S3-Q14 (2026-09-04): "the core store... covers updates only." A queued
+// write now carries its own kind, so a create or a delete made offline sits
+// in the same FIFO as an update and replays in the order it was made.
+// `queuedAt` on a create is a client-side timestamp, not a real server time
+// -- Store shows it locally (see pendingCreates) until reconnect gets the
+// real one from the adapter.
+export interface QueuedCreate {
+  op: "create";
   id: string;
+  ownerId: string;
+  entityType: string;
+  data: ItemData;
+  queuedAt: number;
+}
+export interface QueuedUpdate {
+  op: "update";
+  id: string;
+  ownerId: string;
   patch: ItemData;
   serverTime?: ServerTime;
 }
+export interface QueuedDelete {
+  op: "delete";
+  id: string;
+  ownerId: string;
+}
+export type QueuedOp = QueuedCreate | QueuedUpdate | QueuedDelete;

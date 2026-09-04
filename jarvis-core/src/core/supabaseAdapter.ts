@@ -41,11 +41,14 @@ function toItem(row: ItemRow): Item {
 export class SupabaseAdapter implements DataAdapter {
   constructor(private readonly db: SupabaseClient) {}
 
-  async create(_ownerId: string, entityType: string, data: ItemData): Promise<string> {
+  async create(_ownerId: string, entityType: string, data: ItemData, id?: string): Promise<string> {
     // owner_id defaults to auth.uid() in the schema; RLS with-check validates it.
+    // id is the row's uuid primary key with its own gen_random_uuid() default;
+    // supplying one (a create replaying from the offline queue, S3-Q14) simply
+    // overrides that default, same as any explicit insert value would.
     const { data: row, error } = await this.db
       .from("item")
-      .insert({ entity_type: entityType, data })
+      .insert({ ...(id ? { id } : {}), entity_type: entityType, data })
       .select("id")
       .single();
     if (error) throw error;

@@ -50,8 +50,8 @@ export class CachedAdapter implements DataAdapter {
   // the user's write. Err toward the write.
   private writes = 0;
 
-  async create(ownerId: string, entityType: string, data: ItemData): Promise<string> {
-    const id = await this.inner.create(ownerId, entityType, data);
+  async create(ownerId: string, entityType: string, data: ItemData, presetId?: string): Promise<string> {
+    const id = await this.inner.create(ownerId, entityType, data, presetId);
     this.writes++;
     const cached = readPreload(ownerId, entityType);
     if (cached) {

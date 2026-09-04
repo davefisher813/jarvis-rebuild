@@ -26,16 +26,16 @@ export class InMemoryAdapter implements DataAdapter {
     };
   }
 
-  async create(ownerId: string, entityType: string, data: ItemData): Promise<string> {
-    const id = "r" + ++this.seq; // real adapter uses gen_random_uuid()
-    this.db.set(id, {
-      id,
+  async create(ownerId: string, entityType: string, data: ItemData, id?: string): Promise<string> {
+    const useId = id ?? "r" + ++this.seq; // real adapter uses gen_random_uuid()
+    this.db.set(useId, {
+      id: useId,
       ownerId,
       entityType,
       data: structuredClone(data),
       serverTime: this.tick(),
     });
-    return id;
+    return useId;
   }
 
   async createMany(ownerId: string, entityType: string, datas: ItemData[]): Promise<string[]> {
