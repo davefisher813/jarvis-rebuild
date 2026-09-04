@@ -1,3 +1,5 @@
+import type { Block, ChecklistItem, NoteData } from "../notes/types";
+
 // THE ATTACHMENT YOU MEANT TO SEND (N15, Dave 2026-08-20).
 //
 // They asked for the waiver. He has a waiver. Every mail client on earth
@@ -74,4 +76,56 @@ export function suggestAttachment(
 
 export function suggestLine(s: AttachSuggestion): string {
   return `They asked for the ${s.asked}. You have "${s.candidate.name}".`;
+}
+
+// S2-8 (2026-09-04): "You Have That File cannot attach it." The offer used to
+// end at naming the note in brackets and telling him to attach it himself.
+// A note is blocks, not bytes, so what actually goes out on tap is the
+// honest rendering of what he has: the checklist stays a checklist, the
+// table stays a table, nothing beyond what the note itself holds shows up,
+// and nothing is invented to fill a block type this has no text for.
+function blockLines(b: Block): string[] {
+  switch (b.type) {
+    case "heading":
+    case "text":
+    case "meta":
+      return (b.text ?? "").trim() ? [b.text!.trim()] : [];
+    case "bulleted_list":
+      return ((b.items as string[] | undefined) ?? []).map((t) => "- " + t);
+    case "numbered_list":
+      return ((b.items as string[] | undefined) ?? []).map((t, i) => (i + 1) + ". " + t);
+    case "checklist":
+      return ((b.items as ChecklistItem[] | undefined) ?? []).map((it) => (it.done ? "[x] " : "[ ] ") + it.text);
+    case "table": {
+      const out: string[] = [];
+      if (b.columns?.length) out.push(b.columns.join(" | "));
+      for (const row of b.rows ?? []) out.push(row.join(" | "));
+      return out;
+    }
+    case "photo":
+    case "file":
+      return b.name ? ["[" + (b.type === "photo" ? "Photo" : "File") + ": " + b.name + "]"] : [];
+    default:
+      return [];
+  }
+}
+
+// What actually gets attached: title first, then every block that has
+// something to say, in the note's own order, blank line between blocks.
+export function noteAsText(note: Pick<NoteData, "title" | "blocks">): string {
+  const lines = [note.title.trim() || "Untitled", ""];
+  for (const b of note.blocks) {
+    const bl = blockLines(b);
+    if (bl.length === 0) continue;
+    lines.push(...bl, "");
+  }
+  return lines.join("\n").trimEnd() + "\n";
+}
+
+// A boring, safe filename: the note's own title with anything a filesystem
+// or a mail header would choke on stripped out, capped so a long title
+// cannot blow out a Content-Disposition line.
+export function attachmentFilename(title: string): string {
+  const base = (title || "").trim().replace(/[\\/:*?"<>|]/g, "").slice(0, 80).trim();
+  return (base || "Attachment") + ".txt";
 }

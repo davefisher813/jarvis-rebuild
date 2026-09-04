@@ -26,6 +26,7 @@
 export const HOLD_SECONDS = 12;
 
 import { weekdayShortDateFromMs } from "../shared/dateFormat";
+import type { EmailAttachment } from "../connections/google/map";
 
 export type OutboxState = "held" | "sending" | "failed";
 
@@ -40,6 +41,8 @@ export interface OutboxItem {
   threadId?: string;
   fromDeck?: boolean;
   trackId?: string;
+  // S2-8: the note he already has, riding along as a real attachment.
+  attachment?: EmailAttachment;
   // When it should actually leave. Now + HOLD for a normal send; a chosen
   // moment for a scheduled one.
   dueMs: number;

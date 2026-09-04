@@ -8,7 +8,7 @@ import { useGoogle } from "../connections/google/GoogleSession";
 import { googleConfigured } from "../connections/google/config";
 import {
   mapThread, mapThreadFull, mapGmailFull, buildReply, buildReplyAll, encodeEmail,
-  type ThreadRow, type ThreadFull, type MailFull,
+  type ThreadRow, type ThreadFull, type MailFull, type EmailAttachment,
 } from "../connections/google/map";
 import { selfBlankGuard,
   loadTriageCache, saveTriageCache, triageDelta, buildTriageInput, parseTriage, TRIAGE_SCHEMA,
@@ -106,7 +106,7 @@ import { fmtTime, todayISO, addDays, eventsForDate } from "../schedule/calendar"
 import { nextOpening, BOOK_MIN } from "./bookTime";
 
 const AUTOREPLY_KEY = "jarvis.mail.autoreply.on.v1";
-import { suggestAttachment, suggestLine, type AttachSuggestion, type Candidate } from "./attachSuggest";
+import { suggestAttachment, suggestLine, noteAsText, attachmentFilename, type AttachSuggestion, type Candidate } from "./attachSuggest";
 import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
 import { mightProposeTimes, meetingPrompt, parseMeetingTimes, optionsAgainst, firstFree, meetingLine, MEETING_SYSTEM } from "./meetingTimes";
 import { sweepPrompt, parseSweep, needsSweep, liveSweep, loadSweep, saveSweep, SWEEP_SYSTEM, type SentItem } from "./sentSweep";
@@ -124,7 +124,7 @@ import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalPr
 import { b64urlDecodeBytes } from "../connections/google/map";
 import { capAfterNumber } from "../shared/casing";
 
-type Draft = { to: string; cc?: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string };
+type Draft = { to: string; cc?: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string; attachment?: EmailAttachment };
 type DraftRow = { id: string; to: string; subject: string; snippet: string; dateMs?: number; threadId?: string };
 type View = "list" | "detail" | "compose" | "deck" | "dead" | "rules" | "purge";
 type Filter = "triage" | "all" | "drafts";
@@ -378,6 +378,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [speaking, setSpeaking] = useState(false);
   const [attachDone, setAttachDone] = useState(false);
   const [attachBusy, setAttachBusy] = useState(false);
+  // S2-8: fetching the note's full content (title + blocks) to render it as
+  // a real attachment happens on tap, not while myFiles loads -- 60 titles
+  // cost nothing to list, but reading every one of them up front would.
+  const [attachingHint, setAttachingHint] = useState(false);
   const [nudgeCounts, setNudgeCounts] = useState<Record<string, number>>(() => loadNudgeCounts());
   const [chaseDays, setChaseDays] = useState<number>(CHASE_DEFAULT);
   // N15: what he actually owns, by name. Loaded once when compose opens, so
@@ -1286,6 +1290,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     try {
       const raw = encodeEmail({
         to: item.to, cc: item.cc, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
+        attachment: item.attachment,
         ...(trackOpens ? { pixelUrl: pixelUrlFor(item.trackId ?? newTrackId()) } : {}),
       });
       const sent = await api.sendMessage(raw, item.threadId);
@@ -1388,6 +1393,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       inReplyTo: draft.inReplyTo,
       threadId: draft.threadId,
       fromDeck: draft.fromDeck,
+      attachment: draft.attachment,
       trackId: newTrackId(),
       dueMs: scheduledAt ?? holdUntil(Date.now()),
       scheduled: scheduledAt !== undefined,
@@ -1432,6 +1438,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setDraft({
       to: item.to, cc: item.cc, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
       threadId: item.threadId, fromDeck: item.fromDeck, account: item.account, handoffTo: item.handoffTo,
+      attachment: item.attachment,
     });
     setEditingDraftId(item.editingDraftId ?? null);
     setView("compose");
@@ -2344,18 +2351,44 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               Every mail client waits until Send and then asks if he forgot;
               none of them offers the file he actually owns. Only ever
               something he ALREADY has, by name, and never attached on its
-              own. */}
-          {attachHint && (
+              own -- the tap is what attaches it (S2-8, 2026-09-04: this used
+              to just type the filename into the body and tell him to attach
+              it himself). Hidden once something is actually attached, so the
+              offer does not keep sitting there after it has been taken. */}
+          {attachHint && !draft.attachment && (
             <div className="card"><div className="row">
               <div className="row-grow">
                 <div className="conn-name">You Have That File</div>
                 <div className="conn-meta">{suggestLine(attachHint)}</div>
               </div>
-              <button className="pill-act" onClick={() => {
-                setDraft((d) => ({ ...d, body: d.body + "\n\n(" + attachHint.candidate.name + ")" }));
-                setToast("Named it in the message · Attach it from your phone");
-                setTimeout(() => setToast(null), 4000);
-              }}>Mention It</button>
+              <button className="pill-act" disabled={attachingHint} onClick={() => void (async () => {
+                if (attachingHint || !notesSvc) return;
+                setAttachingHint(true);
+                try {
+                  const note = await notesSvc.note(attachHint.candidate.id);
+                  if (!note) {
+                    setToast("Couldn't find that note anymore");
+                  } else {
+                    const filename = attachmentFilename(note.title);
+                    setDraft((d) => ({ ...d, attachment: { filename, mimeType: "text/plain", content: noteAsText(note) } }));
+                    setToast("Attached · " + filename);
+                  }
+                } catch {
+                  setToast("Couldn't attach that file");
+                } finally {
+                  setAttachingHint(false);
+                  setTimeout(() => setToast(null), 4000);
+                }
+              })()}>{attachingHint ? "Attaching…" : "Attach It"}</button>
+            </div></div>
+          )}
+          {draft.attachment && (
+            <div className="card"><div className="row">
+              <div className="row-grow">
+                <div className="conn-name">Attached</div>
+                <div className="conn-meta">{draft.attachment.filename}</div>
+              </div>
+              <button className="pill-act" onClick={() => setDraft((d) => ({ ...d, attachment: undefined }))}>Remove</button>
             </div></div>
           )}
 

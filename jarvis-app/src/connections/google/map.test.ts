@@ -154,6 +154,63 @@ describe("encodeEmail with Cc", () => {
   });
 });
 
+// S2-8 (2026-09-04): "You Have That File cannot attach it." A real
+// attachment part, base64-encoded, riding inside multipart/mixed -- alone,
+// and nested correctly alongside the pixel's multipart/alternative pair.
+describe("encodeEmail with an attachment", () => {
+  const decode = (raw: string) => atob(raw.replace(/-/g, "+").replace(/_/g, "/"));
+  const b64Decode = (b64: string) => Buffer.from(b64.replace(/\r?\n/g, ""), "base64").toString("utf8");
+
+  it("wraps a plain-body send in multipart/mixed with a base64 attachment part", () => {
+    const raw = encodeEmail({
+      to: "a@x.com", subject: "Waiver", body: "Here's the waiver.",
+      attachment: { filename: "Ridgeline Waiver 2026.txt", mimeType: "text/plain", content: "Ridgeline Waiver 2026\n\nSign by Friday.\n" },
+    });
+    const decoded = decode(raw);
+    expect(decoded).toContain("Content-Type: multipart/mixed");
+    expect(decoded).not.toContain("multipart/alternative"); // no pixel: no reason for one
+    expect(decoded).toContain('Content-Disposition: attachment; filename="Ridgeline Waiver 2026.txt"');
+    expect(decoded).toContain("Content-Transfer-Encoding: base64");
+    // The words a person reads sit in an ordinary text/plain part, untouched.
+    expect(decoded).toContain("Content-Type: text/plain; charset=UTF-8\r\n\r\nHere's the waiver.");
+    // The attachment's own content round-trips exactly through the base64.
+    const b64Body = decoded.split("Content-Transfer-Encoding: base64\r\n\r\n")[1]!.split("\r\n--")[0]!;
+    expect(b64Decode(b64Body)).toBe("Ridgeline Waiver 2026\n\nSign by Friday.\n");
+  });
+
+  it("nests the pixel's multipart/alternative pair inside the mixed shell when both ride together", () => {
+    const raw = encodeEmail({
+      to: "a@x.com", subject: "S", body: "line one\nline two", pixelUrl: "https://x.app/open?t=1",
+      attachment: { filename: "Notes.txt", mimeType: "text/plain", content: "the note" },
+    });
+    const decoded = decode(raw);
+    expect(decoded).toContain("Content-Type: multipart/mixed");
+    expect(decoded).toContain("Content-Type: multipart/alternative");
+    expect(decoded).toContain("line one\nline two"); // plain part, verbatim
+    expect(decoded).toContain("line one<br>line two"); // html twin
+    expect(decoded).toContain('src="https://x.app/open?t=1" width="1" height="1"');
+    expect(decoded).toContain('Content-Disposition: attachment; filename="Notes.txt"');
+  });
+
+  it("wraps attachment content at 76 characters, the RFC 2045 line length", () => {
+    const raw = encodeEmail({
+      to: "a@x.com", subject: "S", body: "hi",
+      attachment: { filename: "long.txt", mimeType: "text/plain", content: "x".repeat(200) },
+    });
+    const decoded = decode(raw);
+    const b64Lines = decoded.split("Content-Transfer-Encoding: base64\r\n\r\n")[1]!.split("\r\n--")[0]!.split("\r\n");
+    for (const line of b64Lines) expect(line.length).toBeLessThanOrEqual(76);
+    expect(b64Decode(b64Lines.join("\r\n"))).toBe("x".repeat(200));
+  });
+
+  it("keeps the plain send exactly as before when there is no attachment and no pixel", () => {
+    const raw = encodeEmail({ to: "a@x.com", subject: "S", body: "hi" });
+    const decoded = decode(raw);
+    expect(decoded).not.toContain("multipart");
+    expect(decoded).toContain("Content-Type: text/plain; charset=UTF-8\r\n\r\nhi");
+  });
+});
+
 // HTML IS NEVER TEXT (2026-09-02, the TikTok mail that rendered as markup).
 describe("extractBody and extractHtml on HTML mail", () => {
   const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");

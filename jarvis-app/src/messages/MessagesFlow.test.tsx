@@ -6,8 +6,9 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { NotesProvider, useProfile } from "../data/NotesProvider";
+import { NotesProvider, useProfile, useNotes } from "../data/NotesProvider";
 import type { ProfileService } from "../profile/ProfileService";
+import type { NotesService } from "../notes/NotesService";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";
 import { AIService } from "../ai/AIService";
@@ -76,6 +77,23 @@ function wrapWithProfile(node: React.ReactNode, onProfile: (p: ProfileService) =
   return (
     <NotesProvider userId="u1">
       <ProfileGrabber onReady={onProfile} />
+      <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}>{node}</GoogleSessionProvider>
+    </NotesProvider>
+  );
+}
+
+// S2-8: same trick as ProfileGrabber, for the real NotesService living in
+// the same NotesProvider tree -- lets a test seed a note MessagesFlow's own
+// "what he has" list will then pick up.
+function NotesGrabber({ onReady }: { onReady: (n: NotesService) => void }) {
+  const n = useNotes();
+  useEffect(() => onReady(n), [n, onReady]);
+  return null;
+}
+function wrapWithNotes(node: React.ReactNode, onNotes: (n: NotesService) => void, api = makeApi()) {
+  return (
+    <NotesProvider userId="u1">
+      <NotesGrabber onReady={onNotes} />
       <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}>{node}</GoogleSessionProvider>
     </NotesProvider>
   );
@@ -579,5 +597,51 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     fireEvent.click(await screen.findByText("Ridgeley"));
     expect(await screen.findByText("Always gets through")).toBeInTheDocument();
+  });
+
+  // S2-8 (2026-09-04): "You Have That File cannot attach it." Tapping the
+  // offer used to just type the note's name into the body in brackets and
+  // tell him to attach it himself; it now actually attaches the note's
+  // content, and that attachment has to survive all the way into the
+  // outbox item Send queues.
+  it("You Have That File attaches the note for real, not a bracketed name", async () => {
+    const askThread = {
+      id: "t1",
+      messages: [{
+        id: "m1", threadId: "t1", snippet: "",
+        payload: {
+          mimeType: "text/plain", body: { data: btoa("Can you send the waiver?") },
+          headers: [
+            { name: "From", value: "Ridgeley <t@x.com>" }, { name: "Subject", value: "Waiver" },
+            { name: "Date", value: "Mon" }, { name: "Message-ID", value: "<a@x>" },
+          ],
+        },
+      }],
+    };
+    let notesSvc: NotesService | undefined;
+    const api = makeApi({ getThread: async () => askThread });
+    render(wrapWithNotes(<MessagesFlow ai={noAI} configured />, (n) => { notesSvc = n; }, api));
+    await waitFor(() => expect(notesSvc).toBeDefined());
+    const noteId = await notesSvc!.createNote("Ridgeline Waiver 2026", "general");
+    await notesSvc!.addBlock(noteId!, { type: "text", text: "Sign by Friday." });
+
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Ridgeley"));
+    fireEvent.click(await screen.findByText("Reply"));
+    fireEvent.change(await screen.findByPlaceholderText("Message"), { target: { value: "Here's the waiver." } });
+
+    fireEvent.click(await screen.findByText("Attach It"));
+    await waitFor(() => expect(screen.getByText("Ridgeline Waiver 2026.txt")).toBeInTheDocument());
+    // Taken, not just named: the offer card is gone and nothing was typed
+    // into the message body to stand in for a real attachment.
+    expect(screen.queryByText("Attach It")).not.toBeInTheDocument();
+    expect((screen.getByPlaceholderText("Message") as HTMLTextAreaElement).value).toBe("Here's the waiver.");
+
+    fireEvent.click(screen.getByText("Send"));
+    await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+    const item = loadOutbox()[0]!;
+    expect(item.attachment?.filename).toBe("Ridgeline Waiver 2026.txt");
+    expect(item.attachment?.mimeType).toBe("text/plain");
+    expect(item.attachment?.content).toBe("Ridgeline Waiver 2026\n\nSign by Friday.\n");
   });
 });

@@ -364,12 +364,31 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+// S2-8 (2026-09-04): "You Have That File cannot attach it." A real
+// attachment, base64-encoded the way any mail client sends one -- MIME
+// requires binary-safe transport for a Content-Disposition part, and
+// wrapping every line at 76 characters is the RFC 2045 rule, not a style
+// choice.
+export interface EmailAttachment { filename: string; mimeType: string; content: string }
+
+function base64EncodeUtf8(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let bin = "";
+  bytes.forEach((b) => (bin += String.fromCharCode(b)));
+  const b64 = btoa(bin);
+  return b64.match(/.{1,76}/g)?.join("\r\n") ?? b64;
+}
+
 // Encodes an email as the base64url RFC822 string Gmail's send wants.
 // Plain text by default. With pixelUrl (email 3 open tracking) it becomes
 // multipart/alternative: the same text, plus an HTML part that is nothing but
 // the escaped text and one 1x1 tracking image. The words the recipient reads
-// are identical either way.
-export function encodeEmail(msg: { to: string; cc?: string; subject: string; body: string; inReplyTo?: string; pixelUrl?: string }): string {
+// are identical either way. With an attachment (S2-8), the whole thing rides
+// inside an outer multipart/mixed shell instead: the words half (plain, or
+// the pixel's plain+html pair) as one part, the attachment as another.
+export function encodeEmail(msg: {
+  to: string; cc?: string; subject: string; body: string; inReplyTo?: string; pixelUrl?: string; attachment?: EmailAttachment;
+}): string {
   // Subjects are decoded on the way IN now, so a reply to "Nächste Schritte"
   // carries real UTF-8 that cannot legally sit raw in a header. encodeWord
   // returns an ASCII subject untouched, which is nearly all of them.
@@ -377,27 +396,53 @@ export function encodeEmail(msg: { to: string; cc?: string; subject: string; bod
   if (msg.cc && msg.cc.trim()) headers.push("Cc: " + encodeWord(msg.cc));
   headers.push("Subject: " + encodeWord(msg.subject));
   if (msg.inReplyTo) headers.push("In-Reply-To: " + msg.inReplyTo, "References: " + msg.inReplyTo);
-  if (!msg.pixelUrl) {
+
+  if (!msg.pixelUrl && !msg.attachment) {
     headers.push("Content-Type: text/plain; charset=UTF-8");
     return b64urlEncode(headers.join("\r\n") + "\r\n\r\n" + msg.body);
   }
-  const boundary = "=_jarvis_" + Math.abs(msg.body.length * 31 + msg.to.length).toString(36) + "_b";
-  headers.push('Content-Type: multipart/alternative; boundary="' + boundary + '"');
-  const html =
-    "<div>" + escapeHtml(msg.body).replace(/\r?\n/g, "<br>") + "</div>" +
-    '<img src="' + msg.pixelUrl + '" width="1" height="1" alt="">';
-  const parts = [
-    "--" + boundary,
-    "Content-Type: text/plain; charset=UTF-8",
+
+  const altBoundary = "=_jarvis_" + Math.abs(msg.body.length * 31 + msg.to.length).toString(36) + "_b";
+  let altParts = "";
+  if (msg.pixelUrl) {
+    const html =
+      "<div>" + escapeHtml(msg.body).replace(/\r?\n/g, "<br>") + "</div>" +
+      '<img src="' + msg.pixelUrl + '" width="1" height="1" alt="">';
+    altParts = [
+      "--" + altBoundary,
+      "Content-Type: text/plain; charset=UTF-8",
+      "",
+      msg.body,
+      "--" + altBoundary,
+      "Content-Type: text/html; charset=UTF-8",
+      "",
+      html,
+      "--" + altBoundary + "--",
+    ].join("\r\n");
+  }
+
+  if (!msg.attachment) {
+    headers.push('Content-Type: multipart/alternative; boundary="' + altBoundary + '"');
+    return b64urlEncode(headers.join("\r\n") + "\r\n\r\n" + altParts);
+  }
+
+  const mixedBoundary = "=_jarvis_" + Math.abs(msg.body.length * 17 + msg.attachment.filename.length).toString(36) + "_m";
+  const wordsPart = msg.pixelUrl
+    ? 'Content-Type: multipart/alternative; boundary="' + altBoundary + '"\r\n\r\n' + altParts
+    : "Content-Type: text/plain; charset=UTF-8\r\n\r\n" + msg.body;
+  const mixedParts = [
+    "--" + mixedBoundary,
+    wordsPart,
+    "--" + mixedBoundary,
+    "Content-Type: " + msg.attachment.mimeType + '; name="' + encodeWord(msg.attachment.filename) + '"',
+    'Content-Disposition: attachment; filename="' + encodeWord(msg.attachment.filename) + '"',
+    "Content-Transfer-Encoding: base64",
     "",
-    msg.body,
-    "--" + boundary,
-    "Content-Type: text/html; charset=UTF-8",
-    "",
-    html,
-    "--" + boundary + "--",
+    base64EncodeUtf8(msg.attachment.content),
+    "--" + mixedBoundary + "--",
   ].join("\r\n");
-  return b64urlEncode(headers.join("\r\n") + "\r\n\r\n" + parts);
+  headers.push('Content-Type: multipart/mixed; boundary="' + mixedBoundary + '"');
+  return b64urlEncode(headers.join("\r\n") + "\r\n\r\n" + mixedParts);
 }
 
 // --- Threads (Email rebuild) ---
