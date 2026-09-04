@@ -96,6 +96,29 @@ export class LearnedRulesService {
     return null;
   }
 
+  // S4-Q26 (2026-09-04): "the plan cap never becomes a rule you can
+  // delete." recordCorrection's two-observation requirement is for
+  // behaviour JARVIS infers on its own; this is for the person declaring a
+  // rule outright with one deliberate tap (the same distinction the Brain's
+  // own Make It a Rule toggle draws: nothing is ever promoted automatically,
+  // but a direct, on-purpose action is not automatic promotion). Idempotent:
+  // re-tapping an offer that already created its rule returns the existing
+  // row rather than a duplicate.
+  //
+  // Pre-announced, on purpose: the doctrine's announcement exists to license
+  // a SILENT creation the person never asked for. A tap is not silent -- the
+  // caller's own toast at the moment of creation already told them exactly
+  // what just happened, in words specific to that offer, which says more
+  // than the generic "New rule: X means Y" announceIfFirstUse would show
+  // were it to fire again the next time this rule is read.
+  async create(kind: RuleKind, scope: string, from: string, to: string, evidenceLine: string): Promise<LearnedRule> {
+    const existing = await this.resolve(scope, from);
+    if (existing) return existing;
+    const data: LearnedRuleData = { kind, scope, from, to, evidence: [evidenceLine], createdAt: new Date().toISOString(), announced: true };
+    const id = await this.store.create(this.ownerId, ENTITY_LEARNED_RULE, data as unknown as ItemData);
+    return { id, data };
+  }
+
   // First use announces the rule, exactly once. The announcement is the
   // deal: silent creation is licensed by loud existence.
   async announceIfFirstUse(rule: LearnedRule): Promise<void> {

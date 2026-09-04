@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useOptionalStrands, useOptionalProfile, useOptionalGym } from "../data/NotesProvider";
+import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useOptionalStrands, useOptionalRules, useOptionalGym } from "../data/NotesProvider";
 import GymFlow, { readActiveProgramId } from "../gym/GymFlow";
 import { doorInfoFor } from "../gym/door";
 import { readGymSettings, rackFrom } from "../gym/settings";
@@ -59,14 +59,23 @@ type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: EventDr
 
 export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?: (blockId?: string) => void; openId?: string } = {}) {
   const svc = useSchedule();
-  const profileSvc = useOptionalProfile();
+  const rulesSvc = useOptionalRules();
   // The chosen day cap (monthly report's one change): seeds the sheet.
+  // S4-Q26 (2026-09-04): read through the rules list, not the profile
+  // field, so deleting the row in What JARVIS Learned genuinely un-caps
+  // the day.
   const [planCap, setPlanCap] = useState<number | undefined>(undefined);
   useEffect(() => {
     let on = true;
-    profileSvc?.get().then((p) => { if (on) setPlanCap(p?.planCap ?? undefined); }).catch(() => {});
+    rulesSvc?.resolve("plan.cap", "day").then(async (r) => {
+      // create() pre-announces, so this is a no-op in the normal case; see
+      // that method's comment for why a second, generic announcement here
+      // would say less than the toast already shown at creation.
+      if (r) await rulesSvc.announceIfFirstUse(r);
+      if (on) setPlanCap(r ? Number(r.data.to) || undefined : undefined);
+    }).catch(() => {});
     return () => { on = false; };
-  }, [profileSvc]);
+  }, [rulesSvc]);
   const cats = useCategories();
   const today = todayISO();
   const t0 = new Date(today + "T00:00:00");

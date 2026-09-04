@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useCategories, useGoals, useProjects, useGym, useTasks, useProfile, useRules, useOptionalSeal } from "../data/NotesProvider";
+import { useCategories, useGoals, useProjects, useGym, useTasks, useRules, useOptionalSeal } from "../data/NotesProvider";
 import type { MonthSeal, MonthSealData } from "./seal";
 import { prevMonthKey, computeSeal } from "./seal";
 import { readWindow, type WindowClient } from "../brain/window";
@@ -318,7 +318,6 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
   const projectsSvc = useProjects();
   const gym = useGym();
   const tasksSvc = useTasks();
-  const profileSvc = useProfile();
   const rules = useRules();
   const [report, setReport] = useState<MonthReport | null>(null);
   const [none, setNone] = useState(false);
@@ -327,15 +326,25 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
 
   const load = useCallback(async () => {
     if (!sealSvc) { setNone(true); return; }
-    const [seals, cs, gl, pj, ws, tk, prof] = await Promise.all([
+    const [seals, cs, gl, pj, ws, tk, capRule] = await Promise.all([
       sealSvc.list(),
       cats.list(),
       goalsSvc.list(),
       projectsSvc.list(),
       gym.listWorkouts(),
       tasksSvc.listTasks(),
-      profileSvc.get(),
+      // S4-Q26 (2026-09-04): this used to ask profile.planCap, a field with
+      // no UI to unset it. The rules list is the one place learned behaviour
+      // lives (types.ts's own doctrine), so a deleted row here genuinely
+      // un-caps the day and this closer can offer it again next month.
+      rules.resolve("plan.cap", "day"),
     ]);
+    // create() pre-announces (its own toast at creation says more than the
+    // generic one would), so this is a no-op in the normal case; it stays
+    // wired for the same reason every other rule reader is: consulting a
+    // rule without ever confirming it announced itself is exactly the gap
+    // this doctrine exists to close.
+    if (capRule) await rules.announceIfFirstUse(capRule);
     let sealData: MonthSealData | null = null;
     if (live) {
       // The month in progress, through the SAME fold the boundary uses.
@@ -352,7 +361,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
     const prev = seals.find((s) => s.data.month === prevMonthKey(sealData!.month + "-15")) ?? null;
     const open = new Map(tk.filter((t) => !t.data.done).map((t) => [t.id, t.data] as const));
     setTaskById(open);
-    setCapped(prof?.planCap != null);
+    setCapped(!!capRule);
     setReport(buildReport({
       seal: sealData,
       prev: prev?.data ?? null,
@@ -361,16 +370,17 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
       projects: pj,
       workouts: ws,
       openTaskText: (id) => open.get(id)?.text ?? null,
-      alreadyCapped: prof?.planCap != null,
+      alreadyCapped: !!capRule,
     }));
-  }, [sealSvc, cats, goalsSvc, projectsSvc, gym, tasksSvc, profileSvc, month, live]);
+  }, [sealSvc, cats, goalsSvc, projectsSvc, gym, tasksSvc, rules, month, live]);
   useEffect(() => { void load(); }, [load]);
 
+  // S4-Q26 (2026-09-04): one tap, one step. create() is idempotent and
+  // announces nothing (the toast right here is the announcement), so this
+  // is a real row in What JARVIS Learned the instant it fires, not a
+  // pending observation waiting on a second one that will never come.
   const onCap = async () => {
-    await profileSvc.save({ planCap: 3 });
-    // The mirror record: the change shows up beside every other learned
-    // rule, with its evidence line, and can be deleted there like any rule.
-    await rules.recordCorrection("tuning", "plan.cap", "day", "3", "Chosen from the monthly report: first picks finish, later picks mostly do not").catch(() => {});
+    await rules.create("tuning", "plan.cap", "day", "3", "Chosen from the monthly report: first picks finish, later picks mostly do not");
     setCapped(true);
     showToast({ message: "Capped at 3 · Starting tomorrow" });
   };

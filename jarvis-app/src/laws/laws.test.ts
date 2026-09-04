@@ -3805,3 +3805,38 @@ describe("LAW: a tab's crash is its own, never the shell's", () => {
       .toMatch(/<ErrorBoundary>/);
   });
 });
+
+// LAW: THE PLAN CAP LIVES IN THE RULES LIST, NOT A DEAD-END PROFILE FIELD
+// (S4-Q26, 2026-09-04).
+//
+// "Cap the day at three?" used to write profile.planCap directly and record
+// a correction that (needing a second identical one to ever create a row)
+// never actually produced a rule: the report claimed the change "shows up
+// beside every other learned rule... and can be deleted there like any
+// rule," which was false. Checked structurally rather than by rendering
+// ReportPage/ScheduleFlow/TodayFlow (each stands up a large provider tree
+// beside the point of what this law protects); LearnedRulesService.create()
+// is proven directly, with no such tree, in rules/rules.test.ts.
+describe("LAW: the plan cap is a real, deletable learned rule", () => {
+  it("ReportPage's onCap creates the rule in one step, not through the two-correction path", () => {
+    const page = read(join(SRC, "review/ReportPage.tsx"));
+    expect(page, "one tap must be enough; recordCorrection needs a second identical one that never comes")
+      .toMatch(/rules\.create\(\s*"tuning",\s*"plan\.cap",\s*"day"/);
+    expect(page).not.toMatch(/profileSvc\.save\(\{\s*planCap/);
+  });
+
+  it("ReportPage reads whether the day is already capped from the rules list", () => {
+    const page = read(join(SRC, "review/ReportPage.tsx"));
+    expect(page).toMatch(/rules\.resolve\("plan\.cap",\s*"day"\)/);
+  });
+
+  it("ScheduleFlow and TodayFlow both seed the sheet's cap from the rules list, not profile.planCap", () => {
+    for (const f of ["schedule/ScheduleFlow.tsx", "today/TodayFlow.tsx"]) {
+      const src = read(join(SRC, f));
+      expect(src, `${rel(join(SRC, f))} must resolve plan.cap through the rules list`)
+        .toMatch(/resolve\("plan\.cap",\s*"day"\)/);
+      expect(src, `${rel(join(SRC, f))} must not read the dead profile field`)
+        .not.toMatch(/\.planCap\b/);
+    }
+  });
+});

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes } from "../data/NotesProvider";
+import { useSchedule, useTasks, useProfile, useCategories, useRoutine, usePeople, useProjects, useGoals, useDecisions, useNotes, useOptionalRules } from "../data/NotesProvider";
 import { pausedCategoryIds, effectiveKind } from "../categories/kinds";
 import { goalTone } from "../shared/categories";
 import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta";
@@ -177,6 +177,7 @@ export default function TodayFlow({
   const notesSvc = useNotes();
   const tasks = useTasks();
   const profile = useProfile();
+  const rulesSvc = useOptionalRules();
   const routine = useRoutine();
   const [routineData, setRoutineData] = useState<RoutineData>(DEFAULT_ROUTINE);
   const [routineSet, setRoutineSet] = useState(true);
@@ -383,26 +384,34 @@ export default function TodayFlow({
     const dNow = new Date();
     await schedule.healPlanDuplicates(today, dNow.getHours() * 60 + dNow.getMinutes());
     await schedule.healPlanDuplicates(tmrw, null);
-    const [te, tm, tk, prof, all] = await Promise.all([
+    const [te, tm, tk, prof, all, capRule] = await Promise.all([
       schedule.eventsOn(today),
       schedule.eventsOn(tmrw),
       tasks.listTasks(),
       profile.get(),
       schedule.listEvents(),
+      // S4-Q26 (2026-09-04): read through the rules list, not the
+      // profile field, so deleting the row in What JARVIS Learned
+      // genuinely un-caps the day.
+      rulesSvc ? rulesSvc.resolve("plan.cap", "day") : Promise.resolve(null),
     ]);
+    // create() pre-announces, so this is a no-op in the normal case; see
+    // that method's comment for why a second, generic announcement here
+    // would say less than the toast already shown at creation.
+    if (capRule && rulesSvc) await rulesSvc.announceIfFirstUse(capRule);
     setTodayEvents(te);
     setTomorrowEvents(tm);
     setTaskItems(tk);
     setAllEvents(all);
     setName(prof?.name ?? "");
-    setPlanCap(prof?.planCap ?? undefined);
+    setPlanCap(capRule ? Number(capRule.data.to) || undefined : undefined);
     // Yesterday's evening mood sizes today's plan (Phase 2). Noon anchor keeps
     // the date subtraction clear of any midnight or DST edge.
     const y = new Date(today + "T12:00:00");
     y.setDate(y.getDate() - 1);
     setPrevMood(prof?.checkin?.[todayISO(y)]?.mood);
     setLoading(false);
-  }, [schedule, tasks, profile, today, tmrw]);
+  }, [schedule, tasks, profile, rulesSvc, today, tmrw]);
 
   useEffect(() => { reload(); }, [reload]);
   // THE REPAINT TODAY NEVER GOT (Dave 2026-08-30: "things aren't clearing").

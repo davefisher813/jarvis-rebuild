@@ -130,3 +130,47 @@ describe("law: rules announce once, die on one contradiction, and delete cleanly
     expect(await svc.resolve("capture.category", "rehearsal")).toBeNull();
   });
 });
+
+// S4-Q26 (2026-09-04): "the plan cap never becomes a rule you can delete."
+// create() is the one-tap path: a person declaring a rule outright, not
+// JARVIS inferring one from a pair of corrections.
+describe("law: create() is one tap, one step, idempotent, and reverts on delete", () => {
+  it("creates the row on the very first call, no second observation needed", async () => {
+    const { svc } = rig();
+    expect(await svc.resolve("plan.cap", "day")).toBeNull();
+    const rule = await svc.create("tuning", "plan.cap", "day", "3", "Chosen from the monthly report");
+    expect(rule.data.to).toBe("3");
+    expect(rule.data.evidence).toEqual(["Chosen from the monthly report"]);
+    expect((await svc.resolve("plan.cap", "day"))!.id).toBe(rule.id);
+  });
+
+  it("re-tapping an offer that already made its rule returns the existing row, not a duplicate", async () => {
+    const { store, svc } = rig();
+    const first = await svc.create("tuning", "plan.cap", "day", "3", "e1");
+    const second = await svc.create("tuning", "plan.cap", "day", "3", "e2");
+    expect(second.id).toBe(first.id);
+    const rows = await store.listForUser(U, ENTITY_LEARNED_RULE);
+    expect(rows.length).toBe(1);
+  });
+
+  it("deleting a create()d row genuinely reverts it, same as any other rule", async () => {
+    const { svc } = rig();
+    const rule = await svc.create("tuning", "plan.cap", "day", "3", "e1");
+    await svc.delete(rule.id);
+    expect(await svc.resolve("plan.cap", "day")).toBeNull();
+  });
+
+  // Pre-announced: the tap's own toast already said what happened, in words
+  // specific to that offer. A later announceIfFirstUse must be a genuine
+  // no-op, not a second, generic "New rule" toast on top of it.
+  it("is born already announced, so a later read never re-announces it", async () => {
+    const { svc } = rig();
+    const rule = await svc.create("tuning", "plan.cap", "day", "3", "e1");
+    expect(rule.data.announced).toBe(true);
+    const seen: (ToastState | null)[] = [];
+    const un = subscribeToast((t) => seen.push(t));
+    await svc.announceIfFirstUse(rule);
+    expect(seen.filter(Boolean)).toEqual([]);
+    un();
+  });
+});
