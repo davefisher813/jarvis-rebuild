@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { AIService } from "../ai/AIService";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import { suggestionsSystemPrompt, parseSuggestions, type Suggestion } from "../ai/suggestions";
@@ -52,6 +52,12 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // append a learned block to the routine itself. Same dismiss memory, same
   // one-row rule, different landing place for the tap.
   const [pattern, setPattern] = useState<(PatternObservation & { routineBlock?: ProtectedBlock; moment?: Derived; sub?: string; stale?: Strand }) | null>(null);
+  // S4-Q21 (2026-09-04): the nightly pass can hand back up to three moments
+  // in one day (see brain/nightly.ts), but `pattern` above only ever holds
+  // the single one that won the race against mood/routine/planning
+  // candidates. Only What JARVIS Knows (always=true) populates this, so
+  // Today's one-row law is untouched: this stays empty there.
+  const [moments, setMoments] = useState<Derived[]>([]);
   const strandsSvc = useOptionalStrands();
   // Texts of the tasks already visible in Up Next: a suggestion that echoes
   // one of them is repetition, not value (Dave 2026-07-30), and is hidden.
@@ -122,9 +128,25 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         })),
       ];
       setPattern(candidates.find((c) => !isPatternDismissed(c.id, today)) ?? null);
+      // What JARVIS Knows renders the whole set the pass chose (pick S4-Q21),
+      // not just whichever candidate happened to win the row above. Compared
+      // by content, not replaced outright: a brand new array on every effect
+      // run (this one reruns whenever any service identity changes, e.g. a
+      // token refresh) would never be reference-equal to the last one, and
+      // React never bails out of the render that follows -- an infinite
+      // loop the moment this effect fires more than once with nothing to
+      // report.
+      if (always) {
+        const fresh = moments.filter((m) => !isPatternDismissed("brain-" + m.derivation, today));
+        setMoments((cur) =>
+          cur.length === fresh.length && cur.every((m, i) => m.derivation === fresh[i]!.derivation)
+            ? cur
+            : fresh,
+        );
+      }
     })();
     return () => { on = false; };
-  }, [profileSvc, scheduleSvc, routineSvc, strandsSvc, today]);
+  }, [profileSvc, scheduleSvc, routineSvc, strandsSvc, today, always]);
 
   useEffect(() => {
     if (!ai.available) return;
@@ -173,7 +195,11 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // so it opens as the card.
   const [open, setOpen] = useState(always);
   const aiPick = !pattern && visibleTaskTexts !== null ? nonEcho[0] ?? null : null;
-  if (!pattern && !aiPick) return null;
+  // The rest of today's moments, beyond whichever one (if any) won the row
+  // above -- empty outside What JARVIS Knows, since `moments` is never
+  // populated there.
+  const extraMoments = moments.filter((m) => m.derivation !== pattern?.moment?.derivation);
+  if (!pattern && !aiPick && extraMoments.length === 0) return null;
 
   const addToToday = async (idx: number, taskText: string) => {
     const all = await tasksSvc.listTasks();
@@ -195,6 +221,33 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     haptics.selection();
     if (pattern) { dismissPattern(pattern.id, today); setPattern(null); emit({ type: "suggestion.dismissed", props: { kind: "pattern" } }); }
     else if (aiPick) dismiss(aiPick.i);
+  };
+
+  // A being-known moment becomes a strand with its receipts, wherever it
+  // renders: the single row above (when a moment happens to win it) or one
+  // of the extra cards below on What JARVIS Knows. Same commit, same three
+  // true outcomes, either way.
+  const acceptMoment = async (m: Derived) => {
+    if (!strandsSvc) return;
+    haptics.selection();
+    // Three outcomes, three true sentences. This used to be a truthy check
+    // on an id, so "you already told me this" and "the Brain is full" both
+    // came out as "The Brain is full", which was a lie in the common case.
+    const r = await strandsSvc.accept(m.strandText, m.category, m.derivation, m.evidence, today);
+    haptics.success();
+    showToast({
+      message: r.outcome === "created" ? "JARVIS will remember that"
+        : r.outcome === "refreshed" ? "JARVIS already knew · Receipts updated"
+          : "The Brain is full · Prune it in What JARVIS Knows",
+    });
+    dismissPattern("brain-" + m.derivation, today);
+    setMoments((cur) => cur.filter((x) => x.derivation !== m.derivation));
+  };
+  const dismissMoment = (m: Derived) => {
+    haptics.selection();
+    emit({ type: "suggestion.dismissed", props: { kind: "brain-moment" } });
+    dismissPattern("brain-" + m.derivation, today);
+    setMoments((cur) => cur.filter((x) => x.derivation !== m.derivation));
   };
 
   const acceptPattern = async () => {
@@ -223,19 +276,8 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       emit({ type: "suggestion.accepted", props: { kind: "routine" } });
       showToast({ message: "Added to your routine" });
     } else if (pattern.moment && strandsSvc) {
-      // A being-known moment becomes a strand with its receipts. The commit
-      // lands with weight: this is the hit the Brain exists for.
-      const m = pattern.moment;
-      // Three outcomes, three true sentences. This used to be a truthy check
-      // on an id, so "you already told me this" and "the Brain is full" both
-      // came out as "The Brain is full", which was a lie in the common case.
-      const r = await strandsSvc.accept(m.strandText, m.category, m.derivation, m.evidence, today);
-      haptics.success();
-      showToast({
-        message: r.outcome === "created" ? "JARVIS will remember that"
-          : r.outcome === "refreshed" ? "JARVIS already knew · Receipts updated"
-            : "The Brain is full · Prune it in What JARVIS Knows",
-      });
+      // The commit lands with weight: this is the hit the Brain exists for.
+      await acceptMoment(pattern.moment);
     } else {
       // Planning observations (per-task timing, the fourth launch
       // derivation) land as strands too, receipts included, so every fact
@@ -276,18 +318,16 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // of Dave's screenshot dressed in last week's clothes. It is one quiet
   // line now; tapping it opens the full card (Notice law anatomy, dismiss on
   // the swipe) only when he wants the conversation.
+  let primary: ReactNode = null;
   if (pattern) {
-    if (!open) {
-      return (
-        <div className="pad-x">
-          <button className="receipt-line" onClick={() => setOpen(true)}>
-            <span className="rl-t">Noticed · {pattern.text}</span>
-            <span className="chev" />
-          </button>
-        </div>
-      );
-    }
-    return (
+    primary = !open ? (
+      <div className="pad-x">
+        <button className="receipt-line" onClick={() => setOpen(true)}>
+          <span className="rl-t">Noticed · {pattern.text}</span>
+          <span className="chev" />
+        </button>
+      </div>
+    ) : (
       <NoticeCard
         icon={<Lightbulb className="ic" />}
         tone="cat-fg-yellow"
@@ -297,25 +337,44 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         onDismiss={dismissThis}
       />
     );
-  }
-  if (!aiPick) return null;
-  if (!open) {
-    return (
+  } else if (aiPick) {
+    primary = !open ? (
       <div className="pad-x">
         <button className="receipt-line" onClick={() => setOpen(true)}>
           <span className="rl-t">Noticed · {aiPick.s.text}</span>
           <span className="chev" />
         </button>
       </div>
+    ) : (
+      <NoticeCard
+        icon={<Lightbulb className="ic" />}
+        tone="cat-fg-yellow"
+        title={aiPick.s.text}
+        action={aiPick.s.task ? { label: "Add", onClick: () => void addToToday(aiPick.i, aiPick.s.task!) } : undefined}
+        onDismiss={dismissThis}
+      />
     );
   }
+
+  // The rest of today's moments (pick S4-Q21): "Today keeps its one quiet
+  // row; What JARVIS Knows renders the whole set the pass chose." `primary`
+  // above is that one row, wherever it renders; these are whatever else the
+  // nightly pass picked, always full cards (never whispered), since this
+  // list only ever exists on the page that already opened everything.
   return (
-    <NoticeCard
-      icon={<Lightbulb className="ic" />}
-      tone="cat-fg-yellow"
-      title={aiPick.s.text}
-      action={aiPick.s.task ? { label: "Add", onClick: () => void addToToday(aiPick.i, aiPick.s.task!) } : undefined}
-      onDismiss={dismissThis}
-    />
+    <>
+      {primary}
+      {extraMoments.map((m) => (
+        <NoticeCard
+          key={m.derivation}
+          icon={<Lightbulb className="ic" />}
+          tone="cat-fg-yellow"
+          title={m.title}
+          sub={m.sub}
+          action={{ label: "Remember This", onClick: () => void acceptMoment(m) }}
+          onDismiss={() => dismissMoment(m)}
+        />
+      ))}
+    </>
   );
 }

@@ -168,3 +168,80 @@ describe("TodaySuggestions being-known moments", () => {
     await waitFor(() => expect(screen.queryByText(/Your tasks get done between/)).not.toBeInTheDocument());
   });
 });
+
+// S4-Q21 (2026-09-04): the nightly pass can pick up to three moments in one
+// day (brain/nightly.ts's DAILY_PROPOSAL_CAP), but only the single one that
+// won the race against every other candidate ever had anywhere to render --
+// dismissing it never advanced to the next, and nothing else on the app ever
+// showed it. Today's one-row law is right and stays; these prove the other
+// half: What JARVIS Knows renders every moment the pass chose.
+describe("TodaySuggestions the whole day's moments (S4-Q21)", () => {
+  // The nightly pass holds its pick for the rest of the (real) calendar day
+  // in localStorage, keyed by today's date -- cleared here so each test
+  // gets a fresh pass over exactly what it seeds, not a stale pick a sibling
+  // test already wrote for today.
+  beforeEach(() => { eventLog.clear(); localStorage.clear(); });
+
+  // Two independently real derivations sharing one window: ordinary task
+  // completions bunched at 10 AM (completion_window) and workout completions
+  // bunched at 6 PM (training_window, gated on kind: "workout" so the two
+  // never compete for the same band).
+  const seedTwoMoments = () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const base = new Date();
+    for (let i = 0; i < 14; i++) {
+      const at = new Date(base.getTime() - i * 86400000);
+      at.setHours(10, 30, 0, 0);
+      vi.setSystemTime(at);
+      emit({ type: "task.completed", entityType: "task", entityId: `c${i}`, props: { category: "work" } });
+    }
+    for (let i = 0; i < 14; i++) {
+      const at = new Date(base.getTime() - i * 86400000);
+      at.setHours(18, 30, 0, 0);
+      vi.setSystemTime(at);
+      emit({ type: "task.completed", entityType: "task", entityId: `w${i}`, props: { kind: "workout" } });
+    }
+    vi.useRealTimers();
+  };
+
+  it("Today still shows exactly one, its quiet row untouched", async () => {
+    seedTwoMoments();
+    render(<NotesProvider userId="b-today"><TodaySuggestions ai={new AIService({ available: false })} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
+    // One row only: the second moment gets no whisper, no card, no trace.
+    expect(screen.getAllByText(/^Noticed ·/)).toHaveLength(1);
+    expect(screen.queryByText(/You train between/)).not.toBeInTheDocument();
+  });
+
+  it("What JARVIS Knows renders both, not just whichever one won the row", async () => {
+    seedTwoMoments();
+    render(<NotesProvider userId="b-brain"><TodaySuggestions ai={new AIService({ available: false })} always /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument());
+    // The second moment is not a whisper here -- What JARVIS Knows opens
+    // every card it holds, immediately.
+    expect(screen.getByText(/You train between/)).toBeInTheDocument();
+    expect(screen.getAllByText("Remember This")).toHaveLength(2);
+  });
+
+  it("dismissing the extra moment removes only that one", async () => {
+    seedTwoMoments();
+    render(<NotesProvider userId="b-dismiss"><TodaySuggestions ai={new AIService({ available: false })} always /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/You train between/)).toBeInTheDocument());
+    // The primary row renders first, so its own Dismiss is first in the DOM;
+    // the extra card's is last.
+    const dismissButtons = screen.getAllByText("Dismiss");
+    fireEvent.click(dismissButtons[dismissButtons.length - 1]!);
+    await waitFor(() => expect(screen.queryByText(/You train between/)).not.toBeInTheDocument());
+    expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument();
+  });
+
+  it("accepting the extra moment writes the strand and clears just that card", async () => {
+    seedTwoMoments();
+    render(<NotesProvider userId="b-accept"><TodaySuggestions ai={new AIService({ available: false })} always /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/You train between/)).toBeInTheDocument());
+    const remember = screen.getAllByText("Remember This");
+    fireEvent.click(remember[remember.length - 1]!);
+    await waitFor(() => expect(screen.queryByText(/You train between/)).not.toBeInTheDocument());
+    expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument();
+  });
+});
