@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { findWaiting, waitingLine, nudgePrompt } from "./waiting";
+import { findWaiting, waitingLine, nudgePrompt, loadWaitingCache } from "./waiting";
 import { loadTracks, saveTrack, trackForThread } from "./tracking";
 import { encodeEmail, type GmailMeta, type GmailThreadMeta } from "../connections/google/map";
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";
@@ -24,6 +24,16 @@ function apiWith(threads: GmailThreadMeta[]) {
   });
 }
 
+// findWaiting takes a storage explicitly in every call below (a real
+// localStorage default only makes sense in a browser or jsdom -- this file
+// runs in vitest's node environment, same reason tracking.ts's tests do
+// this) and a fresh fixture per test keeps the cache from leaking between
+// them.
+function fakeStorage() {
+  const s: Record<string, string> = {};
+  return { getItem: (k: string) => s[k] ?? null, setItem: (k: string, v: string) => { s[k] = v; } };
+}
+
 describe("findWaiting", () => {
   it("keeps only threads where MY message is last, old enough, to a human", async () => {
     const rows = await findWaiting(apiWith([
@@ -35,7 +45,7 @@ describe("findWaiting", () => {
       thread("t_fresh", [msg("m4", "Dave <dave@x.com>", "Al <al@y.com>", "Quick q", NOW - 1 * DAY)]), // too fresh: out
       thread("t_robot", [msg("m5", "Dave <dave@x.com>", "no-reply@apple.com", "Enrollment", NOW - 6 * DAY)]), // machine: out
       thread("t_self", [msg("m6", "Dave <dave@x.com>", "Dave <dave@x.com>", "Note", NOW - 9 * DAY)]), // self: out
-    ]), NOW);
+    ]), NOW, 5, fakeStorage());
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ threadId: "t_sarah", to: "Sarah", toEmail: "sarah@y.com", waitingDays: 4 });
   });
@@ -43,9 +53,89 @@ describe("findWaiting", () => {
   it("sorts longest wait first and caps the list", async () => {
     const threads = Array.from({ length: 8 }, (_, i) =>
       thread("t" + i, [msg("m" + i, "Dave <dave@x.com>", "P" + i + " <p" + i + "@y.com>", "S" + i, NOW - (i + 2) * DAY)]));
-    const rows = await findWaiting(apiWith(threads), NOW, 5);
+    const rows = await findWaiting(apiWith(threads), NOW, 5, fakeStorage());
     expect(rows).toHaveLength(5);
     expect(rows[0]!.waitingDays).toBe(9);
+  });
+
+  // S2-7 (2026-09-04): "Waiting On only looks at 15 threads." Every reply
+  // anyone else sends bumps a live thread back into the 15 most recent and
+  // pushes an old, dead one one slot further out -- exactly the threads this
+  // feature exists to surface.
+  describe("the thread that ages out of the 15-thread window", () => {
+    it("keeps surfacing once cached, even after it leaves the search results entirely", async () => {
+      const storage = fakeStorage();
+      // First call: the old ask is still in the 15-thread window.
+      await findWaiting(
+        apiWith([thread("t_old", [msg("m1", "Dave <dave@x.com>", "Wei <wei@bffsa.org>", "Waiver", NOW - 30 * DAY)])]),
+        NOW, 5, storage,
+      );
+      // Second call, days later: 15 newer threads have pushed it out of the
+      // window entirely -- the fake search API simply never returns it again.
+      const laterNow = NOW + 5 * DAY;
+      const busyWindow = Array.from({ length: 15 }, (_, i) =>
+        thread("t_new" + i, [
+          msg("a" + i, "Dave <dave@x.com>", "P" + i + " <p" + i + "@y.com>", "S" + i, laterNow - 1 * DAY),
+          msg("b" + i, "P" + i + " <p" + i + "@y.com>", "Dave <dave@x.com>", "Re: S" + i, laterNow), // all answered
+        ]));
+      const rows = await findWaiting(apiWith(busyWindow), laterNow, 5, storage);
+      expect(rows.map((r) => r.threadId)).toContain("t_old");
+      // Not frozen at whatever it read on day 1 -- it kept counting.
+      expect(rows.find((r) => r.threadId === "t_old")!.waitingDays).toBe(35);
+    });
+
+    it("clears once the window shows it actually got answered", async () => {
+      const storage = fakeStorage();
+      await findWaiting(
+        apiWith([thread("t_old", [msg("m1", "Dave <dave@x.com>", "Wei <wei@bffsa.org>", "Waiver", NOW - 30 * DAY)])]),
+        NOW, 5, storage,
+      );
+      expect(Object.keys(loadWaitingCache(storage))).toContain("t_old");
+      const laterNow = NOW + 5 * DAY;
+      const rows = await findWaiting(apiWith([
+        thread("t_old", [
+          msg("m1", "Dave <dave@x.com>", "Wei <wei@bffsa.org>", "Waiver", NOW - 30 * DAY),
+          msg("m2", "Wei <wei@bffsa.org>", "Dave <dave@x.com>", "Re: Waiver", laterNow), // they answered
+        ]),
+      ]), laterNow, 5, storage);
+      expect(rows).toHaveLength(0);
+      expect(loadWaitingCache(storage)).not.toHaveProperty("t_old");
+    });
+
+    it("a merely-fresh reappearance (still not 2 days old) is dropped, not left stale", async () => {
+      const storage = fakeStorage();
+      await findWaiting(
+        apiWith([thread("t1", [msg("m1", "Dave <dave@x.com>", "Wei <wei@bffsa.org>", "Waiver", NOW - 30 * DAY)])]),
+        NOW, 5, storage,
+      );
+      const laterNow = NOW + 5 * DAY;
+      // A brand new message on the same thread, sent today -- too fresh to
+      // count on its own, and the old 30-day-old claim about this thread is
+      // stale now that there is a newer message to judge it by.
+      const rows = await findWaiting(
+        apiWith([thread("t1", [msg("m2", "Dave <dave@x.com>", "Wei <wei@bffsa.org>", "Re: Waiver", laterNow)])]),
+        laterNow, 5, storage,
+      );
+      expect(rows).toHaveLength(0);
+    });
+
+    it("caps at 200, oldest-sent evicted first", () => {
+      const storage = fakeStorage();
+      const cache: Record<string, unknown> = {};
+      for (let i = 0; i < 205; i++) {
+        cache["t" + i] = { threadId: "t" + i, to: "P", toEmail: "p@y.com", subject: "s", dateMs: i, lastMsgId: "m" + i };
+      }
+      storage.setItem("jarvis.mail.waiting.cache.v1", JSON.stringify(cache));
+      // Any call re-saves the cache through saveWaitingCache's cap; an empty
+      // search window changes nothing else, so this isolates the cap alone.
+      return findWaiting(apiWith([]), NOW + 1000 * DAY, 5, storage).then(() => {
+        const after = loadWaitingCache(storage);
+        expect(Object.keys(after)).toHaveLength(200);
+        // The 5 oldest (lowest dateMs, i.e. sent longest ago: t0..t4) are gone.
+        expect(after).not.toHaveProperty("t0");
+        expect(after).toHaveProperty("t204");
+      });
+    });
   });
 });
 

@@ -30,40 +30,99 @@ export function waitingDaysOf(sentMs: number, now: number): number {
   return Math.floor((now - sentMs) / 86400e3);
 }
 
+// S2-7 (2026-09-04): "Waiting On only looks at 15 threads." `in:sent` is
+// EVERY sent thread, replied-to or not, ordered by activity -- so a thread
+// nobody ever answered is exactly the kind that ages out of the 15 most
+// recent first: every reply anyone else sends bumps a live thread back to
+// the top and pushes the dead one one slot further from view. A row that
+// once qualified is cached here, keyed by thread, so it keeps surfacing
+// after it falls out of the search window. `dateMs` is stored, not the
+// day-count itself, so the count on screen keeps climbing on every call
+// instead of freezing at whatever it read the day it was last actually
+// seen.
+interface CachedWaitingRow {
+  threadId: string;
+  to: string;
+  toEmail: string;
+  subject: string;
+  dateMs: number;
+  lastMsgId: string;
+}
+const CACHE_KEY = "jarvis.mail.waiting.cache.v1";
+const CACHE_CAP = 200;
+
+export function loadWaitingCache(storage: Pick<Storage, "getItem"> = localStorage): Record<string, CachedWaitingRow> {
+  try {
+    const raw = JSON.parse(storage.getItem(CACHE_KEY) || "{}") as unknown;
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+    const out: Record<string, CachedWaitingRow> = {};
+    for (const [id, v] of Object.entries(raw as Record<string, unknown>)) {
+      const r = v as Partial<CachedWaitingRow> | null;
+      if (
+        r && typeof r.threadId === "string" && typeof r.to === "string" && typeof r.toEmail === "string" &&
+        typeof r.subject === "string" && typeof r.dateMs === "number" && typeof r.lastMsgId === "string"
+      ) {
+        out[id] = r as CachedWaitingRow;
+      }
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function saveWaitingCache(cache: Record<string, CachedWaitingRow>, storage: Pick<Storage, "setItem"> = localStorage): void {
+  const entries = Object.entries(cache);
+  // Oldest-sent evicted first when over cap, same rule as tracking.ts's
+  // store: a cache is for recency, and something that has been unanswered
+  // longest without staying in view has already had the least to say.
+  const kept = entries.length > CACHE_CAP
+    ? entries.sort((a, b) => b[1].dateMs - a[1].dateMs).slice(0, CACHE_CAP)
+    : entries;
+  try { storage.setItem(CACHE_KEY, JSON.stringify(Object.fromEntries(kept))); } catch { /* private mode */ }
+}
+
 // The user's own address is who Gmail says we are; rows where the last sender
 // is NOT me mean they replied, so I am not waiting.
 export async function findWaiting(
   api: Pick<GoogleApi, "searchThreads" | "getProfile">,
   now: number,
   max = 5,
+  storage: Pick<Storage, "getItem" | "setItem"> = localStorage,
 ): Promise<WaitingRow[]> {
   const me = (await api.getProfile()).emailAddress.toLowerCase();
   const metas = await api.searchThreads("in:sent -in:chats", 15);
-  const out: WaitingRow[] = [];
+  const cache = loadWaitingCache(storage);
   for (const meta of metas) {
     const msgs = meta.messages || [];
     const last = msgs[msgs.length - 1];
     if (!last) continue;
     const row = mapThread(meta);
     if (!row) continue;
-    if (row.fromEmail.toLowerCase() !== me) continue; // they replied: not waiting
+    // Every case below that used to just `continue` also drops any stale
+    // cache entry for this thread: the window just gave a fresh, authoritative
+    // answer for it (they replied, it is too new, etc.), which always beats
+    // whatever an older cached row still claimed.
+    if (row.fromEmail.toLowerCase() !== me) { delete cache[row.id]; continue; } // they replied: not waiting
     const days = waitingDaysOf(row.dateMs, now);
-    if (days < MIN_WAIT_DAYS) continue;
+    if (days < MIN_WAIT_DAYS) { delete cache[row.id]; continue; }
     // Who owes the reply = whoever the last message was sent To.
     const toHeader = (last.payload?.headers || []).find((h) => h.name.toLowerCase() === "to")?.value || "";
     const toEmail = (toHeader.match(/<([^>]+)>/)?.[1] || toHeader).trim();
-    if (!toEmail || AUTOMATED.test(toEmail)) continue; // machines never owe replies
-    if (toEmail.toLowerCase() === me) continue;        // notes to self are not waiting
+    if (!toEmail || AUTOMATED.test(toEmail)) { delete cache[row.id]; continue; } // machines never owe replies
+    if (toEmail.toLowerCase() === me) { delete cache[row.id]; continue; }        // notes to self are not waiting
     const toName = (toHeader.match(/^(.*?)\s*</)?.[1] || toEmail.split("@")[0] || toEmail).trim();
-    out.push({
-      threadId: row.id,
-      to: toName,
-      toEmail,
-      subject: row.subject,
-      waitingDays: days,
-      lastMsgId: row.lastMsgId,
-    });
+    cache[row.id] = { threadId: row.id, to: toName, toEmail, subject: row.subject, dateMs: row.dateMs, lastMsgId: row.lastMsgId };
   }
+  saveWaitingCache(cache, storage);
+  const out: WaitingRow[] = Object.values(cache).map((r) => ({
+    threadId: r.threadId,
+    to: r.to,
+    toEmail: r.toEmail,
+    subject: r.subject,
+    waitingDays: waitingDaysOf(r.dateMs, now),
+    lastMsgId: r.lastMsgId,
+  }));
   return out.sort((a, b) => b.waitingDays - a.waitingDays).slice(0, max);
 }
 
