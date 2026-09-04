@@ -7,7 +7,7 @@ import { useAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
 import { emit } from "../events";
 import { fmtClock } from "./drain";
-import { buildPlanPrompt, parseDeckPlan, primaryLabel, laterTaskTitle, type DeckPlan, type VoiceProfile } from "./deck";
+import { buildPlanPrompt, parseDeckPlan, primaryLabel, laterTaskTitle, threadSourceText, type DeckPlan, type VoiceProfile } from "./deck";
 import { voiceExamplesFor } from "./voiceExamples";
 import { showToast } from "../shared/toast";
 import { humanError } from "../connections/google/humanError";
@@ -149,7 +149,10 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
       const { system, user } = buildPlanPrompt(full, voice, today, userVoice);
       const raw = await ai.complete([{ role: "user", content: user }], system, { tier: "write" });
       if (!live()) return;
-      setPlan(parseDeckPlan(raw)); // null = honest fallback, card still works
+      // S2-3: verbatim-anchored against the same text the model was shown,
+      // not the model's own say-so -- a bill or an event with no anchor in
+      // the email falls back to the honest read-and-reply card.
+      setPlan(parseDeckPlan(raw, threadSourceText(full)));
     } catch {
       if (live()) setPlan(null);
     } finally {
