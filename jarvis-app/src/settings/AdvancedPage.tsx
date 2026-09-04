@@ -3,6 +3,7 @@ import LargeTitleNav from "../shared/LargeTitleNav";
 import { useChat } from "../data/NotesProvider";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
+import { clearLocalData } from "./clearLocalData";
 import { Head, Card, Row, DangerRow, Foot } from "./kit";
 
 export default function AdvancedPage({ onBack, onExport }: { onBack: () => void; onExport?: () => void }) {
@@ -40,7 +41,7 @@ export default function AdvancedPage({ onBack, onExport }: { onBack: () => void;
       <div className="set-gap"><Card>
         {!confirm
           ? <DangerRow label="Clear Local Data" onClick={() => setConfirm(true)} />
-          : <DangerRow label="Tap Again to Confirm" onClick={() => { try { localStorage.clear(); } catch { /* ignore */ } location.reload(); }} />}
+          : <DangerRow label="Tap Again to Confirm" onClick={() => { clearLocalData(); location.reload(); }} />}
       </Card></div>
       <Foot><span className="slip-warn">This device only · No undo</span></Foot>
       <div className="screen-foot" />
