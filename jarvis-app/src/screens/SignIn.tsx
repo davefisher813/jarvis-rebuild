@@ -2,11 +2,13 @@ import { useEffect, useState } from "react";
 import { Brain, Mail } from "../shared/icons";
 import { useAuth } from "../auth/AuthProvider";
 import { dismissSplash } from "../shared/splash";
+import TermsPage from "../settings/TermsPage";
+import PrivacyPage from "../settings/PrivacyPage";
 
 // Sign in. "Continue with Email" opens an email + password form (create account
 // or sign in). Apple sign-in returns once an Apple Developer account is set up.
 export default function SignIn() {
-  const { signInWithPassword, signUpWithPassword, backendConfigured } = useAuth();
+  const { signInWithPassword, signUpWithPassword, sendPasswordReset, backendConfigured } = useAuth();
   useEffect(() => { dismissSplash(); }, []);
   const [view, setView] = useState<"choose" | "email">("choose");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -14,9 +16,18 @@ export default function SignIn() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // S3-Q18 (2026-09-04): there was no Forgot Password anywhere, so a user
+  // who mistyped or forgot their password was locked out for good. This is
+  // the whole fix: send the reset email and say so, honestly, either way.
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  // Real Terms/Privacy Policy links (S3-Q18), shown right here since Sign In
+  // renders before any signed-in navigation exists to route through.
+  const [legal, setLegal] = useState<"terms" | "privacy" | null>(null);
 
   const submit = async () => {
     setError("");
+    setResetSent(false);
     if (!email.trim() || password.length < 6) {
       setError("Email + password · 6 characters minimum");
       return;
@@ -31,6 +42,27 @@ export default function SignIn() {
       setBusy(false);
     }
   };
+
+  const forgotPassword = async () => {
+    setError("");
+    setResetSent(false);
+    if (!email.trim()) {
+      setError("Enter your email first, then tap Forgot Password again");
+      return;
+    }
+    setResetBusy(true);
+    try {
+      await sendPasswordReset(email.trim());
+      setResetSent(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't send that · Try again");
+    } finally {
+      setResetBusy(false);
+    }
+  };
+
+  if (legal === "terms") return <TermsPage onBack={() => setLegal(null)} />;
+  if (legal === "privacy") return <PrivacyPage onBack={() => setLegal(null)} />;
 
   if (view === "email") {
     return (
@@ -49,10 +81,16 @@ export default function SignIn() {
             <input className="input" type="password" autoComplete={mode === "signup" ? "new-password" : "current-password"} placeholder="At Least 6 Characters" value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
           {error && <div className="input-error">{error}</div>}
+          {resetSent && <div className="input-hint">Check your email for a reset link.</div>}
           <button className="btn btn-primary btn-block btn-lg" onClick={submit} disabled={busy}>
             {busy ? "Working..." : mode === "signup" ? "Create Account" : "Sign In"}
           </button>
-          <button className="btn btn-secondary btn-block" onClick={() => { setMode(mode === "signup" ? "signin" : "signup"); setError(""); }}>
+          {mode === "signin" && (
+            <button className="btn btn-secondary btn-block" onClick={() => void forgotPassword()} disabled={resetBusy || busy}>
+              {resetBusy ? "Sending..." : "Forgot Password?"}
+            </button>
+          )}
+          <button className="btn btn-secondary btn-block" onClick={() => { setMode(mode === "signup" ? "signin" : "signup"); setError(""); setResetSent(false); }}>
             {mode === "signup" ? "I already have an account" : "Create a new account"}
           </button>
         </div>
@@ -74,7 +112,9 @@ export default function SignIn() {
         </div>
 
         <p className="signin-legal">
-          By continuing you agree to our <a href="#">Terms</a> and <a href="#">Privacy Policy</a>.
+          By continuing you agree to our{" "}
+          <button type="button" className="legal-link" onClick={() => setLegal("terms")}>Terms</button> and{" "}
+          <button type="button" className="legal-link" onClick={() => setLegal("privacy")}>Privacy Policy</button>.
         </p>
 
         {!backendConfigured && (

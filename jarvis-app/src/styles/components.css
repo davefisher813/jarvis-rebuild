@@ -20,7 +20,16 @@
   font-size: var(--t-meta); color: var(--tx-4);
   margin-top: var(--s-6); line-height: var(--lh-relaxed);
 }
-.signin-legal a { color: var(--tint); text-decoration: none; }
+.signin-legal a, .signin-legal button.legal-link {
+  color: var(--tint); text-decoration: none;
+}
+/* S3-Q18 (2026-09-04): Terms/Privacy used to be href="#" anchors that went
+   nowhere. Real buttons now open the actual legal screens; reset every
+   default button style so one still just reads as inline link text. */
+.signin-legal button.legal-link {
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; cursor: pointer;
+}
 .btn-apple { background: var(--tx-1); color: var(--bg); }
 
 /* Base icon context sizes that were intended by the locked design but missing
