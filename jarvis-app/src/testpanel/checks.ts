@@ -79,7 +79,7 @@ export const CHECKS: Check[] = [
       const feed = buildFeed({ tasks: [ { id: "1", data: { text: "A", category: "", done: false, due: "2026-01-01" } }, { id: "2", data: { text: "B", category: "", done: false, due: "2026-05-24" } } ], events: [], goals: [] }, "2026-05-24");
       eq(feed[0]!.kind, "overdue", "overdue first"); eq(feed[1]!.kind, "due_today", "due today second"); } },
   { group: "JARVIS Suggestions", name: "parse array/cap2/junk", run: () => { eq(JSON.stringify(parseSuggestions('["a","b"]')), '["a","b"]', "array"); eq(parseSuggestions('```json\n["a","b","c"]\n```').length, 2, "cap2"); eq(parseSuggestions("no").length, 0, "junk"); } },
-  { group: "Backup", name: "export then import round-trips", run: async () => { const a = store(); await a.create("u", "task", { text: "x" } as never); const b = await new BackupService(a, "u").exportBundle(); eq(b.items.length, 1, "export"); const s2 = store(); const n = await new BackupService(s2, "u2").importBundle(b); eq(n, 1, "import count"); eq((await s2.listForUser("u2")).length, 1, "restored"); } },
+  { group: "Backup", name: "export then import round-trips", run: async () => { const a = store(); await a.create("u", "task", { text: "x" } as never); const b = await new BackupService(a, "u").exportBundle(); eq(b.items.length, 1, "export"); const s2 = store(); const r = await new BackupService(s2, "u2").importBundle(b); eq(r.imported, 1, "import count"); eq(r.unsupportedTypes.length, 0, "no unsupported types"); eq((await s2.listForUser("u2")).length, 1, "restored"); } },
   { group: "UI", name: "Voice bar opens capture, no fake voice", run: () => {
       let tapped = 0;
       const m = mount(createElement(VoiceBar, { onTap: () => { tapped++; } }));

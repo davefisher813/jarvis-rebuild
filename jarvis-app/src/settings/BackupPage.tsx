@@ -59,8 +59,16 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
     if (!pending) return;
     setBusy(true);
     try {
-      const n = await backup.importBundle(pending.bundle as Parameters<typeof backup.importBundle>[0]);
-      setStatus(n === 0 ? "Nothing new · All already here" : `Imported ${n} ${n === 1 ? "item" : "items"} · Duplicates skipped`);
+      const { imported, unsupportedTypes } = await backup.importBundle(
+        pending.bundle as Parameters<typeof backup.importBundle>[0],
+      );
+      let msg = imported === 0 ? "Nothing new · All already here" : `Imported ${imported} ${imported === 1 ? "item" : "items"} · Duplicates skipped`;
+      if (unsupportedTypes.length > 0) {
+        const shown = unsupportedTypes.slice(0, 3).join(", ");
+        const rest = unsupportedTypes.length > 3 ? ` +${unsupportedTypes.length - 3} more` : "";
+        msg += ` · This build can't restore: ${shown}${rest}`;
+      }
+      setStatus(msg);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Import failed.");
     } finally {

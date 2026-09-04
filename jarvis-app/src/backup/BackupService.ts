@@ -1,4 +1,5 @@
 import type { Store, ItemData } from "@core";
+import { ALL_ENTITY_TYPES } from "./entityRegistry";
 
 // A portable snapshot of everything this user owns. Entity ids are intentionally
 // dropped on export; import creates fresh records so a bundle can be restored
@@ -16,10 +17,26 @@ export interface BackupBundle {
 
 // Entity types this app knows how to render. Import refuses to write anything
 // else, so a tampered or future-version bundle can't seed unrenderable rows.
-const KNOWN_TYPES = new Set([
-  "note", "task", "event", "category", "person", "profile",
-  "project", "goal", "life_area", "account", "routine",
-]);
+//
+// S3-Q15 (2026-09-04): was a hand-typed 11-entry list that silently dropped
+// the other 21 real entity types this app has shipped since it was written.
+// Now derived from the one canonical registry (entityRegistry.ts) so a new
+// feature's entity type is restorable the moment it's added there.
+const KNOWN_TYPES = new Set(ALL_ENTITY_TYPES);
+
+export interface ImportResult {
+  // Records actually written. A duplicate of something already in the
+  // account, in the bundle, or created earlier in this same import doesn't
+  // count -- see the dedupe note below.
+  imported: number;
+  // Entity type names the bundle carried that this build doesn't recognize,
+  // in first-seen order, each named once. The honest counterpart to a
+  // duplicate skip: not "already here," but "this build has no such entity
+  // at all" -- most likely an older backup restored into a newer build, or
+  // (before this fix) a newer backup restored into an older one. Empty when
+  // the bundle was fully understood.
+  unsupportedTypes: string[];
+}
 
 export class BackupService {
   constructor(private store: Store, private ownerId: string) {}
@@ -37,13 +54,17 @@ export class BackupService {
     };
   }
 
-  // Returns the number of records written. Throws on a file that is not a
-  // JARVIS backup so the UI can show a clear message.
+  // Returns how many records were written, plus the name of every entity type
+  // the bundle carried that this build can't render (S3-Q15: reported, not
+  // silently dropped). Throws on a file that is not a JARVIS backup so the UI
+  // can show a clear message.
   //
   // All-or-nothing: if any write fails mid-loop, every record this import
   // already created is deleted before the error surfaces, so a half-restored
-  // account can't happen. Unknown entity types are skipped, never written.
-  async importBundle(bundle: BackupBundle): Promise<number> {
+  // account can't happen. Unsupported entity types are still skipped, never
+  // written -- this build genuinely cannot render them -- but their names are
+  // collected instead of vanishing.
+  async importBundle(bundle: BackupBundle): Promise<ImportResult> {
     if (!bundle || bundle.app !== "jarvis" || !Array.isArray(bundle.items)) {
       throw new Error("This file is not a JARVIS backup.");
     }
@@ -54,11 +75,19 @@ export class BackupService {
       (await this.store.listForUser(this.ownerId)).map((i) => i.entityType + ":" + JSON.stringify(i.data)),
     );
     const created: string[] = [];
+    const unsupportedTypes: string[] = [];
+    const seenUnsupported = new Set<string>();
     let n = 0;
     try {
       for (const it of bundle.items) {
         if (!it || typeof it.entityType !== "string" || typeof it.data !== "object" || it.data === null) continue;
-        if (!KNOWN_TYPES.has(it.entityType)) continue;
+        if (!KNOWN_TYPES.has(it.entityType)) {
+          if (!seenUnsupported.has(it.entityType)) {
+            seenUnsupported.add(it.entityType);
+            unsupportedTypes.push(it.entityType);
+          }
+          continue;
+        }
         const key = it.entityType + ":" + JSON.stringify(it.data);
         if (existing.has(key)) continue;
         const id = await this.store.create(this.ownerId, it.entityType, it.data as ItemData);
@@ -72,6 +101,6 @@ export class BackupService {
       }
       throw new Error("Import failed · Rolled back · Nothing changed");
     }
-    return n;
+    return { imported: n, unsupportedTypes };
   }
 }

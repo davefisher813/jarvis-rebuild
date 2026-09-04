@@ -15,8 +15,9 @@ describe("BackupService", () => {
     expect(bundle.items.every((i) => "entityType" in i && "data" in i)).toBe(true);
 
     const b = new Store(new InMemoryAdapter());
-    const n = await new BackupService(b, "u2").importBundle(bundle);
-    expect(n).toBe(3);
+    const result = await new BackupService(b, "u2").importBundle(bundle);
+    expect(result.imported).toBe(3);
+    expect(result.unsupportedTypes).toEqual([]);
     expect((await b.listForUser("u2")).length).toBe(3);
   });
 
@@ -27,19 +28,40 @@ describe("BackupService", () => {
 });
 
 describe("import hardening", () => {
-  it("skips unknown entity types", async () => {
+  it("skips unknown entity types and reports each one by name, once", async () => {
     const store = new Store(new InMemoryAdapter());
     const svc = new BackupService(store, "u");
-    const n = await svc.importBundle({
+    const result = await svc.importBundle({
       app: "jarvis", version: 1, exportedAt: "x",
       items: [
         { entityType: "task", data: { text: "ok" } },
         { entityType: "malware_payload", data: { boom: 1 } },
+        { entityType: "malware_payload", data: { boom: 2 } },
       ],
     } as never);
-    expect(n).toBe(1);
+    expect(result.imported).toBe(1);
+    expect(result.unsupportedTypes).toEqual(["malware_payload"]);
     const rows = await store.listForUser("u");
     expect(rows.every((r) => r.entityType === "task")).toBe(true);
+  });
+
+  // S3-Q15 (2026-09-04): the whole point of the fix -- a type this build
+  // shipped support for after the backup's own build was written must now
+  // restore instead of silently vanishing.
+  it("restores an entity type that used to be missing from KNOWN_TYPES", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new BackupService(store, "u");
+    const result = await svc.importBundle({
+      app: "jarvis", version: 1, exportedAt: "x",
+      items: [
+        { entityType: "brain_doc", data: { topic: "values", text: "Be direct." } },
+        { entityType: "health_took_it", data: { medId: "m1", at: "2026-09-04T08:00:00Z" } },
+      ],
+    } as never);
+    expect(result.imported).toBe(2);
+    expect(result.unsupportedTypes).toEqual([]);
+    const rows = await store.listForUser("u");
+    expect(rows.map((r) => r.entityType).sort()).toEqual(["brain_doc", "health_took_it"]);
   });
 
   it("rolls back everything when a write fails mid-loop", async () => {
@@ -75,8 +97,8 @@ describe("importBundle dedupe", () => {
         { entityType: "note", data: { title: "Ideas", category: "", blocks: [], connections: [] } },
       ] as BackupBundle["items"],
     };
-    expect(await svc.importBundle(bundle)).toBe(2);
-    expect(await svc.importBundle(bundle)).toBe(0); // second run: everything exists
+    expect((await svc.importBundle(bundle)).imported).toBe(2);
+    expect((await svc.importBundle(bundle)).imported).toBe(0); // second run: everything exists
     const again = await svc.exportBundle();
     expect(again.items.filter((i) => i.entityType === "task")).toHaveLength(1);
   });
