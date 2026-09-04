@@ -73,6 +73,30 @@ export class TasksService {
     return id;
   }
 
+  // B1-3 (2026-09-04): the one function every Undo-after-delete site should
+  // call. A snapshot of a deleted task carries its project, its checklist,
+  // its if-then plan, its extra areas, its bill amount and where it came
+  // from; Undo restoring only text/category/due/recurrence was silently
+  // stripping every one of those, seven call sites deep, wherever the fix
+  // had not happened to be copied by hand. One function, called everywhere,
+  // is what keeps a new eighth site from reintroducing the same bug.
+  async recreateFrom(t: TaskData): Promise<string | null> {
+    return this.createTask(t.text, {
+      category: t.category || undefined,
+      extraCategories: t.extraCategories,
+      due: t.due ?? null,
+      recurrence: t.recurrence,
+      projectId: t.projectId,
+      bill: t.bill,
+      reminder: t.reminder,
+      plan: t.plan,
+      steps: t.steps,
+      fromNote: t.fromNote,
+      fromThread: t.fromThread,
+      source: t.source,
+    });
+  }
+
   async toggleDone(id: string): Promise<boolean> {
     const t = await this.getTask(id);
     if (!t) return false;

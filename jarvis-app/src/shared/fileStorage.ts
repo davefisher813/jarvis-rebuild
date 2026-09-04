@@ -9,9 +9,12 @@
 //      (pure functions below, unit-tested). HEIC and WebP are re-encoded to
 //      JPEG through a canvas, which drops all metadata by construction.
 //      PDFs pass through untouched.
-//   3. Path convention: user-files/{uid}/{entityId}/{filename}. The bucket
-//      policies pin the first folder segment to auth.uid, so a wrong path
-//      fails loudly at the server rather than landing in someone else's tree.
+//   3. Path convention: user-files/{uid}/{entityId}/{uniquifier}-{filename}.
+//      The bucket policies pin the first folder segment to auth.uid, so a
+//      wrong path fails loudly at the server rather than landing in someone
+//      else's tree. The uniquifier exists because iOS hands back the exact
+//      same filename for unrelated photos routinely, and this path is the
+//      only thing that ever told two uploads apart.
 //
 // The byte-level strippers are pure so vitest can prove no GPS tag survives
 // without needing a browser.
@@ -35,15 +38,27 @@ export function validateUpload(size: number, mimeType: string): string | null {
   return null;
 }
 
-// user-files/{uid}/{entityId}/{filename}, with the filename reduced to a
-// safe character set so a pasted name can never break the path.
-export function buildStoragePath(uid: string, entityId: string, filename: string): string {
+// A short uniquifier so two uploads that land on the same entity with the
+// same filename never collide on the same storage path (B1-6, 2026-09-04:
+// iOS hands back "IMG_0001.jpg" or the exact photo-library filename for
+// unrelated photos routinely, and the old two-segment path let the second
+// upload silently overwrite the first's bytes with upsert:true). Callers
+// generate one per upload; kept out of buildStoragePath itself so the path
+// builder stays a pure, testable function.
+export function uploadUniquifier(): string {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID().slice(0, 8);
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+// user-files/{uid}/{entityId}/{uniq}-{filename}, with the filename reduced
+// to a safe character set so a pasted name can never break the path.
+export function buildStoragePath(uid: string, entityId: string, filename: string, uniq: string): string {
   const safe = filename
     .replace(/[^a-zA-Z0-9._-]+/g, "_")
     .replace(/\.{2,}/g, ".")
     .replace(/^\.+/, "")
     .slice(0, 120) || "file";
-  return `${uid}/${entityId}/${safe}`;
+  return `${uid}/${entityId}/${uniq}-${safe}`;
 }
 
 // ---------------------------------------------------------------------------

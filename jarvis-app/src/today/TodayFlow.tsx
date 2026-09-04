@@ -460,14 +460,21 @@ export default function TodayFlow({
 
   const onOpenTask = async (id: string) => {
     const t = await tasks.task(id);
-    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", due: t.due ?? "", repeat: t.recurrence ?? "", steps: t.steps } });
+    // B1-4 (2026-09-04): this sheet used to load and save a strict subset of
+    // the same TaskSheet the Tasks tab opens, so a project, an extra area or
+    // an if-then plan set from Tasks would silently vanish the moment the
+    // task was edited from home instead. Same sheet, same fields, both ends.
+    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps } });
   };
 
   // Tappable schedule rows (roadmap v2): an event on Today opens the same
-  // editor the Schedule uses. Recurring edits from here apply to the series.
+  // editor the Schedule uses, including Apply To for a repeating event
+  // (B1-5, 2026-09-04: this sheet is the same EventSheet ScheduleFlow opens,
+  // so it offers the same until/taskIds/Training Door controls; it has to
+  // load and save the same fields or those controls lie).
   const onOpenEvent = async (id: string) => {
     const e = await schedule.event(id);
-    if (e) setEventSheet({ id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none" } });
+    if (e) setEventSheet({ id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
   };
 
   // THE SAME ROW, THE SAME MOVES (2026-08-28). Schedule's day list could
@@ -638,18 +645,32 @@ export default function TodayFlow({
     onEditRoutine?.(id);
   };
 
-  const onSaveEvent = async (draft: EventDraft) => {
+  const onSaveEvent = async (draft: EventDraft, scope?: "this" | "series") => {
     if (!eventSheet) return;
     const id = eventSheet.id;
-    await attemptWrite(async () => {
-      await schedule.editTitle(id, draft.title);
-      if ((eventSheet.initial.recurrence ?? "none") === "none") await schedule.moveDay(id, draft.date);
-      await schedule.editTime(id, draft.start);
-      await schedule.editEnd(id, draft.end);
-      await schedule.editRecurrence(id, draft.recurrence);
-      await schedule.editCategory(id, draft.category);
-      await schedule.editLocation(id, draft.location);
-    });
+    const recurring = (eventSheet.initial.recurrence ?? "none") !== "none";
+    if (recurring && scope === "this") {
+      // Same split ScheduleFlow.onSave uses: exdate the series on this date,
+      // stand the edited occurrence up as its own event.
+      await attemptWrite(async () => {
+        await schedule.addExdate(id, draft.date);
+        const splitId = await schedule.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined });
+        if (splitId && draft.gym) await schedule.editGymDoor(splitId, true);
+      });
+    } else {
+      await attemptWrite(async () => {
+        await schedule.editTitle(id, draft.title);
+        if (!recurring) await schedule.moveDay(id, draft.date);
+        await schedule.editTime(id, draft.start);
+        await schedule.editEnd(id, draft.end);
+        await schedule.editRecurrence(id, draft.recurrence);
+        await schedule.editUntil(id, draft.until || null);
+        await schedule.editCategory(id, draft.category);
+        await schedule.editLocation(id, draft.location);
+        await schedule.editTaskIds(id, draft.taskIds ?? []);
+        await schedule.editGymDoor(id, !!draft.gym);
+      });
+    }
     setEventSheet(null);
     await reload();
   };
@@ -741,9 +762,11 @@ export default function TodayFlow({
       const rec = (draft.repeat || "") as "" | Recurrence;
       await attemptWrite(async () => {
         await tasks.editText(sheet.id, draft.text);
-        await tasks.setCategory(sheet.id, draft.category);
+        await tasks.setCategories(sheet.id, [draft.category, ...(draft.extraCategories ?? [])].filter(Boolean));
         await tasks.setDue(sheet.id, draft.due || null);
+        await tasks.setProject(sheet.id, draft.projectId ?? null);
         await tasks.setRecurrence(sheet.id, rec || null);
+        await tasks.setPlan(sheet.id, draft.plan ?? null);
         await tasks.setSteps(sheet.id, draft.steps ?? []);
         if (draft.closeNow) await tasks.toggleDone(sheet.id);
       });
@@ -756,7 +779,7 @@ export default function TodayFlow({
     if (sheet?.mode === "edit") {
       const t = await tasks.task(sheet.id);
       const ok = await attemptWrite(() => tasks.deleteTask(sheet.id));
-      if (ok && t) showToast({ message: "Task deleted", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.createTask(t.text, { category: t.category || undefined, due: t.due ?? null, recurrence: t.recurrence })); await reload(); } });
+      if (ok && t) showToast({ message: "Task deleted", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.recreateFrom(t)); await reload(); } });
     }
     setSheet(null);
     await reload();
@@ -1955,7 +1978,9 @@ export default function TodayFlow({
         },
       });
     }
-    showToast({ message: "Reminder deleted" });
+    // B1-1 (2026-09-04): a second, unguarded showToast used to fire here on
+    // the very next line, overwriting the Undo toast above in the same tick.
+    // The recovery path could never be tapped. One toast per delete, full stop.
   };
   // CALENDAR HANDOFF: the only way a reminder can actually go off on an
   // iPhone today without a native build. iOS owns the alarm from here, which

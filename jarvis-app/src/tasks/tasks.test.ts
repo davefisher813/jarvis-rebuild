@@ -191,3 +191,55 @@ describe("steps on the task entity (2026-09-04, 'isn't there supposed to be an o
     expect(await svc.setSteps("nope", [{ text: "x", done: false }])).toBe(false);
   });
 });
+
+// B1-3 (2026-09-04): "Undo after deleting a task restores a stripped copy."
+// Seven Undo sites across the app used to recreate with only text, category,
+// due and recurrence. recreateFrom is the one function all of them now call.
+describe("recreateFrom (undo-after-delete restores the whole task)", () => {
+  it("carries project, extra areas, if-then plan, steps and bill amount, not just the bare fields", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new TasksService(store, "u1");
+    const id = await svc.createTask("Renew the lease", {
+      category: "home",
+      extraCategories: ["money"],
+      due: "2026-09-10",
+      recurrence: "monthly",
+      projectId: "proj-1",
+      bill: { amount: 2200 },
+      plan: { cue: { kind: "after", what: "coffee" }, then: "call the landlord" },
+      steps: [{ text: "Call landlord", done: false }],
+      fromNote: "note-1",
+      fromThread: "thread-1",
+    });
+    const original = await svc.task(id!);
+    await svc.deleteTask(id!);
+    const restoredId = await svc.recreateFrom(original!);
+    const restored = await svc.task(restoredId!);
+    expect(restored).toMatchObject({
+      text: "Renew the lease",
+      category: "home",
+      extraCategories: ["money"],
+      due: "2026-09-10",
+      recurrence: "monthly",
+      projectId: "proj-1",
+      bill: { amount: 2200 },
+      plan: { cue: { kind: "after", what: "coffee" }, then: "call the landlord" },
+      steps: [{ text: "Call landlord", done: false }],
+      fromNote: "note-1",
+      fromThread: "thread-1",
+    });
+  });
+
+  it("a bare task with none of the extras restores just as bare", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new TasksService(store, "u1");
+    const id = await svc.createTask("Buy milk", { category: "errands" });
+    const original = await svc.task(id!);
+    const restoredId = await svc.recreateFrom(original!);
+    const restored = await svc.task(restoredId!);
+    expect(restored!.projectId).toBeUndefined();
+    expect(restored!.plan).toBeUndefined();
+    expect(restored!.steps).toBeUndefined();
+    expect(restored!.bill).toBeUndefined();
+  });
+});

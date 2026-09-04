@@ -326,7 +326,7 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
       onAction: async () => {
         await attemptWrite(async () => {
           for (const d of snapshot) {
-            const id = await svc.createTask(d.text, { category: d.category || undefined, due: d.due ?? null, recurrence: d.recurrence });
+            const id = await svc.recreateFrom(d);
             if (id) await svc.toggleDone(id); // they come back DONE, as they were
           }
         });
@@ -436,7 +436,7 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
         // it was rather than leaving the user to undo six times.
         await attemptWrite(async () => {
           for (const t of kept.slice(0, n)) {
-            await svc.createTask(t.text, { category: t.category || undefined, due: t.due ?? null, recurrence: t.recurrence });
+            await svc.recreateFrom(t);
           }
         });
         await reload();
@@ -459,7 +459,7 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
       message: "Task deleted",
       actionLabel: "Undo",
       onAction: async () => {
-        await attemptWrite(() => svc.createTask(t.text, { category: t.category || undefined, due: t.due ?? null, recurrence: t.recurrence }));
+        await attemptWrite(() => svc.recreateFrom(t));
         await reload();
       },
     });

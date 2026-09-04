@@ -4,6 +4,7 @@ import {
   UPLOAD_TOO_BIG_MESSAGE,
   validateUpload,
   buildStoragePath,
+  uploadUniquifier,
   stripJpegMetadata,
   stripPngMetadata,
   jpegHasGps,
@@ -113,12 +114,23 @@ describe("PNG metadata strip", () => {
 });
 
 describe("storage path convention", () => {
-  it("builds user-files/{uid}/{entityId}/{filename} with the uid first", () => {
-    expect(buildStoragePath("u1", "e1", "receipt.pdf")).toBe("u1/e1/receipt.pdf");
+  it("builds user-files/{uid}/{entityId}/{uniq}-{filename} with the uid first", () => {
+    expect(buildStoragePath("u1", "e1", "receipt.pdf", "a1b2c3")).toBe("u1/e1/a1b2c3-receipt.pdf");
   });
   it("sanitizes hostile filenames so they cannot escape the tree", () => {
-    const p = buildStoragePath("u1", "e1", "../../etc/passwd");
+    const p = buildStoragePath("u1", "e1", "../../etc/passwd", "a1b2c3");
     expect(p.startsWith("u1/e1/")).toBe(true);
     expect(p).not.toContain("..");
+  });
+  // B1-6 (2026-09-04): two photos with the same filename used to overwrite
+  // each other in storage, silently, because the path had nothing but the
+  // filename to tell them apart. The uniquifier is what stops that.
+  it("gives two uploads of the same filename different paths", () => {
+    const a = buildStoragePath("u1", "e1", "IMG_0001.jpg", uploadUniquifier());
+    const b = buildStoragePath("u1", "e1", "IMG_0001.jpg", uploadUniquifier());
+    expect(a).not.toBe(b);
+  });
+  it("the uniquifier itself is different call to call", () => {
+    expect(uploadUniquifier()).not.toBe(uploadUniquifier());
   });
 });

@@ -382,7 +382,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
       message: "Task dropped",
       actionLabel: "Undo",
       onAction: async () => {
-        if (data) await tasksSvc.createTask(data.text, { category: data.category || undefined, due: data.due ?? null, recurrence: data.recurrence });
+        if (data) await tasksSvc.recreateFrom(data);
         await load();
       },
     });

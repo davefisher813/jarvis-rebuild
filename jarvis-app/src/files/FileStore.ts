@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { buildStoragePath, prepareUpload } from "../shared/fileStorage";
+import { buildStoragePath, prepareUpload, uploadUniquifier } from "../shared/fileStorage";
 
 // WHERE THE BYTES GO. One interface, two homes: Supabase Storage on the
 // device (the user-files bucket, migration 0020) and an in-memory shelf for
@@ -14,7 +14,7 @@ const SIGNED_FOR = 60 * 60; // seconds a signed read URL stays good
 export interface StoredFile { path: string; name: string; mime: string; bytes: number }
 
 export interface FileStore {
-  /** Uploads under {uid}/{entityId}/{filename}; throws a user-facing message. */
+  /** Uploads under {uid}/{entityId}/{uniq}-{filename}; throws a user-facing message. */
   upload(entityId: string, file: File): Promise<StoredFile>;
   /** A URL the page can show or open, or null when the file cannot be read. */
   url(path: string): Promise<string | null>;
@@ -30,7 +30,7 @@ export class SupabaseFileStore implements FileStore {
 
   async upload(entityId: string, file: File): Promise<StoredFile> {
     const prepared = await prepareUpload(file);
-    const path = buildStoragePath(this.uid, entityId, prepared.filename);
+    const path = buildStoragePath(this.uid, entityId, prepared.filename, uploadUniquifier());
     const { error } = await this.client.storage.from(BUCKET).upload(path, prepared.bytes, {
       contentType: prepared.mimeType, upsert: true,
     });
@@ -73,7 +73,7 @@ export class MemoryFileStore implements FileStore {
 
   async upload(entityId: string, file: File): Promise<StoredFile> {
     const prepared = await prepareUpload(file);
-    const path = buildStoragePath(this.uid, entityId, prepared.filename);
+    const path = buildStoragePath(this.uid, entityId, prepared.filename, uploadUniquifier());
     const old = this.shelf.get(path);
     if (old) URL.revokeObjectURL(old);
     const blob = new Blob([prepared.bytes as BlobPart], { type: prepared.mimeType });

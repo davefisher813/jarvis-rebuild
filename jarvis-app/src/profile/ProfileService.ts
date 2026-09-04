@@ -31,11 +31,21 @@ export class ProfileService {
   }
 
   // Create-or-update the single profile record, merged with the patch.
+  //
+  // B1-7 (2026-09-04): the network write carries ONLY the caller's patch,
+  // never the full merged record. The server's item_apply_patch RPC already
+  // does a field-level JSONB merge (core/supabaseAdapter.ts), which is built
+  // exactly so two devices can each own a different field. Sending the whole
+  // document defeated that: this device's own locally-cached read of fields
+  // it never touched would ride along on every save and silently win a
+  // last-write-wins race against whatever another device had just set on
+  // those same fields. `next` still stands in as the optimistic local view
+  // this call returns; it just never goes over the wire.
   async save(patch: Partial<ProfileData>): Promise<ProfileData> {
     const r = await this.record();
     if (r) {
       const next = { ...r.data, ...patch };
-      await this.store.update(this.ownerId, r.id, next as unknown as ItemData);
+      await this.store.update(this.ownerId, r.id, patch as unknown as ItemData);
       setAIControl(next.ai);
       return next;
     }

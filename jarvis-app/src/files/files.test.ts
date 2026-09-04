@@ -57,9 +57,15 @@ describe("MemoryFileStore", () => {
     try {
       const store = new MemoryFileStore("u1");
       const stored = await store.upload("note1", png());
-      expect(stored.path).toBe("u1/note1/shot_one.png");
+      expect(stored.path.startsWith("u1/note1/")).toBe(true);
+      expect(stored.path.endsWith("-shot_one.png")).toBe(true);
       expect(stored.mime).toBe("image/png");
       expect(await store.url(stored.path)).toBe("blob:1");
+      // B1-6: a second upload under the same entity with the SAME filename
+      // must land on its own path, not overwrite the first.
+      const second = await store.upload("note1", fileOf(new Uint8Array([9, 9]), "shot one.png", "image/png"));
+      expect(second.path).not.toBe(stored.path);
+      expect(await store.url(stored.path)).not.toBeNull();
       await store.upload("note1", fileOf(new Uint8Array([1, 2]), "b.pdf", "application/pdf"));
       await store.removeAll("note1");
       expect(await store.url(stored.path)).toBeNull();
@@ -86,15 +92,23 @@ describe("SupabaseFileStore", () => {
     return { client: client as unknown as ConstructorParameters<typeof SupabaseFileStore>[0], calls };
   };
 
-  it("uploads under {uid}/{entity}/{name} with the content type, and signs reads once an hour", async () => {
+  it("uploads under {uid}/{entity}/{uniq}-{name} with the content type, and signs reads once an hour", async () => {
     const { client, calls } = fake();
     const store = new SupabaseFileStore(client, "uid-9");
     const stored = await store.upload("ent", png());
-    expect(stored.path).toBe("uid-9/ent/shot_one.png");
-    expect(calls.upload![0]).toEqual(["uid-9/ent/shot_one.png", 20, { contentType: "image/png", upsert: true }]);
-    expect(await store.url(stored.path)).toBe("https://x/uid-9/ent/shot_one.png");
-    expect(await store.url(stored.path)).toBe("https://x/uid-9/ent/shot_one.png");
+    expect(stored.path.startsWith("uid-9/ent/")).toBe(true);
+    expect(stored.path.endsWith("-shot_one.png")).toBe(true);
+    expect(calls.upload![0]).toEqual([stored.path, 20, { contentType: "image/png", upsert: true }]);
+    expect(await store.url(stored.path)).toBe("https://x/" + stored.path);
+    expect(await store.url(stored.path)).toBe("https://x/" + stored.path);
     expect(calls.signed).toHaveLength(1);
+  });
+  it("gives two same-named uploads to the same entity different paths (B1-6)", async () => {
+    const { client } = fake();
+    const store = new SupabaseFileStore(client, "uid-9");
+    const first = await store.upload("ent", png());
+    const second = await store.upload("ent", png());
+    expect(first.path).not.toBe(second.path);
   });
 
   it("sweeps a folder by listing it, and skips empty paths", async () => {

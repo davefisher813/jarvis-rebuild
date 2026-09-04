@@ -417,7 +417,10 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     if (!e) return;
     // Use the event's own date, not the currently selected day: editing an
     // event from another day must not silently move it to the selected date.
-    setSheet({ mode: "edit", id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", taskIds: e.taskIds ?? [], gym: !!e.gym } });
+    // B1-2 (2026-09-04): "until" has to travel into the sheet too, or the
+    // sheet's own default of "" reads as "forever" and onSave below writes
+    // that back, silently erasing a real end date on any unrelated edit.
+    setSheet({ mode: "edit", id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
   };
 
   // When arriving via a note connection, jump to the event's own date and open
@@ -430,7 +433,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
       if (!on || !e) return;
       setSelected(e.date);
       syncView(e.date);
-      setSheet({ mode: "edit", id: openId, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", taskIds: e.taskIds ?? [], gym: !!e.gym } });
+      setSheet({ mode: "edit", id: openId, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
     })();
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps

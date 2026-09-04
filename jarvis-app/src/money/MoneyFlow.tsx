@@ -292,7 +292,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
         message: "Task deleted",
         actionLabel: "Undo",
         onAction: async () => {
-          await attemptWrite(() => tasksSvc.createTask(t.text, { category: t.category || undefined, due: t.due ?? null, recurrence: t.recurrence }));
+          await attemptWrite(() => tasksSvc.recreateFrom(t));
           await reload();
         },
       });
