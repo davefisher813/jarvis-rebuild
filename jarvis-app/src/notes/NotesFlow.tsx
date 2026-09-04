@@ -21,6 +21,8 @@ import { attemptWrite } from "../shared/guard";
 import { recordSpot } from "../restore/whereYouWere";
 import CreateTasks from "./screens/CreateTasks";
 import type { BlockType } from "./types";
+import QuickCreateSheet, { nextHalfHour, type QuickCreateKind } from "./screens/QuickCreateSheet";
+import { todayISO } from "../schedule/calendar";
 
 type Screen = "list" | "editor" | "templates" | "connections" | "createTasks" | "linkPicker";
 
@@ -458,6 +460,33 @@ export default function NotesFlow({
     setScreen("linkPicker");
   };
 
+  // CREATE AND LINK IN ONE STEP (LinkPicker catalog pick, 2026-09-0X). The
+  // picker only ever offered what already existed; this makes the thing on
+  // the spot, with only the one field the picker itself can honestly ask
+  // for, and links it to the open note the same way a pick from the list
+  // always has. Everything else about it (a due date, a time, an area) is
+  // exactly what its own screen already asks for -- unset here, editable
+  // there the moment it exists.
+  const [quickCreate, setQuickCreate] = useState<QuickCreateKind | null>(null);
+  const runQuickCreate = async (title: string) => {
+    const kind = quickCreate;
+    if (!kind) return;
+    let id: string | null = null;
+    await attemptWrite(async () => {
+      if (kind === "task") id = await tasksSvc.createTask(title);
+      else if (kind === "event") id = await schedSvc.createEvent(title, { date: todayISO(), start: nextHalfHour() });
+      else if (kind === "project") id = await projSvc.create({ title, status: "active" });
+      else if (kind === "person") id = await peopleSvc.create({ name: title, group: "contacts" });
+      else if (kind === "goal") id = await goalSvc.create({ title, state: "on_track" });
+    });
+    setQuickCreate(null);
+    if (id && currentId) {
+      await attemptWrite(() => svc.addConnection(currentId, kind, title, id!));
+      await loadCurrent(currentId);
+    }
+    setScreen(linkReturnTo);
+  };
+
   const runCreateTasks = async () => {
     if (!currentId) return;
     await attemptWrite(() => svc.tasksFromChecklist(currentId));
@@ -698,8 +727,12 @@ export default function NotesFlow({
           }
           setScreen(linkReturnTo);
         }}
+        onCreateNew={(kind) => setQuickCreate(kind)}
         onBack={() => setScreen(linkReturnTo)}
       />
+      {quickCreate && (
+        <QuickCreateSheet kind={quickCreate} onCreate={(title) => void runQuickCreate(title)} onCancel={() => setQuickCreate(null)} />
+      )}
       </div>
     );
   }
