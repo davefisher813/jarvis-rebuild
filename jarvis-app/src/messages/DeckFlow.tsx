@@ -20,6 +20,7 @@ import { settleAll } from "./settle";
 import { quickAnswers } from "./quickAnswers";
 import { dealHand, estimateOf, EMPTY_RECEIPTS, handledOf, type SweepReceipts, SESSION_MS } from "./sweep";
 import { Burst } from "../shared/Burst";
+import { madeBy } from "../shared/provenance";
 
 
 // THE SWEEP (Dave 2026-08-25, the Anti-Inbox catalog, every pick approved).
@@ -245,9 +246,18 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
         // so the one measure of draft quality died with the device.
         emit({ type: "email.deck_sent", props: { flag: false } });
       } else if (plan.kind === "bill" && plan.bill) {
+        // B6-7 (2026-09-04): the Sweep wrote bills, events and tasks with no
+        // source and no fromThread, unlike every other email-to-entity path
+        // in the app (MessagesFlow, TodayFlow's addTaskFromMail). Without
+        // them the row carries no "From an email" line and nothing to tap
+        // back to the thread two days later. madeBy("email", row.id) is the
+        // same stamp those paths already use; row.id is the thread id
+        // (archiveRemote below sends it straight to modifyThread).
         await tasks.createTask("Pay " + plan.bill.name, {
           due: plan.bill.due ?? null,
           bill: { amount: plan.bill.amount },
+          fromThread: row.id,
+          source: madeBy("email", row.id),
         });
         cleared = await archiveRemote(row.id, row.account);
         receipts.current.bills += 1;
@@ -256,11 +266,12 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
           date: plan.event.date,
           start: plan.event.start,
           end: plan.event.end,
+          source: madeBy("email", row.id),
         });
         cleared = await archiveRemote(row.id, row.account);
         receipts.current.scheduled += 1;
       } else if (plan.kind === "task" && plan.task) {
-        await tasks.createTask(plan.task.title, { due: plan.task.due ?? null });
+        await tasks.createTask(plan.task.title, { due: plan.task.due ?? null, fromThread: row.id, source: madeBy("email", row.id) });
         cleared = await archiveRemote(row.id, row.account);
         receipts.current.tasks += 1;
       } else {
@@ -282,7 +293,7 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
     try {
       // todayISO is LOCAL. toISOString().slice(0,10) is UTC, so tapping
       // Later after 5pm west of UTC filed the task due TOMORROW.
-      await tasks.createTask(laterTaskTitle(displayName(row.from), row.subject), { due: todayISO() });
+      await tasks.createTask(laterTaskTitle(displayName(row.from), row.subject), { due: todayISO(), fromThread: row.id, source: madeBy("email", row.id) });
       emit({ type: "action", props: { name: "email.deck.later" } });
       receipts.current.later += 1;
       advance(false); // stays in the inbox: the task is the reminder, the mail is the evidence

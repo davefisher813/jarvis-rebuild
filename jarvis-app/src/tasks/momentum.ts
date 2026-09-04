@@ -43,8 +43,13 @@ export function dismissChain(today: string): void {
 // The pick. Same category as the finished task first; inside a tier, the
 // nearest due date wins, undated last. Never a bill (a bill is not
 // momentum, it is rent), never a done task, never the one just finished.
+//
+// B6-6 (2026-09-04): never a reminder either. A reminder's done is always
+// false, so it passed every filter here before this and could surface as
+// "Keep Going: Take meds", the same class of mistake filters.ts and
+// upnext.ts already guard against for every other task list.
 export function nextBest(items: TaskItem[], completedId: string, completedCategory: string): TaskItem | null {
-  const open = items.filter((t) => !t.data.done && !t.data.bill && t.id !== completedId);
+  const open = items.filter((t) => !t.data.done && !t.data.bill && !t.data.reminder && t.id !== completedId);
   if (open.length === 0) return null;
   const rank = (t: TaskItem): [number, string] => [
     t.data.category === completedCategory && completedCategory !== "" ? 0 : 1,

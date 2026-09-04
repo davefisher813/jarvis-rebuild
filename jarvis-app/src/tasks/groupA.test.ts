@@ -63,6 +63,15 @@ describe("Momentum Chain", () => {
     expect(nextBest(items, "done1", "gym")).toBeNull();
   });
 
+  // B6-6 (2026-09-04): a reminder's done is always false, so before this fix
+  // it passed every other guard here and could surface as "Keep Going: Take
+  // meds". filters.ts and upnext.ts already exclude reminders; this closes
+  // the same gap in the momentum chain.
+  it("never a reminder", () => {
+    const items = [item("r", "Take meds", "gym", { reminder: { time: "09:00" } })];
+    expect(nextBest(items, "done1", "gym")).toBeNull();
+  });
+
   it("two Not Nows quiets the chain for the day", () => {
     expect(chainQuietToday(TODAY)).toBe(false);
     dismissChain(TODAY);

@@ -68,6 +68,14 @@ describe("Gap Fill (item 11)", () => {
     expect(gapFill([task("a", "T")], null, TODAY, () => 10)).toBeNull();
     expect(gapFill([task("a", "Rent", { bill: { amount: 1 } })], 60, TODAY, () => 10)).toBeNull();
   });
+
+  // B6-5 (2026-09-04): "The Now card can offer a reminder as work." Every
+  // other chokepoint that turns tasks into a work queue excludes reminders
+  // (filters.ts, upnext.ts); this one did not, so a free gap could deal a
+  // reminder like Morning Meds a Start button and a ritual sheet.
+  it("silent for a reminder, even when it would otherwise fit", () => {
+    expect(gapFill([task("a", "Take meds", { reminder: { time: "09:00" } })], 60, TODAY, () => 10)).toBeNull();
+  });
 });
 
 describe("Hyperfocus Guard (item 12)", () => {

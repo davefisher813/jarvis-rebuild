@@ -13,6 +13,7 @@ import { STEPS } from "./steps";
 import { seedQuestions, factsFrom } from "./seeds";
 import { NEW_USER_TABS } from "../shell/destinations";
 import { dismissSplash } from "../shared/splash";
+import { attemptWrite } from "../shared/guard";
 
 const ic = (d: string) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
@@ -118,72 +119,87 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const step = STEPS[idx];
   if (!step) return null;
 
+  // B6-1 (2026-09-04): "A failed profile write locks a new user out
+  // permanently." setSaving(true) above had no matching false on the way
+  // out, and onFinish() only ran after every await succeeded, so a single
+  // flaky write on a brand-new account (no data to lose retrying) latched
+  // "Enter JARVIS" disabled forever with nothing on screen to explain why.
+  // attemptWrite is the house-wide answer to exactly this shape of problem:
+  // the whole sequence runs as one write, the standard toast fires on
+  // failure, and the finally below always releases the button so the user
+  // can just try again.
   const finish = async (complete: boolean) => {
     if (saving) return;
     setSaving(true);
-    // (people and priority are deliberately NOT persisted on the profile:
-    // the names become real person entities and the priority becomes a real
-    // task below. Audit 2026-08-10 removed the write-only duplicates.)
-    await profile.save({
-      name: name.trim(),
-      template,
-      briefTime: briefTime || undefined,
-      // Item 22: Skip lands on Draft Only, and the level applies instantly.
-      ai: { level: aiChoice === "everything" ? "everything" as const : "draft" as const },
-      gmail,
-      calendar,
-      onboarded: true,
-      // New users start with the trimmed tab set (see destinations.tsx).
-      // Persisted here so the default fallback never shifts under anyone who
-      // onboarded before this existed.
-      tabs: NEW_USER_TABS,
-    });
-    if (complete) {
-      const existing = await categories.list();
-      if (existing.length === 0) {
-        for (const s of seeds) await categories.create(s.name, s.color, s.icon);
-      }
-      // Plain contacts, no register: onboarding asked who matters, not how
-      // the user writes to them, and a guessed register is worse than none.
-      if (people.length > 0 && (await peopleSvc.list()).length === 0) {
-        for (const name of people) await peopleSvc.create({ name, group: "contacts" });
-      }
-      // Seed a smarter wake time from the morning-brief choice, and work hours
-      // from the one-tap workstyle answer. Only when routine isn't already set.
-      if ((briefTime || WORK_PRESET[workStyle]) && !(await routine.isConfigured())) {
-        const work = WORK_PRESET[workStyle];
-        await routine.save({
-          ...(briefTime ? { wakeMin: wakeFromBrief(briefTime) } : {}),
-          ...(work ?? {}),
+    try {
+      const ok = await attemptWrite(async () => {
+        // (people and priority are deliberately NOT persisted on the profile:
+        // the names become real person entities and the priority becomes a real
+        // task below. Audit 2026-08-10 removed the write-only duplicates.)
+        await profile.save({
+          name: name.trim(),
+          template,
+          briefTime: briefTime || undefined,
+          // Item 22: Skip lands on Draft Only, and the level applies instantly.
+          ai: { level: aiChoice === "everything" ? "everything" as const : "draft" as const },
+          gmail,
+          calendar,
+          onboarded: true,
+          // New users start with the trimmed tab set (see destinations.tsx).
+          // Persisted here so the default fallback never shifts under anyone who
+          // onboarded before this existed.
+          tabs: NEW_USER_TABS,
         });
-      }
-      // The payoff made real: the priority answer becomes an actual task, its
-      // text understood by the capture parser (catches "by Friday", "at 3pm"),
-      // categorized when the parse names a seeded area, due where the plan
-      // engine slotted it.
-      if (priority.trim()) {
-        const today = todayISO();
-        const parsed = localParse(priority, today);
-        const cats = await categories.list();
-        const catHit = parsed.category
-          ? cats.find((c) => c.data.name.toLowerCase() === parsed.category!.toLowerCase())
-          : undefined;
-        const work = WORK_PRESET[workStyle] ?? { workStartMin: DEFAULT_ROUTINE.workStartMin, workEndMin: DEFAULT_ROUTINE.workEndMin };
-        const { dayWord } = slotForPriority(parsed.title || priority, work.workStartMin, work.workEndMin);
-        const due = parsed.date ?? (dayWord === "today" ? today : todayISO(new Date(Date.now() + 86400000)));
-        await tasksSvc.createTask(parsed.title || priority, { category: catHit?.id, due });
-      }
-      // The seeds become real facts, at source "asked" (see seeds.ts and
-      // StrandsService.seed). Best-effort and last: a genome write must never
-      // be the thing that stops a new account from opening.
-      if (strandsSvc) {
-        const today = todayISO();
-        for (const f of factsFrom(template, seedPicks)) {
-          try { await strandsSvc.seed(f.text, f.category, today); } catch { /* intake still succeeds */ }
+        if (complete) {
+          const existing = await categories.list();
+          if (existing.length === 0) {
+            for (const s of seeds) await categories.create(s.name, s.color, s.icon);
+          }
+          // Plain contacts, no register: onboarding asked who matters, not how
+          // the user writes to them, and a guessed register is worse than none.
+          if (people.length > 0 && (await peopleSvc.list()).length === 0) {
+            for (const name of people) await peopleSvc.create({ name, group: "contacts" });
+          }
+          // Seed a smarter wake time from the morning-brief choice, and work hours
+          // from the one-tap workstyle answer. Only when routine isn't already set.
+          if ((briefTime || WORK_PRESET[workStyle]) && !(await routine.isConfigured())) {
+            const work = WORK_PRESET[workStyle];
+            await routine.save({
+              ...(briefTime ? { wakeMin: wakeFromBrief(briefTime) } : {}),
+              ...(work ?? {}),
+            });
+          }
+          // The payoff made real: the priority answer becomes an actual task, its
+          // text understood by the capture parser (catches "by Friday", "at 3pm"),
+          // categorized when the parse names a seeded area, due where the plan
+          // engine slotted it.
+          if (priority.trim()) {
+            const today = todayISO();
+            const parsed = localParse(priority, today);
+            const cats = await categories.list();
+            const catHit = parsed.category
+              ? cats.find((c) => c.data.name.toLowerCase() === parsed.category!.toLowerCase())
+              : undefined;
+            const work = WORK_PRESET[workStyle] ?? { workStartMin: DEFAULT_ROUTINE.workStartMin, workEndMin: DEFAULT_ROUTINE.workEndMin };
+            const { dayWord } = slotForPriority(parsed.title || priority, work.workStartMin, work.workEndMin);
+            const due = parsed.date ?? (dayWord === "today" ? today : todayISO(new Date(Date.now() + 86400000)));
+            await tasksSvc.createTask(parsed.title || priority, { category: catHit?.id, due });
+          }
+          // The seeds become real facts, at source "asked" (see seeds.ts and
+          // StrandsService.seed). Best-effort and last: a genome write must never
+          // be the thing that stops a new account from opening.
+          if (strandsSvc) {
+            const today = todayISO();
+            for (const f of factsFrom(template, seedPicks)) {
+              try { await strandsSvc.seed(f.text, f.category, today); } catch { /* intake still succeeds */ }
+            }
+          }
         }
-      }
+      });
+      if (ok) onFinish();
+    } finally {
+      setSaving(false);
     }
-    onFinish();
   };
 
   const pickTemplate = (t: TemplateKey) => {

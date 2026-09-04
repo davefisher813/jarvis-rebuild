@@ -1452,7 +1452,7 @@ export default function TodayFlow({
   const gapPick = evening || gapDismissed === gapKey
     ? null
     : gapFill(
-        taskItems.map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done, due: t.data.due, bill: t.data.bill })),
+        taskItems.map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done, due: t.data.due, bill: t.data.bill, reminder: t.data.reminder })),
         nowCtx.gapMin,
         today,
         (cat) => estimates[cat] ?? 45,

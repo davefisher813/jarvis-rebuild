@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "../data/NotesProvider";
+import { ProfileService } from "../profile/ProfileService";
 import OnboardingFlow from "./OnboardingFlow";
 
 function setup() {
@@ -114,6 +115,41 @@ describe("OnboardingFlow", () => {
   it("intro Skip finishes immediately", async () => {
     const onFinish = setup();
     fireEvent.click(screen.getByText("Skip for now"));
+    await waitFor(() => expect(onFinish).toHaveBeenCalled());
+  });
+
+  // B6-1 (2026-09-04): a failed profile write used to leave saving latched
+  // true forever, so "Enter JARVIS" stayed disabled with nothing on screen
+  // to explain why and no way to retry. The fix wraps the whole write in
+  // attemptWrite and always releases saving on the way out.
+  it("a failed save unlocks Enter JARVIS instead of bricking it forever", async () => {
+    const onFinish = setup();
+    const spy = vi.spyOn(ProfileService.prototype, "save").mockRejectedValueOnce(new Error("network"));
+
+    fireEvent.click(screen.getByText("Begin"));
+    fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "Alex" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    fireEvent.click(screen.getByText("Personal"));
+    fireEvent.click(screen.getByText("Continue"));
+    fireEvent.click(screen.getByText(/add people as I go/));
+    fireEvent.click(screen.getByText("Skip for now"));
+    fireEvent.click(screen.getByText("9 to 5"));
+    fireEvent.click(screen.getByText("Skip these"));
+    fireEvent.click(screen.getByText("Everything"));
+    fireEvent.click(screen.getByText("Continue"));
+    fireEvent.click(screen.getByText("7:00 AM"));
+
+    const enter = screen.getByText("Enter JARVIS");
+    fireEvent.click(enter);
+
+    await waitFor(() => expect(spy).toHaveBeenCalled());
+    expect(onFinish).not.toHaveBeenCalled();
+    // The button releases instead of staying disabled forever.
+    await waitFor(() => expect(enter).not.toBeDisabled());
+
+    // A retry, with the write no longer failing, goes all the way through.
+    spy.mockRestore();
+    fireEvent.click(enter);
     await waitFor(() => expect(onFinish).toHaveBeenCalled());
   });
 

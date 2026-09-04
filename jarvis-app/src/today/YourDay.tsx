@@ -608,6 +608,13 @@ export default function YourDay({
       {/* Same move as the paused view (Option B, 2026-08-26): actions trail
           the day instead of splitting Now from it. */}
       {planButton}
+      {/* B6-4 (2026-09-04): this branch rendered planButton but not footer,
+          so on a busy day (long enough to overflow) with a draft standing
+          and the ticker still running, Accept the Day and Not Today were
+          simply absent, not just scrolled past. The paused branch above
+          already renders both; a day does not stop having a draft to
+          accept just because it is also long enough to scroll. */}
+      {footer}
     </div>
   );
 }

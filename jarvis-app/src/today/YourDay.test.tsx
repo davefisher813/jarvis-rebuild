@@ -96,6 +96,18 @@ describe("YourDay", () => {
       expect(container.querySelector(".sched-ticker")).toBeNull();
     });
 
+    // B6-4 (2026-09-04): "Accept the Day disappears on a busy day." The
+    // overflowing-ticker branch rendered planButton but silently dropped
+    // footer, so on a busy day with a draft standing, Accept the Day and Not
+    // Today were gone entirely, not just scrolled past. The paused view a
+    // tap away already carried both.
+    it("keeps the draft footer even while the ticker is scrolling", () => {
+      const { getByText } = render(
+        <YourDay events={many} now="13:00" nowLabel="1:00" onSeeAll={() => {}} footer={<div>Accept the Day</div>} />,
+      );
+      expect(getByText("Accept the Day")).toBeInTheDocument();
+    });
+
     it("shows the now line and dims past events", () => {
       const { container } = render(<YourDay events={many} now="13:00" nowLabel="1:00" onSeeAll={() => {}} />);
       expect(container.querySelector(".now-line")).toBeTruthy();

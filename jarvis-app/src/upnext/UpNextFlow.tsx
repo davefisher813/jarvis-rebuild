@@ -8,6 +8,7 @@ import { todayISO } from "../tasks/grouping";
 import { catColor, catName } from "../shared/categories";
 import { Burst, useBurst } from "../shared/Burst";
 import { showToast } from "../shared/toast";
+import { attemptWrite } from "../shared/guard";
 import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { DEFAULT_ROUTINE } from "../routine/types";
 import { pickNext, quickWins, reasonFor, QUICK_WINS_COUNT } from "./upnext";
@@ -96,27 +97,38 @@ export default function UpNextFlow({ onClose }: { onClose: () => void }) {
 
   // Optimistic completion, same rhythm as everywhere else: burst plays, the
   // real toggle lands 600ms later, then the next card slides in.
+  //
+  // B6-2 (2026-09-04): "One failed write bricks Up Next." The latch below
+  // used to have no try or finally around the write, so a single failed
+  // toggle left completing.current stuck true and every later Done tap did
+  // nothing until the overlay was closed. attemptWrite is the guard every
+  // TodayFlow handler already uses for exactly this; the finally always
+  // releases the latch, success or failure.
   const complete = () => {
     const t = current;
     if (!t || completing.current) return;
     completing.current = true;
     fireBurst();
     setTimeout(async () => {
-      await svc.toggleDone(t.id);
-      await reload();
-      if (mode === "wins") {
-        setWinsDone((d) => d + 1);
-        setWinsAt((i) => i + 1);
+      try {
+        const ok = await attemptWrite(() => svc.toggleDone(t.id));
+        if (!ok) return;
+        await reload();
+        if (mode === "wins") {
+          setWinsDone((d) => d + 1);
+          setWinsAt((i) => i + 1);
+        }
+        // Undo (2026-08-09): the one-card mode is the easiest place in the app
+        // to fat-finger a completion, and it was the one completion without a
+        // way back. Same toast contract as the Tasks page.
+        showToast({
+          message: "Task completed",
+          actionLabel: "Undo",
+          onAction: async () => { await svc.toggleDone(t.id); await reload(); },
+        });
+      } finally {
+        completing.current = false;
       }
-      completing.current = false;
-      // Undo (2026-08-09): the one-card mode is the easiest place in the app
-      // to fat-finger a completion, and it was the one completion without a
-      // way back. Same toast contract as the Tasks page.
-      showToast({
-        message: "Task completed",
-        actionLabel: "Undo",
-        onAction: async () => { await svc.toggleDone(t.id); await reload(); },
-      });
     }, 600);
   };
 

@@ -11,6 +11,7 @@ import { makeFakeGoogleApi } from "../connections/google/fakeApi";
 import { AIService } from "../ai/AIService";
 import type { GmailMeta, GmailThreadMeta } from "../connections/google/map";
 import MessagesFlow from "./MessagesFlow";
+import { saveMailSnapshot, loadMailSnapshot } from "./home";
 
 const noAI = new AIService({ available: false });
 
@@ -440,5 +441,25 @@ describe("MessagesFlow (threads)", () => {
     // user can still pull back to.
     fireEvent.click(await screen.findByText("Send Now"));
     await waitFor(() => expect(deleted).toBe("d1"));
+  });
+
+  // B6-8 (2026-09-04): "Demo email fixtures show on the real home page."
+  // A stale (or demo) snapshot used to survive a real, genuinely empty
+  // inbox forever, because the writer refused to save an empty snapshot.
+  // triaged alone (not rows.length) is now the gate, so a real account
+  // that connects to nothing overwrites whatever was there with the truth.
+  it("a real, empty inbox overwrites a stale snapshot instead of leaving it behind", async () => {
+    saveMailSnapshot({
+      ts: Date.now(),
+      needsYou: 3,
+      threads: [{ id: "demo-0", from: "Northwind Cloud", fromEmail: "n@example.com", subject: "Demo", gist: "Demo" }],
+      waiting: [],
+      promises: [],
+    });
+    const api = makeApi({ listThreads: async () => [] });
+    render(wrap(<MessagesFlow ai={aiReturning("[]")} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await waitFor(() => expect(loadMailSnapshot().threads.length).toBe(0));
+    expect(loadMailSnapshot().needsYou).toBe(0);
   });
 });

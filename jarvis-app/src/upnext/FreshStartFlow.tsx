@@ -4,6 +4,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import { todayISO } from "../tasks/grouping";
 import { catColor } from "../shared/categories";
 import { showToast } from "../shared/toast";
+import { attemptWrite } from "../shared/guard";
 import { freshStartPlan, tomorrowOf } from "./upnext";
 
 // Fresh Start (ADHD strategy Phase 1): the 2pm recovery moment. Keeps the top
@@ -29,24 +30,37 @@ export default function FreshStartFlow({ onClose, onDone }: { onClose: () => voi
 
   useEffect(() => { void reload(); }, [reload]);
 
+  // B6-2 (2026-09-04): "Fresh Start's Run It leaves the button disabled
+  // forever." running never had a matching setRunning(false) on a failed
+  // write, so one failed setDue in the loop bricked the button with the
+  // overlay stuck open and no way to retry. attemptWrite (the same guard
+  // Up Next now uses) plus a finally fixes both: on failure the standard
+  // toast fires and the button releases; on success nothing changes.
   const run = async () => {
     if (running) return;
     setRunning(true);
-    const tomorrow = tomorrowOf(today);
-    const moved: { id: string; prevDue: string | null }[] = [];
-    for (const t of move) {
-      moved.push({ id: t.id, prevDue: t.data.due ?? null });
-      await svc.setDue(t.id, tomorrow);
+    try {
+      const tomorrow = tomorrowOf(today);
+      const moved: { id: string; prevDue: string | null }[] = [];
+      const ok = await attemptWrite(async () => {
+        for (const t of move) {
+          moved.push({ id: t.id, prevDue: t.data.due ?? null });
+          await svc.setDue(t.id, tomorrow);
+        }
+      });
+      if (!ok) return;
+      onDone?.();
+      onClose();
+      showToast({
+        message: move.length > 0 ? `Fresh start · ${move.length} moved to tomorrow` : "Fresh start",
+        actionLabel: move.length > 0 ? "Undo" : undefined,
+        onAction: move.length > 0
+          ? async () => { for (const m of moved) await svc.setDue(m.id, m.prevDue); onDone?.(); }
+          : undefined,
+      });
+    } finally {
+      setRunning(false);
     }
-    onDone?.();
-    onClose();
-    showToast({
-      message: move.length > 0 ? `Fresh start · ${move.length} moved to tomorrow` : "Fresh start",
-      actionLabel: move.length > 0 ? "Undo" : undefined,
-      onAction: move.length > 0
-        ? async () => { for (const m of moved) await svc.setDue(m.id, m.prevDue); onDone?.(); }
-        : undefined,
-    });
   };
 
   const row = (t: TaskItem, sub: string, faded = false) => (

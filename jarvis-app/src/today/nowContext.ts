@@ -89,13 +89,17 @@ export interface GapCandidate {
 }
 
 export function gapFill(
-  tasks: { id: string; text: string; category: string; done: boolean; due?: string | null; bill?: unknown }[],
+  tasks: { id: string; text: string; category: string; done: boolean; due?: string | null; bill?: unknown; reminder?: unknown }[],
   gapMin: number | null,
   today: string,
   estimateFor: (category: string) => number,
 ): GapCandidate | null {
   if (gapMin === null || gapMin < GAP_MIN_MINUTES) return null;
-  const open = tasks.filter((t) => !t.done && !t.bill);
+  // B6-5 (2026-09-04): "The Now card can offer a reminder as work." Every
+  // other chokepoint that turns tasks into a work queue (filters.ts,
+  // upnext.ts) excludes reminders; this one did not, so a 50-minute gap
+  // could deal Morning Meds a Start button and a ritual sheet.
+  const open = tasks.filter((t) => !t.done && !t.bill && !t.reminder);
   if (open.length === 0) return null;
   const fits = open
     .map((t) => ({ t, est: estimateFor(t.category) }))

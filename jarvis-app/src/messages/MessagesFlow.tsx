@@ -959,8 +959,22 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // needs the moment it knows it. Sender, subject, gist and the deadline the
   // sender stated, plus who owes him a reply and what he promised. See
   // messages/home.ts for what the home page does with it.
+  //
+  // B6-8 (2026-09-04): "Demo email fixtures show on the real home page."
+  // rows.length === 0 used to gate this write too, on top of triaged. Before
+  // triage settles, rows really is empty AND triaged is still false, so
+  // triaged alone already covers "still loading." But a real, connected
+  // account whose inbox is genuinely empty also reaches triaged === true
+  // with rows.length === 0 (runTriage's cache-hit branch sets it regardless
+  // of how many rows it triaged), and the old guard treated that exactly
+  // like still-loading: it never wrote the honest empty snapshot, so
+  // DemoMail's fixture snapshot (written before any real account connected)
+  // sat there looking current, with live Add Task and Reply buttons on
+  // threads that were never real, until its 36-hour TTL happened to expire.
+  // triaged is the real signal here; rows.length was never doing anything
+  // triaged didn't already cover, except this.
   useEffect(() => {
-    if (!triaged || rows.length === 0) return;
+    if (!triaged) return;
     const todayIso = todayISO();
     // A thread whose last message is no longer HIS has answered itself, which
     // is the same derivation Waiting On uses, so the two can never disagree.

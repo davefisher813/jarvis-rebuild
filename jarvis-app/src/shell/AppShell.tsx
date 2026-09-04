@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { lazyWithRecovery } from "./chunkRecovery";
 import TabBar from "./TabBar";
 import VoiceBar from "./VoiceBar";
@@ -172,6 +172,20 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
   // Bootstrap: seed default categories, publish them to the resolver, optionally
   // seed demo data, and load the saved tab layout. Runs before anything renders.
+  //
+  // B6-3 (2026-09-04): "A token refresh throws you back to Today." Supabase
+  // silently rotates the access token roughly once an hour; NotesProvider's
+  // services are memoized on [userId, accessToken] (correctly, since the
+  // store needs the live token), so every refresh hands this effect a brand
+  // new tasks/schedule/categories/... identity and it reran in full,
+  // including the unconditional setActive(keys[0]) below. AppShell itself
+  // never unmounts for a same-user token rotation (App.tsx keeps rendering
+  // the same <NotesProvider><AppGate/></NotesProvider> tree), so firstBoot
+  // survives across it and only a real remount (sign out, sign back in as
+  // anyone) resets it. The rest of the bootstrap still reruns on every
+  // identity change, which is harmless: seeding defaults and loading tabs
+  // are idempotent.
+  const firstBoot = useRef(true);
   useEffect(() => {
     let on = true;
     (async () => {
@@ -190,7 +204,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       if (!on) return;
       const keys = migrateTabs(prof?.tabs?.length ? prof.tabs : DEFAULT_TABS);
       setTabKeys(keys);
-      setActive(keys[0] ?? "today");
+      if (firstBoot.current) {
+        setActive(keys[0] ?? "today");
+        firstBoot.current = false;
+      }
       setReady(true);
     })();
     return () => { on = false; };
