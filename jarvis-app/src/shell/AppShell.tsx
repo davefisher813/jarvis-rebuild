@@ -2,6 +2,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { lazyWithRecovery } from "./chunkRecovery";
 import TabBar from "./TabBar";
 import VoiceBar from "./VoiceBar";
+import ErrorBoundary from "../monitoring/ErrorBoundary";
 // TODAY IS EAGER, THE REST ARE NOT (2026-08-26, build queue item 13).
 // Today is the landing tab, so its code is needed to paint the first screen
 // and lazy-loading it would only buy a skeleton nobody asked for. The other
@@ -289,19 +290,28 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       <div className="app-scroll">
         {/* key remounts the flow per tab; no transition class: tab switches
             are instant, like native iOS (RDB, Dave 2026-07-29) */}
+        {/* S3-Q19 (2026-09-04): ErrorBoundary here is keyed on `active`, same
+            as the div it wraps -- a crash in one tab's flow shows its own
+            "Something Went Wrong" card while VoiceBar/TabBar (siblings,
+            outside this boundary) keep working, and tapping any other tab
+            remounts a fresh boundary for free (the key change unmounts the
+            tripped instance). The root boundary in main.tsx stays as the
+            outermost fallback for pre-shell crashes (Sign In, onboarding),
+            where no tab bar exists yet. */}
         <Suspense fallback={<SkeletonScreen hero={false} />}>
+        <ErrorBoundary key={active}>
         <div key={active}>
         {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); goLife("tasks"); }} onGoTasksOverdue={() => { setTaskFilterIntent("overdue"); goLife("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { setMailIntent(threadId); setDraftIntent(draftId); setActive("messages"); }} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") setActive("brain"); else void navigateToEntity(kind, id); }} onGoBigger={(goalId?: string) => { setGoalIntent(goalId); goLife("goals"); }} />}
         {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent} taskFilter={taskFilterIntent} projectOpenId={projectIntent} goalOpenId={goalIntent} onOpenNote={navigateToNote} onWhatNow={() => void openWhatNow()} onOpenDecision={(id) => void navigateToEntity("decision", id)} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
         {active === "brain" && <BrainFlow openKey={brainIntent} routineBlockId={routineBlockIntent} onRoutineBlockConsumed={() => setRoutineBlockIntent(undefined)} personOpenId={personIntent?.id} decisionOpenId={decisionIntent} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => setActive("money")} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
-        
+
         {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent} openDraftId={draftIntent} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
         {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} />}
         {active === "chat" && <ChatFlow />}
-        
+
         {active === "more" && (
           <MoreFlow
             extras={extrasFor(tabKeys)}
@@ -315,6 +325,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           />
         )}
         </div>
+        </ErrorBoundary>
         </Suspense>
       </div>
       <ToastHost />

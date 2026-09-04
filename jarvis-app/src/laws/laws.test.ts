@@ -3764,3 +3764,44 @@ describe("LAW: the foot of a list", () => {
       .toMatch(/\.ruled \.card:has\(> \.row-create:only-child\) > \.row-create \{ border-top: 0; \}/);
   });
 });
+
+// LAW: A TAB'S CRASH IS ITS OWN, NEVER THE SHELL'S (S3-Q19, 2026-09-04).
+//
+// Before this law, AppShell had exactly one ErrorBoundary in the whole app
+// (main.tsx, wrapping AuthProvider itself), so a render crash anywhere in any
+// tab took the entire app down to one generic card -- Reload was the only
+// way out, even though nine of the ten tabs were still fine underneath it.
+//
+// The fix wraps the tab-content block in its own ErrorBoundary, keyed on the
+// active tab. Checked structurally rather than by rendering AppShell (its
+// provider tree -- NotesProvider, AuthProvider, GoogleSessionProvider, AI --
+// is expensive to stand up and beside the point of what this law protects);
+// ErrorBoundary's own reset-on-key-change mechanism is proven directly, with
+// no such tree, in monitoring/ErrorBoundary.test.tsx.
+describe("LAW: a tab's crash is its own, never the shell's", () => {
+  it("the tab content is wrapped in an ErrorBoundary keyed on the active tab", () => {
+    const shell = read(join(SRC, "shell/AppShell.tsx"));
+    expect(shell, "a per-tab boundary, remounted (and so reset) on every tab switch")
+      .toMatch(/<ErrorBoundary key=\{active\}>/);
+  });
+
+  it("VoiceBar and TabBar sit outside that boundary, so a crashed tab can't take them down", () => {
+    const shell = read(join(SRC, "shell/AppShell.tsx"));
+    const boundaryOpen = shell.indexOf("<ErrorBoundary key={active}>");
+    const boundaryClose = shell.indexOf("</ErrorBoundary>");
+    expect(boundaryOpen, "the boundary must exist").toBeGreaterThan(-1);
+    expect(boundaryClose, "and close").toBeGreaterThan(boundaryOpen);
+    const voiceBar = shell.indexOf("<VoiceBar ");
+    const tabBar = shell.indexOf("<TabBar ");
+    expect(voiceBar, "VoiceBar renders").toBeGreaterThan(-1);
+    expect(tabBar, "TabBar renders").toBeGreaterThan(-1);
+    expect(voiceBar > boundaryClose, "VoiceBar is a sibling after the boundary closes, not inside it").toBe(true);
+    expect(tabBar > boundaryClose, "TabBar is a sibling after the boundary closes, not inside it").toBe(true);
+  });
+
+  it("the root boundary in main.tsx still stands, for crashes before the shell exists", () => {
+    const main = read(join(SRC, "main.tsx"));
+    expect(main, "Sign In and onboarding have no tab bar yet, so they still need the outermost catch")
+      .toMatch(/<ErrorBoundary>/);
+  });
+});
