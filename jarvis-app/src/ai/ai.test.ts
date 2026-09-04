@@ -133,6 +133,20 @@ describe("voiceToText (for prompts that write as the user)", () => {
     expect(text).toContain("Chris (write like a close friend)"); // the guardrail data still ships
     expect(text).not.toContain("Never guess casual");
   });
+
+  // S4-Q25 (2026-09-04): "facts about your writing never reach the drafting
+  // prompt." voiceToText is the ONE renderer of the three (contextToText,
+  // this one, identityToText) that carried no facts line at all.
+  it("carries Writing-bucket facts, since this is the prompt that writes in the user's voice", () => {
+    const text = voiceToText(assembleContext({ name: "Alex", writingFacts: ["Never opens with Hi there"] }));
+    expect(text).toContain("Known about how they write");
+    expect(text).toContain("Never opens with Hi there");
+  });
+
+  it("says nothing when there are no Writing facts, same silence-beats-a-guess law as everywhere else", () => {
+    const text = voiceToText(assembleContext({ name: "Alex" }));
+    expect(text).not.toContain("Known about how they write");
+  });
 });
 
 describe("identityToText (for prompts that decide what to do)", () => {
@@ -249,5 +263,17 @@ describe("read-back: decisions, sealed months, and strand order", () => {
     // assembler must not re-sort them or the strengthen half is undone.
     const ctx = assembleContext({ strands: ["strongest", "middle", "weakest"] });
     expect(ctx.strands).toEqual(["strongest", "middle", "weakest"]);
+  });
+
+  // S4-Q25: writingFacts rides beside strands, not instead of it -- the
+  // general list stays unscoped for the prompts that already read it.
+  it("carries writingFacts as its own field, independent of the general strands list", () => {
+    const ctx = assembleContext({ strands: ["a", "b"], writingFacts: ["Never opens with Hi there"] });
+    expect(ctx.strands).toEqual(["a", "b"]);
+    expect(ctx.writingFacts).toEqual(["Never opens with Hi there"]);
+  });
+
+  it("writingFacts is empty, not undefined, when none are given", () => {
+    expect(assembleContext({}).writingFacts).toEqual([]);
   });
 });

@@ -41,6 +41,13 @@ export interface AIContextInput {
   // the genome cap. The bridge until relevance scoping ships: every feature
   // that reads the assembled context gets what JARVIS knows, unscoped.
   strands?: string[];
+  // S4-Q25 (2026-09-04): the one scoped exception to "unscoped" above. Facts
+  // filed under the Writing bucket ("never opens with Hi there"), and only
+  // those, so the drafting prompt can carry them without also carrying every
+  // other thing JARVIS knows about the person, most of which is irrelevant to
+  // writing a message and some of which (money, routine) has no business in
+  // one.
+  writingFacts?: string[];
   // Settled decisions, read back (Brain handoff item 5). One line each,
   // newest first, the reason included because the reason is the record's
   // whole purpose. This is what stops JARVIS re-opening a question the user
@@ -78,6 +85,8 @@ export interface AIContext {
   billsLine?: string;
   cashLine?: string;
   strands?: string[];
+  // S4-Q25: see AIContextInput.writingFacts.
+  writingFacts?: string[];
   // Settled decisions, read back (Brain handoff item 5). One line each,
   // newest first, the reason included because the reason is the record's
   // whole purpose. This is what stops JARVIS re-opening a question the user
@@ -141,6 +150,7 @@ export function assembleContext(input: AIContextInput): AIContext {
       .map((b) => `${b.name} $${b.amount}${b.due ? ` due ${isoToMonthDay(b.due)}` : ""}${b.autopay ? ", autopay" : ""}`)
       .join("; "),
     strands: (input.strands ?? []).map((s) => s.trim()).filter(Boolean),
+    writingFacts: (input.writingFacts ?? []).map((s) => s.trim()).filter(Boolean),
     decisions: (input.decisions ?? []).map((d) => d.trim()).filter(Boolean),
     months: (input.months ?? []).map((m) => m.trim()).filter(Boolean),
     pulse: (input.pulse ?? []).map((x) => x.trim()).filter(Boolean),
@@ -249,6 +259,12 @@ export function voiceToText(ctx: AIContext, { styleRule = true }: { styleRule?: 
   if (ctx.peopleDetail?.length) {
     lines.push(`Key people: ${renderPeople(ctx.peopleDetail).join(", ")}`);
   } else if (ctx.people?.length) lines.push(`Key people: ${ctx.people.join(", ")}`);
+  // S4-Q25 (2026-09-04): "never opens with Hi there" is exactly the kind of
+  // fact this prompt exists to use, and until now it never reached here.
+  // Scoped to the Writing bucket only: this prompt writes words in the
+  // user's voice, not their whole life, so nothing else JARVIS knows rides
+  // along with it.
+  if (ctx.writingFacts?.length) lines.push(`Known about how they write (watched or confirmed by them): ${ctx.writingFacts.join("; ")}`);
   if (ctx.voice) {
     lines.push(`Writing voice: ${ctx.voice}`);
     if (styleRule) lines.push(STYLE_SCOPE_RULE);

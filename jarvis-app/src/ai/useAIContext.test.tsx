@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { NotesProvider, useDecisions } from "../data/NotesProvider";
+import { NotesProvider, useDecisions, useStrands } from "../data/NotesProvider";
 import { useAIContext, useOptionalAIContext, todayISO } from "./useAIContext";
 
 // Brain Personalization Phase 3. Both hooks funnel through one gatherFrom, so
@@ -64,6 +64,38 @@ describe("useOptionalAIContext carries ruled-out options (B5)", () => {
       const ctx = await result.current();
       const line = ctx?.decisions?.find((d) => d.startsWith("Ship on Supabase"));
       expect(line).toBe("Ship on Supabase (because RLS beats hand-rolled auth checks; ruled out: Firebase, raw Postgres)");
+    });
+  });
+});
+
+// S4-Q25 (2026-09-04): "facts about your writing never reach the drafting
+// prompt." The strand's bucket has to survive from the store, through this
+// gatherer, to be worth anything -- this proves it does, and that only the
+// Writing bucket ends up in the scoped field.
+describe("useOptionalAIContext scopes writingFacts to the Writing bucket (S4-Q25)", () => {
+  it("carries only the Writing-bucket strand, leaving the general strands list unscoped", async () => {
+    function Seed({ onDone }: { onDone: () => void }) {
+      const strands = useStrands();
+      void Promise.all([
+        strands.add("Never opens with Hi there", "writing", "2026-09-04"),
+        strands.add("Never schedule calls before 10", "work_style", "2026-09-04"),
+      ]).then(onDone);
+      return null;
+    }
+    let seeded = false;
+    const { result } = renderHook(() => useOptionalAIContext(), {
+      wrapper: ({ children }) => (
+        <NotesProvider userId="u-writing-facts">
+          <Seed onDone={() => { seeded = true; }} />
+          {children}
+        </NotesProvider>
+      ),
+    });
+    await waitFor(() => expect(seeded).toBe(true));
+    await waitFor(async () => {
+      const ctx = await result.current();
+      expect(ctx?.writingFacts).toEqual(["Never opens with Hi there"]);
+      expect(ctx?.strands).toEqual(expect.arrayContaining(["Never opens with Hi there", "Never schedule calls before 10"]));
     });
   });
 });

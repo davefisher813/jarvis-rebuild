@@ -95,8 +95,14 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
   // been proved right. See brain/recall.ts; nothing is dropped here, only
   // ordered, so a quiet fact is still a fact the AI can see.
   let strandLines: string[] = [];
+  // S4-Q25 (2026-09-04): the Writing-bucket subset, for the drafting prompt
+  // only (voiceToText). Same read, same recall order, just filtered by
+  // category rather than a second call to the store.
+  let writingFactLines: string[] = [];
   try {
-    strandLines = s.strands ? rankForRecall(await s.strands.active(), today).map((x) => x.data.text) : [];
+    const ranked = s.strands ? rankForRecall(await s.strands.active(), today) : [];
+    strandLines = ranked.map((x) => x.data.text);
+    writingFactLines = ranked.filter((x) => x.data.category === "writing").map((x) => x.data.text);
   } catch { /* thinner context, never a broken one */ }
   // READ-BACK (handoff item 5, second half): settled decisions join the
   // context so JARVIS stops re-asking what was already decided, and can say
@@ -205,6 +211,7 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
     })),
     cashFlow,
     strands: strandLines,
+    writingFacts: writingFactLines,
     decisions: decisionLines,
     months: monthLines,
     pulse: pulseLinesOut,
