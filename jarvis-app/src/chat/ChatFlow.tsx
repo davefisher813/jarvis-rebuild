@@ -8,7 +8,7 @@ import { chatSystemPrompt } from "./chatPrompt";
 import { nowHHMM } from "../today/todayData";
 import { answerQuestion, looksLikeQuestion, type AnswerSnapshot } from "./answers";
 import { parseCommand, resolveTarget, type ChatCommand, type CommandTarget } from "./commands";
-import { smartPasteSave } from "../paste/smartPaste";
+import { smartPasteSave, undoSaved } from "../paste/smartPaste";
 import { attemptWrite } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import type { ChatMessage } from "./ChatService";
@@ -178,6 +178,24 @@ export default function ChatFlow() {
           : `Saved ${saved.length} items`,
         { kind: "action", refs: saved.map((s) => ({ kind: s.kind, id: s.id, label: s.title })) },
       );
+      // S4-Q23 (2026-09-04): provLine below has always printed "Done · Undo
+      // on the toast" for this reply, and nothing here ever raised one, on
+      // every kind of capture chat can produce, facts included. A told-rank
+      // fact is the highest-priority thing JARVIS remembers, which makes an
+      // untappable Undo the most consequential case of this bug, not the
+      // only one. undoSaved already handles every kind (Quick Capture's own
+      // Undo button calls the same function), so this is wiring an existing
+      // capability to the reply that already promised it, not new behaviour.
+      const justSaved = saved;
+      showToast({
+        message: justSaved.length === 1 ? "Saved" : `Saved ${justSaved.length} items`,
+        actionLabel: "Undo",
+        onAction: async () => {
+          await attemptWrite(async () => {
+            for (const s of justSaved) await undoSaved(s, { tasks: tasksSvc, schedule, notes, ...(strands ? { strands } : {}) });
+          });
+        },
+      });
     } finally {
       setBusy(false);
     }
