@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { useBackup } from "../data/NotesProvider";
 import { backendConfigured } from "../data/store";
+import { saveBackupFile } from "../backup/exportFile";
 import { Head, Card, Row, Foot } from "./kit";
 
 export default function BackupPage({ onBack }: { onBack: () => void }) {
@@ -18,15 +19,7 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
     setBusy(true);
     try {
       const bundle = await backup.exportBundle();
-      const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `jarvis-backup-${bundle.exportedAt.slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      await saveBackupFile(bundle);
       setStatus(`Exported ${bundle.items.length} ${bundle.items.length === 1 ? "item" : "items"}.`);
       const stamp = bundle.exportedAt.slice(0, 10);
       setLastExport(stamp);
