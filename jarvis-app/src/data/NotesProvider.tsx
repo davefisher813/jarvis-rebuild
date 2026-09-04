@@ -14,6 +14,7 @@ import { BackupService } from "../backup/BackupService";
 import { RoutineService } from "../routine/RoutineService";
 import { GymService } from "../gym/GymService";
 import { MetricsService } from "../gym/MetricsService";
+import { HealthService } from "../health/HealthService";
 import { LearnedRulesService } from "../rules/LearnedRulesService";
 import { ChatService } from "../chat/ChatService";
 import { DecisionService } from "../decisions/DecisionService";
@@ -42,6 +43,11 @@ const ProjectContext = createContext<ProjectsService | null>(null);
 const MoneyContext = createContext<MoneyService | null>(null);
 const GymContext = createContext<GymService | null>(null);
 const MetricsContext = createContext<MetricsService | null>(null);
+// S5-Q29 (2026-09-04): the Health module's service, real and fully tested
+// since Track 3's own build, had no seat in this provider at all -- the
+// first thing "wiring it in" needs. See src/brain/CategoryDetail.tsx for
+// the first real consumer (the health area page's grafted loggers).
+const HealthContext = createContext<HealthService | null>(null);
 const RulesContext = createContext<LearnedRulesService | null>(null);
 const BackupContext = createContext<BackupService | null>(null);
 const RoutineContext = createContext<RoutineService | null>(null);
@@ -64,7 +70,7 @@ export function NotesProvider({
   accessToken?: string;
   children: ReactNode;
 }) {
-  const { store, notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, metrics, rules, chat, decisions, strands, seal, files, fileStore } = useMemo(() => {
+  const { store, notes, tasks, schedule, categories, profile, people, brainDocs, areas, goals, projects, money, backup, routine, gym, metrics, health, rules, chat, decisions, strands, seal, files, fileStore } = useMemo(() => {
     const store = makeStore(accessToken, userId);
     return {
       store,
@@ -87,6 +93,7 @@ export function NotesProvider({
       routine: new RoutineService(store, userId),
       gym: new GymService(store, userId, (e) => emit(e)),
       metrics: new MetricsService(store, userId, (e) => emit(e)),
+      health: new HealthService(store, userId, (e) => emit(e)),
       chat: new ChatService(store, userId),
       decisions: new DecisionService(store, userId, (e) => emit(e)),
       strands: new StrandsService(store, userId, (e) => emit(e)),
@@ -115,6 +122,7 @@ export function NotesProvider({
                       <RoutineContext.Provider value={routine}>
                       <GymContext.Provider value={gym}>
                       <MetricsContext.Provider value={metrics}>
+                      <HealthContext.Provider value={health}>
                       <RulesContext.Provider value={rules}>
                       <ChatContext.Provider value={chat}>
                       <DecisionContext.Provider value={decisions}>
@@ -124,6 +132,7 @@ export function NotesProvider({
                       </DecisionContext.Provider>
                       </ChatContext.Provider>
                       </RulesContext.Provider>
+                      </HealthContext.Provider>
                       </MetricsContext.Provider>
                       </GymContext.Provider>
                       </RoutineContext.Provider>
@@ -283,6 +292,18 @@ export function useMetrics(): MetricsService {
 /** D10-B: the Health page reads metrics without demanding they exist, same
  *  shape as useOptionalGym. */
 export function useOptionalMetrics(): MetricsService | null { return useContext(MetricsContext) ?? null; }
+
+// S5-Q29 (2026-09-04): the Track 3 health track's own service, real and
+// tested since it was built, registered here for the first time so anything
+// under NotesProvider can finally reach it. Required, same shape as
+// useGym/useMetrics: every render of the health area page already sits
+// inside a full NotesProvider (same tree gym/metrics already assume).
+export function useHealth(): HealthService {
+  const s = useContext(HealthContext);
+  if (!s) throw new Error("useHealth must be used inside NotesProvider");
+  return s;
+}
+export function useOptionalHealth(): HealthService | null { return useContext(HealthContext) ?? null; }
 
 export function useRoutine(): RoutineService {
   const s = useContext(RoutineContext);

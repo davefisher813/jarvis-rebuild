@@ -35,13 +35,25 @@ import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/
 import ProjectSheet from "../projects/ProjectSheet";
 import CategorySheet, { type CategoryDraft } from "../categories/screens/CategorySheet";
 import GymFlow from "../gym/GymFlow";
-import { useGym, useMetrics } from "../data/NotesProvider";
+import { useGym, useMetrics, useHealth } from "../data/NotesProvider";
+// S5-Q29 (2026-09-04): the four highest-value loggers grafted from the
+// dormant Health module. See HealthBody.tsx's HealthLoggerKey doc comment
+// for why these four and not the fifth (Ate Before).
+import LightsOutScreen from "../health/screens/LightsOutScreen";
+import TookItScreen from "../health/screens/TookItScreen";
+import CallItScreen from "../health/screens/CallItScreen";
+import PointAtItScreen from "../health/screens/PointAtItScreen";
+import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry } from "../health/types";
+import { tookItTimeline, stillThere } from "../health/timelines";
+import { telHref, CRISIS_LINE_NUMBER } from "../health/trustedAdult";
+import { localDayParts } from "../events/serverSink";
+import type { HealthLoggerKey, HealthLoggerRow } from "./HealthBody";
 import type { Program } from "../gym/types";
 import { capAfterNumber } from "../shared/casing";
 import { ProjectPie } from "../shared/glyphs";
 import GoalRowRuled from "../bigger/GoalRowRuled";
 import { TaskRow } from "../tasks/screens/TasksPage";
-import { trainingSummary } from "../gym/summary";
+import { trainingSummary, agoPhrase } from "../gym/summary";
 import type { Workout } from "../gym/types";
 import { buildGoalIndex, liveGoals, reachOf, reachLine } from "../bigger/reach";
 import { measureState, healthOf, HEALTH_LABEL, type MeasureContext } from "../bigger/measure";
@@ -147,6 +159,14 @@ export default function CategoryDetail({
   const [metricDefs, setMetricDefs] = useState<MetricDef[]>([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
   const [metricSheet, setMetricSheet] = useState<{ kind: "log"; def: MetricDef } | { kind: "add" } | null>(null);
+  // S5-Q29 (2026-09-04): the four grafted Health loggers, health-kind pages
+  // only, same read/reload shape as the metric strip just above.
+  const healthSvc = useHealth();
+  const [healthScreen, setHealthScreen] = useState<HealthLoggerKey | null>(null);
+  const [lightsOut, setLightsOut] = useState<LightsOutEntry[]>([]);
+  const [tookIt, setTookIt] = useState<TookItEntry[]>([]);
+  const [callIt, setCallIt] = useState<CallItEntry[]>([]);
+  const [pointAtIt, setPointAtIt] = useState<PointAtItEntry[]>([]);
   // Full project list, unfiltered: goal reach is computed across ALL
   // projects (a goal tagged here can be filed anywhere).
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -224,6 +244,18 @@ export default function CategoryDetail({
     metricsSvc.listLogs().then((l) => { if (on) setMetricLogs(l); }).catch(() => {});
     return () => { on = false; };
   }, [metricsSvc, gymOpen]);
+
+  // S5-Q29: reloaded on the same healthScreen-closes dep gymOpen's read uses,
+  // so a tap logged from any of the four screens shows up fresh the moment
+  // its screen closes, with no separate trigger to track.
+  useEffect(() => {
+    let on = true;
+    healthSvc.listLightsOut().then((l) => { if (on) setLightsOut(l); }).catch(() => {});
+    healthSvc.listTookIt().then((l) => { if (on) setTookIt(l); }).catch(() => {});
+    healthSvc.listCallIt().then((l) => { if (on) setCallIt(l); }).catch(() => {});
+    healthSvc.listPointAtIt().then((l) => { if (on) setPointAtIt(l); }).catch(() => {});
+    return () => { on = false; };
+  }, [healthSvc, healthScreen]);
 
   // A WRITE THAT FAILS SAYS SO (Dave 2026-09-02, "the metrics page literally
   // doesn't work"). For weeks every switch on Add a Metric threw at the
@@ -324,6 +356,51 @@ export default function CategoryDetail({
   // sat offering Start on a session already logged, open to a double entry.
   // upcoming already carries the id gymEvent below reads .start from.
   if (gymOpen) return <GymFlow startDayId={gymStartDay ?? undefined} startDoorEventId={upcoming.find((x) => x.date === today && x.start)?.id} onBack={() => { setGymOpen(false); setGymStartDay(null); void reload(); }} />;
+  // S5-Q29: the four grafted Health screens, unmodified from the dormant
+  // module -- they were always presentational (props in, callbacks out),
+  // never wired to a store of their own. onBack just closes the screen;
+  // the effect above already refetches everything on that same dep.
+  if (healthScreen === "lightsOut") {
+    return (
+      <LightsOutScreen
+        last={lightsOut[lightsOut.length - 1] ?? null}
+        onLog={() => { healthSvc.logLightsOut(); }}
+        onBack={() => setHealthScreen(null)}
+      />
+    );
+  }
+  if (healthScreen === "tookIt") {
+    return (
+      <TookItScreen
+        timeline={tookItTimeline(tookIt)}
+        onLog={() => { healthSvc.logTookIt(); }}
+        onBack={() => setHealthScreen(null)}
+      />
+    );
+  }
+  if (healthScreen === "callIt") {
+    return (
+      <CallItScreen
+        history={callIt.map((e) => ({ at: e.data.at, rpe: e.data.rpe, durationMin: e.data.durationMin }))}
+        onLog={(rpe) => { healthSvc.logCallIt({ rpe }); }}
+        onBack={() => setHealthScreen(null)}
+      />
+    );
+  }
+  if (healthScreen === "pointAtIt") {
+    return (
+      <PointAtItScreen
+        patterns={stillThere(pointAtIt)}
+        onLog={(x, y, side) => { healthSvc.logPointAtIt({ x, y, side }); }}
+        // Point at It's own "Still There?" affordance, still honest: not the
+        // full Say It to Someone / trusted-adult screen (that stays dormant
+        // with Ate Before), but the one number this module always has,
+        // straight to a real line.
+        onHandToSomeone={() => { window.location.href = telHref(CRISIS_LINE_NUMBER); }}
+        onBack={() => setHealthScreen(null)}
+      />
+    );
+  }
   const kind = effectiveKind(cat.data);
   const isOrg = kind === "org";
   const paused = isOrg && cat.data.season === "paused";
@@ -354,6 +431,18 @@ export default function CategoryDetail({
   // Training summary (2026-08-25): the health page reads the gym without
   // opening it. Null on every other kind, and every row degrades to absent.
   const training = kind === "health" ? trainingSummary(workouts, today) : null;
+
+  // S5-Q29 (2026-09-04): the four grafted loggers' rows, health-kind pages
+  // only. Same "Logged <when>" phrasing agoPhrase already gives the training
+  // summary above, so a fact about today reads the same everywhere on this
+  // page. Call It's row also carries the number the screen itself already
+  // shows in its own history (session-RPE, never a verdict on it).
+  const healthLoggers: HealthLoggerRow[] = kind !== "health" ? [] : [
+    { key: "lightsOut", label: "Lights Out", sub: lightsOut.length ? "Logged " + agoPhrase(localDayParts(lightsOut[lightsOut.length - 1]!.data.at).day, today) : null },
+    { key: "tookIt", label: "Took It", sub: tookIt.length ? "Logged " + agoPhrase(localDayParts(tookIt[tookIt.length - 1]!.data.at).day, today) : null },
+    { key: "callIt", label: "Call It", sub: callIt.length ? `Logged ${agoPhrase(localDayParts(callIt[callIt.length - 1]!.data.at).day, today)} · ${callIt[callIt.length - 1]!.data.rpe}/10` : null },
+    { key: "pointAtIt", label: "Point at It", sub: pointAtIt.length ? "Logged " + agoPhrase(localDayParts(pointAtIt[pointAtIt.length - 1]!.data.at).day, today) : null },
+  ];
 
   // D11-C/D13-A/C: the insight surfaces, health-kind pages only. Every piece
   // degrades to absent on its own (INSIGHT_MIN_PAIRED inside correlate(),
@@ -514,6 +603,8 @@ export default function CategoryDetail({
           onOpenGym={() => setGymOpen(true)}
           onOpenMetric={(def) => setMetricSheet({ kind: "log", def })}
           onManageMetrics={() => setMetricSheet({ kind: "add" })}
+          healthLoggers={healthLoggers}
+          onOpenHealthLogger={(key) => setHealthScreen(key)}
           onToggleTask={(id) => void toggle(id)}
           onOpenTask={onOpenTask}
           onDeleteTask={(id) => void deleteTask(id)}

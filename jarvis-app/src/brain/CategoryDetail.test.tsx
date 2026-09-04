@@ -206,3 +206,69 @@ describe("CategoryDetail record (2026-08-10)", () => {
     expect(screen.getAllByText("Take out trash")).toHaveLength(1);
   });
 });
+
+// S5-Q29 (2026-09-04): four of the dormant Health module's five one-tap
+// loggers, grafted onto this same page (kind === "health") through the
+// newly-registered HealthService. "Health" as a category name is enough to
+// pick up kind === "health" with zero setup (categories/kinds.ts).
+function SeededHealth() {
+  const cats = useCategories();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => { setCid((await cats.create("Health", "blue"))!); })();
+  }, [cats]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
+}
+
+describe("CategoryDetail health loggers (S5-Q29)", () => {
+  it("offers all four loggers with no sub-line before anything is logged", async () => {
+    render(<NotesProvider userId="hl1"><SeededHealth /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Log It")).toBeInTheDocument());
+    expect(screen.getByText("Lights Out")).toBeInTheDocument();
+    expect(screen.getByText("Took It")).toBeInTheDocument();
+    expect(screen.getByText("Call It")).toBeInTheDocument();
+    expect(screen.getByText("Point at It")).toBeInTheDocument();
+    // Ate Before, the fifth of the module's own "one-tap loggers," stays
+    // dormant: it needs a source of calendar candidates this page has none
+    // of yet.
+    expect(screen.queryByText("Ate Before")).not.toBeInTheDocument();
+  });
+
+  it("Lights Out logs through HealthService and the row remembers it on return", async () => {
+    render(<NotesProvider userId="hl2"><SeededHealth /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Lights Out")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Lights Out"));
+    await waitFor(() => expect(screen.getByText("One Tap, One Time")).toBeInTheDocument());
+    // The screen's nav title and its own big button both read "Lights Out";
+    // the button is the one with the primary class.
+    fireEvent.click(screen.getByText("Lights Out", { selector: "button" }));
+    await waitFor(() => expect(screen.getByText("Good night.")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Done"));
+    await waitFor(() => expect(screen.getByText("Logged Today")).toBeInTheDocument());
+  });
+
+  it("Call It logs an RPE and the row shows it back, out of 10", async () => {
+    render(<NotesProvider userId="hl3"><SeededHealth /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Call It")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Call It"));
+    await waitFor(() => expect(screen.getByText("How Hard Was That")).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText("Effort 7 of 10"));
+    await waitFor(() => expect(screen.getByText("Logged 7 Of 10")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Done"));
+    await waitFor(() => expect(screen.getByText("Logged Today · 7/10")).toBeInTheDocument());
+  });
+
+  it("Point at It logs a tapped spot and stays honest: no severity, no name, anywhere on the row", async () => {
+    render(<NotesProvider userId="hl4"><SeededHealth /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Point at It")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Point at It"));
+    await waitFor(() => expect(screen.getByText("Where Is It")).toBeInTheDocument());
+    const map = document.querySelector(".body-map") as HTMLElement;
+    map.getBoundingClientRect = () => ({ left: 0, top: 0, width: 200, height: 300, right: 200, bottom: 300, x: 0, y: 0, toJSON: () => ({}) }) as DOMRect;
+    fireEvent.click(map, { clientX: 100, clientY: 60 });
+    await waitFor(() => expect(screen.getByText("Logged")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Done"));
+    await waitFor(() => expect(screen.getByText("Point at It").closest(".task-row")).toHaveTextContent("Logged Today"));
+    expect(screen.queryByText(/\d\/10|severe|mild|injury/i)).not.toBeInTheDocument();
+  });
+});

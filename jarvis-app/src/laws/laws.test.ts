@@ -3877,3 +3877,29 @@ describe("LAW: the window never carries a type nothing reads, and durations trav
     }
   });
 });
+
+// S5-Q29 (2026-09-04): "the Health module has no route into the app." The
+// full 21-screen module stays dormant (HealthFlow.tsx keeps its UNWIRED
+// exemption below, unchanged), but four of its five one-tap loggers
+// (everything except Ate Before, which needs a source of calendar
+// candidates nothing supplies yet) are now real, reachable features on the
+// Brain's health area page. Checked structurally: rendering CategoryDetail
+// through all four logger round-trips lives in CategoryDetail.test.tsx,
+// with real assertions on what the store actually holds after a tap.
+describe("LAW: the Health module's highest-value loggers are wired, the rest stays dormant", () => {
+  it("HealthService has a real seat in the data provider", () => {
+    const src = read(SRC + "/data/NotesProvider.tsx");
+    expect(src).toMatch(/export function useHealth\(\): HealthService/);
+  });
+
+  it("the health area page imports exactly the four grafted screens, not Ate Before and not HealthFlow itself", () => {
+    const src = read(SRC + "/brain/CategoryDetail.tsx");
+    for (const s of ["LightsOutScreen", "TookItScreen", "CallItScreen", "PointAtItScreen"]) {
+      expect(src, `must import ${s}`).toMatch(new RegExp("import " + s + " from \"\\.\\./health/screens/" + s + "\""));
+    }
+    expect(src, "Ate Before stays dormant: no calendar-candidate source exists yet")
+      .not.toMatch(/AteBeforeScreen/);
+    expect(src, "the 21-screen flow itself stays out of this graft")
+      .not.toMatch(/HealthFlow/);
+  });
+});

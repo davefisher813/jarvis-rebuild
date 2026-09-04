@@ -38,6 +38,21 @@ export interface HealthGoalRow {
   status: { text: string; tone: "good" | "warn" } | null; bar: Progress | null;
 }
 
+// S5-Q29 (2026-09-04): the four highest-value loggers from the dormant
+// Health module (Track 3's student-athlete health track), grafted onto this
+// page rather than standing up a whole new tab. "Highest-value" here means
+// exactly the module's own labeled group, minus Ate Before: Lights Out,
+// Took It, Call It and Point at It never need anything from outside
+// HealthService to be useful; Ate Before's screen expects a list of
+// today's practice/game calendar candidates, a real integration question
+// this page has no answer to yet, so it stays dormant with the rest.
+export type HealthLoggerKey = "lightsOut" | "tookIt" | "callIt" | "pointAtIt";
+export interface HealthLoggerRow {
+  key: HealthLoggerKey;
+  label: string;
+  sub: string | null;
+}
+
 /** "7h 20m" for minutes past an hour, "45 min" under it, "184 lb", "3/5", "Yes". */
 function tileValue(def: MetricDef, log: MetricLog | undefined): { big: string; small: string }[] | null {
   if (!log) return null;
@@ -71,6 +86,7 @@ function Spark({ pts }: { pts: number[] }) {
 export default function HealthBody({
   program, workouts, training, today, isEvening, gymEvent, metricDefs, metricLogs, goals, tasks, kickerOf, parentOf,
   onStart, onOpenGym, onOpenMetric, onManageMetrics, onOpenGoal, onToggleTask, onOpenTask, onDeleteTask, onSnoozeTask, onStartTask, onAddTask, insights, more,
+  healthLoggers, onOpenHealthLogger,
 }: {
   program: Program | null;
   workouts: Workout[];
@@ -105,6 +121,9 @@ export default function HealthBody({
   insights?: ReactNode;
   /** Streaks, notes, the week's receipt: the quiet tail, as handed in. */
   more?: ReactNode;
+  /** S5-Q29: the four grafted one-tap loggers, in display order. */
+  healthLoggers: HealthLoggerRow[];
+  onOpenHealthLogger: (key: HealthLoggerKey) => void;
 }) {
   const dow = todayDow();
   const next = nextDayFor(program, workouts, dow);
@@ -185,6 +204,22 @@ export default function HealthBody({
             <span className="gstat gstat-good">PR</span>
           </div>
         )}
+      </div></div>
+
+      {/* LOG IT (S5-Q29): the four grafted one-tap loggers. Same row anatomy
+          as the Metrics section's own empty-state row below, so the page
+          reads as one design rather than two features bolted together. */}
+      <div className="sh2 sh2-quiet"><span className="t">Log It</span></div>
+      <div className="pad-x"><div className="card list-card-ruled">
+        {healthLoggers.map((l) => (
+          <div className="task-row p2" role="button" tabIndex={0} key={l.key} onClick={() => onOpenHealthLogger(l.key)}>
+            <div className="task-title">
+              <span className="task-name">{l.label}</span>
+              {l.sub && <div className="r-k"><span className="r-goal r-cat">{l.sub}</span></div>}
+            </div>
+            {CHEV}
+          </div>
+        ))}
       </div></div>
 
       {/* THE NUMBERS: tiles, each with its sparkline once there is history. */}
