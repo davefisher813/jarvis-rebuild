@@ -193,7 +193,9 @@ export default function DayRow({
               slipping past it on a technicality. */}
           <div className="sched-cat">
             <span className={"cat-dot cat-bg-" + catColor(e.data.category)} />
-            {catName(e.data.category)}
+            {/* No area: say so, don't leave a dot hanging before the first
+                separator (Dave 2026-09-04; same words the task rows use). */}
+            {catName(e.data.category) || "No category"}
             {/* B3/B5 (2026-08-23): "until 10:00 AM" was the last piece of
                 dead text on this row, and it names the one thing about an
                 event that nothing here could change: its LENGTH. Tap the

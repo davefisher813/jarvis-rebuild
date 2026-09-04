@@ -278,4 +278,15 @@ describe("TodayPage", () => {
     render(<TodayPage {...base} />);
     expect(screen.getByText("t1").closest(".sched-row")).not.toHaveAttribute("role", "button");
   });
+
+  it("an event with no area says No category instead of leaving a dot hanging (Dave 2026-09-04)", () => {
+    // An event added from an email invite lands with category "" (ScheduleService.createEvent's default).
+    const orphan: EventItem = { id: "t2", data: { title: "Phone call", date: "2026-05-21", start: "10:00", category: "" } };
+    render(<TodayPage {...base} tomorrowEvents={[orphan]} />);
+    const line = screen.getByText("Phone call").closest(".sched-row")!.querySelector(".sched-cat")!;
+    expect(line).toHaveTextContent("No category");
+    // and a real area still reads as itself
+    render(<TodayPage {...base} tomorrowEvents={[ev("t3", "09:00", "money")]} />);
+    expect(screen.getByText("t3").closest(".sched-row")!.querySelector(".sched-cat")).toHaveTextContent("Money");
+  });
 });

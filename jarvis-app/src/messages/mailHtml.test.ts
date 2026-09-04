@@ -41,4 +41,14 @@ describe("sanitizeMailHtml", () => {
     expect(out.startsWith("<!doctype html>")).toBe(true);
     expect(out).toMatch(/color-scheme/);
   });
+  it("declares exactly the app's colour scheme, never both (Dave 2026-09-04: black slab in Light)", () => {
+    // "dark light" let the phone's own preference pick, and an iframe whose
+    // scheme differs from its page is painted opaque in its own canvas
+    // colour: OS dark + app Light = a black box, and the sender's dark text
+    // written for white paper disappears into it.
+    expect(sanitizeMailHtml("<p>hi</p>", { dark: true })).toMatch(/<meta name="color-scheme" content="dark">/);
+    expect(sanitizeMailHtml("<p>hi</p>", { dark: false })).toMatch(/<meta name="color-scheme" content="light">/);
+    expect(sanitizeMailHtml("<p>hi</p>", { dark: false })).toMatch(/color: #111/);
+    expect(out).not.toMatch(/content="dark light"/);
+  });
 });

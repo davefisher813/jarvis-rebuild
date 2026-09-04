@@ -120,6 +120,18 @@ describe("YourDay evening and recovery actions", () => {
     expect(screen.queryByText("Plan Tomorrow")).not.toBeInTheDocument();
   });
 
+  it("an EMPTY evening stands down too when the Tomorrow head already has Plan It (Dave 2026-09-04)", () => {
+    // WAVE 4's duplicate-doors rule was applied to the day-with-events
+    // branch only. His screenshot: "Nothing else tonight" with Plan My Day
+    // and Plan Tomorrow, then a Tomorrow section with its own Plan It. Two
+    // doors, one handler, one screen.
+    render(<YourDay events={[]} now="20:00" nowLabel="8:00 PM" onSeeAll={() => {}} onPlanTomorrow={() => {}} tomorrowShown />);
+    expect(screen.queryByText("Plan Tomorrow")).not.toBeInTheDocument();
+    // And when tomorrow is empty the head's door is gone, so this one stays.
+    render(<YourDay events={[]} now="20:00" nowLabel="8:00 PM" onSeeAll={() => {}} onPlanTomorrow={() => {}} tomorrowShown={false} />);
+    expect(screen.getByText("Plan Tomorrow")).toBeInTheDocument();
+  });
+
   it("Running Late arms, then fires with the chosen shift", () => {
     const onRunningLate = vi.fn();
     render(<YourDay events={[ev("a", "15:00")]} now="10:00" nowLabel="10:00" onSeeAll={() => {}} onRunningLate={onRunningLate} />);

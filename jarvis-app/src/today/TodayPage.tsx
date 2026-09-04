@@ -147,7 +147,12 @@ function SchedRow({ ev, onOpen }: { ev: EventItem; onOpen?: () => void }) {
       <div className="sched-time">{t.time}<span className="ampm">{t.ap}</span></div>
       <div className="sched-body">
         <div className="sched-title">{ev.data.title}</div>
-        <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(ev.data.category)} />{catName(ev.data.category)}</div>
+        {/* An event with no area rendered a dot and nothing after it (Dave's
+            2026-09-04 screenshot: the call landed from an email with no
+            area, so the second line was one grey dot). The task rows on this
+            same page already say "No category" for an orphan, the Things
+            rule: conspicuous, never hidden, never a blank. Same words here. */}
+        <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(ev.data.category)} />{catName(ev.data.category) || "No category"}</div>
       </div>
     </div>
   );
@@ -500,7 +505,7 @@ export default function TodayPage({
               <div className="sched-time" />
               <div className="sched-body">
                 <div className="sched-title">{t.data.text}</div>
-                <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(t.data.category)} />{catName(t.data.category)}</div>
+                <div className="sched-cat"><span className={"cat-dot cat-bg-" + catColor(t.data.category)} />{catName(t.data.category) || "No category"}</div>
               </div>
               <span className="pill pill-subdued">{t.data.recurrence}</span>
             </div>

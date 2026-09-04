@@ -504,8 +504,13 @@ export default function YourDay({
                 Tasks empty state and the First Step card. */}
             {onPlanDay && <button className="btn btn-primary" onClick={onPlanDay}><CalIcon />Plan My Day</button>}
             {/* An empty evening is the best moment to plan tomorrow, not a
-                reason to hide the button (2026-08-09). */}
-            {onPlanTomorrow && <button className="btn btn-secondary" onClick={onPlanTomorrow}><CalIcon />Plan Tomorrow</button>}
+                reason to hide the button (2026-08-09). Unless the door is
+                already on screen: WAVE 4's duplicate-doors rule (above, the
+                non-empty branch) was never applied here, so an empty evening
+                with a booked tomorrow showed "Plan Tomorrow" in this card AND
+                "Plan It" on the Tomorrow head one section down (Dave's
+                2026-09-04 screenshot). Same handler, same rule, one door. */}
+            {onPlanTomorrow && !tomorrowShown && <button className="btn btn-secondary" onClick={onPlanTomorrow}><CalIcon />Plan Tomorrow</button>}
           </div>
         </div></div>
       </div>

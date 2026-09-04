@@ -66,7 +66,16 @@ export function sanitizeMailHtml(html: string, opts: { dark?: boolean } = {}): s
     if (el.tagName === "IMG") { el.setAttribute("loading", "lazy"); }
   }
   const dark = opts.dark !== false;
-  const base = `<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="${dark ? "dark light" : "light"}">
+  // ONE SCHEME, THE APP'S (Dave 2026-09-04, screenshot: the app in Light,
+  // the mail frame a black box with the sender's dark-grey text vanished
+  // into it). The frame's body is transparent, but CSS Color Adjust makes an
+  // iframe OPAQUE, painted in its own default canvas colour, whenever its
+  // colour scheme differs from the page's. This used to declare "dark light"
+  // regardless of the app's theme, so the phone's own preference decided:
+  // OS dark + app Light = a black slab behind text written for white paper.
+  // Declaring exactly the app's scheme keeps the frame transparent, and the
+  // page's ground, not the phone's, sits behind the mail.
+  const base = `<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="${dark ? "dark" : "light"}">
 <style>
   html, body { margin: 0; padding: 0; background: transparent; color: ${dark ? "#EDEDF0" : "#111"};
     font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
