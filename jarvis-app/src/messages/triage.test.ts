@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { selfBlankGuard,
   buildTriageInput, parseTriage, fillSkipped, triageDelta,
   loadTriageCache, saveTriageCache, splitByBucket, headline, noiseLine,
+  applyKnownPeople, knownSenderEmails,
   type TriageMap,
 } from "./triage";
 import type { ThreadRow } from "../connections/google/map";
@@ -156,5 +157,57 @@ describe("a blank email from yourself never needs you", () => {
     const r = row("d", "dfisher2424@icloud.com", "", "");
     const out = selfBlankGuard(needs("d"), [r as never], []);
     expect(out.d!.bucket).toBe("needs_you");
+  });
+});
+
+// S2-6 (2026-09-04): "Triage never learns who matters." No AI tokens, works
+// with AI off, and cannot be steered by anything the email itself says.
+describe("applyKnownPeople", () => {
+  const noise = (id: string): TriageMap => ({ [id]: { bucket: "noise", gist: "g", lastMsgId: "m" + id } });
+
+  it("knownSenderEmails keeps only people with BOTH an email and a relationship", () => {
+    const set = knownSenderEmails([
+      { email: "Sister@X.com", relationship: "Sister" }, // case folds
+      { email: "stranger@x.com" }, // no relationship: not "known" in this sense
+      { relationship: "Client" }, // no email: nothing to match a sender against
+      { email: "", relationship: "Friend" }, // blank email
+      { email: "nobody@x.com", relationship: "   " }, // blank relationship
+    ]);
+    expect(set).toEqual(new Set(["sister@x.com"]));
+  });
+
+  it("rescues a known sender's noise into worth_knowing", () => {
+    const r = row("t1", "Sister", "Hey");
+    const out = applyKnownPeople(noise("t1"), [r], new Set(["sister@x.com"]));
+    expect(out.t1!.bucket).toBe("worth_knowing");
+    expect(out.t1!.gist).toBe("g"); // the gist survives, same as every other rule/vip pass
+  });
+
+  it("matches the sender's address case-insensitively (the header itself, e.g. Gmail's From, can be mixed-case)", () => {
+    const r = { ...row("t1", "Sister", "Hey"), fromEmail: "Sister@X.com" };
+    const out = applyKnownPeople(noise("t1"), [r], new Set(["sister@x.com"]));
+    expect(out.t1!.bucket).toBe("worth_knowing");
+  });
+
+  it("[edge] a known sender who was NOT sorted to noise is untouched", () => {
+    const r = row("t1", "Sister", "Hey");
+    const already: TriageMap = { t1: { bucket: "needs_you", gist: "g", lastMsgId: "mt1" } };
+    expect(applyKnownPeople(already, [r], new Set(["sister@x.com"])).t1!.bucket).toBe("needs_you");
+  });
+
+  it("[edge] only ever promotes to worth_knowing, never all the way to needs_you", () => {
+    const r = row("t1", "Sister", "Hey");
+    const out = applyKnownPeople(noise("t1"), [r], new Set(["sister@x.com"]));
+    expect(out.t1!.bucket).not.toBe("needs_you");
+  });
+
+  it("[edge] a stranger stays noise", () => {
+    const r = row("t1", "DoorDash", "20% off");
+    expect(applyKnownPeople(noise("t1"), [r], new Set(["sister@x.com"])).t1!.bucket).toBe("noise");
+  });
+
+  it("[edge] no known senders is a no-op, same map reference back", () => {
+    const map = noise("t1");
+    expect(applyKnownPeople(map, [row("t1", "Sister", "Hey")], new Set())).toBe(map);
   });
 });

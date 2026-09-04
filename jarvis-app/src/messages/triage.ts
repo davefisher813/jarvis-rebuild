@@ -178,6 +178,42 @@ export function selfBlankGuard(map: TriageMap, rows: ThreadRow[], myEmails: stri
   return out;
 }
 
+// TRIAGE NEVER LEARNS WHO MATTERS (S2-6, 2026-09-04). The model sees only
+// id/from/subject/a 200-char snippet -- nothing about who this sender IS to
+// the user -- so a sister's routine check-in scores exactly like a
+// stranger's cold email. This is a deterministic pass, no AI tokens, works
+// with AI off, and cannot be steered by anything the email itself says: the
+// match is decided purely against the user's own People list, never the
+// message. It only ever promotes OUT of noise, never all the way to
+// needs_you -- knowing a sender is a weaker, ambient signal than VIP's
+// explicit, opted-in, capped "always needs a reply" (vip.ts); it earns them
+// visibility, not top billing.
+export interface KnownSender { email?: string; relationship?: string }
+
+export function knownSenderEmails(people: KnownSender[]): Set<string> {
+  const out = new Set<string>();
+  for (const p of people) {
+    const email = p.email?.trim().toLowerCase();
+    if (email && p.relationship?.trim()) out.add(email);
+  }
+  return out;
+}
+
+export function applyKnownPeople<T extends { id: string; fromEmail: string }>(
+  map: TriageMap,
+  rows: T[],
+  known: Set<string>,
+): TriageMap {
+  if (known.size === 0) return map;
+  const out = { ...map };
+  for (const r of rows) {
+    if (!known.has(r.fromEmail.toLowerCase())) continue;
+    const cur = out[r.id];
+    if (cur && cur.bucket === "noise") out[r.id] = { ...cur, bucket: "worth_knowing" };
+  }
+  return out;
+}
+
 // A skipped thread is surfaced, not hidden: worth_knowing with its snippet.
 export function fillSkipped(map: TriageMap, rows: ThreadRow[]): TriageMap {
   const out = { ...map };

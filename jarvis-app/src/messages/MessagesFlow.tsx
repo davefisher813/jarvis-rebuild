@@ -12,7 +12,8 @@ import {
 } from "../connections/google/map";
 import { selfBlankGuard,
   loadTriageCache, saveTriageCache, triageDelta, buildTriageInput, parseTriage, TRIAGE_SCHEMA,
-  fillSkipped, splitByBucket, noiseLine, sortByDeadline, byRank, type TriageMap, type Bucket,
+  fillSkipped, splitByBucket, noiseLine, sortByDeadline, byRank, applyKnownPeople, knownSenderEmails,
+  type TriageMap, type Bucket,
 } from "./triage";
 import { loadRules, saveRule, clearRule, applyRules, type SenderRules } from "./rules";
 import DeckFlow from "./DeckFlow";
@@ -407,6 +408,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // Real names for the addresses on Waiting On rows. Same list, same load,
   // one more book: a row that says "jrubino" is a row you have to decode.
   const [names, setNames] = useState<NameBook>({ byEmail: {} });
+  // S2-6: senders with a real relationship on file, same list, same load, one
+  // more book -- triage.ts's deterministic rescue out of Noise for someone
+  // the model has never met but the user has.
+  const [knownSenders, setKnownSenders] = useState<Set<string>>(new Set());
   // E12: what actually got cleared today, counted where the archives happen.
   const clearedKey = todayISO();
   const [cleared, setCleared] = useState<number>(() => clearedToday(clearedKey));
@@ -661,6 +666,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           setBook(phoneBook(list));
           setColleagues(colleagueBook(list));
           setNames(nameBook(list));
+          setKnownSenders(knownSenderEmails(list.map((p) => p.data)));
         } catch { /* no phones, no Call */ }
       }
       const tracks = loadTracks();
@@ -1796,12 +1802,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // at any level. Receipt + undo either way; nothing is silently hidden.
     const autoOn = autoNoise || effectiveLevel(getAIControl()) === "everything";
     if (!triaged || !autoOn || autoRan.current) return;
-    const { noise } = splitByBucket(rows, applyRules(triage, rows, rules));
+    // S2-6: a known sender never gets auto-filed as noise, whatever the
+    // model thought -- the same rescue the visible list gets (effTriage,
+    // below), computed the same way, so nothing archives here that the list
+    // would not also have called Noise.
+    const { noise } = splitByBucket(rows, applyKnownPeople(applyRules(triage, rows, rules), rows, knownSenders));
     if (noise.length === 0) return;
     autoRan.current = true;
     void archiveAllNoise(noise, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [triaged, autoNoise, rows, triage, rules]);
+  }, [triaged, autoNoise, rows, triage, rules, knownSenders]);
 
   // N15: only ever something he ALREADY has. Nothing is generated, nothing is
   // guessed at, and nothing is attached without him.
@@ -1930,7 +1940,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // N4 (2026-08-20): VIPs come LAST, because a VIP is the one rule allowed to
   // overrule both the model and his own filing. Mail from his attorney
   // surfaces the moment it lands whatever anything else thinks.
-  const effTriage = applyVips(applyRules(triage, rows, rules), rows, vips);
+  // S2-6: a known sender (someone with a real relationship on file) is
+  // rescued out of Noise before VIP has its say. VIP always wins on top of
+  // that regardless of order (it force-sets needs_you unconditionally for
+  // its own short, opted-in list); this pass only ever lifts an ordinary
+  // known contact into visibility, never past it.
+  const effTriage = applyVips(applyKnownPeople(applyRules(triage, rows, rules), rows, knownSenders), rows, vips);
 
   if (view === "deck") {
     if (!g.hasToken || !deckRows || deckRows.length === 0) { setView("list"); return null; }
