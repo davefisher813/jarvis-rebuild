@@ -12,6 +12,8 @@ import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import type { RoutineData } from "../routine/types";
 import { LADDER, ladderBody, type Rung } from "../schedule/countdown";
+import type { ReminderInfo } from "../notes/types";
+import { runsOn, effectiveTime, isDone } from "../tasks/reminders";
 
 export interface CheckinNotification {
   id: number;
@@ -43,8 +45,12 @@ export function buildCheckinNotifications(routine: RoutineData, briefTime?: stri
   if (morningMin < 12 * 60) {
     out.push({
       id: MORNING_ID,
-      title: "What's your ONE thing today?",
-      body: "One thing · The rest is extra",
+      // S1-04 (2026-09-04): the old copy asked "What's your ONE thing
+      // today?", a question Today stopped having an answer field for on
+      // 2026-07-30 (see today/CheckIn.tsx) -- Up Next took over answering
+      // it. Retitled to something the tap now actually lands on.
+      title: "Ready to start the day?",
+      body: "Up Next has your first move",
       hour: Math.floor(morningMin / 60),
       minute: morningMin % 60,
     });
@@ -69,16 +75,33 @@ export function buildCheckinNotifications(routine: RoutineData, briefTime?: stri
   return out;
 }
 
+// S1-03 (2026-09-04): "The events switch cannot work on its own." The ask
+// used to live only inside ensureCheckinNotifications below, gated on the
+// Daily check-ins switch specifically, so turning that switch off while
+// leaving Today's events on permanently blocked the event ladder with no
+// explanation: nothing else ever asked. Notifications.tsx now owns the ask,
+// on the page, the first time any of its four switches goes on. Safe to call
+// more than once: iOS answers a repeat request with whatever was already
+// decided rather than re-prompting, so this and the automatic check-in call
+// below can never fight over showing the dialog twice.
+export async function requestNotificationPermission(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  try {
+    const perm = await LocalNotifications.checkPermissions();
+    if (perm.display === "granted") return true;
+    const req = await LocalNotifications.requestPermissions();
+    return req.display === "granted";
+  } catch {
+    return false;
+  }
+}
+
 // Cancel-then-schedule so routine changes always win and nothing stacks.
 // Native only; resolves quietly everywhere else. Never throws into the UI.
 export async function ensureCheckinNotifications(routine: RoutineData, briefTime?: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   try {
-    const perm = await LocalNotifications.checkPermissions();
-    if (perm.display !== "granted") {
-      const req = await LocalNotifications.requestPermissions();
-      if (req.display !== "granted") return;
-    }
+    if (!(await requestNotificationPermission())) return;
     await LocalNotifications.cancel({ notifications: [{ id: MORNING_ID }, { id: EVENING_ID }] });
     const specs = buildCheckinNotifications(routine, briefTime);
     if (specs.length === 0) return;
@@ -117,7 +140,7 @@ export const EVENT_REMINDER_BASE = 9100;
 export const EVENT_REMINDER_CAP = 120;
 export const EVENT_REMINDER_LEAD_MIN = 15;
 
-export interface ReminderInput { date: string; start: string; title: string; location?: string }
+export interface ReminderInput { date: string; start: string; end?: string; title: string; location?: string }
 export interface EventReminder { id: number; title: string; body: string; at: Date }
 
 // Pure: which reminders exist for these events, from this moment. Only
@@ -139,8 +162,18 @@ export function buildEventReminders(
     const startMs = new Date(`${e.date}T${e.start}:00`).getTime();
     if (!Number.isFinite(startMs)) continue;
     const minutesUntil = (startMs - nowMs) / 60000;
+    // S1-05 (2026-09-04): countdown.ts's own law says the ladder's upper
+    // rungs are off by default on short events ("a fifteen-minute reminder
+    // does not need an hour of warning"), but this builder had no end time
+    // to know an event's length at all -- every event got the full four
+    // rungs regardless of how long it actually ran. A rung longer than the
+    // event itself is dropped; an event with no end time (duration unknown)
+    // keeps every rung, exactly as it did before this fix.
+    const endMs = e.end && /^\d{2}:\d{2}$/.test(e.end) ? new Date(`${e.date}T${e.end}:00`).getTime() : NaN;
+    const durationMin = Number.isFinite(endMs) && endMs > startMs ? (endMs - startMs) / 60000 : null;
     for (const lead of ladder) {
       if (lead >= minutesUntil) continue; // already past this rung
+      if (durationMin !== null && lead > durationMin) continue; // longer than the event itself
       const at = new Date(startMs - lead * 60000);
       if (at.getTime() <= nowMs) continue;
       out.push({
@@ -178,4 +211,114 @@ export async function ensureEventReminders(events: ReminderInput[], nowMs: numbe
   } catch {
     /* notifications are a bonus, never a crash */
   }
+}
+
+// ---- Task reminders (S1-01, 2026-09-04) ----
+// "Set 'Meds, 9:00 PM, every day' and nothing ever buzzes." The scheduler
+// above only ever took calendar events; a reminder is a task wearing
+// reminder facts (notes/types.ts) and reached none of it. Same seam, same
+// rules: native-only, permission-gated (never prompts from here; the
+// check-in flow owns that ask), cancel-then-schedule, a bonus rather than a
+// crash. Its own id block, so rescheduling here can never touch check-ins
+// or event reminders.
+//
+// Dated notifications, not one repeating daily one: a repeating
+// on:{hour,minute} fires every day regardless of `days` and cannot carry a
+// snooze. Expanding into concrete Date instances is the only shape that can
+// honor both, and it is the shape event reminders already schedule in.
+
+export const TASK_REMINDER_BASE = 9300;
+export const TASK_REMINDER_CAP = 60;
+
+export interface TaskReminderInput { id: string; text: string; reminder: ReminderInfo }
+export interface TaskReminderNotification { id: number; title: string; at: Date }
+
+// Pure: today's and tomorrow's real fire times for every reminder, honoring
+// its days (reminders.ts runsOn), its snooze (effectiveTime, which only
+// applies on the day it was set), and its last-done (isDone: a reminder
+// already ticked for a date does not ping again for it). Only future
+// fire-times survive, same rule as buildEventReminders.
+export function buildTaskReminderNotifications(
+  reminders: TaskReminderInput[],
+  today: string,
+  tomorrow: string,
+  nowMs: number,
+): TaskReminderNotification[] {
+  const out: { title: string; at: Date }[] = [];
+  for (const r of reminders) {
+    if (!r.text.trim()) continue;
+    for (const date of [today, tomorrow]) {
+      if (!runsOn(r.reminder, date) || isDone(r.reminder, date)) continue;
+      // A snooze set today only ever applies to today's ping (effectiveTime
+      // enforces that itself); tomorrow's occurrence always uses the real time.
+      const time = date === today ? effectiveTime(r.reminder, today) : r.reminder.time;
+      const at = new Date(`${date}T${time}:00`);
+      if (!Number.isFinite(at.getTime()) || at.getTime() <= nowMs) continue;
+      out.push({ title: r.text.trim(), at });
+    }
+  }
+  out.sort((a, b) => a.at.getTime() - b.at.getTime());
+  return out.slice(0, TASK_REMINDER_CAP).map((x, i) => ({ ...x, id: TASK_REMINDER_BASE + i }));
+}
+
+export async function ensureTaskReminders(
+  reminders: TaskReminderInput[],
+  today: string,
+  tomorrow: string,
+  nowMs: number = Date.now(),
+): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    const perm = await LocalNotifications.checkPermissions();
+    // Never prompt from here, same rule as event reminders: the check-in
+    // flow owns the permission ask, in context, once.
+    if (perm.display !== "granted") return;
+    await LocalNotifications.cancel({
+      notifications: Array.from({ length: TASK_REMINDER_CAP }, (_, i) => ({ id: TASK_REMINDER_BASE + i })),
+    });
+    const specs = buildTaskReminderNotifications(reminders, today, tomorrow, nowMs);
+    if (specs.length === 0) return;
+    await LocalNotifications.schedule({
+      notifications: specs.map((s) => ({
+        id: s.id,
+        title: s.title,
+        body: "Reminder",
+        schedule: { at: s.at, allowWhileIdle: true },
+      })),
+    });
+  } catch {
+    /* notifications are a bonus, never a crash */
+  }
+}
+
+// ---- Tap routing (S1-04, 2026-09-04) ----
+// "A notification tap lands nowhere." No LocalNotifications.addListener
+// existed anywhere in the app: a tap just opened JARVIS wherever it was last
+// left, cold. Every notification id above lives in its own numbered block on
+// purpose (check-ins, event reminders, task reminders); this reads that
+// block back to say which screen the tap is about, and AppShell (the one
+// place that owns tab navigation and outlives every screen) is the single
+// subscriber that turns that into a real destination.
+
+export type NotificationKind = "morning" | "evening" | "event" | "reminder" | null;
+
+export function kindOfNotification(id: number): NotificationKind {
+  if (id === MORNING_ID) return "morning";
+  if (id === EVENING_ID) return "evening";
+  if (id >= EVENT_REMINDER_BASE && id < EVENT_REMINDER_BASE + EVENT_REMINDER_CAP) return "event";
+  if (id >= TASK_REMINDER_BASE && id < TASK_REMINDER_BASE + TASK_REMINDER_CAP) return "reminder";
+  return null;
+}
+
+// Native-only; a clean no-op (and no-op unsubscribe) everywhere else, same
+// contract as every other function in this file. Fire-and-forget listener
+// registration: Capacitor resolves addListener with a handle whose remove()
+// is itself async, which the returned cleanup awaits without surfacing.
+export function onNotificationTap(handler: (kind: NotificationKind, id: number) => void): () => void {
+  if (!Capacitor.isNativePlatform()) return () => {};
+  const sub = LocalNotifications.addListener("localNotificationActionPerformed", (action) => {
+    const id = action.notification.id;
+    handler(kindOfNotification(id), id);
+  });
+  return () => { void sub.then((h) => h.remove()); };
 }

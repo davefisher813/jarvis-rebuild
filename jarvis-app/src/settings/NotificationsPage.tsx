@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useProfile } from "../data/NotesProvider";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { Capacitor } from "@capacitor/core";
+import { requestNotificationPermission } from "../shared/notifications";
 import { Head, Card, Switch, Foot } from "./kit";
 
 type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean };
@@ -11,7 +12,16 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   const svc = useProfile();
   const [prefs, setPrefs] = useState<Prefs>(DEFAULT);
   useEffect(() => { void svc.get().then((p) => setPrefs({ ...DEFAULT, ...(p?.notify ?? {}) })); }, [svc]);
-  const set = async (patch: Partial<Prefs>) => { const next = { ...prefs, ...patch }; setPrefs(next); await svc.save({ notify: next }); };
+  // S1-03: this page is the honest place to ask for the OS permission its
+  // own copy promises, the first time ANY switch goes on, not just Daily
+  // check-ins. Turning off checkins while leaving events on used to leave
+  // nothing that ever asked, so the event ladder was permanently blocked.
+  const set = async (patch: Partial<Prefs>) => {
+    const next = { ...prefs, ...patch };
+    setPrefs(next);
+    await svc.save({ notify: next });
+    if (Object.values(patch).some((on) => on === true)) void requestNotificationPermission();
+  };
   const native = Capacitor.isNativePlatform();
   return (
     <div className="screen ruled">

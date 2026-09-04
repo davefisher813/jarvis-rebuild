@@ -33,7 +33,7 @@ import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } 
 import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { daySizing } from "../schedule/daySizing";
 import { shiftFutureEvents, restoreShift } from "../schedule/runningLate";
-import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventReminders } from "../shared/notifications";
+import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventReminders, ensureTaskReminders } from "../shared/notifications";
 import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap } from "./evening";
 import { readSamples } from "../shared/timeSense";
@@ -982,15 +982,32 @@ export default function TodayFlow({
   // Event reminders (2026-08-09): today's and tomorrow's timed events get a
   // lock-screen nudge 15 minutes out, rescheduled whenever either day's
   // events change. Native-only; the seam no-ops everywhere else.
+  //
+  // S1-05: end rides along now so the builder can drop any rung longer than
+  // the event itself (countdown.ts's law); this call site had the duration
+  // in hand all along and simply never passed it on.
   useEffect(() => {
     const inputs = notifyPrefs.events
       ? [
-          ...todayEvents.map((e) => ({ date: today, start: e.data.start, title: e.data.title, location: e.data.location })),
-          ...tomorrowEvents.map((e) => ({ date: tomorrow, start: e.data.start, title: e.data.title, location: e.data.location })),
+          ...todayEvents.map((e) => ({ date: today, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location })),
+          ...tomorrowEvents.map((e) => ({ date: tomorrow, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location })),
         ]
       : []; // pref off: an empty schedule cancels whatever was pending
     void ensureEventReminders(inputs);
   }, [todayEvents, tomorrowEvents, today, tomorrow, notifyPrefs.events]);
+
+  // S1-01 (2026-09-04): a reminder is a task wearing reminder facts, and
+  // setting one never made the phone do anything, ever. Same rhythm as
+  // events just above: rescheduled whenever today's reminder list or its
+  // done/snooze state changes. No settings switch for this one (unlike
+  // events, which sweeps in every calendar item whether the user wants a
+  // buzz for it or not): setting a reminder is itself the opt-in.
+  useEffect(() => {
+    const inputs = taskItems
+      .filter((t) => !!t.data.reminder)
+      .map((t) => ({ id: t.id, text: t.data.text, reminder: t.data.reminder! }));
+    void ensureTaskReminders(inputs, today, tomorrow);
+  }, [taskItems, today, tomorrow]);
 
   // Running Late lands on Today too (2026-08-09): the plan lives here, so the
   // one-tap recovery for falling behind has to live here. Same shared shift
@@ -1989,6 +2006,14 @@ export default function TodayFlow({
   // missedReminders' own cap) with the one action the setting promised: push
   // it 15 real minutes from now and ask again then. "Let It Go" reminders
   // never reach here at all -- missedReminders already drops them.
+  //
+  // S1-02: writing the snooze here is also what makes it a REAL follow-up
+  // notification, not just a screen update. reload() refreshes taskItems,
+  // which the S1-01 effect below is keyed on, so it re-derives every
+  // reminder's fire time (this one now via effectiveTime's snoozedTo) and
+  // reschedules the actual on-phone alert 15 minutes out. No separate
+  // one-off notification call is needed here: the same reschedule-on-change
+  // seam events already use for editing an event's time does the work.
   const onAskAgainReminder = async (id: string) => {
     const to = snoozeTime(nhm, 15);
     await attemptWrite(() => tasks.snoozeReminder(id, to, today));

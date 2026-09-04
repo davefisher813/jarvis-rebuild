@@ -85,6 +85,31 @@ describe("buildEventReminders", () => {
     expect(buildEventReminders([{ date: "2026-08-09", start: "08:02", title: "Too soon" }], NOW)).toHaveLength(0);
   });
 
+  // S1-05 (2026-09-04): countdown.ts's law -- "a fifteen-minute reminder
+  // does not need an hour of warning" -- was never enforced here because the
+  // builder had no end time to know an event's length. Same 80-minutes-out
+  // event as the very first test above (which earns all four rungs by time
+  // alone), but now 15 minutes long: only rungs no longer than the event
+  // itself survive.
+  it("drops rungs longer than the event itself once it knows the end time", () => {
+    const rs = buildEventReminders([{ date: "2026-08-09", start: "09:20", end: "09:35", title: "Standup" }], NOW);
+    // Only 15 and 5 survive: 60 and 30 are both longer than this 15-minute event.
+    expect(rs.map((r) => r.at)).toEqual([
+      new Date("2026-08-09T09:05:00"),
+      new Date("2026-08-09T09:15:00"),
+    ]);
+  });
+
+  it("an event with no end time keeps every rung, exactly as before this fix", () => {
+    const rs = buildEventReminders([{ date: "2026-08-09", start: "09:20", title: "ES Game" }], NOW);
+    expect(rs).toHaveLength(4);
+  });
+
+  it("an event long enough to outlast the whole ladder keeps every rung", () => {
+    const rs = buildEventReminders([{ date: "2026-08-09", start: "09:20", end: "12:00", title: "Offsite" }], NOW);
+    expect(rs).toHaveLength(4);
+  });
+
   it("skips junk instead of scheduling nonsense", () => {
     expect(buildEventReminders([
       { date: "2026-08-09", start: "", title: "No time" },
@@ -100,5 +125,102 @@ describe("buildEventReminders", () => {
     expect(out).toHaveLength(EVENT_REMINDER_CAP);
     expect(out[0]!.id).toBe(EVENT_REMINDER_BASE);
     expect(out[1]!.at.getTime()).toBeGreaterThanOrEqual(out[0]!.at.getTime());
+  });
+});
+
+// Task reminders (S1-01, 2026-09-04): "Meds, 9:00 PM, every day" never made
+// the phone do anything. buildTaskReminderNotifications is the pure half of
+// the fix: which dated notifications a reminder's days, snooze and last-done
+// actually produce for today and tomorrow.
+import { buildTaskReminderNotifications, TASK_REMINDER_BASE, TASK_REMINDER_CAP, type TaskReminderInput } from "./notifications";
+import type { ReminderInfo } from "../notes/types";
+
+describe("buildTaskReminderNotifications", () => {
+  const TODAY = "2026-08-09";
+  const TOMORROW = "2026-08-10";
+  const NOW = new Date("2026-08-09T08:00:00").getTime();
+  const rem = (id: string, text: string, reminder: ReminderInfo): TaskReminderInput => ({ id, text, reminder });
+
+  it("fires today and tomorrow at the set time, every day by default", () => {
+    const out = buildTaskReminderNotifications([rem("r1", "Take meds", { time: "21:00" })], TODAY, TOMORROW, NOW);
+    expect(out.map((n) => n.at)).toEqual([
+      new Date("2026-08-09T21:00:00"),
+      new Date("2026-08-10T21:00:00"),
+    ]);
+    expect(out[0]!.title).toBe("Take meds");
+    expect(out[0]!.id).toBe(TASK_REMINDER_BASE);
+  });
+
+  // 2026-08-09 is a Sunday: weekdays-only skips today, keeps tomorrow (Monday).
+  it("honors days: skips a date it does not run on", () => {
+    const out = buildTaskReminderNotifications(
+      [rem("r1", "Standup", { time: "09:00", days: [1, 2, 3, 4, 5] })],
+      TODAY, TOMORROW, NOW,
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]!.at).toEqual(new Date("2026-08-10T09:00:00"));
+  });
+
+  it("a reminder already done today does not ping again today, but still pings tomorrow", () => {
+    const out = buildTaskReminderNotifications(
+      [rem("r1", "Take meds", { time: "21:00", lastDone: TODAY })],
+      TODAY, TOMORROW, NOW,
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0]!.at).toEqual(new Date("2026-08-10T21:00:00"));
+  });
+
+  // A snooze set today moves today's ping; tomorrow is unaffected, because a
+  // snooze set today only counts today (reminders.ts effectiveTime).
+  it("a same-day snooze moves today's fire time but not tomorrow's", () => {
+    const out = buildTaskReminderNotifications(
+      [rem("r1", "Take meds", { time: "09:00", snoozedTo: "09:15", snoozeDate: TODAY })],
+      TODAY, TOMORROW, NOW,
+    );
+    expect(out.map((n) => n.at)).toEqual([
+      new Date("2026-08-09T09:15:00"),
+      new Date("2026-08-10T09:00:00"),
+    ]);
+  });
+
+  it("drops a fire time already in the past instead of scheduling a stale buzz", () => {
+    // NOW is 08:00; a 07:00 reminder today has already passed, but tomorrow's
+    // 07:00 has not.
+    const out = buildTaskReminderNotifications([rem("r1", "Early", { time: "07:00" })], TODAY, TOMORROW, NOW);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.at).toEqual(new Date("2026-08-10T07:00:00"));
+  });
+
+  it("assigns ids from the task-reminder block in fire order and honors the cap", () => {
+    const many = Array.from({ length: TASK_REMINDER_CAP }, (_, i) => rem("r" + i, "t" + i, { time: "23:59", days: [0] }));
+    // Every one of these also fires tomorrow (Monday is not in days:[0]... wait
+    // Sunday=0, TOMORROW 08-10 is Monday=1, so only TODAY's occurrence fires):
+    // that alone already exceeds the cap once combined with a second batch.
+    const out = buildTaskReminderNotifications([...many, ...many], TODAY, TOMORROW, NOW);
+    expect(out).toHaveLength(TASK_REMINDER_CAP);
+    expect(out[0]!.id).toBe(TASK_REMINDER_BASE);
+  });
+});
+
+// Tap routing (S1-04, 2026-09-04): kindOfNotification is the pure half of
+// "a notification tap lands nowhere" -- which id block maps to which kind of
+// screen, independent of the native listener itself (untestable off-device).
+import { kindOfNotification, onNotificationTap } from "./notifications";
+
+describe("kindOfNotification", () => {
+  it("classifies each id block, and nothing outside them", () => {
+    expect(kindOfNotification(MORNING_ID)).toBe("morning");
+    expect(kindOfNotification(EVENING_ID)).toBe("evening");
+    expect(kindOfNotification(EVENT_REMINDER_BASE)).toBe("event");
+    expect(kindOfNotification(EVENT_REMINDER_BASE + EVENT_REMINDER_CAP - 1)).toBe("event");
+    expect(kindOfNotification(EVENT_REMINDER_BASE + EVENT_REMINDER_CAP)).toBeNull();
+    expect(kindOfNotification(TASK_REMINDER_BASE)).toBe("reminder");
+    expect(kindOfNotification(TASK_REMINDER_BASE + TASK_REMINDER_CAP - 1)).toBe("reminder");
+    expect(kindOfNotification(TASK_REMINDER_BASE + TASK_REMINDER_CAP)).toBeNull();
+    expect(kindOfNotification(1)).toBeNull();
+  });
+
+  it("registering off native is a clean no-op, same contract as the rest of this file", () => {
+    expect(() => onNotificationTap(() => {})()).not.toThrow();
   });
 });

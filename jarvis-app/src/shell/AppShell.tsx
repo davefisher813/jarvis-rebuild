@@ -21,6 +21,7 @@ import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym } from "../data/NotesProvider";
 import { useAuth } from "../auth/AuthProvider";
+import { onNotificationTap } from "../shared/notifications";
 import { useAI } from "../ai/useAI";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import GoogleAutoImport from "../connections/google/AutoImport";
@@ -230,6 +231,18 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     return () => { on = false; unsub(); };
   }, [categories]);
 
+  // S1-04 (2026-09-04): "A notification tap lands nowhere." AppShell is the
+  // one place that owns tab navigation and outlives every screen, so it is
+  // the single subscriber that turns a tap into a real destination.
+  // Check-ins land on Today (both the morning nudge into Up Next and the
+  // evening mood ask are things Today itself surfaces); event reminders land
+  // on Schedule; task reminders land on Today, where the Reminders strip is.
+  useEffect(() => {
+    return onNotificationTap((kind) => {
+      if (kind === "morning" || kind === "evening" || kind === "reminder") setActive("today");
+      else if (kind === "event") setActive("schedule");
+    });
+  }, []);
 
   // Leaving Notes always restores the dock.
   useEffect(() => {
