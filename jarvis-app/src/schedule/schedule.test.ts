@@ -159,6 +159,26 @@ d3("week helpers", () => {
     e3(addDays("2026-05-24", 7)).toBe("2026-05-31");
     e3(addDays("2026-05-01", -1)).toBe("2026-04-30");
   });
+
+  // B2-1/B2-2 (2026-09-04): "Next-day does nothing east of UTC, previous-day
+  // skips two" / "the week grid is a day out of step". These used to
+  // serialise with toISOString(), which reads UTC; a user in Berlin is two
+  // hours ahead, so local midnight is still "yesterday" in UTC and the date
+  // rolled backward on every read.
+  i3("addDays and weekOf agree with local wall-clock in a zone east of UTC", async () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Europe/Berlin";
+    try {
+      const { weekOf, addDays } = await import("./calendar");
+      e3(addDays("2026-09-04", 1)).toBe("2026-09-05");
+      e3(addDays("2026-11-01", -2)).toBe("2026-10-30");
+      const w = weekOf("2026-09-04"); // a Friday
+      e3(w[0]).toBe("2026-08-31"); // Monday
+      e3(w[6]).toBe("2026-09-06"); // Sunday
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
 });
 
 
@@ -192,6 +212,16 @@ describe("Schedule upgrades: time math, recurrence, conflicts, free slots", () =
     expect(occursOn(monthly, "2026-06-20")).toBe(true);
     expect(occursOn(monthly, "2026-06-21")).toBe(false);
     expect(occursOn(ev("o", "2026-05-20", "09:00").data, "2026-05-21")).toBe(false);
+  });
+
+  // B2-5 (2026-09-04): "a monthly repeat on the 31st skips September."
+  it("occursOn clamps a monthly series anchored past a shorter month's end, instead of skipping it", () => {
+    const onThe31st = ev("rent", "2026-01-31", "09:00", undefined, "monthly").data;
+    expect(occursOn(onThe31st, "2026-09-30")).toBe(true); // September has no 31st
+    expect(occursOn(onThe31st, "2026-09-29")).toBe(false);
+    expect(occursOn(onThe31st, "2026-10-31")).toBe(true); // October has one; unaffected
+    const onThe30th = ev("r2", "2026-01-30", "09:00", undefined, "monthly").data;
+    expect(occursOn(onThe30th, "2026-02-28")).toBe(true); // February clamps further still
   });
 
   it("eventsForDate surfaces a recurring instance on the queried day, keeping the base id", () => {

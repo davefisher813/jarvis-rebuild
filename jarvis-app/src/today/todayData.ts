@@ -5,8 +5,6 @@ import type { TaskItem } from "../tasks/TasksService";
 import { partition } from "../tasks/filters";
 import { capAfterNumber } from "../shared/casing";
 
-const DAY = 86400000;
-
 function isoOf(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -15,8 +13,17 @@ function isoOf(d: Date): string {
 }
 
 // The day after the given YYYY-MM-DD (handles month/year rollover).
+//
+// B2-3 (2026-09-04): a fixed 86,400,000ms step used to land on the clocks-
+// back day's wall clock a day early, because that local day has 25 hours
+// under America/New_York (and every other zone that observes DST): Plan
+// Tomorrow planned today, tomorrow's section showed today's events, and the
+// reminder scheduler sent today's events twice. setDate() steps a calendar
+// day regardless of how many hours it actually contained.
 export function tomorrowISO(today: string): string {
-  return isoOf(new Date(new Date(today + "T00:00:00").getTime() + DAY));
+  const d = new Date(today + "T00:00:00");
+  d.setDate(d.getDate() + 1);
+  return isoOf(d);
 }
 
 // Current wall-clock as "HH:MM" (24h), to compare against event start times.

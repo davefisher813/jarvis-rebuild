@@ -35,6 +35,19 @@ describe("today aggregation", () => {
     expect(tomorrowISO("2026-05-31")).toBe("2026-06-01");
     expect(tomorrowISO("2026-12-31")).toBe("2027-01-01");
   });
+
+  // B2-3 (2026-09-04): "tomorrow equals today on the clocks-back day." A
+  // fixed 86,400,000ms step used to land a day early on any date that has
+  // more (or fewer) than 24 real hours under a DST-observing zone.
+  it("steps a real calendar day on the clocks-back day, which has 25 hours under America/New_York", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      expect(tomorrowISO("2026-11-01")).toBe("2026-11-02");
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
   it("nowHHMM zero-pads", () => {
     expect(nowHHMM(new Date(2026, 4, 20, 9, 5))).toBe("09:05");
   });

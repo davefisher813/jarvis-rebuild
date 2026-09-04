@@ -21,8 +21,20 @@ import { openWorkOf } from "../today/goalPulse";
 import { activeBills, paydayNext } from "../money/bills";
 import { loadEnvelopes, setAsideTotal, leftToSpend } from "../money/budget";
 
+// B2-4 (2026-09-04): this used to serialise with toISOString(), which reads
+// UTC. Four other modules (Chat, Today's suggestions, Quick Capture, the
+// Brain's strands page) import "today" from here alongside AI context, and
+// Notifications imported it as its ONLY source of today, with nothing else
+// in that screen using a local one to disagree with. The result was an 8
+// PM Eastern rollover: today's remaining events vanished, tomorrow's showed
+// as today, and due-today tasks re-badged as Overdue, hours before midnight.
+// Tasks (grouping.ts) and Schedule (calendar.ts) both already do this
+// correctly; this brings the AI layer's notion of "today" in line with theirs.
 export function todayISO(d = new Date()): string {
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 // Derived from the hooks rather than imported by path, so moving a service

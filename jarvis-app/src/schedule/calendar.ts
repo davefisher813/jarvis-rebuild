@@ -73,7 +73,16 @@ export function occursOn(e: EventData, date: string): boolean {
   const day = new Date(date + "T00:00:00");
   if (rec === "daily") return true;
   if (rec === "weekly") return base.getDay() === day.getDay();
-  if (rec === "monthly") return base.getDate() === day.getDate();
+  // B2-5 (2026-09-04): an unclamped day-of-month check meant a series
+  // anchored on the 29th, 30th or 31st simply had no matching day at all in
+  // a shorter month, and the Repeats list still showed it as standing. Rent
+  // due "on the 31st" is understood everywhere else as "the last day", so a
+  // target month with no 31st clamps to its own last day instead of skipping.
+  if (rec === "monthly") {
+    const wantDay = base.getDate();
+    const lastDayOfTargetMonth = new Date(day.getFullYear(), day.getMonth() + 1, 0).getDate();
+    return day.getDate() === Math.min(wantDay, lastDayOfTargetMonth);
+  }
   return false;
 }
 
@@ -187,14 +196,21 @@ export function monthMatrix(year: number, month: number): MonthCell[] {
 }
 
 // Monday-anchored 7 ISO dates for the week containing `iso`.
+//
+// B2-1/B2-2 (2026-09-04): both of these used to serialise with
+// toISOString().slice(0,10), which reads UTC. East of UTC that rolls the
+// date forward before local midnight, which under Europe/Berlin made
+// addDays("2026-09-04", 1) return "2026-09-04" itself and weekOf anchor a
+// day early. isoOf (line 12) already existed and was already correct;
+// these two just were not calling it.
 export function weekOf(iso: string): string[] {
   const d = new Date(iso + "T00:00:00");
   const dow = (d.getDay() + 6) % 7;
   const mon = new Date(d); mon.setDate(d.getDate() - dow);
-  return Array.from({ length: 7 }, (_, i) => { const x = new Date(mon); x.setDate(mon.getDate() + i); return x.toISOString().slice(0, 10); });
+  return Array.from({ length: 7 }, (_, i) => { const x = new Date(mon); x.setDate(mon.getDate() + i); return isoOf(x); });
 }
 export function addDays(iso: string, n: number): string {
-  const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10);
+  const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return isoOf(d);
 }
 
 // Time as distance (roadmap v2): "in 40m", "in 2h 10m". Time blindness reads
