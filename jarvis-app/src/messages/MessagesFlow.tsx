@@ -1207,7 +1207,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // MessagesFlow-only bookkeeping the pure module has no reason to know
   // about, kept alongside the fields it does (round-trips through
   // load/saveOutbox fine; both only ever read the fields they declare).
-  type QueuedSend = OutboxItem & { handoffTo?: string; editingDraftId?: string };
+  //
+  // deckVerbatim (S2-2, 2026-09-04) distinguishes DeckFlow's own Send & Next
+  // (queued here now too) from a compose send that started life as a deck
+  // draft but was edited first (fromDeck alone used to mean only that). Both
+  // set fromDeck, so the voice metric below needs the second flag to tell a
+  // verbatim send (flag: false) from an edited one (flag: true).
+  type QueuedSend = OutboxItem & { handoffTo?: string; editingDraftId?: string; deckVerbatim?: boolean };
   const [outbox, setOutbox] = useState<QueuedSend[]>(() => loadOutbox() as QueuedSend[]);
   const outboxRef = useRef(outbox);
   useEffect(() => {
@@ -1231,8 +1237,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const api = apiFor(item.account);
     if (!api) {
       // Not connected right now is not necessarily final (a token refresh,
-      // a moment offline): leave it held so the next tick tries again rather
-      // than reporting a failure the user cannot act on differently.
+      // a moment offline): revert to held so the next tick tries again,
+      // rather than leaving the item stuck showing "Sending" forever with
+      // no Undo, Send Now, or Retry able to touch it (dueNow only ever
+      // looks at held items).
+      setOutbox((obs) => obs.map((o) => (o.id === item.id ? { ...o, state: "held" } : o)));
       inFlight.current.delete(item.id);
       return;
     }
@@ -1246,7 +1255,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         saveTrack(item.trackId, { threadId: sent.threadId || item.threadId || sent.id, sentAt: Date.now() });
         void registerTrack(item.trackId, authToken);
       }
-      if (item.fromDeck) emit({ type: "email.deck_sent", props: { flag: true } });
+      // The honest voice metric: sent exactly as drafted (deckVerbatim, from
+      // DeckFlow's own Send & Next) gets flag: false; a deck draft that
+      // needed editing before compose sent it gets flag: true. Durable
+      // EventType since 2026-08-07; S2-2 (2026-09-04) moved the deck-verbatim
+      // half of this here too, so a send that fails or gets Undone never
+      // counts either way.
+      if (item.fromDeck) emit({ type: "email.deck_sent", props: { flag: !item.deckVerbatim } });
       emit({ type: "email.handled", props: { kind: "reply" } });
       if (item.editingDraftId) {
         const id = item.editingDraftId;
@@ -1343,6 +1358,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     };
     setOutbox((obs) => [...obs, item]);
     setView("list");
+  };
+
+  // S2-2: the same queue, for DeckFlow's Send & Next. No draft, no view
+  // change -- the Sweep advances the card itself the moment it calls this;
+  // only the mail's actual departure is held.
+  const queueDeckSend = (input: { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; account?: string }) => {
+    const item: QueuedSend = {
+      id: newTrackId(),
+      account: input.account,
+      to: input.to,
+      subject: input.subject,
+      body: input.body,
+      inReplyTo: input.inReplyTo,
+      threadId: input.threadId,
+      fromDeck: true,
+      deckVerbatim: true,
+      trackId: newTrackId(),
+      dueMs: holdUntil(Date.now()),
+      scheduled: false,
+      state: "held",
+    };
+    setOutbox((obs) => [...obs, item]);
   };
 
   // Undo (still held) and Edit (already failed) are the same move: pull the
@@ -1861,7 +1898,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           apiFor={apiFor}
           threads={deckRows}
           limitMs={drainMs}
-          token={authToken}
+          queueSend={queueDeckSend}
           onDone={(n, ms, receipts) => {
             setDeckRows(null); setDrainMs(undefined);
             // 10A: the day colors in when at least one card truly died.

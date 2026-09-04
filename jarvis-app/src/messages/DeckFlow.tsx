@@ -1,16 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AIService } from "../ai/AIService";
 import type { GoogleApi } from "../connections/google/api";
-import { mapThreadFull, buildReply, encodeEmail, type ThreadRow, type ThreadFull } from "../connections/google/map";
+import { mapThreadFull, buildReply, type ThreadRow, type ThreadFull } from "../connections/google/map";
 import { useTasks, useSchedule, usePeople } from "../data/NotesProvider";
 import { useAIContext } from "../ai/useAIContext";
-import { useProfile } from "../data/NotesProvider";
 import { voiceToText } from "../ai/context";
 import { emit } from "../events";
 import { fmtClock } from "./drain";
 import { buildPlanPrompt, parseDeckPlan, primaryLabel, laterTaskTitle, type DeckPlan, type VoiceProfile } from "./deck";
 import { voiceExamplesFor } from "./voiceExamples";
-import { newTrackId, pixelUrlFor, saveTrack, registerTrack } from "./tracking";
 import { showToast } from "../shared/toast";
 import { humanError } from "../connections/google/humanError";
 import { dayPhrase } from "../money/bills";
@@ -52,11 +50,18 @@ function discSlot(key: string): string {
   return DISC_SLOTS[h % DISC_SLOTS.length]!;
 }
 
-export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, onOpenThread, onEditReply, onHandled }: {
+export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDone, onOpenThread, onEditReply, onHandled }: {
   ai: AIService;
   apiFor: (account?: string) => GoogleApi | null;
   threads: ThreadRow[];
-  token?: string;
+  // S2-2 (2026-09-04): Send & Next used to call api.sendMessage directly,
+  // with no hold and no Undo -- the one send in the app a mistap could not
+  // take back. It now queues through the same outbox MessagesFlow's own
+  // compose send uses (S2-1): the card still advances immediately (the Sweep
+  // stays fast), but the mail itself sits in the same 12-second hold, with
+  // the same Retry-on-failure and the same Undo, discoverable back on the
+  // Email list.
+  queueSend: (input: { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; account?: string }) => void;
   onDone: (handled: number, ms: number, receipts: SweepReceipts) => void;
   // A custom session length from the drain sheet. The default is a session
   // too now (SESSION_MS): an untimed sweep is an inbox with a nicer face.
@@ -74,13 +79,6 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
   // Required, not optional, unlike MessagesFlow: this component already calls
   // useTasks and useSchedule, so it cannot render without NotesProvider anyway.
   const gatherContext = useAIContext();
-  const profileSvc = useProfile();
-  const [trackOpens, setTrackOpens] = useState(true);
-  useEffect(() => {
-    let on = true;
-    profileSvc.get().then((p) => { if (on) setTrackOpens(p?.trackOpens !== false); }).catch(() => {});
-    return () => { on = false; };
-  }, [profileSvc]);
 
   // 3A: the hand. At most nine, the rest stay face-down in the deck. The
   // ring, the progress bar, and "the deck keeps the rest" all speak about
@@ -229,22 +227,15 @@ export default function DeckFlow({ ai, apiFor, threads, token, limitMs, onDone, 
         const body = shortReply ?? plan.reply!;
         const last = thread.messages[thread.messages.length - 1]!;
         const r = buildReply(last, body);
-        const trackId = newTrackId();
-        const sent = await api.sendMessage(
-          encodeEmail({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, ...(trackOpens ? { pixelUrl: pixelUrlFor(trackId) } : {}) }),
-          r.threadId,
-        );
-        if (trackOpens) {
-          saveTrack(trackId, { threadId: sent.threadId || r.threadId || sent.id, sentAt: Date.now() });
-          void registerTrack(trackId, token);
-        }
+        // S2-2: queued, not sent -- the same 12-second hold and Undo compose
+        // gets, discoverable on the Email list. The card still advances now;
+        // pixel tracking, and the "sent exactly as drafted" voice metric
+        // (flag: false, vs. compose's flag: true for an edited send), fire
+        // from the shared outbox pump once the hold actually releases, so a
+        // send that gets Undone or that fails never counts as either.
+        queueSend({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, threadId: r.threadId, account: row.account });
         cleared = await archiveRemote(row.id, row.account);
         receipts.current.sent += 1;
-        // The honest voice metric: sent exactly as drafted (edited sends are
-        // logged from the compose path with flag: true). A real, durable
-        // EventType since 2026-08-07; it was a device-local "action" before,
-        // so the one measure of draft quality died with the device.
-        emit({ type: "email.deck_sent", props: { flag: false } });
       } else if (plan.kind === "bill" && plan.bill) {
         // B6-7 (2026-09-04): the Sweep wrote bills, events and tasks with no
         // source and no fromThread, unlike every other email-to-entity path

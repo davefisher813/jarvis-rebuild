@@ -68,6 +68,7 @@ describe("DeckFlow prepare race", () => {
           ai={aiByBody()}
           apiFor={() => api}
           threads={[row("tA", "Alpha", "First"), row("tB", "Bravo", "Second")]}
+          queueSend={vi.fn()}
           onDone={vi.fn()} onOpenThread={vi.fn()}
           onEditReply={vi.fn()} onHandled={vi.fn()}
         />
@@ -109,6 +110,7 @@ describe("DeckFlow prepare race", () => {
           ai={new AIService({ available: false })}
           apiFor={() => api}
           threads={[row("tA", "Alpha", "First")]}
+          queueSend={vi.fn()}
           onDone={vi.fn()} onOpenThread={vi.fn()}
           onEditReply={vi.fn()} onHandled={onHandled}
         />
@@ -137,6 +139,7 @@ describe("DeckFlow progress bar", () => {
         apiFor={() => plainApi()}
         threads={threads}
         limitMs={limitMs}
+        queueSend={vi.fn()}
         onDone={vi.fn()} onOpenThread={vi.fn()}
         onEditReply={vi.fn()} onHandled={vi.fn()}
       />

@@ -48,7 +48,7 @@ import SkeletonScreen from "../shared/SkeletonScreen";
 import type { Recurrence } from "../notes/types";
 import { useAI } from "../ai/useAI";
 import { useGoogle } from "../connections/google/GoogleSession";
-import { mapThreadFull, buildReply, encodeEmail } from "../connections/google/map";
+import { mapThreadFull, buildReply } from "../connections/google/map";
 import { cardDraftJob } from "../messages/cardDraftJob";
 import { DUR_CHOICES, durLabel } from "../schedule/durations";
 import {
@@ -62,10 +62,10 @@ import { overlapsOn } from "../schedule/dayEdit";
 import { isKept } from "../schedule/overlapAck";
 import { attachInfo, type AttachInfo } from "../schedule/attachments";
 import { cachedDraft, pregenerate, rememberDraft, PREGEN_CAP } from "../ai/pregen";
-import { loadNudgeCounts, countNudge } from "../messages/escalate";
+import { loadNudgeCounts } from "../messages/escalate";
 import { settleAll } from "../messages/settle";
 import { decide } from "../messages/mailAction";
-import { clearChase } from "../messages/followUp";
+import { enqueueTodaySend } from "../messages/todayOutbox";
 import { planFromBlock } from "../tasks/ifThen";
 import { endOf, FIFTEEN } from "../tasks/rightNow";
 import { acceptBody } from "../messages/meetingTimes";
@@ -2136,12 +2136,17 @@ export default function TodayFlow({
       // follow-up to himself, so it is derived, never assumed.
       const reply = buildReply(last, body);
       const to = n.kind === "nudge" ? (last.to || reply.to) : reply.to;
-      await api.sendMessage(encodeEmail({ to, subject: reply.subject, body, inReplyTo: reply.inReplyTo }), full.id);
-      // The ladder climbs on what was actually SENT, so it cannot be gamed
-      // by opening the drafter and closing it again. A chase he set retires
-      // itself the moment it is answered.
-      if (n.kind !== "reply") countNudge(n.threadId);
-      if (n.kind === "chase") clearChase(n.threadId);
+      // S2-2 (2026-09-04): queued, not sent -- the same 12-second hold and
+      // Retry-on-failure the Sweep's Send & Next now gets, through a small
+      // dedicated queue (todayOutbox.ts) whose pump lives in AppShell and so
+      // survives leaving this tab, unlike this screen itself. The nudge
+      // count and chase-clear that used to happen right here now happen in
+      // TodayOutboxPump, once the send actually goes through.
+      const account = loadMailSnapshot().threads.find((x) => x.id === n.threadId)?.account;
+      enqueueTodaySend({
+        to, subject: reply.subject, body, inReplyTo: reply.inReplyTo, threadId: full.id, account,
+        todayKind: n.kind === "nudge" || n.kind === "chase" ? n.kind : "reply",
+      });
       return true;
     } catch {
       return false;
