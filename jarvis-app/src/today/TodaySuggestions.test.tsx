@@ -6,6 +6,7 @@ import { NotesProvider } from "../data/NotesProvider";
 import { AIService } from "../ai/AIService";
 import TodaySuggestions from "./TodaySuggestions";
 import { emit, eventLog } from "../events";
+import { todayISO } from "../ai/useAIContext";
 
 // The suggestion card: at most ONE row, never echoing a visible Up Next
 // task. It renders headless inside Today's Heads Up stream (2026-08-19),
@@ -243,5 +244,60 @@ describe("TodaySuggestions the whole day's moments (S4-Q21)", () => {
     fireEvent.click(remember[remember.length - 1]!);
     await waitFor(() => expect(screen.queryByText(/You train between/)).not.toBeInTheDocument());
     expect(screen.getByText(/Your tasks get done between/)).toBeInTheDocument();
+  });
+});
+
+// S4-Q27 (2026-09-04): "an AI failure looks exactly like a quiet day." A
+// failed suggestions call used to just clear the cache and go silent --
+// indistinguishable from JARVIS genuinely having nothing to say today. It
+// now says so, in the same whisper-first shape as a real suggestion, and
+// still never poisons the day's cache (so the next open retries instead of
+// staying broken all day).
+describe("TodaySuggestions AI failure is honest, not silent (S4-Q27)", () => {
+  beforeEach(() => { localStorage.clear(); eventLog.clear(); });
+
+  function failingAI(status: number, body: string) {
+    const fetchImpl = vi.fn(async () => ({
+      ok: false,
+      status,
+      json: async () => ({}),
+      text: async () => body,
+    })) as unknown as typeof fetch;
+    return new AIService({ available: true, getToken: () => "t", fetchImpl });
+  }
+
+  // The quiet line (Law 3E) can wrap a trailing number in its own span, so
+  // the sub's real text is checked against the line's whole textContent
+  // rather than a single text node, same as the being-known moments test
+  // above does for its own conn-meta line.
+  const subSays = (re: RegExp) => screen.getByText((_, el) => el?.className === "conn-meta" && re.test(el.textContent ?? ""));
+
+  it("a failed call surfaces the real reason, not silence", async () => {
+    render(<NotesProvider userId="u-err1"><TodaySuggestions ai={failingAI(500, "upstream blew up")} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/Noticed · Couldn't check today's suggestions/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/Noticed · Couldn't check today's suggestions/));
+    await waitFor(() => expect(subSays(/Server said 500/)).toBeInTheDocument());
+  });
+
+  it("a sign-in failure names itself, not a generic server error", async () => {
+    render(<NotesProvider userId="u-err2"><TodaySuggestions ai={failingAI(401, "")} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/^Noticed ·/));
+    await waitFor(() => expect(subSays(/Sign in again/)).toBeInTheDocument());
+  });
+
+  it("dismissing the failure notice clears it", async () => {
+    render(<NotesProvider userId="u-err3"><TodaySuggestions ai={failingAI(500, "upstream blew up")} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
+    fireEvent.click(screen.getByText(/^Noticed ·/));
+    await waitFor(() => expect(screen.getByText("Dismiss")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Dismiss"));
+    await waitFor(() => expect(screen.queryByText(/Couldn't check today's suggestions/)).not.toBeInTheDocument());
+  });
+
+  it("never writes the failure to the day's cache, so the next open retries", async () => {
+    render(<NotesProvider userId="u-err4"><TodaySuggestions ai={failingAI(500, "upstream blew up")} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
+    expect(localStorage.getItem("jarvis.suggestions." + todayISO())).toBeNull();
   });
 });

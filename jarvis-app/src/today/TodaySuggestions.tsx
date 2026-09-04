@@ -17,6 +17,7 @@ import { planningPatternObservation, readDurationCorrections } from "./planningP
 import { routineBlockCandidate } from "./routinePatterns";
 import type { ProtectedBlock } from "../routine/types";
 import { emit } from "../events";
+import { aiFailureLine } from "../ai/failureLine";
 import { rankOpen } from "../upnext/upnext";
 import { Lightbulb } from "../shared/icons";
 import NoticeCard from "./NoticeCard";
@@ -62,6 +63,11 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // Texts of the tasks already visible in Up Next: a suggestion that echoes
   // one of them is repetition, not value (Dave 2026-07-30), and is hidden.
   const [visibleTaskTexts, setVisibleTaskTexts] = useState<Set<string> | null>(null);
+  // S4-Q27 (2026-09-04): "an AI failure looks exactly like a quiet day."
+  // The catch below used to just clear the cache; nothing distinguished
+  // "JARVIS has nothing today" from "JARVIS is broken." aiFailureLine
+  // already exists, tested, and was wired to Email only.
+  const [aiError, setAiError] = useState<string | null>(null);
 
   const persist = useCallback((c: DayCache) => { setCache(c); writeCache(today, c); }, [today]);
 
@@ -169,9 +175,14 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         );
         if (!on) return;
         const c: DayCache = { items: parseSuggestions(raw), dismissed: [], acted: [] };
-        setCache(c); writeCache(today, c);
-      } catch {
-        if (on) setCache(null);
+        setCache(c); writeCache(today, c); setAiError(null);
+      } catch (e) {
+        // Nothing is written to the day's cache here (no writeCache call),
+        // so the next open finds no entry and retries instead of a broken
+        // day getting remembered forever. aiFailureLine reads the proxy's
+        // own upstream error, same message a real "Sign in again" or "Rate
+        // limited" deserves rather than silence.
+        if (on) { setCache(null); setAiError(aiFailureLine(e, "Today's suggestions didn't come back")); }
       }
     })();
     return () => { on = false; };
@@ -199,7 +210,10 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // above -- empty outside What JARVIS Knows, since `moments` is never
   // populated there.
   const extraMoments = moments.filter((m) => m.derivation !== pattern?.moment?.derivation);
-  if (!pattern && !aiPick && extraMoments.length === 0) return null;
+  // S4-Q27: a real failure still has to say so, even when everything else
+  // this component might show is empty. Silence here used to be identical
+  // whether JARVIS had nothing to say or the call behind it broke.
+  if (!pattern && !aiPick && extraMoments.length === 0 && !aiError) return null;
 
   const addToToday = async (idx: number, taskText: string) => {
     const all = await tasksSvc.listTasks();
@@ -352,6 +366,27 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         title={aiPick.s.text}
         action={aiPick.s.task ? { label: "Add", onClick: () => void addToToday(aiPick.i, aiPick.s.task!) } : undefined}
         onDismiss={dismissThis}
+      />
+    );
+  } else if (aiError) {
+    // S4-Q27: the honest line, same whisper-first shape as a real
+    // suggestion. Slate, not yellow: this is a status, not an insight, and
+    // NoticeCard's own doctrine reserves the loud tones for a producer that
+    // means to alarm.
+    primary = !open ? (
+      <div className="pad-x">
+        <button className="receipt-line" onClick={() => setOpen(true)}>
+          <span className="rl-t">Noticed · Couldn't check today's suggestions</span>
+          <span className="chev" />
+        </button>
+      </div>
+    ) : (
+      <NoticeCard
+        icon={<Lightbulb className="ic" />}
+        tone="cat-fg-slate"
+        title="Couldn't check today's suggestions"
+        sub={aiError}
+        onDismiss={() => setAiError(null)}
       />
     );
   }
