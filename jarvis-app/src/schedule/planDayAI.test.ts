@@ -152,3 +152,57 @@ describe("attribution", () => {
     expect(r.leanedOn).toEqual(["Gets things done mid morning"]);
   });
 });
+
+// S4-Q24 (2026-09-04): "a rule and a preference carry the same weight."
+// types.ts's doctrine says strength distinguishes them; this prompt was the
+// one place both still rendered as one undifferentiated list.
+describe("rules vs. influences (S4-Q24)", () => {
+  it("puts a rule-strength strand under its own MUST-respect header, separate from ordinary facts", () => {
+    const msg = planDayUserMessage([pick("a")], [], 540, 1260, {
+      strands: [
+        { id: "r1", text: "Family dinner is non-negotiable", strength: "rule" },
+        { id: "s1", text: "Brainstorms best at night", strength: "influence" },
+      ],
+    });
+    expect(msg).toContain("Rules about this person you MUST respect, no exceptions:");
+    expect(msg).toContain("[r1] Family dinner is non-negotiable");
+    expect(msg).toContain("Facts JARVIS has learned about this person");
+    expect(msg).toContain("[s1] Brainstorms best at night");
+    // Neither list leaks into the other.
+    const rulesBlock = msg.slice(msg.indexOf("Rules about"), msg.indexOf("Facts JARVIS has learned"));
+    expect(rulesBlock).not.toContain("Brainstorms best at night");
+  });
+
+  it("a strand with no strength at all reads as an influence, unchanged from before this item", () => {
+    const msg = planDayUserMessage([pick("a")], [], 540, 1260, { strands: [{ id: "s1", text: "Brainstorms best at night" }] });
+    expect(msg).not.toContain("Rules about this person");
+    expect(msg).toContain("Facts JARVIS has learned about this person");
+  });
+
+  it("omits the Rules header entirely when nothing is marked a rule", () => {
+    const msg = planDayUserMessage([pick("a")], [], 540, 1260, {
+      strands: [{ id: "s1", text: "Gets things done mid morning", strength: "influence" }],
+    });
+    expect(msg).not.toContain("Rules about this person");
+  });
+
+  it("omits the Facts header entirely when every strand is a rule", () => {
+    const msg = planDayUserMessage([pick("a")], [], 540, 1260, {
+      strands: [{ id: "r1", text: "Family dinner is non-negotiable", strength: "rule" }],
+    });
+    expect(msg).toContain("Rules about this person you MUST respect");
+    expect(msg).not.toContain("Facts JARVIS has learned about this person");
+  });
+
+  it("the system prompt tells the model rules bind and facts merely inform", () => {
+    expect(planDaySystem()).toContain("constraints on this person's day, not preferences");
+  });
+
+  it("a rule can still be cited in leaned_on like any other offered strand", async () => {
+    const ai = { complete: async () => '{"items":[{"id":"a","minutes":30}],"leaned_on":["r1"]}' } as never;
+    const r = await aiPlanDay(ai, [pick("a")], [], 540, 1260, {
+      strands: [{ id: "r1", text: "Family dinner is non-negotiable", strength: "rule" }],
+    });
+    expect(r.leanedOn).toEqual(["Family dinner is non-negotiable"]);
+  });
+});

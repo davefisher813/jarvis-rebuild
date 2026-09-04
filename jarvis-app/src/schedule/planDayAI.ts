@@ -39,7 +39,14 @@ export interface AIPlanOpts {
   // possible the day outputs were forced structured (item 12); before that,
   // asking a model for its reasons produced decoration, which is why the
   // design doc banned faking them.
-  strands?: { id: string; text: string }[];
+  //
+  // S4-Q24 (2026-09-04): strength rides along too, so the prompt can tell a
+  // rule ("family dinner is non-negotiable") from an ordinary influence
+  // ("brainstorms best at night") instead of rendering both as one flat
+  // list of equally-weighted suggestions. Optional and defaults to an
+  // influence, so a caller that has not read strength yet (there was none
+  // to read before this) behaves exactly as it always did.
+  strands?: { id: string; text: string; strength?: "influence" | "rule" }[];
 }
 
 export interface AIPlanResult {
@@ -63,6 +70,7 @@ export function planDaySystem(): string {
     "- Estimate honest durations from each task's wording. Quick admin, messages, or errands are short (10-20 min). Focused, creative, or writing work is longer (45-90 min). Do not be optimistic; people underestimate.",
     "- Durations must be whole multiples of 5, no less than 10 and no more than 180.",
     "- Include every task id you are given, exactly once. Do not invent ids.",
+    "- Facts listed under \"Rules\" are constraints on this person's day, not preferences: never plan in a way that violates one, even if it means a less efficient order. Facts listed under \"Facts JARVIS has learned\" are optional context to lean on or ignore.",
     "- If facts about this person are listed with ids in brackets, and any fact changed your order or a duration, cite that fact's id in leaned_on. Cite only facts you actually used; an empty list is a fine answer.",
     "- Reply with ONLY JSON, no prose and no code fences, items in priority order:",
     '  {"items":[{"id":"THE_ID","minutes":45}],"leaned_on":[]}',
@@ -96,8 +104,17 @@ export function planDayUserMessage(picks: PlanPick[], events: EventItem[], start
         .map((e) => `- ${label(e.data.start)}${e.data.end ? `-${label(e.data.end)}` : ""} ${e.data.title}`)
     : ["- (nothing scheduled yet)"];
   const profileLine = profile?.trim() ? `About this person, from their JARVIS profile:\n${profile.trim()}` : "";
-  const strandLines = opts.strands?.length
-    ? `Facts JARVIS has learned about this person (cite an id in leaned_on ONLY if the fact changed your plan):\n${opts.strands.map((s) => `- [${s.id}] ${s.text}`).join("\n")}`
+  // S4-Q24: a rule and a preference no longer render as one flat list. Only
+  // a strand the person deliberately marked (strength "rule") lands here;
+  // everything else, including every derivation-authored strand, is an
+  // influence, since nothing in the app is allowed to promote one on its own.
+  const rules = (opts.strands ?? []).filter((s) => s.strength === "rule");
+  const influences = (opts.strands ?? []).filter((s) => s.strength !== "rule");
+  const ruleLines = rules.length
+    ? `Rules about this person you MUST respect, no exceptions:\n${rules.map((s) => `- [${s.id}] ${s.text}`).join("\n")}`
+    : "";
+  const strandLines = influences.length
+    ? `Facts JARVIS has learned about this person (cite an id in leaned_on ONLY if the fact changed your plan):\n${influences.map((s) => `- [${s.id}] ${s.text}`).join("\n")}`
     : "";
   const workLine = work
     ? `Work hours are ${label(fromMin(work.startMin))} to ${label(fromMin(work.endMin))}. Schedule focused, deep, or work-category tasks inside work hours (deep work earlier, admin midday) and personal tasks outside them.`
@@ -111,6 +128,7 @@ export function planDayUserMessage(picks: PlanPick[], events: EventItem[], start
   return [
     `Plan the window ${label(fromMin(startMin))} to ${label(fromMin(endMin))} today.`,
     ...(profileLine ? [profileLine] : []),
+    ...(ruleLines ? [ruleLines] : []),
     ...(strandLines ? [strandLines] : []),
     ...(workLine ? [workLine] : []),
     ...(energyLine ? [energyLine] : []),

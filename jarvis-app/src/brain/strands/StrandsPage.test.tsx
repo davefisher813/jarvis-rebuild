@@ -29,6 +29,8 @@ const svc = {
   accept: vi.fn(async () => "new"),
   edit: vi.fn(async () => {}),
   setStatus: vi.fn(async () => {}),
+  setStrength: vi.fn(async () => {}),
+  recategorize: vi.fn(async () => true),
   remove: vi.fn(async () => {}),
 };
 
@@ -129,6 +131,73 @@ describe("StrandsPage renders the genome", () => {
     const { container } = render(<StrandsPage onBack={() => {}} />);
     await screen.findByText("Gets things done mid morning");
     expect(container.querySelector(".strand-row.paused")).toBeTruthy();
+  });
+});
+
+// S4-Q24 (2026-09-04): "a rule and a preference carry the same weight."
+// add() has always accepted a strength argument; nothing on this page ever
+// passed anything but its default, and edit had no way to change it either.
+describe("Make It a Rule (S4-Q24)", () => {
+  beforeEach(() => { vi.clearAllMocks(); svc.list.mockResolvedValue([]); });
+
+  it("off by default: an ordinary fact reaches add() exactly as it always did, with no fourth argument", async () => {
+    render(<StrandsPage onBack={() => {}} />);
+    fireEvent.click(await screen.findByText("Add One Thing"));
+    fireEvent.change(await screen.findByPlaceholderText(/Brainstorms best at night/), { target: { value: "Writes best at night" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(svc.add).toHaveBeenCalledWith("Writes best at night", "work_style", expect.any(String)));
+  });
+
+  it("toggled on: a new fact is added as a rule", async () => {
+    render(<StrandsPage onBack={() => {}} />);
+    fireEvent.click(await screen.findByText("Add One Thing"));
+    fireEvent.change(await screen.findByPlaceholderText(/Brainstorms best at night/), { target: { value: "Family dinner is non-negotiable" } });
+    fireEvent.click(screen.getByRole("switch", { name: "Make It a Rule" }));
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(svc.add).toHaveBeenCalledWith("Family dinner is non-negotiable", "work_style", expect.any(String), "rule"));
+  });
+
+  it("shows Rule on the row and in the detail sheet for a strand already marked one", async () => {
+    svc.list.mockResolvedValue([strand({ strength: "rule" })]);
+    render(<StrandsPage onBack={() => {}} />);
+    await screen.findByText(/Energy · Watched · Rule/);
+    fireEvent.click(screen.getByText("Gets things done mid morning"));
+    // The row underneath stays mounted behind the sheet, so the marker now
+    // shows twice: once on the row, once in the sheet that opened over it.
+    await waitFor(() => expect(screen.getAllByText(/Energy · Watched · Rule/)).toHaveLength(2));
+  });
+
+  it("turning the toggle on for an existing fact and saving calls setStrength, once, with the strand", async () => {
+    const s = strand({ strength: "influence" });
+    svc.list.mockResolvedValue([s]);
+    render(<StrandsPage onBack={() => {}} />);
+    fireEvent.click(await screen.findByText("Gets things done mid morning"));
+    fireEvent.click(await screen.findByText("Edit"));
+    fireEvent.click(screen.getByRole("switch", { name: "Make It a Rule" }));
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(svc.setStrength).toHaveBeenCalledWith(s, "rule"));
+  });
+
+  it("turning the toggle off for a rule and saving reverts it to influence", async () => {
+    const s = strand({ strength: "rule" });
+    svc.list.mockResolvedValue([s]);
+    render(<StrandsPage onBack={() => {}} />);
+    fireEvent.click(await screen.findByText("Gets things done mid morning"));
+    fireEvent.click(await screen.findByText("Edit"));
+    fireEvent.click(screen.getByRole("switch", { name: "Make It a Rule" }));
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(svc.setStrength).toHaveBeenCalledWith(s, "influence"));
+  });
+
+  it("saving an edit with the toggle untouched never calls setStrength", async () => {
+    const s = strand({ strength: "influence" });
+    svc.list.mockResolvedValue([s]);
+    render(<StrandsPage onBack={() => {}} />);
+    fireEvent.click(await screen.findByText("Gets things done mid morning"));
+    fireEvent.click(await screen.findByText("Edit"));
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(svc.edit).toHaveBeenCalled());
+    expect(svc.setStrength).not.toHaveBeenCalled();
   });
 });
 

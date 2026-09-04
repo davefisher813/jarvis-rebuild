@@ -126,6 +126,40 @@ describe("StrandsService", () => {
     expect(await ctx.svc.add("   ", "values", TODAY)).toBeNull();
   });
 
+  // S4-Q24 (2026-09-04): "a rule and a preference carry the same weight."
+  // add() has always taken a strength argument; setStrength is the only way
+  // to change it on a strand that already exists, and the only caller is
+  // the person, on purpose, from the edit sheet.
+  describe("setStrength", () => {
+    it("promotes an ordinary fact to a rule", async () => {
+      await ctx.svc.add("Family dinner is non-negotiable", "people", TODAY);
+      const [s] = await ctx.svc.list();
+      expect(s!.data.strength).toBe("influence");
+      await ctx.svc.setStrength(s!, "rule");
+      const [after] = await ctx.svc.list();
+      expect(after!.data.strength).toBe("rule");
+    });
+
+    it("reverts a rule back to an ordinary influence", async () => {
+      await ctx.svc.add("Family dinner is non-negotiable", "people", TODAY, "rule");
+      const [s] = await ctx.svc.list();
+      expect(s!.data.strength).toBe("rule");
+      await ctx.svc.setStrength(s!, "influence");
+      const [after] = await ctx.svc.list();
+      expect(after!.data.strength).toBe("influence");
+    });
+
+    it("touches nothing else: a watched strand stays watched, with its derivation and evidence intact", async () => {
+      await ctx.svc.accept("x", "energy", "completion_window", [{ day: TODAY, a: 9 }], TODAY);
+      const [s] = await ctx.svc.list();
+      await ctx.svc.setStrength(s!, "rule");
+      const [after] = await ctx.svc.list();
+      expect(after!.data.source).toBe("watched");
+      expect(after!.data.derivation).toBe("completion_window");
+      expect(after!.data.evidence).toEqual([{ day: TODAY, a: 9 }]);
+    });
+  });
+
   it("active() hides paused strands, which is what the AI reads", async () => {
     await ctx.svc.add("live one", "values", TODAY);
     await ctx.svc.add("quiet one", "values", TODAY);

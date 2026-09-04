@@ -7,6 +7,7 @@ import { haptics } from "../../shared/haptics";
 import { showToast } from "../../shared/toast";
 import { attemptWrite } from "../../shared/guard";
 import PageHeader from "../../shared/PageHeader";
+import { Switch } from "../../settings/kit";
 import {
   STRAND_CATEGORY_LABEL,
   type Strand, type StrandCategory, type StrandEvidence, type DerivationKey,
@@ -72,6 +73,13 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
   const [cat, setCat] = useState<StrandCategory>("work_style");
+  // S4-Q24 (2026-09-04): "a rule and a preference carry the same weight."
+  // types.ts's own doctrine comment says strength distinguishes them, and
+  // add() has always accepted a fourth strength argument -- nothing on this
+  // page ever passed anything but its default. Rules are only ever
+  // user-stated (never promoted here from evidence), so this is the one
+  // and only place that can set it.
+  const [rule, setRule] = useState(false);
 
   const reload = useCallback(async () => setStrands(await svc.list()), [svc]);
   useEffect(() => { void reload(); }, [reload]);
@@ -83,7 +91,10 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
     if (!text.trim() || saving) return;
     setSaving(true);
     haptics.success();
-    const id = await svc.add(text, cat, today);
+    // Only ever pass the fourth argument when it says something other than
+    // add()'s own default, so an ordinary fact (the common case) reaches the
+    // service exactly as it always did.
+    const id = rule ? await svc.add(text, cat, today, "rule") : await svc.add(text, cat, today);
     if (!id) showToast({ message: "The Brain is full · Delete one first" });
     else showToast({ message: "JARVIS will remember that" });
     setAdding(false); setText("");
@@ -105,6 +116,11 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
     if (cat !== open.data.category) {
       const moved = await svc.recategorize(open, cat);
       if (!moved) showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" });
+    }
+    // S4-Q24: the only writer of strength, and only when it actually
+    // changed -- re-saving an unchanged edit is not a rule declaration.
+    if (rule !== (open.data.strength === "rule")) {
+      await svc.setStrength(open, rule ? "rule" : "influence");
     }
     setEditing(false); setOpen(null); setText("");
     setSaving(false);
@@ -193,11 +209,11 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
               role="button"
               tabIndex={0}
               key={s.id}
-              onClick={() => { setOpen(s); setEditing(false); setText(s.data.text); setCat(s.data.category); }}
+              onClick={() => { setOpen(s); setEditing(false); setText(s.data.text); setCat(s.data.category); setRule(s.data.strength === "rule"); }}
             >
               <div className="row-grow">
                 <div className="strand-eyebrow">
-                  {STRAND_CATEGORY_LABEL[s.data.category]} &middot; {SOURCE_LABEL[s.data.source] ?? s.data.source}{s.data.status === "paused" ? " · Paused" : ""}
+                  {STRAND_CATEGORY_LABEL[s.data.category]} &middot; {SOURCE_LABEL[s.data.source] ?? s.data.source}{s.data.strength === "rule" ? " · Rule" : ""}{s.data.status === "paused" ? " · Paused" : ""}
                 </div>
                 <div className="conn-name">{s.data.text}</div>
               </div>
@@ -208,7 +224,7 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
       )}
 
       <div className="pad-x">
-        <button className="row row-act" onClick={() => { setAdding(true); setText(""); setCat("work_style"); }}>Add One Thing</button>
+        <button className="row row-act" onClick={() => { setAdding(true); setText(""); setCat("work_style"); setRule(false); }}>Add One Thing</button>
       </div>
       <div className="screen-foot" />
 
@@ -216,7 +232,7 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
         <div className="sheet-scrim" onClick={() => setOpen(null)}>
           <div className="card" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
-            <div className="grp"><div className="eyebrow">{STRAND_CATEGORY_LABEL[open.data.category]} &middot; {SOURCE_LABEL[open.data.source]}</div></div>
+            <div className="grp"><div className="eyebrow">{STRAND_CATEGORY_LABEL[open.data.category]} &middot; {SOURCE_LABEL[open.data.source]}{open.data.strength === "rule" ? " · Rule" : ""}</div></div>
             <div className="pad-x sheet-form">
               <div className="strand-head">{open.data.text}</div>
               <div className="conn-meta">Confirmed {monthDay(open.data.lastConfirmed)}</div>
@@ -259,6 +275,15 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
                   ))}</div>
                 </div>
               )}
+              {/* S4-Q24: rules are only ever user-stated, so this toggle is
+                  the one and only place strength can change. Off is an
+                  ordinary fact, exactly what every strand has always been. */}
+              <Switch
+                label="Make It a Rule"
+                meta="A rule binds the plan; an ordinary fact only biases it."
+                on={rule}
+                onToggle={() => setRule((r) => !r)}
+              />
             </div>
             <div className="pad-x sheet-actions">
               <button className="btn btn-primary btn-block" disabled={saving} onClick={() => void (adding ? doAdd() : doEdit())}>{saving ? "Saving..." : "Save"}</button>

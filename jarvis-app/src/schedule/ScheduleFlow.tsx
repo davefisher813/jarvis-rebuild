@@ -361,9 +361,12 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         const ctx = await gatherContext();
         // Strands ride with their real ids so the model can HONESTLY say
         // which fact changed the plan (item 04 attribution). Best-effort.
-        let strandList: { id: string; text: string }[] = [];
+        // Strength rides along too (S4-Q24), so planDayUserMessage can split
+        // a user-declared rule from an ordinary influence instead of
+        // rendering every strand as one equally-weighted list.
+        let strandList: { id: string; text: string; strength?: "influence" | "rule" }[] = [];
         try {
-          strandList = strandsSvc ? (await strandsSvc.active()).map((x) => ({ id: x.id, text: x.data.text })) : [];
+          strandList = strandsSvc ? (await strandsSvc.active()).map((x) => ({ id: x.id, text: x.data.text, strength: x.data.strength })) : [];
         } catch { /* a plan without attribution beats no plan */ }
         return aiPlanDay(ai, picks, dayEvents, s, e, {
           work: { startMin: routineData.workStartMin, endMin: routineData.workEndMin },

@@ -2,7 +2,7 @@ import type { Store, ItemData } from "@core";
 import type { EventInput } from "../../events";
 import {
   ENTITY_STRAND, STRAND_CAP_TOTAL, STRAND_CAP_PER_CATEGORY, EVIDENCE_CAP,
-  type Strand, type StrandData, type StrandCategory, type StrandEvidence, type DerivationKey,
+  type Strand, type StrandData, type StrandCategory, type StrandEvidence, type StrandStrength, type DerivationKey,
 } from "./types";
 
 // The strand store (Brain Layer 2). Every mutation that says something about
@@ -150,6 +150,18 @@ export class StrandsService {
 
   async setStatus(s: Strand, status: "active" | "paused"): Promise<void> {
     await this.store.update(this.ownerId, s.id, { status } as unknown as ItemData);
+  }
+
+  // S4-Q24 (2026-09-04): "nothing in the app ever promotes an influence to
+  // a rule" (types.ts's own doctrine) describes what must never happen
+  // AUTOMATICALLY. It does not forbid the person themselves saying so on
+  // purpose, which is the one thing this method is for -- there is no other
+  // caller anywhere, and none is meant to exist. Deliberately untouched:
+  // source and derivation. A watched strand made into a rule is still
+  // watched; the user is stating a constraint about the fact, not claiming
+  // authorship of the sentence.
+  async setStrength(s: Strand, strength: StrandStrength): Promise<void> {
+    await this.store.update(this.ownerId, s.id, { strength } as unknown as ItemData);
   }
 
   // Move a strand to a different bucket, in place. Refuses (false) when the
