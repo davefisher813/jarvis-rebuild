@@ -5,31 +5,31 @@
 // in Gmail: this hides it from the status report, it does not delete, archive,
 // or alter anything. That distinction is the whole reason muting is safe.
 
-const KEY = "jarvis.mail.muted.v1";
+export const KEY = "jarvis.mail.muted.v1";
 const CAP = 200;
 
-export function loadMuted(): string[] {
+export function loadMuted(storage: Pick<Storage, "getItem"> = localStorage): string[] {
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) || "[]") as unknown;
+    const raw = JSON.parse(storage.getItem(KEY) || "[]") as unknown;
     return Array.isArray(raw) ? raw.filter((x): x is string => typeof x === "string") : [];
   } catch {
     return [];
   }
 }
 
-function save(ids: string[]): string[] {
+function save(ids: string[], storage: Pick<Storage, "setItem">): string[] {
   const next = ids.slice(-CAP);
-  try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* private mode */ }
+  try { storage.setItem(KEY, JSON.stringify(next)); } catch { /* private mode */ }
   return next;
 }
 
-export function mute(threadId: string): string[] {
-  const all = loadMuted();
-  return all.includes(threadId) ? all : save([...all, threadId]);
+export function mute(threadId: string, storage: Pick<Storage, "getItem" | "setItem"> = localStorage): string[] {
+  const all = loadMuted(storage);
+  return all.includes(threadId) ? all : save([...all, threadId], storage);
 }
 
-export function unmute(threadId: string): string[] {
-  return save(loadMuted().filter((id) => id !== threadId));
+export function unmute(threadId: string, storage: Pick<Storage, "getItem" | "setItem"> = localStorage): string[] {
+  return save(loadMuted(storage).filter((id) => id !== threadId), storage);
 }
 
 export function dropMuted<T extends { id: string }>(rows: T[], muted: string[]): T[] {

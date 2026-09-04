@@ -1,4 +1,5 @@
 import type { TemplateKey } from "../categories/defaults";
+import type { SenderRules } from "../messages/rules";
 
 // One per-user profile record, written by onboarding and read across the app
 // (greeting, avatar, which template's categories to seed, setup status).
@@ -52,6 +53,14 @@ export interface ProfileData {
   // to sync too, or a second device would happily unfile everything again
   // after he had refiled it by hand.
   notesUnfiled?: boolean;
+  // S2-5 (2026-09-04): "Everything JARVIS learns about your mail is
+  // device-only." VIPs, sender rules, mutes, and let-go used to live in
+  // localStorage alone -- real on the phone he set them on, invisible
+  // everywhere else. This is a MIRROR, not the source of truth: reads still
+  // come straight off localStorage (instant, offline-safe); this only ever
+  // exists so a second device has something to hydrate from. See
+  // messages/mailSync.ts.
+  mail?: { vips?: string[]; rules?: SenderRules; muted?: string[]; letGo?: string[] };
 }
 
 export const EMPTY_PROFILE: ProfileData = {

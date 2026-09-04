@@ -6,7 +6,7 @@ import type { ThreadRow } from "../connections/google/map";
 // never gets a second chance to misfile that sender. Overrides win over AI
 // triage, always.
 
-const KEY = "jarvis.mail.rules.v1";
+export const KEY = "jarvis.mail.rules.v1";
 const CAP = 200;
 
 export type SenderRules = Record<string, Bucket>; // sender email (lowercased) -> bucket

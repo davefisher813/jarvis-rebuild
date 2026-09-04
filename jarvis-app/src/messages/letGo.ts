@@ -10,7 +10,7 @@
 // thread does not come back to life at midnight), and undoable for as long
 // as the toast is up.
 
-const KEY = "jarvis.mail.letgo.v1";
+export const KEY = "jarvis.mail.letgo.v1";
 
 export function loadLetGo(storage: Pick<Storage, "getItem"> = localStorage): string[] {
   try {

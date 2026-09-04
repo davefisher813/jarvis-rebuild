@@ -79,6 +79,7 @@ const RESTORE_WORDS: SettleWords = {
 import { inboxSentence } from "./inboxBrief";
 import { dueChases, loadChases, clearChase, setChase, CHASE_DAYS, CHASE_DEFAULT } from "./followUp";
 import { loadVips, toggleVip, isVip, applyVips, vipLine, VIP_MAX } from "./vip";
+import { mailSnapshot, hydrateMailFromProfile } from "./mailSync";
 import { collapseNoise, collapseLine } from "./collapse";
 import { loadNudgeCounts, countNudge } from "./escalate";
 import { decide, type Decision, type MailAction } from "./mailAction";
@@ -343,6 +344,34 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // N1: meetings with at least one open slot, found by one gated AI pass.
   const [meetings, setMeetings] = useState<MailMeeting[]>([]);
   const [vips, setVips] = useState<string[]>(() => loadVips());
+  // S2-5 (2026-09-04): "Everything JARVIS learns about your mail is
+  // device-only." VIPs, sender rules, mutes, and let-go all live in
+  // localStorage alone, so a second phone or a reinstall started from zero.
+  // `mailHydrated` gates the mirror-out direction (below) until this device
+  // has had its one chance to pull down whatever another device already
+  // mirrored -- otherwise a fresh, empty local state could race ahead and
+  // write itself over real cross-device data before ever reading it.
+  const [mailHydrated, setMailHydrated] = useState(false);
+  useEffect(() => {
+    let on = true;
+    profileSvc?.get().then((p) => {
+      if (!on) return;
+      const grown = hydrateMailFromProfile(p?.mail);
+      if (grown.vips) setVips(grown.vips);
+      if (grown.rules) setRules(grown.rules);
+      if (grown.muted) setMuted(grown.muted);
+      setMailHydrated(true);
+    }).catch(() => { if (on) setMailHydrated(true); });
+    return () => { on = false; };
+  }, [profileSvc]);
+  // The mirror-out direction: local storage stays the one source of truth
+  // for reads (instant, works offline); the profile is only ever a bridge
+  // for another device to hydrate from. Called after every local write to
+  // any of the four stores.
+  const mirrorMail = useCallback(() => {
+    if (!mailHydrated) return;
+    void profileSvc?.save({ mail: mailSnapshot() }).catch(() => {});
+  }, [profileSvc, mailHydrated]);
   const [noiseGroups, setNoiseGroups] = useState<Record<string, boolean>>({});
   const [closeDone, setCloseDone] = useState(false);
   const [speaking, setSpeaking] = useState(false);
@@ -674,9 +703,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const dropRow = (threadId: string, said = "Stopped tracking") => {
     setWaiting((ws) => ws.filter((x) => x.threadId !== threadId));
     letGo(threadId);
+    mirrorMail();
     countCleared(1);
     say(said, { label: "Undo", run: () => {
       undoLetGo(threadId);
+      mirrorMail();
       void loadWaiting();
     } });
   };
@@ -809,6 +840,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         // Future mail from this address sorts to Noise. The thread itself is
         // untouched, same as every other exit in this section.
         setRules(saveRule(row.toEmail, "noise"));
+        mirrorMail();
         dropRow(row.threadId, "Quieted " + displayName(row.to));
         return;
       case "someone_else": {
@@ -2084,7 +2116,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   <span className="conn-meta">{BUCKET_LABEL[bucket]}</span>
                 </div>
               </div>
-              <button className="quiet-action" onClick={() => setRules(clearRule(sender))}>Undo</button>
+              <button className="quiet-action" onClick={() => { setRules(clearRule(sender)); mirrorMail(); }}>Undo</button>
             </div>
           ))}
         </Card>
@@ -2120,7 +2152,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             return (
               <div className="row" key={id}>
                 <div className="row-grow"><div className="conn-name truncate">{r ? r.subject : "A thread"}</div></div>
-                <button className="quiet-action" onClick={() => setMuted(unmute(id))}>Unmute</button>
+                <button className="quiet-action" onClick={() => { setMuted(unmute(id)); mirrorMail(); }}>Unmute</button>
               </div>
             );
           })}
@@ -2459,8 +2491,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           <div className="msg-quiet-acts">
             <button className="quiet-action" onClick={() => {
               setMuted(mute(thread.id));
+              mirrorMail();
               setView("list");
-              say("Muted · Won't come back", { label: "Undo", run: () => setMuted(unmute(thread.id)) });
+              say("Muted · Won't come back", { label: "Undo", run: () => { setMuted(unmute(thread.id)); mirrorMail(); } });
             }}>Mute This Thread</button>
             {sweepCount(lastMsg(thread).fromEmail) > 1 && (
               <button className="quiet-action" onClick={() => void sweepSender(lastMsg(thread).fromEmail)}>
@@ -2526,6 +2559,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       className={"chip" + (current === b ? " on" : "")}
                       onClick={() => {
                         setRules(saveRule(senderEmail, b));
+                        mirrorMail();
                         setToast(lastMsg(thread).from + " · " + BUCKET_LABEL[b] + " from now on");
                         setTimeout(() => setToast(null), 2500);
                       }}
@@ -2577,6 +2611,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     setToast(`VIP is full at ${VIP_MAX} · Remove one first`);
                   } else {
                     setVips(list);
+                    mirrorMail();
                     setToast(isVip(lastMsg(thread).fromEmail, list)
                       ? displayName(lastMsg(thread).from) + " always gets through now"
                       : displayName(lastMsg(thread).from) + " is back to normal");
@@ -3504,6 +3539,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     setRules(saveRule(c.sender, "noise"));
                     filed++;
                   }
+                  if (filed) mirrorMail();
                   setSweep([]);
                   setToast(sweepReceipt(ended, filed));
                   setTimeout(() => setToast(null), 4000);
@@ -3520,6 +3556,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 className="btn btn-primary btn-block"
                 onClick={() => {
                   setRules(saveRule(toss.sender, "noise"));
+                  mirrorMail();
                   markAsked(toss.sender);
                   setToss(null);
                   setToast("Straight to Noise from now on");

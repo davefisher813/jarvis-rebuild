@@ -16,7 +16,7 @@ import { capAfterNumber } from "../shared/casing";
 //   - It never hides anything. Being a VIP promotes mail; nothing is demoted
 //     by someone else's promotion.
 
-const KEY = "jarvis.mail.vip.v1";
+export const KEY = "jarvis.mail.vip.v1";
 export const VIP_MAX = 5;
 
 export function loadVips(storage: Pick<Storage, "getItem"> = localStorage): string[] {

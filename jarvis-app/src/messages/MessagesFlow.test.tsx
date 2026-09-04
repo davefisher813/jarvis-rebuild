@@ -1,11 +1,13 @@
 // SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
+import { useEffect } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { NotesProvider } from "../data/NotesProvider";
+import { NotesProvider, useProfile } from "../data/NotesProvider";
+import type { ProfileService } from "../profile/ProfileService";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import { makeFakeGoogleApi } from "../connections/google/fakeApi";
 import { AIService } from "../ai/AIService";
@@ -57,6 +59,23 @@ function makeApi(o: Parameters<typeof makeFakeGoogleApi>[0] = {}) {
 function wrap(node: React.ReactNode, api = makeApi()) {
   return (
     <NotesProvider userId="u1">
+      <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}>{node}</GoogleSessionProvider>
+    </NotesProvider>
+  );
+}
+
+// S2-5: a way to reach into the same NotesProvider tree's ProfileService, so
+// a test can assert what actually landed in the (mocked) synced profile
+// after a UI action, not just what changed in localStorage.
+function ProfileGrabber({ onReady }: { onReady: (p: ProfileService) => void }) {
+  const p = useProfile();
+  useEffect(() => onReady(p), [p, onReady]);
+  return null;
+}
+function wrapWithProfile(node: React.ReactNode, onProfile: (p: ProfileService) => void, api = makeApi()) {
+  return (
+    <NotesProvider userId="u1">
+      <ProfileGrabber onReady={onProfile} />
       <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}>{node}</GoogleSessionProvider>
     </NotesProvider>
   );
@@ -529,5 +548,36 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
     await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+  });
+
+  // S2-5 (2026-09-04): "Everything JARVIS learns about your mail is
+  // device-only." Muting is one of the four stores that used to live in
+  // localStorage alone; this checks the mirror actually reaches the profile,
+  // not just that the local UI updates.
+  it("mirrors a mute into the profile, so a second device would see it too", async () => {
+    let profile: ProfileService | undefined;
+    render(wrapWithProfile(<MessagesFlow ai={noAI} configured />, (p) => { profile = p; }));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Ridgeley"));
+    fireEvent.click(await screen.findByText("Mute This Thread"));
+    await waitFor(() => expect(screen.queryByText("Ridgeley")).toBeNull());
+    await waitFor(async () => expect((await profile!.get())?.mail?.muted).toEqual(["t1"]));
+  });
+
+  it("hydrates VIPs from the profile on load when this device has none locally", async () => {
+    let profile: ProfileService | undefined;
+    const grab = (p: ProfileService) => { profile = p; };
+    const { rerender } = render(wrapWithProfile(<div />, grab));
+    await waitFor(() => expect(profile).toBeDefined());
+    await profile!.save({ mail: { vips: ["t@x.com"] } });
+    // The second-device scenario the whole feature exists for: no local mail
+    // state at all, but the (same, still-mounted) profile already has
+    // something to hydrate from. MessagesFlow mounts fresh here -- it was a
+    // bare <div /> until now -- so its first-mount reads see this.
+    localStorage.clear();
+    rerender(wrapWithProfile(<MessagesFlow ai={noAI} configured />, grab));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Ridgeley"));
+    expect(await screen.findByText("Always gets through")).toBeInTheDocument();
   });
 });
