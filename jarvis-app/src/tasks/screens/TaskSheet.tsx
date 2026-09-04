@@ -103,6 +103,10 @@ export default function TaskSheet({
   const tomorrow = addDaysISO(today, 1);
   const weekend = weekendISO(today);
   const nextWeek = nextWeekISO(today);
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save creates
+  // a task, so two taps created two. The first valid tap latches; every tap
+  // after that, while this sheet is still mounted, is a no-op.
+  const [saving, setSaving] = useState(false);
   const [text, setText] = useState(initial?.text ?? "");
   // No default category (2026-08-09): defaulting to whichever category was
   // first silently mis-tagged every "+" task, the exact poisoning the
@@ -183,6 +187,8 @@ export default function TaskSheet({
       setErr(true);
       return;
     }
+    if (saving) return;
+    setSaving(true);
     onSave({
       text: text.trim(), ...setCategories(cats), due, repeat, projectId: projectId || undefined,
       // Only a plan that will actually work is saved. A weak one is worse
@@ -199,7 +205,7 @@ export default function TaskSheet({
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card xs form-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <SheetBar title={mode === "new" ? "New Task" : "Edit Task"} onCancel={onCancel} onSave={save} />
+        <SheetBar title={mode === "new" ? "New Task" : "Edit Task"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"} />
         <div className="sheet-form">
           <Provenance source={source} />
 

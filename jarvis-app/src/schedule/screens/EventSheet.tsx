@@ -112,6 +112,9 @@ export default function EventSheet({
   const untilBad = recurrence !== "none" ? untilError(date, until) : null;
   const [scope, setScope] = useState<"this" | "series">("series");
   const [err, setErr] = useState(false);
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save creates
+  // an event, so two taps created two. The first valid tap latches.
+  const [saving, setSaving] = useState(false);
 
   // Keep end sensible: when start moves past end, push end to start + 1h.
   const onStart = (v: string) => {
@@ -130,6 +133,8 @@ export default function EventSheet({
       setErr(true);
       return;
     }
+    if (saving) return;
+    setSaving(true);
     const draft = { title: title.trim(), date, start, end, category, location: location.trim(), recurrence, until: recurrence === "none" ? "" : until, taskIds: recurrence === "none" ? taskIds : [], gym };
     recurringEdit ? onSave(draft, scope) : onSave(draft);
   };
@@ -197,7 +202,7 @@ export default function EventSheet({
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card xs form-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <SheetBar title={mode === "new" ? "New Event" : "Edit Event"} onCancel={onCancel} onSave={save} />
+        <SheetBar title={mode === "new" ? "New Event" : "Edit Event"} onCancel={onCancel} onSave={save} saveLabel={saving ? "Saving" : "Save"} />
         <div className="sheet-form">
           <div className="grp xs-grp"><div className="eyebrow">Event</div></div>
           <div className="pad-x"><div className="card xs-group">

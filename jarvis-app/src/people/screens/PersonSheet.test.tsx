@@ -58,6 +58,19 @@ describe("PersonSheet", () => {
     expect(draft.relationship).toBe(""); // the register never sets the label
   });
 
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save used to
+  // fire onSave every tap, so a fast double-tap wrote the person twice.
+  it("a fast double-tap on Save only fires once, and the button says so", () => {
+    const onSave = vi.fn();
+    render(<PersonSheet mode="new" onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "Sam Rivera" } });
+    const save = screen.getByText("Save");
+    fireEvent.click(save);
+    expect(save).toHaveTextContent("Saving");
+    fireEvent.click(save);
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
   it("edit mode prefills and offers delete", () => {
     const onDelete = vi.fn();
     render(<PersonSheet mode="edit" initial={{ name: "Dev", group: "contacts", notes: "x", color: "red" }} onSave={() => {}} onDelete={onDelete} onCancel={() => {}} />);

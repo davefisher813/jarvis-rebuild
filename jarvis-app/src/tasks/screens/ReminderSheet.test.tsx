@@ -24,6 +24,19 @@ describe("ReminderSheet", () => {
     expect(onSave).toHaveBeenCalledWith("Meds", { time: "21:00", days: [1, 2, 3, 4, 5], onMiss: "let_go" });
   });
 
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save used to
+  // fire onSave every tap, so a fast double-tap wrote the reminder twice.
+  it("a fast double-tap on Save only fires once, and the button says so", () => {
+    const onSave = vi.fn();
+    render(<ReminderSheet onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Reminder"), { target: { value: "Meds" } });
+    const save = screen.getByText("Save");
+    fireEvent.click(save);
+    expect(save).toHaveTextContent("Saving");
+    fireEvent.click(save);
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
   it("edit mode prefills, reads the preset back, and offers the calendar and delete rows", () => {
     const onDelete = vi.fn();
     const onAddToCalendar = vi.fn();

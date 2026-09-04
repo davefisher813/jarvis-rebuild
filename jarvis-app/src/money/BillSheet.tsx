@@ -32,10 +32,15 @@ export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }:
   const [autopay, setAutopay] = useState(!!initial?.bill.autopay);
   const [payUrl, setPayUrl] = useState(initial?.bill.payUrl ?? "");
   const [touched, setTouched] = useState(false);
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save creates
+  // a bill, so two taps created two. The first valid tap latches.
+  const [saving, setSaving] = useState(false);
 
   const valid = text.trim().length > 0 && amount.trim() !== "" && Number.isFinite(Number(amount)) && Number(amount) > 0;
   const save = () => {
     if (!valid) { setTouched(true); return; }
+    if (saving) return;
+    setSaving(true);
     const url = payUrl.trim();
     onSave({
       text: text.trim(),
@@ -51,7 +56,7 @@ export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }:
   };
 
   return (
-    <FormSheet title={mode === "new" ? "New Bill" : "Edit Bill"} onCancel={onCancel} onSave={save} saveDisabled={!valid}>
+    <FormSheet title={mode === "new" ? "New Bill" : "Edit Bill"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Bill">
         <FieldRow tone="yellow" glyph={<WalletGlyph />} value={text} onChange={setText} placeholder="e.g. Rent" ariaLabel="Bill name"
           error={touched && !text.trim()} right={false} />

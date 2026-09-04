@@ -42,6 +42,9 @@ export default function CategorySheet({
   const [season, setSeason] = useState<"paused" | undefined>(initial?.season);
   const [workHours, setWorkHours] = useState(!!initial?.workHours);
   const [touched, setTouched] = useState(false);
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save creates
+  // an area, so two taps created two. The first valid tap latches.
+  const [saving, setSaving] = useState(false);
 
   const valid = name.trim().length > 0;
   const save = () => {
@@ -49,6 +52,8 @@ export default function CategorySheet({
       setTouched(true);
       return;
     }
+    if (saving) return;
+    setSaving(true);
     onSave({
       name: name.trim(),
       color,
@@ -62,7 +67,7 @@ export default function CategorySheet({
   };
 
   return (
-    <FormSheet title={mode === "new" ? "New Area" : "Edit Area"} onCancel={onCancel} onSave={save} saveDisabled={!valid}>
+    <FormSheet title={mode === "new" ? "New Area" : "Edit Area"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Area">
         <div className="row xs-row">
           <div className={"row-ico cat-bg-" + color}>{catIcon(icon)}</div>

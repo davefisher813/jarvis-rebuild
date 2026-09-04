@@ -61,6 +61,9 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
   const [per, setPer] = useState<Cadence>(initial?.measure?.kind === "cadence" ? initial.measure.per : "week");
   const [by, setBy] = useState(initial?.by ?? "");
   const [touched, setTouched] = useState(false);
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save creates
+  // a goal, so two taps created two. The first valid tap latches.
+  const [saving, setSaving] = useState(false);
   const targetOk = target.trim() === "" || (Number.isFinite(Number(target)) && Number(target) > 0);
   const countOk = kind !== "count" || (Number.isFinite(Number(count)) && Number(count) > 0);
   const timesOk = kind !== "cadence" || (Number.isFinite(Number(times)) && Number(times) > 0);
@@ -82,6 +85,8 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
   const dated = kind !== "none" || !!externalMeasure;
   const save = () => {
     if (!valid) { setTouched(true); return; }
+    if (saving) return;
+    setSaving(true);
     onSave({
       title: title.trim(),
       state: initial?.state ?? "on_track",
@@ -95,7 +100,7 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
     });
   };
   return (
-    <FormSheet title={mode === "new" ? "New Goal" : "Edit Goal"} onCancel={onCancel} onSave={save} saveDisabled={!valid}>
+    <FormSheet title={mode === "new" ? "New Goal" : "Edit Goal"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Goal">
         <FieldRow tone="red" glyph={<TargetGlyph />} value={title} onChange={setTitle} placeholder="e.g. Run a half marathon"
           ariaLabel="Goal title" error={touched && !title.trim()} right={false} />

@@ -42,6 +42,19 @@ describe("EventSheet", () => {
     expect(onSave).toHaveBeenCalledWith({ title: "Lunch", date: "2026-05-24", start: "09:00", end: "10:00", category: "c2", location: "", recurrence: "none", until: "", taskIds: [], gym: false });
   });
 
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save used to
+  // fire onSave every tap, so a fast double-tap wrote the event twice.
+  it("a fast double-tap on Save only fires once, and the button says so", () => {
+    const onSave = vi.fn();
+    render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Standup" } });
+    const save = screen.getByText("Save");
+    fireEvent.click(save);
+    expect(save).toHaveTextContent("Saving");
+    fireEvent.click(save);
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
   it("edit mode: prefilled, delete fires", () => {
     const onDelete = vi.fn();
     render(

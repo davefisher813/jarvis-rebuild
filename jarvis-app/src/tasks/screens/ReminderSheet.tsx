@@ -49,15 +49,20 @@ export default function ReminderSheet({
   const [days, setDays] = useState<number[] | undefined>(initial?.reminder.days);
   const [onMiss, setOnMiss] = useState<"nag" | "let_go">(initial?.reminder.onMiss ?? "nag");
   const [err, setErr] = useState(false);
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save creates
+  // a reminder, so two taps created two. The first valid tap latches.
+  const [saving, setSaving] = useState(false);
   const preset = DAY_PRESETS.find((p) => sameDays(days, p.days));
 
   const save = () => {
     if (!text.trim()) { setErr(true); return; }
+    if (saving) return;
+    setSaving(true);
     onSave(text.trim(), { ...initial?.reminder, time, days, onMiss });
   };
 
   return (
-    <FormSheet title={mode === "edit" ? "Reminder" : "New Reminder"} onCancel={onCancel} onSave={save} saveDisabled={!text.trim()}>
+    <FormSheet title={mode === "edit" ? "Reminder" : "New Reminder"} onCancel={onCancel} onSave={save} saveDisabled={!text.trim()} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Reminder">
         <FieldRow tone="orange" glyph={<BellGlyph />} value={text} onChange={(v) => { setText(v); setErr(false); }} placeholder="Meds"
           ariaLabel="Reminder" error={err && !text.trim()} right={false} onEnter={save} />

@@ -20,13 +20,18 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
   // PICK 20: a hold with no end is a project that disappeared.
   const [holdUntil, setHoldUntil] = useState<string>(initial?.holdUntil ?? "");
   const [touched, setTouched] = useState(false);
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save creates
+  // a project, so two taps created two. The first valid tap latches.
+  const [saving, setSaving] = useState(false);
   const valid = title.trim().length > 0;
   const save = () => {
     if (!valid) { setTouched(true); return; }
+    if (saving) return;
+    setSaving(true);
     onSave({ title: title.trim(), status, category: category || undefined, goalId: goalId || undefined, holdUntil: status === "on_hold" && holdUntil ? holdUntil : undefined });
   };
   return (
-    <FormSheet title={mode === "new" ? "New Project" : "Edit Project"} onCancel={onCancel} onSave={save} saveDisabled={!valid}>
+    <FormSheet title={mode === "new" ? "New Project" : "Edit Project"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Project">
         <FieldRow tone="indigo" glyph={<FolderKanban className="ic" />} value={title} onChange={setTitle} placeholder="e.g. Q3 launch plan"
           ariaLabel="Project title" error={touched && !valid} right={false} />

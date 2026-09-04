@@ -66,6 +66,9 @@ export default function PersonSheet({
   const [register, setRegister] = useState<Register | undefined>(initial?.register);
   const [categoryIds, setCategoryIds] = useState<string[]>(initial?.categoryIds ?? []);
   const [touched, setTouched] = useState(false);
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save creates
+  // a person, so two taps created two. The first valid tap latches.
+  const [saving, setSaving] = useState(false);
 
   // MULTI-select on purpose: a person can be Family AND Bridge. Single-tag
   // here would rebuild the exclusive-bucket mistake one layer down.
@@ -77,6 +80,8 @@ export default function PersonSheet({
   const valid = name.trim().length > 0;
   const save = () => {
     if (!valid) { setTouched(true); return; }
+    if (saving) return;
+    setSaving(true);
     onSave({
       name: name.trim(),
       relationship: relationship.trim(),
@@ -91,7 +96,7 @@ export default function PersonSheet({
   };
 
   return (
-    <FormSheet title={mode === "new" ? "New Person" : "Edit Person"} onCancel={onCancel} onSave={save} saveDisabled={!valid}>
+    <FormSheet title={mode === "new" ? "New Person" : "Edit Person"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Person">
         <FieldRow tone="pink" glyph={<User className="ic" />} value={name} onChange={setName} placeholder="Full Name" ariaLabel="Name"
           error={touched && !valid} right={false} />

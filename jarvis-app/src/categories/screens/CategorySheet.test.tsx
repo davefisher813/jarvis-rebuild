@@ -24,6 +24,19 @@ describe("CategorySheet", () => {
     expect(onSave).toHaveBeenCalledWith({ name: "Travel", color: "green", icon: "heart", kind: "plain", season: undefined, workHours: undefined });
   });
 
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save used to
+  // fire onSave every tap, so a fast double-tap wrote the area twice.
+  it("a fast double-tap on Save only fires once, and the button says so", () => {
+    const onSave = vi.fn();
+    render(<CategorySheet mode="new" onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText("Area Name"), { target: { value: "Travel" } });
+    const save = screen.getByText("Save");
+    fireEvent.click(save);
+    expect(save).toHaveTextContent("Saving");
+    fireEvent.click(save);
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
   it("edit mode prefills and offers delete", () => {
     const onDelete = vi.fn();
     render(

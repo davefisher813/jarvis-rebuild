@@ -123,6 +123,21 @@ describe("TaskSheet", () => {
     expect(screen.getByLabelText("Due").textContent).toContain("Tomorrow");
   });
 
+  // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save used to
+  // fire onSave every tap, so a fast double-tap wrote the task twice. The
+  // button's own label flips to "Saving" on the first tap -- one query for
+  // the button, clicked twice, is what a fast real double-tap looks like.
+  it("a fast double-tap on Save only fires once, and the button says so", () => {
+    const onSave = vi.fn();
+    render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "Pay rent" } });
+    const save = screen.getByText("Save");
+    fireEvent.click(save);
+    expect(save).toHaveTextContent("Saving");
+    fireEvent.click(save);
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
+
   it("edit mode: prefilled, delete present and fires", () => {
     const onDelete = vi.fn();
     render(
