@@ -217,3 +217,37 @@ describe("money picture in the assembled context", () => {
     expect(bare).not.toContain("Cash flow:");
   });
 });
+
+// THE BRAIN READS BACK WHAT IT KNOWS (Brain build handoff items 5, 8 and 9,
+// built 2026-09-04). Three stores that were written and never read now reach
+// the one assembler every AI feature funnels through.
+describe("read-back: decisions, sealed months, and strand order", () => {
+  it("carries settled decisions with their reasons, and tells the model not to re-open them", () => {
+    const ctx = assembleContext({
+      decisions: ["Went with Supabase (because native delete kills the tombstone bug)"],
+    });
+    const text = contextToText(ctx);
+    expect(text).toContain("Already decided");
+    expect(text).toContain("do not re-open unless asked");
+    expect(text).toContain("native delete kills the tombstone bug");
+  });
+
+  it("carries the compressed months", () => {
+    const text = contextToText(assembleContext({ months: ["August 2026: 84 finished"] }));
+    expect(text).toContain("Recent months");
+    expect(text).toContain("84 finished");
+  });
+
+  it("says nothing at all when there is nothing to say", () => {
+    const text = contextToText(assembleContext({ decisions: [], months: [] }));
+    expect(text).not.toContain("Already decided");
+    expect(text).not.toContain("Recent months");
+  });
+
+  it("keeps the strand order it was handed, because recall decides it upstream", () => {
+    // rankForRecall orders by strength before the lines get here; the
+    // assembler must not re-sort them or the strengthen half is undone.
+    const ctx = assembleContext({ strands: ["strongest", "middle", "weakest"] });
+    expect(ctx.strands).toEqual(["strongest", "middle", "weakest"]);
+  });
+});

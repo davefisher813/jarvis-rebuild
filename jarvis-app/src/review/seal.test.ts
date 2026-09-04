@@ -142,3 +142,49 @@ describe("computeSeal v2: the report's fields", () => {
     expect(d.deck).toEqual({ sent: 2, asWritten: 1 });
   });
 });
+
+// INSIGHTS GETS AN OUTPUT (handoff item 8, decision s2, built 2026-09-04).
+// The seal has been computed and never read since it shipped.
+import { sealLine, sealLines } from "./seal";
+
+const sealed = (over: Partial<MonthSealData> = {}): MonthSealData => ({
+  month: "2026-08", sealedAt: 1, done: 0, pushed: 0, daysIn: 0, byCategory: {},
+  bandStart: null, sessions: 0, deposits: 0, saved: 0, goalsLive: 0, goalsAchieved: 0,
+  bandCount: 0, byHour: [], doneByDay: {}, pushedByCategory: {}, slip: null, byPick: [],
+  overrunByCategory: {}, suggestions: {}, strands: { created: 0, corrected: 0, deleted: 0 },
+  remindersTicked: 0, deck: { sent: 0, asWritten: 0 }, carried: [],
+  ...over,
+});
+
+describe("the sealed month, compressed for the Brain", () => {
+  it("states what happened, in counts", () => {
+    const line = sealLine(sealed({ done: 84, pushed: 12, bandStart: 8, bandCount: 40, sessions: 14, goalsAchieved: 2 }));
+    expect(line).toBe("August 2026: finished 84, pushed 12, gym sessions 14, goals achieved 2, most done between 8 AM and 11 AM");
+  });
+
+  it("a month with nothing to say renders nothing, never a row of zeroes", () => {
+    // "0 finished" reads as a verdict, and is usually just a month the app
+    // was barely open. A life is never scored.
+    expect(sealLine(sealed())).toBe("");
+    expect(sealLines([{ id: "a", data: sealed() }])).toEqual([]);
+  });
+
+  it("leaves out the parts that did not happen", () => {
+    expect(sealLine(sealed({ done: 10 }))).toBe("August 2026: finished 10");
+  });
+
+  it("says nothing about a band it never found", () => {
+    expect(sealLine(sealed({ done: 10, bandStart: null, bandCount: 0 }))).not.toContain("between");
+  });
+
+  it("newest month first, capped", () => {
+    const out = sealLines([
+      { id: "a", data: sealed({ month: "2026-06", done: 1 }) },
+      { id: "b", data: sealed({ month: "2026-08", done: 3 }) },
+      { id: "c", data: sealed({ month: "2026-07", done: 2 }) },
+    ], 2);
+    expect(out).toHaveLength(2);
+    expect(out[0]).toContain("August");
+    expect(out[1]).toContain("July");
+  });
+});

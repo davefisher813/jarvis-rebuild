@@ -9,6 +9,7 @@ import type { Workout } from "../gym/types";
 import type { GymService } from "../gym/GymService";
 import type { GoalService } from "../life/GoalService";
 import { todayISO } from "../tasks/grouping";
+import { monthName } from "./report";
 
 // THE MONTHLY SEAL (insights groundwork, 2026-08-25). One small record per
 // closed month, written silently at the boundary. The reason it exists:
@@ -255,4 +256,56 @@ export async function sealPreviousMonthIfDue(
   const id = await svc.create(data);
   if (id) mark();
   return id;
+}
+
+// INSIGHTS GETS AN OUTPUT (Brain build handoff item 8, decision s2).
+//
+// The monthly seal has been fully automatic and display-only since it
+// shipped: roughly 1,500 lines computing an honest record of a month that
+// nothing else in the app ever read. This is the reader. A compressed line
+// per sealed month joins the AI context, so JARVIS reasons about the months
+// the user has actually had rather than only the week in front of it.
+//
+// Two laws shape the wording, both already in force here:
+//   - A LIFE IS NEVER SCORED (the Long Story law). Facts and counts only:
+//     what happened, never how well it went, never a grade, never a trend
+//     the numbers do not carry on their own.
+//   - NUMBERS, NEVER TEXT. Every value below is already a number or an id in
+//     MonthSealData, so nothing of the user's own words can leak into a
+//     prompt through this path.
+//
+// A month with nothing worth saying renders nothing rather than a row of
+// zeroes, because "0 finished" reads as a verdict and is usually just an
+// artefact of a month the app was barely open.
+function hour12Label(h: number): string {
+  const ap = h < 12 ? "AM" : "PM";
+  return `${h % 12 || 12} ${ap}`;
+}
+
+// The counts are written label-first ("finished 84", never "84 finished").
+// Two reasons, and the first is the one that matters: the leading-number
+// casing law says a line opening with a count capitalizes the word behind
+// it, and it is right about app copy. This is prompt text rather than app
+// copy, so the law's exemption list would have taken it, but a label-first
+// fact list needs no exemption at all and reads better to a model besides.
+export function sealLine(s: MonthSealData): string {
+  const parts: string[] = [];
+  if (s.done > 0) parts.push(`finished ${s.done}`);
+  if (s.pushed > 0) parts.push(`pushed ${s.pushed}`);
+  if (s.sessions > 0) parts.push(`gym sessions ${s.sessions}`);
+  if (s.goalsAchieved > 0) parts.push(`goals achieved ${s.goalsAchieved}`);
+  if (s.bandStart !== null && s.bandCount > 0) {
+    parts.push(`most done between ${hour12Label(s.bandStart)} and ${hour12Label((s.bandStart + 3) % 24)}`);
+  }
+  if (parts.length === 0) return "";
+  return `${monthName(s.month)} ${s.month.slice(0, 4)}: ${parts.join(", ")}`;
+}
+
+/** The last few sealed months, compressed, newest first. */
+export function sealLines(seals: MonthSeal[], limit = 3): string[] {
+  return [...seals]
+    .sort((a, b) => b.data.month.localeCompare(a.data.month))
+    .slice(0, limit)
+    .map((s) => sealLine(s.data))
+    .filter(Boolean);
 }

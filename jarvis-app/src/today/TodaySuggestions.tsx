@@ -6,6 +6,8 @@ import { useTasks, useProfile, useBrainDocs, useSchedule, useRoutine, useOptiona
 import { readWindow, type WindowClient } from "../brain/window";
 import { brainMoments } from "../brain/moments";
 import { consolidate } from "../brain/nightly";
+import { fadedStrands, daysSince } from "../brain/recall";
+import type { Strand } from "../brain/strands/types";
 import type { Derived } from "../brain/derive";
 import { supabase } from "../auth/supabaseClient";
 import { haptics } from "../shared/haptics";
@@ -49,7 +51,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // write the habits doc (the original pipeline); routine rows (2026-08-09)
   // append a learned block to the routine itself. Same dismiss memory, same
   // one-row rule, different landing place for the tap.
-  const [pattern, setPattern] = useState<(PatternObservation & { routineBlock?: ProtectedBlock; moment?: Derived; sub?: string }) | null>(null);
+  const [pattern, setPattern] = useState<(PatternObservation & { routineBlock?: ProtectedBlock; moment?: Derived; sub?: string; stale?: Strand }) | null>(null);
   const strandsSvc = useOptionalStrands();
   // Texts of the tasks already visible in Up Next: a suggestion that echoes
   // one of them is repetition, not value (Dave 2026-07-30), and is hidden.
@@ -85,6 +87,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       // tip), then learned structure, then planning, then these. Best-effort:
       // a failed window read means no moment, never a broken Today.
       let moments: Derived[] = [];
+      let faded: Strand[] = [];
       try {
         if (strandsSvc) {
           const [rows, strands] = await Promise.all([
@@ -96,13 +99,27 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
           // whichever single gate happened to trip while this screen was
           // open. See brain/nightly.ts for why holding it steady matters.
           moments = consolidate(brainMoments(rows, strands), today);
+          // FADE (handoff 5.8, decision m1): a fact nobody has confirmed in a
+          // season asks whether it still holds. Never a silent deletion and
+          // never silent staleness, which is why it is a question here rather
+          // than a quiet drop in recall.ts.
+          faded = fadedStrands(strands, today);
         }
       } catch { /* silence beats a guess, and definitely beats a crash */ }
-      const candidates: (PatternObservation & { routineBlock?: ProtectedBlock; moment?: Derived; sub?: string })[] = [
+      const candidates: (PatternObservation & { routineBlock?: ProtectedBlock; moment?: Derived; sub?: string; stale?: Strand })[] = [
         ...(patternObservation(prof?.checkin, today) ? [patternObservation(prof?.checkin, today)!] : []),
         ...(routineC ? [{ id: routineC.id, text: routineC.text, routineBlock: routineC.block }] : []),
         ...(planningPatternObservation(readDurationCorrections(), Date.now()) ? [planningPatternObservation(readDurationCorrections(), Date.now())!] : []),
         ...moments.map((m) => ({ id: "brain-" + m.derivation, text: m.title, sub: m.sub, moment: m })),
+        // Last in the order, behind every proposal: being asked to re-confirm
+        // something JARVIS already knows is the least urgent thing on the
+        // page, and only one candidate renders anyway.
+        ...faded.slice(0, 1).map((s) => ({
+          id: "stale-" + s.id,
+          text: s.data.text,
+          sub: `Still true? Nothing has confirmed this in ${daysSince(s.data.lastConfirmed, today)} days`,
+          stale: s,
+        })),
       ];
       setPattern(candidates.find((c) => !isPatternDismissed(c.id, today)) ?? null);
     })();
@@ -182,7 +199,20 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     // the next time it runs.
     if (!pattern) return;
     haptics.selection();
-    if (pattern.routineBlock) {
+    if (pattern.stale) {
+      // STILL TRUE (handoff 5.8). Confirming refreshes lastConfirmed, which
+      // is what recall.ts reads, so answering the question restores the
+      // fact's priority instead of merely silencing the ask.
+      //
+      // There is deliberately no "Not Anymore" here. This card has one
+      // action and a dismiss, and deleting a fact from a passing nudge is
+      // the wrong weight for a permanent loss: What JARVIS Knows already
+      // holds pause and delete, with the fact in front of you. Dismiss asks
+      // again another day, which is the honest middle.
+      await strandsSvc?.confirm(pattern.stale, today);
+      haptics.success();
+      showToast({ message: "Still true · JARVIS will keep leaning on it" });
+    } else if (pattern.routineBlock) {
       const r = await routineSvc.get();
       await routineSvc.save({ protectedBlocks: [...(r.protectedBlocks ?? []), pattern.routineBlock] });
       emit({ type: "suggestion.accepted", props: { kind: "routine" } });
@@ -258,7 +288,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
         tone="cat-fg-yellow"
         title={pattern.text}
         sub={pattern.sub}
-        action={{ label: pattern.routineBlock ? "Add to Routine" : "Remember This", onClick: () => void acceptPattern() }}
+        action={{ label: pattern.stale ? "Still True" : pattern.routineBlock ? "Add to Routine" : "Remember This", onClick: () => void acceptPattern() }}
         onDismiss={dismissThis}
       />
     );

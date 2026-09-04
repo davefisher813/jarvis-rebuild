@@ -3,9 +3,13 @@ import {
   useProfile, usePeople, useBrainDocs, useTasks, useSchedule, useCategories, useRoutine, useGoals, useProjects, useMoney,
   useOptionalProfile, useOptionalPeople, useOptionalBrainDocs, useOptionalTasks, useOptionalSchedule,
   useOptionalCategories, useOptionalRoutine, useOptionalGoals, useOptionalProjects, useOptionalMoney,
-  useOptionalStrands,
+  useOptionalStrands, useOptionalDecisions, useOptionalSeal,
 } from "../data/NotesProvider";
 import type { StrandsService } from "../brain/strands/StrandsService";
+import type { DecisionService } from "../decisions/DecisionService";
+import type { SealService } from "../review/seal";
+import { sealLines } from "../review/seal";
+import { rankForRecall } from "../brain/recall";
 import { assembleContext, type AIContext } from "./context";
 import { routineToText } from "../routine/types";
 import { readSamples } from "../shared/timeSense";
@@ -35,6 +39,11 @@ interface ContextServices {
   // Optional on purpose: strands are an enhancement (Brain Layer 2 bridge);
   // a context assembled without them is thinner, never broken.
   strands?: StrandsService | null;
+  // Same seam for settled decisions (handoff item 5, read-back).
+  decisions?: DecisionService | null;
+  // And for the monthly seals (handoff item 8): Insights was fully automatic
+  // and display-only, computing an honest record nothing ever read.
+  seal?: SealService | null;
 }
 
 // Session 5: the ONE assembler behind every AI feature. Routine, goals,
@@ -61,10 +70,34 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
   ]);
   // What JARVIS knows (Brain Layer 2 bridge): active strands, one line each.
   // Best-effort; a strand read failure must never cost the user their prompt.
+  //
+  // STRENGTHEN (handoff 5.8, decision m1): read in recall order, not
+  // creation order. What JARVIS leans on first is what has most recently
+  // been proved right. See brain/recall.ts; nothing is dropped here, only
+  // ordered, so a quiet fact is still a fact the AI can see.
   let strandLines: string[] = [];
   try {
-    strandLines = s.strands ? (await s.strands.active()).map((x) => x.data.text) : [];
+    strandLines = s.strands ? rankForRecall(await s.strands.active(), today).map((x) => x.data.text) : [];
   } catch { /* thinner context, never a broken one */ }
+  // READ-BACK (handoff item 5, second half): settled decisions join the
+  // context so JARVIS stops re-asking what was already decided, and can say
+  // what changed since. Superseded decisions are excluded by list(); the
+  // reason rides along because the reason is the whole point of the record.
+  let decisionLines: string[] = [];
+  try {
+    decisionLines = s.decisions
+      ? (await s.decisions.list())
+        .slice(0, 12)
+        .map((d) => (d.data.why ? `${d.data.decision} (because ${d.data.why})` : d.data.decision))
+      : [];
+  } catch { /* same rule: thinner, never broken */ }
+  // INSIGHTS GETS AN OUTPUT (handoff item 8, decision s2): a compressed line
+  // per sealed month, so JARVIS reasons about the months the user actually
+  // had. Facts and counts only; a life is never scored. See seal.ts.
+  let monthLines: string[] = [];
+  try {
+    monthLines = s.seal ? sealLines(await s.seal.list()) : [];
+  } catch { /* same rule again */ }
   // The full money picture (2026-08-10): bills with amounts and due dates,
   // and the same cash-flow derivation the Money tab shows (payday, bills
   // before it, envelopes, left to spend). Same helpers, so the AI can never
@@ -132,6 +165,8 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
     })),
     cashFlow,
     strands: strandLines,
+    decisions: decisionLines,
+    months: monthLines,
   });
 }
 
@@ -148,10 +183,12 @@ export function useAIContext(): () => Promise<AIContext> {
   const projects = useProjects();
   const money = useMoney();
   const strands = useOptionalStrands();
+  const decisions = useOptionalDecisions();
+  const seal = useOptionalSeal();
 
   return useCallback(
-    () => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands }),
-    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands],
+    () => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal }),
+    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal],
   );
 }
 
@@ -172,9 +209,11 @@ export function useOptionalAIContext(): () => Promise<AIContext | null> {
   const projects = useOptionalProjects();
   const money = useOptionalMoney();
   const strands = useOptionalStrands();
+  const decisions = useOptionalDecisions();
+  const seal = useOptionalSeal();
 
   return useCallback(async () => {
     if (!profile || !people || !docs || !tasks || !schedule || !cats || !routine || !goals || !projects || !money) return null;
-    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands });
-  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands]);
+    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal });
+  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal]);
 }
