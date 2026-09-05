@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
 import { render, fireEvent } from "@testing-library/react";
-import { Group, MenuRow, SwitchRow, Row } from "./FormSheet";
+import { useState } from "react";
+import { FormSheet, Group, MenuRow, SwitchRow, Row, FieldRow } from "./FormSheet";
 
 // SHARED-F-11 (2026-09-05). In every form sheet (task, bill, goal, person,
 // project, category, reminder) tapping a dropdown row's label or its glyph
@@ -111,5 +112,63 @@ describe("SHARED-F-22: a sheet row with its own onClick answers the keyboard", (
     const row = container.querySelector(".xs-row")!;
     expect(row.getAttribute("role")).toBeNull();
     expect(row.getAttribute("tabindex")).toBeNull();
+  });
+});
+
+// SHARED-F-13 (2026-09-05), option A. The scrim is the whole area above the
+// card, which on a phone is where a thumb rests, and a tap there was Cancel
+// unconditionally: half-way through a new person or bill, one stray touch and
+// every field was gone, with no confirm, no toast and no draft.
+describe("SHARED-F-13: a scrim tap cannot throw away what you typed", () => {
+  // Stateful, because the fields are controlled: an onChange that throws the
+  // value away would leave the DOM unchanged and the check would pass for the
+  // wrong reason.
+  const Bill = ({ onCancel, dirty }: { onCancel: () => void; dirty?: boolean }) => {
+    const [name, setName] = useState("");
+    return (
+      <FormSheet title="New Bill" onCancel={onCancel} onSave={() => {}} dirty={dirty}>
+        <Group label="Bill"><FieldRow ariaLabel="Name" value={name} onChange={setName} /></Group>
+      </FormSheet>
+    );
+  };
+  const sheet = (dirty?: boolean) => {
+    const onCancel = vi.fn();
+    render(<Bill onCancel={onCancel} dirty={dirty} />);
+    return { onCancel, scrim: document.querySelector(".sheet-scrim")! };
+  };
+  const type = (v: string) =>
+    fireEvent.change(document.querySelector<HTMLInputElement>("input")!, { target: { value: v } });
+
+  it("an untouched sheet still closes on a scrim tap", () => {
+    const { onCancel, scrim } = sheet();
+    fireEvent.click(scrim);
+    expect(onCancel, "the gesture is not taken away, only the loss is").toHaveBeenCalledTimes(1);
+  });
+
+  it("a sheet with typing in it ignores the tap", () => {
+    const { onCancel, scrim } = sheet();
+    type("Ridgeline dues");
+    fireEvent.click(scrim);
+    expect(onCancel, "Cancel in the bar is still the way out").not.toHaveBeenCalled();
+  });
+
+  it("the dirty prop holds a sheet whose work is not in a field", () => {
+    const { onCancel, scrim } = sheet(true);
+    fireEvent.click(scrim);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  // dirty={false} says "nothing of MINE changed", never "ignore the fields".
+  it("dirty={false} cannot hand back a sheet full of typing", () => {
+    const { onCancel, scrim } = sheet(false);
+    type("typed");
+    fireEvent.click(scrim);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("a tap on the card itself never cancels", () => {
+    const { onCancel } = sheet();
+    fireEvent.click(document.querySelector(".form-sheet")!);
+    expect(onCancel).not.toHaveBeenCalled();
   });
 });

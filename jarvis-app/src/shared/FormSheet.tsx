@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useRef, type MouseEvent, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type MouseEvent, type ReactNode } from "react";
 import SheetBar from "./SheetBar";
 import HeadMenu, { type MenuOption } from "./HeadMenu";
 import { pressable } from "./pressable";
@@ -17,7 +17,27 @@ export function Tile({ tone, children }: { tone: string; children: ReactNode }) 
   return <div className={"row-ico nav-tile-" + tone}>{children}</div>;
 }
 
-export function FormSheet({ title, onCancel, onSave, saveDisabled = false, saveLabel, children, className = "" }: {
+// SHARED-F-13 (2026-09-05), option A. The scrim is the whole area above the
+// card, which on a phone is the natural place to rest a thumb, and a tap there
+// was Cancel unconditionally: half-way through a new person or a new bill, one
+// stray touch and every field was gone, with no confirm, no toast and no
+// draft. iOS calls the guard isModalInPresentation: a modal with unsaved work
+// refuses the dismiss GESTURE and keeps its explicit Cancel.
+//
+// The dirty check is the sheet's own fields, read from the DOM, so all 47
+// sheets get it without 47 edits and the next one gets it for free: the values
+// are snapshotted after the first paint and compared on the tap. The `dirty`
+// prop is for the state that is NOT in a field (a chip, a switch, a picked
+// colour), and it only ever ADDS a reason to hold the sheet, never removes
+// one, so passing dirty={false} cannot hand back a sheet full of typing.
+//
+// Cancel in the bar is untouched, and so is Escape: useSheetEscape presses
+// Cancel rather than the scrim for exactly this reason.
+const fieldsOf = (el: HTMLElement | null): string =>
+  [...(el?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input, textarea") ?? [])]
+    .map((f) => f.value).join("\u0000");
+
+export function FormSheet({ title, onCancel, onSave, saveDisabled = false, saveLabel, children, className = "", dirty }: {
   title: string;
   onCancel: () => void;
   onSave: () => void;
@@ -25,10 +45,21 @@ export function FormSheet({ title, onCancel, onSave, saveDisabled = false, saveL
   saveLabel?: string;
   children: ReactNode;
   className?: string;
+  /** Unsaved work the fields cannot show: a picked chip, a flipped switch, a
+      colour. Adds to the field check, never replaces it. */
+  dirty?: boolean;
 }) {
+  const card = useRef<HTMLDivElement>(null);
+  const opened = useRef<string | null>(null);
+  useLayoutEffect(() => { opened.current = fieldsOf(card.current); }, []);
+  const onScrim = () => {
+    if (dirty === true) return;
+    if (opened.current !== null && fieldsOf(card.current) !== opened.current) return;
+    onCancel();
+  };
   return createPortal(
-    <div className="sheet-scrim" onClick={onCancel}>
-      <div className={"card xs form-sheet " + className} onClick={(e) => e.stopPropagation()}>
+    <div className="sheet-scrim" onClick={onScrim}>
+      <div ref={card} className={"card xs form-sheet " + className} onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <SheetBar title={title} onCancel={onCancel} onSave={onSave} saveDisabled={saveDisabled} saveLabel={saveLabel} />
         <div className="sheet-form">

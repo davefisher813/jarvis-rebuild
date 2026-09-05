@@ -588,6 +588,25 @@ describe("BROWSER-F-14: the reorder handle does something when you tap it", () =
   });
 });
 
+describe("SHARED-F-13: a scrim tap is not a way to lose work", () => {
+  const kit = () => readFileSync(join(SRC, "shared/FormSheet.tsx"), "utf8");
+
+  it("the scrim consults the sheet before it cancels", () => {
+    const src = kit();
+    expect(src, "the scrim's handler is not onCancel itself any more").not.toMatch(/className="sheet-scrim" onClick=\{onCancel\}/);
+    expect(src).toMatch(/className="sheet-scrim" onClick=\{onScrim\}/);
+    expect(src, "the fields are the default dirty check, so all 47 sheets get it").toMatch(/const fieldsOf/);
+  });
+
+  // Cancel in the bar and Escape both stay: a modal that refuses the DISMISS
+  // gesture still has to have a way out, which is the whole iOS contract.
+  it("Cancel in the bar is untouched, and Escape presses Cancel", () => {
+    expect(kit()).toMatch(/<SheetBar[^>]*onCancel=\{onCancel\}/);
+    const esc = readFileSync(join(SRC, "shared/useSheetEscape.ts"), "utf8");
+    expect(esc).toMatch(/sheet-bar-cancel/);
+  });
+});
+
 describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
   // The strip rule re-sets the chip background at (0,4,0), which beats
   // .chip.active (0,2,0) for the background alone. Any rule that overrides a
