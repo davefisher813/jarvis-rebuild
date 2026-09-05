@@ -57,7 +57,7 @@ type Sheet =
 // openGoalId (2026-08-09): goal deep-links used to be set by the shell and
 // then dropped on the floor here, so tapping a linked goal landed on the
 // list instead of the goal.
-export default function BiggerPictureFlow({ openId, openNonce, openGoalId, goalNonce, onOpenNote, onOpenDecision, onGoEmail, lens = "goals", title, segments }: {
+export default function BiggerPictureFlow({ openId, openNonce, onOpenConsumed, openGoalId, goalNonce, onGoalConsumed, onOpenNote, onOpenDecision, onGoEmail, lens = "goals", title, segments }: {
   openId?: string; openGoalId?: string;
   // LIFE-F-07 (2026-09-05): both ids used to be read once, in the useState
   // initialisers below, so searching a project while already on Life >
@@ -67,6 +67,11 @@ export default function BiggerPictureFlow({ openId, openNonce, openGoalId, goalN
   // no key. The nonces come from the shell's one-shot intents
   // (shell/intents.ts) so asking for the same id twice still navigates.
   openNonce?: number; goalNonce?: number;
+  // LIFE-F-08 (2026-09-05): and the callbacks that spend them. Without these
+  // the id sat in the shell until a bottom-tab tap, so opening a project,
+  // going Back, tapping Goals and tapping Projects opened the detail over
+  // the list on its own.
+  onOpenConsumed?: () => void; onGoalConsumed?: () => void;
   onOpenNote?: (id: string) => void; onOpenDecision?: (id: string) => void;
   // EMAIL-F-19 (2026-09-05): opens a conversation filed under this project
   // in the Email tab. Absent outside the shell, in which case the linked
@@ -94,11 +99,15 @@ export default function BiggerPictureFlow({ openId, openNonce, openGoalId, goalN
   // LIFE-F-07: open on an id that ARRIVES, the way TasksFlow already does for
   // a task (TasksFlow.tsx:349-352), not only on one that was there at mount.
   useEffect(() => {
-    if (openId) setDetailId(openId);
+    if (!openId) return;
+    setDetailId(openId);
+    onOpenConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId, openNonce]);
   useEffect(() => {
-    if (openGoalId) setGoalDetailId(openGoalId);
+    if (!openGoalId) return;
+    setGoalDetailId(openGoalId);
+    onGoalConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openGoalId, goalNonce]);
   // Bumps after a dismissal so the derived suggestion re-reads storage.

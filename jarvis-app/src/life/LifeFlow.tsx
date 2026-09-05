@@ -13,7 +13,7 @@ import LifeSegments, { type LifeSegment } from "./LifeSegments";
 let lastSegment: LifeSegment = "tasks";
 
 export default function LifeFlow({
-  segment, segmentNav, taskOpenId, taskNonce, onTaskOpened, taskFilter, filterNonce, onFilterApplied, projectOpenId, projectNonce, goalOpenId, goalNonce, onOpenNote, onWhatNow, onOpenDecision, onGoEmail,
+  segment, segmentNav, taskOpenId, taskNonce, onTaskOpened, taskFilter, filterNonce, onFilterApplied, projectOpenId, projectNonce, onProjectOpened, goalOpenId, goalNonce, onGoalOpened, onOpenNote, onWhatNow, onOpenDecision, onGoEmail,
 }: {
   segment?: LifeSegment;
   /** Bumped by the shell on every deep link, so a link to the lens already
@@ -29,6 +29,9 @@ export default function LifeFlow({
   // through. A deep link to the lens you are already on has to look like a
   // change to the lens flow, or nothing happens (shell/intents.ts).
   projectNonce?: number; goalNonce?: number;
+  // LIFE-F-08 (2026-09-05): each lens flow tells the shell its link is spent,
+  // so a segment round trip is a round trip and not a replay.
+  onProjectOpened?: () => void; onGoalOpened?: () => void;
   onOpenNote?: (id: string) => void;
   onWhatNow?: () => void;
   onOpenDecision?: (id: string) => void;
@@ -52,8 +55,10 @@ export default function LifeFlow({
       segments={segments}
       openId={seg === "projects" ? projectOpenId : undefined}
       openNonce={projectNonce}
+      onOpenConsumed={onProjectOpened}
       openGoalId={seg === "goals" ? goalOpenId : undefined}
       goalNonce={goalNonce}
+      onGoalConsumed={onGoalOpened}
       onOpenNote={onOpenNote}
       onOpenDecision={onOpenDecision}
       onGoEmail={onGoEmail}

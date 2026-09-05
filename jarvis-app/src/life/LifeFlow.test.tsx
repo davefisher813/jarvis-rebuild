@@ -178,3 +178,52 @@ describe("a task link is spent once (SHELL-F-12)", () => {
     expect(screen.getByLabelText("Show")).toHaveTextContent("Today");
   });
 });
+
+// LIFE-F-08 (2026-09-05): a project or goal link was consumed at
+// BiggerPictureFlow's mount and never cleared, and LifeFlow remounts the lens
+// flow on every segment change: arrive on a project detail, go Back, tap Goals
+// then Projects, and the detail opened itself over the list.
+function ProjectLinked() {
+  const p = useProjects(); const g = useGoals();
+  const [id, setId] = useState<string | undefined>(undefined);
+  const [intent, setIntent] = useState<{ value?: string; nonce: number }>({ nonce: 0 });
+  const [seg, setSeg] = useState<"projects" | "goals">("projects");
+  useEffect(() => {
+    void (async () => {
+      const goalId = await g.create({ title: "Build a six-month runway", state: "on_track" });
+      setId((await p.create({ title: "Kitchen remodel", status: "active", goalId: goalId ?? undefined })) ?? undefined);
+    })();
+  }, [p, g]);
+  return id ? (
+    <>
+      <button onClick={() => setIntent((i) => ({ value: id, nonce: i.nonce + 1 }))}>Link It</button>
+      <LifeFlow
+        segment={seg}
+        segmentNav={seg === "projects" ? 1 : 2}
+        projectOpenId={intent.value}
+        projectNonce={intent.nonce}
+        onProjectOpened={() => setIntent((i) => ({ nonce: i.nonce }))}
+      />
+      <button onClick={() => setSeg(seg === "projects" ? "goals" : "projects")}>Flip Lens</button>
+    </>
+  ) : null;
+}
+
+describe("a project link is spent once (LIFE-F-08)", () => {
+  it("does not reopen the detail after a segment round trip", async () => {
+    render(<NotesProvider userId="deep-life-4"><ProjectLinked /></NotesProvider>);
+    await screen.findAllByText("Kitchen remodel", {}, { timeout: 3000 });
+    fireEvent.click(screen.getByText("Link It"));
+    await waitFor(() => expect(screen.getByLabelText("Back")).toBeInTheDocument());
+
+    // Back to the list, then Goals, then Projects.
+    fireEvent.click(screen.getByLabelText("Back"));
+    await waitFor(() => expect(screen.queryByLabelText("Back")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByText("Flip Lens"));
+    await waitFor(() => expect(screen.getByText("Add Goal")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Flip Lens"));
+    await screen.findAllByText("Kitchen remodel", {}, { timeout: 3000 });
+
+    expect(screen.queryByLabelText("Back")).not.toBeInTheDocument();
+  });
+});
