@@ -208,7 +208,7 @@ export function lastSessionFor(history: Workout[], lift: LiftLike, kind: Measure
 /**
  * The D2-C header line: the whole last session, compact, plus the all-time
  * best. A same-weight strip compresses to "275 lb × 5, 5, 4"; anything else
- * lists sets the way lastTimeLine always has. Best stays quiet for
+ * lists every set. Best stays quiet for
  * distance_time -- records there are per-distance, and one line must not
  * compare a mile to a ten-miler.
  */
@@ -233,16 +233,6 @@ export function lastHeader(history: Workout[], lift: LiftLike, kind: MeasureKind
   return { last, date: hit.date, best: best ? formatSet(fx, inUnit(kind, best.set, best.unit, fx.unit)) : null };
 }
 
-/** "Last time: 135 lb × 8, 8, 7" for the in-gym header. Null when new. */
-export function lastTimeLine(history: Workout[], lift: LiftLike, kind: MeasureKind): string | null {
-  const ref = liftRef(lift, kind);
-  for (let i = history.length - 1; i >= 0; i--) {
-    const w = history[i]!;
-    const ex = w.data.exercises.find((e) => sameLift(ref, e));
-    const logged = ex?.sets.filter((s) => !s.skipped && !s.warmup) ?? [];
-    if (ex && logged.length) {
-      return "Last time: " + logged.map((s) => formatSet(ex, s)).join(", ");
-    }
-  }
-  return null;
-}
+// GYM-F-28 (2026-09-05): lastTimeLine had no caller. lastHeader above
+// supersedes it: same last session, plus the date and the all-time best the
+// header actually draws.

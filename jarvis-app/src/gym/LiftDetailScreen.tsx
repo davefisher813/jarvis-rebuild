@@ -233,7 +233,12 @@ export default function LiftDetailScreen({
 
           <div className="sh2 sh2-quiet"><span className="t">Goal</span></div>
           {goal && goalState ? (
-            <div className="pad-x"><div className={"card pad " + (goalState.met ? "banner-good" : "banner-yellow")}>
+            /* GYM-F-28 (2026-09-05): the goal card was a flat panel, so a goal
+               set here could only be changed from Bigger Picture. It opens the
+               same sheet that made it, now in edit mode. */
+            <div className="pad-x"><div className={"card pad " + (goalState.met ? "banner-good" : "banner-yellow")}
+              role="button" tabIndex={0} aria-label="Edit Goal" onClick={onSetGoal}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSetGoal(); } }}>
               <div className="row-stack">
                 <div className="conn-name">{goal.data.title}</div>
                 <div className="conn-meta">{goalState.line}</div>

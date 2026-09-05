@@ -134,7 +134,6 @@ export function bumpStrip(kind: MeasureKind, sets: SetEntry[], bump: Partial<Rec
   });
 }
 
-/** A fresh, empty exercise for the given kind: one blank planned set. */
-export function newExercise(id: string, name: string, kind: MeasureKind, over: Partial<Exercise> = {}): Exercise {
-  return { id, name, kind, sets: [blankEntry()], ...over };
-}
+// GYM-F-28 (2026-09-05): newExercise had no caller; every creation path goes
+// through ExerciseSheet, which builds the whole exercise from the fields the
+// athlete filled in rather than from a blank.

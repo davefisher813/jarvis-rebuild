@@ -17,40 +17,10 @@ const PULSE_ICO = <PulseGlyph />;
 // control, on the same row shape, because turning one off is never a
 // different action from turning the other off.
 
-/** The daily strip: one row per active (on, not hidden) metric, today's
- *  value or "Not logged yet". Tapping a row opens the quick-log sheet. */
-export function MetricsCard({ defs, logs, date, onOpen, onManage }: {
-  defs: MetricDef[]; logs: MetricLog[]; date: string; onOpen: (def: MetricDef) => void; onManage: () => void;
-}) {
-  const shown = activeMetrics(defs);
-  return (
-    <>
-      <div className="sec-head"><div className="sec-left"><div className="sec-ico nav-tile-teal">{PULSE_ICO}</div><div className="sec-title">Metrics</div></div><button className="see-all pill-action" onClick={onManage}>Add a Metric</button></div>
-      {shown.length === 0 ? (
-        <div className="pad-x"><div className="card">
-          <div className="row" role="button" tabIndex={0} onClick={onManage}>
-            <div className="row-grow"><div className="conn-name">Track Anything You Want</div><div className="conn-meta">Sleep, bodyweight, soreness, or your own</div></div>
-            {CHEV}
-          </div>
-        </div></div>
-      ) : (
-        <div className="pad-x"><div className="card">
-          {shown.map((d) => {
-            const log = logOn(logs, d.id, date);
-            const val = formatMetric(d.data, log);
-            return (
-              <div className="row" role="button" tabIndex={0} key={d.id} onClick={() => onOpen(d)}>
-                <div className="row-grow"><div className="conn-name">{d.data.name}</div></div>
-                <div className={"conn-meta" + (log ? " metric-logged" : "")}>{val}</div>
-                {CHEV}
-              </div>
-            );
-          })}
-        </div></div>
-      )}
-    </>
-  );
-}
+// GYM-F-28 (2026-09-05): the MetricsCard strip itself is gone. Nothing ever
+// imported it: brain/HealthBody.tsx draws its own metrics strip, and
+// CategoryDetail mounts only the two sheets below. The file keeps its name
+// because the sheets are what everybody imports from it.
 
 /** One metric, one day, one control shaped for its type: a stepper for a
  *  number or minutes, five chips for a 1-5 scale, a switch for yes/no --

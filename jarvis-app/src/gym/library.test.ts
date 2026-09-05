@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildLibrary, searchLibrary, searchLibraryByKind, newExerciseKey, draftFromLibrary } from "./library";
+import { buildLibrary, searchLibrary, searchLibraryByKind, newExerciseKey } from "./library";
 import type { Program, Workout } from "./types";
 
 function program(over: Partial<Program["data"]> = {}): Program {
@@ -100,25 +100,6 @@ describe("newExerciseKey", () => {
   it("never repeats", () => {
     const ids = new Set(Array.from({ length: 50 }, () => newExerciseKey()));
     expect(ids.size).toBe(50);
-  });
-});
-
-describe("draftFromLibrary", () => {
-  it("carries name, kind, unit and key forward with re-minted set ids", () => {
-    const lib = buildLibrary([program()], []);
-    const draft = draftFromLibrary(lib[0]!, [{ id: "orig", w: 225, r: 5 }]);
-    expect(draft.name).toBe("Trap Bar Deadlift");
-    expect(draft.kind).toBe("weight_reps");
-    expect(draft.exerciseKey).toBe("ek1");
-    expect(draft.sets[0]!.w).toBe(225);
-  });
-
-  it("mints a fresh key for a legacy entry with none", () => {
-    const lib = buildLibrary([program()], [workout(1000, "Ungrouped Lift")]);
-    const legacy = lib.find((e) => e.name === "Ungrouped Lift")!;
-    expect(legacy.exerciseKey).toBeUndefined();
-    const draft = draftFromLibrary(legacy, []);
-    expect(draft.exerciseKey).toBeTruthy();
   });
 });
 

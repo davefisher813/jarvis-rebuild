@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { newSetId, blankEntry, uniformStrip, duplicateEntry, bumpStrip, newExercise } from "./strip";
+import { newSetId, blankEntry, uniformStrip, duplicateEntry, bumpStrip } from "./strip";
 
 describe("newSetId", () => {
   it("never repeats, even called back to back", () => {
@@ -129,21 +129,6 @@ describe("bumpStrip: Duplicate Week & Bump (catalog §4.1)", () => {
   it("a stored zero from the old editor is treated as absent, and stays absent", () => {
     const bumped = bumpStrip("weight_reps", [{ id: "s", w: 0, r: 8 }], { w: 5 });
     expect(bumped[0]!.w).toBe(0);
-  });
-});
-
-describe("newExercise", () => {
-  it("starts with exactly one blank planned set", () => {
-    const ex = newExercise("e1", "Bench", "weight_reps");
-    expect(ex.id).toBe("e1");
-    expect(ex.name).toBe("Bench");
-    expect(ex.sets).toHaveLength(1);
-    expect(ex.sets[0]!.w).toBeUndefined();
-  });
-
-  it("accepts overrides like unit", () => {
-    const ex = newExercise("e1", "Bench", "weight_reps", { unit: "kg" });
-    expect(ex.unit).toBe("kg");
   });
 });
 

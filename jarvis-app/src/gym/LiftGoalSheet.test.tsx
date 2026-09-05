@@ -50,6 +50,35 @@ describe("LiftGoalSheet", () => {
     expect(onSave).toHaveBeenCalledTimes(1);
   });
 
+  // GYM-F-28 (2026-09-05): `initial` and `onDelete` had been on this sheet
+  // since it was written and no caller ever passed them, so a lift goal set
+  // here could only be changed from Bigger Picture. GymFlow passes both now.
+  it("opens on an existing goal as an edit, with its numbers already in", () => {
+    const onSave = vi.fn();
+    render(<LiftGoalSheet {...base} onSave={onSave}
+      initial={{ title: "Touch 30", measure: { kind: "lift", exercise: "Vertical Jump", measureKind: "height", target: { v: 30 }, unit: "in" } }} />);
+    expect(screen.getByText("Edit Goal")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("e.g. Vertical Jump Target")).toHaveValue("Touch 30");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0]![0].measure.target.v).toBe(30);
+  });
+
+  it("Delete Goal takes two taps, because a deleted goal does not come back", () => {
+    const onDelete = vi.fn();
+    render(<LiftGoalSheet {...base} onSave={() => {}} onDelete={onDelete}
+      initial={{ title: "Touch 30" }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Delete Goal" }));
+    expect(onDelete).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Tap Again to Delete" }));
+    expect(onDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it("says nothing about deleting when the caller cannot delete", () => {
+    render(<LiftGoalSheet {...base} onSave={() => {}} />);
+    expect(screen.queryByRole("button", { name: "Delete Goal" })).toBeNull();
+  });
+
   it("a title alone is still not a goal, and an empty title still says so", () => {
     const onSave = vi.fn();
     render(<LiftGoalSheet {...base} onSave={onSave} />);

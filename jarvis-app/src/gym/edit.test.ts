@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
-  moveExerciseToDay, copyExerciseToDays, extractDay, appendDayToWeek, ensureExerciseKey, moveDayBetweenPrograms, applyExerciseEdit,
+  moveExerciseToDay, copyExerciseToDays, extractDay, appendDayToWeek, moveDayBetweenPrograms, applyExerciseEdit,
 } from "./edit";
 import type { Exercise, ProgramData, ProgramDay, ProgramWeek } from "./types";
 
@@ -249,17 +249,6 @@ describe("moveDayBetweenPrograms (GYM-F-12)", () => {
     expect(outcome).toBe("moved");
     expect(writes[0]!.weeks).toHaveLength(1);
     expect(writes[0]!.weeks[0]!.days.map((d) => d.name)).toEqual(["Speed Work"]);
-  });
-});
-
-describe("ensureExerciseKey", () => {
-  it("mints a key when there is none", () => {
-    const withKey = ensureExerciseKey(ex("e1", "Bench"));
-    expect(withKey.exerciseKey).toBeTruthy();
-  });
-  it("leaves an existing key alone", () => {
-    const withKey = ensureExerciseKey(ex("e1", "Bench", { exerciseKey: "ek1" }));
-    expect(withKey.exerciseKey).toBe("ek1");
   });
 });
 

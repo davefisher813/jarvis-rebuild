@@ -4,7 +4,6 @@ import { createPortal } from "react-dom";
 export interface SheetAction {
   label: string;
   onClick: () => void;
-  danger?: boolean;
 }
 
 /**
@@ -28,7 +27,10 @@ export default function ActionSheet({ title, actions, onClose }: {
           {actions.map((a) => (
             <button
               key={a.label}
-              className={"btn btn-block " + (a.danger ? "btn-secondary btn-danger-text" : "btn-secondary")}
+              // GYM-F-28 (2026-09-05): the `danger` flag went. No caller ever
+              // set it, so every row here has always drawn the same, and a
+              // half-built styling seam is worse than none.
+              className="btn btn-block btn-secondary"
               onClick={() => { onClose(); a.onClick(); }}
             >
               {a.label}

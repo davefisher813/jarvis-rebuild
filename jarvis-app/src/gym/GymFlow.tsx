@@ -1091,6 +1091,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
           onSetGoal={() => setLiftGoalSheetOpen(true)}
           onBack={() => setLiftDetailFor(null)}
         />
+        {/* GYM-F-28 (2026-09-05): the sheet has taken `initial` and `onDelete`
+            since it was written and nothing ever passed them, so a lift goal
+            set here could only be edited or removed from Bigger Picture. Both
+            seams are wired now, and both writes report their own failure
+            instead of closing the sheet on a write that never landed. */}
         {liftGoalSheetOpen && (
           <LiftGoalSheet
             exercise={liftDetailFor.name}
@@ -1098,11 +1103,24 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
             kind={liftDetailFor.kind}
             unit={liftDetailFor.unit}
             timeUnit={liftDetailFor.timeUnit}
+            {...(goal ? { initial: { title: goal.data.title, ...(goal.data.measure ? { measure: goal.data.measure as LiftMeasure } : {}), ...(goal.data.by ? { by: goal.data.by } : {}) } } : {})}
             healthCategoryIds={healthCategoryIds}
             onSave={async (data) => {
-              if (goalsSvc) { await goalsSvc.create(data); setGoals(await goalsSvc.list()); }
+              if (!goalsSvc) { setLiftGoalSheetOpen(false); return; }
+              const ok = await attemptWrite(() => (goal ? goalsSvc.update(goal.id, data) : goalsSvc.create(data)));
+              if (!ok) return;
+              setGoals(await goalsSvc.list());
               setLiftGoalSheetOpen(false);
             }}
+            {...(goal && goalsSvc ? {
+              onDelete: async () => {
+                const ok = await attemptWrite(() => goalsSvc.remove(goal.id));
+                if (!ok) return;
+                setGoals(await goalsSvc.list());
+                setLiftGoalSheetOpen(false);
+                showToast({ message: "Goal deleted" });
+              },
+            } : {})}
             onCancel={() => setLiftGoalSheetOpen(false)}
           />
         )}

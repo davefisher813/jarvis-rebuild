@@ -217,9 +217,6 @@ export function applyExerciseEdit(existing: Exercise, draft: Omit<Exercise, "id"
   return { ...draft, id: existing.id, ...(existing.pairWith ? { pairWith: existing.pairWith } : {}) };
 }
 
-/** A stable, freshly-minted exerciseKey for an exercise that has never had
- *  one (predates the library, or was created before this session's edit).
- *  Idempotent: an exercise that already carries a key is returned as-is. */
-export function ensureExerciseKey(e: Exercise): Exercise {
-  return e.exerciseKey ? e : { ...e, exerciseKey: newExerciseKey() };
-}
+// GYM-F-28 (2026-09-05): ensureExerciseKey had no caller. Keys are minted at
+// creation in ExerciseSheet, and the identity readers (sameLiftAnyKind) fall
+// back to the name for the pre-library exercises that carry none.

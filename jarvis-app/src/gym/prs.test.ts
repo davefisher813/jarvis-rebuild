@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isPR, bestBefore, receiptFor, lastTimeLine } from "./prs";
+import { isPR, bestBefore, receiptFor } from "./prs";
 import type { Workout, WorkoutExercise, MeasureKind, SetLog } from "./types";
 
 const wk = (date: string, exercises: WorkoutExercise[]): Workout =>
@@ -112,17 +112,6 @@ describe("receiptFor", () => {
       [], 0, 10 * 60000,
     );
     expect(r.doneNames).toEqual([]);
-  });
-});
-
-describe("lastTimeLine", () => {
-  it("shows the most recent real numbers, skipping empty sessions", () => {
-    const history = [
-      wk("2026-07-01", [wex("Bench", "weight_reps", [{ w: 125, r: 8 }, { w: 125, r: 7 }], "lb")]),
-      wk("2026-07-15", [wex("Bench", "weight_reps", [], "lb")]), // nothing logged
-    ];
-    expect(lastTimeLine(history, "Bench", "weight_reps")).toBe("Last time: 125 lb × 8, 125 lb × 7");
-    expect(lastTimeLine(history, "Squat", "weight_reps")).toBeNull();
   });
 });
 

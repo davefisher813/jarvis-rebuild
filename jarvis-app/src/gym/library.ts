@@ -108,17 +108,6 @@ export function newExerciseKey(): string {
   return `ek${Date.now().toString(36)}${seq++}`;
 }
 
-/** Build a fresh exercise draft from a picked library entry: same name, kind,
- *  unit and key; sets re-minted with new ids so editing the copy never
- *  mutates the entry it was carried from. */
-export function draftFromLibrary(entry: LibraryEntry, sets: SetEntry[]): Exercise {
-  return {
-    id: "draft",
-    name: entry.name,
-    kind: entry.kind,
-    ...(entry.unit ? { unit: entry.unit } : {}),
-    ...(entry.timeUnit ? { timeUnit: entry.timeUnit } : {}),
-    exerciseKey: entry.exerciseKey ?? newExerciseKey(),
-    sets,
-  };
-}
+// GYM-F-28 (2026-09-05): draftFromLibrary had no caller. LibraryPickSheet
+// hands the picked entry back and ExerciseSheet builds the draft from it,
+// because the sheet is the only place that knows which sets were typed.

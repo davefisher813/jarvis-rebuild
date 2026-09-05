@@ -97,7 +97,13 @@ export function paceFor(history: Workout[], ex: Pick<Exercise, "name" | "kind" |
   return { secPerSet: WORK_SEC + (ex.restSec ?? DEFAULT_REST_SEC), learned: false, sessions: 0 };
 }
 
-/** The honesty line the estimate wears. Never claims learning it didn't do. */
+/** The honesty line the estimate wears. Never claims learning it didn't do.
+ *
+ *  GYM-F-28 (2026-09-05): KEPT, with its reason written down. It has no
+ *  caller today (FitSheet aggregates across lifts and phrases its own line),
+ *  but laws.test.ts:3544 requires this module to carry the honesty wording
+ *  for a per-lift estimate, and this function is what carries it. It is the
+ *  wording any per-lift pace display has to reuse rather than reinvent. */
 export function paceLine(p: LiftPace): string {
   if (!p.learned) return "default pace · improves as you log";
   return p.sessions === 1 ? "learned from your last session" : `learned from your last ${p.sessions} sessions`;

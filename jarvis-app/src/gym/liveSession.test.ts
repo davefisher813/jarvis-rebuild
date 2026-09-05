@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readLive, writeLive, clearLive, logSet, setLoggedSets, undoLast, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, readPending, flushPending, hasWork, isStillActive, STALE_GRACE_MS, type LiveSession, type Storage2 } from "./liveSession";
+import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, readPending, flushPending, hasWork, isStillActive, STALE_GRACE_MS, type LiveSession, type Storage2 } from "./liveSession";
 import type { ProgramDay, SetEntry, WorkoutData, WorkoutExercise } from "./types";
 
 // The offline contract: a set logged in a basement is never lost, and a
@@ -31,14 +31,12 @@ describe("live session survives with no network", () => {
     expect(readLive(s)).toBeNull();
   });
 
-  it("logs, undoes, and skips without touching other exercises", () => {
+  it("logs and skips without touching other exercises", () => {
     let l = live();
     l = logSet(l, 0, mkSet({ w: 135, r: 8 }));
     l = logSet(l, 0, mkSet({ w: 135, r: 7 }));
     expect(l.exercises[0]!.sets).toHaveLength(2);
     expect(l.exercises[1]!.sets).toHaveLength(0);
-    l = undoLast(l, 0);
-    expect(l.exercises[0]!.sets).toMatchObject([{ w: 135, r: 8 }]);
     l = skipExercise(l, 1);
     expect(l.exercises[1]!.skipped).toBe(true);
     expect(l.exercises[0]!.skipped).toBeUndefined();

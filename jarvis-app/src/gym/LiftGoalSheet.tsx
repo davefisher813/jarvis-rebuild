@@ -65,6 +65,10 @@ export default function LiftGoalSheet({
   // Double-tapping Save used to create two goals: the write is async and
   // nothing disarmed the button while it ran.
   const [saving, setSaving] = useState(false);
+  // GYM-F-28 (2026-09-05): Delete Goal is irreversible, so it arms first.
+  // It used to fire on the first tap, which was safe only because no caller
+  // ever passed onDelete and the button never rendered.
+  const [armDelete, setArmDelete] = useState(false);
 
   const measureOf = (): LiftMeasure | TrainingMeasure => {
     if (mode === "training") {
@@ -171,7 +175,12 @@ export default function LiftGoalSheet({
               by: by || undefined,
             });
           }}>Save</button>
-          {onDelete && <button className="btn btn-secondary btn-block btn-danger-text" onClick={onDelete}>Delete Goal</button>}
+          {onDelete && (
+            <button className={"btn btn-block " + (armDelete ? "btn-danger" : "btn-secondary btn-danger-text")}
+              onClick={() => (armDelete ? onDelete() : setArmDelete(true))}>
+              {armDelete ? "Tap Again to Delete" : "Delete Goal"}
+            </button>
+          )}
           <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>
         </div>
       </div>

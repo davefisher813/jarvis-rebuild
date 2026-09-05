@@ -288,6 +288,5 @@ export interface WorkoutData {
 }
 export interface Workout { id: string; data: WorkoutData }
 
-export function newId(seed: string, n: number): string {
-  return `${seed}${n}`;
-}
+// GYM-F-28 (2026-09-05): newId had no caller. Every gym id is minted where
+// it is created (GymFlow, library.newExerciseKey), never from a seed here.

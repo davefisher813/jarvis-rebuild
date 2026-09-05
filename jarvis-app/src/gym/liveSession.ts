@@ -149,11 +149,9 @@ export function setLoggedSets(s: LiveSession, idx: number, sets: SetEntry[], now
   return { ...s, exercises };
 }
 
-/** Undo the last entry on an exercise (a fat-fingered tap mid-set). */
-export function undoLast(s: LiveSession, idx: number): LiveSession {
-  const exercises = s.exercises.map((ex, i) => (i === idx ? { ...ex, sets: ex.sets.slice(0, -1) } : ex));
-  return { ...s, exercises };
-}
+// GYM-F-28 (2026-09-05): undoLast had no caller. A mistyped set is corrected
+// in place on the strip (setLoggedSets above), which is the same repair
+// without a second idiom for it.
 
 /** Skip an exercise: recorded as the fact it is, with no mark against anyone. */
 export function skipExercise(s: LiveSession, idx: number): LiveSession {
