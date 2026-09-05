@@ -449,6 +449,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [results, setResults] = useState<ThreadRow[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(false);
+  // EMAIL-F-28: the drafts fetch is its own errand now (it runs on every
+  // visit, not on a tap of the Drafts chip), so it gets its own flag.
+  const [draftsBusy, setDraftsBusy] = useState(false);
   // EMAIL-F-18 (2026-09-05): "Only 30 threads per account are ever loaded;
   // empty-state copy speaks for the whole inbox." How many this screen has
   // asked each account for, and whether the last answer came back short (the
@@ -1053,7 +1056,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const loadDrafts = useCallback(async () => {
     const list = g.apis("mail");
     if (list.length === 0) return;
-    setLoading(true);
+    // EMAIL-F-28 (2026-09-05): its own busy flag, not the inbox's. This runs
+    // beside the thread load now rather than on a tap, and a background fetch
+    // must not decide whether the inbox is showing its spinner.
+    setDraftsBusy(true);
     try {
       // EMAIL-F-13: each draft keeps the account it was listed from, so
       // opening it reads through that account and its send leaves from it.
@@ -1074,7 +1080,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     } catch (e) {
       setError(humanError(e, "Could not load drafts"));
     } finally {
-      setLoading(false);
+      setDraftsBusy(false);
     }
   }, [g.apis]);
 
@@ -1082,9 +1088,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (g.hasToken) void loadThreads();
   }, [g.hasToken, loadThreads]);
 
+  // EMAIL-F-28 (2026-09-05): "Stale drafts (N10) only reach Today if the
+  // Drafts chip was tapped this session." This was gated on `filter ===
+  // "drafts"`, and the Today snapshot's Unsent card is built from the same
+  // state, so the card only ever appeared if he had happened to open the
+  // Drafts filter during that visit: the one thing an unsent draft is for is
+  // being remembered when you are NOT looking for it. Once per visit, 25
+  // metadata rows per account, beside the inbox load.
   useEffect(() => {
-    if (g.hasToken && filter === "drafts" && !draftsLoaded) void loadDrafts();
-  }, [g.hasToken, filter, draftsLoaded, loadDrafts]);
+    if (g.hasToken && !draftsLoaded) void loadDrafts();
+  }, [g.hasToken, draftsLoaded, loadDrafts]);
 
   // Arriving from a home-page notice: open that exact thread once the inbox
   // has loaded. Once only, so backing out of the thread does not bounce him
@@ -3111,7 +3124,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       )}
 
       {filter === "drafts" ? (
-        loading && !draftsLoaded ? (
+        draftsBusy && !draftsLoaded ? (
           <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">Loading...</div></div></div></div>
         ) : drafts.length === 0 ? (
           <div className="pad-x"><div className="card"><div className="empty-state">

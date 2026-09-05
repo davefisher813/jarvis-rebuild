@@ -651,6 +651,31 @@ describe("MessagesFlow (threads)", () => {
     expect(lists).toBe(settled);
   });
 
+  // EMAIL-F-28 (2026-09-05): "Stale drafts (N10) only reach Today if the
+  // Drafts chip was tapped this session." loadDrafts was gated on the Drafts
+  // filter and the Today snapshot is built from the same state, so the
+  // "Unsent" card only appeared if he had happened to open that chip during
+  // the visit, which is the opposite of what an unsent draft is for.
+  it("an unsent draft reaches the Today snapshot without opening the Drafts chip", async () => {
+    const fiveDaysAgo = Date.now() - 5 * 86400e3;
+    const api = makeApi({
+      listDrafts: async () => [{
+        id: "d1",
+        message: {
+          id: "dm1", snippet: "Half a line", labelIds: ["DRAFT"], internalDate: String(fiveDaysAgo),
+          payload: { headers: [{ name: "To", value: "Wei <wei@x.com>" }, { name: "Subject", value: "Invoice" }] },
+        } as never,
+      }],
+    });
+    // The Today snapshot is only written once the inbox has been triaged.
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "noise", gist: "g" }, { id: "t2", bucket: "noise", gist: "promo" },
+    ]));
+    render(wrap(<MessagesFlow ai={ai} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await waitFor(() => expect((loadMailSnapshot().drafts ?? []).map((d) => d.subject)).toEqual(["Invoice"]));
+  });
+
   // EMAIL-F-27 (2026-09-05): "Receipts and counters over-claim." Let It Go
   // archives nothing (letGo.ts: the mail is untouched, it only stops counting
   // the days), and it used to raise "N Cleared Today", which is a count of
