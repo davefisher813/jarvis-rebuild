@@ -12,6 +12,7 @@
 // which is a very different thing from this module handing it a ratio.
 
 import type { AteBeforeData, AteBeforeEntry, CallItEntry, PointAtItEntry, TookItEntry } from "./types";
+import { daysBetween } from "../upnext/upnext";
 
 // ---- Ate Before: marks on a timeline, never "2 of 6" ----
 
@@ -126,13 +127,21 @@ export function stillThere(entries: PointAtItEntry[], minSessions = 3): StillThe
     const ats = c.points.map((p) => p.at).sort((a, b) => a - b);
     const first = ats[0]!;
     const last = ats[ats.length - 1]!;
+    // HMN-F-21 (2026-09-05): the span used to be a clock difference,
+    // round((last - first) / 86,400,000) + 1, while sessions is a count of
+    // local days. Taps at 11:50pm Monday, 12:10am Tuesday and 12:10am
+    // Wednesday are three sessions and read "over 2 days". Both facts now
+    // come from the same local-day strings, so the span can never be fewer
+    // than the sessions.
+    const sortedDays = [...days].sort();
+    const span = daysBetween(sortedDays[0]!, sortedDays[sortedDays.length - 1]!) + 1;
     const cx = c.points.reduce((s, p) => s + p.x, 0) / c.points.length;
     const cy = c.points.reduce((s, p) => s + p.y, 0) / c.points.length;
     out.push({
       spotKey: cx.toFixed(2) + "," + cy.toFixed(2),
       side: c.side,
       sessions: days.size,
-      days: Math.max(1, Math.round((last - first) / 86400000) + 1),
+      days: span,
       firstAt: first,
       lastAt: last,
     });

@@ -86,6 +86,17 @@ describe("Still There?: a counted pattern, never a diagnosis", () => {
     }
   });
 
+  // HMN-F-21 (2026-09-05): sessions counted local days while the span was a
+  // clock difference, so three taps around two midnights read "3 sessions
+  // over 2 days". The span is counted on the same local calendar now.
+  it("the day span is never fewer than the sessions, even around midnight", () => {
+    const at = (iso: string): PointAtItEntry => ({ id: iso, data: { category: "body", x: 0.5, y: 0.5, side: "front", at: new Date(iso).getTime() } });
+    const out = stillThere([at("2026-08-03T23:50:00"), at("2026-08-04T00:10:00"), at("2026-08-05T00:10:00")], 3);
+    expect(out).toHaveLength(1);
+    expect(out[0]!.sessions).toBe(3);
+    expect(out[0]!.days).toBe(3);
+  });
+
   it("two different spots do not merge into one pattern", () => {
     const out = stillThere([tap(0, 0.1, 0.1), tap(1, 0.1, 0.1), tap(2, 0.1, 0.1), tap(3, 0.9, 0.9), tap(4, 0.9, 0.9), tap(5, 0.9, 0.9)], 3);
     expect(out).toHaveLength(2);
