@@ -8,6 +8,7 @@ import type { EventItem } from "../types";
 import { monthMatrix, fmtTime, openSlots, minToHHMM, addDays } from "../calendar";
 import { isFocusRange } from "../../routine/types";
 import { catColor } from "../../shared/categories";
+import { pressable } from "../../shared/pressable";
 import SkeletonRows from "../../shared/SkeletonRows";
 import DayRow from "./DayRow";
 import LockedRow from "./LockedRow";
@@ -434,7 +435,20 @@ export default function SchedulePage({
             const cls = "cal-cell" + (!cell.inMonth ? " out" : "") + (isSel ? " sel" : isToday ? " today" : "");
             const cellDots = cell.inMonth && !isSel ? (dots[cell.day] ?? []).slice(0, 3) : [];
             return (
-              <div className={cls} key={cell.date} onClick={() => cell.inMonth && onSelect?.(cell.date)}>
+              /* SCHED-F-19 (2026-09-05): a day cell was a bare div with an
+                 onClick, so a keyboard or a switch control could not pick a
+                 day at all while every other tappable row on this page carried
+                 role and a tab stop. A cell outside the month keeps the role
+                 (it is still a cell) and leaves the tab order, which is what
+                 tabIndex -1 says and what Tab through six weeks of grid needs
+                 in order not to stop on 42 things. */
+              <div
+                className={cls}
+                key={cell.date}
+                aria-label={cell.date}
+                aria-current={isSel ? "date" : undefined}
+                {...pressable(() => onSelect?.(cell.date), { disabled: !cell.inMonth })}
+              >
                 {cell.day}
                 <div className="cal-dots">{cellDots.map((c, i) => <div className={"cal-dot cat-bg-" + catColor(c)} key={i} />)}</div>
               </div>
@@ -460,7 +474,7 @@ export default function SchedulePage({
         ) : (
           <div className="pad-x"><div className="card">
             {repeats.map((r) => (
-              <div className="row" role="button" tabIndex={0} key={r.id} onClick={() => onOpenEvent?.(r.id)}>
+              <div className="row" {...pressable(() => onOpenEvent?.(r.id))} key={r.id}>
                 <span className={"sched-bar cat-bg-" + catColor(r.category)} />
                 <div className="row-grow">
                   <div className="conn-name">{r.title}</div>
@@ -506,8 +520,8 @@ export default function SchedulePage({
             const pctOf = (m: number) => Math.max(0, Math.min(100, ((m - r.windowS) / span) * 100));
             const nowMinLocal = isToday && now ? toMin(now) : null;
             return (
-              <div className={"wk-row" + (isToday ? " today" : "") + (past ? " past" : "")} role="button" tabIndex={0} key={r.date}
-                onClick={() => { onSelect?.(r.date); onMode?.("day"); }} aria-label={`Open ${WK[r.dow]} ${r.day}`}>
+              <div className={"wk-row" + (isToday ? " today" : "") + (past ? " past" : "")} {...pressable(() => { onSelect?.(r.date); onMode?.("day"); })} key={r.date}
+                aria-label={`Open ${WK[r.dow]} ${r.day}`}>
                 <div className="wk-d"><span className="wk-w">{WK[r.dow]}</span><span className="wk-n">{r.day}</span></div>
                 <div className="wk-b">
                   <div className="wk-bar" aria-hidden="true">
@@ -729,8 +743,9 @@ export default function SchedulePage({
                       <div
                         className="block-held"
                         key={h.id}
-                        role="button"
-                        tabIndex={0}
+                        {...pressable(() => onOpenEvent?.(h.id))}
+                        /* the pointer path keeps its own stopPropagation: this
+                           block sits inside a row that opens the routine. */
                         onClick={(ev) => { ev.stopPropagation(); onOpenEvent?.(h.id); }}
                       >
                         <span className={"cat-dot cat-bg-" + catColor(h.data.category)} />
@@ -771,8 +786,7 @@ export default function SchedulePage({
                     picker, and no confirmation, which is the entire point of
                     "just make it very easy to do things like that". */}
                 {blendMap[en.e.id] && (
-                  <div className="blend-tuck" role="button" tabIndex={0}
-                    onClick={() => blendMap[en.e.id]!.onAdd()}>
+                  <div className="blend-tuck" {...pressable(() => blendMap[en.e.id]!.onAdd())}>
                     <span className="blend-plus" aria-hidden>+</span>
                     <div className="row-grow">
                       <div className="blend-text truncate">{blendMap[en.e.id]!.text}</div>
@@ -824,7 +838,7 @@ export default function SchedulePage({
       {mode === "month" && (
         <div className="ruled">
         <div className="pad-x"><div className="card list-card-ruled">
-          <div className="task-row p2" role="button" tabIndex={0} onClick={() => onMode?.("repeats")}>
+          <div className="task-row p2" {...pressable(() => onMode?.("repeats"))}>
             <div className="task-title"><span className="task-name">Repeats</span>
               <div className="r-k"><span className="r-goal r-cat">{repeats.length === 0 ? "Nothing repeats yet" : capAfterNumber(`${repeats.length} standing`)}</span></div></div>
             <div className="chev" />

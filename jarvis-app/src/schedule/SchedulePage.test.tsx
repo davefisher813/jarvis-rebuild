@@ -35,6 +35,46 @@ describe("SchedulePage", () => {
     expect(container.querySelectorAll(".cal-cell").length).toBe(42);
   });
 
+  // SCHED-F-19 (2026-09-05). A day cell was a bare div with an onClick: no
+  // role, no tab stop, no key handler, so a keyboard or a switch control could
+  // not pick a day at all, on the one page where every other tappable row
+  // already carried role="button" tabIndex={0}.
+  describe("SCHED-F-19: the month grid can be used without a finger", () => {
+    it("every cell announces as a button", () => {
+      const { container } = render(<SchedulePage {...base} />);
+      const cells = [...container.querySelectorAll(".cal-cell")];
+      expect(cells.every((c) => c.getAttribute("role") === "button")).toBe(true);
+    });
+
+    it("a day in this month is a tab stop and a day outside it is not", () => {
+      const { container } = render(<SchedulePage {...base} />);
+      const inMonth = [...container.querySelectorAll(".cal-cell:not(.out)")];
+      const outside = [...container.querySelectorAll(".cal-cell.out")];
+      expect(inMonth.length).toBeGreaterThan(0);
+      expect(outside.length, "May 2026 spills into April and June").toBeGreaterThan(0);
+      expect(inMonth.every((c) => c.getAttribute("tabindex") === "0")).toBe(true);
+      expect(outside.every((c) => c.getAttribute("tabindex") === "-1")).toBe(true);
+    });
+
+    for (const k of ["Enter", " "]) {
+      it(`picks a day on ${k === " " ? "Space" : k}`, () => {
+        const onSelect = vi.fn();
+        const { container } = render(<SchedulePage {...base} onSelect={onSelect} />);
+        fireEvent.keyDown(container.querySelectorAll(".cal-cell:not(.out)")[3]!, { key: k });
+        expect(onSelect).toHaveBeenCalledTimes(1);
+      });
+    }
+
+    it("a day outside the month picks nothing, by key or by tap", () => {
+      const onSelect = vi.fn();
+      const { container } = render(<SchedulePage {...base} onSelect={onSelect} />);
+      const out = container.querySelector(".cal-cell.out")!;
+      fireEvent.keyDown(out, { key: "Enter" });
+      fireEvent.click(out);
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+  });
+
   it("renders the selected day's timeline with category dot", () => {
     const { container } = render(<SchedulePage {...base} />);
     expect(container.querySelector(".sched-row")).toBeTruthy();

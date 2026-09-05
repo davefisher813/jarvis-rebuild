@@ -437,6 +437,7 @@ const KEYBOARD_SCOPE = [
   "brain", "decisions", "people", "review", "routine",   // BRAIN-F-21
   "messages/MessagesFlow.tsx", "messages/MailMoreSheet.tsx", // EMAIL-F-31
   "money", "notes", "health",                            // HMN-F-24
+  "schedule/screens/SchedulePage.tsx",                   // SCHED-F-19
 ];
 // A POINTING surface is the one honest exception. .body-map's handler reads
 // the coordinates of the tap to decide which part of the body was named, and

@@ -40,6 +40,12 @@ export function pressable(onClick: () => void, opts?: { disabled?: boolean }): P
       if (opts?.disabled) return;
       if (e.key !== "Enter" && e.key !== " ") return;
       e.preventDefault();
+      // A row nested inside another pressable row activates ONE of them, the
+      // inner one, exactly as a click does: the click path stops at the inner
+      // handler because the outer never sees a click it did not receive, and
+      // the key path has to be told. Without this, Enter on a held block
+      // inside a routine row would open the block AND the row under it.
+      e.stopPropagation();
       onClick();
     },
   };
@@ -51,6 +57,7 @@ export function onPressKey(onClick: () => void): (e: KeyboardEvent) => void {
   return (e: KeyboardEvent) => {
     if (e.key !== "Enter" && e.key !== " ") return;
     e.preventDefault();
+    e.stopPropagation();
     onClick();
   };
 }

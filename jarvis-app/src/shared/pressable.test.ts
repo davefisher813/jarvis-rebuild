@@ -10,7 +10,8 @@ import { pressable, onPressKey } from "./pressable";
 
 const key = (k: string) => {
   const preventDefault = vi.fn();
-  return { e: { key: k, preventDefault } as unknown as KeyboardEvent, preventDefault };
+  const stopPropagation = vi.fn();
+  return { e: { key: k, preventDefault, stopPropagation } as unknown as KeyboardEvent, preventDefault, stopPropagation };
 };
 
 describe("pressable", () => {
@@ -28,6 +29,15 @@ describe("pressable", () => {
       expect(hit, `${k} activates the row`).toHaveBeenCalledTimes(1);
       expect(preventDefault, `${k} does not also scroll the page`).toHaveBeenCalled();
     }
+  });
+
+  // A pressable row nested inside another one activates the inner row only,
+  // the same as a click does. Without this, Enter on a held block inside a
+  // routine row would open the block AND the row under it.
+  it("stops the press at the row that handled it", () => {
+    const { e, stopPropagation } = key("Enter");
+    pressable(() => {}).onKeyDown(e);
+    expect(stopPropagation).toHaveBeenCalled();
   });
 
   it("ignores every other key, so typing in a row does not fire it", () => {
