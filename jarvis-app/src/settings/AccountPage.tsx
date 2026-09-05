@@ -5,6 +5,7 @@ import type { ProfileData } from "../profile/types";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { backendConfigured } from "../data/store";
 import { Head, Card, Row, DangerRow, Foot } from "./kit";
+import { attemptWrite } from "../shared/guard";
 
 export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBack: () => void; onEditProfile?: () => void; onSignOut?: () => void }) {
   const svc = useProfile();
@@ -80,7 +81,11 @@ export default function AccountPage({ onBack, onEditProfile, onSignOut }: { onBa
         <Row label={redoArmed ? "Tap again to redo setup" : "Redo Setup"} meta={redoArmed ? "Your data stays · Intake runs again" : undefined} chev
           onClick={async () => {
             if (!redoArmed) { setRedoArmed(true); return; }
-            await svc.save({ onboarded: false });
+            // SHELL-F-14 (2026-09-05): this write had no catch, so a failed
+            // save reloaded the app straight back into the same screen with
+            // nothing to explain why intake had not started.
+            const ok = await attemptWrite(() => svc.save({ onboarded: false }));
+            if (!ok) return;
             window.location.reload();
           }} />
       </Card>

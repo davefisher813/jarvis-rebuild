@@ -4,6 +4,9 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "../data/NotesProvider";
 import { Capacitor } from "@capacitor/core";
+import { ProfileService } from "../profile/ProfileService";
+import { subscribeToast } from "../shared/toast";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import * as notifications from "../shared/notifications";
 import NotificationsPage from "./NotificationsPage";
 
@@ -33,6 +36,22 @@ describe("NotificationsPage", () => {
     fireEvent.click(sw); // off -> on
     await waitFor(() => expect(sw.getAttribute("aria-checked")).toBe("true"));
     expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  // SHELL-F-14 (2026-09-05): the switch flipped, the write failed, nothing
+  // said so, and the old setting was back at the next launch.
+  it("a switch whose write fails goes back and says so", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    const save = vi.spyOn(ProfileService.prototype, "save").mockRejectedValue(new Error("network"));
+    render(<NotesProvider userId="u1"><NotificationsPage onBack={() => {}} /></NotesProvider>);
+    const row = (await screen.findByText("Today's events")).closest(".row")!;
+    const sw = row.querySelector(".switch")!;
+    fireEvent.click(sw);
+    await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
+    expect(sw.getAttribute("aria-checked")).toBe("true");
+    save.mockRestore();
+    stop();
   });
 });
 

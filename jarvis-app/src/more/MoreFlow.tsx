@@ -45,7 +45,7 @@ export default function MoreFlow({
   onOpenExtra: (key: string) => void;
   tabKeys: string[];
   onToggleTab: (key: string) => void;
-  onReorderTabs?: (next: string[]) => void;
+  onReorderTabs?: (next: string[]) => void | Promise<boolean | void>;
   onSignOut?: () => void;
   // Deep-link intent from elsewhere in the shell (e.g. Email's Open
   // Connections button). Consumed once.

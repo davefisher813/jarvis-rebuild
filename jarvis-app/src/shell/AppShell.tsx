@@ -58,6 +58,7 @@ import { useTaskEstimate } from "../schedule/useTaskEstimate";
 import { setOverwhelmed } from "../tasks/overwhelmed";
 import { showToast } from "../shared/toast";
 import { useOneShot } from "./intents";
+import { attemptWrite } from "../shared/guard";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
 // decides which pages are tabs; everything else lives in More. Any page can be
@@ -317,16 +318,29 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [ready, tasks, dayKey]);
 
+  // SHELL-F-14 (2026-09-05): these two predate the attemptWrite convention
+  // every other user-initiated write in the app goes through. The tab bar
+  // moved on screen, the profile write failed silently, and the next launch
+  // had the old bar back with nothing ever having said so.
   const toggleTab = (key: string) => {
     const has = tabKeys.includes(key);
     if (has && tabKeys.length === 1) return;
     if (!has && tabKeys.length >= MAX_TABS) return;
+    const prev = tabKeys;
     const next = has ? tabKeys.filter((k) => k !== key) : [...tabKeys, key];
     setTabKeys(next);
-    void profile.save({ tabs: next });
+    void attemptWrite(() => profile.save({ tabs: next })).then((ok) => { if (!ok) setTabKeys(prev); });
   };
 
-  const reorderTabs = (next: string[]) => { setTabKeys(next); void profile.save({ tabs: next }); };
+  // Returns whether the write landed, so the drag list puts the rows back
+  // itself (SHELL-F-11 taught ReorderList to listen for exactly this).
+  const reorderTabs = async (next: string[]): Promise<boolean> => {
+    const prev = tabKeys;
+    setTabKeys(next);
+    const ok = await attemptWrite(() => profile.save({ tabs: next }));
+    if (!ok) setTabKeys(prev);
+    return ok;
+  };
 
   // BROWSER-F-12 (2026-09-05), option A. Chat rendered its own "Ask · tell ·
   // paste" composer AND the shell kept the capture dock under it, so one

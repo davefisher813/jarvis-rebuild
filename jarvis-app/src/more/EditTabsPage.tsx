@@ -11,7 +11,7 @@ export default function EditTabsPage({
 }: {
   tabKeys: string[];
   onToggle: (key: string) => void;
-  onReorder?: (next: string[]) => void;
+  onReorder?: (next: string[]) => void | Promise<boolean | void>;
   onBack: () => void;
 }) {
   const atMax = tabKeys.length >= MAX_TABS;

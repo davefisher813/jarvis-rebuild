@@ -4,6 +4,7 @@ import LargeTitleNav from "../shared/LargeTitleNav";
 import { Capacitor } from "@capacitor/core";
 import { requestNotificationPermission, notificationPermissionState, type NotifyPermission } from "../shared/notifications";
 import { Head, Card, Switch, Foot } from "./kit";
+import { attemptWrite } from "../shared/guard";
 
 type Prefs = { overdue: boolean; events: boolean; goals: boolean; checkins: boolean };
 const DEFAULT: Prefs = { overdue: true, events: true, goals: true, checkins: true };
@@ -26,11 +27,18 @@ export default function NotificationsPage({ onBack }: { onBack: () => void }) {
   // own copy promises, the first time ANY switch goes on, not just Daily
   // check-ins. Turning off checkins while leaving events on used to leave
   // nothing that ever asked, so the event ladder was permanently blocked.
+  // SHELL-F-14 (2026-09-05): the switch flipped, the write failed, nothing
+  // said so, and the old setting was back on the next launch. Guarded, and
+  // the switch goes back to what is actually stored.
   const set = async (patch: Partial<Prefs>) => {
+    const prev = prefs;
     const next = { ...prefs, ...patch };
     setPrefs(next);
-    await svc.save({ notify: next });
+    const ok = await attemptWrite(() => svc.save({ notify: next }));
+    if (!ok) { setPrefs(prev); return; }
     if (Object.values(patch).some((on) => on === true)) await requestNotificationPermission();
+    // SHARED-F-02: whatever the ask returned, re-read the OS state so the
+    // foot and the locks below tell the truth about the answer just given.
     readPerm();
   };
   const native = Capacitor.isNativePlatform();

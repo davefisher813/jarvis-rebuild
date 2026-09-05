@@ -30,9 +30,11 @@ export default function ProfilePage({ onBack }: { onBack: () => void }) {
     });
     return () => { on = false; };
   }, [profile]);
+  // SHELL-F-14 (2026-09-05): the row latched "Saved" whether or not the
+  // write landed. The latch now follows the write.
   const save = async () => {
-    await profile.save({ name: name.trim() });
-    setSaved(true);
+    const ok = await attemptWrite(() => profile.save({ name: name.trim() }));
+    setSaved(ok);
   };
   // S3-Q20 (2026-09-04): Template was a dead read-only row, so the only way
   // to change Personal/Business/Student was Redo Setup -- the full ~15-tap

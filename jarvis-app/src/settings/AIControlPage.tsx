@@ -6,6 +6,7 @@ import { apiUrl } from "../shared/apiBase";
 import { AI_LEVELS, AI_PIN_KEYS, DEFAULT_AI_LEVEL, type AIControlState, type AILevel, type AIPinKey } from "../ai/aiGate";
 import { setAIControl } from "../ai/levelStore";
 import { Head, Card, Row, Menu } from "./kit";
+import { attemptWrite } from "../shared/guard";
 
 const LEVEL_LABEL: Record<AILevel, string> = {
   everything: "Everything",
@@ -61,10 +62,17 @@ export default function AIControlPage({ onBack }: { onBack: () => void }) {
       .catch(() => { /* the count is a fact or absent, never a guess */ });
   }, [token]);
 
+  // SHELL-F-14 (2026-09-05): the level applied to this session and then the
+  // write failed silently, so the next launch was back at the old level with
+  // nothing having said so. That is the worst place in the app to be wrong
+  // about what was saved: it is the setting that decides what JARVIS is
+  // allowed to do on its own. On a failure the session level goes back too.
   const apply = async (next: AIControlState) => {
+    const prev = ctrl;
     setCtrl(next);
     setAIControl(next);
-    await svc.save({ ai: next });
+    const ok = await attemptWrite(() => svc.save({ ai: next }));
+    if (!ok) { setCtrl(prev); setAIControl(prev); }
   };
   const setLevel = (level: AILevel) => { haptics.selection(); void apply({ ...ctrl, level }); };
   const setPin = (key: AIPinKey, v: string) => {

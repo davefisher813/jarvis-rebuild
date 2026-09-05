@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider, useCategories, useProfile } from "../data/NotesProvider";
+import { ProfileService } from "../profile/ProfileService";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import ProfilePage from "./ProfilePage";
 
 // S3-Q20 (2026-09-04): "Changing template means redoing intake." Template
@@ -75,6 +77,18 @@ describe("ProfilePage Template picker (S3-Q20)", () => {
     // when the account starts with none.
     const cats = await categoriesRef!.list();
     expect(cats.some((c) => c.data.name === "My Own Area")).toBe(true);
+  });
+
+  // SHELL-F-14 (2026-09-05): Save latched to "Saved" whether or not the
+  // write landed, so a failed rename read as a successful one.
+  it("a name that could not be saved does not read as saved, and says so", async () => {
+    renderPage("u-profile-failsave");
+    vi.spyOn(ProfileService.prototype, "save").mockRejectedValue(new Error("network"));
+    fireEvent.change(screen.getByPlaceholderText("Your Name"), { target: { value: "Dave" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: WRITE_FAILED_MESSAGE }));
+    expect(screen.getByText("Save")).toBeInTheDocument();
+    expect(screen.queryByText("Saved")).not.toBeInTheDocument();
   });
 
   it("picking the template already selected does nothing", () => {
