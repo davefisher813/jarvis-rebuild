@@ -21,7 +21,7 @@ export interface BillDraft {
 export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }: {
   mode: "new" | "edit";
   initial?: BillDraft;
-  onSave: (d: BillDraft) => void;
+  onSave: (d: BillDraft) => void | Promise<boolean | void>;
   onDelete?: () => void;
   onCancel: () => void;
 }) {
@@ -38,6 +38,9 @@ export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }:
   const [touched, setTouched] = useState(false);
   // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save creates
   // a bill, so two taps created two. The first valid tap latches.
+  // HMN-F-09 (2026-09-05): the latch had no way back, so a failed save read
+  // "Saving" until Cancel threw the typed bill away. The parent's false (or
+  // a throw) lifts it, the same unlatch every other sheet does.
   const [saving, setSaving] = useState(false);
 
   const valid = text.trim().length > 0 && amount.trim() !== "" && Number.isFinite(Number(amount)) && Number(amount) > 0;
@@ -46,7 +49,7 @@ export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }:
     if (saving) return;
     setSaving(true);
     const url = payUrl.trim();
-    onSave({
+    const r = onSave({
       text: text.trim(),
       due,
       recurrence,
@@ -57,6 +60,7 @@ export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }:
         ...(url ? { payUrl: /^https?:\/\//i.test(url) ? url : "https://" + url } : {}),
       },
     });
+    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
   };
 
   return (

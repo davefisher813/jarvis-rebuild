@@ -53,7 +53,7 @@ function billChip(t: TaskItem, today: string): { cls: string; text: string } | n
 const initialOf = (s: string) => (s.trim()[0] ?? "?").toUpperCase();
 
 function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
-  mode: "new" | "edit"; initial?: AccountData; onSave: (d: AccountData) => void; onDelete?: () => void; onCancel: () => void;
+  mode: "new" | "edit"; initial?: AccountData; onSave: (d: AccountData) => void | Promise<boolean | void>; onDelete?: () => void; onCancel: () => void;
 }) {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(initial?.name ?? "");
@@ -63,7 +63,17 @@ function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
   const valid = name.trim().length > 0 && balance.trim() !== "" && Number.isFinite(Number(balance));
   // Every save re-stamps asOf: the dated-balance line depends on it.
   // B12: Save creates an account, so two taps created two.
-  const save = () => { if (!valid) { setTouched(true); return; } if (saving) return; setSaving(true); onSave({ name: name.trim(), balance: Number(balance), kind, asOf: todayISO() }); };
+  // HMN-F-09 (2026-09-05): the B12 latch went in without an error path, so a
+  // failed write left this button reading "Saving" for good and ate every
+  // further tap. The parent's false (or a throw) unlatches it, the way every
+  // other sheet in the app has done since BRAIN-F-09.
+  const save = () => {
+    if (!valid) { setTouched(true); return; }
+    if (saving) return;
+    setSaving(true);
+    const r = onSave({ name: name.trim(), balance: Number(balance), kind, asOf: todayISO() });
+    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
+  };
   // THE ACCOUNT SHEET ON THE SHEET BAR (2026-09-02): the name as the row,
   // the balance typed at the right, the type as a value that opens the
   // dropdown, Delete as the last group.
@@ -86,7 +96,7 @@ function AccountSheet({ mode, initial, onSave, onDelete, onCancel }: {
 }
 
 function PaydaySheet({ initial, onSave, onRemove, onCancel }: {
-  initial?: PaydayInfo; onSave: (p: PaydayInfo) => void; onRemove?: () => void; onCancel: () => void;
+  initial?: PaydayInfo; onSave: (p: PaydayInfo) => void | Promise<boolean | void>; onRemove?: () => void; onCancel: () => void;
 }) {
   const [saving, setSaving] = useState(false);
   const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
@@ -94,7 +104,14 @@ function PaydaySheet({ initial, onSave, onRemove, onCancel }: {
   const [freq, setFreq] = useState<PaydayFreq>(initial?.freq ?? "biweekly");
   const [touched, setTouched] = useState(false);
   const valid = amount.trim() !== "" && Number(amount) > 0 && !!next;
-  const save = () => { if (!valid) { setTouched(true); return; } if (saving) return; setSaving(true); onSave({ amount: Number(amount), next, freq }); };
+  // HMN-F-09 (2026-09-05): same unlatch as the account sheet above.
+  const save = () => {
+    if (!valid) { setTouched(true); return; }
+    if (saving) return;
+    setSaving(true);
+    const r = onSave({ amount: Number(amount), next, freq });
+    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
+  };
   return (
     <FormSheet title="Payday" onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
       <Group label="Paycheck">
@@ -175,7 +192,9 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     if (!isFinite(amt) || amt <= 0) { showToast({ message: "Needs an amount over zero" }); return; }
     if (!goalsSvc) return;
     const d = todayISO();
-    await goalsSvc.update(g.id, { saved: [...(g.data.saved ?? []), { d, amount: amt }] });
+    // HMN-F-09: the receipt below is a claim that the money landed, so it
+    // fires only after the write resolved.
+    if (!(await attemptWrite(() => goalsSvc.update(g.id, { saved: [...(g.data.saved ?? []), { d, amount: amt }] })))) return;
     setSaveInto(null); setSaveAmt("");
     await loadGoals();
     showToast({ message: formatMoney(amt) + " toward " + g.data.title });
@@ -280,19 +299,30 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   }, [openAccountId, openNonce, accounts]);
 
   const editing = sheet.kind === "edit" ? accounts.find((a) => a.id === sheet.id) : undefined;
-  const save = async (d: AccountData) => {
-    if (sheet.kind === "new") await svc.create(d); else if (sheet.kind === "edit") await svc.update(sheet.id, d);
+  // HMN-F-09 (2026-09-05): Money was the last module writing outside the
+  // guard. Every write below runs through attemptWrite, so a rejection says
+  // "Couldn't save" instead of nothing, and the sheet keeps what was typed.
+  const save = async (d: AccountData): Promise<boolean> => {
+    const ok = await attemptWrite(async () => {
+      if (sheet.kind === "new") await svc.create(d); else if (sheet.kind === "edit") await svc.update(sheet.id, d);
+    });
+    if (!ok) return false;
     setSheet({ kind: "closed" }); await reload();
+    return true;
   };
 
   const editingBill = billSheet.kind === "edit" ? bills.find((b) => b.id === billSheet.id) : undefined;
-  const saveBill = async (d: BillDraft) => {
-    if (billSheet.kind === "new") {
-      await tasksSvc.createTask(d.text, { due: d.due || null, recurrence: d.recurrence ?? undefined, bill: d.bill });
-    } else if (billSheet.kind === "edit") {
-      await tasksSvc.updateBillTask(billSheet.id, { text: d.text, due: d.due || null, recurrence: d.recurrence, bill: d.bill });
-    }
+  const saveBill = async (d: BillDraft): Promise<boolean> => {
+    const ok = await attemptWrite(async () => {
+      if (billSheet.kind === "new") {
+        await tasksSvc.createTask(d.text, { due: d.due || null, recurrence: d.recurrence ?? undefined, bill: d.bill });
+      } else if (billSheet.kind === "edit") {
+        await tasksSvc.updateBillTask(billSheet.id, { text: d.text, due: d.due || null, recurrence: d.recurrence, bill: d.bill });
+      }
+    });
+    if (!ok) return false;
     setBillSheet({ kind: "closed" }); await reload();
+    return true;
   };
 
   const markPaid = async (b: TaskItem) => {
@@ -305,7 +335,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
       showToast({ message: "Already paid · Next rolls in" });
       return;
     }
-    await tasksSvc.toggleDone(b.id);
+    if (!(await attemptWrite(() => tasksSvc.toggleDone(b.id)))) return;
     await reload();
   };
 
@@ -587,7 +617,10 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                     key={t.id}
                     item={t}
                     today={today}
-                    onToggle={(id) => void (async () => { await tasksSvc.toggleDone(id); await reload(); })()}
+                    onToggle={(id) => void (async () => {
+                      if (!(await attemptWrite(() => tasksSvc.toggleDone(id)))) return;
+                      await reload();
+                    })()}
                     onOpen={onOpenTask}
                     onDelete={(id) => void deleteTagged(id)}
                   />
@@ -637,13 +670,14 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
             // Toast + Undo (2026-08-09): Money was the only surface where a
             // delete just made the thing vanish. Same contract as everywhere.
             const gone = editing ? { ...editing.data } : null;
-            await svc.remove(sheet.id);
+            // HMN-F-09: "Account deleted" is a claim, so it waits for the write.
+            if (!(await attemptWrite(() => svc.remove(sheet.id)))) return;
             setSheet({ kind: "closed" });
             await reload();
             showToast({
               message: "Account deleted",
               actionLabel: "Undo",
-              onAction: async () => { if (gone) await svc.create(gone); await reload(); },
+              onAction: async () => { if (gone) await attemptWrite(() => svc.create(gone)); await reload(); },
             });
           } : undefined}
           onCancel={() => setSheet({ kind: "closed" })} />
@@ -655,14 +689,17 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
           onDelete={billSheet.kind === "edit" ? async () => {
             const gone = editingBill ? { ...editingBill.data } : null;
             const id = billSheet.id;
+            // HMN-F-09: the sheet used to close before the write, so a failed
+            // delete took the bill sheet away and left the bill. It closes
+            // after, and only when the delete actually happened.
+            if (!(await attemptWrite(() => tasksSvc.deleteTask(id)))) return;
             setBillSheet({ kind: "closed" });
-            await tasksSvc.deleteTask(id);
             await reload();
             showToast({
               message: "Bill deleted",
               actionLabel: "Undo",
               onAction: async () => {
-                if (gone) await tasksSvc.createTask(gone.text, { due: gone.due ?? null, recurrence: gone.recurrence ?? undefined, bill: gone.bill });
+                if (gone) await attemptWrite(() => tasksSvc.createTask(gone.text, { due: gone.due ?? null, recurrence: gone.recurrence ?? undefined, bill: gone.bill }));
                 await reload();
               },
             });
@@ -671,16 +708,20 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
       )}
       {paydayOpen && (
         <PaydaySheet initial={payday}
-          onSave={async (p) => { await profileSvc.save({ payday: p }); setPaydayOpen(false); await reload(); }}
+          onSave={async (p) => {
+            if (!(await attemptWrite(() => profileSvc.save({ payday: p })))) return false;
+            setPaydayOpen(false); await reload();
+            return true;
+          }}
           onRemove={payday ? async () => {
             // B10: one scalar with its old value in hand; the cheapest undo
             // in the whole app, and it was missing.
             const kept = payday;
-            await profileSvc.save({ payday: undefined });
+            if (!(await attemptWrite(() => profileSvc.save({ payday: undefined })))) return;
             setPaydayOpen(false);
             await reload();
             showToast({ message: "Payday removed", actionLabel: "Undo", onAction: () => void (async () => {
-              await profileSvc.save({ payday: kept });
+              await attemptWrite(() => profileSvc.save({ payday: kept }));
               await reload();
             })() });
           } : undefined}

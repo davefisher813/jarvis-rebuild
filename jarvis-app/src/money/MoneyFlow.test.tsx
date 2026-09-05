@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { useEffect, useState } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -181,6 +181,70 @@ function AccountLink() {
     </>
   ) : null;
 }
+
+// HMN-F-09 (2026-09-05): ten Money writes ran outside attemptWrite. A save on
+// a bad connection latched the button on "Saving" with no toast and nothing
+// stored, and Cancel (which throws the typing away) was the only way out.
+import { MoneyService } from "./MoneyService";
+import { TasksService } from "../tasks/TasksService";
+import { subscribeToast, resetToasts } from "../shared/toast";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
+
+describe("Money writes that fail say so and give the button back (HMN-F-09)", () => {
+  afterEach(() => { vi.restoreAllMocks(); resetToasts(); });
+
+  it("a failed account save toasts, unlatches Save, and keeps what was typed", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    vi.spyOn(MoneyService.prototype, "create").mockRejectedValue(new Error("offline"));
+    render(<NotesProvider userId="fail-acct"><MoneyFlow /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Add an Account"));
+    fireEvent.change(screen.getByPlaceholderText("e.g. Checking"), { target: { value: "Savings" } });
+    fireEvent.change(screen.getByPlaceholderText("0"), { target: { value: "5000" } });
+    fireEvent.click(screen.getByText("Save"));
+
+    await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
+    // The sheet is still here, the typing is still in it, and Save is a
+    // button again rather than a permanent "Saving".
+    await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
+    expect(screen.queryByText("Saving")).not.toBeInTheDocument();
+    expect((screen.getByLabelText("Account name") as HTMLInputElement).value).toBe("Savings");
+    stop();
+  });
+
+  it("a failed bill save toasts and unlatches Save", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    vi.spyOn(TasksService.prototype, "createTask").mockRejectedValue(new Error("offline"));
+    render(<NotesProvider userId="fail-bill"><MoneyFlow /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Add a Bill"));
+    fireEvent.change(screen.getByPlaceholderText("e.g. Rent"), { target: { value: "Electric" } });
+    fireEvent.change(screen.getByPlaceholderText("0"), { target: { value: "120" } });
+    fireEvent.click(screen.getByText("Save"));
+
+    await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
+    await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
+    expect(screen.queryByText("Saving")).not.toBeInTheDocument();
+    expect((screen.getByLabelText("Bill name") as HTMLInputElement).value).toBe("Electric");
+    stop();
+  });
+
+  it("a failed mark paid says so instead of nothing", async () => {
+    const seen: string[] = [];
+    render(<NotesProvider userId="fail-paid"><MoneyFlow /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Add a Bill"));
+    fireEvent.change(screen.getByPlaceholderText("e.g. Rent"), { target: { value: "Electric" } });
+    fireEvent.change(screen.getByPlaceholderText("0"), { target: { value: "120" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(screen.getByText("Electric")).toBeInTheDocument());
+
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    vi.spyOn(TasksService.prototype, "toggleDone").mockRejectedValue(new Error("offline"));
+    fireEvent.click(screen.getByLabelText("Mark paid"));
+    await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
+    stop();
+  });
+});
 
 describe("a Money search hit opens the account (SHELL-F-21)", () => {
   it("opens that account, and a later visit to the tab does not", async () => {
