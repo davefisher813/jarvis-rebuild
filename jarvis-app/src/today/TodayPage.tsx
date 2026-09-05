@@ -187,6 +187,7 @@ export default function TodayPage({
   onEditRoutine,
   onOpenBlock,
   onSeeAllTasks,
+  onSeeAllOpen,
   onSeeAllOverdue,
   onGoBigger,
   movedLine,
@@ -289,6 +290,10 @@ export default function TodayPage({
   onRetimeBlock?: (id: string, startMin: number) => void;
   onResizeBlock?: (id: string, endMin: number) => void;
   onSeeAllTasks: () => void;
+  // TODAY-F-16 (2026-09-05): the door for the OPEN list this page draws
+  // (overdue plus due today), which is not the same list as the due tile's.
+  // Optional; falls back to onSeeAllTasks when the flow does not pass it.
+  onSeeAllOpen?: () => void;
   // WAVE 4 (2026-08-29). Optional so the page still works without it; when
   // absent the red pill falls back to the unfiltered tab it always had.
   onSeeAllOverdue?: () => void;
@@ -455,6 +460,7 @@ export default function TodayPage({
   const EVENING_TASKS_SHOWN = 5;
   const shownTasks = evening ? tasks.slice(0, EVENING_TASKS_SHOWN) : tasks;
   const foldedTasks = tasks.length - shownTasks.length;
+  const openDoor = onSeeAllOpen ?? onSeeAllTasks;
   const tasksSection = tasks.length > 0 && (
     <>
       {/* WAVE 4, DUPLICATE DOORS (2026-08-29). "See All" here and the fold
@@ -463,15 +469,21 @@ export default function TodayPage({
           was also on screen. The receipt wins where they overlap because it
           names the number it is hiding; the head keeps the job the rest of
           the day, when nothing is folded. */}
+      {/* TODAY-F-16 (2026-09-05): both doors out of this section land where
+          the section's own rows live. The list is overdue plus due today, and
+          onSeeAllTasks opened Tasks on its default Today filter, which
+          excludes overdue: "3 More still open" promised eight and delivered
+          three or four. The due tile keeps onSeeAllTasks, because that tile
+          really does count only what is due today. */}
       <div className="sh2 sh2-quiet"><span className="t">{evening ? "Still Open" : "Today’s Tasks"}</span>
-        {foldedTasks <= 0 && <button className="see-all pill-action" onClick={onSeeAllTasks}>See All</button>}</div>
+        {foldedTasks <= 0 && <button className="see-all pill-action" onClick={openDoor}>See All</button>}</div>
       <div>
         <div>
           {shownTasks.map((t) => (
             <TaskRow key={t.id} t={t} u={evening ? null : urgencyFor(t.data, today)} parent={parentOf?.(t)} today={today} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
           ))}
           {foldedTasks > 0 && (
-            <button className="receipt-line" onClick={onSeeAllTasks}>
+            <button className="receipt-line" onClick={openDoor}>
               <span className="rl-t">{capAfterNumber(`${foldedTasks} More still open`)}</span>
               <div className="chev" />
             </button>

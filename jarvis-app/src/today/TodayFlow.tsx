@@ -2554,6 +2554,12 @@ export default function TodayFlow({
       onProfile={onProfile}
       onSeeAllSchedule={onGoSchedule}
       onSeeAllTasks={onGoTasks}
+      // TODAY-F-16 (2026-09-05): the "all" door landed in AppShell with WAVE
+      // 4 and this flow has accepted it ever since without ever passing it
+      // on, so Still Open's See All and its "N More still open" receipt both
+      // opened Tasks on the Today filter, which hides every overdue row the
+      // receipt had just counted.
+      onSeeAllOpen={onGoTasksAll ?? onGoTasks}
       onSeeAllOverdue={onGoTasksOverdue}
       onGoBigger={onGoBigger ? () => onGoBigger() : undefined}
       movedLine={movedLine(movedGoals)}

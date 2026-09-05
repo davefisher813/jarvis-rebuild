@@ -255,6 +255,35 @@ describe("TodayPage", () => {
     expect(screen.getByText("3 More still open")).toBeInTheDocument();
   });
 
+  // TODAY-F-16 (2026-09-05): the receipt counts overdue rows, so it cannot
+  // land on a filter that hides them.
+  it("both doors out of Still Open open the list the section is actually showing", () => {
+    const many = Array.from({ length: 8 }, (_, i) => tk("t" + i, "2026-05-20"));
+    const doors: string[] = [];
+    render(
+      <TodayPage {...base}
+        evening={{ doneDue: 2, dueTotal: 3, eventsLeft: 0, openCount: 8, thingsDone: 2 }}
+        tasks={many} onUpNext={() => {}}
+        onSeeAllTasks={() => doors.push("due-only")}
+        onSeeAllOpen={() => doors.push("open")} />,
+    );
+    fireEvent.click(screen.getByText("3 More still open"));
+    expect(doors).toEqual(["open"]);
+  });
+
+  it("the head See All opens the open list too, when nothing is folded", () => {
+    const doors: string[] = [];
+    render(
+      <TodayPage {...base}
+        evening={{ doneDue: 1, dueTotal: 2, eventsLeft: 0, openCount: 2, thingsDone: 1 }}
+        onUpNext={() => {}}
+        onSeeAllTasks={() => doors.push("due-only")}
+        onSeeAllOpen={() => doors.push("open")} />,
+    );
+    fireEvent.click(screen.getByText("See All"));
+    expect(doors).toEqual(["open"]);
+  });
+
   it("renders Your Day and Tomorrow sections", () => {
     render(<TodayPage {...base} />);
     expect(screen.getByText("Your Day")).toBeInTheDocument();
