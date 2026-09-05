@@ -73,12 +73,25 @@ export interface OutboxItem {
 
 const KEY = "jarvis.mail.outbox.v1";
 
+// EMAIL-F-05 (2026-09-05): "A send interrupted mid-flight is stuck as
+// Sending forever, with no controls." "sending" only ever means "in flight
+// in a JS closure"; once the app is killed, reloaded, or the process is
+// otherwise gone, that closure no longer exists and nothing can ever move
+// the item on. So a stored "sending" is, on the next load, an INTERRUPTED
+// send: whether the mail actually went is unknowable from here, which is
+// why it comes back as failed with this line (Retry and Discard both on
+// offer) rather than as held (an automatic retry is a possible double send,
+// the one failure worse than a slow one).
+export const INTERRUPTED_LINE = "Interrupted · Check Sent, then Retry";
+
 export function loadOutbox(storage: Pick<Storage, "getItem"> = localStorage): OutboxItem[] {
   try {
     const raw = JSON.parse(storage.getItem(KEY) || "[]") as unknown;
     if (!Array.isArray(raw)) return [];
-    return raw.filter((x): x is OutboxItem =>
-      !!x && typeof x === "object" && typeof (x as OutboxItem).id === "string" && typeof (x as OutboxItem).dueMs === "number");
+    return raw
+      .filter((x): x is OutboxItem =>
+        !!x && typeof x === "object" && typeof (x as OutboxItem).id === "string" && typeof (x as OutboxItem).dueMs === "number")
+      .map((x) => (x.state === "sending" ? { ...x, state: "failed" as const, error: INTERRUPTED_LINE } : x));
   } catch {
     return [];
   }

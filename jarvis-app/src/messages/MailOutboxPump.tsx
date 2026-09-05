@@ -3,7 +3,7 @@ import { useGoogle } from "../connections/google/GoogleSession";
 import type { AIService } from "../ai/AIService";
 import { useOptionalProfile, useOptionalTasks } from "../data/NotesProvider";
 import { useOptionalSession } from "../auth/AuthProvider";
-import { pumpOutbox, type SendDeps } from "./sendPump";
+import { pumpOutbox, sweepInterruptedSends, type SendDeps } from "./sendPump";
 
 // EMAIL-F-01 (2026-09-05): the always-alive timer behind the Email tab's
 // own outbox (Send, Schedule Send, and the Sweep's Send & Next). Mounted once
@@ -33,6 +33,10 @@ export default function MailOutboxPump({ ai }: { ai: AIService }) {
     trackOpens,
     authToken: session?.access_token,
   }), [g, ai, tasks, trackOpens, session]);
+
+  // EMAIL-F-05: once per process, before the first tick, anything left
+  // marked "sending" by a process that died is surfaced as interrupted.
+  useEffect(() => { sweepInterruptedSends(); }, []);
 
   useEffect(() => {
     const t = setInterval(() => pumpOutbox(Date.now(), deps), 1000);

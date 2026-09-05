@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   loadOutbox, saveOutbox, holdUntil, dueNow, secondsLeft, holdLine, whenLabel, sendSlots,
-  HOLD_SECONDS, type OutboxItem,
+  HOLD_SECONDS, INTERRUPTED_LINE, type OutboxItem,
 } from "./outbox";
 
 const NOW = new Date("2026-08-20T10:00:00").getTime();
@@ -50,6 +50,22 @@ describe("undo send", () => {
   it("survives a corrupt store without taking the tab down", () => {
     expect(loadOutbox({ getItem: () => "{not json" })).toEqual([]);
     expect(loadOutbox({ getItem: () => '[{"nope":1}]' })).toEqual([]);
+  });
+
+  // EMAIL-F-05 (2026-09-05): "A send interrupted mid-flight is stuck as
+  // Sending forever." Verified by running: a stored "sending" item loaded
+  // back as sending, dueNow picked 0, and the card showed no buttons. A
+  // stored "sending" is a closure that no longer exists; on load it is an
+  // interrupted send with Retry and Discard, never held (an automatic retry
+  // is a possible double send) and never stuck.
+  it("a stored sending item comes back as an interrupted failure, not stuck and not auto-resent", () => {
+    let v: string | null = null;
+    const st = { getItem: () => v, setItem: (_k: string, s: string) => { v = s; } };
+    saveOutbox([item({ state: "sending", dueMs: NOW - 5000 })], st);
+    const [loaded] = loadOutbox(st);
+    expect(loaded!.state).toBe("failed");
+    expect(loaded!.error).toBe(INTERRUPTED_LINE);
+    expect(dueNow([loaded!], NOW)).toEqual([]);
   });
 });
 

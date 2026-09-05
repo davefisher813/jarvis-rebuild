@@ -27,7 +27,8 @@ import type { AIService } from "../ai/AIService";
 import type { TasksService } from "../tasks/TasksService";
 import { encodeEmail } from "../connections/google/map";
 import { humanError } from "../connections/google/humanError";
-import { getOutbox, patchOutbox, removeFromOutbox, dueNow, type OutboxItem } from "./outbox";
+import { getOutbox, patchOutbox, removeFromOutbox, enqueueOutbox, dueNow, INTERRUPTED_LINE, type OutboxItem } from "./outbox";
+import { getTodayOutbox, removeTodaySend } from "./todayOutbox";
 import { saveTrack, newTrackId, pixelUrlFor, registerTrack } from "./tracking";
 import { setChase, clearChase } from "./followUp";
 import { countNudge } from "./escalate";
@@ -153,6 +154,31 @@ export async function processOutboxSend(item: OutboxItem, deps: SendDeps): Promi
     showToast({ message: "Couldn't send · In your email outbox to retry" });
   } finally {
     inFlight.delete(item.id);
+  }
+}
+
+// EMAIL-F-05 (2026-09-05): the stale-sending sweep, run once when the pump
+// mounts, which is once per app process. Anything still marked "sending"
+// at that moment was in flight in a process that no longer exists, so it is
+// an interrupted send, not a live one. The mail queue's own loader already
+// maps that on read (outbox.ts); this covers the Today queue, which has no
+// card of its own: an interrupted Today send graduates into the mail outbox
+// as failed with the same line, where Retry, Edit and Discard live, instead
+// of sitting in a store nothing will ever pick up again.
+export function sweepInterruptedSends(): void {
+  for (const item of getOutbox()) {
+    if (item.state === "sending" && !inFlight.has(item.id)) {
+      patchOutbox(item.id, { state: "failed", error: INTERRUPTED_LINE });
+    }
+  }
+  for (const t of getTodayOutbox()) {
+    if (t.state !== "sending") continue;
+    enqueueOutbox({
+      id: t.id, account: t.account, to: t.to, subject: t.subject, body: t.body,
+      inReplyTo: t.inReplyTo, threadId: t.threadId, dueMs: t.dueMs, scheduled: false,
+      state: "failed", error: INTERRUPTED_LINE,
+    });
+    removeTodaySend(t.id);
   }
 }
 

@@ -10,7 +10,8 @@ import { AIService } from "../ai/AIService";
 import MessagesFlow from "./MessagesFlow";
 import MailOutboxPump from "./MailOutboxPump";
 import ToastHost from "../shared/ToastHost";
-import { enqueueOutbox, getOutbox, loadOutbox, patchOutbox, resetOutboxForTest, type OutboxItem } from "./outbox";
+import { enqueueOutbox, getOutbox, loadOutbox, patchOutbox, resetOutboxForTest, INTERRUPTED_LINE, type OutboxItem } from "./outbox";
+import { enqueueTodaySend, getTodayOutbox, markTodaySendState, resetTodayOutboxForTest } from "./todayOutbox";
 import { processOutboxSend, type SendDeps } from "./sendPump";
 import { loadNudgeCounts } from "./escalate";
 import { loadChases, setChase } from "./followUp";
@@ -90,6 +91,53 @@ describe("MailOutboxPump: a queued send leaves while the Email tab is unmounted"
     enqueueOutbox(item({ id: "sched", scheduled: true, dueMs: Date.now() - 1000 }));
     await waitFor(() => expect(sent).toHaveLength(1), { timeout: 4000 });
     await waitFor(() => expect(getOutbox()).toHaveLength(0));
+  });
+});
+
+// EMAIL-F-05 (2026-09-05): the stale-sending sweep on mount. The Today
+// queue had the same shape with no card at all: an item left "sending" by a
+// killed process was simply never retried and never shown.
+describe("MailOutboxPump: the stale-sending sweep on mount", () => {
+  it("a Today send left mid-flight by a dead process surfaces in the mail outbox as interrupted", () => {
+    resetTodayOutboxForTest();
+    enqueueTodaySend({ to: "wei@x.com", subject: "Re: Waiver", body: "On it", threadId: "th1", todayKind: "reply" });
+    const [queued] = getTodayOutbox();
+    markTodaySendState(queued!.id, "sending");
+    render(
+      <NotesProvider userId="u1">
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+          <MailOutboxPump ai={noAI} />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    expect(getTodayOutbox()).toHaveLength(0);
+    const landed = getOutbox().find((o) => o.id === queued!.id);
+    expect(landed).toBeDefined();
+    expect(landed!.state).toBe("failed");
+    expect(landed!.error).toBe(INTERRUPTED_LINE);
+    expect(landed!.body).toBe("On it");
+  });
+
+  it("a mail send stored as sending by a dead process reads as interrupted, and the pump never auto-resends it", async () => {
+    localStorage.setItem("jarvis.mail.outbox.v1", JSON.stringify([item({ id: "stuck", state: "sending", dueMs: Date.now() - 60_000 })]));
+    resetOutboxForTest();
+    let sends = 0;
+    const api = makeFakeGoogleApi({ sendMessage: async () => { sends += 1; return { id: "s1" }; } });
+    render(
+      <NotesProvider userId="u1">
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}>
+          <MailOutboxPump ai={noAI} />
+          <Connector />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    fireEvent.click(await screen.findByText("connect"));
+    await screen.findByText("tokened");
+    expect(getOutbox()[0]!.state).toBe("failed");
+    expect(getOutbox()[0]!.error).toBe(INTERRUPTED_LINE);
+    await new Promise((r) => setTimeout(r, 1300));
+    expect(sends).toBe(0);
+    expect(getOutbox()).toHaveLength(1);
   });
 });
 

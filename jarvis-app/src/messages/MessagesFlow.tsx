@@ -95,7 +95,7 @@ import { loadLetGo, letGo, undoLetGo } from "./letGo";
 import { closeCandidates, closeLine, amnestyDue, amnestyLine, amnestyPromise, markClosed, lastClose } from "./weeklyClose";
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
 import { attachOffer, amountIn } from "./attachmentKind";
-import { enqueueOutbox, removeFromOutbox, patchOutbox, holdUntil, sendSlots, holdLine, whenLabel, type OutboxItem } from "./outbox";
+import { enqueueOutbox, removeFromOutbox, patchOutbox, holdUntil, sendSlots, holdLine, whenLabel, INTERRUPTED_LINE, type OutboxItem } from "./outbox";
 import { useOutbox } from "./useOutbox";
 import { subscribeSent } from "./sendPump";
 import { loadWindows, saveWindows, isOpenNow, closedLine, peekLine, type WindowSettings } from "./batching";
@@ -1389,6 +1389,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // back to held, due immediately, so the pump picks it up on its next tick.
   const sendNowFor = (id: string) => patchOutbox(id, { dueMs: Date.now() });
   const retrySend = (id: string) => patchOutbox(id, { state: "held", dueMs: Date.now(), error: undefined });
+  // EMAIL-F-05 (2026-09-05): Discard, for a failed or interrupted send he
+  // has checked on and does not want to send again. Reversible without a
+  // confirm: the card goes and the toast's Undo puts it back exactly as it
+  // was, failed, with its words intact.
+  const discardSend = (id: string) => {
+    const item = outbox.find((o) => o.id === id);
+    if (!item) return;
+    removeFromOutbox(id);
+    say("Discarded", { label: "Undo", run: () => enqueueOutbox(item) });
+  };
 
   const openThread = async (id: string) => {
     const api = apiFor(accountOfThread(id));
@@ -2831,6 +2841,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           onNow={() => sendNowFor(item.id)}
           onRetry={() => retrySend(item.id)}
           onEdit={() => pullBackToCompose(item.id)}
+          onDiscard={() => discardSend(item.id)}
         />
       ))}
       {/* The tripwire, defused (2026-08-22): this row used to TURN THE
@@ -3650,9 +3661,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 // held (or scheduled): Undo + Send Now, counting down or naming the moment.
 // sending: no actions, it is already in flight. failed: the error, plus
 // Retry (send again as-is) and Edit (pull it back into the composer).
+// EMAIL-F-05 (2026-09-05): a send interrupted by a reload or a kill comes
+// back FAILED with outbox.ts's INTERRUPTED_LINE, and its card may not claim
+// "Could Not Send" (it may well have gone): it says Send Interrupted, and
+// every failed card also offers Discard, for the case where he checks Sent
+// and finds it there.
 function SendHold({
-  item, onUndo, onNow, onRetry, onEdit,
-}: { item: OutboxItem; onUndo: () => void; onNow: () => void; onRetry: () => void; onEdit: () => void }) {
+  item, onUndo, onNow, onRetry, onEdit, onDiscard,
+}: { item: OutboxItem; onUndo: () => void; onNow: () => void; onRetry: () => void; onEdit: () => void; onDiscard: () => void }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (item.state !== "held") return;
@@ -3661,19 +3677,21 @@ function SendHold({
   }, [item.state]);
 
   if (item.state === "failed") {
+    const interrupted = item.error === INTERRUPTED_LINE;
     return (
       <div className="pad-x">
         <div className="card send-hold">
           <div className="row">
             <div className="row-glyph cat-fg-red"><Send className="ic" /></div>
             <div className="row-grow">
-              <div className="conn-name">Could Not Send</div>
+              <div className="conn-name">{interrupted ? "Send Interrupted" : "Could Not Send"}</div>
               <div className="conn-meta">{item.error || "Try again"}</div>
             </div>
           </div>
           <div className="row row-acts">
             <button className="pill-act" onClick={onEdit}>Edit</button>
             <button className="btn-sm" onClick={onRetry}>Retry</button>
+            <button className="quiet-action" onClick={onDiscard}>Discard</button>
           </div>
         </div>
       </div>

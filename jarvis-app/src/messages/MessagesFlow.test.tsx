@@ -652,6 +652,35 @@ describe("MessagesFlow (threads)", () => {
     await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
   });
 
+  // EMAIL-F-05 (2026-09-05): the card for a send that was mid-flight when
+  // the app died used to read "Sending · On its way" with no buttons, for
+  // good. It reads as interrupted now, with every way out on it.
+  it("a send interrupted by a reload comes back with Retry, Edit and Discard, and Discard undoes", async () => {
+    localStorage.setItem("jarvis.mail.outbox.v1", JSON.stringify([{
+      id: "stuck", to: "wei@x.com", subject: "Re: Waiver", body: "On it",
+      dueMs: Date.now() - 60_000, scheduled: false, state: "sending",
+    }]));
+    resetOutboxForTest();
+    let sends = 0;
+    const api = makeApi({ sendMessage: async () => { sends += 1; return { id: "s1" }; } });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    expect(await screen.findByText("Send Interrupted")).toBeInTheDocument();
+    expect(screen.getByText("Interrupted · Check Sent, then Retry")).toBeInTheDocument();
+    expect(screen.queryByText("On its way")).toBeNull();
+    expect(screen.getByText("Retry")).toBeInTheDocument();
+    expect(screen.getByText("Edit")).toBeInTheDocument();
+    // Nothing resent on its own: that is his call after checking Sent.
+    expect(sends).toBe(0);
+    fireEvent.click(screen.getByText("Discard"));
+    await waitFor(() => expect(screen.queryByText("Send Interrupted")).toBeNull());
+    expect(loadOutbox()).toHaveLength(0);
+    fireEvent.click(screen.getByText("Undo"));
+    expect(await screen.findByText("Send Interrupted")).toBeInTheDocument();
+    expect(loadOutbox()[0]!.body).toBe("On it");
+    expect(sends).toBe(0);
+  });
+
   // S2-5 (2026-09-04): "Everything JARVIS learns about your mail is
   // device-only." Muting is one of the four stores that used to live in
   // localStorage alone; this checks the mirror actually reaches the profile,
