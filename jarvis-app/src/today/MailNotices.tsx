@@ -10,6 +10,8 @@ import {
 import type { MailAct } from "../messages/mailAct";
 import { loadSnoozes, snoozeNotice, sleepingNow, snoozeChoices } from "../messages/snoozeNotice";
 import { quickAnswers } from "../messages/quickAnswers";
+import { removeTodaySend } from "../messages/todayOutbox";
+import { HOLD_SECONDS } from "../messages/outbox";
 import { dayPhrase } from "../money/bills";
 
 // Email on the home page, rebuilt (Dave 2026-08-20). The count is gone; what
@@ -78,7 +80,9 @@ export default function MailNotices({
   // a blank message to send over his name.
   onDraft?: (n: MailNotice) => Promise<string>;
   // U1/U2/U3: send it. Returns true only on a real send.
-  onSend?: (n: MailNotice, body: string) => Promise<boolean>;
+  // TODAY-F-06 (2026-09-05): the id of the HELD send, or null if it never
+  // made the queue. A boolean could not be undone.
+  onSend?: (n: MailNotice, body: string) => Promise<string | null>;
   // N1: book the slot, accept it in writing, and block the time. One tap for
   // what is otherwise three decisions.
   // Returns the receipt to show, or null when nothing was booked. A string
@@ -255,17 +259,32 @@ export default function MailNotices({
     })();
   };
 
+  // TODAY-F-06 (2026-09-05): "Quick-reply chips and Send: one tap, a real
+  // email, no undo, 'Reply sent' before anything is sent." A chip is one tap
+  // with no confirm, and the toast said "Reply sent" at the moment the
+  // message went into a 12-second hold that no screen rendered and nothing
+  // could cancel: a brush of the thumb sent an email over his name with no
+  // way back. The hold was always there; this is the affordance S2-2 never
+  // built. The toast tells the truth about what is happening and stays for
+  // the whole hold, and Undo pulls the message back out of the queue and
+  // puts the card back on Today.
   const send = async (n: MailNotice, body: string) => {
     if (!body.trim()) return;
     haptics.selection();
     setDrafts((d) => ({ ...d, [n.key]: { text: body, sending: true } }));
-    const ok = await onSend!(n, body.trim());
-    if (!ok) {
+    const id = await onSend!(n, body.trim());
+    if (!id) {
       setDrafts((d) => ({ ...d, [n.key]: { text: body, sending: false } }));
       showToast({ message: "Couldn't send · Nothing was lost" });
       return;
     }
-    finish(n, n.kind === "nudge" ? "Nudge sent" : "Reply sent");
+    markDone(n.key);
+    setDrafts((d) => { const x = { ...d }; delete x[n.key]; return x; });
+    showToast({
+      message: "Sending in " + HOLD_SECONDS + "s",
+      actionLabel: "Undo",
+      onAction: () => { removeTodaySend(id); unmarkDone(n.key); },
+    }, HOLD_SECONDS * 1000);
   };
 
   // EMPTINESS IS THE COMPONENT'S OWN FACT (2026-08-21). Email now sits under

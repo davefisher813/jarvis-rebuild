@@ -4,6 +4,8 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import MailNotices from "./MailNotices";
 import { saveMailSnapshot, type MailSnapshot } from "../messages/home";
+import { enqueueTodaySend, getTodayOutbox, resetTodayOutboxForTest } from "../messages/todayOutbox";
+import { subscribeToast, hideToast, type ToastState } from "../shared/toast";
 
 const TODAY = "2026-08-20";
 
@@ -135,5 +137,54 @@ describe("MailNotices: Delete", () => {
     fireEvent.click(container.querySelector(".notice-delete")!);
     await new Promise((r) => setTimeout(r, 0));
     expect(container.querySelectorAll(".pad-x")).toHaveLength(1);
+  });
+});
+
+// TODAY-F-06 (2026-09-05): "Quick-reply chips and Send: one tap, a real
+// email, no undo, 'Reply sent' before anything is sent." One tap of a chip,
+// no confirm, and the toast said "Reply sent" while the message sat in a
+// 12-second hold that no screen rendered and nothing could cancel. The hold
+// was always there; the way back was not.
+describe("MailNotices: a chip holds the send", () => {
+  beforeEach(() => { localStorage.clear(); resetTodayOutboxForTest(); hideToast(); });
+
+  const withChips = (onSend: (n: unknown, body: string) => Promise<string | null>) => {
+    saveMailSnapshot(snap({ needsYou: 1, threads: [thread("t1", "Nadia Brandt", "invoice attached")] }));
+    return render(
+      <MailNotices
+        today={TODAY}
+        nowHHMM="09:00"
+        onAddTask={async () => true}
+        onDraft={async () => "Yes"}
+        onSend={onSend as never}
+      />,
+    );
+  };
+
+  it("says what is actually happening, and the Undo pulls the message back", async () => {
+    let toast: ToastState | null = null;
+    const unsub = subscribeToast((t) => { if (t) toast = t; });
+    withChips(async (_n, body) => enqueueTodaySend({ to: "nadia@x.com", subject: "Re: Invoice", body, threadId: "t1", todayKind: "reply" }));
+    fireEvent.click(screen.getByText("Thanks"));
+    await new Promise((r) => setTimeout(r, 0));
+    // Held, not sent, and the words say so.
+    expect(getTodayOutbox()).toHaveLength(1);
+    expect(toast!.message).toBe("Sending in 12s");
+    expect(toast!.actionLabel).toBe("Undo");
+    // And the way back actually empties the queue.
+    toast!.onAction!();
+    expect(getTodayOutbox()).toHaveLength(0);
+    unsub();
+  });
+
+  it("a send that never made the queue says so and keeps the words", async () => {
+    let toast: ToastState | null = null;
+    const unsub = subscribeToast((t) => { if (t) toast = t; });
+    withChips(async () => null);
+    fireEvent.click(screen.getByText("Thanks"));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(getTodayOutbox()).toHaveLength(0);
+    expect(toast!.message).toBe("Couldn't send · Nothing was lost");
+    unsub();
   });
 });

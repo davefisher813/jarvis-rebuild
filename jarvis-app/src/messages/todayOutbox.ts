@@ -74,9 +74,12 @@ function newId(): string {
   return "today-" + Date.now().toString(36) + "-" + seq;
 }
 
+// TODAY-F-06 (2026-09-05): returns the id it queued. The card that asked for
+// the send needs it to offer an Undo, which is the whole difference between
+// a held send and a sent one as far as the person tapping is concerned.
 export function enqueueTodaySend(input: {
   to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; account?: string; todayKind: TodayKind;
-}): void {
+}): string {
   const item: TodaySend = {
     id: newId(),
     account: input.account,
@@ -91,6 +94,7 @@ export function enqueueTodaySend(input: {
     todayKind: input.todayKind,
   };
   commit([...items, item]);
+  return item.id;
 }
 
 export function removeTodaySend(id: string): void {

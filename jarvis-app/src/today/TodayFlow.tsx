@@ -2199,13 +2199,16 @@ export default function TodayFlow({
   // does any level below Draft Only. What is added here is only WHICH drafts
   // are worth having ready.
 
-  const sendFromCard = async (n: { kind: string; threadId: string }, body: string): Promise<boolean> => {
+  // TODAY-F-06 (2026-09-05): returns the QUEUE ID, not a boolean. The card
+  // says "Sending in 12s" and offers an Undo, and it cannot cancel a send
+  // whose id it was never told.
+  const sendFromCard = async (n: { kind: string; threadId: string }, body: string): Promise<string | null> => {
     const api = mailApiFor(n.threadId);
-    if (!api) return false;
+    if (!api) return null;
     try {
       const full = mapThreadFull(await api.getThread(n.threadId));
       const last = full.messages[full.messages.length - 1];
-      if (!last) return false;
+      if (!last) return null;
       // A nudge goes to whoever the last message was addressed TO; a reply
       // goes back to whoever wrote it. Getting this backwards would send his
       // follow-up to himself, so it is derived, never assumed.
@@ -2218,13 +2221,12 @@ export default function TodayFlow({
       // count and chase-clear that used to happen right here now happen in
       // TodayOutboxPump, once the send actually goes through.
       const account = loadMailSnapshot().threads.find((x) => x.id === n.threadId)?.account;
-      enqueueTodaySend({
+      return enqueueTodaySend({
         to, subject: reply.subject, body, inReplyTo: reply.inReplyTo, threadId: full.id, account,
         todayKind: n.kind === "nudge" || n.kind === "chase" ? n.kind : "reply",
       });
-      return true;
     } catch {
-      return false;
+      return null;
     }
   };
 
@@ -2273,8 +2275,8 @@ export default function TodayFlow({
       schedule.createEvent("Call With " + m.from, { date: m.date, start: m.start, end: m.end }));
     if (!made) return null;
     await reload();
-    const sent = await sendFromCard({ kind: "reply", threadId }, acceptBody({ ...m, free: true }));
-    return sent ? "Booked and replied" : "Booked · Couldn't send the reply";
+    const queued = await sendFromCard({ kind: "reply", threadId }, acceptBody({ ...m, free: true }));
+    return queued ? "Booked and replied" : "Booked · Couldn't send the reply";
   };
 
   // THE EMAIL ALREADY DID THE DATA ENTRY (Dave 2026-08-25: "if it's something
