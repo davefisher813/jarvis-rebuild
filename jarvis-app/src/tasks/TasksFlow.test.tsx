@@ -95,3 +95,50 @@ describe("TasksFlow add a note (BROWSER-F-01)", () => {
     expect(made?.title).toBe("Create Calder invoice");
   });
 });
+
+// LIFE-F-11 (2026-09-05): with an Area filter on, the filter menu's counts,
+// "Clear N Completed" and "Move All to Today" all read the unfiltered lists,
+// so the label disagreed with the list and the bulk write reached tasks the
+// filter was hiding. This seeds two areas and clears one of them.
+
+let areaSvc: TasksService | null = null;
+
+function SeededAreas() {
+  const tasks = useTasks();
+  const cats = useCategories();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const work = (await cats.create("Work", "blue"))!;
+      const home = (await cats.create("Home", "green"))!;
+      const done = async (text: string, category: string) => {
+        const id = (await tasks.createTask(text, { category, due: todayISO() }))!;
+        await tasks.toggleDone(id);
+      };
+      await done("Work done one", work);
+      await done("Work done two", work);
+      await done("Home done one", home);
+      await done("Home done two", home);
+      await done("Home done three", home);
+      areaSvc = tasks;
+      setReady(true);
+    })();
+  }, [tasks, cats]);
+  return ready ? <TasksFlow openFilter="done" /> : null;
+}
+
+describe("TasksFlow area filter (LIFE-F-11)", () => {
+  it("Clear Completed counts and deletes only the area on screen", async () => {
+    render(<NotesProvider userId="area-life-11"><SeededAreas /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Work done one")).toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Clear 5 Completed" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Area" }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Work" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Clear 2 Completed" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Clear 2 Completed" }));
+    await waitFor(async () => {
+      const left = await areaSvc!.listTasks();
+      expect(left.map((t) => t.data.text).sort()).toEqual(["Home done one", "Home done three", "Home done two"]);
+    });
+  });
+});

@@ -190,13 +190,21 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
     if (catFilter !== "all" && categories.length && !categories.some((c) => c.id === catFilter)) setCatFilter("all");
   }, [categories, catFilter]);
 
+  // LIFE-F-11 (2026-09-05): the Area cut used to reach the LIST only, so with
+  // Area = Work the lead capsule said "Today 2" while the menu behind it said
+  // "Today 5", "Clear 5 Completed" sat over two rows and deleted three tasks
+  // from areas the filter was hiding, and Move All to Today re-dated them
+  // too. One reader for what is on screen: counts, both bulk verbs and the
+  // empty line all come through it, so the label, the list and the write can
+  // no longer disagree.
+  const visible = (f: TaskFilter): TaskItem[] => byCategory(parts[f], catFilter);
   const counts = {
-    all: parts.all.length,
-    daily: parts.daily.length,
-    today: parts.today.length,
-    overdue: parts.overdue.length,
-    upcoming: parts.upcoming.length,
-    done: parts.done.length,
+    all: visible("all").length,
+    daily: visible("daily").length,
+    today: visible("today").length,
+    overdue: visible("overdue").length,
+    upcoming: visible("upcoming").length,
+    done: visible("done").length,
   };
 
   // Which project this tick just moved, and how close it now is. Mirrors
@@ -329,8 +337,11 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
   // this was the ONE delete on the page without it, and it is the delete
   // that takes the most at once.
   const onClearDone = async () => {
-    const snapshot = parts.done.map((t) => ({ ...t.data }));
-    const ok = await attemptWrite(async () => { for (const t of parts.done) await svc.deleteTask(t.id); });
+    // LIFE-F-11: only what the Area filter is showing, which is what the
+    // button's count says.
+    const done = visible("done");
+    const snapshot = done.map((t) => ({ ...t.data }));
+    const ok = await attemptWrite(async () => { for (const t of done) await svc.deleteTask(t.id); });
     await reload();
     if (!ok) return;
     showToast({
@@ -594,7 +605,9 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
   // MOVE ALL TO TODAY: an overdue pile is where the shame lives. One tap
   // resets it, with a single Undo that puts every original date back.
   const moveAllToToday = async () => {
-    const stuck = parts.overdue;
+    // LIFE-F-11: the pile this moves is the pile on screen, never the tasks
+    // the Area filter is hiding.
+    const stuck = visible("overdue");
     if (stuck.length === 0) return;
     const before = stuck.map((t) => ({ id: t.id, due: t.data.due ?? null }));
     const ok = await attemptWrite(async () => {
@@ -657,7 +670,7 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
           // F1: the list IS the one thing. Nothing is deleted, deferred or
           // rescheduled; this is a view, and everything returns on one tap.
           ? [theOneThing(allItems, () => 30)].filter((t): t is TaskItem => !!t)
-          : byCategory(parts[filter], catFilter)}
+          : visible(filter)}
         notice={fsNotice}
         stalled={fsStalled}
         categories={categories}
