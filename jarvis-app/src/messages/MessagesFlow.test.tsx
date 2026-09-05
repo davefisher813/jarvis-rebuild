@@ -1231,3 +1231,41 @@ describe("MessagesFlow (threads)", () => {
     expect(item.attachment?.content).toBe("Ridgeline Waiver 2026\n\nSign by Friday.\n");
   });
 });
+
+// EMAIL-F-06 (2026-09-05): tap an email card on Today, land in the thread,
+// and from then on every tap of the Email tab dropped back into that same
+// thread. The intent was consumed once per mount and never cleared by its
+// owner (the tab bar cleared thirteen others but not these two), and the shell
+// remounts the flow on every tab switch, so the jump ran over.
+describe("a Today email tap does not stick (EMAIL-F-06)", () => {
+  function ShellLike() {
+    // The shell's one-shot in miniature: the flow says when it is spent.
+    const [intent, setIntent] = useState<{ value?: string; nonce: number }>({ value: "t1", nonce: 1 });
+    const [visit, setVisit] = useState(0);
+    return (
+      <>
+        <button onClick={() => setVisit((v) => v + 1)}>Switch Tab</button>
+        <MessagesFlow
+          key={visit}
+          ai={noAI}
+          configured
+          openThreadId={intent.value}
+          threadNonce={intent.nonce}
+          onThreadConsumed={() => setIntent((i) => ({ nonce: i.nonce }))}
+        />
+      </>
+    );
+  }
+
+  it("opens the thread once, then a later visit to the tab lands on the list", async () => {
+    render(wrap(<ShellLike />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    // The deep link opened the thread itself, not the inbox.
+    expect(await screen.findByText("Need the waiver by Friday")).toBeInTheDocument();
+
+    // Leave and come back, which is what a tab switch does to this flow.
+    fireEvent.click(screen.getByText("Switch Tab"));
+    await waitFor(() => expect(screen.getByText("DoorDash")).toBeInTheDocument());
+    expect(screen.queryByText("Need the waiver by Friday")).not.toBeInTheDocument();
+  });
+});

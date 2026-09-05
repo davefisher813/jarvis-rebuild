@@ -231,7 +231,16 @@ function fmtWhen(ms: number): string {
 // so junk is never opened. The headline counts what needs Dave, never unread.
 // Threads are the unit throughout; search is server-side over the whole
 // mailbox. Without AI the tab is an honest threaded list, no fake triage.
-export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections , demoMail = false, openThreadId, openDraftId }: { demoMail?: boolean; ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void; openThreadId?: string; openDraftId?: string }) {
+export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections , demoMail = false, openThreadId, threadNonce, onThreadConsumed, openDraftId, draftNonce, onDraftConsumed }: { demoMail?: boolean; ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void; openThreadId?: string; openDraftId?: string;
+  // EMAIL-F-06 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
+  // These two ids were the only intents the tab bar did not clear, and the
+  // jump refs below live inside a flow the shell remounts on every tab
+  // switch, so after one tap on a Today email card, every later visit to the
+  // Email tab dropped straight back into that thread (or, for a draft that
+  // had since been sent, into "Could not open draft"). The nonce also makes a
+  // second tap on the same card a real navigation.
+  threadNonce?: number; onThreadConsumed?: () => void;
+  draftNonce?: number; onDraftConsumed?: () => void }) {
   const g = useGoogle();
   const tasks = useOptionalTasks();
   const scheduleSvc = useOptionalSchedule();
@@ -1126,12 +1135,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const jumped = useRef<string | null>(null);
   useEffect(() => {
     if (!openThreadId || rows.length === 0) return;
-    if (jumped.current === openThreadId) return;
+    // EMAIL-F-06: keyed on the nonce too, so the same thread tapped twice on
+    // Today opens twice; onThreadConsumed then spends it in the shell.
+    const key = `${openThreadId}|${threadNonce ?? 0}`;
+    if (jumped.current === key) return;
     if (!rows.some((r) => r.id === openThreadId)) return;
-    jumped.current = openThreadId;
+    jumped.current = key;
     void openThread(openThreadId);
+    onThreadConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openThreadId, rows]);
+  }, [openThreadId, threadNonce, rows]);
 
   // "Finish It" lands HERE, in the draft, with the unsent words loaded
   // (2026-08-25). It used to hand a draft id to the thread jump above, which
@@ -1139,10 +1152,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const jumpedDraft = useRef<string | null>(null);
   useEffect(() => {
     if (!openDraftId) return;
-    if (jumpedDraft.current === openDraftId) return;
-    jumpedDraft.current = openDraftId;
+    const key = `${openDraftId}|${draftNonce ?? 0}`;
+    if (jumpedDraft.current === key) return;
+    jumpedDraft.current = key;
     void openDraft(openDraftId);
-  }, [openDraftId]);
+    onDraftConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openDraftId, draftNonce]);
 
   // THE HOME SNAPSHOT (Dave 2026-08-20). Today must render instantly, so it
   // never touches Gmail: the Email tab leaves behind everything the home page
