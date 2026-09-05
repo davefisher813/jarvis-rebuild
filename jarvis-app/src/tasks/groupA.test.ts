@@ -137,6 +137,28 @@ describe("Auto-Sweep", () => {
     expect(setAsideCandidate(moved, "2026-08-19")!.id).toBe(a); // past the window
   });
 
+  // LIFE-F-20 (2026-09-05): the cutoff was read through toISOString(), the
+  // UTC day, which beyond UTC+12 is the day before local noon; the quiet
+  // window was a day off there. Kiritimati is UTC+14 in every season.
+  it("the three-day quiet is three days fourteen hours ahead of Greenwich", async () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Pacific/Kiritimati";
+    try {
+      const tasks = svc();
+      const a = (await tasks.createTask("Renew the domain", { due: "2026-08-12" }))!;
+      await tasks.setDue(a, "2026-08-13");
+      await tasks.setDue(a, "2026-08-14");
+      localStorage.removeItem("jarvis.sweep.last.v1");
+      const receipt = (await runAutoSweep(tasks, TODAY))!;
+      const moved = liveMoved(receipt, await tasks.listTasks(), TODAY);
+      markOffered(a, TODAY);
+      expect(setAsideCandidate(moved, "2026-08-17")).toBeNull(); // day 2, still quiet
+      expect(setAsideCandidate(moved, "2026-08-18")!.id).toBe(a); // day 3, may speak again
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
+
   // LAW 1 (Dave 2026-08-29): "notifications show up on things that are
   // already done". The receipt is history and stays whole for Undo; every
   // card reads through liveMoved instead, against the live tasks.

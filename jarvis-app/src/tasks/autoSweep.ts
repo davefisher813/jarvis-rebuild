@@ -10,6 +10,7 @@
 // never asks about that task again. Uses the existing slips counter.
 
 import type { TasksService, TaskItem } from "./TasksService";
+import { todayISO } from "./grouping";
 
 export interface SweepMoved {
   id: string;
@@ -184,10 +185,16 @@ function readOffered(today: string): Offer[] {
 
 // today minus n days, as an ISO date. Local-noon arithmetic so a DST shift
 // cannot round the date backwards.
+//
+// LIFE-F-20 (2026-09-05): the result was read through toISOString(), the
+// UTC day, and beyond UTC+12 (Auckland in summer, Apia, Tongatapu) local
+// noon is still yesterday in UTC, so the cutoff sat a day off and the
+// three-day quiet after a dismissal was four. todayISO formats from local
+// getters.
 function dayShift(today: string, days: number): string {
   const d = new Date(today + "T12:00:00");
   d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
+  return todayISO(d);
 }
 
 // The third-move fact + Set Aside offer. Takes the LIVE-filtered moved list
