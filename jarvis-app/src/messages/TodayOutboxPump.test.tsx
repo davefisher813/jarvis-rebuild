@@ -8,7 +8,7 @@ import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import { NotesProvider } from "../data/NotesProvider";
 import type { TodaySend } from "./todayOutbox";
 import { enqueueTodaySend, getTodayOutbox, resetTodayOutboxForTest } from "./todayOutbox";
-import { loadOutbox } from "./outbox";
+import { enqueueOutbox, getOutbox, loadOutbox, resetOutboxForTest, subscribeOutbox, type OutboxItem } from "./outbox";
 import { loadNudgeCounts } from "./escalate";
 import { loadChases, setChase } from "./followUp";
 import { subscribeToast } from "../shared/toast";
@@ -22,6 +22,9 @@ const item = (over: Partial<TodaySend> = {}): TodaySend => ({
 beforeEach(() => {
   localStorage.clear();
   resetTodayOutboxForTest();
+  // EMAIL-F-17: the main outbox is a module store now, so clearing storage
+  // is not enough to clear it between tests.
+  resetOutboxForTest();
 });
 
 describe("processTodaySend: the actual send behind a Today card", () => {
@@ -81,6 +84,27 @@ describe("processTodaySend: the actual send behind a Today card", () => {
     expect(graduated!.to).toBe("wei@x.com");
     expect(typeof graduated!.error).toBe("string");
     expect(toasted).not.toBeNull();
+  });
+
+  // EMAIL-F-17 (2026-09-05): "A failed Today-card send appended to the outbox
+  // store can be clobbered while the Email tab is mounted." There used to be
+  // two writers to one localStorage key: this pump appended with
+  // saveOutbox([...loadOutbox(), failed]) while MessagesFlow held the queue
+  // as React state loaded at mount and wrote its whole copy back on every
+  // change, so the graduated failure vanished on the tab's next send. One
+  // module store (EMAIL-F-01) closed that; this holds it closed.
+  it("a graduated failure reaches a mounted Email tab and survives its next send", async () => {
+    const seen: OutboxItem[][] = [];
+    // What the Email tab does: subscribe, never hold its own copy.
+    const unsub = subscribeOutbox((items) => seen.push(items));
+    const api = makeFakeGoogleApi({ sendMessage: async () => { throw new Error("gmail 500"); } });
+    await processTodaySend(item({ id: "f2", to: "wei@x.com" }), api);
+    expect(seen[seen.length - 1]!.map((o) => o.id)).toEqual(["f2"]);
+    // Now the tab queues a send of its own, the write that used to overwrite.
+    enqueueOutbox({ id: "e1", to: "rob@x.com", subject: "Re: Waiver", body: "On it", dueMs: Date.now(), scheduled: false, state: "held" });
+    unsub();
+    expect(getOutbox().map((o) => o.id)).toEqual(["f2", "e1"]);
+    expect(loadOutbox().map((o) => o.id)).toEqual(["f2", "e1"]);
   });
 });
 
