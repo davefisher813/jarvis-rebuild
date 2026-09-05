@@ -86,6 +86,12 @@ export function forwardDraft(m: { subject: string; body: string }): { to: string
 
 // What the user is told afterwards. It names the person, because the point of
 // handing off is knowing who has it now.
+//
+// EMAIL-F-23 (2026-09-05): it used to say "Now in Waiting On", and Waiting On
+// could not list it: that section only counts a sent thread after
+// MIN_WAIT_DAYS (waiting.ts:23), so for two days the receipt pointed at an
+// empty place. The state is "handed off"; Waiting On is what happens next if
+// nobody answers, which is what this says now.
 export function handoffLine(name: string): string {
-  return "Sent to " + name + " · Now in Waiting On";
+  return "Sent to " + name + " · Waiting On picks it up if it goes quiet";
 }

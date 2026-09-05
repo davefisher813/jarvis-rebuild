@@ -78,7 +78,10 @@ describe("hand off", () => {
 
   it("tells him who has it now", () => {
     // SPEC MOVED (short copy, 2026-08-15)
-    expect(handoffLine("Jen")).toBe("Sent to Jen · Now in Waiting On");
+    // EMAIL-F-23 (2026-09-05): it said "Now in Waiting On" and Waiting On
+    // could not show it for two days (waiting.ts's MIN_WAIT_DAYS), so the
+    // receipt sent him to an empty section. It names what happens next.
+    expect(handoffLine("Jen")).toBe("Sent to Jen · Waiting On picks it up if it goes quiet");
   });
 });
 
