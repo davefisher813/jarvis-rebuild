@@ -25,6 +25,7 @@ export default function CategorySheet({
   initial,
   onSave,
   onDelete,
+  deleteCost,
   onCancel,
 }: {
   mode: "new" | "edit";
@@ -33,6 +34,10 @@ export default function CategorySheet({
   // write landed, so the Saving latch can let go when it did not.
   onSave: (draft: CategoryDraft) => void | Promise<boolean | void>;
   onDelete?: () => void;
+  // BRAIN-F-10 (2026-09-05): what the delete actually costs, in the caller's
+  // own count ("Untags 14 tasks, 3 notes"). Shown on the armed step, where it
+  // can still change the answer; absent when nothing is tagged.
+  deleteCost?: string | null;
   onCancel: () => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
@@ -139,6 +144,7 @@ export default function CategorySheet({
       {mode === "edit" && onDelete && (
         <Group className="xs-actions">
           <DeleteRow label={delArmed ? "Tap Again to Delete" : "Delete Category"} onClick={() => { if (delArmed) { onDelete(); } else { setDelArmed(true); } }} />
+          {delArmed && deleteCost && <div className="input-help">{deleteCost}</div>}
         </Group>
       )}
     </FormSheet>

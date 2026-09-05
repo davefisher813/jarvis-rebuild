@@ -145,6 +145,8 @@ export default function CategoryDetail({
   const [projects, setProjects] = useState<Project[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [notes, setNotes] = useState<{ id: string; title: string }[]>([]);
+  // The Notes section shows at most NOTES_CAP; the delete cost counts them all.
+  const [noteCount, setNoteCount] = useState(0);
   const [events, setEvents] = useState<WeekEvent[]>([]);
   // Full event rows for the Coming Up section (WeekEvent above is the thin
   // shape the receipt needs; this keeps titles and times).
@@ -226,13 +228,9 @@ export default function CategoryDetail({
     setProjects(pj.filter((p) => p.data.category === categoryId && p.data.status !== "done"));
     setAllProjects(pj);
     setGoals(gl);
-    setNotes(
-      tk && nt
-        ? nt.filter((n) => (n.data as unknown as NoteData).category === categoryId)
-            .slice(0, NOTES_CAP)
-            .map((n) => ({ id: n.id, title: ((n.data as unknown as NoteData).title || "Untitled") }))
-        : [],
-    );
+    const mineNotes = tk && nt ? nt.filter((n) => (n.data as unknown as NoteData).category === categoryId) : [];
+    setNoteCount(mineNotes.length);
+    setNotes(mineNotes.slice(0, NOTES_CAP).map((n) => ({ id: n.id, title: ((n.data as unknown as NoteData).title || "Untitled") })));
     setEvents(ev.map((e) => ({ date: e.data.date, start: e.data.start, category: e.data.category })));
     const nowIso = todayISO();
     // Coming Up walks the next days through occursOn (brain/comingUp.ts), so
@@ -602,6 +600,22 @@ export default function CategoryDetail({
   };
 
   const sheetCats: SheetCategory[] = allCats.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }));
+
+  // BRAIN-F-10 (option c, kept alongside a): what the delete costs, counted
+  // before it happens and said on the armed step. Absent when nothing carries
+  // this area, because "Untags 0 tasks" is noise.
+  const deleteCost = (() => {
+    const parts: string[] = [];
+    const t = allTasks.filter((x) => isIn(x.data, categoryId)).length;
+    const n = noteCount;
+    const p = allProjects.filter((x) => x.data.category === categoryId).length;
+    const pe = catPeople.length;
+    if (t) parts.push(`${t} ${t === 1 ? "task" : "tasks"}`);
+    if (n) parts.push(`${n} ${n === 1 ? "note" : "notes"}`);
+    if (p) parts.push(`${p} ${p === 1 ? "project" : "projects"}`);
+    if (pe) parts.push(`${pe} ${pe === 1 ? "person" : "people"}`);
+    return parts.length ? capAfterNumber(`Untags ${parts.join(", ")}`) : null;
+  })();
 
   return (
     // THE HEALTH PAGE WEARS THE RULINGS (2026-09-02, Check, Health, Stop):
@@ -1027,18 +1041,26 @@ export default function CategoryDetail({
             await reload();
             return true;
           }}
+          // BRAIN-F-10 (2026-09-05, fork option A): Undo restores the area
+          // under its ORIGINAL id, so every task, note, event, project and
+          // person that carried it is tagged again and the org's Paused /
+          // Work Hours settings and its kind come back with it. create()
+          // minted a new id and took three fields, which is why the area used
+          // to return empty.
+          deleteCost={deleteCost}
           onDelete={async () => {
-            // Undo restores the category itself (new id); items that pointed
-            // at the old id stay untagged either way, which the toast owns up
-            // to by naming the delete rather than pretending it was free.
             const gone = cat ? { ...cat.data } : null;
-            await catsSvc.remove(categoryId);
+            const ok = await attemptWrite(() => catsSvc.remove(categoryId));
+            if (!ok) return;
             onChanged?.();
             onBack();
             showToast({
               message: "Area deleted",
               actionLabel: "Undo",
-              onAction: async () => { if (gone) await catsSvc.create(gone.name, gone.color, gone.icon); onChanged?.(); },
+              onAction: async () => {
+                if (gone) await attemptWrite(() => catsSvc.restore(categoryId, gone));
+                onChanged?.();
+              },
             });
           }}
           onCancel={() => setSheet({ kind: "closed" })} />

@@ -469,3 +469,61 @@ describe("CategoryDetail metric log delete (BRAIN-F-15)", () => {
     }
   });
 });
+
+// BRAIN-F-10 (2026-09-05, fork option A): Undo of an area delete called
+// create(), which mints a new id and takes three fields, so the area came back
+// empty: every task, note and project that carried the old id stayed untagged
+// and the org's kind and settings were gone. Option (c) rides along: the armed
+// step says what the delete costs before the second tap.
+function SeededArea({ onChanged }: { onChanged?: () => void }) {
+  const cats = useCategories();
+  const tasks = useTasks();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const id = (await cats.create("Bridge Club", "blue"))!;
+      await cats.update(id, { kind: "org", season: "paused" });
+      await tasks.createTask("Email Sam", { category: id });
+      catsRef = cats;
+      tasksRef = tasks;
+      setCid(id);
+    })();
+  }, [cats, tasks]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} onChanged={onChanged} /> : null;
+}
+
+let catsRef: ReturnType<typeof useCategories> | null = null;
+
+describe("CategoryDetail area delete (BRAIN-F-10)", () => {
+  it("says what the delete untags, and Undo brings the area back with its tags and settings", async () => {
+    const seen: { message: string; onAction?: () => void }[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t); });
+    try {
+      render(<NotesProvider userId="area-f10"><SeededArea /></NotesProvider>);
+      await screen.findAllByText("Email Sam");
+      const before = (await catsRef!.list())[0]!;
+
+      fireEvent.click(screen.getByText("Edit"));
+      fireEvent.click(await screen.findByText("Delete Category"));
+      // The armed step names the cost, in real numbers, before the second tap.
+      expect(await screen.findByText("Untags 1 task")).toBeInTheDocument();
+      fireEvent.click(screen.getByText("Tap Again to Delete"));
+      await waitFor(async () => expect(await catsRef!.list()).toHaveLength(0));
+
+      const toast = seen[seen.length - 1]!;
+      expect(toast.message).toBe("Area deleted");
+      toast.onAction!();
+      await waitFor(async () => expect(await catsRef!.list()).toHaveLength(1));
+
+      const back = (await catsRef!.list())[0]!;
+      // The same id, so the task that carried it is tagged with it still.
+      expect(back.id).toBe(before.id);
+      expect(back.data.kind).toBe("org");
+      expect(back.data.season).toBe("paused");
+      const t = (await tasksRef!.listTasks()).find((x) => x.data.text === "Email Sam")!;
+      expect(t.data.category).toBe(back.id);
+    } finally {
+      stop();
+    }
+  });
+});

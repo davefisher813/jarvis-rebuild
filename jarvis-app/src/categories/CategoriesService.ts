@@ -67,6 +67,20 @@ export class CategoriesService {
     return true;
   }
 
+  // BRAIN-F-10 (2026-09-05, fork option A). Undo of an area delete used to
+  // call create(), which mints a NEW id and takes three fields: the area came
+  // back empty, every task, note, event, project and person that carried the
+  // old id stayed untagged, and the org's Paused / Work Hours settings and its
+  // kind were gone. This puts the record back exactly as it was, under the id
+  // it had, so every reference resolves. The Store has taken an id since the
+  // offline queue's replay (HMN-F-15); only ever pass one whose row is gone.
+  async restore(id: string, data: CategoryData): Promise<string | null> {
+    if (!data.name || !data.name.trim()) return null;
+    const newId = await this.store.create(this.ownerId, ENTITY_CATEGORY, { ...data, name: data.name.trim() } as unknown as ItemData, id);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_CATEGORY, entityId: newId });
+    return newId;
+  }
+
   async remove(id: string): Promise<void> {
     await this.store.delete(this.ownerId, id);
     this.onEvent({ type: "entity.deleted", entityType: ENTITY_CATEGORY, entityId: id });
