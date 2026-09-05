@@ -28,6 +28,7 @@ import { todayISO } from "../tasks/grouping";
 import { nextActionOf } from "../bigger/related";
 import { dayPhrase } from "../money/bills";
 import { fmtTime, addMinutes, addDays } from "../schedule/calendar";
+import { comingUpFor, gymDoorOn, type UpcomingRow } from "./comingUp";
 import { FIFTEEN } from "../tasks/rightNow";
 import { attemptWrite } from "../shared/guard";
 import { buildParentIndex, parentForTask } from "../life/parent";
@@ -139,7 +140,13 @@ export default function CategoryDetail({
   const [events, setEvents] = useState<WeekEvent[]>([]);
   // Full event rows for the Coming Up section (WeekEvent above is the thin
   // shape the receipt needs; this keeps titles and times).
-  const [upcoming, setUpcoming] = useState<{ id: string; title: string; date: string; start: string }[]>([]);
+  const [upcoming, setUpcoming] = useState<UpcomingRow[]>([]);
+  // BRAIN-F-07 (2026-09-05): today's gym block, read from the `gym` flag
+  // across every category rather than picked out of this page's own upcoming
+  // list. The old lookup took the first Health-tagged event of the day, so a
+  // dentist appointment became "the gym block", and the daily recurring block
+  // Dave actually has (anchored weeks ago) was never in that list at all.
+  const [gymDoor, setGymDoor] = useState<{ id: string; start: string } | null>(null);
   // The people in this category (person.categoryIds, set from the person's
   // own card). Written since the person-pass; READ for the first time here.
   const [catPeople, setCatPeople] = useState<Person[]>([]);
@@ -214,12 +221,12 @@ export default function CategoryDetail({
     );
     setEvents(ev.map((e) => ({ date: e.data.date, start: e.data.start, category: e.data.category })));
     const nowIso = todayISO();
-    setUpcoming(
-      ev.filter((e) => e.data.category === categoryId && e.data.date >= nowIso)
-        .sort((a, b) => (a.data.date + a.data.start).localeCompare(b.data.date + b.data.start))
-        .slice(0, 4)
-        .map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, start: e.data.start })),
-    );
+    // Coming Up walks the next days through occursOn (brain/comingUp.ts), so
+    // a weekly practice or a standing meeting shows its NEXT date instead of
+    // being dropped for having an anchor date in the past.
+    setUpcoming(comingUpFor(ev, categoryId, nowIso));
+    const door = gymDoorOn(ev, nowIso);
+    setGymDoor(door ? { id: door.id, start: door.data.start } : null);
     setCatPeople(ppl.filter((p) => (p.data.categoryIds ?? []).includes(categoryId)));
     // Pushed-forward count for the week (2026-08-10): the receipt told half
     // the story (what got done); this is the honest other half, read from the
@@ -360,8 +367,9 @@ export default function CategoryDetail({
   // B5 (2026-09-04): a session started from here never carried the calendar
   // gym block's event id, so finishing it had nothing to stamp -- the block
   // sat offering Start on a session already logged, open to a double entry.
-  // upcoming already carries the id gymEvent below reads .start from.
-  if (gymOpen) return <GymFlow startDayId={gymStartDay ?? undefined} startDoorEventId={upcoming.find((x) => x.date === today && x.start)?.id} onBack={() => { setGymOpen(false); setGymStartDay(null); void reload(); }} />;
+  // BRAIN-F-07 (2026-09-05): the door is gymDoor, the block marked `gym`,
+  // not "whatever this page had first on today's list".
+  if (gymOpen) return <GymFlow startDayId={gymStartDay ?? undefined} startDoorEventId={gymDoor?.id} onBack={() => { setGymOpen(false); setGymStartDay(null); void reload(); }} />;
   // S5-Q29: the four grafted Health screens, unmodified from the dormant
   // module -- they were always presentational (props in, callbacks out),
   // never wired to a store of their own. onBack just closes the screen;
@@ -600,7 +608,7 @@ export default function CategoryDetail({
           training={training}
           today={today}
           isEvening={new Date().getHours() >= 17}
-          gymEvent={(() => { const e = upcoming.find((x) => x.date === today && x.start); return e ? { start: e.start } : null; })()}
+          gymEvent={gymDoor ? { start: gymDoor.start } : null}
           metricDefs={metricDefs}
           metricLogs={metricLogs}
           goals={goalsHere.map((g): HealthGoalRow => ({ id: g.id, title: g.title, tone: g.tone, body: g.line, status: g.status, bar: g.bar }))}

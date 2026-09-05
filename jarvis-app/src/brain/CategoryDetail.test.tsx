@@ -113,6 +113,37 @@ describe("CategoryDetail people kind (2026-08-10)", () => {
   });
 });
 
+// BRAIN-F-07 (2026-09-05): Coming Up compared an event's anchor date to
+// today, so a weekly practice anchored three weeks ago was never coming up.
+// It now walks the days ahead through occursOn, the same as the Schedule.
+import { addDays as addCalDays } from "../schedule/calendar";
+import { todayISO as brainToday } from "../tasks/grouping";
+
+function SeededRepeating() {
+  const cats = useCategories();
+  const schedule = useSchedule();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const id = await cats.create("Bridge", "blue");
+      // Anchored three weeks back, so it repeats onto today's weekday.
+      await schedule.createEvent("Practice", { date: addCalDays(brainToday(), -21), start: "17:00", category: id!, recurrence: "weekly" });
+      setCid(id!);
+    })();
+  }, [cats, schedule]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
+}
+
+describe("CategoryDetail Coming Up (BRAIN-F-07)", () => {
+  it("shows a weekly series anchored in the past, dated to its next run", async () => {
+    render(<NotesProvider userId="cu1"><SeededRepeating /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Coming Up")).toBeInTheDocument());
+    expect(screen.getByText("Practice")).toBeInTheDocument();
+    // Once, not once per day it lands on inside the window.
+    expect(screen.getAllByText("Practice")).toHaveLength(1);
+  });
+});
+
 // Org pages become health boards (2026-08-10, Dave: "improve the orgs page
 // as well to make it more than just a list"). Rows carry the next action
 // with its due date, overdue counts, stalled states, and the org's tagged
