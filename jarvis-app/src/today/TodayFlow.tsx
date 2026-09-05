@@ -400,42 +400,54 @@ export default function TodayFlow({
     return () => { on = false; };
   }, [peopleSvc, today]);
 
+  // TODAY-F-14 (2026-09-05): a rejection anywhere in here used to be dropped
+  // (the effect below never caught it) and setLoading(false) was the last
+  // line, so a first launch with no signal, or any throw in the heal or the
+  // reads, left the skeleton up for good with no card and no retry; the tab's
+  // error boundary never fires because nothing threw during render. The page
+  // now renders with whatever state exists (empty is legal) and the toast
+  // carries the retry.
   const reload = useCallback(async () => {
-    // Self-healing dedupe (hotfix 2026-08-21): one plan event per task per
-    // day, first-upcoming wins. Acts only on duplicates this read can see,
-    // so a cold read heals nothing rather than deleting on absence.
-    const dNow = new Date();
-    await schedule.healPlanDuplicates(today, dNow.getHours() * 60 + dNow.getMinutes());
-    await schedule.healPlanDuplicates(tmrw, null);
-    const [te, tm, tk, prof, all, capRule, durations] = await Promise.all([
-      schedule.eventsOn(today),
-      schedule.eventsOn(tmrw),
-      tasks.listTasks(),
-      profile.get(),
-      schedule.listEvents(),
-      // S4-Q26 (2026-09-04): read through the rules list, not the
-      // profile field, so deleting the row in What JARVIS Learned
-      // genuinely un-caps the day.
-      rulesSvc ? rulesSvc.resolve("plan.cap", "day") : Promise.resolve(null),
-      readCommittedDurationsWindowed(supabase as unknown as WindowClient | null, Date.now()),
-    ]);
-    // create() pre-announces, so this is a no-op in the normal case; see
-    // that method's comment for why a second, generic announcement here
-    // would say less than the toast already shown at creation.
-    if (capRule && rulesSvc) await rulesSvc.announceIfFirstUse(capRule);
-    setTodayEvents(te);
-    setTomorrowEvents(tm);
-    setTaskItems(tk);
-    setAllEvents(all);
-    setName(prof?.name ?? "");
-    setPlanCap(capRule ? Number(capRule.data.to) || undefined : undefined);
-    setEstimates(learnedDurations(durations, Date.now()));
-    // Yesterday's evening mood sizes today's plan (Phase 2). Noon anchor keeps
-    // the date subtraction clear of any midnight or DST edge.
-    const y = new Date(today + "T12:00:00");
-    y.setDate(y.getDate() - 1);
-    setPrevMood(prof?.checkin?.[todayISO(y)]?.mood);
-    setLoading(false);
+    try {
+      // Self-healing dedupe (hotfix 2026-08-21): one plan event per task per
+      // day, first-upcoming wins. Acts only on duplicates this read can see,
+      // so a cold read heals nothing rather than deleting on absence.
+      const dNow = new Date();
+      await schedule.healPlanDuplicates(today, dNow.getHours() * 60 + dNow.getMinutes());
+      await schedule.healPlanDuplicates(tmrw, null);
+      const [te, tm, tk, prof, all, capRule, durations] = await Promise.all([
+        schedule.eventsOn(today),
+        schedule.eventsOn(tmrw),
+        tasks.listTasks(),
+        profile.get(),
+        schedule.listEvents(),
+        // S4-Q26 (2026-09-04): read through the rules list, not the
+        // profile field, so deleting the row in What JARVIS Learned
+        // genuinely un-caps the day.
+        rulesSvc ? rulesSvc.resolve("plan.cap", "day") : Promise.resolve(null),
+        readCommittedDurationsWindowed(supabase as unknown as WindowClient | null, Date.now()),
+      ]);
+      // create() pre-announces, so this is a no-op in the normal case; see
+      // that method's comment for why a second, generic announcement here
+      // would say less than the toast already shown at creation.
+      if (capRule && rulesSvc) await rulesSvc.announceIfFirstUse(capRule);
+      setTodayEvents(te);
+      setTomorrowEvents(tm);
+      setTaskItems(tk);
+      setAllEvents(all);
+      setName(prof?.name ?? "");
+      setPlanCap(capRule ? Number(capRule.data.to) || undefined : undefined);
+      setEstimates(learnedDurations(durations, Date.now()));
+      // Yesterday's evening mood sizes today's plan (Phase 2). Noon anchor keeps
+      // the date subtraction clear of any midnight or DST edge.
+      const y = new Date(today + "T12:00:00");
+      y.setDate(y.getDate() - 1);
+      setPrevMood(prof?.checkin?.[todayISO(y)]?.mood);
+    } catch {
+      showToast({ message: "Couldn't load today · Check your connection", actionLabel: "Retry", onAction: () => { void reload(); } });
+    } finally {
+      setLoading(false);
+    }
   }, [schedule, tasks, profile, rulesSvc, today, tmrw]);
 
   useEffect(() => { reload(); }, [reload]);
