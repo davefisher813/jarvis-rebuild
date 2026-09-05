@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import type { ReactNode } from "react";
+import { useRef, type MouseEvent, type ReactNode } from "react";
 import SheetBar from "./SheetBar";
 import HeadMenu, { type MenuOption } from "./HeadMenu";
 
@@ -51,12 +51,36 @@ export function Group({ label, children, className = "" }: { label?: string; chi
 }
 
 /** A row: the tile, the words, whatever sits at the right. */
-export function Row({ tone, glyph, label, meta, children, onClick, chev = false, className = "" }: {
+export function Row({ tone, glyph, label, meta, children, onClick, forwardTo, chev = false, className = "" }: {
   tone?: string; glyph?: ReactNode; label?: ReactNode; meta?: ReactNode; children?: ReactNode;
-  onClick?: () => void; chev?: boolean; className?: string;
+  onClick?: () => void;
+  /** SHARED-F-11 (2026-09-05). A CSS selector for the control this row owns.
+      The row then passes its own taps to that control, so the label, the tile
+      and the empty space between them all open the menu or flip the switch,
+      which is what an iOS grouped table does and what every sheet in this app
+      failed to do. It carries NO role and NO tabIndex when it forwards: the
+      control it forwards to already has both, and a second focus stop that
+      announces "button" over a switch makes the row worse for a screen reader,
+      not better. Pointer convenience only. */
+  forwardTo?: string;
+  chev?: boolean; className?: string;
 }) {
+  const box = useRef<HTMLDivElement>(null);
+  // A tap that started INSIDE the control is the control's own; forwarding it
+  // would fire the handler twice and a menu would open and shut in one tap.
+  const forward = (e: MouseEvent) => {
+    const ctl = box.current?.querySelector<HTMLElement>(forwardTo!);
+    if (!ctl || ctl.contains(e.target as Node)) return;
+    ctl.click();
+  };
   return (
-    <div className={"row xs-row " + className} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined} onClick={onClick}>
+    <div
+      ref={box}
+      className={"row xs-row " + className}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick ?? (forwardTo ? forward : undefined)}
+    >
       {tone && glyph && <Tile tone={tone}>{glyph}</Tile>}
       {label !== undefined && (meta
         ? <div className="row-grow"><div className="conn-name">{label}</div><div className="conn-meta">{meta}</div></div>
@@ -122,7 +146,7 @@ export function MenuRow({ tone, glyph, label, meta, value, options, onPick, aria
   onPick: (v: string) => void; ariaLabel: string; off?: boolean; word?: string;
 }) {
   return (
-    <Row tone={tone} glyph={glyph} label={label} meta={meta}>
+    <Row tone={tone} glyph={glyph} label={label} meta={meta} forwardTo=".dd">
       <HeadMenu variant="value" ariaLabel={ariaLabel} value={value} label={word} off={off} options={options} onPick={onPick} />
     </Row>
   );
@@ -133,7 +157,7 @@ export function SwitchRow({ tone, glyph, label, meta, on, onToggle, ariaLabel }:
   tone: string; glyph: ReactNode; label: string; meta?: ReactNode; on: boolean; onToggle: () => void; ariaLabel: string;
 }) {
   return (
-    <Row tone={tone} glyph={glyph} label={label} meta={meta}>
+    <Row tone={tone} glyph={glyph} label={label} meta={meta} forwardTo=".switch">
       <div className={"switch" + (on ? "" : " off")} role="switch" aria-checked={on} aria-label={ariaLabel} tabIndex={0}
         onClick={onToggle} onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); onToggle(); } }} />
     </Row>
