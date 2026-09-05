@@ -121,7 +121,11 @@ export default function SchedulePage({
   // W2: the dates in this week that carry a repeating event.
   repeatMarks?: ReadonlySet<string>;
   onPrev?: () => void; onNext?: () => void; onSelect?: (date: string) => void;
-  onNew?: () => void; onOpenEvent?: (id: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void; onUpload?: () => void;
+  // SCHED-F-03 (2026-09-05): a row hands over the DAY it is drawn on as well
+  // as the id. eventsForDate already remaps a recurring event's date to the
+  // day being viewed, and the editor needs that day to know which occurrence
+  // was tapped. The Repeats list has no day and passes none.
+  onNew?: () => void; onOpenEvent?: (id: string, occurrenceDate?: string) => void; onPickSlot?: (start: string) => void; onPlanDay?: () => void; onUpload?: () => void;
   // Bulk delete for the selected day (2026-08-24).
   onDeleteMany?: (ids: string[]) => void;
   locked?: LockedRange[]; now?: string | null;
@@ -743,10 +747,10 @@ export default function SchedulePage({
                       <div
                         className="block-held"
                         key={h.id}
-                        {...pressable(() => onOpenEvent?.(h.id))}
+                        {...pressable(() => onOpenEvent?.(h.id, h.data.date))}
                         /* the pointer path keeps its own stopPropagation: this
                            block sits inside a row that opens the routine. */
-                        onClick={(ev) => { ev.stopPropagation(); onOpenEvent?.(h.id); }}
+                        onClick={(ev) => { ev.stopPropagation(); onOpenEvent?.(h.id, h.data.date); }}
                       >
                         <span className={"cat-dot cat-bg-" + catColor(h.data.category)} />
                         <span className="block-held-t truncate">{h.data.title}</span>
@@ -768,7 +772,7 @@ export default function SchedulePage({
                   isNext={en.e.id === nextId}
                   isPast={isToday ? (en.e.data.end ? toMin(en.e.data.end) : toMin(en.e.data.start) + 60) < nowMin : false}
                   now={isToday ? now! : null}
-                  onOpen={() => onOpenEvent?.(en.e.id)}
+                  onOpen={() => onOpenEvent?.(en.e.id, en.e.data.date)}
                   onShift={onShift ? (m) => onShift(en.e.id, m) : undefined}
                   onMoveTo={onMoveTo ? (t) => onMoveTo(en.e.id, t) : undefined}
                   onSetEnd={onSetEnd ? (end) => onSetEnd(en.e.id, end) : undefined}

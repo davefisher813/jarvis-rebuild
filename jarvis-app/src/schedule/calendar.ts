@@ -87,6 +87,25 @@ export function occursOn(e: EventData, date: string): boolean {
 }
 
 
+// SCHED-F-03 (2026-09-05): the first day on or after `from` that this event
+// actually lands on. A series edited from a list with no day behind it (the
+// Repeats view) has to be opened on a real occurrence, or "This Event" has
+// nothing to point at and skips whatever day happened to be selected. Walks
+// day by day rather than solving each cadence, which keeps the exdates and
+// the `until` rule in one place (occursOn). Null when the series has already
+// run out.
+export function nextOccurrence(e: EventData, from: string): string | null {
+  let day = from < e.date ? e.date : from;
+  // A month plus a leap day is enough for every cadence stored here; past
+  // that the series has ended or been skipped away entirely.
+  for (let i = 0; i <= 366; i++) {
+    if (occursOn(e, day)) return day;
+    if (e.until && day > e.until) return null;
+    day = addDays(day, 1);
+  }
+  return null;
+}
+
 // Events on a given day, earliest first.
 export function eventsForDate(items: EventItem[], date: string): EventItem[] {
   return items

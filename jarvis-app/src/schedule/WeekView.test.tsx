@@ -78,3 +78,41 @@ describe("Schedule: a read that fails at open is a row with a retry, not skeleto
     }
   });
 });
+
+// SCHED-F-03 (2026-09-05): "Editing one occurrence of a repeating event opens
+// on the series anchor date, and This Event saves the split onto that anchor
+// date." The sheet was seeded from the stored record, and the exdate used the
+// selected day while the copy used the anchor, so the day he was looking at
+// kept its occurrence and a duplicate appeared back at the start of the series.
+describe("Schedule: editing one occurrence of a repeating event", () => {
+  it("opens on the day tapped, and This Event splits that day", async () => {
+    const { useSchedule } = await import("../data/NotesProvider");
+    const { notifyFreshLists } = await import("../data/store");
+    const { ENTITY_EVENT } = await import("./types");
+    const { todayISO, addDays } = await import("./calendar");
+    let sched: import("./ScheduleService").ScheduleService | null = null;
+    function Grab() { sched = useSchedule(); return null; }
+    render(<NotesProvider userId="u-occurrence"><Grab /><ScheduleFlow /></NotesProvider>);
+    await screen.findAllByText("Schedule");
+    const anchor = todayISO();
+    const nextWeek = addDays(anchor, 7);
+    const id = (await sched!.createEvent("Team Sync", { date: anchor, start: "10:00", recurrence: "weekly" }))!;
+    notifyFreshLists(ENTITY_EVENT);
+    // A week forward, to the occurrence that is not the anchor.
+    for (let i = 0; i < 7; i++) fireEvent.click(screen.getByLabelText("Next"));
+    await waitFor(() => expect(screen.getByText("Team Sync")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Team Sync"));
+    // The Date field names the occurrence in front of him, not the anchor.
+    await waitFor(() => expect(screen.getByLabelText("Date")).toHaveValue(nextWeek));
+    fireEvent.click(screen.getByLabelText("Apply to"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "This Event" }));
+    fireEvent.change(screen.getByLabelText("Start"), { target: { value: "11:00" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(screen.queryByText("Edit Event")).not.toBeInTheDocument());
+    // The series skips that day, and the one standalone copy lands on it too.
+    await waitFor(async () => expect((await sched!.event(id))!.exdates).toEqual([nextWeek]));
+    const copies = (await sched!.listEvents()).filter((e) => e.id !== id);
+    expect(copies.map((e) => e.data.date)).toEqual([nextWeek]);
+    expect(copies[0]!.data.start).toBe("11:00");
+  });
+});

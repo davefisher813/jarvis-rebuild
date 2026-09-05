@@ -16,7 +16,7 @@ import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import BlockSheet, { type BlockDraft } from "./screens/BlockSheet";
 import ScheduleUploadFlow from "./screens/ScheduleUploadFlow";
-import { todayISO, weekOf, addDays, addMinutes, fmtTime, eventsForDate, nextFreeSlot, fmtRange, minToHHMM } from "./calendar";
+import { todayISO, weekOf, addDays, addMinutes, fmtTime, eventsForDate, nextFreeSlot, fmtRange, minToHHMM, nextOccurrence } from "./calendar";
 import { durLabel } from "./durations";
 import { isKept, keepBoth } from "./overlapAck";
 import OverlapSheet from "./screens/OverlapSheet";
@@ -55,7 +55,11 @@ import { ENTITY_EVENT } from "./types";
 import { ENTITY_TASK } from "../notes/types";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent as duplicateEventMove } from "./eventMoves";
 
-type SheetState = { mode: "new" } | { mode: "edit"; id: string; initial: EventDraft } | null;
+// SCHED-F-03 (2026-09-05): an edit is of ONE OCCURRENCE, so the sheet state
+// carries which day was tapped. Without it "This Event" split the day that
+// happened to be selected while the sheet showed, and saved to, the series
+// anchor.
+type SheetState = { mode: "new" } | { mode: "edit"; id: string; occurrence: string; initial: EventDraft } | null;
 
 export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?: (blockId?: string) => void; openId?: string } = {}) {
   const svc = useSchedule();
@@ -441,15 +445,25 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     return { date, day, colors };
   });
 
-  const openEdit = async (id: string) => {
+  // SCHED-F-03 (2026-09-05): the occurrence that was tapped, not the record's
+  // anchor date. A weekly event opened from Thursday used to seed the sheet
+  // with the series' own start date (ScheduleFlow.tsx:429-436 in the audit),
+  // so the Date field named a day he was not looking at and "This Event"
+  // dropped its split there. Row taps pass the day they render; a tap with no
+  // day behind it (the Repeats list, a connection, the attach follow-up)
+  // resolves to the next occurrence from today, which is the one a person
+  // means by "this event" when no day is on screen.
+  const openEdit = async (id: string, occurrenceDate?: string) => {
     const e = await svc.event(id);
     if (!e) return;
-    // Use the event's own date, not the currently selected day: editing an
+    const repeating = (e.recurrence ?? "none") !== "none";
+    const occurrence = occurrenceDate ?? (repeating ? nextOccurrence(e, todayISO()) ?? e.date : e.date);
+    // Use the occurrence's date, not the currently selected day: editing an
     // event from another day must not silently move it to the selected date.
     // B1-2 (2026-09-04): "until" has to travel into the sheet too, or the
     // sheet's own default of "" reads as "forever" and onSave below writes
     // that back, silently erasing a real end date on any unrelated edit.
-    setSheet({ mode: "edit", id, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
+    setSheet({ mode: "edit", id, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
   };
 
   // When arriving via a note connection, jump to the event's own date and open
@@ -460,9 +474,13 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     (async () => {
       const e = await svc.event(openId);
       if (!on || !e) return;
-      setSelected(e.date);
-      syncView(e.date);
-      setSheet({ mode: "edit", id: openId, initial: { title: e.title, date: e.date, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
+      // SCHED-F-03: a series arrived at from a note opens on the day it next
+      // happens, and the tab lands there, so the sheet and the list agree.
+      const repeating = (e.recurrence ?? "none") !== "none";
+      const occurrence = repeating ? nextOccurrence(e, todayISO()) ?? e.date : e.date;
+      setSelected(occurrence);
+      syncView(occurrence);
+      setSheet({ mode: "edit", id: openId, occurrence, initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym } });
     })();
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -494,8 +512,12 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
       const recurring = (sheet.initial.recurrence ?? "none") !== "none";
       if (recurring && scope === "this") {
         // Split one occurrence off the series into a standalone event.
+        // SCHED-F-03 (2026-09-05): the occurrence the sheet was opened on,
+        // never the selected day. The exdate and the copy have to name the
+        // same occurrence or the tapped day keeps the series copy and a
+        // duplicate lands on some other day.
         await attemptWrite(async () => {
-          await svc.addExdate(id, selected);
+          await svc.addExdate(id, sheet.occurrence);
           const splitId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined });
           if (splitId && draft.gym) await svc.editGymDoor(splitId, true);
         });
@@ -582,7 +604,8 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     if (sheet?.mode === "edit") {
       const recurring = (sheet.initial.recurrence ?? "none") !== "none";
       if (recurring && scope === "this") {
-        await attemptWrite(() => svc.addExdate(sheet.id, selected));
+        // SCHED-F-03: the occurrence that was opened, not the selected day.
+        await attemptWrite(() => svc.addExdate(sheet.id, sheet.occurrence));
       } else {
         const e = await svc.event(sheet.id);
         const ok = await attemptWrite(() => svc.deleteEvent(sheet.id));
