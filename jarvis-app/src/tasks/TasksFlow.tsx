@@ -41,8 +41,16 @@ import { ENTITY_TASK } from "../notes/types";
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
 
-export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, title, segments }: {
+export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilter, filterNonce, onFilterApplied, onOpenNote, onWhatNow, title, segments }: {
   openId?: string; openFilter?: string; onOpenNote?: (id: string) => void;
+  // SHELL-F-12 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
+  // Both of these were read once per mount and cleared only by a bottom-tab
+  // tap, and LifeFlow remounts this list on every segment change: arrive on a
+  // task from a note, close its sheet, tap Projects, tap Tasks, and the same
+  // sheet popped open by itself. Arriving through Today's Overdue link, every
+  // return to Tasks snapped the filter back to Overdue.
+  openNonce?: number; onOpenConsumed?: () => void;
+  filterNonce?: number; onFilterApplied?: () => void;
   // LIFE (2026-09-01): when this list is the Tasks segment of the Life tab,
   // the head says Life and carries the segment control. Alone, it is Tasks.
   title?: string; segments?: React.ReactNode;
@@ -383,11 +391,24 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
     setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps }, source: t.source });
   };
 
-  // When arriving via a note connection, open that task once on mount.
+  // When arriving via a note connection, open that task. SHELL-F-12: on the
+  // nonce as well, so the same task linked twice opens twice, and consumed
+  // the moment it opens so a later visit to this segment is just the list.
   useEffect(() => {
-    if (openId) openEdit(openId);
+    if (!openId) return;
+    openEdit(openId);
+    onOpenConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openId]);
+  }, [openId, openNonce]);
+
+  // SHELL-F-12: the same for the filter a link asks for (Today's Overdue and
+  // See All). Applied when it arrives, then spent.
+  useEffect(() => {
+    if (!openFilter || !(FILTERS as string[]).includes(openFilter)) return;
+    setFilter(openFilter as TaskFilter);
+    onFilterApplied?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openFilter, filterNonce]);
 
   const onSave = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;

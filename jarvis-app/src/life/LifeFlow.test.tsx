@@ -130,3 +130,51 @@ describe("a deep link into the lens you are already on (LIFE-F-07)", () => {
     await waitFor(() => expect(screen.getByLabelText("Back")).toBeInTheDocument());
   });
 });
+
+// SHELL-F-12 (2026-09-05): the task and filter intents were consumed at
+// TasksFlow's mount and cleared only by a bottom-tab tap, and LifeFlow
+// remounts the lens flow on every segment change. So arriving on a task from
+// a note, closing its sheet, tapping Projects and tapping Tasks popped the
+// same sheet open by itself, and an arrival through Today's Overdue link
+// snapped the filter back to Overdue on every return.
+function TaskLinked() {
+  const t = useTasks();
+  const [id, setId] = useState<string | undefined>(undefined);
+  const [intent, setIntent] = useState<{ value?: string; nonce: number }>({ nonce: 0 });
+  const [filter, setFilter] = useState<{ value?: string; nonce: number }>({ nonce: 0 });
+  useEffect(() => { void (async () => setId((await t.createTask("Pay the deposit", { due: todayISO() })) ?? undefined))(); }, [t]);
+  return id ? (
+    <>
+      <button onClick={() => { setIntent((i) => ({ value: id, nonce: i.nonce + 1 })); setFilter((f) => ({ value: "overdue", nonce: f.nonce + 1 })); }}>Link Task</button>
+      <LifeFlow
+        segment="tasks"
+        taskOpenId={intent.value} taskNonce={intent.nonce} onTaskOpened={() => setIntent((i) => ({ nonce: i.nonce }))}
+        taskFilter={filter.value} filterNonce={filter.nonce} onFilterApplied={() => setFilter((f) => ({ nonce: f.nonce }))}
+      />
+    </>
+  ) : null;
+}
+
+describe("a task link is spent once (SHELL-F-12)", () => {
+  it("does not reopen the sheet, or re-apply the filter, after a segment round trip", async () => {
+    render(<NotesProvider userId="deep-life-3"><TaskLinked /></NotesProvider>);
+    await screen.findByText("Pay the deposit", {}, { timeout: 3000 });
+    fireEvent.click(screen.getByText("Link Task"));
+    await waitFor(() => expect(screen.getByText("Edit Task")).toBeInTheDocument());
+    // The filter the link asked for is showing (the Show menu names it).
+    expect(screen.getByLabelText("Show")).toHaveTextContent("Overdue");
+
+    fireEvent.click(screen.getByText("Cancel"));
+    await waitFor(() => expect(screen.queryByText("Edit Task")).not.toBeInTheDocument());
+
+    // Projects, then back to Tasks: the lens flow unmounts and remounts.
+    fireEvent.click(screen.getByRole("tab", { name: "Projects" }));
+    await waitFor(() => expect(screen.queryByText("Pay the deposit")).not.toBeInTheDocument());
+    fireEvent.click(screen.getByRole("tab", { name: "Tasks" }));
+    await screen.findByText("Pay the deposit", {}, { timeout: 3000 });
+
+    expect(screen.queryByText("Edit Task")).not.toBeInTheDocument();
+    // And the filter is the list's own default, not the one that link carried.
+    expect(screen.getByLabelText("Show")).toHaveTextContent("Today");
+  });
+});

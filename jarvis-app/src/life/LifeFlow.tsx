@@ -13,13 +13,17 @@ import LifeSegments, { type LifeSegment } from "./LifeSegments";
 let lastSegment: LifeSegment = "tasks";
 
 export default function LifeFlow({
-  segment, segmentNav, taskOpenId, taskFilter, projectOpenId, projectNonce, goalOpenId, goalNonce, onOpenNote, onWhatNow, onOpenDecision, onGoEmail,
+  segment, segmentNav, taskOpenId, taskNonce, onTaskOpened, taskFilter, filterNonce, onFilterApplied, projectOpenId, projectNonce, goalOpenId, goalNonce, onOpenNote, onWhatNow, onOpenDecision, onGoEmail,
 }: {
   segment?: LifeSegment;
   /** Bumped by the shell on every deep link, so a link to the lens already
    *  remembered still moves a page that has since changed lens. */
   segmentNav?: number;
   taskOpenId?: string; taskFilter?: string;
+  // SHELL-F-12 (2026-09-05): the nonce and the callback each lens flow needs
+  // to consume its own one-shot. LifeFlow only forwards them.
+  taskNonce?: number; onTaskOpened?: () => void;
+  filterNonce?: number; onFilterApplied?: () => void;
   projectOpenId?: string; goalOpenId?: string;
   // LIFE-F-07 (2026-09-05): the shell's one-shot nonces, passed straight
   // through. A deep link to the lens you are already on has to look like a
@@ -38,7 +42,7 @@ export default function LifeFlow({
   useEffect(() => { if (segment) pick(segment); }, [segment, segmentNav]);
   const segments = <LifeSegments value={seg} onPick={pick} />;
   if (seg === "tasks") {
-    return <TasksFlow title="Life" segments={segments} openId={taskOpenId} openFilter={taskFilter} onOpenNote={onOpenNote} onWhatNow={onWhatNow} />;
+    return <TasksFlow title="Life" segments={segments} openId={taskOpenId} openNonce={taskNonce} onOpenConsumed={onTaskOpened} openFilter={taskFilter} filterNonce={filterNonce} onFilterApplied={onFilterApplied} onOpenNote={onOpenNote} onWhatNow={onWhatNow} />;
   }
   return (
     <BiggerPictureFlow
