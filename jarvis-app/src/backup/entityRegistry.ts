@@ -11,10 +11,11 @@
 // ADDING A NEW ENTITY TYPE? Add its import and its constant to ALL_ENTITY_TYPES
 // below. Nothing else needs to change for backup/restore to pick it up.
 //
-// Note: data/CachedAdapter.ts has its own separate KNOWN_TYPES, used only to
-// decide which write-through preload caches to patch on a local write. That
-// list is unrelated to this one (a type missing there just means a slower
-// repaint, never lost data) and is out of scope for this fix.
+// PLUMB-F-03 (2026-09-05): data/CachedAdapter.ts's KNOWN_TYPES (which
+// write-through preload caches a local edit or delete patches) is derived
+// from this list too. It used to be its own 15-entry copy, and the note here
+// that a missing type "just means a slower repaint" was wrong: a deleted
+// strand or decision stayed in its cache and came back on the next list.
 import { ENTITY_ACCOUNT } from "../money/types";
 import { ENTITY_PROJECT } from "../projects/types";
 import { ENTITY_PROFILE } from "../profile/types";

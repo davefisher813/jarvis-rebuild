@@ -16,6 +16,7 @@
 
 import { mergePatch, type DataAdapter, type Item, type ItemData, type ServerTime } from "@core";
 import { listSignature, readPreload, writePreload } from "./preloadCache";
+import { ALL_ENTITY_TYPES } from "../backup/entityRegistry";
 
 export type FreshListener = (entityType: string) => void;
 
@@ -157,23 +158,12 @@ export class CachedAdapter implements DataAdapter {
   }
 }
 
-// Every registered entity type (mirror of the entity_type registry). A type
-// missing here still works; it just skips write-through and relies on the
-// background refresh, so the failure mode is a late repaint, not wrong data.
-export const KNOWN_TYPES = [
-  "note",
-  "task",
-  "event",
-  "category",
-  "profile",
-  "person",
-  "brain_doc",
-  "life_area",
-  "goal",
-  "project",
-  "account",
-  "routine",
-  "program",
-  "workout",
-  "month_seal",
-] as const;
+// PLUMB-F-03 (2026-09-05): every entity type this build knows about, taken
+// from the one registry (backup/entityRegistry.ts) rather than a second
+// hand-typed list. The old list here held 15 of 33 types and its own comment
+// promised a missing type "just skips write-through", which is only true
+// when nothing is cached for it: a deleted strand, decision, learned rule,
+// metric log, chat message, health log or file row stayed in its preload
+// cache, so the next list showed it again until a refresh happened to win.
+// One import, and the next new type cannot be missed.
+export const KNOWN_TYPES: readonly string[] = ALL_ENTITY_TYPES;

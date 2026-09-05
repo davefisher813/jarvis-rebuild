@@ -6,7 +6,10 @@
 
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { InMemoryAdapter, type DataAdapter, type Item, type ItemData, type ServerTime } from "@core";
-import { CachedAdapter } from "./CachedAdapter";
+import { CachedAdapter, KNOWN_TYPES } from "./CachedAdapter";
+import { ALL_ENTITY_TYPES } from "../backup/entityRegistry";
+import { ENTITY_STRAND } from "../brain/strands/types";
+import { ENTITY_DECISION } from "../decisions/types";
 import { readPreload, writePreload, clearPreload, listSignature } from "./preloadCache";
 import { cachedDraft, contentHash, pregenerate, rememberDraft, PREGEN_CAP } from "../ai/pregen";
 import { setAIControl } from "../ai/levelStore";
@@ -101,6 +104,33 @@ describe("stale-while-revalidate adapter", () => {
     expect(Object.keys(cached.data)).toEqual(["title"]);
     // And the cached row holds exactly what the server row holds.
     expect(cached.data).toEqual((await inner.read(U, id))!.data);
+  });
+
+  // PLUMB-F-03 (2026-09-05): the write-through walked a hand-typed list of
+  // 15 types, so a deleted strand, decision, rule, metric log, chat message,
+  // health log or file row stayed in its cache and the next list showed it
+  // again (the audit's repro: "strand: list right after delete=1").
+  it("PLUMB-F-03: write-through covers every registered entity type, not a hand list", () => {
+    expect([...KNOWN_TYPES].sort()).toEqual([...ALL_ENTITY_TYPES].sort());
+    expect(KNOWN_TYPES.length).toBeGreaterThan(30);
+    for (const t of [ENTITY_STRAND, ENTITY_DECISION, "learned_rule", "metric_log", "chat_message", "user_file", "health_took_it"]) {
+      expect(KNOWN_TYPES, `${t} must be write-through`).toContain(t);
+    }
+  });
+
+  it("PLUMB-F-03: a deleted strand is gone from the cached list right after the delete", async () => {
+    const inner = new InMemoryAdapter();
+    const adapter = new CachedAdapter(inner);
+    const id = await adapter.create(U, ENTITY_STRAND, { text: "Prefers mornings" });
+    await adapter.listForUser(U, ENTITY_STRAND); // warm the cache
+    expect((await adapter.listForUser(U, ENTITY_STRAND)).length).toBe(1);
+    await adapter.del(U, id);
+    expect((await adapter.listForUser(U, ENTITY_STRAND)).length).toBe(0);
+    // And an edit to a decision shows in its cached list too.
+    const d = await adapter.create(U, ENTITY_DECISION, { decision: "Saturdays only", createdAt: "2026-09-01", updatedAt: "2026-09-01" });
+    await adapter.listForUser(U, ENTITY_DECISION);
+    await adapter.apply(U, d, { why: "Family time" });
+    expect((await adapter.listForUser(U, ENTITY_DECISION)).find((i) => i.id === d)!.data.why).toBe("Family time");
   });
 
   it("untyped lists bypass the cache so backup always reads the truth", async () => {
