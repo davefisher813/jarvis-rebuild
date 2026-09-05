@@ -69,7 +69,7 @@ const todayISODate = () => {
 // Now line inserted at the right spot and time-as-distance on the next event.
 function DaySet({
   events, locked = [], now, nowLabel, onOpenEvent, onEditRoutine, onOpenBlock, blendMap = {}, proposed, fromMin, expandHeld = false,
-  conflicts, attachMap, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow,
+  conflicts, attachMap, firstMoveMap, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow,
   onShiftBlock, onRetimeBlock, onResizeBlock,
 }: {
   events: EventItem[]; locked?: LockedRange[]; now: string; nowLabel: string; onOpenEvent?: (id: string) => void;
@@ -84,6 +84,8 @@ function DaySet({
   // that action is not offered, same as DayRow already handles for Schedule.
   conflicts?: Set<string>;
   attachMap?: Record<string, AttachInfo>;
+  // S6-Q36: same per-event shape as attachMap.
+  firstMoveMap?: Record<string, string>;
   onShift?: (id: string, mins: number) => void;
   onMoveTo?: (id: string, start: string) => void;
   onSetEnd?: (id: string, end: string) => void;
@@ -160,6 +162,7 @@ function DaySet({
           e={en.ev}
           conflict={conflicts?.has(en.ev.id) ?? false}
           attach={attachMap?.[en.ev.id]}
+          firstMove={firstMoveMap?.[en.ev.id]}
           isNext={en.ev.id === nextId}
           isPast={isPast(en.ev, now)}
           now={now}
@@ -290,6 +293,7 @@ export default function YourDay({
   nowHead,
   conflicts,
   attachMap,
+  firstMoveMap,
   onShift,
   onMoveTo,
   onSetEnd,
@@ -327,6 +331,8 @@ export default function YourDay({
   // has handlers for, same as ScheduleFlow already does for its own list.
   conflicts?: Set<string>;
   attachMap?: Record<string, AttachInfo>;
+  // S6-Q36: same per-event shape as attachMap.
+  firstMoveMap?: Record<string, string>;
   onShift?: (id: string, mins: number) => void;
   onMoveTo?: (id: string, start: string) => void;
   onSetEnd?: (id: string, end: string) => void;
@@ -556,7 +562,7 @@ export default function YourDay({
               expanded, which is the ticker's own content. Deciding whether a
               thing should scroll by measuring something other than that thing
               is how the feature switched itself off. */}
-          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} onOpenBlock={onOpenBlock} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} /></div>
+          <div><DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} onOpenEvent={onOpenEvent} onEditRoutine={onEditRoutine} onOpenBlock={onOpenBlock} blendMap={blendMap} proposed={proposed} fromMin={nowHead ? nowMinutes : undefined} conflicts={conflicts} attachMap={attachMap} firstMoveMap={firstMoveMap} onShift={onShift} onMoveTo={onMoveTo} onSetEnd={onSetEnd} onSkipToday={onSkipToday} onPushTomorrow={onPushTomorrow} onShiftBlock={onShiftBlock} onRetimeBlock={onRetimeBlock} onResizeBlock={onResizeBlock} /></div>
           {measuring && (
             <div ref={measureRef} className="day-measure" aria-hidden="true">
               <DaySet events={events} locked={locked} now={now} nowLabel={nowLabel} blendMap={blendMap} proposed={proposed} expandHeld />

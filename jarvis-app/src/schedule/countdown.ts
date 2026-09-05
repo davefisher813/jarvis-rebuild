@@ -38,12 +38,18 @@ export function rungsFor(minutesUntil: number): Rung[] {
 
 // The copy shifts from information to instruction as the event closes. This
 // is the part that stops the ladder becoming four identical pings.
-export function ladderBody(lead: Rung, where?: string): string {
+//
+// S6-Q36 (2026-09-04): the closing rung was already an instruction
+// ("leave what you're doing"), just a generic one. When the event's own
+// task named a first move (Start Ritual, or any if-then plan), the five-
+// minute alert can say the actual move instead of a placeholder for it --
+// the exact moment this whole ladder is building toward.
+export function ladderBody(lead: Rung, where?: string, firstMove?: string): string {
   const place = where?.trim() ? " · " + where.trim() : "";
   if (lead === 60) return "In an hour" + place;
   if (lead === 30) return "In half an hour" + place;
   if (lead === 15) return "Fifteen minutes" + place;
-  return "Leave what you're doing" + place;
+  return (firstMove?.trim() || "Leave what you're doing") + place;
 }
 
 export function buildLadder(

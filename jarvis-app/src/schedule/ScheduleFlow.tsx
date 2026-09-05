@@ -23,7 +23,7 @@ import OverlapSheet from "./screens/OverlapSheet";
 import { planDay } from "./planDay";
 import { anytimeTasksForDay } from "./anytime";
 import { suggestTitles, suggestLocations, repeatCandidate } from "./memory";
-import { attachInfo, followUpCandidate, type AttachInfo } from "./attachments";
+import { attachInfo, firstMoveOf, followUpCandidate, type AttachInfo } from "./attachments";
 import { bestPerBlock, blockKind, recordBlend, loadBlendMemory } from "./blend";
 import type { EventItem, EventData } from "./types";
 import { showToast } from "../shared/toast";
@@ -582,9 +582,13 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
 
   // --- Session 4 connections: attachments + the event-end follow-up ---
   const attachMap: Record<string, AttachInfo> = {};
+  // S6-Q36: same per-event lookup as attachMap, alongside it.
+  const firstMoveMap: Record<string, string> = {};
   for (const e of dayEvents) {
     const info = attachInfo(e, taskItems);
     if (info) attachMap[e.id] = info;
+    const move = firstMoveOf(e, taskItems);
+    if (move) firstMoveMap[e.id] = move;
   }
   const attachableTasks = taskItems
     .filter((t) => !t.data.done || dayEvents.some((e) => e.data.taskIds?.includes(t.id)))
@@ -1179,6 +1183,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         onToggleTask={onToggleTask}
         onScheduleTask={onScheduleTask}
         attachMap={attachMap}
+        firstMoveMap={firstMoveMap}
         blendMap={blendMap}
       />
       {fixing && (

@@ -126,6 +126,20 @@ describe("buildEventReminders", () => {
     expect(out[0]!.id).toBe(EVENT_REMINDER_BASE);
     expect(out[1]!.at.getTime()).toBeGreaterThanOrEqual(out[0]!.at.getTime());
   });
+
+  // S6-Q36 (2026-09-04): "the first move is thrown away, never stored."
+  // firstMove rides the ReminderInput now, and only the closing (5-minute)
+  // rung uses it -- the earlier rungs stay informational, unchanged.
+  it("names the first move on the closing rung when the event has one", () => {
+    const rs = buildEventReminders([{ date: "2026-08-09", start: "09:20", title: "ES Game", location: "188 Clinton Ave", firstMove: "Load the gear bag" }], NOW);
+    expect(rs[0]!.body).toBe("In an hour · 188 Clinton Ave"); // unchanged
+    expect(rs[3]!.body).toBe("Load the gear bag · 188 Clinton Ave");
+  });
+
+  it("keeps the generic closing instruction when the event has no first move", () => {
+    const rs = buildEventReminders([{ date: "2026-08-09", start: "09:20", title: "ES Game" }], NOW);
+    expect(rs[3]!.body).toBe("Leave what you're doing");
+  });
 });
 
 // Task reminders (S1-01, 2026-09-04): "Meds, 9:00 PM, every day" never made

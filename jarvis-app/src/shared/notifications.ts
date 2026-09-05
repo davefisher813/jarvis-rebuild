@@ -140,7 +140,10 @@ export const EVENT_REMINDER_BASE = 9100;
 export const EVENT_REMINDER_CAP = 120;
 export const EVENT_REMINDER_LEAD_MIN = 15;
 
-export interface ReminderInput { date: string; start: string; end?: string; title: string; location?: string }
+// S6-Q36: the first move named on this event's source task, when it has
+// one (see schedule/attachments.ts's firstMoveOf). Optional, additive: an
+// event with none falls back to the ladder's generic closing copy.
+export interface ReminderInput { date: string; start: string; end?: string; title: string; location?: string; firstMove?: string }
 export interface EventReminder { id: number; title: string; body: string; at: Date }
 
 // Pure: which reminders exist for these events, from this moment. Only
@@ -179,7 +182,7 @@ export function buildEventReminders(
       out.push({
         id: 0, // assigned after sorting
         title: e.title.trim(),
-        body: ladderBody(lead as Rung, e.location),
+        body: ladderBody(lead as Rung, e.location, e.firstMove),
         at,
       });
     }

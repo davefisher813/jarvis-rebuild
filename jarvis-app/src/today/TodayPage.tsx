@@ -213,6 +213,7 @@ export default function TodayPage({
   onPayBill,
   conflicts,
   attachMap,
+  firstMoveMap,
   onShift,
   onMoveTo,
   onSetEnd,
@@ -275,6 +276,8 @@ export default function TodayPage({
   // awareness. Optional throughout - TodayFlow wires whichever it has.
   conflicts?: Set<string>;
   attachMap?: Record<string, AttachInfo>;
+  // S6-Q36: same per-event shape as attachMap.
+  firstMoveMap?: Record<string, string>;
   onShift?: (id: string, mins: number) => void;
   onMoveTo?: (id: string, start: string) => void;
   onSetEnd?: (id: string, end: string) => void;
@@ -715,6 +718,7 @@ export default function TodayPage({
         emptyText={evening ? "Nothing else tonight" : "Nothing scheduled today"}
         conflicts={conflicts}
         attachMap={attachMap}
+        firstMoveMap={firstMoveMap}
         onShift={onShift}
         onMoveTo={onMoveTo}
         onSetEnd={onSetEnd}

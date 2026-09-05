@@ -190,3 +190,24 @@ describe("DayRow resize", () => {
     expect(onSetEnd).toHaveBeenCalledWith("23:59");
   });
 });
+
+// S6-Q36 (2026-09-04): "the first move is thrown away, never stored." The
+// event row is one of the two places it gets to render again, resolved by
+// the caller (schedule/attachments.ts's firstMoveOf) and handed in as a
+// plain prop, same shape as attach.
+describe("DayRow: the first move (S6-Q36)", () => {
+  it("joins the one grey meta line when the caller resolves one", () => {
+    const { container } = render(
+      <DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} onOpen={() => {}} firstMove="Open the invoice template" />,
+    );
+    const move = container.querySelector(".sched-cat .sched-firstmove");
+    expect(move).toHaveTextContent("Open the invoice template");
+  });
+
+  it("renders nothing when the caller resolves none", () => {
+    const { container } = render(
+      <DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} onOpen={() => {}} />,
+    );
+    expect(container.querySelector(".sched-firstmove")).toBeNull();
+  });
+});

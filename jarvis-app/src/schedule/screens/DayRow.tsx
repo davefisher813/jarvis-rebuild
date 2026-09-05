@@ -54,6 +54,7 @@ export default function DayRow({
   onPick,
   weatherDateIso,
   gymDoor,
+  firstMove,
 }: {
   e: EventItem;
   conflict: boolean;
@@ -86,6 +87,10 @@ export default function DayRow({
   // THE TRAINING DOOR (D4-C): present only on events the athlete marked as
   // the gym. The row grows the day's lift, its facts, and the way in.
   gymDoor?: GymDoorView | null;
+  // S6-Q36 (2026-09-04): the first move named on this event's source task
+  // (attachments.ts's firstMoveOf), when it has one. Resolved by the caller,
+  // same shape as attach above, so this row stays a pure renderer.
+  firstMove?: string;
 }) {
   const t = fmtTime(e.data.start);
   const endT = e.data.end ? fmtTime(e.data.end) : null;
@@ -254,6 +259,14 @@ export default function DayRow({
               </>
             )}
             {weatherDateIso && !isPast && e.data.location && <EventWeatherLine dateIso={weatherDateIso} start={e.data.start} />}
+            {/* S6-Q36: the row's own start time is already this event's cue;
+                the move is the half that is not redundant here. */}
+            {firstMove && (
+              <>
+                <span className="sched-sep">&middot;</span>
+                <span className="sched-firstmove">{firstMove}</span>
+              </>
+            )}
           </div>
           {attach && (
             <div className="sched-cat">

@@ -88,7 +88,7 @@ export default function SchedulePage({
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
   onShiftBlock, onRetimeBlock, onResizeBlock,
   proposed, dayFooter,
-  anytimeItems = [], onToggleTask, onScheduleTask, parentOf, attachMap = {}, blendMap = {},
+  anytimeItems = [], onToggleTask, onScheduleTask, parentOf, attachMap = {}, firstMoveMap = {}, blendMap = {},
   windowStartMin, windowEndMin,
 }: {
   year: number; month: number; selected: string; todayDate: string;
@@ -149,6 +149,9 @@ export default function SchedulePage({
   // The goal an Anytime task moves, by its short name (the ruled row).
   parentOf?: (t: TaskItem) => ParentLine | null;
   attachMap?: Record<string, AttachInfo>;
+  // S6-Q36: the first move named on this event's source task, keyed by
+  // event id (attachments.ts's firstMoveOf). Same shape as attachMap.
+  firstMoveMap?: Record<string, string>;
   // BLENDING (Dave, 2026-08-21). One confident offer per block, keyed by
   // event id: the task that fits this block well enough that adding it is a
   // shortcut rather than a gamble. Computed by the flow, rendered here.
@@ -730,6 +733,7 @@ export default function SchedulePage({
                   conflict={conflicts?.has(en.e.id) ?? false}
                   onFixOverlap={onOverlapBadge ? () => onOverlapBadge(en.e.id) : undefined}
                   attach={attachMap[en.e.id]}
+                  firstMove={firstMoveMap[en.e.id]}
                   isNext={en.e.id === nextId}
                   isPast={isToday ? (en.e.data.end ? toMin(en.e.data.end) : toMin(en.e.data.start) + 60) < nowMin : false}
                   now={isToday ? now! : null}

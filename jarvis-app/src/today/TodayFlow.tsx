@@ -60,7 +60,7 @@ import {
 import { shiftBlock as shiftBlockAdjust, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust, editBlockBasics, removeBlock as removeBlockAdjust } from "../routine/blockAdjust";
 import { overlapsOn } from "../schedule/dayEdit";
 import { isKept } from "../schedule/overlapAck";
-import { attachInfo, type AttachInfo } from "../schedule/attachments";
+import { attachInfo, firstMoveOf, type AttachInfo } from "../schedule/attachments";
 import { cachedDraft, pregenerate, rememberDraft, PREGEN_CAP } from "../ai/pregen";
 import { loadNudgeCounts } from "../messages/escalate";
 import { settleAll } from "../messages/settle";
@@ -896,9 +896,13 @@ export default function TodayFlow({
   const todayOverlaps = overlapsOn(allEvents, today).filter((o) => !isKept(o, today));
   const conflicts = new Set<string>(todayOverlaps.flatMap((o) => [o.a.id, o.b.id]));
   const attachMap: Record<string, AttachInfo> = {};
+  // S6-Q36: same per-event lookup as attachMap, alongside it.
+  const firstMoveMap: Record<string, string> = {};
   for (const e of todayEvents) {
     const info = attachInfo(e, taskItems);
     if (info) attachMap[e.id] = info;
+    const move = firstMoveOf(e, taskItems);
+    if (move) firstMoveMap[e.id] = move;
   }
   const chrono = chronotypeFor(routineData);
   const peak = peakWindowFor(routineData, chrono);
@@ -1023,12 +1027,14 @@ export default function TodayFlow({
   useEffect(() => {
     const inputs = notifyPrefs.events
       ? [
-          ...todayEvents.map((e) => ({ date: today, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location })),
-          ...tomorrowEvents.map((e) => ({ date: tomorrow, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location })),
+          // S6-Q36: firstMove rides along so the closing rung of the
+          // ladder can name the actual move instead of a placeholder.
+          ...todayEvents.map((e) => ({ date: today, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location, firstMove: firstMoveOf(e, taskItems) })),
+          ...tomorrowEvents.map((e) => ({ date: tomorrow, start: e.data.start, end: e.data.end, title: e.data.title, location: e.data.location, firstMove: firstMoveOf(e, taskItems) })),
         ]
       : []; // pref off: an empty schedule cancels whatever was pending
     void ensureEventReminders(inputs);
-  }, [todayEvents, tomorrowEvents, today, tomorrow, notifyPrefs.events]);
+  }, [todayEvents, tomorrowEvents, today, tomorrow, notifyPrefs.events, taskItems]);
 
   // S1-01 (2026-09-04): a reminder is a task wearing reminder facts, and
   // setting one never made the phone do anything, ever. Same rhythm as
@@ -2457,6 +2463,7 @@ export default function TodayFlow({
       onOpenBlock={onOpenBlock}
       conflicts={conflicts}
       attachMap={attachMap}
+      firstMoveMap={firstMoveMap}
       onShift={onShift}
       onMoveTo={onMoveTo}
       onSetEnd={onSetEnd}
@@ -2608,6 +2615,15 @@ export default function TodayFlow({
               date: today, start: r.startHHMM, end: endsAt(r),
               sourceTaskId: r.taskId,
             }));
+            // S6-Q36 (2026-09-04): "the first move is thrown away, never
+            // stored." It rides the task's own if-then plan now, the same
+            // field TaskSheet's Plan group edits, so it can show up again
+            // everywhere a plan does: the event row this just created
+            // (attachments.ts's firstMoveOf), and the closing rung of its
+            // reminder ladder (countdown.ts's ladderBody). Only written once
+            // the event itself is real; a ritual that failed to schedule
+            // leaves no half-set plan behind.
+            if (ok) await attemptWrite(() => tasks.setPlan(r.taskId, { cue: { kind: "time", what: r.startHHMM }, then: r.firstMove }));
             await reload();
             if (ok) showToast({ message: `Starts ${r.startHHMM} · ${r.firstMove}` });
           })();

@@ -28,6 +28,20 @@ export function attachLabel(info: AttachInfo): string {
   return capAfterNumber(`${info.done} of ${info.total} ${info.total === 1 ? "task" : "tasks"} done`);
 }
 
+// S6-Q36 (2026-09-04): "Start Ritual's first move is thrown away, never
+// stored." The Set It button used it for one toast and nothing else. It now
+// rides the task's existing if-then plan (TasksService.setPlan, see
+// TodayFlow's ritual onSet), so any event generated FROM a task -- Start
+// Ritual chief among them, but any sourceTaskId qualifies -- can show it
+// here. The task's own row shows only the CUE (ifThen.ts's cueLine: "the
+// whole sentence is on the sheet"); this row's start time already IS the
+// cue, so the move is the non-redundant half here instead.
+export function firstMoveOf(e: EventItem, tasks: TaskItem[]): string | undefined {
+  const id = e.data.sourceTaskId;
+  if (!id) return undefined;
+  return tasks.find((t) => t.id === id)?.data.plan?.then;
+}
+
 function toMin(hhmm: string): number {
   const p = hhmm.split(":");
   return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0);

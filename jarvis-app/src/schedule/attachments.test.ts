@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { attachInfo, attachLabel, followUpCandidate } from "./attachments";
+import { attachInfo, attachLabel, firstMoveOf, followUpCandidate } from "./attachments";
 import type { EventItem } from "./types";
 import type { TaskItem } from "../tasks/TasksService";
+import type { IfThen } from "../tasks/ifThen";
 
 const D = "2026-07-31";
 let n = 0;
@@ -26,6 +27,33 @@ describe("attachInfo + attachLabel", () => {
   it("returns null with no surviving attachments", () => {
     expect(attachInfo(evt(), [])).toBeNull();
     expect(attachInfo(evt({ taskIds: ["gone"] }), [])).toBeNull();
+  });
+});
+
+// S6-Q36 (2026-09-04): "the first move is thrown away, never stored." It
+// now rides the task's own if-then plan; this is the lookup that lets an
+// event generated FROM that task (sourceTaskId) show it again.
+describe("firstMoveOf", () => {
+  const plan: IfThen = { cue: { kind: "time", what: "15:00" }, then: "Open the invoice template" };
+  const withPlan: TaskItem = { id: "t1", data: { text: "Send the invoice", category: "", done: false, plan } };
+
+  it("resolves the source task's first move", () => {
+    const e = evt({ sourceTaskId: "t1" });
+    expect(firstMoveOf(e, [withPlan])).toBe("Open the invoice template");
+  });
+
+  it("is undefined with no sourceTaskId at all", () => {
+    expect(firstMoveOf(evt(), [withPlan])).toBeUndefined();
+  });
+
+  it("is undefined when the source task has no plan", () => {
+    const e = evt({ sourceTaskId: "no-plan" });
+    expect(firstMoveOf(e, [task("no-plan")])).toBeUndefined();
+  });
+
+  it("is undefined when the source task no longer exists", () => {
+    const e = evt({ sourceTaskId: "gone" });
+    expect(firstMoveOf(e, [withPlan])).toBeUndefined();
   });
 });
 
