@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { useCategories, useGoals, useProjects, useGym, useTasks, useRules, useOptionalSeal } from "../data/NotesProvider";
+import { useCategories, useGoals, useProjects, useGym, useTasks, useRules, useOptionalSeal, useSchedule } from "../data/NotesProvider";
 import type { MonthSeal, MonthSealData } from "./seal";
 import { prevMonthKey, computeSeal } from "./seal";
 import { readWindow, type WindowClient } from "../brain/window";
@@ -12,6 +12,7 @@ import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { capAfterNumber } from "../shared/casing";
 import type { TaskData } from "../notes/types";
+import type { EventItem } from "../schedule/types";
 import { TargetGlyph, CheckCircleGlyph, WarningGlyph, LockGlyph } from "../shared/glyphs";
 import { filledIcon } from "../shared/filledIcons";
 
@@ -320,6 +321,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
   const gym = useGym();
   const tasksSvc = useTasks();
   const rules = useRules();
+  const schedule = useSchedule();
   const [report, setReport] = useState<MonthReport | null>(null);
   const [none, setNone] = useState(false);
   const [capped, setCapped] = useState(false);
@@ -351,7 +353,14 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
       // The month in progress, through the SAME fold the boundary uses.
       const now = Date.now();
       const rows = await readWindow(supabase as unknown as WindowClient | null, now, 35);
-      sealData = computeSeal(todayISO().slice(0, 7), { rows, workouts: ws, goals: gl, sealedAt: now });
+      // BRAIN-F-16 (2026-09-05): the boundary seal has been handed events
+      // since item 13 (AppShell passes the schedule), and this path never
+      // was, so "September, So Far" had no Where the Hours Went whatever was
+      // on the calendar. Best effort, exactly as the boundary treats it: a
+      // failed calendar read costs the section, never the report.
+      let events: EventItem[] | undefined;
+      try { events = await schedule.listEvents(); } catch { events = undefined; }
+      sealData = computeSeal(todayISO().slice(0, 7), { rows, workouts: ws, goals: gl, sealedAt: now, ...(events ? { events } : {}) });
     } else {
       const wanted: MonthSeal | undefined = month
         ? seals.find((x) => x.data.month === month)
@@ -373,7 +382,7 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
       openTaskText: (id) => open.get(id)?.text ?? null,
       alreadyCapped: !!capRule,
     }));
-  }, [sealSvc, cats, goalsSvc, projectsSvc, gym, tasksSvc, rules, month, live]);
+  }, [sealSvc, cats, goalsSvc, projectsSvc, gym, tasksSvc, rules, schedule, month, live]);
   useEffect(() => { void load(); }, [load]);
 
   // S4-Q26 (2026-09-04): one tap, one step. create() is idempotent and
