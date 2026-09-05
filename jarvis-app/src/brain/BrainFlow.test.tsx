@@ -89,3 +89,28 @@ describe("BrainFlow: the Money category is never a destination here", () => {
     await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
   });
 });
+
+// S5-Q31 (2026-09-04): "a workout in progress is invisible outside the gym."
+// Today's live-session card hands AppShell a categoryId plus a flag saying
+// "and open the gym," not just "open this category" -- openKey alone used to
+// land on the ordinary health page, one more tap away from the session it
+// was already in. autoOpenGym is what closes that last hop, threaded through
+// BrainFlow into CategoryDetail's own gymOpen seed.
+describe("BrainFlow: a live-session deep-link lands in the gym, not the category page (S5-Q31)", () => {
+  it("openKey + autoOpenGym skips straight past the health page", async () => {
+    function Seeded() {
+      const cats = useCategories();
+      const [cid, setCid] = useState("");
+      useEffect(() => {
+        (async () => { setCid((await cats.create("Health", "blue"))!); })();
+      }, [cats]);
+      return cid ? <BrainFlow openKey={cid} autoOpenGym /> : null;
+    }
+    render(<NotesProvider userId="b-gym1"><Seeded /></NotesProvider>);
+    // GymFlow's own empty state (no program seeded here) proves the gym
+    // mounted immediately -- the ordinary health page's "Log It" section
+    // never gets a chance to render.
+    await waitFor(() => expect(screen.getByText("No Program Yet")).toBeInTheDocument());
+    expect(screen.queryByText("Log It")).not.toBeInTheDocument();
+  });
+});

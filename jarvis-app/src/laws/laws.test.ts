@@ -3935,3 +3935,40 @@ describe("LAW: only one file asks for the screen wake lock", () => {
       .not.toMatch(/navigator\.wakeLock/);
   });
 });
+
+// S5-Q31 (2026-09-04): "a workout in progress is invisible outside the gym."
+// Killing or backgrounding the app mid-session used to leave Today showing
+// nothing at all, and even the pre-existing "gym" WorkSpot kind only ever
+// switched to the Brain tab -- never into the session, and nothing in
+// src/gym ever wrote one anyway. The fix is a card read straight off
+// gym/liveSession.ts (unconditional: no five-minute gap, no hiding itself
+// once he's active elsewhere, unlike the spot card beside it), wired through
+// the SAME onRestoreSpot("gym", ...) door, now actually carrying a category
+// id and a flag through AppShell -> BrainFlow -> CategoryDetail so it lands
+// IN the session, not just on the tab.
+describe("LAW: a live gym session is visible and reachable from Today", () => {
+  it("Today reads the live session straight off gym/liveSession.ts, unconditionally", () => {
+    const today = read(SRC + "/today/TodayFlow.tsx");
+    expect(today, "Today must read the live session's own store")
+      .toMatch(/readLive\(\)/);
+    expect(today, "liveness must use the module's own staleness rule, not a bespoke one")
+      .toMatch(/isStillActive\(/);
+  });
+
+  it("the gym WorkSpot kind actually resumes the session now, not just the Brain tab", () => {
+    const shell = read(SRC + "/shell/AppShell.tsx");
+    const gymBranch = shell.match(/kind === "gym"\)\s*\{([^}]*)\}/);
+    expect(gymBranch, 'AppShell must branch on kind === "gym"').toBeTruthy();
+    expect(gymBranch![1], "the gym branch must carry a category id into Brain, not just switch tabs")
+      .toMatch(/setBrainIntent\(/);
+  });
+
+  it("CategoryDetail can be told to open the gym on arrival, and BrainFlow passes that through", () => {
+    const detail = read(SRC + "/brain/CategoryDetail.tsx");
+    expect(detail, "gymOpen's initial state must be seedable from outside")
+      .toMatch(/useState\(!!autoOpenGym\)/);
+    const flow = read(SRC + "/brain/BrainFlow.tsx");
+    expect(flow, "BrainFlow must thread autoOpenGym down to CategoryDetail")
+      .toMatch(/autoOpenGym=\{autoOpenGym\}/);
+  });
+});

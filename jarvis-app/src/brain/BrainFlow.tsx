@@ -20,7 +20,7 @@ const DOC_TOPIC: Record<string, string> = {
 // The Brain tab. The hub is built. Contacts opens the one people list (the
 // Inner Circle / Adversarial rows were cut 2026-08-03); the doc rows open a
 // lightweight placeholder for now. "Your Categories" is populated live.
-export default function BrainFlow({ openKey, routineBlockId, onRoutineBlockConsumed, personOpenId, decisionOpenId, onOpenNote, onOpenProject, onOpenMoney, onOpenEntity }: { openKey?: string; routineBlockId?: string; onRoutineBlockConsumed?: () => void; personOpenId?: string; decisionOpenId?: string; onOpenNote?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenMoney?: () => void; onOpenEntity?: (kind: string, id: string) => void } = {}) {
+export default function BrainFlow({ openKey, routineBlockId, onRoutineBlockConsumed, personOpenId, decisionOpenId, onOpenNote, onOpenProject, onOpenMoney, onOpenEntity, autoOpenGym }: { openKey?: string; routineBlockId?: string; onRoutineBlockConsumed?: () => void; personOpenId?: string; decisionOpenId?: string; onOpenNote?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenMoney?: () => void; onOpenEntity?: (kind: string, id: string) => void; autoOpenGym?: boolean } = {}) {
   const cats = useCategories();
   const [categories, setCategories] = useState<BrainCategory[]>([]);
   const [open, setOpen] = useState<{ key: string; name: string } | null>(
@@ -117,6 +117,7 @@ export default function BrainFlow({ openKey, routineBlockId, onRoutineBlockConsu
           onOpenTask={onOpenEntity ? (id) => onOpenEntity("task", id) : undefined}
           onOpenGoal={onOpenEntity ? (id) => onOpenEntity("goal", id) : undefined}
           onChanged={() => void loadCats()}
+          autoOpenGym={autoOpenGym}
         />
       );
     }

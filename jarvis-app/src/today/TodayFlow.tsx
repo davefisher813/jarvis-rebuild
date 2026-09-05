@@ -84,6 +84,7 @@ import { remindersToIcs, downloadIcs } from "../tasks/ics";
 import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
+import { readLive, isStillActive, type LiveSession } from "../gym/liveSession";
 import { isQuiet, goQuiet, localQuietStore } from "../shared/quietFor";
 
 // "All its work is done" is an observation, not a verdict: a project he is
@@ -108,7 +109,7 @@ import { lazyWithRecovery } from "../shell/chunkRecovery";
 import { isOffTrack, rankOpen, reasonFor } from "../upnext/upnext";
 import { backOnTrackMessage } from "../tasks/lifecycle";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent } from "../schedule/eventMoves";
-import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph } from "../shared/glyphs";
+import { ClockGlyph, DocGlyph, ForkGlyph, SweepGlyph, TargetGlyph, CheckCircleGlyph, BarbellGlyph } from "../shared/glyphs";
 import { Clock, CircleSlash, BellRing } from "../shared/icons";
 import { useSwipe } from "../shared/useSwipe";
 
@@ -234,6 +235,22 @@ export default function TodayFlow({
   // Group A: Auto-Sweep receipt (item 9) and the Where You Were spot (item 6).
   const [sweepReceipt, setSweepReceipt] = useState<SweepReceipt | null>(null);
   const [spot, setSpot] = useState<WorkSpot | null>(null);
+  // S5-Q31 (2026-09-04): "a workout in progress is invisible outside the
+  // gym." A live session is its own store (gym/liveSession.ts), entirely
+  // separate from the Where You Were spot above, so it gets its own read
+  // straight off localStorage instead of riding restorableSpot's five-minute
+  // gap and there-when-active gate -- this card is unconditional: on while a
+  // session is live, gone the moment it finishes or goes stale.
+  const [liveGym, setLiveGym] = useState<LiveSession | null>(null);
+  useEffect(() => {
+    const s = readLive();
+    setLiveGym(s && isStillActive(s, todayISO()) ? s : null);
+  }, []);
+  // LAW: every notice on Today can be dismissed. Waving it off touches only
+  // this visit's UI state, never the session itself -- the workout is still
+  // live either way, so it is back the next time Today opens. A permanent
+  // silence would defeat the one thing this card exists for.
+  const [gymDismissed, setGymDismissed] = useState(false);
   useEffect(() => {
     // LAW 1 (Dave 2026-08-29): the spot is a bookmark, and a bookmark
     // outlives the page. Offering to resume a note that was deleted hours
@@ -1776,6 +1793,10 @@ export default function TodayFlow({
   // Resume offer is then the only mention of the task and must stand.
   const dealtTaskId = evening ? undefined : upNextRows[0]?.id;
   const slideTaskId = sweepCand && sweepCand.slips >= 3 && !planned.has(sweepCand.id) ? sweepCand.id : undefined;
+  // S5-Q31: a live session names no category of its own (a Program is
+  // category-agnostic), so the tap target is whichever area the Brain
+  // renders gym UI for -- any category CategoryDetail resolves to "health".
+  const gymCatId = catsFull.find((c) => effectiveKind(c.data) === "health")?.id;
   const spotAlreadyShown = spotIsDuplicate(spot, { dealtTaskId, slideTaskId });
   const alertCards = [
     // The welcome-back recap is a RECEIPT: it reports, it does not ask.
@@ -1931,6 +1952,22 @@ export default function TodayFlow({
         // empty, so the only exits were taking it or waiting out twelve
         // hours, and every visit longer than five minutes ago re-armed it.
         onDismiss={() => { dismissSpot(spot); setSpot(null); }}
+      />
+    ) : null,
+    // S5-Q31: unconditional, unlike the spot card above -- no five-minute
+    // gap to clear, no hiding itself once he is "active" elsewhere. It is
+    // just true or not true, read straight off the live session, and gone
+    // on its own the moment the session ends or goes stale.
+    liveGym && gymCatId && !gymDismissed ? (
+      <NoticeCard
+        key="live-gym"
+        weight={RESUME}
+        icon={<BarbellGlyph />}
+        tone="cat-fg-orange"
+        title={`Back to ${liveGym.dayName}`}
+        sub={liveGym.exercises[liveGym.idx]?.name}
+        action={{ label: "Resume", onClick: () => onRestoreSpot?.("gym", gymCatId) }}
+        onDismiss={() => setGymDismissed(true)}
       />
     ) : null,
     // PICK 2: A FINISHED THING SURFACES WHERE HE IS (Dave 2026-08-22). Wave 1

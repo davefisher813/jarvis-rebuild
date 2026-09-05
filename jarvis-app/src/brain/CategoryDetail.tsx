@@ -102,6 +102,7 @@ export default function CategoryDetail({
   onOpenTask,
   onOpenGoal,
   onChanged,
+  autoOpenGym,
 }: {
   categoryId: string;
   onBack: () => void;
@@ -112,6 +113,11 @@ export default function CategoryDetail({
   onOpenTask?: (id: string) => void;
   onOpenGoal?: (id: string) => void;
   onChanged?: () => void;
+  // S5-Q31: "Back to <day>" on Today lands here already knowing a live
+  // session is waiting -- this is a fresh mount every time (BrainFlow keys
+  // its detail pane by category id), so seeding gymOpen's initial value is
+  // enough; nothing needs to reset it back off.
+  autoOpenGym?: boolean;
 }) {
   const tasksSvc = useTasks();
   const schedule = useSchedule();
@@ -150,7 +156,7 @@ export default function CategoryDetail({
   const metricsSvc = useMetrics();
   const [programs, setPrograms] = useState<Program[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
-  const [gymOpen, setGymOpen] = useState(false);
+  const [gymOpen, setGymOpen] = useState(!!autoOpenGym);
   // The Health hero's Start names the day; the gym walks into it (2026-09-02).
   const [gymStartDay, setGymStartDay] = useState<string | null>(null);
   // D10-B/D11-C/D13-C: the metric strip and the insight cards, health-kind
