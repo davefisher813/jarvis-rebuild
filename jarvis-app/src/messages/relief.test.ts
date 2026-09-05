@@ -68,6 +68,37 @@ describe("real deadlines", () => {
     expect(byRank("Monday", now)).toBe(5);
   });
 
+  // EMAIL-F-11 (2026-09-05), each line verified by running the old code:
+  // `aug 14 @ Aug13 2pm -> 0 Today`, `aug 14 @ Aug13 9am -> 1 Tomorrow`,
+  // `once you know -> 0 Today`, `month end -> 4` (Monday).
+  it("a dated deadline is counted in calendar days, so tomorrow stays tomorrow all day", () => {
+    const morning = new Date("2026-08-13T09:00:00");
+    const afternoon = new Date("2026-08-13T14:00:00");
+    const lateNight = new Date("2026-08-13T23:30:00");
+    expect(byRank("aug 14", morning)).toBe(1);
+    expect(byRank("aug 14", afternoon)).toBe(1);
+    expect(byRank("aug 14", lateNight)).toBe(1);
+    expect(byRank("aug 13", afternoon)).toBe(0);
+    expect(byRank("Aug 20", afternoon)).toBe(7);
+  });
+
+  it("keywords are whole words: 'know' is not 'now', and 'nowhere' is not urgent", () => {
+    expect(byRank("once you know", now)).toBe(500);
+    expect(byRank("nowhere near", now)).toBe(500);
+    expect(byRank("now", now)).toBe(0);
+    expect(byRank("by today", now)).toBe(0);
+    expect(byRank("ASAP please", now)).toBe(0);
+  });
+
+  it("a weekday is a weekday word, so 'month end' is not Monday and 'sunset' is not Sunday", () => {
+    expect(byRank("month end", now)).toBe(500);
+    expect(byRank("sunset", now)).toBe(500);
+    expect(byRank("mon", now)).toBe(5);
+    expect(byRank("Tues", now)).toBe(6);
+    expect(byRank("Thursday", now)).toBe(1);
+    expect(byRank("Wednesday", now)).toBe(7); // said on a Wednesday: next one
+  });
+
   it("sorts Needs You by the stated deadline, newest first on a tie", () => {
     const rows = [row("a", 100), row("b", 300), row("c", 200)];
     const map: TriageMap = {

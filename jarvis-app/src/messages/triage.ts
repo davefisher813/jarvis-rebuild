@@ -298,24 +298,39 @@ export function noiseLine(noise: ThreadRow[]): string {
 // Ranking for the answer-by the sender stated. Lower sorts first. Anything we
 // cannot read stays in the middle: an unparsed phrase must never jump the
 // queue, and "no rush" must never outrank a real date.
+//
+// EMAIL-F-11 (2026-09-05): three ways this invented urgency, all verified by
+// running. "aug 14" read at 2pm on Aug 13 ranked 0 (Today) because the parsed
+// date is local midnight and `now` is mid-day, so a 10-hour gap rounded to
+// zero; the rail went hot and the Today card made a task due today. "once
+// you know" ranked 0 because the keyword alternation had no word boundaries
+// and matched the "now" inside "know". "month end" ranked as Monday because
+// the weekday test was a three-letter prefix. Calendar days are compared as
+// calendar days, every keyword is a whole word, and a weekday is a weekday
+// word at the start of the phrase.
+const WEEKDAY = /^(sun|mon|tue|wed|thu|fri|sat)(day|sday|nesday|rsday|urday|s|es|rs)?\b/;
+const WEEKDAY_INDEX: Record<string, number> = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
+const startOfDay = (x: Date): number => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
 export function byRank(by: string | undefined, now = new Date()): number {
   const t = (by || "").trim().toLowerCase();
   if (!t) return 500;
-  if (/(no rush|whenever|any ?time|when you can)/.test(t)) return 900;
-  if (/(asap|urgent|now|today|end of day|eod)/.test(t)) return 0;
-  if (/tomorrow/.test(t)) return 1;
-  const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-  const day = DAYS.findIndex((d) => t.startsWith(d.slice(0, 3)));
-  if (day >= 0) {
+  if (/\b(no rush|whenever|any ?time|when you can)\b/.test(t)) return 900;
+  if (/\b(asap|urgent|now|today|end of day|eod)\b/.test(t)) return 0;
+  if (/\btomorrow\b/.test(t)) return 1;
+  const wd = WEEKDAY.exec(t);
+  if (wd) {
+    const day = WEEKDAY_INDEX[wd[1]!]!;
     const delta = (day - now.getDay() + 7) % 7;
     return delta === 0 ? 7 : delta; // "friday" said ON friday means next friday
   }
-  if (/(this week|end of week)/.test(t)) return 5;
-  if (/(next week)/.test(t)) return 10;
-  if (/(this month|end of month)/.test(t)) return 20;
+  if (/\b(this week|end of week)\b/.test(t)) return 5;
+  if (/\bnext week\b/.test(t)) return 10;
+  if (/\b(this month|end of month)\b/.test(t)) return 20;
   const d = new Date(t + " " + now.getFullYear());
   if (!isNaN(d.getTime())) {
-    const days = Math.round((d.getTime() - now.getTime()) / 86400000);
+    // Whole local days between the two dates, so "aug 14" is one day away
+    // all of Aug 13, morning and afternoon alike.
+    const days = Math.round((startOfDay(d) - startOfDay(now)) / 86400000);
     if (days >= -1 && days < 365) return Math.max(0, days);
   }
   return 500;
