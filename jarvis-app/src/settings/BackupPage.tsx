@@ -101,6 +101,13 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
           meta={backendConfigured ? "Synced automatically · Export keeps your own copy" : "Export keeps your own copy"}
         />
         <Row label="Import Adds, Never Removes" meta="Duplicates skipped · Nothing overwritten" />
+        {/* PLUMB-F-12 (2026-09-05): a restore used to bring every record back
+            with its links pointing at ids from the old account, and the
+            receipt said nothing about it. Links survive now, so the row says
+            so, and it says the one thing that still does not travel: the
+            bundle is JSON, so a photo or receipt's bytes stay in the storage
+            of the account they were uploaded to. */}
+        <Row label="Links Come Back with the Records" meta="Categories, goals, projects and note links · Photos and files stay in the old account" />
         <Row label="Sync Follows Your Account" meta="Turns on with a synced sign-in" />
       </Card>
       <input ref={fileRef} className="visually-hidden-input" type="file" accept="application/json,.json" onChange={onFile} />
