@@ -81,7 +81,7 @@ import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
 import ReminderSheet from "../tasks/screens/ReminderSheet";
 import { stripReminders, missedReminders, snoozeTime, snoozeFrom } from "../tasks/reminders";
-import { remindersToIcs, downloadIcs } from "../tasks/ics";
+import { remindersToIcs, saveIcsFile } from "../tasks/ics";
 import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
 import { restorableSpot, clearSpot, dismissSpot, spotAgo, type WorkSpot } from "../restore/whereYouWere";
@@ -2204,18 +2204,29 @@ export default function TodayFlow({
     // the very next line, overwriting the Undo toast above in the same tick.
     // The recovery path could never be tapped. One toast per delete, full stop.
   };
-  // CALENDAR HANDOFF: the only way a reminder can actually go off on an
-  // iPhone today without a native build. iOS owns the alarm from here, which
-  // means it fires offline, with JARVIS closed, forever.
-  const addRemindersToCalendar = (ids?: string[]) => {
+  // CALENDAR HANDOFF: iOS Calendar owns the alarm from here, which means it
+  // fires offline, with JARVIS closed, forever. Still worth offering now that
+  // S1-01 schedules real local notifications: a calendar entry survives the
+  // app being deleted and rides to every device the calendar syncs to.
+  //
+  // TODAY-F-03 (2026-09-05): the toast fired unconditionally, one line after
+  // a blob-and-anchor click the iOS web view silently ignores, so on the
+  // phone nothing opened and the app said it had. The handoff is awaited now
+  // (ics.ts saveIcsFile writes the file and hands it to the share sheet on
+  // native), and the receipt only prints once it resolves.
+  const addRemindersToCalendar = async (ids?: string[]) => {
     const picked = taskItems.filter((t) => t.data.reminder && (!ids || ids.includes(t.id)));
     if (picked.length === 0) return;
     const ics = remindersToIcs(
       picked.map((t) => ({ id: t.id, text: t.data.text, reminder: t.data.reminder! })),
       today,
     );
-    downloadIcs(ics, picked.length === 1 ? "jarvis-reminder.ics" : "jarvis-reminders.ics");
-    showToast({ message: "Opening Calendar · Tap Add to confirm" });
+    try {
+      await saveIcsFile(ics, picked.length === 1 ? "jarvis-reminder.ics" : "jarvis-reminders.ics");
+      showToast({ message: "Opening Calendar · Tap Add to confirm" });
+    } catch {
+      showToast({ message: "Couldn't hand it to your calendar · Try again" });
+    }
   };
 
   const openReminder = (id: string) => {
@@ -2574,7 +2585,7 @@ export default function TodayFlow({
           onSnooze={(id) => void onSnoozeReminder(id)}
           onAdd={() => setRemSheet({ mode: "new" })}
           onOpen={openReminder}
-          onAddAllToCalendar={() => addRemindersToCalendar()}
+          onAddAllToCalendar={() => void addRemindersToCalendar()}
         />
       }
       notices={notices}
@@ -2744,7 +2755,7 @@ export default function TodayFlow({
         initial={remSheet.mode === "edit" ? { text: remSheet.text, reminder: remSheet.reminder } : undefined}
         onSave={(text, r) => void onSaveReminder(text, r)}
         onDelete={remSheet.mode === "edit" ? () => void onDeleteReminder() : undefined}
-        onAddToCalendar={remSheet.mode === "edit" ? () => addRemindersToCalendar([remSheet.id]) : undefined}
+        onAddToCalendar={remSheet.mode === "edit" ? () => void addRemindersToCalendar([remSheet.id]) : undefined}
         onCancel={() => setRemSheet(null)}
       />
     )}

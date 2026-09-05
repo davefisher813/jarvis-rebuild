@@ -1,3 +1,6 @@
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory, Encoding } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import type { ReminderInfo } from "../notes/types";
 
 // CALENDAR HANDOFF (Dave 2026-08-19: "whatever you can within the iOS").
@@ -111,10 +114,30 @@ export function remindersToIcs(items: IcsReminder[], today: string, stamp = "202
   return lines.join("\r\n") + "\r\n";
 }
 
-// Hand the file to iOS. Safari honours the download attribute and offers to
-// open it in Calendar, which is exactly the flow we want: the user sees what
-// is being added and confirms it.
-export function downloadIcs(ics: string, filename = "jarvis-reminders.ics"): void {
+// Hand the file to the OS.
+//
+// TODAY-F-03 / LIFE-F-06 (2026-09-05): this was the blob-and-anchor-click
+// alone, and that click is silently ignored inside the iOS WKWebView
+// Capacitor ships in -- the same failure backup export hit and fixed in
+// S3-Q16 (see backup/exportFile.ts, which names this exact trap). So "Add All
+// to Calendar" opened nothing on the phone while the toast said "Opening
+// Calendar". Native writes the .ics to the app's cache and hands that file to
+// the share sheet, exactly as the backup export does; the web keeps the
+// anchor, which real browsers honour. Async and throwing on a genuine
+// failure, so the caller can toast AFTER the handoff instead of before it.
+// Cancelling the share sheet is not a failure: Share.share resolves either
+// way, the same rule exportFile.ts states.
+export async function saveIcsFile(ics: string, filename = "jarvis-reminders.ics"): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    const { uri } = await Filesystem.writeFile({
+      path: filename,
+      data: ics,
+      directory: Directory.Cache,
+      encoding: Encoding.UTF8,
+    });
+    await Share.share({ title: "Add to Calendar", files: [uri] });
+    return;
+  }
   const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

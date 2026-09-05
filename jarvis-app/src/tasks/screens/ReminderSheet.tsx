@@ -110,11 +110,17 @@ export default function ReminderSheet({
             {/* THE HONEST LINE (2026-08-19). A web app cannot fire its own
                 alarm on iOS, so rather than let a reminder look like it will
                 ping and quietly not, JARVIS says so and hands the job to the
-                scheduler already on the phone. */}
+                scheduler already on the phone.
+                TODAY-F-03 (2026-09-05): the note under it went stale when
+                S1-01 taught the phone to fire these itself, so it was telling
+                him the app could not do the thing it had just started doing.
+                The handoff is still worth offering, for the reason that is
+                still true: a calendar entry outlives the app and rides to
+                every device the calendar syncs to. */}
             {onAddToCalendar && <Row tone="red" glyph={<CalendarPlus className="ic" />} label="Add to iPhone Calendar" onClick={onAddToCalendar} chev />}
             {onDelete && <DeleteRow label="Delete Reminder" onClick={onDelete} />}
           </Group>
-          {onAddToCalendar && <Note>JARVIS can't send alerts on the web yet. Your Calendar can, and it works offline.</Note>}
+          {onAddToCalendar && <Note>Your Calendar can carry this too, and it keeps it if JARVIS ever goes.</Note>}
         </>
       )}
     </FormSheet>
