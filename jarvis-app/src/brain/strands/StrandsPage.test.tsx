@@ -134,6 +134,39 @@ describe("StrandsPage renders the genome", () => {
   });
 });
 
+// S6-Q35 (2026-09-04): "Recent Captures rows do nothing." A fact tapped on
+// that strip deep-links here via openId, the same async-safe shape
+// PeopleFlow/DecisionsFlow already use: the target Strand is DERIVED from
+// the loaded list every render, so it resolves correctly however the list's
+// own async load and the deep link race.
+describe("StrandsPage: openId deep-links straight to one strand (S6-Q35)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("opens the matching strand's detail sheet once the list arrives", async () => {
+    svc.list.mockResolvedValue([
+      strand({ text: "Never schedule calls before 10", category: "work_style", source: "told", derivation: undefined }, "s2"),
+      strand(),
+    ]);
+    const { container } = render(<StrandsPage openId="s2" onBack={() => {}} />);
+    // Not present before the list resolves; appears once it does -- proves
+    // the open is derived from live data, not captured once at mount.
+    await waitFor(() => expect(container.querySelector(".strand-head")).toBeTruthy());
+    expect(container.querySelector(".strand-head")?.textContent).toBe("Never schedule calls before 10");
+    expect(screen.getByText("Edit")).toBeInTheDocument();
+    // The OTHER strand's own row is on the list behind it, not the one open.
+    expect(screen.getByText("Gets things done mid morning")).toBeInTheDocument();
+  });
+
+  it("an id that matches nothing opens nothing: the list renders, no dead sheet", async () => {
+    svc.list.mockResolvedValue([strand()]);
+    render(<StrandsPage openId="no-such-strand" onBack={() => {}} />);
+    await screen.findByText("Gets things done mid morning");
+    expect(screen.queryByText("Edit")).not.toBeInTheDocument();
+  });
+});
+
 // S4-Q24 (2026-09-04): "a rule and a preference carry the same weight."
 // add() has always accepted a strength argument; nothing on this page ever
 // passed anything but its default, and edit had no way to change it either.

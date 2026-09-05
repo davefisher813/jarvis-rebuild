@@ -53,7 +53,7 @@ function fmtRecent(ts: number): string {
 // receipt carries refile chips and undo; correction is post-action, never a
 // confirm gate. Recent Captures shows the last ten so a mis-capture from
 // earlier is one tap away.
-export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: () => void }) {
+export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; onClose: () => void; onOpen?: (kind: RecentCapture["kind"], id: string) => void }) {
   const tasks = useTasks();
   const schedule = useSchedule();
   const notes = useNotes();
@@ -270,11 +270,25 @@ export default function QuickCapture({ ai, onClose }: { ai: AIService; onClose: 
                 <div className="grp"><div className="eyebrow">Recent Captures</div></div>
                 <div className="capture-recents">
                   {recents.map((r) => (
-                    <div key={r.id} className="row">
+                    <div
+                      key={r.id}
+                      className="row"
+                      role={onOpen ? "button" : undefined}
+                      tabIndex={onOpen ? 0 : undefined}
+                      // S6-Q35: "Recent Captures rows do nothing." A row is
+                      // the receipt for something that already exists
+                      // somewhere real (a task, an event, a note, a fact in
+                      // the Brain) -- tapping it opens THAT, the same thing
+                      // every other "recent" strip in the app already does.
+                      // No onOpen (a caller that has not wired navigation
+                      // yet) leaves the row exactly as inert as it was.
+                      onClick={onOpen ? () => { onOpen(r.kind, r.id); onClose(); } : undefined}
+                    >
                       <div className="row-stack">
                         <div className="conn-name truncate">{r.title}</div>
                         <div className="conn-meta">{KIND_LABEL[r.kind]} · {fmtRecent(r.ts)}</div>
                       </div>
+                      {onOpen && <div className="chev" />}
                     </div>
                   ))}
                 </div>

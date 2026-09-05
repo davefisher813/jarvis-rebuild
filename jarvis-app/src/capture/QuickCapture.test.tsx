@@ -11,6 +11,7 @@ import "@testing-library/jest-dom";
 import { NotesProvider, useOptionalStrands } from "../data/NotesProvider";
 import { AIService } from "../ai/AIService";
 import QuickCapture from "./QuickCapture";
+import { recordCapture } from "../paste/captureLog";
 
 // S4-Q22 (2026-09-04) needs to see the honest "Brain is full" toast text,
 // which the earlier tests in this file never had to inspect. Same mock shape
@@ -174,5 +175,45 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     expect(screen.getByText("Fact · Routine · From your paste")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "false");
+  });
+});
+
+// S6-Q35 (2026-09-04): "Recent Captures rows do nothing." A row is the
+// receipt for something that already exists somewhere real; tapping it
+// should open that thing, not sit there dead.
+describe("QuickCapture: Recent Captures opens what it created (S6-Q35)", () => {
+  it("tapping a row hands its kind and id to onOpen, then closes the sheet", async () => {
+    recordCapture({ id: "old-task-1", kind: "task", title: "Renew the passport", ts: Date.now() - 60000 });
+    const onClose = vi.fn();
+    const onOpen = vi.fn();
+    render(
+      <NotesProvider userId="u-recent-open">
+        <QuickCapture ai={new AIService({ available: false })} onClose={onClose} onOpen={onOpen} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    expect(screen.getByText("Recent Captures")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Renew the passport"));
+    expect(onOpen).toHaveBeenCalledWith("task", "old-task-1");
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("with no onOpen wired, a row stays inert: no role, no crash on tap", async () => {
+    recordCapture({ id: "old-note-1", kind: "note", title: "Ideas for the offsite", ts: Date.now() - 60000 });
+    render(
+      <NotesProvider userId="u-recent-inert">
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Water the plants" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    const row = screen.getByText("Ideas for the offsite").closest(".row")!;
+    expect(row).not.toHaveAttribute("role");
+    fireEvent.click(row); // must not throw
   });
 });

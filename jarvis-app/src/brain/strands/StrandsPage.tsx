@@ -63,12 +63,20 @@ export function receiptLine(derivation: DerivationKey | undefined, e: StrandEvid
   return "Seen";
 }
 
-export default function StrandsPage({ onBack }: { onBack: () => void }) {
+// S6-Q35 (2026-09-04): "Recent Captures rows do nothing." A fact captured
+// through Quick Add is one of the things that strip can now open, and this
+// is where it lands: the same async-safe deep-link shape PeopleFlow and
+// DecisionsFlow already use for a person or a decision record. openId names
+// the target; the actual Strand is DERIVED from strands on every render
+// (never captured once at mount), so it resolves correctly whichever finishes
+// loading first, the deep link or the list itself.
+export default function StrandsPage({ onBack, openId: initialOpenId }: { onBack: () => void; openId?: string }) {
   const svc = useStrands();
   const ai = useAI();
   const today = todayISO();
   const [strands, setStrands] = useState<Strand[]>([]);
-  const [open, setOpen] = useState<Strand | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpenId ?? null);
+  const open = openId ? strands.find((s) => s.id === openId) ?? null : null;
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState("");
@@ -122,7 +130,7 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
     if (rule !== (open.data.strength === "rule")) {
       await svc.setStrength(open, rule ? "rule" : "influence");
     }
-    setEditing(false); setOpen(null); setText("");
+    setEditing(false); setOpenId(null); setText("");
     setSaving(false);
     await reload();
   };
@@ -144,7 +152,7 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
     haptics.selection();
     const ok = await attemptWrite(() => svc.confirm(s, today));
     if (!ok) return;
-    setOpen(null);
+    setOpenId(null);
     await reload();
     showToast({ message: "Confirmed" });
   };
@@ -152,7 +160,7 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
   const doPause = async (s: Strand) => {
     haptics.selection();
     await svc.setStatus(s, s.data.status === "active" ? "paused" : "active");
-    setOpen(null);
+    setOpenId(null);
     await reload();
   };
 
@@ -172,7 +180,7 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
     const kept = s.data;
     const ok = await attemptWrite(() => svc.remove(s));
     if (!ok) return;
-    setOpen(null);
+    setOpenId(null);
     await reload();
     showToast({
       message: "Forgotten",
@@ -209,7 +217,7 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
               role="button"
               tabIndex={0}
               key={s.id}
-              onClick={() => { setOpen(s); setEditing(false); setText(s.data.text); setCat(s.data.category); setRule(s.data.strength === "rule"); }}
+              onClick={() => { setOpenId(s.id); setEditing(false); setText(s.data.text); setCat(s.data.category); setRule(s.data.strength === "rule"); }}
             >
               <div className="row-grow">
                 <div className="strand-eyebrow">
@@ -229,7 +237,7 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
       <div className="screen-foot" />
 
       {open && !editing && (
-        <div className="sheet-scrim" onClick={() => setOpen(null)}>
+        <div className="sheet-scrim" onClick={() => setOpenId(null)}>
           <div className="card" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
             <div className="grp"><div className="eyebrow">{STRAND_CATEGORY_LABEL[open.data.category]} &middot; {SOURCE_LABEL[open.data.source]}{open.data.strength === "rule" ? " · Rule" : ""}</div></div>
@@ -256,7 +264,7 @@ export default function StrandsPage({ onBack }: { onBack: () => void }) {
       )}
 
       {(adding || (open && editing)) && (
-        <div className="sheet-scrim" onClick={() => { setAdding(false); setEditing(false); setOpen(null); }}>
+        <div className="sheet-scrim" onClick={() => { setAdding(false); setEditing(false); setOpenId(null); }}>
           <div className="card" onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
             <div className="grp"><div className="eyebrow">{adding ? "One True Thing" : "Say It Right"}</div></div>
