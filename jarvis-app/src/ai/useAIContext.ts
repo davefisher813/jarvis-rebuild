@@ -147,10 +147,12 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
   // The full money picture (2026-08-10): bills with amounts and due dates,
   // and the same cash-flow derivation the Money tab shows (payday, bills
   // before it, envelopes, left to spend). Same helpers, so the AI can never
-  // quote a different number than the screen. Payday math is Personal
-  // template only, matching MoneyFlow's gate.
+  // quote a different number than the screen. S5-Q33 (2026-09-04): the gate
+  // is now everyone but Business, matching MoneyFlow's own payHalfOn -- a
+  // stale "Personal only" copy of this check used to leave Student's Money
+  // tab showing payday math the AI would then deny existed.
   const openBills = activeBills(tk, today).filter((b) => !b.data.done);
-  const payday = (p?.template ?? "personal") === "personal" ? p?.payday : undefined;
+  const payday = (p?.template ?? "personal") !== "business" ? p?.payday : undefined;
   let cashFlow: { paycheck: number; nextPayday: string; billsOut: number; setAside: number; left: number; short: boolean } | null = null;
   if (payday) {
     const next = paydayNext(payday, today);

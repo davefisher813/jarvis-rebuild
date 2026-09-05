@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { NotesProvider, useDecisions, useStrands } from "../data/NotesProvider";
+import { NotesProvider, useDecisions, useStrands, useProfile } from "../data/NotesProvider";
 import { useAIContext, useOptionalAIContext, todayISO } from "./useAIContext";
 
 // Brain Personalization Phase 3. Both hooks funnel through one gatherFrom, so
@@ -96,6 +96,53 @@ describe("useOptionalAIContext scopes writingFacts to the Writing bucket (S4-Q25
       const ctx = await result.current();
       expect(ctx?.writingFacts).toEqual(["Never opens with Hi there"]);
       expect(ctx?.strands).toEqual(expect.arrayContaining(["Never opens with Hi there", "Never schedule calls before 10"]));
+    });
+  });
+});
+
+// S5-Q33 (2026-09-04): the Money tab's payHalfOn gate and this file's own
+// cashFlow gate used to be two separate "=== personal" checks, kept in sync
+// only by a comment. Student is meant to see the same payday math the
+// screen now shows; Business must not, so the AI never quotes a paycheck
+// figure the screen itself refuses to fabricate.
+describe("useOptionalAIContext: cashFlow follows the same gate as the Money tab (S5-Q33)", () => {
+  function SeedProfile({ template, onDone }: { template: "personal" | "business" | "student"; onDone: () => void }) {
+    const profile = useProfile();
+    void profile.save({ template, payday: { amount: 500, next: todayISO(), freq: "biweekly" } }).then(onDone);
+    return null;
+  }
+
+  it("Student gets a real cashFlow, not the old Personal-only cutoff", async () => {
+    let seeded = false;
+    const { result } = renderHook(() => useOptionalAIContext(), {
+      wrapper: ({ children }) => (
+        <NotesProvider userId="ai-student-pay">
+          <SeedProfile template="student" onDone={() => { seeded = true; }} />
+          {children}
+        </NotesProvider>
+      ),
+    });
+    await waitFor(() => expect(seeded).toBe(true));
+    await waitFor(async () => {
+      const ctx = await result.current();
+      expect(ctx?.cashLine).toMatch(/^Next paycheck \$500/);
+    });
+  });
+
+  it("Business still gets no cashLine: irregular revenue is not a paycheck", async () => {
+    let seeded = false;
+    const { result } = renderHook(() => useOptionalAIContext(), {
+      wrapper: ({ children }) => (
+        <NotesProvider userId="ai-business-pay">
+          <SeedProfile template="business" onDone={() => { seeded = true; }} />
+          {children}
+        </NotesProvider>
+      ),
+    });
+    await waitFor(() => expect(seeded).toBe(true));
+    await waitFor(async () => {
+      const ctx = await result.current();
+      expect(ctx?.cashLine).toBeFalsy();
     });
   });
 });

@@ -130,7 +130,16 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
   // list: bills stay bills, this is everything else that shares the tag.
   const [tagged, setTagged] = useState<TaskItem[]>([]);
   const [payday, setPayday] = useState<PaydayInfo | undefined>(undefined);
-  const [isPersonal, setIsPersonal] = useState(true);
+  // S5-Q33 (2026-09-04): "the budget half is off for Student and Business."
+  // The arithmetic (budget.ts/bills.ts) takes only dates and amounts -- no
+  // template parameter exists to gate on, and never did. The gate is ONLY
+  // here, and it used to read "personal," which caught Student in the same
+  // net as Business. Business stays excluded on purpose: irregular revenue
+  // makes "a paycheck" the wrong shape, and the honest-money rule (budget.ts
+  // top comment) forbids fabricating a regular one. Student has a real,
+  // recurring inflow (allowance, stipend, a job) and is the template this
+  // product leads with -- there was never a reason for it to lose this half.
+  const [payHalfOn, setPayHalfOn] = useState(true);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [billSheet, setBillSheet] = useState<BillSheetState>({ kind: "closed" });
   const [paydayOpen, setPaydayOpen] = useState(false);
@@ -244,7 +253,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
     setAccounts(accts);
     setBills(activeBills(allTasks, todayISO()));
     setPayday(prof?.payday);
-    setIsPersonal((prof?.template ?? "personal") === "personal");
+    setPayHalfOn((prof?.template ?? "personal") !== "business");
     const moneyCatIds = new Set(cats.filter((c) => effectiveKind(c.data) === "money").map((c) => c.id));
     setTagged(allTasks.filter((t) => !t.data.done && !t.data.bill && moneyCatIds.has(t.data.category ?? "")));
   }, [svc, tasksSvc, profileSvc, catsSvc]);
@@ -280,18 +289,18 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
     await reload();
   };
 
-  const anchor = payday && isPersonal && bills.length > 0 ? paydayLine(payday, bills, today) : null;
+  const anchor = payday && payHalfOn && bills.length > 0 ? paydayLine(payday, bills, today) : null;
 
   // What is actually his. Derived from the paycheck he entered, the bills he
   // entered, and the money he chose to reserve. Absent entirely without a
   // payday, because without one there is no window and no honest answer.
-  const nextPay = payday && isPersonal ? paydayNext(payday, today) : null;
+  const nextPay = payday && payHalfOn ? paydayNext(payday, today) : null;
   const billsOut = nextPay
     ? bills.filter((b) => !b.data.done && !!b.data.due && b.data.due <= nextPay)
         .reduce((sum, b) => sum + (b.data.bill?.amount ?? 0), 0)
     : 0;
   const setAside = setAsideTotal(envelopes);
-  const left = payday && isPersonal ? leftToSpend(payday.amount, billsOut, setAside) : null;
+  const left = payday && payHalfOn ? leftToSpend(payday.amount, billsOut, setAside) : null;
   const daysLeft = nextPay ? daysUntil(today, nextPay) : 0;
   const balanceAsOf = accounts.map((a) => a.data.asOf).filter((d): d is string => !!d).sort().pop();
 
@@ -365,7 +374,7 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
           </div>
         );
       })}
-      {isPersonal && !payday && bills.length > 0 && (
+      {payHalfOn && !payday && bills.length > 0 && (
         <div className="task-row p2" role="button" tabIndex={0} onClick={() => setPaydayOpen(true)}>
           <div className="task-title"><span className="task-name">Set Up Payday</span></div>
           {CHEV}

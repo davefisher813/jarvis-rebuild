@@ -3,8 +3,10 @@ import { describe, it, expect, vi } from "vitest";
 import { useEffect, useState } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider, useTasks, useCategories } from "../data/NotesProvider";
+import { NotesProvider, useTasks, useCategories, useProfile } from "../data/NotesProvider";
 import MoneyFlow from "./MoneyFlow";
+import { todayISO } from "../tasks/grouping";
+import type { TemplateKey } from "../categories/defaults";
 
 describe("MoneyFlow", () => {
   it("empty -> add account -> shows total, dated as self-reported", async () => {
@@ -95,5 +97,62 @@ describe("MoneyFlow: tagged Money tasks (2026-08-10)", () => {
     render(<NotesProvider userId="u5"><SeededTagged /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Budget Review")).toBeInTheDocument());
     expect(screen.queryByText("No accounts yet")).not.toBeInTheDocument();
+  });
+});
+
+// S5-Q33 (2026-09-04): "the budget half is off for Student and Business."
+// The arithmetic (budget.ts/bills.ts) takes no template at all -- the gate
+// was ONE boolean in this file, and it used to admit only "personal,"
+// catching Student in the same net as Business. Student gets a real,
+// recurring inflow and is the template this product leads with; Business
+// stays excluded because irregular revenue makes "a paycheck" the wrong
+// shape (the honest-money rule forbids faking a regular one).
+function SeededTemplate({ template, withPayday }: { template: TemplateKey; withPayday?: boolean }) {
+  const profile = useProfile();
+  const tasks = useTasks();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      await profile.save({
+        template,
+        ...(withPayday ? { payday: { amount: 500, next: todayISO(), freq: "biweekly" as const } } : {}),
+      });
+      await tasks.createTask("Rent", { bill: { amount: 100 } });
+      setReady(true);
+    })();
+  }, [profile, tasks, template, withPayday]);
+  return ready ? <MoneyFlow /> : null;
+}
+
+describe("MoneyFlow: the budget half by template (S5-Q33)", () => {
+  it("Personal offers Set Up Payday", async () => {
+    render(<NotesProvider userId="t-personal"><SeededTemplate template="personal" /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Rent")).toBeInTheDocument());
+    expect(screen.getByText("Set Up Payday")).toBeInTheDocument();
+  });
+
+  it("Student offers Set Up Payday too -- it is not caught in Business's gate", async () => {
+    render(<NotesProvider userId="t-student"><SeededTemplate template="student" /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Rent")).toBeInTheDocument());
+    expect(screen.getByText("Set Up Payday")).toBeInTheDocument();
+  });
+
+  it("Business gets no Set Up Payday row: irregular revenue is not a paycheck", async () => {
+    render(<NotesProvider userId="t-business"><SeededTemplate template="business" /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Rent")).toBeInTheDocument());
+    expect(screen.queryByText("Set Up Payday")).not.toBeInTheDocument();
+  });
+
+  it("Student with a payday already set sees the real hero and Set Aside, same as Personal", async () => {
+    render(<NotesProvider userId="t-student-pay"><SeededTemplate template="student" withPayday /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Set Aside")).toBeInTheDocument());
+    expect(screen.getByText(/^Yours/)).toBeInTheDocument();
+  });
+
+  it("Business with a payday already set on the profile still shows no hero or Set Aside", async () => {
+    render(<NotesProvider userId="t-business-pay"><SeededTemplate template="business" withPayday /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Rent")).toBeInTheDocument());
+    expect(screen.queryByText("Set Aside")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Yours/)).not.toBeInTheDocument();
   });
 });
