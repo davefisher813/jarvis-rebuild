@@ -3,7 +3,7 @@ import type { TaskItem } from "./TasksService";
 import type { ReminderInfo } from "../notes/types";
 import {
   runsOn, effectiveTime, isDone, viewOf, todaysReminders, missedReminders,
-  snoozeTime, snoozeFrom, cadenceLabel,
+  snoozeTime, snoozeFrom, stripReminders, cadenceLabel,
 } from "./reminders";
 
 // The reminder model (Dave 2026-08-19: "taking meds should just be a set
@@ -81,6 +81,31 @@ describe("missed, but never overdue", () => {
   it("surfaces at most two, because a list of failures is not help", () => {
     const items = ["a", "b", "c", "d"].map((k, i) => rem({ time: "0" + (7 + i) + ":00" }, k, k));
     expect(missedReminders(items, WED, "23:00")).toHaveLength(2);
+  });
+});
+
+// TODAY-F-17 (2026-09-05): one row per reminder on one screen.
+describe("the strip and Heads Up never show the same reminder", () => {
+  it("a missed reminder leaves the strip while its card stands", () => {
+    const items = [rem({ time: "08:00" }, "Meds", "m"), rem({ time: "21:00" }, "Night meds", "n")];
+    expect(missedReminders(items, WED, "14:00").map((v) => v.id)).toEqual(["m"]);
+    expect(stripReminders(items, WED, "14:00").map((v) => v.id)).toEqual(["n"]);
+  });
+
+  it("a let-go one keeps its strip row, because Heads Up never takes it", () => {
+    const items = [rem({ time: "08:00", onMiss: "let_go" }, "Meds", "m")];
+    expect(missedReminders(items, WED, "14:00")).toHaveLength(0);
+    expect(stripReminders(items, WED, "14:00").map((v) => v.id)).toEqual(["m"]);
+  });
+
+  it("missed ones past the cap of two stay in the strip rather than vanishing", () => {
+    const items = ["a", "b", "c"].map((k, i) => rem({ time: "0" + (7 + i) + ":00" }, k, k));
+    expect(stripReminders(items, WED, "14:00").map((v) => v.id)).toEqual(["c"]);
+  });
+
+  it("a done reminder still reads as taken in the strip", () => {
+    const items = [rem({ time: "08:00", lastDone: WED }, "Meds", "m")];
+    expect(stripReminders(items, WED, "14:00").map((v) => v.id)).toEqual(["m"]);
   });
 });
 

@@ -80,7 +80,7 @@ import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
 import ReminderSheet from "../tasks/screens/ReminderSheet";
-import { todaysReminders, missedReminders, snoozeTime, snoozeFrom } from "../tasks/reminders";
+import { stripReminders, missedReminders, snoozeTime, snoozeFrom } from "../tasks/reminders";
 import { remindersToIcs, downloadIcs } from "../tasks/ics";
 import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
@@ -2086,7 +2086,15 @@ export default function TodayFlow({
   ].filter(Boolean);
   // --- Reminders (2026-08-19). Everything here writes a date, never a
   // boolean, so a reminder resets itself at midnight with nothing scheduled.
-  const reminders = todaysReminders(taskItems, today, nhm);
+  //
+  // TODAY-F-17 (2026-09-05): the missed ones are in Your Move, so they are
+  // not also in the strip (see stripReminders in tasks/reminders.ts). B4
+  // added the notice cards and left the strip's missed rows standing, so 8 AM
+  // meds appeared twice on one screen wearing two different sets of buttons,
+  // which is exactly the "ton of notifications floating around" the one
+  // stream rule exists to stop.
+  const missedCards = missedReminders(taskItems, today, nhm);
+  const reminders = stripReminders(taskItems, today, nhm);
 
   const onTickReminder = async (id: string, done: boolean) => {
     await attemptWrite(() => (done ? tasks.tickReminder(id, today) : tasks.untickReminder(id)));
@@ -2134,7 +2142,7 @@ export default function TodayFlow({
     await reload();
     showToast({ message: "Asking again at " + fmtTime(to).time + fmtTime(to).ap });
   };
-  const missedReminderCards = missedReminders(taskItems, today, nhm).map((r) => (
+  const missedReminderCards = missedCards.map((r) => (
     <NoticeCard
       key={"remind-" + r.id}
       weight={WAITING}
@@ -2418,10 +2426,12 @@ export default function TodayFlow({
   // floating around, put them all under one thing"). Everything JARVIS
   // noticed lands in one labeled section on the page, in priority order.
   // The draft leads: accepting the day resolves most of the rest.
-  // A missed reminder does NOT get its own notice card. The strip is on this
-  // same screen, so a card here would show the identical reminder twice, and
-  // duplicated notices are precisely what "there's a ton of notifications
-  // floating around" meant. The strip carries the missed state itself.
+  // A missed reminder gets ONE row on this page and it is the card here, not
+  // the strip row (TODAY-F-17, 2026-09-05): the card carries Ask Again, which
+  // is the behaviour the "If You Miss It" setting names, and the strip drops
+  // whatever Heads Up has taken. This comment used to say the opposite of
+  // what the code did, which is how the same reminder ended up on screen
+  // twice with two different sets of buttons.
   const reportNotice = reportMonth ? (
     <NoticeCard
       key="report"

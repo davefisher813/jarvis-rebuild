@@ -99,6 +99,19 @@ export function missedReminders(items: TaskItem[], today: string, now: string): 
   return todaysReminders(items, today, now).filter((v) => v.missed && !v.letGo).slice(0, 2);
 }
 
+// TODAY-F-17 (2026-09-05): what the strip shows, which is everything Heads Up
+// has not already taken. A missed reminder surfaces as a notice card carrying
+// Ask Again (the verb "If You Miss It" promises), and it used to keep its
+// strip row as well: the same 8 AM meds on screen twice, two rows down from
+// each other, wearing two different sets of buttons. One row per reminder.
+// Note what still stays in the strip: a let-go one (missedReminders drops
+// those by design, and pretending it was never scheduled would be a lie about
+// the day) and any missed one past that function's cap of two.
+export function stripReminders(items: TaskItem[], today: string, now: string): ReminderView[] {
+  const inHeadsUp = new Set(missedReminders(items, today, now).map((v) => v.id));
+  return todaysReminders(items, today, now).filter((v) => !inHeadsUp.has(v.id));
+}
+
 // Snooze target, clamped inside the day so a late-night snooze cannot silently
 // land on tomorrow (where it would be wrong twice: wrong day, wrong state).
 export function snoozeTime(from: string, mins: number): string {
