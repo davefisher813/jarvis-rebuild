@@ -7,6 +7,8 @@ import "@testing-library/jest-dom";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { NotesProvider, useProfile, useNotes } from "../data/NotesProvider";
+import { GOOGLE_SCOPES } from "../connections/google/config";
+import type { GoogleApi } from "../connections/google/api";
 import type { ProfileService } from "../profile/ProfileService";
 import type { NotesService } from "../notes/NotesService";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
@@ -107,6 +109,33 @@ function wrapWithNotes(node: React.ReactNode, onNotes: (n: NotesService) => void
       <NotesGrabber onReady={onNotes} />
       <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}>{node}</GoogleSessionProvider>
     </NotesProvider>
+  );
+}
+
+// EMAIL-F-13 (2026-09-05): the first harness in this file with TWO accounts
+// connected. Every other test here runs one, which is exactly why the
+// multi-account misses went unnoticed. The seed must land before the session
+// provider mounts (the provider reads the profile once), and the injected
+// broker's silent path mints a token for each seeded account, so both apis
+// are live without any UI.
+function TwoAccounts({ apiOf, children }: { apiOf: (email: string) => GoogleApi; children: React.ReactNode }) {
+  const profile = useProfile();
+  const [seeded, setSeeded] = useState(false);
+  useEffect(() => {
+    const seed: { email: string; mail: boolean; cal: boolean; scopes?: string }[] = [
+      { email: "a@x.com", mail: true, cal: true, scopes: GOOGLE_SCOPES },
+      { email: "b@x.com", mail: true, cal: true, scopes: GOOGLE_SCOPES },
+    ];
+    void profile.save({ googleAccounts: seed }).then(() => setSeeded(true));
+  }, [profile]);
+  if (!seeded) return null;
+  return (
+    <GoogleSessionProvider
+      broker={{ authorize: async () => ({ token: "t-a@x.com", email: "a@x.com" }), silent: async (email) => "t-" + email }}
+      makeApi={(_token, email) => apiOf(email ?? "a@x.com")}
+    >
+      {children}
+    </GoogleSessionProvider>
   );
 }
 
@@ -616,6 +645,39 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(screen.getByText("bump"));
     await new Promise((r) => setTimeout(r, 50));
     expect(lists).toBe(settled);
+  });
+
+  // EMAIL-F-13 (2026-09-05): "Multi-account: the default account is used for
+  // search hits, drafts, and deck-edited replies." A draft listed from the
+  // second account was opened with g.api(), which is whichever account holds
+  // a token first, so getDraft 404'd on an id that account has never seen.
+  // Drafts now carry the account that listed them.
+  it("a draft that lives in the second account opens through that account", async () => {
+    const gets: string[] = [];
+    const draftMeta = { id: "dm9", snippet: "", labelIds: ["DRAFT"], internalDate: "500",
+      payload: { headers: [{ name: "To", value: "Wei <wei@x.com>" }, { name: "Subject", value: "Invoice" }] } };
+    const full = { id: "dm9", threadId: "t9", payload: { mimeType: "text/plain", body: { data: btoa("Half a sentence") },
+      headers: [{ name: "To", value: "Wei <wei@x.com>" }, { name: "Subject", value: "Invoice" }] } };
+    const apis: Record<string, GoogleApi> = {
+      "a@x.com": makeApi({
+        listDrafts: async () => [],
+        getDraft: async (id: string) => { gets.push("a:" + id); return { id, message: full as never }; },
+      }),
+      "b@x.com": makeApi({
+        listThreads: async () => [],
+        listDrafts: async () => [{ id: "d9", message: draftMeta as never }],
+        getDraft: async (id: string) => { gets.push("b:" + id); return { id, message: full as never }; },
+      }),
+    };
+    render(
+      <NotesProvider userId="two-accounts-drafts">
+        <TwoAccounts apiOf={(e) => apis[e]!}><MessagesFlow ai={noAI} configured /></TwoAccounts>
+      </NotesProvider>,
+    );
+    fireEvent.click(await screen.findByText(/^Drafts/));
+    fireEvent.click(await screen.findByText("Invoice"));
+    await waitFor(() => expect(gets).toEqual(["b:d9"]));
+    expect(await screen.findByDisplayValue("Half a sentence")).toBeInTheDocument();
   });
 
   // EMAIL-F-04 (2026-09-05): "An expired token or a dead network reads as

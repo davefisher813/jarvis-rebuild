@@ -112,7 +112,7 @@ import { suggestAttachment, suggestLine, noteAsText, attachmentFilename, type At
 import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
 import { mightProposeTimes, meetingPrompt, parseMeetingTimes, optionsAgainst, firstFree, meetingLine, MEETING_SYSTEM } from "./meetingTimes";
 import { sweepPrompt, parseSweep, needsSweep, liveSweep, loadSweep, saveSweep, SWEEP_SYSTEM, type SentItem } from "./sentSweep";
-import { fullThreadsFor } from "./sentBodies";
+import { fullThreadsFor, SENT_BODY_CAP } from "./sentBodies";
 import { laterTaskTitle } from "./deck";
 
 // Demo fixtures never reach a real build (see vite.config.ts). The constant
@@ -128,7 +128,10 @@ import { b64urlDecodeBytes } from "../connections/google/map";
 import { capAfterNumber } from "../shared/casing";
 
 type Draft = { to: string; cc?: string; subject: string; body: string; inReplyTo?: string; threadId?: string; fromDeck?: boolean; account?: string; handoffTo?: string; attachment?: EmailAttachment };
-type DraftRow = { id: string; to: string; subject: string; snippet: string; dateMs?: number; threadId?: string };
+// EMAIL-F-13 (2026-09-05): a draft belongs to the account that listed it.
+// Without the tag, opening a second-account draft went through the first
+// account's api and 404'd, and a legacy draft sent from the wrong address.
+type DraftRow = { id: string; to: string; subject: string; snippet: string; dateMs?: number; threadId?: string; account?: string };
 type View = "list" | "detail" | "compose" | "deck" | "dead" | "rules" | "purge";
 type Filter = "triage" | "all" | "drafts";
 type Outcome = "needs" | "waiting" | "owed";
@@ -991,8 +994,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (list.length === 0) return;
     setLoading(true);
     try {
-      const per = await Promise.all(list.map(async ({ api }) => api.listDrafts(25).catch(() => [])));
-      setDrafts(per.flat().map((d) => ({
+      // EMAIL-F-13: each draft keeps the account it was listed from, so
+      // opening it reads through that account and its send leaves from it.
+      const per = await Promise.all(list.map(async ({ email, api }) =>
+        (await api.listDrafts(25).catch(() => [])).map((d) => ({ d, email }))));
+      setDrafts(per.flat().map(({ d, email }) => ({
         id: d.id,
         to: header(d.message, "To"),
         subject: header(d.message, "Subject"),
@@ -1001,6 +1007,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         // which is the only honest answer to "how long has this sat".
         dateMs: Number((d.message as { internalDate?: string }).internalDate || 0),
         threadId: (d.message as { threadId?: string }).threadId,
+        account: email,
       })));
       setDraftsLoaded(true);
     } catch (e) {
@@ -1173,7 +1180,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // EMAIL-F-09: search hits know their account too (runSearch tags them the
   // same way loadThreads does), so a thread opened from a hit is read,
   // archived and trashed through the account it actually lives in.
-  const accountOfThread = (id: string) => rows.find((r) => r.id === id)?.account ?? results?.find((r) => r.id === id)?.account;
+  // EMAIL-F-13 (2026-09-05): and the deck's own copy of the rows, which is
+  // the list still on screen after a swept thread has left `rows`.
+  const accountOfThread = (id: string) =>
+    rows.find((r) => r.id === id)?.account
+    ?? results?.find((r) => r.id === id)?.account
+    ?? deckRows?.find((r) => r.id === id)?.account;
+  // EMAIL-F-13: which account a sender's mail lands in, for the moves that
+  // start from an address rather than from a thread (the unsubscribe sweep).
+  const accountOfSender = (email: string) =>
+    rows.find((r) => (r.fromEmail || "").toLowerCase() === email.toLowerCase())?.account;
 
   // Fans out across EVERY mail account (2026-08-09): it used to quietly
   // cover only the first, so a hit in the second account came back as "No
@@ -1216,10 +1232,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           .find((b) => isFocusRange(b) && min >= b.s && min < b.e);
         if (!block) return; // no focus block running: nothing auto-sends, ever
         const blockId = `${now.toISOString().slice(0, 10)}:${block.s}`;
-        const me = (g.accounts[0]?.email ?? "").toLowerCase();
         const backAt = fmtTime(`${String(Math.floor(block.e / 60)).padStart(2, "0")}:${String(block.e % 60).padStart(2, "0")}`);
         for (const row of rows.filter((x) => x.unread)) {
           const state = loadAutoState(blockId);
+          // EMAIL-F-13 (2026-09-05): "never to himself" has to mean every
+          // address he owns. This read accounts[0], so mail he sent from the
+          // second account could be auto-answered by the first.
+          const me = (accountOfThread(row.id) ?? g.accounts[0]?.email ?? "").toLowerCase();
+          if (g.accounts.some((a) => a.email.toLowerCase() === (row.fromEmail || "").toLowerCase())) continue;
           if (!shouldAutoReply({
             enabled: autoReplyOn, fromEmail: row.fromEmail, myEmail: me, vips,
             state, alreadyRepliedThread: !!waiting.find((w) => w.threadId === row.id),
@@ -1256,13 +1276,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setSaidBusy(true);
     setSaid(null);
     try {
-      const metas = await list[0]!.api.searchThreads(saidQuery("", question), 8).catch(() => []);
-      // EMAIL-F-03 (2026-09-05): the hits are metadata, and mapping metadata
-      // gave every message an empty body, which parseSaid's verbatim guard
-      // then (correctly) refused to quote from. sentBodies.ts fetches the
-      // real threads first, capped at the 8 already in play.
-      const fulls = await fullThreadsFor(list[0]!.api, metas);
-      const items = fulls
+      // EMAIL-F-13 (2026-09-05): every mail account, not just the first. What
+      // he told Wei is no less his sentence for having been sent from the
+      // other address. The 8-thread ceiling holds: it is split between the
+      // accounts rather than raised.
+      const share = Math.max(1, Math.ceil(SENT_BODY_CAP / list.length));
+      const perAccount = await Promise.all(list.map(async ({ api }) => {
+        const metas = await api.searchThreads(saidQuery("", question), share).catch(() => []);
+        // EMAIL-F-03 (2026-09-05): the hits are metadata, and mapping metadata
+        // gave every message an empty body, which parseSaid's verbatim guard
+        // then (correctly) refused to quote from. sentBodies.ts fetches the
+        // real threads first, capped at the 8 already in play.
+        return fullThreadsFor(api, metas, share);
+      }));
+      const items = perAccount.flat()
         .map((full) => {
           const mine = full.messages[full.messages.length - 1];
           if (!mine) return null;
@@ -1645,10 +1672,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // window.open returns null when it is blocked, so that is the check. There
   // is no way to make the second tab open, and the honest move is to say so
   // rather than to report three asks and send one.
-  const requestUnsub = async (u: Unsub): Promise<boolean> => {
+  const requestUnsub = async (u: Unsub, account?: string): Promise<boolean> => {
     let sent = false;
     if (u.kind === "mailto") {
-      const api = g.apis("mail")[0]?.api;
+      // EMAIL-F-13 (2026-09-05): the ask leaves from the address the list
+      // actually mails, not from whichever account happens to be first: a
+      // sender only honours an unsubscribe from the subscribed address.
+      const api = apiFor(account);
       if (!api) return false;
       const { ok } = await settleAll([u], () =>
         api.sendMessage(encodeEmail({ to: u.target, subject: u.subject || UNSUB_SUBJECT, body: UNSUB_BODY })));
@@ -1955,14 +1985,19 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setDraft({ to: r.to, subject: r.subject, body: text, inReplyTo: r.inReplyTo, threadId: r.threadId, account: accountOfThread(t.id) });
     setView("compose");
   };
-  const openDraft = async (draftId: string) => {
-    const api = g.api();
+  // EMAIL-F-13 (2026-09-05): read the draft through the account that holds
+  // it. The Drafts row passes its own tag; the Today "Unsent" jump only knows
+  // an id, so the loaded list is the lookup, and a legacy untagged draft
+  // still falls back to any live account through apiFor.
+  const openDraft = async (draftId: string, account?: string) => {
+    const acct = account ?? drafts.find((d) => d.id === draftId)?.account;
+    const api = apiFor(acct);
     if (!api) return;
     try {
       const res = await api.getDraft(draftId);
       const full = mapGmailFull(res.message);
       setEditingDraftId(draftId);
-      setDraft({ to: full.to || "", subject: full.subject, body: full.body });
+      setDraft({ to: full.to || "", subject: full.subject, body: full.body, account: acct });
       setView("compose");
     } catch (e) {
       setError(humanError(e, "Could not open draft"));
@@ -2007,7 +2042,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             const r = buildReply(t.messages[t.messages.length - 1]!, body);
             setThread(t);
             setEditingDraftId(null);
-            setDraft({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, threadId: r.threadId, fromDeck: true });
+            // EMAIL-F-13 (2026-09-05): the edited reply leaves from the
+            // account the thread lives in. Without this it went out on the
+            // first account carrying the second account's threadId, which
+            // fails on send and fails again on every Retry.
+            setDraft({ to: r.to, subject: r.subject, body, inReplyTo: r.inReplyTo, threadId: r.threadId, fromDeck: true, account: accountOfThread(t.id) });
             setView("compose");
           }}
           onHandled={(threadId, archived) => {
@@ -3023,7 +3062,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         ) : (
           <div><div className="list-flat">
             {drafts.map((d) => (
-              <div className="row" role="button" tabIndex={0} key={d.id} onClick={() => void openDraft(d.id)}>
+              <div className="row" role="button" tabIndex={0} key={d.id} onClick={() => void openDraft(d.id, d.account)}>
                 <div className="row-grow">
                   {/* The raw To header used to sit here: "Marcus Delaney
                       <marcus@northlake.org>", and the whole comma-joined
@@ -3630,7 +3669,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   for (const c of sweep) {
                     markAsked(c.sender);
                     const u = c.canUnsub ? unsubbable[c.sender] : undefined;
-                    if (u && await requestUnsub(u)) { ended++; continue; }
+                    if (u && await requestUnsub(u, accountOfSender(c.sender))) { ended++; continue; }
                     setRules(saveRule(c.sender, "noise"));
                     filed++;
                   }
