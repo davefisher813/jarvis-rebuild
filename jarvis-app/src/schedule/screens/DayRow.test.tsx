@@ -211,3 +211,33 @@ describe("DayRow: the first move (S6-Q36)", () => {
     expect(container.querySelector(".sched-firstmove")).toBeNull();
   });
 });
+
+// BROWSER-F-17 (2026-09-05). The time editor was absolutely positioned at
+// top: 50% with a translateY(-50%), which centres it ON the row it edits: the
+// browser walk caught "15m" sitting over "+Call Ridgeline About the Field" and
+// "12:15PM +45m open" over "New time", so the title of the thing being changed
+// was hidden while it was changed. jsdom measures every rect as zero, so where
+// it LANDS belongs to the browser walk; what this holds is that it hangs below
+// by default and only flips up when the measurement says to.
+describe("BROWSER-F-17: the time editor hangs under the row, not over it", () => {
+  const openPicker = () => {
+    const { container } = render(
+      <DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null}
+        onOpen={() => {}} onMoveTo={() => {}} onSetEnd={() => {}} />,
+    );
+    fireEvent.click(container.querySelector(".sched-time-btn")!);
+    return container;
+  };
+
+  it("opens under the row", () => {
+    const pop = openPicker().querySelector(".time-pop")!;
+    expect(pop).toBeInTheDocument();
+    expect(pop.className, "down is the default; up is the exception").not.toContain("time-pop-up");
+  });
+
+  it("still carries both halves of the block, the time and the length", () => {
+    const container = openPicker();
+    expect(container.querySelector('[aria-label="New time"]')).toBeInTheDocument();
+    expect(container.querySelector(".time-pop-durs")).toBeInTheDocument();
+  });
+});

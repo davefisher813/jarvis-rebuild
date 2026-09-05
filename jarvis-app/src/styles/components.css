@@ -2637,9 +2637,15 @@ button {
 .sched-time-btn::after { content: ""; position: absolute; inset: -13px -8px; }
 .sched-time-btn:active { color: var(--accent-tx); }
 .time-pop-scrim { position: fixed; inset: 0; z-index: 60; }
-.time-pop { position: absolute; left: var(--s-4); top: 50%; transform: translateY(-50%);
+/* BROWSER-F-17 (2026-09-05): under the row, not on it. top: 50% with a
+   translateY(-50%) centred this panel on the row it edits, so the title of the
+   thing being changed was hidden while it was changed, along with the nested
+   task under it. It hangs below now, and DayRow flips it above only when below
+   would run off the screen. */
+.time-pop { position: absolute; left: var(--s-4); top: calc(100% + 6px);
   z-index: 61; background: var(--surface-3); border: 1px solid var(--card-bd);
   border-radius: var(--r-md); padding: var(--s-2); box-shadow: 0 10px 34px rgba(0,0,0,0.6); }
+.time-pop.time-pop-up { top: auto; bottom: calc(100% + 6px); }
 .time-pop-input { width: 150px; height: 40px; }
 
 /* B3/B5 (2026-08-23): TAP THE UNTIL. Same relationship to .sched-until that

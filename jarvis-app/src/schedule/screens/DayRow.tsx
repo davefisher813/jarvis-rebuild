@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { EventItem } from "../types";
 import { useSwipe } from "../../shared/useSwipe";
 import { useChipInView } from "../../shared/useChipInView";
@@ -111,6 +111,24 @@ export default function DayRow({
   const [sizing, setSizing] = useState(false);
   const durs = useRef<HTMLDivElement>(null);
   useChipInView(durs, sizing);
+  // BROWSER-F-17 (2026-09-05). The time editor was centred on the row it
+  // edits (top: 50%, translateY(-50%)), so opening it hid the title of the
+  // thing being changed, and the nested task under it: the browser walk caught
+  // "15m" sitting on "+Call Ridgeline About the Field". It hangs under the row
+  // now, and flips above only when under would run off the bottom of the
+  // screen, which is the same rule HeadMenu uses. Measured after the first
+  // paint rather than guessed, because the panel's height depends on whether
+  // the event has a length at all.
+  const pop = useRef<HTMLDivElement>(null);
+  const [popUp, setPopUp] = useState(false);
+  useLayoutEffect(() => {
+    if (!picking) { setPopUp(false); return; }
+    const r = pop.current?.getBoundingClientRect();
+    if (!r) return;
+    const offBottom = r.bottom > window.innerHeight - 8;
+    const roomAbove = r.top - r.height - 8 > 0;
+    if (offBottom && roomAbove) setPopUp(true);
+  }, [picking]);
   const mins = e.data.end ? minutesBetween(e.data.start, e.data.end) : null;
 
   return (
@@ -358,7 +376,7 @@ export default function DayRow({
       {picking && onMoveTo && (
         <>
           <div className="time-pop-scrim" onClick={() => setPicking(false)} />
-          <div className="time-pop">
+          <div className={"time-pop" + (popUp ? " time-pop-up" : "")} ref={pop}>
             <input
               className="input time-pop-input"
               type="time"

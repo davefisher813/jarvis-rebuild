@@ -3734,7 +3734,10 @@ describe("LAW 17: the Schedule head is two rows, the day starts at Now, and the 
     expect(CSS, "and its rule with it").not.toMatch(/\.sched-until-empty\s*\{/);
     expect(src, "the length renders only when there is one").toMatch(/\{mins != null && \(/);
     expect(src, "and it is the span, not the end time").toMatch(/>\{durLabel\(mins\)\}<\/button>/);
-    const pop = src.slice(src.indexOf('<div className="time-pop">'));
+    // The anchor is the className expression, not a literal: BROWSER-F-17
+    // (2026-09-05) gave the popover an up variant, so the class is composed.
+    // Same assertion, same element, it just is not a plain string any more.
+    const pop = src.slice(src.indexOf('className={"time-pop"'));
     expect(pop, "the time popover carries the length too").toMatch(/time-pop-durs/);
     expect(pop, "and its chips write an end time").toMatch(/onSetEnd\(endFor\(e\.data\.start, d\)\)/);
     expect(src, "and says so").toMatch(/"Change time or length, currently "/);

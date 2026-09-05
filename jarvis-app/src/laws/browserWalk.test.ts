@@ -410,6 +410,16 @@ describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
   });
 });
 
+describe("BROWSER-F-17: the inline time editor never covers the row it edits", () => {
+  it(".time-pop anchors below the row, with an up variant for the bottom of a list", () => {
+    const down = ruleBody(css(), ".time-pop")!;
+    expect(down, "the popover rule is still there").toBeTruthy();
+    expect(down, "centring on the row is what hid the row").not.toMatch(/top:\s*50%/);
+    expect(down).toMatch(/top:\s*calc\(100% \+/);
+    expect(ruleBody(css(), ".time-pop.time-pop-up")).toMatch(/bottom:\s*calc\(100% \+/);
+  });
+});
+
 describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
   // The strip rule re-sets the chip background at (0,4,0), which beats
   // .chip.active (0,2,0) for the background alone. Any rule that overrides a
