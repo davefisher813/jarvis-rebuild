@@ -106,11 +106,19 @@ export default function NotesFlow({
   onChrome,
   onNavigate,
   openId,
+  openNonce,
+  onOpenConsumed,
 }: {
   seed?: boolean;
   onChrome?: (chrome: { tabBar: boolean }) => void;
   onNavigate?: (kind: string, targetId: string) => void;
   openId?: string;
+  // HMN-F-19 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
+  // The effect below fires on a CHANGE of openId, so opening note X from
+  // search, backing out to the list and searching X again did nothing at all:
+  // the id was still X and nothing had cleared it.
+  openNonce?: number;
+  onOpenConsumed?: () => void;
 }) {
   const svc = useNotes();
   const cats = useCategories();
@@ -368,9 +376,11 @@ export default function NotesFlow({
   // When arriving from another screen (e.g. a project's Linked Notes), open that
   // note once on mount.
   useEffect(() => {
-    if (openId) openNote(openId);
+    if (!openId) return;
+    void openNote(openId);
+    onOpenConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openId]);
+  }, [openId, openNonce]);
 
   const pickTemplate = async (key: TemplateKey) => {
     let id: string | null = null;

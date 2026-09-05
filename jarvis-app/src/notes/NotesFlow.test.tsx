@@ -7,6 +7,7 @@
 // every read and write takes a network beat, the way the phone's does, so
 // the interleaving the audit reproduced is the one exercised here.
 import { describe, it, expect, vi } from "vitest";
+import { useState } from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { Store, InMemoryAdapter, type Item, type ItemData } from "@core";
@@ -130,5 +131,47 @@ describe("NotesFlow: pending text survives leaving the tab (HMN-F-02)", () => {
     await waitFor(async () => {
       expect((await svc.note(id))!.blocks[0]!.text).toBe("two minutes of writing");
     }, { timeout: 4000 });
+  });
+});
+
+// HMN-F-19 (2026-09-05): the note deep link fired on a CHANGE of openId and
+// nothing ever cleared it, so opening note X from search, backing out to the
+// list and searching X again did nothing: the prop was still X.
+function ShellLike({ id }: { id: string }) {
+  const [intent, setIntent] = useState<{ value?: string; nonce: number }>({ nonce: 0 });
+  return (
+    <>
+      <button onClick={() => setIntent((i) => ({ value: id, nonce: i.nonce + 1 }))}>Open It</button>
+      <NotesFlow
+        openId={intent.value}
+        openNonce={intent.nonce}
+        onOpenConsumed={() => setIntent((i) => ({ nonce: i.nonce }))}
+      />
+    </>
+  );
+}
+
+describe("the same note deep link, twice (HMN-F-19)", () => {
+  it("opens it, and opens it again after backing out to the list", async () => {
+    svcRef = null;
+    const user = "u-notes-f19";
+    const view = render(<NotesProvider userId={user}><Grab /></NotesProvider>);
+    await waitFor(() => expect(svcRef).toBeTruthy());
+    let id = "";
+    await act(async () => { id = (await svcRef!.createNote("Roster", ""))!; });
+
+    view.rerender(<NotesProvider userId={user}><Grab /><ShellLike id={id} /></NotesProvider>);
+    // The list first: the editor's back row reads Notes.
+    await waitFor(() => expect(screen.queryByText("Notes", { selector: "button" })).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Open It"));
+    await waitFor(() => expect(screen.getByText("Notes", { selector: "button" })).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Notes", { selector: "button" }));
+    await waitFor(() => expect(screen.queryByText("Notes", { selector: "button" })).not.toBeInTheDocument());
+
+    // The same note, a second time: it opens, because the nonce moved.
+    fireEvent.click(screen.getByText("Open It"));
+    await waitFor(() => expect(screen.getByText("Notes", { selector: "button" })).toBeInTheDocument());
   });
 });
