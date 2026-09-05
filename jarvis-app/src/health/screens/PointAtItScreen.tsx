@@ -12,7 +12,9 @@ export default function PointAtItScreen({ patterns, onLog, onBack, onHandToSomeo
   patterns: StillTherePattern[];
   onLog: (x: number, y: number, side: "front" | "back") => void;
   onBack: () => void;
-  onHandToSomeone: () => void;
+  // BRAIN-F-26 (2026-09-05): absent when there is nobody to reach, so the row
+  // is not offered rather than dialling a number that will not connect.
+  onHandToSomeone?: () => void;
 }) {
   const [side, setSide] = useState<"front" | "back">("front");
   const [logged, setLogged] = useState<{ x: number; y: number } | null>(null);
@@ -87,9 +89,11 @@ export default function PointAtItScreen({ patterns, onLog, onBack, onHandToSomeo
                 </div>
               </div>
             ))}
-            <div className="row" role="button" tabIndex={0} onClick={onHandToSomeone}>
-              <div className="row-grow"><div className="conn-name">Hand It to Someone</div></div>
-            </div>
+            {onHandToSomeone && (
+              <div className="row" role="button" tabIndex={0} onClick={onHandToSomeone}>
+                <div className="row-grow"><div className="conn-name">Hand It to Someone</div></div>
+              </div>
+            )}
           </div></div>
         </>
       )}

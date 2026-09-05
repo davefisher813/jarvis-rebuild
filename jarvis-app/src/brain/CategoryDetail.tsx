@@ -46,7 +46,7 @@ import CallItScreen from "../health/screens/CallItScreen";
 import PointAtItScreen from "../health/screens/PointAtItScreen";
 import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry } from "../health/types";
 import { tookItTimeline, stillThere } from "../health/timelines";
-import { telHref, CRISIS_LINE_NUMBER } from "../health/trustedAdult";
+import { telHref, crisisLineFor, regionOf, type CrisisLine } from "../health/trustedAdult";
 import { localDayParts } from "../events/serverSink";
 import type { HealthLoggerKey, HealthLoggerRow } from "./HealthBody";
 import type { Program } from "../gym/types";
@@ -196,6 +196,12 @@ export default function CategoryDetail({
   const [tookIt, setTookIt] = useState<TookItEntry[]>([]);
   const [callIt, setCallIt] = useState<CallItEntry[]>([]);
   const [pointAtIt, setPointAtIt] = useState<PointAtItEntry[]>([]);
+  // BRAIN-F-26 (2026-09-05, fork option A): who "Hand It to Someone" actually
+  // reaches. The athlete's own trusted adult first (HealthService has stored
+  // one since the module shipped, and nothing outside it ever read one), then
+  // the line for their region. 988 is a US and Canada number; dialling it from
+  // anywhere else reached nothing, which is worse than offering nothing.
+  const [reachOut, setReachOut] = useState<{ label: string; number: string } | null>(null);
   // Full project list, unfiltered: goal reach is computed across ALL
   // projects (a goal tagged here can be filed anywhere).
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -279,6 +285,14 @@ export default function CategoryDetail({
     healthSvc.listTookIt().then((l) => { if (on) setTookIt(l); }).catch(() => {});
     healthSvc.listCallIt().then((l) => { if (on) setCallIt(l); }).catch(() => {});
     healthSvc.listPointAtIt().then((l) => { if (on) setPointAtIt(l); }).catch(() => {});
+    healthSvc.getTrustedAdult().then((ta) => {
+      if (!on) return;
+      const name = ta?.data.name.trim();
+      const phone = ta?.data.phone.trim();
+      if (name && phone) { setReachOut({ label: name, number: phone }); return; }
+      const line: CrisisLine | null = crisisLineFor(regionOf(typeof navigator === "undefined" ? null : navigator.language));
+      setReachOut(line);
+    }).catch(() => {});
     return () => { on = false; };
   }, [healthSvc, healthScreen]);
 
@@ -418,11 +432,11 @@ export default function CategoryDetail({
       <PointAtItScreen
         patterns={stillThere(pointAtIt)}
         onLog={(x, y, side) => { healthSvc.logPointAtIt({ x, y, side }); }}
-        // Point at It's own "Still There?" affordance, still honest: not the
-        // full Say It to Someone / trusted-adult screen (that stays dormant
-        // with Ate Before), but the one number this module always has,
-        // straight to a real line.
-        onHandToSomeone={() => { window.location.href = telHref(CRISIS_LINE_NUMBER); }}
+        // Point at It's own "Still There?" affordance, still honest: the
+        // person they chose if they have one, their region's line if we can
+        // state it, and no row at all when neither exists, because a number
+        // that does not connect is a worse answer than none.
+        onHandToSomeone={reachOut ? () => { window.location.href = telHref(reachOut.number); } : undefined}
         onBack={() => setHealthScreen(null)}
       />
     );
