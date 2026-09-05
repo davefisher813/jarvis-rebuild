@@ -683,8 +683,14 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
           onAddSavings={async (amount) => {
             // Dated entry, derived progress. Only real logged money ever
             // lands here (never skipped purchases: Money v1 law).
-            const d = new Date().toISOString().slice(0, 10);
-            await goalsSvc.update(goalDetail.id, { saved: [...(goalDetail.data.saved ?? []), { d, amount }] });
+            //
+            // LIFE-F-18 (2026-09-05): the entry used to be dated with
+            // toISOString(), the UTC day, so $200 logged at 9pm Eastern on
+            // the 31st landed on the 1st and the next month's rollup counted
+            // it. `today` is this page's local day (todayISO, above). The
+            // write is guarded so a dropped save is an error, not silence.
+            const d = today;
+            await attemptWrite(() => goalsSvc.update(goalDetail.id, { saved: [...(goalDetail.data.saved ?? []), { d, amount }] }));
             await reload();
           }}
         />
