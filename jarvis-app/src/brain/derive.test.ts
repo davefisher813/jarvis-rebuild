@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { deriveCompletionWindow, deriveSlipCategory, derivePlanRate, deriveAll } from "./derive";
+import { setCategoryRegistry } from "../shared/categories";
 import type { WindowRow } from "./window";
 
 const row = (over: Partial<WindowRow>): WindowRow => ({
@@ -56,30 +57,50 @@ describe("completion window", () => {
 });
 
 describe("slip by category", () => {
+  // BRAIN-F-05 (2026-09-05): task.pushed carries the category ID, not its
+  // name. The old fixture fed "Money" and so asserted the wrong contract; the
+  // derivation printed a uuid on the Today card. Ids in, names out.
+  const MONEY = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+  const HOME = "9b2c1d3e-4f5a-4b6c-8d7e-0f1a2b3c4d5e";
+  beforeEach(() => {
+    setCategoryRegistry([
+      { id: MONEY, name: "Money", color: "green" },
+      { id: HOME, name: "Home", color: "blue" },
+    ]);
+  });
+
   const push = (cat: string, n: number, from = 1): WindowRow[] =>
     Array.from({ length: n }, (_, i) => row({ type: "task.pushed", category: cat, day: `2026-08-${String(from + i).padStart(2, "0")}` }));
 
   it("stays quiet under five pushes", () => {
-    expect(deriveSlipCategory(push("Money", 4))).toBeNull();
+    expect(deriveSlipCategory(push(MONEY, 4))).toBeNull();
   });
 
   it("stays quiet when two categories slip about the same amount", () => {
-    expect(deriveSlipCategory([...push("Money", 6), ...push("Home", 5, 10)])).toBeNull();
+    expect(deriveSlipCategory([...push(MONEY, 6), ...push(HOME, 5, 10)])).toBeNull();
   });
 
-  it("names the leader when it doubles the runner up", () => {
-    const d = deriveSlipCategory([...push("Money", 8), ...push("Home", 2, 12)])!;
+  it("names the leader by its NAME when it doubles the runner up", () => {
+    const d = deriveSlipCategory([...push(MONEY, 8), ...push(HOME, 2, 12)])!;
     expect(d.title).toBe("Money tasks are the ones that slip");
+    expect(d.strandText).toBe("Money tasks tend to slip and need extra room");
     expect(d.sub).toContain("8 times");
     expect(d.category).toBe("work_style");
+    // And never the id, in any of the three lines.
+    expect(`${d.title} ${d.sub} ${d.strandText}`).not.toContain(MONEY);
+  });
+
+  it("says nothing about a category that no longer exists", () => {
+    setCategoryRegistry([]);
+    expect(deriveSlipCategory(push(MONEY, 8))).toBeNull();
   });
 
   it("speaks with a sole leader and no runner up at all", () => {
-    expect(deriveSlipCategory(push("Money", 5))).not.toBeNull();
+    expect(deriveSlipCategory(push(MONEY, 5))).not.toBeNull();
   });
 
   it("never scolds: no guilt vocabulary anywhere in the copy", () => {
-    const d = deriveSlipCategory([...push("Money", 8), ...push("Home", 2, 12)])!;
+    const d = deriveSlipCategory([...push(MONEY, 8), ...push(HOME, 2, 12)])!;
     const all = `${d.title} ${d.sub} ${d.strandText}`.toLowerCase();
     for (const banned of ["should", "failed", "fail", "behind", "neglect", "bad", "lazy", "again"]) {
       expect(all).not.toContain(banned);

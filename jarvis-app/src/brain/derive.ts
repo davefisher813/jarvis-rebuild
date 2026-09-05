@@ -1,6 +1,7 @@
 import type { WindowRow } from "./window";
 import type { StrandCategory, StrandEvidence, DerivationKey } from "./strands/types";
 import { capAfterNumber } from "../shared/casing";
+import { catName } from "../shared/categories";
 
 // The launch derivations (Brain Layer 2). Pure functions over the windowed
 // event rows; no I/O, fully testable. THE GOVERNING PRINCIPLE: accuracy
@@ -113,13 +114,22 @@ export function deriveSlipCategory(rows: WindowRow[]): Derived | null {
   const lead = slipLeader(rows);
   if (!lead) return null;
   const { category: cat, n } = lead;
+  // BRAIN-F-05 (2026-09-05): task.pushed carries the category ID (TasksService
+  // emits t.category; the seal resolves it through catById). This copy used to
+  // print the id itself, so the Noticed card and the accepted strand read
+  // "3fa85f64-... tasks are the ones that slip", and the strand fed that uuid
+  // to the AI on every prompt. Resolve to the user's name; a category that no
+  // longer exists gets no derivation at all, because a sentence about an area
+  // nobody can see is not a fact anyone can check.
+  const name = catName(cat);
+  if (!name) return null;
   const days = [...new Set(pushed.filter((r) => r.category === cat).map((r) => r.day))].sort().reverse();
   return {
     derivation: "slip_category",
     category: "work_style",
-    title: `${cat} tasks are the ones that slip`,
+    title: `${name} tasks are the ones that slip`,
     sub: capAfterNumber(`Pushed ${n} times in 30 days, the most of any category`),
-    strandText: `${cat} tasks tend to slip and need extra room`,
+    strandText: `${name} tasks tend to slip and need extra room`,
     evidence: days.slice(0, 6).map((day) => ({ day, a: 1 })),
   };
 }
