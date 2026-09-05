@@ -132,4 +132,25 @@ describe("migrateWorkoutData", () => {
     const w = migrateWorkoutData(old);
     expect(w.exercises[0]!.sets).toEqual([]);
   });
+
+  // GYM-F-02 (2026-09-05): a read used to be lossy, and updateWorkout wrote
+  // the lossy copy back. Anything the current shape carries has to survive a
+  // round trip, or the next Save Changes erases it from storage.
+  it("a new-shape workout survives the read unchanged, every field", () => {
+    const now: WorkoutData = {
+      programId: "p", dayId: "d", dayName: "Push", date: "2026-08-01", startedAt: 10, endedAt: 20,
+      backdated: true,
+      exercises: [
+        { exerciseId: "e1", name: "Bench Press", kind: "weight_reps", unit: "lb", exerciseKey: "ekABC", sets: [{ id: "s1", w: 225, r: 5 }] },
+        { exerciseId: "e2", name: "DB Press", kind: "weight_reps", unit: "lb", custom: true, plan: [{ id: "pl1", w: 50, r: 10 }], skipped: true, sets: [] },
+      ],
+    };
+    const w = migrateWorkoutData(now);
+    expect(w).toEqual(now);
+    expect(w.backdated).toBe(true);
+    expect(w.exercises[0]!.exerciseKey).toBe("ekABC");
+    expect(w.exercises[1]!.custom).toBe(true);
+    expect(w.exercises[1]!.plan).toEqual([{ id: "pl1", w: 50, r: 10 }]);
+    expect(w.exercises[1]!.skipped).toBe(true);
+  });
 });

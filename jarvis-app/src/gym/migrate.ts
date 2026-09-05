@@ -93,28 +93,29 @@ function migrateSetLog(s: OldSetLog): SetEntry {
   };
 }
 
+// GYM-F-02 (2026-09-05): these two rebuilt the workout from an allow-list
+// written before `backdated`, `exerciseKey`, `custom` and `plan` existed, so
+// every read through GymService.listWorkouts silently dropped them: the
+// pickers listed one lift twice (program key vs no key), "Logged Later" never
+// showed, learned pace counted a backdated session's typing time as training
+// time, and GymService.updateWorkout:91 spread the stripped read straight back
+// into the store, erasing them for good. A migration normalizes what it knows
+// is old and carries everything else through untouched, so both functions now
+// spread the source and override only the legacy `sets` / `exercises`.
+
 function migrateWorkoutExercise(e: OldWorkoutExercise): WorkoutExercise {
   const sets = (e.sets ?? []).map((s) => (typeof (s as SetEntry).id === "string" ? (s as SetEntry) : migrateSetLog(s)));
   return {
-    exerciseId: e.exerciseId,
-    name: e.name,
+    ...(e as unknown as WorkoutExercise),
     kind: e.kind as MeasureKind,
-    ...(e.unit ? { unit: e.unit } : {}),
-    ...(e.timeUnit ? { timeUnit: e.timeUnit } : {}),
     sets,
-    ...(e.skipped ? { skipped: true } : {}),
   };
 }
 
 export function migrateWorkoutData(raw: unknown): WorkoutData {
   const w = raw as OldWorkoutData;
   return {
-    programId: w.programId,
-    dayId: w.dayId,
-    dayName: w.dayName,
-    date: w.date,
-    startedAt: w.startedAt,
-    endedAt: w.endedAt,
+    ...(w as unknown as WorkoutData),
     exercises: (w.exercises ?? []).map(migrateWorkoutExercise),
   };
 }
