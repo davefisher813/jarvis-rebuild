@@ -214,6 +214,11 @@ export interface LockerDocData {
 export interface LockerDocEntry {
   id: string;
   data: LockerDocData;
+  /** HMN-F-22 (2026-09-05): true while this document is still only in the
+   *  local pending queue, so its id is a placeholder the Store has never
+   *  seen. The Locker hides Remove on one, because deleting it would be a
+   *  no-op with a receipt on top. */
+  pending?: boolean;
 }
 
 // ---- Say It to Someone (Part 5) ----

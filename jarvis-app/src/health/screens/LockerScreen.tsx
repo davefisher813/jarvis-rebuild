@@ -58,7 +58,11 @@ export default function LockerScreen({
                 <div className="conn-name">{LOCKER_DOC_LABEL[d.data.kind]}</div>
                 {d.data.expiresAt && <div className="bp-sub">Expires {d.data.expiresAt}</div>}
               </div>
-              <button className="btn btn-tertiary btn-sm" onClick={() => onRemove(d.id)}>Remove</button>
+              {/* HMN-F-22 (2026-09-05): a document still in the pending
+                  queue carries a placeholder id, so Remove on it deleted
+                  nothing while looking like it had. It comes back the moment
+                  the write lands and the row has a real id. */}
+              {!d.pending && <button className="btn btn-tertiary btn-sm" onClick={() => onRemove(d.id)}>Remove</button>}
             </div>
           ))
         )}

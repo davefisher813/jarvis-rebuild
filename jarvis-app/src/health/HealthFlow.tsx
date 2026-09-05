@@ -25,6 +25,8 @@ import type { SportSession } from "./loadCandidates";
 import type { SeasonFeedDraft } from "./seasonFeed";
 import { showToast } from "../shared/toast";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
+import { capAfterNumber } from "../shared/casing";
+import { saveTextFile } from "../shared/saveTextFile";
 import ShareLineScreen from "./screens/ShareLineScreen";
 import WhatTheySeeScreen from "./screens/WhatTheySeeScreen";
 import LightsOutScreen from "./screens/LightsOutScreen";
@@ -62,6 +64,24 @@ function localDay(atMs: number = Date.now()): string {
 
 function defaultWeekDates(startMs: number = Date.now()): string[] {
   return Array.from({ length: 7 }, (_, i) => localDay(startMs + i * 86400000));
+}
+
+// HMN-F-22 (2026-09-05): two branches on this flow returned bare null when
+// the thing they needed was absent, which paints a blank screen with no way
+// off it. Every screen in this module ends in a way out, so the absence gets
+// a screen of its own with the same nav bar the real ones carry.
+function NothingHere({ title, sub, onBack }: { title: string; sub: string; onBack: () => void }) {
+  return (
+    <div className="screen ruled">
+      <div className="nav-bar">
+        <button className="nav-back" aria-label="Back" onClick={onBack}></button>
+      </div>
+      <div className="empty-state">
+        <div className="empty-title">{title}</div>
+        <div className="empty-sub">{sub}</div>
+      </div>
+    </div>
+  );
 }
 
 function currentSeason(now: number = Date.now()): string {
@@ -124,7 +144,9 @@ export default function HealthFlow({
   // Refill Runway's call, specifically: the catalog is explicit this lands
   // on the PARENT's list, not a generic offer, so it gets its own seam.
   onLandParentTask?: (line: string) => void | Promise<boolean | void>;
-  onCommitSeasonFeed?: (draft: SeasonFeedDraft) => void;
+  // Same shape, same reason: The Season Feed's receipt counts events, and a
+  // count is the loudest claim on this flow, so it waits for the answer too.
+  onCommitSeasonFeed?: (draft: SeasonFeedDraft) => void | Promise<boolean | void>;
 }) {
   const svc = useState(() => service ?? new HealthService(store!, ownerId ?? "", onEvent))[0];
   const [screen, setScreen] = useState<ScreenKey>(initialScreen);
@@ -154,6 +176,21 @@ export default function HealthFlow({
 
   useEffect(() => { void reload(); }, [reload]);
 
+  // HMN-F-22 (2026-09-05): marking The Age Rule seen used to happen inside
+  // the render branch below, so a re-render for any reason fired a write and
+  // StrictMode's double render fired two. A write is an effect; it belongs
+  // here. It runs once per season, only while that screen is the one open,
+  // and it says so when it cannot land, because a silent failed write is how
+  // the card comes back next season as if it had never been shown.
+  useEffect(() => {
+    if (screen !== "ageRule" || ageRuleGate) return;
+    let on = true;
+    void svc.markAgeRuleShown(currentSeason())
+      .then(() => { if (on) setAgeRuleGate(true); })
+      .catch(() => { if (on) showToast({ message: WRITE_FAILED_MESSAGE }); });
+    return () => { on = false; };
+  }, [screen, ageRuleGate, svc]);
+
   const answeredFor: Record<string, boolean> = {};
   for (const e of ateBefore) if (e.data.eventId) answeredFor[e.data.eventId] = e.data.ate;
 
@@ -175,14 +212,27 @@ export default function HealthFlow({
   // More row) that receipt has to be true: it waits for the write, and says
   // so when the write failed. A caller that returns nothing (the bench, the
   // module's own tests) is unchanged.
-  const take = (
-    fn: ((line: string) => void | Promise<boolean | void>) | undefined,
-    line: string,
+  //
+  // HMN-F-22 (2026-09-05), folded in here rather than repeated per handler:
+  // every seam on this flow is optional, and a missing seam is not a failed
+  // write, it is nothing happening at all. With no seam this says nothing,
+  // because "Wind Down added" on a HealthFlow mounted without onOffer is the
+  // same lie as a receipt that beats its own write. This is the ONE place
+  // that decides whether a receipt is earned; no handler below toasts an
+  // offer of its own. The argument is generic because The Season Feed hands
+  // over a draft rather than a line, and onDone runs only on a real write,
+  // so a failed commit leaves the person on the screen they can retry from.
+  const take = <T,>(
+    fn: ((arg: T) => void | Promise<boolean | void>) | undefined,
+    arg: T,
     said: string,
+    onDone?: () => void,
   ) => {
+    if (!fn) return;
     void (async () => {
-      const ok = await Promise.resolve(fn?.(line)).catch(() => false);
+      const ok = await Promise.resolve(fn(arg)).catch(() => false);
       showToast({ message: ok === false ? WRITE_FAILED_MESSAGE : said });
+      if (ok !== false) onDone?.();
     })();
   };
 
@@ -191,7 +241,13 @@ export default function HealthFlow({
       return (
         <ShareLineScreen
           grants={grants}
-          onToggle={async (c: HealthCategoryId, granted: boolean) => { await svc.setGrant(c, granted); await reload(); }}
+          // HMN-F-22 (2026-09-05): a failed grant write left the switch
+          // looking flipped with nothing behind it. It says so and reloads,
+          // which puts the switch back where the store actually has it.
+          onToggle={async (c: HealthCategoryId, granted: boolean) => {
+            try { await svc.setGrant(c, granted); } catch { showToast({ message: WRITE_FAILED_MESSAGE }); }
+            await reload();
+          }}
           onOpenWhatTheySee={() => setScreen("whatTheySee")}
           onBack={onExit}
         />
@@ -262,6 +318,10 @@ export default function HealthFlow({
         <RefillRunwayScreen
           state={refillRunway(medRefill, tookIt)}
           onLogFill={(dosesInFill) => { svc.logMedRefill({ filledAt: Date.now(), dosesInFill }); void reload(); }}
+          // HMN-F-22 (2026-09-05): this toast used to fire whether or not
+          // there was a seam to land the call on, so a HealthFlow mounted
+          // without onLandParentTask said "Sent to the parent's list" with
+          // nothing sent. It reports only what actually left.
           onLandParentTask={() => {
             const line = refillOffer(refillRunway(medRefill, tookIt));
             // HMN-F-06: the catalog wrote this for a parent's list, and there
@@ -284,7 +344,22 @@ export default function HealthFlow({
       return (
         <DoctorReportScreen
           report={report}
-          onExport={() => showToast({ message: doctorReportText(report).split("\n")[0] + " · ready" })}
+          // HMN-F-22 (2026-09-05): Export This Log used to toast the
+          // report's own first line and export nothing at all. It hands the
+          // text to the OS now, through the same share sheet the backup
+          // export uses (S3-Q16), and says so only after the file left.
+          onExport={async () => {
+            try {
+              const sent = await saveTextFile(
+                doctorReportText(report),
+                `jarvis-health-log-${report.toDate}.txt`,
+                { title: "The Family's Own Log" },
+              );
+              if (sent) showToast({ message: "Log exported" });
+            } catch {
+              showToast({ message: "Couldn't export · Try again" });
+            }
+          }}
           onBack={onExit}
         />
       );
@@ -293,6 +368,9 @@ export default function HealthFlow({
       return (
         <NightBeforeScreen
           offer={nightBeforeOffer(nightBeforeCommitments, Date.now())}
+          // HMN-F-22 (2026-09-05): every offer toast on this flow used to
+          // fire whether or not onOffer existed to place the block. The
+          // toast now follows the offer instead of announcing it.
           onAddWindDown={() => {
             const offer = nightBeforeOffer(nightBeforeCommitments, Date.now());
             if (offer) take(onOffer, "Wind Down at " + new Date(offer.windDownAt).toLocaleTimeString(), "Wind Down added");
@@ -309,7 +387,10 @@ export default function HealthFlow({
         />
       );
     case "theBag": {
-      if (!bagEvent) return null;
+      // HMN-F-22 (2026-09-05): same blank dead end as the Season Feed. A
+      // checklist binds to one calendar event; with none there is nothing to
+      // check, and saying so beats an empty screen with no Back on it.
+      if (!bagEvent) return <NothingHere title="No Bag to Check Yet" sub="The bag list binds to one event on the calendar" onBack={onExit} />;
       const latest = latestBagCheck(bagCheck, bagEvent.eventId);
       const items = latest?.data.items ?? defaultBagItems();
       return (
@@ -354,7 +435,6 @@ export default function HealthFlow({
         monthsInSeason: monthsInSeason ?? 9,
         daysOffPerWeek: shape.daysWithNone,
       });
-      if (!ageRuleGate) void svc.markAgeRuleShown(currentSeason());
       return (
         <AgeRuleScreen
           facts={facts}
@@ -368,16 +448,36 @@ export default function HealthFlow({
         <SayItToSomeoneScreen
           name={trustedAdult.name}
           phone={trustedAdult.phone}
-          onSetTrustedAdult={(name, phone) => { void svc.setTrustedAdult(name, phone).then(reload); }}
+          // HMN-F-22 (2026-09-05): this write had no catch, so the one
+          // screen that has to work in a crisis could drop the person it
+          // just promised to remember without a word.
+          onSetTrustedAdult={(name, phone) => {
+            void svc.setTrustedAdult(name, phone)
+              .then(reload)
+              .catch(() => showToast({ message: WRITE_FAILED_MESSAGE }));
+          }}
           onBack={onExit}
         />
       );
     case "seasonFeed":
-      if (!ai) return null;
+      // HMN-F-22 (2026-09-05): with no AI service this returned null, which
+      // is a blank screen with no way back, on a stack whose only exit is
+      // the Back button it did not draw.
+      if (!ai) return <NothingHere title="The Season Feed Isn't On" sub="Reading a schedule out of a photo needs JARVIS's AI turned on" onBack={onExit} />;
       return (
         <SeasonFeedScreen
           ai={ai}
-          onCommit={(draft) => { onCommitSeasonFeed?.(draft); showToast({ message: draft.events.length + " events added" }); onExit(); }}
+          // HMN-F-22 (2026-09-05), through HMN-F-06's helper: this counted
+          // the draft's events and said they were added before the seam that
+          // adds them had run, and said it with no seam there at all. It goes
+          // through take like every other offer, so the count is a receipt
+          // for a write, and a failed commit stays on this screen.
+          onCommit={(draft) => take(
+            onCommitSeasonFeed,
+            draft,
+            capAfterNumber(draft.events.length + (draft.events.length === 1 ? " event added" : " events added")),
+            onExit,
+          )}
           onBack={onExit}
         />
       );

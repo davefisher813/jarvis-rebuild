@@ -25,7 +25,19 @@ export default function SayItToSomeoneScreen({
   // a person was already saved -- the one screen where that has to work on
   // the very first paint. Only ever clears editing; never sets it, so an
   // athlete who taps Change Who You Call to replace someone is untouched.
+  //
+  // HMN-F-22 (2026-09-05): the drafts had the same problem and no fix. On a
+  // fresh mount the form fields initialised empty and stayed empty, so
+  // Change Who You Call opened a blank form and the athlete had to retype a
+  // person the app already had. The drafts follow the loaded person while
+  // they are still untouched; once anything is typed, typing wins.
   useEffect(() => { if (hasTrustedAdult(name, phone)) setEditing(false); }, [name, phone]);
+  const [touched, setTouched] = useState(false);
+  useEffect(() => {
+    if (touched) return;
+    if (name) setDraftName(name);
+    if (phone) setDraftPhone(phone);
+  }, [name, phone, touched]);
 
   return (
     <div className="screen ruled">
@@ -56,11 +68,11 @@ export default function SayItToSomeoneScreen({
         <div className="pad-x"><div className="card pad">
           <div className="field">
             <div className="input-label">Their Name</div>
-            <input className="input" value={draftName} onChange={(e) => setDraftName(e.target.value)} placeholder="A Name You Trust" />
+            <input className="input" value={draftName} onChange={(e) => { setTouched(true); setDraftName(e.target.value); }} placeholder="A Name You Trust" />
           </div>
           <div className="field">
             <div className="input-label">Their Number</div>
-            <input className="input" type="tel" value={draftPhone} onChange={(e) => setDraftPhone(e.target.value)} placeholder="A Number That Reaches Them" />
+            <input className="input" type="tel" value={draftPhone} onChange={(e) => { setTouched(true); setDraftPhone(e.target.value); }} placeholder="A Number That Reaches Them" />
           </div>
           <button
             className="btn btn-primary btn-block"

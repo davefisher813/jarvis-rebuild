@@ -229,12 +229,17 @@ export class HealthService {
   // sitting in the local pending queue for this entity type, so a history
   // view is honest even before the next flush completes (a set logged with
   // no bars still shows up on the same screen a second later).
-  private async listMerged<D>(entityType: string, storage: Storage2 | undefined, sort: (a: D, b: D) => number): Promise<{ id: string; data: D }[]> {
+  // HMN-F-22 (2026-09-05): the merged rows now say which half they came
+  // from. A pending row's id is "pending-N", which is this method's own
+  // invention and means nothing to the Store, so removeLockerDoc on one was
+  // a delete of an id that does not exist: the row stayed, the receipt said
+  // it went. Callers that offer a delete hide it while `pending` is true.
+  private async listMerged<D>(entityType: string, storage: Storage2 | undefined, sort: (a: D, b: D) => number): Promise<{ id: string; data: D; pending?: boolean }[]> {
     const items = await this.store.listForUser(this.ownerId, entityType);
     const server = items.map((i) => ({ id: i.id, data: i.data as unknown as D }));
     const pending = readPending(storage)
       .filter((p) => p.entityType === entityType)
-      .map((p, i) => ({ id: "pending-" + i, data: p.data as unknown as D }));
+      .map((p, i) => ({ id: "pending-" + i, data: p.data as unknown as D, pending: true }));
     return [...server, ...pending].sort((a, b) => sort(a.data, b.data));
   }
 }

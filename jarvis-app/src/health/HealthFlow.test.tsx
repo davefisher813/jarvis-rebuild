@@ -248,10 +248,16 @@ describe("HealthFlow: The Handoff carries no body data", () => {
 });
 
 describe("HealthFlow: The Season Feed reads a pasted schedule into draft events", () => {
-  it("stays out of the way with no AI service supplied", async () => {
+  // HMN-F-22 (2026-09-05): this used to assert an empty container, which is
+  // the bug written down as a spec: a screen with no content and no Back on
+  // a stack whose only exit is the Back button it did not draw.
+  it("says why it is not available, and still ends in a way back", async () => {
     const store = new Store(new InMemoryAdapter());
-    const { container } = render(<HealthFlow store={store} ownerId="u1" initialScreen="seasonFeed" onExit={() => {}} />);
-    expect(container).toBeEmptyDOMElement();
+    const onExit = vi.fn();
+    render(<HealthFlow store={store} ownerId="u1" initialScreen="seasonFeed" onExit={onExit} />);
+    expect(screen.getByText("The Season Feed Isn't On")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(onExit).toHaveBeenCalled();
   });
 
   it("extracts events from pasted text and commits them on review", async () => {
@@ -295,5 +301,67 @@ describe("HealthFlow: Back On Track, extended to health", () => {
       Date.now = realNow;
       unsub();
     }
+  });
+});
+
+// HMN-F-22 (2026-09-05): every one of these paths was reachable only once
+// HealthFlow is mounted for real, and every one of them lied or dead-ended.
+describe("HealthFlow: nothing is announced that did not happen (HMN-F-22)", () => {
+  it("Refill Runway with nowhere to land the call says nothing at all", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const seen: string[] = [];
+    const unsub = subscribeToast((t) => { if (t) seen.push(t.message); });
+    try {
+      render(<HealthFlow store={store} ownerId="u1" initialScreen="refillRunway" onExit={() => {}} />);
+      await waitFor(() => expect(screen.getByText("No Fill Logged Yet")).toBeInTheDocument());
+      fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "5" } });
+      fireEvent.click(screen.getByText("Log the Fill"));
+      await waitFor(() => expect(screen.getByText("Worth a Call Soon")).toBeInTheDocument());
+      fireEvent.click(screen.getByText("Land It on the Parent's List"));
+      expect(seen.some((m) => /parent's list/i.test(m))).toBe(false);
+    } finally {
+      unsub();
+    }
+  });
+
+  it("an offer with no seam to take it does not claim to have been taken", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const seen: string[] = [];
+    const unsub = subscribeToast((t) => { if (t) seen.push(t.message); });
+    try {
+      render(
+        <HealthFlow
+          store={store} ownerId="u1" initialScreen="nightBefore" onExit={() => {}}
+          nightBeforeCommitments={[{ title: "Practice", at: Date.now() + 20 * 3600000 }]}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Add Wind Down" }));
+      expect(seen.some((m) => /Wind Down added/i.test(m))).toBe(false);
+    } finally {
+      unsub();
+    }
+  });
+
+  it("The Bag with no event, and the Season Feed with no AI, both end in a way back", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const onExit = vi.fn();
+    const { unmount } = render(<HealthFlow store={store} ownerId="u1" initialScreen="theBag" onExit={onExit} />);
+    expect(screen.getByText("No Bag to Check Yet")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    expect(onExit).toHaveBeenCalled();
+    unmount();
+
+    render(<HealthFlow store={store} ownerId="u1" initialScreen="seasonFeed" onExit={onExit} />);
+    expect(screen.getByText("The Season Feed Isn't On")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
+  });
+
+  it("The Age Rule marks itself seen from an effect, once, not on every render", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new HealthService(store, "u1");
+    render(<HealthFlow store={store} ownerId="u1" initialScreen="ageRule" athleteAgeYears={15} onExit={() => {}} />);
+    await waitFor(async () => expect(await svc.wasAgeRuleShown(new Date().getFullYear() + "-q" + (Math.floor(new Date().getMonth() / 3) + 1))).toBe(true));
+    const seasons = await store.listForUser("u1", "health_age_rule_shown");
+    expect(seasons.length).toBe(1);
   });
 });
