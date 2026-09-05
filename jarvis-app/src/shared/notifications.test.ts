@@ -285,3 +285,59 @@ describe("kindOfNotification", () => {
     expect(() => onNotificationTap(() => {})()).not.toThrow();
   });
 });
+
+// SHARED-F-06 (2026-09-05): cancel-then-schedule is two awaited bridge calls
+// with nothing holding the door between them, and Today's effects re-run
+// several times per reload. Run A cancels, run B cancels, A schedules the old
+// six rungs, B the new four: A's extra ids survive and the phone buzzes for
+// an event that no longer exists.
+import { serializeLatest } from "./notifications";
+
+describe("serializeLatest", () => {
+  const tick = (ms = 0) => new Promise((r) => setTimeout(r, ms));
+
+  it("never lets two runs overlap", async () => {
+    const q = serializeLatest();
+    const log: string[] = [];
+    const job = (name: string) => async () => {
+      log.push(name + ":start");
+      await tick(5);
+      log.push(name + ":end");
+    };
+    const a = q(job("a"));
+    await tick(0); // a is now in flight, which is the interleaving case
+    const b = q(job("b"));
+    await Promise.all([a, b]);
+    expect(log).toEqual(["a:start", "a:end", "b:start", "b:end"]);
+  });
+
+  it("a newer call supersedes an older one still waiting", async () => {
+    const q = serializeLatest();
+    const ran: string[] = [];
+    const job = (name: string) => async () => { ran.push(name); await tick(5); };
+    const a = q(job("a"));
+    await tick(0);
+    const b = q(job("b"));
+    const c = q(job("c"));
+    await Promise.all([a, b, c]);
+    // b never runs: c replaced it before its turn came, and c writes the
+    // same ids from fresher state.
+    expect(ran).toEqual(["a", "c"]);
+  });
+
+  it("two effects firing in the same tick write once, from the newest state", async () => {
+    const q = serializeLatest();
+    const ran: string[] = [];
+    const job = (name: string) => async () => { ran.push(name); await tick(5); };
+    await Promise.all([q(job("stale")), q(job("fresh"))]);
+    expect(ran).toEqual(["fresh"]);
+  });
+
+  it("a job that throws does not wedge the queue", async () => {
+    const q = serializeLatest();
+    const ran: string[] = [];
+    await q(async () => { ran.push("boom"); throw new Error("bridge down"); });
+    await q(async () => { ran.push("after"); });
+    expect(ran).toEqual(["boom", "after"]);
+  });
+});

@@ -157,37 +157,75 @@ export async function notificationPermissionState(): Promise<NotifyPermission> {
   }
 }
 
+// ---- ONE AT A TIME (SHARED-F-06, 2026-09-05) ----
+//
+// Every scheduler below is cancel-then-schedule: two awaited bridge calls
+// with nothing holding the door between them. Today's effects re-run several
+// times per reload (their deps land one setState at a time), so run A could
+// cancel, run B could cancel, A could schedule the OLD six rungs and B the
+// new four: A's extra ids survive and the phone buzzes for an event that no
+// longer exists. Each block gets its own queue, and a newer call supersedes
+// an older one still waiting, because the newest state is the only one worth
+// writing to the OS.
+type Job = () => Promise<void>;
+
+export function serializeLatest(): (job: Job) => Promise<void> {
+  let chain: Promise<void> = Promise.resolve();
+  let latest: Job | null = null;
+  return (job: Job) => {
+    latest = job;
+    chain = chain.then(async () => {
+      // Superseded while it waited: the run that replaced it writes the same
+      // ids from fresher state, so doing this one first is pure churn.
+      if (latest !== job) return;
+      latest = null;
+      await job();
+    }).catch(() => { /* a scheduler never throws into the UI */ });
+    return chain;
+  };
+}
+
+const checkinQueue = serializeLatest();
+const eventQueue = serializeLatest();
+const taskQueue = serializeLatest();
+
 // Cancel-then-schedule so routine changes always win and nothing stacks.
 // Native only; resolves quietly everywhere else. Never throws into the UI.
 export async function ensureCheckinNotifications(routine: RoutineData, briefTime?: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
-  try {
-    if (!(await requestNotificationPermission())) return;
-    await LocalNotifications.cancel({ notifications: [{ id: MORNING_ID }, { id: EVENING_ID }] });
-    const specs = buildCheckinNotifications(routine, briefTime);
-    if (specs.length === 0) return;
-    await LocalNotifications.schedule({
-      notifications: specs.map((s) => ({
-        id: s.id,
-        title: s.title,
-        body: s.body,
-        schedule: { on: { hour: s.hour, minute: s.minute }, allowWhileIdle: true },
-      })),
-    });
-  } catch {
-    /* notifications are a bonus, never a crash */
-  }
+  return checkinQueue(async () => {
+    try {
+      if (!(await requestNotificationPermission())) return;
+      await LocalNotifications.cancel({ notifications: [{ id: MORNING_ID }, { id: EVENING_ID }] });
+      const specs = buildCheckinNotifications(routine, briefTime);
+      if (specs.length === 0) return;
+      await LocalNotifications.schedule({
+        notifications: specs.map((s) => ({
+          id: s.id,
+          title: s.title,
+          body: s.body,
+          schedule: { on: { hour: s.hour, minute: s.minute }, allowWhileIdle: true },
+        })),
+      });
+    } catch {
+      /* notifications are a bonus, never a crash */
+    }
+  });
 }
 
 // The off switch (2026-08-09): the Notifications page gained a Daily
 // check-ins toggle, and off has to actually cancel what is scheduled.
+// Through the same queue as the scheduler: an off tap that overtook a
+// pending reschedule would cancel first and be re-scheduled a moment later.
 export async function cancelCheckinNotifications(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
-  try {
-    await LocalNotifications.cancel({ notifications: [{ id: MORNING_ID }, { id: EVENING_ID }] });
-  } catch {
-    /* notifications are a bonus, never a crash */
-  }
+  return checkinQueue(async () => {
+      try {
+        await LocalNotifications.cancel({ notifications: [{ id: MORNING_ID }, { id: EVENING_ID }] });
+      } catch {
+        /* notifications are a bonus, never a crash */
+      }
+  });
 }
 
 // ---- Event reminders (2026-08-09) ----
@@ -265,29 +303,31 @@ export function buildEventReminders(
 
 export async function ensureEventReminders(events: ReminderInput[], nowMs: number = Date.now()): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
-  try {
-    const perm = await LocalNotifications.checkPermissions();
-    // Never prompt from here: the check-in flow owns the permission ask, so
-    // the user is asked once, in context, not ambushed by a schedule refresh.
-    if (perm.display !== "granted") return;
-    await LocalNotifications.cancel({
-      // The old span, not the budget: an upgraded phone still holds ids an
-      // earlier build scheduled (see EVENT_REMINDER_SPAN).
-      notifications: Array.from({ length: EVENT_REMINDER_SPAN }, (_, i) => ({ id: EVENT_REMINDER_BASE + i })),
-    });
-    const specs = buildEventReminders(events, nowMs);
-    if (specs.length === 0) return;
-    await LocalNotifications.schedule({
-      notifications: specs.map((s) => ({
-        id: s.id,
-        title: s.title,
-        body: s.body,
-        schedule: { at: s.at, allowWhileIdle: true },
-      })),
-    });
-  } catch {
-    /* notifications are a bonus, never a crash */
-  }
+  return eventQueue(async () => {
+    try {
+      const perm = await LocalNotifications.checkPermissions();
+      // Never prompt from here: the check-in flow owns the permission ask, so
+      // the user is asked once, in context, not ambushed by a schedule refresh.
+      if (perm.display !== "granted") return;
+      await LocalNotifications.cancel({
+        // The old span, not the budget: an upgraded phone still holds ids an
+        // earlier build scheduled (see EVENT_REMINDER_SPAN).
+        notifications: Array.from({ length: EVENT_REMINDER_SPAN }, (_, i) => ({ id: EVENT_REMINDER_BASE + i })),
+      });
+      const specs = buildEventReminders(events, nowMs);
+      if (specs.length === 0) return;
+      await LocalNotifications.schedule({
+        notifications: specs.map((s) => ({
+          id: s.id,
+          title: s.title,
+          body: s.body,
+          schedule: { at: s.at, allowWhileIdle: true },
+        })),
+      });
+    } catch {
+      /* notifications are a bonus, never a crash */
+    }
+  });
 }
 
 // ---- Task reminders (S1-01, 2026-09-04) ----
@@ -344,27 +384,29 @@ export async function ensureTaskReminders(
   nowMs: number = Date.now(),
 ): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
-  try {
-    const perm = await LocalNotifications.checkPermissions();
-    // Never prompt from here, same rule as event reminders: the check-in
-    // flow owns the permission ask, in context, once.
-    if (perm.display !== "granted") return;
-    await LocalNotifications.cancel({
-      notifications: Array.from({ length: TASK_REMINDER_SPAN }, (_, i) => ({ id: TASK_REMINDER_BASE + i })),
-    });
-    const specs = buildTaskReminderNotifications(reminders, today, tomorrow, nowMs);
-    if (specs.length === 0) return;
-    await LocalNotifications.schedule({
-      notifications: specs.map((s) => ({
-        id: s.id,
-        title: s.title,
-        body: "Reminder",
-        schedule: { at: s.at, allowWhileIdle: true },
-      })),
-    });
-  } catch {
-    /* notifications are a bonus, never a crash */
-  }
+  return taskQueue(async () => {
+    try {
+      const perm = await LocalNotifications.checkPermissions();
+      // Never prompt from here, same rule as event reminders: the check-in
+      // flow owns the permission ask, in context, once.
+      if (perm.display !== "granted") return;
+      await LocalNotifications.cancel({
+        notifications: Array.from({ length: TASK_REMINDER_SPAN }, (_, i) => ({ id: TASK_REMINDER_BASE + i })),
+      });
+      const specs = buildTaskReminderNotifications(reminders, today, tomorrow, nowMs);
+      if (specs.length === 0) return;
+      await LocalNotifications.schedule({
+        notifications: specs.map((s) => ({
+          id: s.id,
+          title: s.title,
+          body: "Reminder",
+          schedule: { at: s.at, allowWhileIdle: true },
+        })),
+      });
+    } catch {
+      /* notifications are a bonus, never a crash */
+    }
+  });
 }
 
 // ---- Tap routing (S1-04, 2026-09-04) ----
