@@ -508,7 +508,12 @@ export default function TodayFlow({
     } else if (advanced) {
       showToast({ message: advanced.moved.projectTitle + " · " + advanced.moved.line });
     } else if (before && !before.done) {
-      showToast({ message: celebrationLine("task", id), actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.toggleDone(id)); await reload(); } });
+      // SHARED-F-03 (2026-09-05): Undo used to be a second toggleDone, which
+      // flips whatever the row is NOW. Tick a task, un-tick it by hand, then
+      // tap the Undo still on screen and it went back to done: Undo re-did.
+      // It restores the state read before the tick instead, so it lands on
+      // the same answer however many times it is tapped.
+      showToast({ message: celebrationLine("task", id), actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasks.restoreCompletion(id, before)); await reload(); } });
     }
   };
 

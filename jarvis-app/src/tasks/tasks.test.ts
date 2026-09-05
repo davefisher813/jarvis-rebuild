@@ -254,3 +254,30 @@ describe("recreateFrom (undo-after-delete restores the whole task)", () => {
     expect(restored!.bill).toBeUndefined();
   });
 });
+
+// SHARED-F-03 (2026-09-05): "Undo re-does." The completion toast lives for
+// five seconds and the row underneath stays tappable, so Undo has to write
+// the state it means to restore rather than flip whatever the row is now.
+describe("Undo on a completion toast (SHARED-F-03)", () => {
+  it("leaves a task the user already un-ticked by hand alone", async () => {
+    const svc = new TasksService(new Store(new InMemoryAdapter()), "u-undo-f03");
+    const id = (await svc.createTask("Email Sam", { due: "2026-09-05" }))!;
+    const before = (await svc.task(id))!;
+    await svc.toggleDone(id);            // the tick that raised the toast
+    await svc.toggleDone(id);            // the row un-ticked by hand
+    await svc.restoreCompletion(id, before); // Undo, tapped late
+    expect((await svc.task(id))?.done).toBe(false);
+  });
+
+  it("is the same answer however many times it is tapped", async () => {
+    const svc = new TasksService(new Store(new InMemoryAdapter()), "u-undo-f03b");
+    const id = (await svc.createTask("Water plants", { due: "2026-09-05", recurrence: "weekly" }))!;
+    const before = (await svc.task(id))!;
+    await svc.toggleDone(id);
+    await svc.restoreCompletion(id, before);
+    await svc.restoreCompletion(id, before);
+    const after = await svc.task(id);
+    expect(after?.due).toBe("2026-09-05");
+    expect(after?.runLen ?? 0).toBe(0);
+  });
+});

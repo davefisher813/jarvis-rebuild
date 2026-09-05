@@ -86,10 +86,14 @@ export default function ChatFlow() {
 
   const runCommand = async (cmd: ChatCommand, target: CommandTarget) => {
     if (cmd.kind === "complete") {
+      // SHARED-F-03 (2026-09-05): the Undo was a second toggleDone, which
+      // flips whatever the row is NOW and rolls a recurring task forward
+      // again. The state before the tick is read here and put back on Undo.
+      const before = await tasksSvc.task(target.id);
       const ok = await attemptWrite(() => tasksSvc.toggleDone(target.id));
       if (!ok) return;
       await say("jarvis", `Done: ${target.text}`, { kind: "action", refs: [{ kind: "task", id: target.id, label: target.text }] });
-      showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasksSvc.toggleDone(target.id)); } });
+      if (before) showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasksSvc.restoreCompletion(target.id, before)); } });
     } else if (cmd.kind === "reschedule") {
       const today = todayISO();
       // SHELL-F-07 (2026-09-05): tomorrow used to be local noon plus a fixed
