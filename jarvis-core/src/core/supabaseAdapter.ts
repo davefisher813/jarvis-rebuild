@@ -26,6 +26,14 @@ interface ItemRow {
   updated_at: string;
 }
 
+// PostgREST's answer when the RPC does not exist in the database yet.
+function isMissingFunction(e: unknown): boolean {
+  if (typeof e !== "object" || e === null) return false;
+  const o = e as { code?: unknown; message?: unknown };
+  if (o.code === "PGRST202" || o.code === "42883") return true;
+  return typeof o.message === "string" && /could not find the function|does not exist/i.test(o.message);
+}
+
 function toItem(row: ItemRow): Item {
   return {
     id: row.id,
@@ -96,6 +104,38 @@ export class SupabaseAdapter implements DataAdapter {
     });
     if (error) throw error;
     return applied === true;
+  }
+
+  // PLUMB-F-10 (2026-09-05): the replay of an offline edit, carrying the
+  // moment it was MADE. item_apply_patch_if_older (migration 0032) compares
+  // that against the row's updated_at inside RLS and refuses a patch older
+  // than what is already there, so the 9 AM name from a phone that
+  // reconnects at 5 PM can no longer replace the noon name from the laptop.
+  // Same merge as item_apply_patch when it does apply, strip-nulls and all.
+  async applyIfOlder(
+    _ownerId: string,
+    id: string,
+    patch: ItemData,
+    clientAt: number
+  ): Promise<"applied" | "stale" | "missing"> {
+    const { data: outcome, error } = await this.db.rpc("item_apply_patch_if_older", {
+      p_id: id,
+      p_patch: patch,
+      p_client_at: new Date(clientAt).toISOString(),
+    });
+    if (error) {
+      // BEFORE THE MIGRATION IS RUN. Dave pastes migrations into the SQL
+      // editor by hand, so there is a window where the app has shipped and
+      // 0032 has not. PostgREST answers a call to a function it cannot find
+      // with PGRST202; falling back to the unconditional merge keeps the
+      // queue draining exactly as it did before this fix, and the age check
+      // starts working the moment the function exists, with no app change.
+      if (isMissingFunction(error)) {
+        return (await this.apply(_ownerId, id, patch)) ? "applied" : "missing";
+      }
+      throw error;
+    }
+    return outcome === "applied" || outcome === "stale" ? outcome : "missing";
   }
 
   async del(_ownerId: string, id: string): Promise<void> {

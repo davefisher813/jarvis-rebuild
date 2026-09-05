@@ -617,3 +617,146 @@ describe("PLUMB-F-09: what counts as the signal dropping", () => {
     expect(isNetworkError("offline")).toBe(false);
   });
 });
+
+// PLUMB-F-10 (2026-09-05): "a replayed offline patch overwrites a newer edit
+// made on another device." The phone offline at 9 AM, the laptop at noon, the
+// phone reconnecting at 5 PM, and the 9 AM name replaced the noon name.
+// Server-time-wins (D7, D10) was only ever about ARRIVAL order.
+describe("PLUMB-F-10: a held edit carries its own age", () => {
+  const HOUR = 3600_000;
+
+  function rig() {
+    let wall = Date.now();
+    const adapter = new InMemoryAdapter(() => wall);
+    return { adapter, store: new Store(adapter), at: (ms: number) => { wall = ms; } };
+  }
+
+  it("the noon edit on the laptop survives the 9 AM edit the phone replays at 5 PM", async () => {
+    const { adapter, store, at } = rig();
+    const id = await store.create("U", "task", { text: "Book the field" });
+
+    // 9 AM, phone offline.
+    store.goOffline();
+    await store.update("U", id, { text: "Book the field (phone, 9 AM)" });
+
+    // Noon, laptop, straight to the server.
+    at(Date.now() + 3 * HOUR);
+    await adapter.apply("U", id, { text: "Book the field (laptop, noon)" });
+
+    // 5 PM, the phone reconnects.
+    await store.reconnect();
+    expect((await adapter.read("U", id))?.data.text).toBe("Book the field (laptop, noon)");
+    expect(store.queueLen()).toBe(0); // refused, not stuck
+  });
+
+  it("a held edit newer than the row still lands", async () => {
+    const { adapter, store, at } = rig();
+    const id = await store.create("U", "task", { text: "Original" });
+    at(Date.now() - HOUR); // the other device's edit happened an hour ago
+    await adapter.apply("U", id, { text: "From an hour ago" });
+    store.goOffline();
+    await store.update("U", id, { text: "From just now" });
+    await store.reconnect();
+    expect((await adapter.read("U", id))?.data.text).toBe("From just now");
+  });
+
+  it("says so once for the whole drain, however many edits were refused", async () => {
+    const { adapter, store, at } = rig();
+    const a = await store.create("U", "task", { text: "A" });
+    const b = await store.create("U", "task", { text: "B" });
+    store.goOffline();
+    await store.update("U", a, { text: "A held" });
+    await store.update("U", b, { text: "B held" });
+    at(Date.now() + 3 * HOUR);
+    await adapter.apply("U", a, { text: "A newer" });
+    await adapter.apply("U", b, { text: "B newer" });
+
+    const told: number[] = [];
+    store.onKeptNewer((n) => told.push(n));
+    await store.reconnect();
+    expect(told).toEqual([2]);
+  });
+
+  it("says nothing when every held edit landed", async () => {
+    const { store } = rig();
+    const id = await store.create("U", "task", { text: "A" });
+    store.goOffline();
+    await store.update("U", id, { text: "A held" });
+    const told: number[] = [];
+    store.onKeptNewer((n) => told.push(n));
+    await store.reconnect();
+    expect(told).toEqual([]);
+  });
+
+  it("an edit against a capture made in the same offline session is never refused by its own create", async () => {
+    const { adapter, store, at } = rig();
+    store.goOffline();
+    const id = await store.create("U", "note", { title: "Draft", body: "" });
+    await store.update("U", id, { body: "milk, eggs" });
+    // The create lands NOW, hours after the edit was made: asking whether the
+    // row is newer than the edit would refuse every held edit of a held
+    // capture.
+    at(Date.now() + 3 * HOUR);
+    await store.reconnect();
+    expect((await adapter.read("U", id))?.data.body).toBe("milk, eggs");
+  });
+
+  it("a queue persisted by a build that never stamped the age still replays", async () => {
+    const adapter = new InMemoryAdapter();
+    const id = await adapter.create("U", "task", { text: "Old queue" });
+    const persistence: StorePersistence = {
+      load: () => [{ op: "update", id, ownerId: "U", patch: { text: "From the old build" } }],
+      save: () => {},
+    };
+    const store = new Store(adapter, persistence);
+    await store.reconnect();
+    expect((await adapter.read("U", id))?.data.text).toBe("From the old build");
+  });
+
+  it("stamps queuedAt on what it queues, so the age is there to carry", async () => {
+    const persistence = fakePersistence();
+    const store = new Store(new InMemoryAdapter(), persistence);
+    const id = await store.create("U", "task", { text: "x" });
+    store.goOffline();
+    const before = Date.now();
+    await store.update("U", id, { text: "y" });
+    const queued = persistence.saves[persistence.saves.length - 1]!.find((op) => op.op === "update");
+    expect(queued && queued.op === "update" ? queued.queuedAt : undefined).toBeGreaterThanOrEqual(before);
+  });
+});
+
+describe("PLUMB-F-10: a held session is never refused by itself", () => {
+  const HOUR = 3600_000;
+
+  it("three held edits to one task all land, none refused by the first one's own write", async () => {
+    let wall = Date.now();
+    const adapter = new InMemoryAdapter(() => wall);
+    const store = new Store(adapter);
+    const id = await store.create("U", "counter", { n: 0, a: false, b: false });
+    store.goOffline();
+    await store.update("U", id, { a: true });
+    await store.update("U", id, { b: true });
+    await store.update("U", id, { n: 9 });
+    wall = Date.now() + HOUR; // the drain itself happens later
+    await store.reconnect();
+    expect((await adapter.read("U", id))?.data).toEqual({ n: 9, a: true, b: true });
+  });
+
+  it("three held edits that all lost to one newer edit are one thing he is told about", async () => {
+    let wall = Date.now();
+    const adapter = new InMemoryAdapter(() => wall);
+    const store = new Store(adapter);
+    const id = await store.create("U", "task", { text: "Original" });
+    store.goOffline();
+    await store.update("U", id, { text: "held 1" });
+    await store.update("U", id, { text: "held 2" });
+    await store.update("U", id, { text: "held 3" });
+    wall = Date.now() + 3 * HOUR;
+    await adapter.apply("U", id, { text: "From the laptop" });
+    const told: number[] = [];
+    store.onKeptNewer((n) => told.push(n));
+    await store.reconnect();
+    expect(told).toEqual([1]); // one record, not three patches
+    expect((await adapter.read("U", id))?.data.text).toBe("From the laptop");
+  });
+});

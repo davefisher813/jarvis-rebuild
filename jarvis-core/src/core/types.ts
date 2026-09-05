@@ -54,6 +54,14 @@ export interface QueuedUpdate {
   ownerId: string;
   patch: ItemData;
   serverTime?: ServerTime;
+  // PLUMB-F-10 (2026-09-05): WHEN THE EDIT WAS MADE, client epoch ms. Without
+  // it, "server-time-wins" (D7, D10) was only about arrival order at the
+  // server: the phone offline at 9 AM, the laptop at noon, the phone
+  // reconnecting at 5 PM, and the 9 AM name replaced the noon name because it
+  // arrived last. The replay carries its own age now and the server refuses a
+  // patch older than the row. Optional because a queue persisted by an
+  // earlier build has none; those replay the old way, unconditionally.
+  queuedAt?: number;
 }
 export interface QueuedDelete {
   op: "delete";

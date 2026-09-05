@@ -245,7 +245,9 @@ export class Store {
     }
     const pending = this.pendingCreates.get(id);
     if (pending) pending.data = mergePatch(pending.data, patch);
-    this.queue.push({ op: "update", id, ownerId, patch, serverTime });
+    // PLUMB-F-10: stamped with WHEN the edit was made, so its replay can be
+    // refused by a row that has changed since.
+    this.queue.push({ op: "update", id, ownerId, patch, serverTime, queuedAt: Date.now() });
     this.saveQueue();
     this.invalidate(ownerId);
     return "queued";
@@ -324,6 +326,16 @@ export class Store {
     this.dropped = fn;
   }
 
+  // PLUMB-F-10: told, after a drain, how many replayed edits were refused
+  // because the record had been changed more recently somewhere else. The
+  // app turns it into "Kept the newer edit", so a change that did not survive
+  // is said out loud rather than silently discarded.
+  private keptNewer: ((count: number) => void) | null = null;
+
+  onKeptNewer(fn: ((count: number) => void) | null): void {
+    this.keptNewer = fn;
+  }
+
   // True when `e` means the connection dropped, in which case the store is
   // now offline and the caller should queue. False means the server answered
   // and the error belongs to the caller.
@@ -358,6 +370,19 @@ export class Store {
   // (apply throws -> op was already gone). Now a failure here leaves the
   // rest of the queue exactly as it was, for the next reconnect to retry.
   private async drain(): Promise<void> {
+    // Rows this drain has already written, and rows whose held edits lost to
+    // a newer one somewhere else.
+    //
+    // PLUMB-F-10: the age check compares an edit against the row's last
+    // write, and once this drain has written the row ITSELF, that last write
+    // is seconds old. Without this set, a capture made offline would refuse
+    // its own offline edits, and the second of three held edits to one task
+    // would be refused by the first. Both are one held session replaying, and
+    // a session cannot be newer than itself. Only writes that actually landed
+    // count: an edit refused as stale leaves the row someone else's, so the
+    // edits queued behind it are measured against that newer row too.
+    const writtenHere = new Set<string>();
+    const lostRows = new Set<string>();
     while (this.queue.length) {
       const op = this.queue[0]!;
       if (op.op === "create") {
@@ -369,11 +394,23 @@ export class Store {
           if (!isDuplicateKey(e)) throw e;
         }
         this.pendingCreates.delete(op.id);
+        writtenHere.add(op.id);
       } else if (op.op === "update") {
         // toWire on replay too: update() normalizes before queueing, and this
         // keeps the adapter's contract (a clear is null, never undefined)
         // true for every op however it entered the queue.
-        await this.adapter.apply(op.ownerId, op.id, toWire(op.patch), op.serverTime);
+        const wire = toWire(op.patch);
+        if (op.queuedAt === undefined || !this.adapter.applyIfOlder || writtenHere.has(op.id)) {
+          // A queue persisted by a build that did not stamp the age, or an
+          // adapter that cannot ask the question. Replays the old way rather
+          // than being thrown away.
+          await this.adapter.apply(op.ownerId, op.id, wire, op.serverTime);
+        } else {
+          // PLUMB-F-10: the edit's own age decides, not its arrival.
+          const outcome = await this.adapter.applyIfOlder(op.ownerId, op.id, wire, op.queuedAt);
+          if (outcome === "stale") lostRows.add(op.id);
+          else if (outcome === "applied") writtenHere.add(op.id);
+        }
       } else {
         await this.adapter.del(op.ownerId, op.id);
         this.pendingDeletes.delete(op.id);
@@ -381,6 +418,12 @@ export class Store {
       this.queue.shift();
       this.invalidate(op.ownerId);
       this.saveQueue();
+    }
+    // Once for the whole drain, and counted in RECORDS, not patches: three
+    // held edits to one task that all lost to one newer edit is one thing
+    // that happened to him, and he should be told once.
+    if (lostRows.size > 0) {
+      try { this.keptNewer?.(lostRows.size); } catch { /* a listener must never wedge the queue */ }
     }
   }
 

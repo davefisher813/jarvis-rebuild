@@ -1,4 +1,5 @@
 import type { Store } from "@core";
+import { showToast } from "../shared/toast";
 
 // S3-Q14 (2026-09-04): "There is no online or offline listener for user data
 // anywhere." The one that existed (events/index.ts) flushes the analytics
@@ -78,10 +79,23 @@ export function wireOfflineSync(store: Store, alsoFlush?: () => void): () => voi
   // The Store's own report that a write found the signal gone. The browser
   // may never say a word about this one.
   store.onDropped(retryLater);
+  // PLUMB-F-10 (2026-09-05): a held edit that lost to a newer one made
+  // somewhere else is said out loud. Losing it silently is the thing the
+  // finding is about; the record that survived is still named as a fact, and
+  // nothing is offered to undo, because the newer edit is the one he made
+  // last and meant.
+  store.onKeptNewer((n) => {
+    showToast({
+      message: n === 1
+        ? "Kept the newer edit · Your held change was older"
+        : `Kept the newer edits · ${n} held changes were older`,
+    });
+  });
   return () => {
     stopped = true;
     clear();
     store.onDropped(null);
+    store.onKeptNewer(null);
     window.removeEventListener("offline", onOffline);
     window.removeEventListener("online", onOnline);
   };

@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { wireOfflineSync } from "./offlineSync";
+import { subscribeToast, hideToast } from "../shared/toast";
 
 // S3-Q14 (2026-09-04): "There is no online or offline listener for user data
 // anywhere." The one that existed only flushed the analytics sink. This is
@@ -197,5 +198,39 @@ describe("the backoff retry after a write finds the signal gone", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// PLUMB-F-10 (2026-09-05): a held edit that lost to a newer one made
+// somewhere else is said out loud instead of vanishing.
+describe("the kept-the-newer-edit receipt", () => {
+  it("names it, once, in his own numbers", async () => {
+    onlineGetter(true);
+    const store = new Store(new InMemoryAdapter());
+    let kept: ((n: number) => void) | null = null;
+    const real = store.onKeptNewer.bind(store);
+    vi.spyOn(store, "onKeptNewer").mockImplementation((fn) => { kept = fn; real(fn); });
+    const seen: string[] = [];
+    const un = subscribeToast((t) => { if (t) seen.push(t.message); });
+    const stop = wireOfflineSync(store);
+
+    kept!(1);
+    expect(seen).toEqual(["Kept the newer edit · Your held change was older"]);
+    kept!(3);
+    expect(seen[1]).toBe("Kept the newer edits · 3 held changes were older");
+
+    stop();
+    un();
+    hideToast();
+  });
+
+  it("the cleanup unhooks it", () => {
+    onlineGetter(true);
+    const store = new Store(new InMemoryAdapter());
+    const spy = vi.spyOn(store, "onKeptNewer");
+    const stop = wireOfflineSync(store);
+    expect(spy).toHaveBeenLastCalledWith(expect.any(Function));
+    stop();
+    expect(spy).toHaveBeenLastCalledWith(null);
   });
 });

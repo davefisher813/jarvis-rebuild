@@ -44,6 +44,27 @@ export interface DataAdapter {
     serverTime?: ServerTime
   ): Promise<boolean>;
 
+  // PLUMB-F-10 (2026-09-05): apply a patch only if the row has not been
+  // changed since `clientAt` (client epoch ms, the moment the edit was made).
+  // This is what carries the AGE of an offline edit to the server: without
+  // it, a patch made at 9 AM and replayed at 5 PM overwrote a noon edit from
+  // another device, because last-write-wins was measured by arrival.
+  //
+  //   "applied"  the patch landed
+  //   "stale"    the row is newer than the edit, so nothing was touched
+  //   "missing"  no such row, or not the caller's (D6, D9)
+  //
+  // Only the offline queue's replay calls it; a live write is already the
+  // newest thing there is. Optional: an adapter without it (a test double)
+  // replays the old way, unconditionally, which is exactly what every
+  // adapter did before this existed.
+  applyIfOlder?(
+    ownerId: string,
+    id: string,
+    patch: ItemData,
+    clientAt: number
+  ): Promise<"applied" | "stale" | "missing">;
+
   // Hard delete. Removes the row entirely (D4). A deleted row never returns on
   // reload because there is no tombstone (D5). Deleting a missing id or another
   // user's id is a safe no-op (D9, D6).

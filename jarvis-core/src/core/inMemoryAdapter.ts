@@ -11,6 +11,13 @@ export class InMemoryAdapter implements DataAdapter {
   private seq = 0;
   private clock: ServerTime = 0; // server-authoritative monotonic time
   private db = new Map<string, Item>();
+  // PLUMB-F-10: the WALL CLOCK of each row's last write, which is what the
+  // real backend's updated_at is. serverTime above is a counter and cannot be
+  // compared with a client timestamp, so applyIfOlder needs its own record.
+  // Injectable so a test can put an edit at 9 AM and another at noon.
+  private wall = new Map<string, number>();
+
+  constructor(private now: () => number = () => Date.now()) {}
 
   private tick(): ServerTime {
     return ++this.clock;
@@ -36,6 +43,7 @@ export class InMemoryAdapter implements DataAdapter {
       data: structuredClone(data),
       serverTime: this.tick(),
     });
+    this.wall.set(useId, this.now());
     return useId;
   }
 
@@ -76,12 +84,30 @@ export class InMemoryAdapter implements DataAdapter {
     // every clear. See patch.ts.
     r.data = mergePatch(r.data, patch);
     r.serverTime = t;
+    this.wall.set(id, this.now());
     return true;
+  }
+
+  // PLUMB-F-10: the same three answers the SQL function gives, on the same
+  // rule (migration 0032). A row written at the same millisecond as the edge
+  // of the edit is NOT newer: only strictly later wins, so a replay can never
+  // be refused by its own write.
+  async applyIfOlder(
+    ownerId: string,
+    id: string,
+    patch: ItemData,
+    clientAt: number
+  ): Promise<"applied" | "stale" | "missing"> {
+    const r = this.db.get(id);
+    if (!r || r.ownerId !== ownerId) return "missing";
+    const wall = this.wall.get(id);
+    if (wall !== undefined && wall > clientAt) return "stale";
+    return (await this.apply(ownerId, id, patch)) ? "applied" : "missing";
   }
 
   async del(ownerId: string, id: string): Promise<void> {
     const r = this.db.get(id);
-    if (r && r.ownerId === ownerId) this.db.delete(id); // hard delete, no tombstone
+    if (r && r.ownerId === ownerId) { this.db.delete(id); this.wall.delete(id); } // hard delete, no tombstone
   }
 
   async listForUser(ownerId: string, entityType?: string): Promise<Item[]> {
