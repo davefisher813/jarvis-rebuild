@@ -182,6 +182,38 @@ describe("BROWSER-F-04: status colour is readable in daylight, from the token", 
   });
 });
 
+describe("BROWSER-F-05: a first-run question is never cut off mid-sentence", () => {
+  // The seed step reuses .sh2, and .sh2 .t is in the no-wrap law, which is
+  // written for two-word titles. Two of the five questions arrived as
+  // "WHAT IS NON-NEGOTIABLE IN YOUR WEE..." over chips that answered them.
+  it("the onboarding seed head opts out of the no-wrap law", () => {
+    const body = ruleBody(css(), ".ob-seed .sh2 .t");
+    expect(body, ".ob-seed .sh2 .t must exist to let a question wrap").not.toBeNull();
+    expect(body).toMatch(/white-space:\s*normal/);
+    expect(body).toMatch(/text-overflow:\s*clip/);
+  });
+
+  // And it stays an EXCEPTION: a title elsewhere still ellipsizes.
+  it("the no-wrap law still covers section heads everywhere else", () => {
+    const bare = css().replace(/\/\*[\s\S]*?\*\//g, "");
+    const law = [...bare.matchAll(/([^{}]*\.sh2 \.t[^{}]*)\{([^}]*)\}/g)]
+      .find((m) => /white-space:\s*nowrap/.test(m[2]!));
+    expect(law, "the no-wrap law rule is still in the sheet").toBeTruthy();
+  });
+
+  // A question the app asks is JARVIS talking, so it is written in sentence
+  // case and ends in a question mark. Caps are the CSS's job, never the
+  // string's, and a prompt written in Title Case would read as a label again.
+  it("every seed prompt is a sentence-case question", () => {
+    const src = readFileSync(join(SRC, "onboarding/seeds.ts"), "utf8");
+    for (const m of src.matchAll(/prompt:\s*"([^"]+)"/g)) {
+      const p = m[1]!;
+      expect(p.endsWith("?"), `"${p}" is a question and ends in a question mark`).toBe(true);
+      expect(p, `"${p}" is sentence case, not Title Case`).not.toMatch(/^\w+ [A-Z]\w+ [A-Z]/);
+    }
+  });
+});
+
 describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
   // The strip rule re-sets the chip background at (0,4,0), which beats
   // .chip.active (0,2,0) for the background alone. Any rule that overrides a

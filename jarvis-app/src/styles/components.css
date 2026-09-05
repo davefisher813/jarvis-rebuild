@@ -491,6 +491,15 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .ob-seed { margin: 0 0 var(--s-4); }
 .ob-seed:last-child { margin-bottom: var(--s-2); }
 .ob-seed .sh2 { padding-left: 0; padding-right: 0; }
+/* BROWSER-F-05 (2026-09-05): "No new anatomy" above was right about the head
+   and wrong about the NO-WRAP LAW that comes with it. That law is written for
+   titles ("Your Move", "Bridge Invitational Item List"), where one line and an
+   ellipsis are correct; here the head carries a whole question, and two of the
+   five arrived on a first-run screen as "WHAT IS NON-NEGOTIABLE IN YOUR WEE..."
+   with the answer chips underneath belonging to a question nobody could read.
+   A question is the one head in the app that has to be readable in full, so it
+   wraps. Only these five: every other .sh2 keeps the law. */
+.ob-seed .sh2 .t { white-space: normal; overflow: visible; text-overflow: clip; }
 .connect-row .chip { margin-left: auto; }
 .ob-brand-lg { font-size: 52px; }
 /* THE TEMPLATE PICK, THREE CARDS (catalog 2026-09-01). Each option is a
