@@ -150,6 +150,24 @@ describe("F1 · I'm overwhelmed", () => {
     expect(theOneThing(tasks, () => 30)?.id).toBe("old");
   });
 
+  // LIFE-F-23 (2026-09-05): both callers passed the constant 30, so every task
+  // tied on size and the pick collapsed to oldest-due, which is usually the
+  // heaviest thing on the list. The estimate is per-category now (the same
+  // learned durations the planner prefills with), with the flat 30 where
+  // there is no history: this is the composition the callers do.
+  it("prefers a short-category task over the oldest heavy one", () => {
+    const learned: Record<string, number> = { admin: 15, deep: 90 };
+    const est = (t: TaskItem) => learned[t.data.category ?? ""] ?? 30;
+    const tasks = [
+      task("rewrite the deck", { category: "deep", due: "2026-08-01" }),
+      task("file the receipt", { category: "admin", due: "2026-09-01" }),
+    ];
+    expect(theOneThing(tasks, est)?.id).toBe("file the receipt");
+    // and with nothing learned about either area, the old oldest-due answer
+    // is exactly what comes back
+    expect(theOneThing(tasks, () => 30)?.id).toBe("rewrite the deck");
+  });
+
   it("never offers a reminder or something already done", () => {
     const tasks = [task("rem", { reminder: { time: "08:00" } }), task("done", { done: true })];
     expect(theOneThing(tasks, () => 30)).toBeNull();

@@ -56,6 +56,14 @@ export function setOverwhelmed(
 // The smallest real thing. Estimated length first, then the oldest, so the
 // tie-break favours something that has been waiting rather than something
 // that just arrived.
+//
+// LIFE-F-23 (2026-09-05): estimateOf has to MEAN something. Both callers used
+// to pass `() => 30`, so every task tied on size and this was oldest-due in
+// practice: What Now and Just This One handed back the most overdue thing on
+// the list, usually the heaviest, which is the opposite of what this function
+// is named for. The estimate now comes from the learned per-category lengths
+// (schedule/useTaskEstimate), and falls back to that same flat 30 wherever
+// there is not enough history to say anything.
 export function theOneThing(
   tasks: TaskItem[],
   estimateOf: (t: TaskItem) => number,

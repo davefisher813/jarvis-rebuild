@@ -53,6 +53,7 @@ import { ENTITY_CATEGORY } from "../categories/types";
 import { todayISO } from "../tasks/grouping";
 import RightNowSheet from "../tasks/screens/RightNowSheet";
 import { rightNow, endOf, type RightNow } from "../tasks/rightNow";
+import { useTaskEstimate } from "../schedule/useTaskEstimate";
 import { setOverwhelmed } from "../tasks/overwhelmed";
 import { showToast } from "../shared/toast";
 
@@ -160,11 +161,15 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // WHAT NOW / JUST FIFTEEN. Global, because being stuck happens wherever you
   // are, not on the Today screen. See tasks/rightNow.ts for the reasoning.
   const [whatNow, setWhatNow] = useState<RightNow | null>(null);
+  const estimateOf = useTaskEstimate();
   const [skipped, setSkipped] = useState<string[]>([]);
 
   const openWhatNow = async (skip: string[] = skipped) => {
     const all = await tasks.listTasks();
-    const pick = rightNow(all.filter((t) => !skip.includes(t.id)), () => 30);
+    // LIFE-F-23 (2026-09-05): the estimate was the constant 30, so every
+    // task tied on size and What Now handed back the most overdue thing,
+    // usually the heaviest. See schedule/useTaskEstimate.
+    const pick = rightNow(all.filter((t) => !skip.includes(t.id)), estimateOf);
     if (!pick) { showToast({ message: "Nothing open right now" }); setWhatNow(null); return; }
     setWhatNow(pick);
   };

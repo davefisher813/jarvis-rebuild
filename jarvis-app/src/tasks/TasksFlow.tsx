@@ -18,6 +18,7 @@ import { nextFreeSlot, addMinutes, addDays } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage, slidingLine } from "./lifecycle";
+import { useTaskEstimate } from "../schedule/useTaskEstimate";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { identityToText } from "../ai/context";
@@ -64,6 +65,9 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
   const ai = useAI();
   const gatherContext = useAIContext();
   const today = todayISO();
+  // LIFE-F-23 (2026-09-05): what "smallest" is measured with. See
+  // schedule/useTaskEstimate.
+  const estimateOf = useTaskEstimate();
   // LIFE-F-01 (2026-09-05): this used to serialise local midnight with
   // toISOString(), which reads the UTC date. East of Greenwich that is still
   // today, so swiping Tomorrow set the due date to today, the row stayed put
@@ -679,7 +683,9 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
         items={overwhelmed
           // F1: the list IS the one thing. Nothing is deleted, deferred or
           // rescheduled; this is a view, and everything returns on one tap.
-          ? [theOneThing(allItems, () => 30)].filter((t): t is TaskItem => !!t)
+          // LIFE-F-23 (2026-09-05): a real per-category length, not a
+          // constant that made every task tie and left this oldest-due.
+          ? [theOneThing(allItems, estimateOf)].filter((t): t is TaskItem => !!t)
           : visible(filter)}
         notice={fsNotice}
         stalled={fsStalled}
