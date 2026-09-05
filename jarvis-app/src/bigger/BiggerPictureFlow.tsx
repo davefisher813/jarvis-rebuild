@@ -57,8 +57,17 @@ type Sheet =
 // openGoalId (2026-08-09): goal deep-links used to be set by the shell and
 // then dropped on the floor here, so tapping a linked goal landed on the
 // list instead of the goal.
-export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOpenDecision, onGoEmail, lens = "goals", title, segments }: {
-  openId?: string; openGoalId?: string; onOpenNote?: (id: string) => void; onOpenDecision?: (id: string) => void;
+export default function BiggerPictureFlow({ openId, openNonce, openGoalId, goalNonce, onOpenNote, onOpenDecision, onGoEmail, lens = "goals", title, segments }: {
+  openId?: string; openGoalId?: string;
+  // LIFE-F-07 (2026-09-05): both ids used to be read once, in the useState
+  // initialisers below, so searching a project while already on Life >
+  // Projects (or a goal on Goals, or tapping one in Recent Captures) closed
+  // the overlay onto the list it was already showing: LifeFlow only remounts
+  // this flow when the LENS changes, and a lens that is already right changes
+  // no key. The nonces come from the shell's one-shot intents
+  // (shell/intents.ts) so asking for the same id twice still navigates.
+  openNonce?: number; goalNonce?: number;
+  onOpenNote?: (id: string) => void; onOpenDecision?: (id: string) => void;
   // EMAIL-F-19 (2026-09-05): opens a conversation filed under this project
   // in the Email tab. Absent outside the shell, in which case the linked
   // conversations still list, they simply do not navigate.
@@ -82,6 +91,16 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   const [payoff, setPayoff] = useState<{ kind: "project" | "goal"; title: string; line: string } | null>(null);
   const [detailId, setDetailId] = useState<string | null>(openId ?? null);
   const [goalDetailId, setGoalDetailId] = useState<string | null>(openGoalId ?? null);
+  // LIFE-F-07: open on an id that ARRIVES, the way TasksFlow already does for
+  // a task (TasksFlow.tsx:349-352), not only on one that was there at mount.
+  useEffect(() => {
+    if (openId) setDetailId(openId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId, openNonce]);
+  useEffect(() => {
+    if (openGoalId) setGoalDetailId(openGoalId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openGoalId, goalNonce]);
   // Bumps after a dismissal so the derived suggestion re-reads storage.
   const [dismissTick, setDismissTick] = useState(0);
   const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);

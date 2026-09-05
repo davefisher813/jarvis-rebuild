@@ -13,7 +13,7 @@ import LifeSegments, { type LifeSegment } from "./LifeSegments";
 let lastSegment: LifeSegment = "tasks";
 
 export default function LifeFlow({
-  segment, segmentNav, taskOpenId, taskFilter, projectOpenId, goalOpenId, onOpenNote, onWhatNow, onOpenDecision, onGoEmail,
+  segment, segmentNav, taskOpenId, taskFilter, projectOpenId, projectNonce, goalOpenId, goalNonce, onOpenNote, onWhatNow, onOpenDecision, onGoEmail,
 }: {
   segment?: LifeSegment;
   /** Bumped by the shell on every deep link, so a link to the lens already
@@ -21,6 +21,10 @@ export default function LifeFlow({
   segmentNav?: number;
   taskOpenId?: string; taskFilter?: string;
   projectOpenId?: string; goalOpenId?: string;
+  // LIFE-F-07 (2026-09-05): the shell's one-shot nonces, passed straight
+  // through. A deep link to the lens you are already on has to look like a
+  // change to the lens flow, or nothing happens (shell/intents.ts).
+  projectNonce?: number; goalNonce?: number;
   onOpenNote?: (id: string) => void;
   onWhatNow?: () => void;
   onOpenDecision?: (id: string) => void;
@@ -43,7 +47,9 @@ export default function LifeFlow({
       title="Life"
       segments={segments}
       openId={seg === "projects" ? projectOpenId : undefined}
+      openNonce={projectNonce}
       openGoalId={seg === "goals" ? goalOpenId : undefined}
+      goalNonce={goalNonce}
       onOpenNote={onOpenNote}
       onOpenDecision={onOpenDecision}
       onGoEmail={onGoEmail}

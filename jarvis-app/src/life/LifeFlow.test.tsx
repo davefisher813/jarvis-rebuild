@@ -81,3 +81,52 @@ describe("LifeFlow, the one ask", () => {
     expect(screen.getByText("Nothing is moving here")).toBeInTheDocument();
   });
 });
+
+// LIFE-F-07 (2026-09-05): BiggerPictureFlow read openId and openGoalId once,
+// in useState initialisers, and LifeFlow only remounts it when the LENS
+// changes. So searching a project while already on Life > Projects, or a goal
+// on Goals, closed the search onto the list it was already showing. The same
+// tap worked from any other tab, because that remounts the flow.
+function DeepLinked({ lens }: { lens: "projects" | "goals" }) {
+  const p = useProjects(); const g = useGoals();
+  const [id, setId] = useState<string | undefined>(undefined);
+  const [open, setOpen] = useState<{ value?: string; nonce: number }>({ nonce: 0 });
+  useEffect(() => {
+    void (async () => {
+      const goalId = await g.create({ title: "Build a six-month runway", state: "on_track" });
+      const projectId = await p.create({ title: "Kitchen remodel", status: "active", goalId: goalId ?? undefined });
+      setId((lens === "projects" ? projectId : goalId) ?? undefined);
+    })();
+  }, [p, g, lens]);
+  return id ? (
+    <>
+      <button onClick={() => setOpen((o) => ({ value: id, nonce: o.nonce + 1 }))}>Link It</button>
+      <LifeFlow
+        segment={lens}
+        projectOpenId={lens === "projects" ? open.value : undefined}
+        projectNonce={open.nonce}
+        goalOpenId={lens === "goals" ? open.value : undefined}
+        goalNonce={open.nonce}
+      />
+    </>
+  ) : null;
+}
+
+describe("a deep link into the lens you are already on (LIFE-F-07)", () => {
+  it("opens a project detail that arrives after the lens is mounted", async () => {
+    render(<NotesProvider userId="deep-life-1"><DeepLinked lens="projects" /></NotesProvider>);
+    await screen.findAllByText("Kitchen remodel", {}, { timeout: 3000 });
+    // The list, not the detail: the detail carries its own Back.
+    expect(screen.queryByLabelText("Back")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Link It"));
+    await waitFor(() => expect(screen.getByLabelText("Back")).toBeInTheDocument());
+  });
+
+  it("does the same for a goal on the Goals lens", async () => {
+    render(<NotesProvider userId="deep-life-2"><DeepLinked lens="goals" /></NotesProvider>);
+    await screen.findAllByText("Build a six-month runway", {}, { timeout: 3000 });
+    expect(screen.queryByLabelText("Back")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Link It"));
+    await waitFor(() => expect(screen.getByLabelText("Back")).toBeInTheDocument());
+  });
+});
