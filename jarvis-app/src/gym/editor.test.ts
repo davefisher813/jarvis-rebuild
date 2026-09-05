@@ -74,3 +74,22 @@ describe("D7: the two live-log doors stamp, and nothing else invents stamps", ()
     expect(strip).toContain("delete copy.at");
   });
 });
+
+// GYM-F-11 (2026-09-05): archiving your only program dropped you into the
+// empty state, and the switcher (which holds the Archived shelf and its
+// Restore) was reachable only from the Program row, which the empty state
+// does not render. The way back was to create a throwaway program, restore
+// the real one, then delete the throwaway.
+describe("GYM-F-11: the archived shelf has a door from the empty state", () => {
+  const flow = src("GymFlow.tsx");
+
+  it("the no-program branch offers Restore an Archived Program when the shelf has anything on it", () => {
+    expect(flow).toMatch(/allPrograms\.some\(\(p\) => p\.data\.archived\) && \(\s*<button className="btn btn-secondary" onClick=\{\(\) => setSwitcherOpen\(true\)\}>Restore an Archived Program<\/button>/);
+  });
+
+  it("the switcher itself renders outside the program branch, so that door actually opens", () => {
+    // switcherEl sits in the shared tail with the sheets, not inside the
+    // `program ? ... :` arms.
+    expect(flow).toMatch(/\{doorPickEl\(\)\}\s*\{switcherEl\}/);
+  });
+});

@@ -1689,6 +1689,16 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
             <div className="empty-title">No Program Yet</div>
             <button className="btn btn-primary btn-launch" onClick={() => openProgramSheet()}>Create a Program</button>
             {ai.available && <button className="btn btn-secondary" onClick={() => setUploadOpen(true)}>Upload One Instead</button>}
+            {/* GYM-F-11 (2026-09-05): archiving your only program landed you
+                here, and the switcher (the only place the Archived shelf and
+                its Restore live) hung off the Program row, which this branch
+                does not render. The way back was to create a throwaway
+                program, restore the real one, then delete the throwaway. The
+                shelf gets its own door out here whenever there is anything
+                on it. */}
+            {allPrograms.some((p) => p.data.archived) && (
+              <button className="btn btn-secondary" onClick={() => setSwitcherOpen(true)}>Restore an Archived Program</button>
+            )}
           </div>
         ) : (
           <>
