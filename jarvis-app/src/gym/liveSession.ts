@@ -1,4 +1,4 @@
-import type { WorkoutData, WorkoutExercise, SetEntry, MeasureKind, ProgramDay } from "./types";
+import type { Exercise, WorkoutData, WorkoutExercise, SetEntry, MeasureKind, ProgramDay } from "./types";
 import { entryFrom } from "./strip";
 
 // OFFLINE-FIRST, and not optionally (2026-08-03 recon): the core Store only
@@ -275,6 +275,29 @@ function removeOne(w: WorkoutData, store: Storage2): void {
   if (idx < 0) return;
   now.splice(idx, 1);
   writePending(now, store);
+}
+
+/**
+ * Which program exercise, if any, is behind a live entry.
+ *
+ * GYM-F-08 (2026-09-05): `custom` means "the plan chips come from this
+ * entry's own `plan`, not from the program day" -- it has never meant "there
+ * is no program exercise behind this", but GymFlow read it that way. Same as
+ * Last Time marks every entry custom while every one of them still IS a
+ * program exercise, so a whole session lost its rest timers, its warm-up
+ * ramps, its A1/A2 tags, its notes and its conditioning clocks.
+ *
+ * The slot id alone cannot answer it either: Swap deliberately keeps the
+ * original's exerciseId so the This Session list stays stable
+ * (liveSession.ts:169-177), so a swapped entry sits in a program exercise's
+ * slot while being a different lift. Identity settles it: the key when both
+ * sides carry one, else name and kind.
+ */
+export function programExerciseFor(e: WorkoutExercise, day: ProgramDay | null | undefined): Exercise | undefined {
+  const pe = day?.exercises.find((x) => x.id === e.exerciseId);
+  if (!pe) return undefined;
+  if (pe.exerciseKey && e.exerciseKey) return pe.exerciseKey === e.exerciseKey ? pe : undefined;
+  return pe.name === e.name && pe.kind === e.kind ? pe : undefined;
 }
 
 /** A session is worth keeping if anything at all was logged (partial counts). */

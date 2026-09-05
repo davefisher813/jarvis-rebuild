@@ -14,7 +14,7 @@ import { liftMeasureState, trainingMeasureState, type LiftMeasure, type Training
 import type { MetricDef, MetricLog } from "./metrics";
 import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
-import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, queueFinished, flushPending, hasWork, isStillActive, type LiveSession } from "./liveSession";
+import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, type LiveSession } from "./liveSession";
 import { bumpStrip } from "./strip";
 import { buildLibrary } from "./library";
 import { pairLabels, pairExercises, unpairExercise } from "./pairs";
@@ -1062,15 +1062,26 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     // SWAP / ADD MID-SESSION / SAME AS LAST TIME (catalog §3.9, §3.10,
     // §3.13): a `custom` entry carries its own identity and plan rather than
     // reading the program day's own exercise at this index.
+    //
+    // GYM-F-08 (2026-09-05): Same as Last Time also marks every entry custom,
+    // to carry last session's numbers as the ghosts, but those entries DO
+    // have a program exercise behind them. Rebuilding the exercise from the
+    // live entry alone threw away the rest target, the warm-up ramp, the
+    // A1/A2 pairing, the note and the conditioning clock on every one of
+    // them. Only a swapped or added entry, which has no program exercise at
+    // all, takes the bare path now.
+    const behind = liveEx ? programExerciseFor(liveEx, day) : undefined;
     const exercise: Exercise | undefined = liveEx?.custom
-      ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, exerciseKey: liveEx.exerciseKey, sets: liveEx.plan ?? [] }
+      ? (behind
+        ? { ...behind, sets: liveEx.plan ?? [] }
+        : { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, exerciseKey: liveEx.exerciseKey, sets: liveEx.plan ?? [] })
       : planned ?? (liveEx ? { id: liveEx.exerciseId, name: liveEx.name, kind: liveEx.kind, unit: liveEx.unit, timeUnit: liveEx.timeUnit, sets: [] } : undefined);
     if (!exercise) return <div className="screen ruled" />;
     return (
       <SessionScreen
         live={live}
         exercise={exercise}
-        dayExercises={liveEx?.custom ? [] : (day?.exercises ?? [])}
+        dayExercises={liveEx?.custom && !behind ? [] : (day?.exercises ?? [])}
         programDay={day ?? null}
         history={workouts}
         library={library}

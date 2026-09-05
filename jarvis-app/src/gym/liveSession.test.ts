@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readLive, writeLive, clearLive, logSet, setLoggedSets, undoLast, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, queueFinished, readPending, flushPending, hasWork, isStillActive, STALE_GRACE_MS, type LiveSession, type Storage2 } from "./liveSession";
+import { readLive, writeLive, clearLive, logSet, setLoggedSets, undoLast, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, readPending, flushPending, hasWork, isStillActive, STALE_GRACE_MS, type LiveSession, type Storage2 } from "./liveSession";
 import type { ProgramDay, SetEntry, WorkoutData, WorkoutExercise } from "./types";
 
 // The offline contract: a set logged in a basement is never lost, and a
@@ -254,6 +254,63 @@ describe("sessionExercisesSameAsLastTime: catalog §3.13", () => {
     };
     const out = sessionExercisesSameAsLastTime(day, last);
     expect(out[0]!.custom).toBeUndefined();
+  });
+});
+
+// GYM-F-08 (2026-09-05): `custom` says where the plan chips come from, never
+// that the program exercise is gone. Same as Last Time marks every entry
+// custom while every one of them still IS a program exercise, and reading
+// custom as "no program exercise" cost that session its rest timers, ramps,
+// A1/A2 tags, notes and conditioning clocks.
+describe("programExerciseFor", () => {
+  const day: ProgramDay = {
+    id: "d1", name: "Push", exercises: [
+      { id: "e1", name: "Bench", kind: "weight_reps", unit: "lb", exerciseKey: "ekBench", restSec: 120, ramp: true, note: "elbows in", sets: [mkSet({ w: 95, r: 5 })] },
+      { id: "e2", name: "Conditioning", kind: "rounds", sets: [], cond: { format: "amrap", capSec: 600 } },
+    ],
+  };
+
+  it("finds the program exercise behind a Same as Last Time entry, with everything it carries", () => {
+    const [entry] = sessionExercisesSameAsLastTime(day, {
+      programId: "p", dayId: "d1", dayName: "Push", date: "2026-08-01", startedAt: 0, endedAt: 1,
+      exercises: [{ exerciseId: "e1", name: "Bench", kind: "weight_reps", sets: [mkSet({ w: 135, r: 8 })] }],
+    });
+    expect(entry!.custom).toBe(true);
+    const pe = programExerciseFor(entry!, day);
+    expect(pe?.id).toBe("e1");
+    expect(pe?.restSec).toBe(120);
+    expect(pe?.ramp).toBe(true);
+    expect(pe?.note).toBe("elbows in");
+  });
+
+  it("a conditioning exercise stays a clock through Same as Last Time", () => {
+    const out = sessionExercisesSameAsLastTime(day, {
+      programId: "p", dayId: "d1", dayName: "Push", date: "2026-08-01", startedAt: 0, endedAt: 1,
+      exercises: [{ exerciseId: "e2", name: "Conditioning", kind: "rounds", sets: [mkSet({ r: 6 })] }],
+    });
+    expect(programExerciseFor(out[1]!, day)?.cond).toEqual({ format: "amrap", capSec: 600 });
+  });
+
+  it("a swapped entry sits in the slot but is a different lift, so it has no program exercise", () => {
+    const s: LiveSession = {
+      programId: "p", dayId: "d1", dayName: "Push", date: "2026-08-04", startedAt: 0, idx: 0,
+      exercises: [{ exerciseId: "e1", name: "Bench", kind: "weight_reps", exerciseKey: "ekBench", sets: [] }],
+    };
+    const swapped = swapExercise(s, 0, { name: "DB Press", kind: "weight_reps", exerciseKey: "ekDb" });
+    expect(swapped.exercises[0]!.exerciseId).toBe("e1");
+    expect(programExerciseFor(swapped.exercises[0]!, day)).toBeUndefined();
+  });
+
+  it("an added exercise has no slot at all", () => {
+    const s: LiveSession = {
+      programId: "p", dayId: "d1", dayName: "Push", date: "2026-08-04", startedAt: 0, idx: 0, exercises: [],
+    };
+    const added = addExerciseMidSession(s, { name: "Face Pulls", kind: "weight_reps", plan: [] });
+    expect(programExerciseFor(added.exercises[0]!, day)).toBeUndefined();
+  });
+
+  it("no day at all is simply no program exercise, never a throw", () => {
+    expect(programExerciseFor(ex("Row"), null)).toBeUndefined();
   });
 });
 
