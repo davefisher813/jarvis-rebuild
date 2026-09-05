@@ -32,6 +32,29 @@ function safeTopPx(): number {
   }
 }
 
+// THE APP DOES NOT SCROLL THE DOCUMENT (SHARED-F-01, 2026-09-05). .app-shell
+// is 100dvh and .app-scroll inside it is the thing with overflow-y: auto, so
+// window.scrollY is 0 forever and a scroll event on an element does not bubble
+// to window. Verified by running it: scroll .app-scroll to 120, dispatch, and
+// the window listener fires zero times. Which means the `scrolled` signal
+// below, and the whole 2026-08-29 fix for the band Dave photographed, has
+// never once been true inside the app.
+//
+// So find the box that actually scrolls: the nearest scrolling ancestor of the
+// probe, which is .app-scroll on a page and the sheet's own scroller inside a
+// sheet. window stays the fallback for anywhere the document really is the
+// scroller (jsdom, the preview harness), so nothing that worked stops working.
+function scrollerOf(el: Element | null): HTMLElement | null {
+  if (typeof document === "undefined") return null;
+  for (let n = el?.parentElement ?? null; n; n = n.parentElement) {
+    try {
+      const oy = getComputedStyle(n).overflowY;
+      if (oy === "auto" || oy === "scroll") return n;
+    } catch { /* jsdom without a stylesheet: fall through to the class */ }
+  }
+  return document.querySelector<HTMLElement>(".app-scroll");
+}
+
 // Shared condensing logic: [probeRef, condensed, scrolled].
 //
 // TWO SIGNALS, NOT ONE. The bar used to earn its glass at the same moment it
@@ -51,8 +74,12 @@ export function useCondensed(): [(el: HTMLDivElement | null) => void, boolean, b
   const [on, setOn] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const ioRef = useRef<IntersectionObserver | null>(null);
+  // Kept so the scroll effect can start from the probe and walk up to whatever
+  // is actually scrolling underneath it (SHARED-F-01).
+  const probeRef = useRef<HTMLDivElement | null>(null);
   const attach = (el: HTMLDivElement | null) => {
     ioRef.current?.disconnect();
+    probeRef.current = el;
     if (!el || typeof IntersectionObserver === "undefined") return;
     const io = new IntersectionObserver(
       (entries) => { const e = entries[0]; if (e) setOn(!e.isIntersecting); },
@@ -65,10 +92,14 @@ export function useCondensed(): [(el: HTMLDivElement | null) => void, boolean, b
   };
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const read = () => setScrolled(window.scrollY > 0);
+    // Refs are attached before effects run, so the probe is already in the
+    // tree and the walk lands on the real scroller rather than on window.
+    const box = scrollerOf(probeRef.current);
+    const read = () => setScrolled(box ? box.scrollTop > 0 : window.scrollY > 0);
     read();
-    window.addEventListener("scroll", read, { passive: true });
-    return () => window.removeEventListener("scroll", read);
+    const target: Window | HTMLElement = box ?? window;
+    target.addEventListener("scroll", read, { passive: true });
+    return () => target.removeEventListener("scroll", read);
   }, []);
   useEffect(() => () => ioRef.current?.disconnect(), []);
   return [attach, on, scrolled];
