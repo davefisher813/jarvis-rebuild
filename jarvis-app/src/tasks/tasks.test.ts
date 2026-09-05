@@ -94,6 +94,17 @@ describe("filter partitioning (chips)", () => {
     expect(byCategory(items, "home").length).toBe(1);
     expect(byCategory(items, "missing").length).toBe(0);
   });
+  // LIFE-F-10 (2026-09-05): the Area filter matched the primary only, so a
+  // task tagged Family as an extra was missing from Area = Family while the
+  // Family category page listed it.
+  it("byCategory finds a task by an extra area too", () => {
+    const items = [
+      { id: "1", data: mk({ category: "work", extraCategories: ["family"] }) },
+      { id: "2", data: mk({ category: "home" }) },
+    ];
+    expect(byCategory(items, "family").map((i) => i.id)).toEqual(["1"]);
+    expect(byCategory(items, "work").map((i) => i.id)).toEqual(["1"]);
+  });
 });
 
 describe("bills on the task entity (Money v1)", () => {

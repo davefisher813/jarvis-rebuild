@@ -1,4 +1,5 @@
 import { groupFor, urgencyFor, todayISO } from "./grouping";
+import { isIn } from "./categories";
 import type { TaskData } from "../notes/types";
 import type { TaskItem } from "./TasksService";
 
@@ -59,7 +60,14 @@ export function partition(items: TaskItem[], today: string = todayISO()): Partit
 }
 
 // Narrow a list to a single category. "all" or "" means no filtering. Pure.
+//
+// LIFE-F-10 (2026-09-05): this compared the PRIMARY category only, so a task
+// tagged Work (main) and Family (extra) was missing from Area = Family even
+// though the Family category page listed it (CategoryDetail reads isIn).
+// extraCategories were promised to "put the task on those category pages and
+// in those filters" (categories.ts:14-15); the filter now reads through the
+// same isIn every other area rollup uses.
 export function byCategory(items: TaskItem[], categoryId: string): TaskItem[] {
   if (!categoryId || categoryId === "all") return items;
-  return items.filter((it) => (it.data.category ?? "") === categoryId);
+  return items.filter((it) => isIn(it.data, categoryId));
 }
