@@ -118,11 +118,14 @@
 .ruled .st-quiet .st-n { color: var(--tx-1); }
 .ruled .st-warn  { background: var(--warn-tint);  color: var(--warn); }
 .ruled .st-late  { background: var(--red-tint);   color: var(--sys-red); }
-/* Light needs the darker text steps the pills already learned to use. */
+/* Light needs the darker text steps the pills already learned to use.
+   BROWSER-F-04 (2026-09-05): the green and amber steps are gone from here.
+   They were two more hand-kept hexes doing what --good and --warn now do
+   themselves in light, and a hand-kept hex is how .gstat-good and the whole
+   month report got missed. Blue and red keep theirs: their tokens are still
+   one value per theme. */
 [data-theme="light"] .ruled .st-time { color: #005CBF; }
-[data-theme="light"] .ruled .st-goal { color: #1B7A3A; }
 [data-theme="light"] .ruled .st-late { color: var(--on-light-red, #B8001A); }
-[data-theme="light"] .ruled .st-warn { color: #8A4B00; }
 
 /* ---------- THE DAY RING: flat, one colour, no gradient, no glow ---------
    "Keep them completely separate." The ring counts due work and captions
@@ -130,7 +133,7 @@
    red-to-orange gradient and drop-shadow it wore broke both the one-red
    law and the no-glow ruling, so the fill is the completion green, the same
    green a task ring turns when it is done. */
-.ruled .day-ring .fill { stroke: var(--good); filter: none; }
+.ruled .day-ring .fill { stroke: var(--good-fill); filter: none; }
 
 /* ---------- THE RULED ROW -------------------------------------------------
    [ ring 24 neutral ][ 10 ][ name 16/500 / kicker: bar · goal · chip ][ Start ]
@@ -139,7 +142,7 @@
    fighting for the trailing slot and the name lost. */
 .ruled .task-row { min-height: 56px; padding: 8px var(--s-4); gap: 10px; }
 .ruled .task-row .task-check { border-color: var(--tx-4); }           /* never category-coloured; a rounded square since 2026-09-02 */
-.ruled .task-row .task-check.done { border-color: var(--good); background: var(--good); }
+.ruled .task-row .task-check.done { border-color: var(--good-fill); background: var(--good-fill); }
 .ruled .task-row .task-title { font-size: 16px; font-weight: var(--w-regular); letter-spacing: -0.01em;
   min-width: 0; }
 .ruled .task-row .task-title > .task-name { display: block; white-space: nowrap; overflow: hidden;
@@ -157,7 +160,6 @@
   font-weight: var(--w-medium); min-width: 0; }
 .ruled .r-goal.r-is-goal .r-goal-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ruled .r-gm { width: 12px; height: 12px; color: var(--good); flex-shrink: 0; }
-[data-theme="light"] .ruled .r-gm { color: #1B7A3A; }
 /* THE MARK'S COLOUR (Goals and Projects, Dave 2026-09-02: "The goal's
    category colour, always"). Wherever the mark sits inside a cat-fg-*
    wrapper it takes that colour; the goal-green above is only the fallback
@@ -240,7 +242,8 @@
   border-radius: var(--r-pill); flex-shrink: 0; white-space: nowrap; text-transform: uppercase; }
 .ruled .uchip.u-today { color: var(--warn); background: var(--warn-tint); }
 .ruled .uchip.u-late  { color: var(--sys-red); background: var(--red-tint); }
-[data-theme="light"] .ruled .uchip.u-today { color: #8A4B00; }
+/* BROWSER-F-04 (2026-09-05): u-today's light hex is gone with the rest of
+   the hand-kept amber; --warn is the readable value in light now. */
 [data-theme="light"] .ruled .uchip.u-late  { color: var(--on-light-red, #B8001A); }
 
 /* ---------- ONE ACTION COLUMN on the stream and mail rows ---------------
@@ -420,7 +423,7 @@
 .ruled .h-day { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 10.5px; font-weight: var(--w-bold);
   letter-spacing: 0.06em; color: var(--tx-4); }
 .ruled .h-day i { width: 10px; height: 10px; border-radius: 50%; background: var(--press-3); display: block; }
-.ruled .h-day.on i { background: var(--good); }
+.ruled .h-day.on i { background: var(--good-fill); }
 .ruled .h-day.today i { box-shadow: 0 0 0 2px var(--tx-1); }
 .ruled .h-day.today { color: var(--tx-1); }
 .ruled .h-last .task-name { font-weight: var(--w-medium); }

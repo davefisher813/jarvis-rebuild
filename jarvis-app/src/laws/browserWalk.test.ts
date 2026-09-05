@@ -81,6 +81,107 @@ describe("BROWSER-F-03: a 44px expander is never clipped by the box it expands",
   });
 });
 
+// The audit's own contrast math (tools/visual-audit.mjs): composite the ink
+// over its real backdrop, then WCAG relative luminance. Duplicated here on
+// purpose, so a law about colour does not depend on a tool that needs a
+// browser to run.
+const chan = (c: string): number[] => {
+  if (c.startsWith("#")) {
+    const s = c.slice(1);
+    const n = s.length === 3 ? s.split("").map((x) => x + x).join("") : s;
+    return [0, 2, 4].map((i) => parseInt(n.slice(i, i + 2), 16));
+  }
+  return (c.match(/[\d.]+/g) || []).map(Number);
+};
+const overC = (fg: string, bg: string): number[] => {
+  const f = chan(fg), b = chan(bg);
+  const a = f.length > 3 ? f[3]! : 1;
+  return [0, 1, 2].map((i) => f[i]! * a + b[i]! * (1 - a));
+};
+const relLum = (c: number[]): number => {
+  const s = (v: number) => { const x = v / 255; return x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); };
+  return 0.2126 * s(c[0]!) + 0.7152 * s(c[1]!) + 0.0722 * s(c[2]!);
+};
+const contrast = (fg: string, bg: string): number => {
+  const x = relLum(overC(fg, bg)), y = relLum(chan(bg));
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+};
+// The value of a token inside a theme block, e.g. tokenIn("light", "--good").
+const tokenIn = (theme: string, name: string): string => {
+  const sheet = tokens().replace(/\/\*[\s\S]*?\*\//g, "");
+  const block = sheet.match(new RegExp(`\\[data-theme="${theme}"\\]\\s*\\{([\\s\\S]*?)\\n\\}`))?.[1];
+  if (!block) throw new Error(`no ${theme} theme block`);
+  const v = block.match(new RegExp(`(?:^|[;{\\s])${name}:\\s*([^;]+);`))?.[1];
+  if (!v) throw new Error(`${theme} theme does not define ${name}`);
+  return v.trim();
+};
+
+describe("BROWSER-F-04: status colour is readable in daylight, from the token", () => {
+  // The light theme carried the iOS system green and orange, which are tuned
+  // to be read on black. On a pastel of their own hue they measured 2.0:1,
+  // and the app reached its light-safe values through a list of class names
+  // that .gstat-good, .fact-good, .rep-win-val and .rep-delta-up were never
+  // added to. The token has to be right, because a list cannot be.
+  it("light --good and --warn clear AA on every ground they land on", () => {
+    const page = "#F3F4F9", card = "#FFFFFF";
+    const cases: Array<[string, string, string]> = [
+      ["--good", "the page", page],
+      ["--good", "a white card", card],
+      ["--good", "its own tint on the page", `rgba(52,199,89,0.14) over ${page}`],
+      ["--good", "its own tint on a card", `rgba(52,199,89,0.14) over ${card}`],
+      ["--warn", "the page", page],
+      ["--warn", "a white card", card],
+      ["--warn", "its own tint on the page", `rgba(255,149,0,0.14) over ${page}`],
+      ["--warn", "its own tint on a card", `rgba(255,149,0,0.14) over ${card}`],
+    ];
+    for (const [name, where, ground] of cases) {
+      const parts = ground.split(" over ");
+      const bg = parts.length === 2
+        ? `rgb(${overC(parts[0]!, parts[1]!).join(",")})`
+        : ground;
+      const cr = contrast(tokenIn("light", name), bg);
+      expect(cr, `light ${name} on ${where} is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  // The saturated pair did not disappear, it changed job: anything with no
+  // words in or on it keeps the iOS system colour under the 3:1 bar. If those
+  // tokens go missing, every fill that took them silently falls back to
+  // nothing (an invalid var() with no fallback paints as unset).
+  it("the saturated fills survive as --good-fill and --warn-fill in both themes", () => {
+    for (const theme of ["dark", "light"]) {
+      expect(tokenIn(theme, "--good-fill")).toMatch(/^#[0-9A-Fa-f]{6}$/);
+      expect(tokenIn(theme, "--warn-fill")).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    }
+    // Dark cannot move: the audit found no dark failure, so the text token and
+    // the fill token have to resolve to the identical value there.
+    expect(tokenIn("dark", "--good-fill")).toBe(tokenIn("dark", "--good"));
+    expect(tokenIn("dark", "--warn-fill")).toBe(tokenIn("dark", "--warn"));
+  });
+
+  // The point of the token change was to end the allow-list. A new hand-kept
+  // light-theme override for a green or amber status colour is the bug coming
+  // back, one class at a time.
+  it("no light-theme rule hand-paints a status green or amber again", () => {
+    const bare = (read("styles/components.css") + read("styles/ruled.css") + read("styles/uniformity.css"))
+      .replace(/\/\*[\s\S]*?\*\//g, "");
+    const offenders: string[] = [];
+    for (const m of bare.matchAll(/([^{}]*\[data-theme="light"\][^{}]*)\{([^}]*)\}/g)) {
+      for (const dec of m[2]!.split(";")) {
+        const hexMatch = dec.match(/color:\s*(#[0-9A-Fa-f]{6})/);
+        if (!hexMatch || !/^\s*color\s*:/.test(dec)) continue;
+        const [r, g, b] = chan(hexMatch[1]!) as [number, number, number];
+        // green: the green channel leads and blue is not close behind.
+        // amber: red leads, green is mid, blue is nearly absent.
+        const green = g > r && g > b + 20;
+        const amber = r > 100 && g > 50 && g < r && b < 40;
+        if (green || amber) offenders.push(`${m[1]!.trim()} { color: ${hexMatch[1]} }`);
+      }
+    }
+    expect(offenders, "status green and amber come from --good / --warn, not from a per-class hex").toEqual([]);
+  });
+});
+
 describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
   // The strip rule re-sets the chip background at (0,4,0), which beats
   // .chip.active (0,2,0) for the background alone. Any rule that overrides a
