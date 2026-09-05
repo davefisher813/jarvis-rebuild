@@ -79,10 +79,12 @@ export default function RemindersStrip({
             </div>
             {/* Snooze only exists while it still matters: once it is done,
                 pushing it later is nonsense. */}
+            {/* TODAY-F-04 (2026-09-05): one label, and it says the size of
+                the push. "Snooze" then "+10 again" described a stack of ten
+                minute pushes onto the reminder's original time; a snooze is
+                ten minutes from now, whether it is the first or the third. */}
             {!r.done && onSnooze && (
-              <button className="pill-act" onClick={() => onSnooze(r.id)}>
-                {r.snoozed ? "+10 again" : "Snooze"}
-              </button>
+              <button className="pill-act" onClick={() => onSnooze(r.id)}>Snooze 10m</button>
             )}
           </div>
         ))}

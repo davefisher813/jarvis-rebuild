@@ -106,6 +106,17 @@ export function snoozeTime(from: string, mins: number): string {
   return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
+// TODAY-F-04 (2026-09-05): a snooze counted from the reminder's own time, so
+// tapping Snooze on 8 AM meds at 2 PM moved them to 08:10 -- still missed,
+// nothing scheduled, and the row unchanged. The one snooze moment that
+// matters, the one right after it fired or when he finally notices, did
+// nothing at all. Ten minutes means ten minutes from whichever is later: a
+// reminder still ahead pushes from its time (so the phone's alert moves with
+// it), a missed one pushes from the clock.
+export function snoozeFrom(time: string, now: string): string {
+  return toMin(time) > toMin(now) ? time : now;
+}
+
 export const DAY_PRESETS: { label: string; days?: number[] }[] = [
   { label: "Every Day" },
   { label: "Weekdays", days: [1, 2, 3, 4, 5] },

@@ -3,7 +3,7 @@ import type { TaskItem } from "./TasksService";
 import type { ReminderInfo } from "../notes/types";
 import {
   runsOn, effectiveTime, isDone, viewOf, todaysReminders, missedReminders,
-  snoozeTime, cadenceLabel,
+  snoozeTime, snoozeFrom, cadenceLabel,
 } from "./reminders";
 
 // The reminder model (Dave 2026-08-19: "taking meds should just be a set
@@ -55,6 +55,18 @@ describe("snooze only counts on the day it was set", () => {
   it("never spills past the end of the day", () => {
     expect(snoozeTime("23:50", 30)).toBe("23:59");
     expect(snoozeTime("08:00", 10)).toBe("08:10");
+  });
+
+  // TODAY-F-04 (2026-09-05): snoozing a reminder that has already passed used
+  // to land in the past, where nothing can ring.
+  it("a missed reminder snoozes from the clock, not from its own time", () => {
+    expect(snoozeTime(snoozeFrom("08:00", "14:00"), 10)).toBe("14:10");
+  });
+  it("a reminder still ahead snoozes from its own time", () => {
+    expect(snoozeTime(snoozeFrom("21:00", "14:00"), 10)).toBe("21:10");
+  });
+  it("[edge] snoozing at the exact minute it fires counts from now", () => {
+    expect(snoozeFrom("14:00", "14:00")).toBe("14:00");
   });
 });
 

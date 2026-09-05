@@ -80,7 +80,7 @@ import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import RemindersStrip from "./RemindersStrip";
 import ReminderSheet from "../tasks/screens/ReminderSheet";
-import { todaysReminders, missedReminders, snoozeTime } from "../tasks/reminders";
+import { todaysReminders, missedReminders, snoozeTime, snoozeFrom } from "../tasks/reminders";
 import { remindersToIcs, downloadIcs } from "../tasks/ics";
 import type { ReminderInfo } from "../notes/types";
 import { runAutoSweep, retrySweep, undoSweep, readReceipt, setAsideCandidate, markOffered, liveMoved, dismissSweepCard, sweepCardDismissed, type SweepReceipt } from "../tasks/autoSweep";
@@ -2076,10 +2076,14 @@ export default function TodayFlow({
   const onSnoozeReminder = async (id: string) => {
     const v = reminders.find((r) => r.id === id);
     if (!v) return;
-    const to = snoozeTime(v.time, 10);
-    await attemptWrite(() => tasks.snoozeReminder(id, to, today));
+    // TODAY-F-04 (2026-09-05): counted from the clock when the reminder has
+    // already passed, so a missed 8 AM snoozed at 2 PM lands at 2:10 PM and
+    // the phone actually rings again. See snoozeFrom in tasks/reminders.ts.
+    const to = snoozeTime(snoozeFrom(v.time, nhm), 10);
+    const ok = await attemptWrite(() => tasks.snoozeReminder(id, to, today));
     await reload();
-    showToast({ message: "Snoozed to " + to });
+    if (!ok) return;
+    showToast({ message: "Snoozed to " + fmtTime(to).time + fmtTime(to).ap });
   };
   const onSaveReminder = async (text: string, r: ReminderInfo) => {
     const sheet = remSheet;
