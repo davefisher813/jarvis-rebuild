@@ -1720,10 +1720,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // making him open something he already knows he is done with.
   // Every reversible action goes through here so the offer to undo is never
   // forgotten on one path and present on another.
+  // EMAIL-F-21 (2026-09-05): "A stale Undo button can attach itself to an
+  // unrelated toast." The toast was two pieces of state and only this
+  // function set both, so the eight callers that reached for setToast
+  // directly (a sweep receipt, "Sent", a commitment catch) left `undo`
+  // pointing at whatever was archived six seconds ago, and the new toast grew
+  // a button that un-archived it. Every toast on this screen comes through
+  // here now, and the timer is held so one toast cannot clear the next one
+  // early either: one toast, one timer, one undo.
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const say = (msg: string, undoable?: { label: string; run: () => void }, ms = 6000) => {
     setToast(msg);
     setUndo(undoable ?? null);
-    setTimeout(() => { setToast(null); setUndo(null); }, ms);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => { setToast(null); setUndo(null); }, ms);
   };
 
   // 11C: BULK DELETE, the same shape as archive and the same honesty.
@@ -2467,17 +2477,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 try {
                   const note = await notesSvc.note(attachHint.candidate.id);
                   if (!note) {
-                    setToast("Couldn't find that note anymore");
+                    say("Couldn't find that note anymore", undefined, 4000);
                   } else {
                     const filename = attachmentFilename(note.title);
                     setDraft((d) => ({ ...d, attachment: { filename, mimeType: "text/plain", content: noteAsText(note) } }));
-                    setToast("Attached · " + filename);
+                    say("Attached · " + filename, undefined, 4000);
                   }
                 } catch {
-                  setToast("Couldn't attach that file");
+                  say("Couldn't attach that file", undefined, 4000);
                 } finally {
                   setAttachingHint(false);
-                  setTimeout(() => setToast(null), 4000);
                 }
               })()}>{attachingHint ? "Attaching…" : "Attach It"}</button>
             </div></div>
@@ -2711,8 +2720,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       onClick={() => {
                         setRules(saveRule(senderEmail, b));
                         mirrorMail();
-                        setToast(lastMsg(thread).from + " · " + BUCKET_LABEL[b] + " from now on");
-                        setTimeout(() => setToast(null), 2500);
+                        say(lastMsg(thread).from + " · " + BUCKET_LABEL[b] + " from now on", undefined, 2500);
                       }}
                     >{BUCKET_LABEL[b]}</button>
                   );
@@ -2743,8 +2751,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         subject: thread.subject, from: displayName(lastMsg(thread).from),
                       }));
                       mirrorMail();
-                      setToast(on ? "Unlinked" : "Filed under " + p.title);
-                      setTimeout(() => setToast(null), 2500);
+                      say(on ? "Unlinked" : "Filed under " + p.title, undefined, 2500);
                     }}
                   >{p.title}</button>
                 ))}
@@ -2766,15 +2773,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   // normal" about someone who was never a VIP.
                   const { list, capped } = toggleVip(lastMsg(thread).fromEmail);
                   if (capped) {
-                    setToast(`VIP is full at ${VIP_MAX} · Remove one first`);
+                    say(`VIP is full at ${VIP_MAX} · Remove one first`, undefined, 2500);
                   } else {
                     setVips(list);
                     mirrorMail();
-                    setToast(isVip(lastMsg(thread).fromEmail, list)
+                    say(isVip(lastMsg(thread).fromEmail, list)
                       ? displayName(lastMsg(thread).from) + " always gets through now"
-                      : displayName(lastMsg(thread).from) + " is back to normal");
+                      : displayName(lastMsg(thread).from) + " is back to normal", undefined, 2500);
                   }
-                  setTimeout(() => setToast(null), 2500);
                 }}
               >VIP</button>
             </div>
@@ -2810,8 +2816,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         // Law 1: unreadable means unreadable. It opens the
                         // file rather than inventing an appointment, and the
                         // card STAYS so the offer is not silently spent.
-                        setToast("Couldn't read that invite · Opening the file");
-                        setTimeout(() => setToast(null), 3500);
+                        say("Couldn't read that invite · Opening the file", undefined, 3500);
                         if (offer.attachmentId) void openAttachment(m.id, offer.attachmentId, offer.filename ?? "invite.ics", "text/calendar");
                         return;
                       }
@@ -2823,42 +2828,39 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                           end: endOfAct(ev.start, ev.durationMin ?? 60),
                           source: madeBy("email", thread.id),
                         });
-                        if (!id) { setToast("Couldn't add it · Nothing was saved"); setTimeout(() => setToast(null), 3000); return; }
-                        setToast("On your schedule · " + dayPhrase(ev.date, todayISO()) + " " + fmtTime(ev.start).time + " " + fmtTime(ev.start).ap + extra);
+                        if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
+                        say("On your schedule · " + dayPhrase(ev.date, todayISO()) + " " + fmtTime(ev.start).time + " " + fmtTime(ev.start).ap + extra, undefined, 3500);
                       } else if (tasks) {
                         // Law 2: an all-day invite has a date and no time.
                         // It stays a date rather than becoming a 9am nobody
                         // wrote down.
                         const id = await tasks.createTask(ev.title, { due: ev.date, source: madeBy("email", thread.id) });
-                        if (!id) { setToast("Couldn't add it · Nothing was saved"); setTimeout(() => setToast(null), 3000); return; }
-                        setToast("Added to your tasks · " + dayPhrase(ev.date, todayISO()) + extra);
+                        if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
+                        say("Added to your tasks · " + dayPhrase(ev.date, todayISO()) + extra, undefined, 3500);
                       } else {
                         return;
                       }
                       setAttachDone(true);
-                      setTimeout(() => setToast(null), 3500);
                       return;
                     }
                     // A card offering a write with no service behind it is a
                     // button that does nothing, silently. The sheet's own file
                     // legislated against this shape; this card never got it.
-                    if (!tasks) { setToast("Tasks aren't available right now"); setTimeout(() => setToast(null), 3000); return; }
+                    if (!tasks) { say("Tasks aren't available right now", undefined, 3000); return; }
                     const id = offer.kind === "bill" && offer.amount != null
                       ? await tasks.createTask(offer.title, { bill: { amount: offer.amount }, source: madeBy("email", thread.id) })
                       : await tasks.createTask(offer.title, { source: madeBy("email", thread.id) });
                     // createTask returns null for blank text without throwing.
-                    if (!id) { setToast("Couldn't add it · Nothing was saved"); setTimeout(() => setToast(null), 3000); return; }
-                    setToast(offer.kind === "bill" && offer.amount != null
+                    if (!id) { say("Couldn't add it · Nothing was saved", undefined, 3000); return; }
+                    say(offer.kind === "bill" && offer.amount != null
                       ? "Added to Money · $" + offer.amount.toFixed(2)
-                      : "Added to your tasks");
+                      : "Added to your tasks", undefined, 3000);
                     setAttachDone(true);
-                    setTimeout(() => setToast(null), 3000);
                   } catch {
                     // Unwrapped before (2026-08-25): a throwing write produced
                     // an unhandled rejection, no toast, and a card that stayed
                     // put with no explanation.
-                    setToast("Couldn't add it · Nothing was saved");
-                    setTimeout(() => setToast(null), 3000);
+                    say("Couldn't add it · Nothing was saved", undefined, 3000);
                   } finally {
                     setAttachBusy(false);
                   }
@@ -3384,8 +3386,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   }
                   // Only a week that actually closed counts as closed.
                   if (ok.length) { markClosed(todayISO()); setCloseDone(true); }
-                  setToast(settleLine(ok.length, failed.length, ARCHIVE_WORDS) + (ok.length && !failed.length ? " · Still searchable in Gmail" : ""));
-                  setTimeout(() => setToast(null), 4000);
+                  say(settleLine(ok.length, failed.length, ARCHIVE_WORDS) + (ok.length && !failed.length ? " · Still searchable in Gmail" : ""), undefined, 4000);
                 })()}>Close It Out</button>
               </div></div></div>
             );
@@ -3733,8 +3734,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   }
                   if (filed) mirrorMail();
                   setSweep([]);
-                  setToast(sweepReceipt(ended, filed));
-                  setTimeout(() => setToast(null), 4000);
+                  say(sweepReceipt(ended, filed), undefined, 4000);
                 })()}
               >{sweepSub(sweep)}</button>
               <button className="quiet-action" onClick={() => { sweep.forEach((c) => markAsked(c.sender)); setSweep([]); }}>Leave them</button>
@@ -3751,8 +3751,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   mirrorMail();
                   markAsked(toss.sender);
                   setToss(null);
-                  setToast("Straight to Noise from now on");
-                  setTimeout(() => setToast(null), 2500);
+                  say("Straight to Noise from now on", undefined, 2500);
                 }}
               >Yes, file them</button>
               <button className="quiet-action" onClick={() => { markAsked(toss.sender); setToss(null); }}>No thanks</button>

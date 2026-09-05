@@ -21,6 +21,7 @@ import ToastHost from "../shared/ToastHost";
 import { saveMailSnapshot, loadMailSnapshot } from "./home";
 import { loadOutbox, resetOutboxForTest } from "./outbox";
 import { loadLetGo } from "./letGo";
+import { recordToss } from "./selfClean";
 
 const noAI = new AIService({ available: false });
 
@@ -645,6 +646,43 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(screen.getByText("bump"));
     await new Promise((r) => setTimeout(r, 50));
     expect(lists).toBe(settled);
+  });
+
+  // EMAIL-F-21 (2026-09-05): "A stale Undo button can attach itself to an
+  // unrelated toast." Archive a row ("Archived · Undo"), then within six
+  // seconds trigger any plain toast and the new toast wore the old Undo,
+  // which un-archived a thread the user was no longer looking at. Every
+  // toast goes through say() now, and say() clears the undo it was not
+  // given. The pair here is real: archiving the fourth unread DoorDash puts
+  // the "always quiet this sender" offer on screen, and taking it toasts.
+  it("a plain toast never carries the previous toast's Undo", async () => {
+    // Four already thrown away unread by hand: the next archive from this
+    // sender is what puts the "always quiet this sender" offer on screen.
+    for (const _ of [1, 2, 3, 4]) recordToss("no@dd.com", true);
+    const unreadPromo: GmailThreadMeta[] = [
+      { id: "t2", messages: [msg("m3", "DoorDash <no@dd.com>", "20% off", "Order now", ["INBOX", "UNREAD"], 200)] },
+    ];
+    const ddFull = {
+      id: "t2",
+      messages: [{ id: "m3", threadId: "t2", snippet: "", payload: { mimeType: "text/plain", body: { data: btoa("Order now") },
+        headers: [{ name: "From", value: "DoorDash <no@dd.com>" }, { name: "Subject", value: "20% off" }, { name: "Message-ID", value: "<d@x>" }] } }],
+    };
+    // The offers live in the triaged list, so this one runs with AI.
+    const ai = aiReturning(JSON.stringify([{ id: "t2", bucket: "needs_you", gist: "DoorDash wants an answer." }]));
+    render(wrap(<MessagesFlow ai={ai} configured />, makeApi({ listThreads: async () => unreadPromo, getThread: async () => ddFull })));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    // Triaged rows lead with the gist, so that is what the row reads as.
+    fireEvent.click(await screen.findByText("DoorDash wants an answer."));
+    // Wait for the detail view before reaching for its nav actions.
+    await screen.findByText("Mute This Thread");
+    fireEvent.click(screen.getByLabelText("Archive"));
+    // The archive's own toast: reversible, so it offers the way back.
+    expect(await screen.findByText("Archived")).toBeInTheDocument();
+    expect(screen.getByText("Undo")).toBeInTheDocument();
+    // A different, unrelated toast, well inside the six seconds.
+    fireEvent.click(await screen.findByText("Yes, file them"));
+    expect(await screen.findByText("Straight to Noise from now on")).toBeInTheDocument();
+    expect(screen.queryByText("Undo")).toBeNull();
   });
 
   // EMAIL-F-18 (2026-09-05): "Only 30 threads per account are ever loaded;
