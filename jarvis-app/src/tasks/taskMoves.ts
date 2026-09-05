@@ -40,6 +40,11 @@ interface ScheduleWriter {
 // ADD TO SCHEDULE. The next free slot on the task's due day, or today, as a
 // one-hour block. Returns false when the task has vanished underneath us,
 // which the caller reports rather than silently doing nothing.
+//
+// LIFE-F-04 (2026-09-05): the day is the due day only while the due day is
+// still ahead. An overdue task used to book its block on the date it was due,
+// so the one move you most want on a late task put an hour on a day that is
+// already gone and nothing showed up on today.
 export async function scheduleTask(
   taskId: string,
   today: string,
@@ -49,7 +54,7 @@ export async function scheduleTask(
 ): Promise<{ ok: boolean; date?: string; start?: string }> {
   const t = await tasks.task(taskId);
   if (!t) return { ok: false };
-  const date = t.due || today;
+  const date = t.due && t.due >= today ? t.due : today;
   const start = nextFreeSlot(await schedule.eventsOn(date) as never, date, now);
   await schedule.createEvent(t.text, {
     date,
