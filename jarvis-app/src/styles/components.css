@@ -4316,6 +4316,12 @@ body.selecting .voice-dock { display: none; }
 .form-sheet .row.xs-strip .swatch-row { margin: 0; }
 .form-sheet .row.xs-strip .icpick { background: var(--press-3); }
 .form-sheet .row.xs-strip .icpick.sel { background: var(--sel-bg); color: var(--sel-fg); }
+/* BROWSER-F-02 (2026-09-05): the strip rule above (0,4,0) outranks
+   .chip.active (0,2,0) for the background only, so a picked chip kept the
+   inverted --sel-fg on the grey --press-3: black on rgb(70,70,72), 2.2:1,
+   the one chip in the row he could not read. Same pairing the icpick
+   already carries. 21:1 dark, 15.8:1 light. */
+.form-sheet .row.xs-strip .chip.active, .form-sheet .row.xs-strip .chip.on { background: var(--sel-bg); color: var(--sel-fg); }
 .form-sheet .row.xs-strip .auto-line { padding: 0; }
 .form-sheet .row.xs-strip .auto-text { margin-top: var(--s-1h); }
 .form-sheet .xs-days { flex: 1; min-width: 0; text-align: right; font-size: 15px; color: var(--tx-2); }
