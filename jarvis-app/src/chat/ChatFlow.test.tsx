@@ -53,7 +53,12 @@ describe("ChatFlow capture undo (S4-Q23)", () => {
     sendText("I never work out on Sundays");
     await waitFor(() => expect(screen.getByText(/^JARVIS will remember that:/)).toBeInTheDocument());
     // The reply's own provenance line claims this.
-    expect(screen.getByText("Done · Undo on the toast")).toBeInTheDocument();
+    // SHELL-F-26 (2026-09-05): the bubble used to promise "Undo on the
+    // toast" under every stored action, including yesterday's, and a toast
+    // lives five seconds. The Undo below is real; the bubble no longer says
+    // where it is long after it is gone.
+    expect(screen.getByText("Done")).toBeInTheDocument();
+    expect(screen.queryByText("Done · Undo on the toast")).not.toBeInTheDocument();
 
     await waitFor(() => expect(showToast).toHaveBeenCalledTimes(1));
     const call = showToast.mock.calls[0]![0] as { message: string; actionLabel: string; onAction: () => Promise<void> };

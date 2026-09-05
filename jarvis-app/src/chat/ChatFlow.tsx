@@ -242,7 +242,11 @@ export default function ChatFlow() {
     const p = m.data.provenance;
     if (!p) return null;
     if (p.kind === "ai") return "From your data + AI";
-    if (p.kind === "action") return "Done · Undo on the toast";
+    // SHELL-F-26 (2026-09-05): this said "Done · Undo on the toast" under
+    // every stored action bubble, including yesterday's, and a toast lives
+    // five seconds. The Undo is real (S4-Q23 wired it) but it is on the
+    // toast, not on the bubble, so the bubble stops promising it.
+    if (p.kind === "action") return "Done";
     if (p.refs && p.refs.length > 0) return "From your records";
     return "From your records";
   };

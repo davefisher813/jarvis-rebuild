@@ -8,9 +8,9 @@ import { SUPPORT_EMAIL } from "./support";
 // build actually does, and one of them (open receipts) is the policy line
 // that licenses that feature having a switch at all. A policy that says less
 // than the app does is the failure this finding is about.
-export default function PrivacyPage({ onBack }: { onBack: () => void }) {
+export default function PrivacyPage({ onBack, back }: { onBack: () => void; back?: string }) {
   return (
-    <LegalScreen title="Privacy Policy" updated="July 9, 2026" onBack={onBack}>
+    <LegalScreen title="Privacy Policy" updated="July 9, 2026" onBack={onBack} back={back}>
       <p>JARVIS is a personal productivity app. This policy explains what we collect, why, and what we never do with it. The short version: your data exists to run your app, and for nothing else.</p>
       <h4 className="legal-h">What We Collect</h4>
       <p><b>Account information.</b> Your email address, used to sign you in.</p>

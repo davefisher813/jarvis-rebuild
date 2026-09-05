@@ -6,9 +6,9 @@ import { SUPPORT_EMAIL } from "./support";
 // launch. Email: support@your-domain.com"), on a screen reachable from Sign
 // In. It is the help page published at public/support.html now, with the
 // address that page has always carried.
-export default function SupportPage({ onBack }: { onBack: () => void }) {
+export default function SupportPage({ onBack, back }: { onBack: () => void; back?: string }) {
   return (
-    <LegalScreen title="Support" onBack={onBack}>
+    <LegalScreen title="Support" onBack={onBack} back={back}>
       <p>Need help with JARVIS? You're in the right place.</p>
       <h4 className="legal-h">Common Fixes</h4>
       <p><b>App looks out of date or blank.</b> Fully close the app and reopen it twice; it self-updates.</p>

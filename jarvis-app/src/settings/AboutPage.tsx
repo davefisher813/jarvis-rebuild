@@ -12,7 +12,14 @@ export default function AboutPage({ onBack, onTerms, onPrivacy, onSupport, onSec
       <LargeTitleNav title="About" back="Settings" onBack={onBack} />
       <div className="pad-x"><div className="card list-card-ruled set-card about-hero">
         <div className="brand-mark"><span className="j">J</span>ARVIS</div>
-        <div className="account-sub" onClick={bump}>Version 1.0</div>
+        {/* SHELL-F-26 (2026-09-05): this read "Version 1.0" forever, on every
+            build, while Settings > Advanced showed the real one two taps
+            away. There is no version number to show (package.json has none),
+            so it shows what actually identifies a build, the same stamp
+            Advanced shows. Still the door to the test bench at five taps. */}
+        <div className="account-sub" onClick={bump}>
+          {typeof __BUILD_ID__ === "string" ? `Build ${__BUILD_ID__} · ${__BUILD_DATE__}` : "Build dev"}
+        </div>
       </div></div>
       <Head label="Legal" />
       <Card>

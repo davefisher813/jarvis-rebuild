@@ -43,7 +43,9 @@ describe("SignIn legal links", () => {
     // SHELL-F-19 (2026-09-05): the numbered template sections were replaced
     // by the reviewed Terms published at public/terms.html.
     expect(screen.getByText("Acceptable Use")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("About"));
+    // SHELL-F-26 (2026-09-05): the back button used to say "About", a screen
+    // nobody who is signing in has ever seen.
+    fireEvent.click(screen.getByText("Sign In"));
     expect(screen.getByText("Welcome to JARVIS")).toBeInTheDocument();
   });
 

@@ -61,8 +61,10 @@ export default function SignIn() {
     }
   };
 
-  if (legal === "terms") return <TermsPage onBack={() => setLegal(null)} />;
-  if (legal === "privacy") return <PrivacyPage onBack={() => setLegal(null)} />;
+  // SHELL-F-26 (2026-09-05): from here the back button used to say "About",
+  // a screen nobody signed out has ever seen.
+  if (legal === "terms") return <TermsPage onBack={() => setLegal(null)} back="Sign In" />;
+  if (legal === "privacy") return <PrivacyPage onBack={() => setLegal(null)} back="Sign In" />;
 
   if (view === "email") {
     return (

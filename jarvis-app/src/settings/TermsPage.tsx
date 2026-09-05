@@ -6,9 +6,9 @@ import { SUPPORT_EMAIL } from "./support";
 // reviewed Terms already published at public/terms.html, kept in step with it
 // so the page a person reads in the app and the page they read on the web are
 // the same agreement.
-export default function TermsPage({ onBack }: { onBack: () => void }) {
+export default function TermsPage({ onBack, back }: { onBack: () => void; back?: string }) {
   return (
-    <LegalScreen title="Terms of Service" updated="July 9, 2026" onBack={onBack}>
+    <LegalScreen title="Terms of Service" updated="July 9, 2026" onBack={onBack} back={back}>
       <p>These terms are a plain-language agreement between you and JARVIS ("we"). By creating an account or using the app, you agree to them.</p>
       <h4 className="legal-h">The Service</h4>
       <p>JARVIS is a personal productivity app: tasks, schedule, notes, and related features, with optional AI assistance. We work to keep it available and improving, but it is provided "as is", without warranties, and features may change.</p>
