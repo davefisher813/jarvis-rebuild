@@ -459,6 +459,31 @@ describe("a fact lands in the Brain, not on a list", () => {
     expect(await deps.strandsSvc.list()).toHaveLength(1);
   });
 
+  // SHELL-F-02 (2026-09-05): the audit's repro. Refiling a task to Fact
+  // with the target bucket full used to delete the task FIRST and then be
+  // refused by strands.add, leaving nothing anywhere. The refusal now costs
+  // nothing: null back, task still there.
+  it("refile to Fact when the Brain is full refuses and keeps the original", async () => {
+    const deps = rigWithStrands({ n: 0 });
+    const [saved] = await smartPasteSave("call the plumber back", deps);
+    expect(saved!.kind).toBe("task");
+    // "call the plumber back" matches no fact shape, so it files under values.
+    for (let i = 0; i < 12; i++) await deps.strandsSvc.add("fact " + i, "values", TODAY);
+    const next = await refileSaved(saved!, "fact", deps);
+    expect(next).toBeNull();
+    expect(await deps.tasks.listTasks()).toHaveLength(1);
+    expect(await deps.tasks.task(saved!.id)).not.toBeNull();
+    expect(await deps.strandsSvc.list()).toHaveLength(12);
+  });
+
+  it("refile to Fact with no Brain at all refuses and keeps the original", async () => {
+    const deps = rig({ n: 0 }, false);
+    const [saved] = await smartPasteSave("call the plumber back", deps);
+    const next = await refileSaved(saved!, "fact", deps);
+    expect(next).toBeNull();
+    expect(await deps.tasks.task(saved!.id)).not.toBeNull();
+  });
+
   it("says so when the genome is full instead of pretending nothing was read", async () => {
     const deps = rigWithStrands({ n: 0 });
     // Fill the values category to its cap (12) with told strands.

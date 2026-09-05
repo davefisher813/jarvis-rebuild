@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider, useOptionalStrands } from "../data/NotesProvider";
+import { NotesProvider, useOptionalStrands, useTasks } from "../data/NotesProvider";
 import { AIService } from "../ai/AIService";
 import QuickCapture from "./QuickCapture";
 import { recordCapture } from "../paste/captureLog";
@@ -22,8 +22,10 @@ vi.mock("../shared/toast", () => ({ showToast: (...a: unknown[]) => showToast(..
 beforeEach(() => localStorage.clear());
 
 let strandsRef: ReturnType<typeof useOptionalStrands> | null = null;
+let tasksRef: ReturnType<typeof useTasks> | null = null;
 function CaptureStrands() {
   strandsRef = useOptionalStrands();
+  tasksRef = useTasks();
   return null;
 }
 
@@ -175,6 +177,39 @@ describe("QuickCapture fact category chips (S4-Q22)", () => {
     expect(screen.getByText("Fact · Routine · From your paste")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "Routine" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "Energy" })).toHaveAttribute("aria-checked", "false");
+  });
+
+  // SHELL-F-02 (2026-09-05): the Fact chip on a saved task, with the Brain
+  // full. This used to delete the task and say nothing. Now it says the
+  // Brain is full, the receipt keeps saying Task, and the task is still in
+  // Tasks.
+  it("refiling a task to Fact when the Brain is full says so and keeps the task", async () => {
+    showToast.mockClear();
+    render(
+      <NotesProvider userId="u-refile-full">
+        <CaptureStrands />
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    await waitFor(() => expect(strandsRef).toBeTruthy());
+    await act(async () => {
+      // "call the plumber back" matches no fact shape, so it would file
+      // under values: fill that bucket to its cap.
+      for (let i = 0; i < 12; i++) await strandsRef!.add("v " + i, "values", "2026-01-01");
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "call the plumber back" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    expect(screen.getByRole("radio", { name: "Task" })).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(screen.getByRole("radio", { name: "Fact" }));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: "The Brain is full · Prune it in What JARVIS Knows" }));
+
+    expect(screen.getByRole("radio", { name: "Task" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: "Fact" })).toHaveAttribute("aria-checked", "false");
+    expect(await strandsRef!.list()).toHaveLength(12);
+    expect(await tasksRef!.listTasks()).toHaveLength(1);
   });
 });
 

@@ -234,16 +234,25 @@ export async function undoSaved(s: SavedEntity, deps: Pick<PasteDeps, "tasks" | 
   else await deps.notes.deleteNote(s.id);
 }
 
-// Refile to another kind: delete the created record, recreate as the target
-// kind with the same facts and the same paste provenance. Returns the new
-// entity for the receipt to keep tracking.
+// Refile to another kind: recreate as the target kind with the same facts and
+// the same paste provenance, then delete the created record. Returns the new
+// entity for the receipt to keep tracking, or null when the target lane
+// REFUSED (a full Brain, or no Brain at all), in which case the original is
+// exactly where it was.
+//
+// SHELL-F-02 (2026-09-05): this used to delete first and create second, so a
+// refusal from strands.add (twelve per bucket) left the person with nothing:
+// the task gone from Tasks, no strand in the Brain, and a Recent Captures row
+// that opened nothing. The target is now written before the original is
+// touched; a refusal costs nothing and a null return means "refused", never
+// "half done".
 export async function refileSaved(
   s: SavedEntity,
   toKind: SavedEntity["kind"],
   deps: PasteDeps,
 ): Promise<SavedEntity | null> {
   if (toKind === s.kind) return s;
-  await undoSaved(s, deps);
+  let next: SavedEntity;
   // Refiling INTO the Brain: the sentence becomes a told-rank strand. The
   // category comes from the same classifier the lane uses, so a line the
   // shapes did not match still gets a sensible bucket rather than none.
@@ -252,21 +261,29 @@ export async function refileSaved(
     const cat = selfFact(s.raw ?? s.title)?.category ?? "values";
     const id = await deps.strands.add(s.raw ?? s.title, cat, deps.today);
     if (!id) return null;
-    const next: SavedEntity = { ...s, id, kind: "fact", factCategory: cat };
-    recordCapture({ id, kind: "fact", title: next.title, ts: Date.now() });
-    return next;
+    next = { ...s, id, kind: "fact", factCategory: cat };
+  } else {
+    const result: CaptureResult = {
+      kind: toKind,
+      title: s.title,
+      ...(s.date ? { date: s.date } : {}),
+      ...(s.start ? { start: s.start } : {}),
+      ...(toKind === "note" ? { notes: s.title } : {}),
+    };
+    const { id } = await applyCapture(result, deps, deps.categories, deps.today, madeBy("paste"));
+    if (!id) return null;
+    next = { ...s, id, kind: toKind };
   }
-  const result: CaptureResult = {
-    kind: toKind,
-    title: s.title,
-    ...(s.date ? { date: s.date } : {}),
-    ...(s.start ? { start: s.start } : {}),
-    ...(toKind === "note" ? { notes: s.title } : {}),
-  };
-  const { id } = await applyCapture(result, deps, deps.categories, deps.today, madeBy("paste"));
-  if (!id) return null;
-  const next: SavedEntity = { ...s, id, kind: toKind };
-  recordCapture({ id, kind: toKind, title: s.title, ts: Date.now() });
+  try {
+    await undoSaved(s, deps);
+  } catch (e) {
+    // The target landed but the original would not go. Take the copy back
+    // so the person is not left with two, then let the caller's guard say
+    // "couldn't save" about the one thing that is still there.
+    try { await undoSaved(next, deps); } catch { /* the original still stands; the receipt keeps tracking it */ }
+    throw e;
+  }
+  recordCapture({ id: next.id, kind: next.kind, title: next.title, ts: Date.now() });
   return next;
 }
 

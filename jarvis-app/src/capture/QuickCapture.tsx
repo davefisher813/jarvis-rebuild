@@ -8,7 +8,7 @@ import type { AIService } from "../ai/AIService";
 import type { Category } from "../categories/types";
 import { smartPasteSave, undoSaved, refileSaved, recategorizeSaved, recategorizeFact, type SavedEntity } from "../paste/smartPaste";
 import { pasteSeenAge, readRecentCaptures, dropCapture, type RecentCapture } from "../paste/captureLog";
-import { attemptWrite } from "../shared/guard";
+import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import { weekdayLongDate, shortDateFromMs } from "../shared/dateFormat";
@@ -123,11 +123,20 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
     if (left.length === 0) setPhase("input");
   };
 
+  // SHELL-F-02 (2026-09-05): a null from refileSaved is a REFUSAL by the
+  // target lane (the Brain at its cap), and the original is untouched. It
+  // used to be swallowed here, on top of the pipeline having already
+  // deleted the original, so the chip did nothing and the task was gone.
+  // Now the same honest line onFactCat says for the same refusal.
   const onKind = async (s: SavedEntity, kind: SavedEntity["kind"]) => {
     if (kind === s.kind) return;
     let next: SavedEntity | null = null;
     const ok = await attemptWrite(async () => { next = await refileSaved(s, kind, deps(cats)); });
-    if (!ok || !next) return;
+    if (!ok) return;
+    if (!next) {
+      showToast({ message: kind === "fact" ? "The Brain is full · Prune it in What JARVIS Knows" : WRITE_FAILED_MESSAGE });
+      return;
+    }
     dropCapture(s.id);
     setSaved(saved.map((x) => (x.id === s.id ? next! : x)));
   };
@@ -240,7 +249,10 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                     <button className="btn-sm" onClick={() => void onUndo(s)}>Undo</button>
                   </div>
                   <div className="chip-row">
-                    {KINDS.map((k) => (
+                    {/* SHELL-F-02: no Brain, no Fact chip. Offering a lane
+                        that cannot take the record is a chip that can only
+                        refuse. */}
+                    {KINDS.filter((k) => k !== "fact" || strands).map((k) => (
                       <div key={k} className={"chip" + (s.kind === k ? " active" : "")} role="radio" aria-checked={s.kind === k} tabIndex={0} onClick={() => void onKind(s, k)}>{KIND_LABEL[k]}</div>
                     ))}
                     {/* A strand does not use the app's category taxonomy, so
