@@ -2,7 +2,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { handoffTargets, defaultNote, forwardSubject, forwardDraft, handoffLine, handoffPrompt } from "./handoff";
 import { parseCommitment, commitmentLine, alreadyPromised, markPromised } from "./commitments";
-import { todayEmailLine, needsYouCount, type TriageMap } from "./triage";
 
 const person = (name: string, email?: string, relationship?: string) =>
   ({ data: { name, ...(email ? { email } : {}), ...(relationship ? { relationship } : {}) } });
@@ -128,27 +127,3 @@ describe("commitment catcher", () => {
   });
 });
 
-describe("today line", () => {
-  beforeEach(() => localStorage.clear());
-
-  it("says nothing at all when nothing needs him", () => {
-    expect(todayEmailLine(0, 0)).toBe("");
-  });
-
-  it("counts people, and mentions the prepared replies when they exist", () => {
-    // SPEC MOVED (short copy, 2026-08-15)
-    expect(todayEmailLine(1, 0)).toBe("1 Email needs you");
-    expect(todayEmailLine(2, 2)).toBe("2 Emails need you · replies written");
-    expect(todayEmailLine(1, 1)).toBe("1 Email needs you · reply written");
-  });
-
-  it("reads the count straight off the cache so Today never waits", () => {
-    const map: TriageMap = {
-      a: { bucket: "needs_you", gist: "", lastMsgId: "1" },
-      b: { bucket: "noise", gist: "", lastMsgId: "2" },
-      c: { bucket: "needs_you", gist: "", lastMsgId: "3" },
-    };
-    expect(needsYouCount(map)).toBe(2);
-    expect(needsYouCount({})).toBe(0);
-  });
-});

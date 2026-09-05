@@ -77,10 +77,9 @@ export function linkThread(
   return { ...cur };
 }
 
-// Threads belonging to one project, for the project page to show.
-export function threadsFor(map: LinkMap, type: LinkType, id: string): string[] {
-  return Object.entries(map).filter(([, l]) => l.type === type && l.id === id).map(([t]) => t);
-}
+// EMAIL-F-29 (2026-09-05): threadsFor returned bare thread ids and nothing
+// called it; linkedThreadsFor below is the one the project page reads,
+// because an id with no subject is not a row anybody can render.
 
 // EMAIL-F-19 (2026-09-05): "Project link chips are write-only: nothing ever
 // reads a thread's project." The chip has written this map since N7 and the

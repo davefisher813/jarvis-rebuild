@@ -163,7 +163,8 @@ export function minLabel(startMin: number): string {
   const NB = "\u00A0";
   return m === 0 ? `${h12}${NB}${ap}` : `${h12}:${String(m).padStart(2, "0")}${NB}${ap}`;
 }
-export const hourLabel = (h: number) => minLabel(h * 60);
+// EMAIL-F-29 (2026-09-05): hourLabel was a whole-hour wrapper on minLabel
+// with no caller; the windows sheet passes minutes.
 
 export const DAY_LETTER = ["S", "M", "T", "W", "T", "F", "S"];
 const DAY_NAME = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

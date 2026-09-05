@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  getTodayOutbox, subscribeTodayOutbox, enqueueTodaySend, removeTodaySend, markTodaySendState,
+  getTodayOutbox, enqueueTodaySend, removeTodaySend, markTodaySendState,
   resetTodayOutboxForTest, type TodaySend,
 } from "./todayOutbox";
 
@@ -27,17 +27,6 @@ describe("todayOutbox: the Today card's own hold", () => {
     const raw = JSON.parse(localStorage.getItem("jarvis.today.outbox.v1") || "[]") as TodaySend[];
     expect(raw).toHaveLength(1);
     expect(raw[0]!.to).toBe("a@b.com");
-  });
-
-  it("notifies subscribers on every change, and hands the current list on subscribe", () => {
-    const seen: number[] = [];
-    const unsub = subscribeTodayOutbox((items) => seen.push(items.length));
-    expect(seen).toEqual([0]); // fired immediately with whatever is there
-    enqueueTodaySend({ to: "a@b.com", subject: "s", body: "b", todayKind: "chase" });
-    expect(seen).toEqual([0, 1]);
-    unsub();
-    enqueueTodaySend({ to: "c@d.com", subject: "s2", body: "b2", todayKind: "reply" });
-    expect(seen).toEqual([0, 1]); // unsubscribed: no further pushes
   });
 
   it("removeTodaySend takes exactly the one item, leaving the rest", () => {

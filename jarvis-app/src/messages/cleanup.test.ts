@@ -37,16 +37,11 @@ describe("mute", () => {
 describe("unsubscribe", () => {
   it("prefers mailto, which is the unambiguous one", () => {
     const u = parseUnsub("<mailto:stop@x.com?subject=unsub%20me>, <https://x.com/u/1>");
-    expect(u).toEqual({ kind: "mailto", target: "stop@x.com", subject: "unsub me", oneClick: false });
+    expect(u).toEqual({ kind: "mailto", target: "stop@x.com", subject: "unsub me" });
   });
 
   it("falls back to the web endpoint", () => {
     expect(parseUnsub("<https://x.com/u/1>")?.kind).toBe("http");
-  });
-
-  it("notices a genuine one-click sender", () => {
-    const u = parseUnsub("<https://x.com/u/1>", "List-Unsubscribe=One-Click");
-    expect(u?.oneClick).toBe(true);
   });
 
   it("returns nothing rather than guessing", () => {

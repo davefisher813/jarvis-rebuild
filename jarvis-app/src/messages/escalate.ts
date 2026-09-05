@@ -1,89 +1,18 @@
-// THE ESCALATION LADDER (N13, Dave 2026-08-20).
+// THE ESCALATION LADDER'S COUNTER (N13, Dave 2026-08-20).
 //
 // Fifty-five days deserves a different tone than three. One nudge template
 // for every wait is why follow-ups stop working: the second one reads exactly
 // like the first, so the reader learns that nothing changes if they ignore it.
 //
-// Laws:
-//   - The tone escalates. The BLAME never does. Every rung assumes they are
-//     busy; none of them mentions how many times he has asked, because that
-//     is an argument, and he wants an answer.
-//   - The last rung is not a harder email. It is a different channel, because
-//     three ignored emails is evidence that email is not working.
-//   - The rung comes from the WAIT, which is derived, so it cannot be gamed
-//     by sending more nudges.
+// EMAIL-F-29 (2026-09-05): the ladder itself now lives in mailAction.ts,
+// which derives the rung from the thread rather than from the wait alone.
+// The copy that used to sit here (Rung, Channel, Ladder, RUNG_AT, rungFor,
+// LadderOpts, ladderFor) had no caller but its own test, and two RUNG_AT
+// constants in one module tree is a drift waiting to happen. What is left is
+// the half mailAction reads: how many nudges have actually gone out per
+// thread, so the ladder climbs even when the wait clock is short because he
+// chased early. The count is a count, never a run.
 
-export type Rung = "gentle" | "direct" | "switch";
-
-// What tapping the button actually DOES. Added 2026-08-21 because the top
-// rung said "Try Calling" and opened a compose window: the button was lying
-// about its own channel, five times in a row, in a list where every row was
-// at the top rung. A label may only promise what the handler performs.
-export type Channel = "email" | "call";
-
-export interface Ladder {
-  rung: Rung;
-  channel: Channel;   // what the tap does, not what the tap suggests
-  label: string;      // what the button says
-  instruction: string; // what the drafter is told
-  note: string;       // why this rung, said ONCE at section level
-}
-
-export const RUNG_AT = { direct: 7, switch: 21 };
-
-export function rungFor(waitingDays: number, nudgesSent = 0): Rung {
-  if (waitingDays >= RUNG_AT.switch || nudgesSent >= 2) return "switch";
-  if (waitingDays >= RUNG_AT.direct || nudgesSent >= 1) return "direct";
-  return "gentle";
-}
-
-export interface LadderOpts {
-  // A phone number we actually hold for the person who owes the reply. With
-  // one, the top rung dials. Without one, the top rung is honest about being
-  // an email that ASKS for a call.
-  hasPhone?: boolean;
-}
-
-export function ladderFor(waitingDays: number, nudgesSent = 0, opts: LadderOpts = {}): Ladder {
-  const rung = rungFor(waitingDays, nudgesSent);
-  if (rung === "switch") {
-    if (opts.hasPhone) {
-      return {
-        rung,
-        channel: "call",
-        label: "Call",
-        instruction: "Write two sentences that offer a call instead, and give a concrete window this week. Do not restate the original question and do not reference the history of this request.",
-        note: "Email isn't working here",
-      };
-    }
-    return {
-      rung,
-      channel: "email",
-      label: "Ask To Call",
-      instruction: "Write two sentences that offer a call instead, and give a concrete window this week. Do not restate the original question and do not reference the history of this request.",
-      note: "Email isn't working here",
-    };
-  }
-  if (rung === "direct") {
-    return {
-      rung,
-      channel: "email",
-      label: "Nudge Firmly",
-      instruction: "One or two sentences, direct and specific. Name exactly what you need and by when. Stay warm. Do not reference the history of this request at all.",
-      note: "Direct, still warm",
-    };
-  }
-  return {
-    rung,
-    channel: "email",
-    label: "Nudge",
-    instruction: "One or two sentences. Light and easy to answer. Assume they are busy.",
-    note: "Light touch",
-  };
-}
-
-// Nudges actually sent per thread, so the ladder climbs even when the wait
-// clock is short because he chased early.
 const KEY = "jarvis.mail.nudges.v1";
 
 export function loadNudgeCounts(storage: Pick<Storage, "getItem"> = localStorage): Record<string, number> {

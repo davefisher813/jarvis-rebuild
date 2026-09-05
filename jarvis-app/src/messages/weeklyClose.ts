@@ -60,9 +60,9 @@ export function closeLine(set: CloseSet): string {
   return capAfterNumber(`${set.count} nobody chased · ${who}`);
 }
 
-export function closeReceipt(set: CloseSet): string {
-  return capAfterNumber(`${set.count} archived · Still searchable in Gmail`);
-}
+// EMAIL-F-29 (2026-09-05): closeReceipt had no caller. MessagesFlow builds
+// the archived-batch receipt from the ClosedBatch it just wrote, which is the
+// only place that knows the write resolved.
 
 // Sunday, or the first open of a new week. Weekly, not daily: a close offered
 // every morning is the pile with a new name.

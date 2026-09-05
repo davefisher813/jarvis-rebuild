@@ -346,21 +346,6 @@ export function sortByDeadline(rows: ThreadRow[], map: TriageMap, now = new Date
   });
 }
 
-// The Today line. Email stops being a destination: one sentence on the Today
-// page says where it stands, and only appears when something actually needs
-// him. Silence when the answer is "nothing", a card that says "0 emails need
-// you" is still a thing to read.
-export function todayEmailLine(needsYou: number, replied: number): string {
-  if (needsYou <= 0) return "";
-  const who = capAfterNumber(needsYou === 1 ? "1 email needs you" : needsYou + " emails need you");
-  if (replied >= needsYou && needsYou > 0) {
-    return who + " · " + (needsYou === 1 ? "reply written" : "replies written");
-  }
-  return who;
-}
-
-// Counts straight off the cache, so Today never waits on the network or the
-// AI. Cache-only is the point: this line must render instantly or not at all.
-export function needsYouCount(map: TriageMap = loadTriageCache()): number {
-  return Object.values(map).filter((t) => t.bucket === "needs_you").length;
-}
+// EMAIL-F-29 (2026-09-05): todayEmailLine and needsYouCount were written for
+// a Today mail line that shipped as MailNotices instead, which counts and
+// phrases its own rows. Neither had a caller outside relief2.test.ts.

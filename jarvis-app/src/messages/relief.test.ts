@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { cleanBody, isLong, leadIn, wordCount } from "./bodyText";
 import { byRank, sortByDeadline, type TriageMap } from "./triage";
 import { recordToss, tossOffer, tossLine, markAsked, TOSS_THRESHOLD } from "./selfClean";
-import { loadMinutes, saveMinutes, clampMinutes, fmtClock, drainReceipt } from "./drain";
+import { loadMinutes, saveMinutes, clampMinutes, fmtClock } from "./drain";
 import type { ThreadRow } from "../connections/google/map";
 
 const GRAMMARLY = `Grammarly Upgrade to Pro and write with confidence.
@@ -159,9 +159,4 @@ describe("the drain", () => {
     expect(fmtClock(-5000)).toBe("0:00");
   });
 
-  it("reports what got done and nothing about the remainder", () => {
-    const r = drainReceipt(4, 5);
-    expect(r).toBe("4 Handled in 5 minutes");
-    expect(r).not.toMatch(/left|remaining|still|other/i);
-  });
 });

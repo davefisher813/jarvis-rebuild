@@ -1,16 +1,16 @@
 import { describe, it, expect } from "vitest";
 import { parseMeetingTimes, optionsAgainst, firstFree, meetingLine, acceptBody, meetingPrompt, mightProposeTimes } from "./meetingTimes";
 import { attachKind, amountIn, attachOffer } from "./attachmentKind";
-import { loadChases, setChase, clearChase, dueChases, chaseLine, addDays } from "./followUp";
+import { loadChases, setChase, clearChase, dueChases, addDays } from "./followUp";
 import { loadVips, toggleVip, isVip, applyVips, vipLine, VIP_MAX } from "./vip";
 import { collapseNoise, collapseLine } from "./collapse";
-import { rungFor, ladderFor, loadNudgeCounts, countNudge } from "./escalate";
-import { loadLinks, linkThread, threadsFor } from "./threadLink";
+import { loadNudgeCounts, countNudge } from "./escalate";
+import { loadLinks, linkThread, linkedThreadsFor } from "./threadLink";
 import { staleDrafts, staleLine, loadOffered, markOffered } from "./staleDrafts";
 import { shouldAutoReply, autoReplyBody, loadAutoState, markAutoReplied } from "./autoReply";
 import { parseSaid, saidQuery, saidPrompt, saidEmpty } from "./saidWhat";
 import { speakable, speak } from "./readAloud";
-import { closeCandidates, closeLine, closeReceipt, closeDue, markClosed, lastClose } from "./weeklyClose";
+import { closeCandidates, closeLine, closeDue, markClosed, lastClose } from "./weeklyClose";
 import { sweepCandidates, sweepTitle, sweepSub, sweepReceipt } from "./unsubSweep";
 import { asksIn, promisedAttachment, suggestAttachment, suggestLine } from "./attachSuggest";
 import type { EventItem } from "../schedule/types";
@@ -143,12 +143,6 @@ describe("chase me if they don't reply", () => {
     expect(loadChases({ getItem: () => "{" })).toEqual([]);
   });
 
-  it("counts down in plain words", () => {
-    expect(chaseLine({ threadId: "t", to: "R", subject: "S", dueISO: "2026-08-20", setISO: "2026-08-17" }, "2026-08-20")).toBe("Chasing today");
-    expect(chaseLine({ threadId: "t", to: "R", subject: "S", dueISO: "2026-08-21", setISO: "2026-08-18" }, "2026-08-20")).toBe("Chasing tomorrow");
-    expect(chaseLine({ threadId: "t", to: "R", subject: "S", dueISO: "2026-08-23", setISO: "2026-08-20" }, "2026-08-20")).toBe("Chasing in 3 days");
-  });
-
   it("adds days across a month boundary", () => {
     expect(addDays("2026-08-30", 3)).toBe("2026-09-02");
   });
@@ -228,45 +222,10 @@ describe("same-sender collapse", () => {
 });
 
 // ---------------------------------------------------------------- N13
-describe("the escalation ladder", () => {
-  it("climbs with the wait", () => {
-    expect(rungFor(2)).toBe("gentle");
-    expect(rungFor(9)).toBe("direct");
-    expect(rungFor(55)).toBe("switch");
-  });
-
-  it("climbs with nudges already sent, even on a short wait", () => {
-    expect(rungFor(1, 1)).toBe("direct");
-    expect(rungFor(1, 2)).toBe("switch");
-  });
-
-  it("the last rung changes channel rather than raising its voice", () => {
-    expect(ladderFor(55).label).toBe("Ask To Call");
-    expect(ladderFor(55).instruction).toMatch(/call/i);
-    // THE BUTTON MAY ONLY PROMISE WHAT THE HANDLER DOES (2026-08-21).
-    // "Try Calling" opened a compose window. With a phone the top rung
-    // dials; without one it admits it is writing an email that asks.
-    expect(ladderFor(55, 0, { hasPhone: true }).label).toBe("Call");
-    expect(ladderFor(55, 0, { hasPhone: true }).channel).toBe("call");
-    expect(ladderFor(55).channel).toBe("email");
-    for (const d of [0, 3, 9, 55]) {
-      for (const hasPhone of [false, true]) {
-        const l = ladderFor(d, 0, { hasPhone });
-        // Only a label that IS the word Call may dial, and a dialing rung
-        // must be labelled Call.
-        expect(l.channel === "call").toBe(l.label === "Call");
-        expect(l.label).not.toBe("Try Calling");
-      }
-    }
-  });
-
-  it("never tells the drafter to shame anyone", () => {
-    for (const d of [1, 9, 55]) {
-      expect(ladderFor(d).instruction).not.toMatch(/how many times|remind(ed)? you|again/i);
-    }
-    expect(ladderFor(9).instruction).toMatch(/do not reference the history/i);
-  });
-
+// EMAIL-F-29 (2026-09-05): the rung and ladder cases moved out with the code
+// they covered. mailAction.ts owns the ladder now and mailAction.test.ts
+// carries its own version of the button-may-only-promise-what-it-does law.
+describe("the escalation ladder's counter", () => {
   it("counts nudges per thread", () => {
     const st = mem();
     countNudge("t1", st);
@@ -294,7 +253,7 @@ describe("linking a thread to a project", () => {
     linkThread("t1", { type: "project", id: "p1", label: "R" }, st);
     linkThread("t2", { type: "project", id: "p1", label: "R" }, st);
     linkThread("t3", { type: "goal", id: "p1", label: "G" }, st);
-    expect(threadsFor(loadLinks(st), "project", "p1").sort()).toEqual(["t1", "t2"]);
+    expect(linkedThreadsFor(loadLinks(st), "project", "p1").map((t) => t.threadId).sort()).toEqual(["t1", "t2"]);
   });
 
   it("survives garbage", () => {
@@ -497,7 +456,6 @@ describe("the Sunday close", () => {
     ]);
     const set = closeCandidates(rows, buckets, [], NOW);
     expect(closeLine(set)).toBe("4 Nobody chased · Supabase, Apple, LinkedIn and 1 other");
-    expect(closeReceipt(set)).toBe("4 Archived · Still searchable in Gmail");
   });
 
   it("offers weekly, not daily", () => {

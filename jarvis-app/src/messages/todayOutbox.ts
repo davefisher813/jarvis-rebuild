@@ -50,23 +50,20 @@ function persistTo(items: TodaySend[], storage: Pick<Storage, "setItem"> = local
 }
 
 let items: TodaySend[] = load();
-const subs = new Set<(items: TodaySend[]) => void>();
 
 function commit(next: TodaySend[]): void {
   items = next;
   persistTo(items);
-  subs.forEach((s) => s(items));
 }
 
 export function getTodayOutbox(): TodaySend[] {
   return items;
 }
 
-export function subscribeTodayOutbox(fn: (items: TodaySend[]) => void): () => void {
-  subs.add(fn);
-  fn(items);
-  return () => { subs.delete(fn); };
-}
+// EMAIL-F-29 (2026-09-05): subscribeTodayOutbox and the `subs` set commit()
+// fanned out to went together, because nothing ever subscribed. Every reader
+// (TodayOutboxPump, MailNotices, sendPump) calls getTodayOutbox on its own
+// render, so the fan-out was pushing to an empty set on every send.
 
 let seq = 0;
 function newId(): string {
@@ -110,5 +107,4 @@ export function markTodaySendState(id: string, state: OutboxState): void {
 export function resetTodayOutboxForTest(): void {
   items = [];
   persistTo(items);
-  subs.forEach((s) => s(items));
 }

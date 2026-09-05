@@ -18,14 +18,15 @@ export interface Unsub {
   kind: "mailto" | "http";
   target: string;   // the address, or the url
   subject?: string; // mailto subject when the sender specified one
-  oneClick: boolean; // List-Unsubscribe-Post: List-Unsubscribe=One-Click
+  // EMAIL-F-29 (2026-09-05): oneClick was parsed off List-Unsubscribe-Post
+  // and read nowhere. Nothing in the app takes the one-click path, so the
+  // field only ever claimed a capability. It comes back with the sender.
 }
 
 // The header looks like: <mailto:x@y.com?subject=unsub>, <https://a/b>
-export function parseUnsub(listUnsubscribe: string, listUnsubscribePost = ""): Unsub | null {
+export function parseUnsub(listUnsubscribe: string): Unsub | null {
   const raw = (listUnsubscribe || "").trim();
   if (!raw) return null;
-  const oneClick = /one-?click/i.test(listUnsubscribePost || "");
   const parts = [...raw.matchAll(/<([^>]+)>/g)].map((m) => m[1]!.trim());
   const candidates = parts.length ? parts : [raw];
   // mailto wins when both are offered: it is the unambiguous one.
@@ -34,13 +35,13 @@ export function parseUnsub(listUnsubscribe: string, listUnsubscribePost = ""): U
     const url = mail.slice(7);
     const [addr, query = ""] = url.split("?");
     const sub = /(?:^|&)subject=([^&]*)/i.exec(query);
-    const out: Unsub = { kind: "mailto", target: decodeURIComponent(addr || "").trim(), oneClick };
+    const out: Unsub = { kind: "mailto", target: decodeURIComponent(addr || "").trim() };
     if (sub) out.subject = decodeURIComponent(sub[1]!.replace(/\+/g, " "));
     if (!out.target || !out.target.includes("@")) return null;
     return out;
   }
   const web = candidates.find((c) => /^https?:\/\//i.test(c));
-  if (web) return { kind: "http", target: web, oneClick };
+  if (web) return { kind: "http", target: web };
   return null;
 }
 

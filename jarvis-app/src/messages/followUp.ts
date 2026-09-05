@@ -77,9 +77,5 @@ export function dueChases(chases: Chase[], todayISO: string, answered: string[])
   return chases.filter((c) => c.dueISO <= todayISO && !replied.has(c.threadId));
 }
 
-export function chaseLine(c: Chase, todayISO: string): string {
-  const days = Math.max(0, Math.round(
-    (new Date(c.dueISO + "T12:00:00").getTime() - new Date(todayISO + "T12:00:00").getTime()) / 86400e3));
-  if (days === 0) return "Chasing today";
-  return days === 1 ? "Chasing tomorrow" : `Chasing in ${days} days`;
-}
+// EMAIL-F-29 (2026-09-05): chaseLine ("Chasing in 3 days") had no caller; the
+// chase rows render their own line. Deleted rather than left to rot.

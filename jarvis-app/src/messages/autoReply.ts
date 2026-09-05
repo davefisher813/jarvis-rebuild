@@ -1,5 +1,4 @@
 import { AUTOMATED_ADDRESS } from "./noReply";
-import { JARVIS_VOICE } from "../ai/voice";
 
 // HEADS-DOWN AUTO-REPLY (N8, Dave 2026-08-20).
 //
@@ -99,11 +98,11 @@ export function autoReplyBody(backAt: string, name = ""): string {
   return `${who} heads down until ${backAt}. I'll come back to you then.`;
 }
 
-export const AUTO_REPLY_SUBJECT_PREFIX = "Re: ";
+// EMAIL-F-29 (2026-09-05): AUTO_REPLY_SUBJECT_PREFIX and AUTO_REPLY_SYSTEM
+// had no caller. The pump replies on the thread, so Gmail supplies the "Re:",
+// and autoReplyBody is deterministic text that never reaches a model.
 
 // Shown wherever the setting lives, so the promise and the guard are the
 // same sentence.
 export const AUTO_REPLY_EXPLAINER =
   "Only your VIPs, once each, and only while a focus block is running. It names the time you'll be back.";
-
-export const AUTO_REPLY_SYSTEM = JARVIS_VOICE;

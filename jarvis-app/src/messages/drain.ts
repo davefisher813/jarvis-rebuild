@@ -39,8 +39,5 @@ export function fmtClock(msLeft: number): string {
   return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 }
 
-// What got handled, and nothing else. No remainder, no percentage, no "but".
-export function drainReceipt(handled: number, minutes: number): string {
-  const what = capAfterNumber(handled === 1 ? "1 handled" : handled + " handled");
-  return what + " in " + minutes + (minutes === 1 ? " minute" : " minutes");
-}
+// EMAIL-F-29 (2026-09-05): drainReceipt had no caller. The deck writes its
+// own end-of-drain line from the counts it holds.

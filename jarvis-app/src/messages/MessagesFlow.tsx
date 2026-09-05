@@ -1603,7 +1603,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // a thread already fetched; the sweep never triggers a fetch of its own.
       const um = full.messages[full.messages.length - 1];
       if (um?.fromEmail) {
-        const u = parseUnsub(um.listUnsubscribe, um.listUnsubscribePost);
+        const u = parseUnsub(um.listUnsubscribe);
         if (u) setUnsubbable((prev) => (prev[um.fromEmail.toLowerCase()] ? prev : { ...prev, [um.fromEmail.toLowerCase()]: u }));
       }
       setRows((rs) => rs.map((r) => (r.id === id ? { ...r, unread: false } : r)));
@@ -1753,7 +1753,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // The receipt never claims success: some senders ignore it.
   const doUnsub = async (t: ThreadFull) => {
     const m = lastMsg(t);
-    const u = parseUnsub(m.listUnsubscribe, m.listUnsubscribePost);
+    const u = parseUnsub(m.listUnsubscribe);
     if (!u) return;
     // The receipt was careful not to claim the sender would comply, and then
     // claimed the REQUEST was made whether or not it was (2026-08-25): the
@@ -2819,7 +2819,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 Archive all {sweepCount(lastMsg(thread).fromEmail)} from this sender
               </button>
             )}
-            {parseUnsub(lastMsg(thread).listUnsubscribe, lastMsg(thread).listUnsubscribePost) && (
+            {parseUnsub(lastMsg(thread).listUnsubscribe) && (
               <button className="quiet-action" onClick={() => void doUnsub(thread)}>
                 {unsubLabel(lastMsg(thread).from)}
               </button>
