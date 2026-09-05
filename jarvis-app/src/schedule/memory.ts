@@ -1,4 +1,5 @@
 import type { EventItem } from "./types";
+import { addDays } from "./calendar";
 
 // Memory layer (roadmap v2, Session 3). Pure work-subtraction: everything the
 // user has typed once becomes a suggested default. No new surfaces, no new
@@ -142,9 +143,14 @@ export interface RepeatCandidate {
   count: number; // consecutive weeks including the new one
 }
 
-const DAY = 86400000;
+// SCHED-F-07 (2026-09-05): this used to subtract n * 7 * 86,400,000ms from
+// local midnight and read the date back through toISOString(), which is the
+// UTC day. East of Greenwich local midnight is still yesterday in UTC, so
+// every comparison date was off by one, never matched the stored local
+// dates, and "third Tuesday running, repeat weekly?" never fired in Berlin,
+// Kolkata or Auckland. addDays steps with setDate and formats locally.
 function weeksBack(date: string, n: number): string {
-  return new Date(new Date(date + "T00:00:00").getTime() - n * 7 * DAY).toISOString().slice(0, 10);
+  return addDays(date, -7 * n);
 }
 
 // "Three Tuesdays in a row -> make it repeating?" After saving a non-recurring

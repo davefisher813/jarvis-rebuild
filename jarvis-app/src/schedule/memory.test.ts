@@ -92,4 +92,30 @@ describe("repeatCandidate", () => {
     expect(repeatCandidate(hist, { title: "Piano Lesson", date: "2026-07-21", recurrence: "weekly" })).toBeNull();
     expect(repeatCandidate(hist, { title: "Piano Lesson", date: "2026-07-28" })).toBeNull();
   });
+
+  // SCHED-F-07 (2026-09-05): the look-back dates were read through
+  // toISOString(), the UTC day, so east of Greenwich they never matched the
+  // stored local dates and the offer never fired. Berlin is the repro. The
+  // America/New_York run spans the clocks-back Sunday (2026-11-01) and guards
+  // the setDate walk: a fixed 7 x 86,400,000ms step lands at 01:00 there,
+  // and one more hour of drift would name the wrong day.
+  it("fires east of UTC and across a clocks change", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Europe/Berlin";
+    try {
+      const r = repeatCandidate(hist, { title: "Piano Lesson", date: "2026-07-21" });
+      expect(r).toMatchObject({ title: "Piano Lesson", weekday: 2, count: 3 });
+    } finally {
+      process.env.TZ = prevTz;
+    }
+    process.env.TZ = "America/New_York";
+    try {
+      // 2026-10-27, 11-03, 11-10 are consecutive Tuesdays around the change.
+      const dst = [evt("Piano Lesson", { date: "2026-10-27" }), evt("Piano Lesson", { date: "2026-11-03" })];
+      const r = repeatCandidate(dst, { title: "Piano Lesson", date: "2026-11-10" });
+      expect(r).toMatchObject({ title: "Piano Lesson", weekday: 2, count: 3 });
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
 });
