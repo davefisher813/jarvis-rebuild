@@ -9,6 +9,8 @@ import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import { BellGlyph } from "../shared/glyphs";
 import { useSwipe } from "../shared/useSwipe";
+import { useLongPress } from "../shared/useLongPress";
+import RowActionSheet from "../shared/RowActionSheet";
 import { X } from "../shared/icons";
 import { fmtTime } from "../schedule/calendar";
 
@@ -34,8 +36,14 @@ const KIND: Record<NudgeKind, RowKind> = {
 // thing it is about, and a task can be finished without leaving.
 // A row that can be swiped away (Law 2). Its own component because hooks
 // cannot be called inside the feed's map.
-function NudgeRow({ onDismiss, children }: { onDismiss: () => void; children: React.ReactNode }) {
+function NudgeRow({ title, onDismiss, children }: { title: string; onDismiss: () => void; children: React.ReactNode }) {
   const swipe = useSwipe({ revealW: 88 });
+  // SHELL-F-22 (2026-09-05): Dismiss lived behind the swipe reveal and
+  // nowhere else, on a screen whose rows also open on tap, so the one action
+  // that clears a row was the one action nothing on screen mentioned. Hold a
+  // row and it says so. The swipe is untouched.
+  const [menu, setMenu] = useState(false);
+  const press = useLongPress({ onLongPress: () => { haptics.selection(); setMenu(true); } });
   return (
     <div className="task-swipe">
       <button className="task-snooze" onClick={onDismiss} aria-label="Dismiss">
@@ -45,10 +53,20 @@ function NudgeRow({ onDismiss, children }: { onDismiss: () => void; children: Re
       <div
         className={"swipe-shell" + (swipe.dragging ? " swiping" : "")}
         style={{ transform: swipe.dx ? `translateX(${swipe.dx}px)` : undefined }}
-        {...swipe.handlers}
+        {...press}
+        onTouchStart={(e) => { swipe.handlers.onTouchStart(e); press.onTouchStart(e); }}
+        onTouchMove={(e) => { swipe.handlers.onTouchMove(e); press.onTouchMove(e); }}
+        onTouchEnd={() => { swipe.handlers.onTouchEnd(); press.onTouchEnd(); }}
       >
         {children}
       </div>
+      {menu && (
+        <RowActionSheet
+          title={title}
+          actions={[{ label: "Dismiss", onPick: onDismiss }]}
+          onCancel={() => setMenu(false)}
+        />
+      )}
     </div>
   );
 }
@@ -104,7 +122,7 @@ export default function NotificationsFlow({ onOpen }: { onOpen?: (kind: string, 
               <div className="sh2 sh2-quiet"><span className="t">{b.head}</span><span className="n">{b.rows.length}</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
               {b.rows.map((n) => (
-                <NudgeRow key={n.id} onDismiss={() => onDismissNudge(n)}>
+                <NudgeRow key={n.id} title={n.title} onDismiss={() => onDismissNudge(n)}>
                 <div
                   className="task-row p2 notif-row"
                   role={onOpen ? "button" : undefined}
