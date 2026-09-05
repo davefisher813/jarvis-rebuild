@@ -1001,6 +1001,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // sender stated, plus who owes him a reply and what he promised. See
   // messages/home.ts for what the home page does with it.
   //
+  // S6-Q34 (2026-09-04): this was the snapshot's ONLY writer, which meant it
+  // only ever refreshed as a side effect of opening this tab -- connect
+  // Gmail and stay on Today, and the band never filled. snapshotRefresh.ts
+  // now rebuilds the same MailSnapshot headlessly (MailSnapshotPump, mounted
+  // once in AppShell) so the band fills whether or not this tab is ever
+  // opened. That module is a second implementation of the assembly below,
+  // not a refactor of it: extracting a shared assembler would mean routing
+  // this file's live rows/triage/waiting state through a return value
+  // instead of setState, a far larger change than this one catalog item
+  // calls for. A field added to MailSnapshot needs the matching line added
+  // in both places.
+  //
   // B6-8 (2026-09-04): "Demo email fixtures show on the real home page."
   // rows.length === 0 used to gate this write too, on top of triaged. Before
   // triage settles, rows really is empty AND triaged is still false, so

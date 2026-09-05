@@ -27,6 +27,7 @@ import { useAI } from "../ai/useAI";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import GoogleAutoImport from "../connections/google/AutoImport";
 import TodayOutboxPump from "../messages/TodayOutboxPump";
+import MailSnapshotPump from "../messages/MailSnapshotPump";
 
 // Heavier, less-visited surfaces load on demand so the startup bundle stays
 // small: the default tabs (Today, Tasks, Schedule, Brain) plus More are enough
@@ -291,6 +292,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     <GoogleSessionProvider>
     <GoogleAutoImport />
     <TodayOutboxPump />
+    <MailSnapshotPump />
     <div className="app-shell">
       <div className="app-scroll">
         {/* key remounts the flow per tab; no transition class: tab switches
