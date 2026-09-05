@@ -260,6 +260,20 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     }
   };
 
+  // SHELL-F-20 (2026-09-05): the conversational engine only walked forward,
+  // so a mis-tap on the template cards (Business instead of Student) set the
+  // areas, the seed questions and the payoff to the wrong template with no
+  // way back: the only recovery was Profile > Template afterwards, which
+  // does not reseed areas, or killing the app to start intake again. A step
+  // is re-answerable now, and a text answer comes back editable rather than
+  // blank, which fixes a mistyped name the same way.
+  const goBack = () => {
+    const prev = STEPS[idx - 1];
+    if (!prev) return;
+    if (prev.kind === "text") setTextDraft(prev.key === "name" ? name : priority);
+    setIdx(idx - 1);
+  };
+
   const pickTemplate = (t: TemplateKey) => {
     picked.current = true;
     setTemplate(t);
@@ -547,6 +561,13 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
 
   return (
     <div className="ob-screen ruled">
+      {/* SHELL-F-20: the app's own back affordance (.nav-back carries the iOS
+          chevron), in the header slot the onboarding stylesheet already has. */}
+      {idx > 0 && (
+        <div className="ob-top">
+          <button className="nav-back" onClick={goBack}>Back</button>
+        </div>
+      )}
       {transcript}
       {control}
     </div>

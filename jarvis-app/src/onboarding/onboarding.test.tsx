@@ -279,6 +279,51 @@ describe("OnboardingFlow", () => {
     save.mockRestore();
   });
 
+  // SHELL-F-20 (2026-09-05): the engine only walked forward, so a mis-tap on
+  // the template cards set the areas, the seed questions and the payoff to
+  // the wrong template, and the only recovery was Profile > Template (which
+  // does not reseed areas) or killing the app.
+  describe("SHELL-F-20: a step can be answered again", () => {
+    it("undoes a mis-tapped template, areas and all", () => {
+      setup();
+      fireEvent.click(screen.getByText("Begin"));
+      fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "Sam" } });
+      fireEvent.click(screen.getByLabelText("Send"));
+      // The wrong card.
+      fireEvent.click(screen.getByText("Business"));
+      expect(screen.getByDisplayValue("Clients")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByText("Back"));
+      expect(screen.getByText(/How will you use JARVIS/)).toBeInTheDocument();
+      fireEvent.click(screen.getByText("Student"));
+
+      // The student areas, not the business ones.
+      expect(screen.getByDisplayValue("School")).toBeInTheDocument();
+      expect(screen.queryByDisplayValue("Clients")).not.toBeInTheDocument();
+    });
+
+    it("brings a typed answer back editable, not blank", () => {
+      setup();
+      fireEvent.click(screen.getByText("Begin"));
+      fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "Dvae" } });
+      fireEvent.click(screen.getByLabelText("Send"));
+      fireEvent.click(screen.getByText("Back"));
+      const field = screen.getByPlaceholderText("Your name") as HTMLInputElement;
+      expect(field.value).toBe("Dvae");
+      fireEvent.change(field, { target: { value: "Dave" } });
+      fireEvent.click(screen.getByLabelText("Send"));
+      fireEvent.click(screen.getByText("Personal"));
+      // The transcript shows the corrected answer, not the typo.
+      expect(screen.getByText("Dave")).toBeInTheDocument();
+      expect(screen.queryByText("Dvae")).not.toBeInTheDocument();
+    });
+
+    it("the intro has no back, because there is nothing behind it", () => {
+      setup();
+      expect(screen.queryByText("Back")).not.toBeInTheDocument();
+    });
+  });
+
   it("lets you remove a starter category and add one", () => {
     setup();
     fireEvent.click(screen.getByText("Begin"));
