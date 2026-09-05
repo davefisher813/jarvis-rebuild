@@ -1644,7 +1644,10 @@ export default function TodayFlow({
                 {...nowSwipe.handlers}
               >
                 <RowIcon kind="task" />
-                <div className="row-stack">
+                {/* TODAY-F-07: the words open the task, which is the tap the
+                    Start pill used to carry. Same anatomy as a Tasks row,
+                    where the title is the door and the pill is the verb. */}
+                <div className="row-stack" role="button" tabIndex={0} onClick={() => void onOpenTask(gapPick.id)}>
                   <div className="conn-name truncate">{gapPick.text}</div>
                   {/* PICK 1: NOW SAYS WHAT IT MOVES (Dave 2026-08-22). "Fits
                       this gap" is the card's own premise restated: it is IN
@@ -1655,10 +1658,17 @@ export default function TodayFlow({
                       wraps on a 390px phone. */}
                   <div className="conn-meta truncate">{gapPick.estimateMin} min · {gapMoves ?? "Fits this gap"}</div>
                 </div>
-                {/* B15 (2026-08-23): red TEXT, not a red fill. Start opens one
-                    task. On a screen where Accept the Day commits every hour of
-                    the day, the fill belongs to the bigger move. */}
-                <button className="pill-act" onClick={(e) => { e.stopPropagation(); void onOpenTask(gapPick.id); }}>Start</button>
+                {/* B15 (2026-08-23): red TEXT, not a red fill. On a screen
+                    where Accept the Day commits every hour of the day, the
+                    fill belongs to the bigger move.
+                    TODAY-F-07 (2026-09-05): and Start now STARTS, the same
+                    verb Your Move's Start carries, sized to the estimate this
+                    card is already showing. It used to open the edit sheet,
+                    so two identical pills two rows apart did two different
+                    things. Opening the task is still one tap away, on the
+                    row's own words, and the swipe still holds Set a Start for
+                    a later time. */}
+                <button className="pill-act" onClick={(e) => { e.stopPropagation(); if (gapTask) void startBlock(gapTask, gapPick.estimateMin); }}>Start</button>
               </div>
             </div>
           ) : (
@@ -2421,6 +2431,35 @@ export default function TodayFlow({
   // Just Fifteen, from any Up Next row. Same container the What Now sheet
   // makes: a real block on the real day, starting on the tap, because a
   // delayed commitment is the one that does not happen.
+  // TODAY-F-07 (2026-09-05): TWO "START" PILLS ON ONE PAGE DID TWO THINGS.
+  // Your Move's Start wrote a fifteen-minute block from now and said so; the
+  // Now card's Start, a few rows below in the same red pill, opened the
+  // task's edit sheet. Same word, same screen, a form instead of a block.
+  // The Now card already knows the gap fits and what the task is estimated
+  // at, so its Start starts, sized to that estimate rather than to a flat
+  // fifteen. One Undo, because a block written by a single tap has to be
+  // removable by a single tap.
+  const startBlock = async (t: TaskItem, minutes: number) => {
+    const start = nhm;
+    let ids: string[] = [];
+    const ok = await attemptWrite(async () => {
+      ids = (await schedule.commitPlan(today, [{
+        taskId: t.id, text: t.data.text, category: t.data.category ?? "",
+        start, end: endOf(start, minutes),
+      }])).created;
+    });
+    await reload();
+    if (!ok) return;
+    showToast({
+      message: `${durLabel(minutes)} on ${t.data.text}`,
+      actionLabel: "Undo",
+      onAction: async () => {
+        await attemptWrite(async () => { for (const id of ids) await schedule.deleteEvent(id); });
+        await reload();
+      },
+    });
+  };
+
   const startFifteen = async (t: TaskItem) => {
     const start = nhm;
     // commitPlan: starting on it NOW supersedes any block the planner had
