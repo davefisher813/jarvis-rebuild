@@ -36,6 +36,7 @@ export default function PersonDetail({
   checkingIn = false,
   openWith = [],
   onOpenItem,
+  onMessageAbout,
 }: {
   person: Person;
   onEdit: () => void;
@@ -70,6 +71,12 @@ export default function PersonDetail({
   // Resolved by the caller, same as the notes and the categories.
   openWith?: import("../mentions").MentionItem[];
   onOpenItem?: (kind: "task" | "event", id: string) => void;
+  // BRAIN-F-24 (2026-09-05): the drafting sheet has taken an `about` since
+  // addendum item 3 built it, and no surface ever passed one, so every draft
+  // was a generic check-in. These rows are the surface that knows: a message
+  // about THIS task or THIS meeting, drafted from what it says. Absent when
+  // there is no number to text.
+  onMessageAbout?: (m: import("../mentions").MentionItem) => void;
 }) {
   const { name, relationship, birthday, notes, color, email, phone, register, flagged } = person.data;
   const hasAttrs = relationship || birthday || flagged || register || categoryNames.length > 0 || !!lastTalked;
@@ -178,7 +185,10 @@ export default function PersonDetail({
                   <span className="task-name">{m.title}</span>
                   {m.sub && <div className="r-k"><span className="r-goal r-cat">{m.sub}</span></div>}
                 </div>
-                {onOpenItem && <div className="chev"></div>}
+                {onMessageAbout && (
+                  <button className="pill-act" onClick={(e) => { e.stopPropagation(); onMessageAbout(m); }}>Message</button>
+                )}
+                {onOpenItem && !onMessageAbout && <div className="chev"></div>}
               </div>
             ))}
           </div></div>

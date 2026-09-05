@@ -29,6 +29,15 @@ import { noDashes } from "../ai/suggestions";
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
+// BRAIN-F-24 (2026-09-05): what the message is about, in the item's own
+// words. Facts only, from the row the tap came from: no invented plan, no
+// guess about why it is still open.
+function aboutOf(m: MentionItem): string {
+  return m.kind === "task"
+    ? `the open task "${m.title}"${m.sub ? `, due ${m.sub}` : ""}`
+    : `the upcoming "${m.title}"${m.sub ? ` on ${m.sub}` : ""}`;
+}
+
 export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, onOpenItem }: { onBack: () => void; openId?: string; onOpenNote?: (id: string) => void; onOpenItem?: (kind: string, id: string) => void }) {
   const people = usePeople();
   const notesSvc = useNotes();
@@ -44,7 +53,10 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
   const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [prepOpen, setPrepOpen] = useState(false);
-  const [msgOpen, setMsgOpen] = useState(false);
+  // BRAIN-F-24 (2026-09-05): the sheet takes what the message needs to say;
+  // null means closed, an empty object means the plain Message row (a natural
+  // check-in), and `about` is set when a Still Open row opened it.
+  const [msg, setMsg] = useState<{ about?: string } | null>(null);
   const ai = useAI();
   // B1: the open work and the time still ahead that name this person. Loaded
   // only while a card is open, because it is a property of THAT person and
@@ -64,7 +76,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
   // Fetch notes linked to the open person for the Linked Notes section.
   useEffect(() => {
     setPrepOpen(false); // a different person is a different call
-    setMsgOpen(false);
+    setMsg(null);
     if (!openId) { setLinkedNotes([]); return; }
     let on = true;
     notesSvc.notesLinkedTo(openId).then((n) => { if (on) setLinkedNotes(n); });
@@ -321,7 +333,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
       <div className={pushCls} key={"d-" + current.id}>
         <PersonDetail person={current} onEdit={() => setSheet({ kind: "edit", id: current.id })} onBack={() => setOpenId(null)} linkedNotes={linkedNotes} onOpenNote={onOpenNote}
           onCallPrep={current.data.phone ? () => setPrepOpen(true) : undefined}
-          onMessage={current.data.phone ? () => setMsgOpen(true) : undefined}
+          onMessage={current.data.phone ? () => setMsg({}) : undefined}
+          onMessageAbout={current.data.phone ? (m) => setMsg({ about: aboutOf(m) }) : undefined}
           categoryNames={(current.data.categoryIds ?? []).map((id) => categories.find((c) => c.id === id)?.name).filter((n): n is string => !!n)}
           lastTalked={lastTalked}
           quiet={quiet}
@@ -349,8 +362,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
             onClose={() => setPrepOpen(false)}
           />
         )}
-        {msgOpen && (
-          <MessageDraftSheet person={current} ai={ai} onClose={() => setMsgOpen(false)} />
+        {msg && (
+          <MessageDraftSheet person={current} ai={ai} about={msg.about} onClose={() => setMsg(null)} />
         )}
         {sheetEl}
       </div>
