@@ -13,9 +13,17 @@ function toHHMM(min: number): string {
   const m = Math.max(0, Math.min(24 * 60 - 1, min));
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
-function fromHHMM(hhmm: string): number {
-  const p = hhmm.split(":");
-  return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0);
+// BRAIN-F-25 (2026-09-05): the native time picker's Clear hands back "", and
+// the old parser read that as 0, so clearing Wake Up set 12:00 AM and the
+// planner started the day at midnight. An empty box is not a time: null says
+// "nothing was picked" and every field below keeps the minutes it had.
+function minutesOf(hhmm: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  if (h > 23 || min > 59) return null;
+  return h * 60 + min;
 }
 
 // --- Protected time (Phase 2) helpers ---
@@ -201,15 +209,15 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
 
       <Head label="Active Hours" />
       <Card>
-        <Row label="Wake Up"><input type="time" className="set-field" aria-label="Wake up" value={toHHMM(data.wakeMin)} disabled={!loaded} onChange={(e) => set({ wakeMin: fromHHMM(e.target.value) })} /></Row>
-        <Row label="Sleep"><input type="time" className="set-field" aria-label="Sleep" value={toHHMM(data.sleepMin)} disabled={!loaded} onChange={(e) => set({ sleepMin: fromHHMM(e.target.value) })} /></Row>
+        <Row label="Wake Up"><input type="time" className="set-field" aria-label="Wake up" value={toHHMM(data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ wakeMin: v }); }} /></Row>
+        <Row label="Sleep"><input type="time" className="set-field" aria-label="Sleep" value={toHHMM(data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ sleepMin: v }); }} /></Row>
       </Card>
       {overnight && <Foot>Overnight · JARVIS plans the day</Foot>}
 
       <Head label="Work Hours" />
       <Card>
-        <Row label="Work Starts"><input type="time" className="set-field" aria-label="Work starts" value={toHHMM(data.workStartMin)} disabled={!loaded} onChange={(e) => set({ workStartMin: fromHHMM(e.target.value) })} /></Row>
-        <Row label="Work Ends"><input type="time" className="set-field" aria-label="Work ends" value={toHHMM(data.workEndMin)} disabled={!loaded} onChange={(e) => set({ workEndMin: fromHHMM(e.target.value) })} /></Row>
+        <Row label="Work Starts"><input type="time" className="set-field" aria-label="Work starts" value={toHHMM(data.workStartMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ workStartMin: v }); }} /></Row>
+        <Row label="Work Ends"><input type="time" className="set-field" aria-label="Work ends" value={toHHMM(data.workEndMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ workEndMin: v }); }} /></Row>
       </Card>
       {workOutside && <Foot>Work hours outside active hours · Fine</Foot>}
 
@@ -232,8 +240,8 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
         <Switch label="Different on Weekends" on={!!data.weekendDifferent} onToggle={() => set({ weekendDifferent: !data.weekendDifferent })} ariaLabel="Different hours on weekends" />
         {data.weekendDifferent && (
           <>
-            <Row label="Weekend Wake"><input type="time" className="set-field" aria-label="Weekend wake" value={toHHMM(data.weekendWakeMin ?? data.wakeMin)} disabled={!loaded} onChange={(e) => set({ weekendWakeMin: fromHHMM(e.target.value) })} /></Row>
-            <Row label="Weekend Sleep"><input type="time" className="set-field" aria-label="Weekend sleep" value={toHHMM(data.weekendSleepMin ?? data.sleepMin)} disabled={!loaded} onChange={(e) => set({ weekendSleepMin: fromHHMM(e.target.value) })} /></Row>
+            <Row label="Weekend Wake"><input type="time" className="set-field" aria-label="Weekend wake" value={toHHMM(data.weekendWakeMin ?? data.wakeMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendWakeMin: v }); }} /></Row>
+            <Row label="Weekend Sleep"><input type="time" className="set-field" aria-label="Weekend sleep" value={toHHMM(data.weekendSleepMin ?? data.sleepMin)} disabled={!loaded} onChange={(e) => { const v = minutesOf(e.target.value); if (v != null) set({ weekendSleepMin: v }); }} /></Row>
           </>
         )}
       </Card>
@@ -264,8 +272,8 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
               <FieldRow ariaLabel="Name" placeholder="Gym · Lunch · Deep Work" value={form.label} onChange={(v) => setForm({ ...form, label: v })} />
             </Group>
             <Group label="When">
-              <FieldRow label="From" type="time" ariaLabel="Start time" value={toHHMM(form.startMin)} onChange={(v) => setForm({ ...form, startMin: fromHHMM(v) })} />
-              <FieldRow label="To" type="time" ariaLabel="End time" value={toHHMM(form.endMin)} onChange={(v) => setForm({ ...form, endMin: fromHHMM(v) })} />
+              <FieldRow label="From" type="time" ariaLabel="Start time" value={toHHMM(form.startMin)} onChange={(v) => { const m = minutesOf(v); if (m != null) setForm({ ...form, startMin: m }); }} />
+              <FieldRow label="To" type="time" ariaLabel="End time" value={toHHMM(form.endMin)} onChange={(v) => { const m = minutesOf(v); if (m != null) setForm({ ...form, endMin: m }); }} />
             </Group>
             <ErrorLine text={form.endMin <= form.startMin ? "End must be after start" : null} />
 

@@ -35,3 +35,29 @@ describe("RoutineFlow load failure (BRAIN-F-12)", () => {
     }
   });
 });
+
+// BRAIN-F-25 (2026-09-05): tapping Clear on the iOS time picker hands back an
+// empty string, which the old parser read as 0, so Wake Up silently became
+// 12:00 AM and the planner's day started at midnight.
+describe("RoutineFlow time fields (BRAIN-F-25)", () => {
+  it("a cleared time keeps the time it had, it does not become midnight", async () => {
+    render(
+      <NotesProvider userId="u-routine-f25">
+        <RoutineFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    const wake = await screen.findByLabelText("Wake up");
+    await waitFor(() => expect(wake).not.toBeDisabled());
+    const before = (wake as HTMLInputElement).value;
+    expect(before).not.toBe("00:00");
+
+    fireEvent.change(wake, { target: { value: "" } });
+    expect((screen.getByLabelText("Wake up") as HTMLInputElement).value).toBe(before);
+    // And Save stays where it was: nothing was edited, so nothing is dirty.
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+
+    // A real pick still lands.
+    fireEvent.change(screen.getByLabelText("Wake up"), { target: { value: "05:30" } });
+    expect((screen.getByLabelText("Wake up") as HTMLInputElement).value).toBe("05:30");
+  });
+});
