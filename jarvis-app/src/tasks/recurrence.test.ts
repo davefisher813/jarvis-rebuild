@@ -23,6 +23,37 @@ describe("recurrence", () => {
     expect(t?.due).toBe("2026-05-28");
   });
 
+  // LIFE-F-02 (2026-09-05): the audit's run. Tick a weekly task due today,
+  // then Undo. Through a second toggleDone it landed two weeks out with a run
+  // of 2; restoreCompletion puts the snapshot back.
+  it("Undo after ticking a recurring task restores due and the run, never rolls again", async () => {
+    const svc = new TasksService(new Store(new InMemoryAdapter()), "u");
+    const id = (await svc.createTask("Water plants", { due: "2026-09-05", recurrence: "weekly" }))!;
+    const before = (await svc.task(id))!;
+    await svc.toggleDone(id);
+    const ticked = (await svc.task(id))!;
+    expect(ticked.due).toBe("2026-09-12");
+    expect(ticked.runLen).toBe(1);
+    await svc.restoreCompletion(id, before);
+    const after = (await svc.task(id))!;
+    expect(after.done).toBe(false);
+    expect(after.due).toBe("2026-09-05");
+    expect(after.runLen ?? 0).toBe(0);
+    expect(after.lastDone ?? null).toBeNull();
+  });
+
+  it("Undo on a plain task puts done back to false and drops the bill receipt", async () => {
+    const svc = new TasksService(new Store(new InMemoryAdapter()), "u");
+    const id = (await svc.createTask("Deposit", { due: "2026-09-05", bill: { amount: 40 } }))!;
+    const before = (await svc.task(id))!;
+    await svc.toggleDone(id);
+    expect((await svc.task(id))!.done).toBe(true);
+    await svc.restoreCompletion(id, before);
+    const after = (await svc.task(id))!;
+    expect(after.done).toBe(false);
+    expect(after.lastDone ?? null).toBeNull();
+  });
+
   it("a non-recurring task still completes normally", async () => {
     const svc = new TasksService(new Store(new InMemoryAdapter()), "u");
     const id = (await svc.createTask("One off", { due: "2026-05-27" }))!;

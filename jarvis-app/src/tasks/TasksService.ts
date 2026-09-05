@@ -129,6 +129,29 @@ export class TasksService {
     return true;
   }
 
+  // LIFE-F-02 / SHARED-F-03 (2026-09-05): Undo on a completion toast used to
+  // call toggleDone a second time, and toggleDone is not its own inverse. On
+  // a recurring task every call rolls due forward and extends the run, so
+  // Undo on a weekly task pushed it out a SECOND week with a run of 2. On a
+  // plain task a second toggle flips whatever state the row is in NOW, so an
+  // Undo tapped after he had already un-ticked by hand re-completed it. Undo
+  // puts back exactly the fields a tick changes, to what the caller read
+  // before the tick, and nothing else: the same end state however many times
+  // or in whatever order it is tapped. Every completion Undo calls this.
+  async restoreCompletion(id: string, before: Pick<TaskData, "done" | "due" | "lastDone" | "runLen" | "bestRun">): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t) return false;
+    await this.store.update(this.ownerId, id, {
+      done: before.done,
+      due: before.due ?? null,
+      lastDone: before.lastDone ?? null,
+      runLen: before.runLen ?? null,
+      bestRun: before.bestRun ?? null,
+    });
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
   /**
    * Money v1: edit a bill's facts directly. Deliberately NOT setDue: pushing a
    * bill's date from the edit sheet must not count a slip or emit task.pushed,

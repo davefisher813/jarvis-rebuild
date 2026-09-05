@@ -238,6 +238,14 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
     // the same thing whichever screen it happened on, and a reward that only
     // appears on one surface teaches nothing.
     const advanced = before && !before.done ? movedByTask(before, id) : null;
+    // LIFE-F-02 (2026-09-05): Undo restores the snapshot read above, never a
+    // second toggleDone. On a weekly task the second toggle rolled it out
+    // another week and read the run as 2 (see TasksService.restoreCompletion).
+    const undoTick = async () => {
+      if (!before) return;
+      await attemptWrite(() => svc.restoreCompletion(id, before));
+      await reload();
+    };
     if (comeback) {
       showToast({ message: comeback });
     } else if (advanced?.moved.cleared) {
@@ -255,9 +263,9 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
         },
       });
     } else if (advanced) {
-      showToast({ message: advanced.moved.projectTitle + " · " + advanced.moved.line, actionLabel: "Undo", onAction: async () => { await attemptWrite(() => svc.toggleDone(id)); await reload(); } });
+      showToast({ message: advanced.moved.projectTitle + " · " + advanced.moved.line, actionLabel: "Undo", onAction: undoTick });
     } else if (before && !before.done) {
-      showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => svc.toggleDone(id)); await reload(); } });
+      showToast({ message: "Task completed", actionLabel: "Undo", onAction: undoTick });
     }
   };
 
