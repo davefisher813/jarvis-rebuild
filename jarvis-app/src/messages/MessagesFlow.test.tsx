@@ -21,6 +21,7 @@ import ToastHost from "../shared/ToastHost";
 import { saveMailSnapshot, loadMailSnapshot } from "./home";
 import { loadOutbox, resetOutboxForTest } from "./outbox";
 import { loadLetGo } from "./letGo";
+import { loadMinutes } from "./drain";
 import { recordToss } from "./selfClean";
 
 const noAI = new AIService({ available: false });
@@ -646,6 +647,29 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(screen.getByText("bump"));
     await new Promise((r) => setTimeout(r, 50));
     expect(lists).toBe(settled);
+  });
+
+  // EMAIL-F-26 (2026-09-05): "Drain minutes field snaps to 5 the moment it is
+  // cleared." Every keystroke was clamped and clampMinutes(NaN) is 5, so
+  // backspacing the 5 put a 5 straight back, and typing 15 gave 51.
+  it("the drain minutes box holds what he types while he types it", async () => {
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "needs_you", gist: "Ridgeley needs the waiver." },
+      { id: "t2", bucket: "noise", gist: "promo" },
+    ]));
+    render(wrap(<MessagesFlow ai={ai} configured />));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Only a Few Minutes?"));
+    const box = await screen.findByLabelText("Minutes");
+    expect((box as HTMLInputElement).value).toBe("5");
+    fireEvent.change(box, { target: { value: "" } });
+    expect((box as HTMLInputElement).value).toBe("");
+    fireEvent.change(box, { target: { value: "1" } });
+    fireEvent.change(box, { target: { value: "15" } });
+    expect((box as HTMLInputElement).value).toBe("15");
+    fireEvent.blur(box);
+    expect((box as HTMLInputElement).value).toBe("15");
+    expect(loadMinutes()).toBe(15);
   });
 
   // EMAIL-F-22 (2026-09-05): "Waiting On alternates are swipe-only in the

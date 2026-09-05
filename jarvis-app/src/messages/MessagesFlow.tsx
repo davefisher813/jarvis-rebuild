@@ -321,6 +321,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [toss, setToss] = useState<{ sender: string; n: number } | null>(null);
   // The drain. minutes is the user's number, remembered between runs.
   const [minutes, setMinutes] = useState<number>(() => loadMinutes());
+  // EMAIL-F-26 (2026-09-05): what is IN the box while he types, which is not
+  // always a number (it is "" for the moment between backspace and the first
+  // digit). The clamped number above stays the one the drain runs on.
+  const [minutesText, setMinutesText] = useState<string>(() => String(loadMinutes()));
   const [drainOpen, setDrainOpen] = useState(false);
   const [drainMs, setDrainMs] = useState<number | undefined>(undefined);
   // Hand off: null = closed, [] = open and loading the people list.
@@ -3281,13 +3285,30 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="msg-chips">
                 {PRESETS.map((m) => (
                   <button key={m} className={"chip" + (minutes === m ? " on" : "")}
-                    onClick={() => setMinutes(saveMinutes(m))}>{m} min</button>
+                    onClick={() => { setMinutes(saveMinutes(m)); setMinutesText(String(m)); }}>{m} min</button>
                 ))}
+                {/* EMAIL-F-26 (2026-09-05): "Drain minutes field snaps to 5
+                    the moment it is cleared." Every keystroke used to be
+                    clamped, and clampMinutes(NaN) is 5, so backspacing the 5
+                    of "5" put a 5 straight back and typing 15 gave 51. The
+                    field holds what he typed while he is typing; the clamp
+                    happens when he leaves it, which is when the number is
+                    finished. An empty box falls back to the saved number
+                    rather than inventing one. */}
                 <input
-                  className="msg-input drain-input" type="number" min={1} max={60} value={minutes}
+                  className="msg-input drain-input" type="number" min={1} max={60} value={minutesText}
                   aria-label="Minutes"
-                  onChange={(e) => setMinutes(clampMinutes(parseInt(e.target.value, 10)))}
-                  onBlur={() => setMinutes(saveMinutes(minutes))}
+                  onChange={(e) => {
+                    setMinutesText(e.target.value);
+                    const n = parseInt(e.target.value, 10);
+                    if (isFinite(n)) setMinutes(clampMinutes(n));
+                  }}
+                  onBlur={() => {
+                    const n = parseInt(minutesText, 10);
+                    const saved = saveMinutes(isFinite(n) ? n : minutes);
+                    setMinutes(saved);
+                    setMinutesText(String(saved));
+                  }}
                 />
               </div>
               <div className="promo-acts">
