@@ -27,9 +27,12 @@ describe("the morning sentence", () => {
       .toBe("One has a deadline today, one needs an answer and one is something you promised");
   });
 
-  it("says how long someone has actually been waiting", () => {
+  // EMAIL-F-24 (2026-09-05): this asserted the sentence backwards. Rob has
+  // not answered HIM for 55 days; the line announced that somebody was
+  // waiting on Dave, which is the opposite fact and the opposite feeling.
+  it("says how long someone has actually owed him a reply", () => {
     const s = snap({ waiting: [{ threadId: "w1", to: "Rob", subject: "Deck", days: 55 }] });
-    expect(inboxSentence([notice("nudge", "w1")], s)).toBe("Someone has been waiting 55 days on you");
+    expect(inboxSentence([notice("nudge", "w1")], s)).toBe("Someone has owed you a reply for 55 days");
   });
 
   it("mentions the rest only when there IS a rest", () => {

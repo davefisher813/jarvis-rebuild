@@ -34,8 +34,13 @@ export function inboxSentence(notices: MailNotice[], snap: MailSnapshot): string
   if (reply > 0) bits.push(reply === 1 ? "one needs an answer" : `${word(reply)} need answers`);
   if (promised > 0) bits.push(promised === 1 ? "one is something you promised" : `${word(promised)} are things you promised`);
   if (nudge > 0) {
+    // EMAIL-F-24 (2026-09-05): subject and object were swapped in this
+    // branch. A nudge notice is someone who has not answered HIM (home.ts's
+    // MailWaiting is "who owes him a reply", and the card beside this line
+    // reads "Rob Hasn't Replied"), and this announced that he was the one
+    // keeping people waiting. The other branch always had it right.
     const worst = Math.max(...snap.waiting.map((w) => w.days), 0);
-    bits.push(worst > 0 ? `someone has been waiting ${worst} days on you` : "someone owes you a reply");
+    bits.push(worst > 0 ? `someone has owed you a reply for ${worst} days` : "someone owes you a reply");
   }
   if (bits.length === 0) return "";
 
