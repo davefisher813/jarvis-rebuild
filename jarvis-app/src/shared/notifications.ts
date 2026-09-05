@@ -27,6 +27,35 @@ export interface CheckinNotification {
 export const MORNING_ID = 9001;
 export const EVENING_ID = 9002;
 
+// ---- THE BUDGET (SHARED-F-05, 2026-09-05) ----
+//
+// iOS keeps at most 64 PENDING local notifications per app
+// (UNUserNotificationCenter's documented limit) and silently drops the rest
+// by fire time. The three blocks below were sized for the app's own id
+// ranges instead: 120 event rungs plus 60 task reminders plus the two
+// check-ins is 182, so on a two-day stretch with sixteen timed events
+// (4 rungs each = 64) tomorrow's later events and the evening's task
+// reminders never fired and nothing in the app knew.
+//
+// So the whole app's notification spend is ONE arithmetic, here, and every
+// scheduler takes its share from it. Anything that wants more has to argue
+// with the other two in this block rather than quietly overrunning the OS.
+export const IOS_PENDING_LIMIT = 64;
+// Two repeating daily nudges (morning and evening), always scheduled first.
+export const CHECKIN_BUDGET = 2;
+// Task reminders (SHARED-F-08 expands these to a week, soonest first).
+export const TASK_REMINDER_CAP = 18;
+// Whatever is left is the event ladder's.
+export const EVENT_REMINDER_CAP = IOS_PENDING_LIMIT - CHECKIN_BUDGET - TASK_REMINDER_CAP;
+
+// The id ranges EARLIER BUILDS scheduled into. A phone upgrading from the
+// 120/60 caps still has those ids pending, and a cancel pass that only
+// covered the new, smaller caps would leave the overflow buzzing forever for
+// events that no longer exist. Cancel across the old span, schedule inside
+// the budget, and route a tap on either.
+export const EVENT_REMINDER_SPAN = 120;
+export const TASK_REMINDER_SPAN = 60;
+
 // The two daily check-in nudges, derived from the routine:
 // - morning ONE-thing ask at the brief time (or 15 min after wake), matching
 //   CheckIn's before-noon window
@@ -97,8 +126,20 @@ export function buildCheckinNotifications(routine: RoutineData, briefTime?: stri
 // more than once: iOS answers a repeat request with whatever was already
 // decided rather than re-prompting, so this and the automatic check-in call
 // below can never fight over showing the dialog twice.
+export async function requestNotificationPermission(): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  try {
+    const perm = await LocalNotifications.checkPermissions();
+    if (perm.display === "granted") return true;
+    const req = await LocalNotifications.requestPermissions();
+    return req.display === "granted";
+  } catch {
+    return false;
+  }
+}
+
 // SHARED-F-02 (2026-09-05): what the OS actually says, for the one page whose
-// copy makes a promise about it. requestNotificationPermission below answers
+// copy makes a promise about it. requestNotificationPermission above answers
 // a boolean, which cannot tell "not asked yet" from "asked and refused", and
 // its only UI caller discarded even that. Four states, because the honest
 // footer differs for each: "unsupported" is the web, where this seam is a
@@ -113,18 +154,6 @@ export async function notificationPermissionState(): Promise<NotifyPermission> {
     return perm.display === "denied" ? "denied" : "prompt";
   } catch {
     return "unsupported";
-  }
-}
-
-export async function requestNotificationPermission(): Promise<boolean> {
-  if (!Capacitor.isNativePlatform()) return false;
-  try {
-    const perm = await LocalNotifications.checkPermissions();
-    if (perm.display === "granted") return true;
-    const req = await LocalNotifications.requestPermissions();
-    return req.display === "granted";
-  } catch {
-    return false;
   }
 }
 
@@ -168,8 +197,7 @@ export async function cancelCheckinNotifications(): Promise<void> {
 // own block so re-scheduling can never touch the check-in pair.
 
 export const EVENT_REMINDER_BASE = 9100;
-// Four rungs per event now, so the cap has to hold four times the events.
-export const EVENT_REMINDER_CAP = 120;
+// Four rungs per event, inside EVENT_REMINDER_CAP (see THE BUDGET above).
 export const EVENT_REMINDER_LEAD_MIN = 15;
 
 // S6-Q36: the first move named on this event's source task, when it has
@@ -191,7 +219,7 @@ export function buildEventReminders(
   // never claims to be an hour away.
   ladder: readonly number[] = LADDER,
 ): EventReminder[] {
-  const out: EventReminder[] = [];
+  const out: (EventReminder & { lead: number })[] = [];
   for (const e of events) {
     if (!e.title.trim() || !/^\d{2}:\d{2}$/.test(e.start)) continue;
     const startMs = new Date(`${e.date}T${e.start}:00`).getTime();
@@ -216,11 +244,23 @@ export function buildEventReminders(
         title: e.title.trim(),
         body: ladderBody(lead as Rung, e.location, e.firstMove),
         at,
+        lead,
       });
     }
   }
   out.sort((a, b) => a.at.getTime() - b.at.getTime());
-  return out.slice(0, EVENT_REMINDER_CAP).map((r, i) => ({ ...r, id: EVENT_REMINDER_BASE + i }));
+  // SHARED-F-05 (2026-09-05): over budget, the OUTERMOST rungs go first, not
+  // whole events. Losing the hour's warning on a busy day costs the least;
+  // losing an event entirely means one thing on the calendar goes unannounced
+  // while another has four alerts. Every event keeps its 15 and 5 minute
+  // rungs until the day is so full that even those do not fit, and only then
+  // does the slice below drop the latest-firing ones.
+  let kept = out;
+  for (const rung of [60, 30]) {
+    if (kept.length <= EVENT_REMINDER_CAP) break;
+    kept = kept.filter((r) => r.lead !== rung);
+  }
+  return kept.slice(0, EVENT_REMINDER_CAP).map((r, i) => ({ id: EVENT_REMINDER_BASE + i, title: r.title, body: r.body, at: r.at }));
 }
 
 export async function ensureEventReminders(events: ReminderInput[], nowMs: number = Date.now()): Promise<void> {
@@ -231,7 +271,9 @@ export async function ensureEventReminders(events: ReminderInput[], nowMs: numbe
     // the user is asked once, in context, not ambushed by a schedule refresh.
     if (perm.display !== "granted") return;
     await LocalNotifications.cancel({
-      notifications: Array.from({ length: EVENT_REMINDER_CAP }, (_, i) => ({ id: EVENT_REMINDER_BASE + i })),
+      // The old span, not the budget: an upgraded phone still holds ids an
+      // earlier build scheduled (see EVENT_REMINDER_SPAN).
+      notifications: Array.from({ length: EVENT_REMINDER_SPAN }, (_, i) => ({ id: EVENT_REMINDER_BASE + i })),
     });
     const specs = buildEventReminders(events, nowMs);
     if (specs.length === 0) return;
@@ -263,7 +305,6 @@ export async function ensureEventReminders(events: ReminderInput[], nowMs: numbe
 // honor both, and it is the shape event reminders already schedule in.
 
 export const TASK_REMINDER_BASE = 9300;
-export const TASK_REMINDER_CAP = 60;
 
 export interface TaskReminderInput { id: string; text: string; reminder: ReminderInfo }
 export interface TaskReminderNotification { id: number; title: string; at: Date }
@@ -309,7 +350,7 @@ export async function ensureTaskReminders(
     // flow owns the permission ask, in context, once.
     if (perm.display !== "granted") return;
     await LocalNotifications.cancel({
-      notifications: Array.from({ length: TASK_REMINDER_CAP }, (_, i) => ({ id: TASK_REMINDER_BASE + i })),
+      notifications: Array.from({ length: TASK_REMINDER_SPAN }, (_, i) => ({ id: TASK_REMINDER_BASE + i })),
     });
     const specs = buildTaskReminderNotifications(reminders, today, tomorrow, nowMs);
     if (specs.length === 0) return;
@@ -340,8 +381,10 @@ export type NotificationKind = "morning" | "evening" | "event" | "reminder" | nu
 export function kindOfNotification(id: number): NotificationKind {
   if (id === MORNING_ID) return "morning";
   if (id === EVENING_ID) return "evening";
-  if (id >= EVENT_REMINDER_BASE && id < EVENT_REMINDER_BASE + EVENT_REMINDER_CAP) return "event";
-  if (id >= TASK_REMINDER_BASE && id < TASK_REMINDER_BASE + TASK_REMINDER_CAP) return "reminder";
+  // The spans, so a tap on a notification an earlier build scheduled still
+  // lands on the right screen instead of nowhere.
+  if (id >= EVENT_REMINDER_BASE && id < EVENT_REMINDER_BASE + EVENT_REMINDER_SPAN) return "event";
+  if (id >= TASK_REMINDER_BASE && id < TASK_REMINDER_BASE + TASK_REMINDER_SPAN) return "reminder";
   return null;
 }
 

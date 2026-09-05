@@ -71,7 +71,7 @@ describe("buildCheckinNotifications", () => {
 });
 
 // Event reminders (2026-08-09).
-import { buildEventReminders, EVENT_REMINDER_BASE, EVENT_REMINDER_CAP } from "./notifications";
+import { buildEventReminders, EVENT_REMINDER_BASE, EVENT_REMINDER_CAP, EVENT_REMINDER_SPAN, TASK_REMINDER_CAP, CHECKIN_BUDGET, IOS_PENDING_LIMIT } from "./notifications";
 
 describe("buildEventReminders", () => {
   const NOW = new Date("2026-08-09T08:00:00").getTime();
@@ -143,6 +143,35 @@ describe("buildEventReminders", () => {
     expect(out[1]!.at.getTime()).toBeGreaterThanOrEqual(out[0]!.at.getTime());
   });
 
+  // SHARED-F-05 (2026-09-05): iOS keeps 64 pending notifications and drops
+  // the rest by fire time. Over budget, the ladder sheds its outer rungs
+  // before it sheds an event: nothing on the calendar goes unannounced while
+  // something else keeps four alerts.
+  it("the three blocks together fit inside the OS limit", () => {
+    expect(EVENT_REMINDER_CAP + TASK_REMINDER_CAP + CHECKIN_BUDGET).toBe(IOS_PENDING_LIMIT);
+    expect(IOS_PENDING_LIMIT).toBe(64);
+  });
+
+  it("drops the hour and half-hour rungs before it drops an event", () => {
+    // 14 events at 4 rungs each is 56, over the 44 event budget. Dropping
+    // the 60-minute rung leaves 42, which fits, so every event survives.
+    const many = Array.from({ length: 14 }, (_, i) => ({
+      date: "2026-08-10", start: `${String(8 + i).padStart(2, "0")}:00`, title: "e" + i,
+    }));
+    const out = buildEventReminders(many, NOW);
+    expect(out.length).toBeLessThanOrEqual(EVENT_REMINDER_CAP);
+    expect(out.some((r) => r.body.includes("In an hour"))).toBe(false);
+    // Every event still keeps its closing rung.
+    for (let i = 0; i < 14; i++) expect(out.some((r) => r.title === "e" + i)).toBe(true);
+  });
+
+  it("[edge] a day inside the budget keeps the whole ladder", () => {
+    const few = Array.from({ length: 5 }, (_, i) => ({
+      date: "2026-08-10", start: `${String(8 + i).padStart(2, "0")}:00`, title: "e" + i,
+    }));
+    expect(buildEventReminders(few, NOW)).toHaveLength(20);
+  });
+
   // S6-Q36 (2026-09-04): "the first move is thrown away, never stored."
   // firstMove rides the ReminderInput now, and only the closing (5-minute)
   // rung uses it -- the earlier rungs stay informational, unchanged.
@@ -162,7 +191,7 @@ describe("buildEventReminders", () => {
 // the phone do anything. buildTaskReminderNotifications is the pure half of
 // the fix: which dated notifications a reminder's days, snooze and last-done
 // actually produce for today and tomorrow.
-import { buildTaskReminderNotifications, TASK_REMINDER_BASE, TASK_REMINDER_CAP, type TaskReminderInput } from "./notifications";
+import { buildTaskReminderNotifications, TASK_REMINDER_BASE, TASK_REMINDER_SPAN, type TaskReminderInput } from "./notifications";
 import type { ReminderInfo } from "../notes/types";
 
 describe("buildTaskReminderNotifications", () => {
@@ -242,11 +271,13 @@ describe("kindOfNotification", () => {
     expect(kindOfNotification(MORNING_ID)).toBe("morning");
     expect(kindOfNotification(EVENING_ID)).toBe("evening");
     expect(kindOfNotification(EVENT_REMINDER_BASE)).toBe("event");
-    expect(kindOfNotification(EVENT_REMINDER_BASE + EVENT_REMINDER_CAP - 1)).toBe("event");
-    expect(kindOfNotification(EVENT_REMINDER_BASE + EVENT_REMINDER_CAP)).toBeNull();
+    // The SPANS, not the budgets: a tap on a notification an older build
+    // scheduled (SHARED-F-05 shrank the caps) still lands on its screen.
+    expect(kindOfNotification(EVENT_REMINDER_BASE + EVENT_REMINDER_SPAN - 1)).toBe("event");
+    expect(kindOfNotification(EVENT_REMINDER_BASE + EVENT_REMINDER_SPAN)).toBeNull();
     expect(kindOfNotification(TASK_REMINDER_BASE)).toBe("reminder");
-    expect(kindOfNotification(TASK_REMINDER_BASE + TASK_REMINDER_CAP - 1)).toBe("reminder");
-    expect(kindOfNotification(TASK_REMINDER_BASE + TASK_REMINDER_CAP)).toBeNull();
+    expect(kindOfNotification(TASK_REMINDER_BASE + TASK_REMINDER_SPAN - 1)).toBe("reminder");
+    expect(kindOfNotification(TASK_REMINDER_BASE + TASK_REMINDER_SPAN)).toBeNull();
     expect(kindOfNotification(1)).toBeNull();
   });
 
