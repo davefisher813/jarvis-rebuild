@@ -14,7 +14,7 @@ import { partition, byCategory, filterOf, FILTERS, FILTER_LABEL, type Partitione
 import type { Recurrence, TaskData } from "../notes/types";
 import type { TaskItem } from "./TasksService";
 import { todayISO } from "./grouping";
-import { nextFreeSlot, addMinutes } from "../schedule/calendar";
+import { nextFreeSlot, addMinutes, addDays } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage, slidingLine } from "./lifecycle";
@@ -64,7 +64,12 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
   const ai = useAI();
   const gatherContext = useAIContext();
   const today = todayISO();
-  const tomorrow = (() => { const d = new Date(today + "T00:00:00"); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
+  // LIFE-F-01 (2026-09-05): this used to serialise local midnight with
+  // toISOString(), which reads the UTC date. East of Greenwich that is still
+  // today, so swiping Tomorrow set the due date to today, the row stayed put
+  // and the toast still said "Moved to tomorrow". addDays walks with setDate
+  // and formats from local getters (B2-1 fixed it there; this copy missed).
+  const tomorrow = addDays(today, 1);
   const [parts, setParts] = useState<Partitioned>(EMPTY);
   const [allItems, setAllItems] = useState<TaskItem[]>([]);
   const [overwhelmed, setOverwhelmed] = useState(() => loadOverwhelmed(todayISO()));
