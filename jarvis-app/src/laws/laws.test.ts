@@ -382,9 +382,15 @@ describe("LAW: Apple HIG casing", () => {
   // planner did not, and "Morning Meds" turned up under Anytime asking for a
   // 45-minute block. Any new list of offerable tasks must check this too.
   it("no list of offerable work forgets to carve reminders out", () => {
+    // SCHED-F-06 (2026-09-05): schedule/anytime.ts joined the list. The law
+    // read ScheduleFlow.tsx, found data.reminder in planCandidates, and
+    // passed, while the Anytime strip beside it was built by this other
+    // function that never learned the rule. A list of offerable work is
+    // named by where it is BUILT, not by the file that renders it.
     const OFFERS = [
       "tasks/filters.ts", "upnext/upnext.ts",
       "today/TodayFlow.tsx", "schedule/ScheduleFlow.tsx",
+      "schedule/anytime.ts",
     ];
     const bad: string[] = [];
     for (const r of OFFERS) {

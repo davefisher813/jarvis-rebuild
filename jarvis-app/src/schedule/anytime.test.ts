@@ -73,3 +73,29 @@ describe("a proposed task leaves the Anytime strip", () => {
     expect(out.map((x) => x.id)).toEqual(["t2"]);
   });
 });
+
+// SCHED-F-06 (2026-09-05): "Reminders (and paused-category tasks) appear in
+// the Anytime strip and the Put-a-Task-in-This-Block picker." The carve-outs
+// lived in ScheduleFlow's planCandidates, and this builder never learned
+// them, so "Morning meds" sat under Anytime with a Drop button.
+describe("what is not work never reaches the strip", () => {
+  it("a reminder is not offered a block", () => {
+    const tasks = [task("write"), task("meds", { reminder: { time: "08:00" } })];
+    expect(anytimeTasksForDay(tasks, [], DAY).map((t) => t.id)).toEqual(["write"]);
+  });
+
+  it("a paused area's task waits out the season, and its bill does not", () => {
+    const tasks = [
+      task("drills", { category: "soccer" }),
+      task("league fee", { category: "soccer", bill: { amount: 40 } }),
+      task("write", { category: "work" }),
+    ];
+    const ids = anytimeTasksForDay(tasks, [], DAY, new Set(), new Set(["soccer"])).map((t) => t.id);
+    expect(ids).toEqual(["league fee", "write"]);
+  });
+
+  it("[edge] nothing paused: the strip is unchanged", () => {
+    const tasks = [task("drills", { category: "soccer" })];
+    expect(anytimeTasksForDay(tasks, [], DAY).map((t) => t.id)).toEqual(["drills"]);
+  });
+});

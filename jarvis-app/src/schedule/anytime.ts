@@ -14,11 +14,20 @@ import type { TaskItem } from "../tasks/TasksService";
 // dashed row in the day AND again in the Anytime strip above it -- the same
 // task twice on one screen, which the no-repetition law forbids. Committed
 // work is excluded by its event; proposed work has to be named.
+// SCHED-F-06 (2026-09-05): A REMINDER IS NOT A TASK (catalog Q1), and a
+// paused category is not asking for work either. Both carve-outs lived in
+// ScheduleFlow's planCandidates only, so the strip above the same day list
+// still offered "Morning meds" with a Drop button that booked a 60-minute
+// block for taking a pill. The rules belong here, where every surface that
+// asks what is unscheduled for a day reads them. `paused` is the category
+// ids the season has paused; a bill is exempt, because a bill still has to
+// be paid whether or not the area it lives in is resting.
 export function anytimeTasksForDay(
   tasks: TaskItem[],
   dayEvents: EventItem[],
   date: string,
   claimed: ReadonlySet<string> = new Set(),
+  paused: ReadonlySet<string> = new Set(),
 ): TaskItem[] {
   const planned = new Set([
     ...dayEvents.map((e) => e.data.sourceTaskId).filter((x): x is string => !!x),
@@ -28,9 +37,11 @@ export function anytimeTasksForDay(
     .filter(
       (t) =>
         !t.data.done &&
+        !t.data.reminder &&
         !planned.has(t.id) &&
         (!t.data.due || (t.data.due as string) <= date),
     )
+    .filter((t) => !paused.has(t.data.category ?? "") || !!t.data.bill)
     .sort((a, b) => {
       const da = (a.data.due as string) || "9999-99-99";
       const db = (b.data.due as string) || "9999-99-99";

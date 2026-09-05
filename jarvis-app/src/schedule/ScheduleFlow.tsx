@@ -706,7 +706,10 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // Anytime on the phone until Plan My Day opened. Fresh tasks re-read tasks.
   useFreshLists([ENTITY_TASK], reloadTasks);
   const anytimeItems = mode === "day"
-    ? anytimeTasksForDay(taskItems, dayEvents, selected, draftClaims(standingDraft))
+    // SCHED-F-06 (2026-09-05): the same two carve-outs planCandidates makes
+    // above, now made by the strip's own builder: no reminders, and nothing
+    // from a paused category except a bill.
+    ? anytimeTasksForDay(taskItems, dayEvents, selected, draftClaims(standingDraft), pausedCats)
     : [];
 
   // Tap the circle: complete the task (it leaves the strip).
