@@ -314,7 +314,11 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
   const fsAccept = async () => {
     if (!fsStep || !fsCandidate || fsStep.taskId !== fsCandidate.id) return;
     const ok = await attemptWrite(async () => {
-      await svc.createTask(fsStep.step, { category: fsCandidate.data.category || undefined, due: today });
+      // LIFE-F-24 (2026-09-05): the drafted step inherited the area but not
+      // the project, so a first step for a stalled project task landed on
+      // Today filed nowhere: the project page never showed it and the project
+      // still read stalled, which is the state this offer exists to leave.
+      await svc.createTask(fsStep.step, { category: fsCandidate.data.category || undefined, projectId: fsCandidate.data.projectId, due: today });
       await svc.setAside([fsCandidate.id]);
     });
     if (!ok) return;

@@ -52,6 +52,15 @@ describe("The Keeps Sliding row", () => {
     expect(src).not.toContain("banner=");
   });
 
+  // LIFE-F-24 (2026-09-05): the drafted step inherited the area but not the
+  // project, so a first step for a project's stalled task landed on Today
+  // filed nowhere and the project still read stalled. Source-pinned like the
+  // rest of this file: the accept path needs the whole provider stack.
+  it("the accepted step is filed under the same project as the task it opens", () => {
+    const accept = src.slice(src.indexOf("const fsAccept"), src.indexOf("const fsDismiss"));
+    expect(accept).toContain("projectId: fsCandidate.data.projectId");
+  });
+
   it("the why line states the fact that qualified the task", () => {
     expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: "2026-08-25" } }, "2026-09-02")).toBe("Keeps sliding \u00b7 8 days late");
     expect(slidingLine({ id: "a", data: { text: "x", category: "", done: false, due: "2026-09-01", slips: 3 } }, "2026-09-02")).toBe("Keeps sliding \u00b7 Pushed 3 times");
