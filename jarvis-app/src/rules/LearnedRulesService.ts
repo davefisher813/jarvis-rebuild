@@ -1,5 +1,6 @@
 import type { Store, ItemData } from "@core";
 import { ENTITY_LEARNED_RULE, type LearnedRuleData, type RuleKind } from "./types";
+import { ENTITY_CATEGORY } from "../categories/types";
 import { showToast } from "../shared/toast";
 
 export interface LearnedRule {
@@ -119,13 +120,37 @@ export class LearnedRulesService {
     return { id, data };
   }
 
+  // SHELL-F-06 (2026-09-05): capture.category and plan.duration rules store
+  // a raw category id in `to` (and QuickCapture insists they must, so a
+  // renamed area keeps its rule), so the first-use toast read "Elite Squad
+  // means 3f9a...-uuid". Same resolution LearnedRulesPage does for its rows:
+  // a side that is a live category id prints as the area's name, anything
+  // else (a trigger phrase, a minute count, a stale id) prints as recorded.
+  // A store that cannot be read at this moment costs the name, never the
+  // announcement.
+  private async spoken(rule: LearnedRule): Promise<{ from: string; to: string }> {
+    const { from, to } = rule.data;
+    try {
+      const cats = await this.store.listForUser(this.ownerId, ENTITY_CATEGORY);
+      const name = (v: string) => {
+        const hit = cats.find((c) => c.id === v);
+        const n = hit ? (hit.data as { name?: unknown }).name : undefined;
+        return typeof n === "string" && n ? n : v;
+      };
+      return { from: name(from), to: name(to) };
+    } catch {
+      return { from, to };
+    }
+  }
+
   // First use announces the rule, exactly once. The announcement is the
   // deal: silent creation is licensed by loud existence.
   async announceIfFirstUse(rule: LearnedRule): Promise<void> {
     if (rule.data.announced) return;
     await this.store.update(this.ownerId, rule.id, { announced: true } as unknown as ItemData);
     rule.data.announced = true;
-    showToast({ message: `New rule: ${rule.data.from} means ${rule.data.to} · Change it in Settings` });
+    const { from, to } = await this.spoken(rule);
+    showToast({ message: `New rule: ${from} means ${to} · Change it in Settings` });
   }
 
   // One contradiction kills the rule instantly. The death is a flat fact.
@@ -141,7 +166,10 @@ export class LearnedRulesService {
   // something you never said out loud.
   async contradict(rule: LearnedRule): Promise<void> {
     await this.store.delete(this.ownerId, rule.id);
-    if (rule.data.announced) showToast({ message: `Forgot the rule: ${rule.data.from} means ${rule.data.to}.` });
+    if (rule.data.announced) {
+      const { from, to } = await this.spoken(rule);
+      showToast({ message: `Forgot the rule: ${from} means ${to}.` });
+    }
   }
 
   // The real Delete in What JARVIS Learned. Deleting the row IS the revert:

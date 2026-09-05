@@ -14,7 +14,10 @@ export interface CaptureResult {
   title: string;
   date?: string; // yyyy-mm-dd
   start?: string; // HH:MM 24h
-  category?: string; // category NAME
+  // A category NAME from the AI path, or a category ID from a learned rule
+  // (smartPaste.ts categoryFromRule). applyCapture accepts either; see
+  // SHELL-F-06 below.
+  category?: string;
   notes?: string;
 }
 
@@ -130,8 +133,14 @@ export async function applyCapture(
   today: string,
   source?: import("../shared/provenance").Source,
 ): Promise<{ id: string | null; kind: CaptureResult["kind"] }> {
-  let catId = r.category
-    ? categories.find((c) => c.data.name.toLowerCase() === r.category!.toLowerCase())?.id
+  // SHELL-F-06 (2026-09-05): the AI path fills `category` with a NAME (the
+  // prompt asks for one), a learned rule fills it with an ID (rules key on
+  // ids so a renamed area keeps its rule). This matched by name only, so a
+  // rule announced itself, lit the receipt chip, and the stored task still
+  // had no category. Either convention resolves here.
+  const want = r.category?.toLowerCase();
+  let catId = want
+    ? categories.find((c) => c.id === r.category || c.data.name.toLowerCase() === want)?.id
     : undefined;
   // Memory layer (Session 3): when nothing chose a category, learn one from
   // history (exact-title match, then shared significant words across past

@@ -324,6 +324,12 @@ describe("a correction taught on one capture applies to the next", () => {
     // And the third capture lands in Family without being touched.
     const [third] = await smartPasteSave("Elite Squad parent meeting", deps);
     expect(third!.category).toBe("cat-family");
+    // SHELL-F-06 (2026-09-05): the receipt's field was the only thing this
+    // asserted, and the receipt lit the Family chip while the STORED task had
+    // no category at all (applyCapture matched the rule's id against names).
+    // The row in Tasks is what he opens next, so it is what this checks.
+    const stored = (await deps.tasks.listTasks()).find((t) => t.id === third!.id);
+    expect(stored?.data.category).toBe("cat-family");
   });
 
   it("one correction is not enough, so the next capture is untouched", async () => {

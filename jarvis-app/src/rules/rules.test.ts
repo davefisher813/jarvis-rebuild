@@ -75,6 +75,23 @@ describe("law: rules announce once, die on one contradiction, and delete cleanly
     un();
   });
 
+  // SHELL-F-06 (2026-09-05): capture.category rules store the category ID,
+  // so the toast read "practice means 3f9a...-uuid". A side that is a live
+  // category prints as the area's name; a stale id prints as recorded.
+  it("the announcement names the area, not its id", async () => {
+    const { svc, store } = rig();
+    const catId = await store.create(U, "category", { name: "Elite Squad", color: "blue", order: 0 } as never);
+    await svc.recordCorrection("alias", "capture.category", "practice", catId, "e1");
+    const rule = (await svc.recordCorrection("alias", "capture.category", "practice", catId, "e2"))!;
+    const toasts: (ToastState | null)[] = [];
+    const un = subscribeToast((t) => toasts.push(t));
+    await svc.announceIfFirstUse(rule);
+    const msg = toasts.filter(Boolean).map((t) => t!.message).join(" ");
+    expect(msg).toContain("practice means Elite Squad");
+    expect(msg).not.toContain(catId);
+    un();
+  });
+
   it("one contradicting correction kills the rule instantly", async () => {
     const { svc } = rig();
     await makeRule(svc);
