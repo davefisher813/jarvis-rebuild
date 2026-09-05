@@ -1,5 +1,5 @@
 import type { Workout, SetLog, MeasureKind } from "./types";
-import { beats, formatSet, scoreOf } from "./measures";
+import { beats, formatSet, scoreOf, inUnit } from "./measures";
 import { sameLift, sameLiftAnyKind, type LiftLike } from "./identity";
 import { daysBetween } from "../upnext/upnext";
 
@@ -18,9 +18,13 @@ export interface HistoryRow {
   unit?: string;
   timeUnit?: string;
   sessions: number;
-  first: { set: SetLog; date: string };
-  best: { set: SetLog; date: string };
-  last: { set: SetLog; date: string };
+  /** GYM-F-06 (2026-09-05): each carries the unit it was logged in. The row's
+   *  own `unit` is the newest one the lift was logged in, and trendLine
+   *  converts into it, so "225 lb x 5 -> 100 lb x 5" cannot happen again when
+   *  a lifter moves a lift to kg. */
+  first: { set: SetLog; date: string; unit?: string };
+  best: { set: SetLog; date: string; unit?: string };
+  last: { set: SetLog; date: string; unit?: string };
   entries: { date: string; text: string }[]; // newest first, per session best
 }
 
@@ -59,17 +63,20 @@ export function exerciseHistory(workouts: Workout[]): HistoryRow[] {
           name: ex.name, ...(ex.exerciseKey ? { exerciseKey: ex.exerciseKey } : {}),
           kind: ex.kind, unit: ex.unit, timeUnit: ex.timeUnit,
           sessions: 1,
-          first: { set: sessionBest, date: w.data.date },
-          best: { set: sessionBest, date: w.data.date },
-          last: { set: sessionBest, date: w.data.date },
+          first: { set: sessionBest, date: w.data.date, unit: ex.unit },
+          best: { set: sessionBest, date: w.data.date, unit: ex.unit },
+          last: { set: sessionBest, date: w.data.date, unit: ex.unit },
           entries: [entry],
         });
       } else {
         row.sessions++;
         row.name = ex.name; // the newest name this lift was logged under
+        row.unit = ex.unit; // and the newest unit it was logged in (GYM-F-06)
         if (ex.exerciseKey) row.exerciseKey = ex.exerciseKey;
-        row.last = { set: sessionBest, date: w.data.date };
-        if (beats(ex.kind, sessionBest, row.best.set)) row.best = { set: sessionBest, date: w.data.date };
+        row.last = { set: sessionBest, date: w.data.date, unit: ex.unit };
+        if (beats(ex.kind, sessionBest, row.best.set, { of: ex.unit, than: row.best.unit })) {
+          row.best = { set: sessionBest, date: w.data.date, unit: ex.unit };
+        }
         row.entries.push(entry);
       }
     }
@@ -86,10 +93,12 @@ export function exerciseHistory(workouts: Workout[]): HistoryRow[] {
  */
 export function trendLine(row: HistoryRow): string {
   const ex = { kind: row.kind, unit: row.unit, timeUnit: row.timeUnit };
-  if (row.sessions === 1) return formatSet(ex, row.last.set);
+  // GYM-F-06: both ends of the arrow in the row's current unit.
+  const shown = (e: { set: SetLog; unit?: string }) => inUnit(row.kind, e.set, e.unit, row.unit);
+  if (row.sessions === 1) return formatSet(ex, shown(row.last));
   const span = daysBetween(row.first.date, row.last.date);
   const weeks = Math.round(span / 7);
-  const arrow = `${formatSet(ex, row.first.set)} → ${formatSet(ex, row.last.set)}`;
+  const arrow = `${formatSet(ex, shown(row.first))} → ${formatSet(ex, shown(row.last))}`;
   return weeks >= 2 ? `${arrow} over ${weeks} weeks` : arrow;
 }
 

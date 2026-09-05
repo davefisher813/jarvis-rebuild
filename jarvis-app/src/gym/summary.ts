@@ -79,7 +79,9 @@ export function trainingSummary(workouts: Workout[], today: string): TrainingSum
   for (const row of exerciseHistory(workouts)) {
     if (row.sessions < 3) continue;
     if (daysBetween(row.last.date, today) > FRESH_DAYS) continue;
-    if (!beats(row.kind, row.last.set, row.first.set)) continue;
+    // GYM-F-06 (2026-09-05): a lift that moved from lb to kg is not trending
+    // down; both ends are named with the unit they were logged in.
+    if (!beats(row.kind, row.last.set, row.first.set, { of: row.last.unit, than: row.first.unit })) continue;
     if (pr && row.name === pr.name) continue;
     trending = { name: row.name, line: trendLine(row) };
     break;

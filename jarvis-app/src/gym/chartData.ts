@@ -1,5 +1,5 @@
 import type { Workout, SetLog, MeasureKind } from "./types";
-import { beats, scoreOf, hasVolume, setVolume } from "./measures";
+import { beats, scoreOf, hasVolume, setVolume, toLb, LB_PER_KG } from "./measures";
 import { liftRef, sameLift, sameLiftAnyKind, type LiftLike } from "./identity";
 
 // LIFT TREND CHARTS, D9-A (Training Catalog V2, approved 2026-08-31).
@@ -29,6 +29,11 @@ export interface LiftSession {
   /** Estimated one-rep max (Epley), weight_reps only. Null for every other
    *  kind -- a rep count or a pace has no "1RM" to estimate. */
   e1rm: number | null;
+  /** GYM-F-06 (2026-09-05): the unit `top` was logged in. `score` and `e1rm`
+   *  are always in POUNDS so the chart is one continuous line across a unit
+   *  change; a screen printing `top` converts it into the unit it is showing
+   *  rather than relabelling last year's number. */
+  unit?: string;
 }
 
 /** Epley: the formula the D9 research settled on. Rounded, because a
@@ -50,12 +55,17 @@ export function liftSessions(workouts: Workout[], lift: LiftLike, kind: MeasureK
     if (!ex || ex.skipped) continue;
     let top: SetLog | null = null;
     for (const s of ex.sets) {
-      if (s.skipped || !scoreOf(kind, s)) continue;
-      if (!top || beats(kind, s, top)) top = s;
+      if (s.skipped || !scoreOf(kind, s, ex.unit)) continue;
+      if (!top || beats(kind, s, top)) top = s; // one session, one unit
     }
     if (!top) continue;
-    const score = scoreOf(kind, top)!.value;
-    out.push({ workoutId: w.id, date: w.data.date, top, score, e1rm: kind === "weight_reps" ? e1rm(top.w ?? 0, top.r ?? 0) : null });
+    // GYM-F-06: the plotted numbers are pounds, whatever the session logged in,
+    // so switching a lift to kg no longer plunges its e1RM chart.
+    const score = scoreOf(kind, top, ex.unit)!.value;
+    out.push({
+      workoutId: w.id, date: w.data.date, top, score, unit: ex.unit,
+      e1rm: kind === "weight_reps" ? e1rm(toLb(top.w ?? 0, ex.unit), top.r ?? 0) : null,
+    });
   }
   return out;
 }
@@ -79,9 +89,10 @@ export function chartLabel(kind: MeasureKind): string {
  */
 export function prIndexes(sessions: LiftSession[], kind: MeasureKind): number[] {
   const out: number[] = [];
-  let best: SetLog | null = null;
+  let best: LiftSession | null = null;
   sessions.forEach((s, i) => {
-    if (!best || beats(kind, s.top, best)) { out.push(i); best = s.top; }
+    // GYM-F-06: units named on both sides, or a kg session reads as a collapse.
+    if (!best || beats(kind, s.top, best.top, { of: s.unit, than: best.unit })) { out.push(i); best = s; }
   });
   return out;
 }
@@ -120,7 +131,7 @@ export function weeklySetCounts(workouts: Workout[], lift: LiftLike, weeks = 8, 
     const days = daysAgo(w.data.date, now);
     const bucket = Math.floor(days / 7);
     if (bucket < 0 || bucket >= weeks) continue;
-    const working = ex.sets.filter((s) => !s.skipped && !s.warmup && scoreOf(ex.kind, s)).length;
+    const working = ex.sets.filter((s) => !s.skipped && !s.warmup && scoreOf(ex.kind, s, ex.unit)).length;
     out[weeks - 1 - bucket]! += working;
   }
   return out;
@@ -139,10 +150,12 @@ export function weeklyVolume(workouts: Workout[], lift: LiftLike, kind: MeasureK
     const bucket = Math.floor(days / 7);
     if (bucket < 0 || bucket >= weeks) continue;
     let v = 0;
-    for (const s of ex.sets) { if (!s.skipped) v += setVolume(kind, s); }
-    out[weeks - 1 - bucket]! += v;
+    // GYM-F-06: summed in pounds, then shown in the unit the caller asked in,
+    // so a bar chart cannot silently add lb and kg together.
+    for (const s of ex.sets) { if (!s.skipped) v += setVolume(kind, s, ex.unit); }
+    out[weeks - 1 - bucket]! += ref.unit === "kg" ? v / LB_PER_KG : v;
   }
-  return out;
+  return out.map((v) => Math.round(v));
 }
 
 /** Every distinct exercise name+kind ever logged, most recently trained
@@ -155,7 +168,7 @@ export function chartableExercises(workouts: Workout[]): { name: string; exercis
   const seen: { name: string; exerciseKey?: string; kind: MeasureKind; unit?: string; timeUnit?: string; date: string }[] = [];
   for (const w of workouts) {
     for (const ex of w.data.exercises) {
-      if (ex.skipped || !ex.sets.some((s) => !s.skipped && scoreOf(ex.kind, s))) continue;
+      if (ex.skipped || !ex.sets.some((s) => !s.skipped && scoreOf(ex.kind, s, ex.unit))) continue;
       const prior = seen.find((x) => sameLift(x, ex));
       if (!prior) {
         seen.push({ name: ex.name, ...(ex.exerciseKey ? { exerciseKey: ex.exerciseKey } : {}), kind: ex.kind, unit: ex.unit, timeUnit: ex.timeUnit, date: w.data.date });

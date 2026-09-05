@@ -1,12 +1,15 @@
 import type { Workout, SetLog, SetEntry, MeasureKind, WorkoutExercise } from "./types";
-import { beats, hasVolume, setVolume, formatSet, scoreOf } from "./measures";
+import { beats, hasVolume, setVolume, formatSet, scoreOf, inUnit, LB_PER_KG } from "./measures";
 import { liftRef, sameLift, type LiftLike } from "./identity";
 
 // PRs and the finish receipt. Every number here is DERIVED from logged work.
 // The app never prescribes ("try 140"); it reports what happened and what the
 // user's own best is.
 
-export interface BestEntry { set: SetLog; date: string }
+/** GYM-F-06 (2026-09-05): the best carries the unit it was logged in, so a
+ *  caller rendering it in the lift's CURRENT unit converts rather than
+ *  printing last session's number under this session's label. */
+export interface BestEntry { set: SetLog; date: string; unit?: string }
 
 /**
  * The best prior entry for one lift.
@@ -31,9 +34,10 @@ export function bestBefore(
       if (!sameLift(ref, ex)) continue; // kind change = fresh history
       for (const s of ex.sets) {
         if (s.skipped) continue;
-        if (!scoreOf(kind, s)) continue;
+        if (!scoreOf(kind, s, ex.unit)) continue;
         if (kind === "distance_time" && opts.sameDistanceAs != null && (s.v ?? 0) !== opts.sameDistanceAs) continue;
-        if (!best || beats(kind, s, best.set)) best = { set: s, date: w.data.date };
+        // GYM-F-06: both sides in pounds before they are compared at all.
+        if (!best || beats(kind, s, best.set, { of: ex.unit, than: best.unit })) best = { set: s, date: w.data.date, unit: ex.unit };
       }
     }
   }
@@ -43,10 +47,13 @@ export function bestBefore(
 /** Is this entry a new personal best? A first-ever measured entry counts. */
 export function isPR(history: Workout[], lift: LiftLike, kind: MeasureKind, candidate: SetLog): boolean {
   if (candidate.skipped) return false;
-  if (!scoreOf(kind, candidate)) return false;
+  // GYM-F-06: the candidate's own unit rides on the lift the caller handed in,
+  // so 105 kg x 5 is judged against a 225 lb best as the 231 lb it is.
+  const unit = typeof lift === "string" ? undefined : lift.unit;
+  if (!scoreOf(kind, candidate, unit)) return false;
   const best = bestBefore(history, lift, kind, kind === "distance_time" ? { sameDistanceAs: candidate.v ?? 0 } : {});
   if (!best) return true; // first time on this exercise is its own moment
-  return beats(kind, candidate, best.set);
+  return beats(kind, candidate, best.set, { of: unit, than: best.unit });
 }
 
 export interface PRHit { name: string; text: string; from: string | null }
@@ -98,7 +105,11 @@ export function receiptFor(
     if (ex.skipped || logged.length === 0) continue;
     done++;
     if (hasVolume(ex.kind)) {
-      for (const s of logged) volume += setVolume(ex.kind, s);
+      // GYM-F-06: every set is summed in pounds and the total is converted
+      // once, into the unit of the session's first weighted lift. A day with
+      // Bench in lb and Squat in kg used to add the two raw numbers together
+      // and print the sum under one label.
+      for (const s of logged) volume += setVolume(ex.kind, s, ex.unit);
       volumeUnit = volumeUnit ?? ex.unit ?? "lb";
     } else if (ex.kind === "done") {
       doneNames.push(ex.name);
@@ -114,7 +125,8 @@ export function receiptFor(
       prs.push({
         name: ex.name,
         text: formatSet(ex, bestOfSession),
-        from: prior ? formatSet(ex, prior.set) : null,
+        // The old best is spoken in THIS session's unit (GYM-F-06).
+        from: prior ? formatSet(ex, inUnit(ex.kind, prior.set, prior.unit, ex.unit)) : null,
       });
     }
   }
@@ -122,7 +134,7 @@ export function receiptFor(
   return {
     minutes: Math.max(1, Math.round((endedAt - startedAt) / 60000)),
     exercises: done,
-    volume: Math.round(volume),
+    volume: Math.round(volumeUnit === "kg" ? volume / LB_PER_KG : volume),
     volumeUnit: volume > 0 ? volumeUnit : null,
     prs,
     otherSets,
@@ -178,7 +190,16 @@ export function lastSessionFor(history: Workout[], lift: LiftLike, kind: Measure
     // Working sets only: a warm-up is not what happened last time (D3-A).
     const logged = ex?.sets.filter((s) => !s.skipped && !s.warmup) ?? [];
     if (ex && logged.length) {
-      return { date: w.data.date, fx: { kind: ex.kind, unit: ex.unit, timeUnit: ex.timeUnit }, sets: logged };
+      // GYM-F-06 (2026-09-05): spoken in the unit the lift is in NOW, so the
+      // "Last:" line under each ghost, and tap-to-match, cannot hand back a kg
+      // number wearing an lb label. A caller that named no unit gets the
+      // session's own, exactly as before.
+      const to = ref.unit ?? ex.unit;
+      return {
+        date: w.data.date,
+        fx: { kind: ex.kind, unit: to, timeUnit: ex.timeUnit },
+        sets: logged.map((s) => inUnit(ex.kind, s, ex.unit, to) as SetEntry),
+      };
     }
   }
   return null;
@@ -205,8 +226,11 @@ export function lastHeader(history: Workout[], lift: LiftLike, kind: MeasureKind
   } else {
     last = sets.map((s) => formatSet(fx, s)).join(", ");
   }
+  // GYM-F-06 (2026-09-05): the all-time best used to be printed with the LAST
+  // session's unit label glued onto whatever number it was logged in, so
+  // "Best: 225 kg x 5" showed a 225 lb best on a lift now in kg. Converted.
   const best = kind === "distance_time" ? null : bestBefore(history, lift, kind);
-  return { last, date: hit.date, best: best ? formatSet(fx, best.set) : null };
+  return { last, date: hit.date, best: best ? formatSet(fx, inUnit(kind, best.set, best.unit, fx.unit)) : null };
 }
 
 /** "Last time: 135 lb × 8, 8, 7" for the in-gym header. Null when new. */

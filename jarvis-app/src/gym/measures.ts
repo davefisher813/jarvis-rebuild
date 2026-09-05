@@ -172,16 +172,45 @@ export function hasVolume(kind: MeasureKind): boolean {
   return kind === "weight_reps";
 }
 
-export function setVolume(kind: MeasureKind, s: SetLog): number {
+/** One set's tonnage, IN POUNDS whatever unit it was logged in, so a mixed
+ *  session's total is a real number rather than lb and kg added together. */
+export function setVolume(kind: MeasureKind, s: SetLog, unit?: string): number {
   if (s.warmup) return 0; // the approach is not the tonnage
-  return hasVolume(kind) ? (s.w ?? 0) * (s.r ?? 0) : 0;
+  return hasVolume(kind) ? toLb(s.w ?? 0, unit) * (s.r ?? 0) : 0;
+}
+
+// GYM-F-06 (2026-09-05, fork option A). lb and kg were compared and summed as
+// raw numbers: a session with Bench 200 lb x 5 and Squat 100 kg x 5 printed
+// "1,500 lb moved", 105 kg x 5 was not a PR against a 225 lb best, the header
+// read "Best: 225 kg x 5", History read "225 lb x 5 -> 100 lb x 5", and the
+// e1RM chart plunged the day a lifter switched a lift to kg. Pounds are the
+// canonical unit for every COMPARISON and every SUM; the athlete still sees
+// the exercise's own unit, converted on the way out.
+export const LB_PER_KG = 2.2046;
+
+/** A weight in pounds, whatever unit it was logged in. */
+export function toLb(w: number, unit?: string): number {
+  return unit === "kg" ? w * LB_PER_KG : w;
+}
+
+/** The same set, its weight expressed in `to` instead of `from`. Kinds that
+ *  carry no weight are handed back untouched, and so is a set with no weight
+ *  at all: EMPTY IS LEGAL, and a conversion must never invent a zero. */
+export function inUnit(kind: MeasureKind, s: SetLog, from: string | undefined, to: string | undefined): SetLog {
+  if (!hasVolume(kind) || s.w == null || (from ?? "lb") === (to ?? "lb")) return s;
+  const lb = toLb(s.w, from);
+  return { ...s, w: Math.round((to === "kg" ? lb / LB_PER_KG : lb) * 10) / 10 };
 }
 
 /**
  * The comparable score of one entry, and whether lower wins. Null means the
  * kind has no score at all (Done), so it can never produce a PR.
+ *
+ * `unit` is the unit the entry was logged in: a weight score comes back in
+ * pounds whichever unit that was, so two sessions in different units are
+ * comparable at all (GYM-F-06).
  */
-export function scoreOf(kind: MeasureKind, s: SetLog): { value: number; lowerWins: boolean } | null {
+export function scoreOf(kind: MeasureKind, s: SetLog, unit?: string): { value: number; lowerWins: boolean } | null {
   // THE RAMP IS NOT THE WORK (D3-A). Every record path in the app -- isPR,
   // bestBefore, the receipt, the history row -- asks this one question
   // first, so a warm-up leaves the running here and cannot become anyone's
@@ -189,7 +218,7 @@ export function scoreOf(kind: MeasureKind, s: SetLog): { value: number; lowerWin
   if (s.warmup) return null;
   switch (kind) {
     case "weight_reps":
-      return { value: s.w ?? 0, lowerWins: false };
+      return { value: toLb(s.w ?? 0, unit), lowerWins: false };
     case "reps":
     case "rounds":
       return { value: s.r ?? 0, lowerWins: false };
@@ -208,9 +237,12 @@ export function scoreOf(kind: MeasureKind, s: SetLog): { value: number; lowerWin
   }
 }
 
-export function beats(kind: MeasureKind, candidate: SetLog, best: SetLog): boolean {
-  const a = scoreOf(kind, candidate);
-  const b = scoreOf(kind, best);
+/** `units` names the unit each side was logged in, for the one kind where
+ *  that changes the answer (GYM-F-06). Omitted means both sides are already
+ *  in the same unit, which is every caller comparing within one session. */
+export function beats(kind: MeasureKind, candidate: SetLog, best: SetLog, units: { of?: string; than?: string } = {}): boolean {
+  const a = scoreOf(kind, candidate, units.of);
+  const b = scoreOf(kind, best, units.than);
   if (!a || !b) return false;
   return a.lowerWins ? a.value < b.value : a.value > b.value;
 }

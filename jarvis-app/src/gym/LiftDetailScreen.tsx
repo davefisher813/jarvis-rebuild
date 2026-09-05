@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Workout, MeasureKind } from "./types";
 import type { Goal } from "../life/types";
-import { formatSet } from "./measures";
+import { formatSet, inUnit, LB_PER_KG } from "./measures";
 import { movedFact } from "./history";
 import { liftSessions, chartValue, chartLabel, prIndexes, weeklySetCounts, weeklyVolume, daysAgo } from "./chartData";
 import { plateauFlag, hardSetRows } from "./insights";
@@ -111,7 +111,14 @@ export default function LiftDetailScreen({
   // GYM-F-04: one identity for every derivation on this screen.
   const lift = useMemo(() => ({ name, exerciseKey }), [name, exerciseKey]);
   const sessions = useMemo(() => liftSessions(workouts, lift, kind), [workouts, lift, kind]);
-  const chartVals = useMemo(() => sessions.map(chartValue), [sessions]);
+  // GYM-F-06 (2026-09-05): chartValue is in pounds so the line is continuous
+  // across a unit change; the axis is shown in the unit this screen is in.
+  const chartVals = useMemo(
+    () => sessions.map((x) => (unit === "kg" ? Math.round(chartValue(x) / LB_PER_KG) : chartValue(x))),
+    [sessions, unit],
+  );
+  /** A session's own top set, spoken in the unit this screen is showing. */
+  const shownTop = (x: { top: import("./types").SetLog; unit?: string }) => inUnit(kind, x.top, x.unit, unit);
   const prs = useMemo(() => new Set(prIndexes(sessions, kind)), [sessions, kind]);
   const { path, pts } = useMemo(() => linePath(chartVals), [chartVals]);
   const setBars = useMemo(() => weeklySetCounts(workouts, lift, WEEKS, now), [workouts, lift, now]);
@@ -173,7 +180,7 @@ export default function LiftDetailScreen({
             <div className="pad-x"><div className="card list-card-ruled">
               <div className="row">
                 <div className="row-grow">
-                  <div className="conn-name">Best so far · {formatSet({ kind, unit, timeUnit }, sessions[sessions.length - 1]!.top)}</div>
+                  <div className="conn-name">Best so far · {formatSet({ kind, unit, timeUnit }, shownTop(sessions[sessions.length - 1]!))}</div>
                   <div className="conn-meta">{label} {latest != null ? `${latest}${unit ? " " + unit : ""}` : "--"} · logged {agoPhraseLower(sessions[sessions.length - 1]!.date, todayIso)}</div>
                 </div>
               </div>
@@ -299,7 +306,7 @@ export default function LiftDetailScreen({
               // two sessions can land on one day.
               <div className="row" key={s.workoutId}>
                 <div className="row-grow">
-                  <div className="conn-name">{formatSet({ kind, unit, timeUnit }, s.top)}</div>
+                  <div className="conn-name">{formatSet({ kind, unit, timeUnit }, shownTop(s))}</div>
                   <div className="conn-meta">{agoPhrase(s.date, todayIso)}</div>
                 </div>
                 {prs.has(sessions.indexOf(s)) && <span className="pill pill-good">PR</span>}

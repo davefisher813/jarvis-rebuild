@@ -20,17 +20,20 @@ import type { MeasureKind } from "./types";
 // Kind is always part of it: scoreOf is per-kind, so a lift whose kind changed
 // has numbers that cannot be compared and starts fresh, as it always did.
 
-export interface LiftRef { name: string; kind: MeasureKind; exerciseKey?: string }
+export interface LiftRef { name: string; kind: MeasureKind; exerciseKey?: string; unit?: string }
 
 /** What a caller may hand a derivation in place of a bare name: a program or
  *  live exercise, a history row, a stored goal, or just the name. Callers with
  *  nothing but a name get today's behaviour, unchanged. */
-export type LiftLike = string | { name: string; exerciseKey?: string };
+export type LiftLike = string | { name: string; exerciseKey?: string; unit?: string };
 
 export function liftRef(lift: LiftLike, kind: MeasureKind): LiftRef {
+  // GYM-F-06 (2026-09-05): the ref carries the unit the caller is working in,
+  // so a derivation can render its answer back in that unit after comparing
+  // everything in pounds.
   return typeof lift === "string"
     ? { name: lift, kind }
-    : { name: lift.name, kind, ...(lift.exerciseKey ? { exerciseKey: lift.exerciseKey } : {}) };
+    : { name: lift.name, kind, ...(lift.exerciseKey ? { exerciseKey: lift.exerciseKey } : {}), ...(lift.unit ? { unit: lift.unit } : {}) };
 }
 
 export function sameLift(a: LiftRef, b: { name: string; kind: MeasureKind; exerciseKey?: string }): boolean {

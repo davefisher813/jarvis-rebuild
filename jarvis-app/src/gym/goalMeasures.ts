@@ -1,5 +1,5 @@
 import type { Workout, WorkoutExercise, MeasureKind, SetLog } from "./types";
-import { scoreOf, has, fieldsFor } from "./measures";
+import { scoreOf, has, fieldsFor, toLb, LB_PER_KG } from "./measures";
 import { liftRef, sameLift, sameLiftAnyKind, type LiftLike } from "./identity";
 import { capAfterNumber } from "../shared/casing";
 
@@ -83,7 +83,15 @@ export interface LiftMeasureState {
  * faster-is-better kind is beaten by going LOWER, exactly as beats() already
  * treats it everywhere else in the gym.
  */
-export function meetsLiftTarget(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "t">, s: SetLog): boolean {
+export function meetsLiftTarget(
+  kind: MeasureKind,
+  target: Pick<SetLog, "w" | "r" | "v" | "t">,
+  s: SetLog,
+  // GYM-F-06 (2026-09-05): the unit each side was logged in. A 100 kg set
+  // clears a 225 lb target (it is 220 lb) and no raw number comparison can
+  // see that. Omitted means both sides are already in the same unit.
+  units: { target?: string; set?: string } = {},
+): boolean {
   if (s.warmup || s.skipped) return false; // THE RAMP IS NOT THE WORK, same as scoreOf itself
   // GYM-F-20 (2026-09-05): a target of 0 is not a target. For height,
   // distance and time_longer the comparison below is `value >= 0`, which any
@@ -95,12 +103,12 @@ export function meetsLiftTarget(kind: MeasureKind, target: Pick<SetLog, "w" | "r
   if (!fieldsFor(kind).every((f) => has(target[f.key]))) return false;
   if (kind === "weight_reps") {
     if (!has(s.w) || !has(s.r)) return false;
-    if (target.w != null && s.w! < target.w) return false;
+    if (target.w != null && toLb(s.w!, units.set) < toLb(target.w, units.target)) return false;
     if (target.r != null && s.r! < target.r) return false;
     return true;
   }
-  const t = scoreOf(kind, target as SetLog);
-  const v = scoreOf(kind, s);
+  const t = scoreOf(kind, target as SetLog, units.target);
+  const v = scoreOf(kind, s, units.set);
   if (!t || !v) return false; // "done" has no score at all -- no lift goal can ever fire on it
   return t.lowerWins ? v.value <= t.value : v.value >= t.value;
 }
@@ -120,9 +128,11 @@ function targetValue(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "
  * Every other kind tracks its own best score, direction-aware. Never counts
  * a warmup or a skipped chip.
  */
-function bestToward(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "t">, workouts: Workout[], exercise: LiftLike): number {
+function bestToward(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "t">, workouts: Workout[], exercise: LiftLike, goalUnit?: string): number {
   const ref = liftRef(exercise, kind);
   if (kind === "weight_reps") {
+    // GYM-F-06: compared in pounds, reported in the goal's own unit, so
+    // "205 of 225 lb" cannot be built out of two different units.
     let best = 0;
     for (const w of workouts) {
       const ex = w.data.exercises.find((e) => sameLift(ref, e));
@@ -130,10 +140,13 @@ function bestToward(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "t
       for (const s of ex.sets) {
         if (s.warmup || s.skipped || !has(s.w) || !has(s.r)) continue;
         if (target.r != null && s.r! < target.r) continue;
-        if (s.w! > best) best = s.w!;
+        const lb = toLb(s.w!, ex.unit);
+        if (lb > best) best = lb;
       }
     }
-    return best;
+    // One decimal either way: a fractional pound is false precision, and a
+    // converted number that keeps six of them is worse.
+    return Math.round((goalUnit === "kg" ? best / LB_PER_KG : best) * 10) / 10;
   }
   let bestScore: { value: number; lowerWins: boolean } | null = null;
   for (const w of workouts) {
@@ -141,7 +154,7 @@ function bestToward(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "t
     if (!ex || ex.skipped) continue;
     for (const s of ex.sets) {
       if (s.warmup || s.skipped) continue;
-      const sc = scoreOf(kind, s);
+      const sc = scoreOf(kind, s, ex.unit);
       if (!sc) continue;
       if (!bestScore || (sc.lowerWins ? sc.value < bestScore.value : sc.value > bestScore.value)) bestScore = sc;
     }
@@ -176,10 +189,10 @@ export function liftMeasureState(m: LiftMeasure, workouts: Workout[]): LiftMeasu
   for (const w of workouts) {
     const ex = w.data.exercises.find((e) => sameLift(ref, e));
     if (!ex || ex.skipped) continue;
-    if (ex.sets.some((s) => meetsLiftTarget(m.measureKind, m.target, s))) { met = true; break; }
+    if (ex.sets.some((s) => meetsLiftTarget(m.measureKind, m.target, s, { target: m.unit, set: ex.unit }))) { met = true; break; }
   }
   const target = targetValue(m.measureKind, m.target);
-  const done = bestToward(m.measureKind, m.target, workouts, lift);
+  const done = bestToward(m.measureKind, m.target, workouts, lift, m.unit);
   const lowerWins = m.measureKind !== "weight_reps" ? (scoreOf(m.measureKind, m.target as SetLog)?.lowerWins ?? false) : false;
   let pct: number;
   if (target <= 0) pct = 0;
