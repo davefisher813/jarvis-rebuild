@@ -425,9 +425,17 @@ describe("LAW: Apple HIG casing", () => {
   // .see-all already meets it; .pill-act shipped at 27px, which is every
   // action button in the notice stream. A row action must expand its hit
   // area past its paint rather than be pleasant to look at and hard to hit.
+  //
+  // BROWSER-F-03 (2026-09-05) corrected what this asserts. It demanded an
+  // ::after, and the browser walk then measured the ::after doing nothing:
+  // the pill also carries `overflow: hidden` for its ellipsis, and a
+  // pseudo-element cannot escape its own box's clip, so the hit stayed 27px
+  // for a year with this test green. The guarantee is unchanged (the pill
+  // expands past its paint); the route now has to be one that survives the
+  // clip, which means the transparent hit border.
   it("the row action pill expands its hit area to the tap minimum", () => {
     const css = read(SRC + "/styles/components.css");
-    expect(css).toMatch(/\.pill-act::after\s*\{[^}]*inset/);
+    expect(css).toMatch(/\.pill-act\s*\{[^}]*border-top:\s*\d+px solid transparent/);
   });
 
   // B1/B2 (2026-08-23): the law above checked ONE class, so it could not have
@@ -468,8 +476,12 @@ describe("LAW: Apple HIG casing", () => {
     for (const [cls, why] of Object.entries(small)) {
       // Either an ::after carrying inset/height, or a wrapper that is itself
       // at least the tap minimum, counts as meeting it.
-      const expands = new RegExp("\\." + cls + "::after\\s*\\{[^}]*(inset|height)").test(css);
-      if (!expands) bad.push(`.${cls} (${why}) has no ::after hit area`);
+      // BROWSER-F-03 (2026-09-05): a transparent hit border counts too, and
+      // for a control that clips itself it is the ONLY thing that counts, an
+      // ::after being clipped away by the same box's overflow.
+      const expands = new RegExp("\\." + cls + "::after\\s*\\{[^}]*(inset|height)").test(css)
+        || new RegExp("\\." + cls + "\\s*\\{[^}]*border-top:\\s*[\\d.]+px solid transparent").test(css);
+      if (!expands) bad.push(`.${cls} (${why}) has no hit area past its paint`);
     }
     expect(bad).toEqual([]);
   });

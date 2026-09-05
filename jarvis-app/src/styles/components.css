@@ -2694,8 +2694,24 @@ button {
    two-line row, but 27px is a bad target on a phone and the app's own
    standard (--tap-min, which .see-all already meets) is 44. The hit area is
    expanded past the paint rather than the pill being made fatter, so the
-   design is unchanged and the thumb gets what Apple asks for. */
-.pill-act::after { content: ""; position: absolute; inset: -9px 0; }
+   design is unchanged and the thumb gets what Apple asks for.
+
+   BROWSER-F-03 (2026-09-05): for a year this rule expanded nothing. The
+   `overflow: hidden` the ellipsis needs (just below, added later) clips an
+   absolutely positioned pseudo-element on the same box, so every "Start",
+   "Read", "Schedule" and "Done" in the app measured 27px of hit under
+   elementFromPoint, 162 of them across the dark run. A pseudo-element cannot
+   escape its own box's clip, so the expansion moves to a transparent border,
+   which is part of the border box and therefore outside the overflow clip:
+   9px top and bottom takes 27 to 45, `background-clip: padding-box` keeps
+   the press fill painting at the old 27px pill, and the negative block margin
+   pulls the 17px back out of the flex row so no row grows. This is the same
+   trade .sec-head .see-all already makes (a real 44pt box, the extra height
+   pulled out of layout); it just has to route around a fill here. */
+.pill-act {
+  border-top: 9px solid transparent; border-bottom: 9px solid transparent;
+  background-clip: padding-box; margin-block: -9px;
+}
 /* A PILL MAY NEVER EAT ITS ROW (2026-08-24).
    flex-shrink:0 is right: a verb must not be squeezed into two lines by a
    long title. But with no ceiling it worked the other way too, and a
@@ -2716,7 +2732,10 @@ button {
    fixes: not the wrap itself (still deliberately unclamped), just where
    the button sits next to it. .notice-card-uniform is the class every
    OTHER producer's card wears, so this touches mail alone. */
-.notice-card:not(.notice-card-uniform) .row > .pill-act { align-self: flex-start; margin-top: 2px; }
+/* The 2px is measured from the PAINT, and BROWSER-F-03 (2026-09-05) moved the
+   pill's hit expansion into a transparent border, so the paint now starts
+   9px inside the box. -7px puts it back where Dave signed it off. */
+.notice-card:not(.notice-card-uniform) .row > .pill-act { align-self: flex-start; margin-top: -7px; }
 
 
 /* V4 WRITING CANVAS (Dave 2026-08-18: "feel like an actual writing app...
@@ -3188,8 +3207,18 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 /* The location on a schedule row opens Maps, so it is a real target, and it
    renders at 20px of meta type. Same treatment as .pill-act and the time
    button: expand the hit area past the paint. */
-.sched-loc { position: relative; }
-.sched-loc::after { content: ""; position: absolute; inset: -12px -8px; }
+/* BROWSER-F-03 (2026-09-05): and it was clipped the same way .pill-act was.
+   The link carries .truncate, whose overflow: hidden ate this pseudo-element,
+   so the measured hit was the painted 20px. Transparent border instead: it
+   lives in the border box, outside the clip, and the negative margins keep the
+   meta line exactly as wide and as tall as it was. */
+.sched-loc {
+  position: relative;
+  border-top: 12px solid transparent; border-bottom: 12px solid transparent;
+  border-left: 8px solid transparent; border-right: 8px solid transparent;
+  background-clip: padding-box;
+  margin-top: calc(var(--s-1) - 12px); margin-bottom: -12px; margin-inline: -8px;
+}
 
 /* W2 · THE STANDING MARK. A day that carries a repeating event gets a small
    bar under its dots. It says "there is a fixture here" and deliberately not
@@ -3294,7 +3323,11 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 [data-theme="light"] .btn-sm:not(.btn-primary):not(.btn-danger):not(.btn-secondary) {
   background: rgba(204,5,27,0.085); color: var(--on-light-red);
 }
-[data-theme="light"] .pill-act { background: rgba(204,5,27,0.085); color: var(--on-light-red); }
+/* background-COLOR, not the shorthand: the shorthand resets background-clip to
+   border-box, which would paint this wash across the transparent hit border
+   BROWSER-F-03 (2026-09-05) gave the pill and make it look 44px tall in light
+   only. Same wash, same red, just the one longhand that leaves the clip. */
+[data-theme="light"] .pill-act { background-color: rgba(204,5,27,0.085); color: var(--on-light-red); }
 [data-theme="light"] .note-fix { background: rgba(204,5,27,0.085); color: var(--on-light-red); }
 /* The variants the tint must NOT bleach, restated so the cascade keeps
    them: primary stays the flat brand fill, danger stays system red,

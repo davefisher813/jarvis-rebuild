@@ -354,8 +354,13 @@
 /* The place is the one item on the line with no ceiling on its length, so
    it is the one that gives: everything else keeps its width and the address
    ellipsizes into whatever is left. */
+/* margin-top -12px, not 0: BROWSER-F-03 (2026-09-05) gave .sched-loc a 12px
+   transparent border top and bottom so its hit area clears 44 without the
+   ellipsis clipping the expander, and the negative margin is what keeps that
+   border out of the layout. Zeroing it here put the 12px back into the meta
+   line and grew the row. Visually still "no top margin". */
 .ruled .sched-cat .sched-loc { color: var(--tx-3); font-weight: var(--w-regular); text-decoration: none;
-  margin-top: 0; min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+  margin-top: -12px; min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .ruled .sched-cat .sched-until-btn { color: var(--tx-3); }
 /* The gap: dashed --tx-4, no fill, the plus is the row's one verb mark. */
 .ruled .sched-gap { background: transparent; margin: 6px var(--s-4); padding: 8px var(--s-3); gap: 11px; }
