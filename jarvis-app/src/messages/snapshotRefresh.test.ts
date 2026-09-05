@@ -135,4 +135,37 @@ describe("refreshMailSnapshot: builds the home snapshot with no component mounte
     expect(snap.needsYou).toBe(0);
     expect(snap.threads).toHaveLength(0);
   });
+
+  // EMAIL-F-04 (2026-09-05): the headless pump used to do exactly what the
+  // tab did on a dead token: read the 401 as an empty inbox and overwrite a
+  // real snapshot with needsYou 0 every four hours.
+  it("a failed fetch leaves the last good snapshot standing and reports the failure", async () => {
+    const good = makeFakeGoogleApi({ listThreads: async () => THREADS });
+    await refreshMailSnapshot({ apis: () => [{ email: "me@example.com", api: good }], ai: aiReturning(TRIAGE_REPLY) });
+    const before = loadMailSnapshot();
+    expect(before.needsYou).toBe(1);
+
+    const dead = makeFakeGoogleApi({ listThreads: async () => { throw new Error("threads 401"); } });
+    await expect(refreshMailSnapshot({ apis: () => [{ email: "me@example.com", api: dead }], ai: noAI }))
+      .rejects.toThrow(/401/);
+    expect(loadMailSnapshot()).toEqual(before);
+  });
+
+  it("a genuinely empty inbox still writes the honest empty snapshot", async () => {
+    saveTriageCache({});
+    const empty = makeFakeGoogleApi({ listThreads: async () => [] });
+    await refreshMailSnapshot({ apis: () => [{ email: "me@example.com", api: empty }], ai: noAI });
+    expect(loadMailSnapshot().ts).toBeGreaterThan(0);
+    expect(loadMailSnapshot().needsYou).toBe(0);
+  });
+
+  it("one dead account out of two still writes what the live one returned", async () => {
+    const good = makeFakeGoogleApi({ listThreads: async () => THREADS });
+    const dead = makeFakeGoogleApi({ listThreads: async () => { throw new Error("threads 401"); } });
+    await refreshMailSnapshot({
+      apis: () => [{ email: "a@x.com", api: dead }, { email: "b@x.com", api: good }],
+      ai: aiReturning(TRIAGE_REPLY),
+    });
+    expect(loadMailSnapshot().threads.map((t) => t.account)).toEqual(["b@x.com"]);
+  });
 });

@@ -537,13 +537,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     try {
       // One inbox across every account: each thread remembers which account
       // it lives in, and that account is where its reply will leave from.
+      //
+      // EMAIL-F-04 (2026-09-05): "An expired token or a dead network reads as
+      // Inbox Is Quiet and wipes the Today email band." This used to
+      // `.catch(() => [])` per account, so every transport failure became an
+      // empty inbox: runTriage([]) took its cache branch and set `triaged`,
+      // the snapshot effect wrote needsYou 0 with a fresh timestamp, and
+      // Today's band went blank until a real load happened to succeed.
+      // Fetched zero and fetch failed are different facts. A failed account
+      // is collected; if every account failed, the rows, the triage flag
+      // and the snapshot are all left exactly as they were (the last good
+      // read) and the failure is said in words a person can act on.
+      const failures: unknown[] = [];
       const perAccount = await Promise.all(list.map(async ({ email, api }) => {
-        const metas = await api.listThreads(30).catch(() => []);
+        const metas = await api.listThreads(30).catch((e: unknown) => { failures.push(e); return null; });
+        if (!metas) return null;
         return metas.map(mapThread)
           .filter((t): t is ThreadRow => t !== null && t.inInbox)
           .map((t) => ({ ...t, account: email }));
       }));
-      const mapped = perAccount.flat().sort((a, b) => b.dateMs - a.dateMs);
+      if (failures.length) setError(humanError(failures[0], "Could not load mail"));
+      if (failures.length === list.length) return;
+      const mapped = perAccount.filter((p): p is (ThreadRow & { account: string })[] => p !== null).flat().sort((a, b) => b.dateMs - a.dateMs);
       setRows(mapped);
       setTriage(loadTriageCache());
       void runTriage(mapped);
@@ -2930,6 +2945,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         )
       ) : loading && rows.length === 0 ? (
         <div className="pad-x"><div className="card"><div className="empty-state"><div className="empty-title">Loading...</div></div></div></div>
+      ) : error && rows.length === 0 && results === null ? (
+        // EMAIL-F-04 (2026-09-05): a load that FAILED with nothing in hand is
+        // an error state, never "Inbox Is Quiet" or "Inbox Empty" (For You
+        // would otherwise sit on "Reading Your Inbox" for good, since a
+        // failed fetch never starts a sort). The sentence itself is the
+        // conn-error line above this; the card carries the way back.
+        <div className="pad-x"><div className="card"><div className="empty-state">
+          <div className="empty-icon"><Mail className="ic" /></div>
+          <div className="empty-title">Couldn’t Reach Your Mail</div>
+          <div className="empty-sub">Nothing lost · Nothing here was changed</div>
+          <div className="conn-action">
+            <button className="btn btn-secondary btn-block" onClick={() => void loadThreads()}>Try Again</button>
+            {onOpenConnections && <button className="quiet-action" onClick={onOpenConnections}>Open Connections</button>}
+          </div>
+        </div></div></div>
       ) : forYou && !triaged ? (
         // The two calm states. Neither one ever shows unsorted mail.
         triageState === "failed" ? (

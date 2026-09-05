@@ -545,6 +545,46 @@ describe("MessagesFlow (threads)", () => {
     expect(loadMailSnapshot().needsYou).toBe(0);
   });
 
+  // EMAIL-F-04 (2026-09-05): "An expired token or a dead network reads as
+  // Inbox Is Quiet and wipes the Today email band." PROOF A from the audit:
+  // listThreads throwing "threads 401" rendered "Inbox Is Quiet", no
+  // sign-in-expired text anywhere, and loadMailSnapshot() afterwards had
+  // threads.length 0 and needsYou 0 where a real snapshot had been.
+  it("a failed fetch reads as an error, never Inbox Is Quiet, and keeps the last good snapshot", async () => {
+    saveMailSnapshot({
+      ts: Date.now() - 60_000,
+      needsYou: 2,
+      threads: [{ id: "real-1", from: "Ridgeley", fromEmail: "t@x.com", subject: "Waiver", gist: "Needs the waiver" }],
+      waiting: [],
+      promises: [],
+    });
+    const api = makeApi({ listThreads: async () => { throw new Error("threads 401"); } });
+    render(wrap(<MessagesFlow ai={aiReturning("[]")} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    // waitFor rather than findByText: the session settling after connect
+    // re-runs loadThreads, and each run clears the line before re-setting
+    // it, so a node found mid-flight can be swapped out a tick later.
+    await waitFor(() => {
+      expect(screen.getByText("Your Google sign-in expired · Reconnect in Settings")).toBeInTheDocument();
+      expect(screen.getByText("Couldn’t Reach Your Mail")).toBeInTheDocument();
+      expect(screen.getByText("Try Again")).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Inbox Is Quiet")).toBeNull();
+    expect(screen.queryByText("Inbox Empty")).toBeNull();
+    expect(screen.queryByText("Reading Your Inbox")).toBeNull();
+    // The band on Today still shows the last good read, not a fresh zero.
+    expect(loadMailSnapshot().needsYou).toBe(2);
+    expect(loadMailSnapshot().threads.map((t) => t.id)).toEqual(["real-1"]);
+  });
+
+  it("the All chip says the same on a failed fetch, not Inbox Empty", async () => {
+    const api = makeApi({ listThreads: async () => { throw new Error("Failed to fetch"); } });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await waitFor(() => expect(screen.getByText("You're offline · Nothing was lost")).toBeInTheDocument());
+    expect(screen.queryByText("Inbox Empty")).toBeNull();
+  });
+
   // S2-1 (2026-09-04): "A failed send destroys the message." The outbox
   // queue (outbox.ts) is now wired through MessagesFlow. These cover the
   // three things the old bare-setTimeout send could never do: survive a

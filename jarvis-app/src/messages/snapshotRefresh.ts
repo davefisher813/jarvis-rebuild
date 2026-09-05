@@ -70,12 +70,25 @@ export async function refreshMailSnapshot(deps: SnapshotRefreshDeps): Promise<vo
   const list = deps.apis();
   if (list.length === 0) return;
 
+  // EMAIL-F-04 (2026-09-05): fetched zero and fetch failed are different
+  // facts. This used to `.catch(() => [])` per account, so an expired token
+  // or a dead network every four hours rewrote the snapshot as an empty
+  // inbox with a fresh timestamp and blanked Today's band. An account that
+  // fails is collected; if every account failed, this throws and the pump's
+  // own catch leaves the last good snapshot standing until the next check.
+  // A partial failure still writes: what came back is real mail, and real
+  // beats stale.
+  const failures: unknown[] = [];
   const perAccount = await Promise.all(list.map(async ({ email, api }) => {
-    const metas = await api.listThreads(30).catch(() => []);
+    const metas = await api.listThreads(30).catch((e: unknown) => { failures.push(e); return null; });
+    if (!metas) return [];
     return metas.map(mapThread)
       .filter((t): t is ThreadRow => t !== null && t.inInbox)
       .map((t) => ({ ...t, account: email }));
   }));
+  if (failures.length === list.length) {
+    throw failures[0] instanceof Error ? failures[0] : new Error("Could not load mail");
+  }
   const rows = perAccount.flat().sort((a, b) => b.dateMs - a.dateMs);
 
   // Triage: cache-aware, same cache the Email tab reads and writes, so a
