@@ -170,6 +170,9 @@ export default function NotesFlow({
     if (!currentId) return;
     const prev = history.current.pop();
     if (!prev) return;
+    // HMN-F-27 (2026-09-05): a photo block comes back with its picture, so
+    // any bytes still waiting to be swept stay where they are.
+    cancelBlockSweeps();
     const d = await svc.note(currentId);
     if (d) redoStack.current.push(JSON.parse(JSON.stringify(d.blocks)) as Block[]);
     await attemptWrite(() => svc.setBlocks(currentId, prev));
@@ -551,6 +554,31 @@ export default function NotesFlow({
     return { cancel: () => { undone = true; clearTimeout(t); } };
   };
 
+  // HMN-F-27 (2026-09-05): deleting a photo or file BLOCK took the block and
+  // left its bytes in storage forever, so a note edited over a year quietly
+  // grew a pile nobody could see or reach. The note delete has had this sweep
+  // since the day it shipped; the block delete never got one. Same beat, same
+  // reason: the editor's Undo brings the block back WITH its picture, so the
+  // bytes cannot go the instant the block does.
+  const blockSweeps = useRef<Array<() => void>>([]);
+  const sweepPathAfter = (path: string) => {
+    let undone = false;
+    const cancel = () => { undone = true; clearTimeout(t); };
+    const t = setTimeout(() => {
+      blockSweeps.current = blockSweeps.current.filter((c) => c !== cancel);
+      if (!undone) void fileStore?.remove([path]);
+    }, 6000);
+    blockSweeps.current.push(cancel);
+  };
+  // Any Undo cancels every sweep still waiting: the history restores the
+  // whole blocks array, so which block came back is not this layer's to
+  // guess, and keeping bytes for a picture nobody wants costs a great deal
+  // less than losing the picture.
+  const cancelBlockSweeps = () => {
+    for (const c of blockSweeps.current) c();
+    blockSweeps.current = [];
+  };
+
   const openLinkPicker = async (from: Screen) => {
     await loadLinkables();
     setLinkReturnTo(from);
@@ -648,8 +676,12 @@ export default function NotesFlow({
   const deleteBlock = (blockId: string) => enqueue(async () => {
     if (!currentId) return;
     await snap();
-    await attemptWrite(() => svc.deleteBlock(currentId, blockId));
+    // HMN-F-27: the path comes from the FRESH note, and only a delete that
+    // actually happened schedules the sweep of what it pointed at.
+    const path = (await svc.note(currentId))?.blocks.find((b) => b.id === blockId)?.path;
+    const ok = await attemptWrite(() => svc.deleteBlock(currentId, blockId));
     await loadCurrent(currentId);
+    if (ok && path) sweepPathAfter(path);
   });
 
   // Turn Into (deep writing pass): a text or heading block converts to any

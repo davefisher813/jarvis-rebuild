@@ -6,7 +6,7 @@
 // paragraph just typed reverted. These run the real flow over a store whose
 // every read and write takes a network beat, the way the phone's does, so
 // the interleaving the audit reproduced is the one exercised here.
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { useState } from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
@@ -17,6 +17,7 @@ import { setCategoryRegistry } from "../shared/categories";
 import { ScheduleService } from "../schedule/ScheduleService";
 import { subscribeToast, resetToasts } from "../shared/toast";
 import { todayISO, addDays } from "../schedule/calendar";
+import { MemoryFileStore } from "../files/FileStore";
 
 class SlowAdapter extends InMemoryAdapter {
   private beat() { return new Promise((r) => setTimeout(r, 15)); }
@@ -260,6 +261,52 @@ describe("NotesFlow: the link picker's Events are the window around now (HMN-F-2
     expect(text.indexOf("Kickoff Tomorrow")).toBeLessThan(text.indexOf("Dentist Yesterday"));
     // And the section says it is a window, not the whole calendar.
     expect(screen.getByText("That's every event from the last 30 days on.")).toBeInTheDocument();
+  });
+});
+
+// HMN-F-27 (2026-09-05): deleting a photo or file block took the block and
+// left its bytes in storage forever. The note delete has swept its files
+// since the day it shipped; the block delete never did.
+async function openNoteWithPhoto(user: string) {
+  svcRef = null;
+  const view = render(<NotesProvider userId={user}><GrabAll /></NotesProvider>);
+  await waitFor(() => expect(svcRef).toBeTruthy());
+  const svc = svcRef!;
+  let id = "";
+  await act(async () => {
+    id = (await svc.createNote("Race", ""))!;
+    await svc.addBlock(id, { type: "photo", name: "Beach", size: "1 KB", path: "u/n/beach.jpg", mime: "image/jpeg" });
+  });
+  view.rerender(<NotesProvider userId={user}><GrabAll /><NotesFlow openId={id} /></NotesProvider>);
+  await screen.findByLabelText("Remove Beach", {}, { timeout: 4000 });
+  return { svc, id };
+}
+
+describe("NotesFlow: removing a photo block takes its bytes with it (HMN-F-27)", () => {
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+  it("sweeps the file a beat after the block, never on the tap itself", async () => {
+    const remove = vi.spyOn(MemoryFileStore.prototype, "remove").mockResolvedValue(undefined);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await openNoteWithPhoto("u-sweep-f27");
+    fireEvent.click(screen.getByLabelText("Remove Beach"));
+    await waitFor(() => expect(screen.queryByLabelText("Remove Beach")).not.toBeInTheDocument(), { timeout: 4000 });
+    // The beat is the point: Undo can still bring the picture back.
+    expect(remove).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(6100);
+    expect(remove).toHaveBeenCalledWith(["u/n/beach.jpg"]);
+  });
+
+  it("Undo keeps the bytes, because Undo brings the picture back", async () => {
+    const remove = vi.spyOn(MemoryFileStore.prototype, "remove").mockResolvedValue(undefined);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    await openNoteWithPhoto("u-sweep-f27-undo");
+    fireEvent.click(screen.getByLabelText("Remove Beach"));
+    await waitFor(() => expect(screen.queryByLabelText("Remove Beach")).not.toBeInTheDocument(), { timeout: 4000 });
+    fireEvent.click(screen.getByLabelText("Undo"));
+    await waitFor(() => expect(screen.getByLabelText("Remove Beach")).toBeInTheDocument(), { timeout: 4000 });
+    await vi.advanceTimersByTimeAsync(6100);
+    expect(remove).not.toHaveBeenCalled();
   });
 });
 
