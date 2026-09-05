@@ -2,7 +2,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { EventItem } from "../types";
 import { planDay, type PlanBlock } from "../planDay";
-import { fmtTime } from "../calendar";
+import { fmtTime, todayISO } from "../calendar";
 import { catColor, catName } from "../../shared/categories";
 import { movesLine } from "../../today/goalPulse";
 import { useOptionalRules } from "../../data/NotesProvider";
@@ -167,7 +167,13 @@ export default function PlanDaySheet({
   const log = useMemo(() => eventLog.all(), []);
   const record = useMemo(() => planRecord(log, Date.now()), [log]);
   const cap = useMemo(() => capOffer(record, planCount(log)), [record, log]);
-  const clock = target === "today" ? dayClock(startMin, effEnd) : null;
+  // SCHED-F-02 (2026-09-05): "is this day today" is a fact about `date`, not
+  // about the today/tomorrow toggle. Only Today passes `target`; the Schedule
+  // tab is a date picker and never did, so its default of "today" made every
+  // browsed date read as today. The clock check and the commit floor below
+  // both ask the date instead.
+  const isToday = date === todayISO();
+  const clock = isToday ? dayClock(startMin, effEnd) : null;
 
   const catOf = (id: string) => allTasks.find((t) => t.id === realId(id))?.category ?? "";
   const estFor = (id: string) => estimateFor(catOf(id), learned, DEFAULT_DUR, DUR_CHOICES);
@@ -428,9 +434,12 @@ export default function PlanDaySheet({
 
   const commit = () => {
     const day = date;
-    // No past placements for today (invariant, hotfix 2026-08-21).
+    // No past placements for today (invariant, hotfix 2026-08-21). Keyed on
+    // the date (SCHED-F-02): a Monday planned from Sunday afternoon is not
+    // today, and pushing its 7:00 AM blocks to Sunday's 3 PM made the preview
+    // lie about what the button writes.
     let committed = plan.blocks;
-    if (target === "today") {
+    if (isToday) {
       const dNow = new Date();
       const nowM = dNow.getHours() * 60 + dNow.getMinutes();
       const stale = plan.blocks.some((b) => !overrides[realId(b.taskId)] && toMin(b.start) < nowM);

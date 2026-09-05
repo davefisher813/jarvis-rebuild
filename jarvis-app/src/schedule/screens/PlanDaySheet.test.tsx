@@ -253,3 +253,42 @@ describe("seeded from the standing draft", () => {
     expect(screen.getByText("Email vendor")).toBeInTheDocument();
   });
 });
+
+// SCHED-F-02 (2026-09-05): the commit-time "no past placements" floor used to
+// key on the today/tomorrow toggle, which only Today passes. The Schedule tab
+// is a date picker and never passes it, so every date read as today and a
+// Monday plan opened on Sunday afternoon committed blocks pushed past Sunday's
+// wall clock while the preview still said 7:00 AM.
+describe("the commit-time floor keys on the date, not the toggle", () => {
+  const WINDOW = { startMin: 7 * 60, endMin: 21 * 60 };
+
+  it("a future date commits exactly what the preview shows, no target prop", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-05T15:00:00"));
+    const onCommit = vi.fn();
+    try {
+      render(sheet({ date: "2026-09-06", dayLabel: "Sunday", tasks: TASKS.slice(0, 2), onCommit, ...WINDOW }));
+      const preview = [...document.querySelectorAll(".p3-time")].map((e) => e.textContent);
+      expect(preview).toEqual([label("07:00"), label("08:10")]);
+      fireEvent.click(screen.getByText("Add These 2"));
+      const blocks = onCommit.mock.calls[0]![0] as { start: string }[];
+      expect(blocks.map((b) => label(b.start))).toEqual(preview);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("today still floors at now, with no target prop either", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-05T15:00:00"));
+    const onCommit = vi.fn();
+    try {
+      render(sheet({ date: "2026-09-05", tasks: TASKS.slice(0, 2), onCommit, ...WINDOW }));
+      fireEvent.click(screen.getByText("Add These 2"));
+      const blocks = onCommit.mock.calls[0]![0] as { start: string }[];
+      expect(blocks.map((b) => b.start)).toEqual(["15:00", "16:10"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
