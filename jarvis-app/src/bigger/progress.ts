@@ -34,15 +34,11 @@ export function projectProgress(tasks: TaskItem[], projectId: string): Progress 
   return { done, total: mine.length, pct: Math.round((done / mine.length) * 100) };
 }
 
-// A goal rolls up every task under every project pointing at it.
-export function goalProgress(tasks: TaskItem[], projects: Project[], goalId: string): Progress | null {
-  const ids = projects.filter((p) => p.data.goalId === goalId).map((p) => p.id);
-  if (ids.length === 0) return null;
-  const mine = tasks.filter((t) => t.data.projectId && ids.includes(t.data.projectId));
-  if (mine.length === 0) return null;
-  const done = mine.filter((t) => t.data.done).length;
-  return { done, total: mine.length, pct: Math.round((done / mine.length) * 100) };
-}
+// LIFE-F-22 (2026-09-05): goalProgress had no caller, and laws.test.ts:1494
+// is the reason: a goal's line is derived ONCE, through reach, because two
+// passes over the same data drift (the list row said "No projects yet" while
+// the hero said "8 open in your tags"). The law forbids the Bigger Picture
+// pages from calling this; nothing else wanted it.
 
 // Time Sense samples: { id?: task id, t: epoch ms }. Device-local, so absence of
 // evidence is NOT evidence of absence. `lastActivity` returns null when we

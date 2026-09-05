@@ -52,7 +52,10 @@ export interface ProjectsMeasure { kind: "projects" }
 export type Measure = CountMeasure | CadenceMeasure | ProjectsMeasure | LiftMeasure | TrainingMeasure;
 export type { LiftMeasure, TrainingMeasure } from "../gym/goalMeasures";
 
-export const CADENCE_LABEL: Record<Cadence, string> = { week: "Week", month: "Month" };
+// LIFE-F-22 (2026-09-05): CADENCE_LABEL and measureLabel both went. The
+// cadence sheet writes "a week" and "a month" inline where it draws them,
+// and the goal eyebrow reads measureState().line, which is the honest line
+// this module exists to produce rather than a restatement of the target.
 
 export interface MeasureState {
   done: number;
@@ -320,17 +323,6 @@ export function idle(ctx: MeasureContext): boolean {
   }
   if (latest === 0) return false;
   return ctx.now - latest > IDLE_DAYS * DAY;
-}
-
-/** The measure in words, for the edit sheet and the goal's eyebrow. */
-export function measureLabel(m: Measure | undefined, moneyTarget?: number): string {
-  if (moneyTarget) return "Dollar Target";
-  if (!m) return "No Finish Line";
-  if (m.kind === "count") return capAfterNumber(`${m.target} to Finish`);
-  if (m.kind === "cadence") return capAfterNumber(`${m.times} a ${m.per}`);
-  if (m.kind === "lift") return "On the Bar";
-  if (m.kind === "training") return m.per === "block" ? capAfterNumber(`${m.times} Sessions`) : capAfterNumber(`${m.times} a ${m.per}`);
-  return "Every Project Done";
 }
 
 /**

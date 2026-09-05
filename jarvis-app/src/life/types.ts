@@ -65,11 +65,8 @@ export interface Goal { id: string; data: GoalData; }
 // AREA_META was removed in Session 6: Life Areas have no UI, so a table of
 // labels, colour classes and bar percentages described something nothing draws.
 // AreaState and AreaData stay because existing records still hold them.
-export const GOAL_META: Record<GoalState, { label: string; cls: string }> = {
-  on_track: { label: "On track", cls: "ok" },
-  steady: { label: "Steady", cls: "muted" },
-  at_risk: { label: "At risk", cls: "attention" },
-  achieved: { label: "Achieved", cls: "ok" },
-};
+// LIFE-F-22 (2026-09-05): GOAL_META went the same way AREA_META did in
+// Session 6. Nothing read it: the goal rows derive their word and their tone
+// through bigger/measure's health, not from a table of state labels.
 // AREA_STATES/GOAL_STATES lists were removed in the 2026-08-10 audit: nothing
 // anywhere iterated them. The union types above are the source of truth.

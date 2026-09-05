@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  proposeFirstMove, ritualIsReady, whyNotReady, ritualLine, nextStart, endsAt,
+  proposeFirstMove, ritualIsReady, whyNotReady, nextStart, endsAt,
   minutesUntil, DEFAULT_MINUTES, LENGTHS, type Ritual,
 } from "./startRitual";
 
@@ -28,12 +28,6 @@ describe("C1 · the start ritual", () => {
   it("says what is missing, in his terms", () => {
     expect(whyNotReady(r())).toBeNull();
     expect(whyNotReady(r({ firstMove: "a b c d e f" }))).toContain("Five words or fewer");
-  });
-
-  it("the line states the container and the move, and NOTHING about finishing", () => {
-    const line = ritualLine(r());
-    expect(line).toBe("25 Minutes · Open the invoice template");
-    expect(line).not.toMatch(/finish|complete|done|until/i);
   });
 
   it("starts at the next quarter hour, never this second", () => {

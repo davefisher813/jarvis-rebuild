@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { categoriesOf, primaryOf, isIn, setCategories, makePrimary, categoryLine } from "./categories";
+import { categoriesOf, isIn, setCategories } from "./categories";
 
 // The contract that lets 192 single-category readers keep working untouched.
 describe("categoriesOf", () => {
@@ -12,7 +12,6 @@ describe("categoriesOf", () => {
   it("[edge] an uncategorised task has none", () => {
     expect(categoriesOf({})).toEqual([]);
     expect(categoriesOf({ category: "" })).toEqual([]);
-    expect(primaryOf({})).toBe("");
   });
   it("never repeats the primary even if it is also stored as a tag", () => {
     expect(categoriesOf({ category: "money", extraCategories: ["money", "bridge"] })).toEqual(["money", "bridge"]);
@@ -50,26 +49,3 @@ describe("setCategories", () => {
   });
 });
 
-describe("makePrimary", () => {
-  it("promotes a tag and keeps the rest, which is how reordering changes the dot", () => {
-    const t = { category: "money", extraCategories: ["bridge", "elite"] };
-    expect(makePrimary(t, "bridge")).toEqual({ category: "bridge", extraCategories: ["money", "elite"] });
-  });
-  it("promoting the current primary changes nothing", () => {
-    const t = { category: "money", extraCategories: ["bridge"] };
-    expect(makePrimary(t, "money")).toEqual({ category: "money", extraCategories: ["bridge"] });
-  });
-  it("[edge] promoting a category the task does not have adds it", () => {
-    expect(makePrimary({ category: "money" }, "gym")).toEqual({ category: "gym", extraCategories: ["money"] });
-  });
-});
-
-describe("categoryLine", () => {
-  const nameOf = (id: string) => ({ money: "Money", bridge: "Bridge" }[id] ?? "");
-  it("reads as a meta line, primary first", () => {
-    expect(categoryLine({ category: "money", extraCategories: ["bridge"] }, nameOf)).toBe("Money · Bridge");
-  });
-  it("[edge] an unknown category contributes nothing rather than an empty dot", () => {
-    expect(categoryLine({ category: "money", extraCategories: ["ghost"] }, nameOf)).toBe("Money");
-  });
-});

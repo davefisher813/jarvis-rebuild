@@ -207,11 +207,9 @@ export function goalTitleForTask(idx: GoalIndex, task: TaskItem): string | null 
   return first ? idx.titleOf.get(first) ?? null : null;
 }
 
-/** How many of these tasks move a goal. The goal-aware hero count (pick 5). */
-export function countMovingGoals(idx: GoalIndex, tasks: TaskItem[]): number {
-  if (idx.size === 0) return 0;
-  return tasks.filter((t) => movesGoal(idx, t)).length;
-}
+// LIFE-F-22 (2026-09-05): countMovingGoals had no caller. The goal-aware
+// hero count it was written for renders through reachLine now, and movesGoal
+// above is what the rows themselves ask.
 
 /**
  * Earliest due first, undated after dated, original order breaking ties.

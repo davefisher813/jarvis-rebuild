@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  proposeFirstMove, ritualIsReady, whyNotReady, ritualLine,
+  proposeFirstMove, ritualIsReady, whyNotReady,
   nextStart, endsAt, minutesUntil, ritualPlan, DEFAULT_MINUTES, LENGTHS, type Ritual,
 } from "./startRitual";
 
@@ -40,13 +40,6 @@ describe("ritualIsReady / whyNotReady", () => {
 
   it("with no taskId at all, is simply not ready", () => {
     expect(ritualIsReady({ ...base, taskId: "" })).toBe(false);
-  });
-});
-
-describe("ritualLine", () => {
-  it("states the container and the move, and nothing about finishing", () => {
-    expect(ritualLine(base)).toBe("25 Minutes · Open the template");
-    expect(ritualLine(base)).not.toMatch(/finish/i);
   });
 });
 

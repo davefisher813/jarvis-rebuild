@@ -31,10 +31,12 @@ export function categoriesOf(t: HasCategories): string[] {
   return out;
 }
 
-/** The one that decides anything needing a single answer. */
-export function primaryOf(t: HasCategories): string {
-  return categoriesOf(t)[0] ?? "";
-}
+// LIFE-F-22 (2026-09-05): primaryOf, makePrimary and categoryLine all went.
+// Every caller reads categoriesOf(t)[0] where it needs the primary, the
+// picker writes a whole reordered set through setCategories rather than
+// promoting one entry, and the joined meta line was retired by the ruling
+// that only the parent's glyph carries a category's colour (laws.test.ts
+// FINDING C), which left nothing rendering a joined category string.
 
 /** Does this task belong to `id` in any position? Category pages use this. */
 export function isIn(t: HasCategories, id: string): boolean {
@@ -57,21 +59,4 @@ export function setCategories(list: string[]): { category: string; extraCategori
   return rest.length ? { category: primary, extraCategories: rest } : { category: primary };
 }
 
-/**
- * Promote one of the task's categories to primary, keeping the others.
- * Used by "make this the main one" in the picker.
- */
-export function makePrimary(t: HasCategories, id: string): { category: string; extraCategories?: string[] } {
-  const all = categoriesOf(t);
-  if (!all.includes(id)) return setCategories([id, ...all]);
-  return setCategories([id, ...all.filter((c) => c !== id)]);
-}
 
-/**
- * The meta line: primary first, then the tags, joined the way every other
- * meta line in the app joins facts. Names come from the caller so this stays
- * pure and testable.
- */
-export function categoryLine(t: HasCategories, nameOf: (id: string) => string): string {
-  return categoriesOf(t).map(nameOf).filter(Boolean).join(" · ");
-}

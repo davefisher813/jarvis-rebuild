@@ -40,7 +40,8 @@ const toMin = (hhmm: string): number => {
   return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0);
 };
 
-export const isReminder = (t: TaskData): boolean => !!t.reminder;
+// LIFE-F-22 (2026-09-05): isReminder had no caller; every reader tests
+// t.reminder directly, which is the same check with one fewer hop.
 
 // Does this reminder run on this date at all? Absent `days` means every day.
 export function runsOn(r: ReminderInfo, date: string): boolean {
@@ -136,12 +137,6 @@ export const DAY_PRESETS: { label: string; days?: number[] }[] = [
   { label: "Weekends", days: [0, 6] },
 ];
 
-// How the repeat reads on a row. Kept here so every surface says it the same.
-export function cadenceLabel(r: ReminderInfo): string {
-  if (!r.days || r.days.length === 0) return "Every Day";
-  const set = [...r.days].sort();
-  if (set.join() === "1,2,3,4,5") return "Weekdays";
-  if (set.join() === "0,6") return "Weekends";
-  const N = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  return set.map((d) => N[d]).join(" · ");
-}
+// LIFE-F-22 (2026-09-05): cadenceLabel had no surface saying it. The repeat
+// picker renders REPEAT_PRESETS' own labels, which is where the words the
+// person actually chose from live.

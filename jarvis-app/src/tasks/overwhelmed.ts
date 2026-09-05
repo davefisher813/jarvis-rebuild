@@ -93,5 +93,7 @@ export function theOneThing(
 // person pressing it, and pairs with the exit as one vocabulary: Just This
 // One, then Show Everything.
 export const OVERWHELM_ENTER = "Just This One";
-export const OVERWHELM_SUB = "Everything else is still there";
+// LIFE-F-22 (2026-09-05): OVERWHELM_SUB went. laws.test.ts:2654 is the
+// reason nothing renders it: the enter row stands alone, with nothing beside
+// it, so a reassuring subtitle had nowhere legal to go.
 export const OVERWHELM_EXIT = "Show Everything";

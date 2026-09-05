@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   goalTags, liveGoals, fileableGoals, reachOf, reachLine, buildGoalIndex,
-  goalIdsForTask, movesGoal, goalTitleForTask, countMovingGoals, projectsOfGoal, byDue,
+  goalIdsForTask, movesGoal, goalTitleForTask, projectsOfGoal, byDue,
 } from "./reach";
 import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
@@ -135,14 +135,6 @@ describe("the upward index", () => {
     const t = task("a", { projectId: "p1", category: "health" });
     expect(goalIdsForTask(idx, t)).toEqual(["g1", "g2"]);
     expect(goalTitleForTask(idx, t)).toBe("Run a Half");
-  });
-  it("counts how many of today's tasks move something", () => {
-    const rows = [task("a", { projectId: "p1" }), task("b", { category: "health" }), task("c")];
-    expect(countMovingGoals(idx, rows)).toBe(2);
-  });
-  it("costs nothing when there are no goals", () => {
-    const empty = buildGoalIndex(projects, []);
-    expect(countMovingGoals(empty, [task("a", { projectId: "p1" })])).toBe(0);
   });
 });
 

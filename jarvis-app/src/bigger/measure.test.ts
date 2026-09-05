@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   windowStart, completionsIn, measureState, paceLine, healthOf, idle, seenRate,
-  measureLabel, IDLE_DAYS, type MeasureContext, type Measure,
+  IDLE_DAYS, type MeasureContext, type Measure,
 } from "./measure";
 import type { GoalReach } from "./reach";
 import type { Project } from "../projects/types";
@@ -190,16 +190,6 @@ describe("seenRate", () => {
       samples: [{ id: "a", t: NOW - DAY }, { id: "a", t: NOW - 3 * DAY }],
     });
     expect(seenRate(c)).toBeCloseTo(2 / 28, 5);
-  });
-});
-
-describe("measureLabel", () => {
-  it("names each kind in Title Case", () => {
-    expect(measureLabel(undefined)).toBe("No Finish Line");
-    expect(measureLabel({ kind: "count", target: 12 })).toBe("12 To Finish");
-    expect(measureLabel({ kind: "cadence", times: 3, per: "week" })).toBe("3 A week");
-    expect(measureLabel({ kind: "projects" })).toBe("Every Project Done");
-    expect(measureLabel({ kind: "count", target: 12 }, 2000)).toBe("Dollar Target");
   });
 });
 

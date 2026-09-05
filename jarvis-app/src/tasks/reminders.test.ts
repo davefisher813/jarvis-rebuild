@@ -3,7 +3,7 @@ import type { TaskItem } from "./TasksService";
 import type { ReminderInfo } from "../notes/types";
 import {
   runsOn, effectiveTime, isDone, viewOf, todaysReminders, missedReminders,
-  snoozeTime, snoozeFrom, stripReminders, cadenceLabel,
+  snoozeTime, snoozeFrom, stripReminders,
 } from "./reminders";
 
 // The reminder model (Dave 2026-08-19: "taking meds should just be a set
@@ -126,17 +126,6 @@ describe("the day's list", () => {
   it("ignores plain tasks entirely", () => {
     const plain = { id: "t", data: { text: "Pay rent", category: "", done: false } } as TaskItem;
     expect(todaysReminders([plain], WED, "09:00")).toHaveLength(0);
-  });
-});
-
-describe("cadenceLabel", () => {
-  it("names the presets", () => {
-    expect(cadenceLabel({ time: "08:00" })).toBe("Every Day");
-    expect(cadenceLabel({ time: "08:00", days: [1, 2, 3, 4, 5] })).toBe("Weekdays");
-    expect(cadenceLabel({ time: "08:00", days: [0, 6] })).toBe("Weekends");
-  });
-  it("lists an arbitrary set", () => {
-    expect(cadenceLabel({ time: "08:00", days: [3, 1] })).toBe("Mon · Wed");
   });
 });
 

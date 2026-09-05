@@ -403,6 +403,13 @@ export class TasksService {
     return g;
   }
 
+  // LIFE-F-22 (2026-09-05): KEPT, with the reason written down. These three
+  // are pass-throughs to the Store and the app never calls them: offline is
+  // wired at the Store, through data/offlineSync.ts. Their caller is
+  // tasksSpec.ts step T11, "Offline changes queue and sync on reconnect",
+  // which is a written spec people read as well as run, and it exercises the
+  // queue through the service the rest of the spec uses. Deleting them would
+  // cost that step its subject.
   goOffline(): void {
     this.store.goOffline();
   }

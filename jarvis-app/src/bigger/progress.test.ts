@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { projectProgress, goalProgress, isStalled, rankProjects, progressLabel, lastActivity, STALE_DAYS,
+import { projectProgress, isStalled, rankProjects, progressLabel, lastActivity, STALE_DAYS,
   bucketOf, closable, rankGoals } from "./progress";
 import type { TaskItem } from "../tasks/TasksService";
 import type { Project } from "../projects/types";
@@ -22,18 +22,6 @@ describe("projectProgress", () => {
   it("returns null with no tasks, never a fake zero", () => {
     expect(projectProgress([task("x")], "p1")).toBeNull();
     expect(progressLabel(null, false)).toBe("No tasks yet");
-  });
-});
-
-describe("goalProgress", () => {
-  const projects = [proj("p1", { goalId: "g1" }), proj("p2", { goalId: "g1" }), proj("p3", { goalId: "g2" })];
-  it("rolls up every task under every project on the goal", () => {
-    const tasks = [task("a", "p1", true), task("b", "p2", true), task("c", "p2"), task("d", "p3")];
-    expect(goalProgress(tasks, projects, "g1")).toEqual({ done: 2, total: 3, pct: 67 });
-  });
-  it("is null when the goal has no projects, or none of them have tasks", () => {
-    expect(goalProgress([], projects, "nope")).toBeNull();
-    expect(goalProgress([task("z")], projects, "g1")).toBeNull();
   });
 });
 

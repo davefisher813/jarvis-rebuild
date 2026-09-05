@@ -1,3 +1,10 @@
+// LIFE-F-22 (2026-09-05): KEPT, with the reason written down. The life_area
+// entity has had no UI since 2026-08-29 and no screen constructs one; the
+// only writers are data/seed.ts (the demo data, which still seeds areas) and
+// testpanel/checks.ts, and laws/typedQueries.test.ts asserts this service
+// queries by the life_area entity type rather than scanning. Existing records
+// still hold areas, so the reader has to keep working; when the entity is
+// really retired, this file and its seed go together.
 import type { Store, ItemData } from "@core";
 import { ENTITY_AREA, type Area, type AreaData } from "./types";
 

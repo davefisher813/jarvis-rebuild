@@ -54,11 +54,8 @@ export function whyNotReady(r: Partial<Ritual>): string | null {
   return null;
 }
 
-// The line on the card, once it is set. States the container and the move,
-// and says nothing about finishing.
-export function ritualLine(r: Ritual): string {
-  return capAfterNumber(`${r.minutes} minutes`) + ` · ${r.firstMove}`;
-}
+// LIFE-F-22 (2026-09-05): ritualLine had no caller. The ritual card writes
+// its own line from the same two fields where it draws them.
 
 const toMin = (t: string) => Number(t.split(":")[0] ?? 0) * 60 + Number(t.split(":")[1] ?? 0);
 const fromMin = (m: number) =>
