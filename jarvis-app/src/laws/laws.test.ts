@@ -3972,3 +3972,31 @@ describe("LAW: a live gym session is visible and reachable from Today", () => {
       .toMatch(/autoOpenGym=\{autoOpenGym\}/);
   });
 });
+
+// TODAY-F-12 (2026-09-05): Batch 2 removed toISOString().slice(0,10) from
+// schedule/calendar.ts and tomorrowISO, and the sibling helpers in the same
+// directory kept it. That read is the UTC day: east of Greenwich it is
+// yesterday until local midnight, beyond UTC+12 it is yesterday at noon, and
+// a fixed 86,400,000ms step is a day short on the clocks-back Sunday. A bill
+// due in three days went missing from Today, Sunday's recap counted last
+// Sunday, and tomorrow's events read as already happened. The home page's
+// day math is local or it is wrong. Format from getters (isoOf, todayISO),
+// step with setDate (addDays, tomorrowISO).
+describe("LAW: Today never reads a calendar day from toISOString", () => {
+  const TODAY_SRC = SOURCES.filter((f) => rel(f).startsWith("today/"));
+  it("no toISOString().slice(0, 10) anywhere under src/today", () => {
+    const hits = TODAY_SRC.filter((f) => /toISOString\(\)\s*\.\s*slice\(\s*0\s*,\s*10\s*\)/.test(read(f))).map(rel);
+    expect(hits).toEqual([]);
+  });
+  it("no fixed 86,400,000ms step to land on a day under src/today", () => {
+    // Landing on a day by adding or subtracting a day's worth of milliseconds
+    // is the banned move (t + 86400000, now - n * 86400000). Dividing by it
+    // for a rounded day count, or sizing a window of timestamps with it, is
+    // not a calendar step and stays legal.
+    const step = /[+-]\s*(\w+\s*\*\s*)?86400000\b/;
+    const hits = TODAY_SRC
+      .filter((f) => read(f).split("\n").some((line) => step.test(line) && !/^\s*\/\//.test(line)))
+      .map(rel);
+    expect(hits).toEqual([]);
+  });
+});

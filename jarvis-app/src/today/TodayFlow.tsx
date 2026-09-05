@@ -1124,7 +1124,11 @@ export default function TodayFlow({
   // the due-today ones. The weekly recap card speaks on Sunday evenings only.
   const samples = readSamples();
   const dayStart = new Date(today + "T00:00:00").getTime();
-  const completionsToday = samples.filter((s) => s.t >= dayStart && s.t < dayStart + 86400000).length;
+  // TODAY-F-12 (2026-09-05): the day ends at tomorrow's midnight, stepped as
+  // a calendar day; dayStart + 86,400,000 dropped the last hour of the
+  // clocks-back Sunday and took the first hour of Monday in spring.
+  const dayEnd = new Date(tomorrowISO(today) + "T00:00:00").getTime();
+  const completionsToday = samples.filter((s) => s.t >= dayStart && s.t < dayEnd).length;
   // THE HOME PAGE LOOKS UP (Dave 2026-08-22, picks 1-5 and 31). One index per
   // render pass, shared by the hero pill, the Now card, both new notices and
   // the evening line, so no two of them can disagree about what moves what.
@@ -1136,7 +1140,7 @@ export default function TodayFlow({
     const g = goalList.find((x) => x.id === id);
     return g ? reachOf(taskItems, projList, g) : { filedIds: [], taggedIds: [], openTagged: 0, progress: null };
   };
-  const movedGoals = goalsMovedToday(goalIdx, taskItems, samples, dayStart, dayStart + 86400000);
+  const movedGoals = goalsMovedToday(goalIdx, taskItems, samples, dayStart, dayEnd);
   // PICK 2: a project whose work is finished but which nobody has closed.
   // The tick-time toast already offers this at the instant of the last tap;
   // this is for every other way a project reaches the end (a sweep, an

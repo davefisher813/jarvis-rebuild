@@ -8,9 +8,12 @@ import type { EventItem } from "../schedule/types";
 
 const NOW = new Date("2026-08-09T12:00:00").getTime();
 
-// days-ago helper anchored to NOW, local-safe
+// days-ago helper anchored to NOW, on the local calendar (TODAY-F-12,
+// 2026-09-05: this used to read toISOString(), which is the UTC day, so the
+// fixtures agreed with the function's own UTC bug instead of testing it).
 function dISO(daysAgo: number): string {
-  return new Date(NOW - daysAgo * 86400000).toISOString().slice(0, 10);
+  const d = new Date(NOW); d.setDate(d.getDate() - daysAgo);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 const ev = (id: string, title: string, date: string, start: string, end?: string, extra: Record<string, unknown> = {}): EventItem =>
   ({ id, data: { title, date, start, category: "", ...(end ? { end } : {}), ...extra } }) as EventItem;
@@ -71,5 +74,25 @@ describe("routineBlockCandidate", () => {
 
   it("forgets events older than the 28-day window", () => {
     expect(routineBlockCandidate([gymWeek(5), gymWeek(6), gymWeek(7)], DEFAULT_ROUTINE, NOW)).toBeNull();
+  });
+});
+
+// TODAY-F-12 (2026-09-05): "today" was the UTC day, so after 8pm Eastern it
+// was already tomorrow and an event planned for tomorrow counted as having
+// happened. An event that has not happened yet is not evidence.
+describe("routineBlockCandidate after 8pm Eastern (TODAY-F-12)", () => {
+  it("does not count tomorrow's planned event as a past occurrence", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      const late = new Date("2026-08-09T21:00:00").getTime(); // 01:00Z on the 10th
+      const day = (iso: string) => ev(iso, "Gym", iso, "06:00", "07:00");
+      // Two real past weeks plus tomorrow: two occurrences, no routine.
+      expect(routineBlockCandidate([day("2026-08-02"), day("2026-07-26"), day("2026-08-10")], DEFAULT_ROUTINE, late)).toBeNull();
+      // Three real past weeks: a routine.
+      expect(routineBlockCandidate([day("2026-08-02"), day("2026-07-26"), day("2026-07-19")], DEFAULT_ROUTINE, late)).not.toBeNull();
+    } finally {
+      process.env.TZ = prevTz;
+    }
   });
 });

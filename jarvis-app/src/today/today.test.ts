@@ -72,7 +72,7 @@ describe("today aggregation", () => {
 });
 
 // Bills where the eyes are (2026-08-09).
-import { billsLine, payableBill } from "./todayData";
+import { billsLine, billsDueSoon, payableBill } from "./todayData";
 
 const bill = (id: string, text: string, due: string, amount?: number, done = false, autopay = false): TaskItem =>
   ({ id, data: { text, done, due, bill: { amount: amount ?? 0, ...(autopay ? { autopay: true } : {}) } } }) as TaskItem;
@@ -107,6 +107,34 @@ describe("billsLine", () => {
 // B5 (2026-09-04): "Today offers Paid on an autopay bill." bills.ts states
 // the rule that autopay never says paid; this is the gate that keeps the
 // button honest without hiding the informational line.
+// TODAY-F-12 (2026-09-05): the three-day horizon was read through
+// toISOString(), the UTC day, so east of Greenwich it was two days and a
+// bill due in exactly three days was missing; and "tomorrow" was an exact
+// 86,400,000ms gap, which the two clocks-change days do not have.
+describe("bills across zones and clock changes (TODAY-F-12)", () => {
+  it("a bill due in exactly three days is on the card under Australia/Sydney", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Australia/Sydney";
+    try {
+      const T = "2026-09-05";
+      const due = billsDueSoon([bill("a", "Pay Water", "2026-09-06"), bill("b", "Pay Gas", "2026-09-07"), bill("c", "Pay Rent", "2026-09-08"), bill("d", "Pay Car", "2026-09-09")], T);
+      expect(due.map((t) => t.data.due)).toEqual(["2026-09-06", "2026-09-07", "2026-09-08"]);
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
+  it("a bill due tomorrow says tomorrow on both clocks-change days under America/New_York", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      expect(billsLine([bill("b", "Pay Rent", "2026-03-09", 1850)], "2026-03-08")).toEqual({ title: "Rent", sub: "$1850 · Due tomorrow" });
+      expect(billsLine([bill("b", "Pay Rent", "2026-11-02", 1850)], "2026-11-01")).toEqual({ title: "Rent", sub: "$1850 · Due tomorrow" });
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
+});
+
 describe("payableBill", () => {
   const T = "2026-08-09";
 

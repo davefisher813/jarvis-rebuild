@@ -85,6 +85,36 @@ describe("weekRecap", () => {
     const r = weekRecap([at("2026-07-28", 2)], [], SUN);
     expect(r?.bestDay).toBeNull();
   });
+
+  // TODAY-F-12 (2026-09-05): the Monday boundary was read through
+  // toISOString(), the UTC day, which east of Greenwich is the Sunday before,
+  // so last Sunday's events counted into this week.
+  it("does not count the previous Sunday's events under Asia/Tokyo", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Asia/Tokyo";
+    try {
+      const events = [
+        { id: "a", data: { title: "x", date: "2026-07-27", start: "09:00", category: "" } }, // Monday: in
+        { id: "b", data: { title: "y", date: "2026-07-26", start: "09:00", category: "" } }, // last Sunday: out
+      ];
+      expect(weekRecap([], events, SUN)).toEqual({ things: 0, events: 1, bestDay: null });
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
+
+  // The week's last hour: the clocks-back Sunday has 25 of them, and a fixed
+  // 86,400,000ms end dropped a completion logged at 23:30 that night.
+  it("keeps a completion from the last hour of the clocks-back Sunday under America/New_York", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    try {
+      const late = { t: new Date("2026-11-01T23:30:00").getTime(), dow: 0 };
+      expect(weekRecap([late], [], "2026-11-01")).toEqual({ things: 1, events: 0, bestDay: null });
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
 });
 
 describe("eveningSummary and what moved (pick 4)", () => {

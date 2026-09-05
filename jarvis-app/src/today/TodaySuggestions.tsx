@@ -15,6 +15,7 @@ import { showToast } from "../shared/toast";
 import { patternObservation, isPatternDismissed, dismissPattern, appendHabit, type PatternObservation } from "./patterns";
 import { planningPatternObservation, readDurationCorrections } from "./planningPatterns";
 import { routineBlockCandidate } from "./routinePatterns";
+import { addDays } from "../schedule/calendar";
 import type { ProtectedBlock } from "../routine/types";
 import { emit } from "../events";
 import { aiFailureLine } from "../ai/failureLine";
@@ -162,7 +163,9 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     (async () => {
       try {
         const ctx = await gather();
-        const yesterday = readCache(todayISO(new Date(Date.now() - 86400000)));
+        // TODAY-F-12 (2026-09-05): a calendar day back, not 86,400,000ms,
+        // which on the clocks-forward day is still today.
+        const yesterday = readCache(addDays(today, -1));
         const avoid = (yesterday?.items ?? []).map((s) => s.text);
         // B5 (2026-09-04): this fires from a mount effect, not a tap, and
         // carried no flag -- so at "On Request" (which is supposed to mean
@@ -305,7 +308,9 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
           .filter((c) => c.category === cat)
           .sort((a, b) => b.ts - a.ts)
           .slice(0, 6)
-          .map((c) => ({ day: new Date(c.ts).toISOString().slice(0, 10), a: c.deltaMin }));
+          // TODAY-F-12 (2026-09-05): the evidence day is the local day the
+          // correction was made, not the UTC one.
+          .map((c) => ({ day: todayISO(new Date(c.ts)), a: c.deltaMin }));
         const r = await strandsSvc.accept(pattern.text, "routine", "task_timing", evidence, today);
         // A refresh counts as landed. Falling through to the habits doc
         // because the strand already existed is how the same observation

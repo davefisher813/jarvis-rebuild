@@ -71,7 +71,8 @@ describe("TodaySuggestions routine candidate", () => {
     const schedule = useSchedule();
     useEffect(() => {
       void (async () => {
-        const d = (daysAgo: number) => new Date(Date.now() - daysAgo * 86400000).toISOString().slice(0, 10);
+        // TODAY-F-12 (2026-09-05): local calendar days, like the code under test.
+        const d = (daysAgo: number) => { const x = new Date(); x.setDate(x.getDate() - daysAgo); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`; };
         await schedule.createEvent("Gym", { date: d(2), start: "06:00", end: "07:00" });
         await schedule.createEvent("Gym", { date: d(9), start: "06:00", end: "07:00" });
         await schedule.createEvent("Gym", { date: d(16), start: "06:00", end: "07:00" });

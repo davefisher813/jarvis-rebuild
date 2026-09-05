@@ -1,6 +1,7 @@
 import type { EventItem } from "../schedule/types";
 import type { RoutineData, ProtectedBlock } from "../routine/types";
 import { daysSummary } from "../routine/types";
+import { todayISO as isoOf } from "../schedule/calendar";
 
 // The routine that builds itself (2026-08-09). Dave: "it should know your
 // routine life." The honest version of that is not a longer intake form, it
@@ -44,8 +45,13 @@ export function routineBlockCandidate(
   routine: RoutineData,
   nowMs: number,
 ): RoutineCandidate | null {
-  const cutoff = new Date(nowMs - WINDOW_DAYS * 86400000).toISOString().slice(0, 10);
-  const today = new Date(nowMs).toISOString().slice(0, 10);
+  // TODAY-F-12 (2026-09-05): both dates were UTC days. After 8pm Eastern
+  // that "today" was already tomorrow, so tomorrow's local events counted as
+  // having happened. Local getters, and a setDate walk for the cutoff.
+  const now = new Date(nowMs);
+  const today = isoOf(now);
+  const back = new Date(now); back.setDate(back.getDate() - WINDOW_DAYS);
+  const cutoff = isoOf(back);
 
   // One-off events only: a recurring event is already structure the user
   // declared, and planned task blocks are the planner talking to itself.

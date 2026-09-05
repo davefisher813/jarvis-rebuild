@@ -6,6 +6,7 @@ import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 import type { RoutineData } from "../routine/types";
 import { capAfterNumber } from "../shared/casing";
+import { todayISO as isoOf } from "../schedule/calendar";
 
 // Evening starts at the later of 6 PM and the end of work hours, and runs to
 // midnight (after midnight the clock is morning again, whatever it feels like).
@@ -98,9 +99,15 @@ export function weekRecap(
   const monday = new Date(d);
   monday.setDate(d.getDate() - 6);
   const from = monday.getTime();
-  const to = d.getTime() + 86400000;
+  // The week ends at Monday's midnight, stepped as a calendar day: the
+  // clocks-back Sunday has 25 hours and a fixed step would drop its last one.
+  const end = new Date(d); end.setDate(d.getDate() + 1);
+  const to = end.getTime();
   const week = samples.filter((s) => s.t >= from && s.t < to);
-  const mondayIso = monday.toISOString().slice(0, 10);
+  // TODAY-F-12 (2026-09-05): read from local getters, not toISOString();
+  // east of Greenwich the UTC day is Sunday and the recap counted the
+  // previous Sunday's events into this week.
+  const mondayIso = isoOf(monday);
   const evCount = events.filter((e) => e.data.date >= mondayIso && e.data.date <= today).length;
   if (week.length === 0 && evCount === 0) return null;
   let bestDay: string | null = null;

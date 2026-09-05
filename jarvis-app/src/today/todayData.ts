@@ -62,10 +62,15 @@ export function isPast(ev: EventItem, now: string): boolean {
 // its due date; Today said nothing until one became an overdue task. One
 // deterministic line for anything due in the next three days, because bills
 // are the category where a missed day costs actual money.
+//
+// TODAY-F-12 (2026-09-05): the cutoff was read back through toISOString(),
+// the UTC day, so east of Greenwich the three-day horizon was two days and
+// a bill due in exactly three days was missing from the card. isoOf formats
+// from local getters, like tomorrowISO above.
 export function billsDueSoon(tasks: TaskItem[], today: string): TaskItem[] {
   const horizon = new Date(today + "T00:00:00");
   horizon.setDate(horizon.getDate() + 3);
-  const cutoff = horizon.toISOString().slice(0, 10);
+  const cutoff = isoOf(horizon);
   return tasks
     .filter((t) => !t.data.done && !!t.data.bill && !!t.data.due && (t.data.due as string) >= today && (t.data.due as string) <= cutoff)
     .sort((a, b) => ((a.data.due as string) || "").localeCompare((b.data.due as string) || ""));
@@ -97,12 +102,13 @@ export function billsLine(tasks: TaskItem[], today: string): { title: string; su
   const due = billsDueSoon(tasks, today);
   if (due.length === 0) return null;
 
+  // TODAY-F-12 (2026-09-05): "tomorrow" was an exact 86,400,000ms gap, which
+  // the two clocks-change days do not have, so a bill due tomorrow read "Due
+  // Monday" twice a year. tomorrowISO steps a calendar day.
   const when = (iso: string): string => {
     if (iso === today) return "today";
-    const d = new Date(iso + "T00:00:00");
-    const t = new Date(today + "T00:00:00");
-    if (d.getTime() - t.getTime() === 86400000) return "tomorrow";
-    return d.toLocaleDateString([], { weekday: "long" });
+    if (iso === tomorrowISO(today)) return "tomorrow";
+    return new Date(iso + "T00:00:00").toLocaleDateString([], { weekday: "long" });
   };
   const name = (t: TaskItem) => t.data.text.replace(/^Pay /, "");
 
