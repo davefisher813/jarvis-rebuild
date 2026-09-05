@@ -203,3 +203,30 @@ describe("GYM-F-17: an uploaded program is a program", () => {
     expect(doors.length).toBe(2);
   });
 });
+
+// GYM-F-26 (2026-09-05, fork option A): long-press was the ONLY door to
+// Duplicate, Move, Copy, Pair, Archive and Restore, nothing hinted it
+// existed, and useLongPress has no key path at all, so VoiceOver and keyboard
+// users could not reach any of them. An archived row was even announced as a
+// button that did nothing on activate.
+describe("GYM-F-26: every row menu has a visible door", () => {
+  const flow = src("GymFlow.tsx");
+
+  it("one button component, a real <button>, so Enter and Space are free", () => {
+    expect(flow).toMatch(/function RowMenuButton\(\{ onMenu, what \}/);
+    expect(flow).toMatch(/aria-label=\{`More Actions for \$\{what\}`\}/);
+  });
+
+  it("it is on the day, exercise, program and archived-program rows alike", () => {
+    const uses = flow.match(/<RowMenuButton onMenu=\{onMenu\}/g) ?? [];
+    expect(uses.length).toBe(4);
+  });
+
+  it("the archived row no longer claims to be a button it cannot honour", () => {
+    expect(flow).not.toMatch(/<div className="row" role="button" tabIndex=\{0\} \{\.\.\.hold\}>/);
+  });
+
+  it("the exercise sheet's suggestion rows answer the keyboard too", () => {
+    expect(src("ExerciseSheet.tsx")).toMatch(/onKeyDown=\{\(e\) => \{ if \(e\.key === "Enter" \|\| e\.key === " "\) \{ e\.preventDefault\(\); pickSuggestion\(s\); \} \}\}/);
+  });
+});

@@ -226,7 +226,14 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
                 forward, which is what stops "Trap Bar Deadlift" and "Trap bar
                 DL" from ever becoming two histories in the first place. */}
             {suggestions.map((s) => (
-              <div className="row xs-row xs-suggest" role="button" tabIndex={0} key={s.key} onMouseDown={() => pickSuggestion(s)}>
+              // GYM-F-26 (2026-09-05): onMouseDown fires before the name
+              // field's blur eats the row, which is why it is mouse-down and
+              // not click. But it announced itself as a button with no key
+              // path at all, so a keyboard or VoiceOver user could not pick a
+              // suggestion. Enter and Space now do what the tap does.
+              <div className="row xs-row xs-suggest" role="button" tabIndex={0} key={s.key}
+                onMouseDown={() => pickSuggestion(s)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickSuggestion(s); } }}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{s.name}</div>
                   <div className="conn-meta">{MEASURE_LABEL[s.kind]}</div>

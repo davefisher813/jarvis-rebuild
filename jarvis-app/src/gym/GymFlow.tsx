@@ -44,6 +44,7 @@ import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { useAI } from "../ai/useAI";
 import { capAfterNumber } from "../shared/casing";
 import { BarbellGlyph } from "../shared/glyphs";
+import { Ellipsis } from "../shared/icons";
 import Stepper from "../shared/Stepper";
 
 const CHEV = (
@@ -251,6 +252,28 @@ function BackdateSheet({ dayName, onStart, onCancel }: { dayName: string; onStar
 // page) write row meta as .conn-meta. One grammar now, across every gym
 // surface and the health page's Training card; eyebrows go back to being
 // kickers (SET N, sheet titles, card leads).
+/**
+ * GYM-F-26 (2026-09-05, fork option A). Catalog §3.12 chose long-press as the
+ * WHOLE menu and added no fallback, so nothing on a day, exercise or program
+ * row hinted that holding it opened anything, and VoiceOver and keyboard users
+ * could not reach Duplicate, Move, Copy, Pair, Archive or Restore at all
+ * (shared/useLongPress.ts is pointer, touch and contextmenu only). One visible
+ * door: the same trailing pill on every row, opening the same ActionSheet.
+ * A real button, so Enter and Space are free and the label is announced.
+ */
+function RowMenuButton({ onMenu, what }: { onMenu: () => void; what: string }) {
+  return (
+    <button
+      className="row-menu-btn"
+      aria-label={`More Actions for ${what}`}
+      onClick={(e) => { e.stopPropagation(); onMenu(); }}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
+      <Ellipsis className="ic" />
+    </button>
+  );
+}
+
 function DayRow({ day, onOpen, onPin, onMenu }: { day: ProgramDay; onOpen: () => void; onPin?: () => void; onMenu: () => void }) {
   const hold = useLongPress({ onLongPress: onMenu });
   return (
@@ -267,6 +290,7 @@ function DayRow({ day, onOpen, onPin, onMenu }: { day: ProgramDay; onOpen: () =>
       {onPin && (day.pinDays?.length
         ? <button className="pill-act pill-neutral day-pin" onClick={(e) => { e.stopPropagation(); onPin(); }}>{pinLabel(day.pinDays)}</button>
         : <button className="pill-act day-pin" onClick={(e) => { e.stopPropagation(); onPin(); }}>Pin Days</button>)}
+      <RowMenuButton onMenu={onMenu} what={day.name} />
       {CHEV}
     </div>
   );
@@ -304,6 +328,7 @@ function ExerciseRow({ exercise, pairLabel, last, onOpen, onMenu }: {
             anatomy) -- reference, never coaching. */}
         {exercise.note && <div className="row-ghost">&ldquo;{exercise.note}&rdquo;</div>}
       </div>
+      <RowMenuButton onMenu={onMenu} what={exercise.name} />
       {CHEV}
     </div>
   );
@@ -318,6 +343,7 @@ function ProgramRow({ program, active, onSwitch, onMenu }: { program: Program; a
         {program.data.archived && !active && <div className="conn-meta">Archived</div>}
       </div>
       {active && <span className="pill pill-good">Active</span>}
+      <RowMenuButton onMenu={onMenu} what={program.data.name} />
     </div>
   );
 }
@@ -2010,14 +2036,19 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
   );
 }
 
-// The archived list is not draggable and never opens by tap -- long-press
-// (Unarchive / Duplicate) is the only way in, matching §3.11's own framing
-// of archive as a quiet shelf, not a second active list.
+// The archived list is not draggable and does not switch on tap: archive is a
+// quiet shelf, not a second active list (§3.11's own framing).
+//
+// GYM-F-26 (2026-09-05): it announced itself as a button and then did nothing
+// on activate, because long-press was the only way in and useLongPress has no
+// key path. The row is no longer a button it cannot honour; the trailing pill
+// is the door, and it works by tap, by key and to a screen reader.
 function ProgramRowStatic({ program, onMenu }: { program: Program; onMenu: () => void }) {
   const hold = useLongPress({ onLongPress: onMenu });
   return (
-    <div className="row" role="button" tabIndex={0} {...hold}>
+    <div className="row" {...hold}>
       <div className="row-grow"><div className="conn-name truncate">{program.data.name}</div></div>
+      <RowMenuButton onMenu={onMenu} what={program.data.name} />
     </div>
   );
 }

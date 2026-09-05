@@ -2674,6 +2674,17 @@ button {
    was an ACCENT wash; a press-neutral fill cannot go brown. */
 .pill-act { position: relative; flex-shrink: 0; align-self: center; background: var(--press-3); border: 0; border-radius: var(--r-pill);
   color: var(--tint); font-family: var(--f); font-size: 13px; font-weight: var(--w-semi); padding: 6px 12.5px; }
+/* GYM-F-26 (2026-09-05): ONE VISIBLE DOOR TO A ROW'S MENU. Catalog §3.12 made
+   long-press the whole menu, so nothing on a gym row hinted that a menu
+   existed and no keyboard or VoiceOver user could reach it at all. The pill is
+   quiet on purpose: it is a way in, not an action, so it never wears the tint
+   .pill-act does (RED IS A VERB). Same 44px hit area expanded past the paint. */
+.row-menu-btn { position: relative; flex-shrink: 0; align-self: center; background: none; border: 0; padding: 4px 2px;
+  color: var(--tx-4); display: inline-flex; align-items: center; cursor: pointer; }
+.row-menu-btn::after { content: ""; position: absolute; inset: -11px -8px; }
+.row-menu-btn:active { color: var(--tx-2); }
+.row-menu-btn .ic { width: 18px; height: 18px; }
+
 /* THE 44px RULE. The visible pill is 27px, which reads correctly beside a
    two-line row, but 27px is a bad target on a phone and the app's own
    standard (--tap-min, which .see-all already meets) is 44. The hit area is
