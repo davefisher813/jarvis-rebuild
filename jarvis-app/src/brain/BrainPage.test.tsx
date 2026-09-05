@@ -113,6 +113,21 @@ describe("BrainPage categories (V4 flat block)", () => {
     expect(screen.queryByText("Money")).not.toBeInTheDocument();
   });
 
+  // BRAIN-F-08 (2026-09-05): the header counted every category while the
+  // list showed only the ones with a row, so the money category the personal
+  // and business templates both seed made the number one too high.
+  it("counts the rows it shows, not the categories it filtered out", () => {
+    const cats: BrainCategory[] = [
+      { id: "c1", name: "Work", color: "blue", icon: "briefcase", kind: "org" },
+      { id: "c2", name: "Health", color: "green", icon: "dumbbell", kind: "health" },
+      { id: "c3", name: "Budget", color: "yellow", icon: "wallet", kind: "money" },
+    ];
+    const { container } = render(<BrainPage onOpen={() => {}} categories={cats} />);
+    const head = Array.from(container.querySelectorAll(".sh2")).find((h) => h.textContent?.startsWith("Your Areas"));
+    expect(head?.querySelector(".n")?.textContent).toBe("2");
+    expect(container.querySelectorAll(".lib-disc").length).toBe(2);
+  });
+
   it("a lone money-kind category leaves Your Categories empty, not a stray group", () => {
     const cats: BrainCategory[] = [
       { id: "c1", name: "Money", color: "yellow", icon: "wallet", kind: "money" },

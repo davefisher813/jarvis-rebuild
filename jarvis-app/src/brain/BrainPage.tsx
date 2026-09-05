@@ -126,7 +126,11 @@ export default function BrainPage({
         <div>
           {/* The one mini-caps boundary label (Brain 4, Dave's pick): it
               marks where user content begins in a nav list. */}
-          <div className="sh2 sh2-quiet"><span className="t">Your Areas</span><span className="n">{categories.length}</span></div>
+          {/* BRAIN-F-08 (2026-09-05): the count is of the rows below it, not
+              of every category. Money-kind categories were dropped from this
+              list on 2026-08-10 and the number was left behind, so every
+              personal and business template read "Your Areas 6" over five. */}
+          <div className="sh2 sh2-quiet"><span className="t">Your Areas</span><span className="n">{catRows.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled nav-card">{catRows.map(Row)}</div></div>
         </div>
       )}
