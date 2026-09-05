@@ -159,7 +159,12 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* Touching it stops it, for as long as you are on it (2026-08-21). Reaching
    for a button to read a line you are already looking at is the wrong shape
    for the problem; the button stays for turning it off for good. */
-.sched-ticker:active .ticker-track, .sched-ticker:hover .ticker-track { animation-play-state: paused; }
+/* BROWSER-F-16 (2026-09-05): .holding is the real one. :active is a hover
+   state in disguise on a phone, unreliable to enter and never entered at all
+   by a synthetic tap, so rows kept moving under the finger; YourDay now sets
+   .holding on touchstart and clears it on release. :hover stays for the
+   mouse, where it is exactly right. */
+.sched-ticker.holding .ticker-track, .sched-ticker:active .ticker-track, .sched-ticker:hover .ticker-track { animation-play-state: paused; }
 @keyframes tickerScroll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
 @media (prefers-reduced-motion: reduce) { .ticker-track { animation: none; } }
 .ticker-toggle { width: 26px; height: 26px; border-radius: var(--r-circle); background: var(--press-3); border: 0; color: var(--tx-2); display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0; cursor: pointer; }

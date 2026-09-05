@@ -371,6 +371,14 @@ export default function YourDay({
   const [paused, setPaused] = useState(() => {
     try { return localStorage.getItem(TICKER_KEY) === "off"; } catch { return false; }
   });
+  // BROWSER-F-16 (2026-09-05): held while a finger is down. The CSS did this
+  // with :active/:hover, which is a hover state on a phone: unreliable to
+  // enter, and it never fired at all for the audit's synthetic taps, which
+  // is why ten rows timed out as unstable targets. A row must stop the
+  // instant it is touched, so the tap lands on what was under the finger and
+  // not on its neighbour, and the row that gets tapped is the row that was
+  // read. Release resumes; the Pause control still turns it off for good.
+  const [held, setHeld] = useState(false);
   const setPausedSticky = (next: boolean) => {
     setPaused(next);
     try { localStorage.setItem(TICKER_KEY, next ? "off" : "on"); } catch { /* private mode */ }
@@ -595,7 +603,10 @@ export default function YourDay({
       {nowHead && <div className="day-band">The whole day</div>}
       <div className="pad-x">
         <div
-          className="card sched-ticker"
+          className={"card sched-ticker" + (held ? " holding" : "")}
+          onTouchStart={() => setHeld(true)}
+          onTouchEnd={() => setHeld(false)}
+          onTouchCancel={() => setHeld(false)}
           // Capture, so the tap that stops the scroll is swallowed before it
           // reaches the row it happened to land on. Without this the first
           // touch opens whatever was passing, which is the worst possible

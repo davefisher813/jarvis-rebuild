@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { render } from "@testing-library/react";
+import { render, fireEvent } from "@testing-library/react";
 import YourDay, { TICKER_KEY } from "./YourDay";
 import type { EventItem } from "../schedule/types";
 
@@ -85,5 +85,43 @@ describe("the day that only fits because it is compressed", () => {
     const toggle = container.querySelector(".held-toggle");
     expect(toggle, "the visible day keeps its toggle").toBeTruthy();
     expect(toggle!.textContent).toContain("5 tasks");
+  });
+});
+
+// BROWSER-F-16 (2026-09-05): "The ticker auto-scrolls its tappable rows."
+// Playwright refused ten of them as unstable targets, and a real finger lands
+// on the neighbour just as easily. Touching it holds it still; letting go
+// starts it again; the Pause control still turns it off for good.
+describe("the ticker holds still under a finger", () => {
+  const ticker = (c: HTMLElement) => c.querySelector(".sched-ticker") as HTMLElement;
+
+  it("stops on touch and resumes on release", () => {
+    const { container } = render(
+      <YourDay events={heldFive} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
+    );
+    const t = ticker(container);
+    expect(t.className).not.toContain("holding");
+    fireEvent.touchStart(t);
+    expect(ticker(container).className).toContain("holding");
+    fireEvent.touchEnd(t);
+    expect(ticker(container).className).not.toContain("holding");
+  });
+
+  it("a cancelled touch (a scroll that took over) also lets it go", () => {
+    const { container } = render(
+      <YourDay events={heldFive} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
+    );
+    fireEvent.touchStart(ticker(container));
+    fireEvent.touchCancel(ticker(container));
+    expect(ticker(container).className).not.toContain("holding");
+  });
+
+  it("a tap still stops it for good, which is the sticky pause", () => {
+    const { container } = render(
+      <YourDay events={heldFive} locked={[deepWork]} now="12:18" nowLabel="12:18" onSeeAll={() => {}} />,
+    );
+    fireEvent.click(ticker(container));
+    expect(container.querySelector(".sched-ticker")).toBeNull();
+    expect(localStorage.getItem(TICKER_KEY)).toBe("off");
   });
 });
