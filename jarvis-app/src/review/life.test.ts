@@ -1,12 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { goalEvidenceDays, areaPulse, areaWord, comebackLine, heavyWord, restingNow, FED_DAYS, STARVED_DAYS } from "./life";
-import type { Area, Goal } from "../life/types";
+import { goalEvidenceDays, comebackLine, heavyWord } from "./life";
+import type { Goal } from "../life/types";
 
 const T = "2026-08-25";
-const DAY = 86400000;
 const ms = (iso: string) => new Date(iso + "T12:00:00").getTime();
 
-const area = (over: Partial<Area["data"]> = {}): Area => ({ id: "a1", data: { name: "Health", state: "steady", ...over } });
 const goal = (over: Partial<Goal["data"]> = {}): Goal => ({ id: "g1", data: { title: "G", state: "on_track", ...over } as Goal["data"] });
 const reach = (filed: string[], tagged: string[] = []) => ({
   filedIds: filed, taggedIds: tagged, openTagged: 0,
@@ -21,42 +19,6 @@ describe("goalEvidenceDays", () => {
       [{ id: "t1", t: ms("2026-08-22") }, { id: "t2", t: ms("2026-08-23") }, { id: "zz", t: ms("2026-08-24") }],
     );
     expect(days).toEqual(["2026-08-20", "2026-08-22", "2026-08-23"]);
-  });
-});
-
-describe("areaPulse and its word", () => {
-  it("fed inside the window, quiet past it, and only chosen areas starve", () => {
-    const fedP = areaPulse(area(), [["2026-08-20"]], T);
-    expect(fedP.fed).toBe(true);
-    expect(areaWord(fedP)).toBe("Fed");
-
-    const old = `2026-0${8 - 1}-${25 - (STARVED_DAYS - 28) || 1}`; // ~a month back
-    const quietUnchosen = areaPulse(area(), [["2026-07-20"]], T);
-    expect(quietUnchosen.starved).toBe(false); // unchosen: silence
-    expect(areaWord(quietUnchosen)).toBeNull();
-    void old;
-
-    const quietChosen = areaPulse(area({ chosen: true }), [["2026-07-20"]], T);
-    expect(quietChosen.starved).toBe(true);
-    expect(areaWord(quietChosen)).toBe("Quiet a while");
-  });
-
-  it("resting is an exit, not a lapse: it silences starvation", () => {
-    const resting = areaPulse(area({ chosen: true, restingUntil: "2026-11-01" }), [], T);
-    expect(resting.resting).toBe(true);
-    expect(resting.starved).toBe(false);
-    expect(areaWord(resting)).toBe("Resting");
-    expect(restingNow(area({ restingUntil: "2026-08-24" }), T)).toBe(false); // expired
-  });
-
-  it("an area with no evidence at all only speaks if chosen", () => {
-    expect(areaPulse(area(), [], T).starved).toBe(false);
-    expect(areaPulse(area({ chosen: true }), [], T).starved).toBe(true);
-  });
-
-  it("FED_DAYS is the boundary", () => {
-    const edge = new Date(ms(T) - FED_DAYS * DAY).toISOString().slice(0, 10);
-    expect(areaPulse(area(), [[edge]], T).fed).toBe(true);
   });
 });
 

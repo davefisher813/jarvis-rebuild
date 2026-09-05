@@ -1,4 +1,4 @@
-import type { Area, Goal } from "../life/types";
+import type { Goal } from "../life/types";
 import type { GoalReach } from "../bigger/reach";
 import { reachedIds } from "../bigger/measure";
 import { daysBetween } from "../upnext/upnext";
@@ -10,20 +10,16 @@ import { capAfterNumber } from "../shared/casing";
 // life staying alive, never a split and never a score (Marks & MacDermid).
 // A resting area is a chosen state, not a lapse; a comeback is a win.
 
-export const FED_DAYS = 14; // evidence inside this window = the area is fed
-export const STARVED_DAYS = 21; // a chosen area quiet this long earns ONE card
-export const REST_DAYS = 90; // It's Resting sleeps an area for a season
 export const COMEBACK_GAP = 5; // quiet days that make a return worth naming
 export const COMEBACK_RUN = 3; // evidence days before the gap, so the return has a story
 
-/** Local ISO date n days from base. The life layer's own arithmetic (the
- *  slot lands tomorrow, resting sleeps REST_DAYS), kept beside the constants
- *  it serves. */
-export function addDaysISO(base: string, n: number): string {
-  const d = new Date(base + "T12:00:00");
-  d.setDate(d.getDate() + n);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+// BRAIN-F-19 (2026-09-05): the area-pulse half of this model went. FED_DAYS,
+// STARVED_DAYS, REST_DAYS, addDaysISO, AreaPulse, restingNow, areaPulse and
+// areaWord had no caller in app code once the life_area entity lost its UI
+// (2026-08-29); only their own unit test kept them green. The goal half
+// (goalEvidenceDays, comebackLine, heavyWord) is live in BiggerPictureFlow
+// and stays. If Fed / Resting / Quiet a while comes back it comes back with
+// the surface that shows it.
 
 /** Local ISO days on which a goal produced evidence: a seen completion of a
  *  task it reaches, or a savings entry logged on it. */
@@ -41,48 +37,6 @@ export function goalEvidenceDays(
   }
   for (const e of goal.data.saved ?? []) days.add(e.d);
   return [...days].sort();
-}
-
-export interface AreaPulse {
-  fed: boolean;
-  resting: boolean;
-  /** Days since the newest evidence across the area's goals; null = none seen. */
-  lastDays: number | null;
-  /** True when chosen, awake, and quiet past the starved gate. */
-  starved: boolean;
-}
-
-export function restingNow(area: Area, today: string): boolean {
-  const until = area.data.restingUntil;
-  return !!until && until >= today;
-}
-
-export function areaPulse(
-  area: Area,
-  evidenceDays: string[][],
-  today: string,
-): AreaPulse {
-  const newest = evidenceDays.flat().sort().pop() ?? null;
-  const lastDays = newest ? daysBetween(newest, today) : null;
-  const resting = restingNow(area, today);
-  const fed = lastDays != null && lastDays <= FED_DAYS;
-  return {
-    fed,
-    resting,
-    lastDays,
-    // Starvation is only ever about areas the user CHOSE to keep alive, and
-    // a resting area cannot starve: resting is the exit working.
-    starved: !!area.data.chosen && !resting && !fed && (lastDays == null || lastDays >= STARVED_DAYS),
-  };
-}
-
-/** The word an area wears. Silence-first: an unchosen quiet area says
- *  nothing at all, because JARVIS never invents an obligation. */
-export function areaWord(p: AreaPulse): string | null {
-  if (p.resting) return "Resting";
-  if (p.fed) return "Fed";
-  if (p.starved) return "Quiet a while";
-  return null;
 }
 
 /** The comeback, generalized (pick 17): a return after a real gap, when the

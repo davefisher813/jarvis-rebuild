@@ -253,11 +253,10 @@ function endOfDayFor(wakeMin: number, sleepMin: number): number {
   return Math.min(24 * 60 - 1, Math.max(wakeMin + 60, Math.min(sleepAdj - WIND_DOWN_MIN, 24 * 60 - 1)));
 }
 
-// The planner's end-of-day cutoff derived from the routine: a wind-down buffer
-// before bedtime, floored so it can never cross before the wake time.
-export function planEndMin(r: RoutineData): number {
-  return endOfDayFor(r.wakeMin, r.sleepMin);
-}
+// BRAIN-F-19 (2026-09-05): planEndMin was the day-blind ancestor of
+// planWindowFor and every flow had already moved to the day-aware one; only
+// routine.test.ts still called it. Its assertions moved onto planWindowFor,
+// which computes the same end through the same endOfDayFor.
 
 // Day-aware planning window: the wake floor and the wind-down end for a given
 // day of week, honoring weekend overrides. This is what the flows use so a

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { RoutineService } from "./RoutineService";
-import { DEFAULT_ROUTINE, planEndMin, WIND_DOWN_MIN, ENTITY_ROUTINE, isOvernight, isWorkOutsideActive, wakeFromBrief, activeHoursFor, planWindowFor, protectedRangesFor, splitProtectedRanges, type ProtectedBlock } from "./types";
+import { DEFAULT_ROUTINE, WIND_DOWN_MIN, ENTITY_ROUTINE, isOvernight, isWorkOutsideActive, wakeFromBrief, activeHoursFor, planWindowFor, protectedRangesFor, splitProtectedRanges, type ProtectedBlock } from "./types";
 import { planDay } from "../schedule/planDay";
 
 describe("RoutineService", () => {
@@ -91,15 +91,15 @@ describe("wakeFromBrief (onboarding inference)", () => {
   });
 });
 
-describe("planEndMin (window derivation)", () => {
+describe("planWindowFor (window derivation)", () => {
   it("stops a wind-down buffer before bedtime", () => {
-    expect(planEndMin({ ...DEFAULT_ROUTINE, sleepMin: 22 * 60 })).toBe(22 * 60 - WIND_DOWN_MIN);
+    expect(planWindowFor({ ...DEFAULT_ROUTINE, sleepMin: 22 * 60 }, 1).endMin).toBe(22 * 60 - WIND_DOWN_MIN);
   });
 
   it("never returns an end before wake + 1h, even with a too-early bedtime", () => {
     // Bed 30 minutes after waking: absurd but typable. The floor holds.
     const r = { wakeMin: 7 * 60, sleepMin: 7 * 60 + 30, workStartMin: 9 * 60, workEndMin: 17 * 60 };
-    expect(planEndMin(r)).toBe(7 * 60 + 60);
+    expect(planWindowFor(r, 1).endMin).toBe(7 * 60 + 60);
   });
 
   // The 2:41 AM screenshot bug (2026-08-10). Bed at 1:00 AM with an 8:30 wake
@@ -108,12 +108,12 @@ describe("planEndMin (window derivation)", () => {
   // the day now runs to 11:30 PM (midnight minus wind-down).
   it("treats a past-midnight bedtime as overnight, not as before wake", () => {
     const r = { wakeMin: 8 * 60 + 30, sleepMin: 60, workStartMin: 9 * 60, workEndMin: 22 * 60 };
-    expect(planEndMin(r)).toBe(24 * 60 - WIND_DOWN_MIN); // 23:30 = 1410
+    expect(planWindowFor(r, 1).endMin).toBe(24 * 60 - WIND_DOWN_MIN); // 23:30 = 1410
   });
 
   it("treats sleep equal to wake as overnight too, matching isOvernight", () => {
     const r = { wakeMin: 7 * 60, sleepMin: 7 * 60, workStartMin: 9 * 60, workEndMin: 17 * 60 };
-    expect(planEndMin(r)).toBe(1410); // 11:30 PM, not wake + 1h
+    expect(planWindowFor(r, 1).endMin).toBe(1410); // 11:30 PM, not wake + 1h
   });
 
   it("planWindowFor carries the overnight fix through weekend hours", () => {
@@ -127,7 +127,7 @@ describe("planEndMin (window derivation)", () => {
 
   it("midnight exactly still means a late night, capped before the day ends", () => {
     const r = { wakeMin: 8 * 60, sleepMin: 0, workStartMin: 9 * 60, workEndMin: 17 * 60 };
-    expect(planEndMin(r)).toBe(1410);
+    expect(planWindowFor(r, 1).endMin).toBe(1410);
   });
 });
 
@@ -174,7 +174,7 @@ describe("planDay respects the routine window", () => {
   });
 
   it("uses the full routine-derived window when it is wide", () => {
-    const end = planEndMin(DEFAULT_ROUTINE); // 21:30
+    const end = planWindowFor(DEFAULT_ROUTINE, 1).endMin; // 21:30
     const plan = planDay([task("a", 60)], [], DEFAULT_ROUTINE.wakeMin, end, 10);
     expect(plan.blocks.length).toBe(1);
     expect(plan.unplaced.length).toBe(0);

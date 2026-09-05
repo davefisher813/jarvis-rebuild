@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeSeal, worthSealing, monthKeyOf, prevMonthKey, SealService, type MonthSealData, ENTITY_MONTH_SEAL } from "./seal";
+import { computeSeal, worthSealing, prevMonthKey, SealService, type MonthSealData, ENTITY_MONTH_SEAL } from "./seal";
 import type { WindowRow } from "../brain/window";
 import type { Goal } from "../life/types";
 import type { Workout } from "../gym/types";
@@ -18,7 +18,6 @@ const workout = (date: string): Workout => ({
 
 describe("month keys", () => {
   it("cuts and steps months, including the January edge", () => {
-    expect(monthKeyOf("2026-08-25")).toBe("2026-08");
     expect(prevMonthKey("2026-08-25")).toBe("2026-07");
     expect(prevMonthKey("2026-01-01")).toBe("2025-12");
   });

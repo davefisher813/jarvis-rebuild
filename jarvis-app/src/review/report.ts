@@ -126,18 +126,9 @@ export function movedIn(month: string, goals: Goal[], projects: Project[]): { na
   return out;
 }
 
-/** Best training week inside the month: most sessions Monday to Sunday. */
-export function bestWeek(workouts: Workout[], month: string): number {
-  const byWeek = new Map<string, number>();
-  for (const w of workouts) {
-    if (!w.data.date.startsWith(month)) continue;
-    const d = new Date(w.data.date + "T00:00:00");
-    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-    const key = d.toISOString().slice(0, 10);
-    byWeek.set(key, (byWeek.get(key) ?? 0) + 1);
-  }
-  return Math.max(0, ...byWeek.values());
-}
+// BRAIN-F-19 (2026-09-05): bestWeek lived here with no caller and no test,
+// and keyed its weeks off toISOString, which is the UTC-day bug this codebase
+// bans. Nothing rendered a "best week", so it went rather than got fixed.
 
 // ---- pattern gates -------------------------------------------------------
 

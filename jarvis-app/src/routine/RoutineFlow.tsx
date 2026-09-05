@@ -89,7 +89,6 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
   const [data, setData] = useState<RoutineData>(DEFAULT_ROUTINE);
   const [loaded, setLoaded] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   // BRAIN-F-12 (2026-09-05): one failed read used to leave every field on
   // this page disabled for good, with no message and no way to retry.
@@ -107,7 +106,6 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
   const set = (patch: Partial<RoutineData>) => {
     setData((d) => ({ ...d, ...patch }));
     setDirty(true);
-    setSaved(false);
   };
 
   // Protected-time editor state. `form` is the block being added or edited on
@@ -223,7 +221,6 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
       await routine.save(data);
       savedRef.current = data;
       setDirty(false);
-      setSaved(true);
     } catch {
       showToast({ message: "Couldn't save · Check your connection" });
     }

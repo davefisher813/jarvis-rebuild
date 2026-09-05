@@ -27,7 +27,6 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   const [text, setText] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [reading, setReading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -51,7 +50,6 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
     try {
       await docs.save(topic, text.trim());
       setDirty(false);
-      setSaved(true);
     } catch {
       showToast({ message: "Couldn't save · Check your connection" });
     }
@@ -70,7 +68,6 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
       if (!clean) throw new Error("empty");
       setText((t) => (t.trim() ? t.replace(/\s+$/, "") + "\n" + clean : clean));
       setDirty(true);
-      setSaved(false);
     } catch {
       showToast({ message: "Couldn't read that photo · Try clearer" });
     } finally {
@@ -98,7 +95,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
           className="doc-textarea"
           placeholder={meta?.placeholder}
           value={text}
-          onChange={(e) => { setText(e.target.value); setDirty(true); setSaved(false); }}
+          onChange={(e) => { setText(e.target.value); setDirty(true); }}
           disabled={!loaded}
         />
         {ai.available && (

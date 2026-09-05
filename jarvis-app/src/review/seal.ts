@@ -76,11 +76,6 @@ export interface MonthSealData {
 
 export interface MonthSeal { id: string; data: MonthSealData }
 
-/** "2026-08" of a local ISO day. */
-export function monthKeyOf(iso: string): string {
-  return iso.slice(0, 7);
-}
-
 /** The month before the one holding `iso`. */
 export function prevMonthKey(iso: string): string {
   const y = Number(iso.slice(0, 4));
