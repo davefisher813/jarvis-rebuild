@@ -1,6 +1,7 @@
 import { createPortal } from "react-dom";
 import { AlignLeft, Heading, List, ListOrdered, ListTodo, Table, Image, Paperclip, Info } from "../../shared/icons";
 import type { BlockType } from "../types";
+import { pressable } from "../../shared/pressable";
 
 // Matches locked frame #48 "Add Block": a bottom sheet over the editor. Each
 // block type has its own category-tile color, varied so the menu reads.
@@ -34,8 +35,15 @@ export default function AddBlockSheet({
         <div className="grp">
           <div className="eyebrow">Add Block</div>
         </div>
+        {/* BROWSER-F-13 (2026-09-05): these nine rows were bare divs with an
+            onClick, so VoiceOver could not reach "Text, Heading, Meta Line,
+            Bulleted List, Numbered List, Checklist, Table, Photo, File" at all
+            (role null, tabIndex -1 on all nine) and neither could a keyboard.
+            Tapping always worked, which is why it survived: the crawler's own
+            tappable enumeration missed them too, the same way a screen reader
+            does. pressable() is the row's three missing props. */}
         {BLOCK_TYPES.map(({ type, label, cat, Icon }) => (
-          <div className="row" key={label + cat} onClick={() => onSelect?.(type)}>
+          <div className="row" key={label + cat} {...pressable(() => onSelect?.(type))}>
             <div className={"proj-icon cat-bg-" + cat}>
               <Icon className="ic" />
             </div>
