@@ -648,6 +648,39 @@ describe("MessagesFlow (threads)", () => {
     expect(lists).toBe(settled);
   });
 
+  // EMAIL-F-22 (2026-09-05): "Waiting On alternates are swipe-only in the
+  // common single-row case; swipe is touch-only." One person owing a reply
+  // meant Let It Go, Ask To Call, Add as Task, Block Time For It and Forward
+  // It were reachable only by a horizontal swipe (the card that carries them
+  // as buttons needs two rows), and useSwipe reads touch events only, so on
+  // a desktop browser they could not be reached at all.
+  it("More Moves is reachable by tap on a single waiting row", async () => {
+    const DAY = 86400e3;
+    const sent: GmailThreadMeta = { id: "w1", messages: [{
+      id: "wm1", snippet: "The waiver", labelIds: ["SENT"], internalDate: String(Date.now() - 12 * DAY),
+      payload: { headers: [
+        { name: "From", value: "Me <me@example.com>" }, { name: "To", value: "Rob <rob@y.com>" },
+        { name: "Subject", value: "The waiver" },
+      ] },
+    }] };
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "noise", gist: "g" }, { id: "t2", bucket: "noise", gist: "promo" },
+    ]));
+    render(wrap(<MessagesFlow ai={ai} configured />, makeApi({ searchThreads: async () => [sent] })));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    // The one waiting row, with its More control on the row itself. (The
+    // swipe reveal behind the row carries the same word, hidden until it is
+    // swiped, which is exactly the control a mouse cannot reach.)
+    const onRow = (await screen.findAllByText("More")).find((el) => el.className.includes("pill-act"));
+    expect(onRow).toBeDefined();
+    fireEvent.click(onRow!);
+    expect(await screen.findByText("More Moves")).toBeInTheDocument();
+    // The sheet is the whole point: the alternates are in it, tappable.
+    const sheet = document.querySelector(".sheet-scrim");
+    expect(sheet).not.toBeNull();
+    expect(sheet!.querySelectorAll(".list-flat .row").length).toBeGreaterThan(0);
+  });
+
   // EMAIL-F-21 (2026-09-05): "A stale Undo button can attach itself to an
   // unrelated toast." Archive a row ("Archived · Undo"), then within six
   // seconds trigger any plain toast and the new toast wore the old Undo,

@@ -3556,6 +3556,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                           {g.accounts.length > 1 && w.account && <span className="msg-acct">{acctLabel(w.account)}</span>}
                         </div>
                       </div>
+                      {/* EMAIL-F-22 (2026-09-05): "Waiting On alternates are
+                          swipe-only in the common single-row case; swipe is
+                          touch-only." Let It Go, Ask To Call, Add as Task,
+                          Block Time For It and Forward It all lived behind a
+                          horizontal swipe, and the card that carries them as
+                          buttons only appeared at two rows or more, so with
+                          one person owing a reply there was no way to reach
+                          them at all, and on a desktop browser there was no
+                          way to reach them ever. The swipe still works; this
+                          is the same sheet, on a control that can be
+                          tapped, clicked and tabbed to. */}
+                      {d.alternates.length > 0 && (
+                        <button className="pill-act" onClick={(e) => { e.stopPropagation(); setMore({ row: w, d }); }}>More</button>
+                      )}
                     </div>
                     </LetGoSwipe>
                   ))}
@@ -3588,6 +3602,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                           </div>
                           <div className="conn-meta msg-gist">{nameFor(names, w.toEmail, w.to)} · {w.subject}</div>
                         </div>
+                        {/* EMAIL-F-22: same reach here. Always Quiet This
+                            Sender and Add as Task were swipe-only too, on the
+                            rows whose only tap was Let It Go. */}
+                        {d.alternates.length > 0 && (
+                          <button className="pill-act" onClick={(e) => { e.stopPropagation(); setMore({ row: w, d }); }}>More</button>
+                        )}
                       </div>
                       </LetGoSwipe>
                     ))}
