@@ -33,6 +33,9 @@ export default function ConditioningFace({ name, cond, onFinish, onCancel }: {
   name: string;
   cond: CondBlock;
   onFinish: (r: CondResult) => void;
+  /** Only for a clock that never really started: the lead-in, or the first
+   *  second with no rounds marked. Anything that happened is logged
+   *  (GYM-F-10), never discarded. */
   onCancel: () => void;
 }) {
   const [phase, setPhase] = useState<"lead" | "run">("lead");
@@ -70,11 +73,12 @@ export default function ConditioningFace({ name, cond, onFinish, onCancel }: {
     return () => clearInterval(t);
   }, [phase]);
 
-  const finish = useCallback((elapsed: number) => {
+  const finish = useCallback((elapsed: number, cue = true) => {
     if (finishedRef.current) return;
     finishedRef.current = true;
-    beepDone(audioRef.current);
-    haptics.success();
+    // The finish cue belongs to a clock that ran its course or was slid home.
+    // Stopping early is acknowledged, not celebrated.
+    if (cue) { beepDone(audioRef.current); haptics.success(); } else { haptics.impact(); }
     onFinish({ elapsed: Math.min(elapsed, cond.capSec), splits });
   }, [cond.capSec, onFinish, splits]);
 
@@ -118,6 +122,20 @@ export default function ConditioningFace({ name, cond, onFinish, onCancel }: {
     beep(audioRef.current, 990, 90);
   };
 
+  // GYM-F-10 (2026-09-05, fork option B). Twelve minutes into an AMRAP the
+  // thumb lands on the small top-left button and the clock and every split
+  // used to be gone, with no undo and no confirm -- while the slide, the
+  // deliberate action, was the guarded one. A LOGGED SET IS NEVER LOST, so
+  // stopping early writes what actually happened (the elapsed time and the
+  // splits so far) as an attempt, and the receipt carries a delete for the
+  // attempt that should not be there. A clock that never really started (the
+  // lead-in, or the first second with no rounds marked) has nothing to write
+  // and simply closes.
+  const stop = () => {
+    if (phase === "lead" || (elapsed < 1 && splits.length === 0)) { onCancel(); return; }
+    finish(elapsed, false);
+  };
+
   // SLIDE TO FINISH. Drag the knob across; release past the end and the
   // clock stops with what it has. Release short and it springs back.
   const trackRef = useRef<HTMLDivElement>(null);
@@ -134,7 +152,7 @@ export default function ConditioningFace({ name, cond, onFinish, onCancel }: {
   const body = (
     <div className={"cond-face" + (phase === "lead" ? " lead" : "") + (iv?.phase === "rest" ? " rest" : "")} role="dialog" aria-label={`${COND_LABEL[cond.format]} clock`}>
       <div className="cf-top">
-        <button className="cf-cancel" onClick={onCancel}>Cancel</button>
+        <button className="cf-cancel" onClick={stop}>{phase === "lead" ? "Cancel" : "Stop"}</button>
         <span className="cf-fmt">{COND_LABEL[cond.format]} · {mmss(cond.capSec)}</span>
         <span className="cf-name">{name}</span>
       </div>

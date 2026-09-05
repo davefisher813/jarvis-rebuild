@@ -63,10 +63,41 @@ describe("ConditioningFace", () => {
     expect(document.querySelector(".cf-round")).toHaveTextContent("Round 2 of 10");
   });
 
-  it("Cancel discards without a result", () => {
+  // GYM-F-10 (2026-09-05, fork option B): the top-left button used to throw
+  // the clock and every split away, twelve minutes in, with no confirm and no
+  // undo. A logged set is never lost, so it stops and logs what happened. A
+  // clock that never started still just closes.
+  it("Cancel during the lead-in discards, because nothing has happened yet", () => {
     const onFinish = vi.fn(); const onCancel = vi.fn();
     render(<ConditioningFace name="Cindy" cond={{ format: "amrap", capSec: 720 }} onFinish={onFinish} onCancel={onCancel} />);
+    expect(screen.getByText("Cancel")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Cancel"));
+    expect(onCancel).toHaveBeenCalled();
+    expect(onFinish).not.toHaveBeenCalled();
+  });
+
+  it("Stop mid-run logs the elapsed time and the splits so far, never discards them", () => {
+    const onFinish = vi.fn(); const onCancel = vi.fn();
+    render(<ConditioningFace name="Cindy" cond={{ format: "amrap", capSec: 720 }} onFinish={onFinish} onCancel={onCancel} />);
+    tick(3100);
+    tick(98_000);
+    fireEvent.click(screen.getByRole("button", { name: "Round" }));
+    tick(104_000);
+    fireEvent.click(screen.getByRole("button", { name: "Round" }));
+    // The button says what it now does.
+    fireEvent.click(screen.getByText("Stop"));
+    expect(onFinish).toHaveBeenCalledTimes(1);
+    const r = onFinish.mock.calls[0]![0];
+    expect(r.splits.map(Math.round)).toEqual([98, 202]);
+    expect(Math.round(r.elapsed)).toBe(202);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("Stop in the first second with nothing marked closes rather than logging an empty run", () => {
+    const onFinish = vi.fn(); const onCancel = vi.fn();
+    render(<ConditioningFace name="Cindy" cond={{ format: "amrap", capSec: 720 }} onFinish={onFinish} onCancel={onCancel} />);
+    tick(3100);
+    fireEvent.click(screen.getByText("Stop"));
     expect(onCancel).toHaveBeenCalled();
     expect(onFinish).not.toHaveBeenCalled();
   });
@@ -90,5 +121,21 @@ describe("CondReceipt", () => {
   it("says Not run yet before the clock has run", () => {
     render(<CondReceipt exercise={ex} entries={[]} onChange={() => {}} />);
     expect(screen.getByText("Not run yet")).toBeInTheDocument();
+  });
+
+  // GYM-F-10: miss one Round tap and the receipt showed 6 with no way to make
+  // it 7; a misfired attempt could only be fixed later in the finished workout.
+  it("the round count is correctable in place", () => {
+    const onChange = vi.fn();
+    render(<CondReceipt exercise={ex} entries={[{ id: "s1", r: 6, elapsed: 720, splits: [100, 200] }]} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "More Rounds" }));
+    expect(onChange).toHaveBeenCalledWith([{ id: "s1", r: 7, elapsed: 720, splits: [100, 200], done: undefined }]);
+  });
+
+  it("a misfired attempt can be deleted where it is", () => {
+    const onChange = vi.fn();
+    render(<CondReceipt exercise={ex} entries={[{ id: "s1", r: 6, elapsed: 720 }, { id: "s2", r: 2, elapsed: 120 }]} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "Delete attempt 2" }));
+    expect(onChange).toHaveBeenCalledWith([{ id: "s1", r: 6, elapsed: 720 }]);
   });
 });

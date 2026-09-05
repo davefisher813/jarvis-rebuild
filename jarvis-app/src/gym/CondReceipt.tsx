@@ -1,6 +1,8 @@
 import type { Exercise, SetEntry } from "./types";
 import { COND_LABEL } from "./types";
 import { condScore, condScoreLabel, condSummary, elapsedOf, mmss, perRound } from "./conditioning";
+import Stepper from "../shared/Stepper";
+import { Trash2 } from "../shared/icons";
 
 // THE SECOND STATE (Check, Health, Stop, Dave 2026-09-02: "The receipt:
 // every round with its delta"). The clock stops, the block collapses back
@@ -27,6 +29,16 @@ export default function CondReceipt({ exercise, entries, onChange, lastLine }: {
     const n = raw.trim() === "" ? undefined : Math.max(0, Math.floor(Number(raw)));
     onChange(entries.map((e) => (e.id === id ? { ...e, ...(n == null || Number.isNaN(n) ? { extra: undefined } : { extra: n }) } : e)));
   };
+  // GYM-F-10 (2026-09-05): miss one Round tap and the receipt used to show 6
+  // rounds with no way to make it 7, and a misfired attempt could only be
+  // fixed later in the finished workout. Both are corrections the athlete can
+  // make where they are standing. The live caller wraps a removal in an Undo
+  // toast (GYM-F-24); in the finished-workout editor nothing lands until Save
+  // Changes.
+  const setRounds = (id: string, r: number) => {
+    onChange(entries.map((e) => (e.id === id ? { ...e, ...(r > 0 ? { r, done: undefined } : { r: undefined }) } : e)));
+  };
+  const removeAttempt = (id: string) => onChange(entries.filter((e) => e.id !== id));
   return (
     <div className="card cond-receipt">
       <div className="cr-head">
@@ -42,7 +54,12 @@ export default function CondReceipt({ exercise, entries, onChange, lastLine }: {
         const ran = elapsedOf(exercise, e);
         return (
           <div className="cr-attempt" key={e.id}>
-            {entries.length > 1 && <div className="cr-attempt-t">Attempt {i + 1}</div>}
+            <div className="cr-attempt-t">
+              <span>{entries.length > 1 ? `Attempt ${i + 1}` : ""}</span>
+              <button className="cr-del" aria-label={`Delete attempt ${i + 1}`} onClick={() => removeAttempt(e.id)}>
+                <Trash2 className="ic" />
+              </button>
+            </div>
             {rounds.length > 0 && (
               <table className="cr-table">
                 <tbody>
@@ -62,7 +79,7 @@ export default function CondReceipt({ exercise, entries, onChange, lastLine }: {
               </span>
               {exercise.kind === "rounds" ? (
                 <span className="cr-score-v">
-                  <b>{e.r ?? 0}</b>
+                  <Stepper value={e.r ?? 0} step={1} min={0} label="Rounds" onChange={(n) => setRounds(e.id, n)} />
                   <span className="cr-plus">+</span>
                   <input
                     className="cr-extra"

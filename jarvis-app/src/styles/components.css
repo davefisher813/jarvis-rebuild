@@ -4424,7 +4424,13 @@ body.selecting .voice-dock { display: none; }
 .cr-cap { font-size: 13px; color: var(--tx-3); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .cr-empty { font-size: 13px; color: var(--tx-4); margin-top: 10px; }
 .cr-attempt { margin-top: 8px; }
-.cr-attempt-t { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-4); margin: 8px 0 2px; }
+/* GYM-F-10 (2026-09-05): the attempt title row now carries the delete a
+   misfired run needs, so it is a row rather than a lone label. */
+.cr-attempt-t { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tx-4); margin: 8px 0 2px; }
+.cr-del { background: none; border: 0; padding: 2px; color: var(--tx-4); display: inline-flex; cursor: pointer; }
+.cr-del:active { color: var(--red); }
+.cr-del .ic { width: 16px; height: 16px; }
 .cr-table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; margin-top: 4px; }
 .cr-table td { padding: 6px 4px; border-top: 0.5px solid var(--divider); color: var(--tx-2); }
 .cr-n { color: var(--tx-4); width: 36px; }
@@ -4435,7 +4441,7 @@ body.selecting .voice-dock { display: none; }
 .cr-d.dn { color: var(--good); }
 .cr-score { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px;
   padding-top: 8px; border-top: 0.5px solid var(--divider); font-size: 12.5px; color: var(--tx-3); }
-.cr-score-v { display: inline-flex; align-items: baseline; gap: 6px; font-size: 21px; font-weight: 800; color: var(--tx-1);
+.cr-score-v { display: inline-flex; align-items: center; gap: 6px; font-size: 21px; font-weight: 800; color: var(--tx-1);
   font-variant-numeric: tabular-nums; }
 .cr-score-v b { font-weight: 800; }
 .cr-plus { font-size: 15px; color: var(--tx-3); font-weight: 600; }
