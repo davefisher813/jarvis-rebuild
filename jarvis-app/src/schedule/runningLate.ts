@@ -18,15 +18,27 @@ export interface ShiftResult {
   prior: { id: string; start: string; end: string | null }[];
 }
 
+// TODAY-F-08 (2026-09-05): which events a shift is ABOUT, worked out before a
+// single write goes out. The loop below can throw on its third event with two
+// already moved, and a caller that only learns the prior times from the
+// resolved result has nothing left to undo with. Pure, so the caller can hold
+// the restore list first and still offer Undo on a half-finished shift.
+export function shiftPlan(
+  dayEvents: EventItem[],
+  nowHHMM: string,
+): { future: EventItem[]; skipped: number; prior: ShiftResult["prior"] } {
+  const future = dayEvents.filter((e) => (!e.data.recurrence || e.data.recurrence === "none") && e.data.start >= nowHHMM);
+  const skipped = dayEvents.filter((e) => e.data.recurrence && e.data.recurrence !== "none" && e.data.start >= nowHHMM).length;
+  return { future, skipped, prior: future.map((e) => ({ id: e.id, start: e.data.start, end: e.data.end ?? null })) };
+}
+
 export async function shiftFutureEvents(
   svc: ShiftSvc,
   dayEvents: EventItem[],
   nowHHMM: string,
   mins: number,
 ): Promise<ShiftResult> {
-  const future = dayEvents.filter((e) => (!e.data.recurrence || e.data.recurrence === "none") && e.data.start >= nowHHMM);
-  const skipped = dayEvents.filter((e) => e.data.recurrence && e.data.recurrence !== "none" && e.data.start >= nowHHMM).length;
-  const prior = future.map((e) => ({ id: e.id, start: e.data.start, end: e.data.end ?? null }));
+  const { future, skipped, prior } = shiftPlan(dayEvents, nowHHMM);
   for (const e of future) {
     await svc.editTime(e.id, addMinutes(e.data.start, mins));
     if (e.data.end) await svc.editEnd(e.id, addMinutes(e.data.end, mins));

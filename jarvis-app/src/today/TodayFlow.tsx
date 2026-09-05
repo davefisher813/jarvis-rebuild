@@ -32,7 +32,7 @@ import { aiPlanDay } from "../schedule/planDayAI";
 import { DEFAULT_ROUTINE, planWindowFor, protectedRangesFor, type RoutineData } from "../routine/types";
 import { chronotypeFor, peakWindowFor } from "../schedule/energy";
 import { daySizing } from "../schedule/daySizing";
-import { shiftFutureEvents, restoreShift } from "../schedule/runningLate";
+import { shiftFutureEvents, shiftPlan, restoreShift } from "../schedule/runningLate";
 import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventReminders, ensureTaskReminders } from "../shared/notifications";
 import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap } from "./evening";
@@ -1076,14 +1076,32 @@ export default function TodayFlow({
   // Running Late lands on Today too (2026-08-09): the plan lives here, so the
   // one-tap recovery for falling behind has to live here. Same shared shift
   // as the Schedule tab, recurring events left in place, full Undo.
+  // TODAY-F-08 (2026-09-05): this was the one mutation on this screen that
+  // did not run through a guard. Offline, the loop moved two events and threw
+  // on the third; the rejection went unhandled, so there was no toast, no
+  // Undo, no reload, and a half-shifted day with nothing saying so. The
+  // restore list is taken BEFORE the writes (shiftPlan), so the failure path
+  // can offer the same Undo the success path does. Not attemptWrite: its
+  // standard toast carries no action, and a second showToast would overwrite
+  // the one holding the recovery.
   const onRunningLate = async (mins: number) => {
-    const { moved, skipped, prior } = await shiftFutureEvents(schedule, todayEvents, nhm, mins);
+    const { prior, skipped } = shiftPlan(todayEvents, nhm);
+    if (prior.length === 0) return;
+    const undoShift = async () => { await attemptWrite(() => restoreShift(schedule, prior)); await reload(); };
+    let moved = 0;
+    try {
+      moved = (await shiftFutureEvents(schedule, todayEvents, nhm, mins)).moved;
+    } catch {
+      await reload();
+      showToast({ message: "Couldn't move the whole day · Some events moved", actionLabel: "Undo", onAction: undoShift });
+      return;
+    }
     if (moved === 0) return;
     await reload();
     showToast({
       message: `${moved} ${moved === 1 ? "event" : "events"} +${mins === 60 ? "1 hr" : mins + " min"}${skipped ? ` · ${skipped} repeating stayed` : ""}`,
       actionLabel: "Undo",
-      onAction: async () => { await restoreShift(schedule, prior); await reload(); },
+      onAction: undoShift,
     });
   };
 
