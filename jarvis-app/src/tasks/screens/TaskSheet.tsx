@@ -11,6 +11,7 @@ import { RepeatGlyph, PinGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
 import SheetBar from "../../shared/SheetBar";
 import HeadMenu from "../../shared/HeadMenu";
+import { addDays } from "../../schedule/calendar";
 
 export interface SheetCategory { id: string; name: string; color: ColorSlot }
 export interface TaskDraft {
@@ -26,7 +27,6 @@ export interface TaskDraft {
 }
 export interface SheetProject { id: string; title: string }
 
-const DAY = 86400000;
 const isoOf = (d: Date) => {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -34,10 +34,13 @@ const isoOf = (d: Date) => {
   return `${y}-${m}-${day}`;
 };
 const todayISO = () => isoOf(new Date());
-const addDaysISO = (base: string, n: number) => isoOf(new Date(new Date(base + "T00:00:00").getTime() + n * DAY));
+// LIFE-F-12 (2026-09-05): the presets used to add n x 86,400,000ms to local
+// midnight. On the clocks-back Sunday the local day is 25 hours long, so
+// Tomorrow and Next Week both resolved to today and This Weekend to Friday.
+// addDays (calendar.ts) steps with setDate, which counts calendar days.
 // The coming Saturday (today, when today is one) and the coming Monday.
-const weekendISO = (today: string) => { const d = new Date(today + "T00:00:00"); return addDaysISO(today, (6 - d.getDay() + 7) % 7); };
-const nextWeekISO = (today: string) => { const d = new Date(today + "T00:00:00"); return addDaysISO(today, ((8 - d.getDay()) % 7) || 7); };
+const weekendISO = (today: string) => { const d = new Date(today + "T00:00:00"); return addDays(today, (6 - d.getDay() + 7) % 7); };
+const nextWeekISO = (today: string) => { const d = new Date(today + "T00:00:00"); return addDays(today, ((8 - d.getDay()) % 7) || 7); };
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const dateWord = (iso: string) => { const d = new Date(iso + "T00:00:00"); return `${MONTHS[d.getMonth()]} ${d.getDate()}`; };
 
@@ -107,7 +110,7 @@ export default function TaskSheet({
   onAddNote?: () => void;
 }) {
   const today = todayISO();
-  const tomorrow = addDaysISO(today, 1);
+  const tomorrow = addDays(today, 1);
   const weekend = weekendISO(today);
   const nextWeek = nextWeekISO(today);
   // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save creates
@@ -205,7 +208,7 @@ export default function TaskSheet({
       // Pick a Date: the phone's own wheel, on the date row that appears
       // under Due; the wheel opens itself where the browser allows.
       setPicking(true);
-      if (dueMode !== "pick") setDue(addDaysISO(today, 2));
+      if (dueMode !== "pick") setDue(addDays(today, 2));
       setTimeout(() => { const el = dateRef.current; if (el) { try { (el as HTMLInputElement & { showPicker?: () => void }).showPicker?.(); } catch { /* the row itself is the fallback */ } } }, 0);
     }
   };

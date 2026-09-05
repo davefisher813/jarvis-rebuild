@@ -8,10 +8,9 @@ const CATS: SheetCategory[] = [
   { id: "c1", name: "Work", color: "blue" },
   { id: "c2", name: "Money", color: "yellow" },
 ];
-const DAY = 86400000;
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const today = iso(new Date());
-const tomorrow = iso(new Date(Date.now() + DAY));
+const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return iso(d); })();
 
 describe("TaskSheet", () => {
   it("new mode: header, no delete, empty field", () => {
@@ -111,6 +110,35 @@ describe("TaskSheet", () => {
       }
     });
   }
+
+  // LIFE-F-12 (2026-09-05): the presets added a fixed 86,400,000ms per day,
+  // and the clocks-back Sunday has 25 hours, so under America/New_York on
+  // 2026-11-01 Tomorrow and Next Week both meant today and This Weekend
+  // meant Friday. Pinned to that Sunday morning in that zone.
+  it("Tomorrow, This Weekend and Next Week step calendar days on the clocks-back Sunday", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "America/New_York";
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-01T00:30:00")); // a Sunday, before the 2am fall-back
+    try {
+      const pick = (name: string) => {
+        const onSave = vi.fn();
+        const view = render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
+        fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "X" } });
+        fireEvent.click(screen.getByLabelText("Due"));
+        fireEvent.click(screen.getByRole("menuitemradio", { name }));
+        fireEvent.click(screen.getByText("Save"));
+        view.unmount();
+        return (onSave.mock.calls[0]![0] as { due: string }).due;
+      };
+      expect(pick("Tomorrow")).toBe("2026-11-02");
+      expect(pick("This Weekend")).toBe("2026-11-07");
+      expect(pick("Next Week")).toBe("2026-11-02");
+    } finally {
+      vi.useRealTimers();
+      process.env.TZ = prevTz;
+    }
+  });
 
   it("a preset picked after the date wheel wins it back", () => {
     render(<TaskSheet mode="new" categories={CATS} onSave={() => {}} onCancel={() => {}} />);
