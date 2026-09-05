@@ -517,9 +517,15 @@ export default function NotesFlow({
     setScreen(linkReturnTo);
   };
 
+  // HMN-F-14 (2026-09-05): the note is re-read before the editor comes
+  // back, so the linked-task badges and the new connection chips are there
+  // on arrival rather than on the next reopen.
   const runCreateTasks = async () => {
     if (!currentId) return;
-    await enqueue(async () => { await attemptWrite(() => svc.tasksFromChecklist(currentId)); });
+    await enqueue(async () => {
+      await attemptWrite(() => svc.tasksFromChecklist(currentId));
+      await loadCurrent(currentId);
+    });
     setScreen("editor");
   };
 

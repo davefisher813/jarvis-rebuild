@@ -1,4 +1,5 @@
 // Matches locked frame #51 "Create Tasks". Stays green by design: the tasks
+import { useState } from "react";
 import { catColor } from "../../shared/categories";
 import { Head, Card } from "../../settings/kit";
 // inherit the note's Health category, so the checkboxes are cat-bd-green. The
@@ -29,6 +30,17 @@ export default function CreateTasks({
   onCreate?: () => void;
   onBack?: () => void;
 }) {
+  // HMN-F-14 (2026-09-05): B12's latch, the one sheet that never got it.
+  // tasksFromChecklist is idempotent only once the first run has written
+  // its taskIds back, so two taps on "Create 3 Tasks" before that landed
+  // made six tasks and six connections. The first tap latches, the label
+  // says so, and with nothing to create the button is off.
+  const [saving, setSaving] = useState(false);
+  const create = () => {
+    if (saving || items.length === 0) return;
+    setSaving(true);
+    onCreate?.();
+  };
   return (
     <div className="screen ruled">
       <div className="nav-bar">
@@ -57,8 +69,8 @@ export default function CreateTasks({
 
       <div className="grp"></div>
       <div className="pad-x">
-        <button className="btn btn-primary btn-block" onClick={onCreate}>
-          Create {items.length} Tasks
+        <button className="btn btn-primary btn-block" onClick={create} disabled={saving || items.length === 0}>
+          {saving ? "Creating" : "Create " + items.length + (items.length === 1 ? " Task" : " Tasks")}
         </button>
       </div>
       <div className="grp"></div>

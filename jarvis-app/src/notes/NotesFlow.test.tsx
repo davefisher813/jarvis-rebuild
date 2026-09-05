@@ -91,6 +91,25 @@ describe("NotesFlow: block mutations run one at a time (HMN-F-01)", () => {
   });
 });
 
+// HMN-F-14 (2026-09-05): runCreateTasks switched back to the editor without
+// re-reading the note, so the linked-task badges and the new connection
+// chips were missing until the note was reopened.
+describe("NotesFlow: the editor comes back fresh from Create Tasks (HMN-F-14)", () => {
+  it("shows the linked-task badges and connection chips on arrival", async () => {
+    const { svc, id } = await openNoteWith([{ type: "checklist", items: ["Milk", "Eggs"] }]);
+    fireEvent.click(screen.getByLabelText("Connections"));
+    fireEvent.click(await screen.findByText("Create Tasks from Checklist"));
+    fireEvent.click(await screen.findByText("Create 2 Tasks"));
+    await waitFor(() => {
+      expect(screen.getByText("Text")).toBeInTheDocument();
+      expect(document.querySelectorAll(".check-linked").length).toBe(2);
+      expect(document.querySelectorAll(".note-conn").length).toBe(2);
+    }, { timeout: 4000 });
+    expect((await svc.listTasks()).length).toBe(2);
+    expect((await svc.note(id))!.connections).toHaveLength(2);
+  });
+});
+
 // HMN-F-02 (2026-09-05): the flow is unmounted on any tab change
 // (shell/AppShell.tsx), and WKWebView removes a focused element without a
 // blur, so a notification tap or a Where You Were card mid-sentence lost the
