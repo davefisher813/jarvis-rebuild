@@ -4,6 +4,7 @@ import { useAuth } from "./auth/AuthProvider";
 import { NotesProvider, useProfile } from "./data/NotesProvider";
 import { backendConfigured } from "./data/store";
 import SignIn from "./screens/SignIn";
+import SetNewPassword from "./screens/SetNewPassword";
 import AppShell from "./shell/AppShell";
 import { GoogleSessionProvider } from "./connections/google/GoogleSession";
 import { FailedCard } from "./monitoring/ErrorBoundary";
@@ -76,7 +77,7 @@ export function AppGate({ seedDemo = false }: { seedDemo?: boolean }) {
 //  - backend set, no session: Sign In
 //  - signed in: gated app on the Supabase store
 export default function App() {
-  const { session, ready } = useAuth();
+  const { session, ready, recovery } = useAuth();
   // BROWSER-F-15 (2026-09-05): Escape closes the top sheet, from here, so all
   // 34 sheet call sites get it and the next one does too. Mounted above the
   // auth gate on purpose: onboarding has sheets as well.
@@ -90,6 +91,12 @@ export default function App() {
       </NotesProvider>
     );
   }
+
+  // SHELL-F-04 (2026-09-05): a session that arrived from a reset link is a
+  // real session, so this branch used to hand it the ordinary app and the
+  // person who came to change their password had nowhere to do it. It comes
+  // before the session check because a recovery landing HAS a session.
+  if (recovery) return <SetNewPassword />;
 
   if (!session) return <SignIn />;
 

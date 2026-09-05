@@ -53,7 +53,7 @@ describe("SignIn legal links", () => {
     render(<SignIn />);
     fireEvent.click(screen.getByText("Privacy Policy"));
     expect(screen.getByText("What We Collect")).toBeInTheDocument();
-    expect(screen.getByText(/delete your entire account/)).toBeInTheDocument();
+    expect(screen.getByText(/erases your entire account/)).toBeInTheDocument();
   });
 });
 

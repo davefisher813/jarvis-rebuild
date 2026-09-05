@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, waitFor, act } from "@testing-library/react";
 import { AuthProvider, useAuth } from "./AuthProvider";
 
 // S3-Q18 (2026-09-04): "there is no Forgot Password anywhere" and "there is
@@ -12,6 +12,7 @@ import { AuthProvider, useAuth } from "./AuthProvider";
 const getSession = vi.fn();
 const onAuthStateChange = vi.fn();
 const resetPasswordForEmail = vi.fn();
+const updateUser = vi.fn();
 const signOut = vi.fn();
 
 vi.mock("./supabaseClient", () => ({
@@ -20,6 +21,7 @@ vi.mock("./supabaseClient", () => ({
       getSession: (...a: unknown[]) => getSession(...a),
       onAuthStateChange: (...a: unknown[]) => onAuthStateChange(...a),
       resetPasswordForEmail: (...a: unknown[]) => resetPasswordForEmail(...a),
+      updateUser: (...a: unknown[]) => updateUser(...a),
       signOut: (...a: unknown[]) => signOut(...a),
     },
   },
@@ -45,6 +47,7 @@ beforeEach(() => {
   getSession.mockReset().mockResolvedValue({ data: { session: { access_token: "tok123", user: { id: "u1" } } } });
   onAuthStateChange.mockReset().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
   resetPasswordForEmail.mockReset();
+  updateUser.mockReset().mockResolvedValue({ error: null });
   signOut.mockReset().mockResolvedValue({ error: null });
 });
 
@@ -56,7 +59,11 @@ describe("sendPasswordReset", () => {
     const get = renderAuth();
     await waitFor(() => expect(get().ready).toBe(true));
     await get().sendPasswordReset("dave@example.com");
-    expect(resetPasswordForEmail).toHaveBeenCalledWith("dave@example.com");
+    // SHELL-F-04 (2026-09-05): with no redirectTo the link went to the
+    // project's Site URL, which in the native build is not this app at all.
+    // jsdom's origin is http://localhost:3000, a real http origin, so that is
+    // what webOrigin() hands over here.
+    expect(resetPasswordForEmail).toHaveBeenCalledWith("dave@example.com", { redirectTo: window.location.origin });
   });
 
   it("throws Supabase's own error rather than swallowing it", async () => {
@@ -105,5 +112,60 @@ describe("deleteAccount", () => {
     await waitFor(() => expect(get().ready).toBe(true));
     await expect(get().deleteAccount()).rejects.toThrow("Account deletion is not configured on the server");
     expect(signOut).not.toHaveBeenCalled();
+  });
+});
+
+// SHELL-F-04 (2026-09-05): "Forgot Password sends a link that has nowhere to
+// land." The email arrived, the link opened the app in a browser, Supabase
+// signed that browser in from the URL, and JARVIS showed the ordinary app
+// with nowhere to type a new password: a locked-out person stayed locked out.
+describe("password recovery", () => {
+  const fireAuthEvent = (event: string) => {
+    const cb = onAuthStateChange.mock.calls[0]![0] as (e: string, s: unknown) => void;
+    act(() => cb(event, { access_token: "tok123", user: { id: "u1" } }));
+  };
+
+  it("raises recovery when Supabase says the session came from a reset link", async () => {
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    expect(get().recovery).toBe(false);
+    fireAuthEvent("PASSWORD_RECOVERY");
+    await waitFor(() => expect(get().recovery).toBe(true));
+  });
+
+  it("an ordinary sign-in is not a recovery", async () => {
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    fireAuthEvent("SIGNED_IN");
+    expect(get().recovery).toBe(false);
+  });
+
+  it("setting the password writes it and ends the recovery", async () => {
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    fireAuthEvent("PASSWORD_RECOVERY");
+    await waitFor(() => expect(get().recovery).toBe(true));
+    await act(async () => { await get().updatePassword("hunter2!"); });
+    expect(updateUser).toHaveBeenCalledWith({ password: "hunter2!" });
+    await waitFor(() => expect(get().recovery).toBe(false));
+  });
+
+  it("a save that fails keeps the screen that can still fix it", async () => {
+    updateUser.mockResolvedValue({ error: new Error("weak password") });
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    fireAuthEvent("PASSWORD_RECOVERY");
+    await waitFor(() => expect(get().recovery).toBe(true));
+    await expect(get().updatePassword("short")).rejects.toThrow("weak password");
+    expect(get().recovery).toBe(true);
+  });
+
+  it("signing out ends the recovery too, for a link opened by mistake", async () => {
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    fireAuthEvent("PASSWORD_RECOVERY");
+    await waitFor(() => expect(get().recovery).toBe(true));
+    await act(async () => { await get().signOut(); });
+    await waitFor(() => expect(get().recovery).toBe(false));
   });
 });

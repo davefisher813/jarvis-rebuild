@@ -11,7 +11,7 @@ import { clearUndo } from "../shared/undoStack";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
 import { emit } from "../events";
-import { apiUrl } from "../shared/apiBase";
+import { apiUrl, webOrigin } from "../shared/apiBase";
 
 // Auth state for the app. Wraps Supabase Auth. When no backend is configured
 // (sandbox), session stays null and the methods report that clearly, so the
@@ -27,6 +27,11 @@ interface AuthValue {
   sendPasswordReset: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<void>;
+  // SHELL-F-04 (2026-09-05): true while this session came from a recovery
+  // link and no new password has been set yet. The app shows the Set a New
+  // Password screen instead of the app for exactly that window.
+  recovery: boolean;
+  updatePassword: (password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -34,6 +39,7 @@ const AuthContext = createContext<AuthValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [ready, setReady] = useState(false);
+  const [recovery, setRecovery] = useState(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -47,7 +53,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (event === "SIGNED_IN") emit({ type: "auth.signed_in" });
-      if (event === "SIGNED_OUT") emit({ type: "auth.signed_out" });
+      if (event === "SIGNED_OUT") { setRecovery(false); emit({ type: "auth.signed_out" }); }
+      // SHELL-F-04 (2026-09-05): the reset email's link opens the app in a
+      // browser and detectSessionInUrl signs that browser in, so JARVIS
+      // showed the ordinary app and offered nowhere to type a new password.
+      // The old one still did not work, and the locked-out user stayed
+      // locked out. This is the event Supabase raises for exactly that
+      // landing, and it is the whole signal the app needs.
+      if (event === "PASSWORD_RECOVERY") setRecovery(true);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -56,6 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       session,
       ready,
+      recovery,
       backendConfigured: !!supabase,
       signInWithApple: async () => {
         if (!supabase) throw new Error("Auth backend not configured");
@@ -88,11 +102,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // then comes back and signs in as normal.
       sendPasswordReset: async (email: string) => {
         if (!supabase) throw new Error("Auth backend not configured");
-        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        // SHELL-F-04: the link has to land somewhere that runs this app. With
+        // no redirectTo it went to the project's Site URL, which on the phone
+        // is not this app at all.
+        const to = webOrigin();
+        const { error } = await supabase.auth.resetPasswordForEmail(email, to ? { redirectTo: to } : undefined);
         if (error) throw error;
+      },
+      // SHELL-F-04: the second half of the reset. The recovery session is a
+      // real session, so this is the ordinary updateUser call; what matters
+      // is that the flag drops only after the write landed, so a failed save
+      // leaves the person on the screen that can still fix it.
+      updatePassword: async (password: string) => {
+        if (!supabase) throw new Error("Auth backend not configured");
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+        setRecovery(false);
       },
       signOut: async () => {
         await supabase?.auth.signOut();
+        setRecovery(false);
         // One user's data on shared glass dies with the session,
         // unconditionally: the preload cache and the undo stack both.
         clearPreload();
@@ -128,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         clearUndo();
       },
     }),
-    [session, ready],
+    [session, ready, recovery],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
