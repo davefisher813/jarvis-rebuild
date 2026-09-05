@@ -45,9 +45,14 @@ export class TasksService {
     return this.getTask(id);
   }
 
+  // `id` is for restores only (recreateFrom): a task put back by an Undo
+  // takes its OLD id, so the note connections, the Where You Were spot and
+  // anything else holding that id still open it. NotesService.restoreNote
+  // set the precedent; Store.create takes the id straight through.
   async createTask(
     text: string,
     opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[] } = {},
+    id?: string,
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
     const data: TaskData = { text: text.trim(), category: opts.category ?? "", done: false };
@@ -68,9 +73,9 @@ export class TasksService {
     if (opts.plan && isUsable(opts.plan)) data.plan = opts.plan;
     const steps = cleanSteps(opts.steps);
     if (steps.length) data.steps = steps;
-    const id = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
-    this.onEvent({ type: "entity.created", entityType: ENTITY_TASK, entityId: id });
-    return id;
+    const newId = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData, id);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_TASK, entityId: newId });
+    return newId;
   }
 
   // B1-3 (2026-09-04): the one function every Undo-after-delete site should
@@ -80,7 +85,10 @@ export class TasksService {
   // stripping every one of those, seven call sites deep, wherever the fix
   // had not happened to be copied by hand. One function, called everywhere,
   // is what keeps a new eighth site from reintroducing the same bug.
-  async recreateFrom(t: TaskData): Promise<string | null> {
+  //
+  // LIFE-F-15 (2026-09-05): with the deleted row's id, the task comes back as
+  // itself rather than as a copy, so a note linked to it still opens it.
+  async recreateFrom(t: TaskData, id?: string): Promise<string | null> {
     return this.createTask(t.text, {
       category: t.category || undefined,
       extraCategories: t.extraCategories,
@@ -94,7 +102,7 @@ export class TasksService {
       fromNote: t.fromNote,
       fromThread: t.fromThread,
       source: t.source,
-    });
+    }, id);
   }
 
   async toggleDone(id: string): Promise<boolean> {

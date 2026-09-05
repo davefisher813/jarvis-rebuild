@@ -18,17 +18,24 @@
 // what the move actually does.
 
 import type { AIService } from "../ai/AIService";
+import type { TaskData } from "../notes/types";
 import { breakdownPrompt, parseBreakdown } from "./breakdown";
 import { nextFreeSlot, addMinutes } from "../schedule/calendar";
 
+// LIFE-F-15 (2026-09-05): this said five fields, though both callers hand it
+// a whole TaskItem. Undo of a Break It Down rebuilt the original from those
+// five and dropped its checklist, its plan, its extra areas, its bill and its
+// provenance. It carries the whole record now, and Undo goes through
+// recreateFrom, which is the one function every Undo-after-delete calls.
 export interface TaskLike {
   id: string;
-  data: { text: string; category?: string; due?: string | null; recurrence?: string; projectId?: string };
+  data: TaskData;
 }
 
 interface TaskWriter {
   task(id: string): Promise<{ text: string; category?: string; due?: string | null } | null>;
   createTask(text: string, opts: Record<string, unknown>): Promise<string | null>;
+  recreateFrom(t: TaskData, id?: string): Promise<string | null>;
   deleteTask(id: string): Promise<unknown>;
 }
 
@@ -100,6 +107,9 @@ export async function breakDownTask(
   for (const step of steps) {
     const id = await tasks.createTask(step, {
       category: original?.data.category ?? "",
+      // LIFE-F-15: the steps inherit every area the original wore, not just
+      // its primary, or splitting a task quietly unfiled it from the others.
+      extraCategories: original?.data.extraCategories,
       due: original?.data.due ?? today,
       projectId: original?.data.projectId,
       source: { type: "chat", ts: Date.now() },
@@ -117,14 +127,9 @@ export async function undoBreakdown(
   tasks: TaskWriter,
 ): Promise<void> {
   for (const id of made) await tasks.deleteTask(id);
-  if (original) {
-    await tasks.createTask(original.data.text, {
-      category: original.data.category,
-      due: original.data.due ?? null,
-      recurrence: original.data.recurrence,
-      projectId: original.data.projectId,
-    });
-  }
+  // LIFE-F-15: the whole record, under its own id, so what comes back is the
+  // task that was split and not a thin copy of it.
+  if (original) await tasks.recreateFrom(original.data, original.id);
 }
 
 export const splitLine = (n: number): string => `Split into ${n} ${n === 1 ? "step" : "steps"}`;

@@ -666,9 +666,12 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
                   message: "Step deleted",
                   actionLabel: "Undo",
                   onAction: () => void (async () => {
-                    await attemptWrite(() => tasksSvc.createTask(kept.text, {
-                      projectId: kept.projectId, category: kept.category, due: kept.due ?? null,
-                    }));
+                    // LIFE-F-15 (2026-09-05): this rebuilt the step from three
+                    // fields, so Undo handed back a task with no checklist, no
+                    // plan, no extra areas and no repeat. recreateFrom is the
+                    // one function every Undo-after-delete calls (B1-3), and
+                    // with the old id the step comes back as itself.
+                    await attemptWrite(() => tasksSvc.recreateFrom(kept, id));
                     await reload();
                   })(),
                 });
