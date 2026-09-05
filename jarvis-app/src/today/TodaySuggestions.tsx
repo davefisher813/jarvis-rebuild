@@ -12,6 +12,7 @@ import type { Derived } from "../brain/derive";
 import { supabase } from "../auth/supabaseClient";
 import { haptics } from "../shared/haptics";
 import { showToast } from "../shared/toast";
+import { attemptWrite } from "../shared/guard";
 import { patternObservation, isPatternDismissed, dismissPattern, appendHabit, type PatternObservation } from "./patterns";
 import { planningPatternObservation, readDurationCorrections } from "./planningPatterns";
 import { routineBlockCandidate } from "./routinePatterns";
@@ -218,11 +219,30 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // whether JARVIS had nothing to say or the call behind it broke.
   if (!pattern && !aiPick && extraMoments.length === 0 && !aiError) return null;
 
+  // TODAY-F-22 (2026-09-05): "Add" could succeed with nothing added. The
+  // match is an exact, case-insensitive comparison against every open task's
+  // text, and a suggestion is the model's own words, so most of the time
+  // nothing matched: the row was marked acted, the success haptic fired,
+  // suggestion.accepted was logged, and no task had been touched. A failed
+  // write did the same thing with the row left on screen. Add now means a
+  // task exists with that text due today, whether it was already there or
+  // this tap made it, and the row only stands down once the write is real.
+  type AddOutcome = "moved" | "created" | null;
   const addToToday = async (idx: number, taskText: string) => {
-    const all = await tasksSvc.listTasks();
-    const hit = all.find((t) => !t.data.done && t.data.text.toLowerCase() === taskText.toLowerCase());
-    if (hit) await tasksSvc.setDue(hit.id, today);
+    let result: AddOutcome = null;
+    const ok = await attemptWrite(async () => {
+      const all = await tasksSvc.listTasks();
+      const hit = all.find((t) => !t.data.done && t.data.text.toLowerCase() === taskText.toLowerCase());
+      if (hit) { await tasksSvc.setDue(hit.id, today); result = "moved"; }
+      else if (await tasksSvc.createTask(taskText, { due: today })) result = "created";
+    });
+    const added: AddOutcome = result;
+    if (!ok) return;
+    // createTask answers null on empty text without throwing, so the id, not
+    // the absence of a throw, is what says a task exists.
+    if (!added) { showToast({ message: "Couldn't add that" }); return; }
     haptics.success();
+    if (added === "created") showToast({ message: "Added to your tasks" });
     // Accepted vs dismissed is how the Brain learns what a "proper
     // suggestion" means for this user (durable log, Session 6.5).
     emit({ type: "suggestion.accepted", props: { kind: "ai" } });
@@ -244,21 +264,29 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // renders: the single row above (when a moment happens to win it) or one
   // of the extra cards below on What JARVIS Knows. Same commit, same three
   // true outcomes, either way.
-  const acceptMoment = async (m: Derived) => {
-    if (!strandsSvc) return;
+  // TODAY-F-22 (2026-09-05): guarded. A rejected accept used to take the
+  // card off screen and log the acceptance with nothing written behind it.
+  const acceptMoment = async (m: Derived): Promise<boolean> => {
+    if (!strandsSvc) return false;
     haptics.selection();
     // Three outcomes, three true sentences. This used to be a truthy check
     // on an id, so "you already told me this" and "the Brain is full" both
     // came out as "The Brain is full", which was a lie in the common case.
-    const r = await strandsSvc.accept(m.strandText, m.category, m.derivation, m.evidence, today);
+    let outcome: string | null = null;
+    const ok = await attemptWrite(async () => {
+      outcome = (await strandsSvc.accept(m.strandText, m.category, m.derivation, m.evidence, today)).outcome;
+    });
+    const landed: string | null = outcome;
+    if (!ok || !landed) return false;
     haptics.success();
     showToast({
-      message: r.outcome === "created" ? "JARVIS will remember that"
-        : r.outcome === "refreshed" ? "JARVIS already knew · Receipts updated"
+      message: landed === "created" ? "JARVIS will remember that"
+        : landed === "refreshed" ? "JARVIS already knew · Receipts updated"
           : "The Brain is full · Prune it in What JARVIS Knows",
     });
     dismissPattern("brain-" + m.derivation, today);
     setMoments((cur) => cur.filter((x) => x.derivation !== m.derivation));
+    return true;
   };
   const dismissMoment = (m: Derived) => {
     haptics.selection();
@@ -284,17 +312,25 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       // the wrong weight for a permanent loss: What JARVIS Knows already
       // holds pause and delete, with the fact in front of you. Dismiss asks
       // again another day, which is the honest middle.
-      await strandsSvc?.confirm(pattern.stale, today);
+      // TODAY-F-22 (2026-09-05): every branch below writes, and none of them
+      // used to catch. A rejected write left the row on screen, said nothing,
+      // and the receipt claimed the fact had landed.
+      const stale = pattern.stale;
+      if (!(await attemptWrite(async () => { await strandsSvc?.confirm(stale, today); }))) return;
       haptics.success();
       showToast({ message: "Still true · JARVIS will keep leaning on it" });
     } else if (pattern.routineBlock) {
-      const r = await routineSvc.get();
-      await routineSvc.save({ protectedBlocks: [...(r.protectedBlocks ?? []), pattern.routineBlock] });
+      const block = pattern.routineBlock;
+      const ok = await attemptWrite(async () => {
+        const r = await routineSvc.get();
+        await routineSvc.save({ protectedBlocks: [...(r.protectedBlocks ?? []), block] });
+      });
+      if (!ok) return;
       emit({ type: "suggestion.accepted", props: { kind: "routine" } });
       showToast({ message: "Added to your routine" });
     } else if (pattern.moment && strandsSvc) {
       // The commit lands with weight: this is the hit the Brain exists for.
-      await acceptMoment(pattern.moment);
+      if (!(await acceptMoment(pattern.moment))) return;
     } else {
       // Planning observations (per-task timing, the fourth launch
       // derivation) land as strands too, receipts included, so every fact
@@ -302,6 +338,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       // fallback when the strand store is absent or refuses (cap reached).
       const timing = pattern.id.match(/^plan-dur-(?:long|short)-(.+)$/);
       let landed = false;
+      const text = pattern.text;
       if (timing && strandsSvc) {
         const cat = timing[1]!;
         const evidence = readDurationCorrections()
@@ -311,19 +348,29 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
           // TODAY-F-12 (2026-09-05): the evidence day is the local day the
           // correction was made, not the UTC one.
           .map((c) => ({ day: todayISO(new Date(c.ts)), a: c.deltaMin }));
-        const r = await strandsSvc.accept(pattern.text, "routine", "task_timing", evidence, today);
+        let outcome: string | null = null;
+        // TODAY-F-22: a write that never landed must not fall through to the
+        // habits doc as if the strand store had merely been full, and must
+        // not print a receipt either.
+        if (!(await attemptWrite(async () => {
+          outcome = (await strandsSvc.accept(text, "routine", "task_timing", evidence, today)).outcome;
+        }))) return;
+        const r: string | null = outcome;
         // A refresh counts as landed. Falling through to the habits doc
         // because the strand already existed is how the same observation
         // ended up written into that document once per accept.
-        if (r.outcome !== "full") {
+        if (r && r !== "full") {
           landed = true;
           haptics.success();
-          showToast({ message: r.outcome === "created" ? "JARVIS will remember that" : "JARVIS already knew · Receipts updated" });
+          showToast({ message: r === "created" ? "JARVIS will remember that" : "JARVIS already knew · Receipts updated" });
         }
       }
       if (!landed) {
-        const cur = await docs.get("habits");
-        await docs.save("habits", appendHabit(cur, pattern.text, today));
+        const ok = await attemptWrite(async () => {
+          const cur = await docs.get("habits");
+          await docs.save("habits", appendHabit(cur, text, today));
+        });
+        if (!ok) return;
         emit({ type: "suggestion.accepted", props: { kind: "pattern" } });
         showToast({ message: "Saved to your Brain" });
       }

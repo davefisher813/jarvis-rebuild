@@ -107,7 +107,7 @@ describe("TodaySuggestions routine candidate", () => {
 
 // Reads the live routine record so the test can assert the accept actually
 // persisted the block, not just closed the row.
-import { useSchedule, useRoutine } from "../data/NotesProvider";
+import { useSchedule, useRoutine, useTasks } from "../data/NotesProvider";
 import { useEffect } from "react";
 import type { RoutineData } from "../routine/types";
 let probedRoutine: RoutineData | null = null;
@@ -302,3 +302,77 @@ describe("TodaySuggestions AI failure is honest, not silent (S4-Q27)", () => {
     expect(localStorage.getItem("jarvis.suggestions." + todayISO())).toBeNull();
   });
 });
+
+// TODAY-F-22 (2026-09-05): "Add" marked the row acted, fired the success
+// haptic and logged suggestion.accepted whether or not a task existed. The
+// match is an exact comparison against open task text and the suggestion is
+// the model's own words, so most days nothing matched and nothing happened.
+describe("TodaySuggestions Add always leaves a task behind", () => {
+  // The day cache is keyed by date, not by user, so one test's acted row
+  // would silence the next one's suggestion.
+  beforeEach(() => localStorage.clear());
+
+  const aiWith = (task: string) => {
+    const fetchImpl = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ text: JSON.stringify([{ text: "Call the Vet Back", task }]) }),
+      text: async () => "",
+    })) as unknown as typeof fetch;
+    return new AIService({ available: true, getToken: () => "t", fetchImpl });
+  };
+
+  it("creates the task when no open task matches the suggestion's words", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    try {
+      render(
+        <NotesProvider userId="u-add-f22a"><TaskProbe /><TodaySuggestions ai={aiWith("Call the Vet Back")} /></NotesProvider>,
+      );
+      await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
+      fireEvent.click(screen.getByText(/^Noticed ·/));
+      fireEvent.click(await screen.findByText("Add"));
+      await waitFor(() => expect(seen).toContain("Added to your tasks"));
+      await waitFor(() => {
+        expect(probedTasks.some((t) => t.data.text === "Call the Vet Back" && t.data.due === todayISO())).toBe(true);
+      });
+    } finally {
+      stop();
+    }
+  });
+
+  it("a failed write says so and leaves the row to try again", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    try {
+      render(
+        <NotesProvider userId="u-add-f22b"><TaskProbe /><TodaySuggestions ai={aiWith("Call the Vet Back")} /></NotesProvider>,
+      );
+      await waitFor(() => expect(screen.getByText(/^Noticed ·/)).toBeInTheDocument());
+      fireEvent.click(screen.getByText(/^Noticed ·/));
+      const add = await screen.findByText("Add");
+      probedSvc!.createTask = () => Promise.reject(new Error("offline"));
+      fireEvent.click(add);
+      await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
+      expect(screen.getByText("Add")).toBeInTheDocument();
+    } finally {
+      stop();
+    }
+  });
+});
+
+// Reads the live task list so the tests above can assert a real write.
+import { subscribeToast } from "../shared/toast";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
+import type { TasksService, TaskItem } from "../tasks/TasksService";
+let probedTasks: TaskItem[] = [];
+let probedSvc: TasksService | null = null;
+function TaskProbe() {
+  const tasks = useTasks();
+  probedSvc = tasks;
+  useEffect(() => {
+    const id = setInterval(() => { void tasks.listTasks().then((t) => { probedTasks = t; }); }, 50);
+    return () => clearInterval(id);
+  }, [tasks]);
+  return null;
+}
