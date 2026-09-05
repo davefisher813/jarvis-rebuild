@@ -1,5 +1,5 @@
 import type { EventItem } from "./types";
-import { addMinutes } from "./calendar";
+import { addMinutes, shiftFitsDay } from "./calendar";
 
 // Shift the rest of the day (extracted 2026-08-09 so Today and Schedule share
 // one implementation instead of drifting copies). Future one-off events move
@@ -15,6 +15,10 @@ export interface ShiftSvc {
 export interface ShiftResult {
   moved: number;
   skipped: number; // recurring events left in place
+  // SCHED-F-18 (2026-09-05): events the shift would have pushed past
+  // midnight. They stay where they are and the caller says how many, rather
+  // than being clamped into a zero-length row at 23:59.
+  crossed: number;
   prior: { id: string; start: string; end: string | null }[];
 }
 
@@ -26,10 +30,15 @@ export interface ShiftResult {
 export function shiftPlan(
   dayEvents: EventItem[],
   nowHHMM: string,
-): { future: EventItem[]; skipped: number; prior: ShiftResult["prior"] } {
-  const future = dayEvents.filter((e) => (!e.data.recurrence || e.data.recurrence === "none") && e.data.start >= nowHHMM);
+  mins = 0,
+): { future: EventItem[]; skipped: number; crossed: number; prior: ShiftResult["prior"] } {
+  const ahead = dayEvents.filter((e) => (!e.data.recurrence || e.data.recurrence === "none") && e.data.start >= nowHHMM);
+  // SCHED-F-18: an event the shift would carry past midnight stays put. The
+  // plan decides it, not the write loop, so the restore list the caller holds
+  // covers exactly what moves.
+  const future = ahead.filter((e) => shiftFitsDay(e.data.start, e.data.end, mins));
   const skipped = dayEvents.filter((e) => e.data.recurrence && e.data.recurrence !== "none" && e.data.start >= nowHHMM).length;
-  return { future, skipped, prior: future.map((e) => ({ id: e.id, start: e.data.start, end: e.data.end ?? null })) };
+  return { future, skipped, crossed: ahead.length - future.length, prior: future.map((e) => ({ id: e.id, start: e.data.start, end: e.data.end ?? null })) };
 }
 
 export async function shiftFutureEvents(
@@ -38,12 +47,12 @@ export async function shiftFutureEvents(
   nowHHMM: string,
   mins: number,
 ): Promise<ShiftResult> {
-  const { future, skipped, prior } = shiftPlan(dayEvents, nowHHMM);
+  const { future, skipped, crossed, prior } = shiftPlan(dayEvents, nowHHMM, mins);
   for (const e of future) {
     await svc.editTime(e.id, addMinutes(e.data.start, mins));
     if (e.data.end) await svc.editEnd(e.id, addMinutes(e.data.end, mins));
   }
-  return { moved: future.length, skipped, prior };
+  return { moved: future.length, skipped, crossed, prior };
 }
 
 export async function restoreShift(svc: ShiftSvc, prior: ShiftResult["prior"]): Promise<void> {

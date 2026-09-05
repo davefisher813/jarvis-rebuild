@@ -16,7 +16,7 @@ import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import BlockSheet, { type BlockDraft } from "./screens/BlockSheet";
 import ScheduleUploadFlow from "./screens/ScheduleUploadFlow";
-import { todayISO, weekOf, addDays, addMinutes, fmtTime, eventsForDate, nextFreeSlot, fmtRange, minToHHMM, nextOccurrence, daysBetween } from "./calendar";
+import { todayISO, weekOf, addDays, addMinutes, fmtTime, eventsForDate, nextFreeSlot, fmtRange, minToHHMM, nextOccurrence, daysBetween, shiftFitsDay } from "./calendar";
 import { durLabel } from "./durations";
 import { isKept, keepBoth } from "./overlapAck";
 import OverlapSheet from "./screens/OverlapSheet";
@@ -42,7 +42,7 @@ import {
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
   pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust,
 } from "./eventAdjust";
-import { shiftBlock as shiftBlockAdjust, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust, editBlockBasics, removeBlock as removeBlockAdjust } from "../routine/blockAdjust";
+import { shiftBlock as shiftBlockAdjust, blockShiftFits, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust, editBlockBasics, removeBlock as removeBlockAdjust } from "../routine/blockAdjust";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
@@ -897,6 +897,11 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const onShift = async (id: string, mins: number) => {
     const e = await svc.event(id);
     if (!e) return;
+    // SCHED-F-18 (2026-09-05): refuse rather than clamp. addMinutes stops at
+    // 23:59, so +1 hr on a 23:15-23:45 event used to leave 23:59-23:59, a
+    // zero-length row. The event sheet already refuses this move; the swipe
+    // now says the same thing out loud.
+    if (!shiftFitsDay(e.start, e.end, mins)) { showToast({ message: "That would run past midnight" }); return; }
     const word = mins < 0
       ? `Back ${Math.abs(mins) === 60 ? "1 hr" : Math.abs(mins) + " min"}`
       : `Forward ${mins === 60 ? "1 hr" : mins + " min"}`;
@@ -964,6 +969,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // is always "save the record from before the patch."
   const onShiftBlock = async (id: string, mins: number) => {
     const before = routineData;
+    // SCHED-F-18: the same refusal a late event gets, for a protected block.
+    const cur = (before.protectedBlocks ?? []).find((b) => b.id === id);
+    if (cur && !blockShiftFits(cur.startMin, cur.endMin, mins)) { showToast({ message: "That would run past midnight" }); return; }
     const after = shiftBlockAdjust(before, id, mins);
     if (!after) return;
     const ok = await attemptWrite(() => routine.save(after));
@@ -1058,10 +1066,12 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     const ok = await attemptWrite(async () => { shift = await shiftFutureEvents(svc, dayEvents, nowHHMM, mins); });
     await reload();
     if (!ok || !shift) return;
-    const { moved, skipped, prior } = shift;
-    if (moved === 0) return;
+    const { moved, skipped, crossed, prior } = shift;
+    // SCHED-F-18: an event the shift would carry past midnight stayed where
+    // it was, and the receipt says so rather than leaving a silent hole.
+    if (moved === 0) { if (crossed) showToast({ message: "Nothing moved · The rest would run past midnight" }); return; }
     showToast({
-      message: `${moved} ${moved === 1 ? "event" : "events"} +${mins === 60 ? "1 hr" : mins + " min"}${skipped ? ` · ${skipped} repeating stayed` : ""}`,
+      message: `${moved} ${moved === 1 ? "event" : "events"} +${mins === 60 ? "1 hr" : mins + " min"}${skipped ? ` · ${skipped} repeating stayed` : ""}${crossed ? ` · ${crossed} would pass midnight` : ""}`,
       actionLabel: "Undo",
       onAction: async () => { await attemptWrite(() => restoreShift(svc, prior)); await reload(); },
     });

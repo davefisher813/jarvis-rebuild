@@ -65,3 +65,39 @@ describe("shiftFutureEvents", () => {
     expect(restore.editTime).toHaveBeenCalledWith("b", "16:00");
   });
 });
+
+// SCHED-F-18 (2026-09-05): "Shifts clamp at 23:59 and collapse a late event
+// to zero length." Running Late +1 hour at 22:00 with a 23:15-23:45 event
+// turned it into 23:59-23:59. addMinutes clamps; a move must refuse.
+describe("a shift that would cross midnight is refused, not clamped", () => {
+  it("leaves the late event where it is and counts it", async () => {
+    const svc = fakeSvc();
+    const r = await shiftFutureEvents(svc, [ev("late", "23:15", "23:45"), ev("ok", "20:00", "21:00")], "19:00", 60);
+    expect(r.moved).toBe(1);
+    expect(r.crossed).toBe(1);
+    expect(svc.editTime).toHaveBeenCalledTimes(1);
+    expect(svc.editTime).toHaveBeenCalledWith("ok", "21:00");
+  });
+
+  it("the restore list covers only what moved", () => {
+    const p = shiftPlan([ev("late", "23:15", "23:45"), ev("ok", "20:00", "21:00")], "19:00", 60);
+    expect(p.prior.map((x) => x.id)).toEqual(["ok"]);
+    expect(p.crossed).toBe(1);
+  });
+
+  it("[edge] an event with no end refuses on its start alone", async () => {
+    const svc = fakeSvc();
+    const r = await shiftFutureEvents(svc, [ev("late", "23:30")], "22:00", 60);
+    expect(r.moved).toBe(0);
+    expect(r.crossed).toBe(1);
+    expect(svc.editTime).not.toHaveBeenCalled();
+  });
+
+  it("a shift that still fits the day is unchanged", async () => {
+    const svc = fakeSvc();
+    const r = await shiftFutureEvents(svc, [ev("late", "22:00", "22:30")], "21:00", 60);
+    expect(r.moved).toBe(1);
+    expect(r.crossed).toBe(0);
+    expect(svc.editEnd).toHaveBeenCalledWith("late", "23:30");
+  });
+});

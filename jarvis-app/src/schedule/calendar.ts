@@ -37,6 +37,19 @@ export function addMinutes(hhmm: string, mins: number): string {
   return fromMin(toMin(hhmm) + mins);
 }
 
+// SCHED-F-18 (2026-09-05): does this event still fit in the day after a shift
+// of `mins`? addMinutes CLAMPS at 23:59, which is right for arithmetic and
+// wrong for a move: Running Late +1 hour on a 23:15-23:45 event pinned both
+// ends to 23:59 and left a zero-length row. The event sheet refuses the same
+// move rather than clamping it (EventSheet's move chips, "a move control
+// that resizes the event is a bug, not a nudge"); the row actions and the
+// day-wide shift ask this before they write.
+export function shiftFitsDay(start: string, end: string | undefined, mins: number): boolean {
+  const s = toMin(start) + mins;
+  const dur = end ? toMin(end) - toMin(start) : 0;
+  return s >= 0 && s + dur <= 24 * 60 - 1;
+}
+
 // "13:00","14:30" -> "1:00 - 2:30 PM" (shares the meridiem when both match).
 // Minutes from one HH:MM to another, same day. Used to preserve an event's
 // length when it moves (2026-08-19).

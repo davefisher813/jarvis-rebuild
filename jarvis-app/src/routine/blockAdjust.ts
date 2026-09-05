@@ -28,13 +28,27 @@ function withBlock(routine: RoutineData, id: string, patch: (b: ProtectedBlock) 
 // midnight cannot push a block into an invalid or wrapped time.
 const clamp = (min: number) => Math.max(0, Math.min(24 * 60 - 1, min));
 
+// SCHED-F-18 (2026-09-05): would the block still fit in the day after a shift
+// of `mins`? Clamping both ends is what collapsed a late block to zero
+// length, so a shift that runs out of day is refused instead. Exported so the
+// surfaces that offer the swipe can say why nothing moved.
+export function blockShiftFits(startMin: number, endMin: number, mins: number): boolean {
+  const s = startMin + mins;
+  return s >= 0 && s + (endMin - startMin) <= 24 * 60 - 1;
+}
+
 // Shift the whole block by a relative amount (the swipe actions): both
 // ends move together, so the block keeps its length.
 export function shiftBlock(routine: RoutineData, id: string, mins: number): RoutineData | null {
+  const cur = (routine.protectedBlocks ?? []).find((b) => b.id === id);
+  // SCHED-F-18: refuse rather than clamp. A "move" that quietly shortens the
+  // block is a bug wearing a nudge's clothes, the same reason the event
+  // sheet's chips refuse the move instead of clamping it.
+  if (!cur || !blockShiftFits(cur.startMin, cur.endMin, mins)) return null;
   return withBlock(routine, id, (b) => {
     const dur = b.endMin - b.startMin;
-    const startMin = clamp(b.startMin + mins);
-    return { ...b, startMin, endMin: clamp(startMin + dur) };
+    const startMin = b.startMin + mins;
+    return { ...b, startMin, endMin: startMin + dur };
   });
 }
 

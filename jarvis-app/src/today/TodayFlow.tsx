@@ -6,7 +6,7 @@ import { workWindowOf, isSuggested, rankCandidates } from "../schedule/planMeta"
 import type { Category } from "../categories/types";
 import type { Project } from "../projects/types";
 import type { Goal } from "../life/types";
-import { todayISO, fmtTime, addMinutes, minToHHMM } from "../schedule/calendar";
+import { todayISO, fmtTime, addMinutes, minToHHMM, shiftFitsDay } from "../schedule/calendar";
 import { ENTITY_EVENT, type EventItem } from "../schedule/types";
 import { ENTITY_TASK } from "../notes/types";
 import { useFreshLists } from "../data/useFreshLists";
@@ -58,7 +58,7 @@ import {
   skipEventToday as skipEventTodayAdjust, undoSkipEventToday as undoSkipEventTodayAdjust,
   pushEventTomorrow as pushEventTomorrowAdjust, undoPushEventTomorrow as undoPushEventTomorrowAdjust,
 } from "../schedule/eventAdjust";
-import { shiftBlock as shiftBlockAdjust, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust, editBlockBasics, removeBlock as removeBlockAdjust } from "../routine/blockAdjust";
+import { shiftBlock as shiftBlockAdjust, blockShiftFits, retimeBlock as retimeBlockAdjust, resizeBlock as resizeBlockAdjust, editBlockBasics, removeBlock as removeBlockAdjust } from "../routine/blockAdjust";
 import { overlapsOn } from "../schedule/dayEdit";
 import { isKept } from "../schedule/overlapAck";
 import { attachInfo, firstMoveOf, type AttachInfo } from "../schedule/attachments";
@@ -565,6 +565,10 @@ export default function TodayFlow({
   const onShift = async (id: string, mins: number) => {
     const e = await schedule.event(id);
     if (!e) return;
+    // SCHED-F-18 (2026-09-05): refuse rather than clamp, the same answer the
+    // event sheet's move chips give. addMinutes stops at 23:59, so +1 hr on a
+    // 23:15-23:45 event collapsed it to a zero-length row.
+    if (!shiftFitsDay(e.start, e.end, mins)) { showToast({ message: "That would run past midnight" }); return; }
     const word = mins < 0
       ? `Back ${Math.abs(mins) === 60 ? "1 hr" : Math.abs(mins) + " min"}`
       : `Forward ${mins === 60 ? "1 hr" : mins + " min"}`;
@@ -636,6 +640,9 @@ export default function TodayFlow({
   // always "save the record from before the patch."
   const onShiftBlock = async (id: string, mins: number) => {
     const before = routineData;
+    // SCHED-F-18: the same refusal a late event gets, for a protected block.
+    const cur = (before.protectedBlocks ?? []).find((b) => b.id === id);
+    if (cur && !blockShiftFits(cur.startMin, cur.endMin, mins)) { showToast({ message: "That would run past midnight" }); return; }
     const after = shiftBlockAdjust(before, id, mins);
     if (!after) return;
     const ok = await attemptWrite(() => routine.save(after));
@@ -1102,8 +1109,13 @@ export default function TodayFlow({
   // standard toast carries no action, and a second showToast would overwrite
   // the one holding the recovery.
   const onRunningLate = async (mins: number) => {
-    const { prior, skipped } = shiftPlan(todayEvents, nhm);
-    if (prior.length === 0) return;
+    // SCHED-F-18 (2026-09-05): the plan is told the size of the shift, so
+    // events it would carry past midnight are out of the restore list too.
+    const { prior, skipped, crossed } = shiftPlan(todayEvents, nhm, mins);
+    if (prior.length === 0) {
+      if (crossed) showToast({ message: "Nothing moved · The rest would run past midnight" });
+      return;
+    }
     const undoShift = async () => { await attemptWrite(() => restoreShift(schedule, prior)); await reload(); };
     let moved = 0;
     try {
@@ -1116,7 +1128,7 @@ export default function TodayFlow({
     if (moved === 0) return;
     await reload();
     showToast({
-      message: `${moved} ${moved === 1 ? "event" : "events"} +${mins === 60 ? "1 hr" : mins + " min"}${skipped ? ` · ${skipped} repeating stayed` : ""}`,
+      message: `${moved} ${moved === 1 ? "event" : "events"} +${mins === 60 ? "1 hr" : mins + " min"}${skipped ? ` · ${skipped} repeating stayed` : ""}${crossed ? ` · ${crossed} would pass midnight` : ""}`,
       actionLabel: "Undo",
       onAction: undoShift,
     });
