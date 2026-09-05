@@ -44,12 +44,30 @@ describe("uniformStrip: the convenience input (catalog Q6)", () => {
 });
 
 describe("duplicateEntry", () => {
-  it("copies every field but mints a fresh id", () => {
+  it("copies the numbers but mints a fresh id", () => {
     const original = { id: "orig", w: 135, r: 8, done: undefined };
     const copy = duplicateEntry(original);
     expect(copy.id).not.toBe("orig");
     expect(copy.w).toBe(135);
     expect(copy.r).toBe(8);
+  });
+
+  // GYM-F-13 (2026-09-05): this used to copy EVERY field, so a set marked
+  // "Last One Was a Grind" produced a fourth chip that already said grind
+  // before it happened. types.ts:102-105: moved is "set once the set
+  // happened, never asked before it" -- an event fact, like the `at` stamp
+  // this already dropped.
+  it("never carries the how-it-moved mark, or the log stamp, onto a set that has not happened", () => {
+    const copy = duplicateEntry({ id: "orig", w: 135, r: 8, moved: "grind", at: 5 });
+    expect("moved" in copy).toBe(false);
+    expect("at" in copy).toBe(false);
+    expect(copy.w).toBe(135);
+    expect(copy.r).toBe(8);
+  });
+
+  it("keeps warmup: duplicating a ramp chip is meant to make another ramp chip", () => {
+    const copy = duplicateEntry({ id: "orig", w: 95, r: 5, warmup: true });
+    expect(copy.warmup).toBe(true);
   });
 });
 

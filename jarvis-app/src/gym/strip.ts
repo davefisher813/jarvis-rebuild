@@ -44,8 +44,19 @@ const has = (n: number | undefined): n is number => (n ?? 0) > 0;
 export function duplicateEntry(e: SetEntry): SetEntry {
   // A duplicate is a NEW event: the copy must not inherit the original's
   // log stamp (D7) or the moment it happened would be recorded twice.
+  //
+  // GYM-F-13 (2026-09-05, fork option A): `moved` is the same kind of thing.
+  // types.ts:102-105 says it plainly, "set once the set happened, never asked
+  // before it", and it only dropped `at`. So marking set 3 "Last One Was a
+  // Grind" and then tapping Log Set produced a fourth chip that already said
+  // grind, and so did Add Set and a long-press duplicate. The lift's "How it
+  // moved" fact, the next-session suggestion (hold vs bump) and the
+  // lighter-week offer all counted marks nobody made. `warmup` stays: a
+  // duplicated ramp chip is still a ramp chip, which is the whole point of
+  // duplicating one.
   const copy: SetEntry = { ...e, id: newSetId() };
   delete copy.at;
+  delete copy.moved;
   return copy;
 }
 
