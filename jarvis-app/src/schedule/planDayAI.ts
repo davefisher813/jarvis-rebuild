@@ -206,15 +206,23 @@ export async function aiPlanDay(
   // pin: "morningPlan" is what AIService and the What Ran log see this call
   // as, and the estimates pin is checked here first so it can refuse the
   // same call the ordering pin would allow.
+  //
+  // SCHED-F-15 (2026-09-05): this gate hardcoded `false` for background,
+  // which is the one thing "On Request" turns on: a pin at On Request allows
+  // a call the person asked for and refuses one nobody did. The mount-time
+  // refine passes background: true (PlanDaySheet), so opening Plan My Day
+  // still fired the background call the Estimates pin was set to stop, and
+  // only Off refused it. Line :217 below had it right all along.
   const estimatesLevel = effectiveLevel(getAIControl(), "estimates");
-  if (!aiCallAllowed(estimatesLevel, false)) throw new Error(refusalMessage(estimatesLevel, false));
+  const background = opts.background ?? false;
+  if (!aiCallAllowed(estimatesLevel, background)) throw new Error(refusalMessage(estimatesLevel, background));
   const timeoutMs = opts.timeoutMs ?? AI_PLAN_TIMEOUT_MS;
   const messages: AIMessage[] = [{ role: "user", content: planDayUserMessage(picks, events, startMin, endMin, opts) }];
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_res, rej) => { timer = setTimeout(() => rej(new Error("AI planning timed out")), timeoutMs); });
   try {
     const text = await Promise.race([
-      ai.complete(messages, planDaySystem(), { kind: "plan", pin: "morningPlan", background: opts.background ?? false, schema: PLAN_SCHEMA }),
+      ai.complete(messages, planDaySystem(), { kind: "plan", pin: "morningPlan", background, schema: PLAN_SCHEMA }),
       timeout,
     ]);
     const strandIds = (opts.strands ?? []).map((s) => s.id);

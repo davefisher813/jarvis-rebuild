@@ -73,6 +73,25 @@ describe("aiPlanDay respects the Morning Plan and Estimates pins", () => {
     expect(called).toBe(false);
   });
 
+  // SCHED-F-15 (2026-09-05): the Estimates gate hardcoded background: false,
+  // so On Request (the level whose whole meaning is "only what he asked
+  // for") let the mount-time refine through and only Off refused it.
+  it("refuses the background refine when Estimates is pinned to On Request", async () => {
+    setAIControl({ level: "everything", pins: { estimates: "request", morningPlan: "everything" } });
+    let called = false;
+    const ai = { complete: async () => { called = true; return "[]"; } } as never;
+    await expect(aiPlanDay(ai, [pick("a")], [], 540, 1260, { background: true }))
+      .rejects.toThrow(/Background drafting is off/);
+    expect(called).toBe(false);
+  });
+
+  it("the same pin still allows the call he asked for", async () => {
+    setAIControl({ level: "everything", pins: { estimates: "request", morningPlan: "everything" } });
+    const ai = { complete: async () => '[{"id":"a","minutes":30}]' } as never;
+    const r = await aiPlanDay(ai, [pick("a")], [], 540, 1260, { background: false });
+    expect(r.items).toEqual([{ id: "a", minutes: 30 }]);
+  });
+
   it("still fires when both pins allow it, master off or on", async () => {
     setAIControl({ level: "everything", pins: { estimates: "everything", morningPlan: "everything" } });
     const ai = { complete: async () => '[{"id":"a","minutes":30}]' } as never;
