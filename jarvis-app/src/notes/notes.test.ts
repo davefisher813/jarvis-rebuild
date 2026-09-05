@@ -191,6 +191,36 @@ describe("Notes editing helpers", () => {
     expect(items.every((i) => !!i.taskId)).toBe(true);
   });
 
+  // S6-Q38 (2026-09-05): "a task made from a checklist is not connected to
+  // its note." fromNote pointed task -> note; nothing pointed note -> task,
+  // so neither the note's own Connections screen nor the task sheet's
+  // reverse-lookup Linked Notes section (notesLinkedTo) ever saw the link.
+  it("tasksFromChecklist connects the note to each task it creates", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("n", "health"))!;
+    await svc.addChecklist(id, ["call the venue", "book photographer"]);
+    const [t1, t2] = await svc.tasksFromChecklist(id);
+    const note = (await svc.note(id))!;
+    const byTarget = Object.fromEntries(note.connections.map((c) => [c.targetId, c]));
+    expect(byTarget[t1!]!.kind).toBe("task");
+    expect(byTarget[t1!]!.label).toBe("call the venue");
+    expect(byTarget[t2!]!.kind).toBe("task");
+    expect(byTarget[t2!]!.label).toBe("book photographer");
+    // The reverse lookup the task sheet's Linked Notes section reads.
+    expect((await svc.notesLinkedTo(t1!)).map((n) => n.id)).toEqual([id]);
+    expect((await svc.notesLinkedTo(t2!)).map((n) => n.id)).toEqual([id]);
+  });
+
+  it("a second run of tasksFromChecklist adds no duplicate connections", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("n", "health"))!;
+    await svc.addChecklist(id, ["a", "b"]);
+    await svc.tasksFromChecklist(id);
+    await svc.tasksFromChecklist(id); // idempotent: no new tasks, no new connections
+    const note = (await svc.note(id))!;
+    expect(note.connections.filter((c) => c.kind === "task").length).toBe(2);
+  });
+
   // B4 (2026-09-04): the Create Tasks screen previews the first checklist
   // filtered to undone items and promises "Completed ones skipped." This
   // used to create a task for a done item anyway, and to walk every

@@ -237,6 +237,15 @@ export class NotesService {
   // checklist the preview never showed, silently produced tasks the button's
   // own count didn't account for. Now it operates over the same first
   // checklist, the same way, so what gets created is what was shown.
+  //
+  // S6-Q38 (2026-09-05): "a task made from a checklist is not connected to
+  // its note." fromNote made the link one-way -- the task's provenance named
+  // the note, but the note's own Connections list, and the reverse lookup
+  // (notesLinkedTo) that feeds the task sheet's Linked Notes section, both
+  // read only note.connections, which this never wrote to. Each created task
+  // now gets a real connection back on the note, so both of the app's
+  // existing "find the other end" screens light up rather than staying blind
+  // to a link that in fact exists.
   async tasksFromChecklist(id: string): Promise<string[]> {
     const note = await this.getNote(id);
     if (!note) return [];
@@ -250,6 +259,7 @@ export class NotesService {
       if (!it.text.trim() || it.taskId || it.done) continue;
       const data: TaskData = { text: it.text, fromNote: id, category: note.category, done: it.done, source: madeBy("note", id) };
       const tid = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData);
+      await this.addConnection(id, "task", it.text, tid);
       items[i] = { ...it, taskId: tid };
       changed = true;
       made.push(tid);

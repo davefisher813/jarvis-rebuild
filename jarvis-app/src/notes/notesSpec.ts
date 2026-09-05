@@ -107,21 +107,31 @@ export const STEPS: Step[] = [
     },
   },
   {
+    // S6-Q38 (2026-09-05): creating tasks from a checklist now also writes
+    // the connection back onto the note (NotesService.tasksFromChecklist),
+    // so the note's own Connections list and the task sheet's reverse-lookup
+    // Linked Notes section both see the link. Three tasks means three new
+    // task-kind connections, checked here alongside the pre-existing facts.
     kind: "core", covers: ["R6"], label: "Create tasks from the checklist",
     async run(s, c) {
       c.taskIds = await s.tasksFromChecklist(c.id!);
       const tasks = await s.listTasks();
+      const conns = data(await s.note(c.id!)).connections;
+      const taskConns = conns.filter((cn) => cn.kind === "task");
       const ok = tasks.length === 3 &&
         tasks.every((t) => (t.data as { fromNote?: string; category?: string }).fromNote === c.id &&
-          (t.data as { category?: string }).category === "health");
-      return { ok, msg: ok ? "3 linked tasks, category inherited." : "Tasks wrong." };
+          (t.data as { category?: string }).category === "health") &&
+        taskConns.length === 3 &&
+        taskConns.every((cn) => c.taskIds!.includes(cn.targetId!));
+      return { ok, msg: ok ? "3 linked tasks, category inherited, connected both ways." : "Tasks wrong." };
     },
   },
   {
     kind: "core", covers: ["R7"], label: "Add a connection",
     async run(s, c) {
+      // Three task connections already sit on this note from R6.
       c.connId = (await s.addConnection(c.id!, "event", "Long Run Sunday")) ?? undefined;
-      const ok = !!c.connId && data(await s.note(c.id!)).connections.length === 1;
+      const ok = !!c.connId && data(await s.note(c.id!)).connections.length === 4;
       return { ok, msg: ok ? "Connection added." : "Connection not added." };
     },
   },
@@ -129,7 +139,7 @@ export const STEPS: Step[] = [
     kind: "core", covers: ["R8"], label: "Remove the connection",
     async run(s, c) {
       const ok = (await s.removeConnection(c.id!, c.connId!)) &&
-        data(await s.note(c.id!)).connections.length === 0;
+        data(await s.note(c.id!)).connections.length === 3;
       return { ok, msg: ok ? "Connection removed." : "Connection not removed." };
     },
   },
