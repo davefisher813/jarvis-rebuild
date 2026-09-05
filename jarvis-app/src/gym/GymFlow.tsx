@@ -486,6 +486,28 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
   // writes in one event handler compose (see patchLive).
   const liveRef = useRef<LiveSession | null>(live);
   liveRef.current = live;
+  // GYM-F-14 (2026-09-05): Back PARKS a session, it does not end it, and
+  // `reload` is also the resume path (it reads the live session straight back
+  // off storage at :554). So every data refresh -- saving an exercise
+  // mid-session, deleting a workout from Recent, reordering days, pinning one
+  // -- shoved the athlete back into the session they had just stepped out of
+  // to make that very edit. A parked session stays parked until Resume, and
+  // says where it is with a row on the program page rather than sitting
+  // invisible in storage.
+  const [parkedLive, setParkedLive] = useState<LiveSession | null>(null);
+  const parkedRef = useRef(false);
+  /** Open (or close out) a session: whatever happens next, it is not parked. */
+  const enterSession = (s: LiveSession | null) => {
+    parkedRef.current = false;
+    setParkedLive(null);
+    setLive(s);
+  };
+  const parkSession = () => {
+    const s = readLive();
+    parkedRef.current = !!s;
+    setParkedLive(s);
+    setLive(null);
+  };
   const [loaded, setLoaded] = useState(false);
   // D5: the fit sheet between the tap and the session. Holds the day plus
   // any door context until the athlete says Start.
@@ -556,7 +578,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     setAllPrograms(all);
     setPrograms(all.filter((p) => !p.data.archived));
     setWorkouts(ws);
-    setLive(readLive());
+    // GYM-F-14: a parked session is not resumed by a refresh.
+    if (!parkedRef.current) setLive(readLive());
     setLoaded(true);
   }, [svc]);
   useEffect(() => { void reload(); }, [reload]);
@@ -792,7 +815,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     // day RESUMES it instead of destroying it.
     const existing = readLive();
     if (existing && hasWork(existing.exercises)) {
-      setLive(existing);
+      enterSession(existing);
       showToast({ message: "Resumed your open workout" });
       return;
     }
@@ -812,7 +835,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
       ...(opts.doorEventId ? { doorEventId: opts.doorEventId } : {}),
     };
     writeLive(s);
-    setLive(s);
+    enterSession(s);
     if (opts.sameAsLastTime && !last) showToast({ message: "No prior session for this day yet · Starting fresh" });
   };
   // D5: every live start passes through the fit sheet -- except the paths
@@ -835,7 +858,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     if (!startDayId || startHandled || !loaded) return;
     setStartHandled(true);
     const existing = readLive();
-    if (existing && hasWork(existing.exercises) && isStillActive(existing, todayISO())) { setLive(existing); return; }
+    if (existing && hasWork(existing.exercises) && isStillActive(existing, todayISO())) { enterSession(existing); return; }
     if (!program) return;
     const day = program.data.weeks.flatMap((w) => w.days).find((d) => d.id === startDayId);
     if (day) requestStart(day, { doorEventId: startDoorEventId });
@@ -847,7 +870,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     if (!door || doorHandled || !loaded) return;
     setDoorHandled(true);
     const existing = readLive();
-    if (existing && hasWork(existing.exercises) && isStillActive(existing, todayISO())) { setLive(existing); return; }
+    if (existing && hasWork(existing.exercises) && isStillActive(existing, todayISO())) { enterSession(existing); return; }
     if (!program) return;
     const days = program.data.weeks.flatMap((w) => w.days);
     const pinned = pinnedTo(days, todayDow());
@@ -901,7 +924,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
       ...(live.backdated ? { backdated: true } : {}),
     };
     clearLive();
-    setLive(null);
+    enterSession(null);
     // Land on the day list, not back on the exercise: the day detail is a
     // dead end after a session, while the program page shows what just
     // happened and what is next.
@@ -1094,7 +1117,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
         onAcceptSuggestion={(sug) => { void acceptSuggestion(exercise, sug); }}
         onFit={(patch) => patchLive((l) => ({ ...l, ...patch }))}
         onFinish={() => void finish()}
-        onBack={() => setLive(null)}
+        onBack={parkSession}
       />
     );
   }
@@ -1682,6 +1705,24 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
           <div className="nav-title truncate">{program ? program.data.name : "Training"}</div>
           {program && <button className="nav-action-text" onClick={() => openProgramSheet(program)}>Edit</button>}
         </div>
+
+        {/* GYM-F-14 (2026-09-05): a session parked with Back used to be
+            invisible until the next refresh dragged the athlete back into it.
+            It is one tap away instead, and says what is in it. */}
+        {parkedLive && (
+          <div className="pad-x"><div className="card list-card-ruled">
+            <div className="row" role="button" tabIndex={0} onClick={() => enterSession(readLive() ?? parkedLive)}>
+              <div className="row-grow">
+                <div className="conn-name truncate">Resume {parkedLive.dayName}</div>
+                <div className="conn-meta">{(() => {
+                  const n = parkedLive.exercises.reduce((c, e) => c + e.sets.filter((x) => !x.skipped).length, 0);
+                  return n > 0 ? `${n} ${n === 1 ? "set" : "sets"} logged` : "Nothing logged yet";
+                })()}</div>
+              </div>
+              {CHEV}
+            </div>
+          </div></div>
+        )}
 
         {!program ? (
           <div className="empty-state">

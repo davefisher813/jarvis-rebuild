@@ -93,3 +93,35 @@ describe("GYM-F-11: the archived shelf has a door from the empty state", () => {
     expect(flow).toMatch(/\{doorPickEl\(\)\}\s*\{switcherEl\}/);
   });
 });
+
+// GYM-F-14 (2026-09-05): Back parks a session, it does not end it, but
+// `reload` is also the resume path, so any program edit made from a parked
+// session (a typo in the day's plan, a reorder, a pin) shoved the athlete
+// straight back into the session the moment the write landed.
+describe("GYM-F-14: a parked session stays parked", () => {
+  const flow = src("GymFlow.tsx");
+
+  it("reload skips the resume when the session was parked on purpose", () => {
+    expect(flow).toMatch(/if \(!parkedRef\.current\) setLive\(readLive\(\)\)/);
+  });
+
+  it("Back parks rather than dropping the session on the floor", () => {
+    expect(flow).toContain("onBack={parkSession}");
+    expect(flow).toMatch(/const parkSession = \(\) => \{[^}]*parkedRef\.current = !!s;/);
+  });
+
+  it("every door that opens a session clears the parked flag", () => {
+    expect(flow).toMatch(/const enterSession = \(s: LiveSession \| null\) => \{\s*parkedRef\.current = false;/);
+    // The resume paths all go through that one door, never a bare setLive.
+    for (const door of [
+      "enterSession(existing);\n      showToast({ message: \"Resumed your open workout\" });",
+      "isStillActive(existing, todayISO())) { enterSession(existing); return; }",
+    ]) expect(flow).toContain(door);
+    expect(flow).not.toMatch(/\{ setLive\(existing\); return; \}/);
+  });
+
+  it("the parked session is one tap away on the program page", () => {
+    expect(flow).toMatch(/\{parkedLive && \(/);
+    expect(flow).toContain("Resume {parkedLive.dayName}");
+  });
+});
