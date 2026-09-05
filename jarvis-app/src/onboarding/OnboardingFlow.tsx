@@ -71,6 +71,18 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
 
   useEffect(() => { dismissSplash(); }, []);
   const [idx, setIdx] = useState(0);
+  // SHELL-F-09 (2026-09-05): Redo Setup promises "Your data stays" and then
+  // runs this flow, which was written for an empty account. Every answer left
+  // at its default overwrote a real setting on the way out: the arranged tab
+  // bar went back to the three new-user tabs, AI Control went back to whatever
+  // the intake chip said, the morning brief time was cleared. What the profile
+  // already knows is loaded here and becomes the starting answer, so a redo
+  // changes only what the person actually changes.
+  const [prof, setProf] = useState<import("../profile/types").ProfileData | null>(null);
+  // The real areas, for the payoff card. On a redo the seeds below are never
+  // written (finish() skips seeding when categories exist), so drawing seed
+  // dots showed six areas that do not exist.
+  const [ownAreas, setOwnAreas] = useState<CategorySeed[] | null>(null);
   const [name, setName] = useState("");
   const [priority, setPriority] = useState("");
   const [workStyle, setWorkStyle] = useState("");
@@ -103,6 +115,37 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   const [seedPicks, setSeedPicks] = useState<Record<string, number>>({});
   const [briefTime, setBriefTime] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // SHELL-F-09: hydrate the answers from the profile that already exists.
+  // Every setter is guarded so a fast typist on the first step cannot have
+  // their answer replaced when this read lands; the template is skipped
+  // outright once they have tapped a card.
+  const picked = useRef(false);
+  const hydrated = useRef(false);
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      let p: import("../profile/types").ProfileData | null = null;
+      try { p = await profile.get(); } catch { /* a profile that will not read is a fresh intake */ }
+      if (!live || !p || hydrated.current) return;
+      hydrated.current = true;
+      setProf(p);
+      setName((cur) => cur || p.name || "");
+      setBriefTime((cur) => cur || p.briefTime || "");
+      setGmail((cur) => cur || p.gmail);
+      setCalendar((cur) => cur || p.calendar);
+      if (p.ai?.level === "everything" || p.ai?.level === "draft") setAiChoice((cur) => cur || p.ai!.level);
+      if (!picked.current && p.template) {
+        setTemplate(p.template);
+        setSeeds((cur) => (cur.length ? cur : DEFAULT_CATEGORIES[p.template].map((s) => ({ ...s }))));
+      }
+      try {
+        const cats = await categories.list();
+        if (live && cats.length > 0) setOwnAreas(cats.map((c) => ({ name: c.data.name, color: c.data.color, icon: c.data.icon ?? "folder" })));
+      } catch { /* the payoff falls back to the seeds */ }
+    })();
+    return () => { live = false; };
+  }, [profile, categories]);
 
   // THE NEWEST TURN IS THE ONE YOU NEED TO READ (2026-09-04). .convo is a
   // scrolling region and nothing ever moved it, so from about the sixth step
@@ -140,7 +183,11 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
         await profile.save({
           name: name.trim(),
           template,
-          briefTime: briefTime || undefined,
+          // SHELL-F-09 (2026-09-05): an unanswered brief time used to write
+          // `undefined`, which since SCHED-F-01 reaches the store as a real
+          // null and clears the time the person had. A skipped question
+          // leaves the field alone instead.
+          ...(briefTime ? { briefTime } : {}),
           // Item 22: Skip lands on Draft Only, and the level applies instantly.
           ai: { level: aiChoice === "everything" ? "everything" as const : "draft" as const },
           gmail,
@@ -148,8 +195,10 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           onboarded: true,
           // New users start with the trimmed tab set (see destinations.tsx).
           // Persisted here so the default fallback never shifts under anyone who
-          // onboarded before this existed.
-          tabs: NEW_USER_TABS,
+          // onboarded before this existed. SHELL-F-09: only when there is no
+          // tab bar yet. This was unconditional, so Redo Setup threw away the
+          // arrangement its own copy promises to keep.
+          ...(prof?.tabs?.length ? {} : { tabs: NEW_USER_TABS }),
         });
         if (complete) {
           const existing = await categories.list();
@@ -207,6 +256,7 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
   };
 
   const pickTemplate = (t: TemplateKey) => {
+    picked.current = true;
     setTemplate(t);
     setSeeds(DEFAULT_CATEGORIES[t].map((s) => ({ ...s })));
     setIdx(idx + 1);
@@ -291,7 +341,10 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     const work = WORK_PRESET[workStyle] ?? { workStartMin: DEFAULT_ROUTINE.workStartMin, workEndMin: DEFAULT_ROUTINE.workEndMin };
     const slot = parsed ? slotForPriority(parsed.title || priority, work.workStartMin, work.workEndMin) : null;
     const slotLine = slot?.start ? `I\u2019ve slotted it for ${slot.dayWord} at ${fmtTime(slot.start)}, right in your working hours.` : "";
-    return <PayoffScreen name={name} briefLabel={STEPS.find((s) => s.id === "time")?.options?.find((o) => o.value === briefTime)?.label} seeds={seeds} taskTitle={parsed ? parsed.title || priority : ""} slotLine={slotLine} saving={saving} onEnter={() => finish(true)} />;
+    // SHELL-F-09: the dots are the areas that will actually be there. On a
+    // redo that is the account's own areas, since seeding is skipped when any
+    // exist; on a first run there are none yet, so it is the seeds.
+    return <PayoffScreen name={name} briefLabel={STEPS.find((s) => s.id === "time")?.options?.find((o) => o.value === briefTime)?.label} seeds={ownAreas ?? seeds} taskTitle={parsed ? parsed.title || priority : ""} slotLine={slotLine} saving={saving} onEnter={() => finish(true)} />;
   }
 
   // ---- conversation steps ----

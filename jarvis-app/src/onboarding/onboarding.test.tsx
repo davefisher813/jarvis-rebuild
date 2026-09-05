@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "../data/NotesProvider";
 import { ProfileService } from "../profile/ProfileService";
+import { CategoriesService } from "../categories/CategoriesService";
+import { NEW_USER_TABS } from "../shell/destinations";
 import OnboardingFlow from "./OnboardingFlow";
 import * as notifications from "../shared/notifications";
 
@@ -152,6 +154,89 @@ describe("OnboardingFlow", () => {
     spy.mockRestore();
     fireEvent.click(enter);
     await waitFor(() => expect(onFinish).toHaveBeenCalled());
+  });
+
+  // SHELL-F-09 (2026-09-05): Redo Setup says "Your data stays" and then ran
+  // this flow, which was written for an empty account, so every default
+  // answer overwrote a real setting: the arranged tab bar, the AI level, the
+  // morning brief time, the name, the template.
+  describe("SHELL-F-09: a redo changes only what the person changes", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    const EXISTING = {
+      name: "Dave",
+      template: "student" as const,
+      tabs: ["today", "life", "schedule", "email", "brain"],
+      briefTime: "06:00",
+      ai: { level: "everything" as const },
+      gmail: true,
+      calendar: true,
+      onboarded: false,
+    };
+
+    it("keeps the tab bar, the AI level, the brief time and the template", async () => {
+      const get = vi.spyOn(ProfileService.prototype, "get").mockResolvedValue(EXISTING as never);
+      const list = vi.spyOn(CategoriesService.prototype, "list").mockResolvedValue([]);
+      const patches: Record<string, unknown>[] = [];
+      vi.spyOn(ProfileService.prototype, "save").mockImplementation(async (p) => { patches.push(p as Record<string, unknown>); return EXISTING as never; });
+
+      setup();
+      // list() is the last call the hydration makes, so by the time it fires
+      // every answer has been seeded from the profile.
+      await waitFor(() => expect(get).toHaveBeenCalled());
+      await waitFor(() => expect(list).toHaveBeenCalled());
+      fireEvent.click(screen.getByText("Skip for now"));
+      await waitFor(() => expect(patches.length).toBe(1));
+
+      const patch = patches[0]!;
+      // The tab bar is untouched: the key is not in the patch at all, so the
+      // arrangement cannot be overwritten and cannot be cleared.
+      expect(patch).not.toHaveProperty("tabs");
+      expect(patch.name).toBe("Dave");
+      expect(patch.template).toBe("student");
+      expect(patch.ai).toEqual({ level: "everything" });
+      expect(patch.briefTime).toBe("06:00");
+      expect(patch.gmail).toBe(true);
+    });
+
+    it("a first run still gets the new-user tab bar", async () => {
+      const get = vi.spyOn(ProfileService.prototype, "get").mockResolvedValue(null);
+      const patches: Record<string, unknown>[] = [];
+      vi.spyOn(ProfileService.prototype, "save").mockImplementation(async (p) => { patches.push(p as Record<string, unknown>); return EXISTING as never; });
+      setup();
+      await waitFor(() => expect(get).toHaveBeenCalled());
+      fireEvent.click(screen.getByText("Skip for now"));
+      await waitFor(() => expect(patches.length).toBe(1));
+      expect(patches[0]!.tabs).toEqual(NEW_USER_TABS);
+    });
+
+    it("the payoff draws the areas that exist, not six that were never made", async () => {
+      vi.spyOn(ProfileService.prototype, "get").mockResolvedValue(EXISTING as never);
+      const list = vi.spyOn(CategoriesService.prototype, "list").mockResolvedValue([
+        { id: "c1", data: { name: "School", color: "blue", icon: "book" } },
+        { id: "c2", data: { name: "Team", color: "orange", icon: "trophy" } },
+      ] as never);
+      setup();
+      await waitFor(() => expect(list).toHaveBeenCalled());
+
+      fireEvent.click(screen.getByText("Begin"));
+      fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "Dave" } });
+      fireEvent.click(screen.getByLabelText("Send"));
+      fireEvent.click(screen.getByText("Student"));
+      fireEvent.click(screen.getByText("Continue"));
+      fireEvent.click(screen.getByText(/add people as I go/));
+      fireEvent.click(screen.getByText("Skip for now"));
+      fireEvent.click(screen.getByText("9 to 5"));
+      fireEvent.click(screen.getByText("Skip these"));
+      fireEvent.click(screen.getByText("Everything"));
+      fireEvent.click(screen.getByText("Continue"));
+      fireEvent.click(screen.getByText("7:00 AM"));
+
+      // Two areas exist, so two dots. The template seeds (six) are never
+      // written on a redo, so drawing six of them was a promise of areas the
+      // account was not going to have.
+      expect(document.querySelectorAll(".cat-dot").length).toBe(2);
+    });
   });
 
   it("lets you remove a starter category and add one", () => {
