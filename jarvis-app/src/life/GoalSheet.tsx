@@ -35,7 +35,10 @@ const KINDS: { key: MeasureKind; label: string }[] = [
 // target typed at the right of their labels.
 export default function GoalSheet({ mode, initial, categories = [], onSave, onDelete, onCancel }: {
   mode: "new" | "edit"; initial?: GoalData; categories?: Category[];
-  onSave: (d: GoalData) => void; onDelete?: () => void; onCancel: () => void;
+  // LIFE-F-17 (2026-09-05): a save that resolves false is a write that did
+  // not land, and the sheet takes its latch back instead of sitting on
+  // "Saving" for good with the draft trapped behind Cancel.
+  onSave: (d: GoalData) => void | Promise<boolean | void>; onDelete?: () => void; onCancel: () => void;
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
   // Money v1: an optional dollar target turns this into a savings goal.
@@ -87,7 +90,7 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
     if (!valid) { setTouched(true); return; }
     if (saving) return;
     setSaving(true);
-    onSave({
+    const r = onSave({
       title: title.trim(),
       state: initial?.state ?? "on_track",
       ...(initial?.areaId ? { areaId: initial.areaId } : {}),
@@ -98,6 +101,7 @@ export default function GoalSheet({ mode, initial, categories = [], onSave, onDe
       by: dated && by ? by : undefined,
       moneyTarget: target.trim() ? Number(target) : undefined,
     });
+    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); });
   };
   return (
     <FormSheet title={mode === "new" ? "New Goal" : "Edit Goal"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>

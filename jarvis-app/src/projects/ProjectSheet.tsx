@@ -11,7 +11,10 @@ import { TargetGlyph, PulseGlyph } from "../shared/glyphs";
 // and Goal as values that open the dropdown, Delete as the last group.
 export default function ProjectSheet({ mode, categories, goals = [], initial, onSave, onDelete, onCancel }: {
   mode: "new" | "edit"; categories: Category[]; goals?: Goal[]; initial?: Partial<ProjectData>;
-  onSave: (d: ProjectData) => void; onDelete?: () => void; onCancel: () => void;
+  // LIFE-F-17 (2026-09-05): a save that resolves false is a write that did
+  // not land, and the sheet takes its latch back instead of sitting on
+  // "Saving" for good with the draft trapped behind Cancel.
+  onSave: (d: ProjectData) => void | Promise<boolean | void>; onDelete?: () => void; onCancel: () => void;
 }) {
   const [title, setTitle] = useState(initial?.title ?? "");
   const [status, setStatus] = useState<ProjectStatus>(initial?.status ?? "active");
@@ -28,7 +31,8 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
     if (!valid) { setTouched(true); return; }
     if (saving) return;
     setSaving(true);
-    onSave({ title: title.trim(), status, category: category || undefined, goalId: goalId || undefined, holdUntil: status === "on_hold" && holdUntil ? holdUntil : undefined });
+    const r = onSave({ title: title.trim(), status, category: category || undefined, goalId: goalId || undefined, holdUntil: status === "on_hold" && holdUntil ? holdUntil : undefined });
+    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); });
   };
   return (
     <FormSheet title={mode === "new" ? "New Project" : "Edit Project"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>

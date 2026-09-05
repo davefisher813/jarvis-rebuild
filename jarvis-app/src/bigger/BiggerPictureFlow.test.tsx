@@ -6,6 +6,9 @@ import { useEffect, useState } from "react";
 import { NotesProvider, useGoals, useProjects, useTasks, useCategories } from "../data/NotesProvider";
 import type { GoalService } from "../life/GoalService";
 import type { TasksService } from "../tasks/TasksService";
+import type { ProjectsService } from "../projects/ProjectsService";
+import { subscribeToast } from "../shared/toast";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import BiggerPictureFlow from "./BiggerPictureFlow";
 
 // LIFE-F-18 (2026-09-05): "Savings entries are dated in UTC." Logging $200
@@ -94,5 +97,43 @@ describe("BiggerPictureFlow step editing (LIFE-F-14)", () => {
       expect(t?.projectId).toBeTruthy();
       expect(t?.due).toBe("2026-09-20");
     });
+  });
+});
+
+// LIFE-F-17 (2026-09-05): Mark Done discarded attemptWrite's boolean, so the
+// celebration played and the page closed even when the status write had
+// failed, with "Couldn't save" showing underneath and the project still open.
+
+let projRef: { svc: ProjectsService; id: string } | null = null;
+
+function SeedFinish() {
+  const projects = useProjects();
+  const [pid, setPid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const id = (await projects.create({ title: "Kitchen remodel", status: "active" }))!;
+      projRef = { svc: projects, id };
+      setPid(id);
+    })();
+  }, [projects]);
+  return pid ? <BiggerPictureFlow openId={pid} /> : null;
+}
+
+describe("BiggerPictureFlow finish guard (LIFE-F-17)", () => {
+  it("a failed Mark Done says so and does not celebrate", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    try {
+      render(<NotesProvider userId="u-finish-f17"><SeedFinish /></NotesProvider>);
+      const done = await screen.findByText("Mark Done");
+      projRef!.svc.update = () => Promise.reject(new Error("offline"));
+      fireEvent.click(done);
+      await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
+      expect(screen.queryByText("Project done")).not.toBeInTheDocument();
+      expect(screen.getByText("Mark Done")).toBeInTheDocument();
+      expect((await projRef!.svc.get(projRef!.id))?.data.status).toBe("active");
+    } finally {
+      stop();
+    }
   });
 });

@@ -347,10 +347,19 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
     });
   };
 
-  const saveProject = async (d: ProjectData) => {
+  // LIFE-F-17 (2026-09-05): these two saves ran naked. A rejected create or
+  // update left the sheet open with its button reading "Saving" for good,
+  // Cancel the only way out and the draft lost, and on a project marked Done
+  // the celebration played over a write that had failed. Both writes are
+  // guarded now, the sheet closes only when the write landed, and the payoff
+  // is gated on the same boolean. Returning it lets the sheet release its
+  // own latch (see ProjectSheet / GoalSheet).
+  const saveProject = async (d: ProjectData): Promise<boolean> => {
     const was = sheet.kind === "editProject" ? projects.find((p) => p.id === sheet.id)?.data.status : undefined;
-    if (sheet.kind === "newProject") await projectsSvc.create(d);
-    else if (sheet.kind === "editProject") await projectsSvc.update(sheet.id, d);
+    let ok = true;
+    if (sheet.kind === "newProject") ok = await attemptWrite(() => projectsSvc.create(d));
+    else if (sheet.kind === "editProject") ok = await attemptWrite(() => mustUpdate(projectsSvc.update(sheet.id, d)));
+    if (!ok) return false;
     setSheet({ kind: "closed" });
     await reload();
     if (d.status === "done" && was !== "done" && sheet.kind === "editProject") {
@@ -361,11 +370,14 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
         line: payoffLine({ tasksDone: mine.filter((t) => (t.data as { done?: boolean }).done).length }),
       });
     }
+    return true;
   };
-  const saveGoal = async (d: GoalData) => {
+  const saveGoal = async (d: GoalData): Promise<boolean> => {
     const was = sheet.kind === "editGoal" ? goals.find((g) => g.id === sheet.id)?.data.state : undefined;
-    if (sheet.kind === "newGoal") await goalsSvc.create(d);
-    else if (sheet.kind === "editGoal") await goalsSvc.update(sheet.id, d);
+    let ok = true;
+    if (sheet.kind === "newGoal") ok = await attemptWrite(() => goalsSvc.create(d));
+    else if (sheet.kind === "editGoal") ok = await attemptWrite(() => mustUpdate(goalsSvc.update(sheet.id, d)));
+    if (!ok) return false;
     setSheet({ kind: "closed" });
     await reload();
     if (d.state === "achieved" && was !== "achieved" && sheet.kind === "editGoal") {
@@ -383,6 +395,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
         }),
       });
     }
+    return true;
   };
 
   // ---- Goal detail (Session 6.6): the goal as a place ----
@@ -432,11 +445,19 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   // dropped with no record of why is exactly the state this feature exists
   // to prevent, and it is the unrecoverable half.
   const dropGoal = async (g: Goal, why: string) => {
-    const decisionId = await decisionsSvc.create({
-      decision: "Dropped " + g.data.title,
-      ...(why ? { why } : {}),
-      linkedType: "goal", linkedId: g.id, linkedLabel: g.data.title,
+    // LIFE-F-17 (2026-09-05): the decision write was naked. It is the half
+    // this feature exists for, so a rejected write stops the drop instead of
+    // marking the goal dropped with no record of why; the guard's toast has
+    // already said what happened.
+    let decisionId: string | null = null;
+    const wrote = await attemptWrite(async () => {
+      decisionId = await decisionsSvc.create({
+        decision: "Dropped " + g.data.title,
+        ...(why ? { why } : {}),
+        linkedType: "goal", linkedId: g.id, linkedLabel: g.data.title,
+      });
     });
+    if (!wrote) return;
     const ok = await attemptWrite(() => goalsSvc.update(g.id, { ...g.data, dropped: { on: today, ...(decisionId ? { decisionId } : {}) } }));
     if (!ok) return;
     setGoalDetailId(null);
@@ -479,7 +500,10 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
     if (!goalDetail) return;
     const proj = projects.find((p) => p.id === projectId);
     if (!proj) return;
-    await projectsSvc.update(projectId, { ...proj.data, goalId: goalDetail.id });
+    // LIFE-F-17: a failed link used to be silent, and the acceptance event
+    // fired anyway, teaching the suggestion engine a link that never existed.
+    const ok = await attemptWrite(() => mustUpdate(projectsSvc.update(projectId, { ...proj.data, goalId: goalDetail.id })));
+    if (!ok) return;
     emit({ type: "suggestion.accepted", entityType: "project", entityId: projectId, props: { kind: "link" } });
     await reload();
   };
@@ -558,8 +582,13 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
           onAddStep={() => setSheet({ kind: "newStep", projectId: detail.id })}
           onFinish={async () => {
             const p = detail;
-            await attemptWrite(() => projectsSvc.update(p.id, { ...p.data, status: "done" }));
+            // LIFE-F-17 (2026-09-05): the boolean was discarded, so Mark Done
+            // played the celebration and left the detail page even when the
+            // status write had failed, with "Couldn't save" showing under it
+            // and the project still open.
+            const ok = await attemptWrite(() => mustUpdate(projectsSvc.update(p.id, { ...p.data, status: "done" })));
             await reload();
+            if (!ok) return;
             const mine = tasks.filter((t) => (t.data as { projectId?: string }).projectId === p.id);
             setDetailId(null);
             setPayoff({
@@ -705,8 +734,12 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
           onEdit={() => setSheet({ kind: "editGoal", id: goalDetail.id })}
           onAchieve={async () => {
             const g = goalDetail;
-            await goalsSvc.update(g.id, { ...g.data, state: "achieved" });
+            // LIFE-F-17 (2026-09-05): unguarded, and the payoff played
+            // whatever happened. A goal that failed to save must not be
+            // celebrated.
+            const ok = await attemptWrite(() => mustUpdate(goalsSvc.update(g.id, { ...g.data, state: "achieved" })));
             await reload();
+            if (!ok) return;
             const mine = projects.filter((p) => p.data.goalId === g.id);
             const ids = new Set(mine.map((p) => p.id));
             setGoalDetailId(null);
@@ -795,8 +828,10 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
           // finished from inside it.
           const proj = projects.find((x) => x.id === id);
           if (!proj) return;
-          await attemptWrite(() => projectsSvc.update(id, { ...proj.data, status: "done" }));
+          // LIFE-F-17: same discarded boolean as the detail page's Mark Done.
+          const ok = await attemptWrite(() => mustUpdate(projectsSvc.update(id, { ...proj.data, status: "done" })));
           await reload();
+          if (!ok) return;
           const mine = tasks.filter((t) => (t.data as { projectId?: string }).projectId === id);
           setPayoff({
             kind: "project",
