@@ -420,3 +420,52 @@ describe("CategoryDetail snooze (BRAIN-F-02)", () => {
     }
   });
 });
+
+// BRAIN-F-15 (2026-09-05): the "Log deleted · Undo" toast fired outside
+// metricWrite's success callback, so a failed delete showed both it and
+// "Couldn't save that metric", and its Undo re-logged a value that had never
+// been removed.
+import { useMetrics } from "../data/NotesProvider";
+import { newMetricDefData } from "../gym/metrics";
+
+let metricsRef: ReturnType<typeof useMetrics> | null = null;
+function SeededMetric() {
+  const cats = useCategories();
+  const metrics = useMetrics();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const id = (await cats.create("Health", "blue"))!;
+      const defId = (await metrics.createDef(newMetricDefData("Sleep", "number", "h", undefined, localToday(), 0)))!;
+      await metrics.logMetric(defId, localToday(), { value: 7 });
+      metricsRef = metrics;
+      setCid(id);
+    })();
+  }, [cats, metrics]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
+}
+
+describe("CategoryDetail metric log delete (BRAIN-F-15)", () => {
+  it("says deleted only once the delete landed", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    try {
+      render(<NotesProvider userId="ml1"><SeededMetric /></NotesProvider>);
+      fireEvent.click(await screen.findByText("Sleep"));
+      const del = await screen.findByText("Delete");
+
+      const real = metricsRef!.removeLog.bind(metricsRef);
+      metricsRef!.removeLog = () => Promise.reject(new Error("offline"));
+      fireEvent.click(del);
+      await waitFor(() => expect(seen.some((m) => m.startsWith("Couldn't save that metric"))).toBe(true));
+      expect(seen).not.toContain("Log deleted");
+
+      // With the connection back, the same tap says it, once it is true.
+      metricsRef!.removeLog = real;
+      fireEvent.click(screen.getByText("Delete"));
+      await waitFor(() => expect(seen).toContain("Log deleted"));
+    } finally {
+      stop();
+    }
+  });
+});

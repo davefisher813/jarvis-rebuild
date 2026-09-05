@@ -1040,13 +1040,19 @@ export default function CategoryDetail({
             onSave={(value) => void metricWrite(() => metricsSvc.logMetric(metricSheet.def.id, today, value), () => setMetricSheet(null))}
             // B3-8 (2026-09-04): removeLog existed, tested, with no caller.
             // Undo re-logs the same value, matching every other delete's Undo.
+            // BRAIN-F-15 (2026-09-05): the receipt lives INSIDE metricWrite's
+            // success callback. Outside it, a failed delete showed both
+            // "Log deleted · Undo" and "Couldn't save that metric", and the
+            // Undo then re-logged a value that had never been removed.
             onDelete={existingLog ? () => {
               const kept = { ...existingLog.data };
-              void metricWrite(() => metricsSvc.removeLog(existingLog.id), () => setMetricSheet(null));
-              showToast({
-                message: "Log deleted",
-                actionLabel: "Undo",
-                onAction: () => void metricWrite(() => metricsSvc.logMetric(kept.metricId, kept.date, { value: kept.value, yes: kept.yes })),
+              void metricWrite(() => metricsSvc.removeLog(existingLog.id), () => {
+                setMetricSheet(null);
+                showToast({
+                  message: "Log deleted",
+                  actionLabel: "Undo",
+                  onAction: () => void metricWrite(() => metricsSvc.logMetric(kept.metricId, kept.date, { value: kept.value, yes: kept.yes })),
+                });
               });
             } : undefined}
             onCancel={() => setMetricSheet(null)}
