@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getWeather, morningLine, eventLine, readCoords, writeCoords, readSnapshot } from "./weather";
 import NoticeCard from "../today/NoticeCard";
 import { CloudGlyph } from "../shared/glyphs";
+import { showToast } from "../shared/toast";
 
 // The Weather Fact renderers (addendum item 4). Self-contained: they read
 // the cache, fetch when it is stale, and render NOTHING on mild days, with
@@ -69,8 +70,22 @@ export function WeatherOfferRow({ form = "card", weight }: { form?: "card" | "ro
     try { localStorage.setItem(OFFER_KEY, "declined"); } catch { /* gone either way */ }
     setState("gone");
   };
+  // TODAY-F-05 (2026-09-05): the error callback WAS `dismiss`, so every way
+  // this could fail was recorded as "he said no" and the offer disappeared
+  // for good, recoverable only by clearing local data. On the phone it could
+  // not even be asked: Info.plist carried no NSLocationWhenInUseUsageDescription,
+  // so WebKit cannot request authorization at all, and the one tap on Allow
+  // buried the feature permanently. The plist key ships in this commit, and
+  // only an actual refusal counts as one here: a timeout or an unavailable
+  // fix says so and leaves the offer standing for the next try.
   const grant = () => {
-    if (!("geolocation" in navigator)) { dismiss(); return; }
+    if (!("geolocation" in navigator)) {
+      // Not a decision he made, but nothing here can ever work either, so the
+      // row goes rather than asking again forever. It says why first.
+      showToast({ message: "This device can't share a location" });
+      dismiss();
+      return;
+    }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         writeCoords({ lat: pos.coords.latitude, lon: pos.coords.longitude });
@@ -78,7 +93,17 @@ export function WeatherOfferRow({ form = "card", weight }: { form?: "card" | "ro
         setState("gone");
         void getWeather();
       },
-      dismiss,
+      (err) => {
+        // Code 1 is PERMISSION_DENIED. Code 2 (position unavailable) and code
+        // 3 (timeout) are the phone failing to answer, not the user refusing,
+        // and conflating them is what buried this feature.
+        if (err.code === 1) { dismiss(); return; }
+        showToast({ message: "Couldn't get your location · The offer stays" });
+      },
+      // A coarse fix is all this stores (two decimals), and an ask with no
+      // timeout can hang forever with no callback at all, which is a third
+      // way to look like nothing happened.
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 5 * 60_000 },
     );
   };
   // THE NOTICE LAW (A1, Dave 2026-08-20): this offer lives in the Heads Up

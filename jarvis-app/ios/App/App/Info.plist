@@ -24,6 +24,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- TODAY-F-05 (2026-09-05): without this key WebKit cannot request
+	     location authorization at all, so the weather offer's Allow button
+	     failed silently on every phone. Says what it is for and what it
+	     stores: a coarse fix, kept on the device. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>JARVIS uses your approximate location to put one weather line on your day. It is stored on this device only.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
