@@ -60,6 +60,12 @@ export interface LiveSession {
    *  can stamp that block done with the real minutes. Absent when the
    *  session started from the gym page itself. */
   doorEventId?: string;
+  /** GYM-F-01 (2026-09-05): the wall-clock ms the current rest ends. Set
+   *  when a set is logged on a lift with a rest target, cleared by Skip Rest
+   *  or Continue. Lives here rather than in screen state so a rest survives
+   *  the app being killed mid-rest, and so the countdown is a function of
+   *  the clock rather than of how many timer ticks the webview let fire. */
+  restEndsAt?: number;
 }
 
 export interface Storage2 { read(k: string): string | null; write(k: string, v: string): void; remove(k: string): void }

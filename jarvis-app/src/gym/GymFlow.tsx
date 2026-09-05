@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, useOptionalMetrics } from "../data/NotesProvider";
 import { todayISO } from "../tasks/grouping";
@@ -482,6 +482,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     const s = readLive();
     return s && isStillActive(s, todayISO()) ? s : null;
   });
+  // The freshest session, updated synchronously by `update` below so two
+  // writes in one event handler compose (see patchLive).
+  const liveRef = useRef<LiveSession | null>(live);
+  liveRef.current = live;
   const [loaded, setLoaded] = useState(false);
   // D5: the fit sheet between the tap and the session. Holds the day plus
   // any door context until the athlete says Start.
@@ -853,7 +857,18 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
   const update = (next: LiveSession) => {
     const stamped = { ...next, lastActivityAt: Date.now() };
     writeLive(stamped);
+    liveRef.current = stamped;
     setLive(stamped);
+  };
+  // GYM-F-01 (2026-09-05): one tap on Log Set now writes the session twice
+  // in the same handler (the set, then the rest deadline), and Or Do Filler
+  // moves the index and clears the rest in one go. Two writes built off the
+  // same render's `live` would each start from the stale copy and the second
+  // would silently drop the first -- a logged set gone. Every SessionScreen
+  // handler patches off the freshest session instead, so writes compose.
+  const patchLive = (fn: (s: LiveSession) => LiveSession) => {
+    const cur = liveRef.current;
+    if (cur) update(fn(cur));
   };
 
   // D6-A. The suggestion was a ghost until here: accepting writes the new
@@ -1054,14 +1069,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
         programDay={day ?? null}
         history={workouts}
         library={library}
-        onLog={(s: SetEntry) => update(logSet(live, live.idx, s))}
-        onSetLogged={(sets: SetEntry[]) => update(setLoggedSets(live, live.idx, sets))}
-        onSkip={() => update({ ...skipExercise(live, live.idx), idx: Math.min(live.idx + 1, live.exercises.length - 1) })}
-        onMove={(i) => update({ ...live, idx: i })}
-        onSwap={(sub) => { update(swapExercise(live, live.idx, sub)); showToast({ message: `Swapped in ${sub.name}` }); }}
-        onAddMidSession={(draft) => { update(addExerciseMidSession(live, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, plan: draft.sets })); showToast({ message: `Added ${draft.name}` }); }}
+        onLog={(s: SetEntry) => patchLive((l) => logSet(l, l.idx, s))}
+        onSetLogged={(sets: SetEntry[]) => patchLive((l) => setLoggedSets(l, l.idx, sets))}
+        onSkip={() => patchLive((l) => ({ ...skipExercise(l, l.idx), idx: Math.min(l.idx + 1, l.exercises.length - 1) }))}
+        onMove={(i) => patchLive((l) => ({ ...l, idx: i }))}
+        onSwap={(sub) => { patchLive((l) => swapExercise(l, l.idx, sub)); showToast({ message: `Swapped in ${sub.name}` }); }}
+        onAddMidSession={(draft) => { patchLive((l) => addExerciseMidSession(l, { exerciseKey: draft.exerciseKey, name: draft.name, kind: draft.kind, unit: draft.unit, timeUnit: draft.timeUnit, plan: draft.sets })); showToast({ message: `Added ${draft.name}` }); }}
         onAcceptSuggestion={(sug) => { void acceptSuggestion(exercise, sug); }}
-        onFit={(patch) => update({ ...live, ...patch })}
+        onFit={(patch) => patchLive((l) => ({ ...l, ...patch }))}
         onFinish={() => void finish()}
         onBack={() => setLive(null)}
       />

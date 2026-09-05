@@ -115,8 +115,9 @@ export default function SessionScreen({
   const [keptPlan, setKeptPlan] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [restTick, setRestTick] = useState(0);
-  const [showRest, setShowRest] = useState(false);
+  // GYM-F-01 (2026-09-05): the rest is a deadline on the live session, not a
+  // tick counter in screen state -- see RestTimer.tsx and LiveSession.restEndsAt.
+  const restEndsAt = live.restEndsAt ?? null;
   // THE CONDITIONING BLOCK (ruled 2026-09-01, built 2026-09-02): an exercise
   // that is a clock, not a strip. The big button opens the face; the face
   // writes one entry when it stops; the strip's place is taken by the
@@ -206,10 +207,10 @@ export default function SessionScreen({
   })();
   const startRest = () => {
     if (exercise.kind !== "done" && restSecEff > 0) {
-      setRestTick((t) => t + 1);
-      setShowRest(true);
+      onFit({ restEndsAt: Date.now() + restSecEff * 1000 });
     }
   };
+  const endRest = () => onFit({ restEndsAt: undefined });
 
   // SUPERSET FLOW (D8-C). A true A1/A2 pair alternates, so once this half is
   // ahead the session offers the other one and the rest belongs to the pair.
@@ -359,16 +360,16 @@ export default function SessionScreen({
         />
       )}
 
-      {/* REST TIMER + FILLER (catalog §4.3, §4.2). key={restTick} remounts
-          the timer clean on every new set instead of it trying to track
+      {/* REST TIMER + FILLER (catalog §4.3, §4.2). key={restEndsAt} remounts
+          the timer clean on every new deadline instead of it trying to track
           which set it belongs to. */}
-      {showRest && (
+      {restEndsAt != null && (
         <RestTimer
-          key={restTick}
-          seconds={restSecEff}
+          key={restEndsAt}
+          endsAt={restEndsAt}
           fillerName={filler?.name}
-          onLogFiller={filler && fillerLiveIdx >= 0 ? () => { onMove(fillerLiveIdx); setShowRest(false); } : undefined}
-          onDismiss={() => setShowRest(false)}
+          onLogFiller={filler && fillerLiveIdx >= 0 ? () => { onMove(fillerLiveIdx); endRest(); } : undefined}
+          onDismiss={endRest}
         />
       )}
 

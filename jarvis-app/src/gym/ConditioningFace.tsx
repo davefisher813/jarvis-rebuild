@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { CondBlock } from "./types";
 import { COND_LABEL } from "./types";
 import { intervalAt, intervalsDone, marksOwnRounds, mmss } from "./conditioning";
+import { beep, beepDone, openAudio } from "./beep";
 import { haptics } from "../shared/haptics";
 import { useWakeLock } from "../shared/useWakeLock";
 
@@ -25,21 +26,8 @@ const LEAD_SEC = 3;
 
 export interface CondResult { elapsed: number; splits: number[] }
 
-function beep(ctx: AudioContext | null, hz = 880, ms = 120, when = 0) {
-  if (!ctx) return;
-  try {
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.type = "sine"; o.frequency.value = hz;
-    g.gain.value = 0.0001;
-    o.connect(g); g.connect(ctx.destination);
-    const t = ctx.currentTime + when;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.4, t + 0.01);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + ms / 1000);
-    o.start(t); o.stop(t + ms / 1000 + 0.02);
-  } catch { /* audio is a courtesy, never a crash */ }
-}
+// GYM-F-01 (2026-09-05): the oscillator itself lives in gym/beep.ts now, so
+// the rest timer can play the same cue at zero.
 
 export default function ConditioningFace({ name, cond, onFinish, onCancel }: {
   name: string;
@@ -67,11 +55,7 @@ export default function ConditioningFace({ name, cond, onFinish, onCancel }: {
 
   // Audio wants a user gesture too; the tap that opened this face is one.
   useEffect(() => {
-    try {
-      const AC = (window as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext
-        ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-      if (AC) audioRef.current = new AC();
-    } catch { audioRef.current = null; }
+    audioRef.current = openAudio();
     return () => {
       audioRef.current?.close().catch(() => {});
     };
@@ -89,7 +73,7 @@ export default function ConditioningFace({ name, cond, onFinish, onCancel }: {
   const finish = useCallback((elapsed: number) => {
     if (finishedRef.current) return;
     finishedRef.current = true;
-    beep(audioRef.current, 660, 220, 0); beep(audioRef.current, 660, 220, 0.28); beep(audioRef.current, 990, 420, 0.56);
+    beepDone(audioRef.current);
     haptics.success();
     onFinish({ elapsed: Math.min(elapsed, cond.capSec), splits });
   }, [cond.capSec, onFinish, splits]);
