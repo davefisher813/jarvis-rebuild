@@ -161,8 +161,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // A background refresh that found real changes repaints this surface
   // (2026-08-24). CachedAdapter has reported these since it shipped and
   // nothing was listening, so a day edited on another device sat wrong until
-  // something else happened to trigger a reload.
-  useFreshLists([ENTITY_EVENT, ENTITY_TASK], reload);
+  // something else happened to trigger a reload. Events only here; the task
+  // refresh has its own reloader below (SCHED-F-16).
+  useFreshLists([ENTITY_EVENT], reload);
 
 
   useEffect(() => {
@@ -662,6 +663,10 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // --- Roadmap v2 Anytime row ---
   // Tasks with no time for the selected day, shown as a strip above the grid.
   const reloadTasks = useCallback(async () => { setTaskItems(await tasksSvc.listTasks()); }, [tasksSvc]);
+  // SCHED-F-16 (2026-09-05): the task subscription used to point at `reload`,
+  // which refreshes events only, so a task completed on the iPad stayed under
+  // Anytime on the phone until Plan My Day opened. Fresh tasks re-read tasks.
+  useFreshLists([ENTITY_TASK], reloadTasks);
   const anytimeItems = mode === "day"
     ? anytimeTasksForDay(taskItems, dayEvents, selected, draftClaims(standingDraft))
     : [];

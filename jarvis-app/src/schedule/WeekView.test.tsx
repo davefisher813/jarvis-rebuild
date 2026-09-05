@@ -35,3 +35,23 @@ describe("Schedule views", () => {
     });
   });
 });
+
+// SCHED-F-16 (2026-09-05): "Task changes from another device do not refresh
+// the Anytime strip." The task subscription pointed at the events reloader.
+describe("Schedule: a fresh task list from another device repaints Anytime", () => {
+  it("a task that arrives by background refresh shows in the strip without opening Plan My Day", async () => {
+    const { NotesProvider: Provider, useTasks } = await import("../data/NotesProvider");
+    const { notifyFreshLists } = await import("../data/store");
+    const { ENTITY_TASK } = await import("../notes/types");
+    let tasks: import("../tasks/TasksService").TasksService | null = null;
+    function Grab() { tasks = useTasks(); return null; }
+    render(<Provider userId="u1"><Grab /><ScheduleFlow /></Provider>);
+    await screen.findAllByText("Schedule");
+    expect(screen.queryByText("Call the vet")).not.toBeInTheDocument();
+    // "Another device" writes a task; the store's refresh then reports the
+    // task list changed, which is the only signal this tab gets.
+    await tasks!.createTask("Call the vet");
+    notifyFreshLists(ENTITY_TASK);
+    await waitFor(() => expect(screen.getByText("Call the vet")).toBeInTheDocument());
+  });
+});
