@@ -1074,8 +1074,11 @@ export default function TodayFlow({
     const inputs = taskItems
       .filter((t) => !!t.data.reminder)
       .map((t) => ({ id: t.id, text: t.data.text, reminder: t.data.reminder! }));
-    void ensureTaskReminders(inputs, today, tomorrow);
-  }, [taskItems, today, tomorrow]);
+    // TODAY-F-15 (2026-09-05): the seam expands a week now, not two days, so
+    // a weekend away no longer runs the arming out. AppShell re-arms on every
+    // foreground as well, so this is no longer the only thing that ever does.
+    void ensureTaskReminders(inputs, today);
+  }, [taskItems, today]);
 
   // Running Late lands on Today too (2026-08-09): the plan lives here, so the
   // one-tap recovery for falling behind has to live here. Same shared shift

@@ -12,6 +12,7 @@ import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import type { RoutineData } from "../routine/types";
 import { LADDER, ladderBody, type Rung } from "../schedule/countdown";
+import { addDays } from "../schedule/calendar";
 import type { ReminderInfo } from "../notes/types";
 import { runsOn, effectiveTime, isDone } from "../tasks/reminders";
 
@@ -359,7 +360,20 @@ export interface TaskReminderNotification { id: number; title: string; body: str
 // the block and rebuilds it, and a done reminder builds nothing (isDone).
 export const NAG_AFTER_MIN = 15;
 
-// Pure: the real fire times for every reminder over the days given, honoring
+// TODAY-F-15 / SHARED-F-08 (2026-09-05): A WEEK, NOT TWO DAYS.
+//
+// The builder expanded today and tomorrow only, and TodayFlow's effect was
+// the only thing that ever refreshed it, so a reminder was armed for at most
+// 48 hours from the last visit to Today. "Meds, 9 PM, every day" fired Friday
+// and Saturday; a weekend away, or two days lived in the Tasks tab, and
+// Sunday and Monday were silent with no warning. The one feature whose whole
+// purpose is to work when the user is not in the app depended on the user
+// being in the app every second day. Seven days of expansion covers a normal
+// gap, the budget (SHARED-F-05) keeps the soonest ones and drops the rest,
+// and AppShell re-arms on every foreground so the window keeps sliding.
+export const REMINDER_DAYS_AHEAD = 7;
+
+// Pure: the real fire times for every reminder over the days ahead, honoring
 // its days (reminders.ts runsOn), its snooze (effectiveTime, which only
 // applies on the day it was set), and its last-done (isDone: a reminder
 // already ticked for a date does not ping again for it). Only future
@@ -367,13 +381,17 @@ export const NAG_AFTER_MIN = 15;
 export function buildTaskReminderNotifications(
   reminders: TaskReminderInput[],
   today: string,
-  tomorrow: string,
   nowMs: number,
+  daysAhead: number = REMINDER_DAYS_AHEAD,
 ): TaskReminderNotification[] {
+  const dates: string[] = [];
+  // Stepped as calendar days (addDays uses setDate), never by adding a day's
+  // worth of milliseconds, so the clocks-change days keep their real dates.
+  for (let i = 0; i < Math.max(1, daysAhead); i++) dates.push(i === 0 ? today : addDays(today, i));
   const out: { title: string; body: string; at: Date }[] = [];
   for (const r of reminders) {
     if (!r.text.trim()) continue;
-    for (const date of [today, tomorrow]) {
+    for (const date of dates) {
       if (!runsOn(r.reminder, date) || isDone(r.reminder, date)) continue;
       // A snooze set today only ever applies to today's ping (effectiveTime
       // enforces that itself); tomorrow's occurrence always uses the real time.
@@ -402,7 +420,6 @@ export function buildTaskReminderNotifications(
 export async function ensureTaskReminders(
   reminders: TaskReminderInput[],
   today: string,
-  tomorrow: string,
   nowMs: number = Date.now(),
 ): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
@@ -415,7 +432,7 @@ export async function ensureTaskReminders(
       await LocalNotifications.cancel({
         notifications: Array.from({ length: TASK_REMINDER_SPAN }, (_, i) => ({ id: TASK_REMINDER_BASE + i })),
       });
-      const specs = buildTaskReminderNotifications(reminders, today, tomorrow, nowMs);
+      const specs = buildTaskReminderNotifications(reminders, today, nowMs);
       if (specs.length === 0) return;
       await LocalNotifications.schedule({
         notifications: specs.map((s) => ({

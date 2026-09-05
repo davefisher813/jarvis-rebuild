@@ -22,7 +22,7 @@ import SkeletonScreen from "../shared/SkeletonScreen";
 import { DEFAULT_TABS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym } from "../data/NotesProvider";
 import { useAuth } from "../auth/AuthProvider";
-import { onNotificationTap } from "../shared/notifications";
+import { onNotificationTap, ensureTaskReminders } from "../shared/notifications";
 import { useDayKey } from "./useDayKey";
 import { useAI } from "../ai/useAI";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
@@ -292,6 +292,30 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
   // TODAY-F-02: the local date, watched. Today's key below hangs off it.
   const dayKey = useDayKey();
+
+  // TODAY-F-15 (2026-09-05): reminders were armed by ONE effect inside
+  // TodayFlow, so a user who lived in the Tasks tab, or was away for the
+  // weekend, ran out of scheduled fire times with no warning. The seam
+  // expands a week now, and this re-arms that week from wherever he is: once
+  // the shell is up, again whenever the app comes back to the foreground,
+  // and again when the day rolls over. Same queue as every other scheduler
+  // call (SHARED-F-06), so it cannot interleave with Today's own.
+  useEffect(() => {
+    if (!ready) return;
+    const arm = () => void (async () => {
+      try {
+        const all = await tasks.listTasks();
+        await ensureTaskReminders(
+          all.filter((t) => !!t.data.reminder).map((t) => ({ id: t.id, text: t.data.text, reminder: t.data.reminder! })),
+          todayISO(),
+        );
+      } catch { /* the next foreground tries again; nothing was lost */ }
+    })();
+    arm();
+    const onVisible = () => { if (document.visibilityState === "visible") arm(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [ready, tasks, dayKey]);
 
   const toggleTab = (key: string) => {
     const has = tabKeys.includes(key);
