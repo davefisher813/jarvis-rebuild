@@ -51,10 +51,39 @@ describe("rampFor", () => {
     expect(r[r.length - 1]!.w).toBe(190);
   });
 
+  // GYM-F-19 (2026-09-05): the rack now says which unit its own numbers are
+  // in. A kg rack that says so behaves exactly as this always meant to.
   it("kg lifters ramp on a kg bar, not a rounded pound one", () => {
-    const r = rampFor(ex({ unit: "kg", sets: [{ id: "s1", w: 100, r: 5 }] }), { bar: 20, plates: [25, 20, 15, 10, 5, 2.5, 1.25] });
+    const r = rampFor(ex({ unit: "kg", sets: [{ id: "s1", w: 100, r: 5 }] }), { bar: 20, plates: [25, 20, 15, 10, 5, 2.5, 1.25], unit: "kg" });
     expect(r[0]!.w).toBe(20);
     for (const s of r) expect(s.w!).toBeLessThan(100);
+  });
+
+  it("a kg lift on the default POUND rack ramps on that bar's real weight in kg, never on 45", () => {
+    // The audit's own case: rampFor on a 60 kg squat used to hand back
+    // "45 kg x 10 · 50 kg x 3" -- the 45 is the lb bar, relabelled.
+    const r = rampFor(ex({ unit: "kg", sets: [{ id: "s1", w: 60, r: 5 }] }), { bar: 45, plates: DEFAULT_PLATES, unit: "lb" });
+    expect(r[0]!.w).toBeCloseTo(20.41, 1); // a 45 lb bar, in kg
+    expect(r.every((s) => s.w! < 60)).toBe(true);
+    expect(r.some((s) => s.w === 45)).toBe(false);
+  });
+
+  it("an lb lift on a kg rack is converted the other way too", () => {
+    const r = rampFor(ex({ unit: "lb", sets: [{ id: "s1", w: 225, r: 5 }] }), { bar: 20, plates: [25, 20, 15, 10, 5, 2.5, 1.25], unit: "kg" });
+    expect(r[0]!.w).toBeCloseTo(44.09, 1); // a 20 kg bar, in lb
+  });
+
+  // GYM-F-19: the plate line speaks the RACK's own plates, because those are
+  // the discs the athlete picks up, and converts the chip's weight into the
+  // rack's unit to work out which ones.
+  it("plateLine converts a kg chip onto a pound rack, and back", async () => {
+    const { plateLine } = await import("./ramp");
+    const lbRack = { bar: 45, plates: DEFAULT_PLATES, unit: "lb" };
+    expect(plateLine(225, lbRack, "lb")).toBe("45 · 45");
+    expect(plateLine(102.06, lbRack, "kg")).toBe("45 · 45"); // 225 lb, in kg
+    const kgRack = { bar: 20, plates: [25, 20, 15, 10, 5, 2.5], unit: "kg" };
+    expect(plateLine(80, kgRack, "kg")).toBe("25 · 5");
+    expect(plateLine(176.37, kgRack, "lb")).toBe("25 · 5"); // 80 kg, in pounds
   });
 
   it("every set carries its own id, so the strip can edit one without the rest", () => {

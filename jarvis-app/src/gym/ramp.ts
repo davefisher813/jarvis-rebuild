@@ -1,5 +1,6 @@
 import type { Exercise, SetEntry } from "./types";
 import { newSetId } from "./strip";
+import { LB_PER_KG } from "./measures";
 
 // THE RAMP AND THE PLATES (D3-A and D8-A, Training Catalog V2, approved
 // 2026-08-31).
@@ -14,7 +15,37 @@ import { newSetId } from "./strip";
 export const DEFAULT_PLATES = [45, 35, 25, 10, 5, 2.5];
 export const DEFAULT_BAR = 45;
 
-export interface RackConfig { bar: number; plates: number[] }
+export interface RackConfig {
+  bar: number;
+  plates: number[];
+  /** GYM-F-19 (2026-09-05): the unit the rack's own numbers are in. S5-Q32
+   *  made the bar a bare number with no unit at all, so a kg lifter on the
+   *  default rack got "45 kg x 10" out of the ramp (the 45 is the lb bar) and
+   *  never saw plate math at all, because SetStrip suppressed it for kg. A
+   *  rack is physical; naming its unit is what lets both features be right
+   *  for a lifter whose exercises are not all in it. Absent means pounds,
+   *  which is what every stored rack was. */
+  unit?: string;
+}
+
+/** A weight moved between units. Pounds are the pivot, same constant every
+ *  comparison in the gym uses (GYM-F-06). */
+export function weightIn(n: number, from: string | undefined, to: string | undefined): number {
+  const f = from ?? "lb", t = to ?? "lb";
+  if (f === t) return n;
+  const lb = f === "kg" ? n * LB_PER_KG : n;
+  return Math.round((t === "kg" ? lb / LB_PER_KG : lb) * 100) / 100;
+}
+
+/** The same physical rack, its numbers read in `unit`. What a lb bar can be
+ *  loaded to does not change because the athlete thinks in kg; only the
+ *  numbers they read do. */
+export function rackIn(rack: RackConfig, unit?: string): RackConfig {
+  const from = rack.unit ?? "lb";
+  const to = unit ?? from;
+  if (from === to) return rack;
+  return { bar: weightIn(rack.bar, from, to), plates: rack.plates.map((p) => weightIn(p, from, to)), unit: to };
+}
 
 /** The smallest jump the rack can make above the bar: two of the lightest
  *  plate. Everything rounds to this so no ramp asks for a weight that
@@ -58,19 +89,24 @@ const RAMP_STEPS: { pct: number; reps: number }[] = [
  * and the uniformity read.
  */
 export function rampFor(
-  ex: Pick<Exercise, "kind" | "sets">,
+  ex: Pick<Exercise, "kind" | "sets" | "unit">,
   rack: RackConfig = { bar: DEFAULT_BAR, plates: DEFAULT_PLATES },
 ): SetEntry[] {
+  // GYM-F-19 (2026-09-05): the rack is read in the EXERCISE's unit before
+  // anything is computed, so a kg lifter no longer gets the pound bar's number
+  // with a kg label glued to it. Where the two agree this is a no-op, which is
+  // every lifter whose rack matches their lifts.
+  const r = rackIn(rack, ex.unit);
   const work = workingWeight(ex);
-  if (work === null || work <= rack.bar) return [];
+  if (work === null || work <= r.bar) return [];
   const out: SetEntry[] = [];
   let last = -1;
   for (const s of RAMP_STEPS) {
-    const w = s.pct === 0 ? rack.bar : floorToRack(work * s.pct, rack);
+    const w = s.pct === 0 ? r.bar : floorToRack(work * s.pct, r);
     // Never repeat a step, never go under the bar, and never approach at or
     // above the work itself.
-    if (w >= work || w <= last || w < rack.bar) continue;
-    out.push({ id: newSetId(), w, r: s.reps, warmup: true });
+    if (w >= work || w <= last || w < r.bar) continue;
+    out.push({ id: newSetId(), w: Math.round(w * 100) / 100, r: s.reps, warmup: true });
     last = w;
   }
   return out;
@@ -92,8 +128,16 @@ export function platesPerSide(total: number, bar: number, plates: number[]): num
   return side > 1e-9 ? null : out;
 }
 
-/** "45 · 45 · 25" for the chip, or null when there is nothing honest to say. */
-export function plateLine(total: number, bar: number, plates: number[]): string | null {
-  const per = platesPerSide(total, bar, plates);
+/**
+ * "45 · 45 · 25" for the chip, or null when there is nothing honest to say.
+ *
+ * GYM-F-19 (2026-09-05): `total` is in `unit` (the exercise's), the rack is in
+ * its own, and the plates named are the rack's OWN numbers, because those are
+ * the discs the athlete picks up. A kg lifter with a kg rack sees kg plates;
+ * SetStrip used to suppress plate math for kg outright, which is why a lifter
+ * who had set a 20 kg bar and kg plates still never saw it.
+ */
+export function plateLine(total: number, rack: RackConfig, unit?: string): string | null {
+  const per = platesPerSide(weightIn(total, unit, rack.unit), rack.bar, rack.plates);
   return per && per.length ? per.join(" · ") : null;
 }

@@ -114,7 +114,11 @@ export default function SetStrip({
               />
               {openId === id && !disabled && (
                 <SetChipEditor kind={kind} fields={fields} entry={e} onPatch={(p) => patch(id, p)} moveTracking={moveTracking}
-                  plates={kind === "weight_reps" && unit !== "kg" ? plateLine(e.w ?? 0, rack.bar, rack.plates) : null} />
+                  // GYM-F-19 (2026-09-05): the kg guard was from before the
+                  // rack had a unit, and it meant a lifter who HAD set a 20 kg
+                  // bar and kg plates (S5-Q32) still never saw plate math.
+                  // plateLine converts between the chip's unit and the rack's.
+                  plates={kind === "weight_reps" ? plateLine(e.w ?? 0, rack, unit) : null} />
               )}
             </div>
           );

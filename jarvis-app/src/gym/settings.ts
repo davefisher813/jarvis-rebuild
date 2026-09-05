@@ -20,19 +20,29 @@ export interface GymSettings {
    *  answer and not a guess. Also what D3's ramp rounds to. */
   barWeight: number;
   plates: number[];
+  /** GYM-F-19 (2026-09-05): which unit the bar and plates above are in.
+   *  S5-Q32 shipped them as bare numbers, so the ramp and the plate line had
+   *  no way to be right for a lifter whose exercises are in the other one.
+   *  Defaults to pounds, which is what every rack stored before this was. */
+  rackUnit: "lb" | "kg";
 }
 
 export const DEFAULT_GYM_SETTINGS: GymSettings = {
   showLast: true,
   barWeight: DEFAULT_BAR,
   plates: DEFAULT_PLATES,
+  rackUnit: "lb",
 };
 
 /** The rack as ramp.ts wants it, from whatever is stored. A corrupt or empty
  *  plate list falls back to a normal rack rather than dividing by nothing. */
-export function rackFrom(s: GymSettings): { bar: number; plates: number[] } {
+export function rackFrom(s: GymSettings): { bar: number; plates: number[]; unit: "lb" | "kg" } {
   const plates = Array.isArray(s.plates) && s.plates.length ? s.plates.filter((n) => n > 0) : DEFAULT_PLATES;
-  return { bar: s.barWeight > 0 ? s.barWeight : DEFAULT_BAR, plates: plates.length ? plates : DEFAULT_PLATES };
+  return {
+    bar: s.barWeight > 0 ? s.barWeight : DEFAULT_BAR,
+    plates: plates.length ? plates : DEFAULT_PLATES,
+    unit: s.rackUnit === "kg" ? "kg" : "lb",
+  };
 }
 
 function browserStorage(): Storage2 {

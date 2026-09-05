@@ -53,8 +53,8 @@ describe("the rack", () => {
 
   it("an empty or nonsense rack falls back instead of dividing by nothing", async () => {
     const { rackFrom } = await import("./settings");
-    expect(rackFrom({ showLast: true, barWeight: 0, plates: [] }).bar).toBe(45);
-    expect(rackFrom({ showLast: true, barWeight: 45, plates: [] }).plates.length).toBeGreaterThan(0);
-    expect(rackFrom({ showLast: true, barWeight: 45, plates: [-5, 45] }).plates).toEqual([45]);
+    expect(rackFrom({ showLast: true, barWeight: 0, plates: [], rackUnit: "lb" }).bar).toBe(45);
+    expect(rackFrom({ showLast: true, barWeight: 45, plates: [], rackUnit: "lb" }).plates.length).toBeGreaterThan(0);
+    expect(rackFrom({ showLast: true, barWeight: 45, plates: [-5, 45], rackUnit: "lb" }).plates).toEqual([45]);
   });
 });
