@@ -132,6 +132,23 @@ export default function NotesFlow({
   const history = useRef<Block[][]>([]);
   const redoStack = useRef<Block[][]>([]);
   const [histTick, setHistTick] = useState(0);
+  // ONE QUEUE FOR EVERY MUTATION (HMN-F-01, 2026-09-05). Every block edit is
+  // read the note, change the whole `blocks` array, write it back, and the
+  // editor's blur-save fires on the same tap that starts the next mutation
+  // (a toolbar chip, Add Item, another item's checkbox). Two of those in
+  // flight read the same stale note and the second write erased the first,
+  // so a paragraph just typed reverted or the new block never appeared, and
+  // loadCurrent then repainted the loss because the store is the truth. The
+  // table edits had this queue to themselves since the deep template pass
+  // (found live, the same way); now every mutation on the open note goes
+  // through it, so each read-modify-write runs alone against a fresh read.
+  // A failed step never wedges the queue: the chain continues either way.
+  const writeQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const enqueue = (fn: () => Promise<void>): Promise<void> => {
+    const next = writeQueue.current.then(fn, fn);
+    writeQueue.current = next.catch(() => {});
+    return next;
+  };
   const snap = async () => {
     if (!currentId) return;
     const d = await svc.note(currentId);
@@ -141,7 +158,7 @@ export default function NotesFlow({
     redoStack.current = [];
     setHistTick((t) => t + 1);
   };
-  const undo = async () => {
+  const undo = () => enqueue(async () => {
     if (!currentId) return;
     const prev = history.current.pop();
     if (!prev) return;
@@ -150,8 +167,8 @@ export default function NotesFlow({
     await attemptWrite(() => svc.setBlocks(currentId, prev));
     await loadCurrent(currentId);
     setHistTick((t) => t + 1);
-  };
-  const redo = async () => {
+  });
+  const redo = () => enqueue(async () => {
     if (!currentId) return;
     const next = redoStack.current.pop();
     if (!next) return;
@@ -160,8 +177,8 @@ export default function NotesFlow({
     await attemptWrite(() => svc.setBlocks(currentId, next));
     await loadCurrent(currentId);
     setHistTick((t) => t + 1);
-  };
-  const enterAt = async (blockId: string, text: string) => {
+  });
+  const enterAt = (blockId: string, text: string) => enqueue(async () => {
     if (!currentId) return;
     await snap();
     let newId: string | null = null;
@@ -171,17 +188,20 @@ export default function NotesFlow({
     });
     await loadCurrent(currentId);
     setFocusBlockId(newId);
-  };
-  const backspaceAt = async (blockId: string) => {
-    if (!currentId || !current) return;
+  });
+  const backspaceAt = (blockId: string) => enqueue(async () => {
+    if (!currentId) return;
     await snap();
-    const idx = current.blocks.findIndex((b) => b.id === blockId);
-    const prev = [...current.blocks.slice(0, idx)].reverse().find((b) => b.type === "text" || b.type === "heading" || b.type === "meta");
+    // The neighbour to land the caret on is found in the FRESH note, not the
+    // rendered one: an edit queued ahead of this may have moved or removed it.
+    const blocks = (await svc.note(currentId))?.blocks ?? [];
+    const idx = blocks.findIndex((b) => b.id === blockId);
+    const prev = [...blocks.slice(0, idx)].reverse().find((b) => b.type === "text" || b.type === "heading" || b.type === "meta");
     await attemptWrite(() => svc.deleteBlock(currentId, blockId));
     await loadCurrent(currentId);
     setFocusBlockId(prev?.id ?? null);
-  };
-  const transformAt = async (blockId: string, prefix: "#" | "[]" | "-" | "1.", rest: string) => {
+  });
+  const transformAt = (blockId: string, prefix: "#" | "[]" | "-" | "1.", rest: string) => enqueue(async () => {
     if (!currentId) return;
     await snap();
     await attemptWrite(async () => {
@@ -192,15 +212,15 @@ export default function NotesFlow({
     });
     await loadCurrent(currentId);
     setFocusBlockId(prefix === "#" ? blockId : prefix === "-" || prefix === "1." ? blockId + ":0" : null);
-  };
-  const listItems = async (blockId: string, items: string[], focusKey: string | null) => {
+  });
+  const listItems = (blockId: string, items: string[], focusKey: string | null) => enqueue(async () => {
     if (!currentId) return;
     await snap();
     await attemptWrite(() => svc.editBlock(currentId, blockId, { items }));
     await loadCurrent(currentId);
     setFocusBlockId(focusKey);
-  };
-  const listExit = async (blockId: string, remaining: string[]) => {
+  });
+  const listExit = (blockId: string, remaining: string[]) => enqueue(async () => {
     if (!currentId) return;
     await snap();
     if (remaining.length === 0) {
@@ -216,7 +236,7 @@ export default function NotesFlow({
       await loadCurrent(currentId);
       setFocusBlockId(newId);
     }
-  };
+  });
   const [addBlockOpen, setAddBlockOpen] = useState(false);
   const [conns, setConns] = useState<Connection[]>([]);
   // The connection strip's "+" (Dave 2026-08-28) reaches LinkPicker directly
@@ -385,9 +405,15 @@ export default function NotesFlow({
     try {
       const stored = await fileStore.upload(noteId, file);
       const kind: "photo" | "file" = type === "photo" || stored.mime.startsWith("image/") ? "photo" : "file";
-      const ok = await attemptWrite(() => svc.addBlock(noteId, {
-        type: kind, name: stored.name, size: sizeLabel(stored.bytes), path: stored.path, mime: stored.mime,
-      }));
+      // The upload runs outside the write queue (it can take a while and a
+      // blur-save should not wait on it); only the block write is queued.
+      let ok = false;
+      await enqueue(async () => {
+        await snap();
+        ok = await attemptWrite(() => svc.addBlock(noteId, {
+          type: kind, name: stored.name, size: sizeLabel(stored.bytes), path: stored.path, mime: stored.mime,
+        }));
+      });
       if (!ok) { void fileStore.remove([stored.path]); return false; }
       return true;
     } catch (e) {
@@ -401,9 +427,8 @@ export default function NotesFlow({
     const { noteId, type } = pendingPick.current;
     if (noteId) {
       // Into the open note.
-      await snap();
       const ok = await attachFile(noteId, file, type);
-      await loadCurrent(noteId);
+      await enqueue(() => loadCurrent(noteId));
       if (ok) showToast({ message: type === "photo" ? "Photo added" : "File added" });
       return;
     }
@@ -430,13 +455,15 @@ export default function NotesFlow({
       pickInto(currentId, type);
       return;
     }
-    await snap();
-    let newId: string | null = null;
-    await attemptWrite(async () => { newId = await svc.addBlock(currentId, starterBlock(type)); });
     setAddBlockOpen(false);
-    await loadCurrent(currentId);
-    // Writing toolbar (V4): the caret lands in the block you just added.
-    if (newId) setFocusBlockId(newId);
+    await enqueue(async () => {
+      await snap();
+      let newId: string | null = null;
+      await attemptWrite(async () => { newId = await svc.addBlock(currentId, starterBlock(type)); });
+      await loadCurrent(currentId);
+      // Writing toolbar (V4): the caret lands in the block you just added.
+      if (newId) setFocusBlockId(newId);
+    });
   };
 
   // The swipe's File: an area, or "" to unfile. Closes on the pick.
@@ -482,77 +509,83 @@ export default function NotesFlow({
     });
     setQuickCreate(null);
     if (id && currentId) {
-      await attemptWrite(() => svc.addConnection(currentId, kind, title, id!));
-      await loadCurrent(currentId);
+      await enqueue(async () => {
+        await attemptWrite(() => svc.addConnection(currentId, kind, title, id!));
+        await loadCurrent(currentId);
+      });
     }
     setScreen(linkReturnTo);
   };
 
   const runCreateTasks = async () => {
     if (!currentId) return;
-    await attemptWrite(() => svc.tasksFromChecklist(currentId));
+    await enqueue(async () => { await attemptWrite(() => svc.tasksFromChecklist(currentId)); });
     setScreen("editor");
   };
 
-  const editTitle = async (text: string) => {
+  const editTitle = (text: string) => enqueue(async () => {
     if (!currentId) return;
     if (text) await attemptWrite(() => svc.editTitle(currentId, text)); // ignore empty, revert on reload
     await loadCurrent(currentId);
-  };
-  const editBlockText = async (blockId: string, text: string) => {
+  });
+  const editBlockText = (blockId: string, text: string) => enqueue(async () => {
     if (!currentId) return;
     await snap();
     await attemptWrite(() => svc.editBlock(currentId, blockId, { text }));
     await loadCurrent(currentId);
-  };
-  const toggleCheck = async (blockId: string, index: number) => {
+  });
+  const toggleCheck = (blockId: string, index: number) => enqueue(async () => {
     if (!currentId) return;
     await attemptWrite(() => svc.toggleChecklistItem(currentId, blockId, index));
     await loadCurrent(currentId);
-  };
-  const editCheckItem = async (blockId: string, index: number, text: string) => {
+  });
+  const editCheckItem = (blockId: string, index: number, text: string) => enqueue(async () => {
     if (!currentId) return;
     await snap();
     await attemptWrite(() => svc.setChecklistItemText(currentId, blockId, index, text));
     await loadCurrent(currentId);
-  };
-  const addCheckItem = async (blockId: string) => {
+  });
+  const addCheckItem = (blockId: string) => enqueue(async () => {
     if (!currentId) return;
     await snap();
     await attemptWrite(() => svc.addChecklistItem(currentId, blockId));
     await loadCurrent(currentId);
-  };
-  const deleteCheckItem = async (blockId: string, index: number) => {
+  });
+  const deleteCheckItem = (blockId: string, index: number) => enqueue(async () => {
     if (!currentId) return;
     await snap();
     await attemptWrite(() => svc.deleteChecklistItem(currentId, blockId, index));
     await loadCurrent(currentId);
-  };
-  const moveBlockDir = async (blockId: string, dir: -1 | 1) => {
-    if (!currentId || !current) return;
-    await snap();
-    const blocks = current.blocks;
+  });
+  const moveBlockDir = (blockId: string, dir: -1 | 1) => enqueue(async () => {
+    if (!currentId) return;
+    // Positions come from the FRESH note: an edit queued ahead of this may
+    // have shifted them since the menu was drawn.
+    const blocks = (await svc.note(currentId))?.blocks ?? [];
     const i = blocks.findIndex((b) => b.id === blockId);
     if (i < 0) return;
     const j = i + dir;
     if (j < 0 || j >= blocks.length) return;
+    await snap();
     await attemptWrite(() => svc.moveBlock(currentId, i, j));
     await loadCurrent(currentId);
-  };
-  const deleteBlock = async (blockId: string) => {
+  });
+  const deleteBlock = (blockId: string) => enqueue(async () => {
     if (!currentId) return;
     await snap();
     await attemptWrite(() => svc.deleteBlock(currentId, blockId));
     await loadCurrent(currentId);
-  };
+  });
 
   // Turn Into (deep writing pass): a text or heading block converts to any
   // simple type in place; its words become the first item where items rule.
-  const turnInto = async (blockId: string, type: "text" | "heading" | "bulleted_list" | "checklist") => {
-    if (!currentId || !current) return;
-    const b = current.blocks.find((x) => x.id === blockId);
+  const turnInto = (blockId: string, type: "text" | "heading" | "bulleted_list" | "checklist") => enqueue(async () => {
+    if (!currentId) return;
+    // The words come from the fresh note so a blur-save queued just ahead of
+    // the menu tap is what gets converted, not the text from before it.
+    const b = (await svc.note(currentId))?.blocks.find((x) => x.id === blockId);
     if (!b || (b.type !== "text" && b.type !== "heading")) return;
-    const words = ("text" in b ? b.text : "") ?? "";
+    const words = b.text ?? "";
     await snap();
     await attemptWrite(async () => {
       if (type === "text" || type === "heading") await svc.editBlock(currentId, blockId, { type, text: words, items: undefined });
@@ -560,19 +593,14 @@ export default function NotesFlow({
       else await svc.editBlock(currentId, blockId, { type, text: undefined, items: [words] });
     });
     await loadCurrent(currentId);
-  };
+  });
 
   // The Tracker's table edits (deep template pass): cells patch in place,
   // Add Row grows downward, Add Column grows sideways. Row -1 is the header.
-  // Every table op runs through one queue and reads the FRESH note inside
-  // it, because a cell's blur-save and an Add Row tap fire back-to-back and
-  // two stale read-modify-writes would clobber each other (found live).
-  const tableQueue = useRef<Promise<unknown>>(Promise.resolve());
-  const enqueueTable = (fn: () => Promise<void>): Promise<void> => {
-    const next = tableQueue.current.then(fn, fn);
-    tableQueue.current = next.catch(() => {});
-    return next;
-  };
+  // These were the first ops to run through the queue and read the FRESH
+  // note inside it, because a cell's blur-save and an Add Row tap fire
+  // back-to-back and two stale read-modify-writes clobbered each other
+  // (found live). HMN-F-01 gave every other mutation the same treatment.
   const freshTable = async (blockId: string) => {
     if (!currentId) return null;
     const d = await svc.note(currentId);
@@ -580,7 +608,7 @@ export default function NotesFlow({
     if (!b || b.type !== "table") return null;
     return { columns: (b.columns ?? []).slice(), rows: (b.rows ?? []).map((r) => r.slice()) };
   };
-  const tableEdit = (blockId: string, row: number, col: number, text: string) => enqueueTable(async () => {
+  const tableEdit = (blockId: string, row: number, col: number, text: string) => enqueue(async () => {
     if (!currentId) return;
     const t = await freshTable(blockId);
     if (!t) return;
@@ -597,7 +625,7 @@ export default function NotesFlow({
     });
     await loadCurrent(currentId);
   });
-  const tableAddRow = (blockId: string) => enqueueTable(async () => {
+  const tableAddRow = (blockId: string) => enqueue(async () => {
     if (!currentId) return;
     const t = await freshTable(blockId);
     if (!t) return;
@@ -605,7 +633,7 @@ export default function NotesFlow({
     await attemptWrite(() => svc.editBlock(currentId, blockId, { rows: [...t.rows, Array<string>(t.columns.length).fill("")] }));
     await loadCurrent(currentId);
   });
-  const tableAddColumn = (blockId: string) => enqueueTable(async () => {
+  const tableAddColumn = (blockId: string) => enqueue(async () => {
     if (!currentId) return;
     const t = await freshTable(blockId);
     if (!t) return;
@@ -695,17 +723,17 @@ export default function NotesFlow({
         connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label, targetId: c.targetId }))}
         onBack={() => setScreen("editor")}
         onAddLink={() => void openLinkPicker("connections")}
-        onRemove={async (connId) => {
+        onRemove={(connId) => enqueue(async () => {
           if (!currentId) return;
           await attemptWrite(() => svc.removeConnection(currentId, connId));
           await loadCurrent(currentId);
-        }}
+        })}
         categories={catList.map((c) => ({ id: c.id, name: catName(c.id) }))}
-        onChangeCategory={async (categoryId) => {
+        onChangeCategory={(categoryId) => enqueue(async () => {
           if (!currentId) return;
           await attemptWrite(() => svc.setCategory(currentId, categoryId));
           await loadCurrent(currentId);
-        }}
+        })}
         onCreateTasks={() => setScreen("createTasks")}
         onOpen={(kind, targetId) => onNavigate?.(kind, targetId)}
       />
@@ -723,8 +751,10 @@ export default function NotesFlow({
         people={linkPeople}
         onPick={async (kind, label, targetId) => {
           if (currentId) {
-            await attemptWrite(() => svc.addConnection(currentId, kind, label, targetId));
-            await loadCurrent(currentId);
+            await enqueue(async () => {
+              await attemptWrite(() => svc.addConnection(currentId, kind, label, targetId));
+              await loadCurrent(currentId);
+            });
           }
           setScreen(linkReturnTo);
         }}
@@ -778,9 +808,16 @@ export default function NotesFlow({
             // window.confirm dialog on a destructive path; a native popup
             // asking "are you sure?" is exactly the interrogation the rest of
             // the app refuses to do (audit 2026-08-07).
-            const snapshot = await svc.note(currentId);
-            const ok = await attemptWrite(() => svc.deleteNote(currentId));
+            // Queued behind any block save still in flight, so the snapshot
+            // Undo restores carries the last thing typed.
+            let snapshot: NoteData | null = null;
+            let ok = false;
+            await enqueue(async () => {
+              snapshot = await svc.note(currentId);
+              ok = await attemptWrite(() => svc.deleteNote(currentId));
+            });
             if (!ok) return;
+            const kept: NoteData | null = snapshot;
             const sweep = sweepAfter([currentId]);
             setCurrentId(null);
             await loadList();
@@ -790,7 +827,7 @@ export default function NotesFlow({
               actionLabel: "Undo",
               onAction: async () => {
                 sweep.cancel();
-                if (snapshot) await attemptWrite(() => svc.restoreNote(snapshot));
+                if (kept) await attemptWrite(() => svc.restoreNote(kept));
                 await loadList();
               },
             });
@@ -815,11 +852,11 @@ export default function NotesFlow({
           canRedo={histTick >= 0 && redoStack.current.length > 0}
           connections={conns}
           onAddLink={() => void openLinkPicker("editor")}
-          onRemoveConnection={(connId) => void (async () => {
+          onRemoveConnection={(connId) => void enqueue(async () => {
             if (!currentId) return;
             await attemptWrite(() => svc.removeConnection(currentId, connId));
             await loadCurrent(currentId);
-          })()}
+          })}
           onOpenConnection={(kind, targetId) => onNavigate?.(kind, targetId)}
           onOpenTask={onNavigate ? (taskId) => onNavigate("task", taskId) : undefined}
         />

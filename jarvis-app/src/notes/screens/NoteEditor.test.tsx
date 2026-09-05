@@ -7,7 +7,7 @@
 // added, dropped, or reordered by switching).
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, createEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import NoteEditor, { type EditorNote } from "./NoteEditor";
 
@@ -147,6 +147,24 @@ describe("the checklist's linked-task badge", () => {
     const badge = container.querySelector(".check-linked");
     expect(badge).toBeInTheDocument();
     expect(badge?.tagName).toBe("SPAN");
+  });
+});
+
+// HMN-F-01 (2026-09-05): tapping another item's checkbox, or Add Item, while
+// typing an item used to blur-save the item on the same gesture, and the two
+// read-modify-writes raced. Both now swallow mousedown so the caret stays
+// put; the text saves when it actually leaves the field.
+describe("the checklist's taps do not blur the item being typed", () => {
+  it("the checkbox and Add Item both swallow mousedown", () => {
+    const { container } = render(<NoteEditor note={NOTE} onToggleCheck={() => {}} onAddCheckItem={() => {}} />);
+    const box = container.querySelector(".cb")!;
+    const boxDown = createEvent.mouseDown(box);
+    fireEvent(box, boxDown);
+    expect(boxDown.defaultPrevented).toBe(true);
+    const add = screen.getAllByText("Add Item")[0]!.closest("button")!;
+    const addDown = createEvent.mouseDown(add);
+    fireEvent(add, addDown);
+    expect(addDown.defaultPrevented).toBe(true);
   });
 });
 

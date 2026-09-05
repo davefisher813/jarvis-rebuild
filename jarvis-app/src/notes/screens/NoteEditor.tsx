@@ -160,6 +160,10 @@ function Checklist({
         <div className={"check-line" + (it.done ? " done" : "")} key={i}>
           <div
             className={"cb" + (it.done ? " on" : "") + (burstAt === i ? " just-checked" : "")}
+            // HMN-F-01: the tap must not blur-save the item being typed in;
+            // the caret stays put and the toggle queues behind nothing. Same
+            // guard Add Row has carried since the deep template pass.
+            onMouseDown={(e) => e.preventDefault()}
             // Only allow checking an item that has text, so a blank line can
             // never become an orphaned checked box.
             onClick={() => { if (it.text.trim()) { if (!it.done) celebrate(i); onToggle?.(block.id, i); } }}
@@ -186,7 +190,7 @@ function Checklist({
         </div>
       ))}
       {onAddItem && (
-        <button className="check-add" onClick={() => onAddItem(block.id)}>
+        <button className="check-add" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddItem(block.id)}>
           <Plus className="ic" />
           <span>Add Item</span>
         </button>
@@ -806,13 +810,18 @@ export default function NoteEditor({
 
       {/* THE WRITING TOOLBAR (Dave 2026-08-18, "real writing features"):
           one tap drops the block and puts the caret in it; More opens the
-          full palette (tables, photos, files). Always in reach. */}
+          full palette (tables, photos, files). Always in reach.
+          HMN-F-01 (2026-09-05): mousedown is swallowed on every chip, the
+          way Add Row and the selection bar already do, so the tap does not
+          blur-save the paragraph being typed on the same gesture that adds
+          the next block. The paragraph saves when the caret actually moves
+          (into the new block), one write at a time through the flow's queue. */}
       <div className="editor-bar editor-toolbar">
-        <button className="chip" onClick={() => onAddTyped?.("text")}>Text</button>
-        <button className="chip" onClick={() => onAddTyped?.("heading")}>Heading</button>
-        <button className="chip" onClick={() => onAddTyped?.("bulleted_list")}>List</button>
-        <button className="chip" onClick={() => onAddTyped?.("checklist")}>Checklist</button>
-        <button className="chip chip-accent" onClick={onAddBlock}>More</button>
+        <button className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddTyped?.("text")}>Text</button>
+        <button className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddTyped?.("heading")}>Heading</button>
+        <button className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddTyped?.("bulleted_list")}>List</button>
+        <button className="chip" onMouseDown={(e) => e.preventDefault()} onClick={() => onAddTyped?.("checklist")}>Checklist</button>
+        <button className="chip chip-accent" onMouseDown={(e) => e.preventDefault()} onClick={onAddBlock}>More</button>
       </div>
     </div>
   );
