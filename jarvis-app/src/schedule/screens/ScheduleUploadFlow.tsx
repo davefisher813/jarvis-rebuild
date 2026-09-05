@@ -7,6 +7,8 @@ import { encodeImageForVision } from "../../shared/imageEncode";
 import { SCHEDULE_EXTRACT_PROMPT, parseScheduleExtract, buildScheduleRows, type ExtractedEvent, type ScheduleRow } from "../scheduleExtract";
 import { fmtRange } from "../calendar";
 import { showToast } from "../../shared/toast";
+import { WRITE_FAILED_MESSAGE } from "../../shared/guard";
+import { capAfterNumber } from "../../shared/casing";
 import EventSheet, { type SheetCategory, type EventDraft } from "./EventSheet";
 import type { EventItem, EventData, EventRecurrence } from "../types";
 import type { ScheduleService } from "../ScheduleService";
@@ -115,34 +117,50 @@ export default function ScheduleUploadFlow({
   const doImport = async () => {
     if (!rows || saving) return;
     const active = rows.filter((r) => !r.skip);
-    if (!active.length) return;
+    // SCHED-F-08 (2026-09-05): a row the source gave no time for is not
+    // importable. The 09:00 in the row is a SEED for the fix sheet, and it
+    // used to be written to the calendar as if the schedule had said so.
+    if (!active.length || active.some((r) => r.noTime)) return;
     setSaving(true);
     const created: string[] = [];
     const updated: { id: string; prev: EventData }[] = [];
-    for (const r of active) {
-      if (r.matchId) {
-        const prev = existingEvents.find((e) => e.id === r.matchId)?.data;
-        if (!prev) continue;
-        // Every field the fix sheet can change is written here, not just the
-        // ones a bare schedule usually carries: a "fix" the user made (a
-        // corrected title, a set recurrence) must not be silently dropped
-        // just because this row happens to be an update instead of a create.
-        updated.push({ id: r.matchId, prev });
-        await svc.editTitle(r.matchId, r.title);
-        await svc.editTime(r.matchId, r.start);
-        await svc.editEnd(r.matchId, r.end);
-        await svc.editRecurrence(r.matchId, r.recurrence);
-        await svc.editLocation(r.matchId, r.location);
-        await svc.editCategory(r.matchId, r.category);
-      } else {
-        const id = await svc.createEvent(r.title, {
-          date: r.date, start: r.start, end: r.end || undefined,
-          category: r.category || undefined, location: r.location || undefined, recurrence: r.recurrence,
-        });
-        if (id) created.push(id);
+    // Which rows actually reached the calendar, so a retry after a failure
+    // partway through cannot write any of them a second time.
+    const landed = new Set<string>();
+    let failed = false;
+    try {
+      for (const r of active) {
+        if (r.matchId) {
+          const prev = existingEvents.find((e) => e.id === r.matchId)?.data;
+          if (!prev) continue;
+          // Every field the fix sheet can change is written here, not just the
+          // ones a bare schedule usually carries: a "fix" the user made (a
+          // corrected title, a set recurrence) must not be silently dropped
+          // just because this row happens to be an update instead of a create.
+          updated.push({ id: r.matchId, prev });
+          await svc.editTitle(r.matchId, r.title);
+          await svc.editTime(r.matchId, r.start);
+          await svc.editEnd(r.matchId, r.end);
+          await svc.editRecurrence(r.matchId, r.recurrence);
+          await svc.editLocation(r.matchId, r.location);
+          await svc.editCategory(r.matchId, r.category);
+        } else {
+          const id = await svc.createEvent(r.title, {
+            date: r.date, start: r.start, end: r.end || undefined,
+            category: r.category || undefined, location: r.location || undefined, recurrence: r.recurrence,
+          });
+          if (id) created.push(id);
+        }
+        landed.add(r.key);
       }
+    } catch {
+      // SCHED-F-08: the loop had no catch, so a write that threw skipped
+      // setSaving(false) and the button said "Adding..." for good, with rows
+      // already on the calendar and nothing said about them.
+      failed = true;
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
     const undo = async () => {
       for (const id of created) await svc.deleteEvent(id);
       for (const u of updated) {
@@ -154,6 +172,16 @@ export default function ScheduleUploadFlow({
         await svc.editCategory(u.id, u.prev.category ?? "");
       }
     };
+    if (failed) {
+      const done = created.length + updated.length;
+      // The rows that landed are marked done here, so the review stays open
+      // on exactly what is left and Add cannot double-write them.
+      if (done > 0) setRows((cur) => cur && cur.map((r) => (landed.has(r.key) ? { ...r, skip: true } : r)));
+      showToast(done > 0
+        ? { message: capAfterNumber(`Couldn't add them all · ${done} added before it stopped`), actionLabel: "Undo", onAction: () => { void undo(); } }
+        : { message: WRITE_FAILED_MESSAGE });
+      return;
+    }
     onDone({ createdCount: created.length, updatedCount: updated.length, undo });
   };
 
@@ -186,6 +214,10 @@ export default function ScheduleUploadFlow({
   // ---- review: nothing has saved yet ----
   if (rows) {
     const active = rows.filter((r) => !r.skip).length;
+    // SCHED-F-08 (2026-09-05): the rows that still have no time. Add waits
+    // for them, because "No time found" on the review and a 9:00 AM event on
+    // the calendar were the same row telling two different stories.
+    const needTime = rows.filter((r) => !r.skip && r.noTime).length;
     return (
       <>
         <div className="screen ruled">
@@ -217,8 +249,13 @@ export default function ScheduleUploadFlow({
               </div>
             ))}
           </div></div>
+          {needTime > 0 && (
+            <div className="pad-x"><div className="xs-note">
+              <span>{capAfterNumber(`${needTime} ${needTime === 1 ? "row has" : "rows have"} no time yet · Tap one to set it, or skip it`)}</span>
+            </div></div>
+          )}
           <div className="pad-x sheet-actions">
-            <button className="btn btn-primary btn-block" disabled={active === 0 || saving} onClick={() => void doImport()}>
+            <button className="btn btn-primary btn-block" disabled={active === 0 || saving || needTime > 0} onClick={() => void doImport()}>
               {saving ? "Adding..." : `Add ${active} to Calendar`}
             </button>
             <button className="btn btn-secondary btn-block" onClick={onCancel}>Cancel</button>

@@ -123,7 +123,11 @@ export interface ScheduleRow {
   key: string;
   title: string;
   date: string;
-  start: string;   // "09:00" default when the source had no time
+  // "09:00" seed when the source had no time. SCHED-F-08 (2026-09-05): a
+  // seed for the fix sheet only. The review flags the row and the import
+  // refuses it until it has a real time, so this value never reaches the
+  // calendar wearing the source's authority.
+  start: string;
   end: string;      // "" when the source had none
   location: string;
   noTime: boolean;  // the source did not state a time; flagged, not hidden
