@@ -371,7 +371,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (grown.vips) setVips(grown.vips);
       if (grown.rules) setRules(grown.rules);
       if (grown.muted) setMuted(grown.muted);
+      // EMAIL-F-19: project links hydrate like the rest now.
+      if (grown.links) setLinks(grown.links);
       setMailHydrated(true);
+      // EMAIL-F-30 (2026-09-05): mirror the MERGED result straight back, so
+      // the next device to hydrate gets both sides rather than whichever one
+      // wrote last. Only when the merge actually grew something: an
+      // unchanged profile is not worth a write.
+      if (Object.keys(grown).length > 0) void profileSvc?.save({ mail: mailSnapshot() }).catch(() => {});
     }).catch(() => { if (on) setMailHydrated(true); });
     return () => { on = false; };
   }, [profileSvc]);

@@ -71,29 +71,41 @@ describe("hydrateMailFromProfile", () => {
     expect(loadLinks(storage).t3?.label).toBe("Ridgeley");
   });
 
-  it("never overwrites a field that already has local data -- a deliberate local decision wins", () => {
+  // EMAIL-F-30 (2026-09-05): "Cross-device mail mirror only fills an empty
+  // device; two devices never converge." These two cases used to assert the
+  // first-fill rule, which is the bug: a phone with one VIP never received
+  // the two marked on the iPad, and its next toggle mirrored its own list
+  // over the top. The stores are sets and keyed maps, so they merge.
+  it("unions a list store rather than choosing a side", () => {
     const storage = fakeStorage();
     toggleVip("local@x.com", storage);
-    saveRule("localrule@x.com", "worth_knowing", storage);
-    const grown = hydrateMailFromProfile(
-      { vips: ["fromprofile@x.com"], rules: { "fromprofile@x.com": "noise" } },
-      storage,
-    );
-    expect(grown).toEqual({});
-    expect(loadVips(storage)).toEqual(["local@x.com"]);
-    expect(loadRules(storage)).toEqual({ "localrule@x.com": "worth_knowing" });
-  });
-
-  it("fills in only the fields that are actually empty, leaving the rest untouched", () => {
-    const storage = fakeStorage();
-    toggleVip("local@x.com", storage); // vips already has local data
     const grown = hydrateMailFromProfile(
       { vips: ["fromprofile@x.com"], muted: ["t9"] },
       storage,
     );
-    expect(grown).toEqual({ muted: ["t9"] }); // vips untouched, muted filled in
-    expect(loadVips(storage)).toEqual(["local@x.com"]);
+    expect(grown.vips).toEqual(["local@x.com", "fromprofile@x.com"]);
+    expect(loadVips(storage)).toEqual(["local@x.com", "fromprofile@x.com"]);
     expect(loadMuted(storage)).toEqual(["t9"]);
+  });
+
+  it("on a keyed store the local decision wins the conflict, and the rest still lands", () => {
+    const storage = fakeStorage();
+    saveRule("both@x.com", "worth_knowing", storage);
+    const grown = hydrateMailFromProfile(
+      { rules: { "both@x.com": "noise", "onlyprofile@x.com": "noise" } },
+      storage,
+    );
+    // The sender this device just filed keeps this device's answer; the one
+    // it has never seen arrives.
+    expect(grown.rules).toEqual({ "both@x.com": "worth_knowing", "onlyprofile@x.com": "noise" });
+    expect(loadRules(storage)).toEqual({ "both@x.com": "worth_knowing", "onlyprofile@x.com": "noise" });
+  });
+
+  it("says nothing changed when the profile carries nothing this device lacks", () => {
+    const storage = fakeStorage();
+    toggleVip("same@x.com", storage);
+    mute("t1", storage);
+    expect(hydrateMailFromProfile({ vips: ["same@x.com"], muted: ["t1"] }, storage)).toEqual({});
   });
 
   it("undefined or empty mail hydrates nothing", () => {

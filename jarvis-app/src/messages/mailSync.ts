@@ -36,41 +36,80 @@ export function mailSnapshot(storage: Pick<Storage, "getItem"> = localStorage): 
   };
 }
 
-// Fills in whatever is genuinely empty here from what the profile last
-// mirrored -- a fresh install, a second phone, storage the browser cleared.
-// A field that already has local data is left alone: a device where the
-// user actually cleared something stays cleared, rather than the profile
-// mirror fighting a deliberate local decision made since the last sync.
+// EMAIL-F-30 (2026-09-05): "Cross-device mail mirror only fills an empty
+// device; two devices never converge." Every field here used to hydrate only
+// when the local store was EMPTY, so a phone that already had one VIP never
+// received the two marked on the iPad, and the phone's next VIP toggle
+// mirrored its own list over the top: S2-5's "a second phone started from
+// zero" was fixed for the very first hydrate and for nothing after it.
+//
+// Fork option A: union-merge, which is what these four (now five) stores
+// actually are. A VIP list, a mute list and a let-go list are sets, and
+// nothing in the app removes an entry silently, so the union is what the
+// person meant on both devices. Rules and links are keyed, and there the
+// LOCAL side wins a conflict: this device's most recent decision about a
+// sender is fresher than whatever the profile last carried.
+//
 // Writes straight into localStorage too, so the next load's synchronous
 // `useState(() => loadX())` sees it without waiting on the network again.
 // Returns only what actually changed, so a caller updating render state
 // knows exactly which setters to call.
+const same = (a: string[], b: string[]): boolean =>
+  a.length === b.length && a.every((x, i) => x === b[i]);
+
 export function hydrateMailFromProfile(
   mail: MailMirror | undefined,
   storage: Pick<Storage, "getItem" | "setItem"> = localStorage,
 ): MailMirror {
   if (!mail) return {};
   const out: MailMirror = {};
-  if (mail.vips?.length && loadVips(storage).length === 0) {
-    const vips = mail.vips.slice(0, VIP_MAX);
-    try { storage.setItem(VIP_KEY, JSON.stringify(vips)); } catch { /* private mode */ }
-    out.vips = vips;
+
+  if (mail.vips?.length) {
+    const local = loadVips(storage);
+    // Local first, so the cap keeps the people THIS device chose when the two
+    // lists together are longer than the cap.
+    const vips = [...new Set([...local, ...mail.vips])].slice(0, VIP_MAX);
+    if (!same(vips, local)) {
+      try { storage.setItem(VIP_KEY, JSON.stringify(vips)); } catch { /* private mode */ }
+      out.vips = vips;
+    }
   }
-  if (mail.rules && Object.keys(mail.rules).length && Object.keys(loadRules(storage)).length === 0) {
-    try { storage.setItem(RULES_KEY, JSON.stringify(mail.rules)); } catch { /* private mode */ }
-    out.rules = mail.rules;
+
+  if (mail.rules && Object.keys(mail.rules).length) {
+    const local = loadRules(storage);
+    const rules = { ...mail.rules, ...local };
+    if (Object.keys(rules).length !== Object.keys(local).length) {
+      try { storage.setItem(RULES_KEY, JSON.stringify(rules)); } catch { /* private mode */ }
+      out.rules = rules;
+    }
   }
-  if (mail.muted?.length && loadMuted(storage).length === 0) {
-    try { storage.setItem(MUTED_KEY, JSON.stringify(mail.muted)); } catch { /* private mode */ }
-    out.muted = mail.muted;
+
+  if (mail.muted?.length) {
+    const local = loadMuted(storage);
+    const muted = [...new Set([...local, ...mail.muted])];
+    if (!same(muted, local)) {
+      try { storage.setItem(MUTED_KEY, JSON.stringify(muted)); } catch { /* private mode */ }
+      out.muted = muted;
+    }
   }
-  if (mail.letGo?.length && loadLetGo(storage).length === 0) {
-    try { storage.setItem(LETGO_KEY, JSON.stringify(mail.letGo)); } catch { /* private mode */ }
-    out.letGo = mail.letGo;
+
+  if (mail.letGo?.length) {
+    const local = loadLetGo(storage);
+    const letGo = [...new Set([...local, ...mail.letGo])];
+    if (!same(letGo, local)) {
+      try { storage.setItem(LETGO_KEY, JSON.stringify(letGo)); } catch { /* private mode */ }
+      out.letGo = letGo;
+    }
   }
-  if (mail.links && Object.keys(mail.links).length && Object.keys(loadLinks(storage)).length === 0) {
-    try { storage.setItem(LINKS_KEY, JSON.stringify(mail.links)); } catch { /* private mode */ }
-    out.links = mail.links;
+
+  if (mail.links && Object.keys(mail.links).length) {
+    const local = loadLinks(storage);
+    const links = { ...mail.links, ...local };
+    if (Object.keys(links).length !== Object.keys(local).length) {
+      try { storage.setItem(LINKS_KEY, JSON.stringify(links)); } catch { /* private mode */ }
+      out.links = links;
+    }
   }
+
   return out;
 }

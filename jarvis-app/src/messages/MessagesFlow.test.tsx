@@ -21,6 +21,7 @@ import ToastHost from "../shared/ToastHost";
 import { saveMailSnapshot, loadMailSnapshot } from "./home";
 import { loadOutbox, resetOutboxForTest } from "./outbox";
 import { loadLetGo } from "./letGo";
+import { loadVips, toggleVip } from "./vip";
 import { loadMinutes } from "./drain";
 import { clearedToday } from "./cleared";
 import { loadClosedBatch } from "./weeklyClose";
@@ -1159,6 +1160,29 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     fireEvent.click(await screen.findByText("Ridgeley"));
     expect(await screen.findByText("Always gets through")).toBeInTheDocument();
+  });
+
+  // EMAIL-F-30 (2026-09-05): "Cross-device mail mirror only fills an empty
+  // device; two devices never converge." A device that already had one VIP
+  // never received the ones marked elsewhere, and its next write mirrored its
+  // own list back over them, so a third device would have seen only one side.
+  it("a device with its own VIP still receives the other device's, and mirrors both back", async () => {
+    let profile: ProfileService | undefined;
+    const grab = (p: ProfileService) => { profile = p; };
+    const { rerender } = render(wrapWithProfile(<div />, grab));
+    await waitFor(() => expect(profile).toBeDefined());
+    await profile!.save({ mail: { vips: ["ipad@x.com"] } });
+    // This device has a VIP of its own, marked while the other device was
+    // offline: the case first-fill hydration silently skipped.
+    localStorage.clear();
+    toggleVip("t@x.com");
+    rerender(wrapWithProfile(<MessagesFlow ai={noAI} configured />, grab));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Ridgeley"));
+    expect(await screen.findByText("Always gets through")).toBeInTheDocument();
+    expect(loadVips().sort()).toEqual(["ipad@x.com", "t@x.com"]);
+    // And the merged list goes straight back up, so a third device gets both.
+    await waitFor(async () => expect(((await profile!.get())?.mail?.vips ?? []).slice().sort()).toEqual(["ipad@x.com", "t@x.com"]));
   });
 
   // S2-8 (2026-09-04): "You Have That File cannot attach it." Tapping the
