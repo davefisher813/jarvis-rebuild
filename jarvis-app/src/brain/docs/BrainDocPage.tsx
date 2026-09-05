@@ -7,6 +7,7 @@ import { JARVIS_VOICE } from "../../ai/voice";
 import { fileToAIImage } from "../../shared/imageInput";
 import { showToast } from "../../shared/toast";
 import PageHeader from "../../shared/PageHeader";
+import { pressable } from "../../shared/pressable";
 
 const PHOTO = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" /></svg>
@@ -110,7 +111,7 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
               onChange={(e) => { const f = e.target.files?.[0]; if (f) void onPhoto(f); e.target.value = ""; }}
             />
             <div className="card list-card-ruled">
-              <div className="row" role="button" tabIndex={0} onClick={() => !reading && fileRef.current?.click()}>
+              <div {...pressable(() => !reading && fileRef.current?.click())} className="row">
                 <div className="sec-ico ico-blue">{PHOTO}</div>
                 <div className="row-grow">
                   <div className="conn-name">{reading ? "Reading your photo..." : "Add a Photo"}</div>

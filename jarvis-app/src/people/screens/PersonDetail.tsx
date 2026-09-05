@@ -2,6 +2,7 @@ import type { Person } from "../types";
 import { personInitials, avatarClass } from "../types";
 import { catColor } from "../../shared/categories";
 import { RowGlyph } from "../../shared/anatomy";
+import { pressable } from "../../shared/pressable";
 
 const BACK = (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
@@ -109,7 +110,7 @@ export default function PersonDetail({
           {phone && onCallPrep && (
             // Call Prep (addendum item 2): the call action opens the prep
             // card, which carries the dial. Context first, then the phone.
-            <div className="row person-reach" role="button" tabIndex={0} onClick={onCallPrep}>
+            <div {...pressable(onCallPrep)} className="row person-reach">
               <div className="row-grow"><div className="conn-name">Call</div></div>
               <span className="kv-val">{phone}</span>
             </div>
@@ -123,7 +124,7 @@ export default function PersonDetail({
           {phone && onMessage && (
             // Messages Drafting (addendum item 3): the text action opens the
             // drafting sheet; the draft exists when it opens.
-            <div className="row person-reach" role="button" tabIndex={0} onClick={onMessage}>
+            <div {...pressable(onMessage)} className="row person-reach">
               <div className="row-grow"><div className="conn-name">Text</div></div>
               <span className="kv-val">{phone}</span>
             </div>

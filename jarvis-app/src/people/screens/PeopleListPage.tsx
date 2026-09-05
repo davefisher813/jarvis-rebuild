@@ -3,6 +3,7 @@ import type { Person } from "../types";
 import { personInitials, avatarClass } from "../types";
 import { searchPeople } from "../views";
 import { PeopleGlyph } from "../../shared/glyphs";
+import { pressable } from "../../shared/pressable";
 
 const CHEV = (
   <div className="chev" />
@@ -45,7 +46,7 @@ export default function PeopleListPage({
   const shown = searchPeople(people, q).filter((p) => !pendingIds.has(p.id));
 
   const importRow = onImportFile && (
-    <div className="task-row p2 person-row-ruled" role="button" tabIndex={0} onClick={() => fileRef.current?.click()}>
+    <div {...pressable(() => fileRef.current?.click())} className="task-row p2 person-row-ruled">
       <div className="task-check-tap gm-slot"><span className="row-glyph cat-fg-blue">{UPLOAD}</span></div>
       <div className="task-title">
         <span className="task-name">Import from File</span>
@@ -118,7 +119,7 @@ export default function PeopleListPage({
         <div className="sh2 sh2-quiet"><span className="t">Your People</span><span className="n">{shown.length}</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
           {shown.map((p) => (
-            <div className="task-row p2 person-row-ruled" role="button" tabIndex={0} key={p.id} onClick={() => onOpen(p.id)}>
+            <div {...pressable(() => onOpen(p.id))} className="task-row p2 person-row-ruled" key={p.id}>
               <div className="task-check-tap"><div className={"av " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div></div>
               <div className="task-title">
                 <span className="task-name">{p.data.name}</span>

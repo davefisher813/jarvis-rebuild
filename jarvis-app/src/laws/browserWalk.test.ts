@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 // THE BROWSER WALK, AS LAWS (2026-09-05).
@@ -417,6 +417,67 @@ describe("BROWSER-F-17: the inline time editor never covers the row it edits", (
     expect(down, "centring on the row is what hid the row").not.toMatch(/top:\s*50%/);
     expect(down).toMatch(/top:\s*calc\(100% \+/);
     expect(ruleBody(css(), ".time-pop.time-pop-up")).toMatch(/bottom:\s*calc\(100% \+/);
+  });
+});
+
+// EVERY TAPPABLE DIV OWES ENTER AND SPACE (2026-09-05).
+//
+// The row pattern in this app is a div, because a <button> cannot always carry
+// the row anatomy the catalog rules. A div that takes a tap has to say so
+// three ways: role="button", tabIndex 0, and a key handler. The first two were
+// copied from the first ruled row into 60-odd places; the third was not, so
+// Tab reached the row and Enter did nothing. VoiceOver never noticed, because
+// it dispatches a real click; a hardware keyboard, a switch control and the
+// iPad did.
+//
+// shared/pressable.ts is the answer, and this law is how the slices that have
+// been swept stay swept. SCOPE grows as each finding lands: BRAIN-F-21,
+// EMAIL-F-31, HMN-F-24, SCHED-F-19, SHARED-F-22.
+const KEYBOARD_SCOPE = ["brain", "decisions", "people", "review", "routine"];
+
+describe("a role=button row can be pressed with a keyboard", () => {
+  const walk = (dir: string): string[] => {
+    const out: string[] = [];
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name);
+      if (e.isDirectory()) out.push(...walk(p));
+      else if (p.endsWith(".tsx") && !p.endsWith(".test.tsx")) out.push(p);
+    }
+    return out;
+  };
+
+  it("every swept slice reaches its rows through pressable, or handles the keys itself", () => {
+    const offenders: string[] = [];
+    for (const slice of KEYBOARD_SCOPE) {
+      for (const file of walk(join(SRC, slice))) {
+        const src = readFileSync(file, "utf8");
+        for (const m of src.matchAll(/role="(?:button|radio)"/g)) {
+          // The whole opening tag: from its "<" to the ">" that closes it,
+          // counting braces so an arrow function's own ">" is not mistaken
+          // for the end of the tag (that is what "=>" would do to a naive scan).
+          const start = src.lastIndexOf("<", m.index!);
+          let depth = 0, end = start;
+          for (let i = start; i < src.length; i++) {
+            const c = src[i]!;
+            if (c === "{") depth++;
+            else if (c === "}") depth--;
+            else if (c === ">" && depth === 0 && src[i - 1] !== "=") { end = i; break; }
+          }
+          const tag = src.slice(start, end + 1);
+          if (!tag.includes("onClick")) continue;        // not a control
+          if (tag.includes("onKeyDown")) continue;       // handles its own keys
+          offenders.push(`${file.slice(SRC.length + 1)}:${src.slice(0, m.index!).split("\n").length}`);
+        }
+      }
+    }
+    expect(offenders, "a row Tab can reach and Enter cannot press").toEqual([]);
+  });
+
+  it("the helper is one place, so the keys cannot drift between rows", () => {
+    const src = readFileSync(join(SRC, "shared/pressable.ts"), "utf8");
+    expect(src).toMatch(/role: "button"/);
+    expect(src).toMatch(/e\.key !== "Enter" && e\.key !== " "/);
+    expect(src, "Space would scroll the page as well as press the row").toMatch(/e\.preventDefault\(\)/);
   });
 });
 

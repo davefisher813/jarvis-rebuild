@@ -15,6 +15,7 @@ import type { TaskData } from "../notes/types";
 import type { EventItem } from "../schedule/types";
 import { TargetGlyph, CheckCircleGlyph, WarningGlyph, LockGlyph } from "../shared/glyphs";
 import { filledIcon } from "../shared/filledIcons";
+import { pressable } from "../shared/pressable";
 
 // THE MONTHLY REPORT (2026-08-25, built from the approved v3 preview).
 // Reassurance leads, numbers and color carry it, sentences live behind the
@@ -127,8 +128,8 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
         )}
 
         {report.hours && (
-          <div className="card pad rep-gap" role="button" tabIndex={0}
-            onClick={() => setReceipts({ title: `Your hours: ${report.hours!.label}`, lines: [capAfterNumber(`${report.tiles.find((t) => t.label === "Done")?.num ?? 0} finishes this month; the tallest bars are your band`)] })}>
+          <div {...pressable(() => setReceipts({ title: `Your hours: ${report.hours!.label}`, lines: [capAfterNumber(`${report.tiles.find((t) => t.label === "Done")?.num ?? 0} finishes this month; the tallest bars are your band`)] }))} className="card pad rep-gap"
+>
             <div className="rep-split"><span className="rep-eyebrow rep-quiet">Your Hours</span><b>{report.hours.label}</b></div>
             <div className="rep-hours">
               {report.hours.byHour.map((n, h) => (
@@ -198,7 +199,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
           <div className="pad-x"><div className="card list-card-ruled">
             {report.worth.map((w) => (
               <div key={w.id}>
-                <div className="row" role="button" tabIndex={0} onClick={() => setReceipts({ title: w.title, lines: w.receipts })}>
+                <div {...pressable(() => setReceipts({ title: w.title, lines: w.receipts }))} className="row">
                   {w.id === "cut" && <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>}
                   <div className="row-grow">
                     <div className="rep-title">{w.title}</div>
@@ -224,7 +225,7 @@ export function ReportScreen({ report, capped, onCap, onOpenTask, onDropTask, on
           <div className="sh2 sh2-quiet"><span className="t">Patterns</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {report.patterns.map((p) => (
-              <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => setReceipts({ title: p.title, lines: p.receipts })}>
+              <div {...pressable(() => setReceipts({ title: p.title, lines: p.receipts }))} className="row" key={p.id}>
                 <div className="row-grow">
                   <div className="rep-title">{p.title}</div>
                   {p.sub && <div className="eyebrow">{p.sub}</div>}

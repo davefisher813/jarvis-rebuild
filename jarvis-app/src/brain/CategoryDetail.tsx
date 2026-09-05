@@ -67,6 +67,7 @@ import { newMetricDefData, activeMetrics, pulsePlan } from "../gym/metrics";
 import { chartableExercises, liftSessions } from "../gym/chartData";
 import { correlate, plateauFlag, hardSetRows, muscleMapFromProgram, backOffSignal, shouldOfferLighterWeek } from "../gym/insights";
 import { MUSCLE_LABEL } from "../gym/muscles";
+import { pressable } from "../shared/pressable";
 
 const CHEV = (
   <div className="chev" />
@@ -769,7 +770,7 @@ export default function CategoryDetail({
                   <div className="sh2 sh2-quiet"><span className="t">Notes</span><span className="n">{notes.length}</span></div>
                   <div className="pad-x"><div className="card list-card-ruled">
                     {notes.map((n) => (
-                      <div className="task-row p2" role="button" tabIndex={0} key={n.id} onClick={() => onOpenNote?.(n.id)}>
+                      <div {...pressable(() => onOpenNote?.(n.id))} className="task-row p2" key={n.id}>
                         <div className="task-title"><span className="task-name">{n.title}</span></div>
                         {CHEV}
                       </div>
@@ -878,7 +879,7 @@ export default function CategoryDetail({
               else if (last != null) bits.push(`Last talked ${agoLabel(last, nowMs)}`);
               const nudgeable = !!p.data.email && (quiet || !!wrow);
               return (
-                <div className="task-row p2 person-row-ruled" role="button" tabIndex={0} key={p.id} onClick={() => onOpenPerson?.(p.id)}>
+                <div {...pressable(() => onOpenPerson?.(p.id))} className="task-row p2 person-row-ruled" key={p.id}>
                   <div className="task-check-tap"><div className={"av " + avatarClass(p.data.color)}>{personInitials(p.data.name)}</div></div>
                   <div className="task-title">
                     <span className="task-name">{p.data.name}</span>
@@ -954,7 +955,7 @@ export default function CategoryDetail({
                 ? `Next: ${next.data.text}${next.data.due ? ` \u00b7 ${dayPhrase(next.data.due, today)}` : ""}`
                 : p.data.status === "on_hold" ? "Paused" : "Stalled \u00b7 No next action";
               return (
-                <div className="task-row p2 proj-row-ruled" role="button" tabIndex={0} key={p.id} onClick={() => onOpenProject?.(p.id)}>
+                <div {...pressable(() => onOpenProject?.(p.id))} className="task-row p2 proj-row-ruled" key={p.id}>
                   <div className="task-check-tap"><span className={"pp-slot cat-fg-" + cat.data.color}><ProjectPie pct={pct} /></span></div>
                   <div className="task-title">
                     <span className="task-name">{p.data.title}</span>
@@ -1018,7 +1019,7 @@ export default function CategoryDetail({
           <div className="sh2 sh2-quiet"><span className="t">Notes</span><span className="n">{notes.length}</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {notes.map((n) => (
-              <div className="task-row p2 note-row" role="button" tabIndex={0} key={n.id} onClick={() => onOpenNote?.(n.id)}>
+              <div {...pressable(() => onOpenNote?.(n.id))} className="task-row p2 note-row" key={n.id}>
                 <div className="task-title"><span className="task-name">{n.title}</span></div>
                 {CHEV}
               </div>

@@ -3,6 +3,7 @@ import type { DecisionLinkType } from "./types";
 import { FormSheet, Group, Row, FieldRow, Strip, ErrorLine } from "../shared/FormSheet";
 import HeadMenu from "../shared/HeadMenu";
 import { todayISO, addDays } from "../schedule/calendar";
+import { pressable } from "../shared/pressable";
 
 // The capture sheet (Screen 03) and the supersede sheet (Screen 05), one
 // component: a supersede is a capture with Attached To and Ruled Out carried
@@ -110,7 +111,7 @@ export default function DecisionCaptureSheet({
         {ruledOut.length > 0 && (
           <Strip>
             {ruledOut.map((r) => (
-              <div key={r} className="chip active" role="button" tabIndex={0} onClick={() => setRuledOut(ruledOut.filter((x) => x !== r))}>{r}</div>
+              <div {...pressable(() => setRuledOut(ruledOut.filter((x) => x !== r)))} key={r} className="chip active">{r}</div>
             ))}
           </Strip>
         )}
@@ -119,10 +120,10 @@ export default function DecisionCaptureSheet({
 
       <Group label="Revisit">
         <Strip>
-          <div className={"chip" + (revisitMode === "none" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit("")}>None</div>
-          <div className={"chip" + (revisitMode === "week" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDays(today, 7))}>Week</div>
-          <div className={"chip" + (revisitMode === "month" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDays(today, 30))}>Month</div>
-          <div className={"chip" + (revisitMode === "pick" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(revisitMode === "pick" && revisit ? revisit : addDays(today, 14))}>Pick</div>
+          <div {...pressable(() => setRevisit(""))} className={"chip" + (revisitMode === "none" ? " active" : "")}>None</div>
+          <div {...pressable(() => setRevisit(addDays(today, 7)))} className={"chip" + (revisitMode === "week" ? " active" : "")}>Week</div>
+          <div {...pressable(() => setRevisit(addDays(today, 30)))} className={"chip" + (revisitMode === "month" ? " active" : "")}>Month</div>
+          <div {...pressable(() => setRevisit(revisitMode === "pick" && revisit ? revisit : addDays(today, 14)))} className={"chip" + (revisitMode === "pick" ? " active" : "")}>Pick</div>
         </Strip>
         {revisitMode === "pick" && (
           <FieldRow ariaLabel="Revisit date" type="date" value={revisit} onChange={setRevisit} />

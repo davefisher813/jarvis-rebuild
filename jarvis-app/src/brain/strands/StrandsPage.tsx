@@ -12,6 +12,7 @@ import {
   STRAND_CATEGORY_LABEL,
   type Strand, type StrandCategory, type StrandEvidence, type DerivationKey,
 } from "./types";
+import { pressable } from "../../shared/pressable";
 
 // What JARVIS Knows (Brain Layer 2). The genome made visible: every strand,
 // its category, where it came from, and its receipts. Wrongness has an exit
@@ -236,12 +237,9 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
       {strands.length > 0 && (
         <div className="pad-x"><div className="card list-card-ruled">
           {strands.map((s) => (
-            <div
+            <div {...pressable(() => { setOpenId(s.id); setEditing(false); setText(s.data.text); setCat(s.data.category); setRule(s.data.strength === "rule"); })}
               className={"row strand-row" + (s.data.status === "paused" ? " paused" : "")}
-              role="button"
-              tabIndex={0}
               key={s.id}
-              onClick={() => { setOpenId(s.id); setEditing(false); setText(s.data.text); setCat(s.data.category); setRule(s.data.strength === "rule"); }}
             >
               <div className="row-grow">
                 <div className="strand-eyebrow">

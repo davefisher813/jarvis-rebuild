@@ -11,6 +11,7 @@ import { usePushDepth } from "../shared/pushNav";
 import { catColor } from "../shared/categories";
 import { effectiveKind } from "../categories/kinds";
 import { shortDate } from "../shared/dateFormat";
+import { pressable } from "../shared/pressable";
 
 // Decision Record (brainstorm shipment 1). It answers one question six weeks
 // later: why did I choose this? No AI anywhere in this folder: the record is
@@ -236,7 +237,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
               <div className="pad-x"><div className="card">
                 <div className="row">
                   <div className="row-grow"><div className="conn-name">Shows on Today</div></div>
-                  <div className="chip" role="button" tabIndex={0} onClick={() => setRevisitOpen(!revisitOpen)}>
+                  <div {...pressable(() => setRevisitOpen(!revisitOpen))} className="chip">
                     {d.revisitOn ? fmtDay(d.revisitOn) : "No Date"}
                   </div>
                 </div>
@@ -247,7 +248,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
                   <div className="row">
                     <input type="date" className="input" value={d.revisitOn ?? ""}
                       onChange={(e) => { void patch(record.id, { revisitOn: e.target.value || undefined }); setRevisitOpen(false); }} />
-                    {d.revisitOn && <div className="chip" role="button" tabIndex={0} onClick={() => { void patch(record.id, { revisitOn: undefined }); setRevisitOpen(false); }}>Clear</div>}
+                    {d.revisitOn && <div {...pressable(() => { void patch(record.id, { revisitOn: undefined }); setRevisitOpen(false); })} className="chip">Clear</div>}
                   </div>
                 )}
               </div></div>
@@ -283,7 +284,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
             <>
               <div className="sh2 sh2-quiet"><span className="t">Replaces</span></div>
               <div className="pad-x"><div className="card">
-                <div className="row" role="button" tabIndex={0} onClick={() => goRecord(older.id)}>
+                <div {...pressable(() => goRecord(older.id))} className="row">
                   <div className="row-stack">
                     <div className="dec-old">{older.data.decision}</div>
                     <div className="dec-meta">Recorded {fmtDay(older.data.createdAt)}</div>
@@ -298,7 +299,7 @@ export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsume
             <>
               <div className="sh2 sh2-quiet"><span className="t">Replaced By</span></div>
               <div className="pad-x"><div className="card">
-                <div className="row" role="button" tabIndex={0} onClick={() => goRecord(newer.id)}>
+                <div {...pressable(() => goRecord(newer.id))} className="row">
                   <div className="row-stack">
                     <div className="conn-name">{newer.data.decision}</div>
                     <div className="dec-meta">Recorded {fmtDay(newer.data.createdAt)}</div>
@@ -394,7 +395,7 @@ function ListScreen({ live, loading, projCat, onBack, onOpen, onAdd }: {
       {live.length > 0 && (
         <div className="pad-x"><div className="card list-card-ruled nav-card">
           {live.map((r) => (
-            <div className="lib-row" key={r.id} role="button" tabIndex={0} onClick={() => onOpen(r.id)}>
+            <div {...pressable(() => onOpen(r.id))} className="lib-row" key={r.id}>
               <div className={"lib-ico " + glyphClass(r, projCat)}>{DECISION_ICO}</div>
               <div className="lib-stack">
                 <div className="msg-line">

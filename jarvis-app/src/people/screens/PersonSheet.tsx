@@ -7,6 +7,7 @@ import { FormSheet, Group, Row, FieldRow, MenuRow, TextRow, Strip, DeleteRow, Er
 import HeadMenu from "../../shared/HeadMenu";
 import { User, Tag, PenLine } from "../../shared/icons";
 import { PeopleGlyph, EnvelopeGlyph, GiftGlyph, PhoneGlyph } from "../../shared/glyphs";
+import { pressable } from "../../shared/pressable";
 
 export interface SheetCategoryOpt { id: string; name: string; color: ColorSlot }
 
@@ -112,8 +113,8 @@ export default function PersonSheet({
       <Group label="Who They Are to You">
         <Strip>
           {LABEL_CHIPS.map((l) => (
-            <div key={l} className={"chip" + (relationship === l ? " active" : "")} role="button" tabIndex={0} aria-pressed={relationship === l}
-              onClick={() => setRelationship(relationship === l ? "" : l)}>{l}</div>
+            <div {...pressable(() => setRelationship(relationship === l ? "" : l))} key={l} className={"chip" + (relationship === l ? " active" : "")} aria-pressed={relationship === l}
+>{l}</div>
           ))}
         </Strip>
         <FieldRow tone="purple" glyph={<PeopleGlyph />} value={(LABEL_CHIPS as readonly string[]).includes(relationship) ? "" : relationship}

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { CategoryKind } from "../categories/types";
 import PageHeader from "../shared/PageHeader";
 import { filledIcon } from "../shared/filledIcons";
+import { pressable } from "../shared/pressable";
 
 // Inline icons so the build matches the approved preview exactly (no icon-name drift).
 const svg = (children: ReactNode) => (
@@ -92,7 +93,7 @@ export default function BrainPage({
   // the same fill language, aimed at his content. Outline glyphs are the
   // inside-a-card state and no longer appear in nav lists.
   const Row = (r: BrainRow) => (
-    <div className="lib-row" key={r.key} role="button" tabIndex={0} onClick={() => onOpen(r.key, r.name)}>
+    <div {...pressable(() => onOpen(r.key, r.name))} className="lib-row" key={r.key}>
       {r.color === "lib-ico-brand"
         ? <div className="lib-ico lib-ico-brand">{r.icon}</div>
         : <div className={"lib-ico lib-disc " + r.color}>{r.icon}</div>}

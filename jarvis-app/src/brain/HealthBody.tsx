@@ -17,6 +17,7 @@ import { dayPhrase } from "../money/bills";
 import { TaskRow } from "../tasks/screens/TasksPage";
 import type { TaskItem } from "../tasks/TasksService";
 import type { ParentLine } from "../life/parent";
+import { pressable } from "../shared/pressable";
 
 // THE HEALTH PAGE (Check, Health, Stop, Dave 2026-09-02: "The next session,
 // then the week, then the numbers"; after "I don't like any of these" on
@@ -147,7 +148,7 @@ export default function HealthBody({
     // meta line until there is a log to date.
     const meta = !latest ? null : latest.data.date === today ? "Today" : (() => { const p = dayPhrase(latest.data.date, today); return p.charAt(0).toUpperCase() + p.slice(1); })();
     return (
-      <div className="h-tile" role="button" tabIndex={0} key={def.id} onClick={() => onOpenMetric(def)}>
+      <div {...pressable(() => onOpenMetric(def))} className="h-tile" key={def.id}>
         <div className="ht-w">{def.data.name}</div>
         <div className="ht-n">
           {val ? val.map((p, i) => <span key={i}>{p.big}{p.small && <small>{p.small}</small>}</span>) : <span className="ht-none">Log it</span>}
@@ -163,7 +164,7 @@ export default function HealthBody({
       {/* THE HERO: the next session, with Start on it, and the week under it. */}
       <div className="pad-x h-hero-wrap"><div className="card list-card-ruled h-hero-card">
         {next ? (
-          <div className="h-hero" role="button" tabIndex={0} onClick={onOpenGym}>
+          <div {...pressable(onOpenGym)} className="h-hero">
             <span className="h-hero-ico"><BarbellGlyph /></span>
             <div className="h-hero-b">
               <div className="h-hero-t">{next.day.name}</div>
@@ -172,7 +173,7 @@ export default function HealthBody({
             <button className="pill-act" onClick={(e) => { e.stopPropagation(); onStart(next.day.id); }}>Start</button>
           </div>
         ) : (
-          <div className="h-hero" role="button" tabIndex={0} onClick={onOpenGym}>
+          <div {...pressable(onOpenGym)} className="h-hero">
             <span className="h-hero-ico"><BarbellGlyph /></span>
             <div className="h-hero-b">
               <div className="h-hero-t">{program ? program.data.name : "Set Up a Program"}</div>
@@ -187,7 +188,7 @@ export default function HealthBody({
           ))}
         </div>
         {training?.last && (
-          <div className="task-row p2 h-last" role="button" tabIndex={0} onClick={onOpenGym}>
+          <div {...pressable(onOpenGym)} className="task-row p2 h-last">
             <div className="task-title">
               <span className="task-name">Last session</span>
               <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(`${training.last.dayName} · ${agoPhrase(training.last.date, today)} · ${training.last.minutes}m`)}</span></div>
@@ -212,7 +213,7 @@ export default function HealthBody({
       <div className="sh2 sh2-quiet"><span className="t">Log It</span></div>
       <div className="pad-x"><div className="card list-card-ruled">
         {healthLoggers.map((l) => (
-          <div className="task-row p2" role="button" tabIndex={0} key={l.key} onClick={() => onOpenHealthLogger(l.key)}>
+          <div {...pressable(() => onOpenHealthLogger(l.key))} className="task-row p2" key={l.key}>
             <div className="task-title">
               <span className="task-name">{l.label}</span>
               {l.sub && <div className="r-k"><span className="r-goal r-cat">{l.sub}</span></div>}
@@ -227,7 +228,7 @@ export default function HealthBody({
         <button className="see-all pill-action" onClick={onManageMetrics}>Add</button></div>
       {shownMetrics.length === 0 ? (
         <div className="pad-x"><div className="card list-card-ruled">
-          <div className="task-row p2" role="button" tabIndex={0} onClick={onManageMetrics}>
+          <div {...pressable(onManageMetrics)} className="task-row p2">
             <div className="task-title"><span className="task-name">Track anything you want</span>
               <div className="r-k"><span className="r-goal r-cat">Sleep, bodyweight, soreness, or your own</span></div></div>
             {CHEV}

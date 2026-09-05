@@ -4,6 +4,7 @@ import type { Person } from "./types";
 import type { AIService } from "../ai/AIService";
 import { draftSystemPrompt, smsLink, DRAFT_TONES, TONE_LABEL, type DraftTone } from "./messageDraft";
 import { personInitials, avatarClass } from "./types";
+import { onPressKey } from "../shared/pressable";
 
 // Messages Drafting (addendum item 3, approved preview 2026-08-15). The
 // draft exists at open; the textarea IS the edit surface; Open in Messages
@@ -68,7 +69,7 @@ export default function MessageDraftSheet({
           </div>
           <div className="seg-card"><div className="segmented">
             {DRAFT_TONES.map((t) => (
-              <div key={t} className={"seg" + (tone === t ? " active" : "")} role="radio" aria-checked={tone === t} tabIndex={0} onClick={() => pickTone(t)}>
+              <div key={t} className={"seg" + (tone === t ? " active" : "")} role="radio" aria-checked={tone === t} tabIndex={0} onClick={() => pickTone(t)} onKeyDown={onPressKey(() => pickTone(t))}>
                 {TONE_LABEL[t]}
               </div>
             ))}

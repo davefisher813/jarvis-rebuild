@@ -12,6 +12,7 @@ import { Nums } from "../bigger/GoalRowRuled";
 import { CheckCircleGlyph, SunriseGlyph } from "../shared/glyphs";
 import { usePushDepth } from "../shared/pushNav";
 import PageHeader from "../shared/PageHeader";
+import { pressable } from "../shared/pressable";
 
 // INSIGHTS IS PURE TIME (the Life Merge, Dave 2026-08-26: "it's stupid
 // having them separate"). The life layer this surface carried for one day
@@ -124,7 +125,7 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
         {/* THIS MONTH: the living report, one tap away, honestly labeled. */}
         <div className="sh2 sh2-quiet"><span className="t">This Month</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row" role="button" tabIndex={0} onClick={() => setScreen({ kind: "live" })}>
+          <div {...pressable(() => setScreen({ kind: "live" }))} className="row">
             <div className="row-grow">
               <div className="conn-name">{monthName(monthKey)}, So Far</div>
               {/* THE SUB IS NOT A KICKER (Dave 2026-09-03, pic 5: "too much
@@ -149,7 +150,7 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
           {[...seals].reverse().map((s) => {
             const moved = movedIn(s.data.month, goals, projects).length + (s.data.saved > 0 ? 1 : 0);
             return (
-              <div className="row" role="button" tabIndex={0} key={s.id} onClick={() => setScreen({ kind: "month", month: s.data.month })}>
+              <div {...pressable(() => setScreen({ kind: "month", month: s.data.month }))} className="row" key={s.id}>
                 <div className="row-grow">
                   <div className="conn-name">{monthName(s.data.month)} {s.data.month.slice(0, 4)}</div>
                   <div className="r-k"><span className="r-goal r-cat"><Nums text={capAfterNumber(`${moved} moved · ${s.data.done} done`)} /></span></div>
@@ -169,7 +170,7 @@ export default function InsightsFlow({ onBack, onOpenTask }: {
         {/* THE LONG STORY: the ledger that only grows. */}
         <div className="sh2 sh2-quiet"><span className="t">The Ledger</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
-          <div className="row" role="button" tabIndex={0} onClick={() => setScreen({ kind: "story" })}>
+          <div {...pressable(() => setScreen({ kind: "story" }))} className="row">
             <div className="row-glyph rep-good-glyph"><CheckCircleGlyph /></div>
             <div className="row-grow">
               <div className="conn-name">The Long Story</div>

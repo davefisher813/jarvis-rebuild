@@ -7,6 +7,7 @@ import { attemptWrite } from "../shared/guard";
 import PageHeader from "../shared/PageHeader";
 import { Head, Card, Row, Switch, Foot } from "../settings/kit";
 import { FormSheet, Group, FieldRow, Strip, Note, ErrorLine, DeleteRow } from "../shared/FormSheet";
+import { pressable } from "../shared/pressable";
 
 
 // minutes-from-midnight <-> "HH:MM" for native time inputs.
@@ -304,7 +305,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
               <Group label="Quick Add">
                 <Strip>
                   {PRESETS.map((p) => (
-                    <div className="chip" role="button" tabIndex={0} key={p.label} onClick={() => applyPreset(p)}>{p.label}</div>
+                    <div {...pressable(() => applyPreset(p))} className="chip" key={p.label}>{p.label}</div>
                   ))}
                 </Strip>
               </Group>
@@ -321,7 +322,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
             <Group label="What Is It">
               <Strip>
                 {KINDS.map(({ k, label: kl }) => (
-                  <div className={"chip" + (form.kind === k ? " active" : "")} role="button" tabIndex={0} key={k} aria-pressed={form.kind === k} onClick={() => setForm({ ...form, kind: k })}>{kl}</div>
+                  <div {...pressable(() => setForm({ ...form, kind: k }))} className={"chip" + (form.kind === k ? " active" : "")} key={k} aria-pressed={form.kind === k}>{kl}</div>
                 ))}
               </Strip>
             </Group>
@@ -335,13 +336,10 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
             <Group label="What Happens in This Block">
               <Strip>
                 {(["holds", "protects", "blends"] as BlockMode[]).map((m) => (
-                  <div
+                  <div {...pressable(() => setForm({ ...form, mode: m === dflt ? null : m }))}
                     className={"chip" + (eff === m ? " active" : "")}
-                    role="button"
-                    tabIndex={0}
                     key={m}
                     aria-pressed={eff === m}
-                    onClick={() => setForm({ ...form, mode: m === dflt ? null : m })}
                   >{MODE_LABEL[m]}</div>
                 ))}
               </Strip>
@@ -352,20 +350,17 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
                     {FREE_CHANNELS.map((c) => {
                       const on = (form.free.length ? form.free : freeOf({ kind: form.kind })).includes(c);
                       return (
-                        <div
-                          className={"chip" + (on ? " active" : "")}
-                          role="button"
-                          tabIndex={0}
-                          key={c}
-                          aria-pressed={on}
-                          onClick={() => {
+                        <div {...pressable(() => {
                             const cur = form.free.length ? form.free : freeOf({ kind: form.kind });
                             const next = cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c];
                             // Never let it reach zero: a block with nothing
                             // free can never receive anything, which is a
                             // dead setting wearing a live control.
                             setForm({ ...form, free: next.length ? next : cur });
-                          }}
+                          })}
+                          className={"chip" + (on ? " active" : "")}
+                          key={c}
+                          aria-pressed={on}
                         >{c === "mouth" ? "Mouth" : c === "hands" ? "Hands" : "Ears"}</div>
                       );
                     })}
@@ -398,7 +393,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
             <Group label="Days">
               <Strip>
                 {DOW_LETTER.map((ltr, d) => (
-                  <div className={"chip" + (form.days.includes(d) ? " active" : "")} role="button" tabIndex={0} key={d} aria-pressed={form.days.includes(d)} aria-label={DOW_ABBR[d]} onClick={() => toggleDay(d)}>{ltr}</div>
+                  <div {...pressable(() => toggleDay(d))} className={"chip" + (form.days.includes(d) ? " active" : "")} key={d} aria-pressed={form.days.includes(d)} aria-label={DOW_ABBR[d]}>{ltr}</div>
                 ))}
               </Strip>
             </Group>
