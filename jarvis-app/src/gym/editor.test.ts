@@ -125,3 +125,20 @@ describe("GYM-F-14: a parked session stays parked", () => {
     expect(flow).toContain("Resume {parkedLive.dayName}");
   });
 });
+
+// GYM-F-16 (2026-09-05): accepting a suggestion on a SWAPPED exercise
+// rewrote the original lift's plan, because Swap keeps the original slot's
+// exerciseId and acceptSuggestion trusted that id as a program identity.
+describe("GYM-F-16: only the lift that is really in the plan moves the plan", () => {
+  const flow = src("GymFlow.tsx");
+
+  it("acceptSuggestion checks identity, not just the slot id", () => {
+    expect(flow).toMatch(/const behind = entry \? programExerciseFor\(entry, day\) : undefined;\s*\n\s*if \(!behind \|\| behind\.id !== ex\.id\)/);
+    // The old guard trusted the slot id alone.
+    expect(flow).not.toContain("!day.exercises.some((e) => e.id === ex.id)");
+  });
+
+  it("a swapped or added exercise says the plan did not move rather than moving it silently", () => {
+    expect(flow).toContain("is not in this day's plan, so nothing moved");
+  });
+});

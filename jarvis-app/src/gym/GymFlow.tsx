@@ -907,7 +907,21 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     if (!program || !live) return;
     const week = program.data.weeks.find((w) => w.days.some((d) => d.id === live.dayId));
     const day = week?.days.find((d) => d.id === live.dayId);
-    if (!week || !day || !day.exercises.some((e) => e.id === ex.id)) return;
+    if (!week || !day) return;
+    // GYM-F-16 (2026-09-05): Swap deliberately keeps the ORIGINAL slot's
+    // exerciseId so the This Session list stays stable
+    // (liveSession.ts:169-177), and this handler trusted that id as a program
+    // identity. Swap Bench for DB Press, accept DB Press's suggestion, and the
+    // toast said "DB Press plan moved to 55 lb x 10" while the program's BENCH
+    // strip was what changed. The set is logged either way (SessionScreen logs
+    // it before calling this); only a lift that really is this program
+    // exercise moves the program's own plan.
+    const entry = live.exercises[live.idx];
+    const behind = entry ? programExerciseFor(entry, day) : undefined;
+    if (!behind || behind.id !== ex.id) {
+      showToast({ message: `Set logged · ${ex.name} is not in this day's plan, so nothing moved` });
+      return;
+    }
     const days = week.days.map((d) => (d.id !== day.id ? d : {
       ...d, exercises: d.exercises.map((e) => (e.id === ex.id ? applySuggestion(e, sug) : e)),
     }));
