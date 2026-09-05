@@ -244,6 +244,18 @@ describe("BROWSER-F-07: the bare-text buttons reach the tap minimum", () => {
     }
   });
 
+  // SHARED-F-10 joined this list on the same day: the toast's Undo is the one
+  // control that replaces every confirm dialog in the app, and it painted 26px
+  // with no expander at all. A miss lands on the toast body, which does
+  // nothing, while the five second timer runs out.
+  it("the toast action wears it too", () => {
+    const bare = css().replace(/\/\*[\s\S]*?\*\//g, "");
+    const wearing = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter((m) => m[1]!.split(",").some((s) => s.trim() === `${UTILITY}::after`))
+      .flatMap((m) => m[1]!.split(",").map((s) => s.trim()));
+    expect(wearing).toContain(".toast-action::after");
+  });
+
   it("the reminder name in the Today strip carries tap44 at its call site", () => {
     const src = readFileSync(join(SRC, "today/RemindersStrip.tsx"), "utf8");
     expect(src).toMatch(/className="row-grow tap44"[^>]*role="button"/);

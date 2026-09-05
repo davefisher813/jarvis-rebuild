@@ -472,6 +472,11 @@ describe("LAW: Apple HIG casing", () => {
       // home page now wears Plan My Day's ghost pill instead of bare text,
       // same ~30px painted size as plan-cta itself.
       "pill-action": "30px home-page head action (See All, Open Inbox, Schedule...), ghosted to match Plan My Day",
+      // Added 2026-09-05 (SHARED-F-10). This is the control that replaces
+      // every confirm dialog in the app: the Undo on a five second timer. It
+      // painted at 26px with no expander at all, and a miss lands on the toast
+      // body, which does nothing, while the timer runs out.
+      "toast-action": "26px Undo, the app's only take-it-back",
     };
     for (const [cls, why] of Object.entries(small)) {
       // Either an ::after carrying inset/height, or a wrapper that is itself

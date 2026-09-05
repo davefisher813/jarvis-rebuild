@@ -1544,17 +1544,23 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
    paint, plus 8px of side reach for the narrow ones, and it never moves a
    pixel of layout.
 
-   TWO CONTROLS FROM THE FINDING ARE DELIBERATELY NOT HERE. .toast-action is
-   its own finding (SHARED-F-10) and lands with it. .sched-until-btn refused
-   this on 2026-08-24 for a reason that still holds: it sits mid-sentence
+   .toast-action joined this list under SHARED-F-10 (2026-09-05): it is the one
+   control that replaces every confirm dialog in the app, it painted about 26px
+   with no expander at all (components.css:1236, --s-1 is 4px on 15px type),
+   and a miss lands on the toast body, which does nothing, while the five
+   second timer runs out and the Undo is gone. The toast's own 10px of padding
+   already holds the 9px this needs on each side, so the toast does not grow.
+   .sched-until-btn is still not here. It refused this on 2026-08-24 for a
+   reason that still holds: it sits mid-sentence
    inside a row that is ITSELF role="button", so every pixel the expander
    takes is a pixel the row silently loses, and reaching 44 there once made
    tapping an event open the length editor instead of the event. Its comment
    at :2535 argues the case; it keeps its 26px. A control inside a tappable
    row expands only into free space. */
-.tap44, .p3-time-btn, .upnext-skip, .search-cancel, .ob-x, .note-conn-add, .note-fix { position: relative; }
+.tap44, .p3-time-btn, .upnext-skip, .search-cancel, .ob-x, .note-conn-add, .note-fix,
+.toast-action { position: relative; }
 .tap44::after, .p3-time-btn::after, .upnext-skip::after, .search-cancel::after,
-.ob-x::after, .note-conn-add::after, .note-fix::after {
+.ob-x::after, .note-conn-add::after, .note-fix::after, .toast-action::after {
   content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   min-width: var(--tap-min); min-height: var(--tap-min);
   width: calc(100% + var(--s-4)); height: 100%;
