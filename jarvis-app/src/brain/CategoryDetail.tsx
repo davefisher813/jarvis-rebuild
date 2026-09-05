@@ -27,7 +27,7 @@ import { completionSamples } from "../events/completions";
 import { todayISO } from "../tasks/grouping";
 import { nextActionOf } from "../bigger/related";
 import { dayPhrase } from "../money/bills";
-import { fmtTime, addMinutes } from "../schedule/calendar";
+import { fmtTime, addMinutes, addDays } from "../schedule/calendar";
 import { FIFTEEN } from "../tasks/rightNow";
 import { attemptWrite } from "../shared/guard";
 import { buildParentIndex, parentForTask } from "../life/parent";
@@ -530,8 +530,11 @@ export default function CategoryDetail({
     }
   };
   const snoozeTask = async (id: string) => {
-    const d = new Date(today + "T00:00:00"); d.setDate(d.getDate() + 1);
-    const tomorrow = d.toISOString().slice(0, 10);
+    // BRAIN-F-02 (2026-09-05): tomorrow used to be local midnight run
+    // through toISOString(), which reads the UTC date and is still today
+    // anywhere east of Greenwich. "Moved to tomorrow" then moved nothing.
+    // addDays steps with setDate and formats from local getters.
+    const tomorrow = addDays(today, 1);
     const ok = await attemptWrite(() => tasksSvc.setDue(id, tomorrow));
     await reload();
     if (ok) showToast({ message: "Moved to tomorrow" });

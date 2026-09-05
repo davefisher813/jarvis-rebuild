@@ -272,3 +272,48 @@ describe("CategoryDetail health loggers (S5-Q29)", () => {
     expect(screen.queryByText(/\d\/10|severe|mild|injury/i)).not.toBeInTheDocument();
   });
 });
+
+// BRAIN-F-02 (2026-09-05): "Moved to tomorrow" was a no-op east of UTC.
+// snoozeTask serialised local midnight with toISOString(), which reads the
+// UTC date; in Tokyo tomorrow's midnight is 15:00 UTC today, so the due
+// date it wrote back was today. The real page, the real swipe button, a
+// zone nine hours ahead of Greenwich.
+import { todayISO as localToday } from "../tasks/grouping";
+
+let snoozed: { svc: ReturnType<typeof useTasks>; id: string } | null = null;
+function SeededDueToday() {
+  const tasks = useTasks();
+  const cats = useCategories();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const id = await cats.create("Bridge", "blue");
+      const tid = await tasks.createTask("Email Sam", { category: id!, due: localToday() });
+      snoozed = { svc: tasks, id: tid! };
+      setCid(id!);
+    })();
+  }, [tasks, cats]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
+}
+
+describe("CategoryDetail snooze (BRAIN-F-02)", () => {
+  it("Tomorrow lands on the next local day under Asia/Tokyo", async () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Asia/Tokyo";
+    try {
+      render(<NotesProvider userId="tz-brain-02"><SeededDueToday /></NotesProvider>);
+      await waitFor(() => expect(screen.getByRole("button", { name: "Move to tomorrow" })).toBeInTheDocument());
+      const today = localToday();
+      const d = new Date(); d.setDate(d.getDate() + 1);
+      const want = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      expect(want).not.toBe(today);
+      fireEvent.click(screen.getByRole("button", { name: "Move to tomorrow" }));
+      await waitFor(async () => {
+        const t = await snoozed!.svc.task(snoozed!.id);
+        expect(t?.due).toBe(want);
+      });
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
+});

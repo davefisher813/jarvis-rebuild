@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { DecisionLinkType } from "./types";
 import { FormSheet, Group, Row, FieldRow, Strip, ErrorLine } from "../shared/FormSheet";
 import HeadMenu from "../shared/HeadMenu";
+import { todayISO, addDays } from "../schedule/calendar";
 
 // The capture sheet (Screen 03) and the supersede sheet (Screen 05), one
 // component: a supersede is a capture with Attached To and Ruled Out carried
@@ -22,12 +23,11 @@ export interface DecisionDraft {
   revisitOn?: string;
 }
 
-const todayISO = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
-const addDaysISO = (iso: string, n: number) =>
-  new Date(new Date(iso + "T00:00:00").getTime() + n * 86400000).toISOString().slice(0, 10);
+// BRAIN-F-02 (2026-09-05): the revisit dates used to be computed here with
+// a fixed 86,400,000ms step and toISOString(), which reads the UTC date.
+// East of Greenwich that made Week land 6 days out and Month 29, and on a
+// clocks-change day the fixed step drifts too. todayISO and addDays from the
+// calendar module walk with setDate and format from local getters.
 
 export default function DecisionCaptureSheet({
   mode = "new",
@@ -51,7 +51,7 @@ export default function DecisionCaptureSheet({
   const [revisit, setRevisit] = useState(initial?.revisitOn ?? "");
   const [err, setErr] = useState(false);
   const today = todayISO();
-  const revisitMode = revisit === "" ? "none" : revisit === addDaysISO(today, 7) ? "week" : revisit === addDaysISO(today, 30) ? "month" : "pick";
+  const revisitMode = revisit === "" ? "none" : revisit === addDays(today, 7) ? "week" : revisit === addDays(today, 30) ? "month" : "pick";
 
   const addRule = () => {
     const v = ruleDraft.trim();
@@ -107,9 +107,9 @@ export default function DecisionCaptureSheet({
       <Group label="Revisit">
         <Strip>
           <div className={"chip" + (revisitMode === "none" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit("")}>None</div>
-          <div className={"chip" + (revisitMode === "week" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDaysISO(today, 7))}>Week</div>
-          <div className={"chip" + (revisitMode === "month" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDaysISO(today, 30))}>Month</div>
-          <div className={"chip" + (revisitMode === "pick" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(revisitMode === "pick" && revisit ? revisit : addDaysISO(today, 14))}>Pick</div>
+          <div className={"chip" + (revisitMode === "week" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDays(today, 7))}>Week</div>
+          <div className={"chip" + (revisitMode === "month" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(addDays(today, 30))}>Month</div>
+          <div className={"chip" + (revisitMode === "pick" ? " active" : "")} role="button" tabIndex={0} onClick={() => setRevisit(revisitMode === "pick" && revisit ? revisit : addDays(today, 14))}>Pick</div>
         </Strip>
         {revisitMode === "pick" && (
           <FieldRow ariaLabel="Revisit date" type="date" value={revisit} onChange={setRevisit} />
