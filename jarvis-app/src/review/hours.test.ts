@@ -106,6 +106,21 @@ describe("the rows the report draws", () => {
     expect(rows.reduce((a, r) => a + r.pct, 0)).toBeGreaterThanOrEqual(99);
   });
 
+  // BRAIN-F-23 (2026-09-05): the uncategorised bucket and the remainder both
+  // key "", so a busy month emitted two of them and the report drew
+  // "Everything else" twice under one React key.
+  it("uncategorised time and the remainder are one row, not two", () => {
+    const many: Record<string, number> = { "": 150 };
+    for (let i = 0; i < HOURS_TOP_N + 3; i++) many["c" + i] = 200 - i;
+    const rows = hoursRows(many);
+    expect(rows.filter((r) => r.category === "")).toHaveLength(1);
+    expect(new Set(rows.map((r) => r.category)).size).toBe(rows.length);
+    // Nothing is lost in the fold: every minute is still counted somewhere.
+    const total = Object.values(many).reduce((a, b) => a + b, 0);
+    expect(rows.reduce((a, r) => a + r.minutes, 0)).toBe(total);
+    expect(rows.reduce((a, r) => a + r.pct, 0)).toBeGreaterThanOrEqual(99);
+  });
+
   it("never carries a target, an ideal split or a verdict", () => {
     // The whole section is two numbers per area. There is no third number for
     // it to fall short of, and this test is what stops one being added.

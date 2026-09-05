@@ -129,7 +129,19 @@ export function hoursRows(byCategory: Record<string, number>): HoursRow[] {
   const rows: HoursRow[] = top.map(([category, minutes]) => ({
     category, minutes, pct: Math.round((minutes / total) * 100),
   }));
-  if (rest > 0) rows.push({ category: "", minutes: rest, pct: Math.round((rest / total) * 100) });
+  // BRAIN-F-23 (2026-09-05): the uncategorised bucket and the remainder both
+  // key "", so a month with six or more areas on the calendar PLUS untagged
+  // time in the top five emitted two "" rows: the report rendered "Everything
+  // else" twice (ReportPage.tsx:155, 160 key on r.id || "rest") and React
+  // warned about the duplicate key. They are one row, which is what the
+  // legend was always going to call them.
+  if (rest > 0) {
+    const already = rows.find((r) => r.category === "");
+    if (already) already.minutes += rest;
+    else rows.push({ category: "", minutes: rest, pct: 0 });
+    const row = rows.find((r) => r.category === "")!;
+    row.pct = Math.round((row.minutes / total) * 100);
+  }
   return rows;
 }
 
