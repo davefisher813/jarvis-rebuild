@@ -118,6 +118,7 @@ import { suggestAttachment, suggestLine, noteAsText, attachmentFilename, type At
 import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
 import { mightProposeTimes, meetingPrompt, parseMeetingTimes, optionsAgainst, firstFree, meetingLine, MEETING_SYSTEM } from "./meetingTimes";
 import { sweepPrompt, parseSweep, needsSweep, liveSweep, loadSweep, saveSweep, SWEEP_SYSTEM, type SentItem } from "./sentSweep";
+import { pressable } from "../shared/pressable";
 import { fullThreadsFor, SENT_BODY_CAP } from "./sentBodies";
 import { laterTaskTitle } from "./deck";
 
@@ -2288,9 +2289,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <div className="sh2 sh2-quiet"><span className="t">Who Fills Your Inbox</span></div>
             <div className="pad-x"><div className="card list-card-ruled">
               {piles.map((p) => (
-                <div className="row" role="button" tabIndex={0} key={p.email}
-                  aria-pressed={picks.has(p.email)}
-                  onClick={() => toggle(p.email)}>
+                <div className="row" {...pressable(() => toggle(p.email))} key={p.email}
+                  aria-pressed={picks.has(p.email)}>
                   <span className={"cb" + (picks.has(p.email) ? " on" : "")} aria-label={picks.has(p.email) ? "Picked" : "Not picked"}>
                     {picks.has(p.email) ? "\u2713" : ""}
                   </span>
@@ -2500,7 +2500,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         {vipRows.length > 0 && (
           <div className="pad-x"><div className="card list-card-ruled">
             {vipRows.map((r) => (
-              <div className="row" role="button" tabIndex={0} key={r.id} onClick={() => { setPeeked(true); void openThread(r.id); }}>
+              <div className="row" {...pressable(() => { setPeeked(true); void openThread(r.id); })} key={r.id}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{displayName(r.from)}</div>
                   <div className="conn-meta truncate">VIP · {r.subject}</div>
@@ -2841,8 +2841,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     <div className="conn-meta">No emails in People yet</div>
                   </div></div>
                 ) : handTargets.map((t) => (
-                  <div className="row" role="button" tabIndex={0} key={t.email}
-                    onClick={() => void handOffTo(thread, t)}>
+                  <div className="row" {...pressable(() => void handOffTo(thread, t))} key={t.email}>
                     <div className="row-grow">
                       <div className="line-between">
                         <span className="conn-name">{t.name}</span>
@@ -3073,9 +3072,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       onArchive={() => archiveRow(r)}
       onDelete={() => void trashThread(r.id, r.account)}
     >
-    <div className="row" role="button" tabIndex={0}
-      aria-pressed={selecting ? picked!.has(r.id) : undefined}
-      onClick={() => (selecting ? togglePick(r.id) : void openThread(r.id))}>
+    <div className="row" {...pressable(() => (selecting ? togglePick(r.id) : void openThread(r.id)))}
+      aria-pressed={selecting ? picked!.has(r.id) : undefined}>
       {/* Reserved column: read and unread rows share one text edge. */}
       {selecting ? (
         <span className={"cb" + (picked!.has(r.id) ? " on" : "")} aria-label={picked!.has(r.id) ? "Picked" : "Not picked"}>{picked!.has(r.id) ? "\u2713" : ""}</span>
@@ -3200,7 +3198,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {said.length === 0 ? (
             <div className="row"><div className="row-grow"><div className="conn-meta">{saidEmpty("")}</div></div></div>
           ) : said.map((h, i) => (
-            <div className="row" role="button" tabIndex={0} key={h.threadId + i} onClick={() => void openThread(h.threadId)}>
+            <div className="row" {...pressable(() => void openThread(h.threadId))} key={h.threadId + i}>
               <div className="row-grow">
                 <div className="conn-name">&ldquo;{h.quote}&rdquo;</div>
                 <div className="conn-meta">{monthDay(h.dateISO)} · {h.subject}</div>
@@ -3258,7 +3256,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         ) : (
           <div><div className="list-flat">
             {drafts.map((d) => (
-              <div className="row" role="button" tabIndex={0} key={d.id} onClick={() => void openDraft(d.id, d.account)}>
+              <div className="row" {...pressable(() => void openDraft(d.id, d.account))} key={d.id}>
                 <div className="row-grow">
                   {/* The raw To header used to sit here: "Marcus Delaney
                       <marcus@northlake.org>", and the whole comma-joined
@@ -3375,8 +3373,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {triageState === "ready" && (needsYou.length > 0 || unmutedRows.length > 0) && (
             <div className="pad-x mode-deck">
               {needsYou.length > 0 && (
-                <div className="mode-card mode-hero" role="button" tabIndex={0}
-                  onClick={() => { setDeckRows(needsYou); setView("deck"); }}>
+                <div className="mode-card mode-hero" {...pressable(() => { setDeckRows(needsYou); setView("deck"); })}>
                   <div className="mode-name">The Sweep</div>
                   <div className="mode-n">{needsYou.length}</div>
                   {/* CASING LAW APPLIES TO SCORECARDS (Dave 2026-08-29).
@@ -3390,8 +3387,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 </div>
               )}
               {unmutedRows.length > 0 && (
-                <div className="mode-card" role="button" tabIndex={0}
-                  onClick={() => { setPurgePicks(null); setView("purge"); }}>
+                <div className="mode-card" {...pressable(() => { setPurgePicks(null); setView("purge"); })}>
                   <div className="mode-name">Clean Out</div>
                   <div className="mode-n">{unmutedRows.length}</div>
                   {/* THE SURVIVING HALF IS THE USEFUL HALF (Dave 2026-08-29).
@@ -3419,7 +3415,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               picker it opens is the same one it always opened. */}
           {triageState === "ready" && needsYou.length > 0 && !drainOpen && (
             <div className="pad-x">
-              <div className="launch-row" role="button" tabIndex={0} onClick={() => setDrainOpen(true)}>
+              <div className="launch-row" {...pressable(() => setDrainOpen(true))}>
                 <span className="launch-ic" aria-hidden="true"><Clock className="ic" /></span>
                 <div className="row-grow">
                   <div className="launch-tt">Only a Few Minutes?</div>
@@ -3480,7 +3476,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             const oldest = Math.max(...owed.map((w) => w.waitingDays));
             return (
               <div className="pad-x">
-                <div className="launch-row" role="button" tabIndex={0} onClick={() => setWaitDeck(0)}>
+                <div className="launch-row" {...pressable(() => setWaitDeck(0))}>
                   <span className="launch-ic" aria-hidden="true"><MessageSquare className="ic" /></span>
                   <div className="row-grow">
                     <div className="launch-tt">One at a Time</div>
@@ -3504,14 +3500,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               rather than navigates and a chevron would lie about that. */}
           {needsYou.length > 0 && canSpeak() && (
             <div className="pad-x">
-              <div className="launch-row" role="button" tabIndex={0} onClick={() => {
+              <div className="launch-row" {...pressable(() => {
                 if (speaking) { stopSpeaking(); setSpeaking(false); return; }
                 const notices = mailNotices(loadMailSnapshot(), todayISO());
                 // EMAIL-F-25 (2026-09-05): the pill follows the voice. It
                 // used to be set from speak()'s return alone, so it stayed on
                 // Stop after the speech ended.
                 setSpeaking(speak(speakable(notices, inboxSentence(notices, loadMailSnapshot())), () => setSpeaking(false)));
-              }}>
+              })}>
                 <span className="launch-ic" aria-hidden="true"><Volume2 className="ic" /></span>
                 <div className="row-grow">
                   <div className="launch-tt">Read It to Me</div>
@@ -3741,7 +3737,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       onMore={d.alternates.length ? () => setMore({ row: w, d }) : undefined}
                       onLetGo={() => dropRow(w.threadId)}
                     >
-                    <div className="row" role="button" tabIndex={0} onClick={() => void startNudge(w)}>
+                    <div className="row" {...pressable(() => void startNudge(w))}>
                       <span className={railClass(false, railToneForWaiting(d.tone))}></span>
                       <div className="row-grow">
                         <div className="msg-line">
@@ -3791,7 +3787,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                         onMore={d.alternates.length ? () => setMore({ row: w, d }) : undefined}
                         onLetGo={() => dropRow(w.threadId)}
                       >
-                      <div className="row" role="button" tabIndex={0} onClick={() => dropRow(w.threadId)}>
+                      <div className="row" {...pressable(() => dropRow(w.threadId))}>
                         <span className="msg-rail"></span>
                         <div className="row-grow">
                           <div className="msg-line">
@@ -3820,7 +3816,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {restCount > 0 && (
             <div className="pad-x msg-fold">
               <div className="card">
-                <div className="row" role="button" tabIndex={0} onClick={() => { setRestOpen(!restOpen); setPicked(null); }}>
+                <div className="row" {...pressable(() => { setRestOpen(!restOpen); setPicked(null); })}>
                   <div className="row-grow">
                     <div className="conn-name">The Rest</div>
                     <div className="conn-meta msg-gist">
@@ -3869,7 +3865,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                             wearing the same weight as a person. The count is
                             a fact, not an alarm, and the one action ends the
                             lot. Tap the line to unfold if you want to look. */}
-                        <div className="msg-machines" role="button" tabIndex={0} onClick={() => setNoiseOpen(!noiseOpen)}>
+                        <div className="msg-machines" {...pressable(() => setNoiseOpen(!noiseOpen))}>
                           <span className="msg-machines-icon" aria-hidden="true"><Tag className="ic" /></span>
                           <span className="msg-machines-text">
                             {capAfterNumber(noise.length === 1 ? "1 machine wrote" : noise.length + " machines wrote")}
@@ -3890,7 +3886,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                             <>
                               {groups.map((g) => (
                                 <div key={g.key}>
-                                  <div className="row" role="button" tabIndex={0} onClick={() => setNoiseGroups((s) => ({ ...s, [g.key]: !s[g.key] }))}>
+                                  <div className="row" {...pressable(() => setNoiseGroups((s) => ({ ...s, [g.key]: !s[g.key] })))}>
                                     <div className="row-grow">
                                       <div className="conn-name">{g.from}</div>
                                       <div className="conn-meta msg-gist">{collapseLine(g)}</div>

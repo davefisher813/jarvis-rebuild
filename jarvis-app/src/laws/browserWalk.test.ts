@@ -433,7 +433,10 @@ describe("BROWSER-F-17: the inline time editor never covers the row it edits", (
 // shared/pressable.ts is the answer, and this law is how the slices that have
 // been swept stay swept. SCOPE grows as each finding lands: BRAIN-F-21,
 // EMAIL-F-31, HMN-F-24, SCHED-F-19, SHARED-F-22.
-const KEYBOARD_SCOPE = ["brain", "decisions", "people", "review", "routine"];
+const KEYBOARD_SCOPE = [
+  "brain", "decisions", "people", "review", "routine",   // BRAIN-F-21
+  "messages/MessagesFlow.tsx", "messages/MailMoreSheet.tsx", // EMAIL-F-31
+];
 
 describe("a role=button row can be pressed with a keyboard", () => {
   const walk = (dir: string): string[] => {
@@ -449,7 +452,10 @@ describe("a role=button row can be pressed with a keyboard", () => {
   it("every swept slice reaches its rows through pressable, or handles the keys itself", () => {
     const offenders: string[] = [];
     for (const slice of KEYBOARD_SCOPE) {
-      for (const file of walk(join(SRC, slice))) {
+      // A scope entry is a slice of the app or one file inside one: a slice
+      // that is only PART swept names its swept files until the rest lands.
+      const files = slice.endsWith(".tsx") ? [join(SRC, slice)] : walk(join(SRC, slice));
+      for (const file of files) {
         const src = readFileSync(file, "utf8");
         for (const m of src.matchAll(/role="(?:button|radio)"/g)) {
           // The whole opening tag: from its "<" to the ">" that closes it,
