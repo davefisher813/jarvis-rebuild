@@ -102,10 +102,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Policy already promises one. Deleting the auth user (and everything
       // it owns) needs the service-role key, which never belongs on a
       // client, so this calls the same deployed API every other privileged
-      // JARVIS call already routes through (see AIService, tracking.ts) --
-      // a companion endpoint there, not in this repo, does the actual
-      // deletion. This throws a real error rather than pretending success
-      // until that endpoint exists.
+      // JARVIS call already routes through (see AIService, tracking.ts).
+      //
+      // SHELL-F-03 (2026-09-05): that endpoint is api/account/delete.ts in
+      // this repo now. It was described here as "a companion endpoint there,
+      // not in this repo" and was never written, so this tap answered
+      // "Couldn't delete your account (404)" every time it was made.
       deleteAccount: async () => {
         if (!supabase) throw new Error("Auth backend not configured");
         const token = session?.access_token;
@@ -115,8 +117,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) {
-          const detail = await res.text().catch(() => "");
-          throw new Error(`Couldn't delete your account (${res.status}). ${detail}`.trim());
+          // The endpoint replies { error } in its own words when it has any
+          // (the not-configured case is the one worth reading); otherwise
+          // the status is all there is to say.
+          const body = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error || `Couldn't delete your account (${res.status})`);
         }
         await supabase.auth.signOut();
         clearPreload();

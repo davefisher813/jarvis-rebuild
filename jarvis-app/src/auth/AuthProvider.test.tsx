@@ -69,7 +69,7 @@ describe("sendPasswordReset", () => {
 
 describe("deleteAccount", () => {
   it("POSTs to the deployed account-delete endpoint with the session's bearer token, then signs out locally", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, text: () => Promise.resolve("") });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ ok: true }) });
     vi.stubGlobal("fetch", fetchMock);
     const get = renderAuth();
     await waitFor(() => expect(get().ready).toBe(true));
@@ -82,11 +82,28 @@ describe("deleteAccount", () => {
   });
 
   it("a failed delete throws a real, specific error and never signs out", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404, text: () => Promise.resolve("no such endpoint") });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404, json: () => Promise.resolve(null) });
     vi.stubGlobal("fetch", fetchMock);
     const get = renderAuth();
     await waitFor(() => expect(get().ready).toBe(true));
     await expect(get().deleteAccount()).rejects.toThrow(/404/);
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  // SHELL-F-03 (2026-09-05): the endpoint says why in its own words when it
+  // has any, and that sentence is what the Account screen shows. A server
+  // that cannot delete (no service-role key) must not read as a generic
+  // number the person can do nothing with.
+  it("shows the server's own reason when it gives one", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ error: "Account deletion is not configured on the server" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await expect(get().deleteAccount()).rejects.toThrow("Account deletion is not configured on the server");
     expect(signOut).not.toHaveBeenCalled();
   });
 });

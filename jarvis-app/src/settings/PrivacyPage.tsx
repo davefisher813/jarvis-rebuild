@@ -33,7 +33,10 @@ export default function PrivacyPage({ onBack, back }: { onBack: () => void; back
       <p>When enabled in Settings, mail you send through JARVIS includes an invisible image that reports back when the message is first displayed. Only an anonymous identifier and a timestamp are stored; never the recipient, subject, or content. You can turn this off any time under Settings, Connections.</p>
       <h4 className="legal-h">Your Controls</h4>
       <p><b>Export.</b> Settings, Backup lets you download everything you own as a file.</p>
-      <p><b>Delete.</b> You can delete individual items in the app. To delete your entire account and its data, write to the address below and we will complete it within 30 days.</p>
+      {/* SHELL-F-03 (2026-09-05): the account really can be deleted from
+          inside the app now, so the policy says where rather than asking the
+          person to write a letter about it. */}
+      <p><b>Delete.</b> You can delete individual items in the app. Settings, Account, Delete Account erases your entire account: every task, note, event and uploaded file, and the sign-in itself.</p>
       <h4 className="legal-h">Children</h4>
       <p>JARVIS is not directed at children under 13, and we do not knowingly collect data from them.</p>
       <h4 className="legal-h">Changes</h4>
