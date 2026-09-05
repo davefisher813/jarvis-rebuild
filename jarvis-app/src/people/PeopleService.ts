@@ -20,12 +20,18 @@ export class PeopleService {
     return it ? { id: it.id, data: it.data as unknown as PersonData } : null;
   }
 
-  async create(data: PersonData): Promise<string | null> {
+  // BRAIN-F-13 (2026-09-05): `id` is for Undo of a delete. Without it the
+  // person came back under a new id, so their linked notes (notesLinkedTo
+  // reads by id) and any decision attached to them pointed at nothing: the
+  // card was back and everything hanging off it was gone. Same shape
+  // ProjectsService.create and NotesService.restoreNote already use; only
+  // ever pass an id whose row is gone.
+  async create(data: PersonData, id?: string): Promise<string | null> {
     if (!data.name || !data.name.trim()) return null;
     const clean: PersonData = { ...data, name: data.name.trim() };
-    const id = await this.store.create(this.ownerId, ENTITY_PERSON, clean as unknown as ItemData);
-    this.onEvent({ type: "entity.created", entityType: ENTITY_PERSON, entityId: id });
-    return id;
+    const newId = await this.store.create(this.ownerId, ENTITY_PERSON, clean as unknown as ItemData, id);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_PERSON, entityId: newId });
+    return newId;
   }
 
   // Bulk create for contact import: one round trip per batch instead of one

@@ -193,7 +193,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
   // guard, no toast, and no undo. The row simply stopped existing.
   const onDelete = async () => {
     if (sheet.kind !== "edit") return;
-    const kept = list.find((x) => x.id === sheet.id)?.data;
+    const keptId = sheet.id;
+    const kept = list.find((x) => x.id === keptId)?.data;
     const ok = await attemptWrite(() => people.remove(sheet.id));
     if (!ok) return; // the sheet stays open rather than closing over a failure
     setSheet({ kind: "closed" });
@@ -203,8 +204,11 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
     showToast({
       message: kept.name + " deleted",
       actionLabel: "Undo",
+      // BRAIN-F-13 (2026-09-05): back under the SAME id. A new id left the
+      // card standing with its Linked Notes empty and any decision attached
+      // to them showing no attachment, because both link by person id.
       onAction: () => void (async () => {
-        await attemptWrite(() => people.create(kept));
+        await attemptWrite(() => people.create(kept, keptId));
         await reload();
       })(),
     });

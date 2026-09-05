@@ -96,3 +96,47 @@ describe("PeopleFlow save guard (BRAIN-F-09)", () => {
     expect(screen.queryByText("Ana Diaz")).not.toBeInTheDocument();
   });
 });
+
+// BRAIN-F-13 (2026-09-05): Undo recreated the person under a NEW id, so the
+// card came back with Linked Notes empty and any decision attached to them
+// showing no attachment: both link by person id.
+import { useNotes } from "../data/NotesProvider";
+
+let notesRef: ReturnType<typeof useNotes> | null = null;
+function CaptureNotes() {
+  notesRef = useNotes();
+  peopleRef = usePeople();
+  return null;
+}
+
+describe("PeopleFlow delete undo (BRAIN-F-13)", () => {
+  it("restores the person under their own id, so linked notes still point at them", async () => {
+    render(
+      <NotesProvider userId="u-f13">
+        <CaptureNotes />
+        <PeopleFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(screen.getByText("Add Person"));
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "Marco Vidal" } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(screen.getByText("Marco Vidal")).toBeInTheDocument());
+
+    const personId = (await peopleRef!.list())[0]!.id;
+    const noteId = (await notesRef!.createNote("Call with Marco", ""))!;
+    await notesRef!.addConnection(noteId, "person", "Marco Vidal", personId);
+    expect(await notesRef!.notesLinkedTo(personId)).toHaveLength(1);
+
+    fireEvent.click(screen.getByText("Marco Vidal"));
+    fireEvent.click(await screen.findByLabelText("Edit"));
+    fireEvent.click(await screen.findByText("Delete Person"));
+    await waitFor(() => expect(screen.queryByText("Marco Vidal")).not.toBeInTheDocument());
+
+    toasts[toasts.length - 1]!.onAction!();
+    await waitFor(() => expect(screen.getByText("Marco Vidal")).toBeInTheDocument());
+    const back = await peopleRef!.list();
+    expect(back).toHaveLength(1);
+    expect(back[0]!.id).toBe(personId);
+    expect(await notesRef!.notesLinkedTo(personId)).toHaveLength(1);
+  });
+});
