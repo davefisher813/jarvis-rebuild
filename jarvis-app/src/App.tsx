@@ -9,6 +9,7 @@ import { GoogleSessionProvider } from "./connections/google/GoogleSession";
 import { FailedCard } from "./monitoring/ErrorBoundary";
 import { captureError } from "./monitoring/monitor";
 import { dismissSplash } from "./shared/splash";
+import { useSheetEscape } from "./shared/useSheetEscape";
 
 // Onboarding is a one-time surface; keep it out of the startup bundle that
 // every returning user pays for.
@@ -76,6 +77,10 @@ export function AppGate({ seedDemo = false }: { seedDemo?: boolean }) {
 //  - signed in: gated app on the Supabase store
 export default function App() {
   const { session, ready } = useAuth();
+  // BROWSER-F-15 (2026-09-05): Escape closes the top sheet, from here, so all
+  // 34 sheet call sites get it and the next one does too. Mounted above the
+  // auth gate on purpose: onboarding has sheets as well.
+  useSheetEscape();
   if (!ready) return null;
 
   if (!backendConfigured) {

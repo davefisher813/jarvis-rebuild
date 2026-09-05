@@ -515,8 +515,15 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .ob-host { height: 100dvh; display: flex; flex-direction: column; background: var(--bg); color: var(--tx-1); }
 
 /* All bottom sheets render the same: capped to the screen, body scrolls, actions
-   stay pinned and visible. Applies to Task, Event and Category sheets uniformly. */
-.sheet-scrim > .card { max-height: 100%; display: flex; flex-direction: column; border-radius: var(--r-xl) var(--r-xl) 0 0; }
+   stay pinned and visible. Applies to Task, Event and Category sheets uniformly.
+   BROWSER-F-15 (2026-09-05): 92dvh, not 100%. At 100% a long sheet grows to
+   the full 844px and there is no scrim left to tap: Plan My Day and Add a
+   Metric measured card top 0, height 844, and a scrim probe at four points
+   found nothing, so the only way out was the button at the very bottom of a
+   list you had to scroll to reach. A sliver of scrim is the dismiss gesture
+   every other sheet on this platform has; the sheet gives up 8 percent of a
+   height it only reaches when it is already scrolling. */
+.sheet-scrim > .card { max-height: 92dvh; display: flex; flex-direction: column; border-radius: var(--r-xl) var(--r-xl) 0 0; }
 .sheet-scrim .sheet-handle, .sheet-scrim .grp { flex-shrink: 0; }
 .sheet-scrim .grp { padding-top: var(--s-2); padding-bottom: var(--s-1h); }
 .sheet-scrim .sheet-actions { padding-bottom: max(var(--s-4), env(safe-area-inset-bottom)); }
