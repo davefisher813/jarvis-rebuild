@@ -106,3 +106,39 @@ describe("law: every flow mutation runs through the write-failure guard", () => 
     });
   }
 });
+
+// ---------------------------------------------------------------------------
+// GYM-F-18 (2026-09-05): the gym was outside this law entirely. Every
+// program-edit handler awaited the store with no catch, and every sheet
+// closed itself before the write, so a 5xx or a dropped socket while online
+// showed nothing at all: no toast, no reload, the list still on the old plan.
+// GymFlow now runs its writes through the same guard, and the same scan holds
+// it there. The gym's own verbs (updateProgram, createProgram, saveWorkout)
+// are not in the FLOWS list's verb set, so it gets its own.
+// ---------------------------------------------------------------------------
+
+const GYM_MUTATOR = /await\s+svc\s*\.\s*(create|update|remove|save)\w*\s*\(/g;
+
+describe("law: the gym's program and workout writes run through the guard too", () => {
+  it("GymFlow.tsx has no unguarded writes", () => {
+    const src = readFileSync(resolve(HERE, "../gym/GymFlow.tsx"), "utf-8");
+    const spans = coveredSpans(src);
+    const misses: string[] = [];
+    for (let m = GYM_MUTATOR.exec(src); m; m = GYM_MUTATOR.exec(src)) {
+      const inside = spans.some(([a, b]) => m.index > a && m.index < b);
+      if (!inside) {
+        const line = src.slice(0, m.index).split("\n").length;
+        misses.push(`line ${line}: ${src.slice(m.index, m.index + 60).split("\n")[0]}`);
+      }
+    }
+    expect(misses, misses.join("\n")).toEqual([]);
+  });
+
+  it("the one program-write door reports whether it landed, so nothing claims a save that did not happen", () => {
+    const src = readFileSync(resolve(HERE, "../gym/GymFlow.tsx"), "utf-8");
+    expect(src).toMatch(/const saveWeeks = async \(nextWeeks: ProgramWeek\[\]\): Promise<boolean>/);
+    expect(src).toMatch(/const saveDays = async \(weekId: string, days: ProgramDay\[\]\): Promise<boolean>/);
+    // Every success toast behind a save is gated on that boolean.
+    expect(src).not.toMatch(/await save(Days|Weeks)\([^\n]*\);\n\s*showToast/);
+  });
+});

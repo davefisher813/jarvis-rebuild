@@ -39,7 +39,7 @@ import ReorderList from "../shared/ReorderList";
 import { usePushDepth } from "../shared/pushNav";
 import { useLongPress } from "../shared/useLongPress";
 import { showToast } from "../shared/toast";
-import { WRITE_FAILED_MESSAGE } from "../shared/guard";
+import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { useAI } from "../ai/useAI";
 import { capAfterNumber } from "../shared/casing";
 import { BarbellGlyph } from "../shared/glyphs";
@@ -663,24 +663,39 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
   // Gated on AI availability like every AI-dependent offer.
   const saveUploaded = async (p: { name: string; weeks: Program["data"]["weeks"] }) => {
     setUploadOpen(false);
-    if (program) {
-      // Merge into the active program: uploaded weeks append after existing ones.
-      await svc.updateProgram(program.id, { name: p.name, weeks: [...program.data.weeks, ...p.weeks] });
-    } else {
-      await svc.createProgram({ name: p.name, weeks: p.weeks });
-    }
+    const ok = await attemptWrite(async () => {
+      if (program) {
+        // Merge into the active program: uploaded weeks append after existing ones.
+        await svc.updateProgram(program.id, { name: p.name, weeks: [...program.data.weeks, ...p.weeks] });
+      } else {
+        await svc.createProgram({ name: p.name, weeks: p.weeks });
+      }
+    });
     await reload();
-    showToast({ message: "Program saved · Check days once" });
+    if (ok) showToast({ message: "Program saved · Check days once" });
   };
 
-  const saveWeeks = async (nextWeeks: ProgramWeek[]) => {
-    if (!program) return;
-    await svc.updateProgram(program.id, { weeks: nextWeeks });
+  // GYM-F-18 (2026-09-05): every program edit awaited the store with no
+  // catch, and every sheet closed itself BEFORE the write. So a 5xx, an auth
+  // hiccup or a dropped socket while online showed nothing at all: no toast,
+  // no reload, the list still on the old plan. It read as "I tapped Save and
+  // it ignored me." One guarded door now: attemptWrite renders the app's
+  // standard failure toast, the reload runs either way so the screen shows
+  // what the store actually holds, and the caller gets false so it never
+  // announces a save that did not happen. Same shape as today/TodayFlow.tsx.
+  const saveWeeks = async (nextWeeks: ProgramWeek[]): Promise<boolean> => {
+    if (!program) return false;
+    const ok = await attemptWrite(async () => {
+      // updateProgram resolves false when the item is gone rather than
+      // throwing, and a write that did not land is a failure either way.
+      if (!(await svc.updateProgram(program.id, { weeks: nextWeeks }))) throw new Error("program is gone");
+    });
     await reload();
+    return ok;
   };
-  const saveDays = async (weekId: string, days: ProgramDay[]) => {
-    if (!program) return;
-    await saveWeeks(program.data.weeks.map((w) => (w.id === weekId ? { ...w, days } : w)));
+  const saveDays = async (weekId: string, days: ProgramDay[]): Promise<boolean> => {
+    if (!program) return false;
+    return saveWeeks(program.data.weeks.map((w) => (w.id === weekId ? { ...w, days } : w)));
   };
 
   // ---- REORDER + DUPLICATE + MOVE (catalog §3.2-3.4) ----
@@ -706,32 +721,37 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     // same weekday would both claim it on the calendar. Said out loud rather
     // than left to be discovered.
     const pinned = !!week.days.find((d) => d.id === dayId)?.pinDays?.length;
-    await saveDays(weekId, duplicateDay(week, dayId).days);
-    showToast({ message: pinned ? "Day duplicated · The copy is unpinned" : "Day duplicated" });
+    if (await saveDays(weekId, duplicateDay(week, dayId).days)) {
+      showToast({ message: pinned ? "Day duplicated · The copy is unpinned" : "Day duplicated" });
+    }
   };
   const duplicateExerciseAction = async (weekId: string, dayId: string, exId: string) => {
     const week = program?.data.weeks.find((w) => w.id === weekId);
     const day = week?.days.find((d) => d.id === dayId);
     if (!week || !day) return;
-    await saveDays(weekId, week.days.map((d) => (d.id === dayId ? duplicateExercise(day, exId) : d)));
-    showToast({ message: "Exercise duplicated" });
+    if (await saveDays(weekId, week.days.map((d) => (d.id === dayId ? duplicateExercise(day, exId) : d)))) {
+      showToast({ message: "Exercise duplicated" });
+    }
   };
   const moveExerciseAction = async (fromDayId: string, exId: string, toDayId: string) => {
     if (!program) return;
-    await saveWeeks(moveExerciseToDay(program.data.weeks, fromDayId, exId, toDayId));
-    showToast({ message: "Exercise moved" });
+    if (await saveWeeks(moveExerciseToDay(program.data.weeks, fromDayId, exId, toDayId))) {
+      showToast({ message: "Exercise moved" });
+    }
   };
   const copyExerciseAction = async (fromDayId: string, exId: string, toDayIds: string[]) => {
     if (!program) return;
-    await saveWeeks(copyExerciseToDays(program.data.weeks, fromDayId, exId, toDayIds));
-    showToast({ message: `Copied to ${toDayIds.length} ${toDayIds.length === 1 ? "day" : "days"}` });
+    if (await saveWeeks(copyExerciseToDays(program.data.weeks, fromDayId, exId, toDayIds))) {
+      showToast({ message: `Copied to ${toDayIds.length} ${toDayIds.length === 1 ? "day" : "days"}` });
+    }
   };
   const pairAction = async (weekId: string, dayId: string, aId: string, bId: string) => {
     const week = program?.data.weeks.find((w) => w.id === weekId);
     const day = week?.days.find((d) => d.id === dayId);
     if (!week || !day) return;
-    await saveDays(weekId, week.days.map((d) => (d.id === dayId ? { ...d, exercises: pairExercises(day.exercises, aId, bId) } : d)));
-    showToast({ message: "Paired" });
+    if (await saveDays(weekId, week.days.map((d) => (d.id === dayId ? { ...d, exercises: pairExercises(day.exercises, aId, bId) } : d)))) {
+      showToast({ message: "Paired" });
+    }
   };
   const unpairAction = async (weekId: string, dayId: string, exId: string) => {
     const week = program?.data.weeks.find((w) => w.id === weekId);
@@ -764,18 +784,18 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     else showToast({ message: WRITE_FAILED_MESSAGE });
   };
   const duplicateProgramAction = async (p: Program) => {
-    await svc.createProgram(duplicateProgramData(p.data));
+    const ok = await attemptWrite(() => svc.createProgram(duplicateProgramData(p.data)));
     await reload();
-    showToast({ message: "Program duplicated" });
+    if (ok) showToast({ message: "Program duplicated" });
   };
   const archiveProgramAction = async (p: Program, archived: boolean) => {
-    await svc.updateProgram(p.id, { archived });
-    if (archived && activeProgramId === p.id) {
+    const ok = await attemptWrite(() => svc.updateProgram(p.id, { archived }));
+    if (ok && archived && activeProgramId === p.id) {
       const next = programs.find((x) => x.id !== p.id);
       if (next) switchProgram(next.id);
     }
     await reload();
-    showToast({ message: archived ? "Program archived" : "Program restored" });
+    if (ok) showToast({ message: archived ? "Program archived" : "Program restored" });
   };
 
   // ---- in-gym ----
@@ -925,8 +945,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     const days = week.days.map((d) => (d.id !== day.id ? d : {
       ...d, exercises: d.exercises.map((e) => (e.id === ex.id ? applySuggestion(e, sug) : e)),
     }));
-    await saveDays(week.id, days);
-    showToast({ message: `${ex.name} plan moved to ${formatSet(ex, sug.next)}` });
+    if (await saveDays(week.id, days)) {
+      showToast({ message: `${ex.name} plan moved to ${formatSet(ex, sug.next)}` });
+    }
   };
 
   const finish = async () => {
@@ -1073,8 +1094,12 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
         <div className="pad-x sheet-actions">
           {dirty && (
             <button className="btn btn-primary btn-launch btn-block" onClick={async () => {
-              await svc.updateWorkout(w.id, { exercises: workoutDraft });
+              // GYM-F-18: the toast fires only once the write resolved, and a
+              // failed edit keeps the sheet open on the athlete's own numbers
+              // instead of closing over a change that never landed.
+              const ok = await attemptWrite(() => svc.updateWorkout(w.id, { exercises: workoutDraft }));
               await reload();
+              if (!ok) return;
               showToast({ message: "Workout updated" });
               closeWorkout();
             }}>Save Changes</button>
@@ -1084,13 +1109,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
               downstream. Same toast contract as every delete in the app. */}
           <button className="btn btn-danger btn-block" onClick={async () => {
             const gone = { ...w.data };
-            await svc.removeWorkout(w.id);
-            closeWorkout();
+            const ok = await attemptWrite(() => svc.removeWorkout(w.id));
             await reload();
+            if (!ok) return;
+            closeWorkout();
             showToast({
               message: "Workout deleted",
               actionLabel: "Undo",
-              onAction: async () => { await svc.saveWorkout(gone); await reload(); },
+              // GYM-F-18: the Undo could throw as silently as the delete did,
+              // which is the worst of the two: the session is gone and the
+              // athlete believes they got it back.
+              onAction: async () => { await attemptWrite(() => svc.saveWorkout(gone)); await reload(); },
             });
           }}>Delete Workout</button>
         </div>
@@ -1174,13 +1203,15 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
           gameCategory={target ? { categories, value: programGameCategoryDraft, onChange: setProgramGameCategoryDraft } : undefined}
           onSave={async (name) => {
             setSheet({ kind: "closed" });
-            if (target) await svc.updateProgram(target.id, { name, inSeason: programSeasonDraft, gameCategoryId: programSeasonDraft ? programGameCategoryDraft : undefined });
-            else await svc.createProgram({ name, weeks: [{ id: nid("w"), label: "Week 1", days: [] }] });
+            await attemptWrite(async () => {
+              if (target) await svc.updateProgram(target.id, { name, inSeason: programSeasonDraft, gameCategoryId: programSeasonDraft ? programGameCategoryDraft : undefined });
+              else await svc.createProgram({ name, weeks: [{ id: nid("w"), label: "Week 1", days: [] }] });
+            });
             await reload();
           }}
           onDelete={target ? async () => {
             setSheet({ kind: "closed" });
-            await svc.removeProgram(target.id);
+            await attemptWrite(() => svc.removeProgram(target.id));
             await reload();
           } : undefined}
           onCancel={() => setSheet({ kind: "closed" })}
@@ -1233,8 +1264,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
               ...(backOff ? { backOff: true } : {}),
             };
             setSheet({ kind: "closed" });
-            await saveWeeks([...program.data.weeks, week]);
-            showToast({ message: `${week.label} added · Duplicated from ${src.label}` });
+            if (await saveWeeks([...program.data.weeks, week])) {
+              showToast({ message: `${week.label} added · Duplicated from ${src.label}` });
+            }
           }}
           onCancel={() => setSheet({ kind: "closed" })}
         />
@@ -1464,8 +1496,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
               if (!pins.length) { const { pinDays: _gone, ...rest } = d; return rest as ProgramDay; }
               return { ...d, pinDays: pins };
             });
-            void saveDays(weekId, days).then(() => {
-              showToast({ message: pins.length ? `${day.name} pinned · ${pinLabel(pins)}` : `${day.name} unpinned · Rotation decides` });
+            void saveDays(weekId, days).then((ok) => {
+              if (ok) showToast({ message: pins.length ? `${day.name} pinned · ${pinLabel(pins)}` : `${day.name} unpinned · Rotation decides` });
             });
           }}
           onCancel={() => setPicker(null)}
@@ -1530,7 +1562,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
               ids={programs.map((p) => p.id)}
               onReorder={(ids) => {
                 const order = new Map(ids.map((id, i) => [id, i]));
-                void Promise.all(programs.map((p) => svc.updateProgram(p.id, { order: order.get(p.id) ?? 0 }))).then(reload);
+                void attemptWrite(() => Promise.all(programs.map((p) => svc.updateProgram(p.id, { order: order.get(p.id) ?? 0 })))).then(reload);
               }}
               renderRow={(id) => {
                 const p = programs.find((x) => x.id === id);
