@@ -11,8 +11,9 @@ import { useState } from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { Store, InMemoryAdapter, type Item, type ItemData } from "@core";
-import { NotesProvider, useNotes } from "../data/NotesProvider";
+import { NotesProvider, useNotes, useCategories } from "../data/NotesProvider";
 import NotesFlow from "./NotesFlow";
+import { setCategoryRegistry } from "../shared/categories";
 
 class SlowAdapter extends InMemoryAdapter {
   private beat() { return new Promise((r) => setTimeout(r, 15)); }
@@ -118,6 +119,47 @@ describe("NotesFlow: the editor comes back fresh from Create Tasks (HMN-F-14)", 
     fireEvent.click(await screen.findByText("Create Tasks from Checklist"));
     expect(await screen.findByText("From “Race”")).toBeInTheDocument();
     expect(screen.queryByText(/This Week/)).not.toBeInTheDocument();
+  });
+});
+
+// HMN-F-17 (2026-09-05): `current?.category ?? defaultCatId` does not catch
+// the empty string a note is born with, so Connections showed an Area row
+// with a blank value, and setCategory refuses "" so nothing there could put
+// a note back to unfiled.
+let catsRef: ReturnType<typeof useCategories> | null = null;
+function GrabAll() { svcRef = useNotes(); catsRef = useCategories(); return null; }
+
+describe("NotesFlow: Connections names the unfiled state and can return to it (HMN-F-17)", () => {
+  it("says Not Filed, files under an area, and unfiles again", async () => {
+    svcRef = null; catsRef = null;
+    const user = "u-conn-f17";
+    const view = render(<NotesProvider userId={user}><GrabAll /></NotesProvider>);
+    await waitFor(() => expect(svcRef && catsRef).toBeTruthy());
+    const svc = svcRef!;
+    let id = "";
+    await act(async () => {
+      const catId = (await catsRef!.create("Health", "green"))!;
+      // The registry is seeded by AppShell in the app; this flow renders
+      // without it, and catName needs it to turn the id into the word.
+      setCategoryRegistry([{ id: catId, name: "Health", color: "green" }]);
+      id = (await svc.createNote("Race", ""))!;
+      await svc.addBlock(id, { type: "text", text: "" });
+    });
+    view.rerender(<NotesProvider userId={user}><GrabAll /><NotesFlow openId={id} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Text")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText("Connections"));
+    expect(await screen.findByText("Not Filed")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Area"));
+    fireEvent.click(await screen.findByText("Health"));
+    await waitFor(async () => expect((await svc.note(id))!.category).toBeTruthy(), { timeout: 4000 });
+
+    // And back: the row the list's File sheet has always had.
+    fireEvent.click(screen.getByText("Area"));
+    fireEvent.click(await screen.findByText("Not Filed"));
+    await waitFor(async () => expect((await svc.note(id))!.category).toBe(""), { timeout: 4000 });
+    setCategoryRegistry([]);
   });
 });
 

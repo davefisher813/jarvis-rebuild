@@ -71,16 +71,32 @@ export default function Connections({
           <span className="conn-meta">{categoryLabel}</span>
           {onChangeCategory && <div className="chev"></div>}
         </div>
-        {picking && categories.map((c) => (
-          <div
-            className="row conn-sub"
-            {...pressable(() => { onChangeCategory?.(c.id); setPicking(false); })}
-            key={c.id}>
-            <div className={"proj-icon cat-bg-" + catColor(c.id)}><Tag className="ic" /></div>
-            <div className="conn-name">{c.name}</div>
-            {c.id === category && <span className="conn-meta">Current</span>}
-          </div>
-        ))}
+        {picking && (
+          <>
+            {/* HMN-F-17 (2026-09-05): the picker was built before unfiled
+                became a note's starting state, so filing worked from here
+                and unfiling did not: a note filed by mistake could only be
+                cleared from the list's swipe File sheet, which offers the
+                same row. Same word, same yellow, same first position. */}
+            <div
+              className="row conn-sub"
+              {...pressable(() => { onChangeCategory?.(""); setPicking(false); })}>
+              <div className="proj-icon cat-bg-yellow"><Tag className="ic" /></div>
+              <div className="conn-name">Not Filed</div>
+              {!category && <span className="conn-meta">Current</span>}
+            </div>
+            {categories.map((c) => (
+              <div
+                className="row conn-sub"
+                {...pressable(() => { onChangeCategory?.(c.id); setPicking(false); })}
+                key={c.id}>
+                <div className={"proj-icon cat-bg-" + catColor(c.id)}><Tag className="ic" /></div>
+                <div className="conn-name">{c.name}</div>
+                {c.id === category && <span className="conn-meta">Current</span>}
+              </div>
+            ))}
+          </>
+        )}
         {connections.map((c) => {
           const ic = connIcon(c.kind);
           const canOpen = !!(onOpen && c.targetId && (c.kind === "task" || c.kind === "project" || c.kind === "event" || c.kind === "goal" || c.kind === "person"));

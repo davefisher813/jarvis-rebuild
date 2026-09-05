@@ -737,7 +737,11 @@ export default function NotesFlow({
       <div className={pushCls} key="connections">
       <Connections
         category={cat}
-        categoryLabel={catName(cat)}
+        // HMN-F-17 (2026-09-05): a note is born unfiled, its category is the
+        // empty string, and `catName("")` is "": the Area row read "Area"
+        // with nothing beside it. Unfiled is a state with a name, the one
+        // the list already uses.
+        categoryLabel={cat ? catName(cat) : "Not Filed"}
         connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label, targetId: c.targetId }))}
         onBack={() => setScreen("editor")}
         onAddLink={() => void openLinkPicker("connections")}
@@ -749,7 +753,11 @@ export default function NotesFlow({
         categories={catList.map((c) => ({ id: c.id, name: catName(c.id) }))}
         onChangeCategory={(categoryId) => enqueue(async () => {
           if (!currentId) return;
-          await attemptWrite(() => svc.setCategory(currentId, categoryId));
+          // HMN-F-17: setCategory refuses "" (NotesService.ts:66-70), which
+          // is exactly what the picker's Not Filed row sends. fileUnder is
+          // the write that takes it, and it is the one the swipe File sheet
+          // has always used for the same choice.
+          await attemptWrite(() => svc.fileUnder(currentId, categoryId));
           await loadCurrent(currentId);
         })}
         onCreateTasks={() => setScreen("createTasks")}
