@@ -71,7 +71,7 @@ import { planFromBlock } from "../tasks/ifThen";
 import { endOf, FIFTEEN } from "../tasks/rightNow";
 import { acceptBody } from "../messages/meetingTimes";
 import { welcomeBack, loadLastSeen, markSeen } from "./welcomeBack";
-import { proposeFirstMove, nextStart, endsAt, ritualIsReady, whyNotReady, LENGTHS, DEFAULT_MINUTES, type Ritual } from "../tasks/startRitual";
+import { proposeFirstMove, nextStart, endsAt, ritualIsReady, whyNotReady, ritualPlan, LENGTHS, DEFAULT_MINUTES, type Ritual } from "../tasks/startRitual";
 import RitualSheet from "../tasks/screens/RitualSheet";
 import { bestPerBlock, blockKind, recordBlend, loadBlendMemory } from "../schedule/blend";
 import type { BlendMap } from "./YourDay";
@@ -2720,7 +2720,18 @@ export default function TodayFlow({
             // reminder ladder (countdown.ts's ladderBody). Only written once
             // the event itself is real; a ritual that failed to schedule
             // leaves no half-set plan behind.
-            if (ok) await attemptWrite(() => tasks.setPlan(r.taskId, { cue: { kind: "time", what: r.startHHMM }, then: r.firstMove }));
+            //
+            // TODAY-F-24 (2026-09-05): and only when the task has no plan of
+            // his own. This wrote unconditionally, so Set a Start replaced a
+            // hand-written "When I sit down at 9, open the spreadsheet" with
+            // the ritual's cue. Read fresh rather than off the render's task
+            // list: the sheet has been open, and this is the check that
+            // decides whether his words survive. See ritualPlan().
+            if (ok) {
+              const existing = await tasks.task(r.taskId);
+              const plan = ritualPlan(existing?.plan, r);
+              if (plan) await attemptWrite(() => tasks.setPlan(r.taskId, plan));
+            }
             await reload();
             if (ok) showToast({ message: `Starts ${r.startHHMM} · ${r.firstMove}` });
           })();

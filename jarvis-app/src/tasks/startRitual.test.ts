@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   proposeFirstMove, ritualIsReady, whyNotReady, ritualLine,
-  nextStart, endsAt, minutesUntil, DEFAULT_MINUTES, LENGTHS, type Ritual,
+  nextStart, endsAt, minutesUntil, ritualPlan, DEFAULT_MINUTES, LENGTHS, type Ritual,
 } from "./startRitual";
 
 // THE START RITUAL (C1, approved 2026-08-20). No test file existed for this
@@ -75,5 +75,20 @@ describe("minutesUntil", () => {
 describe("constants", () => {
   it("offers 25 minutes as the default, among the three lengths", () => {
     expect(LENGTHS).toContain(DEFAULT_MINUTES);
+  });
+});
+
+// TODAY-F-24 (2026-09-05): S6-Q36 stored the ritual's first move on the task's
+// if-then plan and wrote it unconditionally, so Set a Start replaced a plan he
+// had written himself. The planner has never done that; neither does this.
+describe("ritualPlan", () => {
+  it("writes the cue and the first move when the task has no plan", () => {
+    expect(ritualPlan(null, base)).toEqual({ cue: { kind: "time", what: "15:00" }, then: "Open the template" });
+    expect(ritualPlan(undefined, base)).not.toBeNull();
+  });
+
+  it("never overwrites a plan he wrote himself", () => {
+    const his = { cue: { kind: "after" as const, what: "I sit down at 9" }, then: "Open the spreadsheet" };
+    expect(ritualPlan(his, base)).toBeNull();
   });
 });

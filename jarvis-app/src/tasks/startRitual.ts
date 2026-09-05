@@ -1,4 +1,4 @@
-import { shortenToResponse, responseIsUsable } from "./ifThen";
+import { shortenToResponse, responseIsUsable, type IfThen } from "./ifThen";
 import { capAfterNumber } from "../shared/casing";
 
 // THE START RITUAL (C1, approved 2026-08-20).
@@ -72,6 +72,19 @@ export function nextStart(nowHHMM: string): string {
 
 export function endsAt(r: Pick<Ritual, "startHHMM" | "minutes">): string {
   return fromMin(toMin(r.startHHMM) + r.minutes);
+}
+
+// TODAY-F-24 (2026-09-05): what a set ritual should write to the task's own
+// if-then plan, which is nothing at all when he already wrote one. S6-Q36
+// taught Set a Start to store its first move there (so the event row and the
+// reminder ladder can name it), and stored it unconditionally: a hand-written
+// plan like "When I sit down at 9, open the spreadsheet" was replaced by the
+// ritual's cue and move. The planner has never done that (see onPlanCommit's
+// "Never overwrites a plan he wrote himself"), and neither does this. Pure,
+// so the law is testable without a sheet.
+export function ritualPlan(existing: IfThen | null | undefined, r: Pick<Ritual, "startHHMM" | "firstMove">): IfThen | null {
+  if (existing) return null;
+  return { cue: { kind: "time", what: r.startHHMM }, then: r.firstMove };
 }
 
 // How long until it begins, for the countdown on the card. Negative means it
