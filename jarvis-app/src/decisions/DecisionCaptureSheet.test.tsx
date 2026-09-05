@@ -2,52 +2,60 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import DecisionCaptureSheet from "./DecisionCaptureSheet";
+import DecisionCaptureSheet, { type AttachOption } from "./DecisionCaptureSheet";
 
-// BRAIN-F-02 (2026-09-05): "decision revisits land a day early." The sheet
-// computed Week and Month by adding a fixed 86,400,000ms to local midnight
-// and reading the UTC date back, so in Berlin (UTC+2 in summer) Week was six
-// days out and Month twenty-nine. Under a zone east of Greenwich the chips
-// must land on the local calendar day.
+// BRAIN-F-17 (2026-09-05): Change It on a decision attached to a project that
+// has since been closed saved the new call with NO attachment and no warning,
+// because the attach menu is the "common homes" list and the closed project
+// had left it, so the id carried in from the record matched nothing on save.
 
-function localPlus(n: number): string {
-  const d = new Date(); d.setDate(d.getDate() + n);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+const OPEN_ONE: AttachOption[] = [{ type: "project", id: "p1", label: "Spring Launch" }];
 
-describe("DecisionCaptureSheet revisit dates", () => {
-  it("Week and Month step whole local days under Europe/Berlin", () => {
-    const prevTz = process.env.TZ;
-    process.env.TZ = "Europe/Berlin";
-    try {
-      const onSave = vi.fn();
-      render(<DecisionCaptureSheet attachOptions={[]} onSave={onSave} onCancel={() => {}} />);
-      fireEvent.change(screen.getByLabelText("What you decided"), { target: { value: "Saturdays only" } });
-      fireEvent.click(screen.getByText("Week"));
-      expect(screen.getByText("Week")).toHaveClass("active");
-      fireEvent.click(screen.getByText("Save"));
-      expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ revisitOn: localPlus(7) }));
-      fireEvent.click(screen.getByText("Month"));
-      expect(screen.getByText("Month")).toHaveClass("active");
-      fireEvent.click(screen.getByText("Save"));
-      expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ revisitOn: localPlus(30) }));
-    } finally {
-      process.env.TZ = prevTz;
-    }
+describe("DecisionCaptureSheet supersede (BRAIN-F-17)", () => {
+  it("keeps an attachment whose home has left the options list", () => {
+    const onSave = vi.fn();
+    render(
+      <DecisionCaptureSheet
+        mode="supersede"
+        initial={{ linkedType: "project", linkedId: "p-done", linkedLabel: "Fall Clinics" }}
+        attachOptions={OPEN_ONE}
+        onSave={onSave}
+        onCancel={() => {}}
+      />,
+    );
+    // The menu can still name where this decision lives.
+    expect(screen.getByLabelText("Attached to")).toHaveTextContent("Fall Clinics");
+    fireEvent.change(screen.getByLabelText("What you decided"), { target: { value: "Saturdays only" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      decision: "Saturdays only", linkedType: "project", linkedId: "p-done", linkedLabel: "Fall Clinics",
+    }));
   });
 
-  // The chip only reads as active when the stored date matches the date the
-  // chip would set; under the old UTC read that match failed east of UTC on
-  // reopen, so a saved Week revisit came back as Pick.
-  it("a saved Week revisit reopens as Week, not Pick", () => {
-    const prevTz = process.env.TZ;
-    process.env.TZ = "Asia/Tokyo";
-    try {
-      render(<DecisionCaptureSheet attachOptions={[]} initial={{ revisitOn: localPlus(7) }} onSave={() => {}} onCancel={() => {}} />);
-      expect(screen.getByText("Week")).toHaveClass("active");
-      expect(screen.queryByLabelText("Revisit date")).toBeNull();
-    } finally {
-      process.env.TZ = prevTz;
-    }
+  it("still lets the attachment be moved or cleared", () => {
+    const onSave = vi.fn();
+    render(
+      <DecisionCaptureSheet
+        mode="supersede"
+        initial={{ linkedType: "project", linkedId: "p-done", linkedLabel: "Fall Clinics" }}
+        attachOptions={OPEN_ONE}
+        onSave={onSave}
+        onCancel={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText("Attached to"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Spring Launch" }));
+    fireEvent.change(screen.getByLabelText("What you decided"), { target: { value: "Move it" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ linkedId: "p1", linkedLabel: "Spring Launch" }));
+  });
+
+  it("a new decision offers only the common homes, with nothing carried", () => {
+    const onSave = vi.fn();
+    render(<DecisionCaptureSheet attachOptions={OPEN_ONE} onSave={onSave} onCancel={() => {}} />);
+    expect(screen.getByLabelText("Attached to")).toHaveTextContent("None");
+    fireEvent.change(screen.getByLabelText("What you decided"), { target: { value: "Ship it" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ decision: "Ship it", linkedId: undefined }));
   });
 });

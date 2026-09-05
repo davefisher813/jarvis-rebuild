@@ -60,9 +60,22 @@ export default function DecisionCaptureSheet({
     setRuleDraft("");
   };
 
+  // BRAIN-F-17 (2026-09-05): attachOptions is the "common homes" list, and it
+  // drops closed projects, achieved and dropped goals, and non-org areas. A
+  // supersede of a decision attached to one of those found nothing to match
+  // on save, so the new call saved with NO attachment and no warning, and the
+  // old home's decision banner went with it. The record's own link is carried
+  // as an option of its own, from the label the record already stores, so
+  // Change It keeps the attachment it inherited and the menu can still say it.
+  const carried: AttachOption[] = initial?.linkedId && initial.linkedType && initial.linkedLabel
+    && !attachOptions.some((o) => o.id === initial.linkedId)
+    ? [{ type: initial.linkedType, id: initial.linkedId, label: initial.linkedLabel }]
+    : [];
+  const options: AttachOption[] = [...attachOptions, ...carried];
+
   const save = () => {
     if (!decision.trim()) { setErr(true); return; }
-    const opt = attachOptions.find((o) => o.id === attach);
+    const opt = options.find((o) => o.id === attach);
     onSave({
       decision: decision.trim(),
       why: why.trim() || undefined,
@@ -74,7 +87,7 @@ export default function DecisionCaptureSheet({
     });
   };
 
-  const attachLabel = attachOptions.find((o) => o.id === attach)?.label ?? "None";
+  const attachLabel = options.find((o) => o.id === attach)?.label ?? "None";
 
   return (
     <FormSheet title={mode === "supersede" ? "New Call" : "New Decision"} onCancel={onCancel} onSave={save}>
@@ -116,7 +129,7 @@ export default function DecisionCaptureSheet({
         )}
       </Group>
 
-      {attachOptions.length > 0 && (
+      {options.length > 0 && (
         <Group label="Attached To">
           <Row label="Link">
             <HeadMenu
@@ -125,7 +138,7 @@ export default function DecisionCaptureSheet({
               value={attach}
               off={attach === ""}
               label={attachLabel}
-              options={[{ value: "", label: "None" }, ...attachOptions.map((o) => ({ value: o.id, label: o.label }))]}
+              options={[{ value: "", label: "None" }, ...options.map((o) => ({ value: o.id, label: o.label }))]}
               onPick={setAttach}
             />
           </Row>
