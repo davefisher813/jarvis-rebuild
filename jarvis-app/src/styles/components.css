@@ -102,7 +102,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sched-firstmove { font-size: var(--t-meta); color: var(--tx-3); }
 /* The separator between facts on the category line. Dimmer than the facts it
    divides, so it groups without competing. */
-.sched-sep { font-size: var(--t-meta); color: var(--tx-4); }
+.sched-sep { font-size: var(--t-meta); color: var(--tx-quiet); }
 .sched-badge { margin-left: var(--s-1h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--accent-chrome); border: 1px solid var(--accent); border-radius: var(--r-pill); padding: 0 var(--s-1h); vertical-align: middle; }
 /* N5 completion (2026-08-21): the badge as a button. Same anatomy; the
    ::after pad brings the touch target up without moving a pixel.
@@ -611,7 +611,7 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .upnext-cat { justify-content: center; display: flex; align-items: center; gap: var(--s-1h); margin-bottom: var(--s-3h); }
 .upnext-task { font-size: 26px; font-weight: var(--w-bold); line-height: var(--lh-default); margin-bottom: var(--s-2h); }
 .upnext-done-wrap { position: relative; margin-top: var(--s-5); }
-.upnext-skip { background: 0; border: 0; color: var(--tx-4); font-size: var(--t-body); font-weight: var(--w-medium); font-family: var(--f); margin-top: var(--s-3h); }
+.upnext-skip { background: 0; border: 0; color: var(--tx-quiet); font-size: var(--t-body); font-weight: var(--w-medium); font-family: var(--f); margin-top: var(--s-3h); }
 .upnext-pill-row { display: flex; justify-content: center; padding: var(--s-2) var(--s-4) 0; }
 .qw-pill { background: var(--red-tint); color: var(--accent-tx); font-weight: var(--w-bold); font-size: var(--t-meta); padding: var(--s-1h) var(--s-3h); border-radius: var(--r-pill); }
 .fresh-faded { color: var(--tx-3); }
@@ -1901,7 +1901,10 @@ button {
 /* The receipt line: facts that need nothing collapse into one quiet mono
    line under the stream. Furniture is for decisions. */
 .receipt-line { font-size: var(--t-eyebrow); letter-spacing: 0.02em;
-  color: var(--tx-4); padding: var(--s-1) var(--s-4) 0; white-space: nowrap; overflow: hidden;
+  /* --tx-quiet (BROWSER-F-09, 2026-09-05): every one of these is a BUTTON that
+     opens the pile it describes ("13 More waiting", "4 More Emails in Your
+     Inbox"), and 2.3:1 is not a quiet button, it is a hidden one. */
+  color: var(--tx-quiet); padding: var(--s-1) var(--s-4) 0; white-space: nowrap; overflow: hidden;
   text-overflow: ellipsis; background: none; border: 0; width: 100%; text-align: left;
   position: relative; display: flex; align-items: center; gap: var(--s-2); }
 /* I5 (2026-08-24). Every one of these is a <button> that opens something,
@@ -2557,7 +2560,10 @@ button {
 .sched-bar-proposed { background: transparent; border-width: 1.5px; border-style: dashed; }
 .sched-proposed .sched-title { color: var(--tx-2); }
 .sched-proposed.open .sched-title { color: var(--tx-1); }
-.prop-tag { color: var(--tx-4); }
+/* BROWSER-F-09 (2026-09-05): --tx-quiet, not --tx-4. This tag is the only
+   thing that separates a suggestion from a booked event, and at 30 percent it
+   measured 2.4:1 across 81 states. It is live information, not a past state. */
+.prop-tag { color: var(--tx-quiet); }
 .sched-proposed:active { background: var(--press-1); }
 /* Under the day, not floating in it: the one decision the proposal asks for. */
 .day-foot { display: flex; gap: var(--s-2); padding: var(--s-3) var(--s-4) var(--s-1); }
@@ -2939,7 +2945,7 @@ button {
 .selbar-btn { display: flex; align-items: center; justify-content: center; width: 48px; height: 44px; background: transparent; border: 0; color: var(--tx-1); }
 .selbar-btn:active { background: var(--surface-2); }
 .selbar-btn .ic { width: 18px; height: 18px; }
-.doc-count { text-align: center; font-size: var(--t-meta); color: var(--tx-4); padding: var(--s-2) 0 96px; font-variant-numeric: tabular-nums; }
+.doc-count { text-align: center; font-size: var(--t-meta); color: var(--tx-quiet); padding: var(--s-2) 0 96px; font-variant-numeric: tabular-nums; }
 .screen-editor .doc-count { padding-bottom: 0; }
 .nav-action:disabled { opacity: 0.3; }
 /* Brain docs write on the same canvas as notes: no boxed input, document
@@ -3933,7 +3939,7 @@ body.selecting .voice-dock { display: none; }
 .rep-big { font-size: 64px; font-weight: var(--w-bold); line-height: 1; letter-spacing: -2px; color: var(--tx-1); margin-top: 6px; }
 .rep-big-label { font-size: var(--t-h2); font-weight: var(--w-semi); color: var(--tx-2); margin-top: 2px; }
 .rep-anchor { display: inline-block; font-size: 12px; font-weight: var(--w-bold); color: var(--good); background: var(--good-tint); border-radius: var(--r-pill); padding: 3px 10px; margin-left: 10px; vertical-align: middle; }
-.rep-hint { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-4); margin-top: 12px; }
+.rep-hint { font-size: var(--t-eyebrow); font-weight: var(--w-semi); letter-spacing: 1px; text-transform: uppercase; color: var(--tx-quiet); margin-top: 12px; }
 .rep-title { font-size: var(--t-h3); font-weight: var(--w-medium); color: var(--tx-1); line-height: var(--lh-default); }
 .rep-wins { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
 .rep-win { border-radius: var(--r-md); padding: 12px 14px; }

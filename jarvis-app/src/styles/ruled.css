@@ -201,7 +201,7 @@
 .ruled .pp { width: 24px; height: 24px; display: block; }
 .ruled .gm-slot .ic { width: 22px; height: 22px; }
 .ruled .proj-row-ruled .task-title, .ruled .goal-row-ruled .task-title { min-width: 0; }
-.ruled .r-next { font-size: 12.5px; color: var(--tx-4); margin-top: 3px;
+.ruled .r-next { font-size: 12.5px; color: var(--tx-quiet); margin-top: 3px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .ruled .task-row .r-goal b { font-weight: var(--w-semi); color: var(--tx-2); }
 /* The goal as a head over its projects: the mark in the goal's colour, then
@@ -343,7 +343,7 @@
 .ruled .sched-row { padding: 9px var(--s-4) 9px var(--s-4); gap: 11px; }
 .ruled .sched-time { width: 62px; font-size: 14.5px; font-weight: 650; color: var(--tx-2); letter-spacing: -0.01em;
   padding-top: 2px; text-align: right; }
-.ruled .sched-time .ampm { font-size: 10px; font-weight: var(--w-semi); color: var(--tx-4); letter-spacing: 0.02em; margin-left: 2px; }
+.ruled .sched-time .ampm { font-size: 10px; font-weight: var(--w-semi); color: var(--tx-quiet); letter-spacing: 0.02em; margin-left: 2px; }
 .ruled .sched-bar { width: 3px; border-radius: 2px; left: calc(var(--s-4) + 62px + 4px); top: 7px; bottom: 7px; }
 .ruled .sched-body { padding-left: 3px; }
 .ruled .sched-title { font-size: 15.5px; font-weight: var(--w-medium); letter-spacing: -0.01em; margin-bottom: 3px; }
@@ -462,7 +462,7 @@
 .ruled .wk-row:active { background: var(--press-3); }
 .ruled .wk-row.past { opacity: 0.62; }
 .ruled .wk-d { width: 34px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.ruled .wk-w { font-size: 10px; font-weight: var(--w-bold); letter-spacing: 0.08em; color: var(--tx-4); text-transform: uppercase; }
+.ruled .wk-w { font-size: 10px; font-weight: var(--w-bold); letter-spacing: 0.08em; color: var(--tx-quiet); text-transform: uppercase; }
 .ruled .wk-n { font-size: 17px; font-weight: var(--w-semi); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
   font-variant-numeric: tabular-nums; color: var(--tx-1); }
 .ruled .wk-row.today .wk-n { background: var(--tx-1); color: var(--bg, #000); }
@@ -476,7 +476,7 @@
 .ruled .wk-open.wk-full { color: var(--warn); font-weight: var(--w-semi); }
 /* The clock the bars are drawn on, and the one line of advice under it. */
 .ruled .wk-ticks { position: relative; height: 16px; margin: 6px calc(var(--s-4) + 64px) 0 calc(var(--s-4) + 46px);
-  font-size: 9.5px; font-weight: var(--w-bold); letter-spacing: 0.06em; color: var(--tx-4); text-transform: uppercase; }
+  font-size: 9.5px; font-weight: var(--w-bold); letter-spacing: 0.06em; color: var(--tx-quiet); text-transform: uppercase; }
 .ruled .wk-ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
 .ruled .wk-ticks span.first { transform: none; }
 .ruled .wk-ticks span.last { transform: translateX(-100%); }
@@ -541,7 +541,7 @@
 .ruled .sched-now .w { font-size: 10px; font-weight: var(--w-bold); letter-spacing: 0.1em;
   text-transform: uppercase; color: var(--sys-red); flex-shrink: 0; }
 .ruled .sched-now .l { flex: 1; height: 1px; background: var(--sys-red); opacity: 0.4; }
-.ruled .sched-now .t { font-size: 11px; color: var(--tx-4); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.ruled .sched-now .t { font-size: 11px; color: var(--tx-quiet); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 /* Running Late? rides the rule it is about. Neutral capsule: the rule's own
    red is the signal, and two reds on one line is the thing being fixed. */
 .ruled .sched-late { flex-shrink: 0; background: var(--press-3); color: var(--tx-1); border: 0;

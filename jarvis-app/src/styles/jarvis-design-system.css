@@ -159,6 +159,18 @@
      The old 0.76 white meta sat too close to titles and killed hierarchy;
      recede comes from this ramp plus 15px meta size, not from casing. */
   --tx-1: #FFFFFF; --tx-2: rgba(235,235,245,0.82); --tx-3: rgba(235,235,245,0.60); --tx-4: rgba(235,235,245,0.30);
+  /* BROWSER-F-09 (2026-09-05), option B. --tx-4 was carrying two meanings at
+     once: "this is finished or out of range" and "this is quiet metadata". The
+     first is a deliberate dimming and 30 percent is right for it. The second is
+     live information a person has to read, and at 30 percent it measures 2.3:1
+     in dark and 1.7:1 in light, which is not quiet, it is gone: "· Proposed",
+     the tag that separates a suggestion from a booked event, was nearly
+     invisible on 81 states, and the receipt rows and "Not This One" are
+     BUTTONS. So the quiet meaning gets its own token and clears AA, and --tx-4
+     keeps the past-state job it was tuned for. 0.55 is the lowest alpha that
+     clears 4.5:1 on all three dark grounds these land on (5.44 on the page,
+     5.22 on a card, 4.68 on a sheet); 0.50 fails the sheet at 4.14. */
+  --tx-quiet: rgba(235,235,245,0.55);
   /* iOS system colors, DARK variants, exactly as the HIG defines them. */
   --sys-gray: #8E8E93;   /* iOS systemGray, identical in both themes */
   --red: #FF453A; --sys-red: #FF453A; --warn: #FF9F0A; --good: #30D158; --blue: #0A84FF;
@@ -247,6 +259,14 @@
      pressed-chip case stays the prefers-contrast boost's job (0.75), and
      the ramp keeps its order: 0.82 tx-2 > 0.72 tx-3 > 0.30 tx-4. */
   --tx-1: #000000; --tx-2: rgba(60,60,67,0.82); --tx-3: rgba(60,60,67,0.72); --tx-4: rgba(60,60,67,0.30);
+  /* BROWSER-F-09 (2026-09-05). Light's 30 percent is 30 percent of a mid-grey,
+     not of black, so quiet metadata measured 1.7:1 and read as blank space:
+     611 hits on white and 381 on the page. 0.72 is the alpha the --tx-3 note
+     above already proved, and for the same reason: it is the smallest that
+     clears 4.5:1 on BOTH grounds (4.74 on a white card, 4.51 on the page).
+     Quiet and secondary land on the same value in light and stay a step apart
+     in dark, which is the honest answer: daylight has less room. */
+  --tx-quiet: rgba(60,60,67,0.72);
   /* iOS system colors, LIGHT variants, exactly as the HIG defines them. */
   --sys-gray: #8E8E93;
   --red: #FF3B30; --sys-red: #FF3B30; --blue: #007AFF;

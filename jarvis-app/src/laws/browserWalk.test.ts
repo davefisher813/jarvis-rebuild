@@ -499,6 +499,58 @@ describe("a role=button row can be pressed with a keyboard", () => {
   });
 });
 
+describe("BROWSER-F-09: quiet is not the same word as finished", () => {
+  // --tx-4 carried two meanings: "this is done or out of range", where 30
+  // percent is a deliberate dimming, and "this is quiet metadata", where 30
+  // percent measured 2.3:1 dark and 1.7:1 light and the information was simply
+  // gone. Option B splits them. These hold the split.
+  it("--tx-quiet clears AA on every ground it lands on, in both themes", () => {
+    const grounds: Array<[string, string[]]> = [
+      ["dark", ["#000000", "#1C1C1E", "#2C2C2E"]],
+      ["light", ["#FFFFFF", "#F3F4F9"]],
+    ];
+    for (const [theme, gs] of grounds) {
+      for (const g of gs) {
+        const cr = contrast(tokenIn(theme, "--tx-quiet"), g);
+        expect(cr, `${theme} --tx-quiet on ${g} is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  // And --tx-4 keeps the job it was tuned for. Raising it (option A) is the
+  // road not taken: the done state is supposed to recede.
+  it("--tx-4 stays the dim past-state grey it was", () => {
+    for (const theme of ["dark", "light"]) {
+      expect(tokenIn(theme, "--tx-4"), `${theme} --tx-4`).toMatch(/0\.30\)$/);
+    }
+  });
+
+  // The classes the walk measured. A done reminder, a paid bill and a
+  // .cal-cell.out are NOT here on purpose: they use the dim grey correctly.
+  it("live metadata takes the quiet token, not the dim one", () => {
+    const all = (css() + read("styles/ruled.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+    const rules = [...all.matchAll(/([^{}]+)\{([^}]*)\}/g)];
+    const LIVE = [".prop-tag", ".sched-sep", ".upnext-skip", ".rep-hint", ".doc-count",
+      ".receipt-line", ".ruled .sched-time .ampm", ".ruled .r-next", ".ruled .wk-w", ".ruled .sched-now .t"];
+    for (const sel of LIVE) {
+      const body = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === sel)?.[2];
+      expect(body, `${sel} is still in the sheet`).toBeTruthy();
+      expect(body, `${sel} carries live information and must not wear --tx-4`).not.toMatch(/color:\s*var\(--tx-4\)/);
+      expect(body, `${sel} takes --tx-quiet`).toMatch(/color:\s*var\(--tx-quiet\)/);
+    }
+  });
+
+  it("the deliberately dimmed states keep --tx-4", () => {
+    const all = (css() + read("styles/ruled.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+    const rules = [...all.matchAll(/([^{}]+)\{([^}]*)\}/g)];
+    for (const sel of [".cal-cell.out", ".rem-row.done .rem-name", ".ruled .task-row .money-amt.paid"]) {
+      const body = rules.find((m) => m[1]!.replace(/\s+/g, " ").trim() === sel)?.[2];
+      expect(body, `${sel} is still in the sheet`).toBeTruthy();
+      expect(body, `${sel} is a past state and is meant to recede`).toMatch(/color:\s*var\(--tx-4\)/);
+    }
+  });
+});
+
 describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
   // The strip rule re-sets the chip background at (0,4,0), which beats
   // .chip.active (0,2,0) for the background alone. Any rule that overrides a
