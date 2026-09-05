@@ -28,7 +28,11 @@ export default function BillSheet({ mode, initial, onSave, onDelete, onCancel }:
   const [text, setText] = useState(initial?.text ?? "");
   const [amount, setAmount] = useState(initial ? String(initial.bill.amount) : "");
   const [due, setDue] = useState(initial?.due ?? "");
-  const [recurrence, setRecurrence] = useState<Recurrence | null>(initial?.recurrence ?? "monthly");
+  // HMN-F-04 (2026-09-05): a once bill stores recurrence null, and `??`
+  // read that null as "unset" and put Monthly in the menu. Saving an edit
+  // (to fix an amount, say) then turned the bill recurring for good. Only a
+  // NEW bill gets the monthly default; an edit shows what is stored.
+  const [recurrence, setRecurrence] = useState<Recurrence | null>(initial ? initial.recurrence : "monthly");
   const [autopay, setAutopay] = useState(!!initial?.bill.autopay);
   const [payUrl, setPayUrl] = useState(initial?.bill.payUrl ?? "");
   const [touched, setTouched] = useState(false);
