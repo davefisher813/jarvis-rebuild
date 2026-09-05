@@ -125,6 +125,20 @@
      Inversion also fixes a measured accessibility failure: white text on
      the Music red is 3.91:1, under the 4.5:1 Apple looks for. These are 21:1
      dark and 19.4:1 light. */
+  /* RED ON AN ELEVATED GROUND (BROWSER-F-10, 2026-09-05). A sheet stacks two
+     or three --press greys on top of the page, and --tint is one red for every
+     ground: on the sheet bar (#2C2C2E) "Save" measures 3.76:1, on the toast
+     (#3A3A3C) "Undo" 3.06, and inside a sheet's grouped card "Add Item" 2.54.
+     The finding proposed a lighter red, and the measurement says that road is
+     closed: #FF6B6B is 3.39 on the deepest of those grounds, and the first red
+     that clears 4.5 there is about #FF9A90, which is the salmon Dave rejected
+     by name on 2026-08-21. This file already answered the same question for
+     card surfaces two lines up, and the answer was --accent-tx: white in dark,
+     the light red in light, with red surviving as chrome, fill and glyph. So
+     that is what a sheet gets too, under its own name, because a sheet is a
+     card with more greys under it. 13.94:1 on the sheet bar, 11.35 on the
+     toast, 9.42 in the grouped card. */
+  --tint-on-sheet: var(--accent-tx);
   --sel-bg: var(--tx-1);
   --sel-fg: var(--bg);
   --scrim: rgba(0,0,0,0.40); /* modal/sheet backdrop, theme-invariant (resolves uniformity G4) */

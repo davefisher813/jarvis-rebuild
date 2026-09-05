@@ -350,6 +350,54 @@ describe("BROWSER-F-08: chips, values, steppers and swatches reach 44", () => {
   });
 });
 
+describe("BROWSER-F-10: red words on a sheet grey are readable", () => {
+  // A sheet stacks --press greys on the page, and --tint is one red for every
+  // ground: 3.76:1 on the sheet bar, 3.06 on the toast, 2.54 in the grouped
+  // card. The three grounds the browser walk measured, by name.
+  const GROUNDS: Array<[string, string]> = [
+    ["the sheet bar", "rgb(44,44,46)"],
+    ["the toast", "rgb(58,58,60)"],
+    ["a sheet's grouped card", "rgb(70,70,72)"],
+  ];
+
+  it("--tint-on-sheet clears AA on every sheet grey, in both themes", () => {
+    // The token indirects to --accent-tx, which is per theme.
+    expect(tokenIn("dark", "--tint")).toBeTruthy();
+    const bare = tokens().replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(bare, "the token exists").toMatch(/--tint-on-sheet:\s*var\(--accent-tx\)/);
+    for (const [where, ground] of GROUNDS) {
+      const cr = contrast(tokenIn("dark", "--accent-tx"), ground);
+      expect(cr, `dark --tint-on-sheet on ${where} is ${cr.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    }
+    // And the red it replaces genuinely could not do it, which is the reason
+    // this token exists rather than a lighter red: the first red that clears
+    // 4.5 on the deepest ground is paler than the salmon Dave rejected.
+    expect(contrast(tokenIn("dark", "--tint"), "rgb(70,70,72)")).toBeLessThan(4.5);
+    expect(contrast("#FF6B6B", "rgb(70,70,72)")).toBeLessThan(4.5);
+  });
+
+  it("the sheet and toast verbs take it", () => {
+    const bare = css().replace(/\/\*[\s\S]*?\*\//g, "");
+    const rule = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .find((m) => /color:\s*var\(--tint-on-sheet\)/.test(m[2]!));
+    expect(rule, "something has to take the token").toBeTruthy();
+    for (const sel of [".sheet-bar-save", ".row-act", ".note-fix", ".toast-action"]) {
+      expect(rule![1], `${sel} is on the sheet-red list`).toContain(sel);
+    }
+    // The .btn variants declare their own ink against their own fill; taking
+    // this token would invert .btn-danger's white on red.
+    expect(rule![1]).toMatch(/:not\(\.btn-danger\)/);
+  });
+
+  // Red is still the verb on a sheet: it moved from the lettering to the fill.
+  it("the mid-tier sheet button keeps its red as a wash", () => {
+    const bare = css().replace(/\/\*[\s\S]*?\*\//g, "");
+    const wash = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .find((m) => m[1]!.includes(".sheet-scrim > .card .btn") && /background:\s*var\(--red-tint\)/.test(m[2]!));
+    expect(wash, "otherwise it is indistinguishable from .btn-secondary").toBeTruthy();
+  });
+});
+
 describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
   // The strip rule re-sets the chip background at (0,4,0), which beats
   // .chip.active (0,2,0) for the background alone. Any rule that overrides a

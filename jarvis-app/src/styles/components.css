@@ -1240,6 +1240,33 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .toast-msg { flex: 1; font-size: var(--t-body); color: var(--tx-1); }
 .toast-action { background: 0; border: 0; color: var(--tint); font-weight: var(--w-semi); font-size: var(--t-body); padding: var(--s-1) var(--s-2); flex-shrink: 0; }
 
+/* BROWSER-F-10 (2026-09-05). Every red WORD that sits on a sheet grey or the
+   toast grey takes --tint-on-sheet instead of --tint. The reds that carry no
+   words are untouched: the leading glyph on a create row, the primary fill,
+   the danger fill, the outlined chip. Red is still the verb here, it is just
+   the mark rather than the lettering, which is the call this app already made
+   for card surfaces in August and the only one the numbers allow.
+   The .btn variants are excluded by name: each already declares its own ink
+   against its own fill, and .btn-danger's white on red would invert. */
+.form-sheet .sheet-bar-save,
+.form-sheet .row-act,
+.form-sheet .note-fix,
+.sheet-scrim > .card .row-act,
+.sheet-scrim > .card .note-fix,
+.sheet-scrim > .card .btn:not(.btn-primary):not(.btn-secondary):not(.btn-danger):not(.btn-disabled),
+.sheet-scrim > .card .btn-tertiary,
+.toast .toast-action { color: var(--tint-on-sheet); }
+/* The mid-tier .btn is the one place where taking the red out of the letters
+   would also take it out of the button: red-on-press-3 is the only thing that
+   separated "Something Else" from the .btn-secondary above it, and white on
+   press-3 IS .btn-secondary. So the red moves from the lettering to the fill,
+   which is exactly what light theme already does with this button
+   (components.css:3435, the tinted-button form). Dark just never got its
+   half. The wash is the app's own --red-tint, no new value. */
+[data-theme="dark"] .sheet-scrim > .card .btn:not(.btn-primary):not(.btn-secondary):not(.btn-danger):not(.btn-disabled):not(.btn-tertiary) {
+  background: var(--red-tint);
+}
+
 .sched-open { display: flex; align-items: center; gap: var(--s-2); width: 100%; text-align: left; background: transparent; border: 1px dashed var(--divider); border-radius: var(--r-md); padding: var(--s-2h) var(--s-3); color: var(--tx-3); font-size: var(--t-meta); font-family: var(--f); }
 .sched-open-plus { color: var(--tint); font-weight: var(--w-semi); }
 /* N5 completion (2026-08-21): the clash summary line's trailing action. */
@@ -4459,8 +4486,13 @@ body.selecting .voice-dock { display: none; }
 .form-sheet .xs-plan { padding: var(--s-1) var(--s-4) var(--s-3) calc(var(--s-4) + 28px + var(--s-3)); }
 .form-sheet .xs-plan .segmented { margin-bottom: var(--s-2); }
 .form-sheet .xs-actions { padding-top: var(--s-5); }
+/* --danger-tx, not --sys-red (BROWSER-F-10, 2026-09-05): the destructive verb
+   is the one red on a sheet that CANNOT become white, because red is the whole
+   message there, and it has its own token carrying its own measurement. Same
+   value in dark, the darker measured red in light. It is still the tightest
+   number in this finding: 4.09:1 on the sheet bar's ground. */
 .form-sheet .xs-del { width: 100%; justify-content: center; border: 0; background: transparent; font-family: var(--f);
-  font-size: 16px; font-weight: var(--w-medium); color: var(--sys-red); cursor: pointer; }
+  font-size: 16px; font-weight: var(--w-medium); color: var(--danger-tx); cursor: pointer; }
 .form-sheet .xs-del:active { background: var(--press-1); }
 .form-sheet .xs-group .proj-icon { width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: #fff; }
 .form-sheet .xs-group .proj-icon .ic { width: 16px; height: 16px; }
