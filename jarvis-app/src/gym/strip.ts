@@ -99,16 +99,25 @@ export { isUniformStrip };
 
 /** "+X lb" or "+X reps" on every planned entry, for Duplicate Week -> bump
  *  (catalog §4.1). Only bumps fields the exercise's kind actually uses, and
- *  never touches a skipped entry -- there is nothing there to bump. */
+ *  never touches a skipped entry -- there is nothing there to bump.
+ *
+ *  GYM-F-29 (2026-09-05): it used to read an absent field as 0 and a 0 bump
+ *  as a write. So a weight_reps exercise planned as "8 reps" with no weight
+ *  said came back from a +5 lb bump as "5 lb x 8" -- a number the athlete
+ *  never gave -- and leaving Reps at 0 in the sheet stamped `r: 0` onto every
+ *  chip, which is exactly the stored placeholder EMPTY IS LEGAL bans (it is
+ *  harmless only because `has()` reads 0 as absent everywhere downstream).
+ *  A bump moves a number that exists; it never invents one. */
 export function bumpStrip(kind: MeasureKind, sets: SetEntry[], bump: Partial<Record<"w" | "r" | "v" | "t", number>>): SetEntry[] {
   const keys = new Set(fieldsFor(kind).map((f) => f.key));
   return sets.map((s) => {
     if (s.skipped) return s;
     const next: SetEntry = { ...s };
     for (const k of Object.keys(bump) as (keyof typeof bump)[]) {
-      if (!keys.has(k) || bump[k] === undefined) continue;
-      const cur = s[k] ?? 0;
-      next[k] = Math.max(0, cur + bump[k]!);
+      const by = bump[k];
+      if (!keys.has(k) || by === undefined || by === 0) continue;
+      if (!has(s[k])) continue; // nothing said here, so there is nothing to move
+      next[k] = Math.max(0, s[k]! + by);
     }
     return next;
   });

@@ -93,6 +93,25 @@ describe("bumpStrip: Duplicate Week & Bump (catalog §4.1)", () => {
     const bumped = bumpStrip("done", sets, { w: 10, r: 1 });
     expect(bumped.every((s) => s.w === undefined && s.r === undefined)).toBe(true);
   });
+
+  // GYM-F-29 (2026-09-05): a bump moves a number that exists; it never
+  // invents one, and a bump of zero is not a write.
+  it("never invents a weight on a chip that never said one", () => {
+    const bumped = bumpStrip("weight_reps", [{ id: "s", r: 8 }], { w: 5, r: 0 });
+    expect(bumped[0]).toEqual({ id: "s", r: 8 });
+    expect("w" in bumped[0]!).toBe(false);
+  });
+
+  it("a zero bump writes nothing, not a stored zero", () => {
+    const bumped = bumpStrip("weight_reps", [{ id: "s", w: 135 }], { w: 5, r: 0 });
+    expect(bumped[0]).toEqual({ id: "s", w: 140 });
+    expect("r" in bumped[0]!).toBe(false);
+  });
+
+  it("a stored zero from the old editor is treated as absent, and stays absent", () => {
+    const bumped = bumpStrip("weight_reps", [{ id: "s", w: 0, r: 8 }], { w: 5 });
+    expect(bumped[0]!.w).toBe(0);
+  });
 });
 
 describe("newExercise", () => {
