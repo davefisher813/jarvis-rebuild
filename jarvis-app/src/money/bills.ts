@@ -1,5 +1,6 @@
 import type { TaskItem } from "../tasks/TasksService";
 import { daysBetween } from "../upnext/upnext";
+import { addDays } from "../schedule/calendar";
 import { formatMoney } from "./types";
 
 // Money v1 bill language (2026-08-03). Pure functions; MoneyFlow renders them.
@@ -81,11 +82,12 @@ export function billSubline(t: TaskItem, today: string): { text: string; state: 
   return { text: `Due ${monthDay(due)}`, state: "due" };
 }
 
-function addDaysISO(iso: string, days: number): string {
-  const dt = new Date(iso + "T12:00:00");
-  dt.setDate(dt.getDate() + days);
-  return dt.toISOString().slice(0, 10);
-}
+// HMN-F-05 (2026-09-05): the weekly and biweekly hops used to step local
+// noon with setDate and then read the date back through toISOString(), which
+// is the UTC day. Beyond UTC+12 (Auckland in summer, Tonga, Samoa, Kiribati)
+// local noon is still yesterday in UTC, so every hop was 6 or 13 days and a
+// Monday payday read as Friday. addDays from the calendar module formats
+// from local getters, the way addMonthISO below always did.
 
 /**
  * One month forward, clamped to the target month's length but anchored to the
@@ -107,7 +109,7 @@ export function paydayNext(p: PaydayInfo, today: string): string {
   let d = p.next;
   let guard = 0;
   while (d < today && guard++ < 400) {
-    d = p.freq === "monthly" ? addMonthISO(d, anchorDay) : addDaysISO(d, p.freq === "weekly" ? 7 : 14);
+    d = p.freq === "monthly" ? addMonthISO(d, anchorDay) : addDays(d, p.freq === "weekly" ? 7 : 14);
   }
   return d;
 }

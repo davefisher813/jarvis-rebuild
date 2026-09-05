@@ -66,6 +66,22 @@ describe("payday anchoring", () => {
     expect(paydayNext({ amount: 1200, next: "2026-05-31", freq: "monthly" }, TODAY)).toBe("2026-08-31");
   });
 
+  // HMN-F-05 (2026-09-05): beyond UTC+12 the weekly hop read as six days and
+  // the biweekly as thirteen, because local noon is still the previous day in
+  // UTC and the walk read its date back through toISOString(). Kiritimati is
+  // UTC+14 in every season, so the case holds year round.
+  it("weekly and biweekly hops are whole weeks fourteen hours ahead of Greenwich", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Pacific/Kiritimati";
+    try {
+      // Anchored on a Monday, the next payday is a Monday.
+      expect(paydayNext({ amount: 900, next: "2026-01-05", freq: "weekly" }, "2026-01-20")).toBe("2026-01-26");
+      expect(paydayNext({ amount: 900, next: "2026-01-05", freq: "biweekly" }, "2026-03-01")).toBe("2026-03-02");
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
+
   it("counts unpaid bills in the window, including overdue; autopay-rolled past next payday drops out", () => {
     const p = { amount: 1200, next: "2026-08-07", freq: "biweekly" as const };
     const line = paydayLine(p, [
