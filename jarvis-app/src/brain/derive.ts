@@ -31,8 +31,12 @@ const MIN_SLIPS_LEADER = 5;
 const SLIP_LEAD_RATIO = 2; // leader must double the runner-up
 const MIN_PLAN_PICKS = 10;
 
+// BRAIN-F-18 (2026-09-05): the band's end is bandStart + 3, so a late band
+// hands 24 in and `h < 12` called midnight PM: "Your tasks get done between
+// 9 PM and 12 PM". report.ts:100 and seal.ts already wrap with % 24; this is
+// the same wrap, so the hour that comes back is the hour on the clock.
 function hour12(h: number): string {
-  const ap = h < 12 ? "AM" : "PM";
+  const ap = h % 24 < 12 ? "AM" : "PM";
   const x = h % 12 || 12;
   return `${x} ${ap}`;
 }

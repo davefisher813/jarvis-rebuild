@@ -35,6 +35,15 @@ describe("completion window", () => {
     expect(d.evidence.length).toBeLessThanOrEqual(6);
   });
 
+  // BRAIN-F-18 (2026-09-05): the band's end is start + 3, so a late band
+  // handed 24 to the clock formatter, which read `h < 12` and called midnight
+  // PM: "Your tasks get done between 9 PM and 12 PM".
+  it("a late band ends at midnight, and midnight is AM", () => {
+    const d = deriveCompletionWindow(done(12, 23))!;
+    expect(d.title).toBe("Your tasks get done between 9 PM and 12 AM");
+    expect(d.strandText).toContain("12 AM");
+  });
+
   it("never carries free text into evidence, only a day and numbers", () => {
     const d = deriveCompletionWindow(done(12, 9))!;
     for (const e of d.evidence) {
