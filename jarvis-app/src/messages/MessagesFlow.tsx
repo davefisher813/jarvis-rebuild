@@ -112,6 +112,7 @@ import { suggestAttachment, suggestLine, noteAsText, attachmentFilename, type At
 import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
 import { mightProposeTimes, meetingPrompt, parseMeetingTimes, optionsAgainst, firstFree, meetingLine, MEETING_SYSTEM } from "./meetingTimes";
 import { sweepPrompt, parseSweep, needsSweep, liveSweep, loadSweep, saveSweep, SWEEP_SYSTEM, type SentItem } from "./sentSweep";
+import { fullThreadsFor } from "./sentBodies";
 import { laterTaskTitle } from "./deck";
 
 // Demo fixtures never reach a real build (see vite.config.ts). The constant
@@ -616,16 +617,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       const items: SentItem[] = [];
       let head = "";
       for (const { api } of list) {
+        // EMAIL-F-03 (2026-09-05): search hits are metadata (no bodies);
+        // sentBodies.ts fetches the real threads, capped and bounded, so the
+        // model reads what he wrote rather than eight subject lines.
         const metas = await api.searchThreads("in:sent -in:chats", 8).catch(() => []);
-        for (const meta of metas) {
-          const full = mapThreadFull(meta as unknown as Parameters<typeof mapThreadFull>[0]);
+        for (const full of await fullThreadsFor(api, metas)) {
           const last = full.messages[full.messages.length - 1];
           if (!last) continue;
           if (!head) head = last.id;
           if (alreadyPromised(full.id)) continue;
           items.push({
             threadId: full.id,
-            to: displayName(header(last as never, "to")),
+            to: displayName(last.to),
             subject: full.subject,
             body: cleanBody(last.body),
             msgId: last.id,
@@ -1199,9 +1202,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setSaid(null);
     try {
       const metas = await list[0]!.api.searchThreads(saidQuery("", question), 8).catch(() => []);
-      const items = metas
-        .map((m) => {
-          const full = mapThreadFull(m as unknown as Parameters<typeof mapThreadFull>[0]);
+      // EMAIL-F-03 (2026-09-05): the hits are metadata, and mapping metadata
+      // gave every message an empty body, which parseSaid's verbatim guard
+      // then (correctly) refused to quote from. sentBodies.ts fetches the
+      // real threads first, capped at the 8 already in play.
+      const fulls = await fullThreadsFor(list[0]!.api, metas);
+      const items = fulls
+        .map((full) => {
           const mine = full.messages[full.messages.length - 1];
           if (!mine) return null;
           return {

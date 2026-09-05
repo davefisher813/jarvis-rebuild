@@ -276,6 +276,40 @@ describe("MessagesFlow (threads)", () => {
     expect(await screen.findByText("Ridgeley")).toBeInTheDocument(); // clearing restores
   });
 
+  // EMAIL-F-03 (2026-09-05): "What Did I Say About This?" always answered
+  // "Nothing you wrote covers that", because the search hits it read were
+  // metadata (no bodies) and parseSaid refuses any quote it cannot find in
+  // the body. The thread is fetched in full now, so a quote the model gets
+  // right is one he actually wrote, on screen with its date.
+  it("What Did I Say About This? reads the sent body, not the empty metadata", async () => {
+    const sentMeta: GmailThreadMeta = { id: "s1", messages: [
+      msg("sm1", "Me <me@x.com>", "Invoice", "I will send the invoice Friday", ["SENT"], 400),
+    ] };
+    const sentFull = { id: "s1", messages: [
+      { id: "sm1", threadId: "s1", snippet: "", internalDate: "400", payload: { mimeType: "text/plain", body: { data: btoa("Hi Wei. I will send the invoice Friday. Thanks") },
+        headers: [{ name: "From", value: "Me <me@x.com>" }, { name: "To", value: "Wei <wei@x.com>" }, { name: "Subject", value: "Invoice" }, { name: "Date", value: "Mon, 24 Aug 2026 10:00:00 -0400" }, { name: "Message-ID", value: "<s@x>" }] } },
+    ] };
+    const ai = new AIService({
+      available: true,
+      getToken: () => "tok",
+      fetchImpl: (async (_url: string, init?: { body?: string }) => {
+        const said = (init?.body ?? "").includes("QUOTE them verbatim");
+        const text = said ? JSON.stringify([{ i: 0, quote: "I will send the invoice Friday." }]) : "[]";
+        return { ok: true, status: 200, json: async () => ({ text }), text: async () => "" };
+      }) as unknown as typeof fetch,
+    });
+    const api = makeApi({
+      searchThreads: async () => [sentMeta],
+      getThread: async (id: string) => (id === "s1" ? sentFull : fullThread),
+    });
+    render(wrap(<MessagesFlow ai={ai} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.change(await screen.findByPlaceholderText("Search All Mail"), { target: { value: "invoice" } });
+    fireEvent.click(await screen.findByText("What Did I Say About This?"));
+    expect(await screen.findByText(/I will send the invoice Friday\./)).toBeInTheDocument();
+    expect(screen.queryByText("Nothing you wrote covers that")).toBeNull();
+  });
+
   it("triage failure lands on a calm state, never the wall and never an invented sort", async () => {
     const ai = aiReturning("I refuse to answer with JSON today.");
     render(wrap(<MessagesFlow ai={ai} configured />));
