@@ -106,14 +106,48 @@ describe("tap the number to type it", () => {
     expect(onChange).toHaveBeenCalledWith(10);
   });
 
+  // SHARED-F-04 (2026-09-05): this asserted `not.toHaveBeenCalledWith(0)`
+  // with min: 1, so it passed while the value was in fact being overwritten
+  // with the floor. A test that cannot fail on the bug it names is worse than
+  // no test: it says the case is covered. It asserts the whole thing now.
   it("leaves the value alone when the field is emptied and dismissed", () => {
     const { onChange, container } = setup({ value: 5, step: 1, min: 1 });
     fireEvent.click(screen.getByText("5"));
     const input = container.querySelector(".stepper-edit") as HTMLInputElement;
     fireEvent.change(input, { target: { value: "" } });
     fireEvent.blur(input);
-    // Empty is not zero and not a number; the readout comes back untouched.
-    expect(onChange).not.toHaveBeenCalledWith(0);
+    // Empty is not zero and not a number: nothing was entered, so nothing
+    // is written, and the readout comes back untouched.
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText("5")).toBeInTheDocument();
+  });
+
+  it("the same gesture on a weight stepper does not write a zero", () => {
+    // The reported one: tap 185, select all, backspace, tap away to think.
+    const { onChange, container } = setup({ value: 185, step: 5, min: 0 });
+    fireEvent.click(screen.getByText("185"));
+    const input = container.querySelector(".stepper-edit") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.blur(input);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("Enter on an emptied field is the same non-event", () => {
+    const { onChange, container } = setup({ value: 5, step: 1, min: 1 });
+    fireEvent.click(screen.getByText("5"));
+    const input = container.querySelector(".stepper-edit") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("a typed zero is still a typed zero", () => {
+    const { onChange, container } = setup({ value: 5, step: 1, min: 0 });
+    fireEvent.click(screen.getByText("5"));
+    const input = container.querySelector(".stepper-edit") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "0" } });
+    fireEvent.blur(input);
+    expect(onChange).toHaveBeenCalledWith(0);
   });
 
   it("is reachable from the keyboard, not only by tap", () => {

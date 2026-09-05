@@ -42,8 +42,15 @@ export default function Stepper({
 
   const commit = () => {
     if (editing !== null) {
-      const n = Number(editing);
-      if (Number.isFinite(n)) onChange(clamp(n));
+      // SHARED-F-04 (2026-09-05): an emptied field is not a typed zero. It
+      // went through Number(""), which is 0 and is finite, so selecting 185,
+      // clearing it, and tapping away to think wrote 0 (or the floor: on the
+      // exercise sheet's set count it wrote 1, dropping every set after the
+      // first with the reps and weights already typed into them). Nothing was
+      // entered, so nothing is written.
+      const typed = editing.trim();
+      const n = Number(typed);
+      if (typed !== "" && Number.isFinite(n)) onChange(clamp(n));
     }
     setEditing(null);
   };
