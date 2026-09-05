@@ -15,6 +15,11 @@ import { useEffect } from "react";
 // this hook is that gesture. Silently a no-op wherever the API does not
 // exist (an older browser, a webview that never shipped it, jsdom in a
 // test) -- the feature degrades to "the screen can sleep," never a crash.
+// GYM-F-09 (2026-09-05): the request happened once, on mount, and was never
+// renewed. The Wake Lock spec RELEASES every lock the moment the document
+// becomes hidden, so one glance at a text undid S5-Q30 for the rest of the
+// session: the screen slept between sets again, including through a running
+// conditioning clock. Coming back visible re-requests it.
 export function useWakeLock(active = true): void {
   useEffect(() => {
     if (!active) return;
@@ -25,11 +30,23 @@ export function useWakeLock(active = true): void {
     // moment it lands instead.
     let cancelled = false;
     const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } };
-    nav.wakeLock?.request("screen")
-      .then((l) => { if (cancelled) l.release().catch(() => {}); else lock = l; })
-      .catch(() => {});
+    const acquire = () => {
+      if (cancelled || lock) return;
+      nav.wakeLock?.request("screen")
+        .then((l) => { if (cancelled) l.release().catch(() => {}); else lock = l; })
+        .catch(() => {});
+    };
+    // The system already dropped the lock on the way out, so the reference
+    // this hook holds is stale: clear it, then ask again on the way back in.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") acquire();
+      else lock = null;
+    };
+    acquire();
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
       lock?.release().catch(() => {});
     };
   }, [active]);
