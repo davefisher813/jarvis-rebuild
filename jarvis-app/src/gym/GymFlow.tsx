@@ -664,18 +664,30 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
 
   // Upload (gym session 2): photo/screenshot or pasted text -> review -> save.
   // Gated on AI availability like every AI-dependent offer.
+  // GYM-F-17 (2026-09-05, fork option A): this used to MERGE an upload into
+  // the active program, taking its name along with it. With "5 Day Program"
+  // active, uploading a coach's "Summer Speed" sheet renamed the athlete's own
+  // program, appended a second week, flipped the page to the multi-week layout
+  // and made the Up Next card disappear, with no confirm and no undo, over a
+  // toast that just said "Program saved". The button says a PROGRAM, so it
+  // makes one: the athlete's own plan is never touched, and the toast offers
+  // the switch instead of performing it.
   const saveUploaded = async (p: { name: string; weeks: Program["data"]["weeks"] }) => {
     setUploadOpen(false);
+    let newId: string | null = null;
     const ok = await attemptWrite(async () => {
-      if (program) {
-        // Merge into the active program: uploaded weeks append after existing ones.
-        await svc.updateProgram(program.id, { name: p.name, weeks: [...program.data.weeks, ...p.weeks] });
-      } else {
-        await svc.createProgram({ name: p.name, weeks: p.weeks });
-      }
+      newId = await svc.createProgram({ name: p.name, weeks: p.weeks });
+      if (!newId) throw new Error("program not created");
     });
     await reload();
-    if (ok) showToast({ message: "Program saved · Check days once" });
+    if (!ok) return;
+    const created: string | null = newId;
+    showToast({
+      message: `${p.name} saved · Check days once`,
+      ...(created && created !== activeProgramId
+        ? { actionLabel: "Switch to It", onAction: () => switchProgram(created) }
+        : {}),
+    });
   };
 
   // GYM-F-18 (2026-09-05): every program edit awaited the store with no
@@ -1899,6 +1911,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
                     </div>
                   ))}
                   <button className="row-create" onClick={() => openWeekSheet()}>Add Week</button>
+                  {/* GYM-F-17 (2026-09-05): the upload door only ever lived in
+                      the single-week Days card, so once a program went
+                      multi-week a second coach's sheet had no entry point at
+                      all. Same affordance, same handler, in the layout that
+                      replaced it. */}
+                  {ai.available && (
+                    <button className="row-create" onClick={() => setUploadOpen(true)}>Upload a Program</button>
+                  )}
                 </div></div>
               </>
             ) : (

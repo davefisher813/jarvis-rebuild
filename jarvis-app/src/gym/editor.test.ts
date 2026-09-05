@@ -181,3 +181,25 @@ describe("GYM-F-30: Back from a lift returns to History", () => {
     expect(flow).toMatch(/historyOpen && liftDetailFor\s*\n\s*\? 2/);
   });
 });
+
+// GYM-F-17 (2026-09-05, fork option A): Upload a Program merged the uploaded
+// sheet into the ACTIVE program and took its name along with it, with no
+// confirm and no undo, and had no entry point at all once a program went
+// multi-week.
+describe("GYM-F-17: an uploaded program is a program", () => {
+  const flow = src("GymFlow.tsx");
+
+  it("the upload always creates, and never writes over the active program", () => {
+    expect(flow).toMatch(/newId = await svc\.createProgram\(\{ name: p\.name, weeks: p\.weeks \}\)/);
+    expect(flow).not.toContain("weeks: [...program.data.weeks, ...p.weeks]");
+  });
+
+  it("the toast offers the switch rather than performing it", () => {
+    expect(flow).toContain('actionLabel: "Switch to It"');
+  });
+
+  it("the upload door exists in the multi-week layout too", () => {
+    const doors = flow.match(/className="row-create" onClick=\{\(\) => setUploadOpen\(true\)\}>Upload a Program/g) ?? [];
+    expect(doors.length).toBe(2);
+  });
+});
