@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useProfile } from "../data/NotesProvider";
 import { todayISO } from "../schedule/calendar";
 import { haptics } from "../shared/haptics";
+import { attemptWrite } from "../shared/guard";
 import type { ProfileData } from "../profile/types";
 import NoticeCard from "./NoticeCard";
 import { SunGlyph } from "../shared/glyphs";
@@ -30,6 +31,10 @@ export default function CheckIn({ onChanged }: { onChanged?: () => void }) {
   const profileSvc = useProfile();
   const [show, setShow] = useState(false);
   const [affirm, setAffirm] = useState<string | null>(null);
+  // TODAY-F-13 (2026-09-05): while a save is in flight the chips are inert.
+  // saveDay is a read-modify-write of the whole 14-day map, and a second tap
+  // on a slow connection started a second one against the same stale read.
+  const [saving, setSaving] = useState(false);
   const today = todayISO();
 
   const load = useCallback(async () => {
@@ -54,6 +59,20 @@ export default function CheckIn({ onChanged }: { onChanged?: () => void }) {
     const trimmed: NonNullable<ProfileData["checkin"]> = {};
     for (const k of keep) trimmed[k] = all[k]!;
     await profileSvc.save({ checkin: trimmed });
+  };
+
+  // TODAY-F-13 (2026-09-05): this was the only component on Today whose
+  // writes did not go through the guard. A dead connection meant the save
+  // rejected unhandled: no "Noted" line, no toast, the card still standing,
+  // and he taps again. Worse over days: an Underwater answer that never
+  // landed is an answer tomorrow's plan never sizes itself by, and nothing
+  // ever said so. The card only stands down once the write is real.
+  const commit = async (patch: { mood?: string; addSkip?: string }): Promise<boolean> => {
+    if (saving) return false;
+    setSaving(true);
+    const ok = await attemptWrite(() => saveDay(patch));
+    setSaving(false);
+    return ok;
   };
 
   if (affirm) {
@@ -83,7 +102,7 @@ export default function CheckIn({ onChanged }: { onChanged?: () => void }) {
       tone="cat-fg-blue"
       title="How Did Today Feel?"
       sub="Shapes tomorrow's plan"
-      onDismiss={async () => { await saveDay({ addSkip: "mood" }); haptics.selection(); setShow(false); }}
+      onDismiss={async () => { if (!(await commit({ addSkip: "mood" }))) return; haptics.selection(); setShow(false); }}
       foot={
         <div className="row check-moods">
           {/* Plain text, no emoji (Dave 2026-09-02: "This is an eye sore on
@@ -93,8 +112,8 @@ export default function CheckIn({ onChanged }: { onChanged?: () => void }) {
               being the closest sibling), so these three match that instead
               of standing out as their own thing. */}
           {[["fire", "Flow"], ["meh", "Meh"], ["under", "Underwater"]].map(([v, label]) => (
-            <div className="chip" role="button" tabIndex={0} key={v} onClick={async () => {
-              await saveDay({ mood: v });
+            <div className={"chip" + (saving ? " chip-off" : "")} role="button" tabIndex={0} aria-disabled={saving || undefined} key={v} onClick={async () => {
+              if (!(await commit({ mood: v }))) return;
               haptics.selection();
               // The consequence, not a pleasantry. Only "under" resizes
               // tomorrow (daySizing), so only "under" says it will.
