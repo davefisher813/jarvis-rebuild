@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { InMemoryAdapter } from "../src/core/inMemoryAdapter.js";
-import { Store, type StorePersistence } from "../src/core/store.js";
+import { Store, UUID_RE, type StorePersistence } from "../src/core/store.js";
 import type { DataAdapter } from "../src/core/adapter.js";
 import type { ItemData, QueuedOp, ServerTime } from "../src/core/types.js";
 
@@ -188,5 +188,83 @@ describe("persistence: the queue survives a kill", () => {
   it("no persistence given behaves exactly as before: in-memory only, nothing to restore from", () => {
     const store = new Store(new InMemoryAdapter());
     expect(store.queueLen()).toBe(0);
+  });
+});
+
+// PLUMB-F-01 (2026-09-05): "Offline creates get an id Postgres rejects, so
+// they never sync and jam the queue." item.id is a uuid column and the
+// queued id is inserted as-is on replay, so the id has to BE a uuid. The
+// in-memory adapter accepts any string, which is why nothing here noticed
+// "offline_<uuid>"; these pin the shape directly.
+describe("PLUMB-F-01: an offline create's id is a bare uuid", () => {
+  it("every queued id matches the uuid shape the id column accepts", async () => {
+    const store = new Store(new InMemoryAdapter());
+    store.goOffline();
+    const ids = await Promise.all(
+      Array.from({ length: 20 }, (_, i) => store.create("U", "note", { title: "n" + i })),
+    );
+    for (const id of ids) expect(id).toMatch(UUID_RE);
+    expect(new Set(ids).size).toBe(20);
+    expect(ids.some((id) => id.startsWith("offline_"))).toBe(false);
+  });
+
+  it("the fallback (no crypto.randomUUID) is uuid-shaped and unique inside one millisecond", async () => {
+    // An exotic webview with a crypto object that lacks randomUUID.
+    vi.stubGlobal("crypto", {});
+    try {
+      expect("randomUUID" in crypto).toBe(false);
+      const store = new Store(new InMemoryAdapter());
+      store.goOffline();
+      const ids = await Promise.all(Array.from({ length: 50 }, () => store.create("U", "note", {})));
+      for (const id of ids) expect(id).toMatch(UUID_RE);
+      expect(new Set(ids).size).toBe(50);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("a replayed create that hits duplicate key (23505) counts as landed and the queue moves on", async () => {
+    const inner = new InMemoryAdapter();
+    // Postgres shape of the error postgrest-js hands back on a unique violation.
+    const dup = { code: "23505", message: "duplicate key value violates unique constraint \"item_pkey\"", details: "", hint: "" };
+    const adapter: DataAdapter = {
+      create: async (o: string, t: string, d: ItemData, id?: string) => {
+        if (id && (await inner.read(o, id))) throw dup;
+        return inner.create(o, t, d, id);
+      },
+      createMany: (o: string, t: string, d: ItemData[]) => inner.createMany(o, t, d),
+      read: (o: string, id: string) => inner.read(o, id),
+      apply: (o: string, id: string, p: ItemData, st?: ServerTime) => inner.apply(o, id, p, st),
+      del: (o: string, id: string) => inner.del(o, id),
+      listForUser: (o: string, t?: string) => inner.listForUser(o, t),
+    };
+    const store = new Store(adapter);
+    store.goOffline();
+    const id = await store.create("U", "note", { title: "Landed once already" });
+    await store.update("U", id, { body: "and edited" });
+    // The first attempt reached the server but its response was lost: the row
+    // exists, the queue still holds the create.
+    await inner.create("U", "note", { title: "Landed once already" }, id);
+    await store.reconnect();
+    expect(store.queueLen()).toBe(0);
+    expect((await store.read("U", id))?.data).toEqual({ title: "Landed once already", body: "and edited" });
+    expect(inner.snapshotCount()).toBe(1);
+  });
+
+  it("any other create failure still stops the drain and keeps the queue intact", async () => {
+    const inner = new InMemoryAdapter();
+    const adapter: DataAdapter = {
+      create: async () => { throw { code: "42501", message: "permission denied" }; },
+      createMany: (o: string, t: string, d: ItemData[]) => inner.createMany(o, t, d),
+      read: (o: string, id: string) => inner.read(o, id),
+      apply: (o: string, id: string, p: ItemData, st?: ServerTime) => inner.apply(o, id, p, st),
+      del: (o: string, id: string) => inner.del(o, id),
+      listForUser: (o: string, t?: string) => inner.listForUser(o, t),
+    };
+    const store = new Store(adapter);
+    store.goOffline();
+    await store.create("U", "note", { title: "Refused" });
+    await expect(store.reconnect()).rejects.toMatchObject({ code: "42501" });
+    expect(store.queueLen()).toBe(1);
   });
 });

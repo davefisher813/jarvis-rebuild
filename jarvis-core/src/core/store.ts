@@ -13,9 +13,30 @@ export interface StorePersistence {
   save(queue: QueuedOp[]): void;
 }
 
+// PLUMB-F-01 (2026-09-05): an offline create's id IS the row's primary key
+// once it replays (`insert({ id, ... })`, and item.id is a uuid column).
+// S3-Q14 prefixed it "offline_", Postgres rejected every replay with
+// "invalid input syntax for type uuid", and the create sat at the head of
+// the queue forever with every later write stuck behind it. So: a bare
+// uuid, always. The fallback is uuid-shaped too (version 4, variant 8-b),
+// and random rather than time-based so two captures in one millisecond
+// cannot share an id.
+export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function genId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return "offline_" + crypto.randomUUID();
-  return "offline_" + Date.now().toString(36) + Math.random().toString(36).slice(2);
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  const hex = () => Math.floor(Math.random() * 16).toString(16);
+  let s = "";
+  for (let i = 0; i < 32; i++) s += i === 12 ? "4" : i === 16 ? (8 + Math.floor(Math.random() * 4)).toString(16) : hex();
+  return s.slice(0, 8) + "-" + s.slice(8, 12) + "-" + s.slice(12, 16) + "-" + s.slice(16, 20) + "-" + s.slice(20);
+}
+
+// Postgres unique_violation. A replayed create that already landed (the
+// first attempt's response was lost to the network, or a second drain got
+// there first) comes back with this; the row exists under the id we asked
+// for, which is exactly the outcome the queue wanted.
+function isDuplicateKey(e: unknown): boolean {
+  return typeof e === "object" && e !== null && (e as { code?: unknown }).code === "23505";
 }
 
 // The typed client layer the app talks to. It wraps any DataAdapter and adds
@@ -200,7 +221,13 @@ export class Store {
     while (this.queue.length) {
       const op = this.queue[0]!;
       if (op.op === "create") {
-        await this.adapter.create(op.ownerId, op.entityType, op.data, op.id);
+        try {
+          await this.adapter.create(op.ownerId, op.entityType, op.data, op.id);
+        } catch (e) {
+          // PLUMB-F-01: the row is already there under this id; that is
+          // success, not a reason to wedge the queue on every online event.
+          if (!isDuplicateKey(e)) throw e;
+        }
         this.pendingCreates.delete(op.id);
       } else if (op.op === "update") {
         // toWire on replay too: update() normalizes before queueing, and this
