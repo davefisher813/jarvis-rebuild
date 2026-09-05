@@ -501,12 +501,19 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
             // own, because a note you have to name before you can write it is
             // a note that does not get written; renaming it is one tap in the
             // editor he is already looking at.
-            const id = await attemptWrite(() => notesSvc.createNote(
-              detail.data.title,
-              detail.data.category ?? "",
-              [{ id: "proj-" + detail.id, kind: "project", label: detail.data.title, targetId: detail.id }],
-            ));
-            if (typeof id === "string") onOpenNote(id);
+            // BROWSER-F-01 (2026-09-05): attemptWrite resolves a BOOLEAN
+            // (guard.ts:21), so the `typeof id === "string"` gate here never
+            // passed: Add a Note on a project made the note and left you on
+            // the project page with no sign anything had happened.
+            let noteId: string | null = null;
+            await attemptWrite(async () => {
+              noteId = await notesSvc.createNote(
+                detail.data.title,
+                detail.data.category ?? "",
+                [{ id: "proj-" + detail.id, kind: "project", label: detail.data.title, targetId: detail.id }],
+              );
+            });
+            if (noteId) onOpenNote(noteId);
           })() : undefined}
           firstStep={ai.available ? (
             <div className="pad-x">

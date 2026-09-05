@@ -736,12 +736,20 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
             // the task's own, so there's nothing to type before you can
             // write the note.
             const s = sheet;
-            const id = await attemptWrite(() => notesSvc.createNote(
-              s.initial.text,
-              s.initial.category,
-              [{ id: "task-" + s.id, kind: "task", label: s.initial.text, targetId: s.id }],
-            ));
-            if (typeof id === "string") onOpenNote(id);
+            // BROWSER-F-01 (2026-09-05): this read the id off attemptWrite,
+            // which resolves a BOOLEAN (guard.ts:21). `typeof true` is never
+            // "string", so the note was created and never opened: a dead tap
+            // that quietly filed a note per press. The id is captured inside
+            // the closure now, the way NotesFlow's creates already do it.
+            let noteId: string | null = null;
+            await attemptWrite(async () => {
+              noteId = await notesSvc.createNote(
+                s.initial.text,
+                s.initial.category,
+                [{ id: "task-" + s.id, kind: "task", label: s.initial.text, targetId: s.id }],
+              );
+            });
+            if (noteId) onOpenNote(noteId);
           })() : undefined}
         />
       )}
