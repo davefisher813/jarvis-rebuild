@@ -1,6 +1,6 @@
 import { connectEventSink, emit, serverSink } from "./index";
 import { resolvePendingPlans } from "./planOutcome";
-import { localDayParts, type EventRow } from "./serverSink";
+import { localDayParts, newRowId, type EventRow } from "./serverSink";
 import { readSamples } from "../shared/timeSense";
 import { todayISO } from "../tasks/grouping";
 
@@ -9,11 +9,6 @@ import { todayISO } from "../tasks/grouping";
 // boot: the log serves the app, not the other way around.
 
 const IMPORT_FLAG = "jarvis.eventlog.imported.v1";
-
-function newId(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return "00000000-0000-4000-8000-" + Date.now().toString(16).padStart(12, "0").slice(-12);
-}
 
 /**
  * One-time, best-effort backfill of existing Time Sense samples as
@@ -33,7 +28,7 @@ export function importTimeSenseOnce(): number {
   for (const s of readSamples()) {
     const { day, h, dow } = localDayParts(s.t);
     const row: EventRow = {
-      id: newId(),
+      id: newRowId(),
       type: "task.completed",
       entity_type: "task",
       entity_id: s.id ?? null,

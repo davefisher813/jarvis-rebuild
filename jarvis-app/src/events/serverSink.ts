@@ -90,10 +90,22 @@ export function localDayParts(ts: number): { day: string; h: number; dow: number
   return { day, h: d.getHours(), dow: d.getDay() };
 }
 
-function newId(): string {
+// The event_log id. It has to be uuid-shaped (uuid column) AND unique: rows
+// are upserted with ignoreDuplicates, so two events sharing an id means the
+// second one is silently thrown away.
+//
+// PLUMB-F-20 (2026-09-05): the fallback used to be the millisecond clock
+// padded into a uuid shape, so two events emitted inside the same millisecond
+// (a completion emits several) got the same id and the upsert dropped all but
+// the first. Dormant on modern iOS, which has crypto.randomUUID, and live in
+// any WebView without it. Random now, the way bus.ts:9 and the core store's
+// own generator already were: version 4, variant 8-b, no clock in it at all.
+export function newRowId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  // uuid-shaped fallback for exotic webviews; uniqueness is what matters here
-  return "00000000-0000-4000-8000-" + Date.now().toString(16).padStart(12, "0").slice(-12);
+  const hex = () => Math.floor(Math.random() * 16).toString(16);
+  let s = "";
+  for (let i = 0; i < 32; i++) s += i === 12 ? "4" : i === 16 ? (8 + Math.floor(Math.random() * 4)).toString(16) : hex();
+  return s.slice(0, 8) + "-" + s.slice(8, 12) + "-" + s.slice(12, 16) + "-" + s.slice(16, 20) + "-" + s.slice(20);
 }
 
 // Map a bus event to a table row. Known props map to typed columns; ANY other
@@ -107,7 +119,7 @@ export function rowFrom(e: JarvisEvent): EventRow {
   // at the wrong day. Shape-gated like kind: a valid local day or nothing.
   const ownDay = typeof p.day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(p.day) ? p.day : null;
   return {
-    id: newId(),
+    id: newRowId(),
     type: e.type,
     entity_type: e.entityType ?? null,
     entity_id: e.entityId ?? null,

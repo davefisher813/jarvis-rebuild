@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { ServerSink, rowFrom, localDayParts, type EventRow, type QueueStorage, type SinkClient } from "./serverSink";
+import { describe, it, expect, vi } from "vitest";
+import { ServerSink, rowFrom, localDayParts, newRowId, type EventRow, type QueueStorage, type SinkClient } from "./serverSink";
+import { UUID_RE } from "@core";
 import type { JarvisEvent } from "./types";
 
 // The durable sink is the foundation of the Brain: if it drops events, leaks
@@ -152,5 +153,29 @@ describe("ServerSink", () => {
     for (let i = 0; i < 8; i++) sink.enqueueRaw({ ...rowFrom(ev("task.completed")), id: "id-" + i });
     const ids = sink.queue().map((r) => r.id);
     expect(ids).toEqual(["id-3", "id-4", "id-5", "id-6", "id-7"]);
+  });
+});
+
+// PLUMB-F-20 (2026-09-05): the id fallback was the millisecond clock in a
+// uuid costume. Rows are upserted with ignoreDuplicates, so two events in one
+// millisecond meant the second was silently thrown away: dormant on modern
+// iOS, live in any WebView without crypto.randomUUID.
+describe("the row id without crypto.randomUUID", () => {
+  it("is unique even for a thousand rows in the same millisecond, and still uuid-shaped", () => {
+    const real = globalThis.crypto;
+    // A crypto object with no randomUUID is exactly the exotic WebView case.
+    vi.stubGlobal("crypto", {} as Crypto);
+    try {
+      const ids = new Set<string>();
+      for (let i = 0; i < 1000; i++) {
+        const id = newRowId();
+        expect(id).toMatch(UUID_RE);
+        ids.add(id);
+      }
+      expect(ids.size).toBe(1000);
+    } finally {
+      vi.stubGlobal("crypto", real);
+      vi.unstubAllGlobals();
+    }
   });
 });
