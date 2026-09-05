@@ -37,6 +37,7 @@ import { ensureCheckinNotifications, cancelCheckinNotifications, ensureEventRemi
 import { badgeCount, setAppBadge } from "../shared/badge";
 import { isEvening, eveningStats, weekRecap } from "./evening";
 import { readSamples } from "../shared/timeSense";
+import { settleDuePlans } from "../events/pipeline";
 import { buildGoalIndex, liveGoals, reachOf, goalTitleForTask } from "../bigger/reach";
 import { buildParentIndex, parentForTask } from "../life/parent";
 import { inheritFromThread } from "../messages/threadTasks";
@@ -246,6 +247,12 @@ export default function TodayFlow({
     const s = readLive();
     setLiveGym(s && isStillActive(s, todayISO()) ? s : null);
   }, []);
+  // PLUMB-F-17 (2026-09-05): yesterday's picks were only scored at cold
+  // start, so an app that lived across midnight left the Lately record and
+  // the cap offer stale until the next full relaunch. Today is the screen
+  // that shows both, so mounting it settles anything due. The call is a
+  // no-op after the first pass of a given day.
+  useEffect(() => { settleDuePlans(); }, []);
   // LAW: every notice on Today can be dismissed. Waving it off touches only
   // this visit's UI state, never the session itself -- the workout is still
   // live either way, so it is back the next time Today opens. A permanent

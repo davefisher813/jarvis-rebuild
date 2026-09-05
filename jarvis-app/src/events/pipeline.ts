@@ -60,13 +60,44 @@ export function importTimeSenseOnce(): number {
   return queued;
 }
 
+// PLUMB-F-17 (2026-09-05): "yesterday's plan is only scored at cold start."
+// resolvePendingPlans ran once, inside startEventPipeline, and an app that
+// stays resident across midnight (normal on iOS) never ran it again, so the
+// Lately record and the cap offer lagged by however long the app lived.
+// There is no day-rollover hook in this codebase; the rest of the app handles
+// rollover per screen, so this does the same: settle on the way back to the
+// foreground and when Today mounts, guarded by the day it last settled, so
+// twenty foregrounds in an afternoon still cost one pass.
+let lastSettledDay = "";
+
+/** Score every plan whose day has passed, at most once per local day. */
+export function settleDuePlans(): number {
+  const today = todayISO();
+  if (today === lastSettledDay) return 0;
+  try {
+    const n = resolvePendingPlans(today, readSamples(), emit);
+    lastSettledDay = today;
+    return n;
+  } catch (err) {
+    // Left unmarked on purpose: a failed pass should be retried on the next
+    // foreground, not swallowed until tomorrow.
+    console.warn("plan settle failed (non-fatal)", err);
+    return 0;
+  }
+}
+
 /** Boot the pipeline: connect the client, backfill once, settle old plans, flush. */
 export function startEventPipeline(client: import("./serverSink").SinkClient | null): void {
   try {
     connectEventSink(client);
     importTimeSenseOnce();
     // Yesterday's plan gets scored the first time the app opens on a later day.
-    resolvePendingPlans(todayISO(), readSamples(), emit);
+    settleDuePlans();
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") settleDuePlans();
+      });
+    }
     void serverSink.flush();
   } catch (err) {
     console.warn("event pipeline start failed (non-fatal)", err);
