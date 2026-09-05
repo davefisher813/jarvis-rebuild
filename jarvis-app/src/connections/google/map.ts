@@ -295,7 +295,14 @@ export function buildReply(orig: MailFull, body: string): {
   to: string; subject: string; body: string; inReplyTo: string; threadId: string;
 } {
   return {
-    to: orig.fromEmail,
+    // EMAIL-F-15 (2026-09-05): "Reply ignores the Reply-To header; Reply All
+    // honours it." A support desk, a ticketing address, a school portal or a
+    // person mailing through a list all say in the header where an answer
+    // should land, and this sent it to the From address instead, where
+    // nobody reads. buildReplyAll has read replyTo since S2-4; buildReply
+    // predates it, so Reply, the quick chips, the Sweep and the heads-down
+    // auto-reply, all of which come through here, all answered the wrong box.
+    to: orig.replyTo || orig.fromEmail,
     // "(no subject)" is a LIST PLACEHOLDER, not a subject. It used to go out
     // to the recipient as "Re: (no subject)" (2026-08-25).
     subject: replySubject(orig.subject),
@@ -336,9 +343,14 @@ export function buildReplyAll(orig: MailFull, selfEmail: string, body: string): 
   const to = orig.replyTo || orig.fromEmail;
   const seen = new Set([selfEmail.toLowerCase(), to.toLowerCase()]);
   const cc: string[] = [];
-  for (const addr of [...splitAddrs(orig.to), ...splitAddrs(orig.cc)]) {
+  // EMAIL-F-15 (2026-09-05): when Reply-To redirects the answer, the person
+  // who actually wrote is on neither the To nor the Cc line, so a Reply All
+  // dropped them. They lead the Cc instead, which is also what makes the
+  // Reply All button appear (MessagesFlow reads this cc to decide) on a
+  // message whose only extra recipient is its own sender.
+  for (const addr of [orig.fromEmail, ...splitAddrs(orig.to), ...splitAddrs(orig.cc)]) {
     const low = addr.toLowerCase();
-    if (seen.has(low)) continue;
+    if (!low || seen.has(low)) continue;
     seen.add(low);
     cc.push(addr);
   }

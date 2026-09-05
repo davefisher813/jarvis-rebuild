@@ -2496,6 +2496,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     const worthSummarising = thread.messages.length > 1 || isLong(cleanBody(lastMsg(thread).body));
     // S2-4: Reply All only earns a button when it would actually differ from
     // Reply -- someone else was on the To/Cc line besides the user.
+    // EMAIL-F-15 (2026-09-05): a message whose Reply-To redirects the answer
+    // now has its own sender in that cc, so the button appears there too,
+    // which is the one case where it used to hide.
     const replyAllSelf = accountOfThread(thread.id) || g.accounts[0]?.email || "";
     const hasOthers = buildReplyAll(lastMsg(thread), replyAllSelf, "").cc.trim() !== "";
     return (

@@ -61,6 +61,27 @@ describe("gmail read + send mappers", () => {
     expect(decoded).toContain("In-Reply-To: <abc>");
   });
 
+  // EMAIL-F-15 (2026-09-05): "Reply ignores the Reply-To header; Reply All
+  // honours it." Mail from a shared desk or a ticketing address names where
+  // the answer goes; this sent it back to the From address, where nobody
+  // reads. Every reply path in the app (Reply, the quick chips, the Sweep's
+  // Send & Next, the heads-down auto-reply) comes through buildReply.
+  it("answers the Reply-To address when the sender named one", () => {
+    const full = mapGmailFull({ id: "m1", threadId: "t9", payload: { mimeType: "text/plain", body: { data: btoa("hi") },
+      headers: [
+        { name: "From", value: "Northlake Desk <noreply-desk@x.com>" },
+        { name: "Reply-To", value: "support@x.com" },
+        { name: "Subject", value: "Ticket 41" }, { name: "Message-ID", value: "<abc>" },
+      ] } });
+    expect(buildReply(full, "ok").to).toBe("support@x.com");
+  });
+
+  it("still answers the From address when there is no Reply-To", () => {
+    const full = mapGmailFull({ id: "m1", threadId: "t9", payload: { mimeType: "text/plain", body: { data: btoa("hi") },
+      headers: [{ name: "From", value: "A <a@x.com>" }, { name: "Subject", value: "S" }] } });
+    expect(buildReply(full, "ok").to).toBe("a@x.com");
+  });
+
   it("parses Cc and Reply-To off a message", () => {
     const full = mapGmailFull({ id: "m1", threadId: "t", payload: { mimeType: "text/plain", body: { data: btoa("hi") },
       headers: [
@@ -104,6 +125,21 @@ describe("buildReplyAll", () => {
         { name: "To", value: "Dave <dave@x.com>" }, { name: "Subject", value: "S" }, { name: "Message-ID", value: "<x>" },
       ] } });
     expect(buildReplyAll(m, "dave@x.com", "ok").to).toBe("person@x.com");
+  });
+
+  // EMAIL-F-15: with Reply-To pointing somewhere else, the writer is on
+  // neither the To nor the Cc line. Keeping them in the Cc is what stops
+  // Reply All from dropping the person who wrote, and it is what gives the
+  // Reply All button something to differ by (MessagesFlow reads this cc).
+  it("keeps the original sender on the thread when Reply-To redirects", () => {
+    const m = mapGmailFull({ id: "m1", threadId: "t9", payload: { mimeType: "text/plain", body: { data: btoa("hi") },
+      headers: [
+        { name: "From", value: "List Bot <bot@list.com>" }, { name: "Reply-To", value: "person@x.com" },
+        { name: "To", value: "Dave <dave@x.com>" }, { name: "Subject", value: "S" }, { name: "Message-ID", value: "<x>" },
+      ] } });
+    const r = buildReplyAll(m, "dave@x.com", "ok");
+    expect(r.to).toBe("person@x.com");
+    expect(r.cc).toBe("bot@list.com");
   });
 
   it("never ccs the user their own address, case-insensitively", () => {
