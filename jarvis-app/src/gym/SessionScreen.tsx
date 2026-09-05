@@ -212,6 +212,29 @@ export default function SessionScreen({
   };
   const endRest = () => onFit({ restEndsAt: undefined });
 
+  // GYM-F-24 (2026-09-05): in the live session the strip writes straight
+  // through to storage, so one tap on the swipe-revealed delete took the
+  // 275 x 5 that had just happened with no toast and no undo -- while every
+  // other delete in the app offers one, and the finished-workout editor keeps
+  // its changes local until Save Changes. A change that only REMOVES entries
+  // is a delete; an edit, a reorder, an add and a duplicate are not, and none
+  // of them gets a toast.
+  const changeSets = (next: SetEntry[]) => {
+    const before = logged;
+    onSetLogged(next);
+    if (next.length >= before.length) return;
+    const gone = before.filter((e) => !next.some((n) => n.id === e.id));
+    if (gone.length === 0) return;
+    // A conditioning entry is a whole run, not a round of one.
+    const one = cond ? "Attempt" : entryNoun(exercise.kind, false);
+    const many = cond ? "Attempts" : entryNoun(exercise.kind);
+    showToast({
+      message: gone.length === 1 ? `${one} deleted` : `${gone.length} ${many.toLowerCase()} deleted`,
+      actionLabel: "Undo",
+      onAction: () => onSetLogged(before),
+    });
+  };
+
   // SUPERSET FLOW (D8-C). A true A1/A2 pair alternates, so once this half is
   // ahead the session offers the other one and the rest belongs to the pair.
   // Counts come from the LIVE log, not the plan, and warm-ups do not count
@@ -383,7 +406,7 @@ export default function SessionScreen({
           <CondReceipt
             exercise={exercise}
             entries={logged}
-            onChange={onSetLogged}
+            onChange={changeSets}
             lastLine={header ? `Last: ${header.last} · ${monthDay(header.date)}` : null}
           />
         ) : (
@@ -394,7 +417,7 @@ export default function SessionScreen({
             entries={logged}
             ghost={ghost}
             onLogGhost={(i) => { onLog(duplicateEntry(ghost[i]!)); startRest(); }}
-            onChange={onSetLogged}
+            onChange={changeSets}
             prAt={(i) => isSessionPR(history, exercise.name, exercise.kind, logged, i)}
             moveTracking
             lastFor={lastHit ? (i) => { const s = lastAt(i); return s ? `Last: ${formatSet(lastHit.fx, s)}` : null; } : undefined}
