@@ -82,7 +82,20 @@ export function nextDue(fromISO: string, rec: Recurrence): string {
   const d = atMidnight(fromISO);
   if (rec === "daily") d.setDate(d.getDate() + 1);
   else if (rec === "weekly") d.setDate(d.getDate() + 7);
-  else if (rec === "monthly") d.setMonth(d.getMonth() + 1);
+  // LIFE-F-05 (2026-09-05): setMonth OVERFLOWS when the target month is
+  // shorter, so a bill due the 31st and paid in August came back due Oct 1
+  // and September vanished; Jan 31 walked to Mar 3, then Apr 3, forever off
+  // its day. The day is clamped to the target month's last day instead, the
+  // same reading of "on the 31st" that calendar.ts occursOn already uses
+  // (B2-5): the anchor decays to the 28th after a February, and no month is
+  // ever skipped.
+  else if (rec === "monthly") {
+    const wantDay = d.getDate();
+    const lastOfTarget = new Date(d.getFullYear(), d.getMonth() + 2, 0).getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() + 1);
+    d.setDate(Math.min(wantDay, lastOfTarget));
+  }
   else { do { d.setDate(d.getDate() + 1); } while (d.getDay() === 0 || d.getDay() === 6); }
   return todayISO(d);
 }

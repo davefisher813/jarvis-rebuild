@@ -18,6 +18,17 @@ describe("recurrence", () => {
   // this stays an ON-TIME roll whatever day the suite runs. Read against a
   // later today it was really testing a stale task, and a stale task rolls
   // past today now.
+  // LIFE-F-05 (2026-09-05): setMonth overflowed into the next month when the
+  // target was shorter, so Aug 31 became Oct 1 and September never happened.
+  it("a monthly anchored late in the month clamps instead of skipping one", () => {
+    expect(nextDue("2026-08-31", "monthly")).toBe("2026-09-30");
+    expect(nextDue("2026-01-31", "monthly")).toBe("2026-02-28");
+    expect(nextDue("2026-02-28", "monthly")).toBe("2026-03-28");
+    expect(nextDue("2026-03-31", "monthly")).toBe("2026-04-30");
+    expect(nextDue("2028-01-31", "monthly")).toBe("2028-02-29"); // leap February
+    expect(nextDue("2026-12-31", "monthly")).toBe("2027-01-31"); // and over a year end
+  });
+
   it("completing a recurring task rolls it forward instead of finishing", async () => {
     vi.useFakeTimers({ now: new Date(2026, 4, 27, 9, 0, 0), toFake: ["Date"] });
     try {
