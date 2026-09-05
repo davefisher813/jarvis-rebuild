@@ -23,6 +23,7 @@ import { DEFAULT_TABS, MAX_TABS, extrasFor, migrateTabs } from "./destinations";
 import { useTasks, useSchedule, useCategories, useProfile, useAreas, useGoals, useProjects, useMoney, usePeople, useDecisions, useOptionalSeal, useGym } from "../data/NotesProvider";
 import { useAuth } from "../auth/AuthProvider";
 import { onNotificationTap } from "../shared/notifications";
+import { useDayKey } from "./useDayKey";
 import { useAI } from "../ai/useAI";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import GoogleAutoImport from "../connections/google/AutoImport";
@@ -289,6 +290,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     if (active !== "notes") setNotesChrome(true);
   }, [active]);
 
+  // TODAY-F-02: the local date, watched. Today's key below hangs off it.
+  const dayKey = useDayKey();
+
   const toggleTab = (key: string) => {
     const has = tabKeys.includes(key);
     if (has && tabKeys.length === 1) return;
@@ -348,7 +352,12 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         <Suspense fallback={<SkeletonScreen hero={false} />}>
         <ErrorBoundary key={active}>
         <div key={active}>
-        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { goLife("tasks"); taskFilterIntent.fire("all"); }} onGoTasksOverdue={() => { goLife("tasks"); taskFilterIntent.fire("overdue"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); }} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }} onGoBigger={(goalId?: string) => { if (goalId) goalIntent.fire(goalId); else goalIntent.clear(); goLife("goals"); }} />}
+        {/* TODAY-F-02 (2026-09-05): keyed on the local date as well as the
+            tab, so a day change while the app sits on Today remounts it and
+            every once-per-open job (the sweep, the autopay roll, the spot,
+            the Day Loop draft, Fresh Start, the mail dismissals) runs for
+            the new day instead of yesterday's. See shell/useDayKey.ts. */}
+        {active === "today" && <TodayFlow key={dayKey} onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { goLife("tasks"); taskFilterIntent.fire("all"); }} onGoTasksOverdue={() => { goLife("tasks"); taskFilterIntent.fire("overdue"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); }} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }} onGoBigger={(goalId?: string) => { if (goalId) goalIntent.fire(goalId); else goalIntent.clear(); goLife("goals"); }} />}
         {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent.value} taskNonce={taskIntent.nonce} onTaskOpened={taskIntent.clear} taskFilter={taskFilterIntent.value} filterNonce={taskFilterIntent.nonce} onFilterApplied={taskFilterIntent.clear} projectOpenId={projectIntent.value} projectNonce={projectIntent.nonce} onProjectOpened={projectIntent.clear} goalOpenId={goalIntent.value} goalNonce={goalIntent.nonce} onGoalOpened={goalIntent.clear} onOpenNote={navigateToNote} onWhatNow={() => void openWhatNow()} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => { mailIntent.fire(threadId); setActive("messages"); }} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent.value} />}
         {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} personNonce={personIntent.nonce} onPersonConsumed={personIntent.clear} decisionOpenId={decisionIntent.value} decisionNonce={decisionIntent.nonce} onDecisionConsumed={decisionIntent.clear} factOpenId={factIntent.value} factNonce={factIntent.nonce} onFactConsumed={factIntent.clear} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => setActive("money")} autoOpenGym={gymIntent.value === true} gymNonce={gymIntent.nonce} onGymConsumed={gymIntent.clear} />}
