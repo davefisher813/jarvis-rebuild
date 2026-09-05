@@ -41,12 +41,17 @@ describe("5A: every card wears its cost", () => {
 });
 
 describe("7A: receipts count what happened, never what was attempted", () => {
+  // EMAIL-F-27 (2026-09-05): the word was "sent", and Send & Next queues into
+  // the 12-second hold, so the finish screen said "3 replies sent" while
+  // three holds were still counting down on the Email list, any of them
+  // undoable and any of them able to fail. This file's own title is the rule
+  // it broke.
   it("prints only the lines that are true", () => {
     expect(receiptLines({ ...EMPTY_RECEIPTS, sent: 2, bills: 1, archived: 4 }))
-      .toEqual(["2 replies sent", "1 bill filed in Money", "4 gone for good"]);
+      .toEqual(["2 replies queued", "1 bill filed in Money", "4 gone for good"]);
   });
   it("gets singular right, because '1 replies' costs the number its credibility", () => {
-    expect(receiptLines({ ...EMPTY_RECEIPTS, sent: 1 })).toEqual(["1 reply sent"]);
+    expect(receiptLines({ ...EMPTY_RECEIPTS, sent: 1 })).toEqual(["1 reply queued"]);
   });
   it("an empty session prints nothing rather than a zero parade", () => {
     expect(receiptLines(EMPTY_RECEIPTS)).toEqual([]);

@@ -22,6 +22,8 @@ import { saveMailSnapshot, loadMailSnapshot } from "./home";
 import { loadOutbox, resetOutboxForTest } from "./outbox";
 import { loadLetGo } from "./letGo";
 import { loadMinutes } from "./drain";
+import { clearedToday } from "./cleared";
+import { todayISO } from "../schedule/calendar";
 import { recordToss } from "./selfClean";
 
 const noAI = new AIService({ available: false });
@@ -647,6 +649,30 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(screen.getByText("bump"));
     await new Promise((r) => setTimeout(r, 50));
     expect(lists).toBe(settled);
+  });
+
+  // EMAIL-F-27 (2026-09-05): "Receipts and counters over-claim." Let It Go
+  // archives nothing (letGo.ts: the mail is untouched, it only stops counting
+  // the days), and it used to raise "N Cleared Today", which is a count of
+  // real archives incremented where the archive actually happens.
+  it("letting a thread go does not count as clearing it", async () => {
+    const DAY = 86400e3;
+    const sent: GmailThreadMeta = { id: "w1", messages: [{
+      id: "wm1", snippet: "The waiver", labelIds: ["SENT"], internalDate: String(Date.now() - 12 * DAY),
+      payload: { headers: [
+        { name: "From", value: "Me <me@example.com>" }, { name: "To", value: "Rob <rob@y.com>" },
+        { name: "Subject", value: "The waiver" },
+      ] },
+    }] };
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "noise", gist: "g" }, { id: "t2", bucket: "noise", gist: "promo" },
+    ]));
+    render(wrap(<MessagesFlow ai={ai} configured />, makeApi({ searchThreads: async () => [sent] })));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByLabelText("Let it go"));
+    expect(await screen.findByText("Stopped tracking")).toBeInTheDocument();
+    expect(loadLetGo()).toContain("w1");
+    expect(clearedToday(todayISO())).toBe(0);
   });
 
   // EMAIL-F-26 (2026-09-05): "Drain minutes field snaps to 5 the moment it is

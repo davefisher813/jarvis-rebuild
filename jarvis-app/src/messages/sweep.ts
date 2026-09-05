@@ -58,7 +58,12 @@ export const EMPTY_RECEIPTS: SweepReceipts = { sent: 0, bills: 0, scheduled: 0, 
 export function receiptLines(r: SweepReceipts): string[] {
   const out: string[] = [];
   const n = (k: number, one: string, many: string) => { if (k > 0) out.push(k + " " + (k === 1 ? one : many)); };
-  n(r.sent, "reply sent", "replies sent");
+  // EMAIL-F-27 (2026-09-05): "replies sent" was a claim the Sweep had not
+  // earned. Send & Next queues into the 12-second hold (DeckFlow.tsx:239),
+  // so at the moment this screen prints, the replies are still counting down
+  // on the Email list, undoable, and any of them can still fail. Queued is
+  // what actually happened.
+  n(r.sent, "reply queued", "replies queued");
   n(r.scheduled, "thing on the schedule", "things on the schedule");
   n(r.bills, "bill filed in Money", "bills filed in Money");
   n(r.tasks, "task made", "tasks made");

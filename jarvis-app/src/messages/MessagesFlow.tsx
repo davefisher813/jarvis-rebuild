@@ -785,7 +785,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setWaiting((ws) => ws.filter((x) => x.threadId !== threadId));
     letGo(threadId);
     mirrorMail();
-    countCleared(1);
+    // EMAIL-F-27 (2026-09-05): "N Cleared Today" used to rise here, and
+    // letting go archives nothing (letGo.ts is explicit: the mail is
+    // untouched, it only stops counting the days). That counter is a count of
+    // real archives, incremented where the archive actually happens.
     say(said, { label: "Undo", run: () => {
       undoLetGo(threadId);
       mirrorMail();
@@ -1207,14 +1210,26 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // Mark BEFORE the awaits: a failed createTask must not queue the same
     // thread up to be netted again on every render.
     saveNetted([...already, ...due.map((r) => r.id)]);
-    setNetted((n) => n + due.length);
     void (async () => {
+      // EMAIL-F-27 (2026-09-05): "2 emails over 3 days old · Now tasks" used
+      // to print off the count of CANDIDATES, before the writes, with every
+      // failure swallowed by an empty catch: the line claimed tasks that do
+      // not exist. It counts what came back with an id now, and a write that
+      // failed says so rather than disappearing (this runs with nobody
+      // looking, which is exactly when silence is worst).
+      let made = 0;
       for (const r of due) {
-        await tasks
+        const id = await tasks
           .createTask(laterTaskTitle(r.from, r.subject), { due: todayISO(), source: madeBy("email", r.id) })
-          .catch(() => {});
+          .catch(() => null);
+        if (id) made += 1;
       }
-      emit({ type: "action", props: { name: "email.net.caught", n: due.length } });
+      if (made > 0) {
+        setNetted((n) => n + made);
+        emit({ type: "action", props: { name: "email.net.caught", n: made } });
+      }
+      const lost = due.length - made;
+      if (lost > 0) say(capAfterNumber(lost + (lost === 1 ? " email couldn't become a task" : " emails couldn't become tasks") + " · Still in your inbox"));
     })();
   }, [tasks, triaged, rows, triage, rules]);
 
