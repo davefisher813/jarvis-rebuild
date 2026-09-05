@@ -56,6 +56,7 @@ import { rightNow, endOf, type RightNow } from "../tasks/rightNow";
 import { useTaskEstimate } from "../schedule/useTaskEstimate";
 import { setOverwhelmed } from "../tasks/overwhelmed";
 import { showToast } from "../shared/toast";
+import { useOneShot } from "./intents";
 
 // Hosts the app. The bottom tab bar is user-editable: tabKeys (from the profile)
 // decides which pages are tabs; everything else lives in More. Any page can be
@@ -80,27 +81,32 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [active, setActive] = useState<string>("today");
   // Deep-link into a More subpage (Email's Open Connections, Catalog V3.1).
   const [moreRoute, setMoreRoute] = useState<"connections" | null>(null);
-  // One-shot deep-link target inside the Brain tab (e.g. open the routine
-  // editor from the Plan sheet). Cleared after it is consumed.
-  const [brainIntent, setBrainIntent] = useState<string | undefined>(undefined);
+  // THE ONE-SHOT INTENTS (the B5 group, 2026-09-05). Every one of these used
+  // to be a bare id read once by a child at its own mount and cleared only by
+  // a manual tab tap, which is why a deep link into the tab you were already
+  // on did nothing and a link you had already followed re-fired on every later
+  // visit. They are all useOneShot now: a value plus a nonce, cleared by the
+  // screen that opens the thing. See shell/intents.ts for the whole reasoning.
+  //
+  // Which Brain door to open (e.g. the routine editor from the Plan sheet).
+  const brainIntent = useOneShot<string>();
   // S5-Q31: "Back to <day>" on Today needs the Brain tab to land IN the live
-  // session, not just on the health category's page. One-shot, same lifecycle
-  // as brainIntent -- cleared on any manual tab tap so a later plain visit to
-  // Brain never re-opens a session the user already backed out of.
-  const [brainAutoGym, setBrainAutoGym] = useState(false);
+  // session, not just on the health category's page. Consumed by the category
+  // page itself, not by BrainFlow: the flag has to survive until the page it
+  // belongs to is mounted.
+  const gymIntent = useOneShot<true>();
   // Which protected block to land straight into editing, when the tap that
   // opened the routine screen was ON a specific block (Today, Schedule).
-  // Same one-shot lifecycle as brainIntent: cleared on any manual tab tap.
-  const [routineBlockIntent, setRoutineBlockIntent] = useState<string | undefined>(undefined);
-  const goToRoutine = (blockId?: string) => { setBrainIntent("routine"); setRoutineBlockIntent(blockId); setActive("brain"); };
-  // One-shot deep-link into a target tab from a note connection. Cleared on any
-  // manual tab tap. Only tasks and projects are wired so far.
-  const [taskIntent, setTaskIntent] = useState<string | undefined>(undefined);
+  const routineBlockIntent = useOneShot<string>();
+  const goToRoutine = (blockId?: string) => { brainIntent.fire("routine"); if (blockId) routineBlockIntent.fire(blockId); else routineBlockIntent.clear(); setActive("brain"); };
+  // One-shot deep-link into a target tab from a note connection, search, or
+  // Quick Capture.
+  const taskIntent = useOneShot<string>();
   // One-shot filter intent for the Tasks tab (Up Next's See All lands on All).
-  const [taskFilterIntent, setTaskFilterIntent] = useState<string | undefined>(undefined);
-  const [projectIntent, setProjectIntent] = useState<string | undefined>(undefined);
-  const [eventIntent, setEventIntent] = useState<string | undefined>(undefined);
-  const [goalIntent, setGoalIntent] = useState<string | undefined>(undefined);
+  const taskFilterIntent = useOneShot<string>();
+  const projectIntent = useOneShot<string>();
+  const eventIntent = useOneShot<string>();
+  const goalIntent = useOneShot<string>();
   // Which Life segment a deep link wants. Undefined lets the tab remember.
   const [lifeSegment, setLifeSegment] = useState<"tasks" | "projects" | "goals" | undefined>(undefined);
   // The nonce makes a repeat of the same segment a navigation too: LifeFlow
@@ -108,22 +114,26 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   const [lifeNav, setLifeNav] = useState(0);
   const goLife = (seg: "tasks" | "projects" | "goals") => { setLifeSegment(seg); setLifeNav((n) => n + 1); setActive("life"); };
   // Person deep-link: BrainFlow opens Contacts, PeopleFlow opens the person.
-  const [personIntent, setPersonIntent] = useState<{ groupKey: string; id: string } | undefined>(undefined);
-  const [noteIntent, setNoteIntent] = useState<string | undefined>(undefined);
+  // The group came out with it (2026-09-05): there is one people list, so the
+  // key never said anything the id did not.
+  const personIntent = useOneShot<string>();
+  const noteIntent = useOneShot<string>();
   // A home-page email notice opens THE THREAD, never the inbox. Landing in a
   // list he then has to search is the trip the old count line made him take.
-  const [mailIntent, setMailIntent] = useState<string | undefined>(undefined);
+  const mailIntent = useOneShot<string>();
   // "Finish It" on an unsent draft, which is a different destination from a
   // thread: a draft composed from scratch has no thread to open.
-  const [draftIntent, setDraftIntent] = useState<string | undefined>(undefined);
+  const draftIntent = useOneShot<string>();
   // Decision deep-link: BrainFlow opens Decisions, DecisionsFlow opens the record.
-  const [decisionIntent, setDecisionIntent] = useState<string | undefined>(undefined);
+  const decisionIntent = useOneShot<string>();
   // S6-Q35: a fact captured through Quick Add lives in the Brain's "What
   // JARVIS Knows" list, not on a list a tab already renders -- same one-shot
   // shape as decisionIntent, just one door further in (Brain -> knows ->
   // the strand itself).
-  const [factIntent, setFactIntent] = useState<string | undefined>(undefined);
-  const navigateToNote = (id: string) => { setNoteIntent(id); setActive("notes"); };
+  const factIntent = useOneShot<string>();
+  // Every intent the shell owns, for the one place that cancels them all.
+  const allIntents = [brainIntent, gymIntent, routineBlockIntent, taskIntent, taskFilterIntent, projectIntent, eventIntent, goalIntent, personIntent, noteIntent, mailIntent, draftIntent, decisionIntent, factIntent];
+  const navigateToNote = (id: string) => { noteIntent.fire(id); setActive("notes"); };
   // B3-4 (2026-09-04): search does full text over note bodies and hands its
   // hits to this function with kind "note" (SearchFlow.tsx's open("note", id)),
   // but this had no note branch, so tapping a note in a search result closed
@@ -131,26 +141,26 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // the exact function every other note-opening path in this shell uses.
   const navigateToEntity = async (kind: string, targetId: string) => {
     if (kind === "note") { navigateToNote(targetId); return; }
-    if (kind === "task") { setTaskIntent(targetId); goLife("tasks"); }
-    else if (kind === "project") { setProjectIntent(targetId); goLife("projects"); }
-    else if (kind === "event") { setEventIntent(targetId); setActive("schedule"); }
-    else if (kind === "goal") { setGoalIntent(targetId); goLife("goals"); }
+    if (kind === "task") { taskIntent.fire(targetId); goLife("tasks"); }
+    else if (kind === "project") { projectIntent.fire(targetId); goLife("projects"); }
+    else if (kind === "event") { eventIntent.fire(targetId); setActive("schedule"); }
+    else if (kind === "goal") { goalIntent.fire(targetId); goLife("goals"); }
     else if (kind === "decision") {
-      setDecisionIntent(targetId);
-      setBrainIntent("decisions");
+      decisionIntent.fire(targetId);
+      brainIntent.fire("decisions");
       setActive("brain");
     }
     else if (kind === "fact") {
-      setFactIntent(targetId);
-      setBrainIntent("knows");
+      factIntent.fire(targetId);
+      brainIntent.fire("knows");
       setActive("brain");
     }
     else if (kind === "person") {
       const p = await people.get(targetId);
       if (!p) return; // deleted person: the link goes nowhere, quietly
       // One people list now: every person opens through Contacts.
-      setPersonIntent({ groupKey: "contacts", id: targetId });
-      setBrainIntent("contacts");
+      personIntent.fire(targetId);
+      brainIntent.fire("contacts");
       setActive("brain");
     }
   };
@@ -333,13 +343,13 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         <Suspense fallback={<SkeletonScreen hero={false} />}>
         <ErrorBoundary key={active}>
         <div key={active}>
-        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { setTaskFilterIntent("all"); goLife("tasks"); }} onGoTasksOverdue={() => { setTaskFilterIntent("overdue"); goLife("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { setMailIntent(threadId); setDraftIntent(draftId); setActive("messages"); }} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { setBrainIntent(id); setBrainAutoGym(true); setActive("brain"); } else void navigateToEntity(kind, id); }} onGoBigger={(goalId?: string) => { setGoalIntent(goalId); goLife("goals"); }} />}
-        {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent} taskFilter={taskFilterIntent} projectOpenId={projectIntent} goalOpenId={goalIntent} onOpenNote={navigateToNote} onWhatNow={() => void openWhatNow()} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => { setMailIntent(threadId); setActive("messages"); }} />}
-        {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent} />}
-        {active === "brain" && <BrainFlow openKey={brainIntent} routineBlockId={routineBlockIntent} onRoutineBlockConsumed={() => setRoutineBlockIntent(undefined)} personOpenId={personIntent?.id} decisionOpenId={decisionIntent} factOpenId={factIntent} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => setActive("money")} autoOpenGym={brainAutoGym} />}
-        {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent} />}
+        {active === "today" && <TodayFlow onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { taskFilterIntent.fire("all"); goLife("tasks"); }} onGoTasksOverdue={() => { taskFilterIntent.fire("overdue"); goLife("tasks"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); }} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }} onGoBigger={(goalId?: string) => { if (goalId) goalIntent.fire(goalId); else goalIntent.clear(); goLife("goals"); }} />}
+        {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent.value} taskFilter={taskFilterIntent.value} projectOpenId={projectIntent.value} goalOpenId={goalIntent.value} onOpenNote={navigateToNote} onWhatNow={() => void openWhatNow()} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => { mailIntent.fire(threadId); setActive("messages"); }} />}
+        {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent.value} />}
+        {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} decisionOpenId={decisionIntent.value} factOpenId={factIntent.value} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => setActive("money")} autoOpenGym={gymIntent.value === true} />}
+        {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent.value} />}
 
-        {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent} openDraftId={draftIntent} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
+        {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} openDraftId={draftIntent.value} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
         {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} />}
         {active === "chat" && <ChatFlow />}
@@ -372,7 +382,15 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       {showDock && (
         <>
           <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={() => void openWhatNow()} />
-          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => { setBrainIntent(undefined); setBrainAutoGym(false); setRoutineBlockIntent(undefined); setTaskIntent(undefined); setTaskFilterIntent(undefined); setProjectIntent(undefined); setEventIntent(undefined); setGoalIntent(undefined); setLifeSegment(undefined); setPersonIntent(undefined); setNoteIntent(undefined); setDecisionIntent(undefined); setFactIntent(undefined); setActive(k); }} />
+          <TabBar tabKeys={tabKeys} active={active} onTab={(k) => {
+            // A tab tap is a fresh visit: anything still pending is cancelled
+            // here. Each intent also clears itself the moment its own screen
+            // consumes it (shell/intents.ts), so this is the belt, not the
+            // braces: it only ever catches an intent nothing acted on.
+            for (const i of allIntents) i.clear();
+            setLifeSegment(undefined);
+            setActive(k);
+          }} />
         </>
       )}
       {whatNow && (
@@ -396,7 +414,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         // categories have no per-item deep link yet, so they land on their
         // surface; everything else opens the exact item via the intents.
         if (kind === "account") setActive("money");
-        else if (kind === "category") { setBrainIntent(id); setActive("brain"); }
+        else if (kind === "category") { brainIntent.fire(id); setActive("brain"); }
         else void navigateToEntity(kind, id);
       }} /></Suspense>}
     </div>

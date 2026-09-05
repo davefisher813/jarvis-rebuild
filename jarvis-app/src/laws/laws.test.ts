@@ -2505,8 +2505,11 @@ describe("LAW 5: one door per destination, per screen", () => {
     const page = read(join(SRC, "today/TodayPage.tsx"));
     expect(page, "overdue has its own destination").toMatch(/onSeeAllOverdue \?\? onSeeAllTasks/);
     const shell = read(join(SRC, "shell/AppShell.tsx"));
+    // SHELL-F-12 (2026-09-05): the intents became one-shots with a nonce and
+    // an onConsumed callback (shell/intents.ts). Same law, same destination,
+    // the setter is now the intent's own fire().
     expect(shell, "and the shell knows the filter to land on")
-      .toMatch(/setTaskFilterIntent\("overdue"\)/);
+      .toMatch(/taskFilterIntent\.fire\("overdue"\)/);
   });
 
   // A label may only promise what its handler performs (catalog W3). The
@@ -3966,7 +3969,7 @@ describe("LAW: a live gym session is visible and reachable from Today", () => {
     const gymBranch = shell.match(/kind === "gym"\)\s*\{([^}]*)\}/);
     expect(gymBranch, 'AppShell must branch on kind === "gym"').toBeTruthy();
     expect(gymBranch![1], "the gym branch must carry a category id into Brain, not just switch tabs")
-      .toMatch(/setBrainIntent\(/);
+      .toMatch(/brainIntent\.fire\(/);
   });
 
   it("CategoryDetail can be told to open the gym on arrival, and BrainFlow passes that through", () => {

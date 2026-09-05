@@ -20,12 +20,37 @@ const DOC_TOPIC: Record<string, string> = {
 // The Brain tab. The hub is built. Contacts opens the one people list (the
 // Inner Circle / Adversarial rows were cut 2026-08-03); the doc rows open a
 // lightweight placeholder for now. "Your Categories" is populated live.
-export default function BrainFlow({ openKey, routineBlockId, onRoutineBlockConsumed, personOpenId, decisionOpenId, factOpenId, onOpenNote, onOpenProject, onOpenMoney, onOpenEntity, autoOpenGym }: { openKey?: string; routineBlockId?: string; onRoutineBlockConsumed?: () => void; personOpenId?: string; decisionOpenId?: string; factOpenId?: string; onOpenNote?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenMoney?: () => void; onOpenEntity?: (kind: string, id: string) => void; autoOpenGym?: boolean } = {}) {
+export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBlockId, onRoutineBlockConsumed, personOpenId, decisionOpenId, factOpenId, onOpenNote, onOpenProject, onOpenMoney, onOpenEntity, autoOpenGym }: { openKey?: string;
+  // BRAIN-F-03 (2026-09-05): the nonce and the callback, the shape
+  // shell/intents.ts describes. Without them openKey was read once in the
+  // useState below, so a deep link that arrived while the Brain tab was
+  // already open (a fact from Quick Add, a search hit, a decision from Chat)
+  // changed nothing at all: setActive("brain") on the active tab remounts
+  // nothing, and a prop nobody re-reads is not a navigation.
+  openNonce?: number; onKeyConsumed?: () => void;
+  routineBlockId?: string; onRoutineBlockConsumed?: () => void; personOpenId?: string; decisionOpenId?: string; factOpenId?: string; onOpenNote?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenMoney?: () => void; onOpenEntity?: (kind: string, id: string) => void; autoOpenGym?: boolean } = {}) {
   const cats = useCategories();
   const [categories, setCategories] = useState<BrainCategory[]>([]);
   const [open, setOpen] = useState<{ key: string; name: string } | null>(
     openKey ? { key: openKey, name: "" } : null,
   );
+
+  // A person tapped through from an area page, kept separately from the
+  // shell's intent so an explicit tap always wins over a stale link.
+  const [personId, setPersonId] = useState<string | undefined>(undefined);
+
+  // BRAIN-F-03: the deep link, every time it fires, not just at mount. The
+  // nonce is in the deps because the shell can ask for the SAME door twice
+  // (tap the same search hit, capture a second fact) and that is a real
+  // navigation. onKeyConsumed clears it, so backing out to the hub and
+  // tapping Contacts later opens the list, not the last thing linked.
+  useEffect(() => {
+    if (!openKey) return;
+    setOpen({ key: openKey, name: "" });
+    setPersonId(undefined);
+    onKeyConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openKey, openNonce]);
 
   // Whether the category list has ARRIVED, which is not the same question as
   // whether it is empty. Without this the fallback below cannot tell "no such
@@ -56,11 +81,6 @@ export default function BrainFlow({ openKey, routineBlockId, onRoutineBlockConsu
       || categories.some((c) => c.id === open.key);
     if (!known) setOpen(null);
   }, [open, catsLoaded, categories]);
-
-  // A person tapped on a people-kind category page (2026-08-10) opens through
-  // Contacts, the one people surface. Cleared when Contacts closes so a later
-  // manual visit does not jump back to them.
-  const [personId, setPersonId] = useState<string | undefined>(undefined);
 
   // The app had two "Money"s (2026-08-10, Dave: "there should only be one
   // money category with all of its features"): this category, which opened a

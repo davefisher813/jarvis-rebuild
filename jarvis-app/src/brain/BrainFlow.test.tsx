@@ -114,3 +114,54 @@ describe("BrainFlow: a live-session deep-link lands in the gym, not the category
     expect(screen.queryByText("Log It")).not.toBeInTheDocument();
   });
 });
+
+// BRAIN-F-03 (2026-09-05): openKey was read once, in a useState initialiser,
+// so a deep link that arrived while the Brain tab was ALREADY the active tab
+// did nothing: capture a fact in Quick Add and tap it in Recent Captures, or
+// search an area from the Brain hub, and the overlay closed onto the same
+// screen. Every other tab worked because switching tabs remounts the flow.
+import { fireEvent } from "@testing-library/react";
+
+function Deep({ onKeyConsumed }: { onKeyConsumed?: () => void }) {
+  const cats = useCategories();
+  const [id, setId] = useState<string | undefined>(undefined);
+  const [key, setKey] = useState<string | undefined>(undefined);
+  const [nonce, setNonce] = useState(0);
+  useEffect(() => { (async () => setId((await cats.create("Bridge", "blue"))!))(); }, [cats]);
+  // Mounted only once the area exists, so the hub's own list is loaded: the
+  // point under test is a key arriving LATER, at a flow already on screen.
+  return id ? (
+    <>
+      <button onClick={() => { setKey(id); setNonce((n) => n + 1); }}>Link It</button>
+      <BrainFlow openKey={key} openNonce={nonce} onKeyConsumed={() => { setKey(undefined); onKeyConsumed?.(); }} />
+    </>
+  ) : null;
+}
+
+describe("BrainFlow deep links while the tab is already open (BRAIN-F-03)", () => {
+  it("opens on a key that arrives after mount, and says it consumed it", async () => {
+    const consumed = vi.fn();
+    render(<NotesProvider userId="deep1"><Deep onKeyConsumed={consumed} /></NotesProvider>);
+    // The hub, with no detail open.
+    expect(await screen.findByText("Bridge")).toBeInTheDocument();
+    expect(screen.queryByText("Up Next")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Link It"));
+    await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+    expect(consumed).toHaveBeenCalled();
+  });
+
+  it("the same key a second time still navigates, because the nonce moved", async () => {
+    render(<NotesProvider userId="deep2"><Deep /></NotesProvider>);
+    await screen.findByText("Bridge");
+    fireEvent.click(screen.getByText("Link It"));
+    await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+
+    // Back to the hub, the way a person backs out of a detail.
+    fireEvent.click(screen.getByLabelText("Back"));
+    await waitFor(() => expect(screen.queryByText("Up Next")).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Link It"));
+    await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+  });
+});
