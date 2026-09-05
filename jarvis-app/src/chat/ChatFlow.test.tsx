@@ -2,7 +2,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider, useOptionalStrands, useTasks } from "../data/NotesProvider";
+import { NotesProvider, useOptionalStrands, useTasks, useChat } from "../data/NotesProvider";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import ChatFlow from "./ChatFlow";
 
 // jsdom has no scrollIntoView; ChatFlow's own autoscroll effect calls it on
@@ -22,9 +23,11 @@ vi.mock("../shared/toast", () => ({ showToast: (...a: unknown[]) => showToast(..
 
 let strandsRef: ReturnType<typeof useOptionalStrands> | null = null;
 let tasksRef: ReturnType<typeof useTasks> | null = null;
+let chatRef: ReturnType<typeof useChat> | null = null;
 function Capture() {
   strandsRef = useOptionalStrands();
   tasksRef = useTasks();
+  chatRef = useChat();
   return null;
 }
 
@@ -41,7 +44,7 @@ const sendText = (text: string) => {
   fireEvent.click(screen.getByRole("button", { name: "Send" }));
 };
 
-beforeEach(() => { showToast.mockReset(); strandsRef = null; tasksRef = null; });
+beforeEach(() => { showToast.mockReset(); strandsRef = null; tasksRef = null; chatRef = null; });
 afterEach(() => { vi.restoreAllMocks(); });
 
 describe("ChatFlow capture undo (S4-Q23)", () => {
@@ -115,5 +118,39 @@ describe("ChatFlow reschedule (SHELL-F-07)", () => {
     } finally {
       process.env.TZ = prevTz;
     }
+  });
+});
+
+// SHELL-F-17 (2026-09-05): the box emptied before the first write, inside a
+// try/finally with no catch, so a store that rejected left no bubble, no
+// toast and no text. The words now stay in the box until the bubble is
+// stored, and a read that fails behind the reply says so.
+describe("ChatFlow keeps the message when the store rejects (SHELL-F-17)", () => {
+  it("a rejected user bubble leaves the draft in the box with the standard toast, and the next tap sends it", async () => {
+    renderChat("u-chat-reject");
+    await waitFor(() => expect(chatRef).toBeTruthy());
+    vi.spyOn(chatRef!, "append").mockRejectedValueOnce(new Error("store down"));
+    sendText("call the plumber back");
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: WRITE_FAILED_MESSAGE }));
+    const box = screen.getByPlaceholderText("Ask · tell · paste") as HTMLInputElement;
+    expect(box.value).toBe("call the plumber back");
+    expect(screen.queryByText("call the plumber back", { selector: ".chat-text" })).not.toBeInTheDocument();
+    expect(await tasksRef!.listTasks()).toHaveLength(0);
+
+    // The store is back: the same words go through on the next tap.
+    fireEvent.click(screen.getByRole("button", { name: "Send" }));
+    await waitFor(() => expect(screen.getByText(/^Saved: /)).toBeInTheDocument());
+    expect(box.value).toBe("");
+  });
+
+  it("a command whose task read throws still shows the bubble and says the records could not be reached", async () => {
+    renderChat("u-chat-listfail");
+    await waitFor(() => expect(tasksRef).toBeTruthy());
+    vi.spyOn(tasksRef!, "listTasks").mockRejectedValueOnce(new Error("rls"));
+    sendText("Complete the plumber");
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: "Couldn't reach your records · Try again" }));
+    expect(screen.getByText("Complete the plumber", { selector: ".chat-text" })).toBeInTheDocument();
+    // Busy is released: the box takes the next message.
+    expect(screen.getByRole("button", { name: "Send" })).not.toBeDisabled();
   });
 });

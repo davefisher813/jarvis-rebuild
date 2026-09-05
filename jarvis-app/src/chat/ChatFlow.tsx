@@ -125,92 +125,107 @@ export default function ChatFlow() {
   const send = async () => {
     const text = draft.trim();
     if (!text || busy) return;
-    setDraft("");
     setBusy(true);
     try {
-      await say("user", text);
+      // SHELL-F-17 (2026-09-05): the box used to empty BEFORE the first
+      // write, inside a try/finally with no catch, so a store that rejected
+      // (a real error, not the queued offline path) left no bubble, no toast
+      // and no text: the message was gone. The user's bubble is stored first,
+      // guarded; the draft clears only once it is. A failure leaves the words
+      // in the box with the standard toast, ready for another tap.
+      const stored = await attemptWrite(() => chat.append({ role: "user", text }));
+      if (!stored) return;
+      setDraft("");
+      try {
+        await reload();
 
-      // 1. Commands, before any AI call (cost guard).
-      const cmd = parseCommand(text);
-      if (cmd) {
-        const open = (await tasksSvc.listTasks()).filter((t) => !t.data.done).map((t) => ({ id: t.id, text: t.data.text }));
-        const res = resolveTarget(open, cmd.query);
-        if (res.kind === "one") await runCommand(cmd, res.target);
-        else if (res.kind === "choose") {
-          await say("jarvis", "Which one?", { kind: "records" });
-          setChoice({ command: cmd, options: res.options });
-        } else {
-          await say("jarvis", `Nothing matching "${cmd.query}" · Nothing changed`, { kind: "records" });
-        }
-        return;
-      }
-
-      // 2. Deterministic Q&A, still before any AI call.
-      if (looksLikeQuestion(text)) {
-        const ans = answerQuestion(text, await snapshot());
-        if (ans) { await say("jarvis", ans.text, ans.provenance); return; }
-        // 3. Grounded AI for the questions the rules cannot read.
-        if (!ai.available) {
-          await say("jarvis", "I can answer that when you're back online", { kind: "records" });
+        // 1. Commands, before any AI call (cost guard).
+        const cmd = parseCommand(text);
+        if (cmd) {
+          const open = (await tasksSvc.listTasks()).filter((t) => !t.data.done).map((t) => ({ id: t.id, text: t.data.text }));
+          const res = resolveTarget(open, cmd.query);
+          if (res.kind === "one") await runCommand(cmd, res.target);
+          else if (res.kind === "choose") {
+            await say("jarvis", "Which one?", { kind: "records" });
+            setChoice({ command: cmd, options: res.options });
+          } else {
+            await say("jarvis", `Nothing matching "${cmd.query}" · Nothing changed`, { kind: "records" });
+          }
           return;
         }
-        try {
-          const ctx = await gather();
-          const raw = await ai.complete(
-            [{ role: "user", content: text }],
-            chatSystemPrompt(contextToText(ctx)),
-            { kind: "chat", background: false },
-          );
-          await say("jarvis", raw.trim(), { kind: "ai" });
-        } catch {
-          await say("jarvis", "Couldn't reach the AI · Try again", { kind: "records" });
-        }
-        return;
-      }
 
-      // 4. Everything else is a capture: the Smart Paste pipeline, verbatim.
-      const cats = await catsSvc.list().catch(() => []);
-      let saved: Awaited<ReturnType<typeof smartPasteSave>> = [];
-      let refusedFact = false;
-      const ok = await attemptWrite(async () => {
-        // The genome rides along (Quick Add, handoff 5.0): "I never work out
-        // on Sundays" typed into chat is a fact about the person, and the one
-        // box that answers, acts and captures now also remembers.
-        saved = await smartPasteSave(text, { ai, gather, tasks: tasksSvc, schedule, notes, categories: cats, today: todayISO(), ...(strands ? { strands } : {}), onFactRefused: () => { refusedFact = true; } });
-      });
-      if (!ok) return;
-      if (saved.length === 0) {
-        await say("jarvis", refusedFact ? "The Brain is full · Prune it in What JARVIS Knows" : "Nothing to save in that", { kind: "records" });
-        return;
+        // 2. Deterministic Q&A, still before any AI call.
+        if (looksLikeQuestion(text)) {
+          const ans = answerQuestion(text, await snapshot());
+          if (ans) { await say("jarvis", ans.text, ans.provenance); return; }
+          // 3. Grounded AI for the questions the rules cannot read.
+          if (!ai.available) {
+            await say("jarvis", "I can answer that when you're back online", { kind: "records" });
+            return;
+          }
+          try {
+            const ctx = await gather();
+            const raw = await ai.complete(
+              [{ role: "user", content: text }],
+              chatSystemPrompt(contextToText(ctx)),
+              { kind: "chat", background: false },
+            );
+            await say("jarvis", raw.trim(), { kind: "ai" });
+          } catch {
+            await say("jarvis", "Couldn't reach the AI · Try again", { kind: "records" });
+          }
+          return;
+        }
+
+        // 4. Everything else is a capture: the Smart Paste pipeline, verbatim.
+        const cats = await catsSvc.list().catch(() => []);
+        let saved: Awaited<ReturnType<typeof smartPasteSave>> = [];
+        let refusedFact = false;
+        const ok = await attemptWrite(async () => {
+          // The genome rides along (Quick Add, handoff 5.0): "I never work out
+          // on Sundays" typed into chat is a fact about the person, and the one
+          // box that answers, acts and captures now also remembers.
+          saved = await smartPasteSave(text, { ai, gather, tasks: tasksSvc, schedule, notes, categories: cats, today: todayISO(), ...(strands ? { strands } : {}), onFactRefused: () => { refusedFact = true; } });
+        });
+        if (!ok) return;
+        if (saved.length === 0) {
+          await say("jarvis", refusedFact ? "The Brain is full · Prune it in What JARVIS Knows" : "Nothing to save in that", { kind: "records" });
+          return;
+        }
+        const first = saved[0]!;
+        await say(
+          "jarvis",
+          saved.length === 1
+            // A fact is not "saved" the way a task is: it was remembered. The
+            // receipt says which, because the two land in different places.
+            ? (first.kind === "fact" ? `JARVIS will remember that: ${first.title}` : `Saved: ${first.title}`)
+            : `Saved ${saved.length} items`,
+          { kind: "action", refs: saved.map((s) => ({ kind: s.kind, id: s.id, label: s.title })) },
+        );
+        // S4-Q23 (2026-09-04): provLine below has always printed "Done · Undo
+        // on the toast" for this reply, and nothing here ever raised one, on
+        // every kind of capture chat can produce, facts included. A told-rank
+        // fact is the highest-priority thing JARVIS remembers, which makes an
+        // untappable Undo the most consequential case of this bug, not the
+        // only one. undoSaved already handles every kind (Quick Capture's own
+        // Undo button calls the same function), so this is wiring an existing
+        // capability to the reply that already promised it, not new behaviour.
+        const justSaved = saved;
+        showToast({
+          message: justSaved.length === 1 ? "Saved" : `Saved ${justSaved.length} items`,
+          actionLabel: "Undo",
+          onAction: async () => {
+            await attemptWrite(async () => {
+              for (const s of justSaved) await undoSaved(s, { tasks: tasksSvc, schedule, notes, ...(strands ? { strands } : {}) });
+            });
+          },
+        });
+      } catch {
+        // The bubble is in the thread; what failed is reading the records
+        // behind the reply (listTasks, the snapshot, a reply's own write).
+        // Silence here read as "JARVIS ignored me", so it says so instead.
+        showToast({ message: "Couldn't reach your records · Try again" });
       }
-      const first = saved[0]!;
-      await say(
-        "jarvis",
-        saved.length === 1
-          // A fact is not "saved" the way a task is: it was remembered. The
-          // receipt says which, because the two land in different places.
-          ? (first.kind === "fact" ? `JARVIS will remember that: ${first.title}` : `Saved: ${first.title}`)
-          : `Saved ${saved.length} items`,
-        { kind: "action", refs: saved.map((s) => ({ kind: s.kind, id: s.id, label: s.title })) },
-      );
-      // S4-Q23 (2026-09-04): provLine below has always printed "Done · Undo
-      // on the toast" for this reply, and nothing here ever raised one, on
-      // every kind of capture chat can produce, facts included. A told-rank
-      // fact is the highest-priority thing JARVIS remembers, which makes an
-      // untappable Undo the most consequential case of this bug, not the
-      // only one. undoSaved already handles every kind (Quick Capture's own
-      // Undo button calls the same function), so this is wiring an existing
-      // capability to the reply that already promised it, not new behaviour.
-      const justSaved = saved;
-      showToast({
-        message: justSaved.length === 1 ? "Saved" : `Saved ${justSaved.length} items`,
-        actionLabel: "Undo",
-        onAction: async () => {
-          await attemptWrite(async () => {
-            for (const s of justSaved) await undoSaved(s, { tasks: tasksSvc, schedule, notes, ...(strands ? { strands } : {}) });
-          });
-        },
-      });
     } finally {
       setBusy(false);
     }
