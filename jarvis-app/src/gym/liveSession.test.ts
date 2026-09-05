@@ -99,6 +99,34 @@ describe("pending queue", () => {
     const s = mem();
     expect(await flushPending(async () => "x", s)).toBe(0);
   });
+
+  // GYM-F-23 (2026-09-05): the two mount effects in GymFlow flush in the
+  // same commit; the second queues the unfinished session first. A was
+  // saved twice and Recent showed it twice.
+  it("GYM-F-23: two flushes in one commit save each session exactly once, the later-queued one included", async () => {
+    const s = mem();
+    const server: string[] = [];
+    const save = async (w: { date: string }) => { await new Promise((r) => setTimeout(r, 15)); server.push(w.date); return "id-" + w.date; };
+    queueFinished(wd("2026-08-01"), s); // A: failed to save in the basement yesterday
+    const reloadFlush = flushPending(save, s);
+    queueFinished(wd("2026-08-02"), s); // B: the recovery effect queues the unfinished session...
+    const recoveryFlush = flushPending(save, s); // ...and flushes
+    // Which pass carries B depends on when the first snapshot is taken; what
+    // matters is that each session lands once, in order, across both.
+    expect((await reloadFlush) + (await recoveryFlush)).toBe(2);
+    expect(server).toEqual(["2026-08-01", "2026-08-02"]);
+    expect(readPending(s)).toHaveLength(0);
+  });
+
+  it("GYM-F-23: a session queued while a flush is in flight survives that flush", async () => {
+    const s = mem();
+    queueFinished(wd("2026-08-01"), s);
+    const first = flushPending(async () => { await new Promise((r) => setTimeout(r, 15)); return "id"; }, s);
+    await new Promise((r) => setTimeout(r, 3));
+    queueFinished(wd("2026-08-02"), s);
+    await first;
+    expect(readPending(s).map((w) => w.date)).toEqual(["2026-08-02"]);
+  });
 });
 
 describe("hasWork", () => {

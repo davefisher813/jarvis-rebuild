@@ -220,29 +220,55 @@ export function writePending(all: WorkoutData[], store: Storage2 = browserStorag
   store.write(PENDING_KEY, JSON.stringify(all));
 }
 
+// GYM-F-23 (2026-09-05): one flush at a time. GymFlow flushes from two
+// mount effects in the same commit (the reload, and the unfinished-session
+// recovery that queues B and flushes), and two flushes over one queue each
+// snapshotted [A]: A saved twice, Recent showed the same workout twice, and
+// every PR and volume figure derived from it doubled. A flush that finds one
+// in flight waits for it, then runs its own fresh pass, so what the second
+// caller just queued still lands and nothing lands twice. Same shape as
+// health/offlineQueue.ts (HMN-F-07), fixed the same day.
+let tail: Promise<unknown> = Promise.resolve();
+
 /**
  * Try to persist every pending session. Whatever fails stays queued, in order,
  * for the next attempt. Returns how many landed.
  */
-export async function flushPending(
+export function flushPending(
   save: (w: WorkoutData) => Promise<string | null>,
   store: Storage2 = browserStorage(),
 ): Promise<number> {
+  const run = tail.then(() => drain(save, store));
+  tail = run.catch(() => undefined);
+  return run;
+}
+
+async function drain(
+  save: (w: WorkoutData) => Promise<string | null>,
+  store: Storage2,
+): Promise<number> {
   const all = readPending(store);
   if (all.length === 0) return 0;
-  const left: WorkoutData[] = [];
   let saved = 0;
   for (const w of all) {
-    try {
-      const id = await save(w);
-      if (id) saved++;
-      else left.push(w);
-    } catch {
-      left.push(w);
-    }
+    let id: string | null = null;
+    try { id = await save(w); } catch { id = null; }
+    // Remove each landed session as it lands rather than writing the
+    // snapshot's leftovers back at the end: a session queued while this
+    // flush was in flight is not in the snapshot, and the old write-back
+    // would have dropped it. Whatever fails stays where it was, in order.
+    if (id) { saved++; removeOne(w, store); }
   }
-  writePending(left, store);
   return saved;
+}
+
+function removeOne(w: WorkoutData, store: Storage2): void {
+  const now = readPending(store);
+  const key = JSON.stringify(w);
+  const idx = now.findIndex((x) => JSON.stringify(x) === key);
+  if (idx < 0) return;
+  now.splice(idx, 1);
+  writePending(now, store);
 }
 
 /** A session is worth keeping if anything at all was logged (partial counts). */
