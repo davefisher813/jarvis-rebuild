@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useProfile } from "../../data/NotesProvider";
 import { requestGoogleToken, type TokenOpts } from "./gis";
 import { GOOGLE_SCOPES } from "./config";
@@ -315,15 +315,23 @@ export function GoogleSessionProvider({
       .filter((x): x is { email: string; api: GoogleApi } => x.api !== null);
   }, [accounts, buildApi, tokenVersion]);
 
-  void tokenVersion; // token changes re-render, so this read is fresh
-  const hasToken = Object.keys(tokens.current).length > 0;
-  const tokenEmails = Object.keys(tokens.current);
-
-  return (
-    <Ctx.Provider value={{ connected: accounts.length > 0 || legacyConnected, accounts, hasToken, tokenEmails, connect, addAccount, reconnect, disconnect, setFeature, api, apis }}>
-      {children}
-    </Ctx.Provider>
+  // EMAIL-F-12 (2026-09-05): "The Google session value is rebuilt every
+  // render, so the Email tab reloads its whole inbox on any shell re-render."
+  // This was an object literal in the JSX below, so every re-render of
+  // AppShell (QuickCapture, the search overlay, any shell state) handed each
+  // consumer a new `g`, and anything keyed on it (MessagesFlow's loadThreads,
+  // the pumps' api lookups) ran again. The value now changes only when one of
+  // its fields does; tokenEmails is memoised on the same version counter the
+  // api callbacks already key on, so a token change still reaches everyone.
+  const tokenEmails = useMemo(() => { void tokenVersion; return Object.keys(tokens.current); }, [tokenVersion]);
+  const hasToken = tokenEmails.length > 0;
+  const connected = accounts.length > 0 || legacyConnected;
+  const value = useMemo<GoogleSessionValue>(
+    () => ({ connected, accounts, hasToken, tokenEmails, connect, addAccount, reconnect, disconnect, setFeature, api, apis }),
+    [connected, accounts, hasToken, tokenEmails, connect, addAccount, reconnect, disconnect, setFeature, api, apis],
   );
+
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useGoogle(): GoogleSessionValue {

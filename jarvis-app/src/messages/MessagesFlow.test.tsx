@@ -1,7 +1,7 @@
 // SPEC MOVED (Catalog V3.1, 2026-08-18): Title Case everywhere; copy assertions updated.
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { readFileSync } from "node:fs";
@@ -578,6 +578,44 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(await screen.findByText("Connect Google"));
     await waitFor(() => expect(loadMailSnapshot().threads.length).toBe(0));
     expect(loadMailSnapshot().needsYou).toBe(0);
+  });
+
+  // EMAIL-F-12 (2026-09-05): "The Google session value is rebuilt every
+  // render, so the Email tab reloads its whole inbox on any shell re-render."
+  // The provider's value was an object literal, so every re-render of the
+  // shell above it (QuickCapture opening, the search overlay, any AppShell
+  // state) handed MessagesFlow a new `g`, and loadThreads (keyed on `g`) ran
+  // again: 30 metadatas per account, Waiting On, the sweep, the meeting
+  // finder. The wrapper here holds its callbacks stable the way AppShell does
+  // (it passes none), and bumps a state above the provider three times.
+  it("a re-render above the session provider does not reload the inbox", async () => {
+    let lists = 0;
+    const api = makeApi({ listThreads: async () => { lists += 1; return THREADS; } });
+    const reqTok = async () => "tok";
+    const mkApi = () => api;
+    function Shell() {
+      const [, setN] = useState(0);
+      return (
+        <NotesProvider userId="u1">
+          <GoogleSessionProvider requestToken={reqTok} makeApi={mkApi}>
+            <button onClick={() => setN((n) => n + 1)}>bump</button>
+            <MessagesFlow ai={noAI} configured />
+          </GoogleSessionProvider>
+        </NotesProvider>
+      );
+    }
+    render(<Shell />);
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Ridgeley");
+    // Connecting settles through a few real changes (token, account list);
+    // let them land, then take the count as the baseline.
+    await new Promise((r) => setTimeout(r, 50));
+    const settled = lists;
+    fireEvent.click(screen.getByText("bump"));
+    fireEvent.click(screen.getByText("bump"));
+    fireEvent.click(screen.getByText("bump"));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(lists).toBe(settled);
   });
 
   // EMAIL-F-04 (2026-09-05): "An expired token or a dead network reads as

@@ -26,13 +26,17 @@ export default function MailOutboxPump({ ai }: { ai: AIService }) {
     return () => { on = false; };
   }, [profileSvc]);
 
+  // EMAIL-F-12 (2026-09-05): keyed on g.api, the one field read, so the
+  // one-second interval below is not torn down and rebuilt on every shell
+  // re-render (the session value itself is memoised now, but this pump should
+  // not depend on that to stay still).
   const deps = useMemo<SendDeps>(() => ({
     apiFor: (account?: string) => (account ? g.api(account) : null) ?? g.api(),
     ai,
     tasks,
     trackOpens,
     authToken: session?.access_token,
-  }), [g, ai, tasks, trackOpens, session]);
+  }), [g.api, ai, tasks, trackOpens, session]);
 
   // EMAIL-F-05: once per process, before the first tick, anything left
   // marked "sending" by a process that died is surfaced as interrupted.

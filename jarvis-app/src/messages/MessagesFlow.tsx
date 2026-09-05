@@ -570,8 +570,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     } finally {
       setLoading(false);
     }
+    // EMAIL-F-12 (2026-09-05): keyed on the one field this reads (g.apis,
+    // which changes only when a token or the account list does), not on the
+    // whole session object, so a shell re-render cannot re-run the inbox load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [g, runTriage]);
+  }, [g.apis, runTriage]);
 
   // PICK A TIME, FROM THE REAL CALENDAR (N1, 2026-08-20).
   //
@@ -1005,7 +1008,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     } finally {
       setLoading(false);
     }
-  }, [g]);
+  }, [g.apis]);
 
   useEffect(() => {
     if (g.hasToken) void loadThreads();
@@ -1164,8 +1167,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // single-account data (no account tag) keeps working.
   // EMAIL-F-10 (2026-09-05): stable on the session, not remade every render.
   // As a plain arrow it sat in DeckFlow's prepare deps and re-prepared the
-  // card on screen every time this component re-rendered.
-  const apiFor = useCallback((account?: string) => (account ? g.api(account) : null) ?? g.api(), [g]);
+  // card on screen every time this component re-rendered. EMAIL-F-12: keyed
+  // on g.api, the one field it reads.
+  const apiFor = useCallback((account?: string) => (account ? g.api(account) : null) ?? g.api(), [g.api]);
   // EMAIL-F-09: search hits know their account too (runSearch tags them the
   // same way loadThreads does), so a thread opened from a hit is read,
   // archived and trashed through the account it actually lives in.
