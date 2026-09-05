@@ -293,3 +293,80 @@ describe("Schedule upgrades: time math, recurrence, conflicts, free slots", () =
     expect(occursOn(daily, "2026-05-22")).toBe(false);
   });
 });
+
+// SCHED-F-01 (2026-09-05): "Clearing a field never saves on the real
+// backend." Every clear below used to pass here because the in-memory
+// adapter spread `{ recurrence: undefined }` over the row while the wire
+// dropped the key and Supabase kept the old value. The adapter now merges
+// exactly as the server does (JSON round trip, `||`, strip nulls), so this
+// is the same behaviour the phone gets: the key is GONE, not null, not old.
+import { describe as dw, it as iw, expect as ew } from "vitest";
+dw("SCHED-F-01: every clear reaches the row (jsonb-style adapter)", () => {
+  const absent = (data: object, key: string) => ew(Object.prototype.hasOwnProperty.call(data, key), `${key} should be gone`).toBe(false);
+
+  iw("Repeat: None clears recurrence and until together", async () => {
+    const { Store, InMemoryAdapter } = await import("@core");
+    const { ScheduleService } = await import("./ScheduleService");
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    const id = (await svc.createEvent("Lift", { date: "2026-09-01", start: "06:00", recurrence: "weekly", until: "2026-12-01" }))!;
+    await svc.editRecurrence(id, "none");
+    const e = (await svc.event(id))!;
+    absent(e, "recurrence");
+    absent(e, "until");
+    ew(e.title).toBe("Lift");
+  });
+
+  iw("Until: Forever clears the series end", async () => {
+    const { Store, InMemoryAdapter } = await import("@core");
+    const { ScheduleService } = await import("./ScheduleService");
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    const id = (await svc.createEvent("Clinic", { date: "2026-09-01", start: "16:00", recurrence: "weekly", until: "2026-11-30" }))!;
+    await svc.editUntil(id, null);
+    const e = (await svc.event(id))!;
+    absent(e, "until");
+    ew(e.recurrence).toBe("weekly");
+  });
+
+  iw("an emptied end time is removed, not kept", async () => {
+    const { Store, InMemoryAdapter } = await import("@core");
+    const { ScheduleService } = await import("./ScheduleService");
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    const id = (await svc.createEvent("Call", { date: "2026-09-01", start: "10:00", end: "10:30" }))!;
+    await svc.editEnd(id, "");
+    absent((await svc.event(id))!, "end");
+  });
+
+  iw("Training Door off clears gym and its receipts", async () => {
+    const { Store, InMemoryAdapter } = await import("@core");
+    const { ScheduleService } = await import("./ScheduleService");
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    const id = (await svc.createEvent("Gym", { date: "2026-09-01", start: "17:30" }))!;
+    await svc.editGymDoor(id, true);
+    await svc.stampTrained(id, "2026-09-01", 45);
+    await svc.editGymDoor(id, false);
+    const e = (await svc.event(id))!;
+    absent(e, "gym");
+    absent(e, "trained");
+  });
+
+  iw("detaching the last task clears taskIds", async () => {
+    const { Store, InMemoryAdapter } = await import("@core");
+    const { ScheduleService } = await import("./ScheduleService");
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    const id = (await svc.createEvent("Prep", { date: "2026-09-01", start: "09:00", taskIds: ["t1"] }))!;
+    await svc.editTaskIds(id, []);
+    absent((await svc.event(id))!, "taskIds");
+  });
+
+  iw("Undo after Skip Today puts the occurrence back and drops the empty exdates list", async () => {
+    const { Store, InMemoryAdapter } = await import("@core");
+    const { ScheduleService } = await import("./ScheduleService");
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    const id = (await svc.createEvent("Run", { date: "2026-09-01", start: "06:00", recurrence: "daily" }))!;
+    await svc.addExdate(id, "2026-09-14");
+    ew((await svc.event(id))!.exdates).toEqual(["2026-09-14"]);
+    await svc.removeExdate(id, "2026-09-14");
+    absent((await svc.event(id))!, "exdates");
+    ew((await svc.eventsOn("2026-09-14")).length).toBe(1);
+  });
+});

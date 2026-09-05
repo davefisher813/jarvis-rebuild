@@ -59,3 +59,24 @@ describe("ProfileService", () => {
     });
   });
 });
+
+// HMN-F-03 / SCHED-F-01 (2026-09-05): Remove Payday wrote `{ payday:
+// undefined }`, which never reached Supabase (JSON drops the key), so the
+// toast said "Payday removed" and the payday line was still there after
+// reload. The in-memory adapter now merges the way the server does; this
+// proves the removal lands, and that Undo puts it back.
+describe("HMN-F-03: Remove Payday clears the row", () => {
+  it("save({ payday: undefined }) removes the key, and saving it again restores it", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new ProfileService(store, "u1");
+    const payday = { amount: 2400, next: "2026-09-12", freq: "biweekly" as const };
+    await svc.save({ name: "Alex", payday });
+    expect((await svc.get())!.payday).toEqual(payday);
+    await svc.save({ payday: undefined });
+    const p = (await svc.get())!;
+    expect(Object.prototype.hasOwnProperty.call(p, "payday")).toBe(false);
+    expect(p.name).toBe("Alex");
+    await svc.save({ payday });
+    expect((await svc.get())!.payday).toEqual(payday);
+  });
+});

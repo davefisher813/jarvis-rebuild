@@ -183,3 +183,57 @@ describe("newest first, linked lookups", () => {
     expect(hit!.id).toBe(b);
   });
 });
+
+// BRAIN-F-01 / SCHED-F-01 (2026-09-05): clears written as `undefined` never
+// reached Supabase (JSON drops the key; `data || p_patch` cannot see it).
+// The in-memory adapter now merges the way the server does, so these prove
+// the clears the Brain's decisions make actually land: the key is absent
+// from the row, not null, not the old value.
+describe("BRAIN-F-01: decision clears reach the row (jsonb-style adapter)", () => {
+  const absent = (data: object, key: string) => expect(Object.prototype.hasOwnProperty.call(data, key), `${key} should be gone`).toBe(false);
+
+  it("Undo on Decision replaced removes the old record's forward pointer entirely", async () => {
+    const svc = rig();
+    const oldId = await svc.create({ decision: "Student first" });
+    const newId = await svc.supersede(oldId!, { decision: "Personal first" });
+    expect((await svc.get(oldId!))!.data.supersededById).toBe(newId);
+    await svc.undoSupersede(newId!);
+    absent((await svc.get(oldId!))!.data, "supersededById");
+    expect((await svc.list()).map((r) => r.id)).toEqual([oldId]);
+  });
+
+  it("deleting a replacement clears the older record's pointer, so it returns to the list", async () => {
+    const svc = rig();
+    const oldId = await svc.create({ decision: "Student first" });
+    const newId = await svc.supersede(oldId!, { decision: "Personal first" });
+    await svc.remove(newId!);
+    absent((await svc.get(oldId!))!.data, "supersededById");
+    expect((await svc.list()).map((r) => r.id)).toEqual([oldId]);
+  });
+
+  it("Clear on the reason, the revisit date and Attached To all leave the row", async () => {
+    const svc = rig();
+    const id = await svc.create({ decision: "Saturdays only", why: "Family time", revisitOn: "2026-08-18", linkedType: "project", linkedId: "p1", linkedLabel: "Field House" });
+    await svc.update(id!, { why: undefined });
+    await svc.update(id!, { revisitOn: undefined });
+    await svc.update(id!, { linkedType: undefined, linkedId: undefined, linkedLabel: undefined });
+    const d = (await svc.get(id!))!.data;
+    absent(d, "why");
+    absent(d, "revisitOn");
+    absent(d, "linkedType");
+    absent(d, "linkedId");
+    absent(d, "linkedLabel");
+    expect(d.revisitState).toBe("none");
+    expect(d.decision).toBe("Saturdays only");
+  });
+
+  it("Undo on Still Good clears the confirmation stamp", async () => {
+    const svc = rig();
+    const id = await svc.create({ decision: "Saturdays only", revisitOn: "2026-08-18" });
+    await svc.confirmRevisit(id!);
+    await svc.unconfirmRevisit(id!);
+    const d = (await svc.get(id!))!.data;
+    absent(d, "confirmedAt");
+    expect(d.revisitState).toBe("pending");
+  });
+});

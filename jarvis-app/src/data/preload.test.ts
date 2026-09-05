@@ -86,6 +86,23 @@ describe("stale-while-revalidate adapter", () => {
     expect(list.some((i) => i.id === second)).toBe(false);
   });
 
+  // SCHED-F-01 (2026-09-05): the write-through merges like the server (a
+  // null clears and is stripped), so the cached row is the shape the refresh
+  // brings back. A plain spread used to leave `recurrence: null` sitting in
+  // the cache until the next refresh replaced it.
+  it("read-your-writes: a cleared field (null) leaves the cached row entirely, matching the server", async () => {
+    const inner = new InMemoryAdapter();
+    const adapter = new CachedAdapter(inner);
+    const id = await adapter.create(U, "event", { title: "Lift", recurrence: "weekly", until: "2026-12-01" });
+    await adapter.listForUser(U, "event"); // warm the cache
+    await adapter.apply(U, id, { recurrence: null, until: null });
+    const cached = readPreload(U, "event")!.find((i) => i.id === id)!;
+    expect(cached.data).toEqual({ title: "Lift" });
+    expect(Object.keys(cached.data)).toEqual(["title"]);
+    // And the cached row holds exactly what the server row holds.
+    expect(cached.data).toEqual((await inner.read(U, id))!.data);
+  });
+
   it("untyped lists bypass the cache so backup always reads the truth", async () => {
     const inner = new InMemoryAdapter();
     const adapter = new CachedAdapter(inner);

@@ -1,4 +1,5 @@
 import type { DataAdapter } from "./adapter.js";
+import { mergePatch, toWire } from "./patch.js";
 import type { ApplyResult, Item, ItemData, QueuedCreate, QueuedOp, ServerTime } from "./types.js";
 
 // Loads and saves the raw queue across a process boundary (app kill, tab
@@ -117,16 +118,21 @@ export class Store {
   async update(
     ownerId: string,
     id: string,
-    patch: ItemData,
+    rawPatch: ItemData,
     serverTime?: ServerTime
   ): Promise<ApplyResult> {
+    // SCHED-F-01 (2026-09-05): a cleared field leaves the phone as null,
+    // never undefined. Undefined does not survive JSON, so the server never
+    // saw the key and the old value came back on the next refresh. This is
+    // the one seam every service writes through, so it is the one fix.
+    const patch = toWire(rawPatch);
     if (this.online) {
       const r = await this.adapter.apply(ownerId, id, patch, serverTime);
       this.invalidate(ownerId);
       return r;
     }
     const pending = this.pendingCreates.get(id);
-    if (pending) pending.data = { ...pending.data, ...patch };
+    if (pending) pending.data = mergePatch(pending.data, patch);
     this.queue.push({ op: "update", id, ownerId, patch, serverTime });
     this.saveQueue();
     this.invalidate(ownerId);
@@ -197,7 +203,10 @@ export class Store {
         await this.adapter.create(op.ownerId, op.entityType, op.data, op.id);
         this.pendingCreates.delete(op.id);
       } else if (op.op === "update") {
-        await this.adapter.apply(op.ownerId, op.id, op.patch, op.serverTime);
+        // toWire on replay too: update() normalizes before queueing, and this
+        // keeps the adapter's contract (a clear is null, never undefined)
+        // true for every op however it entered the queue.
+        await this.adapter.apply(op.ownerId, op.id, toWire(op.patch), op.serverTime);
       } else {
         await this.adapter.del(op.ownerId, op.id);
         this.pendingDeletes.delete(op.id);

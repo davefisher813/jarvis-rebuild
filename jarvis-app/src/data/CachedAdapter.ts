@@ -14,7 +14,7 @@
 // The cache is per entity type; untyped (whole-account) lists bypass the
 // cache entirely, so backup always reads the truth.
 
-import type { DataAdapter, Item, ItemData, ServerTime } from "@core";
+import { mergePatch, type DataAdapter, type Item, type ItemData, type ServerTime } from "@core";
 import { listSignature, readPreload, writePreload } from "./preloadCache";
 
 export type FreshListener = (entityType: string) => void;
@@ -132,7 +132,11 @@ export class CachedAdapter implements DataAdapter {
       if (idx < 0) return null;
       const cur = items[idx]!;
       const next = [...items];
-      next[idx] = { ...cur, data: { ...cur.data, ...patch }, serverTime: Date.now() };
+      // SCHED-F-01 (2026-09-05): merge exactly as the server does (null
+      // clears, then strips), so the cached row is the shape the refresh
+      // will bring back. A plain spread here used to SHOW a clear that the
+      // wire had dropped, which is why the value "came back" on refresh.
+      next[idx] = { ...cur, data: mergePatch(cur.data, patch), serverTime: Date.now() };
       return next;
     });
   }

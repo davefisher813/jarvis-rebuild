@@ -83,3 +83,31 @@ describe("CategoriesService", () => {
     expect((await u2.list()).length).toBe(0);
   });
 });
+
+// BRAIN-F-01 / SCHED-F-01 (2026-09-05): Wake Up writes `{ season: undefined }`,
+// which never reached Supabase (JSON drops the key), so a paused area was
+// Paused again after the next refresh. The in-memory adapter now merges the
+// way the server does; this proves the unpause lands.
+describe("BRAIN-F-01: Wake Up and Paused off clear season on the row", () => {
+  it("Wake Up removes season entirely", async () => {
+    const svc = new CategoriesService(new Store(new InMemoryAdapter()), "u1");
+    const id = (await svc.create("Work", "blue"))!;
+    await svc.update(id, { kind: "org", season: "paused" });
+    expect((await svc.get(id))!.data.season).toBe("paused");
+    await svc.update(id, { season: undefined });
+    const d = (await svc.get(id))!.data;
+    expect(Object.prototype.hasOwnProperty.call(d, "season")).toBe(false);
+    expect(d.kind).toBe("org");
+  });
+
+  it("the sheet's Paused switch off (full patch with season undefined) clears it too", async () => {
+    const svc = new CategoriesService(new Store(new InMemoryAdapter()), "u1");
+    const id = (await svc.create("Work", "blue"))!;
+    await svc.update(id, { kind: "org", season: "paused", workHours: true });
+    await svc.update(id, { name: "Work", color: "blue", icon: "briefcase", kind: "org", season: undefined, workHours: undefined });
+    const d = (await svc.get(id))!.data;
+    expect(Object.prototype.hasOwnProperty.call(d, "season")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(d, "workHours")).toBe(false);
+    expect(d.icon).toBe("briefcase");
+  });
+});

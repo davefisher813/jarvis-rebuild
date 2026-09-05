@@ -1,4 +1,5 @@
 import type { DataAdapter } from "./adapter.js";
+import { mergePatch } from "./patch.js";
 import type { Item, ItemData, ServerTime } from "./types.js";
 
 // Faithful port of the approved harness `makeCore` storage semantics.
@@ -68,7 +69,12 @@ export class InMemoryAdapter implements DataAdapter {
 
     if (t < r.serverTime) return false; // D7 / D10 last-write-wins by server time
 
-    r.data = { ...r.data, ...patch };
+    // SCHED-F-01 (2026-09-05): merge the way the server does (JSON wire, then
+    // `data || p_patch`, then jsonb_strip_nulls), not a JS spread. The spread
+    // let `{ end: undefined }` clear a key here while the real backend never
+    // even received it, so the suite was green on a bug the phone had on
+    // every clear. See patch.ts.
+    r.data = mergePatch(r.data, patch);
     r.serverTime = t;
     return true;
   }

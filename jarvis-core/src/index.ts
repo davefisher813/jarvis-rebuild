@@ -15,5 +15,6 @@ export { InMemoryAdapter } from "./core/inMemoryAdapter.js";
 export { SupabaseAdapter, createSupabaseAdapter } from "./core/supabaseAdapter.js";
 export { Store } from "./core/store.js";
 export type { StorePersistence } from "./core/store.js";
+export { mergePatch, stripNulls, toWire } from "./core/patch.js";
 export { REQUIREMENTS, STEPS } from "./core/spec.js";
 export type { Ctx, Requirement, Step, StepResult } from "./core/spec.js";
