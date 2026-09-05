@@ -81,7 +81,16 @@ function rowOk(r: unknown): r is WindowRow {
   return !!o && typeof o.type === "string" && typeof o.day === "string" && typeof o.h === "number";
 }
 
-export async function readWindow(client: WindowClient | null, nowMs: number, days = WINDOW_DAYS): Promise<WindowRow[]> {
+// BRAIN-F-11 (2026-09-05): where the rows came from. The fallback to the
+// local log is right for a derivation (a suggestion built from this device's
+// evidence is still worth having), and wrong for anything DURABLE: the
+// monthly seal used to write a partial record of a month, or mark the month
+// done with nothing at all, whenever the one server read of the boot failed.
+// Callers that write something permanent read this and refuse the local
+// answer; the derivations keep the plain readWindow below, unchanged.
+export interface WindowRead { rows: WindowRow[]; source: "server" | "local" }
+
+export async function readWindowWithSource(client: WindowClient | null, nowMs: number, days = WINDOW_DAYS): Promise<WindowRead> {
   if (client) {
     try {
       const { data, error } = await client
@@ -95,10 +104,14 @@ export async function readWindow(client: WindowClient | null, nowMs: number, day
         // "the latest 2000", which is the only honest reading of a window.
         .order("at", { ascending: false })
         .limit(WINDOW_LIMIT);
-      if (!error && Array.isArray(data)) return (data as unknown[]).filter(rowOk);
+      if (!error && Array.isArray(data)) return { rows: (data as unknown[]).filter(rowOk), source: "server" };
     } catch { /* fall through to local */ }
   }
-  return localWindow(nowMs, days);
+  return { rows: localWindow(nowMs, days), source: "local" };
+}
+
+export async function readWindow(client: WindowClient | null, nowMs: number, days = WINDOW_DAYS): Promise<WindowRow[]> {
+  return (await readWindowWithSource(client, nowMs, days)).rows;
 }
 
 // The same window from the local log: map JarvisEvents to WindowRows through

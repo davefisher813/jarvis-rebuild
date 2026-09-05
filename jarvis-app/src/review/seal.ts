@@ -3,7 +3,7 @@ import type { EventInput } from "../events";
 import type { EventItem } from "../schedule/types";
 import { minutesByCategory, unscheduledGoalAreas, hoursRows } from "./hours";
 import type { WindowRow, WindowClient } from "../brain/window";
-import { readWindow } from "../brain/window";
+import { readWindow, readWindowWithSource } from "../brain/window";
 import { completionBand, taskDone, slipLeader } from "../brain/derive";
 import { liveGoals, goalTags } from "../bigger/reach";
 import type { Goal } from "../life/types";
@@ -231,6 +231,10 @@ export class SealService {
     private onEvent: (e: EventInput) => void = () => {},
   ) {}
 
+  /** Whose seals these are. BRAIN-F-11 (2026-09-05): the once-per-boundary
+   *  marker is keyed by it, so a shared device holds one per account. */
+  get owner(): string { return this.ownerId; }
+
   /** All seals, oldest month first. Two devices racing the same boundary can
    *  both write; the earliest write wins on read and the twin is ignored. */
   async list(): Promise<MonthSeal[]> {
@@ -259,6 +263,12 @@ export class SealService {
 // the first successful seal of a month, and the Store lookup catches the
 // other-device case before any window read happens.
 const MARK_KEY = "jarvis.seal.done.v1";
+// BRAIN-F-11 (2026-09-05): the marker is a fact about a USER's month, not
+// about the device. Device-global, a second account signing in on a shared
+// phone in the same month found the month already "done" and never got a
+// seal of its own. No migration: an old global key simply stops matching, so
+// the worst case is one extra Store lookup per user, which is idempotent.
+const markKeyFor = (ownerId: string) => `${MARK_KEY}:${ownerId}`;
 
 export async function sealPreviousMonthIfDue(
   svc: SealService,
@@ -272,18 +282,26 @@ export async function sealPreviousMonthIfDue(
   scheduleSvc?: { listEvents: () => Promise<EventItem[]> } | null,
 ): Promise<string | null> {
   const prev = prevMonthKey(today);
+  const key = markKeyFor(svc.owner);
   const mark = () => {
-    try { localStorage.setItem(MARK_KEY, prev); } catch { /* best effort */ }
+    try { localStorage.setItem(key, prev); } catch { /* best effort */ }
   };
   try {
-    if (localStorage.getItem(MARK_KEY) === prev) return null;
+    if (localStorage.getItem(key) === prev) return null;
   } catch { /* no storage: the Store check below still guards */ }
   if (await svc.findMonth(prev)) { mark(); return null; }
-  const [rows, workouts, goals] = await Promise.all([
-    readWindow(client, now, 35),
+  const [win, workouts, goals] = await Promise.all([
+    readWindowWithSource(client, now, 35),
     gym.listWorkouts(),
     goalsSvc.list(),
   ]);
+  // BRAIN-F-11 (2026-09-05): the seal is permanent and the earliest write per
+  // month wins on read, so sealing from the local log while a server exists
+  // could freeze a partial month for good, or mark a month done with no
+  // evidence at all on a fresh install that happened to open offline. No
+  // signal means no seal and no marker: the next open tries again.
+  if (client && win.source === "local") return null;
+  const rows = win.rows;
   // Best-effort: a calendar read that fails costs the month its hours
   // section, never its seal. The seal is the durable record and it has been
   // written without hours for as long as it has existed.

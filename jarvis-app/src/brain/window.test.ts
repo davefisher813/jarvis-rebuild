@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { readWindow, windowStartISO, WINDOW_DAYS, type WindowClient } from "./window";
+import { readWindow, readWindowWithSource, windowStartISO, WINDOW_DAYS, type WindowClient } from "./window";
 
 const NOW = new Date("2026-08-21T12:00:00Z").getTime();
 
@@ -121,5 +121,26 @@ describe("the day an event names for itself", () => {
     expect(days).toContain("2026-08-20");
     expect(days).not.toContain("yesterday lol");
     eventLog.clear();
+  });
+});
+
+// BRAIN-F-11 (2026-09-05): the fallback above is right for a derivation and
+// wrong for anything durable, and until now nothing could tell the two reads
+// apart. The monthly seal reads the source and refuses to write a permanent
+// record of a month it could only see half of.
+describe("readWindowWithSource", () => {
+  it("says server when the query answered", async () => {
+    const out = await readWindowWithSource(fakeClient([]), NOW);
+    expect(out.source).toBe("server");
+  });
+
+  it("says local when the query errored, and when there is no client", async () => {
+    const boom: WindowClient = {
+      from: () => ({
+        select: () => ({ gte: () => ({ in: () => ({ order: () => ({ limit: () => Promise.reject(new Error("offline")) }) }) }) }),
+      }),
+    };
+    expect((await readWindowWithSource(boom, NOW)).source).toBe("local");
+    expect((await readWindowWithSource(null, NOW)).source).toBe("local");
   });
 });
