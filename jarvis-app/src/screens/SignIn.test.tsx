@@ -40,7 +40,9 @@ describe("SignIn legal links", () => {
     render(<SignIn />);
     fireEvent.click(screen.getByText("Terms"));
     expect(screen.getAllByText("Terms of Service").length).toBeGreaterThan(0);
-    expect(screen.getByText(/1\. Acceptance/)).toBeInTheDocument();
+    // SHELL-F-19 (2026-09-05): the numbered template sections were replaced
+    // by the reviewed Terms published at public/terms.html.
+    expect(screen.getByText("Acceptable Use")).toBeInTheDocument();
     fireEvent.click(screen.getByText("About"));
     expect(screen.getByText("Welcome to JARVIS")).toBeInTheDocument();
   });
@@ -48,7 +50,8 @@ describe("SignIn legal links", () => {
   it("Privacy Policy opens the real Privacy Policy screen", () => {
     render(<SignIn />);
     fireEvent.click(screen.getByText("Privacy Policy"));
-    expect(screen.getByText(/request deletion of your account/)).toBeInTheDocument();
+    expect(screen.getByText("What We Collect")).toBeInTheDocument();
+    expect(screen.getByText(/delete your entire account/)).toBeInTheDocument();
   });
 });
 
