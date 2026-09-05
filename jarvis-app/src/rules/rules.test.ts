@@ -55,6 +55,49 @@ describe("law: two identical corrections make a rule, one does not", () => {
   });
 });
 
+// PLUMB-F-18 (2026-09-05): "he corrects Elite Squad to Family once on the
+// phone and once on the laptop, and no rule is born." The pair was counted in
+// localStorage, so each device sat on one correction forever. Two services on
+// one Store are two devices on one account: the pending correction is a
+// synced profile field now, so the second device finishes the pair.
+describe("law: the pair counts across devices, not per device", () => {
+  it("one correction on each device makes the rule", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const phone = new LearnedRulesService(store, U);
+    const laptop = new LearnedRulesService(store, U);
+
+    expect(await phone.recordCorrection("alias", "capture.category", "practice", "family", "On the phone")).toBeNull();
+    const made = await laptop.recordCorrection("alias", "capture.category", "practice", "family", "On the laptop");
+    expect(made).not.toBeNull();
+    expect(made!.data.evidence).toEqual(["On the phone", "On the laptop"]);
+    // And the rule is the account's, so the phone reads it too.
+    expect((await phone.resolve("capture.category", "practice"))!.data.to).toBe("family");
+  });
+
+  it("a differing correction on the other device resets the pair, it does not average it", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const phone = new LearnedRulesService(store, U);
+    const laptop = new LearnedRulesService(store, U);
+    await phone.recordCorrection("alias", "capture.category", "practice", "family", "e1");
+    expect(await laptop.recordCorrection("alias", "capture.category", "practice", "orgA", "e2")).toBeNull();
+    expect(await phone.resolve("capture.category", "practice")).toBeNull();
+  });
+
+  it("a correction already pending in the old device-local key still counts", async () => {
+    const store = new Store(new InMemoryAdapter());
+    // What this device wrote before the upgrade, key shape and all.
+    localStorage.setItem("jarvis.corrections.v1", JSON.stringify({
+      ["capture.category" + "\u0000" + "practice"]: { to: "family", evidence: ["Before the upgrade"] },
+    }));
+    const svc = new LearnedRulesService(store, U);
+    const made = await svc.recordCorrection("alias", "capture.category", "practice", "family", "After the upgrade");
+    expect(made).not.toBeNull();
+    expect(made!.data.evidence).toEqual(["Before the upgrade", "After the upgrade"]);
+    // Drained, so it cannot be counted a second time.
+    expect(localStorage.getItem("jarvis.corrections.v1")).toBeNull();
+  });
+});
+
 describe("law: rules announce once, die on one contradiction, and delete cleanly", () => {
   async function makeRule(svc: LearnedRulesService) {
     await svc.recordCorrection("alias", "capture.category", "practice", "elite-squad", "e1");

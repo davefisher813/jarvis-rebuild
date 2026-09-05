@@ -63,6 +63,14 @@ export interface ProfileData {
   // exists so a second device has something to hydrate from. See
   // messages/mailSync.ts.
   mail?: { vips?: string[]; rules?: SenderRules; muted?: string[]; letGo?: string[] };
+  // PLUMB-F-18 (2026-09-05): corrections seen once but not yet paired. A rule
+  // is born from TWO identical corrections, and while these lived in
+  // localStorage the pair had to happen on ONE device: correcting "practice"
+  // to Elite Squad on the phone and again on the laptop taught JARVIS
+  // nothing. The rules themselves have always been rows, so their evidence
+  // is one now too. Keyed by scope + NUL + trigger, emptied as each pair
+  // becomes a rule. See rules/LearnedRulesService.ts.
+  pendingCorrections?: Record<string, { to: string; evidence: string[] }>;
 }
 
 export const EMPTY_PROFILE: ProfileData = {

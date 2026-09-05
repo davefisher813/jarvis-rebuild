@@ -1,6 +1,7 @@
 import type { Store, ItemData } from "@core";
 import { ENTITY_LEARNED_RULE, type LearnedRuleData, type RuleKind } from "./types";
 import { ENTITY_CATEGORY } from "../categories/types";
+import { ProfileService } from "../profile/ProfileService";
 import { showToast } from "../shared/toast";
 
 export interface LearnedRule {
@@ -8,14 +9,23 @@ export interface LearnedRule {
   data: LearnedRuleData;
 }
 
-// Pending corrections live client-side until they become a rule: one
-// correction is an accident, two identical ones are a pattern. Versioned key
-// (laws: stored shapes are versioned).
+// PENDING CORRECTIONS. One correction is an accident, two identical ones are
+// a pattern, so the first one has to be remembered somewhere until the second
+// arrives.
+//
+// PLUMB-F-18 (2026-09-05): that somewhere was localStorage, which meant the
+// PAIR had to happen on one device. Correcting "Elite Squad" to Family once
+// on the phone and once on the laptop taught JARVIS nothing: each device saw
+// one correction and waited forever for a second. The rules themselves have
+// always been rows in the Store, so their evidence rides the profile record
+// now (one per user, already synced, no new entity type and no migration).
+// The old device-local key is drained into it on the next correction, so a
+// pair already half-made is not thrown away by the upgrade.
 const PENDING_KEY = "jarvis.corrections.v1";
 
 type PendingShape = Record<string, { to: string; evidence: string[] }>;
 
-function readPending(): PendingShape {
+function readLegacyPending(): PendingShape {
   try {
     if (typeof localStorage === "undefined") return {};
     return (JSON.parse(localStorage.getItem(PENDING_KEY) || "{}") as PendingShape) || {};
@@ -24,11 +34,11 @@ function readPending(): PendingShape {
   }
 }
 
-function writePending(p: PendingShape): void {
+function clearLegacyPending(): void {
   try {
     if (typeof localStorage === "undefined") return;
-    localStorage.setItem(PENDING_KEY, JSON.stringify(p));
-  } catch { /* a lost pending correction re-observes itself next time */ }
+    localStorage.removeItem(PENDING_KEY);
+  } catch { /* nothing to do: the drain retries on the next correction */ }
 }
 
 // The learned-rules store (Uncertainty Protocol, addendum item 25). See
@@ -36,7 +46,32 @@ function writePending(p: PendingShape): void {
 // a null answer means "no rule, fall back to asking via a bounded chooser
 // or an honest refusal", never a guess.
 export class LearnedRulesService {
-  constructor(private store: Store, private ownerId: string) {}
+  private readonly profile: ProfileService;
+
+  constructor(private store: Store, private ownerId: string) {
+    this.profile = new ProfileService(store, ownerId);
+  }
+
+  // The pending map as both devices see it, with anything still sitting in
+  // this device's old local key folded in. The synced copy wins a conflict:
+  // it is the one the other device can also see.
+  private async readPending(): Promise<PendingShape> {
+    let stored: PendingShape = {};
+    try {
+      stored = (await this.profile.get())?.pendingCorrections ?? {};
+    } catch { /* unreadable profile: treat as nothing pending, and observe again */ }
+    const legacy = readLegacyPending();
+    return Object.keys(legacy).length > 0 ? { ...legacy, ...stored } : { ...stored };
+  }
+
+  private async writePending(p: PendingShape): Promise<void> {
+    try {
+      await this.profile.save({ pendingCorrections: p });
+      // Only once the synced copy holds them: a failed save must not lose a
+      // correction that was still only on this device.
+      clearLegacyPending();
+    } catch { /* a lost pending correction re-observes itself next time */ }
+  }
 
   async list(): Promise<LearnedRule[]> {
     const items = await this.store.listForUser(this.ownerId, ENTITY_LEARNED_RULE);
@@ -76,11 +111,11 @@ export class LearnedRulesService {
     // searches of this file came back empty this session before that was the
     // explanation. Same string at runtime, so nothing stored is invalidated.
     const key = `${scope}\u0000${from}`;
-    const pending = readPending();
+    const pending = await this.readPending();
     const prior = pending[key];
     if (prior && prior.to === to) {
       delete pending[key];
-      writePending(pending);
+      await this.writePending(pending);
       const data: LearnedRuleData = {
         kind,
         scope,
@@ -93,7 +128,7 @@ export class LearnedRulesService {
       return { id, data };
     }
     pending[key] = { to, evidence: [evidenceLine] };
-    writePending(pending);
+    await this.writePending(pending);
     return null;
   }
 
