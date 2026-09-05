@@ -6,7 +6,7 @@
 
 export interface ImportedContact {
   name: string;
-  birthday?: string; // YYYY-MM-DD when parseable
+  birthday?: string; // YYYY-MM-DD, or MM-DD when the year is withheld
   notes?: string;    // org and extra lines still fold here
   email?: string;    // first EMAIL (person pass: real fields, not note lines)
   phone?: string;    // first TEL
@@ -38,10 +38,17 @@ function vLine(line: string): { prop: string; value: string } | null {
 }
 
 // BDAY comes as 1990-04-20, 19900420, or --04-20 (year withheld). Normalize
-// to YYYY-MM-DD; drop year-withheld and unparseable forms.
+// to YYYY-MM-DD, or MM-DD when the year is withheld; anything else is dropped.
+//
+// BRAIN-F-22 (2026-09-05): the year-withheld form is what an iPhone exports
+// for a contact whose birthday is set without a year, and it was thrown away
+// here even though birthdayMonthDay (people/birthdays.ts:24) has accepted
+// MM-DD since it shipped. The date is the birthday; the year never was.
 function vBirthday(v: string): string | undefined {
   const iso = v.match(/^(\d{4})-?(\d{2})-?(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const md = v.match(/^--(\d{2})-?(\d{2})$/);
+  if (md) return `${md[1]}-${md[2]}`;
   return undefined;
 }
 
@@ -106,7 +113,18 @@ const NAME_HEADERS = ["name", "full name", "fullname", "contact"];
 const FIRST_HEADERS = ["first", "first name", "firstname", "given name"];
 const LAST_HEADERS = ["last", "last name", "lastname", "family name", "surname"];
 const BDAY_HEADERS = ["birthday", "bday", "date of birth", "dob"];
-const NOTE_HEADERS = ["phone", "mobile", "tel", "email", "e-mail", "org", "organization", "company", "notes", "note"];
+// BRAIN-F-22 (2026-09-05): email and phone columns used to be folded into the
+// notes blob with everything else, so a .csv import gave every person a note
+// holding their address and number and no Call, Text or Email row on their
+// card. The vCard parser has put them in the real fields since the person
+// pass; this is the same rule for the other format. The prefix checks catch
+// the exported shapes ("E-mail 1 - Value", "Phone 1 - Value") as well as a
+// plain header.
+const EMAIL_HEADERS = ["email", "e-mail", "email address", "mail"];
+const PHONE_HEADERS = ["phone", "mobile", "tel", "telephone", "cell", "phone number"];
+const isEmailHeader = (h: string) => EMAIL_HEADERS.includes(h) || h.startsWith("email") || h.startsWith("e-mail");
+const isPhoneHeader = (h: string) => PHONE_HEADERS.includes(h) || h.startsWith("phone") || h.startsWith("mobile");
+const NOTE_HEADERS = ["org", "organization", "company", "notes", "note"];
 
 export function parseContactsCSV(text: string): ImportedContact[] {
   const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
@@ -118,6 +136,8 @@ export function parseContactsCSV(text: string): ImportedContact[] {
   const lastI = idx(LAST_HEADERS);
   const bdayI = idx(BDAY_HEADERS);
   const noteIs = headers.map((h, i) => (NOTE_HEADERS.includes(h) ? i : -1)).filter((i) => i >= 0);
+  const emailIs = headers.map((h, i) => (isEmailHeader(h) ? i : -1)).filter((i) => i >= 0);
+  const phoneIs = headers.map((h, i) => (isPhoneHeader(h) ? i : -1)).filter((i) => i >= 0);
   if (nameI < 0 && firstI < 0) return []; // no recognizable name column: refuse, do not guess
 
   const out: ImportedContact[] = [];
@@ -130,6 +150,13 @@ export function parseContactsCSV(text: string): ImportedContact[] {
       const b = vBirthday(f[bdayI]!.replace(/\//g, "-"));
       if (b) c.birthday = b;
     }
+    // The first column of each that actually holds something: an export
+    // usually carries several, most of them empty.
+    const firstOf = (cols: number[]) => cols.map((i) => f[i]?.trim()).find((v) => !!v);
+    const email = firstOf(emailIs);
+    const phone = firstOf(phoneIs);
+    if (email) c.email = email;
+    if (phone) c.phone = phone;
     const extras = noteIs.map((i) => f[i]).filter((v): v is string => !!v && v.trim() !== "");
     if (extras.length) c.notes = extras.join("\n");
     out.push(c);

@@ -36,19 +36,42 @@ describe("parseVCard", () => {
     expect(c[0]?.name).toBe("JonathanLongname");
   });
 
-  it("drops year-withheld birthdays instead of guessing", () => {
-    const c = parseVCard("BEGIN:VCARD\nFN:X Y\nBDAY:--0420\nEND:VCARD");
-    expect(c[0]?.birthday).toBeUndefined();
+  // BRAIN-F-22 (2026-09-05): this asserted the bug. A withheld YEAR is not a
+  // withheld birthday: --04-20 is what an iPhone exports for a contact whose
+  // birthday has no year, and birthdays.ts has read MM-DD since it shipped,
+  // so dropping it lost a real date the app could already use.
+  it("keeps a year-withheld birthday as its month and day", () => {
+    expect(parseVCard("BEGIN:VCARD\nFN:X Y\nBDAY:--0420\nEND:VCARD")[0]?.birthday).toBe("04-20");
+    expect(parseVCard("BEGIN:VCARD\nFN:X Y\nBDAY:--04-20\nEND:VCARD")[0]?.birthday).toBe("04-20");
+  });
+
+  it("still drops what it cannot read, rather than guessing", () => {
+    expect(parseVCard("BEGIN:VCARD\nFN:X Y\nBDAY:sometime in spring\nEND:VCARD")[0]?.birthday).toBeUndefined();
   });
 });
 
 describe("parseContactsCSV", () => {
-  it("reads name/birthday/phone columns", () => {
+  // BRAIN-F-22 (2026-09-05): this asserted the bug too. A phone number in a
+  // notes blob is not a phone number: the card's Call, Text and Email rows
+  // read the real fields, which the vCard parser has written since the person
+  // pass and the CSV parser never did.
+  it("reads name/birthday/phone columns into the real fields", () => {
     const c = parseContactsCSV("Name,Birthday,Phone\nMike Ridgeley,1985-04-20,555-0100\nSarah Lee,,\n");
     expect(c).toEqual([
-      { name: "Mike Ridgeley", birthday: "1985-04-20", notes: "555-0100" },
+      { name: "Mike Ridgeley", birthday: "1985-04-20", phone: "555-0100" },
       { name: "Sarah Lee" },
     ]);
+  });
+
+  it("takes email and phone from an export's numbered columns, notes keep the rest", () => {
+    const c = parseContactsCSV([
+      "Name,E-mail 1 - Value,E-mail 2 - Value,Phone 1 - Value,Organization,Notes",
+      "Marco Vidal,,marco@club.org,555-0142,Cortland Club,Met at the clinic",
+    ].join("\n"));
+    expect(c).toEqual([{
+      name: "Marco Vidal", email: "marco@club.org", phone: "555-0142",
+      notes: "Cortland Club\nMet at the clinic",
+    }]);
   });
 
   it("builds names from First/Last columns and honors quoted commas", () => {
