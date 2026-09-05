@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { CalendarDays, ListChecks, FolderKanban, User, Target } from "../../shared/icons";
 import { Head, Card } from "../../settings/kit";
 import type { QuickCreateKind } from "./QuickCreateSheet";
+import { pressable } from "../../shared/pressable";
 
 const NEW_ROW: Record<QuickCreateKind, { label: string; tone: string; glyph: ReactNode }> = {
   event: { label: "New Event", tone: "sky", glyph: <CalendarDays className="ic" /> },
@@ -17,7 +18,7 @@ const NEW_ROW: Record<QuickCreateKind, { label: string; tone: string; glyph: Rea
 function NewRow({ kind, onCreateNew }: { kind: QuickCreateKind; onCreateNew: (kind: QuickCreateKind) => void }) {
   const r = NEW_ROW[kind];
   return (
-    <div className="row" role="button" tabIndex={0} onClick={() => onCreateNew(kind)}>
+    <div className="row" {...pressable(() => onCreateNew(kind))}>
       <div className={"proj-icon cat-bg-" + r.tone}>{r.glyph}</div>
       <div className="conn-name">{r.label}</div>
       <div className="chev"></div>
@@ -91,7 +92,7 @@ export default function LinkPicker({
           <Head label="Events" />
           <Card>
             {events.map((e) => (
-              <div className="row" role="button" tabIndex={0} key={e.id} onClick={() => onPick("event", e.title, e.id)}>
+              <div className="row" {...pressable(() => onPick("event", e.title, e.id))} key={e.id}>
                 <div className="proj-icon cat-bg-sky"><CalendarDays className="ic" /></div>
                 <div className="conn-name">{e.title}</div>
                 <div className="chev"></div>
@@ -107,7 +108,7 @@ export default function LinkPicker({
           <Head label="Tasks" />
           <Card>
             {tasks.map((t) => (
-              <div className="row" role="button" tabIndex={0} key={t.id} onClick={() => onPick("task", t.text, t.id)}>
+              <div className="row" {...pressable(() => onPick("task", t.text, t.id))} key={t.id}>
                 <div className="proj-icon cat-bg-red"><ListChecks className="ic" /></div>
                 <div className="conn-name">{t.text}</div>
                 <div className="chev"></div>
@@ -123,7 +124,7 @@ export default function LinkPicker({
           <Head label="Projects" />
           <Card>
             {projects.map((p) => (
-              <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onPick("project", p.title, p.id)}>
+              <div className="row" {...pressable(() => onPick("project", p.title, p.id))} key={p.id}>
                 <div className="proj-icon cat-bg-blue"><FolderKanban className="ic" /></div>
                 <div className="conn-name">{p.title}</div>
                 <div className="chev"></div>
@@ -139,7 +140,7 @@ export default function LinkPicker({
           <Head label="People" />
           <Card>
             {people.map((p) => (
-              <div className="row" role="button" tabIndex={0} key={p.id} onClick={() => onPick("person", p.name, p.id)}>
+              <div className="row" {...pressable(() => onPick("person", p.name, p.id))} key={p.id}>
                 <div className="proj-icon cat-bg-pink"><User className="ic" /></div>
                 <div className="conn-name">{p.name}</div>
                 <div className="chev"></div>
@@ -155,7 +156,7 @@ export default function LinkPicker({
           <Head label="Goals" />
           <Card>
             {goals.map((g) => (
-              <div className="row" role="button" tabIndex={0} key={g.id} onClick={() => onPick("goal", g.title, g.id)}>
+              <div className="row" {...pressable(() => onPick("goal", g.title, g.id))} key={g.id}>
                 <div className="proj-icon cat-bg-green"><Target className="ic" /></div>
                 <div className="conn-name">{g.title}</div>
                 <div className="chev"></div>

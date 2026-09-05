@@ -1,5 +1,6 @@
 import { BAG_ITEMS, allChecked } from "../bag";
 import type { BagItemState } from "../types";
+import { pressable } from "../../shared/pressable";
 
 // THE BAG, WATER WITH YOU IS A ROW INSIDE IT (Part 3). A pre-departure
 // checklist bound to one calendar event. One tap per item or one tap for
@@ -32,7 +33,7 @@ export default function TheBagScreen({
           const state = items.find((i) => i.key === def.key);
           const checked = state?.checked ?? false;
           return (
-            <div className="row" role="button" tabIndex={0} key={def.key} onClick={() => onToggle(def.key)}>
+            <div className="row" {...pressable(() => onToggle(def.key))} key={def.key}>
               <div className={"cb" + (checked ? " on" : "")} aria-hidden="true" />
               <div className="row-grow"><div className="conn-name">{def.label}</div></div>
             </div>

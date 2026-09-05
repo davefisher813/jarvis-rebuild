@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LOCKER_DOC_KINDS, LOCKER_DOC_LABEL, currentDocs, expiringDocs } from "../locker";
 import type { LockerDocEntry, LockerDocKind } from "../types";
+import { pressable } from "../../shared/pressable";
 
 // THE LOCKER (Part 8). Document storage with expiry tracking. Zero medical
 // judgment, just storage: this screen never reads or shows what a document
@@ -68,7 +69,7 @@ export default function LockerScreen({
           <div className="sh2 sh2-quiet"><span className="t">Add a Document</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {missing.map((k) => (
-              <div className="row" role="button" tabIndex={0} key={k} onClick={() => setAddingKind(k)}>
+              <div className="row" {...pressable(() => setAddingKind(k))} key={k}>
                 <div className="row-grow"><div className="conn-name">{LOCKER_DOC_LABEL[k]}</div></div>
               </div>
             ))}

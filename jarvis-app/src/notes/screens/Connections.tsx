@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Tag, CalendarDays, ListChecks, ListTodo, Plus, X, FolderKanban, User, Target, Link2 as LinkIcon } from "../../shared/icons";
 import { catColor } from "../../shared/categories";
 import { Head, Card } from "../../settings/kit";
+import { pressable } from "../../shared/pressable";
 
 export type Conn = { id: string; kind: string; label: string; targetId?: string | null };
 
@@ -73,11 +74,8 @@ export default function Connections({
         {picking && categories.map((c) => (
           <div
             className="row conn-sub"
-            role="button"
-            tabIndex={0}
-            key={c.id}
-            onClick={() => { onChangeCategory?.(c.id); setPicking(false); }}
-          >
+            {...pressable(() => { onChangeCategory?.(c.id); setPicking(false); })}
+            key={c.id}>
             <div className={"proj-icon cat-bg-" + catColor(c.id)}><Tag className="ic" /></div>
             <div className="conn-name">{c.name}</div>
             {c.id === category && <span className="conn-meta">Current</span>}
@@ -103,7 +101,7 @@ export default function Connections({
             </div>
           );
         })}
-        <div className="row" role="button" tabIndex={0} onClick={onAddLink}>
+        <div className="row" {...pressable(() => onAddLink?.())}>
           <div className="proj-icon cat-bg-green"><Plus className="ic" /></div>
           <div className="conn-name">Add Link</div>
           <div className="chev"></div>
@@ -112,7 +110,7 @@ export default function Connections({
 
       <Head label="Actions" />
       <Card>
-        <div className="row" role="button" tabIndex={0} onClick={onCreateTasks}>
+        <div className="row" {...pressable(() => onCreateTasks?.())}>
           <div className="proj-icon cat-bg-yellow"><ListTodo className="ic" /></div>
           <div className="conn-name">Create Tasks from Checklist</div>
           <div className="chev"></div>

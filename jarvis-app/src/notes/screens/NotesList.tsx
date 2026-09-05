@@ -8,6 +8,7 @@ import { catColor, catName } from "../../shared/categories";
 import { ParentLineGlyph } from "../../shared/glyphs";
 import { todayISO } from "../../tasks/grouping";
 import { monthDay } from "../../money/bills";
+import { pressable } from "../../shared/pressable";
 
 // NOTES, PORTED (Notes and Money catalog, 2026-09-02). The library rows of
 // locked frame #46 (2026-08-18) are gone from this page; the note is a row
@@ -169,11 +170,9 @@ export default function NotesList({
     const body = (drag: RowDrag) => (
       <div
         className={"task-row p2 note-row" + (drag.dragging ? " swiping" : "")}
-        role="button" tabIndex={0}
+        {...pressable(() => (sel.active ? sel.toggle(n.id) : onOpen?.(n.id)))}
         style={drag.style}
-        {...(drag.handlers ?? {})}
-        onClick={() => (sel.active ? sel.toggle(n.id) : onOpen?.(n.id))}
-      >
+        {...(drag.handlers ?? {})}>
         {/* The selection box takes the leading column: on a row with a glyph
             it is the glyph's column, on the line row it is the check column
             every task row keeps for exactly this. */}

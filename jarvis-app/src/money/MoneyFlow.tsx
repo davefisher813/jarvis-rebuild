@@ -24,6 +24,7 @@ import { usePickFile } from "../shared/usePickFile";
 import { sizeLabel, type UserFile } from "../files/types";
 import { Paperclip, Image as ImageGlyph, FileText, Calendar, FolderKanban } from "../shared/icons";
 import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
+import { pressable } from "../shared/pressable";
 
 const CHEV = <div className="chev" />;
 const PLUS = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>;
@@ -352,7 +353,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   const billRows = (
     <>
       {anchor && (
-        <div className="task-row p2" role="button" tabIndex={0} onClick={() => setPaydayOpen(true)}>
+        <div className="task-row p2" {...pressable(() => setPaydayOpen(true))}>
           <div className="task-title">
             <span className="task-name">{anchor.title}</span>
             <div className="r-k"><span className="r-goal r-cat">{anchor.sub}</span></div>
@@ -378,7 +379,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
                 <div className={"task-check" + (paid ? " done" : "")} />
               </div>
             )}
-            <div className="task-title" role="button" tabIndex={0} onClick={() => setBillSheet({ kind: "edit", id: b.id })}>
+            <div className="task-title" {...pressable(() => setBillSheet({ kind: "edit", id: b.id }))}>
               <span className="task-name">{b.data.text}</span>
               <div className="r-k">
                 {chip && <span className={"uchip " + chip.cls}>{chip.text}</span>}
@@ -394,7 +395,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         );
       })}
       {payHalfOn && !payday && bills.length > 0 && (
-        <div className="task-row p2" role="button" tabIndex={0} onClick={() => setPaydayOpen(true)}>
+        <div className="task-row p2" {...pressable(() => setPaydayOpen(true))}>
           <div className="task-title"><span className="task-name">Set Up Payday</span></div>
           {CHEV}
         </div>
@@ -407,7 +408,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
   const accountRow = (a: Account) => {
     const m = ACCOUNT_META[a.data.kind];
     return (
-      <div className="task-row p2" role="button" tabIndex={0} key={a.id} onClick={() => setSheet({ kind: "edit", id: a.id })}>
+      <div className="task-row p2" {...pressable(() => setSheet({ kind: "edit", id: a.id }))} key={a.id}>
         <div className="task-title">
           <span className="task-name">{a.data.name}</span>
           <div className="r-k"><span className="r-goal r-cat">{m.label}</span></div>
@@ -445,7 +446,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
               nobody needs to re-read the math every single time. */}
           {left && (
             <>
-              <div className="pad-x"><div className="card list-card-ruled money-hero" role="button" tabIndex={0} onClick={() => setMathOpen(!mathOpen)}>
+              <div className="pad-x"><div className="card list-card-ruled money-hero" {...pressable(() => setMathOpen(!mathOpen))}>
                 <div className="money-hero-label">{nextPay ? "Yours until " + monthDay(nextPay) : "Yours"}</div>
                 <div className="money-hero-total">{formatMoney(Math.max(0, left.amount))}</div>
                 {left.amount < 0
@@ -600,7 +601,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
               <div className="sh2 sh2-quiet"><span className="t">Receipts</span><span className="n">{receipts.length}</span></div>
               <div className="pad-x"><div className="card list-card-ruled">
                 {receipts.map((r) => (
-                  <div className="task-row p2 file-row" role="button" tabIndex={0} key={r.id} onClick={() => openReceipt(r)}>
+                  <div className="task-row p2 file-row" {...pressable(() => openReceipt(r))} key={r.id}>
                     {/* The type is the glyph's colour: a picture in blue, a
                         document in the brand red, the editor's own pairing. */}
                     <div className="task-check-tap"><span className={"gm-slot " + (r.data.mime.startsWith("image/") ? "cat-fg-blue" : "cat-fg-brand")}>

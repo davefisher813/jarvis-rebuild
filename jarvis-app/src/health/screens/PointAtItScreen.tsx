@@ -1,5 +1,6 @@
 import { useRef, useState, type MouseEvent } from "react";
 import type { StillTherePattern } from "../timelines";
+import { pressable } from "../../shared/pressable";
 
 // POINT AT IT (Part 6). A body map. Tap where it hurts. Three seconds, one
 // hand, no words. No severity scale, no diagnosis, no condition name: the
@@ -55,7 +56,15 @@ export default function PointAtItScreen({ patterns, onLog, onBack, onHandToSomeo
       </div>
 
       <div className="pad-x">
-        <div className="body-map" ref={mapRef} role="button" tabIndex={0} aria-disabled={logged ? "true" : undefined} aria-label={"Tap where it hurts, " + side + " view"} onClick={tap}>
+        {/* HMN-F-24 (2026-09-05) deliberately leaves this one alone. The map is a
+            POINTING surface: tap() reads the coordinates of the tap to decide which
+            part of the body was named, and a key press has no coordinates, so
+            pressable() cannot forward Enter and Space to anything meaningful here.
+            It keeps role="button" and its tab stop, because it is still the thing
+            you interact with and a screen reader has to find it; giving a keyboard
+            user a real way to name a body part is a design question, not a
+            handler, and it is not this finding's. */}
+        <div className="body-map" ref={mapRef} role="button" tabIndex={0} onClick={tap} aria-disabled={logged ? "true" : undefined} aria-label={"Tap where it hurts, " + side + " view"}>
           <div className="body-map-head" />
           <div className="body-map-torso" />
           <div className="body-map-arm body-map-arm-l" />
@@ -89,8 +98,10 @@ export default function PointAtItScreen({ patterns, onLog, onBack, onHandToSomeo
                 </div>
               </div>
             ))}
+            {/* BRAIN-F-26 keeps the row out when there is nobody to reach;
+                HMN-F-24 makes the row it does show answer Enter and Space. */}
             {onHandToSomeone && (
-              <div className="row" role="button" tabIndex={0} onClick={onHandToSomeone}>
+              <div className="row" {...pressable(onHandToSomeone)}>
                 <div className="row-grow"><div className="conn-name">Hand It to Someone</div></div>
               </div>
             )}

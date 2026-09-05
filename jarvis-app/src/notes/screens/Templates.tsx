@@ -1,5 +1,6 @@
 import { AlignLeft, CalendarDays, ListTodo, Table, FileText, ListOrdered } from "../../shared/icons";
 import type { TemplateKey } from "../types";
+import { pressable } from "../../shared/pressable";
 
 // Matches locked frame #49 "Templates" (the New Note picker). Keys match the
 // TEMPLATES map in types.ts so a tap seeds the right blocks.
@@ -38,7 +39,7 @@ export default function Templates({
           glyphs, flat rows, one mini-caps label. */}
       <div className="sh2 sh2-quiet"><span className="t">Templates</span></div>
       {TEMPLATES_LIST.map(({ key, name, desc, cat, Icon }) => (
-        <div className="lib-row" key={key} role="button" tabIndex={0} onClick={() => onSelect?.(key)}>
+        <div className="lib-row" key={key} {...pressable(() => onSelect?.(key))}>
           <div className={"lib-ico cat-fg-" + cat}>
             <Icon className="ic" />
           </div>
