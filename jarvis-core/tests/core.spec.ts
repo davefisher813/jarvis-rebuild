@@ -67,8 +67,10 @@ describe("Permanent guardian: offline edits survive reconnect with no loss (D8)"
     store.goOffline();
     const res = await store.update("U", id, { label: "Offline Edit" });
     expect(res, "offline update is held, not applied").toBe("queued");
-    expect((await store.read("U", id))?.data.label, "still old value while offline").toBe(
-      "Online Edit"
+    // PLUMB-F-08 (2026-09-05): held, and visible. This line used to assert
+    // the old value, which is the bug ("ticked offline, came back undone").
+    expect((await store.read("U", id))?.data.label, "the held edit shows at once").toBe(
+      "Offline Edit"
     );
     expect(store.queueLen(), "exactly one queued op").toBe(1);
 

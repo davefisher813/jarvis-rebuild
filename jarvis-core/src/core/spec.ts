@@ -197,12 +197,15 @@ export const STEPS: Step[] = [
     kind: "edge",
     covers: ["D8"],
     label: "Offline edit then reconnect",
-    expect: "Edit made offline is held, then applied on reconnect with no loss.",
+    // PLUMB-F-08 (2026-09-05): the held edit is VISIBLE while offline. The
+    // original step asserted the read stayed at the old value, which is the
+    // "ticked it, switched tabs, it came back undone" symptom, not a rule.
+    expect: "Edit made offline shows at once, is held in the queue, then applied on reconnect with no loss.",
     async run(s, c) {
       s.goOffline();
       const res = await s.update("A", c.idA as string, { label: "Offline Edit" });
       const held =
-        (await s.read("A", c.idA as string))?.data.label === "NEW" &&
+        (await s.read("A", c.idA as string))?.data.label === "Offline Edit" &&
         s.queueLen() === 1 &&
         res === "queued";
       await s.reconnect();

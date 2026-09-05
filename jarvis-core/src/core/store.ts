@@ -78,6 +78,15 @@ export class Store {
       this.queue.push(op);
       if (op.op === "create") this.pendingCreates.set(op.id, this.itemFromCreate(op));
       else if (op.op === "delete") this.pendingDeletes.add(op.id);
+      else {
+        // PLUMB-F-08: an edit queued against a row created in the same
+        // offline session was folded into the local copy when it was made;
+        // fold it again on restore, or the relaunch shows the un-edited
+        // capture. Edits to synced rows need no rebuilding: read() and
+        // listForUser() fold them straight from the queue.
+        const pending = this.pendingCreates.get(op.id);
+        if (pending) pending.data = mergePatch(pending.data, op.patch);
+      }
     }
   }
 
@@ -126,16 +135,38 @@ export class Store {
     if (this.pendingDeletes.has(id)) return null;
     const pending = this.pendingCreates.get(id);
     if (pending) return pending.ownerId === ownerId ? this.clonePending(pending) : null;
-    return this.adapter.read(ownerId, id);
+    const item = await this.adapter.read(ownerId, id);
+    if (!item || this.queue.length === 0) return item;
+    const patch = this.pendingPatches(ownerId).get(id);
+    return patch ? { ...item, data: mergePatch(item.data, patch) } : item;
+  }
+
+  // PLUMB-F-08 (2026-09-05): "Offline edits vanish from view until
+  // reconnect." The overlay covered creates and deletes (S3-Q14) but not
+  // updates, so a task ticked offline animated done, then read as undone the
+  // moment its list re-rendered, until the network came back. S3-Q14's own
+  // rationale (a capture the list does not show has, for the user, been
+  // lost) applies to an edit just as much. The queued patches for each row
+  // are folded, in order, onto what the adapter returns; they are derived
+  // from the queue itself rather than kept in a second map, so restore,
+  // delete-while-queued and reconnect all stay correct with nothing to keep
+  // in step. Fold with a spread, not mergePatch: a clear rides the queue as
+  // null and must still be null when it meets the row.
+  private pendingPatches(ownerId: string): Map<string, ItemData> {
+    const out = new Map<string, ItemData>();
+    for (const op of this.queue) {
+      if (op.op !== "update" || op.ownerId !== ownerId) continue;
+      out.set(op.id, { ...(out.get(op.id) ?? {}), ...op.patch });
+    }
+    return out;
   }
 
   // Update a record. Online: applied immediately, resolves true/false.
-  // Offline: held in the queue, resolves "queued", and the read stays
-  // whatever it was before the edit (D8's approved behavior, unchanged) --
-  // UNLESS the target is itself still a pending create, in which case there
-  // is no "before": the edit is folded straight into the local copy so it is
-  // visible, same as any other local capture, and still queued so the same
-  // patch replays once the create lands on reconnect.
+  // Offline: held in the queue, resolves "queued", and the edit is visible
+  // at once (PLUMB-F-08: read() and listForUser() fold the queued patch onto
+  // the row) until reconnect makes it real. If the target is itself still a
+  // pending create the edit is folded straight into the local copy instead,
+  // and still queued so the same patch replays once the create lands.
   async update(
     ownerId: string,
     id: string,
@@ -185,8 +216,11 @@ export class Store {
 
   async listForUser(ownerId: string, entityType?: string): Promise<Item[]> {
     const base = await this.listForUserCached(ownerId, entityType);
-    if (this.pendingCreates.size === 0 && this.pendingDeletes.size === 0) return base;
-    const out = base.filter((it) => !this.pendingDeletes.has(it.id));
+    if (this.pendingCreates.size === 0 && this.pendingDeletes.size === 0 && this.queue.length === 0) return base;
+    const patches = this.pendingPatches(ownerId);
+    const out = base
+      .filter((it) => !this.pendingDeletes.has(it.id))
+      .map((it) => { const p = patches.get(it.id); return p ? { ...it, data: mergePatch(it.data, p) } : it; });
     for (const p of this.pendingCreates.values()) {
       if (p.ownerId === ownerId && (entityType === undefined || p.entityType === entityType)) out.push(this.clonePending(p));
     }

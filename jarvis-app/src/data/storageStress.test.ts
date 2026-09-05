@@ -63,7 +63,8 @@ describe("storage + sync stress", () => {
     await store.update(U, id, { b: true });
     await store.update(U, id, { n: 9 });
     expect(store.queueLen()).toBe(3);
-    expect((await store.read(U, id))!.data).toEqual({ n: 0, a: false, b: false }); // not applied yet
+    // PLUMB-F-08 (2026-09-05): visible at once, applied for real on reconnect.
+    expect((await store.read(U, id))!.data).toEqual({ n: 9, a: true, b: true });
     await store.reconnect();
     expect(store.queueLen()).toBe(0);
     expect((await store.read(U, id))!.data).toEqual({ n: 9, a: true, b: true });

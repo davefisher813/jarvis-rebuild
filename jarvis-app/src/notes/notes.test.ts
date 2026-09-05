@@ -58,13 +58,15 @@ describe("Notes permanent guard: tombstone (R12)", () => {
 });
 
 describe("Notes permanent guard: sync loss (R17)", () => {
-  it("an offline title edit is held then applied on reconnect", async () => {
+  it("an offline title edit is held, shows at once, then applies on reconnect", async () => {
     const svc = freshService();
     const id = (await svc.createNote("before", "orgB"))!;
     svc.goOffline();
     await svc.editTitle(id, "after");
     expect(svc.queueLen()).toBe(1);
-    expect((await svc.note(id))?.title).toBe("before");
+    // PLUMB-F-08 (2026-09-05): the held edit is visible offline; this used
+    // to assert "before", which is the rename-vanished-until-reconnect bug.
+    expect((await svc.note(id))?.title).toBe("after");
     await svc.reconnect();
     expect(svc.queueLen()).toBe(0);
     expect((await svc.note(id))?.title).toBe("after");

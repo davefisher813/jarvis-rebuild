@@ -361,3 +361,78 @@ describe("PLUMB-F-02: overlapping reconnects share one drain", () => {
     expect(store.queueLen()).toBe(0);
   });
 });
+
+// PLUMB-F-08 (2026-09-05): "Offline edits vanish from view until reconnect."
+// The overlay covered creates and deletes; an edit to an already-synced row
+// read as its old value until the network came back.
+describe("PLUMB-F-08: an offline edit is visible at once", () => {
+  it("a tick made offline shows in read() and listForUser() before reconnect, and the server has it after", async () => {
+    const adapter = new InMemoryAdapter();
+    const store = new Store(adapter);
+    const id = await store.create("U", "task", { text: "Call the vet", done: false });
+    store.goOffline();
+    expect(await store.update("U", id, { done: true })).toBe("queued");
+    expect((await store.read("U", id))?.data.done).toBe(true);
+    expect((await store.listForUser("U", "task")).find((i) => i.id === id)?.data.done).toBe(true);
+    // The server row itself is untouched until reconnect.
+    expect((await adapter.read("U", id))?.data.done).toBe(false);
+    await store.reconnect();
+    expect((await adapter.read("U", id))?.data.done).toBe(true);
+    expect((await store.read("U", id))?.data.done).toBe(true);
+  });
+
+  it("several edits fold in order, and a clear shows as absent, exactly as the row will read after replay", async () => {
+    const adapter = new InMemoryAdapter();
+    const store = new Store(adapter);
+    const id = await store.create("U", "event", { title: "Lift", start: "06:00", recurrence: "weekly" });
+    store.goOffline();
+    await store.update("U", id, { start: "06:30" });
+    await store.update("U", id, { start: "07:00" });
+    await store.update("U", id, { recurrence: undefined } as unknown as ItemData);
+    const offline = (await store.read("U", id))!.data;
+    expect(offline).toEqual({ title: "Lift", start: "07:00" });
+    expect(Object.prototype.hasOwnProperty.call(offline, "recurrence")).toBe(false);
+    await store.reconnect();
+    expect((await store.read("U", id))!.data).toEqual(offline);
+  });
+
+  it("never shows another owner's queued edit", async () => {
+    const adapter = new InMemoryAdapter();
+    const store = new Store(adapter);
+    const mine = await store.create("U", "task", { text: "Mine", done: false });
+    store.goOffline();
+    await store.update("U", mine, { done: true });
+    expect(await store.read("OTHER", mine)).toBeNull();
+    expect(await store.listForUser("OTHER", "task")).toEqual([]);
+  });
+
+  it("a relaunch mid-offline shows the held edits: on a synced row and on a same-session capture", async () => {
+    const persistence = fakePersistence();
+    const adapter = new InMemoryAdapter();
+    const store1 = new Store(adapter, persistence);
+    const synced = await store1.create("U", "task", { text: "Synced", done: false });
+    store1.goOffline();
+    await store1.update("U", synced, { done: true });
+    const captured = await store1.create("U", "note", { title: "Draft", body: "" });
+    await store1.update("U", captured, { body: "milk, eggs" });
+
+    // "App kill", then relaunch against the same persistence.
+    const store2 = new Store(adapter, persistence);
+    expect(store2.queueLen()).toBe(3);
+    expect((await store2.read("U", synced))?.data.done).toBe(true);
+    expect((await store2.read("U", captured))?.data).toEqual({ title: "Draft", body: "milk, eggs" });
+    await store2.reconnect();
+    expect((await adapter.read("U", synced))?.data.done).toBe(true);
+    expect((await adapter.read("U", captured))?.data).toEqual({ title: "Draft", body: "milk, eggs" });
+  });
+
+  it("an offline delete still hides a row that also has a queued edit", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const id = await store.create("U", "task", { text: "Doomed", done: false });
+    store.goOffline();
+    await store.update("U", id, { done: true });
+    await store.delete("U", id);
+    expect(await store.read("U", id)).toBeNull();
+    expect(await store.listForUser("U", "task")).toEqual([]);
+  });
+});

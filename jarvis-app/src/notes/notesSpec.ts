@@ -225,12 +225,13 @@ export const STEPS: Step[] = [
       const t = (await s.createNote("Sync Test", "orgB"))!;
       s.goOffline();
       await s.editTitle(t, "Sync Test Edited");
-      const held = (await s.note(t))?.title === "Sync Test" && s.queueLen() === 1;
+      // PLUMB-F-08 (2026-09-05): held AND visible while offline.
+      const held = (await s.note(t))?.title === "Sync Test Edited" && s.queueLen() === 1;
       await s.reconnect();
       const applied = (await s.note(t))?.title === "Sync Test Edited" && s.queueLen() === 0;
       await s.deleteNote(t);
       const ok = held && applied;
-      return { ok, msg: ok ? "Offline edit held, applied on reconnect." : "FAIL: offline edit lost." };
+      return { ok, msg: ok ? "Offline edit shown at once, applied on reconnect." : "FAIL: offline edit lost." };
     },
   },
   {
