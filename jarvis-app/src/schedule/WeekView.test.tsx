@@ -163,3 +163,35 @@ describe("Schedule: Undo after a delete puts the whole event back", () => {
     }
   });
 });
+
+// SCHED-F-10 (2026-09-05): "The blend offer attaches tasks to repeating
+// events, which the sheet then hides and wipes on Save." The tuck appeared
+// under a weekly commute, the row then claimed a task on every week's copy,
+// and the editor showed no Tasks group at all.
+describe("Schedule: the blend offer goes to blocks that can hold a task", () => {
+  it("no tuck under a repeating block, and the one-off beside it still gets one", async () => {
+    const { useSchedule, useTasks } = await import("../data/NotesProvider");
+    const { notifyFreshLists } = await import("../data/store");
+    const { ENTITY_EVENT } = await import("./types");
+    const { ENTITY_TASK } = await import("../notes/types");
+    const { todayISO, addDays } = await import("./calendar");
+    let sched: import("./ScheduleService").ScheduleService | null = null;
+    let tasks: import("../tasks/TasksService").TasksService | null = null;
+    function Grab() { sched = useSchedule(); tasks = useTasks(); return null; }
+    const { container } = render(<NotesProvider userId="u-blend-repeat"><Grab /><ScheduleFlow /></NotesProvider>);
+    await screen.findAllByText("Schedule");
+    const day = addDays(todayISO(), 1);
+    await tasks!.createTask("Call the plumber");
+    await sched!.createEvent("Commute", { date: day, start: "08:00", end: "08:45", recurrence: "weekly" });
+    notifyFreshLists(ENTITY_TASK);
+    notifyFreshLists(ENTITY_EVENT);
+    fireEvent.click(screen.getByLabelText("Next"));
+    await waitFor(() => expect(screen.getByText("Commute")).toBeInTheDocument());
+    expect(container.querySelector(".blend-tuck")).toBeNull();
+    // The same task, the same kind of block, not repeating: the offer stands.
+    await sched!.createEvent("Commute Home", { date: day, start: "17:00", end: "17:45" });
+    notifyFreshLists(ENTITY_EVENT);
+    await waitFor(() => expect(container.querySelectorAll(".blend-tuck")).toHaveLength(1));
+    expect(container.querySelector(".blend-tuck")!.textContent).toContain("Call the plumber");
+  });
+});

@@ -622,17 +622,25 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const onPickSlot = (start: string) => { setNewStart(start); setSheet({ mode: "new" }); };
 
   // --- Session 4 connections: attachments + the event-end follow-up ---
+  // SCHED-F-10 (2026-09-05): ONLY A ONE-OFF HOLDS TASKS. The rule is the
+  // sheet's (EventSheet.tsx:144, "links live on the event and die with it; a
+  // whole series sharing one link list is a footgun"), and it is enforced
+  // here as well, on the surface that OFFERS the attach. Anything already on
+  // a series from before is not counted either, because the sheet hides it
+  // and wipes it on the next save: a row claiming "1 task attached" that the
+  // editor then denies is the same fact told two ways.
+  const holdsTasks = (e: EventItem) => (e.data.recurrence ?? "none") === "none";
   const attachMap: Record<string, AttachInfo> = {};
   // S6-Q36: same per-event lookup as attachMap, alongside it.
   const firstMoveMap: Record<string, string> = {};
   for (const e of dayEvents) {
-    const info = attachInfo(e, taskItems);
+    const info = holdsTasks(e) ? attachInfo(e, taskItems) : null;
     if (info) attachMap[e.id] = info;
     const move = firstMoveOf(e, taskItems);
     if (move) firstMoveMap[e.id] = move;
   }
   const attachableTasks = taskItems
-    .filter((t) => !t.data.done || dayEvents.some((e) => e.data.taskIds?.includes(t.id)))
+    .filter((t) => !t.data.done || dayEvents.some((e) => holdsTasks(e) && e.data.taskIds?.includes(t.id)))
     .map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done, due: t.data.due ?? null, projectId: t.data.projectId }));
   const onToggleAttached = async (id: string) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reloadTasks(); };
 
@@ -665,7 +673,10 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   {
     // A block that already holds something is not asking for more. One
     // suggestion at a time, or the day list turns into a second to-do list.
-    const open = dayEvents.filter((e) => (e.data.taskIds ?? []).length === 0);
+    // SCHED-F-10: and a repeating block is never asking, because it cannot
+    // hold a task at all. The tuck used to appear under a weekly commute,
+    // attach on every week's copy, and be wiped by the next save.
+    const open = dayEvents.filter((e) => holdsTasks(e) && (e.data.taskIds ?? []).length === 0);
     const byEvent = bestPerBlock(open, attachableTasks, blendMem);
     for (const e of open) {
       const fit = byEvent[e.id];
