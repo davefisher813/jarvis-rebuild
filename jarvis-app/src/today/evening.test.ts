@@ -31,6 +31,16 @@ describe("isEvening", () => {
 });
 
 describe("eveningStats + eveningSummary", () => {
+  // TODAY-F-09 (2026-09-05): the evening read the same due-date-only count
+  // the ring did, so a day that ended with a recurring task closed smaller
+  // than it started.
+  it("a recurring task completed today counts in both halves of the fraction", () => {
+    const daily = ({ id: "dog", data: { text: "Walk the dog", category: "", done: false, due: "2026-07-30", recurrence: "daily", lastDone: TODAY } }) as unknown as TaskItem;
+    const s = eveningStats([], [task(false, TODAY), daily], TODAY, "19:00");
+    expect(s.doneDue).toBe(1);
+    expect(s.dueTotal).toBe(2);
+  });
+
   it("counts wins, attended events, and open tasks honestly", () => {
     const events = [ev("09:00"), ev("20:30")];
     const tasks = [task(true, TODAY), task(true, TODAY), task(false, TODAY), task(false, "2026-07-20")];

@@ -12,7 +12,7 @@ import { ENTITY_TASK } from "../notes/types";
 import { useFreshLists } from "../data/useFreshLists";
 import type { TaskItem } from "../tasks/TasksService";
 import { greetingFor, longDate, shortDate } from "./greeting";
-import { tomorrowISO, nowHHMM, daySummary, todaysTasks, billsLine, payableBill } from "./todayData";
+import { tomorrowISO, nowHHMM, daySummary, dayRing, todaysTasks, billsLine, payableBill } from "./todayData";
 import TodayPage from "./TodayPage";
 import MailNotices from "./MailNotices";
 import ReportFlow, { reportSeen, markReportSeen } from "../review/ReportPage";
@@ -1205,9 +1205,10 @@ export default function TodayFlow({
   const untouched = untouchedGoal(goalIdx, goalList, goalReach, todaysTasks(taskItems, today), today);
   const evening = isEvening(nowMin, routineData) ? eveningStats(todayEvents, taskItems, today, nhm, completionsToday) : undefined;
   const weekly = evening ? weekRecap(samples, allEvents, today) : null;
-  // Day ring: due-today done over due-today total. Hero tint by daypart.
-  const dueToday = taskItems.filter((t) => t.data.due === today);
-  const ring = { done: dueToday.filter((t) => t.data.done).length, total: dueToday.length };
+  // Day ring: what today asked for, and how much of it is behind him. Hero
+  // tint by daypart. TODAY-F-09 (2026-09-05): the arithmetic lives in
+  // todayData's dayRing so the evening's copy of it cannot drift.
+  const ring = dayRing(taskItems, today);
   // GROUP A banners (items 6 and 9), above the day. Success is quiet;
   // failure is louder, and tappable to retry.
   // LAW 1: every read of the sweep receipt for DISPLAY goes through

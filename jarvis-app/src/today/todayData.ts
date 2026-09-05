@@ -47,6 +47,29 @@ export function daySummary(todayEvents: EventItem[], tasks: TaskItem[], today: s
   return { events: todayEvents.length, due: p.today.length, overdue: p.overdue.length, moves };
 }
 
+// TODAY-F-09 (2026-09-05): the day ring counted by DUE DATE alone, and
+// completing a recurring task is not recorded as done: TasksService.toggleDone
+// rolls its due to the next occurrence and stamps lastDone. So ticking "Walk
+// the dog" took it out of the ring's denominator instead of moving the needle
+// (2/5 became 2/4), the ring never filled on a day that ended with a recurring
+// task, and it never celebrated one. A task counts for today when it is due
+// today OR it was completed today; it counts as done when it is done OR it was
+// completed today. Reminders are not tasks (filters.ts's chokepoint says so)
+// and keep their own strip, so they are out of both numbers.
+export function countsForToday(t: TaskItem, today: string): boolean {
+  return !t.data.reminder && (t.data.due === today || t.data.lastDone === today);
+}
+
+export function countsDoneToday(t: TaskItem, today: string): boolean {
+  return !t.data.reminder && (t.data.done || t.data.lastDone === today);
+}
+
+// The day ring: what today asked for, and how much of it is behind him.
+export function dayRing(tasks: TaskItem[], today: string): { done: number; total: number } {
+  const mine = tasks.filter((t) => countsForToday(t, today));
+  return { done: mine.filter((t) => countsDoneToday(t, today)).length, total: mine.length };
+}
+
 // Home "Today's Tasks" = overdue first, then due-today. Done and later tasks excluded.
 export function todaysTasks(tasks: TaskItem[], today: string): TaskItem[] {
   const p = partition(tasks, today);

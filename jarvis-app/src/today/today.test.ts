@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { greetingFor, longDate, shortDate } from "./greeting";
-import { tomorrowISO, nowHHMM, daySummary, todaysTasks, isPast } from "./todayData";
+import { tomorrowISO, nowHHMM, daySummary, dayRing, todaysTasks, isPast } from "./todayData";
 import type { EventItem } from "../schedule/types";
 import type { TaskItem } from "../tasks/TasksService";
 
@@ -68,6 +68,37 @@ describe("today aggregation", () => {
   it("past detection", () => {
     expect(isPast(ev("x", "09:00"), "13:00")).toBe(true);
     expect(isPast(ev("x", "15:00"), "13:00")).toBe(false);
+  });
+});
+
+// TODAY-F-09 (2026-09-05): completing a recurring task rolls its due date and
+// stamps lastDone, so a ring counting by due date alone shrank the day
+// instead of moving the needle.
+describe("dayRing", () => {
+  const today = "2026-05-20";
+  const recurring = (id: string, due: string, lastDone?: string): TaskItem =>
+    ({ id, data: { text: id, category: "", done: false, due, recurrence: "daily", ...(lastDone ? { lastDone } : {}) } }) as TaskItem;
+
+  it("a ticked daily counts as done without leaving the day", () => {
+    const before = [tk("t1", today), tk("t2", today), recurring("dog", today)];
+    expect(dayRing(before, today)).toEqual({ done: 0, total: 3 });
+    // The tick: due rolls to tomorrow, done stays false, lastDone is today.
+    const after = [tk("t1", today), tk("t2", today), recurring("dog", "2026-05-21", today)];
+    expect(dayRing(after, today)).toEqual({ done: 1, total: 3 });
+  });
+
+  it("the ring can reach full on a day that ends with a recurring task", () => {
+    const tasks = [tk("t1", today, true), recurring("dog", "2026-05-21", today)];
+    expect(dayRing(tasks, today)).toEqual({ done: 2, total: 2 });
+  });
+
+  it("a daily done YESTERDAY is not on today's ring", () => {
+    expect(dayRing([recurring("dog", "2026-05-21", "2026-05-19")], today)).toEqual({ done: 0, total: 0 });
+  });
+
+  it("reminders are not tasks and never enter the ring", () => {
+    const rem = ({ id: "r", data: { text: "Meds", category: "", done: false, due: today, reminder: { time: "08:00" } } }) as unknown as TaskItem;
+    expect(dayRing([rem, tk("t1", today)], today)).toEqual({ done: 0, total: 1 });
   });
 });
 

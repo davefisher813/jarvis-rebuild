@@ -7,6 +7,7 @@ import type { TaskItem } from "../tasks/TasksService";
 import type { RoutineData } from "../routine/types";
 import { capAfterNumber } from "../shared/casing";
 import { todayISO as isoOf } from "../schedule/calendar";
+import { dayRing } from "./todayData";
 
 // Evening starts at the later of 6 PM and the end of work hours, and runs to
 // midnight (after midnight the clock is morning again, whatever it feels like).
@@ -29,15 +30,19 @@ export function eveningStats(
   nowHHMM: string,
   completionsToday = 0,
 ): EveningStats {
-  const dueToday = tasks.filter((t) => t.data.due === today);
+  // TODAY-F-09 (2026-09-05): the same count the ring uses, from the same
+  // place, so the evening cannot report a smaller day than the morning did:
+  // a recurring task completed today is recorded as lastDone with its due
+  // rolled forward, and counting by due date alone dropped it out of both
+  // halves of the fraction.
+  const { done: doneDue, total: dueTotal } = dayRing(tasks, today);
   const open = tasks.filter((t) => !t.data.done && t.data.due && t.data.due <= today);
-  const doneDue = dueToday.filter((t) => t.data.done).length;
   // Events attended: fully over by now (end, or start + an hour).
   const endOf = (e: EventItem) => e.data.end ?? addHour(e.data.start);
   const attended = events.filter((e) => endOf(e) <= nowHHMM).length;
   return {
     doneDue,
-    dueTotal: dueToday.length,
+    dueTotal,
     eventsLeft: events.filter((e) => e.data.start >= nowHHMM).length,
     openCount: open.length,
     // Time Sense counts every completion today (passed in); fall back to the
