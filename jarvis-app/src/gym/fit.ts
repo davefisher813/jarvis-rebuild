@@ -1,4 +1,4 @@
-import type { ProgramDay, Exercise, Workout, WorkoutExercise } from "./types";
+import type { CondBlock, ProgramDay, Exercise, Workout, WorkoutExercise } from "./types";
 import type { RackConfig } from "./ramp";
 import { rampFor } from "./ramp";
 import { paceFor, WORK_SEC, REST_FLOOR_SEC, DEFAULT_REST_SEC, RAMP_SEC_PER_SET } from "./pacing";
@@ -78,9 +78,17 @@ export function trimTargets(day: Pick<ProgramDay, "exercises">): Record<string, 
 export interface DayEstimate {
   min: number;
   /** Exercises priced from a learned pace vs priced at all -- the honesty
-   *  line ("learned from your last N sessions") keys off this. */
+   *  line ("learned from your last N sessions") keys off this. Conditioning
+   *  blocks are in neither: they are priced from their own stated clock, not
+   *  from any pace. */
   learnedCount: number;
   liftCount: number;
+  /** GYM-F-07 (2026-09-05): conditioning blocks in this day, and how many of
+   *  those are For Time. A For Time cap is the ceiling the clock stops at,
+   *  not a forecast of the work, so the honesty line says so rather than
+   *  passing it off as an estimate. */
+  condCount: number;
+  cappedCount: number;
 }
 
 /**
@@ -93,6 +101,13 @@ export function estimateDaySec(day: ProgramDay, history: Workout[], rack: RackCo
   let sec = 0;
   for (const ex of day.exercises) {
     if (ex.filler) continue;
+    // GYM-F-07 (2026-09-05): a conditioning block is a clock, not a strip, and
+    // is saved with `sets: []` (ExerciseSheet.tsx:177). Pricing this day by
+    // set count alone billed a 20 minute AMRAP at zero, so the fit sheet read
+    // "Cond · Plan 0 Min", "Fits: 0 min" and "Start · 0 Min", and a mixed day
+    // with a 12 minute EMOM after three lifts was 12 minutes short all
+    // session. The block's own cap is what it costs.
+    if (ex.cond) { sec += ex.cond.capSec; continue; }
     const trimmed = Math.max(0, ex.sets.length - (plan.trims?.[ex.id] ?? 0));
     sec += trimmed * perSetSec(history, ex, plan.restCut);
     if (ex.ramp) sec += rampFor(ex, rack).length * RAMP_SEC_PER_SET;
@@ -115,12 +130,19 @@ export function estimateDay(day: ProgramDay, history: Workout[], rack: RackConfi
   const sec = estimateDaySec(day, history, rack, plan);
   let learnedCount = 0;
   let liftCount = 0;
+  let condCount = 0;
+  let cappedCount = 0;
   for (const ex of day.exercises) {
     if (ex.filler) continue;
+    if (ex.cond) {
+      condCount++;
+      if (ex.cond.format === "for_time") cappedCount++;
+      continue;
+    }
     liftCount++;
     if (paceFor(history, ex).learned) learnedCount++;
   }
-  return { min: sec === 0 ? 0 : Math.max(10, Math.round(sec / 60)), learnedCount, liftCount };
+  return { min: sec === 0 ? 0 : Math.max(10, Math.round(sec / 60)), learnedCount, liftCount, condCount, cappedCount };
 }
 
 export type LeverKey = "restCut" | "superset" | "trim" | "skipCool";
@@ -205,17 +227,18 @@ export interface LiveFitState {
   coolSkipped?: boolean;
 }
 
-function planFor(live: LiveFitState, e: WorkoutExercise, day: ProgramDay | null): { planned: number; ex: Pick<Exercise, "name" | "kind" | "restSec">; ramp: Exercise | null } {
+function planFor(live: LiveFitState, e: WorkoutExercise, day: ProgramDay | null): { planned: number; ex: Pick<Exercise, "name" | "kind" | "restSec">; ramp: Exercise | null; cond: CondBlock | null } {
   const pe = !e.custom && day ? day.exercises.find((x) => x.id === e.exerciseId) : undefined;
   if (pe) {
     return {
       planned: Math.max(0, pe.sets.length - (live.trims?.[pe.id] ?? 0)),
       ex: pe,
       ramp: pe.ramp ? pe : null,
+      cond: pe.cond ?? null,
     };
   }
   // Swapped or added mid-session: its plan strip is the whole story.
-  return { planned: (e.plan ?? []).length, ex: { name: e.name, kind: e.kind }, ramp: null };
+  return { planned: (e.plan ?? []).length, ex: { name: e.name, kind: e.kind }, ramp: null, cond: null };
 }
 
 /**
@@ -231,7 +254,15 @@ export function projectFinishMs(live: LiveFitState, day: ProgramDay | null, hist
     if (e.skipped) continue;
     const workLogged = e.sets.filter((s) => !s.warmup && !s.skipped).length;
     if (e.sets.length > 0) anyLogged = true;
-    const { planned, ex, ramp } = planFor(live, e, day);
+    const { planned, ex, ramp, cond } = planFor(live, e, day);
+    // GYM-F-07 (2026-09-05): a clock that has not been run yet still costs its
+    // whole cap; once an attempt is logged the block has happened and costs
+    // nothing more. Without this the projected finish and the catch-up banner
+    // ran a whole conditioning block short for the entire session.
+    if (cond) {
+      if (e.sets.length === 0) sec += cond.capSec;
+      continue;
+    }
     sec += Math.max(0, planned - workLogged) * perSetSec(history, ex, live.restCut);
     if (ramp) {
       const rampLogged = e.sets.filter((s) => s.warmup).length;

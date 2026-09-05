@@ -98,12 +98,20 @@ export default function FitSheet({ day, history, rack, defaultBudgetMin, onStart
               : <span className="conn-meta">No cap</span>}
           </div>
           {/* The honesty line (D5 "needs D7 for honest numbers"): the sheet
-              always says which world its estimate came from. */}
+              always says which world its estimate came from. GYM-F-07
+              (2026-09-05): a conditioning block is priced from its own stated
+              clock, not from any pace, so a day made only of clocks says that
+              instead of blaming a default pace it never used. */}
           <div className="conn-meta">
-            {est.learnedCount > 0
-              ? `${est.learnedCount} of ${est.liftCount} lifts at your logged pace`
-              : "default pace · improves as you log"}
+            {est.liftCount === 0 && est.condCount > 0
+              ? "timed from the block's own clock"
+              : est.learnedCount > 0
+                ? `${est.learnedCount} of ${est.liftCount} lifts at your logged pace`
+                : "default pace · improves as you log"}
           </div>
+          {/* A For Time cap is where the clock stops, not how long the work
+              takes: the only number in this sheet that can only be too high. */}
+          {est.cappedCount > 0 && <div className="conn-meta">A For Time cap is the ceiling, not a forecast.</div>}
         </div>
 
         <div className="pad-x sheet-actions">

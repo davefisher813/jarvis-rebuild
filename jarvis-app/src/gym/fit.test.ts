@@ -29,6 +29,38 @@ describe("estimateDay", () => {
     expect(estimateDay(day([]), [], rack).min).toBe(0);
   });
 
+  // GYM-F-07 (2026-09-05): a cond block is saved with sets: [], so a day made
+  // of one 20 minute AMRAP used to price at zero and the sheet said
+  // "Cond · Plan 0 Min" and "Start · 0 Min".
+  it("prices a conditioning block at its own cap, not at zero", () => {
+    const d = day([ex("Cond", 0, { kind: "rounds", cond: { format: "amrap", capSec: 1200 } })]);
+    expect(estimateDaySec(d, [], rack)).toBe(1200);
+    const e = estimateDay(d, [], rack);
+    expect(e.min).toBe(20);
+    expect(e.condCount).toBe(1);
+    expect(e.cappedCount).toBe(0);
+    // A clock is priced from its clock, never from a pace, so it is in
+    // neither pace count.
+    expect(e.liftCount).toBe(0);
+    expect(e.learnedCount).toBe(0);
+  });
+
+  it("a mixed day adds the EMOM's minutes to the lifts, and names the For Time cap as a ceiling", () => {
+    const d = day([
+      ex("Bench", 3), ex("Rows", 3),
+      ex("Finisher", 0, { kind: "time_faster", cond: { format: "for_time", capSec: 720 } }),
+    ]);
+    expect(estimateDaySec(d, [], rack)).toBe(6 * 100 + 720);
+    const e = estimateDay(d, [], rack);
+    expect(e.liftCount).toBe(2);
+    expect(e.cappedCount).toBe(1);
+  });
+
+  it("a trim never touches a conditioning block: it has no sets to trim", () => {
+    const d = day([ex("Cond", 0, { kind: "rounds", cond: { format: "amrap", capSec: 600 } })]);
+    expect(estimateDaySec(d, [], rack, { trims: { Cond: 2 } })).toBe(600);
+  });
+
   it("fillers cost nothing: their sets ride inside the partner's rest", () => {
     const d = day([ex("Bench", 3), ex("Band Pull-Apart", 3, { filler: true })]);
     expect(estimateDaySec(d, [], rack)).toBe(3 * 100);
@@ -135,6 +167,16 @@ describe("projectFinishMs / overBudgetMin", () => {
     const d = day([ex("Bench", 3), ex("Curls", 3)]);
     const live = { startedAt: 0, exercises: [liveEx("Bench", 3), liveEx("Curls", 0)], trims: { Curls: 1 } };
     expect(projectFinishMs(live, d, h, rack, 0)).toBe(2 * 100 * 1000);
+  });
+
+  // GYM-F-07 (2026-09-05): the projection ran a whole conditioning block short
+  // all session, so the catch-up banner fired late and the finish was wrong.
+  it("a conditioning block that has not been run still costs its cap; once logged it costs nothing", () => {
+    const d = day([ex("Bench", 2), ex("Cond", 0, { kind: "rounds", cond: { format: "amrap", capSec: 600 } })]);
+    const fresh = { startedAt: 0, exercises: [liveEx("Bench", 0), liveEx("Cond", 0)] };
+    expect(projectFinishMs(fresh, d, h, rack, 0)).toBe((2 * 100 + 600) * 1000);
+    const ran = { startedAt: 0, exercises: [liveEx("Bench", 2), liveEx("Cond", 1)] };
+    expect(projectFinishMs(ran, d, h, rack, 0)).toBe(0);
   });
 
   it("no budget, no opinion; a budget prices the overrun in whole minutes", () => {
