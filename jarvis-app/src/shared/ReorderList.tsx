@@ -32,7 +32,23 @@ export default function ReorderList({
   const listRef = useRef<HTMLDivElement>(null);
   const [idx, setIdx] = useState<number | null>(null);
 
-  useEffect(() => { setOrder(ids); }, [ids]);
+  // SHELL-F-01 (2026-09-05): the order used to be resynced to `ids` in an
+  // effect, which runs AFTER the render that follows a change. So when the
+  // caller dropped an id (an area deleted from Settings > Areas) this list
+  // still painted its previous order once, and renderRow was called with an
+  // id the caller no longer has. Resync during render instead, keyed on the
+  // ids' content (callers build the array fresh every render, so identity
+  // would reset a drag in progress): a changed list is painted with the new
+  // ids in the same render, never with a dead one.
+  const idsKey = ids.join("\u0000");
+  const [seenKey, setSeenKey] = useState(idsKey);
+  let shown = order;
+  if (seenKey !== idsKey) {
+    setSeenKey(idsKey);
+    setOrder(ids);
+    orderRef.current = ids;
+    shown = ids;
+  }
   useEffect(() => { orderRef.current = order; }, [order]);
 
   const start = (e: React.PointerEvent, i: number) => {
@@ -78,7 +94,7 @@ export default function ReorderList({
 
   return (
     <div className={"card reorder-list" + (idx !== null ? " dragging-active" : "") + (handles ? " reorder-live" : "")} ref={listRef}>
-      {order.map((id, i) => (
+      {shown.map((id, i) => (
         <div className={"row reorder-row" + (idx === i ? " dragging" : "")} key={id}>
           {renderRow(id)}
           {handles && <div className="drag-handle" onPointerDown={(e) => start(e, i)} aria-label="Reorder" role="button">{GRIP}</div>}

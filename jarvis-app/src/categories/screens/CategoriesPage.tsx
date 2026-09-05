@@ -28,7 +28,10 @@ export default function CategoriesPage({
   // listed, so the one the user cares about can sit at the top.
   onReorder?: (ids: string[]) => void;
 }) {
-  const byId = (id: string) => categories.find((c) => c.id === id)!;
+  // SHELL-F-01 (2026-09-05): no non-null assertion here. A row asked for by
+  // an id this page no longer has (the just-deleted area) renders nothing
+  // rather than taking the whole More tab down with it.
+  const byId = (id: string) => categories.find((c) => c.id === id);
   return (
     <div className="screen ruled">
       <LargeTitleNav title="Areas" back="Settings" onBack={onBack} />
@@ -40,6 +43,7 @@ export default function CategoriesPage({
             onReorder={onReorder}
             renderRow={(id) => {
               const c = byId(id);
+              if (!c) return null;
               return (
                 <>
                   <div className={"sec-ico cat-bg-" + c.data.color}>{catIcon(c.data.icon)}</div>
