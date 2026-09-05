@@ -12,7 +12,9 @@
 //   - One home per thread. A thread that belongs to two projects belongs to
 //     neither in any useful sense.
 
-const KEY = "jarvis.mail.links.v1";
+// Exported so mailSync can mirror this store to the profile (EMAIL-F-19),
+// the same way it reaches the other four.
+export const KEY = "jarvis.mail.links.v1";
 const CAP = 300;
 
 export type LinkType = "project" | "goal" | "org";
@@ -22,6 +24,13 @@ export interface ThreadLink {
   id: string;
   label: string;
   category?: string;
+  // EMAIL-F-19 (2026-09-05): what the project page shows for the thread. The
+  // link used to carry only the PROJECT's name, which is the one thing that
+  // page already knows, so the reader had nothing to render. Optional: links
+  // made before this render as a plain conversation row, never an invented
+  // subject.
+  subject?: string;
+  from?: string;
 }
 
 export type LinkMap = Record<string, ThreadLink>;
@@ -34,7 +43,14 @@ export function loadLinks(storage: Pick<Storage, "getItem"> = localStorage): Lin
     for (const [k, v] of Object.entries(p as Record<string, unknown>)) {
       const l = v as ThreadLink;
       if (l && typeof l.id === "string" && typeof l.label === "string" &&
-          (l.type === "project" || l.type === "goal" || l.type === "org")) out[k] = l;
+          (l.type === "project" || l.type === "goal" || l.type === "org")) {
+        out[k] = {
+          type: l.type, id: l.id, label: l.label,
+          ...(typeof l.category === "string" ? { category: l.category } : {}),
+          ...(typeof l.subject === "string" ? { subject: l.subject } : {}),
+          ...(typeof l.from === "string" ? { from: l.from } : {}),
+        };
+      }
     }
     return out;
   } catch {
@@ -64,4 +80,24 @@ export function linkThread(
 // Threads belonging to one project, for the project page to show.
 export function threadsFor(map: LinkMap, type: LinkType, id: string): string[] {
   return Object.entries(map).filter(([, l]) => l.type === type && l.id === id).map(([t]) => t);
+}
+
+// EMAIL-F-19 (2026-09-05): "Project link chips are write-only: nothing ever
+// reads a thread's project." The chip has written this map since N7 and the
+// only reader was the chip itself. This is what the project page reads: the
+// thread id to open, plus whatever the link remembered to show for it.
+export interface LinkedThread {
+  threadId: string;
+  subject?: string;
+  from?: string;
+}
+
+export function linkedThreadsFor(map: LinkMap, type: LinkType, id: string): LinkedThread[] {
+  return Object.entries(map)
+    .filter(([, l]) => l.type === type && l.id === id)
+    .map(([threadId, l]) => ({
+      threadId,
+      ...(l.subject ? { subject: l.subject } : {}),
+      ...(l.from ? { from: l.from } : {}),
+    }));
 }

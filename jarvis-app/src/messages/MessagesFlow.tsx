@@ -2727,7 +2727,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                     className={"chip" + (links[thread.id]?.id === p.id ? " on" : "")}
                     onClick={() => {
                       const on = links[thread.id]?.id === p.id;
-                      setLinks(linkThread(thread.id, on ? null : { type: "project", id: p.id, label: p.title, category: p.category }));
+                      // EMAIL-F-19 (2026-09-05): the link carries the thread's
+                      // own words now, so the project page has something to
+                      // show for it besides its own name.
+                      setLinks(linkThread(thread.id, on ? null : {
+                        type: "project", id: p.id, label: p.title, category: p.category,
+                        subject: thread.subject, from: displayName(lastMsg(thread).from),
+                      }));
+                      mirrorMail();
                       setToast(on ? "Unlinked" : "Filed under " + p.title);
                       setTimeout(() => setToast(null), 2500);
                     }}

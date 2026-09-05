@@ -4,6 +4,7 @@ import { loadVips, toggleVip, VIP_MAX } from "./vip";
 import { loadRules, saveRule } from "./rules";
 import { loadMuted, mute } from "./mute";
 import { loadLetGo, letGo } from "./letGo";
+import { loadLinks, linkThread } from "./threadLink";
 
 // S2-5: "Everything JARVIS learns about your mail is device-only." These
 // four stores are real localStorage, real per-device -- the whole point of
@@ -17,23 +18,28 @@ function fakeStorage() {
 }
 
 describe("mailSnapshot", () => {
-  it("is exactly what the four stores hold, nothing more", () => {
+  // EMAIL-F-19 (2026-09-05): five stores now. Project links were the one
+  // thing JARVIS learned about his mail that never left the device, so a
+  // thread filed on the phone was unfiled everywhere else.
+  it("is exactly what the five stores hold, nothing more", () => {
     const storage = fakeStorage();
     toggleVip("ridgeley@x.com", storage);
     saveRule("promo@x.com", "noise", storage);
     mute("t1", storage);
     letGo("t2", storage);
+    linkThread("t3", { type: "project", id: "p1", label: "Ridgeley", subject: "The waiver" }, storage);
     expect(mailSnapshot(storage)).toEqual({
       vips: ["ridgeley@x.com"],
       rules: { "promo@x.com": "noise" },
       muted: ["t1"],
       letGo: ["t2"],
+      links: { t3: { type: "project", id: "p1", label: "Ridgeley", subject: "The waiver" } },
     });
   });
 
   it("empty stores snapshot to empty, not missing", () => {
     const storage = fakeStorage();
-    expect(mailSnapshot(storage)).toEqual({ vips: [], rules: {}, muted: [], letGo: [] });
+    expect(mailSnapshot(storage)).toEqual({ vips: [], rules: {}, muted: [], letGo: [], links: {} });
   });
 });
 
@@ -51,6 +57,18 @@ describe("hydrateMailFromProfile", () => {
     expect(loadRules(storage)).toEqual({ "b@x.com": "noise" });
     expect(loadMuted(storage)).toEqual(["t1"]);
     expect(loadLetGo(storage)).toEqual(["t2"]);
+  });
+
+  // EMAIL-F-19: the link store hydrates like the other four, so the project
+  // page on a second device shows the same conversations.
+  it("pulls project links down too", () => {
+    const storage = fakeStorage();
+    const grown = hydrateMailFromProfile(
+      { links: { t3: { type: "project", id: "p1", label: "Ridgeley", subject: "The waiver" } } },
+      storage,
+    );
+    expect(grown.links).toEqual({ t3: { type: "project", id: "p1", label: "Ridgeley", subject: "The waiver" } });
+    expect(loadLinks(storage).t3?.label).toBe("Ridgeley");
   });
 
   it("never overwrites a field that already has local data -- a deliberate local decision wins", () => {

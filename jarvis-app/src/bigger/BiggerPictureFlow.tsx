@@ -11,6 +11,7 @@ import Payoff, { payoffLine } from "../shared/Payoff";
 import ProjectSheet from "../projects/ProjectSheet";
 import TaskSheet, { type TaskDraft } from "../tasks/screens/TaskSheet";
 import ProjectDetailPage from "../projects/ProjectDetailPage";
+import { loadLinks, linkedThreadsFor } from "../messages/threadLink";
 import { attemptWrite } from "../shared/guard";
 import GoalSheet from "../life/GoalSheet";
 import { rankProjects } from "./progress";
@@ -55,8 +56,12 @@ type Sheet =
 // openGoalId (2026-08-09): goal deep-links used to be set by the shell and
 // then dropped on the floor here, so tapping a linked goal landed on the
 // list instead of the goal.
-export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOpenDecision, lens = "goals", title, segments }: {
+export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOpenDecision, onGoEmail, lens = "goals", title, segments }: {
   openId?: string; openGoalId?: string; onOpenNote?: (id: string) => void; onOpenDecision?: (id: string) => void;
+  // EMAIL-F-19 (2026-09-05): opens a conversation filed under this project
+  // in the Email tab. Absent outside the shell, in which case the linked
+  // conversations still list, they simply do not navigate.
+  onGoEmail?: (threadId: string) => void;
   // LIFE (2026-09-01): which zoom level this render is, and the head it
   // wears when it is a segment of the Life tab. See BiggerPicturePage.
   lens?: "projects" | "goals"; title?: string; segments?: ReactNode;
@@ -527,6 +532,11 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
             </div>
           ) : undefined}
           linkedNotes={linkedNotes}
+          // EMAIL-F-19: the read side of N7's project chip. The link store is
+          // device-local and synchronous, so it is read here at render rather
+          // than held in state.
+          linkedThreads={linkedThreadsFor(loadLinks(), "project", detail.id)}
+          onOpenThread={onGoEmail}
           onOpenNote={onOpenNote}
           onOpenDecision={onOpenDecision}
           onChanged={() => void reload()}

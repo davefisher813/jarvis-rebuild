@@ -2,6 +2,7 @@ import { loadVips, VIP_MAX, KEY as VIP_KEY } from "./vip";
 import { loadRules, KEY as RULES_KEY, type SenderRules } from "./rules";
 import { loadMuted, KEY as MUTED_KEY } from "./mute";
 import { loadLetGo, KEY as LETGO_KEY } from "./letGo";
+import { loadLinks, KEY as LINKS_KEY, type LinkMap } from "./threadLink";
 
 // EVERYTHING JARVIS LEARNS ABOUT YOUR MAIL IS DEVICE-ONLY (S2-5,
 // 2026-09-04). VIPs, sender rules, mutes, and let-go each live in their own
@@ -17,6 +18,10 @@ export interface MailMirror {
   rules?: SenderRules;
   muted?: string[];
   letGo?: string[];
+  // EMAIL-F-19 (2026-09-05): which thread belongs to which project. It was
+  // the one mail store that never left the device, so a thread filed on the
+  // phone was unfiled on the iPad.
+  links?: LinkMap;
 }
 
 // The snapshot written to the profile after any local write to any of the
@@ -27,6 +32,7 @@ export function mailSnapshot(storage: Pick<Storage, "getItem"> = localStorage): 
     rules: loadRules(storage),
     muted: loadMuted(storage),
     letGo: loadLetGo(storage),
+    links: loadLinks(storage),
   };
 }
 
@@ -61,6 +67,10 @@ export function hydrateMailFromProfile(
   if (mail.letGo?.length && loadLetGo(storage).length === 0) {
     try { storage.setItem(LETGO_KEY, JSON.stringify(mail.letGo)); } catch { /* private mode */ }
     out.letGo = mail.letGo;
+  }
+  if (mail.links && Object.keys(mail.links).length && Object.keys(loadLinks(storage)).length === 0) {
+    try { storage.setItem(LINKS_KEY, JSON.stringify(mail.links)); } catch { /* private mode */ }
+    out.links = mail.links;
   }
   return out;
 }

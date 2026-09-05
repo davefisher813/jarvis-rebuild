@@ -39,6 +39,7 @@ export interface ProjectStep {
 export default function ProjectDetailPage({
   project, onBack, onEdit, linkedNotes = [], onOpenNote, onOpenDecision, onChanged, onFinish,
   steps = [], onToggleStep, onAddStep, onOpenStep, estimateFor, today, firstStep, onAddNote,
+  linkedThreads = [], onOpenThread,
 }: {
   project: Project;
   onBack: () => void;
@@ -69,6 +70,12 @@ export default function ProjectDetailPage({
   firstStep?: ReactNode;
   // Pick 27: makes a note already connected to this project and opens it.
   onAddNote?: () => void;
+  // EMAIL-F-19 (2026-09-05): "Project link chips are write-only: nothing ever
+  // reads a thread's project." Email has let him file a conversation under a
+  // project since N7 and this page never showed one. Passed in, like every
+  // other fact here: the flow reads the link store, this page renders it.
+  linkedThreads?: { threadId: string; subject?: string; from?: string }[];
+  onOpenThread?: (threadId: string) => void;
 }) {
   // SEAMLESS LINKING (Dave 2026-08-18): Area and Goal are chip-pickers IN
   // the detail card, the one-tap in-place edit from the editing law. Local
@@ -289,6 +296,30 @@ export default function ProjectDetailPage({
               </div>
             ))}
             {onAddNote && <button className="row row-act" onClick={onAddNote}>Add a Note</button>}
+          </div></div>
+        </>
+      )}
+      {/* EMAIL-F-19 (2026-09-05): the other half of N7's chip. He files a
+          thread under a project in Email; this is where it comes back. The
+          row opens the conversation in the Email tab. A link made before the
+          thread's own words were stored reads as a plain conversation row,
+          because inventing a subject here would be worse than not having
+          one. */}
+      {linkedThreads.length > 0 && (
+        <>
+          <div className="sh2 sh2-quiet"><span className="t">Linked Conversations</span><span className="n">{linkedThreads.length}</span></div>
+          <div className="pad-x"><div className="card list-card-ruled">
+            {linkedThreads.map((t) => (
+              <div className="task-row p2 note-row" role={onOpenThread ? "button" : undefined} tabIndex={onOpenThread ? 0 : undefined} key={t.threadId}
+                onClick={onOpenThread ? () => onOpenThread(t.threadId) : undefined}>
+                <div className="task-check-tap gm-slot"><span className={"cat-dot cat-bg-" + (data.category ? catColor(data.category) : "graphite")} /></div>
+                <div className="task-title">
+                  <span className="task-name">{t.subject || "Conversation"}</span>
+                  {t.from && <span className="task-meta">{t.from}</span>}
+                </div>
+                {onOpenThread && <div className="chev"></div>}
+              </div>
+            ))}
           </div></div>
         </>
       )}

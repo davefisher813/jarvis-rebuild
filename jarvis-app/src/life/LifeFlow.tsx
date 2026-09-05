@@ -13,7 +13,7 @@ import LifeSegments, { type LifeSegment } from "./LifeSegments";
 let lastSegment: LifeSegment = "tasks";
 
 export default function LifeFlow({
-  segment, segmentNav, taskOpenId, taskFilter, projectOpenId, goalOpenId, onOpenNote, onWhatNow, onOpenDecision,
+  segment, segmentNav, taskOpenId, taskFilter, projectOpenId, goalOpenId, onOpenNote, onWhatNow, onOpenDecision, onGoEmail,
 }: {
   segment?: LifeSegment;
   /** Bumped by the shell on every deep link, so a link to the lens already
@@ -24,6 +24,8 @@ export default function LifeFlow({
   onOpenNote?: (id: string) => void;
   onWhatNow?: () => void;
   onOpenDecision?: (id: string) => void;
+  // EMAIL-F-19: a conversation filed under a project opens in the Email tab.
+  onGoEmail?: (threadId: string) => void;
 }) {
   const [seg, setSeg] = useState<LifeSegment>(segment ?? lastSegment);
   const pick = (s: LifeSegment) => { lastSegment = s; setSeg(s); };
@@ -44,6 +46,7 @@ export default function LifeFlow({
       openGoalId={seg === "goals" ? goalOpenId : undefined}
       onOpenNote={onOpenNote}
       onOpenDecision={onOpenDecision}
+      onGoEmail={onGoEmail}
     />
   );
 }
