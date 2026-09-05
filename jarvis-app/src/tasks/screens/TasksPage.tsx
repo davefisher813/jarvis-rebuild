@@ -10,7 +10,7 @@ import { urgencyFor, distanceFor, type UrgencyKind } from "../grouping";
 import { FILTERS, FILTER_LABEL, type TaskFilter } from "../filters";
 import { categoriesOf } from "../categories";
 import { catColor, catName } from "../../shared/categories";
-import type { SheetCategory } from "./TaskSheet";
+import type { SheetCategory, SheetProject } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
 import Provenance from "../../shared/Provenance";
 import { capAfterNumber } from "../../shared/casing";
@@ -364,6 +364,8 @@ export default function TasksPage({
   onMoveAllToToday,
   onDeleteMany,
   onDoneMany,
+  projects,
+  onMoveMany,
   goalOf,
   parentOf,
   title = "Tasks",
@@ -426,6 +428,13 @@ export default function TasksPage({
   // that brings all of them back together.
   onDeleteMany?: (ids: string[]) => void;
   onDoneMany?: (ids: string[]) => void;
+  // S6-Q39 (2026-09-05): bulk-file a selection into a project, the way an
+  // existing backlog actually gets organised -- in one sitting rather than
+  // one task at a time. Absent (and the control hidden) when there are no
+  // projects to file into, same rule TaskSheet's own Project row already
+  // follows.
+  projects?: SheetProject[];
+  onMoveMany?: (ids: string[], projectId: string) => void;
 }) {
   // Select mode owns the ids currently ON SCREEN, so a filter change or a
   // reload can never leave a selection pointing at rows that are gone.
@@ -666,6 +675,9 @@ export default function TasksPage({
           noun="Task"
           onDelete={() => { onDeleteMany(sel.selected); sel.exit(); }}
           {...(onDoneMany ? { extraLabel: "Mark Done", onExtra: () => { onDoneMany(sel.selected); sel.exit(); } } : {})}
+          {...(onMoveMany && projects && projects.length > 0
+            ? { projects, onMoveToProject: (ids: string[], projectId: string) => { onMoveMany(ids, projectId); sel.exit(); } }
+            : {})}
         />
       )}
     </div>

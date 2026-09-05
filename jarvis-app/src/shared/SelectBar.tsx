@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Trash2 } from "./icons";
 import type { Selection } from "./useSelection";
+import HeadMenu from "./HeadMenu";
 
 // THE ONE SELECT BAR (Dave 2026-08-24: "very easy to clear and delete stuff.
 // Also in bulk"). Four surfaces asked for bulk delete, so this is written
@@ -28,6 +29,8 @@ export default function SelectBar({
   noun,
   extraLabel,
   onExtra,
+  projects,
+  onMoveToProject,
 }: {
   sel: Selection;
   onDelete: () => void;
@@ -37,6 +40,13 @@ export default function SelectBar({
   // on tasks. Absent on surfaces where nothing else makes sense in bulk.
   extraLabel?: string;
   onExtra?: () => void;
+  // S6-Q39 (2026-09-05, Tasks only): bulk-file the selection into a project.
+  // A HeadMenu capsule (this app's own "Fewer Buttons" dropdown), not a
+  // second styled button, so Delete keeps its place as the bar's one filled
+  // control (the reasoning right above Select All's own bare-text styling).
+  // Absent when there is nothing to file into.
+  projects?: { id: string; title: string }[];
+  onMoveToProject?: (ids: string[], projectId: string) => void;
 }) {
   // The bar is fixed above the tab bar, and while it is up the capture dock
   // steps aside: "Add anything" is not what anyone wants mid-selection, and
@@ -80,6 +90,19 @@ export default function SelectBar({
         <button className="btn btn-secondary btn-sm select-extra" disabled={n === 0} onClick={onExtra}>
           {extraLabel}
         </button>
+      )}
+      {projects && projects.length > 0 && onMoveToProject && (
+        <div className={"select-move" + (n === 0 ? " select-move-off" : "")}>
+          <HeadMenu
+            variant="capsule"
+            ariaLabel="Move to Project"
+            value=""
+            label="Move to Project"
+            off
+            options={projects.map((p) => ({ value: p.id, label: p.title }))}
+            onPick={(v) => { if (n > 0 && v) onMoveToProject(sel.selected, v); }}
+          />
+        </div>
       )}
       {/* Disabled rather than hidden at zero: a control that vanishes and
           reappears as you tap rows makes the bar jump under your thumb, and

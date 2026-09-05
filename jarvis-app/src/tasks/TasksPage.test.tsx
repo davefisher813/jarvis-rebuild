@@ -226,6 +226,64 @@ describe("TasksPage", () => {
   });
 });
 
+// S6-Q39 (2026-09-05): "a project cannot adopt a task you already have."
+// Bulk-filing an existing selection into a project from the Tasks page's
+// own multi-select bar.
+describe("TasksPage bulk select: Move to Project (S6-Q39)", () => {
+  // The select bar portals into the shell's host.
+  function withSelectHost() {
+    const host = document.createElement("div");
+    host.id = "select-bar-host";
+    document.body.appendChild(host);
+    return () => host.remove();
+  }
+
+  // The bar itself, and everything in it, portals to document.body (via the
+  // host above), not into the render's own container -- so it is read off
+  // `document`, the same way notes.test.tsx's own SelectBar assertions do.
+  it("stays off the bar entirely when there are no projects", () => {
+    const cleanup = withSelectHost();
+    render(
+      <TasksPage filter="all" counts={counts} items={[tk("a", null)]} today="2026-05-20"
+        onDeleteMany={() => {}} onMoveMany={() => {}} projects={[]} />,
+    );
+    fireEvent.click(screen.getByText("Select"));
+    expect(document.querySelector(".select-bar")).toBeTruthy();
+    expect(document.querySelector(".select-move")).toBeNull();
+    cleanup();
+  });
+
+  it("bulk-files the whole selection into the picked project, then closes selection", () => {
+    const cleanup = withSelectHost();
+    const onMoveMany = vi.fn();
+    render(
+      <TasksPage filter="all" counts={counts} items={[tk("a", null), tk("b", null)]} today="2026-05-20"
+        onDeleteMany={() => {}} onMoveMany={onMoveMany}
+        projects={[{ id: "p1", title: "Kitchen Remodel" }]} />,
+    );
+    fireEvent.click(screen.getByText("Select"));
+    fireEvent.click(screen.getByText("Select All"));
+    fireEvent.click(document.querySelector(".select-move .dd")!);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Kitchen Remodel" }));
+    expect(onMoveMany).toHaveBeenCalledWith(["a", "b"], "p1");
+    // Selection closes after the move, same as Delete and Mark Done.
+    expect(document.querySelector(".select-bar")).toBeNull();
+    cleanup();
+  });
+
+  it("reads as inert (not hidden) at zero selection, matching Delete's own treatment", () => {
+    const cleanup = withSelectHost();
+    render(
+      <TasksPage filter="all" counts={counts} items={[tk("a", null)]} today="2026-05-20"
+        onDeleteMany={() => {}} onMoveMany={() => {}}
+        projects={[{ id: "p1", title: "Kitchen Remodel" }]} />,
+    );
+    fireEvent.click(screen.getByText("Select"));
+    expect(document.querySelector(".select-move")).toHaveClass("select-move-off");
+    cleanup();
+  });
+});
+
 // B6 / B8 (2026-08-23): editing and adding without leaving the list.
 describe("TasksPage editing in place", () => {
   // Dave 2026-08-24: "when I tap to edit a task it now edits the text

@@ -465,6 +465,20 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
     if (ok) showToast({ message: targets.length === 1 ? "Done" : targets.length + " marked done" });
   };
 
+  // S6-Q39 (2026-09-05): "a project cannot adopt a task you already have."
+  // Filing five taps and a hunt (leave, find it in the list, open its sheet,
+  // set Project, save) is why a backlog stays unfiled. No undo, same as
+  // Mark Done just above: re-picking a project (or None, on the task's own
+  // sheet) undoes this in one tap too.
+  const onMoveMany = async (ids: string[], projectId: string) => {
+    if (ids.length === 0) return;
+    const ok = await attemptWrite(async () => { for (const id of ids) await svc.setProject(id, projectId); });
+    await reload();
+    if (!ok) return;
+    const name = projects.find((p) => p.id === projectId)?.data.title ?? "the project";
+    showToast({ message: (ids.length === 1 ? "Task moved to " : ids.length + " tasks moved to ") + name });
+  };
+
   // Recreate a just-deleted task if the user taps Undo.
   const offerUndoTask = (t: TaskData) => {
     showToast({
@@ -676,6 +690,8 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
         onDeleteTask={onDeleteRow}
         onDeleteMany={onDeleteMany}
         onDoneMany={onDoneMany}
+        projects={projects.map((p) => ({ id: p.id, title: p.data.title }))}
+        onMoveMany={onMoveMany}
         onSnoozeTask={onSnooze}
         onClearDone={onClearDone}
         onNew={() => setSheet({

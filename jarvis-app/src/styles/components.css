@@ -3356,6 +3356,13 @@ body.selecting .voice-dock { display: none; }
    straight over the count. */
 .select-bar .select-all { flex-shrink: 0; margin-right: auto; }
 .select-bar .select-extra { flex-shrink: 0; }
+/* Move to Project (S6-Q39, 2026-09-05): a HeadMenu capsule, not a second
+   styled button, so it stays a dropdown -- this app's own settled answer to
+   "too many buttons" -- rather than competing with Delete for the one filled
+   control this bar allows. Disabled the same way Delete is: present but
+   inert at zero, never hidden, so the bar's width does not jump under a tap. */
+.select-bar .select-move { flex-shrink: 0; }
+.select-bar .select-move-off { pointer-events: none; opacity: 0.4; }
 /* Bare text, because the bar already has one filled control and a second
    would make the destructive one stop reading as the primary. */
 .select-all { position: relative; background: 0; border: 0; padding: 0; font-family: var(--f);
