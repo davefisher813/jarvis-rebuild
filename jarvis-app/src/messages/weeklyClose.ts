@@ -83,6 +83,62 @@ export function closeDue(todayISO: string, last: string): boolean {
   ) >= 7;
 }
 
+// EMAIL-F-08 (2026-09-05): "Close It Out promises Undo for a week and has no
+// undo." The card's own promise (amnestyPromise, below) is the reason a
+// one-tap archive of sixty threads is safe to offer, and the handler shipped
+// with a bare four-second toast: no Undo button, ever, let alone for a week.
+//
+// So the close remembers what it archived. The toast's Undo covers the next
+// few seconds; this store is the other seven days, read by Standing Rules,
+// which can put the whole batch back long after the toast is gone. Each
+// thread keeps the account it lives in, because that is the api the restore
+// has to go through.
+const BACK_KEY = "jarvis.mail.close.back.v1";
+export const CLOSE_UNDO_DAYS = 7;
+
+export interface ClosedThread { id: string; account?: string }
+export interface ClosedBatch { dateISO: string; threads: ClosedThread[] }
+
+export function saveClosedBatch(
+  dateISO: string,
+  threads: ClosedThread[],
+  storage: Pick<Storage, "setItem"> = localStorage,
+): void {
+  try { storage.setItem(BACK_KEY, JSON.stringify({ dateISO, threads } satisfies ClosedBatch)); } catch { /* private mode */ }
+}
+
+export function loadClosedBatch(storage: Pick<Storage, "getItem"> = localStorage): ClosedBatch | null {
+  try {
+    const p = JSON.parse(storage.getItem(BACK_KEY) || "null") as Partial<ClosedBatch> | null;
+    if (!p || typeof p.dateISO !== "string" || !Array.isArray(p.threads)) return null;
+    const threads = p.threads.filter((t): t is ClosedThread => !!t && typeof t.id === "string");
+    return threads.length ? { dateISO: p.dateISO, threads } : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearClosedBatch(storage: Pick<Storage, "removeItem"> = localStorage): void {
+  try { storage.removeItem(BACK_KEY); } catch { /* private mode */ }
+}
+
+// Inside the week the promise names, and not a day longer: an offer to undo
+// something from a month ago is a different promise.
+export function closedBatchLive(batch: ClosedBatch | null, todayISO: string, days = CLOSE_UNDO_DAYS): boolean {
+  if (!batch) return false;
+  const age = Math.round(
+    (new Date(todayISO + "T12:00:00").getTime() - new Date(batch.dateISO + "T12:00:00").getTime()) / 86400e3,
+  );
+  return age >= 0 && age < days;
+}
+
+// The Standing Rules row. It names the count, because the count is what he is
+// deciding about, and it never says "last week" when the close was today.
+export function putBackLine(batch: ClosedBatch): string {
+  const n = batch.threads.length;
+  return capAfterNumber(n === 1 ? "1 conversation archived in the close" : n + " conversations archived in the close");
+}
+
 // 9A: THE AMNESTY (Dave 2026-08-25, the Anti-Inbox catalog).
 //
 // The avoidance loop: anxiety causes avoidance, avoidance balloons the

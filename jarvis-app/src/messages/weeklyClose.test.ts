@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   amnestyDue, amnestyPromise, amnestyLine, AMNESTY_AT,
   closeCandidates, closeDue, type CloseSet,
+  saveClosedBatch, loadClosedBatch, clearClosedBatch, closedBatchLive, putBackLine, CLOSE_UNDO_DAYS,
 } from "./weeklyClose";
 import type { ThreadRow } from "../connections/google/map";
 
@@ -86,5 +87,54 @@ describe("the amnesty", () => {
     expect(amnestyLine(set(1))).toBe("1 Thread older than two weeks");
     // Never "ignored", "neglected", "you failed to".
     expect(amnestyLine(set(17)).toLowerCase()).not.toMatch(/ignor|neglect|fail|behind/);
+  });
+});
+
+// EMAIL-F-08 (2026-09-05): "Close It Out promises Undo for a week and has no
+// undo." The card's promise is the reason a one-tap archive of sixty threads
+// is safe to offer. The toast now carries an Undo, and this store is the
+// other seven days of that sentence: what was archived, when, and through
+// which account each thread must be put back.
+describe("the week-long way back", () => {
+  function mem() {
+    const s: Record<string, string> = {};
+    return {
+      getItem: (k: string) => s[k] ?? null,
+      setItem: (k: string, v: string) => { s[k] = v; },
+      removeItem: (k: string) => { delete s[k]; },
+    };
+  }
+
+  it("remembers what the close archived, with the account each thread lives in", () => {
+    const st = mem();
+    saveClosedBatch("2026-08-25", [{ id: "t1", account: "a@x.com" }, { id: "t2" }], st);
+    const back = loadClosedBatch(st);
+    expect(back?.dateISO).toBe("2026-08-25");
+    expect(back?.threads).toEqual([{ id: "t1", account: "a@x.com" }, { id: "t2" }]);
+  });
+
+  it("is offered for the week it promised, and not a day longer", () => {
+    const st = mem();
+    saveClosedBatch("2026-08-25", [{ id: "t1" }], st);
+    const back = loadClosedBatch(st);
+    expect(closedBatchLive(back, "2026-08-25")).toBe(true);
+    expect(closedBatchLive(back, "2026-08-31")).toBe(true);
+    expect(closedBatchLive(back, "2026-09-01")).toBe(false); // day 7
+    expect(CLOSE_UNDO_DAYS).toBe(7);
+    expect(closedBatchLive(null, "2026-08-25")).toBe(false);
+  });
+
+  it("a batch that was put back is gone, not offered again", () => {
+    const st = mem();
+    saveClosedBatch("2026-08-25", [{ id: "t1" }], st);
+    clearClosedBatch(st);
+    expect(loadClosedBatch(st)).toBeNull();
+  });
+
+  it("says how many, counting rather than claiming", () => {
+    expect(putBackLine({ dateISO: "2026-08-25", threads: [{ id: "t1" }] }))
+      .toBe("1 Conversation archived in the close");
+    expect(putBackLine({ dateISO: "2026-08-25", threads: [{ id: "t1" }, { id: "t2" }] }))
+      .toBe("2 Conversations archived in the close");
   });
 });

@@ -97,7 +97,8 @@ import { clearedToday, bumpCleared, closeOut } from "./cleared";
 import { railClass, railToneForWaiting, railToneForDeadline, ageBands, showBandHeads } from "./rows";
 import { DEFAULT_ANSWERS } from "./quickAnswers";
 import { loadLetGo, letGo, undoLetGo } from "./letGo";
-import { closeCandidates, closeLine, amnestyDue, amnestyLine, amnestyPromise, markClosed, lastClose } from "./weeklyClose";
+import { closeCandidates, closeLine, amnestyDue, amnestyLine, amnestyPromise, markClosed, lastClose,
+  saveClosedBatch, loadClosedBatch, clearClosedBatch, closedBatchLive, putBackLine, type ClosedBatch } from "./weeklyClose";
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
 import { attachOffer, amountIn } from "./attachmentKind";
 import { enqueueOutbox, removeFromOutbox, patchOutbox, holdUntil, sendSlots, holdLine, whenLabel, INTERRUPTED_LINE, type OutboxItem } from "./outbox";
@@ -383,6 +384,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   }, [profileSvc, mailHydrated]);
   const [noiseGroups, setNoiseGroups] = useState<Record<string, boolean>>({});
   const [closeDone, setCloseDone] = useState(false);
+  // EMAIL-F-08 (2026-09-05): what the last Close It Out archived, for the
+  // week the card promises it can be put back in.
+  const [closedBatch, setClosedBatch] = useState<ClosedBatch | null>(() => loadClosedBatch());
+  const [closeBusy, setCloseBusy] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [attachDone, setAttachDone] = useState(false);
   const [attachBusy, setAttachBusy] = useState(false);
@@ -2281,6 +2286,40 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             </div>
           ))}
         </Card>
+        {/* EMAIL-F-08 (2026-09-05): the week half of "Undo for a week". The
+            toast's Undo is gone in six seconds; this is where the promise
+            lives out its seven days. It puts every thread the close archived
+            back in the inbox, through the account each one lives in, and
+            says so honestly if some could not be restored. */}
+        {closedBatchLive(closedBatch, todayISO()) && closedBatch && (
+          <>
+            <Head label="Last Close" />
+            <Card>
+              <div className="row">
+                <div className="row-grow">
+                  <div className="conn-name">{putBackLine(closedBatch)}</div>
+                  <div className="conn-meta">Still searchable in Gmail · Can go back for a week</div>
+                </div>
+                <button className="pill-act" disabled={closeBusy} onClick={() => void (async () => {
+                  setCloseBusy(true);
+                  try {
+                    const threads = closedBatch.threads;
+                    const put = await settleAll(threads, (t) => apiFor(t.account)?.modifyThread(t.id, ["INBOX"], []));
+                    if (put.ok.length) {
+                      clearClosedBatch();
+                      setClosedBatch(null);
+                      setCloseDone(false);
+                      void loadThreads();
+                    }
+                    say(settleLine(put.ok.length, put.failed.length, RESTORE_WORDS));
+                  } finally {
+                    setCloseBusy(false);
+                  }
+                })()}>{closeBusy ? "Putting Back…" : "Put It Back"}</button>
+              </div>
+            </Card>
+          </>
+        )}
         {/* N8 (2026-08-20). The ONLY thing in this app that sends without a
             tap, so the promise and the guard are the same sentence and it
             lives OFF until he turns it on. */}
@@ -3438,7 +3477,30 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   }
                   // Only a week that actually closed counts as closed.
                   if (ok.length) { markClosed(todayISO()); setCloseDone(true); }
-                  say(settleLine(ok.length, failed.length, ARCHIVE_WORDS) + (ok.length && !failed.length ? " · Still searchable in Gmail" : ""), undefined, 4000);
+                  // EMAIL-F-08 (2026-09-05): "Close It Out promises Undo for
+                  // a week and has no undo." The card says "Undo for a week"
+                  // and this was a bare toast for four seconds. Both halves
+                  // of the promise are here now: the Undo button every other
+                  // batch archive in this file offers (same shape as
+                  // archivePicked), and the batch remembered for seven days
+                  // so Standing Rules can put it back long after the toast.
+                  const back = kept.filter((r) => ok.includes(r.id));
+                  if (ok.length) saveClosedBatch(todayISO(), back.map((r) => ({ id: r.id, account: r.account })));
+                  say(
+                    settleLine(ok.length, failed.length, ARCHIVE_WORDS) + (ok.length && !failed.length ? " · Still searchable in Gmail" : ""),
+                    ok.length ? {
+                      label: "Undo",
+                      run: () => void (async () => {
+                        setRows((rs) => [...back, ...rs.filter((x) => !ok.includes(x.id))].sort((a, b) => b.dateMs - a.dateMs));
+                        const put = await settleAll(back, (r) => apiFor(r.account)?.modifyThread(r.id, ["INBOX"], []));
+                        clearClosedBatch();
+                        setClosedBatch(null);
+                        setCloseDone(false);
+                        if (put.failed.length) say(settleLine(put.ok.length, put.failed.length, RESTORE_WORDS));
+                      })(),
+                    } : undefined,
+                  );
+                  setClosedBatch(loadClosedBatch());
                 })()}>Close It Out</button>
               </div></div></div>
             );

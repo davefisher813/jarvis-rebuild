@@ -23,6 +23,7 @@ import { loadOutbox, resetOutboxForTest } from "./outbox";
 import { loadLetGo } from "./letGo";
 import { loadMinutes } from "./drain";
 import { clearedToday } from "./cleared";
+import { loadClosedBatch } from "./weeklyClose";
 import { todayISO } from "../schedule/calendar";
 import { recordToss } from "./selfClean";
 
@@ -649,6 +650,38 @@ describe("MessagesFlow (threads)", () => {
     fireEvent.click(screen.getByText("bump"));
     await new Promise((r) => setTimeout(r, 50));
     expect(lists).toBe(settled);
+  });
+
+  // EMAIL-F-08 (2026-09-05): "Close It Out promises Undo for a week and has
+  // no undo." The card offers to archive up to 60 threads under the line
+  // "Archived, never deleted · Searchable in Gmail forever · Undo for a
+  // week", and the handler was a bare toast for four seconds with no Undo
+  // button, ever. Both halves of the promise are covered here: the button on
+  // the toast, and the batch kept for the week Standing Rules can reach.
+  it("Close It Out offers a real Undo, and remembers the batch for the week", async () => {
+    const archived: string[] = [];
+    const restored: string[] = [];
+    const api = makeApi({
+      modifyThread: async (id, add, remove) => {
+        if (remove.includes("INBOX")) archived.push(id);
+        if (add.includes("INBOX")) restored.push(id);
+      },
+    });
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "noise", gist: "g" }, { id: "t2", bucket: "noise", gist: "promo" },
+    ]));
+    render(wrap(<MessagesFlow ai={ai} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Close It Out"));
+    await waitFor(() => expect(archived.sort()).toEqual(["t1", "t2"]));
+    // The promise the card made, on the toast it produced.
+    expect(await screen.findByText("Undo")).toBeInTheDocument();
+    // And kept for the week, so Standing Rules can still put it back.
+    expect(loadClosedBatch()?.threads.map((t) => t.id).sort()).toEqual(["t1", "t2"]);
+    fireEvent.click(screen.getByText("Undo"));
+    await waitFor(() => expect(restored.sort()).toEqual(["t1", "t2"]));
+    // Undone means undone: the week-long offer is spent too.
+    expect(loadClosedBatch()).toBeNull();
   });
 
   // EMAIL-F-28 (2026-09-05): "Stale drafts (N10) only reach Today if the
