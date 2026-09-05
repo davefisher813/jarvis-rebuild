@@ -5,7 +5,7 @@ import { localParse } from "../ai/capture";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import { googleConfigured } from "../connections/google/config";
 import { planDay } from "../schedule/planDay";
-import { todayISO, fmtTime } from "../schedule/calendar";
+import { todayISO, fmtTime, addDays } from "../schedule/calendar";
 import { haptics } from "../shared/haptics";
 import { DEFAULT_CATEGORIES, type CategorySeed, type TemplateKey } from "../categories/defaults";
 import { COLOR_SLOTS } from "../categories/types";
@@ -182,7 +182,10 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
               : undefined;
             const work = WORK_PRESET[workStyle] ?? { workStartMin: DEFAULT_ROUTINE.workStartMin, workEndMin: DEFAULT_ROUTINE.workEndMin };
             const { dayWord } = slotForPriority(parsed.title || priority, work.workStartMin, work.workEndMin);
-            const due = parsed.date ?? (dayWord === "today" ? today : todayISO(new Date(Date.now() + 86400000)));
+            // PLUMB-F-06 (2026-09-05): "tomorrow" steps a calendar day with
+            // addDays, not now plus 86,400,000ms, which on the clocks-back
+            // day (25 hours) is still today.
+            const due = parsed.date ?? (dayWord === "today" ? today : addDays(today, 1));
             await tasksSvc.createTask(parsed.title || priority, { category: catHit?.id, due });
           }
           // The seeds become real facts, at source "asked" (see seeds.ts and

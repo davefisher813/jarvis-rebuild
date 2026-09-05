@@ -7,6 +7,7 @@ import type { TasksService } from "../tasks/TasksService";
 import type { ScheduleService } from "../schedule/ScheduleService";
 import type { NotesService } from "../notes/NotesService";
 import { suggestCategory } from "../schedule/memory";
+import { todayISO as isoOf } from "../schedule/calendar";
 
 export interface CaptureResult {
   kind: "task" | "event" | "note";
@@ -71,13 +72,21 @@ export function parseCapture(raw: string): CaptureResult | null {
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
+// PLUMB-F-06 (2026-09-05): the day-word test used to be
+// /\b(today|tomorrow|mon|tue|wed|thu|fri|sat|sun)/ with no closing boundary,
+// so "monthly", "money", "wedding" and "sunlight" all read as a weekday and a
+// new user's first priority ("Finish the monthly report") landed as an event
+// next Monday. One bounded pattern, used by the detector and the resolver
+// alike, so the two cannot disagree about what counts as a day word.
+const DAY_WORD = /\b(today|tomorrow|sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:rs|rsday)?|fri(?:day)?|sat(?:urday)?)\b/;
+
 // Offline fallback used when the AI layer is not configured (e.g. the in-memory
 // demo). A light heuristic: a time or day word makes it an event, else a task.
 export function localParse(text: string, today: string): CaptureResult {
   const t = text.trim();
   const lower = t.toLowerCase();
   const timeMatch = lower.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/) || lower.match(/\b(\d{1,2}):(\d{2})\b/);
-  const hasDay = /\b(today|tomorrow|mon|tue|wed|thu|fri|sat|sun)/.test(lower);
+  const hasDay = DAY_WORD.test(lower);
   if (timeMatch || hasDay) {
     let start: string | undefined;
     if (timeMatch) {
@@ -93,20 +102,20 @@ export function localParse(text: string, today: string): CaptureResult {
   return { kind: "task", title: t };
 }
 
+// The date is formatted from local getters (calendar.ts todayISO). It used to
+// go through toISOString(), which reads the UTC day; in Berlin "Ship it
+// today" came out as yesterday and the very first Today showed it Overdue.
 function dayToISO(lower: string, today: string): string {
   const base = new Date(today + "T00:00:00");
-  if (lower.includes("tomorrow")) { base.setDate(base.getDate() + 1); return iso(base); }
-  if (lower.includes("today")) return iso(base);
-  for (let i = 0; i < WEEKDAYS.length; i++) {
-    if (lower.includes(WEEKDAYS[i]!.slice(0, 3))) {
-      const diff = (i - base.getDay() + 7) % 7 || 7;
-      base.setDate(base.getDate() + diff);
-      return iso(base);
-    }
-  }
-  return today;
+  const word = DAY_WORD.exec(lower)?.[1];
+  if (!word) return today;
+  if (word === "tomorrow") { base.setDate(base.getDate() + 1); return isoOf(base); }
+  if (word === "today") return today;
+  const i = WEEKDAYS.findIndex((w) => w.startsWith(word.slice(0, 3)));
+  const diff = (i - base.getDay() + 7) % 7 || 7;
+  base.setDate(base.getDate() + diff);
+  return isoOf(base);
 }
-const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 interface ApplyServices {
   tasks: TasksService;

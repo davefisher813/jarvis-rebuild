@@ -30,6 +30,35 @@ describe("localParse", () => {
   it("routes a plain note to a task", () => {
     expect(localParse("Renew the domain", "2026-05-24").kind).toBe("task");
   });
+
+  // PLUMB-F-06 (2026-09-05): the day-word regex had no closing boundary, so
+  // "monthly", "money", "wedding" and "sunlight" read as Mon, Mon, Wed, Sun
+  // and a new user's first priority became an event on the wrong weekday.
+  it("does not hear a weekday inside another word", () => {
+    for (const text of ["Finish the monthly report", "Sort out money", "Plan the wedding", "Get more sunlight", "Saturate the market"]) {
+      expect(localParse(text, "2026-09-05").kind, text).toBe("task");
+    }
+    // Real day words, short and long, still resolve. 2026-09-05 is a Saturday.
+    expect(localParse("Lunch Thursday", "2026-09-05").date).toBe("2026-09-10");
+    expect(localParse("Lunch thu", "2026-09-05").date).toBe("2026-09-10");
+    expect(localParse("Call mom Sunday", "2026-09-05").date).toBe("2026-09-06");
+    expect(localParse("Ship it tomorrow", "2026-09-05").date).toBe("2026-09-06");
+  });
+
+  // PLUMB-F-06 (2026-09-05): the date was serialised with toISOString(),
+  // which reads the UTC day. In Berlin local midnight is 22:00 UTC the day
+  // before, so "Ship it today" was due yesterday and Thursday was Wednesday.
+  it("resolves the day on the local calendar in a zone east of UTC", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Europe/Berlin";
+    try {
+      expect(localParse("Ship it today", "2026-09-05").date).toBe("2026-09-05");
+      expect(localParse("Ship it tomorrow", "2026-09-05").date).toBe("2026-09-06");
+      expect(localParse("Lunch Thursday 1pm", "2026-09-05").date).toBe("2026-09-10");
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
 });
 
 describe("applyCapture", () => {
