@@ -104,7 +104,10 @@ export function NotesProvider({
   // Tied to `store` itself (not [] ) so a token refresh or a different
   // signed-in user, each of which builds a fresh Store above, re-wires
   // against the new one instead of leaking a listener onto an abandoned one.
-  useEffect(() => wireOfflineSync(store), [store]);
+  // HMN-F-08 (2026-09-05): the health queue drains on the same signal, and
+  // once at mount, instead of only on the next health tap. A flush that
+  // fails leaves its entries queued for the next one; nothing to surface.
+  useEffect(() => wireOfflineSync(store, () => { health.flush().catch(() => { /* still queued for the next online event */ }); }), [store, health]);
   return (
     <TokenContext.Provider value={accessToken}>
     <NotesContext.Provider value={notes}>

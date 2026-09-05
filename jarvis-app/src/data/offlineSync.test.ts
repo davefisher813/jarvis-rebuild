@@ -66,4 +66,41 @@ describe("wireOfflineSync", () => {
     expect(() => window.dispatchEvent(new Event("online"))).not.toThrow();
     await new Promise((r) => setTimeout(r, 0)); // let the rejection's .catch settle
   });
+
+  // HMN-F-08 (2026-09-05): the health queue used to drain only on the next
+  // health tap. It rides the same online signal now, and a launch that is
+  // already online flushes once up front.
+  describe("alsoFlush (the health queue)", () => {
+    it("runs once at wiring time when the launch is online, and on every online event after", () => {
+      onlineGetter(true);
+      const store = new Store(new InMemoryAdapter());
+      const flush = vi.fn();
+      wireOfflineSync(store, flush);
+      expect(flush).toHaveBeenCalledTimes(1);
+      window.dispatchEvent(new Event("online"));
+      window.dispatchEvent(new Event("online"));
+      expect(flush).toHaveBeenCalledTimes(3);
+    });
+
+    it("does not run at wiring time when the launch is offline; the first online event runs it", () => {
+      onlineGetter(false);
+      const store = new Store(new InMemoryAdapter());
+      const flush = vi.fn();
+      wireOfflineSync(store, flush);
+      expect(flush).not.toHaveBeenCalled();
+      window.dispatchEvent(new Event("online"));
+      expect(flush).toHaveBeenCalledTimes(1);
+    });
+
+    it("still runs when the core reconnect itself rejects", async () => {
+      onlineGetter(true);
+      const store = new Store(new InMemoryAdapter());
+      vi.spyOn(store, "reconnect").mockRejectedValue(new Error("dropped again"));
+      const flush = vi.fn();
+      wireOfflineSync(store, flush);
+      window.dispatchEvent(new Event("online"));
+      expect(flush).toHaveBeenCalledTimes(2);
+      await new Promise((r) => setTimeout(r, 0));
+    });
+  });
 });
