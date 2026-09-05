@@ -106,3 +106,47 @@ export function clearLocalData(storage: Pick<Storage, "removeItem"> = localStora
   // of them; reuse it instead of re-deriving the prefix here.
   clearPreload();
 }
+
+// SHELL-F-10 (2026-09-05): SIGNING OUT IS A DIFFERENT QUESTION.
+//
+// The list above answers "what is safe to throw away when a cache has gone
+// bad on my own device". Sign-out asks something else: the next person to
+// sign in on this phone must not find the last one's life on it. signOut
+// cleared exactly two things (the preload cache and the undo stack), so a
+// family member signing in after Dave saw his last ten capture titles in
+// Quick Capture, his recent searches, his VIPs and mute rules in Email, and
+// his notification dismissals.
+//
+// These keys are identity-bearing and are NOT safe to clear on the list
+// above, because for the person still signed in they are real decisions with
+// no other copy on the device. On sign-out they go anyway, and they can:
+// every one of them is mirrored onto the synced profile (messages/mailSync.ts
+// mailSnapshot, S2-5 and EMAIL-F-19), so the person coming back gets them
+// hydrated again on their next Email visit. Music is the one exception and
+// is a remembered deep link, not data.
+//
+// Deliberately NOT here: the outbox, a live gym session, the health queue,
+// the budget envelopes, the corrections in progress and the offline write
+// queue. Those are unsent or unsynced WORK. Deleting them at the door would
+// be the S3-Q17 bug again, with a different trigger.
+const IDENTITY_KEYS: readonly string[] = [
+  // --- Email (messages/vip.ts, rules.ts, mute.ts, letGo.ts, threadLink.ts) ---
+  "jarvis.mail.vip.v1",
+  "jarvis.mail.rules.v1",
+  "jarvis.mail.muted.v1",
+  "jarvis.mail.letgo.v1",
+  "jarvis.mail.links.v1", // which thread belongs to which project: the last person's projects
+  "jarvis.mail.autoreply.on.v1", // whether JARVIS answers mail on this person's behalf
+
+  // --- Music (music/music.ts) ---
+  "jarvis.music.v1", // the remembered playlist per context
+];
+
+// Everything clearLocalData clears, plus the keys that name the person who
+// was signed in. Used by signOut and by deleteAccount.
+export function clearSignedOutData(storage: Pick<Storage, "removeItem"> = localStorage): void {
+  clearLocalData(storage);
+  for (const key of IDENTITY_KEYS) {
+    try { storage.removeItem(key); } catch { /* ignore */ }
+  }
+}

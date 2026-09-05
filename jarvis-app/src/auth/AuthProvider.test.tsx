@@ -169,3 +169,28 @@ describe("password recovery", () => {
     await waitFor(() => expect(get().recovery).toBe(false));
   });
 });
+
+// SHELL-F-10 (2026-09-05): "Sign out leaves the previous account's device
+// data for the next sign-in." Dave signs out, a family member signs in on
+// the same phone, and Quick Capture lists Dave's last ten capture titles.
+describe("signOut clears the device", () => {
+  it("takes the last person's captures, searches and mail rules with it", async () => {
+    localStorage.setItem("jarvis.captures.v1", "x");
+    localStorage.setItem("jarvis.recent-searches", "x");
+    localStorage.setItem("jarvis.mail.vip.v1", "x");
+    localStorage.setItem("jarvis.music.v1", "x");
+    // Unsent work stays: it is not identity, and losing it is the bug
+    // S3-Q17 closed.
+    localStorage.setItem("jarvis.mail.outbox.v1", "x");
+
+    const get = renderAuth();
+    await waitFor(() => expect(get().ready).toBe(true));
+    await act(async () => { await get().signOut(); });
+
+    expect(localStorage.getItem("jarvis.captures.v1")).toBeNull();
+    expect(localStorage.getItem("jarvis.recent-searches")).toBeNull();
+    expect(localStorage.getItem("jarvis.mail.vip.v1")).toBeNull();
+    expect(localStorage.getItem("jarvis.music.v1")).toBeNull();
+    expect(localStorage.getItem("jarvis.mail.outbox.v1")).toBe("x");
+  });
+});

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { clearLocalData } from "./clearLocalData";
+import { clearLocalData, clearSignedOutData } from "./clearLocalData";
 
 // S3-Q17 (2026-09-04): "Clear Local Data destroys things with no other
 // copy." This proves the fix is namespaced correctly in both directions:
@@ -102,5 +102,58 @@ describe("clearLocalData", () => {
     };
     expect(() => clearLocalData(fake)).not.toThrow();
     expect(removed).toContain("jarvis.backup.lastExport");
+  });
+});
+
+// SHELL-F-10 (2026-09-05): "Sign out leaves the previous account's device
+// data for the next sign-in." signOut cleared two of roughly forty keys, so
+// a family member signing in on the same phone got the last person's capture
+// titles, searches, VIPs, mute rules and notification dismissals.
+describe("clearSignedOutData", () => {
+  // Identity-bearing, mirrored onto the synced profile (mailSync.ts), so the
+  // person coming back gets them hydrated again on their next Email visit.
+  const IDENTITY_SAMPLE = [
+    "jarvis.mail.vip.v1",
+    "jarvis.mail.rules.v1",
+    "jarvis.mail.muted.v1",
+    "jarvis.mail.letgo.v1",
+    "jarvis.mail.links.v1",
+    "jarvis.mail.autoreply.on.v1",
+    "jarvis.music.v1",
+  ];
+
+  it("takes the last person's name off the device", () => {
+    for (const k of [...IDENTITY_SAMPLE, "jarvis.captures.v1", "jarvis.recent-searches", "jarvis.notifications.dismissed.v1"]) {
+      localStorage.setItem(k, "x");
+    }
+    clearSignedOutData();
+    for (const k of IDENTITY_SAMPLE) expect(localStorage.getItem(k), k).toBeNull();
+    expect(localStorage.getItem("jarvis.captures.v1")).toBeNull();
+    expect(localStorage.getItem("jarvis.recent-searches")).toBeNull();
+    expect(localStorage.getItem("jarvis.notifications.dismissed.v1")).toBeNull();
+  });
+
+  // Unsent and unsynced WORK is not identity: deleting it at the door would
+  // be the S3-Q17 bug again with a different trigger.
+  it("still never takes unsent or unsynced work with it", () => {
+    const WORK = [
+      "jarvis.mail.outbox.v1",
+      "jarvis.today.outbox.v1",
+      "jarvis.gym.live.v1",
+      "jarvis.gym.pending.v1",
+      "jarvis.health.pending.v1",
+      "jarvis.money.envelopes.v1",
+      "jarvis.corrections.v1",
+      "jarvis.store.queue.u1.v1",
+    ];
+    for (const k of WORK) localStorage.setItem(k, "x");
+    clearSignedOutData();
+    for (const k of WORK) expect(localStorage.getItem(k), k).toBe("x");
+  });
+
+  it("leaves the identity keys alone on an ordinary Clear Local Data", () => {
+    for (const k of IDENTITY_SAMPLE) localStorage.setItem(k, "x");
+    clearLocalData();
+    for (const k of IDENTITY_SAMPLE) expect(localStorage.getItem(k), k).toBe("x");
   });
 });

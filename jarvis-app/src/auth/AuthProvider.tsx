@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { clearPreload } from "../data/preloadCache";
+import { clearSignedOutData } from "../settings/clearLocalData";
 import { clearUndo } from "../shared/undoStack";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabaseClient";
@@ -123,8 +123,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabase?.auth.signOut();
         setRecovery(false);
         // One user's data on shared glass dies with the session,
-        // unconditionally: the preload cache and the undo stack both.
-        clearPreload();
+        // unconditionally.
+        //
+        // SHELL-F-10 (2026-09-05): this used to be the preload cache and the
+        // undo stack, two of roughly forty device-local keys, so a family
+        // member signing in on the same phone got Dave's last ten capture
+        // titles in Quick Capture, his recent searches, his VIP and mute
+        // rules in Email, and his notification dismissals. See
+        // settings/clearLocalData.ts for what goes, what stays, and why.
+        clearSignedOutData();
         clearUndo();
       },
       // S3-Q18: "there is no way to delete an account," though the Privacy
@@ -153,7 +160,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error(body?.error || `Couldn't delete your account (${res.status})`);
         }
         await supabase.auth.signOut();
-        clearPreload();
+        clearSignedOutData();
         clearUndo();
       },
     }),
