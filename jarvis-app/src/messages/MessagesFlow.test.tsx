@@ -18,6 +18,7 @@ import MailOutboxPump from "./MailOutboxPump";
 import ToastHost from "../shared/ToastHost";
 import { saveMailSnapshot, loadMailSnapshot } from "./home";
 import { loadOutbox, resetOutboxForTest } from "./outbox";
+import { loadLetGo } from "./letGo";
 
 const noAI = new AIService({ available: false });
 
@@ -650,6 +651,45 @@ describe("MessagesFlow (threads)", () => {
     render(wrap(<MessagesFlow ai={noAI} configured />, api));
     fireEvent.click(await screen.findByText("Connect Google"));
     await waitFor(() => expect(screen.getByText("Nothing has left yet")).toBeInTheDocument());
+  });
+
+  // EMAIL-F-07 (2026-09-05): "Archive These archives in Gmail, then the rows
+  // come back on the next load." Nothing Owed derives from sent mail plus a
+  // cache, not from the INBOX label, so the batch archive changed nothing it
+  // reads. PROOF C: findWaiting returned the same thread on consecutive
+  // calls. The single-row path recorded letGo; the batch path forgot.
+  it("Archive These lets every archived row go, so Nothing Owed agrees with Gmail on the next load", async () => {
+    const DAY = 86400e3;
+    const sent: GmailThreadMeta = { id: "w1", messages: [{
+      id: "wm1", snippet: "Thanks", labelIds: ["SENT"], internalDate: String(Date.now() - 4 * DAY),
+      payload: { headers: [
+        { name: "From", value: "Me <me@example.com>" }, { name: "To", value: "Sarah <sarah@y.com>" },
+        { name: "Subject", value: "Order confirmation" },
+      ] },
+    }] };
+    const archived: string[] = [];
+    const restored: string[] = [];
+    const api = makeApi({
+      searchThreads: async () => [sent],
+      modifyThread: async (id, add, remove) => {
+        if (remove.includes("INBOX")) archived.push(id);
+        if (add.includes("INBOX")) restored.push(id);
+      },
+    });
+    const ai = aiReturning(JSON.stringify([
+      { id: "t1", bucket: "noise", gist: "g" }, { id: "t2", bucket: "noise", gist: "promo" },
+    ]));
+    render(wrap(<MessagesFlow ai={ai} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Archive These"));
+    await waitFor(() => expect(archived).toEqual(["w1"]));
+    // The part the batch path forgot: the days stop counting on it.
+    await waitFor(() => expect(loadLetGo()).toContain("w1"));
+    expect(screen.queryByText("Archive These")).toBeNull();
+    // Undo puts INBOX back AND counts the days again.
+    fireEvent.click(screen.getByText("Undo"));
+    await waitFor(() => expect(restored).toEqual(["w1"]));
+    expect(loadLetGo()).not.toContain("w1");
   });
 
   // EMAIL-F-05 (2026-09-05): the card for a send that was mid-flight when

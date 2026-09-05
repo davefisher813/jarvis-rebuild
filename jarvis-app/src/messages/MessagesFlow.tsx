@@ -751,22 +751,52 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // those conversations stayed in the Gmail inbox. Now it makes the same
   // real modifyThread call archivePicked already makes on the general inbox
   // list, counted the same honest way, with an Undo that puts INBOX back.
+  //
+  // EMAIL-F-07 (2026-09-05): "Archive These archives in Gmail, then the rows
+  // come back on the next load." Waiting On and Nothing Owed derive from
+  // "last message is mine" over in:sent plus a persistent cache
+  // (waiting.ts:87-131); removing INBOX changes nothing they read, so the
+  // same three rows returned forever with Archive These offered again. The
+  // single-row path (dropRow) always recorded letGo; this batch path forgot
+  // to. Every row that actually archived is let go too (and un-let-go on
+  // Undo), then mirrored, so the list agrees with Gmail on the next load.
   const dropAll = async (rows: (WaitingRow & { account?: string })[]) => {
     if (!rows.length) return;
     const ids = new Set(rows.map((w) => w.threadId));
     setWaiting((ws) => ws.filter((x) => !ids.has(x.threadId)));
-    const { failed } = await settleAll(rows, (w) => apiFor(w.account)?.modifyThread(w.threadId, [], ["INBOX"]));
+    const { ok, failed } = await settleAll(rows, (w) => apiFor(w.account)?.modifyThread(w.threadId, [], ["INBOX"]));
     if (failed.length) setWaiting((ws) => [...failed, ...ws]);
-    countCleared(rows.length - failed.length);
-    say(capAfterNumber(settleLine(rows.length - failed.length, failed.length, ARCHIVE_WORDS)), {
+    for (const w of ok) letGo(w.threadId);
+    if (ok.length) mirrorMail();
+    countCleared(ok.length);
+    say(capAfterNumber(settleLine(ok.length, failed.length, ARCHIVE_WORDS)), {
       label: "Undo",
       run: () => void (async () => {
         setWaiting((ws) => [...rows, ...ws]);
+        for (const w of ok) undoLetGo(w.threadId);
+        if (ok.length) mirrorMail();
         const back = await settleAll(rows, (w) => apiFor(w.account)?.modifyThread(w.threadId, ["INBOX"], []));
         if (back.failed.length) say(settleLine(back.ok.length, back.failed.length, RESTORE_WORDS));
         void loadWaiting();
       })(),
     });
+  };
+
+  // EMAIL-F-07: the same agreement for the single-thread moves. A thread on
+  // Waiting On that he archives or trashes from anywhere else has been dealt
+  // with, so the days stop counting on it too; putting it back (Undo) counts
+  // them again.
+  const letGoIfWaiting = (id: string): boolean => {
+    if (!waiting.some((w) => w.threadId === id)) return false;
+    letGo(id);
+    setWaiting((ws) => ws.filter((x) => x.threadId !== id));
+    mirrorMail();
+    return true;
+  };
+  const undoLetGoFor = (id: string) => {
+    undoLetGo(id);
+    mirrorMail();
+    void loadWaiting();
   };
 
   // Tap a Waiting On row: JARVIS drafts the nudge, the user gets it in
@@ -1670,14 +1700,18 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setToss(tossOffer(recordToss(r.fromEmail, r.unread)));
     setRows((rs) => rs.filter((x) => x.id !== r.id));
     setResults((rs) => (rs ? rs.filter((x) => x.id !== r.id) : rs));
+    // EMAIL-F-07: archived is dealt with, so Waiting On stops counting too.
+    const wasWaiting = letGoIfWaiting(r.id);
     // A failed write un-hides the row and says so (2026-08-09): pretending it
     // worked meant the "archived" mail quietly reappeared on the next load.
     apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]).catch(() => {
       setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
+      if (wasWaiting) undoLetGoFor(r.id);
       say("Couldn't archive · Still in inbox");
     });
     say("Archived", { label: "Undo", run: () => void (async () => {
       setRows((rs) => [r, ...rs.filter((x) => x.id !== r.id)].sort((a, b) => b.dateMs - a.dateMs));
+      if (wasWaiting) undoLetGoFor(r.id);
       const { failed } = await settleAll([r], (x) => apiFor(x.account)?.modifyThread(x.id, ["INBOX"], []));
       if (failed.length) say("Couldn't put it back · Still archived in Gmail");
     })() });
@@ -1703,8 +1737,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       say("Couldn't delete it · Still in your inbox");
       return;
     }
+    // EMAIL-F-07: a trashed thread is dealt with, so Waiting On stops
+    // counting it. Only after the write landed, since trash is awaited.
+    const wasWaiting = letGoIfWaiting(id);
     say("Deleted · In trash 30 days", { label: "Undo", run: () => void (async () => {
       if (gone) setRows((rs) => [gone, ...rs.filter((x) => x.id !== id)].sort((a, b) => b.dateMs - a.dateMs));
+      if (wasWaiting) undoLetGoFor(id);
       const { failed } = await settleAll([id], () => api.untrashThread(id));
       if (failed.length) say("Couldn't put it back · Still in trash");
     })() });
