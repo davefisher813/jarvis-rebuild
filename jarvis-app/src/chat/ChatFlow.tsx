@@ -77,7 +77,10 @@ export default function ChatFlow() {
       events: evs.map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, start: e.data.start, location: e.data.location })),
       tasks: tks.map((t) => ({ id: t.id, text: t.data.text, due: t.data.due, done: t.data.done })),
       leftToSpend: left,
-      mailNeedsYou: mail.ts > 0 ? mail.threads.map((t) => ({ id: t.id, subject: t.subject })) : null,
+      // SHELL-F-08 (2026-09-05): the true total AND the preview. mail.threads
+      // is capped at 6 by the snapshot; mail.needsYou is what actually needs
+      // him, which is the number Today and the Email tab both show.
+      mailNeedsYou: mail.ts > 0 ? { total: mail.needsYou, threads: mail.threads.map((t) => ({ id: t.id, subject: t.subject })) } : null,
     };
   };
 

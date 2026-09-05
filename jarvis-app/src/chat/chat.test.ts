@@ -90,22 +90,39 @@ describe("chat deterministic Q&A", () => {
   });
 
   it("says so when the inbox is genuinely caught up", () => {
-    const a = answerQuestion("what needs me in email", snap({ mailNeedsYou: [] }));
+    const a = answerQuestion("what needs me in email", snap({ mailNeedsYou: { total: 0, threads: [] } }));
     expect(a?.text).toBe("Nothing needs you in email");
     expect(a?.provenance.kind).toBe("records");
   });
 
   it("reports the needs-you count, singular and plural, with refs to the threads", () => {
-    const one = answerQuestion("what needs me in email", snap({ mailNeedsYou: [{ id: "th1", subject: "Invoice due" }] }));
+    const one = answerQuestion("what needs me in email", snap({ mailNeedsYou: { total: 1, threads: [{ id: "th1", subject: "Invoice due" }] } }));
     // The number-leads-a-line rule (casing.ts): the word right after gets the
     // capital, same as triage.ts's identical "1 Needs you" for this bucket.
     expect(one?.text).toBe("1 Needs you in email");
     expect(one?.provenance.refs).toEqual([{ kind: "thread", id: "th1", label: "Invoice due" }]);
 
     const many = answerQuestion("what needs me in email", snap({
-      mailNeedsYou: [{ id: "th1", subject: "Invoice due" }, { id: "th2", subject: "Reschedule?" }],
+      mailNeedsYou: { total: 2, threads: [{ id: "th1", subject: "Invoice due" }, { id: "th2", subject: "Reschedule?" }] },
     }));
     expect(many?.text).toBe("2 Need you in email");
+  });
+
+  // SHELL-F-08 (2026-09-05): "Chat's what needs me in email count is capped
+  // at 6." The snapshot carries the true total separately from a preview list
+  // it caps at 6 for refs (snapshotRefresh.ts:129-130), and this answer
+  // counted the preview: nine threads needing him, Chat said six, Today and
+  // the Email tab said nine.
+  it("counts what actually needs him, not the six-thread preview", () => {
+    const a = answerQuestion("what needs me in email", snap({
+      mailNeedsYou: {
+        total: 9,
+        threads: Array.from({ length: 6 }, (_, i) => ({ id: "th" + i, subject: "Subject " + i })),
+      },
+    }));
+    expect(a?.text).toBe("9 Need you in email");
+    // The preview is still what the refs are for, capped at four.
+    expect(a?.provenance.refs).toHaveLength(4);
   });
 
   it("classifies questions vs everything else", () => {

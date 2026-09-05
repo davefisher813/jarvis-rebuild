@@ -21,9 +21,15 @@ export interface AnswerSnapshot {
   // MailSnapshot), reused as-is -- Chat never fetches mail itself, only the
   // cache. Null means no usable snapshot (no Gmail connection, or one too
   // stale to trust): the question falls through to the AI path or the
-  // offline refusal, the same discipline leftToSpend already follows. An
-  // empty array is a real, current answer -- genuinely caught up.
-  mailNeedsYou: { id: string; subject: string }[] | null;
+  // offline refusal, the same discipline leftToSpend already follows. A
+  // total of zero is a real, current answer -- genuinely caught up.
+  //
+  // SHELL-F-08 (2026-09-05): the TOTAL travels with the list, because the
+  // list is a preview. The snapshot caps `threads` at 6 on purpose (it is
+  // there for the refs), and counting it answered "6 need you in email" while
+  // Today and the Email tab both said 9. A shape where the count and the
+  // preview are one array is a shape that makes that mistake again.
+  mailNeedsYou: { total: number; threads: { id: string; subject: string }[] } | null;
 }
 
 export interface ChatAnswer {
@@ -139,11 +145,11 @@ export function answerQuestion(raw: string, snap: AnswerSnapshot): ChatAnswer | 
   // app ("Nothing needs you" / "N need you").
   if (/^what needs me (in|from) (my )?email$|^what('| i)?s (in|up in|going on in) (my )?email$/.test(q)) {
     if (snap.mailNeedsYou === null) return null; // no snapshot: the AI path or the offline refusal takes it
-    const n = snap.mailNeedsYou.length;
+    const n = snap.mailNeedsYou.total;
     if (n === 0) return { text: "Nothing needs you in email", provenance: { kind: "records" } };
     return {
       text: capAfterNumber(n === 1 ? "1 needs you in email" : `${n} need you in email`),
-      provenance: { kind: "records", refs: snap.mailNeedsYou.slice(0, 4).map((t) => ({ kind: "thread", id: t.id, label: t.subject })) },
+      provenance: { kind: "records", refs: snap.mailNeedsYou.threads.slice(0, 4).map((t) => ({ kind: "thread", id: t.id, label: t.subject })) },
     };
   }
 
