@@ -179,6 +179,27 @@ describe("projectFinishMs / overBudgetMin", () => {
     expect(projectFinishMs(ran, d, h, rack, 0)).toBe(0);
   });
 
+  // GYM-F-21 (2026-09-05): an exercise added mid-session carries its own
+  // program-side shape, so the projection can price its clock and its rest.
+  it("an added conditioning block costs its cap, and an added lift's stated rest is real rest", () => {
+    const d = day([ex("Bench", 2)]);
+    const added: WorkoutExercise = {
+      exerciseId: "mid1", name: "Finisher", kind: "rounds", custom: true, plan: [], sets: [],
+      program: { cond: { format: "amrap", capSec: 300 } },
+    };
+    const live = { startedAt: 0, exercises: [liveEx("Bench", 0), added] };
+    expect(projectFinishMs(live, d, h, rack, 0)).toBe((2 * 100 + 300) * 1000);
+
+    // An added lift prices its own stated rest (40s work + 120s rest a set)
+    // instead of falling back to the 60s default.
+    const lift: WorkoutExercise = {
+      exerciseId: "mid2", name: "Face Pulls", kind: "reps", custom: true,
+      plan: [{ id: "p1", r: 15 }, { id: "p2", r: 15 }], sets: [], program: { restSec: 120 },
+    };
+    const live2 = { startedAt: 0, exercises: [lift] };
+    expect(projectFinishMs(live2, d, h, rack, 0)).toBe(2 * (40 + 120) * 1000);
+  });
+
   it("no budget, no opinion; a budget prices the overrun in whole minutes", () => {
     const d = day([ex("Bench", 3)]);
     const live = { startedAt: 0, exercises: [liveEx("Bench", 0)] };

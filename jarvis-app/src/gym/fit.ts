@@ -237,8 +237,10 @@ function planFor(live: LiveFitState, e: WorkoutExercise, day: ProgramDay | null)
       cond: pe.cond ?? null,
     };
   }
-  // Swapped or added mid-session: its plan strip is the whole story.
-  return { planned: (e.plan ?? []).length, ex: { name: e.name, kind: e.kind }, ramp: null, cond: null };
+  // Swapped or added mid-session: its plan strip is the whole story, plus
+  // whatever program-side shape it carries with it (GYM-F-21) -- an added
+  // AMRAP costs its cap and an added lift's stated rest is real rest.
+  return { planned: (e.plan ?? []).length, ex: { name: e.name, kind: e.kind, restSec: e.program?.restSec }, ramp: null, cond: e.program?.cond ?? null };
 }
 
 /**

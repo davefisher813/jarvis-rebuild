@@ -258,7 +258,19 @@ export interface WorkoutExercise {
    *  itself is never touched by either action. */
   custom?: boolean;
   plan?: SetEntry[];
+  /** GYM-F-21 (2026-09-05): the program-side shape of an exercise ADDED
+   *  mid-session (catalog §3.10). It has no program exercise to read from, so
+   *  without this its clock, rest target, ramp, note and muscle were thrown
+   *  away the moment it was created: an AMRAP added in session came back with
+   *  a "Log Round" button and a set strip instead of "Start the Clock", and a
+   *  2:00 rest on an added lift never showed a timer. Only ever set on a
+   *  custom entry; a planned exercise reads all of this off the day itself. */
+  program?: AddedExerciseFields;
 }
+
+/** What an added exercise has to carry with it: everything the session screen
+ *  reads off a program exercise that is not identity or the strip. */
+export type AddedExerciseFields = Pick<Exercise, "cond" | "restSec" | "ramp" | "muscleGroup" | "note">;
 export interface WorkoutData {
   programId: string;
   dayId: string;

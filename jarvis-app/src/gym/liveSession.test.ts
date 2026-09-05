@@ -176,6 +176,28 @@ describe("addExerciseMidSession: catalog §3.10", () => {
     const ids = l.exercises.map((e) => e.exerciseId);
     expect(new Set(ids).size).toBe(ids.length);
   });
+
+  // GYM-F-21 (2026-09-05): the added exercise kept only its identity and its
+  // strip, so an AMRAP added in session came back with a "Log Round" button
+  // instead of "Start the Clock", and a 2:00 rest on an added lift never rang.
+  // Nothing else in the session knows this exercise, so the entry is the only
+  // place its program-side shape can live.
+  it("carries the clock, the rest, the ramp, the note and the muscle it was created with", () => {
+    let l = live();
+    l = addExerciseMidSession(l, {
+      name: "Finisher", kind: "rounds", plan: [],
+      cond: { format: "amrap", capSec: 600 }, restSec: 120, ramp: true, muscleGroup: "chest", note: "steady",
+    });
+    expect(l.exercises[2]!.program).toEqual({
+      cond: { format: "amrap", capSec: 600 }, restSec: 120, ramp: true, muscleGroup: "chest", note: "steady",
+    });
+  });
+
+  it("an added exercise with nothing extra carries no empty program object", () => {
+    let l = live();
+    l = addExerciseMidSession(l, { name: "Face Pulls", kind: "reps", plan: [] });
+    expect(l.exercises[2]!.program).toBeUndefined();
+  });
 });
 
 describe("isStillActive: sessions resume, not fragment (2026-08-30)", () => {

@@ -1,4 +1,4 @@
-import type { Exercise, WorkoutData, WorkoutExercise, SetEntry, MeasureKind, ProgramDay } from "./types";
+import type { AddedExerciseFields, Exercise, WorkoutData, WorkoutExercise, SetEntry, MeasureKind, ProgramDay } from "./types";
 import { entryFrom } from "./strip";
 
 // OFFLINE-FIRST, and not optionally (2026-08-03 recon): the core Store only
@@ -193,15 +193,28 @@ let midSeq = 0;
  */
 export function addExerciseMidSession(
   s: LiveSession,
-  ex: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string; plan: SetEntry[] },
+  ex: { exerciseKey?: string; name: string; kind: MeasureKind; unit?: string; timeUnit?: string; plan: SetEntry[] } & AddedExerciseFields,
 ): LiveSession {
   const exerciseId = `mid${Date.now().toString(36)}${midSeq++}`;
+  // GYM-F-21 (2026-09-05): the added exercise used to keep only its identity
+  // and its strip, so a clock became a set strip, a stated rest never rang,
+  // and the ramp, the note and the muscle were gone. Nothing else in the
+  // session knows about this exercise, so what it carries here is all it will
+  // ever have.
+  const program: AddedExerciseFields = {
+    ...(ex.cond ? { cond: ex.cond } : {}),
+    ...(ex.restSec ? { restSec: ex.restSec } : {}),
+    ...(ex.ramp ? { ramp: true } : {}),
+    ...(ex.muscleGroup ? { muscleGroup: ex.muscleGroup } : {}),
+    ...(ex.note ? { note: ex.note } : {}),
+  };
   const entry: WorkoutExercise = {
     exerciseId, name: ex.name, kind: ex.kind,
     ...(ex.unit ? { unit: ex.unit } : {}),
     ...(ex.timeUnit ? { timeUnit: ex.timeUnit } : {}),
     ...(ex.exerciseKey ? { exerciseKey: ex.exerciseKey } : {}),
     sets: [], custom: true, plan: ex.plan,
+    ...(Object.keys(program).length ? { program } : {}),
   };
   return { ...s, exercises: [...s.exercises, entry] };
 }
