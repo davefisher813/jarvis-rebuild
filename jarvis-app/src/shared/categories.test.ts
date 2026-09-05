@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { setCategoryRegistry, goalTone } from "./categories";
+import { setCategoryRegistry, goalTone, catName } from "./categories";
 
 // GOAL GLYPHS WEAR THE GOAL'S AREA (Dave 2026-08-31, Your Life screenshot:
 // "the purple icons should be color coated based on category and default to
@@ -48,5 +48,26 @@ describe("goalTone: category color, brand-red default", () => {
     const css = src("styles/components.css");
     expect(css).toMatch(/\.cat-fg-brand\s*\{\s*color:\s*var\(--accent-glyph\)/);
     expect(css).toMatch(/\.cat-bg-brand\s*\{\s*background:\s*var\(--accent-glyph\)/);
+  });
+});
+
+// NO NAME BEATS A UUID WEARING A NAME'S CLOTHES (2026-08-22), and SHARED-F-14
+// (2026-09-05): the guard missed the app's own "offline_<uuid>" ids, so a
+// category made without signal rendered "Offline_4d9be8bd-cb50-..." as its
+// eyebrow. Any ref carrying a uuid, or the offline prefix, is an id.
+describe("catName: an id is never echoed as a name", () => {
+  it("a registered id resolves; a seed slug capitalizes", () => {
+    setCategoryRegistry([{ id: "4d9be8bd-cb50-4a3a-9b9e-000000000000", name: "Family", color: "pink" }]);
+    expect(catName("4d9be8bd-cb50-4a3a-9b9e-000000000000")).toBe("Family");
+    expect(catName("family")).toBe("Family");
+    expect(catName(undefined)).toBe("");
+  });
+
+  it("an unregistered uuid, bare or prefixed, and any offline_ id all render as nothing", () => {
+    setCategoryRegistry([]);
+    expect(catName("4d9be8bd-cb50-4a3a-9b9e-000000000000")).toBe("");
+    expect(catName("offline_4d9be8bd-cb50-4a3a-9b9e-000000000000")).toBe("");
+    expect(catName("offline_m1abc2xyz9k")).toBe(""); // the old time-plus-random fallback
+    expect(catName("4d9be8bd-cb50-4a3a-9b9e-000000000000-copy")).toBe("");
   });
 });

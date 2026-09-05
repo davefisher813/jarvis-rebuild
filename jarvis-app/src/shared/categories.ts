@@ -46,10 +46,18 @@ export function goalTone(tags: string[] | undefined): string {
   return home ? "cat-fg-" + catColor(home) : "cat-fg-brand";
 }
 
-// An opaque id: a UUID, or any long dashed hex-ish token. Never a display
-// word. Kept loose on purpose: a false positive hides a name we could not
-// have rendered readably anyway.
-const ID_LIKE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+// An opaque id: a UUID anywhere in the ref, or the app's own offline id
+// shape. Never a display word. Kept loose on purpose: a false positive hides
+// a name we could not have rendered readably anyway.
+//
+// SHARED-F-14 (2026-09-05): the guard was anchored to a bare UUID, so the
+// "offline_<uuid>" ids S3-Q14 handed to captures made without signal fell
+// through to the capitalize branch and rendered "Offline_4d9be8bd-cb50-..."
+// as an eyebrow, the exact thing this guard exists to stop. Offline ids are
+// bare uuids now (PLUMB-F-01), but a ref written by the earlier build can
+// still carry the prefix, and a prefixed or suffixed uuid is still an id.
+const ID_LIKE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+const OFFLINE_ID = /^offline_/i;
 
 // Resolve a category reference to a display name.
 //
@@ -62,6 +70,6 @@ export function catName(ref: string | undefined): string {
   if (!ref) return "";
   const hit = REGISTRY[ref];
   if (hit) return hit.name;
-  if (ID_LIKE.test(ref)) return "";
+  if (ID_LIKE.test(ref) || OFFLINE_ID.test(ref)) return "";
   return ref.charAt(0).toUpperCase() + ref.slice(1);
 }
