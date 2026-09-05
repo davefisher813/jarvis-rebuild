@@ -29,6 +29,7 @@ import GoogleAutoImport from "../connections/google/AutoImport";
 import TodayOutboxPump from "../messages/TodayOutboxPump";
 import MailOutboxPump from "../messages/MailOutboxPump";
 import MailSnapshotPump from "../messages/MailSnapshotPump";
+import AutoReplyPump from "../messages/AutoReplyPump";
 
 // Heavier, less-visited surfaces load on demand so the startup bundle stays
 // small: the default tabs (Today, Tasks, Schedule, Brain) plus More are enough
@@ -307,6 +308,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         Send, Send & Next) is pumped here, where nothing unmounts on a tab
         switch, instead of inside MessagesFlow, which does. */}
     <MailOutboxPump ai={ai} />
+    {/* EMAIL-F-16 (2026-09-05): the heads-down auto-reply is a courtesy for
+        the time he is NOT looking at his email, so it runs here rather than
+        inside the Email tab, which is only mounted when he is. */}
+    <AutoReplyPump />
     <MailSnapshotPump />
     <div className="app-shell">
       <div className="app-scroll">

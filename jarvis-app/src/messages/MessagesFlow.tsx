@@ -102,12 +102,11 @@ import { loadWindows, saveWindows, isOpenNow, closedLine, peekLine, type WindowS
 import WindowsSheet from "./WindowsSheet";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
 import { saidQuery, saidPrompt, parseSaid, saidEmpty, SAID_SYSTEM } from "./saidWhat";
-import { shouldAutoReply, autoReplyBody, loadAutoState, markAutoReplied, AUTO_REPLY_EXPLAINER } from "./autoReply";
+import { autoReplyEnabled, setAutoReplyEnabled, AUTO_REPLY_EXPLAINER } from "./autoReply";
 import { protectedRangesFor, isFocusRange } from "../routine/types";
 import { fmtTime, todayISO, addDays, eventsForDate } from "../schedule/calendar";
 import { nextOpening, BOOK_MIN } from "./bookTime";
 
-const AUTOREPLY_KEY = "jarvis.mail.autoreply.on.v1";
 import { suggestAttachment, suggestLine, noteAsText, attachmentFilename, type AttachSuggestion, type Candidate } from "./attachSuggest";
 import { staleDrafts, staleLine, loadOffered } from "./staleDrafts";
 import { mightProposeTimes, meetingPrompt, parseMeetingTimes, optionsAgainst, firstFree, meetingLine, MEETING_SYSTEM } from "./meetingTimes";
@@ -397,9 +396,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [saidBusy, setSaidBusy] = useState(false);
   // N8: the ONLY thing in this app that sends without a tap, so it is opt-in,
   // per-device, and off until he says otherwise.
-  const [autoReplyOn, setAutoReplyOn] = useState<boolean>(() => {
-    try { return localStorage.getItem(AUTOREPLY_KEY) === "on"; } catch { return false; }
-  });
+  const [autoReplyOn, setAutoReplyOn] = useState<boolean>(() => autoReplyEnabled());
   const [opens, setOpens] = useState<Record<string, string>>({}); // threadId -> first-open ISO
   // Phones for the people who owe replies, so the top rung can actually dial
   // instead of promising a call and opening a compose window.
@@ -1213,55 +1210,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   };
 
-  // HEADS-DOWN AUTO-REPLY (N8, 2026-08-20).
+  // HEADS-DOWN AUTO-REPLY (N8, 2026-08-20) LIVES IN A PUMP NOW.
   //
-  // Every guard lives in shouldAutoReply, so "should this send" is one answer
-  // with one reason rather than a chain of ifs spread across a component:
-  // off by default, VIPs only, once per person per block, never a machine,
-  // never himself, never a thread he already answered. The body is
-  // deterministic and names a REAL time he is back, because a model
-  // improvising over his name while he is not looking is not a feature.
-  useEffect(() => {
-    if (!autoReplyOn || !routineSvc || rows.length === 0 || vips.length === 0) return;
-    void (async () => {
-      try {
-        const r = await routineSvc.get();
-        const now = new Date();
-        const min = now.getHours() * 60 + now.getMinutes();
-        const block = protectedRangesFor(r, now.getDay())
-          .find((b) => isFocusRange(b) && min >= b.s && min < b.e);
-        if (!block) return; // no focus block running: nothing auto-sends, ever
-        const blockId = `${now.toISOString().slice(0, 10)}:${block.s}`;
-        const backAt = fmtTime(`${String(Math.floor(block.e / 60)).padStart(2, "0")}:${String(block.e % 60).padStart(2, "0")}`);
-        for (const row of rows.filter((x) => x.unread)) {
-          const state = loadAutoState(blockId);
-          // EMAIL-F-13 (2026-09-05): "never to himself" has to mean every
-          // address he owns. This read accounts[0], so mail he sent from the
-          // second account could be auto-answered by the first.
-          const me = (accountOfThread(row.id) ?? g.accounts[0]?.email ?? "").toLowerCase();
-          if (g.accounts.some((a) => a.email.toLowerCase() === (row.fromEmail || "").toLowerCase())) continue;
-          if (!shouldAutoReply({
-            enabled: autoReplyOn, fromEmail: row.fromEmail, myEmail: me, vips,
-            state, alreadyRepliedThread: !!waiting.find((w) => w.threadId === row.id),
-          })) continue;
-          const api = apiFor(accountOfThread(row.id));
-          if (!api) continue;
-          const full = mapThreadFull(await api.getThread(row.id));
-          const last = full.messages[full.messages.length - 1];
-          if (!last) continue;
-          const reply = buildReply(last, "");
-          await api.sendMessage(encodeEmail({
-            to: reply.to, subject: reply.subject,
-            body: autoReplyBody(`${backAt.time} ${backAt.ap}`, (await profileSvc?.get())?.name ?? ""),
-            inReplyTo: reply.inReplyTo,
-          }), full.id);
-          markAutoReplied(blockId, row.fromEmail);
-          emit({ type: "action", props: { name: "email.autoreply" } });
-        }
-      } catch { /* an auto-reply that fails is silent; it is a courtesy, not a job */ }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoReplyOn, rows, vips, routineSvc]);
+  // EMAIL-F-16 (2026-09-05): "only runs while the Email tab is open, on
+  // threads already loaded." The pass used to be an effect right here, over
+  // this tab's `rows`, which meant the one courtesy that exists for the time
+  // he is NOT looking at his email only ran while he was. It is
+  // autoReplyPump.ts now, ticked from AppShell by AutoReplyPump.tsx, which
+  // polls the inbox during a focus block, keys the block on the LOCAL day,
+  // and holds a busy flag so two passes cannot answer the same VIP twice.
+  // This tab keeps the switch (Settings, below) and nothing else.
 
   // N11 (2026-08-20): "what did I tell Wei about the invoice". Before a call
   // the question is never "show me the thread"; it is the sentence he wrote.
@@ -2225,7 +2183,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <button className="pill-act" onClick={() => {
               const next = !autoReplyOn;
               setAutoReplyOn(next);
-              try { localStorage.setItem(AUTOREPLY_KEY, next ? "on" : "off"); } catch { /* private mode */ }
+              // EMAIL-F-16: the switch the AppShell pump reads, so turning it
+              // on here starts the background pass rather than an effect that
+              // dies with this screen.
+              setAutoReplyEnabled(next);
             }}>{autoReplyOn ? "Turn Off" : "Turn On"}</button>
           </div>
           {vips.length === 0 && (

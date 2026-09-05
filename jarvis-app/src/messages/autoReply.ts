@@ -19,6 +19,22 @@ import { JARVIS_VOICE } from "../ai/voice";
 //     already answered inside this block.
 
 const KEY = "jarvis.mail.autoreply.v1";
+
+// EMAIL-F-16 (2026-09-05): the switch itself, which used to be a private
+// const inside MessagesFlow. It lives here now because the thing that acts on
+// it (autoReplyPump.ts, mounted in AppShell) is not the tab that owns the
+// toggle: a courtesy that only runs while he is looking at Email is not a
+// courtesy. Per device, on purpose: this is the one thing in the app that
+// sends without a tap.
+const ON_KEY = "jarvis.mail.autoreply.on.v1";
+
+export function autoReplyEnabled(storage: Pick<Storage, "getItem"> = localStorage): boolean {
+  try { return storage.getItem(ON_KEY) === "on"; } catch { return false; }
+}
+
+export function setAutoReplyEnabled(on: boolean, storage: Pick<Storage, "setItem"> = localStorage): void {
+  try { storage.setItem(ON_KEY, on ? "on" : "off"); } catch { /* private mode */ }
+}
 // One copy of this rule, in noReply.ts. It lived here AND in autoReply.ts,
 // and the thread screen (the one place a person presses Reply) consulted
 // neither, which is how reply chips ended up on a no-reply sender.
