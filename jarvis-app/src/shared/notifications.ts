@@ -347,9 +347,19 @@ export async function ensureEventReminders(events: ReminderInput[], nowMs: numbe
 export const TASK_REMINDER_BASE = 9300;
 
 export interface TaskReminderInput { id: string; text: string; reminder: ReminderInfo }
-export interface TaskReminderNotification { id: number; title: string; at: Date }
+export interface TaskReminderNotification { id: number; title: string; body: string; at: Date }
 
-// Pure: today's and tomorrow's real fire times for every reminder, honoring
+// TODAY-F-10 (2026-09-05): "If You Miss It: Ask Again in 15m" is the DEFAULT
+// on every reminder (ReminderSheet's onMiss), and nothing ever asked again.
+// The phone buzzed once at 9:00 and that was the whole behaviour, unless he
+// opened JARVIS, scrolled to Your Move and tapped the button himself. B4 put
+// the setting on screen; the scheduler was never taught it. A nagging
+// reminder gets a second fire time fifteen minutes later, and ticking it
+// clears both: the reschedule this file already runs on every change cancels
+// the block and rebuilds it, and a done reminder builds nothing (isDone).
+export const NAG_AFTER_MIN = 15;
+
+// Pure: the real fire times for every reminder over the days given, honoring
 // its days (reminders.ts runsOn), its snooze (effectiveTime, which only
 // applies on the day it was set), and its last-done (isDone: a reminder
 // already ticked for a date does not ping again for it). Only future
@@ -360,7 +370,7 @@ export function buildTaskReminderNotifications(
   tomorrow: string,
   nowMs: number,
 ): TaskReminderNotification[] {
-  const out: { title: string; at: Date }[] = [];
+  const out: { title: string; body: string; at: Date }[] = [];
   for (const r of reminders) {
     if (!r.text.trim()) continue;
     for (const date of [today, tomorrow]) {
@@ -369,8 +379,20 @@ export function buildTaskReminderNotifications(
       // enforces that itself); tomorrow's occurrence always uses the real time.
       const time = date === today ? effectiveTime(r.reminder, today) : r.reminder.time;
       const at = new Date(`${date}T${time}:00`);
-      if (!Number.isFinite(at.getTime()) || at.getTime() <= nowMs) continue;
-      out.push({ title: r.text.trim(), at });
+      if (!Number.isFinite(at.getTime())) continue;
+      if (at.getTime() > nowMs) out.push({ title: r.text.trim(), body: "Reminder", at });
+      // "Let it go" means exactly that, here as everywhere else (see
+      // reminders.ts): it fires once and never chases. Everything else nags,
+      // because that is what the setting he was given says by default.
+      //
+      // Judged on its own fire time, not the ping's: a reschedule that runs
+      // in the ten minutes AFTER the reminder buzzed (Today reloads
+      // constantly) would otherwise drop the follow-up as part of an
+      // occurrence already past, which is the one moment it exists for.
+      if (r.reminder.onMiss !== "let_go") {
+        const again = new Date(at.getTime() + NAG_AFTER_MIN * 60_000);
+        if (again.getTime() > nowMs) out.push({ title: r.text.trim(), body: "Asking again", at: again });
+      }
     }
   }
   out.sort((a, b) => a.at.getTime() - b.at.getTime());
@@ -399,7 +421,7 @@ export async function ensureTaskReminders(
         notifications: specs.map((s) => ({
           id: s.id,
           title: s.title,
-          body: "Reminder",
+          body: s.body,
           schedule: { at: s.at, allowWhileIdle: true },
         })),
       });

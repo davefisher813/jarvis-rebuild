@@ -200,20 +200,37 @@ describe("buildTaskReminderNotifications", () => {
   const NOW = new Date("2026-08-09T08:00:00").getTime();
   const rem = (id: string, text: string, reminder: ReminderInfo): TaskReminderInput => ({ id, text, reminder });
 
+  // TODAY-F-10 (2026-09-05): every reminder defaults to "Ask Again in 15m",
+  // so the expected shape of a day is the ping and its follow-up. The
+  // let-go cases below are the ones that fire exactly once.
   it("fires today and tomorrow at the set time, every day by default", () => {
     const out = buildTaskReminderNotifications([rem("r1", "Take meds", { time: "21:00" })], TODAY, TOMORROW, NOW);
     expect(out.map((n) => n.at)).toEqual([
       new Date("2026-08-09T21:00:00"),
+      new Date("2026-08-09T21:15:00"),
       new Date("2026-08-10T21:00:00"),
+      new Date("2026-08-10T21:15:00"),
     ]);
     expect(out[0]!.title).toBe("Take meds");
+    expect(out[0]!.body).toBe("Reminder");
+    expect(out[1]!.body).toBe("Asking again");
     expect(out[0]!.id).toBe(TASK_REMINDER_BASE);
+  });
+
+  it("a let-go reminder fires once and never chases", () => {
+    const out = buildTaskReminderNotifications(
+      [rem("r1", "Take meds", { time: "21:00", onMiss: "let_go" })], TODAY, TOMORROW, NOW,
+    );
+    expect(out.map((n) => n.at)).toEqual([
+      new Date("2026-08-09T21:00:00"),
+      new Date("2026-08-10T21:00:00"),
+    ]);
   });
 
   // 2026-08-09 is a Sunday: weekdays-only skips today, keeps tomorrow (Monday).
   it("honors days: skips a date it does not run on", () => {
     const out = buildTaskReminderNotifications(
-      [rem("r1", "Standup", { time: "09:00", days: [1, 2, 3, 4, 5] })],
+      [rem("r1", "Standup", { time: "09:00", days: [1, 2, 3, 4, 5], onMiss: "let_go" })],
       TODAY, TOMORROW, NOW,
     );
     expect(out).toHaveLength(1);
@@ -222,18 +239,26 @@ describe("buildTaskReminderNotifications", () => {
 
   it("a reminder already done today does not ping again today, but still pings tomorrow", () => {
     const out = buildTaskReminderNotifications(
-      [rem("r1", "Take meds", { time: "21:00", lastDone: TODAY })],
+      [rem("r1", "Take meds", { time: "21:00", lastDone: TODAY, onMiss: "let_go" })],
       TODAY, TOMORROW, NOW,
     );
     expect(out).toHaveLength(1);
     expect(out[0]!.at).toEqual(new Date("2026-08-10T21:00:00"));
   });
 
+  it("ticking it clears the follow-up too, because a done reminder builds nothing", () => {
+    const out = buildTaskReminderNotifications(
+      [rem("r1", "Take meds", { time: "21:00", lastDone: TODAY })],
+      TODAY, TOMORROW, NOW,
+    );
+    expect(out.filter((n) => n.at < new Date("2026-08-10T00:00:00"))).toEqual([]);
+  });
+
   // A snooze set today moves today's ping; tomorrow is unaffected, because a
   // snooze set today only counts today (reminders.ts effectiveTime).
   it("a same-day snooze moves today's fire time but not tomorrow's", () => {
     const out = buildTaskReminderNotifications(
-      [rem("r1", "Take meds", { time: "09:00", snoozedTo: "09:15", snoozeDate: TODAY })],
+      [rem("r1", "Take meds", { time: "09:00", snoozedTo: "09:15", snoozeDate: TODAY, onMiss: "let_go" })],
       TODAY, TOMORROW, NOW,
     );
     expect(out.map((n) => n.at)).toEqual([
@@ -242,12 +267,30 @@ describe("buildTaskReminderNotifications", () => {
     ]);
   });
 
+  it("the follow-up rides the snoozed time, not the original one", () => {
+    const out = buildTaskReminderNotifications(
+      [rem("r1", "Take meds", { time: "09:00", snoozedTo: "09:15", snoozeDate: TODAY })],
+      TODAY, TOMORROW, NOW,
+    );
+    expect(out[0]!.at).toEqual(new Date("2026-08-09T09:15:00"));
+    expect(out[1]!.at).toEqual(new Date("2026-08-09T09:30:00"));
+  });
+
   it("drops a fire time already in the past instead of scheduling a stale buzz", () => {
     // NOW is 08:00; a 07:00 reminder today has already passed, but tomorrow's
     // 07:00 has not.
-    const out = buildTaskReminderNotifications([rem("r1", "Early", { time: "07:00" })], TODAY, TOMORROW, NOW);
+    const out = buildTaskReminderNotifications([rem("r1", "Early", { time: "07:00", onMiss: "let_go" })], TODAY, TOMORROW, NOW);
     expect(out).toHaveLength(1);
     expect(out[0]!.at).toEqual(new Date("2026-08-10T07:00:00"));
+  });
+
+  it("[edge] a follow-up that has itself already passed is not scheduled", () => {
+    // 07:50 today: the ping passed at 07:50 and its 08:05 follow-up has not.
+    const out = buildTaskReminderNotifications([rem("r1", "Early", { time: "07:50" })], TODAY, TOMORROW, NOW);
+    expect(out[0]!.at).toEqual(new Date("2026-08-09T08:05:00"));
+    // And with NOW past the follow-up too, today contributes nothing.
+    const later = buildTaskReminderNotifications([rem("r1", "Early", { time: "07:00" })], TODAY, TOMORROW, NOW);
+    expect(later.filter((n) => n.at < new Date("2026-08-10T00:00:00"))).toEqual([]);
   });
 
   it("assigns ids from the task-reminder block in fire order and honors the cap", () => {
