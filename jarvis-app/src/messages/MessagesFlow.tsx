@@ -53,6 +53,11 @@ import { endOfAct } from "./mailAct";
 import { dayPhrase, monthDay } from "../money/bills";
 import { Head, Card } from "../settings/kit";
 
+// EMAIL-F-18 (2026-09-05): one page of the inbox. Load More asks for one
+// page more (each account, newest first), which is the shape Gmail's threads
+// list gives us without a page token.
+const MAIL_PAGE = 30;
+
 // The words every mail-archive receipt uses, in one place, because the four
 // batch sites used to phrase the same outcome four ways.
 const ARCHIVE_WORDS: SettleWords = {
@@ -440,6 +445,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [results, setResults] = useState<ThreadRow[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(false);
+  // EMAIL-F-18 (2026-09-05): "Only 30 threads per account are ever loaded;
+  // empty-state copy speaks for the whole inbox." How many this screen has
+  // asked each account for, and whether the last answer came back short (the
+  // proof there is nothing more). Until that proof arrives, every empty state
+  // here speaks for what is loaded, never for the inbox.
+  const pageRef = useRef(MAIL_PAGE);
+  const [atEnd, setAtEnd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [thread, setThread] = useState<ThreadFull | null>(null);
   const [summary, setSummary] = useState<string | null>(null);
@@ -529,9 +541,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   }, [ai]);
 
-  const loadThreads = useCallback(async () => {
+  const loadThreads = useCallback(async (max?: number) => {
     const list = g.apis("mail");
     if (list.length === 0) return;
+    // EMAIL-F-18 (2026-09-05): the page size is state now, not the literal
+    // 30 that used to be the whole inbox as far as this screen knew. A ref
+    // rather than a dep so Load More can raise it without rebuilding the
+    // callback (and re-running the load effect keyed on it).
+    const want = max ?? pageRef.current;
+    pageRef.current = want;
     setLoading(true);
     setError(null);
     try {
@@ -550,15 +568,25 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // read) and the failure is said in words a person can act on.
       const failures: unknown[] = [];
       const perAccount = await Promise.all(list.map(async ({ email, api }) => {
-        const metas = await api.listThreads(30).catch((e: unknown) => { failures.push(e); return null; });
+        const metas = await api.listThreads(want).catch((e: unknown) => { failures.push(e); return null; });
         if (!metas) return null;
-        return metas.map(mapThread)
-          .filter((t): t is ThreadRow => t !== null && t.inInbox)
-          .map((t) => ({ ...t, account: email }));
+        return {
+          // EMAIL-F-18: Gmail answering with fewer threads than we asked for
+          // is the only honest signal that there is no more; it is the
+          // difference between "your inbox is empty" and "this is all we
+          // loaded", which the empty states used to get wrong.
+          all: metas.length < want,
+          rows: metas.map(mapThread)
+            .filter((t): t is ThreadRow => t !== null && t.inInbox)
+            .map((t) => ({ ...t, account: email })),
+        };
       }));
       if (failures.length) setError(humanError(failures[0], "Could not load mail"));
       if (failures.length === list.length) return;
-      const mapped = perAccount.filter((p): p is (ThreadRow & { account: string })[] => p !== null).flat().sort((a, b) => b.dateMs - a.dateMs);
+      const good = perAccount.filter((p): p is { all: boolean; rows: (ThreadRow & { account: string })[] } => p !== null);
+      const mapped = good.flatMap((p) => p.rows).sort((a, b) => b.dateMs - a.dateMs);
+      // Everything, only when every account said so and none of them failed.
+      setAtEnd(failures.length === 0 && good.every((p) => p.all));
       setRows(mapped);
       setTriage(loadTriageCache());
       void runTriage(mapped);
@@ -575,6 +603,28 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // whole session object, so a shell re-render cannot re-run the inbox load.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [g.apis, runTriage]);
+
+  // EMAIL-F-18 (2026-09-05): the floor tells the truth about which of the two
+  // things it is. "That's everything." is a statement about his inbox, and
+  // this screen only earns it once every account has answered with fewer
+  // threads than it asked for. Until then the floor says what it is showing
+  // and offers the next page, which is also the only way to reach thread 31.
+  const loadMore = () => void loadThreads(pageRef.current + MAIL_PAGE);
+  const mailFloor = () => (atEnd ? <ListFloor /> : (
+    <ListFloor>
+      <>
+        <div>Showing what's loaded so far.</div>
+        <button className="quiet-action" disabled={loading} onClick={loadMore}>{loading ? "Loading..." : "Load More"}</button>
+      </>
+    </ListFloor>
+  ));
+
+  // A bulk move that empties the list has not emptied the inbox, it has
+  // emptied the page. Pull the next one in rather than leaving him looking at
+  // a screen that says he is done when 370 threads are still there.
+  const refillIfEmptied = (remaining: number) => {
+    if (remaining === 0 && !atEnd) void loadThreads();
+  };
 
   // PICK A TIME, FROM THE REAL CALENDAR (N1, 2026-08-20).
   //
@@ -1679,6 +1729,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     setResults((rs) => (rs ? rs.filter((x) => !ids.has(x.id)) : rs));
     const { ok, failed } = await settleAll(chosen, (r) => apiFor(r.account)?.trashThread(r.id));
     if (failed.length) setRows((rs) => [...failed, ...rs.filter((x) => !failed.some((f) => f.id === x.id))].sort((a, b) => b.dateMs - a.dateMs));
+    // EMAIL-F-18: a purge that emptied the page pulls the next one in.
+    refillIfEmptied(rows.filter((r) => !ids.has(r.id)).length + failed.length);
     say(capAfterNumber(settleLine(ok.length, failed.length, DELETE_WORDS)), ok.length ? {
       label: "Undo",
       run: () => void (async () => {
@@ -1708,6 +1760,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // chosen.length regardless.
     const { failed } = await settleAll(chosen, (r) => apiFor(r.account)?.modifyThread(r.id, [], ["INBOX"]));
     if (failed.length) setRows((rs) => [...failed, ...rs.filter((x) => !failed.some((f) => f.id === x.id))].sort((a, b) => b.dateMs - a.dateMs));
+    // EMAIL-F-18: a batch archive that emptied the page pulls the next one in.
+    refillIfEmptied(rows.filter((r) => !ids.has(r.id)).length + failed.length);
     countCleared(chosen.length - failed.length);
     say(capAfterNumber(settleLine(chosen.length - failed.length, failed.length, ARCHIVE_WORDS)), {
       label: "Undo",
@@ -2090,8 +2144,15 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         </div>
         {piles.length === 0 ? (
           <div className="pad-x"><div className="card list-card-ruled"><div className="empty-state empty-compact">
-            <div className="empty-title">Nothing to Clean Out</div>
-            <div className="empty-sub">Your inbox is already down to what matters.</div>
+            {/* EMAIL-F-18 (2026-09-05): this used to speak for the whole
+                inbox off a page of 30. Delete the 30 and it said "already
+                down to what matters" with 370 still in Gmail. It only claims
+                the inbox once an account has actually answered short. */}
+            <div className="empty-title">{atEnd ? "Nothing to Clean Out" : "Nothing More Loaded"}</div>
+            <div className="empty-sub">
+              {atEnd ? "Your inbox is already down to what matters." : "What's loaded is cleaned out \u00b7 There may be more in your inbox"}
+            </div>
+            {!atEnd && <button className="quiet-action" disabled={loading} onClick={loadMore}>{loading ? "Loading..." : "Load More"}</button>}
           </div></div></div>
         ) : (
           <>
@@ -2114,7 +2175,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 </div>
               ))}
             </div></div>
-            <ListFloor />
+            {mailFloor()}
             <div className="pad-x conn-action purge-foot">
               {/* L1 LITERALLY: red is a VERB. With nothing picked there is no
                   verb, so a full-width red pill reading "Pick Some Senders"
@@ -3095,7 +3156,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         listRows.length === 0 ? (
           <div className="pad-x"><div className="card"><div className="empty-state">
             <div className="empty-icon"><Mail className="ic" /></div>
-            <div className="empty-title">{results !== null ? "No Matches" : "Inbox Empty"}</div>
+            {/* EMAIL-F-18 (2026-09-05): "Inbox Empty" off a page of 30 was a
+                claim about Gmail this screen had no way to make. It waits
+                for an account to answer short before making it. */}
+            <div className="empty-title">{results !== null ? "No Matches" : atEnd ? "Inbox Empty" : "Nothing More Loaded"}</div>
+            {results === null && !atEnd && (
+              <>
+                <div className="empty-sub">Everything loaded is dealt with \u00b7 There may be more in your inbox</div>
+                <button className="quiet-action" disabled={loading} onClick={loadMore}>{loading ? "Loading..." : "Load More"}</button>
+              </>
+            )}
             {/* B14: a failed search that offers nothing is a dead end six
                 inches from the box that caused it. */}
             {results !== null && (
@@ -3105,7 +3175,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         ) : (
           <>
             <div><div className="list-flat">{listRows.map((r) => threadRow(r))}</div></div>
-            <ListFloor />
+            {/* EMAIL-F-18: search results are their own complete answer, so
+                they keep the plain floor; the inbox gets the honest one. */}
+            {results !== null ? <ListFloor /> : mailFloor()}
           </>
         )
       ) : (
@@ -3113,7 +3185,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {rows.length === 0 && (
             <div className="pad-x"><div className="card"><div className="empty-state">
               <div className="empty-icon"><Mail className="ic" /></div>
-              <div className="empty-title">Inbox Is Quiet</div>
+              {/* EMAIL-F-18: quiet is a fact about the inbox; this screen
+                  only knows it once an account has answered short. */}
+              <div className="empty-title">{atEnd ? "Inbox Is Quiet" : "Nothing More Loaded"}</div>
+              {!atEnd && <button className="quiet-action" disabled={loading} onClick={loadMore}>{loading ? "Loading..." : "Load More"}</button>}
             </div></div></div>
           )}
           {/* THE MISSION DECK (Dave 2026-08-26, approved as "a combo of
@@ -3159,7 +3234,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                       inbox" is the half a reader can infer and the sender
                       count is the half they cannot. Leading with the count
                       means an overflow now costs the inferable words. */}
-                  <div className="mode-why">{capAfterNumber(senderPiles(unmutedRows, effTriage, vips).length + " senders") + " \u00b7 In the inbox"}</div>
+                  {/* EMAIL-F-18 (2026-09-05): "In the inbox" was a claim
+                      about all of Gmail attached to a count of one loaded
+                      page. It says where the number came from until the
+                      inbox has actually been read to the bottom. */}
+                  <div className="mode-why">{capAfterNumber(senderPiles(unmutedRows, effTriage, vips).length + " senders") + (atEnd ? " \u00b7 In the inbox" : " \u00b7 Loaded so far")}</div>
                   <div className="mode-go mode-go-quiet">Open</div>
                 </div>
               )}

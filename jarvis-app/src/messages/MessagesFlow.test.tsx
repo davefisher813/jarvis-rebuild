@@ -647,6 +647,41 @@ describe("MessagesFlow (threads)", () => {
     expect(lists).toBe(settled);
   });
 
+  // EMAIL-F-18 (2026-09-05): "Only 30 threads per account are ever loaded;
+  // empty-state copy speaks for the whole inbox." An inbox of 400 read as 30
+  // with no way to reach thread 31, and the floor said "That's everything."
+  const page = (n: number, from = 0) => Array.from({ length: n }, (_, i) => ({
+    id: "p" + (from + i),
+    messages: [msg("pm" + (from + i), "Sender " + (from + i) + " <s" + (from + i) + "@x.com>", "Subject " + (from + i), "snip", ["INBOX"], 1000 + from + i)],
+  }));
+
+  it("a full page offers Load More, and the floor only claims everything once a page comes back short", async () => {
+    const asks: number[] = [];
+    const api = makeApi({ listThreads: async (n: number) => { asks.push(n); return page(Math.min(n, 30)); } });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    // 30 asked for, 30 returned: there may be more, so the floor says what it
+    // is showing and offers the next page instead of "That's everything."
+    await screen.findByText("Load More");
+    expect(screen.getByText("Showing what's loaded so far.")).toBeInTheDocument();
+    expect(asks[asks.length - 1]).toBe(30);
+    fireEvent.click(screen.getByText("Load More"));
+    await waitFor(() => expect(asks).toContain(60));
+    // 60 asked for, 30 returned: now the inbox has a bottom and it says so.
+    await screen.findByText("That's everything.");
+    expect(screen.queryByText("Load More")).toBeNull();
+  });
+
+  it("an emptied page does not claim the inbox is empty", async () => {
+    // Thirty threads, none of them still in the inbox: the list is empty and
+    // the page was full, which is "nothing more loaded", not "Inbox Empty".
+    const archived = page(30).map((t) => ({ ...t, messages: t.messages.map((m) => ({ ...m, labelIds: [] })) }));
+    render(wrap(<MessagesFlow ai={noAI} configured />, makeApi({ listThreads: async () => archived })));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await waitFor(() => expect(screen.getByText("Nothing More Loaded")).toBeInTheDocument(), { timeout: 3000 });
+    expect(screen.queryByText("Inbox Empty")).toBeNull();
+  });
+
   // EMAIL-F-13 (2026-09-05): "Multi-account: the default account is used for
   // search hits, drafts, and deck-edited replies." A draft listed from the
   // second account was opened with g.api(), which is whichever account holds

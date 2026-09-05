@@ -2876,8 +2876,12 @@ describe("LAW 9: the ask decides the action, in every branch", () => {
   // it clips must therefore be the inferable half.
   it("Clean Out leads its sub with the fact the card cannot otherwise show", () => {
     const src = read(join(SRC, "messages/MessagesFlow.tsx"));
+    // EMAIL-F-18 (2026-09-05): the tail is a branch now, because "In the
+    // inbox" is a claim about all of Gmail that the card only earns once the
+    // inbox has been read to the bottom. The law is unchanged: the sender
+    // count still leads, and both tails still lead with a capital.
     expect(src, "the sender count leads, so an overflow costs the filler")
-      .toMatch(/mode-why">\{capAfterNumber\(senderPiles\([^)]*\)\.length \+ " senders"\) \+ " \\u00b7 In the inbox"\}/);
+      .toMatch(/mode-why">\{capAfterNumber\(senderPiles\([^)]*\)\.length \+ " senders"\) \+ \(atEnd \? " \\u00b7 In the inbox" : " \\u00b7 Loaded so far"\)\}/);
   });
 });
 
@@ -3098,8 +3102,10 @@ describe("LAW 11: cards show their work, tags earn their shape, and no screen is
   it("scorecard sublines lead capitalized, and Read It to Me rides the launcher chassis", () => {
     const flow = read(join(SRC, "messages/MessagesFlow.tsx"));
     expect(flow, "Sweep subline leads capitalized").toMatch(/"Needs you" : "Need you"/);
+    // EMAIL-F-18: both tails, because the honest one depends on whether the
+    // whole inbox has actually been loaded. Each still leads with a capital.
     expect(flow, "Clean Out subline caps its count and its tail")
-      .toMatch(/capAfterNumber\(senderPiles\(unmutedRows, effTriage, vips\)\.length \+ " senders"\) \+ " \\u00b7 In the inbox"/);
+      .toMatch(/capAfterNumber\(senderPiles\(unmutedRows, effTriage, vips\)\.length \+ " senders"\) \+ \(atEnd \? " \\u00b7 In the inbox" : " \\u00b7 Loaded so far"\)/);
     const rimIdx = flow.indexOf("Read It to Me");
     const rim = flow.slice(Math.max(0, rimIdx - 900), rimIdx + 900);
     expect(rim, "same chassis as its neighbours").toMatch(/launch-row/);
