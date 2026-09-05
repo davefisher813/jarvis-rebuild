@@ -9,7 +9,7 @@ import { loadLinks, linkThread, threadsFor } from "./threadLink";
 import { staleDrafts, staleLine, loadOffered, markOffered } from "./staleDrafts";
 import { shouldAutoReply, autoReplyBody, loadAutoState, markAutoReplied } from "./autoReply";
 import { parseSaid, saidQuery, saidPrompt, saidEmpty } from "./saidWhat";
-import { speakable } from "./readAloud";
+import { speakable, speak } from "./readAloud";
 import { closeCandidates, closeLine, closeReceipt, closeDue, markClosed, lastClose } from "./weeklyClose";
 import { sweepCandidates, sweepTitle, sweepSub, sweepReceipt } from "./unsubSweep";
 import { asksIn, promisedAttachment, suggestAttachment, suggestLine } from "./attachSuggest";
@@ -423,6 +423,34 @@ describe("read me the inbox", () => {
 
   it("answers an empty inbox out loud rather than saying nothing", () => {
     expect(speakable([], "")).toBe("Nothing in your inbox needs you.");
+  });
+
+  // EMAIL-F-25 (2026-09-05): "Read It to Me pill stays on Stop after the
+  // speech ends." speak() returned true and never spoke again, so the control
+  // followed the tap rather than the voice: the pill read Stop over silence,
+  // one tap cancelled nothing and flipped it to Play, and a second tap was
+  // needed to hear anything.
+  it("says when the speech is over, once, however it ended", () => {
+    const spoken: { onend?: () => void; onerror?: () => void }[] = [];
+    const g = globalThis as unknown as Record<string, unknown>;
+    g.SpeechSynthesisUtterance = class {
+      text: string; rate = 1; onend?: () => void; onerror?: () => void;
+      constructor(t: string) { this.text = t; }
+    };
+    g.window = { speechSynthesis: { cancel: () => {}, speak: (u: never) => { spoken.push(u); } } };
+    try {
+      let ends = 0;
+      expect(speak("Two need answers", () => { ends += 1; })).toBe(true);
+      expect(ends).toBe(0);
+      spoken[0]!.onend!();
+      expect(ends).toBe(1);
+      // A cancel fires onend and an error fires onerror; neither may count twice.
+      spoken[0]!.onerror!();
+      expect(ends).toBe(1);
+    } finally {
+      delete g.window;
+      delete g.SpeechSynthesisUtterance;
+    }
   });
 
   it("reads a nudge as a person, not a headline", () => {

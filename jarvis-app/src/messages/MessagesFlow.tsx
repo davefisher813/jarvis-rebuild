@@ -3336,7 +3336,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="launch-row" role="button" tabIndex={0} onClick={() => {
                 if (speaking) { stopSpeaking(); setSpeaking(false); return; }
                 const notices = mailNotices(loadMailSnapshot(), todayISO());
-                setSpeaking(speak(speakable(notices, inboxSentence(notices, loadMailSnapshot()))));
+                // EMAIL-F-25 (2026-09-05): the pill follows the voice. It
+                // used to be set from speak()'s return alone, so it stayed on
+                // Stop after the speech ended.
+                setSpeaking(speak(speakable(notices, inboxSentence(notices, loadMailSnapshot())), () => setSpeaking(false)));
               }}>
                 <span className="launch-ic" aria-hidden="true"><Volume2 className="ic" /></span>
                 <div className="row-grow">

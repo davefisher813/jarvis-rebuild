@@ -39,12 +39,24 @@ export function canSpeak(): boolean {
   return typeof window !== "undefined" && "speechSynthesis" in window;
 }
 
-export function speak(text: string): boolean {
+// EMAIL-F-25 (2026-09-05): "Read It to Me pill stays on Stop after the speech
+// ends." This returned true and never said another word, so the pill sat on
+// Stop after the voice had finished: tapping it cancelled nothing and flipped
+// to Play, and it took a second tap to hear anything. `onEnd` fires when the
+// utterance finishes, is cancelled, or errors, which are the three ways the
+// speaking stops, so the control can follow the voice instead of the tap.
+export function speak(text: string, onEnd?: () => void): boolean {
   if (!canSpeak() || !text.trim()) return false;
   try {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.rate = 1.05;
+    if (onEnd) {
+      let done = false;
+      const fire = () => { if (done) return; done = true; onEnd(); };
+      u.onend = fire;
+      u.onerror = fire;
+    }
     window.speechSynthesis.speak(u);
     return true;
   } catch {
