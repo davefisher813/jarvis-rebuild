@@ -130,6 +130,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const [routineData, setRoutineData] = useState<RoutineData>(DEFAULT_ROUTINE);
   const [routineSet, setRoutineSet] = useState(true);
   const [loading, setLoading] = useState(true);
+  // SCHED-F-14 (2026-09-05): the last reload failed. The page renders what it
+  // has and a quiet row says so, with the retry on it.
+  const [loadFailed, setLoadFailed] = useState(false);
   const [newStart, setNewStart] = useState<string | null>(null);
   // THE TRAINING DOOR (D4-C). The gym's programs and history, read only so a
   // door event can name the day's lift and price it -- and the overlay that
@@ -141,18 +144,30 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   const [guard, setGuard] = useState<{ id: string; date: string } | null>(null);
   const nudgedDays = useRef<Set<string>>(new Set());
 
+  // SCHED-F-14 (2026-09-05): four awaits that can each throw sat in front of
+  // setLoading(false) with no catch, and the mount effect dropped the
+  // rejection, so a cold start with no preload cache and no signal (or an
+  // RLS or token error) showed SkeletonRows for good with no message; the
+  // per-tab error boundary does not see a rejected promise. Loading now
+  // clears either way and a failure is a row on the page, not silence.
   const reload = useCallback(async () => {
     setProposalDraft(readDraft(selected));
-    // Self-healing dedupe (hotfix 2026-08-21): a task never keeps two plan
-    // events on the viewed day. Runs on what this read actually sees, so a
-    // cold read heals nothing rather than deleting on absence.
-    const d = new Date();
-    const healNow = selected === todayISO() ? d.getHours() * 60 + d.getMinutes() : null;
-    await svc.healPlanDuplicates(selected, healNow);
-    setDots(await svc.daysWithEvents(view.y, view.m));
-    setDayEvents(await svc.eventsOn(selected));
-    setAllEvents(await svc.listEvents());
-    setLoading(false);
+    try {
+      // Self-healing dedupe (hotfix 2026-08-21): a task never keeps two plan
+      // events on the viewed day. Runs on what this read actually sees, so a
+      // cold read heals nothing rather than deleting on absence.
+      const d = new Date();
+      const healNow = selected === todayISO() ? d.getHours() * 60 + d.getMinutes() : null;
+      await svc.healPlanDuplicates(selected, healNow);
+      setDots(await svc.daysWithEvents(view.y, view.m));
+      setDayEvents(await svc.eventsOn(selected));
+      setAllEvents(await svc.listEvents());
+      setLoadFailed(false);
+    } catch {
+      setLoadFailed(true);
+    } finally {
+      setLoading(false);
+    }
   }, [svc, view.y, view.m, selected]);
 
   useEffect(() => {
@@ -1147,6 +1162,8 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         gymDoorFor={gymDoorFor}
         conflicts={conflicts}
         loading={loading}
+        loadFailed={loadFailed}
+        onRetryLoad={() => { setLoading(true); void reload(); }}
         mode={mode}
         onMode={setMode}
         repeats={repeatRows(allEvents)}

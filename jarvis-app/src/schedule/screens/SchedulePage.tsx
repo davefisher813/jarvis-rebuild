@@ -83,7 +83,7 @@ function weekRange(cells: WeekCell[]): string {
 
 export default function SchedulePage({
   year, month, selected, todayDate, dots, dayEvents, conflicts, gymDoorFor,
-  mode = "month", onMode, weekCells = [], weekRows = [], loading, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
+  mode = "month", onMode, weekCells = [], weekRows = [], loading, loadFailed, onRetryLoad, repeats = [], overlap, onFixOverlap, clashCount = 0, onOverlapBadge, onCopyDay, repeatMarks = new Set<string>(),
   onPrev, onNext, onSelect, onNew, onOpenEvent, onPickSlot, onPlanDay, onUpload, onDeleteMany,
   locked = [], now, onEditRoutine, onOpenBlock, onFillBlock, onShift, onMoveTo, onSetEnd, onSkipToday, onPushTomorrow, onRunningLate,
   onShiftBlock, onRetimeBlock, onResizeBlock,
@@ -97,6 +97,11 @@ export default function SchedulePage({
   // this date; the page just hands it to the row.
   gymDoorFor?: (e: EventItem) => import("./DayRow").GymDoorView | null;
   mode?: Mode; onMode?: (m: Mode) => void; weekCells?: WeekCell[]; loading?: boolean;
+  // SCHED-F-14 (2026-09-05): the flow's last read failed. Rendered as one
+  // quiet row in place of the day's list, with the retry on it, so a cold
+  // start with no signal is a fact on the page rather than skeleton rows
+  // that never resolve.
+  loadFailed?: boolean; onRetryLoad?: () => void;
   // THE WEEK (D2, approved 2026-09-01): seven day-rows with capacity bars,
   // derived by the flow (schedule/weekRows.ts) from the same window and the
   // same open-slot rule the Day view uses.
@@ -581,6 +586,11 @@ export default function SchedulePage({
 
       {loading ? (
         <SkeletonRows />
+      ) : loadFailed ? (
+        <div className="empty-state">
+          <div className="t-body">Couldn't load this day</div>
+          <button className="btn btn-secondary" onClick={onRetryLoad}>Try Again</button>
+        </div>
       ) : entries.every((en) => en.kind === "gap") ? (
         // B15: the head above already renders a filled Plan My Day, which
         // fills the whole day. New Event adds one row, so it takes the

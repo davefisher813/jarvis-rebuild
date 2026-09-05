@@ -55,3 +55,26 @@ describe("Schedule: a fresh task list from another device repaints Anytime", () 
     await waitFor(() => expect(screen.getByText("Call the vet")).toBeInTheDocument());
   });
 });
+
+// SCHED-F-14 (2026-09-05): reload() had no catch and setLoading(false) was
+// its last line, so a read that failed at open left SkeletonRows up for good
+// with no message. The page now says so and offers the retry.
+describe("Schedule: a read that fails at open is a row with a retry, not skeleton rows forever", () => {
+  it("shows Couldn't load this day, drops the skeleton, and Try Again loads the day", async () => {
+    const { vi } = await import("vitest");
+    const { ScheduleService } = await import("./ScheduleService");
+    const spy = vi.spyOn(ScheduleService.prototype, "healPlanDuplicates").mockRejectedValueOnce(new Error("no signal"));
+    try {
+      const { container } = render(<NotesProvider userId="u-sched-fail"><ScheduleFlow /></NotesProvider>);
+      await screen.findAllByText("Schedule");
+      await waitFor(() => expect(screen.getByText("Couldn't load this day")).toBeInTheDocument());
+      expect(container.querySelector(".skel-rows, .skel-row, .skel-line")).toBeNull();
+      fireEvent.click(screen.getByText("Try Again"));
+      await waitFor(() => expect(screen.queryByText("Couldn't load this day")).not.toBeInTheDocument());
+      await waitFor(() => expect(container.querySelector(".skel-line")).toBeNull());
+      expect(screen.getByText("No events")).toBeInTheDocument();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
