@@ -103,11 +103,17 @@ export async function processOutboxSend(item: OutboxItem, deps: SendDeps): Promi
         if (failed.length) showToast({ message: "Sent · The old draft is still in your drafts" });
       })();
     }
+    // EMAIL-F-02 (2026-09-05): "Chase If No Reply is set and cleared in the
+    // same breath." The clear is meant to retire an OLD chase when he acts
+    // on a thread (N3's own law: any send on that thread answers it); it
+    // used to run AFTER setChase on the same thread id, so the chase he had
+    // just asked for was gone before the toast faded, whatever days he
+    // picked. Retire first, then set, so Off clears and 3d survives.
+    if (item.threadId) clearChase(item.threadId);
     if (item.threadId && (item.chaseDays ?? 0) > 0) {
       setChase({ threadId: item.threadId, to: item.to, subject: item.subject, setISO: todayISO(), days: item.chaseDays! });
     }
     if (item.nudge && item.threadId) countNudge(item.threadId);
-    if (item.threadId) clearChase(item.threadId);
     const threadForPromise = item.threadId || sent.threadId;
     if (deps.tasks && deps.ai.available && !item.handoffTo && threadForPromise && !alreadyPromised(threadForPromise)) {
       const tasks = deps.tasks;

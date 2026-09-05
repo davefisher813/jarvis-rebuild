@@ -13,6 +13,7 @@ import ToastHost from "../shared/ToastHost";
 import { enqueueOutbox, getOutbox, loadOutbox, patchOutbox, resetOutboxForTest, type OutboxItem } from "./outbox";
 import { processOutboxSend, type SendDeps } from "./sendPump";
 import { loadNudgeCounts } from "./escalate";
+import { loadChases, setChase } from "./followUp";
 
 const noAI = new AIService({ available: false });
 
@@ -144,6 +145,38 @@ describe("processOutboxSend: the side effects the tab used to own", () => {
     for (const o of [...getOutbox()]) await processOutboxSend(o, depsWith(api));
     expect(loadNudgeCounts()["th-nudge"]).toBe(1);
     expect(loadNudgeCounts()["th-reply"]).toBeUndefined();
+  });
+
+  // EMAIL-F-02 (2026-09-05): "Chase If No Reply is set and cleared in the
+  // same breath." Compose showed "In 3 days", he sent, and no chase card
+  // ever appeared: setChase ran, then clearChase on the same thread id ran
+  // right after it (MessagesFlow.tsx:1329-1334, ported verbatim). Verified
+  // by running the same call order: after setChase 1, after clearChase 0.
+  it("Chase If No Reply survives the send that set it", async () => {
+    const api = makeFakeGoogleApi();
+    enqueueOutbox(item({ threadId: "th-chase", chaseDays: 3 }));
+    await processOutboxSend(getOutbox()[0]!, depsWith(api));
+    const chase = loadChases().find((c) => c.threadId === "th-chase");
+    expect(chase).toBeDefined();
+    expect(chase!.dueISO > chase!.setISO).toBe(true);
+  });
+
+  it("a send with the chase Off retires the old chase on that thread", async () => {
+    setChase({ threadId: "th-old", to: "wei@x.com", subject: "Waiver", setISO: "2026-09-01", days: 3 });
+    const api = makeFakeGoogleApi();
+    enqueueOutbox(item({ threadId: "th-old", chaseDays: 0 }));
+    await processOutboxSend(getOutbox()[0]!, depsWith(api));
+    expect(loadChases().some((c) => c.threadId === "th-old")).toBe(false);
+  });
+
+  it("a new chase replaces the old one on the same thread, never stacks", async () => {
+    setChase({ threadId: "th-again", to: "wei@x.com", subject: "Waiver", setISO: "2026-09-01", days: 7 });
+    const api = makeFakeGoogleApi();
+    enqueueOutbox(item({ threadId: "th-again", chaseDays: 2 }));
+    await processOutboxSend(getOutbox()[0]!, depsWith(api));
+    const mine = loadChases().filter((c) => c.threadId === "th-again");
+    expect(mine).toHaveLength(1);
+    expect(mine[0]!.setISO).not.toBe("2026-09-01");
   });
 
   it("a failed send stays in the outbox as failed with a human error, never dropped", async () => {
