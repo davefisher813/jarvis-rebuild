@@ -360,7 +360,12 @@ export default function GoalDetailPage({
       )}
       {goal.data.dropped && (
         <div className="pad-x conn-action">
-          <div className="conn-meta">Dropped {monthDay(goal.data.dropped.on)} · The reason is in your decisions</div>
+          {/* LIFE-F-27 (2026-09-05): the second clause was unconditional, so
+              a goal dropped without a decision record (the write can come
+              back empty) promised a reason that is not in Decisions. The
+              drop's own toast already branches on decisionId; this line
+              says the date it has and nothing it does not. */}
+          <div className="conn-meta">Dropped {monthDay(goal.data.dropped.on)}{goal.data.dropped.decisionId ? " · The reason is in your decisions" : ""}</div>
         </div>
       )}
       {dropOpen && onDrop && (
