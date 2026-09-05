@@ -27,7 +27,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; sourceTaskId?: string; taskIds?: string[]; source?: import("../shared/provenance").Source },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; sourceTaskId?: string; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -49,9 +49,32 @@ export class ScheduleService {
     if (opts.sourceTaskId) data.sourceTaskId = opts.sourceTaskId;
     if (opts.taskIds && opts.taskIds.length) data.taskIds = opts.taskIds;
     if (opts.source) data.source = opts.source;
+    // SCHED-F-09 (2026-09-05): a copy of a door block is still the door.
+    // Splitting one day off a Training Door series used to produce a block
+    // that no longer opened the gym, because the copy went through opts and
+    // opts had no way to say so. The receipts (trained) stay behind: they
+    // belong to the occurrence that earned them.
+    if (opts.gym) data.gym = true;
     const id = await this.store.create(this.ownerId, ENTITY_EVENT, data as unknown as ItemData);
     this.onEvent({ type: "entity.created", entityType: ENTITY_EVENT, entityId: id });
     return id;
+  }
+
+  // SCHED-F-09 (2026-09-05): the one door every Undo-after-delete goes
+  // through, the event twin of TasksService.recreateFrom (B1-3). createEvent's
+  // opts are a WHITELIST of the fields a person types into the new-event
+  // sheet, and every undo path re-created through it by hand, so a restored
+  // event came back without its end date, its skipped days, its attached
+  // tasks, its Training Door or its Google id: the daily gym block came back
+  // as an ordinary block that repeats forever. A snapshot is a whole record
+  // and is written back as one. With the deleted row's id it comes back as
+  // ITSELF, so a plan draft or a note pointing at it is not orphaned.
+  async recreateFrom(e: EventData, id?: string): Promise<string | null> {
+    if (!e.title || !e.title.trim() || !e.date || !e.start) return null;
+    const data: EventData = { ...e, title: e.title.trim() };
+    const newId = await this.store.create(this.ownerId, ENTITY_EVENT, data as unknown as ItemData, id);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_EVENT, entityId: newId });
+    return newId;
   }
 
   private async patch(id: string, patch: Partial<EventData>): Promise<boolean> {

@@ -21,6 +21,9 @@ import type { EventData, EventItem } from "./types";
 interface EventWriter {
   event(id: string): Promise<EventData | null>;
   createEvent(title: string, opts: Record<string, unknown>): Promise<string | null>;
+  // SCHED-F-09 (2026-09-05): the whole-record restore. An undo puts back what
+  // was there, not the handful of fields this file happened to list.
+  recreateFrom(e: EventData, id?: string): Promise<string | null>;
   deleteEvent(id: string): Promise<unknown>;
 }
 
@@ -39,7 +42,7 @@ export async function moveEventToAnytime(
   id: string,
   events: EventWriter,
   tasks: TaskMaker,
-): Promise<{ ok: boolean; event?: EventData; madeTaskId?: string }> {
+): Promise<{ ok: boolean; event?: EventData; eventId?: string; madeTaskId?: string }> {
   const e = await events.event(id);
   if (!e) return { ok: false };
   let madeTaskId: string | undefined;
@@ -47,7 +50,7 @@ export async function moveEventToAnytime(
     madeTaskId = (await tasks.createTask(e.title, { category: e.category || undefined })) ?? undefined;
   }
   await events.deleteEvent(id);
-  return { ok: true, event: e, madeTaskId };
+  return { ok: true, event: e, eventId: id, madeTaskId };
 }
 
 export async function undoMoveToAnytime(
@@ -55,13 +58,12 @@ export async function undoMoveToAnytime(
   madeTaskId: string | undefined,
   events: EventWriter,
   tasks: TaskMaker,
+  eventId?: string,
 ): Promise<void> {
   if (madeTaskId) await tasks.deleteTask(madeTaskId);
-  await events.createEvent(e.title, {
-    date: e.date, start: e.start, end: e.end,
-    category: e.category || undefined, location: e.location,
-    recurrence: e.recurrence, sourceTaskId: e.sourceTaskId,
-  });
+  // SCHED-F-09: the whole record, under its own id. The hand-listed subset
+  // here dropped the attached tasks, the Training Door and the series end.
+  await events.recreateFrom(e, eventId);
 }
 
 // DUPLICATE. onto `date`, defaulting to the event's own day. duplicateOf

@@ -116,3 +116,50 @@ describe("Schedule: editing one occurrence of a repeating event", () => {
     expect(copies[0]!.data.start).toBe("11:00");
   });
 });
+
+// SCHED-F-09 (2026-09-05): "Undo after deleting or moving an event restores a
+// lossy copy." Deleting the daily gym block and tapping Undo gave back a
+// block that was no longer the Training Door, ran forever, and had forgotten
+// the days that were skipped.
+describe("Schedule: Undo after a delete puts the whole event back", () => {
+  it("the door, the end date and the skipped days all come back, on the same event", async () => {
+    const { useSchedule } = await import("../data/NotesProvider");
+    const { notifyFreshLists } = await import("../data/store");
+    const { subscribeToast, resetToasts } = await import("../shared/toast");
+    const { ENTITY_EVENT } = await import("./types");
+    const { todayISO, addDays } = await import("./calendar");
+    resetToasts();
+    let sched: import("./ScheduleService").ScheduleService | null = null;
+    function Grab() { sched = useSchedule(); return null; }
+    render(<NotesProvider userId="u-undo-delete"><Grab /><ScheduleFlow /></NotesProvider>);
+    await screen.findAllByText("Schedule");
+    const today = todayISO();
+    const id = (await sched!.createEvent("Lift", {
+      date: today, start: "17:30", end: "18:30", recurrence: "daily", until: addDays(today, 60),
+    }))!;
+    await sched!.editGymDoor(id, true);
+    await sched!.addExdate(id, addDays(today, 3));
+    notifyFreshLists(ENTITY_EVENT);
+    // Tomorrow, so the row is not folded behind Earlier when the clock has
+    // already passed it today.
+    fireEvent.click(screen.getByLabelText("Next"));
+    await waitFor(() => expect(screen.getByText("Lift")).toBeInTheDocument());
+    let undo: (() => void) | undefined;
+    const stop = subscribeToast((t) => { if (t?.message === "Event deleted") undo = t.onAction; });
+    try {
+      fireEvent.click(screen.getByText("Lift"));
+      await screen.findByText("Edit Event");
+      fireEvent.click(screen.getByText("Delete Event"));
+      await waitFor(() => expect(undo).toBeTruthy());
+      expect(await sched!.event(id)).toBeNull();
+      undo!();
+      await waitFor(async () => expect(await sched!.event(id)).toBeTruthy());
+      const back = (await sched!.event(id))!;
+      expect(back.gym).toBe(true);
+      expect(back.until).toBe(addDays(today, 60));
+      expect(back.exdates).toEqual([addDays(today, 3)]);
+    } finally {
+      stop();
+    }
+  });
+});

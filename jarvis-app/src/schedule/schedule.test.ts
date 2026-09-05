@@ -370,3 +370,66 @@ dw("SCHED-F-01: every clear reaches the row (jsonb-style adapter)", () => {
     ew((await svc.eventsOn("2026-09-14")).length).toBe(1);
   });
 });
+
+// SCHED-F-09 (2026-09-05): "Undo after deleting or moving an event restores a
+// lossy copy." createEvent's opts are the fields of the new-event sheet, and
+// every undo path re-created through them, so a deleted gym block came back
+// without its door, its end date, its skipped days or its attached tasks.
+dw("SCHED-F-09: a restored event is the whole event", () => {
+  const make = async () => {
+    const { Store, InMemoryAdapter } = await import("@core");
+    const { ScheduleService } = await import("./ScheduleService");
+    return new ScheduleService(new Store(new InMemoryAdapter()), "u");
+  };
+
+  iw("recreateFrom puts back every field, under the same id", async () => {
+    const svc = await make();
+    const id = (await svc.createEvent("Lift", {
+      date: "2026-09-01", start: "06:00", end: "07:00", category: "health",
+      recurrence: "daily", until: "2026-11-30", taskIds: ["t1", "t2"], sourceTaskId: "t9",
+      gcalId: "g1", location: "Iron House",
+    }))!;
+    await svc.editGymDoor(id, true);
+    await svc.addExdate(id, "2026-09-14");
+    await svc.stampTrained(id, "2026-09-02", 52);
+    const before = (await svc.event(id))!;
+    await svc.deleteEvent(id);
+    const back = (await svc.recreateFrom(before, id))!;
+    ew(back).toBe(id);
+    ew(await svc.event(id)).toEqual(before);
+  });
+
+  iw("[edge] a snapshot with no title is refused rather than written empty", async () => {
+    const svc = await make();
+    ew(await svc.recreateFrom({ title: "  ", date: "2026-09-01", start: "09:00", category: "" })).toBeNull();
+  });
+
+  iw("moving one day of a Training Door series leaves a copy that still opens the gym", async () => {
+    const { moveEvent } = await import("./eventAdjust");
+    const svc = await make();
+    const id = (await svc.createEvent("Gym", { date: "2026-09-01", start: "17:30", end: "18:30", recurrence: "daily" }))!;
+    await svc.editGymDoor(id, true);
+    const out = await moveEvent(id, "19:00", "2026-09-10", svc);
+    ew(out.repeating).toBe(true);
+    const copy = (await svc.event(out.copyId!))!;
+    ew(copy.gym).toBe(true);
+    ew(copy.date).toBe("2026-09-10");
+    // The receipts stay with the series: they belong to the days that earned them.
+    ew(copy.trained).toBeUndefined();
+  });
+
+  iw("Undo of Move to Anytime brings the door and the series end back with it", async () => {
+    const { moveEventToAnytime, undoMoveToAnytime } = await import("./eventMoves");
+    const svc = await make();
+    const tasks = { createTask: async () => "t-new", deleteTask: async () => {} };
+    const id = (await svc.createEvent("Lift", { date: "2026-09-01", start: "06:00", recurrence: "weekly", until: "2026-11-30", taskIds: ["t1"] }))!;
+    await svc.editGymDoor(id, true);
+    const res = await moveEventToAnytime(id, svc, tasks);
+    ew(await svc.event(id)).toBeNull();
+    await undoMoveToAnytime(res.event!, res.madeTaskId, svc, tasks, res.eventId);
+    const back = (await svc.event(id))!;
+    ew(back.gym).toBe(true);
+    ew(back.until).toBe("2026-11-30");
+    ew(back.taskIds).toEqual(["t1"]);
+  });
+});

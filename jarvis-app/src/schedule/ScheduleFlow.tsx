@@ -486,12 +486,17 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId]);
 
-  const offerUndoEvent = (e: EventData) => {
+  // SCHED-F-09 (2026-09-05): Undo puts the WHOLE event back, under its own
+  // id. The hand-listed opts here dropped the series end, the skipped days,
+  // the attached tasks, the Training Door and its receipts, so undoing a
+  // deleted gym block gave back a block that was no longer the door and ran
+  // forever.
+  const offerUndoEvent = (e: EventData, id: string) => {
     showToast({
       message: "Event deleted",
       actionLabel: "Undo",
       onAction: async () => {
-        await attemptWrite(() => svc.createEvent(e.title, { date: e.date, start: e.start, end: e.end, category: e.category || undefined, location: e.location, recurrence: e.recurrence }));
+        await attemptWrite(() => svc.recreateFrom(e, id));
         await reload();
       },
     });
@@ -570,30 +575,26 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
   // plainly what happened and offer the way back.
   const onDeleteManyEvents = async (ids: string[]) => {
     if (ids.length === 0) return;
-    const kept: EventData[] = [];
+    // SCHED-F-09: the snapshot keeps each event's id, so Undo brings the same
+    // records back rather than lookalikes with new ids.
+    const kept: { id: string; data: EventData }[] = [];
     for (const id of ids) {
       const e = await svc.event(id);
-      if (e) kept.push(e);
+      if (e) kept.push({ id, data: e });
     }
     let gone = 0;
     await attemptWrite(async () => { for (const id of ids) { await svc.deleteEvent(id); gone++; } });
     await reload();
     if (gone === 0) return;
     const n = gone;
-    const repeats = kept.slice(0, n).filter((e) => (e.recurrence ?? "none") !== "none").length;
+    const repeats = kept.slice(0, n).filter((e) => (e.data.recurrence ?? "none") !== "none").length;
     showToast({
       message: (n === 1 ? "Event deleted" : n + " events deleted")
         + (repeats > 0 ? " \u00b7 " + (repeats === 1 ? "1 was a repeat" : repeats + " were repeats") : ""),
       actionLabel: "Undo",
       onAction: async () => {
         await attemptWrite(async () => {
-          for (const e of kept.slice(0, n)) {
-            await svc.createEvent(e.title, {
-              date: e.date, start: e.start, end: e.end,
-              category: e.category || undefined, location: e.location,
-              recurrence: e.recurrence, sourceTaskId: e.sourceTaskId,
-            });
-          }
+          for (const e of kept.slice(0, n)) await svc.recreateFrom(e.data, e.id);
         });
         await reload();
       },
@@ -608,8 +609,9 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         await attemptWrite(() => svc.addExdate(sheet.id, sheet.occurrence));
       } else {
         const e = await svc.event(sheet.id);
-        const ok = await attemptWrite(() => svc.deleteEvent(sheet.id));
-        if (ok && e) offerUndoEvent(e);
+        const deletedId = sheet.id;
+        const ok = await attemptWrite(() => svc.deleteEvent(deletedId));
+        if (ok && e) offerUndoEvent(e, deletedId);
       }
     }
     setSheet(null);
@@ -737,12 +739,13 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
     const r = res as MoveRes | null;
     if (!ok || !r?.ok || !r.event) return;
     const kept = r.event;
+    const keptId = r.eventId;
     const madeTaskId = r.madeTaskId;
     showToast({
       message: "Moved to Anytime",
       actionLabel: "Undo",
       onAction: async () => {
-        await attemptWrite(() => undoMoveToAnytime(kept, madeTaskId, svc, tasksSvc));
+        await attemptWrite(() => undoMoveToAnytime(kept, madeTaskId, svc, tasksSvc, keptId));
         await reload(); await reloadTasks();
       },
     });
