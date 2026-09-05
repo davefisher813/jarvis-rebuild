@@ -42,7 +42,10 @@ export function fold(line: string): string {
 export function escapeText(s: string): string {
   return s
     .replace(/\\/g, "\\\\")
-    .replace(/;/g, "\;")
+    // LIFE-F-21 (2026-09-05): this read "\;" in source, which is an unknown
+    // escape in a JS string and evaluates to a bare ";": the semicolon went
+    // out unescaped and a strict calendar parser truncates the SUMMARY there.
+    .replace(/;/g, "\\;")
     .replace(/,/g, "\\,")
     .replace(/\r?\n/g, "\\n");
 }

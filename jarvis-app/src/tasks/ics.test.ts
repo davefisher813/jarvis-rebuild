@@ -25,7 +25,10 @@ describe("rruleFor", () => {
 describe("text escaping keeps a med name from breaking the file", () => {
   it("escapes the structural characters", () => {
     expect(escapeText("Vitamin D, 2x")).toBe("Vitamin D\\, 2x");
-    expect(escapeText("a;b")).toBe("a\;b");
+    // LIFE-F-21: the assertion copied the source's broken literal, so it
+    // asserted the bug ("a\;b" is just "a;b"). Two backslashes is the real
+    // escaped form.
+    expect(escapeText("a;b")).toBe("a\\;b");
     expect(escapeText("a\\b")).toBe("a\\\\b");
     expect(escapeText("one\ntwo")).toBe("one\\ntwo");
   });
