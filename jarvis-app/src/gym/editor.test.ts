@@ -230,3 +230,25 @@ describe("GYM-F-26: every row menu has a visible door", () => {
     expect(src("ExerciseSheet.tsx")).toMatch(/onKeyDown=\{\(e\) => \{ if \(e\.key === "Enter" \|\| e\.key === " "\) \{ e\.preventDefault\(\); pickSuggestion\(s\); \} \}\}/);
   });
 });
+
+// BROWSER-F-11 (2026-09-05, fork option A): with fourteen logged workouts in
+// the store, Training showed only "No Program Yet" while the Health page above
+// it said "Last session Push Day · Aug 28". Recent and the History pill lived
+// inside the `program` branch; creating any program, even an empty one, made
+// them appear. Your history is yours whether or not a program exists.
+describe("BROWSER-F-11: history does not need a program", () => {
+  const flow = src("GymFlow.tsx");
+
+  it("Recent and History render outside both branches", () => {
+    const i = flow.indexOf("{recent.length > 0 && (");
+    const branchEnd = flow.indexOf('        {!program ? (');
+    expect(i).toBeGreaterThan(branchEnd);
+    // the block that closes the program branch comes BEFORE the Recent block
+    expect(flow.lastIndexOf("          </>\n        )}\n", i)).toBeGreaterThan(branchEnd);
+    expect(flow).toMatch(/setHistoryOpen\(true\)\}>History<\/button>/);
+  });
+
+  it("the empty state goes compact once there is history under it", () => {
+    expect(flow).toContain('className={"empty-state" + (recent.length > 0 ? " empty-compact" : "")}');
+  });
+});

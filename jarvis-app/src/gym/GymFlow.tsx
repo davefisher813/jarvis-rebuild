@@ -1839,7 +1839,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
         )}
 
         {!program ? (
-          <div className="empty-state">
+          // BROWSER-F-11: with history below it, the empty state is a card at
+          // the top of a real page rather than the whole screen.
+          <div className={"empty-state" + (recent.length > 0 ? " empty-compact" : "")}>
             <div className="empty-icon">{DUMBBELL}</div>
             <div className="empty-title">No Program Yet</div>
             <button className="btn btn-primary btn-launch" onClick={() => openProgramSheet()}>Create a Program</button>
@@ -1991,38 +1993,44 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
                 </div></div>
               </>
             )}
-
-            {recent.length > 0 && (
-              <>
-                {/* History wears the home-page head pill (Dave 2026-08-26's
-                    rule, spread here 2026-08-31 with the count-pill wave). */}
-                <div className="sh2 sh2-quiet"><span className="t">Recent</span><button className="see-all pill-action" onClick={() => setHistoryOpen(true)}>History</button></div>
-                <div className="pad-x"><div className="card list-card-ruled">
-                  {recent.map((w) => {
-                    const logged = w.data.exercises.filter((e) => e.sets.some((s) => !s.skipped)).length;
-                    const total = w.data.exercises.length;
-                    const mins = Math.max(1, Math.round((w.data.endedAt - w.data.startedAt) / 60000));
-                    return (
-                      // Tappable since 2026-08-09: these rows were inert, which
-                      // made a mislogged workout permanent. The detail sheet
-                      // carries the delete.
-                      <div className="row" role="button" tabIndex={0} key={w.id} onClick={() => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }}>
-                        <div className="row-grow">
-                          <div className="conn-name truncate">{w.data.dayName}</div>
-                          {/* Partial work is stated as the fact it is: never a
-                              percentage, never a shortfall. */}
-                          <div className="conn-meta">{monthDay(w.data.date)} · {mins} min · {logged === total ? capAfterNumber(`${total} ${total === 1 ? "exercise" : "exercises"}`) : capAfterNumber(`${logged} of ${total} exercises`)}</div>
-                        </div>
-                        {CHEV}
-                      </div>
-                    );
-                  })}
-                </div></div>
-              </>
-            )}
-            <div className="screen-foot" />
           </>
         )}
+
+        {/* BROWSER-F-11 (2026-09-05, fork option A): your history is yours
+            whether or not a program exists. Recent and the History pill used
+            to live inside the `program` branch, so a store with fourteen
+            logged workouts showed "No Program Yet" and nothing else, while
+            the Health page above it said "Last session Push Day · Aug 28".
+            Creating any program, even an empty one, made them appear. */}
+        {recent.length > 0 && (
+          <>
+            {/* History wears the home-page head pill (Dave 2026-08-26's
+                rule, spread here 2026-08-31 with the count-pill wave). */}
+            <div className="sh2 sh2-quiet"><span className="t">Recent</span><button className="see-all pill-action" onClick={() => setHistoryOpen(true)}>History</button></div>
+            <div className="pad-x"><div className="card list-card-ruled">
+              {recent.map((w) => {
+                const logged = w.data.exercises.filter((e) => e.sets.some((s) => !s.skipped)).length;
+                const total = w.data.exercises.length;
+                const mins = Math.max(1, Math.round((w.data.endedAt - w.data.startedAt) / 60000));
+                return (
+                  // Tappable since 2026-08-09: these rows were inert, which
+                  // made a mislogged workout permanent. The detail sheet
+                  // carries the delete.
+                  <div className="row" role="button" tabIndex={0} key={w.id} onClick={() => { setViewWorkout(w); setWorkoutDraft(w.data.exercises); }}>
+                    <div className="row-grow">
+                      <div className="conn-name truncate">{w.data.dayName}</div>
+                      {/* Partial work is stated as the fact it is: never a
+                          percentage, never a shortfall. */}
+                      <div className="conn-meta">{monthDay(w.data.date)} · {mins} min · {logged === total ? capAfterNumber(`${total} ${total === 1 ? "exercise" : "exercises"}`) : capAfterNumber(`${logged} of ${total} exercises`)}</div>
+                    </div>
+                    {CHEV}
+                  </div>
+                );
+              })}
+            </div></div>
+          </>
+        )}
+        <div className="screen-foot" />
       </div>
 
       {sheetEl()}
