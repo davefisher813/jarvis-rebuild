@@ -516,7 +516,10 @@ export default function CategoryDetail({
   const dayGroups = groupByDay(rec.recent);
   const shownGroups = weekOpen ? dayGroups : dayGroups.slice(0, 2);
 
-  const toggle = async (id: string) => { await tasksSvc.toggleDone(id); await reload(); };
+  // BRAIN-F-12 (2026-09-05): a check that failed used to fail silently, so
+  // the row came back unchecked with nothing said. Same guard the deletes and
+  // snoozes on this page already run through.
+  const toggle = async (id: string) => { await attemptWrite(() => tasksSvc.toggleDone(id)); await reload(); };
 
   // THE SAME CLEARING AS EVERYWHERE (Dave 2026-09-02, the Health page's Up
   // Next: "the same clearing ability as well"). Delete with an Undo that
@@ -603,7 +606,9 @@ export default function CategoryDetail({
         <div className="pad-x"><div className="card">
           <div className="row">
             <div className="row-grow"><div className="conn-name">Paused for Now</div></div>
-            <button className="btn-sm" onClick={async () => { await catsSvc.update(categoryId, { season: undefined }); onChanged?.(); await reload(); }}>Wake Up</button>
+            {/* BRAIN-F-12 (2026-09-05): Wake Up did nothing and said nothing
+                when the write failed; the banner just stayed. */}
+            <button className="btn-sm" onClick={async () => { const ok = await attemptWrite(() => catsSvc.update(categoryId, { season: undefined })); if (!ok) return; onChanged?.(); await reload(); }}>Wake Up</button>
           </div>
         </div></div>
       )}

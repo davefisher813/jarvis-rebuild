@@ -99,14 +99,20 @@ export default function StrandsPage({ onBack, openId: initialOpenId }: { onBack:
     if (!text.trim() || saving) return;
     setSaving(true);
     haptics.success();
-    // Only ever pass the fourth argument when it says something other than
-    // add()'s own default, so an ordinary fact (the common case) reaches the
-    // service exactly as it always did.
-    const id = rule ? await svc.add(text, cat, today, "rule") : await svc.add(text, cat, today);
-    if (!id) showToast({ message: "The Brain is full · Delete one first" });
-    else showToast({ message: "JARVIS will remember that" });
-    setAdding(false); setText("");
+    // BRAIN-F-12 (2026-09-05): unguarded, a dropped connection threw right
+    // here and left the button reading "Saving..." for good, with the typing
+    // trapped behind it. attemptWrite says so instead, the latch lets go, and
+    // the sheet stays open on what was written.
+    const ok = await attemptWrite(async () => {
+      // Only ever pass the fourth argument when it says something other than
+      // add()'s own default, so an ordinary fact (the common case) reaches the
+      // service exactly as it always did.
+      const id = rule ? await svc.add(text, cat, today, "rule") : await svc.add(text, cat, today);
+      showToast({ message: id ? "JARVIS will remember that" : "The Brain is full · Delete one first" });
+    });
     setSaving(false);
+    if (!ok) return;
+    setAdding(false); setText("");
     await reload();
   };
 
@@ -120,18 +126,22 @@ export default function StrandsPage({ onBack, openId: initialOpenId }: { onBack:
     if (!open || !text.trim() || saving) return;
     setSaving(true);
     haptics.selection();
-    await svc.edit(open, text, today);
-    if (cat !== open.data.category) {
-      const moved = await svc.recategorize(open, cat);
-      if (!moved) showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" });
-    }
-    // S4-Q24: the only writer of strength, and only when it actually
-    // changed -- re-saving an unchanged edit is not a rule declaration.
-    if (rule !== (open.data.strength === "rule")) {
-      await svc.setStrength(open, rule ? "rule" : "influence");
-    }
-    setEditing(false); setOpenId(null); setText("");
+    // BRAIN-F-12 (2026-09-05): same latch, same fix as doAdd above.
+    const ok = await attemptWrite(async () => {
+      await svc.edit(open, text, today);
+      if (cat !== open.data.category) {
+        const moved = await svc.recategorize(open, cat);
+        if (!moved) showToast({ message: "The Brain is full · Prune it in What JARVIS Knows" });
+      }
+      // S4-Q24: the only writer of strength, and only when it actually
+      // changed -- re-saving an unchanged edit is not a rule declaration.
+      if (rule !== (open.data.strength === "rule")) {
+        await svc.setStrength(open, rule ? "rule" : "influence");
+      }
+    });
     setSaving(false);
+    if (!ok) return;
+    setEditing(false); setOpenId(null); setText("");
     await reload();
   };
 
@@ -159,7 +169,11 @@ export default function StrandsPage({ onBack, openId: initialOpenId }: { onBack:
 
   const doPause = async (s: Strand) => {
     haptics.selection();
-    await svc.setStatus(s, s.data.status === "active" ? "paused" : "active");
+    // BRAIN-F-12 (2026-09-05): a failed pause used to close the sheet over a
+    // strand that was still active, which is the app claiming a write it
+    // never made. It says so now and leaves the sheet where it was.
+    const ok = await attemptWrite(() => svc.setStatus(s, s.data.status === "active" ? "paused" : "active"));
+    if (!ok) return;
     setOpenId(null);
     await reload();
   };

@@ -182,6 +182,40 @@ describe("CategoryDetail save guard (BRAIN-F-09)", () => {
   });
 });
 
+// BRAIN-F-12 (2026-09-05): the check on a task row wrote with no guard, so a
+// failed one un-checked itself with nothing said at all.
+function SeededOpenTask() {
+  const cats = useCategories();
+  const tasks = useTasks();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const id = await cats.create("Bridge", "blue");
+      await tasks.createTask("Email Sam", { category: id! });
+      tasksRef = tasks;
+      setCid(id!);
+    })();
+  }, [cats, tasks]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
+}
+
+describe("CategoryDetail check guard (BRAIN-F-12)", () => {
+  it("a check that does not stick says so", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    try {
+      render(<NotesProvider userId="cg1"><SeededOpenTask /></NotesProvider>);
+      await screen.findByText("Email Sam");
+      tasksRef!.toggleDone = () => Promise.reject(new Error("offline"));
+      fireEvent.click(document.querySelector(".task-check-tap") as HTMLElement);
+      await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
+      expect(screen.getByText("Email Sam")).toBeInTheDocument();
+    } finally {
+      stop();
+    }
+  });
+});
+
 // Org pages become health boards (2026-08-10, Dave: "improve the orgs page
 // as well to make it more than just a list"). Rows carry the next action
 // with its due date, overdue counts, stalled states, and the org's tagged

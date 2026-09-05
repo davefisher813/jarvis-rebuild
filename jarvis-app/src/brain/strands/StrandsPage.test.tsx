@@ -273,3 +273,50 @@ describe("receiptLine speaks each derivation's own numbers", () => {
     expect(receiptLine("plan_rate", { day: "d" })).toBe("Seen");
   });
 });
+
+// BRAIN-F-12 (2026-09-05): "Add One Thing" stuck on "Saving..." after a
+// dropped connection. The write had no guard, so a throw skipped the reset
+// and the only exit was leaving the page, which loses what was typed.
+import { WRITE_FAILED_MESSAGE } from "../../shared/guard";
+import { subscribeToast } from "../../shared/toast";
+
+describe("StrandsPage write guard (BRAIN-F-12)", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    svc.list.mockResolvedValue([]);
+  });
+
+  it("a failed add says so and gives the button back, with the typing still there", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    try {
+      svc.add.mockRejectedValueOnce(new Error("offline"));
+      render(<StrandsPage onBack={() => {}} />);
+      fireEvent.click(await screen.findByText("Add One Thing"));
+      fireEvent.change(await screen.findByPlaceholderText(/Brainstorms best at night/), { target: { value: "Writes best at night" } });
+      fireEvent.click(screen.getByText("Save"));
+      await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
+      await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
+      expect(screen.queryByText("Saving...")).not.toBeInTheDocument();
+      expect(screen.getByDisplayValue("Writes best at night")).toBeInTheDocument();
+    } finally {
+      stop();
+    }
+  });
+
+  it("a failed pause says so and does not close over a strand that is still active", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    try {
+      svc.list.mockResolvedValue([strand()]);
+      svc.setStatus.mockRejectedValueOnce(new Error("offline"));
+      render(<StrandsPage onBack={() => {}} />);
+      fireEvent.click(await screen.findByText("Gets things done mid morning"));
+      fireEvent.click(await screen.findByText("Pause"));
+      await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
+      expect(screen.getByText("Pause")).toBeInTheDocument();
+    } finally {
+      stop();
+    }
+  });
+});

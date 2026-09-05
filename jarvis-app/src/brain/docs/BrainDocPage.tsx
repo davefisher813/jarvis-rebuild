@@ -30,11 +30,20 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
   const [reading, setReading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // BRAIN-F-12 (2026-09-05): with no catch, one failed read left `loaded`
+  // false forever: the writing surface stayed greyed out with nothing said
+  // and no way to ask again short of leaving the tab. It says so now, and
+  // Try Again re-runs this effect.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let on = true;
-    docs.get(topic).then((t) => { if (on) { setText(t); setLoaded(true); } });
+    setLoadFailed(false);
+    docs.get(topic)
+      .then((t) => { if (on) { setText(t); setLoaded(true); } })
+      .catch(() => { if (!on) return; setLoadFailed(true); showToast({ message: "Couldn't load · Check your connection" }); });
     return () => { on = false; };
-  }, [docs, topic]);
+  }, [docs, topic, attempt]);
 
   // Failed saves surface instead of dying silently (audit 2026-07-30).
   const save = async () => {
@@ -79,6 +88,11 @@ export default function BrainDocPage({ topic, onBack }: { topic: string; onBack:
       {/* Deep writing pass (2026-08-19): brain docs write on the notes
           canvas, not in a boxed form field. Same typography, same caret. */}
       <div className="pad-x sheet-form">
+        {loadFailed && !loaded && (
+          <div className="card list-card-ruled">
+            <button className="row row-act" onClick={() => setAttempt((n) => n + 1)}>Try Again</button>
+          </div>
+        )}
         <textarea
           className="doc-textarea"
           placeholder={meta?.placeholder}

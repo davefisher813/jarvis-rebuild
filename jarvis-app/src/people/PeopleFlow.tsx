@@ -174,12 +174,17 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
 
   // Adversarial legacy review (consent-first): the flag now changes how the
   // app WRITES to a real person, so nobody gets flagged silently.
+  // BRAIN-F-12 (2026-09-05): both writes were unguarded, so a failed one left
+  // the review row exactly as it was with nothing said, and the clear even
+  // announced a move that had not happened.
   const confirmFlag = async (p: Person) => {
-    await people.update(p.id, { ...p.data, flagged: true });
+    const ok = await attemptWrite(() => people.update(p.id, { ...p.data, flagged: true }));
+    if (!ok) return;
     await reload();
   };
   const clearFlag = async (p: Person) => {
-    await people.update(p.id, { ...p.data, flagged: false, group: "contacts" });
+    const ok = await attemptWrite(() => people.update(p.id, { ...p.data, flagged: false, group: "contacts" }));
+    if (!ok) return;
     await reload();
     showToast({ message: p.data.name + " moved to Contacts" });
   };

@@ -33,3 +33,35 @@ describe("BrainDocPage", () => {
     await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
   });
 });
+
+// BRAIN-F-12 (2026-09-05): the loader had no catch, so one failed read left
+// this page greyed out for good: `loaded` never flipped, the writing surface
+// stayed disabled, and nothing said why or offered another go.
+import { vi } from "vitest";
+import { subscribeToast } from "../../shared/toast";
+
+describe("BrainDocPage load failure (BRAIN-F-12)", () => {
+  it("says the read failed and offers Try Again, which loads it", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    const spy = vi.spyOn(BrainDocService.prototype, "get").mockRejectedValueOnce(new Error("offline"));
+    try {
+      render(
+        <NotesProvider userId="u-doc-f12">
+          <BrainDocPage topic="writing" onBack={() => {}} />
+        </NotesProvider>,
+      );
+      await waitFor(() => expect(screen.getByText("Try Again")).toBeInTheDocument());
+      expect(seen).toContain("Couldn't load · Check your connection");
+      expect(await screen.findByPlaceholderText(/Tone · style/i)).toBeDisabled();
+
+      // The next read works, and the page is a page again.
+      fireEvent.click(screen.getByText("Try Again"));
+      await waitFor(() => expect(screen.queryByText("Try Again")).not.toBeInTheDocument());
+      expect(screen.getByPlaceholderText(/Tone · style/i)).not.toBeDisabled();
+    } finally {
+      spy.mockRestore();
+      stop();
+    }
+  });
+});

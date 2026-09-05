@@ -81,11 +81,18 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // BRAIN-F-12 (2026-09-05): one failed read used to leave every field on
+  // this page disabled for good, with no message and no way to retry.
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let on = true;
-    routine.get().then((r) => { if (on) { setData(r); setLoaded(true); } });
+    setLoadFailed(false);
+    routine.get()
+      .then((r) => { if (on) { setData(r); setLoaded(true); } })
+      .catch(() => { if (!on) return; setLoadFailed(true); showToast({ message: "Couldn't load · Check your connection" }); });
     return () => { on = false; };
-  }, [routine]);
+  }, [routine, attempt]);
 
   const set = (patch: Partial<RoutineData>) => {
     setData((d) => ({ ...d, ...patch }));
@@ -185,6 +192,12 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
         onBack={onBack}
         actions={<button className="nav-action-text" onClick={() => void save()} disabled={!dirty || !loaded}>{loaded && !dirty ? "Saved" : "Save"}</button>}
       />
+
+      {loadFailed && !loaded && (
+        <div className="pad-x"><div className="card list-card-ruled">
+          <button className="row row-act" onClick={() => setAttempt((n) => n + 1)}>Try Again</button>
+        </div></div>
+      )}
 
       <Head label="Active Hours" />
       <Card>

@@ -9,6 +9,7 @@ import { todayISO } from "../tasks/grouping";
 import { buildReport, type MonthReport, type CarriedTask } from "./report";
 import RollingNumber from "../shared/RollingNumber";
 import { showToast } from "../shared/toast";
+import { attemptWrite } from "../shared/guard";
 import { capAfterNumber } from "../shared/casing";
 import type { TaskData } from "../notes/types";
 import { TargetGlyph, CheckCircleGlyph, WarningGlyph, LockGlyph } from "../shared/glyphs";
@@ -379,24 +380,29 @@ export default function ReportFlow({ onBack, onOpenTask, month, live }: {
   // announces nothing (the toast right here is the announcement), so this
   // is a real row in What JARVIS Learned the instant it fires, not a
   // pending observation waiting on a second one that will never come.
+  // BRAIN-F-12 (2026-09-05): both of these wrote without a guard, so a failed
+  // one either did nothing and said nothing (the cap) or threw before its own
+  // toast (the drop). The receipt now follows the write instead of leading it.
   const onCap = async () => {
-    await rules.create("tuning", "plan.cap", "day", "3", "Chosen from the monthly report: first picks finish, later picks mostly do not");
+    const ok = await attemptWrite(() => rules.create("tuning", "plan.cap", "day", "3", "Chosen from the monthly report: first picks finish, later picks mostly do not"));
+    if (!ok) return;
     setCapped(true);
     showToast({ message: "Capped at 3 · Starting tomorrow" });
   };
 
   const onDropTask = async (c: CarriedTask) => {
     const data = taskById.get(c.id);
-    await tasksSvc.deleteTask(c.id);
+    const ok = await attemptWrite(() => tasksSvc.deleteTask(c.id));
+    if (!ok) return;
+    await load();
     showToast({
       message: "Task dropped",
       actionLabel: "Undo",
       onAction: async () => {
-        if (data) await tasksSvc.recreateFrom(data);
+        if (data) await attemptWrite(() => tasksSvc.recreateFrom(data));
         await load();
       },
     });
-    await load();
   };
 
   if (none) {
