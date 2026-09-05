@@ -12,6 +12,11 @@ export interface GoogleApi {
   modifyMessage(id: string, add: string[], remove: string[]): Promise<void>;
   listDrafts(max: number): Promise<{ id: string; message: GmailMeta }[]>;
   getDraft(id: string): Promise<{ id: string; message: GmailFull }>;
+  // EMAIL-F-14 (2026-09-05): a message he was still writing had nowhere to
+  // go but away. These two are what Cancel writes to, so an unfinished reply
+  // lands in the Drafts list he can already see rather than being discarded.
+  createDraft(raw: string, threadId?: string): Promise<{ id: string }>;
+  updateDraft(id: string, raw: string, threadId?: string): Promise<{ id: string }>;
   deleteDraft(id: string): Promise<void>;
   listThreads(max: number): Promise<GmailThreadMeta[]>;
   searchThreads(q: string, max: number): Promise<GmailThreadMeta[]>;
@@ -143,6 +148,26 @@ export function createGoogleApi(token: string, doFetch: FetchLike = fetch as unk
       const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts/" + id + "?format=full", auth);
       if (!r.ok) throw new Error("draft " + r.status);
       return (await r.json()) as { id: string; message: GmailFull };
+    },
+    async createDraft(raw, threadId) {
+      const message = threadId ? { raw, threadId } : { raw };
+      const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts", {
+        method: "POST",
+        headers: { ...auth.headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      if (!r.ok) throw new Error("draft create " + r.status);
+      return (await r.json()) as { id: string };
+    },
+    async updateDraft(id, raw, threadId) {
+      const message = threadId ? { raw, threadId } : { raw };
+      const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts/" + id, {
+        method: "PUT",
+        headers: { ...auth.headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ id, message }),
+      });
+      if (!r.ok) throw new Error("draft update " + r.status);
+      return (await r.json()) as { id: string };
     },
     async deleteDraft(id) {
       const r = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/drafts/" + id, { method: "DELETE", headers: auth.headers });

@@ -594,6 +594,67 @@ describe("MessagesFlow (threads)", () => {
     await waitFor(() => expect(deleted).toBe("d1"));
   });
 
+  // EMAIL-F-14 (2026-09-05): "Compose Cancel discards the message with no
+  // confirm and no draft save." Cancel only changed `view`: five minutes of
+  // writing went with one tap, and Edit on a Could Not Send card followed by
+  // Cancel lost the message that had already failed once. Anything with
+  // words in it now goes to Gmail Drafts on the way out.
+  it("Cancel saves what he wrote to Drafts, on the thread's own account", async () => {
+    const created: { raw: string; threadId?: string }[] = [];
+    const api = makeApi({ createDraft: async (raw: string, threadId?: string) => { created.push({ raw, threadId }); return { id: "nd1" }; } });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Ridgeley"));
+    fireEvent.click(await screen.findByText("Reply"));
+    fireEvent.change(screen.getByPlaceholderText("Message"), { target: { value: "Sending the waiver tonight" } });
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(await screen.findByText("Saved to Drafts")).toBeInTheDocument();
+    expect(created).toHaveLength(1);
+    expect(created[0]!.threadId).toBe("t1");
+    const decoded = atob(created[0]!.raw.replace(/-/g, "+").replace(/_/g, "/"));
+    expect(decoded).toContain("Sending the waiver tonight");
+    expect(decoded).toContain("To: t@x.com");
+  });
+
+  it("an empty compose still just closes, with nothing saved", async () => {
+    const created: string[] = [];
+    const api = makeApi({ createDraft: async (raw: string) => { created.push(raw); return { id: "nd2" }; } });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText("Ridgeley"));
+    fireEvent.click(await screen.findByText("Reply"));
+    fireEvent.click(screen.getByText("Cancel"));
+    await screen.findByText("Reply");
+    expect(created).toEqual([]);
+  });
+
+  it("a draft opened from the list is updated in place, not duplicated", async () => {
+    const updated: { id: string; raw: string }[] = [];
+    const api = makeApi({
+      listThreads: async () => [],
+      listDrafts: async () => [{ id: "d1", message: { id: "m9", snippet: "draft body",
+        payload: { headers: [{ name: "To", value: "z@x.com" }, { name: "Subject", value: "Hello draft" }] } } as never }],
+      getDraft: async (id: string) => ({ id, message: { id: "m9", threadId: "t9",
+        payload: { mimeType: "text/plain", body: { data: btoa("draft body") },
+          headers: [{ name: "To", value: "z@x.com" }, { name: "Cc", value: "cc@x.com" }, { name: "Subject", value: "Hello draft" }] } } as never }),
+      createDraft: async () => { throw new Error("must not create a second draft"); },
+      updateDraft: async (id: string, raw: string) => { updated.push({ id, raw }); return { id }; },
+    });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    fireEvent.click(await screen.findByText(/Drafts/));
+    fireEvent.click(await screen.findByText("Hello draft"));
+    const body = await screen.findByPlaceholderText("Message");
+    fireEvent.change(body, { target: { value: "draft body, finished" } });
+    fireEvent.click(screen.getByText("Cancel"));
+    await waitFor(() => expect(updated.map((u) => u.id)).toEqual(["d1"]));
+    const decoded = atob(updated[0]!.raw.replace(/-/g, "+").replace(/_/g, "/"));
+    // The Cc the draft came with survives the round trip (it used to be
+    // dropped, so finishing a reply started a new conversation with one
+    // recipient on it).
+    expect(decoded).toContain("Cc: cc@x.com");
+  });
+
   // B6-8 (2026-09-04): "Demo email fixtures show on the real home page."
   // A stale (or demo) snapshot used to survive a real, genuinely empty
   // inbox forever, because the writer refused to save an empty snapshot.

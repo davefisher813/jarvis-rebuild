@@ -115,6 +115,12 @@ export interface MailFull extends MailRow {
   html?: string | null;
   threadId: string;
   messageId: string;
+  // EMAIL-F-14 (2026-09-05): what this message is a reply TO, when it is one.
+  // A Gmail draft written as a reply carries it, and without reading it back
+  // a draft reopened from the Drafts list left as a new conversation. Optional
+  // because most messages are not replies and the fixtures predate it;
+  // mapGmailFull always sets it, empty string and all.
+  inReplyTo?: string;
   attachments: MailAttachment[];
 }
 
@@ -284,6 +290,7 @@ export function mapGmailFull(m: GmailFull): MailFull {
     html: extractHtml(m.payload),
     threadId: m.threadId || "",
     messageId: headerOf(hs, "Message-ID"),
+    inReplyTo: headerOf(hs, "In-Reply-To"),
     listUnsubscribe: headerOf(hs, "List-Unsubscribe"),
     listUnsubscribePost: headerOf(hs, "List-Unsubscribe-Post"),
     attachments,

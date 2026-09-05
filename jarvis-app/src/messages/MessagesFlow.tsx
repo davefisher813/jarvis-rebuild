@@ -52,6 +52,7 @@ import { aiFailureLine } from "../ai/failureLine";
 import { endOfAct } from "./mailAct";
 import { dayPhrase, monthDay } from "../money/bills";
 import { Head, Card } from "../settings/kit";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 
 // EMAIL-F-18 (2026-09-05): one page of the inbox. Load More asks for one
 // page more (each account, newest first), which is the shape Gmail's threads
@@ -470,6 +471,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [replies, setReplies] = useState<string[]>(DEFAULT_ANSWERS);
   const [draft, setDraft] = useState<Draft>({ to: "", subject: "", body: "" });
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  // EMAIL-F-14: the write Cancel makes on the way out, so the button cannot
+  // be tapped twice into two drafts.
+  const [savingDraft, setSavingDraft] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const triageBusy = useRef(false);
 
@@ -1432,6 +1436,40 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     }
   }), []);
 
+  // EMAIL-F-14 (2026-09-05): the way out of compose that does not throw the
+  // message away. A body with anything in it is written to Gmail as a draft
+  // (updated in place when he opened one from the Drafts list), and the
+  // receipt only claims it after the write resolved; a failed save keeps him
+  // in the composer with his words, because navigating away on a failure is
+  // the bug this item is about.
+  const closeCompose = () => setView(thread && !editingDraftId ? "detail" : "list");
+
+  const cancelCompose = async () => {
+    if (!draft.body.trim()) { closeCompose(); return; }
+    const api = apiFor(draft.account);
+    if (!api) { closeCompose(); return; }
+    setSavingDraft(true);
+    try {
+      const raw = encodeEmail({
+        to: draft.to, cc: draft.cc, subject: draft.subject, body: draft.body, inReplyTo: draft.inReplyTo,
+      });
+      if (editingDraftId) await api.updateDraft(editingDraftId, raw, draft.threadId);
+      else await api.createDraft(raw, draft.threadId);
+      setDraftsLoaded(false); // the list is stale now; it reloads on the next visit
+      setEditingDraftId(null);
+      closeCompose();
+      say("Saved to Drafts");
+    } catch {
+      // The app's one write-failure sentence (shared/guard.ts), rendered as
+      // the composer's own error line rather than as a toast: this screen
+      // does not render toasts, and it has to STAY open with his words in it,
+      // which is the whole point of the item.
+      setError(WRITE_FAILED_MESSAGE);
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   // Queues the current compose, held for the standard window, and returns to
   // the list where its hold banner lives. `scheduledAt` overrides the hold
   // with a chosen future moment (Schedule Send).
@@ -2064,7 +2102,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       const res = await api.getDraft(draftId);
       const full = mapGmailFull(res.message);
       setEditingDraftId(draftId);
-      setDraft({ to: full.to || "", subject: full.subject, body: full.body, account: acct });
+      // EMAIL-F-14 (2026-09-05): a reply draft came back stripped of its Cc
+      // and its thread, so finishing one from the Drafts list started a new
+      // conversation with only the first recipient on it.
+      setDraft({
+        to: full.to || "", cc: full.cc || undefined, subject: full.subject, body: full.body,
+        threadId: full.threadId || undefined, inReplyTo: full.inReplyTo || undefined, account: acct,
+      });
       setView("compose");
     } catch (e) {
       setError(humanError(e, "Could not open draft"));
@@ -2496,7 +2540,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     return (
       <div className={"screen ruled " + pushCls} key="compose">
         <div className="nav-bar">
-          <button className="nav-back" onClick={() => setView(thread && !editingDraftId ? "detail" : "list")}>Cancel</button>
+          {/* EMAIL-F-14 (2026-09-05): "Compose Cancel discards the message
+              with no confirm and no draft save." Cancel only changed `view`,
+              so five minutes of writing went with one tap of the top-left
+              button, and tapping Edit on a Could Not Send card and then
+              Cancel lost the message that had already failed once. Anything
+              with words in it goes to Gmail Drafts on the way out, where the
+              Drafts chip already lists it: no new screen to learn, and no
+              confirm sheet in front of a button that is not destructive any
+              more. An empty compose still just closes. */}
+          <button className="nav-back" disabled={savingDraft} onClick={() => void cancelCompose()}>{savingDraft ? "Saving…" : "Cancel"}</button>
           <span className="nav-title">{editingDraftId ? "Draft" : "New message"}</span>
           <div className="nav-actions">
             <button className="nav-action" onClick={() => setShowSchedule((s) => !s)} aria-label="Schedule Send"><Clock className="ic" /></button>
