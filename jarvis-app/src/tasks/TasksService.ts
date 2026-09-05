@@ -204,8 +204,22 @@ export class TasksService {
     let rolled = 0;
     for (const t of all) {
       const d = t.data;
-      if (!d.bill?.autopay || d.done || !d.recurrence || !d.due || d.due >= today) continue;
+      if (!d.bill?.autopay || d.done || !d.due || d.due >= today) continue;
       const scheduledOn = d.due;
+      // HMN-F-11 (2026-09-05): a bill that repeats rolls to its next date; a
+      // ONCE bill on autopay has no next date, and this loop used to skip it
+      // entirely, so it sat in the list saying "Set to autopay" on a day
+      // gone by, with no checkbox to clear it and Delete the only exit. Its
+      // payment was scheduled and its date has passed: it is handled, with
+      // lastDone as the day it went, so the copy layer says "Autopay
+      // scheduled Sep 3" and activeBills lets it go 30 days later. Still no
+      // task.completed: nothing the app can honestly claim happened.
+      if (!d.recurrence) {
+        await this.store.update(this.ownerId, t.id, { done: true, lastDone: scheduledOn });
+        this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: t.id });
+        rolled++;
+        continue;
+      }
       let due = d.due;
       let guard = 0;
       while (due < today && guard++ < 400) due = nextDue(due, d.recurrence);

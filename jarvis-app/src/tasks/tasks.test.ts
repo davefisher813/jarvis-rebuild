@@ -138,6 +138,28 @@ describe("bills on the task entity (Money v1)", () => {
     expect((await svc.task(manual!))!.due).toBe("2026-07-01"); // untouched, honestly overdue
   });
 
+  // HMN-F-11 (2026-09-05): a once bill on autopay was skipped by the roll
+  // (`!d.recurrence` on TasksService.ts:166), so after its date it read "Set
+  // to autopay · today" every day, stayed in the Bills count, and had no
+  // checkbox. Deleting it was the only way out.
+  it("a once autopay bill whose date has passed is marked handled, with the scheduled date", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const events: string[] = [];
+    const svc = new TasksService(store, "u1", (e) => events.push(e.type));
+    const id = await svc.createTask("Car Registration", { due: "2026-07-20", bill: { amount: 85, autopay: true } });
+    const ahead = await svc.createTask("Insurance", { due: "2026-09-01", bill: { amount: 300, autopay: true } });
+    events.length = 0;
+    expect(await svc.rollAutopayBills("2026-08-03")).toBe(1);
+    const t = await svc.task(id!);
+    expect(t!.done).toBe(true);
+    expect(t!.lastDone).toBe("2026-07-20"); // the date the payment was SCHEDULED
+    expect(t!.due).toBe("2026-07-20"); // nothing to roll to: a once bill has no next
+    // Nothing is claimed to have been paid: the copy layer says "scheduled".
+    expect(events).not.toContain("task.completed");
+    // A once autopay bill still ahead of its date is left alone.
+    expect((await svc.task(ahead!))!.done).toBe(false);
+  });
+
   it("updateBillTask edits facts without counting a slip", async () => {
     const store = new Store(new InMemoryAdapter());
     const events: string[] = [];

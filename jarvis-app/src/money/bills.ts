@@ -38,10 +38,15 @@ export function monthDay(iso: string): string {
   return `${MONTHS[(m ?? 1) - 1]} ${d}`;
 }
 
-/** "Today" / "tomorrow" / "Friday" (within 6 days) / "Aug 30". */
+/** "Today" / "tomorrow" / "Friday" (within 6 days) / "Aug 30", and behind us
+    "yesterday" or the date itself. */
 export function dayPhrase(iso: string, today: string): string {
   const gap = daysBetween(today, iso);
-  if (gap <= 0) return "today";
+  // HMN-F-11 (2026-09-05): every date already behind us read "today", so a
+  // once bill set to autopay went on saying "Set to autopay · today" every
+  // day after its date had passed. A day behind us is said as the day it was.
+  if (gap < 0) return gap === -1 ? "yesterday" : monthDay(iso);
+  if (gap === 0) return "today";
   if (gap === 1) return "tomorrow";
   if (gap <= 6) {
     const dt = new Date(iso + "T12:00:00");
@@ -64,6 +69,12 @@ function recentlyHandled(t: TaskItem, today: string): boolean {
 export function billSubline(t: TaskItem, today: string): { text: string; state: BillState } {
   const due = t.data.due;
   if (t.data.bill?.autopay) {
+    // HMN-F-11: a once bill on autopay is marked handled by rollAutopayBills
+    // when its date passes, and its receipt is the last word about it for as
+    // long as activeBills keeps it. Without this it fell back to "Set to
+    // autopay" on a date already gone.
+    if (t.data.done && t.data.lastDone)
+      return { text: `Autopay scheduled ${monthDay(t.data.lastDone)}`, state: "paid" };
     if (recentlyHandled(t, today) && t.data.lastDone && daysBetween(t.data.lastDone, today) <= 5)
       return { text: `Autopay scheduled ${monthDay(t.data.lastDone)}`, state: "paid" };
     if (due) return { text: `Set to autopay · ${dayPhrase(due, today)}`, state: "autopay" };

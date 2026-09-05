@@ -43,6 +43,19 @@ describe("billSubline", () => {
       expect(billSubline(b, TODAY).text.toLowerCase()).not.toContain("handled");
     }
   });
+
+  // HMN-F-11 (2026-09-05): a once bill set to autopay read "Set to autopay ·
+  // today" every day after its date, forever, because dayPhrase had no past
+  // tense and the roll only handled recurring bills. Once the roll marks it
+  // handled its receipt is the last word, and it still never says "paid".
+  it("a once autopay bill keeps its scheduled receipt after its date has gone", () => {
+    const handled = bill({ bill: { amount: 85, autopay: true }, done: true, due: "2026-07-20", lastDone: "2026-07-20" });
+    expect(billSubline(handled, TODAY)).toEqual({ text: "Autopay scheduled Jul 20", state: "paid" });
+    expect(billSubline(handled, TODAY).text.toLowerCase()).not.toContain("paid");
+    // Before the roll runs, the line at least says the day it was, not "today".
+    const lapsed = bill({ bill: { amount: 85, autopay: true }, due: "2026-07-20" });
+    expect(billSubline(lapsed, TODAY).text).toBe("Set to autopay · Jul 20");
+  });
 });
 
 describe("activeBills", () => {
@@ -107,5 +120,11 @@ describe("date words", () => {
     expect(dayPhrase("2026-08-07", TODAY)).toBe("Friday");
     expect(dayPhrase("2026-08-30", TODAY)).toBe("Aug 30");
     expect(monthDay("2026-12-05")).toBe("Dec 5");
+  });
+
+  // HMN-F-11: a date already behind us used to come back as "today".
+  it("says a day behind us in the past tense", () => {
+    expect(dayPhrase("2026-08-02", TODAY)).toBe("yesterday");
+    expect(dayPhrase("2026-07-20", TODAY)).toBe("Jul 20");
   });
 });
