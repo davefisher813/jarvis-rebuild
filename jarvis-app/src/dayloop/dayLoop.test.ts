@@ -5,7 +5,7 @@
 // and overflow is reported, never silently dropped.
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { draftDay, readDraft, writeDraft, reflowDay } from "./dayLoop";
+import { draftDay, readDraft, writeDraft, reflowDay, slippedPlanEvents } from "./dayLoop";
 import type { EventItem } from "../schedule/types";
 
 const ev = (id: string, title: string, start: string, end?: string, sourceTaskId?: string): EventItem =>
@@ -92,6 +92,34 @@ describe("re-flow (push 16)", () => {
   it("nothing slipped means nothing moves", () => {
     const plan = [ev("p1", "Fine", "15:00", "15:45", "t1")];
     expect(reflowDay(plan, [], 10 * 60, 17 * 60, [])).toEqual({ moves: [], overflow: [] });
+  });
+
+  // TODAY-F-01 (2026-09-05): "slipped" is the block that is over and the work
+  // that is not.
+  it("the block he is inside has not slipped", () => {
+    const plan = [ev("p1", "In progress", "14:00", "15:00", "t1")];
+    expect(reflowDay(plan, [], 14 * 60 + 10, 17 * 60, [])).toEqual({ moves: [], overflow: [] });
+    expect(slippedPlanEvents(plan, 14 * 60 + 10)).toEqual([]);
+  });
+
+  it("[edge] a block ending exactly now has slipped", () => {
+    const plan = [ev("p1", "Just ended", "14:00", "15:00", "t1")];
+    expect(slippedPlanEvents(plan, 15 * 60).map((e) => e.id)).toEqual(["p1"]);
+  });
+
+  it("a block whose task is done is not re-placed later in the day", () => {
+    const plan = [ev("p1", "Finished", "09:00", "09:45", "t1")];
+    const res = reflowDay(plan, [], 10 * 60, 17 * 60, [], new Set(["t1"]));
+    expect(res).toEqual({ moves: [], overflow: [] });
+  });
+
+  it("the block he is inside is not scheduled over by the one that slipped", () => {
+    const plan = [ev("p1", "Slipped", "09:00", "09:45", "t1"), ev("p2", "In progress", "10:00", "11:00", "t2")];
+    const res = reflowDay(plan, [], 10 * 60, 17 * 60, []);
+    expect(res.moves.length).toBe(1);
+    expect(res.moves[0]!.eventId).toBe("p1");
+    // 11:00 end + 10 min buffer, clear of the block he is working in.
+    expect(res.moves[0]!.start).toBe("11:10");
   });
 });
 

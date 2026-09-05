@@ -300,6 +300,26 @@ const toMin = (hhmm: string): number => {
   return Number(p[0] ?? 0) * 60 + Number(p[1] ?? 0);
 };
 const toHHMM = (m: number): string => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+// A block with no end time is an hour long, the same assumption the placement
+// below already makes when it computes a duration.
+const endMinOf = (ev: EventItem): number => (ev.data.end ? toMin(ev.data.end) : toMin(ev.data.start) + 60);
+
+// TODAY-F-01 (2026-09-05): "slipped" used to mean start-in-the-past, so the
+// block he was sitting inside counted as behind the clock the minute it
+// began, and at AI level Everything it was moved to start "now" every five
+// minutes, creeping forward all hour underneath him. A block whose task he
+// had already finished slipped too, and got re-placed later in the day. The
+// comment above this function has always described the real rule ("a block
+// whose start has passed WITHOUT ITS TASK COMPLETING"); this is that rule.
+// Both the pure re-flow and the card that counts slippage read it here, so
+// the number on screen and the moves it triggers can never disagree.
+export function slippedPlanEvents(
+  planEvents: readonly EventItem[],
+  nowMin: number,
+  doneTaskIds: ReadonlySet<string> = new Set<string>(),
+): EventItem[] {
+  return planEvents.filter((ev) => endMinOf(ev) <= nowMin && !doneTaskIds.has(ev.data.sourceTaskId ?? ""));
+}
 
 export function reflowDay(
   planEvents: EventItem[], // today's events created from the plan (sourceTaskId set)
@@ -307,19 +327,28 @@ export function reflowDay(
   nowMin: number,
   endMin: number,
   blocked: { s: number; e: number }[],
+  // Tasks already finished today. Their blocks are neither slipped nor
+  // movable: the work happened.
+  doneTaskIds: ReadonlySet<string> = new Set<string>(),
 ): ReflowResult {
-  // Which plan blocks slipped: start passed, still in the future half of the
-  // plan? A block wholly in the past that the user let slide is exactly what
+  // Which plan blocks slipped: wholly in the past with the work still open.
+  // A block wholly in the past that the user let slide is exactly what
   // re-flow exists to rescue.
-  const slipped = planEvents.filter((ev) => toMin(ev.data.start) < nowMin);
-  const upcoming = planEvents.filter((ev) => toMin(ev.data.start) >= nowMin);
+  const slipped = slippedPlanEvents(planEvents, nowMin, doneTaskIds);
+  const slippedIds = new Set(slipped.map((ev) => ev.id));
+  // Everything else the plan holds: still ahead, in progress right now, or
+  // already answered. All of it keeps its slot.
+  const held = planEvents.filter((ev) => !slippedIds.has(ev.id));
   if (slipped.length === 0) return { moves: [], overflow: [] };
 
-  // Busy = real events + blocked ranges + upcoming plan blocks (they keep
-  // their slots; only slipped work moves).
+  // Busy = real events + blocked ranges + the plan blocks that are not
+  // moving (they keep their slots; only slipped work moves). The e > nowMin
+  // filter drops whatever is finished, so a held block only occupies time it
+  // still owns -- including the one he is inside, which re-flow must never
+  // schedule over.
   const busy = [
-    ...otherEvents.map((e) => ({ s: toMin(e.data.start), e: e.data.end ? toMin(e.data.end) : toMin(e.data.start) + 60 })),
-    ...upcoming.map((e) => ({ s: toMin(e.data.start), e: e.data.end ? toMin(e.data.end) : toMin(e.data.start) + 60 })),
+    ...otherEvents.map((e) => ({ s: toMin(e.data.start), e: endMinOf(e) })),
+    ...held.map((e) => ({ s: toMin(e.data.start), e: endMinOf(e) })),
     ...blocked,
   ].filter((b) => b.e > nowMin);
 

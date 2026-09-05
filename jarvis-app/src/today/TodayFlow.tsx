@@ -100,7 +100,7 @@ import { useAIContext } from "../ai/useAIContext";
 import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
 import { supabase } from "../auth/supabaseClient";
 import type { WindowClient } from "../brain/window";
-import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, plannedTaskIds, acceptInto, seedFrom, editDraft, liveBlocks, type DayDraft } from "../dayloop/dayLoop";
+import { readDraft, writeDraft, draftDay, draftIsStale, reflowDay, slippedPlanEvents, plannedTaskIds, acceptInto, seedFrom, editDraft, liveBlocks, type DayDraft } from "../dayloop/dayLoop";
 import { madeBy } from "../shared/provenance";
 import { RowIcon, StatTiles } from "../shared/anatomy";
 import { effectiveLevel } from "../ai/aiGate";
@@ -1369,14 +1369,18 @@ export default function TodayFlow({
   const hardRanges = todayBlocked.filter((b) => !b.soft).map((b) => ({ s: b.s, e: b.e }));
   const planEvs = dayDraft?.accepted ? todayEvents.filter((e) => dayDraft.eventIds.includes(e.id)) : [];
   const otherEvs = dayDraft?.accepted ? todayEvents.filter((e) => !dayDraft.eventIds.includes(e.id)) : [];
-  const slippedCount = planEvs.filter((e) => {
-    const p = e.data.start.split(":");
-    return Number(p[0]) * 60 + Number(p[1]) < nowMin;
-  }).length;
+  // TODAY-F-01 (2026-09-05): the work that is finished, so a block he already
+  // did is not "behind the clock". A recurring task records its completion as
+  // lastDone and rolls its due date rather than setting done (TasksService
+  // toggleDone), so both spellings of "finished today" count here.
+  const doneTaskIds = new Set(
+    taskItems.filter((t) => t.data.done || t.data.lastDone === today).map((t) => t.id),
+  );
+  const slippedCount = slippedPlanEvents(planEvs, nowMin, doneTaskIds).length;
 
   const runReflow = useCallback(async () => {
     if (!dayDraft?.accepted) return;
-    const res = reflowDay(planEvs, otherEvs, nowMin, todayWindow.endMin, hardRanges);
+    const res = reflowDay(planEvs, otherEvs, nowMin, todayWindow.endMin, hardRanges, doneTaskIds);
     if (res.moves.length === 0 && res.overflow.length === 0) return;
     const ok = await attemptWrite(async () => {
       for (const m of res.moves) {
@@ -1403,7 +1407,7 @@ export default function TodayFlow({
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dayDraft, todayEvents, nowMin]);
+  }, [dayDraft, todayEvents, taskItems, nowMin]);
 
   useEffect(() => {
     if (loading || evening || !dayDraft?.accepted || slippedCount === 0) return;
