@@ -5,6 +5,7 @@ import type { Goal } from "../life/types";
 import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
 import { FolderKanban, Tag, Calendar } from "../shared/icons";
 import { TargetGlyph, PulseGlyph } from "../shared/glyphs";
+import { fileableGoals } from "../bigger/reach";
 
 // THE PROJECT SHEET ON THE SHEET BAR (2026-09-02, the form sheets after the
 // task sheet): the name as the row, Status, Back On when it is on hold, Area
@@ -26,6 +27,11 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
   // B12's fix (MoneyFlow's Account/Payday sheets), generalized: Save creates
   // a project, so two taps created two. The first valid tap latches.
   const [saving, setSaving] = useState(false);
+  // LIFE-F-26 (2026-09-05): this menu offered every goal, achieved and
+  // dropped included, and filing a project under one of those put it under a
+  // goal that no longer counts, so it read as unfiled on its category page.
+  // The goal it is already under stays listed so the value still resolves.
+  const goalOptions = fileableGoals(goals, initial?.goalId);
   const valid = title.trim().length > 0;
   const save = () => {
     if (!valid) { setTouched(true); return; }
@@ -49,16 +55,16 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
         )}
       </Group>
       {status === "on_hold" && <div className="xs-note">The day it comes back. A hold with no date is a project that disappeared.</div>}
-      {(categories.length > 0 || goals.length > 0) && (
+      {(categories.length > 0 || goalOptions.length > 0) && (
         <Group label="Where">
           {categories.length > 0 && (
             <MenuRow tone="blue" glyph={<Tag className="ic" />} label="Area" value={category} ariaLabel="Area" off={category === ""}
               options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.data.name, dot: c.data.color as string }))]}
               onPick={setCategory} />
           )}
-          {goals.length > 0 && (
+          {goalOptions.length > 0 && (
             <MenuRow tone="red" glyph={<TargetGlyph />} label="Goal" value={goalId} ariaLabel="Goal" off={goalId === ""}
-              options={[{ value: "", label: "None" }, ...goals.map((g) => ({ value: g.id, label: g.data.title }))]}
+              options={[{ value: "", label: "None" }, ...goalOptions.map((g) => ({ value: g.id, label: g.data.title }))]}
               onPick={setGoalId} />
           )}
         </Group>

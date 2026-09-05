@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  goalTags, liveGoals, reachOf, reachLine, buildGoalIndex,
+  goalTags, liveGoals, fileableGoals, reachOf, reachLine, buildGoalIndex,
   goalIdsForTask, movesGoal, goalTitleForTask, countMovingGoals, projectsOfGoal, byDue,
 } from "./reach";
 import type { TaskItem } from "../tasks/TasksService";
@@ -175,5 +175,20 @@ describe("liveGoals and pick 17", () => {
     const projects = [proj("p1", { goalId: "gone" })];
     const idx = buildGoalIndex(projects, liveGoals([goal("gone", { dropped: { on: "2026-08-24" } })]));
     expect(goalIdsForTask(idx, task("a", { projectId: "p1" }))).toEqual([]);
+  });
+});
+
+// LIFE-F-26 (2026-09-05): the Goal pickers on a project offered goals that
+// can no longer be filed to. Filing under one puts the project under a goal
+// that stopped counting, so it reads as unfiled on its category page.
+describe("fileableGoals", () => {
+  it("drops achieved and dropped goals", () => {
+    const all = [goal("live"), goal("won", { state: "achieved" }), goal("put_down", { dropped: { on: "2026-08-01" } })];
+    expect(fileableGoals(all).map((x) => x.id)).toEqual(["live"]);
+  });
+
+  it("keeps the goal a project is already under, so the menu still names it", () => {
+    const all = [goal("live"), goal("won", { state: "achieved" })];
+    expect(fileableGoals(all, "won").map((x) => x.id)).toEqual(["live", "won"]);
   });
 });

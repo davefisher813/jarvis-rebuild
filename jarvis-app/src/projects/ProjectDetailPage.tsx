@@ -12,6 +12,7 @@ import { dayPhrase } from "../money/bills";
 import { attemptWrite } from "../shared/guard";
 import { capAfterNumber } from "../shared/casing";
 import { areaFromTasks } from "./backfill";
+import { fileableGoals } from "../bigger/reach";
 import { holdLine, holdExpired, sizeOf, sizeLine } from "./shape";
 import { haptics } from "../shared/haptics";
 import { ForkGlyph } from "../shared/glyphs";
@@ -190,7 +191,10 @@ export default function ProjectDetailPage({
         <div className="row"><div className="row-grow"><div className="conn-name">Goal</div></div>
           {projectsSvc && goalList.length > 0 ? (
             <HeadMenu variant="value" ariaLabel="Goal" value={data.goalId ?? ""} off={!data.goalId}
-              options={[{ value: "", label: "None" }, ...goalList.filter((g) => g.data.state !== "achieved").map((g) => ({ value: g.id, label: g.data.title }))]}
+              // LIFE-F-26 (2026-09-05): this dropped achieved goals and kept
+              // dropped ones, so a project could still be filed under a goal
+              // that had been put down on purpose.
+              options={[{ value: "", label: "None" }, ...fileableGoals(goalList, data.goalId).map((g) => ({ value: g.id, label: g.data.title }))]}
               onPick={(v) => saveField({ goalId: v || undefined })} />
           ) : <span className="row-value">{goalList.find((g) => g.id === data.goalId)?.data.title ?? "None"}</span>}</div>
       </div></div>

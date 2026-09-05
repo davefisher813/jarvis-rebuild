@@ -52,6 +52,18 @@ export function liveGoals(goals: Goal[]): Goal[] {
   return goals.filter((g) => g.data.state !== "achieved" && !g.data.dropped);
 }
 
+/**
+ * LIFE-F-26 (2026-09-05): the goals a project can be FILED to. The pickers
+ * offered every goal, so you could file a project under one that was achieved
+ * or dropped and it would then show under its category as if unfiled. This is
+ * liveGoals with one exception: the goal a project is ALREADY under stays in
+ * the list even when it stopped counting, or the menu would read None for a
+ * value that is really set.
+ */
+export function fileableGoals(goals: Goal[], currentId?: string): Goal[] {
+  return goals.filter((g) => (g.data.state !== "achieved" && !g.data.dropped) || g.id === currentId);
+}
+
 export interface GoalReach {
   /** Tasks reached through a project filed under this goal. */
   filedIds: string[];
