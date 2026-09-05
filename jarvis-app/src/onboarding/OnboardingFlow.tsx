@@ -14,6 +14,7 @@ import { seedQuestions, factsFrom } from "./seeds";
 import { NEW_USER_TABS } from "../shell/destinations";
 import { dismissSplash } from "../shared/splash";
 import { attemptWrite } from "../shared/guard";
+import { requestNotificationPermission } from "../shared/notifications";
 
 const ic = (d: string) => (
   <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{ __html: d }} />
@@ -469,8 +470,17 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
     control = (
       <div className="convo-foot">
         <div className="convo-chips">
+          {/* SHARED-F-07 (2026-09-05): THE ASK, IN CONTEXT. It used to fire on
+              Today's first paint, from the check-in scheduler, before the user
+              had seen a screen explaining anything; a denial there is
+              permanent, because iOS never asks twice. Choosing when the
+              morning brief arrives is the one moment in this app where "may I
+              send you notifications" is the obvious next sentence, so the ask
+              rides that tap. Saying no here costs nothing that was not
+              already chosen: the Notifications page still owns the switches
+              and asks again the first time one goes on. */}
           {step.options!.map((o) => (
-            <div key={o.value} className="chip" role="button" tabIndex={0} onClick={() => { setBriefTime(o.value); setIdx(idx + 1); }}>{o.label}</div>
+            <div key={o.value} className="chip" role="button" tabIndex={0} onClick={() => { setBriefTime(o.value); void requestNotificationPermission(); setIdx(idx + 1); }}>{o.label}</div>
           ))}
         </div>
       </div>

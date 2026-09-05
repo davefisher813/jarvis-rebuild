@@ -5,6 +5,7 @@ import "@testing-library/jest-dom";
 import { NotesProvider } from "../data/NotesProvider";
 import { ProfileService } from "../profile/ProfileService";
 import OnboardingFlow from "./OnboardingFlow";
+import * as notifications from "../shared/notifications";
 
 function setup() {
   const onFinish = vi.fn();
@@ -165,5 +166,30 @@ describe("OnboardingFlow", () => {
     expect(screen.queryByDisplayValue("Clients")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Add Area"));
     expect(screen.getByDisplayValue("New Area")).toBeInTheDocument();
+  });
+});
+
+// SHARED-F-07 (2026-09-05): the OS notification prompt used to fire on
+// Today's first paint, from the check-in scheduler, before the user had seen
+// a screen explaining why, and a denial there is permanent. The ask now rides
+// the one question in the app it belongs to: when the morning brief arrives.
+describe("OnboardingFlow asks for notifications in context", () => {
+  it("choosing a brief time is what asks, and nothing before it does", () => {
+    const spy = vi.spyOn(notifications, "requestNotificationPermission").mockResolvedValue(true);
+    setup();
+    fireEvent.click(screen.getByText("Begin"));
+    fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "Alex" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    fireEvent.click(screen.getByText("Personal"));
+    fireEvent.click(screen.getByText("Continue"));
+    fireEvent.click(screen.getByText(/add people as I go/));
+    fireEvent.click(screen.getByText("Skip for now"));
+    fireEvent.click(screen.getByText("9 to 5"));
+    fireEvent.click(screen.getByText("Skip these"));
+    fireEvent.click(screen.getByText("Everything"));
+    fireEvent.click(screen.getByText("Continue"));
+    expect(spy).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByText("7:00 AM"));
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 });

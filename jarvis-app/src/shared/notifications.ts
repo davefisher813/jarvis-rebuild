@@ -192,11 +192,22 @@ const taskQueue = serializeLatest();
 
 // Cancel-then-schedule so routine changes always win and nothing stacks.
 // Native only; resolves quietly everywhere else. Never throws into the UI.
+//
+// SHARED-F-07 (2026-09-05): CHECK-ONLY, like the other two schedulers. This
+// one used to REQUEST the permission, and Today calls it on mount with
+// checkins defaulting to true, so a fresh install landed on Today and iOS
+// asked "JARVIS Would Like to Send You Notifications" before the user had
+// seen a single screen explaining why. A denial there is permanent (iOS
+// never re-prompts) and it costs App Store review too. The ask belongs where
+// it is in context and can be repeated: onboarding's morning-brief step,
+// right after he chooses when to be nudged, and the Notifications page's own
+// switches (S1-03). Scheduling never asks.
 export async function ensureCheckinNotifications(routine: RoutineData, briefTime?: string): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
   return checkinQueue(async () => {
     try {
-      if (!(await requestNotificationPermission())) return;
+      const perm = await LocalNotifications.checkPermissions();
+      if (perm.display !== "granted") return;
       await LocalNotifications.cancel({ notifications: [{ id: MORNING_ID }, { id: EVENING_ID }] });
       const specs = buildCheckinNotifications(routine, briefTime);
       if (specs.length === 0) return;
