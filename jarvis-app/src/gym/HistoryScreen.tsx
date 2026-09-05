@@ -2,14 +2,15 @@ import { useMemo } from "react";
 import type { Workout, MeasureKind } from "./types";
 import { exerciseHistory, trendLine, doneCount } from "./history";
 import { liftSessions, chartValue } from "./chartData";
+import { sameLiftAnyKind } from "./identity";
 
 const CHEV = <div className="chev" />;
 
 /** The door's own visual: a bare polyline of the last few sessions' values,
  *  no axis, no labels -- the row already says the trend in words (trendLine);
  *  this just makes "there's a chart in here" legible before you tap. */
-function Sparkline({ workouts, name, kind }: { workouts: Workout[]; name: string; kind: MeasureKind }) {
-  const vals = useMemo(() => liftSessions(workouts, name, kind).slice(-8).map(chartValue), [workouts, name, kind]);
+function Sparkline({ workouts, name, exerciseKey, kind }: { workouts: Workout[]; name: string; exerciseKey?: string; kind: MeasureKind }) {
+  const vals = useMemo(() => liftSessions(workouts, { name, exerciseKey }, kind).slice(-8).map(chartValue), [workouts, name, exerciseKey, kind]);
   if (vals.length < 2) return null;
   const min = Math.min(...vals), max = Math.max(...vals), span = max - min || 1;
   const stepX = 44 / (vals.length - 1);
@@ -29,7 +30,10 @@ function Sparkline({ workouts, name, kind }: { workouts: Workout[]; name: string
 // dates are just gaps.
 export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
   workouts: Workout[]; onBack: () => void;
-  onOpenLift: (row: { name: string; kind: MeasureKind; unit?: string; timeUnit?: string }) => void;
+  // GYM-F-04 (2026-09-05): the key rides along so the lift detail derives the
+  // lift's WHOLE history, across a rename, not just what its current name
+  // happens to match.
+  onOpenLift: (row: { name: string; exerciseKey?: string; kind: MeasureKind; unit?: string; timeUnit?: string }) => void;
 }) {
   const rows = exerciseHistory(workouts);
 
@@ -39,17 +43,19 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
   // up here at all. A plain count per name, newest-name-first is not tracked;
   // this is not a log, just "you've done this N times".
   const doneRows = useMemo(() => {
-    const seen = new Set<string>();
-    const names: string[] = [];
+    // GYM-F-04: one row per LIFT, so a renamed piece of done work does not
+    // show up twice; the row wears the newest name it was logged under.
+    const rows: { name: string; exerciseKey?: string }[] = [];
     for (const w of workouts) {
       for (const ex of w.data.exercises) {
-        if (ex.kind !== "done" || ex.skipped || seen.has(ex.name)) continue;
+        if (ex.kind !== "done" || ex.skipped) continue;
         if (!ex.sets.some((s) => s.done && !s.skipped)) continue;
-        seen.add(ex.name);
-        names.push(ex.name);
+        const seen = rows.find((r) => sameLiftAnyKind(r, ex));
+        if (seen) { seen.name = ex.name; if (ex.exerciseKey) seen.exerciseKey = ex.exerciseKey; continue; }
+        rows.push({ name: ex.name, ...(ex.exerciseKey ? { exerciseKey: ex.exerciseKey } : {}) });
       }
     }
-    return names.map((name) => ({ name, n: doneCount(workouts, name) }));
+    return rows.map((r) => ({ name: r.name, key: r.exerciseKey ?? r.name, n: doneCount(workouts, r) }));
   }, [workouts]);
 
   return (
@@ -73,8 +79,8 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
         <div className="sh2 sh2-quiet"><span className="t">Lifts</span></div>
         <div className="pad-x"><div className="card list-card-ruled">
           {rows.map((r) => (
-            <div className="row" role="button" tabIndex={0} key={r.name + r.kind}
-              onClick={() => onOpenLift({ name: r.name, kind: r.kind, unit: r.unit, timeUnit: r.timeUnit })}>
+            <div className="row" role="button" tabIndex={0} key={(r.exerciseKey ?? r.name) + r.kind}
+              onClick={() => onOpenLift({ name: r.name, exerciseKey: r.exerciseKey, kind: r.kind, unit: r.unit, timeUnit: r.timeUnit })}>
               <div className="row-grow">
                 <div className="conn-name truncate">{r.name}</div>
                 {/* Row meta is quiet sentence case app-wide (gym
@@ -82,7 +88,7 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
                     sublines. */}
                 <div className="conn-meta">{trendLine(r)}</div>
               </div>
-              <Sparkline workouts={workouts} name={r.name} kind={r.kind} />
+              <Sparkline workouts={workouts} name={r.name} exerciseKey={r.exerciseKey} kind={r.kind} />
               {/* V2 anatomy: the session count is a pill, not prose. */}
               <span className="pill pill-good">{r.sessions}</span>
               {CHEV}
@@ -97,7 +103,7 @@ export default function HistoryScreen({ workouts, onBack, onOpenLift }: {
           <div className="sh2 sh2-quiet"><span className="t">Done Work</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
             {doneRows.map((d) => (
-              <div className="row" key={d.name}>
+              <div className="row" key={d.key}>
                 <div className="row-grow">
                   <div className="conn-name truncate">{d.name}</div>
                   <div className="conn-meta">{d.n > 1 ? `Done ${d.n} times` : "Done"}</div>

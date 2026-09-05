@@ -1,5 +1,6 @@
 import type { Workout, SetLog, MeasureKind } from "./types";
 import { beats, scoreOf, hasVolume, setVolume } from "./measures";
+import { liftRef, sameLift, sameLiftAnyKind, type LiftLike } from "./identity";
 
 // LIFT TREND CHARTS, D9-A (Training Catalog V2, approved 2026-08-31).
 // "Boostcamp's most loved analytics are e1RM curves and PR tracking. Our
@@ -38,11 +39,14 @@ export function e1rm(w: number, r: number): number {
 
 /** One row per workout that actually logged a scoring set for this exercise,
  *  oldest first -- the chart's x-axis is chronological. */
-export function liftSessions(workouts: Workout[], name: string, kind: MeasureKind): LiftSession[] {
+export function liftSessions(workouts: Workout[], lift: LiftLike, kind: MeasureKind): LiftSession[] {
+  // GYM-F-04 (2026-09-05): identity, not the name, so a renamed lift keeps one
+  // chart instead of restarting.
+  const ref = liftRef(lift, kind);
   const sorted = [...workouts].sort((a, b) => a.data.date.localeCompare(b.data.date));
   const out: LiftSession[] = [];
   for (const w of sorted) {
-    const ex = w.data.exercises.find((e) => e.name === name && e.kind === kind);
+    const ex = w.data.exercises.find((e) => sameLift(ref, e));
     if (!ex || ex.skipped) continue;
     let top: SetLog | null = null;
     for (const s of ex.sets) {
@@ -108,10 +112,10 @@ export function daysAgo(dateISO: string, now: number): number {
  * Warmup and skipped chips never count: they are not the work being
  * measured (LAW 16).
  */
-export function weeklySetCounts(workouts: Workout[], name: string, weeks = 8, now: number = Date.now()): number[] {
+export function weeklySetCounts(workouts: Workout[], lift: LiftLike, weeks = 8, now: number = Date.now()): number[] {
   const out = new Array(weeks).fill(0) as number[];
   for (const w of workouts) {
-    const ex = w.data.exercises.find((e) => e.name === name);
+    const ex = w.data.exercises.find((e) => sameLiftAnyKind(lift, e));
     if (!ex || ex.skipped) continue;
     const days = daysAgo(w.data.date, now);
     const bucket = Math.floor(days / 7);
@@ -124,11 +128,12 @@ export function weeklySetCounts(workouts: Workout[], name: string, weeks = 8, no
 
 /** Same bucketing, in the exercise's own volume unit -- null when the kind
  *  carries no volume at all (a sprint has no "weight moved" bar to draw). */
-export function weeklyVolume(workouts: Workout[], name: string, kind: MeasureKind, weeks = 8, now: number = Date.now()): number[] | null {
+export function weeklyVolume(workouts: Workout[], lift: LiftLike, kind: MeasureKind, weeks = 8, now: number = Date.now()): number[] | null {
   if (!hasVolume(kind)) return null;
+  const ref = liftRef(lift, kind);
   const out = new Array(weeks).fill(0) as number[];
   for (const w of workouts) {
-    const ex = w.data.exercises.find((e) => e.name === name && e.kind === kind);
+    const ex = w.data.exercises.find((e) => sameLift(ref, e));
     if (!ex || ex.skipped) continue;
     const days = daysAgo(w.data.date, now);
     const bucket = Math.floor(days / 7);
@@ -144,15 +149,23 @@ export function weeklyVolume(workouts: Workout[], name: string, kind: MeasureKin
  *  first -- the door list for "which lift has a chart". Muscle group is a
  *  PROGRAM fact (set on the plan's own Exercise), not a workout one, so it
  *  is not part of this: a caller with the current program joins it by name. */
-export function chartableExercises(workouts: Workout[]): { name: string; kind: MeasureKind; unit?: string; timeUnit?: string }[] {
-  const seen = new Map<string, { name: string; kind: MeasureKind; unit?: string; timeUnit?: string; date: string }>();
+export function chartableExercises(workouts: Workout[]): { name: string; exerciseKey?: string; kind: MeasureKind; unit?: string; timeUnit?: string }[] {
+  // GYM-F-04 (2026-09-05): one entry per LIFT, not per name, so a renamed lift
+  // is one chartable series wearing its newest name rather than two.
+  const seen: { name: string; exerciseKey?: string; kind: MeasureKind; unit?: string; timeUnit?: string; date: string }[] = [];
   for (const w of workouts) {
     for (const ex of w.data.exercises) {
       if (ex.skipped || !ex.sets.some((s) => !s.skipped && scoreOf(ex.kind, s))) continue;
-      const key = ex.name + "\u0000" + ex.kind;
-      const prior = seen.get(key);
-      if (!prior || w.data.date > prior.date) seen.set(key, { name: ex.name, kind: ex.kind, unit: ex.unit, timeUnit: ex.timeUnit, date: w.data.date });
+      const prior = seen.find((x) => sameLift(x, ex));
+      if (!prior) {
+        seen.push({ name: ex.name, ...(ex.exerciseKey ? { exerciseKey: ex.exerciseKey } : {}), kind: ex.kind, unit: ex.unit, timeUnit: ex.timeUnit, date: w.data.date });
+      } else if (w.data.date > prior.date) {
+        prior.name = ex.name; prior.unit = ex.unit; prior.timeUnit = ex.timeUnit; prior.date = w.data.date;
+        if (ex.exerciseKey) prior.exerciseKey = ex.exerciseKey;
+      } else if (ex.exerciseKey && !prior.exerciseKey) {
+        prior.exerciseKey = ex.exerciseKey;
+      }
     }
   }
-  return [...seen.values()].sort((a, b) => b.date.localeCompare(a.date)).map(({ name, kind, unit, timeUnit }) => ({ name, kind, unit, timeUnit }));
+  return [...seen].sort((a, b) => b.date.localeCompare(a.date)).map(({ name, exerciseKey, kind, unit, timeUnit }) => ({ name, exerciseKey, kind, unit, timeUnit }));
 }

@@ -1,5 +1,6 @@
 import type { Workout, WorkoutExercise, MeasureKind, SetLog } from "./types";
 import { scoreOf, has, fieldsFor } from "./measures";
+import { liftRef, sameLift, sameLiftAnyKind, type LiftLike } from "./identity";
 import { capAfterNumber } from "../shared/casing";
 
 // GOALS ON THE BAR, D12-A/C (Training Catalog V2, approved 2026-08-31).
@@ -28,6 +29,12 @@ export interface LiftMeasure {
    *  match: by name + kind, not by program id (a name survives program
    *  edits; an id does not follow a swapped exercise). */
   exercise: string;
+  /** GYM-F-04 (2026-09-05): the library key, stamped at goal-creation time
+   *  when the lift had one. A goal set on "Trap bar DL" used to stop seeing
+   *  the lift the moment it was renamed; now the key follows it and the name
+   *  is only the fallback for goals set before the library, and for lifts
+   *  that never got a key. */
+  exerciseKey?: string;
   measureKind: MeasureKind;
   /** The target set. Shaped exactly like a SetLog because it IS one -- the
    *  same w/r/v/t shape every planned chip and every logged set already
@@ -57,6 +64,8 @@ export interface TrainingMeasure {
   /** Only sessions that trained this exercise count, when set. Absent means
    *  any workout counts: "20 sessions this block" with no lift named. */
   exercise?: string;
+  /** Same identity as LiftMeasure above: the key when the lift had one. */
+  exerciseKey?: string;
 }
 
 export interface LiftMeasureState {
@@ -111,11 +120,12 @@ function targetValue(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "
  * Every other kind tracks its own best score, direction-aware. Never counts
  * a warmup or a skipped chip.
  */
-function bestToward(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "t">, workouts: Workout[], exercise: string): number {
+function bestToward(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "t">, workouts: Workout[], exercise: LiftLike): number {
+  const ref = liftRef(exercise, kind);
   if (kind === "weight_reps") {
     let best = 0;
     for (const w of workouts) {
-      const ex = w.data.exercises.find((e) => e.name === exercise && e.kind === kind);
+      const ex = w.data.exercises.find((e) => sameLift(ref, e));
       if (!ex || ex.skipped) continue;
       for (const s of ex.sets) {
         if (s.warmup || s.skipped || !has(s.w) || !has(s.r)) continue;
@@ -127,7 +137,7 @@ function bestToward(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "t
   }
   let bestScore: { value: number; lowerWins: boolean } | null = null;
   for (const w of workouts) {
-    const ex = w.data.exercises.find((e) => e.name === exercise && e.kind === kind);
+    const ex = w.data.exercises.find((e) => sameLift(ref, e));
     if (!ex || ex.skipped) continue;
     for (const s of ex.sets) {
       if (s.warmup || s.skipped) continue;
@@ -160,14 +170,16 @@ function liftLine(m: LiftMeasure, done: number, target: number, met: boolean): s
  * rather than climbing away from it.
  */
 export function liftMeasureState(m: LiftMeasure, workouts: Workout[]): LiftMeasureState {
+  const lift = { name: m.exercise, exerciseKey: m.exerciseKey };
+  const ref = liftRef(lift, m.measureKind);
   let met = false;
   for (const w of workouts) {
-    const ex = w.data.exercises.find((e) => e.name === m.exercise && e.kind === m.measureKind);
+    const ex = w.data.exercises.find((e) => sameLift(ref, e));
     if (!ex || ex.skipped) continue;
     if (ex.sets.some((s) => meetsLiftTarget(m.measureKind, m.target, s))) { met = true; break; }
   }
   const target = targetValue(m.measureKind, m.target);
-  const done = bestToward(m.measureKind, m.target, workouts, m.exercise);
+  const done = bestToward(m.measureKind, m.target, workouts, lift);
   const lowerWins = m.measureKind !== "weight_reps" ? (scoreOf(m.measureKind, m.target as SetLog)?.lowerWins ?? false) : false;
   let pct: number;
   if (target <= 0) pct = 0;
@@ -205,7 +217,10 @@ function trainingWindowStart(per: "week" | "month", now: number): number {
  *  can be scored has nothing to do with whether it happened. */
 function countsSession(m: TrainingMeasure, w: Workout): boolean {
   const worked = (e: WorkoutExercise) => !e.skipped && e.sets.some((s) => !s.skipped);
-  if (m.exercise) return w.data.exercises.some((e) => e.name === m.exercise && worked(e));
+  if (m.exercise) {
+    const lift = { name: m.exercise, exerciseKey: m.exerciseKey };
+    return w.data.exercises.some((e) => sameLiftAnyKind(lift, e) && worked(e));
+  }
   return w.data.exercises.some(worked);
 }
 

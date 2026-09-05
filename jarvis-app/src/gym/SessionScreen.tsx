@@ -96,8 +96,10 @@ export default function SessionScreen({
   // plus a per-position reference under every chip, with tap-to-match on
   // the ghosts. Defaults ON; the switch lives in Settings → Training.
   const showLast = readGymSettings().showLast;
-  const header = showLast ? lastHeader(history, exercise.name, exercise.kind) : null;
-  const lastHit = showLast ? lastSessionFor(history, exercise.name, exercise.kind) : null;
+  // GYM-F-04 (2026-09-05): the EXERCISE, not its current name, so a rename
+  // keeps its Last line, its ghosts' "Last:" and its PR history.
+  const header = showLast ? lastHeader(history, exercise, exercise.kind) : null;
+  const lastHit = showLast ? lastSessionFor(history, exercise, exercise.kind) : null;
   // THE TRIM (D5-C). A trimmed lift plans fewer sets for THIS session only:
   // the ghosts shrink from the end, the program keeps every set it had
   // (LAW 17), and the big button can still log past the trim -- the lever
@@ -418,7 +420,7 @@ export default function SessionScreen({
             ghost={ghost}
             onLogGhost={(i) => { onLog(duplicateEntry(ghost[i]!)); startRest(); }}
             onChange={changeSets}
-            prAt={(i) => isSessionPR(history, exercise.name, exercise.kind, logged, i)}
+            prAt={(i) => isSessionPR(history, exercise, exercise.kind, logged, i)}
             moveTracking
             lastFor={lastHit ? (i) => { const s = lastAt(i); return s ? `Last: ${formatSet(lastHit.fx, s)}` : null; } : undefined}
             onMatchLast={lastHit ? (i) => { const src = lastAt(i); if (src) { onLog(entryFrom(src)); startRest(); } } : undefined}

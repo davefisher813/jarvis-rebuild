@@ -1,5 +1,6 @@
 import type { Workout, MeasureKind, Program } from "./types";
 import { scoreOf } from "./measures";
+import { sameLiftAnyKind, type LiftLike } from "./identity";
 import { liftSessions, chartValue, daysAgo, type LiftSession } from "./chartData";
 import { numericValue, type MetricDef, type MetricLog } from "./metrics";
 import { MUSCLE_GROUPS, HARD_SET_RANGE, type MuscleGroup, type PublishedRange } from "./muscles";
@@ -134,11 +135,11 @@ export interface PlateauFlag {
  *  the plateau card's "Sets a session" row. Every workout on that day counts;
  *  null still means the lift is not in that day at all, which is what keeps
  *  the row from claiming a zero. */
-function setsOn(workouts: Workout[], name: string, date: string): number | null {
+function setsOn(workouts: Workout[], lift: LiftLike, date: string): number | null {
   let total: number | null = null;
   for (const w of workouts) {
     if (w.data.date !== date) continue;
-    const ex = w.data.exercises.find((e) => e.name === name);
+    const ex = w.data.exercises.find((e) => sameLiftAnyKind(lift, e));
     if (!ex || ex.skipped) continue;
     total = (total ?? 0) + ex.sets.filter((s) => !s.skipped && !s.warmup && scoreOf(ex.kind, s)).length;
   }
@@ -156,7 +157,9 @@ function setsOn(workouts: Workout[], name: string, date: string): number | null 
 export function plateauFlag(
   sessions: LiftSession[],
   kind: MeasureKind,
-  exerciseName: string,
+  // GYM-F-04 (2026-09-05): the lift, not just its current name, so a rename
+  // does not cost the plateau card its series.
+  exerciseName: LiftLike,
   workouts: Workout[],
   metrics: { def: MetricDef; logs: MetricLog[] }[] = [],
 ): PlateauFlag | null {

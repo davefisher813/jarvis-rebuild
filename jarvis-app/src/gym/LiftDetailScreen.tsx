@@ -83,9 +83,13 @@ function weeklyMetricAvg(def: MetricDef, logs: MetricLog[], weeks: number, now: 
 }
 
 export default function LiftDetailScreen({
-  name, kind, unit, timeUnit, workouts, muscleGroup, muscleMap, defs, logs, goal, onSetGoal, onBack,
+  name, exerciseKey, kind, unit, timeUnit, workouts, muscleGroup, muscleMap, defs, logs, goal, onSetGoal, onBack,
 }: {
   name: string;
+  /** GYM-F-04 (2026-09-05): the library key, so every derivation on this
+   *  screen reads the lift's whole history rather than restarting at a
+   *  rename. Absent for a lift logged before the library. */
+  exerciseKey?: string;
   kind: MeasureKind;
   unit?: string;
   timeUnit?: string;
@@ -104,13 +108,15 @@ export default function LiftDetailScreen({
   onBack: () => void;
 }) {
   const now = Date.now();
-  const sessions = useMemo(() => liftSessions(workouts, name, kind), [workouts, name, kind]);
+  // GYM-F-04: one identity for every derivation on this screen.
+  const lift = useMemo(() => ({ name, exerciseKey }), [name, exerciseKey]);
+  const sessions = useMemo(() => liftSessions(workouts, lift, kind), [workouts, lift, kind]);
   const chartVals = useMemo(() => sessions.map(chartValue), [sessions]);
   const prs = useMemo(() => new Set(prIndexes(sessions, kind)), [sessions, kind]);
   const { path, pts } = useMemo(() => linePath(chartVals), [chartVals]);
-  const setBars = useMemo(() => weeklySetCounts(workouts, name, WEEKS, now), [workouts, name, now]);
-  const volBars = useMemo(() => weeklyVolume(workouts, name, kind, WEEKS, now), [workouts, name, kind, now]);
-  const plateau = useMemo(() => plateauFlag(sessions, kind, name, workouts), [sessions, kind, name, workouts]);
+  const setBars = useMemo(() => weeklySetCounts(workouts, lift, WEEKS, now), [workouts, lift, now]);
+  const volBars = useMemo(() => weeklyVolume(workouts, lift, kind, WEEKS, now), [workouts, lift, kind, now]);
+  const plateau = useMemo(() => plateauFlag(sessions, kind, lift, workouts), [sessions, kind, lift, workouts]);
   const shown = activeMetrics(defs);
   const [metricIdx, setMetricIdx] = useState(0);
   const lane = shown[metricIdx];
@@ -285,7 +291,7 @@ export default function LiftDetailScreen({
               // feed, never a headline. Lives INSIDE the card now: floating
               // between a head and a card it read as a stray line (live
               // screenshot, 2026-09-01).
-              const fact = movedFact(workouts, name);
+              const fact = movedFact(workouts, lift);
               return fact ? <div className="row"><div className="row-grow"><div className="conn-meta">{fact}</div></div></div> : null;
             })()}
             {receipts.map((s) => (

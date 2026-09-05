@@ -39,8 +39,10 @@ describe("D1: the exercise sheet has one editor", () => {
 describe("D2: last time is wired everywhere sets render", () => {
   it("the session screen shows the header line and per-set ghosts with tap-to-match", () => {
     const s = src("SessionScreen.tsx");
-    expect(s).toContain("lastHeader(history, exercise.name, exercise.kind)");
-    expect(s).toContain("lastSessionFor(history, exercise.name, exercise.kind)");
+    // GYM-F-04 (2026-09-05): the EXERCISE, not its current name, so a
+    // rename keeps the whole D2 surface pointed at the same history.
+    expect(s).toContain("lastHeader(history, exercise, exercise.kind)");
+    expect(s).toContain("lastSessionFor(history, exercise, exercise.kind)");
     expect(s).toMatch(/Best: \$\{header\.best\}/);
     expect(s).toContain("onMatchLast={lastHit");
     expect(s).toContain("onLog(entryFrom(src))");
@@ -48,7 +50,7 @@ describe("D2: last time is wired everywhere sets render", () => {
 
   it("the exercise sheet shows the same per-position reference while planning", () => {
     const s = src("ExerciseSheet.tsx");
-    expect(s).toContain("lastSessionFor(history, name.trim(), kind)");
+    expect(s).toContain("lastSessionFor(history, { name: name.trim(), exerciseKey }, kind)");
     expect(s).toContain("lastFor={lastHit");
   });
 

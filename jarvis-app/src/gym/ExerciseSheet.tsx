@@ -159,8 +159,10 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   // LAST TIME, D2: the same per-position reference the live session shows,
   // here as quiet planning context ("Last: 250 × 3" under each chip). Reads
   // the name as typed, so picking a library suggestion lights it up.
+  // GYM-F-04 (2026-09-05): keyed, so renaming an exercise in the editor keeps
+  // showing the same lift's real last session instead of going blank.
   const lastHit = history && readGymSettings().showLast && name.trim()
-    ? lastSessionFor(history, name.trim(), kind)
+    ? lastSessionFor(history, { name: name.trim(), exerciseKey }, kind)
     : null;
 
   const draft: Exercise = {

@@ -1,5 +1,6 @@
 import type { Exercise, SetLog, Workout } from "./types";
 import { fieldsFor } from "./measures";
+import { liftRef, sameLift } from "./identity";
 
 // THE PROGRESSION ENGINE (D6-A, Training Catalog V2, approved 2026-08-31).
 //
@@ -42,12 +43,14 @@ function dayPhrase(iso: string): string {
   return y && m && d ? `${MONTHS[m - 1]} ${d}` : iso;
 }
 
-/** The last session that actually trained this exercise, by the same
- *  name+kind identity every other gym derivation uses. */
-function lastSession(history: Workout[], ex: Pick<Exercise, "name" | "kind">) {
+/** The last session that actually trained this exercise, by the same identity
+ *  every other gym derivation uses (GYM-F-04: the library key when both sides
+ *  have one, else name and kind). */
+function lastSession(history: Workout[], ex: Pick<Exercise, "name" | "kind"> & { exerciseKey?: string }) {
+  const ref = liftRef(ex, ex.kind);
   for (let i = history.length - 1; i >= 0; i--) {
     const w = history[i]!;
-    const hit = w.data.exercises.find((e) => e.name === ex.name && e.kind === ex.kind);
+    const hit = w.data.exercises.find((e) => sameLift(ref, e));
     // Warm-ups are not evidence: they are supposed to move well.
     const work = hit?.sets.filter((s) => !s.skipped && !s.warmup) ?? [];
     if (hit && work.length) return { date: w.data.date, sets: work, unit: hit.unit };

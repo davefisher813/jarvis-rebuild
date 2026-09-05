@@ -1,5 +1,6 @@
 import type { Workout, SetLog, MeasureKind } from "./types";
 import { beats, formatSet, scoreOf } from "./measures";
+import { sameLift, sameLiftAnyKind, type LiftLike } from "./identity";
 import { daysBetween } from "../upnext/upnext";
 
 // The history page (gym session 2): per-exercise numbers over time, derived
@@ -9,6 +10,10 @@ import { daysBetween } from "../upnext/upnext";
 
 export interface HistoryRow {
   name: string;
+  /** GYM-F-04 (2026-09-05): carried so the lift detail this row opens can ask
+   *  every derivation for the lift's WHOLE history, across renames, instead of
+   *  whatever the row's current name happens to match. */
+  exerciseKey?: string;
   kind: MeasureKind;
   unit?: string;
   timeUnit?: string;
@@ -29,20 +34,30 @@ function bestOf(kind: MeasureKind, sets: SetLog[]): SetLog | null {
   return best;
 }
 
-/** One row per exercise name+kind, most recently trained first. */
+/**
+ * One row per lift, most recently trained first.
+ *
+ * GYM-F-04 (2026-09-05): rows were keyed by name+kind, so renaming
+ * "Trap bar DL" to "Trap Bar Deadlift" split one lift into two rows. Rows are
+ * matched by identity now (the library key when both sides carry one, else the
+ * name), and a merged row wears the LATEST name the lift was logged under,
+ * because that is the name the athlete just chose. A workout logged before the
+ * library has no key and still matches by name, so nothing already in the list
+ * splits apart.
+ */
 export function exerciseHistory(workouts: Workout[]): HistoryRow[] {
-  const rows = new Map<string, HistoryRow>();
+  const out: HistoryRow[] = [];
   const sorted = [...workouts].sort((a, b) => a.data.date.localeCompare(b.data.date));
   for (const w of sorted) {
     for (const ex of w.data.exercises) {
       const sessionBest = bestOf(ex.kind, ex.sets);
       if (!sessionBest) continue; // Done-only and skipped work leaves no numbers
-      const key = ex.name + "\u0000" + ex.kind;
       const entry = { date: w.data.date, text: formatSet(ex, sessionBest) };
-      const row = rows.get(key);
+      const row = out.find((r) => sameLift(r, ex));
       if (!row) {
-        rows.set(key, {
-          name: ex.name, kind: ex.kind, unit: ex.unit, timeUnit: ex.timeUnit,
+        out.push({
+          name: ex.name, ...(ex.exerciseKey ? { exerciseKey: ex.exerciseKey } : {}),
+          kind: ex.kind, unit: ex.unit, timeUnit: ex.timeUnit,
           sessions: 1,
           first: { set: sessionBest, date: w.data.date },
           best: { set: sessionBest, date: w.data.date },
@@ -51,13 +66,14 @@ export function exerciseHistory(workouts: Workout[]): HistoryRow[] {
         });
       } else {
         row.sessions++;
+        row.name = ex.name; // the newest name this lift was logged under
+        if (ex.exerciseKey) row.exerciseKey = ex.exerciseKey;
         row.last = { set: sessionBest, date: w.data.date };
         if (beats(ex.kind, sessionBest, row.best.set)) row.best = { set: sessionBest, date: w.data.date };
         row.entries.push(entry);
       }
     }
   }
-  const out = [...rows.values()];
   for (const r of out) r.entries.reverse(); // newest first for the receipts list
   out.sort((a, b) => b.last.date.localeCompare(a.last.date));
   return out;
@@ -84,11 +100,11 @@ export function trendLine(row: HistoryRow): string {
  * exerciseHistory skips done-kind work entirely (scoreOf(done) is null, so it
  * has no best to rank), so this counts it separately by name.
  */
-export function doneCount(workouts: Workout[], name: string): number {
+export function doneCount(workouts: Workout[], lift: LiftLike): number {
   let n = 0;
   for (const w of workouts) {
     for (const ex of w.data.exercises) {
-      if (ex.kind !== "done" || ex.name !== name || ex.skipped) continue;
+      if (ex.kind !== "done" || ex.skipped || !sameLiftAnyKind(lift, ex)) continue;
       if (ex.sets.some((s) => s.done && !s.skipped)) n++;
     }
   }
@@ -101,11 +117,11 @@ export function doneCount(workouts: Workout[], name: string): number {
  * never phrased as decline. Null when nothing has ever been marked, so a
  * screen that reads null renders nothing rather than "0 grinds".
  */
-export function movedFact(workouts: Workout[], name: string): string | null {
+export function movedFact(workouts: Workout[], lift: LiftLike): string | null {
   let grind = 0, missed = 0, total = 0;
   for (const w of workouts) {
     for (const ex of w.data.exercises) {
-      if (ex.name !== name || ex.skipped) continue;
+      if (ex.skipped || !sameLiftAnyKind(lift, ex)) continue;
       for (const s of ex.sets) {
         if (s.skipped || !s.moved) continue;
         total++;

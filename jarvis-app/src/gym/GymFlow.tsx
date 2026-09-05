@@ -25,6 +25,7 @@ import {
 import { pinLabel, todayDow, pinnedTo, nextPinnedDay, WEEKDAY_ABBR, WEEKDAY_FULL } from "./pins";
 import { nextDayFor } from "./nextDay";
 import { muscleMapFromProgram } from "./insights";
+import { sameLiftAnyKind } from "./identity";
 import { estimateDay, type FitPlan } from "./fit";
 import { readGymSettings, rackFrom } from "./settings";
 import FitSheet from "./FitSheet";
@@ -537,7 +538,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
   const [goals, setGoals] = useState<Goal[]>([]);
   const [metricDefs, setMetricDefs] = useState<MetricDef[]>([]);
   const [metricLogs, setMetricLogs] = useState<MetricLog[]>([]);
-  const [liftDetailFor, setLiftDetailFor] = useState<{ name: string; kind: MeasureKind; unit?: string; timeUnit?: string } | null>(null);
+  const [liftDetailFor, setLiftDetailFor] = useState<{ name: string; exerciseKey?: string; kind: MeasureKind; unit?: string; timeUnit?: string } | null>(null);
   const [liftGoalSheetOpen, setLiftGoalSheetOpen] = useState(false);
   // The week sheet's "Normal / Back-Off" choice, held at the top level so it
   // is one plain useState called unconditionally on every render -- NOT
@@ -1031,7 +1032,14 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     // the weekly hard-set row can sum the muscle the way the Health page
     // does instead of reporting one lift under the muscle's name.
     const muscleMap = muscleMapFromProgram(program ?? null);
-    const goal = goals.find((g) => g.data.state !== "achieved" && g.data.measure?.kind === "lift" && (g.data.measure as LiftMeasure).exercise === liftDetailFor.name);
+    // GYM-F-04 (2026-09-05): a goal set before a rename still belongs to this
+    // lift, so it is found by identity, not by whichever name it was stored
+    // under.
+    const goal = goals.find((g) => {
+      if (g.data.state === "achieved" || g.data.measure?.kind !== "lift") return false;
+      const m = g.data.measure as LiftMeasure;
+      return sameLiftAnyKind({ name: m.exercise, exerciseKey: m.exerciseKey }, liftDetailFor);
+    });
     return (
       <>
         <LiftDetailScreen
@@ -1048,6 +1056,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
         {liftGoalSheetOpen && (
           <LiftGoalSheet
             exercise={liftDetailFor.name}
+            exerciseKey={liftDetailFor.exerciseKey}
             kind={liftDetailFor.kind}
             unit={liftDetailFor.unit}
             timeUnit={liftDetailFor.timeUnit}
@@ -1652,7 +1661,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
                 renderRow={(id) => {
                   const e = openDay.exercises.find((x) => x.id === id);
                   if (!e) return null;
-                  const hit = showLast ? lastSessionFor(workouts, e.name, e.kind) : null;
+                  const hit = showLast ? lastSessionFor(workouts, e, e.kind) : null;
                   return (
                     <ExerciseRow
                       exercise={e}

@@ -457,7 +457,7 @@ export default function CategoryDetail({
   const activeDefs = kind === "health" ? activeMetrics(metricDefs) : [];
   const correlations = kind === "health"
     ? chartableExercises(workouts).flatMap((ex) => {
-        const sessions = liftSessions(workouts, ex.name, ex.kind);
+        const sessions = liftSessions(workouts, ex, ex.kind);
         return activeDefs
           .map((def) => correlate(sessions, ex.kind, ex.name, def, metricLogs))
           .filter((c): c is NonNullable<typeof c> => c != null);
@@ -466,9 +466,9 @@ export default function CategoryDetail({
   const plateaus = kind === "health"
     ? chartableExercises(workouts)
         .map((ex) => {
-          const sessions = liftSessions(workouts, ex.name, ex.kind);
+          const sessions = liftSessions(workouts, ex, ex.kind);
           const metricsFor = activeDefs.map((def) => ({ def, logs: metricLogs }));
-          const flag = plateauFlag(sessions, ex.kind, ex.name, workouts, metricsFor);
+          const flag = plateauFlag(sessions, ex.kind, ex, workouts, metricsFor);
           return flag ? { ...flag, name: ex.name } : null;
         })
         .filter((p): p is NonNullable<typeof p> => p != null)

@@ -18,9 +18,13 @@ import Stepper from "../shared/Stepper";
 type Mode = "lift" | "training";
 
 export default function LiftGoalSheet({
-  exercise, kind, unit, timeUnit, initial, healthCategoryIds, onSave, onDelete, onCancel,
+  exercise, exerciseKey, kind, unit, timeUnit, initial, healthCategoryIds, onSave, onDelete, onCancel,
 }: {
   exercise: string;
+  /** GYM-F-04 (2026-09-05): stamped onto the measure so the goal follows the
+   *  lift through a rename instead of quietly watching a name nobody uses any
+   *  more. Absent for a lift that predates the library. */
+  exerciseKey?: string;
   kind: MeasureKind;
   unit?: string;
   timeUnit?: string;
@@ -67,7 +71,7 @@ export default function LiftGoalSheet({
       return {
         kind: "training", per, times: Math.max(1, times),
         ...(per === "block" ? { since: trainInit?.since ?? todayISO() } : {}),
-        ...(scoped ? { exercise } : {}),
+        ...(scoped ? { exercise, ...(exerciseKey ? { exerciseKey } : {}) } : {}),
       };
     }
     const target: LiftMeasure["target"] =
@@ -75,7 +79,7 @@ export default function LiftGoalSheet({
       : kind === "reps" || kind === "rounds" ? { r }
       : kind === "distance_time" ? { v, t }
       : { v }; // time_faster, time_longer, distance, height
-    return { kind: "lift", exercise, measureKind: kind, target, ...(unit ? { unit } : {}), ...(timeUnit ? { timeUnit } : {}) };
+    return { kind: "lift", exercise, ...(exerciseKey ? { exerciseKey } : {}), measureKind: kind, target, ...(unit ? { unit } : {}), ...(timeUnit ? { timeUnit } : {}) };
   };
 
   return createPortal(

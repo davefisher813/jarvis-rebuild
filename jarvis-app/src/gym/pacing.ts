@@ -1,4 +1,5 @@
 import type { Workout, Exercise, MeasureKind } from "./types";
+import { liftRef, sameLift, type LiftLike } from "./identity";
 
 // LEARNED PACING, D5/D7 (Training Catalog V2, approved 2026-08-31).
 // "Build: L · needs D7 for honest numbers."
@@ -54,13 +55,14 @@ export interface LiftPace {
  * documented rule). A gap belongs to the set that ENDS it, so a gap ending
  * at a warm-up chip is warm-up pace, not working pace, and stays out.
  */
-export function workGaps(history: Workout[], name: string, kind: MeasureKind): { gaps: number[]; sessions: number } {
+export function workGaps(history: Workout[], lift: LiftLike, kind: MeasureKind): { gaps: number[]; sessions: number } {
+  const ref = liftRef(lift, kind);
   const gaps: number[] = [];
   let sessions = 0;
   for (let i = history.length - 1; i >= 0 && sessions < PACE_WINDOW; i--) {
     const w = history[i]!;
     if (w.data.backdated) continue;
-    const ex = w.data.exercises.find((e) => e.name === name && e.kind === kind);
+    const ex = w.data.exercises.find((e) => sameLift(ref, e));
     if (!ex) continue;
     let took = 0;
     let prevAt: number | null = null;
@@ -85,8 +87,10 @@ function median(xs: number[]): number {
 
 /** The pace one set of this exercise is priced at. Learned when the
  *  evidence clears MIN_GAPS; otherwise the stated model, named as such. */
-export function paceFor(history: Workout[], ex: Pick<Exercise, "name" | "kind" | "restSec">): LiftPace {
-  const { gaps, sessions } = workGaps(history, ex.name, ex.kind);
+export function paceFor(history: Workout[], ex: Pick<Exercise, "name" | "kind" | "restSec"> & { exerciseKey?: string }): LiftPace {
+  // GYM-F-04 (2026-09-05): identity, so a renamed lift keeps the pace it
+  // taught the app rather than falling back to the default model.
+  const { gaps, sessions } = workGaps(history, ex, ex.kind);
   if (gaps.length >= MIN_GAPS) {
     return { secPerSet: Math.round(median(gaps) / 1000), learned: true, sessions };
   }

@@ -1,5 +1,6 @@
 import type { Workout, SetLog, SetEntry, MeasureKind, WorkoutExercise } from "./types";
 import { beats, hasVolume, setVolume, formatSet, scoreOf } from "./measures";
+import { liftRef, sameLift, type LiftLike } from "./identity";
 
 // PRs and the finish receipt. Every number here is DERIVED from logged work.
 // The app never prescribes ("try 140"); it reports what happened and what the
@@ -8,22 +9,26 @@ import { beats, hasVolume, setVolume, formatSet, scoreOf } from "./measures";
 export interface BestEntry { set: SetLog; date: string }
 
 /**
- * The best prior entry per exercise NAME (names are the user's words and
- * survive program edits, so history follows the exercise, not the id).
+ * The best prior entry for one lift.
+ *
+ * GYM-F-04 (2026-09-05): `lift` is the exercise itself where the caller has
+ * it, so a rename keeps its history through the library's exerciseKey; a bare
+ * name still works and still matches by name, exactly as before.
  *
  * distance_time compares only against the SAME distance: a faster mile is not
  * a record against a slower ten-miler.
  */
 export function bestBefore(
   history: Workout[],
-  name: string,
+  lift: LiftLike,
   kind: MeasureKind,
   opts: { sameDistanceAs?: number } = {},
 ): BestEntry | null {
+  const ref = liftRef(lift, kind);
   let best: BestEntry | null = null;
   for (const w of history) {
     for (const ex of w.data.exercises) {
-      if (ex.name !== name || ex.kind !== kind) continue; // kind change = fresh history
+      if (!sameLift(ref, ex)) continue; // kind change = fresh history
       for (const s of ex.sets) {
         if (s.skipped) continue;
         if (!scoreOf(kind, s)) continue;
@@ -36,10 +41,10 @@ export function bestBefore(
 }
 
 /** Is this entry a new personal best? A first-ever measured entry counts. */
-export function isPR(history: Workout[], name: string, kind: MeasureKind, candidate: SetLog): boolean {
+export function isPR(history: Workout[], lift: LiftLike, kind: MeasureKind, candidate: SetLog): boolean {
   if (candidate.skipped) return false;
   if (!scoreOf(kind, candidate)) return false;
-  const best = bestBefore(history, name, kind, kind === "distance_time" ? { sameDistanceAs: candidate.v ?? 0 } : {});
+  const best = bestBefore(history, lift, kind, kind === "distance_time" ? { sameDistanceAs: candidate.v ?? 0 } : {});
   if (!best) return true; // first time on this exercise is its own moment
   return beats(kind, candidate, best.set);
 }
@@ -104,8 +109,8 @@ export function receiptFor(
     // everything before it.
     let bestOfSession: SetLog | null = null;
     for (const s of logged) if (!bestOfSession || beats(ex.kind, s, bestOfSession)) bestOfSession = s;
-    if (bestOfSession && isPR(history, ex.name, ex.kind, bestOfSession)) {
-      const prior = bestBefore(history, ex.name, ex.kind, ex.kind === "distance_time" ? { sameDistanceAs: bestOfSession.v ?? 0 } : {});
+    if (bestOfSession && isPR(history, ex, ex.kind, bestOfSession)) {
+      const prior = bestBefore(history, ex, ex.kind, ex.kind === "distance_time" ? { sameDistanceAs: bestOfSession.v ?? 0 } : {});
       prs.push({
         name: ex.name,
         text: formatSet(ex, bestOfSession),
@@ -136,13 +141,13 @@ export function receiptFor(
  */
 export function isSessionPR(
   history: Workout[],
-  name: string,
+  lift: LiftLike,
   kind: MeasureKind,
   sets: SetLog[],
   i: number,
 ): boolean {
   const s = sets[i];
-  if (!s || !isPR(history, name, kind, s)) return false;
+  if (!s || !isPR(history, lift, kind, s)) return false;
   for (let j = 0; j < i; j++) {
     const prev = sets[j];
     if (!prev || prev.skipped || !scoreOf(kind, prev)) continue;
@@ -165,10 +170,11 @@ export interface LastSessionHit {
   sets: SetEntry[];
 }
 
-export function lastSessionFor(history: Workout[], name: string, kind: MeasureKind): LastSessionHit | null {
+export function lastSessionFor(history: Workout[], lift: LiftLike, kind: MeasureKind): LastSessionHit | null {
+  const ref = liftRef(lift, kind);
   for (let i = history.length - 1; i >= 0; i--) {
     const w = history[i]!;
-    const ex = w.data.exercises.find((e) => e.name === name && e.kind === kind);
+    const ex = w.data.exercises.find((e) => sameLift(ref, e));
     // Working sets only: a warm-up is not what happened last time (D3-A).
     const logged = ex?.sets.filter((s) => !s.skipped && !s.warmup) ?? [];
     if (ex && logged.length) {
@@ -187,8 +193,8 @@ export function lastSessionFor(history: Workout[], name: string, kind: MeasureKi
  */
 export interface LastHeader { last: string; date: string; best: string | null }
 
-export function lastHeader(history: Workout[], name: string, kind: MeasureKind): LastHeader | null {
-  const hit = lastSessionFor(history, name, kind);
+export function lastHeader(history: Workout[], lift: LiftLike, kind: MeasureKind): LastHeader | null {
+  const hit = lastSessionFor(history, lift, kind);
   if (!hit) return null;
   const { fx, sets } = hit;
   let last: string;
@@ -199,15 +205,16 @@ export function lastHeader(history: Workout[], name: string, kind: MeasureKind):
   } else {
     last = sets.map((s) => formatSet(fx, s)).join(", ");
   }
-  const best = kind === "distance_time" ? null : bestBefore(history, name, kind);
+  const best = kind === "distance_time" ? null : bestBefore(history, lift, kind);
   return { last, date: hit.date, best: best ? formatSet(fx, best.set) : null };
 }
 
 /** "Last time: 135 lb × 8, 8, 7" for the in-gym header. Null when new. */
-export function lastTimeLine(history: Workout[], name: string, kind: MeasureKind): string | null {
+export function lastTimeLine(history: Workout[], lift: LiftLike, kind: MeasureKind): string | null {
+  const ref = liftRef(lift, kind);
   for (let i = history.length - 1; i >= 0; i--) {
     const w = history[i]!;
-    const ex = w.data.exercises.find((e) => e.name === name && e.kind === kind);
+    const ex = w.data.exercises.find((e) => sameLift(ref, e));
     const logged = ex?.sets.filter((s) => !s.skipped && !s.warmup) ?? [];
     if (ex && logged.length) {
       return "Last time: " + logged.map((s) => formatSet(ex, s)).join(", ");
