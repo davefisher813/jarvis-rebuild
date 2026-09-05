@@ -201,7 +201,13 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   };
 
   return createPortal(
-    <div className="sheet-scrim" onClick={onClose}>
+    // SHELL-F-24 (2026-09-05): the scrim and Cancel used to close the sheet
+    // mid-write. The save is a promise this sheet cannot abort, so the task
+    // or event was created anyway, with no receipt, no toast and no undo: the
+    // one capture in the app that could land invisibly. Neither exit is
+    // offered while a save is in flight, exactly as the Capture button is
+    // already disabled there. The wait is one write long.
+    <div className="sheet-scrim" onClick={() => { if (phase !== "saving") onClose(); }}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="grp"><div className="eyebrow">{phase === "saved" ? "Saved" : "Smart Paste"}</div></div>
@@ -229,7 +235,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                 // saving; this branch could still double-fire.
                 <button className="btn btn-primary btn-block" disabled={phase === "saving"} onClick={() => void capture(true)}>{phase === "saving" ? "Saving..." : "Save Anyway"}</button>
               )}
-              <button className="btn btn-secondary btn-block" onClick={onClose}>Cancel</button>
+              <button className="btn btn-secondary btn-block" onClick={onClose} disabled={phase === "saving"}>Cancel</button>
             </div>
           </div>
         )}

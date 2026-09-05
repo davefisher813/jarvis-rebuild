@@ -12,6 +12,7 @@ import { NotesProvider, useOptionalStrands, useTasks, useCategories } from "../d
 import { AIService } from "../ai/AIService";
 import QuickCapture from "./QuickCapture";
 import { recordCapture } from "../paste/captureLog";
+import { TasksService } from "../tasks/TasksService";
 
 // S4-Q22 (2026-09-04) needs to see the honest "Brain is full" toast text,
 // which the earlier tests in this file never had to inspect. Same mock shape
@@ -284,5 +285,37 @@ describe("QuickCapture receipt offers every area", () => {
       const t = (await tasksRef!.listTasks())[0]!;
       expect(t.data.category).toBe(ids[5]);
     });
+  });
+});
+
+// SHELL-F-24 (2026-09-05): Cancel and the scrim stayed live during
+// "Saving...", and the save is a promise this sheet cannot abort. Tapping
+// either one closed the sheet while the write went on to succeed: the task
+// existed, with no receipt, no toast and no undo anywhere.
+describe("QuickCapture while the save is in flight", () => {
+  it("cannot be dismissed, so nothing lands without a receipt", async () => {
+    let land: (id: string) => void = () => {};
+    const create = vi.spyOn(TasksService.prototype, "createTask")
+      .mockReturnValue(new Promise<string>((r) => { land = r; }));
+    const onClose = vi.fn();
+    render(
+      <NotesProvider userId="u-inflight">
+        <QuickCapture ai={new AIService({ available: false })} onClose={onClose} />
+      </NotesProvider>,
+    );
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saving...")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Cancel"));
+    fireEvent.click(document.querySelector(".sheet-scrim")!);
+    expect(onClose).not.toHaveBeenCalled();
+
+    await act(async () => { land("task-1"); });
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+    // And it closes normally again once there is something to close on.
+    fireEvent.click(screen.getByText("Done"));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    create.mockRestore();
   });
 });
