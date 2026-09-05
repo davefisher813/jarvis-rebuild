@@ -5,7 +5,7 @@
 // skeleton with no card and no retry until another tab was visited. The
 // page now renders with what it has and the toast carries the retry.
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "../data/NotesProvider";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
@@ -52,5 +52,51 @@ describe("TodayFlow first load failure (TODAY-F-14)", () => {
     const { container } = mount();
     await waitFor(() => expect(container.querySelector(".skel-screen")).toBeNull());
     expect(showToast).not.toHaveBeenCalled();
+  });
+});
+
+// TODAY-F-11 (2026-09-05): "Undo after deleting an event from Today restores a
+// stripped copy." The undo re-created the event from seven hand-copied
+// fields, so a repeating block came back with no end date, no attached tasks,
+// no Training Door, no skipped days and a new id.
+describe("TodayFlow: Undo after deleting an event (TODAY-F-11)", () => {
+  it("puts the whole event back, under its own id", async () => {
+    const { useSchedule } = await import("../data/NotesProvider");
+    const { notifyFreshLists } = await import("../data/store");
+    const { ENTITY_EVENT } = await import("../schedule/types");
+    const { todayISO, addDays } = await import("../schedule/calendar");
+    let sched: ScheduleService | null = null;
+    function Grab() { sched = useSchedule(); return null; }
+    render(
+      <NotesProvider userId="today-undo-event">
+        <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => makeFakeGoogleApi()}>
+          <Grab />
+          <TodayFlow onGoSchedule={() => {}} onGoTasks={() => {}} />
+        </GoogleSessionProvider>
+      </NotesProvider>,
+    );
+    const today = todayISO();
+    const tomorrow = addDays(today, 1);
+    // Tomorrow, where Today lists it whatever the clock says.
+    const id = (await sched!.createEvent("Lift", {
+      date: tomorrow, start: "17:30", end: "18:30", recurrence: "daily",
+      until: addDays(today, 60), taskIds: ["t1"],
+    }))!;
+    await sched!.editGymDoor(id, true);
+    await sched!.addExdate(id, addDays(today, 4));
+    notifyFreshLists(ENTITY_EVENT);
+    await waitFor(() => expect(screen.getByText("Lift")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Lift"));
+    await screen.findByText("Edit Event");
+    fireEvent.click(screen.getByText("Delete Event"));
+    await waitFor(() => expect(showToast.mock.calls.some((c) => (c[0] as { message: string }).message === "Event deleted")).toBe(true));
+    expect(await sched!.event(id)).toBeNull();
+    const call = showToast.mock.calls.find((c) => (c[0] as { message: string }).message === "Event deleted")![0] as { onAction: () => Promise<void> };
+    await act(async () => { await call.onAction(); });
+    const back = (await sched!.event(id))!;
+    expect(back.gym).toBe(true);
+    expect(back.until).toBe(addDays(today, 60));
+    expect(back.taskIds).toEqual(["t1"]);
+    expect(back.exdates).toEqual([addDays(today, 4)]);
   });
 });

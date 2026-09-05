@@ -751,10 +751,17 @@ export default function TodayFlow({
     await reload();
   };
 
+  // TODAY-F-11 (2026-09-05): Undo restores the WHOLE event, under its own id.
+  // This call site copied seven fields by hand, so a deleted repeating event
+  // came back with no end date, no attached tasks, no Training Door, no
+  // provenance and no skipped days, wearing a new id that orphaned any plan
+  // draft pointing at it. B1-3 gave tasks one recreateFrom for exactly this
+  // reason; SCHED-F-09 gave events theirs, and this is the second caller.
   const onDeleteEvent = async () => {
     if (!eventSheet) return;
-    const e = await schedule.event(eventSheet.id);
-    const ok = await attemptWrite(() => schedule.deleteEvent(eventSheet.id));
+    const id = eventSheet.id;
+    const e = await schedule.event(id);
+    const ok = await attemptWrite(() => schedule.deleteEvent(id));
     setEventSheet(null);
     await reload();
     if (ok && e) {
@@ -762,7 +769,7 @@ export default function TodayFlow({
         message: "Event deleted",
         actionLabel: "Undo",
         onAction: async () => {
-          await attemptWrite(() => schedule.createEvent(e.title, { date: e.date, start: e.start, end: e.end, category: e.category || undefined, location: e.location, recurrence: e.recurrence }));
+          await attemptWrite(() => schedule.recreateFrom(e, id));
           await reload();
         },
       });
@@ -801,12 +808,15 @@ export default function TodayFlow({
     const r = res as MoveRes | null;
     if (!ok || !r?.ok || !r.event) return;
     const kept = r.event;
+    const keptId = r.eventId;
     const madeTaskId = r.madeTaskId;
     showToast({
       message: "Moved to Anytime",
       actionLabel: "Undo",
       onAction: async () => {
-        await attemptWrite(() => undoMoveToAnytime(kept, madeTaskId, schedule, tasks));
+        // TODAY-F-11: back under its own id, so nothing pointing at the block
+        // is orphaned by the way back.
+        await attemptWrite(() => undoMoveToAnytime(kept, madeTaskId, schedule, tasks, keptId));
         await reload();
       },
     });
