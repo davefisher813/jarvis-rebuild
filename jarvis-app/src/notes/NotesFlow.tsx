@@ -379,13 +379,21 @@ export default function NotesFlow({
     onChrome?.({ tabBar: screen === "list" });
   }, [screen, onChrome]);
 
+  // HMN-F-20 (2026-09-05): three of these five reads had a fallback and two
+  // did not, so on a bad connection the bare await threw inside
+  // openLinkPicker and the tap on + or Add Link died where it stood: no
+  // picker, no toast, nothing at all. All five fall back to an empty list
+  // now, and a read that FAILED says so, because an empty Events section
+  // otherwise reads as "you have no events", which is a different lie.
   const loadLinkables = useCallback(async () => {
-    const ev = await schedSvc.listEvents();
-    const ts = await tasksSvc.listTasks();
-    const [pr, gl, pe] = await Promise.all([
-      projSvc.list().catch(() => []),
-      goalSvc.list().catch(() => []),
-      peopleSvc.list().catch(() => []),
+    let failed = false;
+    const fall = <T,>(p: Promise<T[]>): Promise<T[]> => p.catch(() => { failed = true; return [] as T[]; });
+    const [ev, ts, pr, gl, pe] = await Promise.all([
+      fall(schedSvc.listEvents()),
+      fall(tasksSvc.listTasks()),
+      fall(projSvc.list()),
+      fall(goalSvc.list()),
+      fall(peopleSvc.list()),
     ]);
     setLinkProjects(pr.map((p) => ({ id: p.id, title: (p.data as { title?: string }).title || "Untitled" })));
     setLinkGoals(gl.map((g) => ({ id: g.id, title: (g.data as { title?: string }).title || "Untitled" })));
@@ -396,6 +404,7 @@ export default function NotesFlow({
         .filter((t) => !(t.data as { done?: boolean }).done)
         .map((t) => ({ id: t.id, text: (t.data as { text?: string }).text || "Untitled" })),
     );
+    if (failed) showToast({ message: "Couldn't load · Check your connection" });
   }, [schedSvc, tasksSvc, projSvc, goalSvc, peopleSvc]);
 
   const openNote = async (id: string) => {

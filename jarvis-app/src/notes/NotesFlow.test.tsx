@@ -14,6 +14,8 @@ import { Store, InMemoryAdapter, type Item, type ItemData } from "@core";
 import { NotesProvider, useNotes, useCategories, useTasks } from "../data/NotesProvider";
 import NotesFlow from "./NotesFlow";
 import { setCategoryRegistry } from "../shared/categories";
+import { ScheduleService } from "../schedule/ScheduleService";
+import { subscribeToast, resetToasts } from "../shared/toast";
 
 class SlowAdapter extends InMemoryAdapter {
   private beat() { return new Promise((r) => setTimeout(r, 15)); }
@@ -202,6 +204,27 @@ describe("NotesFlow: a link to something deleted says so (HMN-F-18)", () => {
     onNavigate.mockClear();
     fireEvent.click(screen.getByText("Book the Flights"));
     expect(onNavigate).not.toHaveBeenCalled();
+  });
+});
+
+// HMN-F-20 (2026-09-05): the events and tasks reads behind Add Link had no
+// fallback, unlike the other three, so a failed read threw inside
+// openLinkPicker and the tap opened nothing and said nothing.
+describe("NotesFlow: Add Link on a bad connection (HMN-F-20)", () => {
+  it("still opens the picker and says the lists could not be read", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    vi.spyOn(ScheduleService.prototype, "listEvents").mockRejectedValue(new Error("offline"));
+    try {
+      await openNoteWith([{ type: "text", text: "" }]);
+      fireEvent.click(screen.getByLabelText("Link Something"));
+      expect(await screen.findByText("Add Link", {}, { timeout: 4000 })).toBeInTheDocument();
+      await waitFor(() => expect(seen.some((m) => m.startsWith("Couldn't load"))).toBe(true));
+    } finally {
+      stop();
+      vi.restoreAllMocks();
+      resetToasts();
+    }
   });
 });
 
