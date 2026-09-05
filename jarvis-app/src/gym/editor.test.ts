@@ -142,3 +142,20 @@ describe("GYM-F-16: only the lift that is really in the plan moves the plan", ()
     expect(flow).toContain("is not in this day's plan, so nothing moved");
   });
 });
+
+// GYM-F-27 (2026-09-05): "Also Did · Band Pull-Aparts · Done 4 times"
+// flickered to "Done 5 times" a moment later, because the receipt opened
+// before the reload that puts the just-finished workout into `workouts`.
+// ReceiptSheet's own comment already claimed the opposite order.
+describe("GYM-F-27: the receipt counts the session it is the receipt for", () => {
+  it("finish reloads before it opens the receipt", () => {
+    const flow = src("GymFlow.tsx");
+    expect(flow).toMatch(/await reload\(\);\s*\n\s*setReceipt\(\{ receipt: \{ \.\.\.r, goalHits \}/);
+    // and never the other way round
+    expect(flow).not.toMatch(/setReceipt\(\{ receipt[^\n]*\n\s*\} else \{\n\s*showToast\([^\n]*\n\s*\}\n\s*await reload\(\);/);
+  });
+
+  it("the sheet still reads the count out of the reloaded list", () => {
+    expect(src("ReceiptSheet.tsx")).toContain("doneCount(workouts, name)");
+  });
+});

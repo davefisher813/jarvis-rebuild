@@ -996,11 +996,17 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
           }
         }
       }
+      // GYM-F-27 (2026-09-05): the reload has to land BEFORE the receipt
+      // opens. ReceiptSheet counts "Done N times" out of `workouts`, and its
+      // own comment at :55-58 already claimed the reload had happened first.
+      // It had not, so an arm-care day read "Band Pull-Aparts · Done 4 times"
+      // and flickered to 5 a moment later when the refreshed list arrived.
+      await reload();
       setReceipt({ receipt: { ...r, goalHits }, dayName: live.dayName });
     } else {
+      await reload();
       showToast({ message: "Nothing logged · Nothing saved" });
     }
-    await reload();
   };
 
   if (uploadOpen) {
