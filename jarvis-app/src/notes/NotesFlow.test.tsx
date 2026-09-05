@@ -47,7 +47,7 @@ async function openNoteWith(blocks: { type: "text" | "checklist"; text?: string;
   });
   view.rerender(<NotesProvider userId={user}><Grab /><NotesFlow openId={id} /></NotesProvider>);
   await waitFor(() => expect(screen.getByText("Text")).toBeInTheDocument());
-  return { svc, id, ids, view };
+  return { svc, id, ids, view, user };
 }
 
 describe("NotesFlow: block mutations run one at a time (HMN-F-01)", () => {
@@ -87,6 +87,29 @@ describe("NotesFlow: block mutations run one at a time (HMN-F-01)", () => {
     await waitFor(async () => {
       const b = (await svc.note(id))!.blocks.find((x) => x.id === ids[0])!;
       expect(b.items).toEqual([{ text: "call the dentist", done: false }, { text: "buy milk", done: true }]);
+    }, { timeout: 4000 });
+  });
+});
+
+// HMN-F-02 (2026-09-05): the flow is unmounted on any tab change
+// (shell/AppShell.tsx), and WKWebView removes a focused element without a
+// blur, so a notification tap or a Where You Were card mid-sentence lost the
+// sentence. The pending text now reaches the store anyway.
+describe("NotesFlow: pending text survives leaving the tab (HMN-F-02)", () => {
+  it("text typed in a block reaches the store when the flow unmounts without a blur", async () => {
+    const { svc, id, ids, view, user } = await openNoteWith([{ type: "text", text: "" }]);
+    const el = await waitFor(() => {
+      const n = document.querySelector(`[data-bid="${ids[0]}"]`) as HTMLElement | null;
+      expect(n).toBeTruthy();
+      return n!;
+    });
+    el.focus();
+    el.textContent = "two minutes of writing";
+    fireEvent.input(el);
+    // The tab changes: the flow is gone, and no blur ever fired.
+    view.rerender(<NotesProvider userId={user}><Grab /></NotesProvider>);
+    await waitFor(async () => {
+      expect((await svc.note(id))!.blocks[0]!.text).toBe("two minutes of writing");
     }, { timeout: 4000 });
   });
 });

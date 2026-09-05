@@ -49,6 +49,40 @@ export default function InlineEdit({
   const caretAt = useRef<number | null>(null);
   const showRich = !!rich && !editing && hasRich(value);
 
+  // FLUSH WHAT IS PENDING (HMN-F-02, 2026-09-05). "Blur or Enter saves" had
+  // no third path: writing for two minutes in one block, then switching apps
+  // or locking the phone, came back to the block as it was before, because
+  // iOS evicts a backgrounded WebView and nothing had saved. The same when a
+  // notification tap or a Where You Were card switched tabs while a block
+  // had the caret: the flow unmounts, WKWebView removes the focused element
+  // without a blur, and the text goes with it. `dirty` is what has been
+  // typed since the last save (null when nothing); it is flushed when the
+  // page hides, when it is being unloaded, and when this field unmounts.
+  // The DOM is not touched: on return the caret is still where it was.
+  const dirty = useRef<string | null>(null);
+  const saveRef = useRef(onSave);
+  const valueRef = useRef(value);
+  saveRef.current = onSave;
+  valueRef.current = value;
+  const flush = () => {
+    const t = dirty.current;
+    dirty.current = null;
+    if (t === null) return;
+    const trimmed = t.trim();
+    if (trimmed === valueRef.current) return;
+    saveRef.current?.(trimmed);
+  };
+  useEffect(() => {
+    const onVisibility = () => { if (document.visibilityState === "hidden") flush(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
+
   // NEVER OVERWRITE WHAT SOMEONE IS ACTIVELY TYPING (2026-08-28, Dave:
   // "extremely difficult to type... I shouldn't feel like it's difficult to
   // type when I tap the screen or anything like that"). Every block save in
@@ -139,6 +173,7 @@ export default function InlineEdit({
         // formatted spans, or the two stack up and the save doubles the block.
         if (rich && hasRich(t)) e.currentTarget.textContent = "";
         setEditing(false);
+        dirty.current = null;
         onSave(t);
       }}
       onKeyDown={(e) => {
@@ -167,8 +202,9 @@ export default function InlineEdit({
         }
       }}
       onInput={(e) => {
-        if (!onTransform) return;
         const t = e.currentTarget.textContent ?? "";
+        dirty.current = t;
+        if (!onTransform) return;
         if (t.startsWith("# ")) onTransform("#", t.slice(2));
         else if (t.startsWith("[] ") || t.startsWith("[ ] ")) onTransform("[]", t.replace(/^\[\s?\]\s/, ""));
         else if (t.startsWith("- ") || t.startsWith("* ")) onTransform("-", t.slice(2));
