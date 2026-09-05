@@ -16,6 +16,16 @@ import { parseContactsFile, type ImportedContact } from "./importContacts";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { createPortal } from "react-dom";
+// S6-Q40 (2026-09-05): "a person's card cannot reach their email." Last
+// Talked and the gone-quiet check-in draft already exist -- CategoryDetail's
+// Family/area pages compute and offer both -- this card just never read
+// them. Same functions, same silent-degrade rule (no Google session or no
+// email means the row is simply not there).
+import { useOptionalGoogle } from "../connections/google/GoogleSession";
+import { lastContactFor, agoLabel, isQuiet, checkinPrompt } from "./lastContact";
+import { useOptionalAIContext } from "../ai/useAIContext";
+import { voiceToText } from "../ai/context";
+import { noDashes } from "../ai/suggestions";
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
@@ -83,6 +93,50 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
     })();
     return () => { on = false; };
   }, [currentName, tasksSvc, schedSvc]);
+
+  // LAST TALKED (S6-Q40): one cached Gmail lookup for whichever person is
+  // open, the same derivation CategoryDetail already runs per row. Cleared
+  // on every person change first, so a stale ago-label from the last card
+  // never flashes on the next one while the lookup is in flight.
+  const google = useOptionalGoogle();
+  const gatherCtx = useOptionalAIContext();
+  const currentEmail = current?.data.email;
+  const [lastMs, setLastMs] = useState<number | null>(null);
+  const [checkingIn, setCheckingIn] = useState(false);
+  useEffect(() => {
+    setLastMs(null);
+    const api = google?.api();
+    if (!api || !currentEmail) return;
+    let on = true;
+    lastContactFor(api, currentEmail, Date.now()).then((ms) => { if (on) setLastMs(ms); });
+    return () => { on = false; };
+  }, [currentEmail, google]);
+  const nowMs = Date.now();
+  const quiet = lastMs != null && isQuiet(lastMs, nowMs);
+  const lastTalked = lastMs != null ? (quiet ? "Gone quiet · " + agoLabel(lastMs, nowMs) : agoLabel(lastMs, nowMs)) : undefined;
+
+  // The check-in draft (2026-08-10's checkinPrompt, reused verbatim): drafts
+  // a short, warm reopening line in the user's own voice and hands it to the
+  // mail app via mailto. Nothing sends without the user hitting send there.
+  // AI unavailable = a blank compose, still useful, never an error.
+  const checkIn = async () => {
+    const email = current?.data.email;
+    if (!email || checkingIn) return;
+    setCheckingIn(true);
+    try {
+      let body = "";
+      if (ai.available) {
+        const voice = await gatherCtx().then((c) => (c ? voiceToText(c) : "")).catch(() => "");
+        const prompt = checkinPrompt(current!.data.name, lastMs != null ? agoLabel(lastMs, Date.now()) : "a while ago", voice);
+        body = noDashes((await ai.complete([{ role: "user", content: prompt.user }], prompt.system, { tier: "write" })).trim());
+      }
+      window.location.href = "mailto:" + email + (body ? "?body=" + encodeURIComponent(body) : "");
+    } catch {
+      window.location.href = "mailto:" + email;
+    } finally {
+      setCheckingIn(false);
+    }
+  };
 
   const pushCls = usePushDepth(current ? 1 : 0);
   const editing = sheet.kind === "edit" ? list.find((p) => p.id === sheet.id) : undefined;
@@ -251,6 +305,10 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
           onCallPrep={current.data.phone ? () => setPrepOpen(true) : undefined}
           onMessage={current.data.phone ? () => setMsgOpen(true) : undefined}
           categoryNames={(current.data.categoryIds ?? []).map((id) => categories.find((c) => c.id === id)?.name).filter((n): n is string => !!n)}
+          lastTalked={lastTalked}
+          quiet={quiet}
+          onCheckIn={current.data.email ? () => void checkIn() : undefined}
+          checkingIn={checkingIn}
           openWith={still}
           onOpenItem={onOpenItem ? (kind, id) => onOpenItem(kind, id) : undefined} />
         {prepOpen && (

@@ -30,6 +30,10 @@ export default function PersonDetail({
   onCallPrep,
   onMessage,
   categoryNames = [],
+  lastTalked,
+  quiet = false,
+  onCheckIn,
+  checkingIn = false,
   openWith = [],
   onOpenItem,
 }: {
@@ -47,6 +51,19 @@ export default function PersonDetail({
   // Names of the categories this person belongs to (resolved by the caller,
   // since this screen has no service access on purpose).
   categoryNames?: string[];
+  // LAST TALKED (S6-Q40, 2026-08-10's lastContact.ts brought to the card
+  // itself): a ready sentence ("3 Weeks ago", "Gone quiet · 2 Months ago"),
+  // resolved by the caller same as everything else here (a Gmail lookup
+  // needs a session this screen has no access to). Undefined hides the row:
+  // no email, no session, or never talked.
+  lastTalked?: string;
+  // Gates the Check In action; does not affect what lastTalked itself says.
+  quiet?: boolean;
+  // Drafts the gone-quiet check-in (checkinPrompt, already written for the
+  // same job on the Family/area pages) and opens it in the mail app --
+  // mailto, never auto-sent. Absent when there is no email to check in on.
+  onCheckIn?: () => void;
+  checkingIn?: boolean;
   // B1 (audit 2026-08-21): the card was a business card. Everything the app
   // knew that involved this person -- the task with their name in it, the
   // meeting on Thursday -- lived one tab away with nothing connecting them.
@@ -55,7 +72,7 @@ export default function PersonDetail({
   onOpenItem?: (kind: "task" | "event", id: string) => void;
 }) {
   const { name, relationship, birthday, notes, color, email, phone, register, flagged } = person.data;
-  const hasAttrs = relationship || birthday || flagged || register || categoryNames.length > 0;
+  const hasAttrs = relationship || birthday || flagged || register || categoryNames.length > 0 || !!lastTalked;
   // How JARVIS writes to them, stated in the card because it drives every
   // draft. Flagged wins over register, same precedence the drafting stack uses.
   const writeStyle = flagged
@@ -125,6 +142,17 @@ export default function PersonDetail({
           <KV label="Birthday" value={birthday} />
           <KV label="JARVIS writes" value={writeStyle} />
           <KV label="Areas" value={categoryNames.length > 0 ? categoryNames.join(", ") : undefined} />
+          {lastTalked && (
+            <div className="row">
+              <div className="row-grow"><div className="conn-name">Last Talked</div></div>
+              <span className="kv-val">{lastTalked}</span>
+              {quiet && onCheckIn && (
+                <button className="pill-act" disabled={checkingIn} onClick={onCheckIn}>
+                  {checkingIn ? "Drafting" : "Check In"}
+                </button>
+              )}
+            </div>
+          )}
         </div></div>
       )}
       {notes && (
