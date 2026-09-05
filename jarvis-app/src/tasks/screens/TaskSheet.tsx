@@ -93,7 +93,9 @@ export default function TaskSheet({
   // Provenance of the task being edited, when it was auto-created. A fact
   // line only; the sheet never writes it (coverage map: not editable).
   source?: Source;
-  onSave: (draft: TaskDraft) => void;
+  // BRAIN-F-09 (2026-09-05): a parent that writes hands back whether the
+  // write landed, so the Saving latch can let go when it did not.
+  onSave: (draft: TaskDraft) => void | Promise<boolean | void>;
   onSchedule?: () => void;
   // Break It Down: hands the current text back so the flow can split it into
   // real tasks. Absent when AI is off, so the row never promises nothing.
@@ -227,7 +229,9 @@ export default function TaskSheet({
     }
     if (saving) return;
     setSaving(true);
-    onSave({
+    // BRAIN-F-09 (2026-09-05): a failed write used to hold this latch on
+    // "Saving" forever, and Cancel (the only way out) took the draft with it.
+    const r = onSave({
       text: text.trim(), ...setCategories(cats), due, repeat, projectId: projectId || undefined,
       // Only a plan that will actually work is saved. A weak one is worse
       // than none: it feels like a plan and carries no effect.
@@ -235,6 +239,7 @@ export default function TaskSheet({
       steps: steps.length ? steps : undefined,
       closeNow: closeNow || undefined,
     });
+    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
   };
 
   const showNotes = mode === "edit" && (linkedNotes.length > 0 || !!onAddNote);

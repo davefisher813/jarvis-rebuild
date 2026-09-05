@@ -29,7 +29,9 @@ export default function CategorySheet({
 }: {
   mode: "new" | "edit";
   initial?: Partial<CategoryDraft>;
-  onSave: (draft: CategoryDraft) => void;
+  // BRAIN-F-09 (2026-09-05): a parent that writes hands back whether the
+  // write landed, so the Saving latch can let go when it did not.
+  onSave: (draft: CategoryDraft) => void | Promise<boolean | void>;
   onDelete?: () => void;
   onCancel: () => void;
 }) {
@@ -54,7 +56,9 @@ export default function CategorySheet({
     }
     if (saving) return;
     setSaving(true);
-    onSave({
+    // BRAIN-F-09 (2026-09-05): unlatch when the parent's write did not land,
+    // instead of holding the button on "Saving" with the edit trapped behind it.
+    const r = onSave({
       name: name.trim(),
       color,
       icon,
@@ -64,6 +68,7 @@ export default function CategorySheet({
       season: kind === "org" ? season : undefined,
       workHours: kind === "org" ? workHours : undefined,
     });
+    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
   };
 
   return (

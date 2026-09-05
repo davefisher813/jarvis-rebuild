@@ -59,3 +59,40 @@ describe("PeopleFlow", () => {
     await waitFor(() => expect(screen.getByText("Sam Rivera")).toBeInTheDocument());
   });
 });
+
+// BRAIN-F-09 (2026-09-05): the sheet's Save latches on the first tap (B12),
+// but this parent's write had no guard: offline, people.create threw, the
+// latch never let go, and the button read "Saving" forever with Cancel, which
+// throws the edit away, as the only way out.
+import { usePeople } from "../data/NotesProvider";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
+
+let peopleRef: ReturnType<typeof usePeople> | null = null;
+function CapturePeople() {
+  peopleRef = usePeople();
+  return null;
+}
+
+describe("PeopleFlow save guard (BRAIN-F-09)", () => {
+  it("a failed save says so, keeps the sheet open, and lets go of the button", async () => {
+    render(
+      <NotesProvider userId="u-f09">
+        <CapturePeople />
+        <PeopleFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(screen.getByText("Add Person"));
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "Ana Diaz" } });
+    peopleRef!.create = () => Promise.reject(new Error("offline"));
+    fireEvent.click(screen.getByText("Save"));
+
+    await waitFor(() => expect(toasts.map((t) => t.message)).toContain(WRITE_FAILED_MESSAGE));
+    // Still open, still holding what was typed, and tappable again.
+    expect(screen.getByDisplayValue("Ana Diaz")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
+    expect(screen.queryByText("Saving")).not.toBeInTheDocument();
+    // Nobody is in the list: the failure did not half-close over a person
+    // who was never written.
+    expect(screen.queryByText("Ana Diaz")).not.toBeInTheDocument();
+  });
+});

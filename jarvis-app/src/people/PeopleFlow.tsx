@@ -152,15 +152,24 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
       register: d.register,
       categoryIds: d.categoryIds.length ? d.categoryIds : undefined,
     };
-    if (sheet.kind === "new") {
-      // New people are always plain contacts; every fact is what the user
-      // set in the sheet, nothing is inferred from where they tapped Add.
-      await people.create({ name: d.name, group: "contacts", ...facts });
-    } else if (sheet.kind === "edit") {
-      await people.update(sheet.id, { name: d.name, ...facts });
-    }
+    // BRAIN-F-09 (2026-09-05): this was the one save on the card with no
+    // guard at all, so a dropped connection threw here, the sheet's Saving
+    // latch never let go, and nothing said a word. The sheet stays open on a
+    // failure (with the typing still in it) and closes only once the write
+    // landed; the boolean is what unlatches the button.
+    const ok = await attemptWrite(async () => {
+      if (sheet.kind === "new") {
+        // New people are always plain contacts; every fact is what the user
+        // set in the sheet, nothing is inferred from where they tapped Add.
+        await people.create({ name: d.name, group: "contacts", ...facts });
+      } else if (sheet.kind === "edit") {
+        await people.update(sheet.id, { name: d.name, ...facts });
+      }
+    });
+    if (!ok) return false;
     setSheet({ kind: "closed" });
     await reload();
+    return true;
   };
 
   // Adversarial legacy review (consent-first): the flag now changes how the

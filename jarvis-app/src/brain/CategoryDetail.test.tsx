@@ -144,6 +144,44 @@ describe("CategoryDetail Coming Up (BRAIN-F-07)", () => {
   });
 });
 
+// BRAIN-F-09 (2026-09-05): the sheets on this page latch Save on the first
+// tap (B12), and none of the page's three saves was guarded, so a failed
+// write left the button reading "Saving" forever with no toast.
+import { subscribeToast } from "../shared/toast";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
+
+let tasksRef: ReturnType<typeof useTasks> | null = null;
+function SeededForSave() {
+  const cats = useCategories();
+  const tasks = useTasks();
+  const [cid, setCid] = useState("");
+  useEffect(() => {
+    (async () => { tasksRef = tasks; setCid((await cats.create("Bridge", "blue"))!); })();
+  }, [cats, tasks]);
+  return cid ? <CategoryDetail categoryId={cid} onBack={() => {}} /> : null;
+}
+
+describe("CategoryDetail save guard (BRAIN-F-09)", () => {
+  it("a failed Add Task says so and gives the button back", async () => {
+    const seen: string[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+    try {
+      render(<NotesProvider userId="sg1"><SeededForSave /></NotesProvider>);
+      fireEvent.click(await screen.findByText("Add Task"));
+      fireEvent.change(await screen.findByPlaceholderText("What needs doing?"), { target: { value: "Call the club" } });
+      tasksRef!.createTask = () => Promise.reject(new Error("offline"));
+      fireEvent.click(screen.getByText("Save"));
+      await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
+      // The sheet is still open on the typing, and Save is tappable again.
+      expect(screen.getByDisplayValue("Call the club")).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
+      expect(screen.queryByText("Saving")).not.toBeInTheDocument();
+    } finally {
+      stop();
+    }
+  });
+});
+
 // Org pages become health boards (2026-08-10, Dave: "improve the orgs page
 // as well to make it more than just a list"). Rows carry the next action
 // with its due date, overdue counts, stalled states, and the org's tagged

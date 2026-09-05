@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import PersonSheet from "./PersonSheet";
 
@@ -77,5 +77,33 @@ describe("PersonSheet", () => {
     expect((screen.getByPlaceholderText("Full Name") as HTMLInputElement).value).toBe("Dev");
     fireEvent.click(screen.getByText("Delete Person"));
     expect(onDelete).toHaveBeenCalled();
+  });
+});
+
+// BRAIN-F-09 (2026-09-05): the latch above is right, but it had no way back.
+// A parent whose write failed left the button on "Saving" for good, and the
+// only exit, Cancel, threw the whole edit away.
+describe("PersonSheet save latch (BRAIN-F-09)", () => {
+  it("lets go of the button when the parent says the write did not land", async () => {
+    const onSave = vi.fn(() => Promise.resolve(false));
+    render(<PersonSheet mode="new" onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "Sam Rivera" } });
+    const save = screen.getByText("Save");
+    fireEvent.click(save);
+    expect(save).toHaveTextContent("Saving");
+    await waitFor(() => expect(save).toHaveTextContent("Save"));
+    // Tappable again, with the typing still in the sheet.
+    fireEvent.click(save);
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect((screen.getByPlaceholderText("Full Name") as HTMLInputElement).value).toBe("Sam Rivera");
+  });
+
+  it("lets go when the parent's write throws instead", async () => {
+    const onSave = vi.fn(() => Promise.reject(new Error("offline")));
+    render(<PersonSheet mode="new" onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText("Full Name"), { target: { value: "Ana Diaz" } });
+    const save = screen.getByText("Save");
+    fireEvent.click(save);
+    await waitFor(() => expect(save).toHaveTextContent("Save"));
   });
 });

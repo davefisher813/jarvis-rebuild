@@ -52,7 +52,9 @@ export default function PersonSheet({
   mode: "new" | "edit";
   initial?: PersonData;
   categories?: SheetCategoryOpt[];
-  onSave: (draft: PersonDraft) => void;
+  // BRAIN-F-09 (2026-09-05): a parent that writes hands back whether the
+  // write landed, so the Saving latch below can let go when it did not.
+  onSave: (draft: PersonDraft) => void | Promise<boolean | void>;
   onDelete?: () => void;
   onCancel: () => void;
 }) {
@@ -82,7 +84,11 @@ export default function PersonSheet({
     if (!valid) { setTouched(true); return; }
     if (saving) return;
     setSaving(true);
-    onSave({
+    // BRAIN-F-09 (2026-09-05): offline, the latch used to hold forever: the
+    // button read "Saving" with no toast and no way out but Cancel, which
+    // threw the edit away. A save that comes back false (or throws on the
+    // way) unlatches, so the sheet is usable again with the typing intact.
+    const r = onSave({
       name: name.trim(),
       relationship: relationship.trim(),
       birthday: birthday.trim(),
@@ -93,6 +99,7 @@ export default function PersonSheet({
       register,
       categoryIds,
     });
+    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
   };
 
   return (

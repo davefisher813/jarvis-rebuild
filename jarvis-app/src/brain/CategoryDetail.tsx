@@ -562,11 +562,18 @@ export default function CategoryDetail({
   // three lists the Life tab reads.
   const parentIdx = buildParentIndex(allProjects, goals, allTasks);
 
+  // BRAIN-F-09 (2026-09-05): every sheet on this page latches its Save button
+  // on the first tap, and none of these three writes was guarded, so a failed
+  // one left "Saving" lit forever with the only exit throwing the edit away.
+  // Each returns the boolean the sheet needs to unlatch, and closes only once
+  // the write actually landed.
   const saveTask = async (draft: TaskDraft) => {
     const rec = (draft.repeat || "") as "" | Recurrence;
-    await tasksSvc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, steps: draft.steps });
+    const ok = await attemptWrite(() => tasksSvc.createTask(draft.text, { category: draft.category || undefined, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, steps: draft.steps }));
+    if (!ok) return false;
     setSheet({ kind: "closed" });
     await reload();
+    return true;
   };
 
   const dueLabel = (t: TaskItem): string | null => {
@@ -981,17 +988,25 @@ export default function CategoryDetail({
       )}
       {sheet.kind === "project" && (
         <ProjectSheet mode="new" categories={allCats} goals={goals} initial={{ category: categoryId }}
-          onSave={async (d) => { await projectsSvc.create(d); setSheet({ kind: "closed" }); await reload(); }}
+          onSave={async (d) => {
+            const ok = await attemptWrite(() => projectsSvc.create(d));
+            if (!ok) return false;
+            setSheet({ kind: "closed" });
+            await reload();
+            return true;
+          }}
           onCancel={() => setSheet({ kind: "closed" })} />
       )}
       {sheet.kind === "edit" && (
         <CategorySheet mode="edit"
           initial={{ name: cat.data.name, color: cat.data.color, icon: cat.data.icon ?? "folder", kind: cat.data.kind, season: cat.data.season, workHours: cat.data.workHours }}
           onSave={async (d: CategoryDraft) => {
-            await catsSvc.update(categoryId, { name: d.name, color: d.color, icon: d.icon, kind: d.kind, season: d.season, workHours: d.workHours });
+            const ok = await attemptWrite(() => catsSvc.update(categoryId, { name: d.name, color: d.color, icon: d.icon, kind: d.kind, season: d.season, workHours: d.workHours }));
+            if (!ok) return false;
             setSheet({ kind: "closed" });
             onChanged?.();
             await reload();
+            return true;
           }}
           onDelete={async () => {
             // Undo restores the category itself (new id); items that pointed

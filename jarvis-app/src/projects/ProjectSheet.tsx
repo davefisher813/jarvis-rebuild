@@ -38,7 +38,9 @@ export default function ProjectSheet({ mode, categories, goals = [], initial, on
     if (saving) return;
     setSaving(true);
     const r = onSave({ title: title.trim(), status, category: category || undefined, goalId: goalId || undefined, holdUntil: status === "on_hold" && holdUntil ? holdUntil : undefined });
-    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); });
+    // BRAIN-F-09 (2026-09-05): a parent whose write THROWS unlatches too; the
+    // false branch only ever covered parents that already caught for themselves.
+    void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
   };
   return (
     <FormSheet title={mode === "new" ? "New Project" : "Edit Project"} onCancel={onCancel} onSave={save} saveDisabled={!valid} saveLabel={saving ? "Saving" : "Save"}>
