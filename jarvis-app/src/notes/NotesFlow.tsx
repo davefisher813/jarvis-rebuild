@@ -23,7 +23,7 @@ import { recordSpot } from "../restore/whereYouWere";
 import CreateTasks from "./screens/CreateTasks";
 import type { BlockType } from "./types";
 import QuickCreateSheet, { nextHalfHour, type QuickCreateKind } from "./screens/QuickCreateSheet";
-import { todayISO } from "../schedule/calendar";
+import { todayISO, addDays } from "../schedule/calendar";
 
 type Screen = "list" | "editor" | "templates" | "connections" | "createTasks" | "linkPicker";
 
@@ -398,7 +398,23 @@ export default function NotesFlow({
     setLinkProjects(pr.map((p) => ({ id: p.id, title: (p.data as { title?: string }).title || "Untitled" })));
     setLinkGoals(gl.map((g) => ({ id: g.id, title: (g.data as { title?: string }).title || "Untitled" })));
     setLinkPeople(pe.map((p) => ({ id: p.id, name: (p.data as { name?: string }).name || "Someone" })));
-    setLinkEvents(ev.map((e) => ({ id: e.id, title: (e.data as { title?: string }).title || "Untitled" })));
+    // HMN-F-26 (2026-09-05): every event ever went into the picker, oldest
+    // and newest mixed, so after a few months of real use the Events section
+    // was hundreds of rows with no way to narrow them. A note is linked to
+    // something near now: the window is the last 30 days onward, what is
+    // coming first and what just happened after it. Undated events keep
+    // their place at the end rather than being dropped.
+    const today = todayISO();
+    const from = addDays(today, -30);
+    const dated = ev.map((e) => {
+      const d = e.data as { title?: string; date?: string };
+      return { id: e.id, title: d.title || "Untitled", date: d.date ?? "" };
+    });
+    const inWindow = dated.filter((e) => e.date >= from);
+    const ahead = inWindow.filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+    const behind = inWindow.filter((e) => e.date < today).sort((a, b) => b.date.localeCompare(a.date));
+    const undated = dated.filter((e) => !e.date);
+    setLinkEvents([...ahead, ...behind, ...undated].map((e) => ({ id: e.id, title: e.title })));
     setLinkTasks(
       ts
         .filter((t) => !(t.data as { done?: boolean }).done)
@@ -814,6 +830,7 @@ export default function NotesFlow({
       <div className={pushCls} key="linkPicker">
       <LinkPicker
         events={linkEvents}
+        eventsFloor="That's every event from the last 30 days on."
         tasks={linkTasks}
         projects={linkProjects}
         goals={linkGoals}

@@ -11,11 +11,12 @@ import { useState } from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { Store, InMemoryAdapter, type Item, type ItemData } from "@core";
-import { NotesProvider, useNotes, useCategories, useTasks } from "../data/NotesProvider";
+import { NotesProvider, useNotes, useCategories, useTasks, useSchedule } from "../data/NotesProvider";
 import NotesFlow from "./NotesFlow";
 import { setCategoryRegistry } from "../shared/categories";
 import { ScheduleService } from "../schedule/ScheduleService";
 import { subscribeToast, resetToasts } from "../shared/toast";
+import { todayISO, addDays } from "../schedule/calendar";
 
 class SlowAdapter extends InMemoryAdapter {
   private beat() { return new Promise((r) => setTimeout(r, 15)); }
@@ -130,7 +131,8 @@ describe("NotesFlow: the editor comes back fresh from Create Tasks (HMN-F-14)", 
 // a note back to unfiled.
 let catsRef: ReturnType<typeof useCategories> | null = null;
 let tasksRef: ReturnType<typeof useTasks> | null = null;
-function GrabAll() { svcRef = useNotes(); catsRef = useCategories(); tasksRef = useTasks(); return null; }
+let schedRef: ReturnType<typeof useSchedule> | null = null;
+function GrabAll() { svcRef = useNotes(); catsRef = useCategories(); tasksRef = useTasks(); schedRef = useSchedule(); return null; }
 
 describe("NotesFlow: Connections names the unfiled state and can return to it (HMN-F-17)", () => {
   it("says Not Filed, files under an area, and unfiles again", async () => {
@@ -225,6 +227,39 @@ describe("NotesFlow: Add Link on a bad connection (HMN-F-20)", () => {
       vi.restoreAllMocks();
       resetToasts();
     }
+  });
+});
+
+// HMN-F-26 (2026-09-05): the picker listed every event ever, oldest and
+// newest mixed, so after a few months the Events section was hundreds of
+// rows to scroll. The flow hands it the window around now instead.
+describe("NotesFlow: the link picker's Events are the window around now (HMN-F-26)", () => {
+  it("drops what is long past, leads with what is coming, and says which window", async () => {
+    svcRef = null; schedRef = null;
+    const user = "u-events-f26";
+    const view = render(<NotesProvider userId={user}><GrabAll /></NotesProvider>);
+    await waitFor(() => expect(svcRef && schedRef).toBeTruthy());
+    const svc = svcRef!;
+    let id = "";
+    await act(async () => {
+      await schedRef!.createEvent("Last Season Banquet", { date: addDays(todayISO(), -200), start: "18:00" });
+      await schedRef!.createEvent("Dentist Yesterday", { date: addDays(todayISO(), -1), start: "09:00" });
+      await schedRef!.createEvent("Kickoff Tomorrow", { date: addDays(todayISO(), 1), start: "09:00" });
+      id = (await svc.createNote("Race", ""))!;
+      await svc.addBlock(id, { type: "text", text: "" });
+    });
+    view.rerender(<NotesProvider userId={user}><GrabAll /><NotesFlow openId={id} /></NotesProvider>);
+    await waitFor(() => expect(screen.getByText("Text")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByLabelText("Link Something"));
+    expect(await screen.findByText("Kickoff Tomorrow", {}, { timeout: 4000 })).toBeInTheDocument();
+    expect(screen.getByText("Dentist Yesterday")).toBeInTheDocument();
+    expect(screen.queryByText("Last Season Banquet")).not.toBeInTheDocument();
+    // What is coming leads what just happened.
+    const text = document.body.textContent ?? "";
+    expect(text.indexOf("Kickoff Tomorrow")).toBeLessThan(text.indexOf("Dentist Yesterday"));
+    // And the section says it is a window, not the whole calendar.
+    expect(screen.getByText("That's every event from the last 30 days on.")).toBeInTheDocument();
   });
 });
 

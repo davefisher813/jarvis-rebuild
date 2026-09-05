@@ -46,6 +46,43 @@ describe("LinkPicker", () => {
     expect(onCreateNew).toHaveBeenCalledWith("task");
   });
 
+  // HMN-F-26 (2026-09-05): the picker was built for a demo dataset. With a
+  // few months of real events the section was hundreds of rows and there was
+  // no search field anywhere on the screen.
+  describe("search (HMN-F-26)", () => {
+    const many = {
+      events: [{ id: "e1", title: "Kickoff" }, { id: "e2", title: "Dentist" }],
+      tasks: [{ id: "t1", text: "Email Sam" }],
+      people: [{ id: "p1", name: "Sam Rivera" }],
+    };
+
+    it("narrows every section at once, and leaves the rest alone", () => {
+      render(<LinkPicker {...many} onPick={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Search"), { target: { value: "sam" } });
+      expect(screen.getByText("Email Sam")).toBeInTheDocument();
+      expect(screen.getByText("Sam Rivera")).toBeInTheDocument();
+      expect(screen.queryByText("Kickoff")).not.toBeInTheDocument();
+      expect(screen.queryByText("Dentist")).not.toBeInTheDocument();
+    });
+
+    it("says so when nothing matches, without pretending there is nothing to link", () => {
+      render(<LinkPicker {...many} onPick={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText("Search"), { target: { value: "zzz" } });
+      expect(screen.getByText("Nothing here matches that.")).toBeInTheDocument();
+      expect(screen.queryByText("Nothing to Link Yet")).not.toBeInTheDocument();
+    });
+
+    it("with nothing to link at all there is no search field to fill in", () => {
+      render(<LinkPicker events={[]} tasks={[]} onPick={vi.fn()} />);
+      expect(screen.queryByPlaceholderText("Search")).not.toBeInTheDocument();
+    });
+
+    it("the Events section says what window it is showing", () => {
+      render(<LinkPicker {...many} onPick={vi.fn()} eventsFloor="That's every event from the last 30 days on." />);
+      expect(screen.getByText("That's every event from the last 30 days on.")).toBeInTheDocument();
+    });
+  });
+
   it("doesn't render any New X row when onCreateNew isn't passed", () => {
     render(<LinkPicker events={[{ id: "e1", title: "Kickoff" }]} tasks={[]} onPick={vi.fn()} />);
     expect(screen.queryByText("New Event")).not.toBeInTheDocument();
