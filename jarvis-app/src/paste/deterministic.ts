@@ -52,50 +52,93 @@ function iso(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+// PLUMB-F-05 (2026-09-05): a day or a time match now carries the EXACT text it
+// matched, because the title cleaner used to run its own second copy of these
+// patterns. The two copies could disagree, and did: a line whose date was
+// rejected still lost the words to the cleaner, so "separate 2 accounts"
+// became a task called "Accounts". One match, one removal.
+interface DayHit { iso: string; text: string }
+interface TimeHit { hhmm: string; text: string }
+
+// Month names, full and the standard abbreviation. This used to be
+// `(jan|feb|...)[a-z]*`, which read "Nova 2" as November 2 and "September"
+// out of "separate". A month is spelled one of these two ways or it is not a
+// month.
+const MONTHS: string[][] = [
+  ["january", "jan"], ["february", "feb"], ["march", "mar"], ["april", "apr"],
+  ["may"], ["june", "jun"], ["july", "jul"], ["august", "aug"],
+  ["september", "sept", "sep"], ["october", "oct"], ["november", "nov"], ["december", "dec"],
+];
+const MONTH_RE = new RegExp(`\\b(${MONTHS.flat().join("|")})\\.?\\s+(\\d{1,2})\\b`);
+
+// PLUMB-F-05: "email Jan 4 times" is a count, not January the 4th, and Jan is
+// a person. A number that is doing the work of a quantity cannot also be a
+// day of the month, so a month-day read is dropped when a counting noun
+// follows the number.
+const COUNTED = /^\s*(times?|more|people|others|items?|things?|weeks?|days?|hours?|minutes?|months?|years?)\b/;
+
+function monthIndex(word: string): number {
+  return MONTHS.findIndex((names) => names.includes(word));
+}
+
 // Resolve a day mention against today. Named weekdays mean the NEXT such day.
-export function resolveDay(lower: string, today: string): string | null {
+// `hasTime` licenses the three-letter weekday abbreviations: "sat", "sun",
+// "mon" and "wed" are ordinary English words ("I sat with Dave", "Mark 5 items
+// done"), so on their own they are not a day. Next to a clock time they are.
+export function resolveDay(lower: string, today: string, hasTime = false): string | null {
+  return matchDay(lower, today, hasTime)?.iso ?? null;
+}
+
+function matchDay(lower: string, today: string, hasTime: boolean): DayHit | null {
   const base = new Date(today + "T00:00:00");
-  if (/\btomorrow\b/.test(lower)) { base.setDate(base.getDate() + 1); return iso(base); }
-  if (/\btoday\b|\btonight\b/.test(lower)) return iso(base);
+  const tom = lower.match(/\btomorrow\b/);
+  if (tom) { base.setDate(base.getDate() + 1); return { iso: iso(base), text: tom[0] }; }
+  const tod = lower.match(/\btoday\b|\btonight\b/);
+  if (tod) return { iso: iso(base), text: tod[0] };
   for (let i = 0; i < WEEKDAYS.length; i++) {
     const w = WEEKDAYS[i]!;
-    if (new RegExp(`\\b(${w}|${w.slice(0, 3)})\\b`).test(lower)) {
+    const pattern = hasTime ? `\\b(${w}|${w.slice(0, 3)})\\b` : `\\b(${w})\\b`;
+    const hit = lower.match(new RegExp(pattern));
+    if (hit) {
       const diff = (i - base.getDay() + 7) % 7 || 7;
       base.setDate(base.getDate() + diff);
-      return iso(base);
+      return { iso: iso(base), text: hit[0] };
     }
   }
   // "aug 20", "august 20", "8/20"
-  const monthNames = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-  const mn = lower.match(new RegExp(`\\b(${monthNames.join("|")})[a-z]*\\.?\\s+(\\d{1,2})\\b`));
-  if (mn) {
-    const d = new Date(base.getFullYear(), monthNames.indexOf(mn[1]!), parseInt(mn[2]!, 10));
+  const mn = lower.match(MONTH_RE);
+  if (mn && !COUNTED.test(lower.slice(mn.index! + mn[0].length))) {
+    const d = new Date(base.getFullYear(), monthIndex(mn[1]!), parseInt(mn[2]!, 10));
     if (d.getTime() < base.getTime() - 86400000) d.setFullYear(d.getFullYear() + 1);
-    return iso(d);
+    return { iso: iso(d), text: mn[0] };
   }
   const slash = lower.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/);
   if (slash) {
     const y = slash[3] ? (slash[3].length === 2 ? 2000 + parseInt(slash[3], 10) : parseInt(slash[3], 10)) : base.getFullYear();
     const d = new Date(y, parseInt(slash[1]!, 10) - 1, parseInt(slash[2]!, 10));
     if (!slash[3] && d.getTime() < base.getTime() - 86400000) d.setFullYear(d.getFullYear() + 1);
-    return iso(d);
+    return { iso: iso(d), text: slash[0] };
   }
   return null;
 }
 
 export function resolveTime(lower: string): string | null {
+  return matchTime(lower)?.hhmm ?? null;
+}
+
+function matchTime(lower: string): TimeHit | null {
   const ap = lower.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/);
   if (ap) {
     let h = parseInt(ap[1]!, 10);
     const m = ap[2] ? parseInt(ap[2], 10) : 0;
     if (ap[3] === "pm" && h < 12) h += 12;
     if (ap[3] === "am" && h === 12) h = 0;
-    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    return { hhmm: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, text: ap[0] };
   }
   const noon = lower.match(/\b(noon|midnight)\b/);
-  if (noon) return noon[1] === "noon" ? "12:00" : "00:00";
+  if (noon) return { hhmm: noon[1] === "noon" ? "12:00" : "00:00", text: noon[0] };
   const colon = lower.match(/\b([01]?\d|2[0-3]):([0-5]\d)\b/);
-  if (colon) return `${colon[1]!.padStart(2, "0")}:${colon[2]}`;
+  if (colon) return { hhmm: `${colon[1]!.padStart(2, "0")}:${colon[2]}`, text: colon[0] };
   return null;
 }
 
@@ -106,13 +149,16 @@ const TASK_OPENERS = /^(call|email|text|send|pay|buy|book|schedule|renew|cancel|
 export function classifyLine(line: string, today: string): ParsedEntity {
   const t = line.trim();
   const lower = t.toLowerCase();
-  const date = resolveDay(lower, today);
-  const time = resolveTime(lower);
+  const timeHit = matchTime(lower);
+  const dayHit = matchDay(lower, today, timeHit !== null);
+  const date = dayHit?.iso ?? null;
+  const time = timeHit?.hhmm ?? null;
+  const spans = [dayHit?.text, timeHit?.text].filter(Boolean) as string[];
 
   // A time plus a day (or just a time with "tonight"-style words caught by
   // resolveDay) is an event, confidently.
   if (time && date) {
-    return { kind: "event", title: titleCase(stripDateWords(t)), date, start: time, confident: true, raw: t };
+    return { kind: "event", title: titleCase(stripDateWords(t, spans)), date, start: time, confident: true, raw: t };
   }
   // QUICK ADD (handoff 5.0): a standing fact about the user, before the
   // to-do reads. It sits here and not lower because "I never work out on
@@ -125,14 +171,23 @@ export function classifyLine(line: string, today: string): ParsedEntity {
   if (fact) {
     return { kind: "fact", title: fact.text, factCategory: fact.category, confident: true, raw: t };
   }
+  // PLUMB-F-05 (2026-09-05): a clock time with no day used to fall through to
+  // the task branch, which has nowhere to put a time, so "call Marcus 10am"
+  // became a task called "Call Marcus" and the 10am was gone. A thing with a
+  // clock time is an appointment; with no day named, it is today's, which is
+  // what the AI-less fallback in ai/capture.ts has always assumed. It sits
+  // below the fact read so "I don't do anything before 7am" is still a fact.
+  if (time) {
+    return { kind: "event", title: titleCase(stripDateWords(t, spans)), date: today, start: time, confident: true, raw: t };
+  }
   // A date without a time on a to-do-looking line: a task due that day.
   if (TASK_OPENERS.test(t)) {
-    return { kind: "task", title: titleCase(stripDateWords(t)), ...(date ? { date } : {}), confident: true, raw: t };
+    return { kind: "task", title: titleCase(stripDateWords(t, spans)), ...(date ? { date } : {}), confident: true, raw: t };
   }
   // A date, no time, not imperative: an all-day-ish event is a guess; a task
   // due that day is the safe, reversible read.
   if (date) {
-    return { kind: "task", title: titleCase(stripDateWords(t)), date, confident: false, raw: t };
+    return { kind: "task", title: titleCase(stripDateWords(t, spans)), date, confident: false, raw: t };
   }
   // Long prose, URLs, confirmation codes: keep it, verbatim, as a note.
   if (t.length > 160 || /https?:\/\//.test(t) || t.split(/[.!?]\s/).length > 2) {
@@ -147,13 +202,18 @@ export function classifyLine(line: string, today: string): ParsedEntity {
 // resolved date instead, so "dinner thursday 7pm" does not become a title
 // that repeats what the date field already says). Copied text in note bodies
 // is never touched by this.
-function stripDateWords(t: string): string {
-  let out = t
-    .replace(/\b(\d{1,2})(:\d{2})?\s*(am|pm)\b/gi, "")
-    .replace(/\b(today|tonight|tomorrow)\b/gi, "")
-    .replace(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday|sun|mon|tue|wed|thu|fri|sat)\b/gi, "")
-    .replace(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+\d{1,2}\b/gi, "")
-    .replace(/\b\d{1,2}\/\d{1,2}(\/\d{2,4})?\b/g, "")
+// PLUMB-F-05 (2026-09-05): this used to re-run its own looser copies of the
+// date patterns over the whole line, so it deleted words the resolver had
+// already refused ("separate 2 accounts" lost "sep 2" and became "Accounts").
+// It now removes ONLY the spans the resolver actually matched, together with
+// the preposition leading into them, and nothing else.
+function stripDateWords(t: string, spans: string[]): string {
+  let out = t;
+  for (const span of spans) {
+    const esc = span.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    out = out.replace(new RegExp(`(?:\\b(?:at|on|from)\\s+)?${esc}\\.?`, "i"), " ");
+  }
+  out = out
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([,.!?])/g, "$1")
     .trim()

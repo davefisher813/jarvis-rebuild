@@ -184,7 +184,12 @@ export async function smartPasteSave(text: string, deps: PasteDeps): Promise<Sav
     } else if (e.confident) {
       result = toCaptureResult(e, e.kind);
     } else {
-      const improved = await aiImprove(e.body ?? e.title, deps);
+      // PLUMB-F-05 (2026-09-05): the model used to be handed e.title, which
+      // has already been Title Cased and had its date words cut out, so it was
+      // asked to improve "Accounts" when the person wrote "separate 2
+      // accounts". It gets the line as pasted; that is the only version of it
+      // that still holds every word.
+      const improved = await aiImprove(e.body ?? e.raw, deps);
       if (improved) {
         result = improved;
       } else if (deps.ai.available) {

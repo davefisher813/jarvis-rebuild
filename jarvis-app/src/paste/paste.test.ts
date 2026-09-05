@@ -104,6 +104,70 @@ describe("deterministic parsing", () => {
   });
 });
 
+// PLUMB-F-05 (2026-09-05). Three regexes were loose enough to read a date out
+// of ordinary English, the title cleaner deleted the words they matched even
+// when the resolver had refused them, a time with no day was thrown away, and
+// the AI fallback was handed the wreckage instead of the line.
+describe("PLUMB-F-05: dates are only read where a date was written", () => {
+  it("a time with no day keeps the time, as today's event", () => {
+    const e = classifyLine("call Marcus 10am", TODAY);
+    expect(e).toMatchObject({ kind: "event", date: TODAY, start: "10:00", confident: true });
+    expect(e.title).toBe("Call Marcus");
+  });
+
+  it("a month abbreviation inside a longer word is not a month", () => {
+    // "nov" out of "Nova", "sep" out of "separate", "mar" out of "Mark".
+    const deck = classifyLine("review Nova 2 deck", TODAY);
+    expect(deck.date).toBeUndefined();
+    expect(deck.title).toBe("Review Nova 2 Deck");
+    expect(resolveDay("separate 2 accounts", TODAY)).toBeNull();
+    expect(resolveDay("mark 5 items done", TODAY)).toBeNull();
+  });
+
+  it("a counted number is a count, not a day of the month", () => {
+    const e = classifyLine("email Jan 4 times", TODAY);
+    expect(e.date).toBeUndefined();
+    expect(e.title).toBe("Email Jan 4 Times");
+  });
+
+  it("a three-letter weekday needs a time beside it to count as a day", () => {
+    expect(resolveDay("I sat with Dave", TODAY)).toBeNull();
+    expect(classifyLine("I sat with Dave", TODAY).title).toBe("I Sat with Dave");
+    // Next to a clock time it is a day again.
+    expect(resolveDay("sat 9am", TODAY, true)).toBe("2026-08-22");
+    expect(classifyLine("dinner sat 9am", TODAY)).toMatchObject({ kind: "event", date: "2026-08-22", start: "09:00" });
+  });
+
+  it("full month and weekday names still resolve", () => {
+    expect(resolveDay("august 20", TODAY)).toBe("2026-08-20");
+    expect(resolveDay("sept 20", TODAY)).toBe("2026-09-20");
+    expect(resolveDay("wednesday", TODAY)).toBe("2026-08-19");
+  });
+
+  it("the title loses only the words the date actually came from", () => {
+    // The old cleaner ran its own patterns over the line, so a refused match
+    // still cost the title its words.
+    expect(classifyLine("separate 2 accounts", TODAY).title).toBe("Separate 2 Accounts");
+    expect(classifyLine("dinner with marco on thursday at 7pm", TODAY).title).toBe("Dinner with Marco");
+  });
+
+  it("the AI fallback is handed the line as pasted, not the cleaned title", async () => {
+    const seen: string[] = [];
+    const store = new Store(new InMemoryAdapter());
+    const deps = {
+      ai: { available: true, complete: async (msgs: { content: string }[]) => { seen.push(msgs[0]!.content); return "not json"; } } as unknown as AIService,
+      gather: async () => ({ categories: [] }) as unknown as AIContext,
+      tasks: new TasksService(store, U),
+      schedule: new ScheduleService(store, U),
+      notes: new NotesService(store, U),
+      categories: [],
+      today: TODAY,
+    } as unknown as PasteDeps;
+    await smartPasteSave("separate 2 accounts", deps);
+    expect(seen).toEqual(["separate 2 accounts"]);
+  });
+});
+
 describe("law: deterministic runs BEFORE any AI call", () => {
   it("a confident paste makes ZERO AI calls", async () => {
     const calls = { n: 0 };
