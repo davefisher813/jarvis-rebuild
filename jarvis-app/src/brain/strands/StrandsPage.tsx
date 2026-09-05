@@ -70,12 +70,22 @@ export function receiptLine(derivation: DerivationKey | undefined, e: StrandEvid
 // the target; the actual Strand is DERIVED from strands on every render
 // (never captured once at mount), so it resolves correctly whichever finishes
 // loading first, the deep link or the list itself.
-export default function StrandsPage({ onBack, openId: initialOpenId }: { onBack: () => void; openId?: string }) {
+export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, onOpenConsumed }: { onBack: () => void; openId?: string;
+  // BRAIN-F-04 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
+  // Without it a fact opened from Quick Add reopened its sheet on every later
+  // visit to What JARVIS Knows.
+  openNonce?: number; onOpenConsumed?: () => void }) {
   const svc = useStrands();
   const ai = useAI();
   const today = todayISO();
   const [strands, setStrands] = useState<Strand[]>([]);
   const [openId, setOpenId] = useState<string | null>(initialOpenId ?? null);
+  useEffect(() => {
+    if (!initialOpenId) return;
+    setOpenId(initialOpenId);
+    onOpenConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOpenId, openNonce]);
   const open = openId ? strands.find((s) => s.id === openId) ?? null : null;
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);

@@ -38,7 +38,13 @@ function aboutOf(m: MentionItem): string {
     : `the upcoming "${m.title}"${m.sub ? ` on ${m.sub}` : ""}`;
 }
 
-export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, onOpenItem }: { onBack: () => void; openId?: string; onOpenNote?: (id: string) => void; onOpenItem?: (kind: string, id: string) => void }) {
+export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, onOpenConsumed, onOpenNote, onOpenItem }: { onBack: () => void; openId?: string;
+  // BRAIN-F-04 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
+  // This id used to be read once per mount and cleared only by a bottom-tab
+  // tap, so backing out of a person, leaving Contacts and tapping Contacts
+  // again opened them straight back up. The effect below consumes it.
+  openNonce?: number; onOpenConsumed?: () => void;
+  onOpenNote?: (id: string) => void; onOpenItem?: (kind: string, id: string) => void }) {
   const people = usePeople();
   const notesSvc = useNotes();
   const catsSvc = useCategories();
@@ -50,6 +56,14 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, onOpenNote, 
     return () => { on = false; };
   }, [catsSvc]);
   const [openId, setOpenId] = useState<string | null>(initialOpenId ?? null);
+  // BRAIN-F-04: open on the id whenever it arrives, including a repeat of the
+  // same person (the nonce), then tell the shell it is spent.
+  useEffect(() => {
+    if (!initialOpenId) return;
+    setOpenId(initialOpenId);
+    onOpenConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOpenId, openNonce]);
   const [linkedNotes, setLinkedNotes] = useState<{ id: string; title: string; category: string }[]>([]);
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [prepOpen, setPrepOpen] = useState(false);

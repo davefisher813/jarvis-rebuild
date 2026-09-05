@@ -104,6 +104,8 @@ export default function CategoryDetail({
   onOpenGoal,
   onChanged,
   autoOpenGym,
+  gymNonce,
+  onGymConsumed,
 }: {
   categoryId: string;
   onBack: () => void;
@@ -115,10 +117,16 @@ export default function CategoryDetail({
   onOpenGoal?: (id: string) => void;
   onChanged?: () => void;
   // S5-Q31: "Back to <day>" on Today lands here already knowing a live
-  // session is waiting -- this is a fresh mount every time (BrainFlow keys
-  // its detail pane by category id), so seeding gymOpen's initial value is
-  // enough; nothing needs to reset it back off.
+  // session is waiting.
   autoOpenGym?: boolean;
+  // BRAIN-F-04 (2026-09-05): seeding gymOpen at mount was not enough. The
+  // shell kept the flag until a bottom-tab tap, so every later open of the
+  // Health area walked straight back into the live session, and a SECOND
+  // "Back to <day>" while this page was already open did nothing. The effect
+  // below opens on the flag (nonce included, so a repeat still counts) and
+  // consumes it.
+  gymNonce?: number;
+  onGymConsumed?: () => void;
 }) {
   const tasksSvc = useTasks();
   const schedule = useSchedule();
@@ -164,6 +172,12 @@ export default function CategoryDetail({
   const [programs, setPrograms] = useState<Program[]>([]);
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [gymOpen, setGymOpen] = useState(!!autoOpenGym);
+  useEffect(() => {
+    if (!autoOpenGym) return;
+    setGymOpen(true);
+    onGymConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoOpenGym, gymNonce]);
   // The Health hero's Start names the day; the gym walks into it (2026-09-02).
   const [gymStartDay, setGymStartDay] = useState<string | null>(null);
   // D10-B/D11-C/D13-C: the metric strip and the insight cards, health-kind

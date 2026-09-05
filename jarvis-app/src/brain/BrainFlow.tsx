@@ -20,7 +20,7 @@ const DOC_TOPIC: Record<string, string> = {
 // The Brain tab. The hub is built. Contacts opens the one people list (the
 // Inner Circle / Adversarial rows were cut 2026-08-03); the doc rows open a
 // lightweight placeholder for now. "Your Categories" is populated live.
-export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBlockId, onRoutineBlockConsumed, personOpenId, decisionOpenId, factOpenId, onOpenNote, onOpenProject, onOpenMoney, onOpenEntity, autoOpenGym }: { openKey?: string;
+export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBlockId, onRoutineBlockConsumed, personOpenId, personNonce, onPersonConsumed, decisionOpenId, decisionNonce, onDecisionConsumed, factOpenId, factNonce, onFactConsumed, onOpenNote, onOpenProject, onOpenMoney, onOpenEntity, autoOpenGym, gymNonce, onGymConsumed }: { openKey?: string;
   // BRAIN-F-03 (2026-09-05): the nonce and the callback, the shape
   // shell/intents.ts describes. Without them openKey was read once in the
   // useState below, so a deep link that arrived while the Brain tab was
@@ -28,7 +28,16 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   // changed nothing at all: setActive("brain") on the active tab remounts
   // nothing, and a prop nobody re-reads is not a navigation.
   openNonce?: number; onKeyConsumed?: () => void;
-  routineBlockId?: string; onRoutineBlockConsumed?: () => void; personOpenId?: string; decisionOpenId?: string; factOpenId?: string; onOpenNote?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenMoney?: () => void; onOpenEntity?: (kind: string, id: string) => void; autoOpenGym?: boolean } = {}) {
+  routineBlockId?: string; onRoutineBlockConsumed?: () => void;
+  // BRAIN-F-04 (2026-09-05): each of these is a one-shot the screen behind
+  // this hub consumes for itself (shell/intents.ts). BrainFlow only forwards
+  // them: the id has to survive until Contacts, Decisions or What JARVIS
+  // Knows is actually mounted, which is one render after this flow opens.
+  personOpenId?: string; personNonce?: number; onPersonConsumed?: () => void;
+  decisionOpenId?: string; decisionNonce?: number; onDecisionConsumed?: () => void;
+  factOpenId?: string; factNonce?: number; onFactConsumed?: () => void;
+  onOpenNote?: (id: string) => void; onOpenProject?: (id: string) => void; onOpenMoney?: () => void; onOpenEntity?: (kind: string, id: string) => void;
+  autoOpenGym?: boolean; gymNonce?: number; onGymConsumed?: () => void } = {}) {
   const cats = useCategories();
   const [categories, setCategories] = useState<BrainCategory[]>([]);
   const [open, setOpen] = useState<{ key: string; name: string } | null>(
@@ -104,7 +113,7 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
   const detail = (() => {
     if (!open) return null;
     if (open.key === "knows") {
-      return <StrandsPage openId={factOpenId} onBack={() => setOpen(null)} />;
+      return <StrandsPage openId={factOpenId} openNonce={factNonce} onOpenConsumed={onFactConsumed} onBack={() => setOpen(null)} />;
     }
     if (open.key === "month") {
       return <InsightsFlow onBack={() => setOpen(null)} onOpenTask={onOpenEntity ? (id) => onOpenEntity("task", id) : undefined} />;
@@ -113,10 +122,12 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
       return <RoutineFlow onBack={() => setOpen(null)} focusId={routineBlockId} onFocusConsumed={onRoutineBlockConsumed} />;
     }
     if (open.key === "decisions") {
-      return <DecisionsFlow openId={decisionOpenId} onBack={() => setOpen(null)} />;
+      return <DecisionsFlow openId={decisionOpenId} openNonce={decisionNonce} onOpenConsumed={onDecisionConsumed} onBack={() => setOpen(null)} />;
     }
     if (open.key === "contacts") {
-      return <PeopleFlow openId={personOpenId ?? personId} onOpenNote={onOpenNote} onOpenItem={onOpenEntity} onBack={() => { setPersonId(undefined); setOpen(null); }} />;
+      // BRAIN-F-04: an explicit tap (personId, set by a person row on an area
+      // page) wins over a link, which is spent the moment PeopleFlow opens it.
+      return <PeopleFlow openId={personId ?? personOpenId} openNonce={personNonce} onOpenConsumed={onPersonConsumed} onOpenNote={onOpenNote} onOpenItem={onOpenEntity} onBack={() => { setPersonId(undefined); setOpen(null); }} />;
     }
     const topic = DOC_TOPIC[open.key];
     if (topic) {
@@ -138,6 +149,8 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
           onOpenGoal={onOpenEntity ? (id) => onOpenEntity("goal", id) : undefined}
           onChanged={() => void loadCats()}
           autoOpenGym={autoOpenGym}
+          gymNonce={gymNonce}
+          onGymConsumed={onGymConsumed}
         />
       );
     }

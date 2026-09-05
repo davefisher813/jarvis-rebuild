@@ -113,6 +113,22 @@ describe("BrainFlow: a live-session deep-link lands in the gym, not the category
     await waitFor(() => expect(screen.getByText("No Program Yet")).toBeInTheDocument());
     expect(screen.queryByText("Log It")).not.toBeInTheDocument();
   });
+
+  // BRAIN-F-04 (2026-09-05): the flag was cleared only by a bottom-tab tap, so
+  // every later open of the Health area walked back into the live session.
+  it("tells the shell the gym flag is spent, so a later visit lands on the page", async () => {
+    const consumed = vi.fn();
+    function Seeded() {
+      const cats = useCategories();
+      const [cid, setCid] = useState("");
+      useEffect(() => {
+        (async () => { setCid((await cats.create("Health", "blue"))!); })();
+      }, [cats]);
+      return cid ? <BrainFlow openKey={cid} autoOpenGym gymNonce={1} onGymConsumed={consumed} /> : null;
+    }
+    render(<NotesProvider userId="b-gym2"><Seeded /></NotesProvider>);
+    await waitFor(() => expect(consumed).toHaveBeenCalled());
+  });
 });
 
 // BRAIN-F-03 (2026-09-05): openKey was read once, in a useState initialiser,
@@ -163,5 +179,53 @@ describe("BrainFlow deep links while the tab is already open (BRAIN-F-03)", () =
 
     fireEvent.click(screen.getByText("Link It"));
     await waitFor(() => expect(screen.getByText("Up Next")).toBeInTheDocument());
+  });
+});
+
+// BRAIN-F-04 (2026-09-05): the person, decision, fact and gym intents were
+// consumed at a child's mount and cleared only by a bottom-tab tap, so
+// following a link to a person and backing all the way out left the id sitting
+// in the shell: tapping Contacts later jumped straight back to them.
+import { usePeople } from "../data/NotesProvider";
+
+function PersonLink() {
+  const people = usePeople();
+  const [id, setId] = useState<string | undefined>(undefined);
+  // The shell's own one-shot, in miniature: fire bumps the nonce, the child
+  // clears it when it opens the person.
+  const [intent, setIntent] = useState<{ value?: string; nonce: number }>({ nonce: 0 });
+  const [key, setKey] = useState<string | undefined>(undefined);
+  const [keyNonce, setKeyNonce] = useState(0);
+  useEffect(() => { (async () => setId((await people.create({ name: "Marco Vidal", group: "contacts" }))!))(); }, [people]);
+  return id ? (
+    <>
+      <button onClick={() => { setIntent((i) => ({ value: id, nonce: i.nonce + 1 })); setKey("contacts"); setKeyNonce((n) => n + 1); }}>Link Marco</button>
+      <BrainFlow
+        openKey={key} openNonce={keyNonce} onKeyConsumed={() => setKey(undefined)}
+        personOpenId={intent.value} personNonce={intent.nonce}
+        onPersonConsumed={() => setIntent((i) => ({ nonce: i.nonce }))}
+      />
+    </>
+  ) : null;
+}
+
+describe("BrainFlow person deep link (BRAIN-F-04)", () => {
+  it("opens the person once, and a later visit to Contacts shows the list", async () => {
+    render(<NotesProvider userId="deep3"><PersonLink /></NotesProvider>);
+    await screen.findByText("Contacts");
+    fireEvent.click(screen.getByText("Link Marco"));
+    // The person's own card: Edit is on the card, never on the list.
+    await waitFor(() => expect(screen.getByLabelText("Edit")).toBeInTheDocument());
+
+    // Back out of the card, then out of Contacts, then open Contacts by hand.
+    fireEvent.click(screen.getByLabelText("Back"));
+    await waitFor(() => expect(screen.getByText("Add Person")).toBeInTheDocument());
+    fireEvent.click(screen.getByLabelText("Back"));
+    await waitFor(() => expect(screen.getByText("Life Philosophy")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Contacts"));
+
+    // The list, not Marco's card.
+    await waitFor(() => expect(screen.getByText("Add Person")).toBeInTheDocument());
+    expect(screen.queryByLabelText("Edit")).not.toBeInTheDocument();
   });
 });

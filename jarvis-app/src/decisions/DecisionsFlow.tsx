@@ -57,7 +57,11 @@ function glyphClass(rec: DecisionRecord, projectCat: (id: string) => string | un
   return "cat-fg-blue"; // task
 }
 
-export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; openId?: string }) {
+export default function DecisionsFlow({ onBack, openId, openNonce, onOpenConsumed }: { onBack: () => void; openId?: string;
+  // BRAIN-F-04 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
+  // Read once per mount and cleared only by a tab tap, this id reopened the
+  // same record every later visit to Decisions.
+  openNonce?: number; onOpenConsumed?: () => void }) {
   const svc = useDecisions();
   const projects = useProjects();
   const goals = useGoals();
@@ -69,6 +73,12 @@ export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; 
   const [projCats, setProjCats] = useState<Record<string, string | undefined>>({});
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<{ kind: "list" } | { kind: "record"; id: string }>(openId ? { kind: "record", id: openId } : { kind: "list" });
+  useEffect(() => {
+    if (!openId) return;
+    setView({ kind: "record", id: openId });
+    onOpenConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId, openNonce]);
   const [sheet, setSheet] = useState<{ kind: "closed" } | { kind: "new" } | { kind: "supersede"; oldId: string }>({ kind: "closed" });
   const [editing, setEditing] = useState(false);
   const [armedDelete, setArmedDelete] = useState(false);
