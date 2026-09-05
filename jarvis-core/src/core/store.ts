@@ -211,13 +211,30 @@ export class Store {
     this.online = false;
   }
 
+  // PLUMB-F-02 (2026-09-05): one drain at a time. Every "online" event calls
+  // reconnect(), and WKWebView fires them in pairs on an interface change.
+  // Two drains over one queue peek the same head op before either shifts
+  // it: the same create inserted twice, the same patch applied twice, and
+  // with uneven latency the OLDEST patch landing last, so an edit made three
+  // times offline read as its first version again. A second caller now gets
+  // the in-flight drain's own promise, exactly the `flushing` latch
+  // ServerSink.flush() already has.
+  private draining: Promise<void> | null = null;
+
+  reconnect(): Promise<void> {
+    this.online = true;
+    if (this.draining) return this.draining;
+    const run = this.drain().finally(() => { this.draining = null; });
+    this.draining = run;
+    return run;
+  }
+
   // Drain the offline queue in order, dispatching each op by kind. Peek
   // before applying, shift only after it lands: the original shift-then-await
   // shape lost a queued op for good if the network dropped again mid-drain
   // (apply throws -> op was already gone). Now a failure here leaves the
   // rest of the queue exactly as it was, for the next reconnect to retry.
-  async reconnect(): Promise<void> {
-    this.online = true;
+  private async drain(): Promise<void> {
     while (this.queue.length) {
       const op = this.queue[0]!;
       if (op.op === "create") {

@@ -268,3 +268,96 @@ describe("PLUMB-F-01: an offline create's id is a bare uuid", () => {
     expect(store.queueLen()).toBe(1);
   });
 });
+
+// PLUMB-F-02 (2026-09-05): "reconnect() has no in-flight guard: overlapping
+// replays double-apply and can revert the newest edit." Two "online" events
+// close together (WKWebView fires them in pairs) each started a drain over
+// the same queue.
+describe("PLUMB-F-02: overlapping reconnects share one drain", () => {
+  // Wraps an adapter so every write takes a scripted amount of time. Uneven
+  // latency is what turns "applied twice" into "the oldest patch landed
+  // last" (the audit's repro: APPLIED_ORDER n1, n2, n3, n1 and FINAL_N 1).
+  function slow(inner: DataAdapter, delaysMs: number[], applied: ItemData[]): DataAdapter {
+    let i = 0;
+    const wait = () => new Promise((r) => setTimeout(r, delaysMs[i++ % delaysMs.length]));
+    return {
+      create: async (o: string, t: string, d: ItemData, id?: string) => { await wait(); return inner.create(o, t, d, id); },
+      createMany: (o: string, t: string, d: ItemData[]) => inner.createMany(o, t, d),
+      read: (o: string, id: string) => inner.read(o, id),
+      apply: async (o: string, id: string, p: ItemData, st?: ServerTime) => { await wait(); applied.push(p); return inner.apply(o, id, p, st); },
+      del: async (o: string, id: string) => { await wait(); return inner.del(o, id); },
+      listForUser: (o: string, t?: string) => inner.listForUser(o, t),
+    };
+  }
+
+  it("three offline edits replay once each, in order, and the newest wins (two concurrent reconnects, uneven latency)", async () => {
+    const inner = new InMemoryAdapter();
+    const applied: ItemData[] = [];
+    const store = new Store(slow(inner, [30, 5, 5, 5], applied));
+    const id = await inner.create("U", "task", { n: 0 });
+    store.goOffline();
+    await store.update("U", id, { n: 1 });
+    await store.update("U", id, { n: 2 });
+    await store.update("U", id, { n: 3 });
+    await Promise.all([store.reconnect(), store.reconnect()]);
+    expect(applied).toEqual([{ n: 1 }, { n: 2 }, { n: 3 }]);
+    expect((await inner.read("U", id))?.data.n).toBe(3);
+    expect(store.queueLen()).toBe(0);
+  });
+
+  it("a create at the head of the queue is inserted exactly once and stops being pending", async () => {
+    const inner = new InMemoryAdapter();
+    let creates = 0;
+    const counting: DataAdapter = {
+      ...slow(inner, [10], []),
+      create: async (o: string, t: string, d: ItemData, id?: string) => { creates++; await new Promise((r) => setTimeout(r, 10)); return inner.create(o, t, d, id); },
+    };
+    const store = new Store(counting);
+    store.goOffline();
+    const id = await store.create("U", "note", { title: "Once" });
+    await store.update("U", id, { body: "edited" });
+    await Promise.all([store.reconnect(), store.reconnect(), store.reconnect()]);
+    expect(creates).toBe(1);
+    expect(inner.snapshotCount()).toBe(1);
+    expect((await store.read("U", id))?.data).toEqual({ title: "Once", body: "edited" });
+    // The list no longer overlays a pending copy over the real row.
+    expect((await store.listForUser("U", "note")).length).toBe(1);
+  });
+
+  it("a second call while a drain is in flight returns that drain's own promise; after it settles a new call starts fresh", async () => {
+    const inner = new InMemoryAdapter();
+    const store = new Store(slow(inner, [10], []));
+    const id = await inner.create("U", "task", { n: 0 });
+    store.goOffline();
+    await store.update("U", id, { n: 1 });
+    const first = store.reconnect();
+    expect(store.reconnect()).toBe(first);
+    await first;
+    // Nothing queued: a fresh reconnect is a new (immediately settled) drain, not the old one.
+    const again = store.reconnect();
+    expect(again).not.toBe(first);
+    await again;
+    expect(store.queueLen()).toBe(0);
+  });
+
+  it("a failed drain releases the latch so the next online event can retry", async () => {
+    const inner = new InMemoryAdapter();
+    let fail = true;
+    const flaky: DataAdapter = {
+      ...slow(inner, [1], []),
+      apply: async (o: string, id: string, p: ItemData, st?: ServerTime) => {
+        if (fail) throw new Error("dropped");
+        return inner.apply(o, id, p, st);
+      },
+    };
+    const store = new Store(flaky);
+    const id = await inner.create("U", "task", { n: 0 });
+    store.goOffline();
+    await store.update("U", id, { n: 1 });
+    await expect(store.reconnect()).rejects.toThrow("dropped");
+    fail = false;
+    await store.reconnect();
+    expect((await inner.read("U", id))?.data.n).toBe(1);
+    expect(store.queueLen()).toBe(0);
+  });
+});
