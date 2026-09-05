@@ -4,6 +4,7 @@ import { useGoogle } from "./google/GoogleSession";
 import { googleConfigured } from "./google/config";
 import { importCalendar } from "./google/sync";
 import { Mail, CalendarDays, Link2, Plus } from "../shared/icons";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 
 // Settings -> Connections (multi-account, 2026-08-04). Each Google account is
 // its own row with its own feature toggles and its own disconnect. Adding an
@@ -51,6 +52,39 @@ export default function ConnectionsPage({
       setBusy(false);
     }
   };
+
+  // PLUMB-F-16 (2026-09-05): the chips and the tracking switch were the only
+  // controls on this page that did not go through run(). They fired the write
+  // and forgot it, so a save that failed offline or on a token blip left the
+  // new state on screen, said nothing, and was gone on the next open. For the
+  // tracking switch that meant a pixel he believed he had turned off still
+  // riding on every send. Both go through run() now, and both put the control
+  // back where it was when the write does not land. The page already has its
+  // own error line, so the failure rides that instead of a toast, wearing the
+  // app's one standard sentence for a write that did not land.
+  const toggleFeature = (email: string, key: "mail" | "cal", on: boolean) => run(async () => {
+    // GoogleSession.persist reverts its own optimistic update on failure, so
+    // the chip follows the account list back.
+    try {
+      await g.setFeature(email, key, on);
+    } catch {
+      throw new Error(WRITE_FAILED_MESSAGE);
+    }
+    // No receipt on success: the chip's own state is the receipt.
+    return null;
+  });
+
+  const toggleTrackOpens = () => run(async () => {
+    const next = !trackOpens;
+    setTrackOpens(next);
+    try {
+      await profile.save({ trackOpens: next });
+    } catch {
+      setTrackOpens(!next);
+      throw new Error(WRITE_FAILED_MESSAGE);
+    }
+    return null;
+  });
 
   const addAccount = () => run(async () => {
     const { api, email } = await g.addAccount();
@@ -103,9 +137,9 @@ export default function ConnectionsPage({
                       onClick={() => void run(async () => { await g.reconnect(a.email); return a.email + " reconnected."; })}>Reconnect</button>
                   )}
                   <button className={"chip" + (a.mail ? " on" : "")} disabled={busy}
-                    onClick={() => void g.setFeature(a.email, "mail", !a.mail)}>Email</button>
+                    onClick={() => void toggleFeature(a.email, "mail", !a.mail)}>Email</button>
                   <button className={"chip" + (a.cal ? " on" : "")} disabled={busy}
-                    onClick={() => void g.setFeature(a.email, "cal", !a.cal)}>Calendar</button>
+                    onClick={() => void toggleFeature(a.email, "cal", !a.cal)}>Calendar</button>
                   {/* Armed two-tap (2026-08-09): disconnect sat one accidental
                       tap away, styled like the harmless toggles beside it. */}
                   <button className="chip" disabled={busy}
@@ -157,7 +191,8 @@ export default function ConnectionsPage({
             role="switch"
             aria-checked={trackOpens}
             aria-label="Know When Your Email Is Opened"
-            onClick={async () => { const next = !trackOpens; setTrackOpens(next); await profile.save({ trackOpens: next }); }}
+            disabled={busy}
+            onClick={() => void toggleTrackOpens()}
           />
         </div></div></div>
       )}

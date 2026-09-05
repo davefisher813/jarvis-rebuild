@@ -3,10 +3,11 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider } from "../data/NotesProvider";
+import { NotesProvider, useProfile } from "../data/NotesProvider";
 import { GoogleSessionProvider } from "./google/GoogleSession";
 import { makeFakeGoogleApi } from "./google/fakeApi";
 import ConnectionsPage from "./ConnectionsPage";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 
 const api = makeFakeGoogleApi({
   listUpcomingEvents: async () => [{ id: "g1", summary: "Standup", start: { dateTime: "2026-06-01T09:00:00Z" } }],
@@ -53,5 +54,50 @@ describe("ConnectionsPage", () => {
     fireEvent.click(screen.getByText("Tap again"));
     await waitFor(() => expect(screen.getByText("me@example.com disconnected.")).toBeInTheDocument());
     expect(screen.getByText("No Accounts Yet")).toBeInTheDocument();
+  });
+});
+
+// PLUMB-F-16 (2026-09-05): the toggles were the only controls on this page
+// that skipped run(). They flipped, the write failed, nothing said so, and
+// the old setting was back on the next open. The tracking switch is the one
+// that matters most: a pixel he believed he had turned off kept riding.
+describe("ConnectionsPage toggles when the save fails", () => {
+  beforeEach(() => localStorage.clear());
+
+  // The page and GoogleSession share one ProfileService instance from the
+  // provider, so breaking its save is the honest stand-in for offline, a
+  // captive portal, or a token blip mid-write.
+  function BreakSaves() {
+    const profile = useProfile();
+    return <button onClick={() => { profile.save = async () => { throw new Error("network"); }; }}>break-saves</button>;
+  }
+
+  const FAILED = WRITE_FAILED_MESSAGE;
+
+  it("a feature chip that could not be saved goes back and says so", async () => {
+    render(wrap(<><ConnectionsPage configured /><BreakSaves /></>));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("me@example.com");
+    const cal = screen.getByText("Calendar") as HTMLButtonElement;
+    expect(cal.className).toContain("on");
+
+    fireEvent.click(screen.getByText("break-saves"));
+    fireEvent.click(cal);
+    await waitFor(() => expect(screen.getByText(FAILED)).toBeInTheDocument());
+    // The chip is back on, because Calendar is still on: nothing was written.
+    expect((screen.getByText("Calendar") as HTMLButtonElement).className).toContain("on");
+  });
+
+  it("the open-tracking switch that could not be saved goes back and says so", async () => {
+    render(wrap(<><ConnectionsPage configured /><BreakSaves /></>));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("me@example.com");
+    const sw = await screen.findByLabelText("Know When Your Email Is Opened");
+    expect(sw).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(screen.getByText("break-saves"));
+    fireEvent.click(sw);
+    await waitFor(() => expect(screen.getByText(FAILED)).toBeInTheDocument());
+    expect(screen.getByLabelText("Know When Your Email Is Opened")).toHaveAttribute("aria-checked", "true");
   });
 });

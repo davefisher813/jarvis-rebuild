@@ -114,14 +114,27 @@ export function GoogleSessionProvider({
     })();
   }, [profile]);
 
+  // PLUMB-F-16 (2026-09-05): this set the screen first and saved after, and a
+  // failed save left the new state on screen with nothing written. The chip
+  // said Calendar was off, the next launch said it was on. The optimistic
+  // update stays (the toggle has to feel instant), but a failure puts the
+  // list back the way it was and rethrows, so the caller can say so.
   const persist = useCallback(async (list: GoogleAccount[]) => {
+    const before = accountsRef.current;
+    const wasDirty = dirty.current;
     dirty.current = true;
     setAccounts(list);
-    const p = await profile.get();
-    await profile.save({
-      googleAccounts: list,
-      connections: { ...(p?.connections || {}), gmail: list.some((a) => a.mail), googleCalendar: list.some((a) => a.cal) },
-    });
+    try {
+      const p = await profile.get();
+      await profile.save({
+        googleAccounts: list,
+        connections: { ...(p?.connections || {}), gmail: list.some((a) => a.mail), googleCalendar: list.some((a) => a.cal) },
+      });
+    } catch (e) {
+      setAccounts(before);
+      dirty.current = wasDirty;
+      throw e;
+    }
   }, [profile]);
 
   const storeToken = useCallback((email: string, token: string) => {
