@@ -37,26 +37,37 @@ export interface SearchInput {
 
 const EMPTY: SearchResults = { events: [], tasks: [], people: [], notes: [], projects: [], accounts: [], goals: [], categories: [], decisions: [] };
 
+// Everything inside a note's blocks, flattened into one search haystack:
+// headings, paragraphs, checklist and list items, table cells, attachment
+// names. Joined on a control-picture glyph nobody types, so words from
+// adjacent fields never fuse into an accidental match.
+//
+// S6-Q37 (2026-09-04): "Notes' in-page search ignores note bodies." Exported
+// so the Notes tab's own in-page search (NotesFlow.tsx, NotesList.tsx) can
+// build the exact same haystack this file matches against -- one extraction,
+// used by both, so a note that matches global search always matches there
+// too.
+const BLOCK_JOIN = " ␟ ";
+export function noteBlockText(d: NoteData): string {
+  const parts: string[] = [];
+  for (const b of d.blocks ?? []) {
+    if (b.text) parts.push(b.text);
+    if (b.name) parts.push(b.name);
+    for (const it of b.items ?? []) parts.push(typeof it === "string" ? it : it.text ?? "");
+    for (const col of b.columns ?? []) parts.push(col);
+    for (const row of b.rows ?? []) for (const cell of row) parts.push(cell);
+  }
+  return parts.join(BLOCK_JOIN);
+}
+
 // Client-side full-text match across everything the user owns. Case-insensitive
 // substring on the human-facing field of each type.
 export function runSearch(query: string, data: SearchInput): SearchResults {
   const q = query.trim().toLowerCase();
   if (!q) return EMPTY;
   const has = (s: string | undefined) => !!s && s.toLowerCase().includes(q);
-  // Full-text over a note: title plus everything inside its blocks (headings,
-  // text, checklist items, list items, table cells, attachment names).
-  const noteHas = (d: NoteData) => {
-    if (has(d.title)) return true;
-    for (const b of d.blocks ?? []) {
-      if (has(b.text) || has(b.name)) return true;
-      for (const it of b.items ?? []) {
-        if (has(typeof it === "string" ? it : it.text)) return true;
-      }
-      for (const col of b.columns ?? []) if (has(col)) return true;
-      for (const row of b.rows ?? []) for (const cell of row) if (has(cell)) return true;
-    }
-    return false;
-  };
+  // Full-text over a note: title plus everything noteBlockText carries.
+  const noteHas = (d: NoteData) => has(d.title) || has(noteBlockText(d));
   return {
     events: data.events.filter((e) => has(e.data.title)).map((e) => ({ id: e.id, title: e.data.title, start: e.data.start })),
     tasks: data.tasks.filter((t) => has(t.data.text)).map((t) => ({ id: t.id, text: t.data.text })),

@@ -18,10 +18,10 @@ setCategoryRegistry([
 ]);
 
 const notes: NoteListItem[] = [
-  { id: "old", title: "Bridge Invitational Item List", edited: at(5), category: "c-fam", first: "Tents and tables" },
-  { id: "new", title: "Coach Onboarding Plan", edited: at(0, 12), category: "c-work", first: "" },
-  { id: "y", title: "Training Plan", edited: at(1, 23), category: "", first: "Base week." },
-  { id: "undated", title: "Scratch", edited: 0, category: "", first: "" },
+  { id: "old", title: "Bridge Invitational Item List", edited: at(5), category: "c-fam", first: "Tents and tables", body: "Tents and tables" },
+  { id: "new", title: "Coach Onboarding Plan", edited: at(0, 12), category: "c-work", first: "", body: "" },
+  { id: "y", title: "Training Plan", edited: at(1, 23), category: "", first: "Base week.", body: "Base week." },
+  { id: "undated", title: "Scratch", edited: 0, category: "", first: "", body: "" },
 ];
 
 describe("editedLabel", () => {
@@ -86,5 +86,14 @@ describe("NotesList", () => {
     fireEvent.change(container.querySelector(".search-bar input")!, { target: { value: "zzz" } });
     expect(container.querySelectorAll(".note-row")).toHaveLength(0);
     expect(screen.getByText(/No notes match/)).toBeInTheDocument();
+  });
+
+  // S6-Q37 (2026-09-04): "in-page search ignores note bodies." A query that
+  // matches only a note's body -- never its title -- must still surface it.
+  it("searches the body too, not just the title", () => {
+    const { container } = render(<NotesList notes={notes} />);
+    fireEvent.change(container.querySelector(".search-bar input")!, { target: { value: "tents" } });
+    const names = [...container.querySelectorAll(".note-row .task-name")].map((el) => el.textContent);
+    expect(names).toEqual(["Bridge Invitational Item List"]);
   });
 });

@@ -4,6 +4,7 @@ import { catName } from "../shared/categories";
 import type { Category } from "../categories/types";
 import type { Block, Connection, NoteData, TemplateKey } from "./types";
 import NotesList, { type NoteListItem } from "./screens/NotesList";
+import { noteBlockText } from "../search/search";
 import NoteEditor, { type EditorNote } from "./screens/NoteEditor";
 import Templates from "./screens/Templates";
 import { usePushDepth } from "../shared/pushNav";
@@ -252,7 +253,7 @@ export default function NotesFlow({
         // value that reads as a real date (past 2001) is one; anything else
         // is "unknown" and the row shows no date rather than a wrong one.
         const edited = it.serverTime > 1e12 ? it.serverTime : 0;
-        return { id: it.id, title: d.title || "Untitled", edited, category: d.category || "", first: firstLine(d.blocks) };
+        return { id: it.id, title: d.title || "Untitled", edited, category: d.category || "", first: firstLine(d.blocks), body: noteBlockText(d) };
       }),
     );
   }, [svc]);

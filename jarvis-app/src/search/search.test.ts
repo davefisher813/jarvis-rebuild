@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { runSearch, totalHits, buildSuggestionIndex, suggest, type SearchInput } from "./search";
+import { runSearch, totalHits, buildSuggestionIndex, suggest, noteBlockText, type SearchInput } from "./search";
+import type { NoteData } from "../notes/types";
 
 const data: SearchInput = {
   tasks: [{ id: "t1", data: { text: "Email Sam", done: false, category: "" } }],
@@ -48,6 +49,41 @@ describe("runSearch", () => {
   });
   it("returns nothing when no match", () => {
     expect(totalHits(runSearch("zzz", data))).toBe(0);
+  });
+});
+
+// S6-Q37 (2026-09-04): "in-page search ignores note bodies." noteBlockText
+// is the shared haystack this file and the Notes tab's own in-page search
+// both build a note's match against -- one extraction, so a note found
+// here is always found there too.
+describe("noteBlockText", () => {
+  const note = (blocks: NoteData["blocks"]): NoteData => ({ title: "T", category: "", connections: [], blocks });
+
+  it("flattens text, checklist items, list items, table cells, and attachment names", () => {
+    const text = noteBlockText(note([
+      { id: "b1", type: "text", text: "call the venue" },
+      { id: "b2", type: "checklist", items: [{ text: "book photographer", done: false }] },
+      { id: "b3", type: "bulleted_list", items: ["pack tents"] },
+      { id: "b4", type: "table", columns: ["Item", "Qty"], rows: [["Chairs", "12"]] },
+      { id: "b5", type: "file", name: "contract.pdf" },
+    ]));
+    for (const word of ["call the venue", "book photographer", "pack tents", "Item", "Chairs", "contract.pdf"]) {
+      expect(text).toContain(word);
+    }
+  });
+
+  it("never lets one field's ending fuse with the next field's start", () => {
+    const text = noteBlockText(note([
+      { id: "b1", type: "text", text: "call the venu" },
+      { id: "b2", type: "text", text: "e about deposits" },
+    ]));
+    // The real words are "venu" and "e about deposits"; only string
+    // concatenation with no separator would also read "venue" here.
+    expect(text).not.toContain("venue about deposits");
+  });
+
+  it("is empty for a note with no blocks", () => {
+    expect(noteBlockText(note([]))).toBe("");
   });
 });
 

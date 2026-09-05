@@ -21,6 +21,12 @@ export interface NoteListItem {
   edited: number; // epoch ms of the last write; 0 when the store cannot say
   category: string; // drives the area dot's colour
   first: string; // the body's first line, as words; "" for a title-only note
+  // S6-Q37 (2026-09-04): "in-page search ignores note bodies." Built via
+  // search.ts's noteBlockText (the same haystack global search matches
+  // against), never rendered -- search-only, so a note with a match buried
+  // deep in a checklist is still one keystroke away here, same as it
+  // already is from the search sheet.
+  body: string;
 }
 
 // THE SWIPE ON A NOTE (Dave 2026-09-02: "Notes should be able to swipe and
@@ -115,7 +121,8 @@ export default function NotesList({
   // Newest first, always (Apple Notes' own order). A note the store cannot
   // date keeps the order the store gave it, behind every dated one.
   const ordered = [...notes].sort((a, b) => b.edited - a.edited);
-  const shown = query ? ordered.filter((n) => n.title.toLowerCase().includes(query)) : ordered;
+  // S6-Q37: title OR body, same two-part rule search.ts's noteHas uses.
+  const shown = query ? ordered.filter((n) => n.title.toLowerCase().includes(query) || n.body.toLowerCase().includes(query)) : ordered;
   // The SEARCHED list, not the whole one. Select All while a search is
   // narrowing the page must mean the notes on screen: deleting the ones
   // hidden behind a query would be the worst possible version of this.
