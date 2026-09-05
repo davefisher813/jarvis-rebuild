@@ -1,8 +1,17 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, fireEvent, cleanup } from "@testing-library/react";
+import { render, fireEvent, waitFor, act, cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import ReorderList from "./ReorderList";
+
+// One drag of the row at `from`, dropped at the bottom. jsdom gives every row
+// a zero-height rect, so the drop target resolves to the last row.
+function dragToEnd(container: HTMLElement, from: number) {
+  const handle = container.querySelectorAll(".drag-handle")[from]!;
+  fireEvent.pointerDown(handle, { clientY: 0 });
+  act(() => { window.dispatchEvent(Object.assign(new Event("pointermove"), { clientY: 500 })); });
+  act(() => { window.dispatchEvent(new Event("pointerup")); });
+}
 
 // SHELL-F-01 (2026-09-05): the list must paint a changed id set in the same
 // render it arrives in. It used to resync in an effect, one render late, so
@@ -37,6 +46,29 @@ describe("ReorderList", () => {
     expect(container.textContent).toBe("ab");
     rerender(rowsOf(["b", "a"]));
     expect(container.textContent).toBe("ba");
+  });
+
+  // SHELL-F-11 (2026-09-05): the stored order does not change when the write
+  // fails, so the caller's ids prop does not change either, so nothing ever
+  // put the rows back. The dragged order sat there looking saved until the
+  // next visit.
+  it("puts the rows back when the caller says the new order was not saved", async () => {
+    const { container } = render(
+      <ReorderList ids={["a", "b", "c"]} onReorder={async () => false} renderRow={(id) => <span>{id}</span>} />,
+    );
+    dragToEnd(container, 0);
+    expect(container.textContent).toBe("bca");
+    await waitFor(() => expect(container.textContent).toBe("abc"));
+  });
+
+  it("keeps the new order when the caller says nothing, exactly as before", async () => {
+    const seen: string[][] = [];
+    const { container } = render(
+      <ReorderList ids={["a", "b", "c"]} onReorder={(next) => { seen.push(next); }} renderRow={(id) => <span>{id}</span>} />,
+    );
+    dragToEnd(container, 0);
+    expect(seen).toEqual([["b", "c", "a"]]);
+    await waitFor(() => expect(container.textContent).toBe("bca"));
   });
 });
 

@@ -20,7 +20,11 @@ export default function ReorderList({
 }: {
   ids: string[];
   renderRow: (id: string) => ReactNode;
-  onReorder: (next: string[]) => void;
+  // SHELL-F-11 (2026-09-05): a caller that writes the new order may report
+  // back. Resolving false puts the rows back where the drag found them,
+  // because the stored order is unchanged and the caller's own list prop
+  // therefore never changes, so nothing else would ever correct the screen.
+  onReorder: (next: string[]) => void | Promise<boolean | void>;
   /** REORDER IS A MODE (Health Preview, approved 2026-08-31, gestures
    *  ruling): a row crowded with a name, a chevron and a grip has no clean
    *  tap target. When false the grips stay off-screen and the list is a
@@ -53,6 +57,20 @@ export default function ReorderList({
   }
   useEffect(() => { orderRef.current = order; }, [order]);
 
+  // Write a new order, and put the rows back if the caller says it did not
+  // land. Shared by the drag and by the Move Up / Move Down menu below, so
+  // both routes to a reorder behave identically (SHELL-F-11).
+  const commit = (next: string[], before: string[]) => {
+    setOrder(next);
+    orderRef.current = next;
+    const result = onReorder(next);
+    // SHELL-F-11: only a promise that says false rolls back. A caller that
+    // returns nothing keeps the old optimistic behaviour exactly.
+    void Promise.resolve(result).then((ok) => {
+      if (ok === false) { setOrder(before); orderRef.current = before; }
+    }).catch(() => { setOrder(before); orderRef.current = before; });
+  };
+
   // BROWSER-F-14 (2026-09-05), option B. The handle said role="button" and
   // aria-label="Reorder" and did nothing at all when you tapped it: a dead tap
   // on a control that promises to be a button, and with a switch control or a
@@ -69,13 +87,12 @@ export default function ReorderList({
   const move = (i: number, dir: -1 | 1) => {
     const to = i + dir;
     setMenu(null);
-    if (to < 0 || to >= orderRef.current.length) return;
-    const a = [...orderRef.current];
+    const before = orderRef.current;
+    if (to < 0 || to >= before.length) return;
+    const a = [...before];
     const [m] = a.splice(i, 1);
     a.splice(to, 0, m!);
-    setOrder(a);
-    orderRef.current = a;
-    onReorder(a);
+    commit(a, before);
   };
 
   const start = (e: React.PointerEvent, i: number) => {
@@ -86,6 +103,8 @@ export default function ReorderList({
     const downX = e.clientX, downY = e.clientY;
     const handle = e.currentTarget as HTMLElement;
     let moved = false;
+    // Where the rows sat before this drag, kept for the refused-write path.
+    const before = orderRef.current;
 
     const targetIndex = (clientY: number): number => {
       const rows = Array.from(listRef.current?.children ?? []) as HTMLElement[];
@@ -124,7 +143,7 @@ export default function ReorderList({
       // control opens the reorder menu instead of silently committing the
       // order it already had.
       if (!moved) openMenu(i, handle);
-      else if (fromRef.current !== null) onReorder(orderRef.current);
+      else if (fromRef.current !== null) commit(orderRef.current, before);
       fromRef.current = null;
       setIdx(null);
     };

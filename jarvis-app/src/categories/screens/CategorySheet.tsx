@@ -30,8 +30,11 @@ export default function CategorySheet({
 }: {
   mode: "new" | "edit";
   initial?: Partial<CategoryDraft>;
-  // BRAIN-F-09 (2026-09-05): a parent that writes hands back whether the
-  // write landed, so the Saving latch can let go when it did not.
+  // BRAIN-F-09 and SHELL-F-11 (2026-09-05): a parent that writes hands back
+  // whether the write landed, so the Saving latch can let go when it did not.
+  // false unlatches the Save button so the edit can be tried again; anything
+  // else (including the void a test double returns) keeps the latch, because
+  // on success this sheet is on its way off screen.
   onSave: (draft: CategoryDraft) => void | Promise<boolean | void>;
   onDelete?: () => void;
   // BRAIN-F-10 (2026-09-05): what the delete actually costs, in the caller's
@@ -61,8 +64,11 @@ export default function CategorySheet({
     }
     if (saving) return;
     setSaving(true);
-    // BRAIN-F-09 (2026-09-05): unlatch when the parent's write did not land,
-    // instead of holding the button on "Saving" with the edit trapped behind it.
+    // BRAIN-F-09 and SHELL-F-11 (2026-09-05): saving was latched true with
+    // nothing to set it back, so a write that failed left the button reading
+    // "Saving" forever and every further tap was swallowed by the guard above.
+    // Cancel was the only way out and it took the edit with it. Unlatch when
+    // the parent's write did not land instead.
     const r = onSave({
       name: name.trim(),
       color,

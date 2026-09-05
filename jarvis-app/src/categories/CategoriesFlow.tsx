@@ -23,17 +23,26 @@ export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
 
   const editing = sheet.kind === "edit" ? list.find((c) => c.id === sheet.id) : undefined;
 
-  const onSave = async (draft: CategoryDraft) => {
-    if (sheet.kind === "new") {
-      const id = await categories.create(draft.name, draft.color, draft.icon);
-      if (id && (draft.kind !== "plain" || draft.season || draft.workHours)) {
-        await categories.update(id, { kind: draft.kind, season: draft.season, workHours: draft.workHours });
+  // SHELL-F-11 (2026-09-05): onDelete below has been guarded since B10; this
+  // one never was. A failed create or edit threw inside the sheet's promise,
+  // the sheet stayed open reading "Saving" with no toast, and every further
+  // Save tap was ignored. Same guard, same toast, and the false travels back
+  // to the sheet so the button unlatches and the typed name is still there.
+  const onSave = async (draft: CategoryDraft): Promise<boolean> => {
+    const ok = await attemptWrite(async () => {
+      if (sheet.kind === "new") {
+        const id = await categories.create(draft.name, draft.color, draft.icon);
+        if (id && (draft.kind !== "plain" || draft.season || draft.workHours)) {
+          await categories.update(id, { kind: draft.kind, season: draft.season, workHours: draft.workHours });
+        }
+      } else if (sheet.kind === "edit") {
+        await categories.update(sheet.id, { name: draft.name, color: draft.color, icon: draft.icon, kind: draft.kind, season: draft.season, workHours: draft.workHours });
       }
-    } else if (sheet.kind === "edit") {
-      await categories.update(sheet.id, { name: draft.name, color: draft.color, icon: draft.icon, kind: draft.kind, season: draft.season, workHours: draft.workHours });
-    }
+    });
+    if (!ok) return false;
     setSheet({ kind: "closed" });
     await reload();
+    return true;
   };
 
   // B10 (2026-08-24): guarded and announced, deliberately WITHOUT an Undo.
@@ -59,7 +68,14 @@ export default function CategoriesFlow({ onBack }: { onBack: () => void }) {
         onEdit={(id) => setSheet({ kind: "edit", id })}
         onAdd={() => setSheet({ kind: "new" })}
         onBack={onBack}
-        onReorder={async (ids) => { await categories.reorder(ids); await reload(); }}
+        // SHELL-F-11: a reorder that fails used to leave the dragged order on
+        // screen until the next visit. Guarded, and the false sends the list
+        // back to the order that is actually stored.
+        onReorder={async (ids) => {
+          const ok = await attemptWrite(() => categories.reorder(ids));
+          await reload();
+          return ok;
+        }}
       />
       {sheet.kind !== "closed" && (
         <CategorySheet

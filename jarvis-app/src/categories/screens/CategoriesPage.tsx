@@ -25,8 +25,9 @@ export default function CategoriesPage({
   onAdd: () => void;
   onBack: () => void;
   // Drag to reorder. This order is the order everywhere the categories are
-  // listed, so the one the user cares about can sit at the top.
-  onReorder?: (ids: string[]) => void;
+  // listed, so the one the user cares about can sit at the top. Resolving
+  // false (SHELL-F-11) sends the rows back: the write did not land.
+  onReorder?: (ids: string[]) => void | Promise<boolean | void>;
 }) {
   // SHELL-F-01 (2026-09-05): no non-null assertion here. A row asked for by
   // an id this page no longer has (the just-deleted area) renders nothing

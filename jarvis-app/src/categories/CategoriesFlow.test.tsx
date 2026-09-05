@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "../data/NotesProvider";
+import { CategoriesService } from "./CategoriesService";
+import { subscribeToast } from "../shared/toast";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import CategoriesFlow from "./CategoriesFlow";
 
 describe("CategoriesFlow", () => {
@@ -53,5 +56,38 @@ describe("CategoriesFlow", () => {
     expect(crash).toBeUndefined();
     expect(screen.getByText("Alpha")).toBeInTheDocument();
     expect(screen.getByText("Gamma")).toBeInTheDocument();
+  });
+
+  // SHELL-F-11 (2026-09-05): onSave had no guard at all, so a failed write
+  // left the button reading "Saving" forever, no toast, and every further
+  // tap swallowed by the double-tap latch. Cancel was the only way out and
+  // it took the typed name with it.
+  describe("when the write fails", () => {
+    afterEach(() => vi.restoreAllMocks());
+
+    it("says so, keeps the sheet and the typed name, and lets you try again", async () => {
+      const seen: string[] = [];
+      const stop = subscribeToast((t) => { if (t) seen.push(t.message); });
+      const create = vi.spyOn(CategoriesService.prototype, "create").mockRejectedValue(new Error("network"));
+      render(
+        <NotesProvider userId="u1">
+          <CategoriesFlow onBack={() => {}} />
+        </NotesProvider>,
+      );
+      fireEvent.click(screen.getByText("Add Area"));
+      fireEvent.change(screen.getByPlaceholderText("Area Name"), { target: { value: "Travel" } });
+      fireEvent.click(screen.getByText("Save"));
+
+      await waitFor(() => expect(seen).toContain(WRITE_FAILED_MESSAGE));
+      // Still open, still holding the edit, and the button is a button again.
+      expect(screen.getByDisplayValue("Travel")).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText("Save")).toBeInTheDocument());
+
+      // The same tap, with the write no longer failing, goes through.
+      create.mockRestore();
+      fireEvent.click(screen.getByText("Save"));
+      await waitFor(() => expect(screen.getByText("Travel")).toBeInTheDocument());
+      stop();
+    });
   });
 });
