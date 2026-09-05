@@ -67,6 +67,22 @@ export class DecisionService {
     return id;
   }
 
+  // BRAIN-F-14 (2026-09-05): Undo of a delete is a RESTORE, not an intake.
+  // create() is the intake path: it stamps createdAt and updatedAt with now
+  // and forces revisitState from revisitOn, so an undone delete came back
+  // reading "Recorded September 5", sorted to the top of the list, and with an
+  // answered revisit pending on Today. This writes the kept record verbatim
+  // under the id it had, and re-arms the forward pointer remove() cleared, so
+  // a supersede chain reads exactly as it did before the delete.
+  async restore(id: string, data: DecisionRecordData): Promise<string | null> {
+    const decision = data.decision.trim();
+    if (!decision) return null;
+    const newId = await this.store.create(this.ownerId, ENTITY_DECISION, { ...data, decision } as unknown as ItemData, id);
+    if (data.supersedesId) await this.update(data.supersedesId, { supersededById: newId });
+    this.onEvent({ type: "entity.created", entityType: ENTITY_DECISION, entityId: newId });
+    return newId;
+  }
+
   async update(id: string, patch: Partial<DecisionRecordData>): Promise<boolean> {
     const cur = await this.get(id);
     if (!cur) return false;

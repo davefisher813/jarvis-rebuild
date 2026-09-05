@@ -237,3 +237,45 @@ describe("BRAIN-F-01: decision clears reach the row (jsonb-style adapter)", () =
     expect(d.revisitState).toBe("pending");
   });
 });
+
+// BRAIN-F-14 (2026-09-05): Undo of a delete reused create(), the intake path,
+// which stamps createdAt/updatedAt with now and forces revisitState from
+// revisitOn. The record came back reading "Recorded" today, sorted to the top,
+// with a revisit the user had already confirmed pending again on Today.
+describe("BRAIN-F-14: Undo of a delete restores the record, it does not re-record it", () => {
+  it("keeps the id, the original date and the answered revisit", async () => {
+    const svc = rig();
+    const id = (await svc.create({ decision: "Ship the student template first", revisitOn: "2026-08-20" }))!;
+    await svc.confirmRevisit(id);
+    const before = (await svc.get(id))!.data;
+    expect(before.revisitState).toBe("confirmed");
+
+    await svc.remove(id);
+    expect(await svc.get(id)).toBeNull();
+
+    const back = await svc.restore(id, before);
+    expect(back).toBe(id);
+    const after = (await svc.get(id))!.data;
+    expect(after.createdAt).toBe(before.createdAt);
+    expect(after.updatedAt).toBe(before.updatedAt);
+    expect(after.revisitState).toBe("confirmed");
+    // Not pending, so it cannot come back on Today asking to be answered again.
+    expect(await svc.getRevisitsDue("2026-09-05")).toEqual([]);
+  });
+
+  it("puts a superseding record back on top of the one it replaced", async () => {
+    const svc = rig();
+    const oldId = (await svc.create({ decision: "Student first" }))!;
+    const newId = (await svc.supersede(oldId, { decision: "Personal first" }))!;
+    const kept = (await svc.get(newId))!.data;
+
+    await svc.remove(newId);
+    // With the newer one gone the older record is live again, on its own.
+    expect((await svc.list()).map((r) => r.id)).toEqual([oldId]);
+
+    await svc.restore(newId, kept);
+    // Restored: the newer record is the live one and the older is under it.
+    expect((await svc.list()).map((r) => r.id)).toEqual([newId]);
+    expect((await svc.get(oldId))!.data.supersededById).toBe(newId);
+  });
+});

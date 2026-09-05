@@ -147,8 +147,10 @@ export default function DecisionsFlow({ onBack, openId }: { onBack: () => void; 
     if (ok) {
       goList();
       await reload();
+      // BRAIN-F-14 (2026-09-05): restore, not create. create() re-dates the
+      // record to now and re-arms a revisit that was already answered.
       showToast({ message: "Decision deleted", actionLabel: "Undo", onAction: () => void (async () => {
-        await attemptWrite(() => svc.create(kept));
+        await attemptWrite(() => svc.restore(rec.id, kept));
         await reload();
       })() });
     }
