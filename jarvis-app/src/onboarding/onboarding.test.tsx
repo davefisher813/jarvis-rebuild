@@ -239,6 +239,46 @@ describe("OnboardingFlow", () => {
     });
   });
 
+  // SHELL-F-15 (2026-09-05): the areas step says "Remove any that don't
+  // fit". Removing all six left an empty account, and "no categories" was
+  // the signal AppShell used for "first run", so all six were back on the
+  // first screen. Intake now says out loud that the question was answered.
+  it("removing every starter area is recorded, so first launch cannot undo it", async () => {
+    const patches: Record<string, unknown>[] = [];
+    const save = vi.spyOn(ProfileService.prototype, "save").mockImplementation(async (p) => { patches.push(p as Record<string, unknown>); return {} as never; });
+    setup();
+    fireEvent.click(screen.getByText("Begin"));
+    fireEvent.change(screen.getByPlaceholderText("Your name"), { target: { value: "Sam" } });
+    fireEvent.click(screen.getByLabelText("Send"));
+    fireEvent.click(screen.getByText("Personal"));
+    for (const n of ["Work", "Family", "Health", "Money", "Friends", "Personal"]) {
+      fireEvent.click(screen.getByLabelText("Remove " + n));
+    }
+    fireEvent.click(screen.getByText("Continue"));
+    fireEvent.click(screen.getByText(/add people as I go/));
+    fireEvent.click(screen.getByText("Skip for now"));
+    fireEvent.click(screen.getByText("9 to 5"));
+    fireEvent.click(screen.getByText("Skip these"));
+    fireEvent.click(screen.getByText("Draft Only"));
+    fireEvent.click(screen.getByText("Continue"));
+    fireEvent.click(screen.getByText("7:00 AM"));
+    fireEvent.click(screen.getByText("Enter JARVIS"));
+
+    await waitFor(() => expect(patches.length).toBe(1));
+    expect(patches[0]!.areasSeeded).toBe(true);
+    save.mockRestore();
+  });
+
+  it("the intro Skip does not claim the areas step was answered", async () => {
+    const patches: Record<string, unknown>[] = [];
+    const save = vi.spyOn(ProfileService.prototype, "save").mockImplementation(async (p) => { patches.push(p as Record<string, unknown>); return {} as never; });
+    setup();
+    fireEvent.click(screen.getByText("Skip for now"));
+    await waitFor(() => expect(patches.length).toBe(1));
+    expect(patches[0]).not.toHaveProperty("areasSeeded");
+    save.mockRestore();
+  });
+
   it("lets you remove a starter category and add one", () => {
     setup();
     fireEvent.click(screen.getByText("Begin"));

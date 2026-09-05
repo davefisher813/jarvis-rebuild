@@ -69,6 +69,18 @@ describe("CategoriesService", () => {
     );
   });
 
+  // SHELL-F-15 (2026-09-05): seeding wrote straight to the store and told
+  // nobody, so a template's areas resolved to no name and no colour anywhere
+  // in the app until the next relaunch. The registry listens to this bus.
+  it("announces every seeded area, the way create does", async () => {
+    const seen: { type: string; entityId?: string }[] = [];
+    const svc = new CategoriesService(new Store(new InMemoryAdapter()), "u1", (e) => seen.push(e));
+    const seeded = await svc.seedDefaults("student");
+    expect(seen.length).toBe(seeded.length);
+    expect(seen.every((e) => e.type === "entity.created")).toBe(true);
+    expect(seen.map((e) => e.entityId).sort()).toEqual(seeded.map((c) => c.id).sort());
+  });
+
   it("every default across all templates uses a valid color slot", () => {
     Object.values(DEFAULT_CATEGORIES).forEach((set) =>
       set.forEach((s) => expect(COLOR_SLOTS).toContain(s.color)),

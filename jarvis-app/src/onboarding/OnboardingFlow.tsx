@@ -193,6 +193,11 @@ export default function OnboardingFlow({ onFinish }: { onFinish: () => void }) {
           gmail,
           calendar,
           onboarded: true,
+          // SHELL-F-15 (2026-09-05): the areas step has been through. Whether
+          // it left six areas or none, the account has answered the question,
+          // so first launch must not answer it again. Only on a completed
+          // walk: intro Skip never showed the step at all.
+          ...(complete ? { areasSeeded: true } : {}),
           // New users start with the trimmed tab set (see destinations.tsx).
           // Persisted here so the default fallback never shifts under anyone who
           // onboarded before this existed. SHELL-F-09: only when there is no

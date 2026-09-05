@@ -233,7 +233,19 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     let on = true;
     (async () => {
       const prof = await profile.get();
-      await categories.seedDefaults(prof?.template ?? "personal");
+      // SHELL-F-15 (2026-09-05): seeding used to run on every boot with "no
+      // categories" as its signal for a first run, so an account whose owner
+      // deliberately removed every area in intake got all six back on the
+      // first screen. The marker on the profile is the signal now. It is
+      // written here too, so an account that predates the marker stops being
+      // ambiguous after one boot.
+      if (!prof?.areasSeeded) {
+        await categories.seedDefaults(prof?.template ?? "personal");
+        if (prof) {
+          try { await profile.save({ areasSeeded: true }); }
+          catch { /* the next boot marks it; seeding is idempotent either way */ }
+        }
+      }
       const cats = await categories.list();
       if (!on) return;
       setCategoryRegistry(cats.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color })));

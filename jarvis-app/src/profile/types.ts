@@ -34,6 +34,13 @@ export interface ProfileData {
   checkin?: Record<string, { one?: string; mood?: string; skip?: string[] }>;
   calendar: boolean;
   onboarded: boolean;
+  // SHELL-F-15 (2026-09-05): "this account has been through the areas step."
+  // Having no categories used to stand in for "first run", and it cannot tell
+  // a fresh account from one where the person deliberately removed every
+  // starter area: intake let them remove all six ("Remove any that don't
+  // fit") and the next launch seeded all six straight back. An explicit
+  // marker is the only thing that can say the difference out loud.
+  areasSeeded?: boolean;
   // Money v1: payday anchoring. S5-Q33 (2026-09-04): shown for Personal and
   // Student alike -- Student has a real recurring inflow and is the
   // template this product leads with. Business alone stays excluded:

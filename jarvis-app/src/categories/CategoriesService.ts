@@ -101,7 +101,13 @@ export class CategoriesService {
     const seeds = DEFAULT_CATEGORIES[template];
     for (const [i, s] of seeds.entries()) {
       const data: CategoryData = { name: s.name, color: s.color, icon: s.icon, order: i };
-      await this.store.create(this.ownerId, ENTITY_CATEGORY, data as unknown as ItemData);
+      const id = await this.store.create(this.ownerId, ENTITY_CATEGORY, data as unknown as ItemData);
+      // SHELL-F-15 (2026-09-05): this wrote straight to the store and told
+      // nobody, because it predates the bus-driven category registry. So the
+      // areas a template seeded from Profile > Template resolved to no name
+      // and no colour anywhere in the app until the next relaunch. Every
+      // other write in this file announces itself; so does this one.
+      this.onEvent({ type: "entity.created", entityType: ENTITY_CATEGORY, entityId: id });
     }
     return this.list();
   }
