@@ -104,3 +104,98 @@ describe("wireOfflineSync", () => {
     });
   });
 });
+
+// PLUMB-F-09 (2026-09-05): the browser's events were the only signal, and on
+// iOS navigator.onLine only flips when no interface is up at all. The Store
+// notices a network-class write failure itself now; this is the other half,
+// the clock the core deliberately does not own.
+describe("the backoff retry after a write finds the signal gone", () => {
+  function wireCapturingDrop(store: Store, alsoFlush?: () => void) {
+    let dropped: (() => void) | null = null;
+    const real = store.onDropped.bind(store);
+    vi.spyOn(store, "onDropped").mockImplementation((fn) => { dropped = fn; real(fn); });
+    const stop = wireOfflineSync(store, alsoFlush);
+    return { stop, drop: () => dropped?.() };
+  }
+
+  it("retries the queue on a growing wait until it lands, with only one retry in flight", async () => {
+    vi.useFakeTimers();
+    try {
+      onlineGetter(true);
+      const store = new Store(new InMemoryAdapter());
+      const reconnect = vi.spyOn(store, "reconnect").mockRejectedValue(new Error("still down"));
+      const { drop } = wireCapturingDrop(store);
+
+      drop();
+      drop(); // a second failed write while a retry is already pending changes nothing
+      expect(reconnect).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1_999);
+      expect(reconnect).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(reconnect).toHaveBeenCalledTimes(1);
+
+      // Still down, so the next wait is longer, not another two seconds.
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(reconnect).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(reconnect).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a drain that lands stops the retries, and the next drop starts short again", async () => {
+    vi.useFakeTimers();
+    try {
+      onlineGetter(true);
+      const store = new Store(new InMemoryAdapter());
+      const reconnect = vi.spyOn(store, "reconnect").mockResolvedValue(undefined);
+      const { drop } = wireCapturingDrop(store);
+
+      drop();
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(reconnect).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(600_000);
+      expect(reconnect).toHaveBeenCalledTimes(1); // nothing left to chase
+
+      drop();
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(reconnect).toHaveBeenCalledTimes(2); // back to the short wait
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("a real online event cuts the wait short and does not leave the old timer armed", () => {
+    vi.useFakeTimers();
+    try {
+      onlineGetter(true);
+      const store = new Store(new InMemoryAdapter());
+      const reconnect = vi.spyOn(store, "reconnect").mockResolvedValue(undefined);
+      const { drop } = wireCapturingDrop(store);
+      drop();
+      window.dispatchEvent(new Event("online"));
+      expect(reconnect).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(600_000);
+      expect(reconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("the cleanup stops the retries and unhooks the store", () => {
+    vi.useFakeTimers();
+    try {
+      onlineGetter(true);
+      const store = new Store(new InMemoryAdapter());
+      const reconnect = vi.spyOn(store, "reconnect").mockResolvedValue(undefined);
+      const { stop, drop } = wireCapturingDrop(store);
+      drop();
+      stop();
+      vi.advanceTimersByTime(600_000);
+      expect(reconnect).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

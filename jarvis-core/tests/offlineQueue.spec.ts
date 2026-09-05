@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { InMemoryAdapter } from "../src/core/inMemoryAdapter.js";
-import { Store, UUID_RE, type StorePersistence } from "../src/core/store.js";
+import { Store, UUID_RE, isNetworkError, type StorePersistence } from "../src/core/store.js";
 import type { DataAdapter } from "../src/core/adapter.js";
 import type { ItemData, QueuedOp, ServerTime } from "../src/core/types.js";
 
@@ -486,5 +486,134 @@ describe("PLUMB-F-08: an offline edit is visible at once", () => {
     await store.delete("U", id);
     expect(await store.read("U", id)).toBeNull();
     expect(await store.listForUser("U", "task")).toEqual([]);
+  });
+});
+
+// PLUMB-F-09 (2026-09-05): "the queue only engages on the browser's offline
+// event; a write that fails while onLine is true is dropped, not queued."
+// One bar of signal, a captive portal or a Supabase blip left navigator.onLine
+// true, the write threw straight through, and the change was gone.
+describe("PLUMB-F-09: a write that finds the signal gone is queued, not lost", () => {
+  // An adapter that fails the next N writes with whatever the network is
+  // doing today, then behaves.
+  function flaky(fail: unknown, times = 1) {
+    const real = new InMemoryAdapter();
+    let left = times;
+    const guard = () => { if (left > 0) { left--; throw fail; } };
+    const adapter: DataAdapter = {
+      create: async (o, t, d, id) => { guard(); return real.create(o, t, d, id); },
+      createMany: (o, t, ds) => real.createMany(o, t, ds),
+      read: (o, id) => real.read(o, id),
+      apply: async (o, id, p, st) => { guard(); return real.apply(o, id, p, st); },
+      del: async (o, id) => { guard(); return real.del(o, id); },
+      listForUser: (o, t) => real.listForUser(o, t),
+    };
+    return { adapter, real };
+  }
+
+  it("a capture whose create never reached the server is held, shown, and replayed", async () => {
+    const { adapter, real } = flaky(new TypeError("Failed to fetch"));
+    const store = new Store(adapter);
+    const id = await store.create("U", "note", { title: "One bar of signal" });
+    // Held, and visible: a capture app whose list does not show what was just
+    // written has, for the user, lost it.
+    expect(store.queueLen()).toBe(1);
+    expect((await store.read("U", id))?.data.title).toBe("One bar of signal");
+    expect(await real.read("U", id)).toBeNull();
+    await store.reconnect();
+    expect(store.queueLen()).toBe(0);
+    expect((await real.read("U", id))?.data.title).toBe("One bar of signal");
+  });
+
+  it("an edit that met a 5xx is held and replayed, and reads show it meanwhile", async () => {
+    const real = new InMemoryAdapter();
+    const id = await real.create("U", "task", { text: "Call the coach", done: false });
+    let fail = true;
+    const adapter: DataAdapter = {
+      create: (o, t, d, i) => real.create(o, t, d, i),
+      createMany: (o, t, ds) => real.createMany(o, t, ds),
+      read: (o, i) => real.read(o, i),
+      apply: async (o, i, p, st) => { if (fail) { fail = false; throw { status: 503, message: "upstream" }; } return real.apply(o, i, p, st); },
+      del: (o, i) => real.del(o, i),
+      listForUser: (o, t) => real.listForUser(o, t),
+    };
+    const store = new Store(adapter);
+    expect(await store.update("U", id, { text: "Call the coach back" })).toBe("queued");
+    expect((await store.read("U", id))?.data.text).toBe("Call the coach back");
+    await store.reconnect();
+    expect((await real.read("U", id))?.data.text).toBe("Call the coach back");
+  });
+
+  it("a delete that never landed is held, and the row does not come back meanwhile", async () => {
+    const { adapter, real } = flaky(new TypeError("Failed to fetch"));
+    const id = await real.create("U", "note", { title: "Gone" });
+    const store = new Store(adapter);
+    await store.delete("U", id);
+    expect(await store.read("U", id)).toBeNull();
+    expect((await store.listForUser("U")).length).toBe(0);
+    await store.reconnect();
+    expect(await real.read("U", id)).toBeNull();
+  });
+
+  it("an answer FROM the server is still the caller's problem: it throws, nothing queues, nothing goes offline", async () => {
+    // Row-level security saying no is not a network drop, and retrying it
+    // forever would be wrong.
+    const { adapter } = flaky({ status: 403, message: "new row violates row-level security policy" });
+    const store = new Store(adapter);
+    await expect(store.create("U", "note", { title: "Not mine" })).rejects.toBeTruthy();
+    expect(store.queueLen()).toBe(0);
+    // Still online: the next write goes straight out.
+    const id = await store.create("U", "note", { title: "Mine" });
+    expect(store.queueLen()).toBe(0);
+    expect(id).toBeTruthy();
+  });
+
+  it("a Postgres error is the server speaking, whatever its message says", async () => {
+    const { adapter } = flaky({ code: "23514", message: "connection check constraint failed" });
+    const store = new Store(adapter);
+    await expect(store.create("U", "note", { title: "x" })).rejects.toBeTruthy();
+    expect(store.queueLen()).toBe(0);
+  });
+
+  it("tells the app the signal dropped, once, so it can start retrying", async () => {
+    const { adapter } = flaky(new TypeError("Failed to fetch"));
+    const store = new Store(adapter);
+    let told = 0;
+    store.onDropped(() => { told++; });
+    await store.create("U", "note", { title: "a" });
+    expect(told).toBe(1);
+    // Already offline: a second write queues without a second alarm.
+    await store.create("U", "note", { title: "b" });
+    expect(told).toBe(1);
+    expect(store.queueLen()).toBe(2);
+  });
+
+  it("a listener that throws never breaks the write", async () => {
+    const { adapter } = flaky(new TypeError("Failed to fetch"));
+    const store = new Store(adapter);
+    store.onDropped(() => { throw new Error("listener is broken"); });
+    const id = await store.create("U", "note", { title: "still held" });
+    expect(id).toBeTruthy();
+    expect(store.queueLen()).toBe(1);
+  });
+});
+
+describe("PLUMB-F-09: what counts as the signal dropping", () => {
+  it("says yes to a request that got no answer, and to the far end falling over", () => {
+    expect(isNetworkError(new TypeError("Failed to fetch"))).toBe(true);
+    expect(isNetworkError({ status: 0, message: "" })).toBe(true);
+    expect(isNetworkError({ status: 502 })).toBe(true);
+    expect(isNetworkError({ message: "Network request failed" })).toBe(true);
+    expect(isNetworkError({ message: "TypeError: Load failed" })).toBe(true);
+  });
+
+  it("says no to every answer the server actually gave", () => {
+    expect(isNetworkError({ status: 400, message: "bad request" })).toBe(false);
+    expect(isNetworkError({ status: 403, message: "row-level security" })).toBe(false);
+    expect(isNetworkError({ status: 404 })).toBe(false);
+    expect(isNetworkError({ code: "23505", message: "duplicate key" })).toBe(false);
+    expect(isNetworkError({ code: "PGRST116", message: "no rows" })).toBe(false);
+    expect(isNetworkError(null)).toBe(false);
+    expect(isNetworkError("offline")).toBe(false);
   });
 });

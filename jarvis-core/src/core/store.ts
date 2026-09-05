@@ -39,6 +39,34 @@ function isDuplicateKey(e: unknown): boolean {
   return typeof e === "object" && e !== null && (e as { code?: unknown }).code === "23505";
 }
 
+// PLUMB-F-09 (2026-09-05): "the queue only engages on the browser's offline
+// event." navigator.onLine on iOS only flips when no interface is up at all,
+// so one bar of signal, a captive portal or a Supabase blip left onLine true,
+// the write threw straight through, the toast said "Couldn't save" and the
+// change was gone. The queue armed the day before never saw it.
+//
+// So the failure itself, not the browser's opinion, is what says the signal
+// dropped. THE LINE THIS DRAWS: an answer FROM the server is an answer, and
+// the caller must still hear it (a 400, a 403 from row-level security, a
+// duplicate key, a validation refusal are all real and retrying them is
+// wrong). Only a write that never got an answer, or got a server-side
+// failure, is treated as the connection dropping.
+export function isNetworkError(e: unknown): boolean {
+  if (typeof e !== "object" || e === null) return false;
+  const o = e as { name?: unknown; message?: unknown; status?: unknown; code?: unknown };
+  // A status is the most reliable signal there is. 0 means the request never
+  // completed; 5xx means the far end fell over, which a retry can fix; every
+  // other status is the server answering.
+  if (typeof o.status === "number") return o.status === 0 || o.status >= 500;
+  // fetch rejects with a TypeError, whatever the platform calls the reason.
+  if (o.name === "TypeError" || o.name === "NetworkError" || o.name === "AbortError") return true;
+  // A Postgres or PostgREST code is the server speaking, so it is never the
+  // network, however its message reads.
+  if (typeof o.code === "string" && o.code !== "") return false;
+  const msg = typeof o.message === "string" ? o.message.toLowerCase() : "";
+  return /failed to fetch|network ?error|network request failed|load failed|fetch failed|connection|econnreset|econnrefused|etimedout|timed? ?out|offline/.test(msg);
+}
+
 // The typed client layer the app talks to. It wraps any DataAdapter and adds
 // the one client-side concern the adapter does not have: the offline queue.
 //
@@ -131,9 +159,17 @@ export class Store {
       this.invalidate(ownerId);
       return useId;
     }
-    const newId = await this.adapter.create(ownerId, entityType, data, id);
-    this.invalidate(ownerId);
-    return newId;
+    try {
+      const newId = await this.adapter.create(ownerId, entityType, data, id);
+      this.invalidate(ownerId);
+      return newId;
+    } catch (e) {
+      // PLUMB-F-09: the signal dropped mid-write. Going offline and calling
+      // ourselves again takes the branch above, which queues the create and
+      // shows it locally, so the capture is held instead of lost.
+      if (!this.dropSignal(e)) throw e;
+      return this.create(ownerId, entityType, data, id);
+    }
   }
 
   // Bulk create in one round trip (contact import). Same cache semantics as
@@ -196,9 +232,16 @@ export class Store {
     // the one seam every service writes through, so it is the one fix.
     const patch = toWire(rawPatch);
     if (this.online) {
-      const r = await this.adapter.apply(ownerId, id, patch, serverTime);
-      this.invalidate(ownerId);
-      return r;
+      try {
+        const r = await this.adapter.apply(ownerId, id, patch, serverTime);
+        this.invalidate(ownerId);
+        return r;
+      } catch (e) {
+        // PLUMB-F-09: same seam as create. The edit rides the queue instead
+        // of dying in a "Couldn't save" toast.
+        if (!this.dropSignal(e)) throw e;
+        return this.update(ownerId, id, rawPatch, serverTime);
+      }
     }
     const pending = this.pendingCreates.get(id);
     if (pending) pending.data = mergePatch(pending.data, patch);
@@ -223,8 +266,15 @@ export class Store {
       this.invalidate(ownerId);
       return;
     }
-    await this.adapter.del(ownerId, id);
-    this.invalidate(ownerId);
+    try {
+      await this.adapter.del(ownerId, id);
+      this.invalidate(ownerId);
+    } catch (e) {
+      // PLUMB-F-09: a delete that never reached the server is queued too, so
+      // the row does not reappear on the next list.
+      if (!this.dropSignal(e)) throw e;
+      await this.delete(ownerId, id);
+    }
   }
 
   private clonePending(item: Item): Item {
@@ -260,6 +310,28 @@ export class Store {
 
   goOffline(): void {
     this.online = false;
+  }
+
+  // PLUMB-F-09: told when a write discovers the signal is gone, so the app
+  // can start trying to reconnect on a backoff rather than waiting for a
+  // browser "online" event that may never come (the interface never went
+  // down; the far end did). Kept as a callback rather than a timer in here:
+  // the core spine owns no clock, and the app already owns the connectivity
+  // wiring (data/offlineSync.ts).
+  private dropped: (() => void) | null = null;
+
+  onDropped(fn: (() => void) | null): void {
+    this.dropped = fn;
+  }
+
+  // True when `e` means the connection dropped, in which case the store is
+  // now offline and the caller should queue. False means the server answered
+  // and the error belongs to the caller.
+  private dropSignal(e: unknown): boolean {
+    if (!isNetworkError(e)) return false;
+    this.online = false;
+    try { this.dropped?.(); } catch { /* a listener must never break a write */ }
+    return true;
   }
 
   // PLUMB-F-02 (2026-09-05): one drain at a time. Every "online" event calls
