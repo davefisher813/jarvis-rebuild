@@ -689,10 +689,13 @@ export default function NoteEditor({
           <div className="note-conns">
             {(connections ?? []).map((c) => {
               const ic = connIcon(c.kind);
-              const canOpen = !!(onOpenConnection && c.targetId);
+              // HMN-F-18 (2026-09-05): the chip for a deleted target kept its
+              // chevron-equivalent (a tappable label) and switched tabs to
+              // open nothing. It wears the quiet ink and says Gone instead.
+              const canOpen = !c.gone && !!(onOpenConnection && c.targetId);
               const open = () => onOpenConnection!(c.kind, c.targetId!);
               return (
-                <span className="note-conn" key={c.id}>
+                <span className={"note-conn" + (c.gone ? " conn-gone" : "")} key={c.id}>
                   <span
                     className={"proj-icon " + ic.cls}
                     role={canOpen ? "button" : undefined}
@@ -703,7 +706,7 @@ export default function NoteEditor({
                     {ic.node}
                   </span>
                   <span className="note-conn-label" role={canOpen ? "button" : undefined} tabIndex={canOpen ? 0 : undefined} onClick={canOpen ? open : undefined}>
-                    {c.label}
+                    {c.label}{c.gone ? " · Gone" : ""}
                   </span>
                   {onRemoveConnection && (
                     <button className="note-conn-x" aria-label={"Unlink " + c.label} onClick={() => onRemoveConnection(c.id)}>

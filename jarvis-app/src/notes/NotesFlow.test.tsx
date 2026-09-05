@@ -11,7 +11,7 @@ import { useState } from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { Store, InMemoryAdapter, type Item, type ItemData } from "@core";
-import { NotesProvider, useNotes, useCategories } from "../data/NotesProvider";
+import { NotesProvider, useNotes, useCategories, useTasks } from "../data/NotesProvider";
 import NotesFlow from "./NotesFlow";
 import { setCategoryRegistry } from "../shared/categories";
 
@@ -127,7 +127,8 @@ describe("NotesFlow: the editor comes back fresh from Create Tasks (HMN-F-14)", 
 // with a blank value, and setCategory refuses "" so nothing there could put
 // a note back to unfiled.
 let catsRef: ReturnType<typeof useCategories> | null = null;
-function GrabAll() { svcRef = useNotes(); catsRef = useCategories(); return null; }
+let tasksRef: ReturnType<typeof useTasks> | null = null;
+function GrabAll() { svcRef = useNotes(); catsRef = useCategories(); tasksRef = useTasks(); return null; }
 
 describe("NotesFlow: Connections names the unfiled state and can return to it (HMN-F-17)", () => {
   it("says Not Filed, files under an area, and unfiles again", async () => {
@@ -160,6 +161,47 @@ describe("NotesFlow: Connections names the unfiled state and can return to it (H
     fireEvent.click(await screen.findByText("Not Filed"));
     await waitFor(async () => expect((await svc.note(id))!.category).toBe(""), { timeout: 4000 });
     setCategoryRegistry([]);
+  });
+});
+
+// HMN-F-18 (2026-09-05): nothing prunes a note's connections when the thing
+// they point at is deleted, and only the person branch of navigateToEntity
+// checked the target existed. A note linked to a deleted task kept a
+// live-looking chip that switched tabs and opened nothing, with no toast.
+describe("NotesFlow: a link to something deleted says so (HMN-F-18)", () => {
+  it("marks the dead link Gone and refuses the tap, leaving the live one alone", async () => {
+    svcRef = null; tasksRef = null;
+    const user = "u-gone-f18";
+    const view = render(<NotesProvider userId={user}><GrabAll /></NotesProvider>);
+    await waitFor(() => expect(svcRef && tasksRef).toBeTruthy());
+    const svc = svcRef!;
+    let id = "";
+    await act(async () => {
+      const deadId = (await tasksRef!.createTask("Book the Flights"))!;
+      const liveId = (await tasksRef!.createTask("Pack the Bags"))!;
+      id = (await svc.createNote("Race", ""))!;
+      await svc.addBlock(id, { type: "text", text: "" });
+      await svc.addConnection(id, "task", "Book the Flights", deadId);
+      await svc.addConnection(id, "task", "Pack the Bags", liveId);
+      await tasksRef!.deleteTask(deadId);
+    });
+    const onNavigate = vi.fn();
+    view.rerender(<NotesProvider userId={user}><GrabAll /><NotesFlow openId={id} onNavigate={onNavigate} /></NotesProvider>);
+
+    // The chip strip under the title: one link says what happened to it.
+    const dead = await screen.findByText(/Book the Flights · Gone/, {}, { timeout: 4000 });
+    fireEvent.click(dead);
+    expect(onNavigate).not.toHaveBeenCalled();
+    // The link that still points at something opens the way it always did.
+    fireEvent.click(screen.getByText("Pack the Bags"));
+    expect(onNavigate).toHaveBeenCalledWith("task", expect.any(String));
+
+    // And on the Connections screen, as its own trailing word.
+    fireEvent.click(screen.getByLabelText("Connections"));
+    expect(await screen.findByText("Gone")).toBeInTheDocument();
+    onNavigate.mockClear();
+    fireEvent.click(screen.getByText("Book the Flights"));
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 });
 

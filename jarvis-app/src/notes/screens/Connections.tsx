@@ -4,7 +4,10 @@ import { catColor } from "../../shared/categories";
 import { Head, Card } from "../../settings/kit";
 import { pressable } from "../../shared/pressable";
 
-export type Conn = { id: string; kind: string; label: string; targetId?: string | null };
+// HMN-F-18 (2026-09-05): `gone` is set by the flow when the thing this link
+// points at no longer exists. The link stays (the note recorded a real
+// connection), it just stops pretending it can be opened.
+export type Conn = { id: string; kind: string; label: string; targetId?: string | null; gone?: boolean };
 
 // Shared with NoteEditor's inline connection chips (Dave 2026-08-28, "very
 // very easy to connect things"): one icon/color per kind, defined once so
@@ -99,10 +102,12 @@ export default function Connections({
         )}
         {connections.map((c) => {
           const ic = connIcon(c.kind);
-          const canOpen = !!(onOpen && c.targetId && (c.kind === "task" || c.kind === "project" || c.kind === "event" || c.kind === "goal" || c.kind === "person"));
+          // HMN-F-18: a link whose target was deleted is not openable, and it
+          // says which one that is rather than eating the tap.
+          const canOpen = !c.gone && !!(onOpen && c.targetId && (c.kind === "task" || c.kind === "project" || c.kind === "event" || c.kind === "goal" || c.kind === "person"));
           return (
             <div
-              className="row"
+              className={"row" + (c.gone ? " conn-gone" : "")}
               key={c.id}
               role={canOpen ? "button" : undefined}
               tabIndex={canOpen ? 0 : undefined}
@@ -110,6 +115,7 @@ export default function Connections({
             >
               <div className={"proj-icon " + ic.cls}>{ic.node}</div>
               <div className="conn-name">{c.label}</div>
+              {c.gone && <span className="conn-meta">Gone</span>}
               {canOpen && <div className="chev"></div>}
               <button className="conn-remove" aria-label="Remove link" onClick={(e) => { e.stopPropagation(); onRemove?.(c.id); }}>
                 <X className="ic" />

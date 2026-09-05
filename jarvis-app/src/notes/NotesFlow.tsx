@@ -247,6 +247,8 @@ export default function NotesFlow({
   });
   const [addBlockOpen, setAddBlockOpen] = useState(false);
   const [conns, setConns] = useState<Connection[]>([]);
+  // HMN-F-18: which of them point at something that is no longer there.
+  const [goneConns, setGoneConns] = useState<Set<string>>(new Set());
   // The connection strip's "+" (Dave 2026-08-28) reaches LinkPicker directly
   // from the editor, not just through Connections -- so LinkPicker needs to
   // know which screen sent it, to come back to that one rather than always
@@ -286,6 +288,33 @@ export default function NotesFlow({
     );
   }, [svc]);
 
+  // HMN-F-18 (2026-09-05): nothing listens for entity deletion to clean a
+  // note's connections, so a note linked to a task deleted three weeks ago
+  // kept a live-looking chip: tapping it switched to the Tasks tab and opened
+  // nothing, with nothing said. Only the person branch of navigateToEntity
+  // ever checked (AppShell.tsx:129-152), and it returned in silence.
+  //
+  // The link is not deleted with the thing it pointed at: the note is a
+  // record of what was connected, and a chip that quietly disappears is a
+  // worse lie than one that says what happened. It is marked instead, and a
+  // marked link does not pretend to be tappable.
+  //
+  // A read that FAILS is not a deletion: on a bad connection every link is
+  // left alone rather than headstoned.
+  const targetGone = useCallback(
+    async (kind: string, targetId: string): Promise<boolean> => {
+      try {
+        if (kind === "task") return !(await tasksSvc.task(targetId));
+        if (kind === "event") return !(await schedSvc.event(targetId));
+        if (kind === "project") return !(await projSvc.get(targetId));
+        if (kind === "goal") return !(await goalSvc.get(targetId));
+        if (kind === "person") return !(await peopleSvc.get(targetId));
+      } catch { /* a read that failed says nothing about what exists */ }
+      return false;
+    },
+    [tasksSvc, schedSvc, projSvc, goalSvc, peopleSvc],
+  );
+
   const loadCurrent = useCallback(
     async (id: string) => {
       // Pull linked-task completions into the checklist first, so a task
@@ -293,11 +322,16 @@ export default function NotesFlow({
       await svc.reconcileChecklistTasks(id);
       const d = await svc.note(id);
       setCurrent(d ? toEditorNote(d) : null);
-      setConns(d?.connections ?? []);
+      const cs = d?.connections ?? [];
+      setConns(cs);
       // Where You Were (addendum item 6): the open note is the spot.
       if (d) recordSpot({ kind: "note", id, label: d.title || "Untitled" });
+      const checked = await Promise.all(
+        cs.map(async (c) => (c.targetId && (await targetGone(c.kind, c.targetId)) ? c.id : null)),
+      );
+      setGoneConns(new Set(checked.filter((x): x is string => !!x)));
     },
-    [svc],
+    [svc, targetGone],
   );
 
   // initial load (+ optional one-time demo seed)
@@ -742,7 +776,7 @@ export default function NotesFlow({
         // with nothing beside it. Unfiled is a state with a name, the one
         // the list already uses.
         categoryLabel={cat ? catName(cat) : "Not Filed"}
-        connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label, targetId: c.targetId }))}
+        connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label, targetId: c.targetId, gone: goneConns.has(c.id) }))}
         onBack={() => setScreen("editor")}
         onAddLink={() => void openLinkPicker("connections")}
         onRemove={(connId) => enqueue(async () => {
@@ -882,7 +916,7 @@ export default function NotesFlow({
           onRedo={() => void redo()}
           canUndo={histTick >= 0 && history.current.length > 0}
           canRedo={histTick >= 0 && redoStack.current.length > 0}
-          connections={conns}
+          connections={conns.map((c) => ({ id: c.id, kind: c.kind, label: c.label, targetId: c.targetId, gone: goneConns.has(c.id) }))}
           onAddLink={() => void openLinkPicker("editor")}
           onRemoveConnection={(connId) => void enqueue(async () => {
             if (!currentId) return;

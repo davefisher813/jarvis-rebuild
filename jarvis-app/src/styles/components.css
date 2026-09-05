@@ -1010,6 +1010,13 @@ a.row.person-reach { color: inherit; text-decoration: none; }
 .conn-remove .ic { width: 18px; height: 18px; }
 .conn-remove:active { background: var(--press-3); }
 
+/* HMN-F-18 (2026-09-05): a note connection whose target was deleted. The row
+   stays (the note recorded a real link) and reads as a record rather than a
+   control: quiet ink, the glyph tile dimmed, no chevron, no tap. Not red:
+   nothing is wrong, the thing it named is simply gone. */
+.conn-gone .conn-name, .conn-gone .note-conn-label { color: var(--tx-3); }
+.conn-gone .proj-icon { opacity: 0.45; }
+
 /* RULE-9: Connections page status/error text + connected check glyph. */
 .conn-action { margin-top: var(--s-3); }
 .conn-status { margin-top: var(--s-2); font-size: var(--t-meta); color: var(--tx-3); }
