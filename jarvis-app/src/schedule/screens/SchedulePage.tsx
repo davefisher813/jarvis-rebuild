@@ -5,7 +5,7 @@ import { useSelection } from "../../shared/useSelection";
 import SelectBar from "../../shared/SelectBar";
 import { ChevronLeft, ChevronRight, Plus, Camera, AlertTriangle } from "../../shared/icons";
 import type { EventItem } from "../types";
-import { monthMatrix, fmtTime, openSlots, minToHHMM } from "../calendar";
+import { monthMatrix, fmtTime, openSlots, minToHHMM, addDays } from "../calendar";
 import { isFocusRange } from "../../routine/types";
 import { catColor } from "../../shared/categories";
 import SkeletonRows from "../../shared/SkeletonRows";
@@ -257,6 +257,12 @@ export default function SchedulePage({
     window.addEventListener("pointerup", up);
   };
   const isToday = selected === todayDate && !!now;
+  // S6-Q41 (2026-09-05): "weather never reaches the Schedule tab." Today
+  // already shows it (YourDay.tsx); this tab never passed a date at all.
+  // weather.ts only ever fetches two days, so this is honest about the
+  // window rather than passing a date every day and trusting the forecast
+  // lookup to come back empty on the rest.
+  const weatherDateIso = selected === todayDate || selected === addDays(todayDate, 1) ? selected : undefined;
   // Merge events + protected blocks into one time-ordered list, so the routine
   // is REAL on the calendar (roadmap v2), not an invisible wall.
   // GAPS LIVE IN THE TIMELINE (Dave 2026-08-19, ADHD round): open time used
@@ -747,6 +753,7 @@ export default function SchedulePage({
                   onSkipToday={onSkipToday ? () => onSkipToday(en.e.id) : undefined}
                   onPushTomorrow={onPushTomorrow ? () => onPushTomorrow(en.e.id) : undefined}
                   gymDoor={gymDoorFor?.(en.e) ?? null}
+                  weatherDateIso={weatherDateIso}
                 />
                 {/* The blend offer. It sits UNDER the block it belongs to,
                     because that is the sentence it is making: this task goes
