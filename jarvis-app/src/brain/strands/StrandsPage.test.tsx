@@ -278,11 +278,18 @@ describe("receiptLine speaks each derivation's own numbers", () => {
 // dropped connection. The write had no guard, so a throw skipped the reset
 // and the only exit was leaving the page, which loses what was typed.
 import { WRITE_FAILED_MESSAGE } from "../../shared/guard";
-import { subscribeToast } from "../../shared/toast";
+import { subscribeToast, resetToasts } from "../../shared/toast";
 
 describe("StrandsPage write guard (BRAIN-F-12)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // SHARED-F-09 (2026-09-05): a toast carrying an action is no longer evicted
+    // by a plain one, it holds the slot until its timer or its action. The
+    // Forget case above leaves exactly such a toast ("Forgotten" with Undo) in
+    // flight, so without this reset the failure message these two cases are
+    // waiting for is correctly QUEUED rather than shown, and they time out
+    // against the previous test's receipt. resetToasts exists for this.
+    resetToasts();
     svc.list.mockResolvedValue([]);
   });
 
