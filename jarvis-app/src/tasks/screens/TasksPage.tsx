@@ -447,6 +447,13 @@ export default function TasksPage({
   // stays where it sorts, a plain row like the rest.
   const stalledItem = stalled && !sel.active ? items.find((it) => it.id === stalled.id) ?? null : null;
   const groups = groupItems(stalledItem ? items.filter((it) => it.id !== stalledItem.id) : items, groupBy, goalOf, today);
+  // LIFE-F-09 (2026-09-05): the Keep Going slot was keyed to the row that was
+  // just completed, and completing a task is exactly what takes that row out
+  // of the list being looked at (filters.ts:37: a done task lives only in
+  // parts.done). Off the Done filter the suggestion therefore never reached
+  // the screen at all. When its row is gone it takes the first seat in the
+  // first card, the one the stalled row already uses, so it cannot miss.
+  const momentumHome = momentum && !items.some((it) => it.id === momentum.afterId) ? momentum.el : null;
   const stalledRow = stalled && stalledItem ? (
     <TaskRow
       item={stalledItem} today={today} onToggle={onToggle} onOpen={onOpenTask}
@@ -578,7 +585,7 @@ export default function TasksPage({
         <SkeletonRows />
       ) : items.length === 0 ? (
         <>
-        {notice && <div className="card list-card-ruled">{notice}</div>}
+        {(momentumHome || notice) && <div className="card list-card-ruled">{momentumHome}{notice}</div>}
         <div className="empty-state">
           <div className="empty-icon"><ListChecks className="ic" /></div>
           <div className="empty-title">{EMPTY_TITLE[filter]}</div>
@@ -621,6 +628,7 @@ export default function TasksPage({
                 </div>
               )}
               <div className="card list-card-ruled">
+                {gi === 0 && momentumHome}
                 {gi === 0 && stalledRow}
                 {gi === 0 && notice}
                 {g.items.map((it) => (

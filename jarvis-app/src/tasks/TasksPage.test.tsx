@@ -385,3 +385,36 @@ describe("TasksPage editing in place", () => {
     expect(container.querySelector(".row-act")).toBeNull();
   });
 });
+
+// LIFE-F-09 (2026-09-05): the Keep Going slot was rendered after the row that
+// had just been completed, and completing a task is what removes that row from
+// every open list. Off the Done filter the suggestion never appeared at all.
+describe("the Momentum Chain slot (LIFE-F-09)", () => {
+  const el = <div data-testid="keep-going">Keep Going</div>;
+
+  it("takes the first seat when the completed row has left the list", () => {
+    const { container } = render(
+      <TasksPage filter="today" counts={counts} items={[tk("b", "2026-05-20")]} today="2026-05-20"
+        momentum={{ afterId: "just-completed", el }} />,
+    );
+    expect(screen.getByTestId("keep-going")).toBeInTheDocument();
+    const card = container.querySelector(".list-card-ruled")!;
+    expect(card.firstElementChild).toHaveAttribute("data-testid", "keep-going");
+  });
+
+  it("still sits under its own row when that row is still on screen", () => {
+    render(
+      <TasksPage filter="all" counts={counts} items={[tk("b", "2026-05-20"), tk("c", "2026-05-21")]} today="2026-05-20"
+        momentum={{ afterId: "b", el }} />,
+    );
+    expect(screen.getAllByTestId("keep-going").length).toBe(1);
+  });
+
+  it("survives an emptied list", () => {
+    render(
+      <TasksPage filter="today" counts={counts} items={[]} today="2026-05-20"
+        momentum={{ afterId: "just-completed", el }} />,
+    );
+    expect(screen.getByTestId("keep-going")).toBeInTheDocument();
+  });
+});
