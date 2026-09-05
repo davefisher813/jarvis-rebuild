@@ -123,21 +123,36 @@ const AUDIT = () => {
   // 24, not 44. Apple's own segmented control is 32px and full-width rows at
   // 30-36 are trivially hittable; flagging those is noise that buries the
   // real ones. This catches genuinely broken targets.
+  // TWO TIERS (BROWSER-F-07, 2026-09-05). 24 was chosen so the report would
+  // not drown in Apple's own 32px segmented control, and it worked: it kept
+  // the noise down. It also meant the tool could never say what the browser
+  // walk of 2026-09-05 said, which is that 162 row-action pills, 263 chips
+  // and 227 dropdown values sit under the HIG's actual 44. Both numbers now
+  // come out, under different names, so the 24s stay findable at the top of
+  // the report and the 44s are countable underneath instead of invisible.
+  //   small-target  under 24: genuinely broken, a thumb misses it
+  //   small-44      under 44: under the HIG minimum Apple checks at review
   const MIN = 24;
+  const HIG = 44;
   for (const e of tappable) {
     // The NATURAL height, not the clipped one. A 46px row scrolled so that
     // 5px of it shows is not a small target, it is a scrolled row.
     const r = e.getBoundingClientRect();
     const txt = (e.textContent || "").trim();
-    if (!txt || r.height >= MIN) continue;
+    if (!txt || r.height >= HIG) continue;
     if (r.top < 0 || r.bottom > window.innerHeight) continue; // off-screen: cannot hit-test
     const cx = r.left + r.width / 2;
     const hits = (y) => { const t = document.elementFromPoint(cx, y); return t === e || e.contains(t); };
-    const need = (MIN - r.height) / 2;
-    const grown = hits(r.top - need + 1) && hits(r.bottom + need - 1);
-    if (!grown) {
-      add("small-target", `"${txt.slice(0,24)}" hit ${Math.round(r.width)}x${Math.round(r.height)}, needs ${MIN}`, e);
-    }
+    // Measure the HIT, once, at the widest bar, then report it against
+    // whichever bar it actually fails.
+    const reaches = (min) => {
+      if (r.height >= min) return true;
+      const need = (min - r.height) / 2;
+      return hits(r.top - need + 1) && hits(r.bottom + need - 1);
+    };
+    const size = `${Math.round(r.width)}x${Math.round(r.height)}`;
+    if (!reaches(MIN)) add("small-target", `"${txt.slice(0,24)}" hit ${size}, needs ${MIN}`, e);
+    else if (!reaches(HIG)) add("small-44", `"${txt.slice(0,24)}" hit ${size}, needs ${HIG}`, e);
   }
 
   // 5. INVISIBLE TEXT. Same colour as what is behind it. This is the class

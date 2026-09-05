@@ -214,6 +214,51 @@ describe("BROWSER-F-05: a first-run question is never cut off mid-sentence", () 
   });
 });
 
+describe("BROWSER-F-07: the bare-text buttons reach the tap minimum", () => {
+  // Nine controls styled `background: 0; border: 0; padding: 0` at body size,
+  // which is a button that looks like text and measured 18 to 28px of hit.
+  // One utility instead of a tenth hand-kept list.
+  const UTILITY = ".tap44";
+  it("the tap44 utility exists and reaches --tap-min in both directions", () => {
+    const bare = css().replace(/\/\*[\s\S]*?\*\//g, "");
+    const after = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .find((m) => m[1]!.split(",").some((s) => s.trim() === `${UTILITY}::after`));
+    expect(after, "tap44::after must exist").toBeTruthy();
+    expect(after![2]).toMatch(/min-width:\s*var\(--tap-min\)/);
+    expect(after![2]).toMatch(/min-height:\s*var\(--tap-min\)/);
+    expect(after![2]).toMatch(/position:\s*absolute/);
+  });
+
+  it("every control the walk measured under 24px wears it", () => {
+    const bare = css().replace(/\/\*[\s\S]*?\*\//g, "");
+    const wearing = new Set<string>();
+    for (const m of bare.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      const sels = m[1]!.split(",").map((s) => s.trim());
+      if (!sels.includes(`${UTILITY}::after`)) continue;
+      for (const s of sels) wearing.add(s.replace(/::after$/, ""));
+    }
+    // .toast-action is SHARED-F-10's own item; .sched-until-btn refused this
+    // on 2026-08-24 because it sits inside a row that is itself role=button.
+    for (const cls of [".p3-time-btn", ".upnext-skip", ".search-cancel", ".ob-x", ".note-conn-add", ".note-fix"]) {
+      expect(wearing.has(cls), `${cls} measured under 24px of hit and must wear tap44`).toBe(true);
+    }
+  });
+
+  it("the reminder name in the Today strip carries tap44 at its call site", () => {
+    const src = readFileSync(join(SRC, "today/RemindersStrip.tsx"), "utf8");
+    expect(src).toMatch(/className="row-grow tap44"[^>]*role="button"/);
+  });
+
+  // The record's own fix shape: the tool has to be able to see this class of
+  // bug, or the next nine controls go the same way.
+  it("the visual auditor reports the 44px tier, not only the 24px one", () => {
+    const tool = readFileSync(join(SRC, "..", "tools", "visual-audit.mjs"), "utf8");
+    expect(tool).toMatch(/const HIG = 44/);
+    expect(tool).toMatch(/add\("small-44"/);
+    expect(tool).toMatch(/add\("small-target"/);
+  });
+});
+
 describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
   // The strip rule re-sets the chip background at (0,4,0), which beats
   // .chip.active (0,2,0) for the background alone. Any rule that overrides a

@@ -74,7 +74,12 @@ export default function RemindersStrip({
                 stored HH:MM; every other surface runs it through fmtTime and
                 this one printed it raw, so 9 PM meds read "21:00". */}
             <span className="rem-time">{fmtTime(r.time).time}<span className="ampm">{fmtTime(r.time).ap}</span></span>
-            <div className="row-grow" role="button" tabIndex={0} onClick={() => onOpen?.(r.id)}>
+            {/* BROWSER-F-07 (2026-09-05): the name is what you tap to open a
+                reminder and it measured 226x22. The row around it is already
+                44 (min-height on .rem-row) and nothing else lives above or
+                below the name, so .tap44 takes the free space the row was
+                keeping for nobody. */}
+            <div className="row-grow tap44" role="button" tabIndex={0} onClick={() => onOpen?.(r.id)}>
               <div className="rem-name">{r.text}</div>
             </div>
             {/* Snooze only exists while it still matters: once it is done,

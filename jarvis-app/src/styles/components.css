@@ -1496,6 +1496,39 @@ body.jarvis-dragging { overflow: hidden; touch-action: none; -webkit-user-select
   min-width: var(--tap-min); min-height: var(--tap-min); width: 100%; height: 100%;
 }
 
+/* === .tap44, the utility the pass above should have been (BROWSER-F-07,
+   2026-09-05) ===
+   The 2026-08-02 pass named three controls and the 2026-08-24 walk named six
+   more, one class at a time, and the 2026-09-05 browser walk then measured
+   every button on every screen and found nine still under 24px of hit: the
+   Plan My Day proposal times (20px, and they read as labels, not controls),
+   "Not This One" on Today (18px), search Cancel (20px), a reminder's own name
+   in the Today strip (22px), the onboarding remove buttons (26px), "Link
+   Something" in the note editor (26px) and "Set Your Routine / Use Next Free
+   Slot" (28px). All of them are bare <button>s styled background:0 border:0
+   padding:0 at body size, which is a control that looks like text.
+
+   One utility instead of a tenth list. It is the same pseudo-element trick as
+   .today-av just above, generalised: 44 in both directions, centred on the
+   paint, plus 8px of side reach for the narrow ones, and it never moves a
+   pixel of layout.
+
+   TWO CONTROLS FROM THE FINDING ARE DELIBERATELY NOT HERE. .toast-action is
+   its own finding (SHARED-F-10) and lands with it. .sched-until-btn refused
+   this on 2026-08-24 for a reason that still holds: it sits mid-sentence
+   inside a row that is ITSELF role="button", so every pixel the expander
+   takes is a pixel the row silently loses, and reaching 44 there once made
+   tapping an event open the length editor instead of the event. Its comment
+   at :2535 argues the case; it keeps its 26px. A control inside a tappable
+   row expands only into free space. */
+.tap44, .p3-time-btn, .upnext-skip, .search-cancel, .ob-x, .note-conn-add, .note-fix { position: relative; }
+.tap44::after, .p3-time-btn::after, .upnext-skip::after, .search-cancel::after,
+.ob-x::after, .note-conn-add::after, .note-fix::after {
+  content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  min-width: var(--tap-min); min-height: var(--tap-min);
+  width: calc(100% + var(--s-4)); height: 100%;
+}
+
 /* === Horizontal chip rows: show that there is more (2026-08-02) ===
    Both Tasks filter rows scroll sideways and were clipping the last chip
    mid-word with nothing to say more existed ("Up" and "Money" cut off in
