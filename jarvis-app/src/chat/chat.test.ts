@@ -25,6 +25,7 @@ const snap = (over: Partial<AnswerSnapshot> = {}): AnswerSnapshot => ({
     { id: "t3", text: "Old thing", due: "2026-08-01", done: true },
   ],
   leftToSpend: null,
+  mailNeedsYou: null,
   ...over,
 });
 
@@ -78,6 +79,33 @@ describe("chat deterministic Q&A", () => {
   it("returns the money layer's derived line verbatim when present", () => {
     const a = answerQuestion("what's left to spend", snap({ leftToSpend: "$140 left this week" }));
     expect(a?.text).toBe("$140 left this week");
+  });
+
+  // S6-Q42 (2026-09-05): "Chat cannot see your email." mailNeedsYou null
+  // means no snapshot to trust (no Gmail connection, or too stale) -- an
+  // unknown, never a false all-clear; an empty array is a real "caught up".
+  it("passes email questions through when there is no snapshot to trust", () => {
+    expect(answerQuestion("what needs me in email", snap())).toBeNull();
+    expect(answerQuestion("what's in my email", snap())).toBeNull();
+  });
+
+  it("says so when the inbox is genuinely caught up", () => {
+    const a = answerQuestion("what needs me in email", snap({ mailNeedsYou: [] }));
+    expect(a?.text).toBe("Nothing needs you in email");
+    expect(a?.provenance.kind).toBe("records");
+  });
+
+  it("reports the needs-you count, singular and plural, with refs to the threads", () => {
+    const one = answerQuestion("what needs me in email", snap({ mailNeedsYou: [{ id: "th1", subject: "Invoice due" }] }));
+    // The number-leads-a-line rule (casing.ts): the word right after gets the
+    // capital, same as triage.ts's identical "1 Needs you" for this bucket.
+    expect(one?.text).toBe("1 Needs you in email");
+    expect(one?.provenance.refs).toEqual([{ kind: "thread", id: "th1", label: "Invoice due" }]);
+
+    const many = answerQuestion("what needs me in email", snap({
+      mailNeedsYou: [{ id: "th1", subject: "Invoice due" }, { id: "th2", subject: "Reschedule?" }],
+    }));
+    expect(many?.text).toBe("2 Need you in email");
   });
 
   it("classifies questions vs everything else", () => {

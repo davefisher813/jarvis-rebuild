@@ -16,6 +16,14 @@ export interface AnswerSnapshot {
   // null when money is not set up. Chat never does money math itself.
   leftToSpend: string | null;
   nowHHMM: string;
+  // S6-Q42 (2026-09-05): "Chat cannot see your email." The same needs-you
+  // snapshot the Email tab and Today already read (messages/home.ts's
+  // MailSnapshot), reused as-is -- Chat never fetches mail itself, only the
+  // cache. Null means no usable snapshot (no Gmail connection, or one too
+  // stale to trust): the question falls through to the AI path or the
+  // offline refusal, the same discipline leftToSpend already follows. An
+  // empty array is a real, current answer -- genuinely caught up.
+  mailNeedsYou: { id: string; subject: string }[] | null;
 }
 
 export interface ChatAnswer {
@@ -123,6 +131,20 @@ export function answerQuestion(raw: string, snap: AnswerSnapshot): ChatAnswer | 
     // the offline refusal) takes it. Chat never does money math itself.
     if (!snap.leftToSpend) return null;
     return { text: snap.leftToSpend, provenance: { kind: "records" } };
+  }
+
+  // "what needs me in email" (S6-Q42): a cache read, no network and no
+  // model cost -- and the question a user actually asks the box. Same
+  // wording triage.ts already uses for this exact bucket elsewhere in the
+  // app ("Nothing needs you" / "N need you").
+  if (/^what needs me (in|from) (my )?email$|^what('| i)?s (in|up in|going on in) (my )?email$/.test(q)) {
+    if (snap.mailNeedsYou === null) return null; // no snapshot: the AI path or the offline refusal takes it
+    const n = snap.mailNeedsYou.length;
+    if (n === 0) return { text: "Nothing needs you in email", provenance: { kind: "records" } };
+    return {
+      text: capAfterNumber(n === 1 ? "1 needs you in email" : `${n} need you in email`),
+      provenance: { kind: "records", refs: snap.mailNeedsYou.slice(0, 4).map((t) => ({ kind: "thread", id: t.id, label: t.subject })) },
+    };
   }
 
   return null;

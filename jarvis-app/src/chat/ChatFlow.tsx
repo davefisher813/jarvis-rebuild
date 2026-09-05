@@ -7,6 +7,9 @@ import { contextToText } from "../ai/context";
 import { chatSystemPrompt } from "./chatPrompt";
 import { nowHHMM } from "../today/todayData";
 import { answerQuestion, looksLikeQuestion, type AnswerSnapshot } from "./answers";
+// S6-Q42 (2026-09-05): the same needs-you snapshot the Email tab and Today
+// already read -- a synchronous cache read, no network, no AI call.
+import { loadMailSnapshot } from "../messages/home";
 import { parseCommand, resolveTarget, type ChatCommand, type CommandTarget } from "./commands";
 import { smartPasteSave, undoSaved } from "../paste/smartPaste";
 import { attemptWrite } from "../shared/guard";
@@ -62,12 +65,18 @@ export default function ChatFlow() {
     // Money answers ride the AI path for now; the money layer's derived line
     // gets wired here in the files-and-money chat pass.
     const left: string | null = null;
+    // ts stays 0 on the placeholder EMPTY snapshot (no Gmail connection, or
+    // nothing recent enough to trust) -- the one signal that distinguishes
+    // "never checked" from "checked, genuinely caught up" (needsYou: 0 either
+    // way), so a missing connection reads as unknown, never as a false all-clear.
+    const mail = loadMailSnapshot();
     return {
       today,
       nowHHMM: nowHHMM(new Date()),
       events: evs.map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, start: e.data.start, location: e.data.location })),
       tasks: tks.map((t) => ({ id: t.id, text: t.data.text, due: t.data.due, done: t.data.done })),
       leftToSpend: left,
+      mailNeedsYou: mail.ts > 0 ? mail.threads.map((t) => ({ id: t.id, subject: t.subject })) : null,
     };
   };
 
