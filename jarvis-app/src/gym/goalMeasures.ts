@@ -195,9 +195,16 @@ function trainingWindowStart(per: "week" | "month", now: number): number {
  *  somewhere, or (when `exercise` is set) only one that logged it on that
  *  lift specifically. A session that ended with everything skipped is not a
  *  session -- the same "did anything actually happen" gate finish() itself
- *  uses (liveSession's hasWork) before a workout is even saved. */
+ *  uses (liveSession's hasWork) before a workout is even saved.
+ *
+ *  GYM-F-22 (2026-09-05): the comment claimed that gate and the code did not.
+ *  It asked scoreOf, which is null for the "done" kind BY DESIGN (a mobility
+ *  drill has no number and can never be a PR), so a whole arm-care or
+ *  mobility day finished, showed in Recent, printed "Also Did" on the
+ *  receipt, and left "Train 3 times this week" reading 2 of 3. Whether a set
+ *  can be scored has nothing to do with whether it happened. */
 function countsSession(m: TrainingMeasure, w: Workout): boolean {
-  const worked = (e: WorkoutExercise) => !e.skipped && e.sets.some((s) => !s.skipped && scoreOf(e.kind, s));
+  const worked = (e: WorkoutExercise) => !e.skipped && e.sets.some((s) => !s.skipped);
   if (m.exercise) return w.data.exercises.some((e) => e.name === m.exercise && worked(e));
   return w.data.exercises.some(worked);
 }

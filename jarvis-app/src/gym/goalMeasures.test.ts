@@ -131,4 +131,36 @@ describe("trainingMeasureState", () => {
     const st = trainingMeasureState(m, h, new Date("2026-08-20").getTime());
     expect(st.done).toBe(0);
   });
+
+  // GYM-F-22 (2026-09-05): a mobility or arm-care day is all "done" kind, and
+  // scoreOf("done") is null by design (there is no PR in a couch stretch).
+  // countsSession reused that as "did work happen", so the day finished,
+  // showed in Recent, printed "Also Did" on the receipt, and left the goal
+  // reading 2 of 3.
+  it("a done-only session is a session: it counts toward a training goal", () => {
+    const m: TrainingMeasure = { kind: "training", per: "block", times: 3, since: "2026-08-01" };
+    const h = [workout("2026-08-05", [
+      { exerciseId: "e1", name: "Band Pull-Aparts", kind: "done", sets: [set({ done: true })] },
+      { exerciseId: "e2", name: "Couch Stretch", kind: "done", sets: [set({ done: true })] },
+    ])];
+    const st = trainingMeasureState(m, h, new Date("2026-08-20").getTime());
+    expect(st.done).toBe(1);
+    expect(st.line).toBe("1 of 3 This block");
+  });
+
+  it("a done-only session where every chip was skipped still counts for nothing", () => {
+    const m: TrainingMeasure = { kind: "training", per: "block", times: 1, since: "2026-08-01" };
+    const h = [workout("2026-08-05", [
+      { exerciseId: "e1", name: "Band Pull-Aparts", kind: "done", sets: [set({ skipped: true })] },
+    ])];
+    expect(trainingMeasureState(m, h, new Date("2026-08-20").getTime()).done).toBe(0);
+  });
+
+  it("an exercise skipped outright does not make its session count", () => {
+    const m: TrainingMeasure = { kind: "training", per: "block", times: 1, since: "2026-08-01" };
+    const h = [workout("2026-08-05", [
+      { exerciseId: "e1", name: "Band Pull-Aparts", kind: "done", skipped: true, sets: [set({ done: true })] },
+    ])];
+    expect(trainingMeasureState(m, h, new Date("2026-08-20").getTime()).done).toBe(0);
+  });
 });
