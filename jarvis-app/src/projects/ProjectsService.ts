@@ -35,11 +35,15 @@ export class ProjectsService {
     if (needsRepair(raw)) void this.store.update(this.ownerId, it.id, data as unknown as ItemData).catch(() => {});
     return { id: it.id, data };
   }
-  async create(data: ProjectData): Promise<string | null> {
+  // LIFE-F-25 (2026-09-05): `id` is for Undo of a delete. Without it the
+  // project came back under a new id and the tasks filed under it all read
+  // "No project", so the Undo restored the record and quietly lost its work.
+  // NotesService.restoreNote set the pattern; Store.create takes the id.
+  async create(data: ProjectData, id?: string): Promise<string | null> {
     if (!data.title.trim()) return null;
-    const id = await this.store.create(this.ownerId, ENTITY_PROJECT, { ...data, title: data.title.trim() } as unknown as ItemData);
-    this.onEvent({ type: "entity.created", entityType: ENTITY_PROJECT, entityId: id });
-    return id;
+    const newId = await this.store.create(this.ownerId, ENTITY_PROJECT, { ...data, title: data.title.trim() } as unknown as ItemData, id);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_PROJECT, entityId: newId });
+    return newId;
   }
   async update(id: string, patch: Partial<ProjectData>): Promise<boolean> {
     const p = await this.get(id); if (!p) return false;

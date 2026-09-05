@@ -16,11 +16,15 @@ export class GoalService {
       .sort((a, b) => (a.data.order ?? 0) - (b.data.order ?? 0) || a.data.title.localeCompare(b.data.title));
   }
   async get(id: string): Promise<Goal | null> { const it = await this.store.read(this.ownerId, id); return it ? { id: it.id, data: it.data as unknown as GoalData } : null; }
-  async create(data: GoalData): Promise<string | null> {
+  // LIFE-F-25 (2026-09-05): `id` is for Undo of a delete. Without it the goal
+  // came back under a new id and every project filed under it read as
+  // unfiled, so the Undo restored the record and quietly lost its links.
+  // NotesService.restoreNote set the pattern; Store.create takes the id.
+  async create(data: GoalData, id?: string): Promise<string | null> {
     if (!data.title.trim()) return null;
-    const id = await this.store.create(this.ownerId, ENTITY_GOAL, { ...data, title: data.title.trim() } as unknown as ItemData);
-    this.onEvent({ type: "entity.created", entityType: ENTITY_GOAL, entityId: id });
-    return id;
+    const newId = await this.store.create(this.ownerId, ENTITY_GOAL, { ...data, title: data.title.trim() } as unknown as ItemData, id);
+    this.onEvent({ type: "entity.created", entityType: ENTITY_GOAL, entityId: newId });
+    return newId;
   }
   async update(id: string, patch: Partial<GoalData>): Promise<boolean> {
     const g = await this.get(id); if (!g) return false;

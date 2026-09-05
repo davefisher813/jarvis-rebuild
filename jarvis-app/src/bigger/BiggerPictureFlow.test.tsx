@@ -137,3 +137,46 @@ describe("BiggerPictureFlow finish guard (LIFE-F-17)", () => {
     }
   });
 });
+
+// LIFE-F-25 (2026-09-05): Undo of a project delete recreated the record under
+// a NEW id, so the six tasks filed under it came back reading "No project".
+// The record returns under its own id now, which is what makes the links real.
+
+let linkRef: { projects: ProjectsService; tasks: TasksService; pid: string; tid: string } | null = null;
+
+function SeedLinked() {
+  const projects = useProjects();
+  const tasks = useTasks();
+  const [pid, setPid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const p = (await projects.create({ title: "Calder website", status: "active" }))!;
+      const t = (await tasks.createTask("Draft the copy", { projectId: p }))!;
+      linkRef = { projects, tasks, pid: p, tid: t };
+      setPid(p);
+    })();
+  }, [projects, tasks]);
+  return pid ? <BiggerPictureFlow openId={pid} /> : null;
+}
+
+describe("BiggerPictureFlow delete Undo (LIFE-F-25)", () => {
+  it("puts the project back with its work still filed under it", async () => {
+    let undo: (() => void) | undefined;
+    const stop = subscribeToast((t) => { if (t?.message === "Project deleted") undo = t.onAction; });
+    try {
+      render(<NotesProvider userId="u-undo-f25"><SeedLinked /></NotesProvider>);
+      fireEvent.click(await screen.findByText("Edit"));
+      fireEvent.click(await screen.findByText("Delete Project"));
+      await waitFor(() => expect(undo).toBeTruthy());
+      expect(await linkRef!.projects.get(linkRef!.pid)).toBeNull();
+      undo!();
+      await waitFor(async () => {
+        expect((await linkRef!.projects.get(linkRef!.pid))?.data.title).toBe("Calder website");
+      });
+      const task = await linkRef!.tasks.task(linkRef!.tid);
+      expect(task?.projectId).toBe(linkRef!.pid);
+    } finally {
+      stop();
+    }
+  });
+});

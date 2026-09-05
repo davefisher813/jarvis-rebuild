@@ -321,10 +321,16 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
   // pointing at it, and deleting a goal orphans its projects.
   //
   // The shape is DecisionsFlow's, which already got this right: snapshot the
-  // data, guard the write, and hand back an Undo that recreates it. The
-  // recreated record gets a NEW id, so anything that referenced the old one
-  // stays orphaned; the toast promises a restore of the record, never of its
-  // links, and the copy says so.
+  // data, guard the write, and hand back an Undo that recreates it.
+  //
+  // LIFE-F-25 (2026-09-05): the recreated record used to get a NEW id, so
+  // undoing the delete of a project with six filed tasks gave the project
+  // back and left all six reading "No project" (a goal came back with its
+  // projects unfiled the same way), while the toast said only "Project
+  // deleted". It comes back under its OWN id now, which is what makes the
+  // links real again: nothing else points at anything, and the row is gone
+  // by the time Undo is tappable, so the id is free to take (the pattern
+  // NotesService.restoreNote uses, HMN-F-15).
   const removeWithUndo = async (
     kind: "project" | "goal",
     id: string,
@@ -341,7 +347,7 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
       message: kind === "project" ? "Project deleted" : "Goal deleted",
       actionLabel: "Undo",
       onAction: () => void (async () => {
-        await attemptWrite(() => svc.create(kept as never));
+        await attemptWrite(() => svc.create(kept as never, id));
         await reload();
       })(),
     });
