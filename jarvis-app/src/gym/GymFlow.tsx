@@ -24,6 +24,7 @@ import {
 } from "./edit";
 import { pinLabel, todayDow, pinnedTo, nextPinnedDay, WEEKDAY_ABBR, WEEKDAY_FULL } from "./pins";
 import { nextDayFor } from "./nextDay";
+import { muscleMapFromProgram } from "./insights";
 import { estimateDay, type FitPlan } from "./fit";
 import { readGymSettings, rackFrom } from "./settings";
 import FitSheet from "./FitSheet";
@@ -982,6 +983,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
       .flatMap((w) => w.days)
       .flatMap((d) => d.exercises)
       .find((e) => e.name === liftDetailFor.name)?.muscleGroup;
+    // GYM-F-15 (2026-09-05): the whole program map, not just this lift, so
+    // the weekly hard-set row can sum the muscle the way the Health page
+    // does instead of reporting one lift under the muscle's name.
+    const muscleMap = muscleMapFromProgram(program ?? null);
     const goal = goals.find((g) => g.data.state !== "achieved" && g.data.measure?.kind === "lift" && (g.data.measure as LiftMeasure).exercise === liftDetailFor.name);
     return (
       <>
@@ -989,6 +994,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
           {...liftDetailFor}
           workouts={workouts}
           muscleGroup={muscleGroup}
+          muscleMap={muscleMap}
           defs={metricDefs}
           logs={metricLogs}
           goal={goal}

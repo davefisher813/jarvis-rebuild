@@ -83,7 +83,7 @@ function weeklyMetricAvg(def: MetricDef, logs: MetricLog[], weeks: number, now: 
 }
 
 export default function LiftDetailScreen({
-  name, kind, unit, timeUnit, workouts, muscleGroup, defs, logs, goal, onSetGoal, onBack,
+  name, kind, unit, timeUnit, workouts, muscleGroup, muscleMap, defs, logs, goal, onSetGoal, onBack,
 }: {
   name: string;
   kind: MeasureKind;
@@ -91,6 +91,12 @@ export default function LiftDetailScreen({
   timeUnit?: string;
   workouts: Workout[];
   muscleGroup?: MuscleGroup;
+  /** GYM-F-15 (2026-09-05): the PROGRAM's whole exercise-to-muscle map, the
+   *  same one the Health page's range row is built from
+   *  (insights.muscleMapFromProgram). Without it this screen could only count
+   *  the one lift it is showing while labelling the number as the muscle's
+   *  weekly total. */
+  muscleMap?: Map<string, MuscleGroup>;
   defs: MetricDef[];
   logs: MetricLog[];
   goal?: Goal;
@@ -109,10 +115,24 @@ export default function LiftDetailScreen({
   const [metricIdx, setMetricIdx] = useState(0);
   const lane = shown[metricIdx];
   const laneVals = useMemo(() => (lane ? weeklyMetricAvg(lane, logs, WEEKS, now) : []), [lane, logs, now]);
+  // GYM-F-15 (2026-09-05): this row is about the MUSCLE and cites a published
+  // range that is about the muscle, so it has to sum every lift that trains
+  // it, exactly as the Health page does. Counting only the lift on screen made
+  // Incline Press read "Chest: 4 sets this week" against the Health page's own
+  // "Chest 14", under-reporting the muscle against the range it names. The
+  // lift's own entry is folded in on top of the program map so a lift since
+  // renamed or removed from the plan still counts itself.
   const muscleRow = useMemo(() => {
     if (!muscleGroup) return null;
-    const map = new Map([[name, muscleGroup]]);
-    return hardSetRows(workouts, map, now)[0] ?? null;
+    const map = new Map(muscleMap ?? []);
+    map.set(name, muscleGroup);
+    return hardSetRows(workouts, map, now).find((r) => r.muscle === muscleGroup) ?? null;
+  }, [muscleGroup, muscleMap, name, workouts, now]);
+  /** This lift's own share of that total, so the row can say both numbers
+   *  rather than leaving the athlete to wonder which one it means. */
+  const liftShare = useMemo(() => {
+    if (!muscleGroup) return 0;
+    return hardSetRows(workouts, new Map([[name, muscleGroup]]), now)[0]?.sets ?? 0;
   }, [muscleGroup, name, workouts, now]);
 
   const goalState = goal?.data.measure?.kind === "lift" ? liftMeasureState(goal.data.measure as LiftMeasure, workouts) : null;
@@ -250,6 +270,9 @@ export default function LiftDetailScreen({
                 <div className="row">
                   <div className="row-grow"><div className="conn-name">{muscleRow.sets} sets this week</div><div className="conn-meta">{muscleRow.range.note}</div></div>
                 </div>
+                {liftShare > 0 && liftShare < muscleRow.sets && (
+                  <div className="row"><div className="row-grow"><div className="conn-meta">{name}: {liftShare} of them</div></div></div>
+                )}
                 <div className="row"><div className="row-grow"><div className="conn-meta">{muscleRow.range.source}</div></div></div>
               </div></div>
             </>
