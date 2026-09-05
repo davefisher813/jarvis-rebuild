@@ -299,7 +299,11 @@ export default function ChatFlow() {
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") void send(); }}
         />
-        <button className="convo-send" aria-label="Send" onClick={() => void send()} disabled={busy}>{SEND}</button>
+        {/* BROWSER-F-12 (2026-09-05): disabled on an empty box, not just
+            inert. send() has always returned early on blank text, but the
+            button gave no sign of it: a dead-tap detector pressed it and the
+            DOM did not move in 1.1 seconds, which is a control that lies. */}
+        <button className="convo-send" aria-label="Send" onClick={() => void send()} disabled={busy || draft.trim() === ""}>{SEND}</button>
       </div>
     </div>
   );

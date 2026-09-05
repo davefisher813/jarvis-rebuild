@@ -150,7 +150,29 @@ describe("ChatFlow keeps the message when the store rejects (SHELL-F-17)", () =>
     sendText("Complete the plumber");
     await waitFor(() => expect(showToast).toHaveBeenCalledWith({ message: "Couldn't reach your records · Try again" }));
     expect(screen.getByText("Complete the plumber", { selector: ".chat-text" })).toBeInTheDocument();
-    // Busy is released: the box takes the next message.
+    // Busy is released: the box takes the next message. Asserted by typing
+    // one, because BROWSER-F-12 (2026-09-05) also disables Send on an EMPTY
+    // box, so "not disabled" on its own would now be testing the wrong thing:
+    // the box is empty here, the message having just gone.
+    fireEvent.change(screen.getByPlaceholderText("Ask · tell · paste"), { target: { value: "and again" } });
     expect(screen.getByRole("button", { name: "Send" })).not.toBeDisabled();
+  });
+});
+
+// BROWSER-F-12 (2026-09-05), option A. Chat rendered its own composer AND the
+// shell kept the capture dock visible under it: two fields making nearly the
+// same promise on one screen. And Send with nothing typed was a dead tap, not
+// a disabled control, so pressing it moved nothing for 1.1 seconds.
+describe("BROWSER-F-12: one input, and Send says when it cannot send", () => {
+  it("Send is disabled until there is something to send", async () => {
+    renderChat("u-chat-empty");
+    await waitFor(() => expect(chatRef).toBeTruthy());
+    const box = screen.getByPlaceholderText("Ask · tell · paste");
+    expect(screen.getByRole("button", { name: "Send" }), "nothing typed").toBeDisabled();
+    fireEvent.change(box, { target: { value: "what's on today?" } });
+    expect(screen.getByRole("button", { name: "Send" })).not.toBeDisabled();
+    // Whitespace is nothing typed.
+    fireEvent.change(box, { target: { value: "   " } });
+    expect(screen.getByRole("button", { name: "Send" }), "spaces are not a message").toBeDisabled();
   });
 });

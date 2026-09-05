@@ -551,6 +551,27 @@ describe("BROWSER-F-09: quiet is not the same word as finished", () => {
   });
 });
 
+describe("BROWSER-F-12: Chat has one input, and the shell keeps its tab bar", () => {
+  const shell = () => readFileSync(join(SRC, "shell/AppShell.tsx"), "utf8");
+
+  it("the capture dock steps aside on Chat, the way it does in the note editor", () => {
+    const src = shell();
+    expect(src, "the capture flag exists").toMatch(/const showCapture\s*=/);
+    expect(src, "and Chat is what it excludes").toMatch(/showCapture[^;]*active !== "chat"/);
+  });
+
+  // The tab bar is not the dock. Hiding it on a tab you reach FROM the tab bar
+  // would strand you there, which is why one flag became two.
+  it("the tab bar is not tied to the capture dock", () => {
+    const src = shell().replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, "");
+    const cap = src.indexOf("{showCapture &&");
+    const tabs = src.indexOf("{showTabBar &&");
+    expect(cap, "the dock has its own block").toBeGreaterThan(-1);
+    expect(tabs, "the tab bar has its own block").toBeGreaterThan(-1);
+    expect(src.slice(cap, tabs), "the dock block does not contain the tab bar").not.toContain("<TabBar");
+  });
+});
+
 describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
   // The strip rule re-sets the chip background at (0,4,0), which beats
   // .chip.active (0,2,0) for the background alone. Any rule that overrides a

@@ -328,7 +328,16 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
   const reorderTabs = (next: string[]) => { setTabKeys(next); void profile.save({ tabs: next }); };
 
-  const showDock = active === "notes" ? notesChrome : true;
+  // BROWSER-F-12 (2026-09-05), option A. Chat rendered its own "Ask · tell ·
+  // paste" composer AND the shell kept the capture dock under it, so one
+  // screen carried two fields making nearly the same promise. Chat keeps its
+  // own composer, which is the one that belongs to the conversation, and the
+  // dock steps aside the way it already does for the note editor. The TAB BAR
+  // is not the dock and stays: hiding it on a tab you can open from the tab
+  // bar would strand you there, which is why these are two flags now and not
+  // one.
+  const showTabBar = active === "notes" ? notesChrome : true;
+  const showCapture = showTabBar && active !== "chat";
 
   // The boot splash (index.html) stays up until the shell is actually ready,
   // then fades. This is the first real UI of a signed-in launch.
@@ -417,9 +426,14 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
           it is content plus the safe-area inset, so any number here would be
           wrong on some device. */}
       <div id="select-bar-host" />
-      {showDock && (
+      {showCapture && (
+        <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={() => void openWhatNow()} />
+      )}
+      {showTabBar && (
         <>
-          <VoiceBar onTap={() => setCaptureOpen(true)} onSearch={() => setSearchOpen(true)} onWhatNow={() => void openWhatNow()} />
+          {/* BROWSER-F-12 moved VoiceBar out to showCapture above, so Chat's
+              own composer is the only field on that screen. The tab bar is not
+              the dock and stays either way. */}
           <TabBar tabKeys={tabKeys} active={active} onTab={(k) => {
             // A tab tap is a fresh visit: anything still pending is cancelled
             // here. Each intent also clears itself the moment its own screen
