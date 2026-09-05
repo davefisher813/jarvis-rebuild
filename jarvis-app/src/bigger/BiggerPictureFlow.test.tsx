@@ -180,3 +180,54 @@ describe("BiggerPictureFlow delete Undo (LIFE-F-25)", () => {
     }
   });
 });
+
+// LIFE-F-16 (2026-09-05): Mark Achieved was one quiet tap sitting right above
+// Drop This Goal, with no confirm, no Undo and no state control in the edit
+// sheet: a mis-tap was permanent short of a database edit.
+
+let achRef: { svc: GoalService; id: string } | null = null;
+
+function SeedAchieve() {
+  const goals = useGoals();
+  const projects = useProjects();
+  const tasks = useTasks();
+  const [id, setId] = useState("");
+  useEffect(() => {
+    (async () => {
+      const gid = (await goals.create({ title: "Run a half marathon", state: "on_track" }))!;
+      // A goal with work still open is the case that shows Mark Achieved in
+      // the quiet tier: finishing early is allowed, it is just not shouted.
+      const pid = (await projects.create({ title: "Training block", status: "active", goalId: gid }))!;
+      await tasks.createTask("Long run", { projectId: pid });
+      achRef = { svc: goals, id: gid };
+      setId(gid);
+    })();
+  }, [goals, projects, tasks]);
+  return id ? <BiggerPictureFlow openGoalId={id} /> : null;
+}
+
+describe("BiggerPictureFlow Mark Achieved (LIFE-F-16)", () => {
+  it("offers an Undo that puts the goal back and clears the achieved date", async () => {
+    let undo: (() => void) | undefined;
+    const stop = subscribeToast((t) => { if (t?.message === "Goal achieved") undo = t.onAction; });
+    try {
+      render(<NotesProvider userId="u-achieve-f16"><SeedAchieve /></NotesProvider>);
+      fireEvent.click(await screen.findByText("Mark Achieved"));
+      await waitFor(async () => {
+        expect((await achRef!.svc.get(achRef!.id))?.data.state).toBe("achieved");
+      });
+      expect((await achRef!.svc.get(achRef!.id))?.data.achievedOn).toBeTruthy();
+      expect(undo).toBeTruthy();
+      undo!();
+      await waitFor(async () => {
+        const g = await achRef!.svc.get(achRef!.id);
+        expect(g?.data.state).toBe("on_track");
+        expect(g?.data.achievedOn ?? null).toBeNull();
+      });
+      // and the celebration is gone with it
+      await waitFor(() => expect(screen.queryByText("Goal achieved")).not.toBeInTheDocument());
+    } finally {
+      stop();
+    }
+  });
+});

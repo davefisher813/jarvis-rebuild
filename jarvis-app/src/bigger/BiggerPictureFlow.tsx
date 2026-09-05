@@ -760,6 +760,25 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
                 }).length,
               }),
             });
+            // LIFE-F-16 (2026-09-05): Mark Achieved sits directly above Drop
+            // This Goal and was one quiet tap with no way back: it left live
+            // goals, Today's nudges, the AI context and every picker, and the
+            // edit sheet has no state control. It gets the Undo every other
+            // irreversible tap in this app gets, restoring the state it had
+            // and clearing the achieved date GoalService stamps on the way in.
+            showToast({
+              message: "Goal achieved",
+              actionLabel: "Undo",
+              onAction: () => void (async () => {
+                // g.data is the snapshot read before the achieve, so this
+                // puts the goal's own state back rather than guessing one.
+                const ok2 = await attemptWrite(() => mustUpdate(goalsSvc.update(g.id, { ...g.data, achievedOn: null })));
+                if (!ok2) return;
+                setPayoff(null);
+                setGoalDetailId(g.id);
+                await reload();
+              })(),
+            });
           }}
           onOpenProject={(id) => setDetailId(id)}
           onAddProject={() => setSheet({ kind: "newProject", goalId: goalDetail.id })}
