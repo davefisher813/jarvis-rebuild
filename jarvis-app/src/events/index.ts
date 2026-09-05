@@ -33,6 +33,15 @@ bus.subscribe((e) => serverSink.capture(e));
 try {
   if (typeof window !== "undefined") {
     window.addEventListener("online", () => void serverSink.flush());
+    // PLUMB-F-14 (2026-09-05): the local log holds its events in memory and
+    // writes back on a debounce, so the moment the app leaves the screen is
+    // the moment it has to hit storage: iOS kills a backgrounded WebView
+    // without further warning. pagehide is the one event that reliably fires
+    // on that path; visibilitychange covers the tab switch on the web.
+    window.addEventListener("pagehide", () => eventLog.flush());
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") eventLog.flush();
+    });
   }
 } catch {
   /* non-browser */
