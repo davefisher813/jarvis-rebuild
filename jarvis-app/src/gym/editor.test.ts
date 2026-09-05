@@ -159,3 +159,23 @@ describe("GYM-F-27: the receipt counts the session it is the receipt for", () =>
     expect(src("ReceiptSheet.tsx")).toContain("doneCount(workouts, name)");
   });
 });
+
+// GYM-F-30 (2026-09-05): History closed itself on the way into a lift, so
+// Back from the lift detail landed on the program page instead of the list
+// the athlete came from.
+describe("GYM-F-30: Back from a lift returns to History", () => {
+  const flow = src("GymFlow.tsx");
+
+  it("opening a lift leaves History open underneath", () => {
+    expect(flow).toContain("onOpenLift={(row) => setLiftDetailFor(row)}");
+    expect(flow).not.toContain("onOpenLift={(row) => { setHistoryOpen(false); setLiftDetailFor(row); }}");
+  });
+
+  it("the lift branch is checked before the History branch, so it renders on top", () => {
+    expect(flow.indexOf("if (liftDetailFor) {")).toBeLessThan(flow.indexOf("if (historyOpen) {"));
+  });
+
+  it("the two of them stacked are two levels deep, not one", () => {
+    expect(flow).toMatch(/historyOpen && liftDetailFor\s*\n\s*\? 2/);
+  });
+});

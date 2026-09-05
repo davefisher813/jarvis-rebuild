@@ -289,7 +289,9 @@ export default function LiftDetailScreen({
               return fact ? <div className="row"><div className="row-grow"><div className="conn-meta">{fact}</div></div></div> : null;
             })()}
             {receipts.map((s) => (
-              <div className="row" key={s.date}>
+              // GYM-F-30 (2026-09-05): keyed by the workout, not the date --
+              // two sessions can land on one day.
+              <div className="row" key={s.workoutId}>
                 <div className="row-grow">
                   <div className="conn-name">{formatSet({ kind, unit, timeUnit }, s.top)}</div>
                   <div className="conn-meta">{agoPhrase(s.date, todayIso)}</div>

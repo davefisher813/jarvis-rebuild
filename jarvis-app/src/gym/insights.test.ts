@@ -90,6 +90,26 @@ describe("plateauFlag", () => {
     expect(setsRow!.flat).toBe(3);
   });
 
+  // GYM-F-30 (2026-09-05): setsOn took the FIRST workout on a date and
+  // stopped, so a day with two sessions had half its work invisible to the
+  // "Sets a Session" row.
+  it("Sets a Session counts every workout on the day, not just the first", () => {
+    const climb = [100, 110, 120];
+    const flat = [115, 118, 120, 112, 119, 117];
+    const h = [...climb, ...flat].map((r, i) => pushups(i, r));
+    h.slice(0, 3).forEach((w) => { w.data.exercises[0]!.sets.push(set({ r: 1 }), set({ r: 1 }), set({ r: 1 }), set({ r: 1 })); });
+    h.slice(3).forEach((w) => { w.data.exercises[0]!.sets.push(set({ r: 1 }), set({ r: 1 })); });
+    const setsOfMoving = (ws: Workout[]) => {
+      const flag = plateauFlag(liftSessions(ws, "Pushups", "reps"), "reps", "Pushups", ws);
+      return flag!.whatChanged.find((r) => r.label === "Sets a Session")!.moving;
+    };
+    expect(setsOfMoving(h)).toBe(5);
+    // A second session logged onto a day in the moving window. Its two sets
+    // used to be invisible: the count stopped at the first workout of the day.
+    const second = workout(day(1), [{ exerciseId: "e1", name: "Pushups", kind: "reps", sets: [set({ r: 90 }), set({ r: 1 })] }]);
+    expect(setsOfMoving([...h, second])).toBeGreaterThan(5);
+  });
+
   it("a metric row appears only with at least 2 points on each side", () => {
     const climb = [100, 110, 120];
     const flat = [115, 118, 120, 112, 119, 117];

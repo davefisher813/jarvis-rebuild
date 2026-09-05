@@ -11,6 +11,12 @@ import { beats, scoreOf, hasVolume, setVolume } from "./measures";
 // one series so there is exactly one definition of "what a session did".
 
 export interface LiftSession {
+  /** GYM-F-30 (2026-09-05): the workout this row came from. Two sessions can
+   *  share a date -- logging a past workout onto a day that already has one,
+   *  or training the same lift morning and evening -- and the date alone was
+   *  being used as identity, which made duplicate React keys on the lift
+   *  page's Sessions list and could render the wrong row. */
+  workoutId: string;
   date: string;
   /** The session's best working set for this exercise (warmups and skipped
    *  chips excluded by scoreOf itself -- LAW 16 is not re-litigated here). */
@@ -45,7 +51,7 @@ export function liftSessions(workouts: Workout[], name: string, kind: MeasureKin
     }
     if (!top) continue;
     const score = scoreOf(kind, top)!.value;
-    out.push({ date: w.data.date, top, score, e1rm: kind === "weight_reps" ? e1rm(top.w ?? 0, top.r ?? 0) : null });
+    out.push({ workoutId: w.id, date: w.data.date, top, score, e1rm: kind === "weight_reps" ? e1rm(top.w ?? 0, top.r ?? 0) : null });
   }
   return out;
 }

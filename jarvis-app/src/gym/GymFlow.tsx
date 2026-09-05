@@ -646,9 +646,11 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
       ? (openDayId ? (multiWeek ? 3 : 2) : 1)
       : openDayId
         ? (multiWeek ? 2 : 1)
-        : (multiWeek && openWeekId) || historyOpen || uploadOpen
-          ? 1
-          : 0,
+        : historyOpen && liftDetailFor
+          ? 2
+          : (multiWeek && openWeekId) || historyOpen || uploadOpen || liftDetailFor
+            ? 1
+            : 0,
   );
 
   const switchProgram = (id: string) => {
@@ -1012,9 +1014,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
   if (uploadOpen) {
     return <UploadFlow ai={ai} onSave={(p) => void saveUploaded(p)} onCancel={() => setUploadOpen(false)} />;
   }
-  if (historyOpen) {
-    return <HistoryScreen workouts={workouts} onBack={() => setHistoryOpen(false)} onOpenLift={(row) => { setHistoryOpen(false); setLiftDetailFor(row); }} />;
-  }
+  // GYM-F-30 (2026-09-05): History used to close itself on the way into a
+  // lift, so Back from the lift detail landed on the program page rather than
+  // the list the athlete came from. It stays open underneath now, and the
+  // lift branch is checked first so it renders on top of it.
   if (liftDetailFor) {
     // Muscle group is a PROGRAM fact (D13-C), read off the CURRENT program's
     // own exercise by name -- absent when untagged, or when the lift has
@@ -1058,6 +1061,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
         )}
       </>
     );
+  }
+  if (historyOpen) {
+    return <HistoryScreen workouts={workouts} onBack={() => setHistoryOpen(false)} onOpenLift={(row) => setLiftDetailFor(row)} />;
   }
   if (viewWorkout && workoutDraft) {
     const w = viewWorkout;

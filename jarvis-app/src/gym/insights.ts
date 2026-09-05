@@ -126,12 +126,23 @@ export interface PlateauFlag {
 }
 
 /** Working sets logged for this exercise on this date (warmups and skipped
- *  chips excluded, LAW 16). */
+ *  chips excluded, LAW 16).
+ *
+ *  GYM-F-30 (2026-09-05): it took the FIRST workout on the date and stopped,
+ *  so a day with two sessions (a backdated log landing on a day that already
+ *  had one, or the same lift trained twice) had half its work invisible to
+ *  the plateau card's "Sets a session" row. Every workout on that day counts;
+ *  null still means the lift is not in that day at all, which is what keeps
+ *  the row from claiming a zero. */
 function setsOn(workouts: Workout[], name: string, date: string): number | null {
-  const w = workouts.find((x) => x.data.date === date);
-  const ex = w?.data.exercises.find((e) => e.name === name);
-  if (!ex || ex.skipped) return null;
-  return ex.sets.filter((s) => !s.skipped && !s.warmup && scoreOf(ex.kind, s)).length;
+  let total: number | null = null;
+  for (const w of workouts) {
+    if (w.data.date !== date) continue;
+    const ex = w.data.exercises.find((e) => e.name === name);
+    if (!ex || ex.skipped) continue;
+    total = (total ?? 0) + ex.sets.filter((s) => !s.skipped && !s.warmup && scoreOf(ex.kind, s)).length;
+  }
+  return total;
 }
 
 /**

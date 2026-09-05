@@ -22,6 +22,18 @@ describe("e1rm", () => {
 });
 
 describe("liftSessions", () => {
+  // GYM-F-30 (2026-09-05): the date alone was being used as identity, so two
+  // sessions on one day (a backdated log onto a day that already had one, or
+  // the same lift trained twice) collided as React keys on the lift page.
+  it("carries the workout id, so two sessions on one date are two rows", () => {
+    const a = bench("2026-08-01", [set({ w: 225, r: 5 })]);
+    const b = bench("2026-08-01", [set({ w: 205, r: 8 })]);
+    const rows = liftSessions([a, b], "Bench", "weight_reps");
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.workoutId)).toEqual([a.id, b.id]);
+    expect(new Set(rows.map((r) => r.workoutId)).size).toBe(2);
+  });
+
   it("one point per workout, the session's best working set, oldest first", () => {
     const h = [
       bench("2026-08-10", [set({ w: 185, r: 5 })]),
