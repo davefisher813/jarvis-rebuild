@@ -3,8 +3,9 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { useEffect, useState } from "react";
-import { NotesProvider, useGoals } from "../data/NotesProvider";
+import { NotesProvider, useGoals, useProjects, useTasks, useCategories } from "../data/NotesProvider";
 import type { GoalService } from "../life/GoalService";
+import type { TasksService } from "../tasks/TasksService";
 import BiggerPictureFlow from "./BiggerPictureFlow";
 
 // LIFE-F-18 (2026-09-05): "Savings entries are dated in UTC." Logging $200
@@ -44,5 +45,54 @@ describe("BiggerPictureFlow savings (LIFE-F-18)", () => {
       vi.useRealTimers();
       process.env.TZ = prevTz;
     }
+  });
+});
+
+// LIFE-F-14 (2026-09-05): the Edit Task sheet opened from inside a project
+// predated multi-category, recurrence and plans. It showed Repeat as None and
+// no Project row, and its Save wrote setCategory, which replaces the whole
+// set: opening a step and pressing Save wiped every extra area off it.
+
+let stepRef: { tasks: TasksService; id: string } | null = null;
+
+function SeedStep() {
+  const projects = useProjects();
+  const tasks = useTasks();
+  const cats = useCategories();
+  const [pid, setPid] = useState("");
+  useEffect(() => {
+    (async () => {
+      const work = (await cats.create("Work", "blue"))!;
+      const family = (await cats.create("Family", "green"))!;
+      const projectId = (await projects.create({ title: "Remodel", status: "active", category: work }))!;
+      const id = (await tasks.createTask("Call the contractor", {
+        projectId, category: work, extraCategories: [family], due: "2026-09-20", recurrence: "weekly",
+      }))!;
+      stepRef = { tasks, id };
+      setPid(projectId);
+    })();
+  }, [projects, tasks, cats]);
+  return pid ? <BiggerPictureFlow openId={pid} /> : null;
+}
+
+describe("BiggerPictureFlow step editing (LIFE-F-14)", () => {
+  it("saving a project's step keeps its extra areas, repeat and project", async () => {
+    render(<NotesProvider userId="u-step-f14"><SeedStep /></NotesProvider>);
+    fireEvent.click(await screen.findByText("Call the contractor"));
+    await screen.findByText("Edit Task");
+    // The sheet knows what this task already is, so the rows it hid before
+    // are on screen with real values.
+    expect(screen.getByText("Weekly")).toBeInTheDocument();
+    // The project's name is on the page behind and now in the sheet's own
+    // Project row too.
+    expect(screen.getAllByText("Remodel").length).toBeGreaterThan(1);
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(async () => {
+      const t = await stepRef!.tasks.task(stepRef!.id);
+      expect(t?.extraCategories?.length).toBe(1);
+      expect(t?.recurrence).toBe("weekly");
+      expect(t?.projectId).toBeTruthy();
+      expect(t?.due).toBe("2026-09-20");
+    });
   });
 });

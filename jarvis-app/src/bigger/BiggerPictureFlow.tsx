@@ -10,6 +10,7 @@ import BiggerPicturePage from "./BiggerPicturePage";
 import Payoff, { payoffLine } from "../shared/Payoff";
 import ProjectSheet from "../projects/ProjectSheet";
 import TaskSheet, { type TaskDraft } from "../tasks/screens/TaskSheet";
+import type { Recurrence } from "../notes/types";
 import ProjectDetailPage from "../projects/ProjectDetailPage";
 import { loadLinks, linkedThreadsFor } from "../messages/threadLink";
 import { attemptWrite } from "../shared/guard";
@@ -616,13 +617,38 @@ export default function BiggerPictureFlow({ openId, openGoalId, onOpenNote, onOp
             <TaskSheet
               mode="edit"
               categories={categories.map((c) => ({ id: c.id, name: c.data.name, color: c.data.color }))}
-              initial={{ text: t.data.text, category: t.data.category ?? "", due: t.data.due ?? undefined, steps: t.data.steps }}
+              // LIFE-F-14 (2026-09-05): this sheet predates multi-category,
+              // recurrence and plans, so opening a step from inside its
+              // project showed Repeat as None and no Project or plan rows,
+              // and saving wrote setCategory (which REPLACES the set,
+              // TasksService.ts:307-309), wiping every extra area off a task
+              // whose due date was the only thing that changed. It is the
+              // same sheet the Tasks tab opens, so it now reads and writes
+              // exactly what TasksFlow.openEdit and TasksFlow.onSave do.
+              projects={projects.map((p) => ({ id: p.id, title: p.data.title }))}
+              otherPlans={tasks.map((x) => ({ id: x.id, text: x.data.text, plan: x.data.plan }))}
+              selfId={sheet.id}
+              source={t.data.source}
+              initial={{
+                text: t.data.text,
+                category: t.data.category ?? "",
+                extraCategories: t.data.extraCategories,
+                due: t.data.due ?? "",
+                repeat: t.data.recurrence ?? "",
+                projectId: t.data.projectId ?? "",
+                plan: t.data.plan,
+                steps: t.data.steps,
+              }}
               onSave={async (d: TaskDraft) => {
                 const id = sheet.id;
+                const rec = (d.repeat || "") as "" | Recurrence;
                 await attemptWrite(async () => {
                   await tasksSvc.editText(id, d.text);
-                  await tasksSvc.setDue(id, d.due ?? null);
-                  await tasksSvc.setCategory(id, d.category);
+                  await tasksSvc.setCategories(id, [d.category, ...(d.extraCategories ?? [])].filter(Boolean));
+                  await tasksSvc.setDue(id, d.due || null);
+                  await tasksSvc.setProject(id, d.projectId ?? null);
+                  await tasksSvc.setRecurrence(id, rec || null);
+                  await tasksSvc.setPlan(id, d.plan ?? null);
                   await tasksSvc.setSteps(id, d.steps ?? []);
                   if (d.closeNow) await tasksSvc.toggleDone(id);
                 });
