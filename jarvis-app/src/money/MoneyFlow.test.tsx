@@ -156,3 +156,44 @@ describe("MoneyFlow: the budget half by template (S5-Q33)", () => {
     expect(screen.queryByText(/^Yours/)).not.toBeInTheDocument();
   });
 });
+
+// SHELL-F-21 (2026-09-05): search "Chase", tap the account row (which wears a
+// chevron), and the Money tab opened on its normal first screen with the
+// account neither opened nor highlighted. This tab had no deep-link prop at
+// all; now it has the same one-shot every other tab has.
+import { useMoney } from "../data/NotesProvider";
+
+function AccountLink() {
+  const money = useMoney();
+  const [id, setId] = useState<string | undefined>(undefined);
+  const [intent, setIntent] = useState<{ value?: string; nonce: number }>({ nonce: 0 });
+  useEffect(() => {
+    void (async () => { setId((await money.create({ name: "Chase Checking", balance: 1200, kind: "cash" })) ?? undefined); })();
+  }, [money]);
+  return id ? (
+    <>
+      <button onClick={() => setIntent((i) => ({ value: id, nonce: i.nonce + 1 }))}>Search Hit</button>
+      <MoneyFlow
+        openAccountId={intent.value}
+        openNonce={intent.nonce}
+        onOpenConsumed={() => setIntent((i) => ({ nonce: i.nonce }))}
+      />
+    </>
+  ) : null;
+}
+
+describe("a Money search hit opens the account (SHELL-F-21)", () => {
+  it("opens that account, and a later visit to the tab does not", async () => {
+    render(<NotesProvider userId="acct-f21"><AccountLink /></NotesProvider>);
+    await screen.findByText("Chase Checking");
+    expect(screen.queryByText("Edit Account")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Search Hit"));
+    await waitFor(() => expect(screen.getByText("Edit Account")).toBeInTheDocument());
+    expect((screen.getByLabelText("Account name") as HTMLInputElement).value).toBe("Chase Checking");
+
+    // Closed by hand, the link is spent: nothing reopens it.
+    fireEvent.click(screen.getByText("Cancel"));
+    await waitFor(() => expect(screen.queryByText("Edit Account")).not.toBeInTheDocument());
+  });
+});

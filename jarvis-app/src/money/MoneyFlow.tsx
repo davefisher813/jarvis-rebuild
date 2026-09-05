@@ -115,7 +115,15 @@ function PaydaySheet({ initial, onSave, onRemove, onCancel }: {
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 type BillSheetState = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
 
-export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) => void } = {}) {
+export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpenConsumed }: { onOpenTask?: (id: string) => void;
+  // SHELL-F-21 (2026-09-05): a Money search hit used to land on this tab's
+  // normal first screen, with the account it named neither opened nor
+  // highlighted, and the row in search wore a chevron promising otherwise
+  // (SearchFlow.tsx:190). This tab had no deep-link prop at all, which the
+  // shell's own comment admitted (AppShell.tsx:380-382). An account opens the
+  // way a tap on its row opens it: its own sheet. Same one-shot shape as
+  // every other intent (shell/intents.ts).
+  openAccountId?: string; openNonce?: number; onOpenConsumed?: () => void } = {}) {
   const svc = useMoney();
   const tasksSvc = useTasks();
   const profileSvc = useProfile();
@@ -258,6 +266,17 @@ export default function MoneyFlow({ onOpenTask }: { onOpenTask?: (id: string) =>
     setTagged(allTasks.filter((t) => !t.data.done && !t.data.bill && moneyCatIds.has(t.data.category ?? "")));
   }, [svc, tasksSvc, profileSvc, catsSvc]);
   useEffect(() => { void reload(); }, [reload]);
+
+  // SHELL-F-21: the account the shell was asked to open, once the list it
+  // lives in has arrived. Held until then rather than opening an empty sheet;
+  // an id with no account behind it (deleted since) opens nothing, quietly,
+  // the same as a link to a deleted person.
+  useEffect(() => {
+    if (!openAccountId || !accounts.some((a) => a.id === openAccountId)) return;
+    setSheet({ kind: "edit", id: openAccountId });
+    onOpenConsumed?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openAccountId, openNonce, accounts]);
 
   const editing = sheet.kind === "edit" ? accounts.find((a) => a.id === sheet.id) : undefined;
   const save = async (d: AccountData) => {

@@ -134,8 +134,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // shape as decisionIntent, just one door further in (Brain -> knows ->
   // the strand itself).
   const factIntent = useOneShot<string>();
+  // SHELL-F-21: which account the Money tab should open.
+  const accountIntent = useOneShot<string>();
   // Every intent the shell owns, for the one place that cancels them all.
-  const allIntents = [brainIntent, gymIntent, routineBlockIntent, taskIntent, taskFilterIntent, projectIntent, eventIntent, goalIntent, personIntent, noteIntent, mailIntent, draftIntent, decisionIntent, factIntent];
+  const allIntents = [brainIntent, gymIntent, routineBlockIntent, taskIntent, taskFilterIntent, projectIntent, eventIntent, goalIntent, personIntent, noteIntent, mailIntent, draftIntent, decisionIntent, factIntent, accountIntent];
   const navigateToNote = (id: string) => { noteIntent.fire(id); setActive("notes"); };
   // B3-4 (2026-09-04): search does full text over note bodies and hands its
   // hits to this function with kind "note" (SearchFlow.tsx's open("note", id)),
@@ -354,7 +356,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
 
         {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} threadNonce={mailIntent.nonce} onThreadConsumed={mailIntent.clear} openDraftId={draftIntent.value} draftNonce={draftIntent.nonce} onDraftConsumed={draftIntent.clear} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
         {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
-        {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} />}
+        {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} openAccountId={accountIntent.value} openNonce={accountIntent.nonce} onOpenConsumed={accountIntent.clear} />}
         {active === "chat" && <ChatFlow />}
 
         {active === "more" && (
@@ -413,10 +415,11 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
       )}
       {captureOpen && <Suspense fallback={null}><QuickCapture ai={ai} onClose={() => setCaptureOpen(false)} onOpen={(kind, id) => void navigateToEntity(kind, id)} /></Suspense>}
       {searchOpen && <Suspense fallback={null}><SearchFlow onClose={() => setSearchOpen(false)} onOpen={(kind, id) => {
-        // A search hit becomes the open thing (2026-08-09). Money and
-        // categories have no per-item deep link yet, so they land on their
-        // surface; everything else opens the exact item via the intents.
-        if (kind === "account") setActive("money");
+        // A search hit becomes the open thing (2026-08-09). SHELL-F-21
+        // (2026-09-05): an account is now one of them, so the only surface
+        // still landing on its tab rather than its item is a category, which
+        // IS the surface. Everything else opens the exact item.
+        if (kind === "account") { accountIntent.fire(id); setActive("money"); }
         else if (kind === "category") { brainIntent.fire(id); setActive("brain"); }
         else void navigateToEntity(kind, id);
       }} /></Suspense>}
