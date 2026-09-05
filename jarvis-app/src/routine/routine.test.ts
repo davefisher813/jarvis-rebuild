@@ -243,8 +243,11 @@ describe("routineToText", () => {
         { id: "2", label: "Dinner", startMin: 1110, endMin: 1170, days: [0, 1, 2, 3, 4, 5, 6], kind: "meal", soft: true },
       ],
     });
-    expect(text).toContain("Gym Mon Wed Fri 6 AM to 7 AM, at Cortland YMCA");
-    expect(text).toContain("Dinner every day 6:30 PM to 7:30 PM, flexible");
+    // BRAIN-F-20 (2026-09-05): this used to assert the thin line, which was
+    // the bug: kind and mode were added after the renderer, so the AI got a
+    // label and a time and could not tell a commute from a meal.
+    expect(text).toContain("Gym Mon Wed Fri 6 AM to 7 AM, (gym, Can Blend), at Cortland YMCA");
+    expect(text).toContain("Dinner every day 6:30 PM to 7:30 PM, (meal, Protected), flexible");
   });
 
   it("drops malformed blocks instead of rendering nonsense", () => {
@@ -361,5 +364,22 @@ describe("block mode", () => {
     expect(out.focus.map((f) => f.label)).toEqual(["Deep Work"]);
     expect(out.soft.map((f) => f.label)).toEqual(["Lunch"]);
     expect(out.blend).toEqual([]);
+  });
+});
+
+// BRAIN-F-20 (2026-09-05): routineToText is what the AI sees of the day's
+// shape (ai/useAIContext.ts:187). It rendered a block's label, days and time
+// and nothing else, so a block named "Morning" with kind gym and mode Can
+// Blend reached the prompt as "Morning weekdays 6 AM to 7 AM" and the AI could
+// not tell a commute from a meal unless the label happened to say so.
+describe("routineToText carries what a block IS (BRAIN-F-20)", () => {
+  it("a block with no kind reads exactly as it always did", async () => {
+    const { routineToText } = await import("./types");
+    const text = routineToText({
+      ...DEFAULT_ROUTINE,
+      protectedBlocks: [{ id: "b3", label: "Dinner", startMin: 18 * 60, endMin: 19 * 60, days: [0, 1, 2, 3, 4, 5, 6] }],
+    });
+    expect(text).toContain("Dinner every day 6 PM to 7 PM");
+    expect(text).not.toContain("(");
   });
 });

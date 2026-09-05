@@ -303,6 +303,12 @@ export function routineToText(r: RoutineData): string {
   for (const b of r.protectedBlocks ?? []) {
     if (b.endMin <= b.startMin || !b.label.trim() || b.days.length === 0) continue;
     const bits = [`${b.label.trim()} ${daysSummary(b.days)} ${min12h(b.startMin)} to ${min12h(b.endMin)}`];
+    // BRAIN-F-20 (2026-09-05): kind and mode were added after this renderer,
+    // so a block named "Morning" reached the prompt as a label and a time and
+    // the AI could not tell a commute from a meal. The presets carry their
+    // kind exactly so the AI knows what the time IS (RoutineFlow.tsx:41-45),
+    // and the mode says what the block does with that time.
+    if (b.kind) bits.push(`(${b.kind}, ${MODE_LABEL[modeOf(b)]})`);
     if (b.location?.trim()) bits.push(`at ${b.location.trim()}`);
     if (b.soft) bits.push("flexible");
     parts.push(bits.join(", "));
