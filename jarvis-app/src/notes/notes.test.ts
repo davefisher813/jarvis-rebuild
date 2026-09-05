@@ -41,19 +41,53 @@ describe("Notes permanent guard: tombstone (R12)", () => {
 
   // restoreNote powers the Undo toast that replaced the delete confirm dialog
   // (audit 2026-08-07). It must bring the WHOLE note back, blocks and
-  // connections included, under a fresh id, or Undo is a lie.
-  it("restoreNote resurrects a snapshot whole, under a new id", async () => {
+  // connections included, or Undo is a lie.
+  //
+  // HMN-F-15 (2026-09-05): under the SAME id. This test used to assert the
+  // opposite ("the old id is gone for good"), which documented the bug: the
+  // tasks made from the note's checklist and the Where You Were spot kept
+  // pointing at the dead id. R12 (a deleted note never returns on its own)
+  // still stands; Undo is the person putting it back, not a resurrection.
+  it("restoreNote resurrects a snapshot whole, under its old id", async () => {
     const svc = freshService();
     const id = (await svc.createNote("keep me", "health"))!;
     await svc.addBlock(id, { type: "text", text: "the body" });
     const snapshot = (await svc.note(id))!;
     await svc.deleteNote(id);
     expect((await svc.listNotes()).length).toBe(0);
-    const newId = (await svc.restoreNote(snapshot))!;
-    expect(newId).not.toBe(id); // the old id is gone for good (R12 stands)
-    const back = (await svc.note(newId))!;
+    const backId = (await svc.restoreNote(snapshot, id))!;
+    expect(backId).toBe(id);
+    const back = (await svc.note(id))!;
     expect(back.title).toBe("keep me");
     expect(back.blocks.map((b) => b.text)).toContain("the body");
+    expect((await svc.listNotes()).length).toBe(1);
+  });
+
+  it("tasks made from the restored note's checklist still point at a note that opens", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("groceries", ""))!;
+    await svc.addChecklist(id, ["milk", "eggs"]);
+    const made = await svc.tasksFromChecklist(id);
+    expect(made).toHaveLength(2);
+    const snapshot = (await svc.note(id))!;
+    await svc.deleteNote(id);
+    await svc.restoreNote(snapshot, id);
+    for (const t of await svc.listTasks()) {
+      const from = (t.data as { fromNote?: string }).fromNote!;
+      expect(await svc.note(from)).not.toBeNull();
+    }
+    // And the reverse lookup the task sheet's Linked Notes reads still finds it.
+    expect(await svc.notesLinkedTo(made[0]!)).toEqual([{ id, title: "groceries", category: "" }]);
+  });
+
+  it("restoreNote without an id still works, under a fresh one", async () => {
+    const svc = freshService();
+    const id = (await svc.createNote("keep me", ""))!;
+    const snapshot = (await svc.note(id))!;
+    await svc.deleteNote(id);
+    const newId = (await svc.restoreNote(snapshot))!;
+    expect(newId).toBeTruthy();
+    expect((await svc.note(newId))!.title).toBe("keep me");
   });
 });
 

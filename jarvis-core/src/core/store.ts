@@ -104,19 +104,36 @@ export class Store {
     }
   }
 
-  async create(ownerId: string, entityType: string, data: ItemData): Promise<string> {
+  // HMN-F-15 (2026-09-05): `id` lets a caller put a record back under the id
+  // it had. The adapter has accepted one since the offline queue's replay
+  // (S3-Q14); this exposes it for the one caller that needs it, Undo after a
+  // delete, so what pointed at the record (a task's fromNote, the Where You
+  // Were spot) points at something that opens again. Only ever pass an id
+  // whose row is gone.
+  async create(ownerId: string, entityType: string, data: ItemData, id?: string): Promise<string> {
     if (!this.online) {
-      const id = genId();
-      const op: QueuedOp = { op: "create", id, ownerId, entityType, data, queuedAt: Date.now() };
+      if (id && this.pendingDeletes.has(id)) {
+        // Undo of a delete that has not left the phone yet: the row never
+        // left the server, so there is nothing to create. Forget the delete
+        // and the record is back, exactly as the snapshot read it (server
+        // row plus the patches still queued ahead of where the delete was).
+        this.pendingDeletes.delete(id);
+        this.queue = this.queue.filter((op) => !(op.op === "delete" && op.id === id));
+        this.saveQueue();
+        this.invalidate(ownerId);
+        return id;
+      }
+      const useId = id ?? genId();
+      const op: QueuedOp = { op: "create", id: useId, ownerId, entityType, data, queuedAt: Date.now() };
       this.queue.push(op);
-      this.pendingCreates.set(id, this.itemFromCreate(op));
+      this.pendingCreates.set(useId, this.itemFromCreate(op));
       this.saveQueue();
       this.invalidate(ownerId);
-      return id;
+      return useId;
     }
-    const id = await this.adapter.create(ownerId, entityType, data);
+    const newId = await this.adapter.create(ownerId, entityType, data, id);
     this.invalidate(ownerId);
-    return id;
+    return newId;
   }
 
   // Bulk create in one round trip (contact import). Same cache semantics as

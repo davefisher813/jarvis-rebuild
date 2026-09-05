@@ -660,10 +660,12 @@ export default function NotesFlow({
   // is tapped there is nothing left to read.
   const onDeleteManyNotes = async (ids: string[]) => {
     if (ids.length === 0) return;
-    const kept: NoteData[] = [];
+    // HMN-F-15: each snapshot keeps its id, so Undo puts the note back under
+    // it and everything that pointed at the note still opens it.
+    const kept: { id: string; data: NoteData }[] = [];
     for (const id of ids) {
       const n = await svc.note(id);
-      if (n) kept.push(n);
+      if (n) kept.push({ id, data: n });
     }
     let gone = 0;
     await attemptWrite(async () => { for (const id of ids) { await svc.deleteNote(id); gone++; } });
@@ -676,7 +678,7 @@ export default function NotesFlow({
       actionLabel: "Undo",
       onAction: async () => {
         sweep.cancel();
-        await attemptWrite(async () => { for (const note of kept.slice(0, n)) await svc.restoreNote(note); });
+        await attemptWrite(async () => { for (const note of kept.slice(0, n)) await svc.restoreNote(note.data, note.id); });
         await loadList();
       },
     });
@@ -824,6 +826,7 @@ export default function NotesFlow({
             });
             if (!ok) return;
             const kept: NoteData | null = snapshot;
+            const deletedId = currentId;
             const sweep = sweepAfter([currentId]);
             setCurrentId(null);
             await loadList();
@@ -833,7 +836,9 @@ export default function NotesFlow({
               actionLabel: "Undo",
               onAction: async () => {
                 sweep.cancel();
-                if (kept) await attemptWrite(() => svc.restoreNote(kept));
+                // HMN-F-15: back under the same id, so the tasks made from
+                // its checklist and the Where You Were spot still open it.
+                if (kept) await attemptWrite(() => svc.restoreNote(kept, deletedId));
                 await loadList();
               },
             });

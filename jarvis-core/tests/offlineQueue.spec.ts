@@ -94,6 +94,58 @@ describe("offline delete of an already-synced record", () => {
   });
 });
 
+// HMN-F-15 (2026-09-05): Undo after a delete puts the record back under the
+// id it had, so everything that pointed at it still opens it. The adapter
+// took an explicit id since the queue's replay; the Store now passes one
+// through, online and offline.
+describe("create under a chosen id (Undo after delete)", () => {
+  it("online: the record comes back under the same id once the row is gone", async () => {
+    const adapter = new InMemoryAdapter();
+    const store = new Store(adapter);
+    const id = await store.create("U", "note", { title: "Keep me" });
+    await store.delete("U", id);
+    expect(await store.read("U", id)).toBeNull();
+    const back = await store.create("U", "note", { title: "Keep me" }, id);
+    expect(back).toBe(id);
+    expect((await store.read("U", id))?.data.title).toBe("Keep me");
+    expect(adapter.snapshotCount()).toBe(1);
+  });
+
+  it("offline, undoing a delete that has not left the phone: the delete is forgotten and nothing is created twice", async () => {
+    const adapter = new InMemoryAdapter();
+    const store = new Store(adapter);
+    const id = await store.create("U", "note", { title: "Keep me" });
+    store.goOffline();
+    await store.delete("U", id);
+    expect(await store.read("U", id)).toBeNull();
+    expect(store.queueLen()).toBe(1);
+    const back = await store.create("U", "note", { title: "Keep me" }, id);
+    expect(back).toBe(id);
+    // Visible again at once, and the server never hears about it.
+    expect((await store.read("U", id))?.data.title).toBe("Keep me");
+    expect((await store.listForUser("U", "note")).map((i) => i.id)).toEqual([id]);
+    expect(store.queueLen()).toBe(0);
+    await store.reconnect();
+    expect(adapter.snapshotCount()).toBe(1);
+    expect((await store.read("U", id))?.data.title).toBe("Keep me");
+  });
+
+  it("offline, undoing a delete that already synced: the create replays under the same id", async () => {
+    const adapter = new InMemoryAdapter();
+    const store = new Store(adapter);
+    const id = await store.create("U", "note", { title: "Keep me" });
+    await store.delete("U", id);
+    store.goOffline();
+    const back = await store.create("U", "note", { title: "Keep me" }, id);
+    expect(back).toBe(id);
+    expect((await store.read("U", id))?.data.title).toBe("Keep me");
+    await store.reconnect();
+    expect(store.queueLen()).toBe(0);
+    expect((await store.read("U", id))?.data.title).toBe("Keep me");
+    expect(adapter.snapshotCount()).toBe(1);
+  });
+});
+
 describe("offline queue: mixed ops drain in order on reconnect", () => {
   it("a create, an update to it, and a delete of something else all land correctly", async () => {
     const adapter = new InMemoryAdapter();
