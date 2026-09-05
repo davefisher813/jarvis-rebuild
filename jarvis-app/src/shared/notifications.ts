@@ -97,6 +97,25 @@ export function buildCheckinNotifications(routine: RoutineData, briefTime?: stri
 // more than once: iOS answers a repeat request with whatever was already
 // decided rather than re-prompting, so this and the automatic check-in call
 // below can never fight over showing the dialog twice.
+// SHARED-F-02 (2026-09-05): what the OS actually says, for the one page whose
+// copy makes a promise about it. requestNotificationPermission below answers
+// a boolean, which cannot tell "not asked yet" from "asked and refused", and
+// its only UI caller discarded even that. Four states, because the honest
+// footer differs for each: "unsupported" is the web, where this seam is a
+// deliberate no-op.
+export type NotifyPermission = "granted" | "denied" | "prompt" | "unsupported";
+
+export async function notificationPermissionState(): Promise<NotifyPermission> {
+  if (!Capacitor.isNativePlatform()) return "unsupported";
+  try {
+    const perm = await LocalNotifications.checkPermissions();
+    if (perm.display === "granted") return "granted";
+    return perm.display === "denied" ? "denied" : "prompt";
+  } catch {
+    return "unsupported";
+  }
+}
+
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!Capacitor.isNativePlatform()) return false;
   try {
