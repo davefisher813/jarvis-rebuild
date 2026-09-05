@@ -61,3 +61,70 @@ describe("RoutineFlow time fields (BRAIN-F-25)", () => {
     expect((screen.getByLabelText("Wake up") as HTMLInputElement).value).toBe("05:30");
   });
 });
+
+// BRAIN-F-06 (2026-09-05, fork option A): a block edited in this sheet used to
+// live in local state until the header Save, while the same sheet on Today and
+// Schedule saves on the tap. So the S5 deep link landed people in a sheet that
+// looked immediate and was not: Back threw the change away in silence,
+// "Duplicated Gym" appeared with nothing saved, and Delete Block came back on
+// a Back and vanished for good on a Save.
+import { useRoutine } from "../data/NotesProvider";
+
+let routineRef: ReturnType<typeof useRoutine> | null = null;
+function CaptureRoutine() {
+  routineRef = useRoutine();
+  return null;
+}
+
+describe("RoutineFlow blocks save on the tap (BRAIN-F-06)", () => {
+  it("Add Block writes through, and Back cannot lose it", async () => {
+    render(
+      <NotesProvider userId="u-routine-f06">
+        <CaptureRoutine />
+        <RoutineFlow onBack={() => {}} />
+      </NotesProvider>,
+    );
+    fireEvent.click(await screen.findByText("Add Protected Time"));
+    fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Gym" } });
+    fireEvent.click(screen.getByText("Add Block"));
+
+    // On the server, not just on the screen: no header Save was tapped.
+    await waitFor(async () => {
+      const saved = await routineRef!.get();
+      expect((saved.protectedBlocks ?? []).map((b) => b.label)).toEqual(["Gym"]);
+    });
+    // And the header still reads Saved: a block write is not a pending edit.
+    expect(screen.getByText("Saved")).toBeInTheDocument();
+  });
+
+  it("Delete Block writes through and hands back an Undo that restores it", async () => {
+    const seen: { message: string; onAction?: () => void }[] = [];
+    const stop = subscribeToast((t) => { if (t) seen.push(t); });
+    try {
+      render(
+        <NotesProvider userId="u-routine-f06b">
+          <CaptureRoutine />
+          <RoutineFlow onBack={() => {}} />
+        </NotesProvider>,
+      );
+      fireEvent.click(await screen.findByText("Add Protected Time"));
+      fireEvent.change(await screen.findByLabelText("Name"), { target: { value: "Lunch" } });
+      fireEvent.click(screen.getByText("Add Block"));
+      await waitFor(async () => expect((await routineRef!.get()).protectedBlocks ?? []).toHaveLength(1));
+
+      fireEvent.click(screen.getByText(/^Lunch/));
+      fireEvent.click(await screen.findByText("Delete Block"));
+      await waitFor(async () => expect((await routineRef!.get()).protectedBlocks ?? []).toHaveLength(0));
+
+      const toast = seen[seen.length - 1]!;
+      expect(toast.message).toBe("Block deleted");
+      toast.onAction!();
+      await waitFor(async () => {
+        const saved = await routineRef!.get();
+        expect((saved.protectedBlocks ?? []).map((b) => b.label)).toEqual(["Lunch"]);
+      });
+    } finally {
+      stop();
+    }
+  });
+});

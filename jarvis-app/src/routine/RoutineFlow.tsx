@@ -3,6 +3,7 @@ import { useRoutine } from "../data/NotesProvider";
 import { DEFAULT_ROUTINE, isOvernight, isWorkOutsideActive, defaultModeFor, freeOf, MODE_LABEL, MODE_HELP, FREE_CHANNELS, type RoutineData, type ProtectedBlock, type BlockKind, type BlockMode, type FreeChannel } from "./types";
 import { fmtTime } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
+import { attemptWrite } from "../shared/guard";
 import PageHeader from "../shared/PageHeader";
 import { Head, Card, Row, Switch, Foot } from "../settings/kit";
 import { FormSheet, Group, FieldRow, Strip, Note, ErrorLine, DeleteRow } from "../shared/FormSheet";
@@ -97,7 +98,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
     let on = true;
     setLoadFailed(false);
     routine.get()
-      .then((r) => { if (on) { setData(r); setLoaded(true); } })
+      .then((r) => { if (on) { setData(r); savedRef.current = r; setLoaded(true); } })
       .catch(() => { if (!on) return; setLoadFailed(true); showToast({ message: "Couldn't load · Check your connection" }); });
     return () => { on = false; };
   }, [routine, attempt]);
@@ -155,10 +156,35 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
     ...(f.mode === "blends" && f.free.length ? { free: f.free } : {}),
     ...(f.location.trim() ? { location: f.location.trim() } : {}),
   });
-  const commitForm = () => {
+  // BRAIN-F-06 (2026-09-05, fork option A). A block used to be edited into
+  // local state and left there until the header Save, while the very same
+  // sheet on Today and Schedule saves the moment you tap (ScheduleFlow.tsx
+  // :928-940). So the S5 deep link landed people in a sheet that looked like
+  // every other immediate-save sheet in the app, and Back threw the change
+  // away in silence: "Duplicated Gym" with nothing saved, a block deleted
+  // that came back on Back and vanished for good on Save.
+  //
+  // Blocks now write through routine.save on the tap. The hour fields keep
+  // their two-stage model (the header Save), so a block write must not carry
+  // half-typed hours to the server: it merges onto the last PERSISTED
+  // routine, which savedRef holds.
+  const savedRef = useRef<RoutineData>(DEFAULT_ROUTINE);
+  const writeBlocks = async (next: ProtectedBlock[]): Promise<boolean> => {
+    const before = blocks;
+    setData((d) => ({ ...d, protectedBlocks: next }));
+    const base: RoutineData = { ...savedRef.current, protectedBlocks: next };
+    const ok = await attemptWrite(() => routine.save(base));
+    if (!ok) { setData((d) => ({ ...d, protectedBlocks: before })); return false; }
+    savedRef.current = base;
+    return true;
+  };
+
+  const commitForm = async () => {
     if (!form || !formValid) return;
     const block = blockFromForm(form, form.id ?? pbId());
-    set({ protectedBlocks: form.id ? blocks.map((b) => (b.id === form.id ? block : b)) : [...blocks, block] });
+    const next = form.id ? blocks.map((b) => (b.id === form.id ? block : b)) : [...blocks, block];
+    // The sheet stays open on a failure, with the typing still in it.
+    if (!await writeBlocks(next)) return;
     setForm(null);
   };
   // Duplicate (2026-08-28, Dave: "seamlessly adjust things on the fly"). Two
@@ -166,20 +192,35 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
   // AM Saturday - used to mean typing the whole thing twice. This clones
   // whatever the form currently says (so a tweak made before duplicating
   // rides along) as a NEW block and leaves the original exactly as it was.
-  const duplicateForm = () => {
+  const duplicateForm = async () => {
     if (!form || !formValid) return;
     const block = blockFromForm(form, pbId());
-    set({ protectedBlocks: [...blocks, block] });
+    if (!await writeBlocks([...blocks, block])) return;
     setForm(null);
+    // True now: the toast follows the write, not the local edit.
     showToast({ message: `Duplicated ${block.label}` });
   };
-  const removeBlock = (id: string) => set({ protectedBlocks: blocks.filter((b) => b.id !== id) });
+  // Reversible without a confirm (L: no window.confirm, an Undo instead), and
+  // real: the row is gone from the server the moment it leaves the list.
+  const removeBlock = async (id: string) => {
+    const gone = blocks.find((b) => b.id === id);
+    const next = blocks.filter((b) => b.id !== id);
+    if (!await writeBlocks(next)) return;
+    setForm(null);
+    if (!gone) return;
+    showToast({
+      message: "Block deleted",
+      actionLabel: "Undo",
+      onAction: () => void writeBlocks([...next, gone]),
+    });
+  };
 
   // A failed save must never look like a dead button (audit 2026-07-30): on
   // any failure the user gets told and Save stays live to retry.
   const save = async () => {
     try {
       await routine.save(data);
+      savedRef.current = data;
       setDirty(false);
       setSaved(true);
     } catch {
@@ -255,7 +296,7 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
           <FormSheet
             title={form.id ? "Edit Block" : "New Block"}
             onCancel={() => setForm(null)}
-            onSave={commitForm}
+            onSave={() => void commitForm()}
             saveDisabled={!formValid}
             saveLabel={form.id ? "Save Block" : "Add Block"}
           >
@@ -364,8 +405,8 @@ export default function RoutineFlow({ onBack, focusId, onFocusConsumed }: { onBa
 
             {form.id && (
               <>
-                <button type="button" className="btn btn-tertiary btn-block" disabled={!formValid} onClick={duplicateForm}>Duplicate as New Block</button>
-                <DeleteRow label="Delete Block" onClick={() => { removeBlock(form.id!); setForm(null); }} />
+                <button type="button" className="btn btn-tertiary btn-block" disabled={!formValid} onClick={() => void duplicateForm()}>Duplicate as New Block</button>
+                <DeleteRow label="Delete Block" onClick={() => void removeBlock(form.id!)} />
               </>
             )}
           </FormSheet>
