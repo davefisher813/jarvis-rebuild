@@ -19,6 +19,11 @@ export default function PointAtItScreen({ patterns, onLog, onBack, onHandToSomeo
   const mapRef = useRef<HTMLDivElement | null>(null);
 
   const tap = (e: MouseEvent<HTMLDivElement>) => {
+    // HMN-F-07 (2026-09-05): one tap, one log. The map kept logging on every
+    // tap after the first, so an "adjusting" second tap made a second entry
+    // (and, landing inside the first's network round trip, a third). Once
+    // the spot is logged the map is done; Done closes the screen.
+    if (logged) return;
     const el = mapRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
@@ -48,7 +53,7 @@ export default function PointAtItScreen({ patterns, onLog, onBack, onHandToSomeo
       </div>
 
       <div className="pad-x">
-        <div className="body-map" ref={mapRef} role="button" tabIndex={0} aria-label={"Tap where it hurts, " + side + " view"} onClick={tap}>
+        <div className="body-map" ref={mapRef} role="button" tabIndex={0} aria-disabled={logged ? "true" : undefined} aria-label={"Tap where it hurts, " + side + " view"} onClick={tap}>
           <div className="body-map-head" />
           <div className="body-map-torso" />
           <div className="body-map-arm body-map-arm-l" />

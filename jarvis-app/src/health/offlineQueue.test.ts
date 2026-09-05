@@ -49,3 +49,47 @@ describe("a tap is never lost for want of signal", () => {
     expect(readPending(s)).toEqual([{ entityType: "x", data: {}, queuedAt: 5 }]);
   });
 });
+
+// HMN-F-07 (2026-09-05): "Health offline queue double-writes when two taps
+// land inside one network round trip." The audit's repro: a 50ms save, a
+// second tap at 10ms, and the server held rows 1, 1, 2.
+describe("HMN-F-07: two flushes inside one round trip save every entry exactly once", () => {
+  const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+  it("a second tap a beat after the first lands once each, in order", async () => {
+    const s = mem();
+    const server: number[] = [];
+    const save = async (e: { data: Record<string, unknown> }) => { await wait(20); server.push(e.data.at as number); return "id" + e.data.at; };
+    queueHealthLog({ entityType: "health_point_at_it", data: { category: "injury", at: 1 } }, s);
+    const first = flushPending(save, s);
+    await wait(5);
+    queueHealthLog({ entityType: "health_point_at_it", data: { category: "injury", at: 2 } }, s);
+    const second = flushPending(save, s);
+    expect(await first).toBe(1);
+    expect(await second).toBe(1);
+    expect(server).toEqual([1, 2]);
+    expect(readPending(s)).toHaveLength(0);
+  });
+
+  it("a tap queued while a flush is in flight is not dropped by that flush's write-back", async () => {
+    const s = mem();
+    queueHealthLog({ entityType: "health_took_it", data: { category: "medication", at: 1 } }, s);
+    const save = async () => { await wait(20); return "id"; };
+    const first = flushPending(save, s);
+    await wait(5);
+    queueHealthLog({ entityType: "health_took_it", data: { category: "medication", at: 2 } }, s);
+    await first;
+    // Entry 2 arrived mid-flight and must still be queued for the next pass.
+    expect(readPending(s).map((e) => e.data.at)).toEqual([2]);
+  });
+
+  it("a flush that fails releases the line for the next one", async () => {
+    const s = mem();
+    queueHealthLog({ entityType: "health_took_it", data: { category: "medication", at: 1 } }, s);
+    const failing = flushPending(async () => { throw new Error("offline"); }, s);
+    const landing = flushPending(async () => "id1", s);
+    expect(await failing).toBe(0);
+    expect(await landing).toBe(1);
+    expect(readPending(s)).toHaveLength(0);
+  });
+});

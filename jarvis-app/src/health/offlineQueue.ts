@@ -53,26 +53,53 @@ export function queueHealthLog(entry: Omit<PendingHealthLog, "queuedAt">, store:
   writePending(all.slice(-PENDING_CAP), store);
 }
 
+// HMN-F-07 (2026-09-05): one flush at a time. Every logger tap kicks an
+// unawaited flush, and two taps inside one network round trip (the body
+// map, adjusted with a second tap a beat later) started two flushes that
+// each snapshotted the same queue: entry 1 saved twice, three rows for two
+// taps. A flush that finds one in flight now waits for it and then runs a
+// fresh pass of its own (rather than sharing the first's result), so the
+// second tap's entry still lands on this pass, and every entry lands once.
+// Module-level because the default storage is a fresh wrapper per call;
+// the app has exactly one health queue.
+let tail: Promise<unknown> = Promise.resolve();
+
 /** Try to persist every pending entry. Whatever fails stays queued, in
  *  order, for the next attempt. Returns how many landed. Mirrors
  *  gym/liveSession.ts flushPending exactly: same shape, same guarantee. */
-export async function flushPending(
+export function flushPending(
   save: (entry: PendingHealthLog) => Promise<string | null>,
   store: Storage2 = browserStorage(),
 ): Promise<number> {
+  const run = tail.then(() => drain(save, store));
+  tail = run.catch(() => undefined);
+  return run;
+}
+
+async function drain(
+  save: (entry: PendingHealthLog) => Promise<string | null>,
+  store: Storage2,
+): Promise<number> {
   const all = readPending(store);
   if (all.length === 0) return 0;
-  const left: PendingHealthLog[] = [];
   let saved = 0;
   for (const entry of all) {
-    try {
-      const id = await save(entry);
-      if (id) saved++;
-      else left.push(entry);
-    } catch {
-      left.push(entry);
-    }
+    let id: string | null = null;
+    try { id = await save(entry); } catch { id = null; }
+    // Remove each landed entry from storage as it lands, instead of writing
+    // back the snapshot's leftovers at the end: a tap queued while this
+    // flush was in flight is not in the snapshot, and the old write-back
+    // dropped it on the floor. Whatever fails stays where it was, in order.
+    if (id) { saved++; removeOne(entry, store); }
   }
-  writePending(left, store);
   return saved;
+}
+
+function removeOne(entry: PendingHealthLog, store: Storage2): void {
+  const now = readPending(store);
+  const key = JSON.stringify(entry);
+  const idx = now.findIndex((e) => JSON.stringify(e) === key);
+  if (idx < 0) return;
+  now.splice(idx, 1);
+  writePending(now, store);
 }

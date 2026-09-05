@@ -6,6 +6,7 @@ import { Store, InMemoryAdapter } from "@core";
 import { AIService } from "../ai/AIService";
 import { subscribeToast } from "../shared/toast";
 import HealthFlow from "./HealthFlow";
+import { HealthService } from "./HealthService";
 
 describe("HealthFlow: Lights Out end to end", () => {
   it("taps, logs, and shows the confirmation", async () => {
@@ -52,6 +53,25 @@ describe("HealthFlow: Point at It hands off to a human, not to exit", () => {
     // Not the assertion this test is about, but a body-map tap uses a real
     // click's own clientX/clientY, which jsdom always reports as 0 -- so
     // this test only exercises navigation, covered directly below instead.
+  });
+
+  // HMN-F-07 (2026-09-05): the map kept logging on every tap after the
+  // first, so an adjusting second tap made a second entry. One tap, one log.
+  it("a second tap on the map after Logged does not log again", async () => {
+    localStorage.clear();
+    const store = new Store(new InMemoryAdapter());
+    render(<HealthFlow store={store} ownerId="u1" initialScreen="pointAtIt" onExit={() => {}} />);
+    const map = await screen.findByRole("button", { name: /Tap where it hurts/ });
+    fireEvent.click(map);
+    await waitFor(() => expect(screen.getByText("Logged")).toBeInTheDocument());
+    expect(map).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(map);
+    fireEvent.click(map);
+    const svc = new HealthService(store, "u1");
+    await waitFor(async () => expect((await svc.listPointAtIt()).length).toBe(1));
+    // Settle: give any second flush a chance to (wrongly) land another row.
+    await new Promise((r) => setTimeout(r, 30));
+    expect((await svc.listPointAtIt()).length).toBe(1);
   });
 });
 
