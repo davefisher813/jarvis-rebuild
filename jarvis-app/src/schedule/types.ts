@@ -20,6 +20,15 @@ export interface EventData {
   until?: string;
   exdates?: string[]; // occurrence dates removed/overridden from the series
   gcalId?: string; // Google Calendar event id, when imported (dedupe key)
+  // PLUMB-F-07 (2026-09-05): WHAT GOOGLE LAST SAID, on the day this event was
+  // imported or last refreshed. Not a digest despite the name: the five
+  // Google-owned values themselves, JSON-encoded in the order title, date,
+  // start, end, location. The import compares field by field against it, so
+  // "Google moved the meeting" (row still matches the record) can be told
+  // apart from "he retitled it here" (row differs), and a field he changed is
+  // never clobbered. Absent on events imported before that, and on every
+  // event he made himself.
+  gcalHash?: string;
   sourceTaskId?: string; // task this block was generated from, via Plan my day
   taskIds?: string[]; // attached tasks (Session 4 connections). Links live on
   // the event and die with it; non-recurring events only.

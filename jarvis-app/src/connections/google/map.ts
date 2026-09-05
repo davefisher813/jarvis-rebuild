@@ -9,6 +9,11 @@ export interface GCalEvent {
   location?: string;
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
+  // "cancelled" for an event or occurrence that has been called off. Only
+  // present when the feed is asked for deleted items (PLUMB-F-07): it is
+  // Google's own word for "this is not happening", and a cancelled instance
+  // often carries nothing else, not even a start.
+  status?: string;
 }
 export interface MappedEvent {
   title: string;

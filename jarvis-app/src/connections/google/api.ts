@@ -4,7 +4,12 @@ import type { GCalEvent, GmailMeta, GmailFull, GmailThreadMeta, GmailThreadFull 
 // tested with a mock. createGoogleApi is the real implementation; pass a fake
 // fetch to exercise it without a network.
 export interface GoogleApi {
-  listUpcomingEvents(max: number): Promise<GCalEvent[]>;
+  // PLUMB-F-07 (2026-09-05): the import needs a window with two ends, not
+  // just "from now on". timeMaxISO bounds it so "this event is gone from
+  // Google" is a question that can be answered honestly, and showDeleted
+  // brings back cancelled events (status: "cancelled") instead of leaving
+  // them to be inferred from an absence.
+  listUpcomingEvents(max: number, opts?: { timeMaxISO?: string; showDeleted?: boolean }): Promise<GCalEvent[]>;
   listRecentMessages(max: number): Promise<GmailMeta[]>;
   getMessage(id: string): Promise<GmailFull>;
   sendMessage(raw: string, threadId?: string): Promise<{ id: string; threadId?: string }>;
@@ -64,11 +69,13 @@ export function withSilentRefresh(doFetch: FetchLike, refresh: () => Promise<str
 export function createGoogleApi(token: string, doFetch: FetchLike = fetch as unknown as FetchLike): GoogleApi {
   const auth = { headers: { Authorization: "Bearer " + token } };
   return {
-    async listUpcomingEvents(max) {
+    async listUpcomingEvents(max, opts) {
       const now = new Date().toISOString();
       const url =
         "https://www.googleapis.com/calendar/v3/calendars/primary/events" +
-        "?singleEvents=true&orderBy=startTime&timeMin=" + encodeURIComponent(now) + "&maxResults=" + max;
+        "?singleEvents=true&orderBy=startTime&timeMin=" + encodeURIComponent(now) + "&maxResults=" + max +
+        (opts?.timeMaxISO ? "&timeMax=" + encodeURIComponent(opts.timeMaxISO) : "") +
+        (opts?.showDeleted ? "&showDeleted=true" : "");
       const res = await doFetch(url, auth);
       if (!res.ok) throw new Error("calendar " + res.status);
       const json = (await res.json()) as { items?: GCalEvent[] };

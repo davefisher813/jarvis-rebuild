@@ -27,7 +27,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; sourceTaskId?: string; taskIds?: string[]; source?: import("../shared/provenance").Source },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; sourceTaskId?: string; taskIds?: string[]; source?: import("../shared/provenance").Source },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -43,6 +43,9 @@ export class ScheduleService {
     if (data.recurrence && opts.until && opts.until >= opts.date) data.until = opts.until;
     if (opts.location && opts.location.trim()) data.location = opts.location.trim();
     if (opts.gcalId) data.gcalId = opts.gcalId;
+    // PLUMB-F-07: what Google said at import time, so a later import can tell
+    // its own change from one he made here. Only ever set by the importer.
+    if (opts.gcalHash) data.gcalHash = opts.gcalHash;
     if (opts.sourceTaskId) data.sourceTaskId = opts.sourceTaskId;
     if (opts.taskIds && opts.taskIds.length) data.taskIds = opts.taskIds;
     if (opts.source) data.source = opts.source;
@@ -127,6 +130,18 @@ export class ScheduleService {
     const e = await this.get(id);
     if (!e || !e.gym) return false;
     return this.patch(id, { trained: { ...(e.trained ?? {}), [date]: Math.max(1, Math.round(minutes)) } });
+  }
+
+  // PLUMB-F-07 (2026-09-05): the calendar importer's one write path for an
+  // event that is already here. Deliberately narrow: only the fields Google
+  // owns, plus the record of what Google last said. An import can therefore
+  // move a meeting or rename it, and can never touch the category he filed
+  // it under, the tasks he attached, or the gym door he marked.
+  applyGoogleChange(
+    id: string,
+    patch: Pick<EventData, "title" | "date" | "start" | "end" | "location" | "gcalHash">,
+  ): Promise<boolean> {
+    return this.patch(id, patch);
   }
 
   async deleteEvent(id: string): Promise<void> {

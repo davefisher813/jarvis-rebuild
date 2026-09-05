@@ -86,10 +86,20 @@ export default function ConnectionsPage({
     return null;
   });
 
+  // PLUMB-F-07 (2026-09-05): the import changes and removes events now, not
+  // only adds them, so the receipt says all three. Silent on anything that
+  // was zero, so a plain first connect still reads "Imported 12 events."
+  const importLine = (s: { created: number; updated: number; removed: number }) => {
+    const parts: string[] = [];
+    if (s.created > 0) parts.push("Imported " + s.created + (s.created === 1 ? " event." : " events."));
+    if (s.updated > 0) parts.push("Updated " + s.updated + (s.updated === 1 ? " event." : " events."));
+    if (s.removed > 0) parts.push("Removed " + s.removed + (s.removed === 1 ? " cancelled event." : " cancelled events."));
+    return parts.length > 0 ? " " + parts.join(" ") : "";
+  };
+
   const addAccount = () => run(async () => {
     const { api, email } = await g.addAccount();
-    const n = await importCalendar(api, schedule);
-    return email + " connected." + (n > 0 ? " Imported " + n + (n === 1 ? " event." : " events.") : "");
+    return email + " connected." + importLine(await importCalendar(api, schedule));
   });
 
   const reconnectAll = () => run(async () => {
