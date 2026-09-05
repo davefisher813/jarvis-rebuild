@@ -2,6 +2,7 @@ import { createPortal } from "react-dom";
 import { useRef, type MouseEvent, type ReactNode } from "react";
 import SheetBar from "./SheetBar";
 import HeadMenu, { type MenuOption } from "./HeadMenu";
+import { pressable } from "./pressable";
 
 // THE FORM SHEET KIT (the sheets onto the sheet bar, 2026-09-02). Every sheet
 // that makes or edits a thing wears the exercise sheet's anatomy: the
@@ -73,13 +74,16 @@ export function Row({ tone, glyph, label, meta, children, onClick, forwardTo, ch
     if (!ctl || ctl.contains(e.target as Node)) return;
     ctl.click();
   };
+  // SHARED-F-22 (2026-09-05). A Row with its own onClick declared role="button"
+  // and tabIndex 0 and then handled the pointer alone, so in all 11 sheets that
+  // pass one, focus landed on the row and Enter and Space did nothing.
+  // SwitchRow got its key handler on the day it was written and Row never did.
+  // pressable() is the trio in one place, so they cannot come apart again.
   return (
     <div
       ref={box}
       className={"row xs-row " + className}
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick ?? (forwardTo ? forward : undefined)}
+      {...(onClick ? pressable(onClick) : { onClick: forwardTo ? forward : undefined })}
     >
       {tone && glyph && <Tile tone={tone}>{glyph}</Tile>}
       {label !== undefined && (meta

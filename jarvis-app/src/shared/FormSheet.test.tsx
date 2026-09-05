@@ -84,3 +84,32 @@ describe("SHARED-F-11: the whole row opens the menu and flips the switch", () =>
     expect(row.getAttribute("tabindex")).toBe("0");
   });
 });
+
+// SHARED-F-22 (2026-09-05). Row declared role="button" and tabIndex 0 for a
+// caller that passed onClick, and then handled the pointer alone: in all 11
+// sheets that pass one, focus landed on the row and Enter and Space did
+// nothing. SwitchRow got its key handler the day it was written; Row did not.
+describe("SHARED-F-22: a sheet row with its own onClick answers the keyboard", () => {
+  for (const k of ["Enter", " "]) {
+    it(`fires on ${k === " " ? "Space" : k}`, () => {
+      const open = vi.fn();
+      const { container } = render(<Row label="Open Link" onClick={open} />);
+      fireEvent.keyDown(container.querySelector(".xs-row")!, { key: k });
+      expect(open).toHaveBeenCalledTimes(1);
+    });
+  }
+
+  it("ignores keys that are not Enter or Space", () => {
+    const open = vi.fn();
+    const { container } = render(<Row label="Open Link" onClick={open} />);
+    for (const k of ["a", "Tab", "Escape", "ArrowDown"]) fireEvent.keyDown(container.querySelector(".xs-row")!, { key: k });
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it("a row with no onClick is not a focus stop and eats no keys", () => {
+    const { container } = render(<Row label="Just a label" />);
+    const row = container.querySelector(".xs-row")!;
+    expect(row.getAttribute("role")).toBeNull();
+    expect(row.getAttribute("tabindex")).toBeNull();
+  });
+});
