@@ -6,6 +6,7 @@ import { useAIContext, todayISO } from "../ai/useAIContext";
 import { contextToText } from "../ai/context";
 import { chatSystemPrompt } from "./chatPrompt";
 import { nowHHMM } from "../today/todayData";
+import { addDays } from "../schedule/calendar";
 import { answerQuestion, looksLikeQuestion, type AnswerSnapshot } from "./answers";
 // S6-Q42 (2026-09-05): the same needs-you snapshot the Email tab and Today
 // already read -- a synchronous cache read, no network, no AI call.
@@ -88,7 +89,12 @@ export default function ChatFlow() {
       showToast({ message: "Task completed", actionLabel: "Undo", onAction: async () => { await attemptWrite(() => tasksSvc.toggleDone(target.id)); } });
     } else if (cmd.kind === "reschedule") {
       const today = todayISO();
-      const when = cmd.when === "today" ? today : new Date(Date.parse(today + "T12:00:00") + 86400000).toISOString().slice(0, 10);
+      // SHELL-F-07 (2026-09-05): tomorrow used to be local noon plus a fixed
+      // day, read back through toISOString(). Beyond UTC+12 (Auckland in
+      // summer, Kiribati) local noon is still yesterday in UTC, so "move it
+      // to tomorrow" moved it to today. addDays walks with setDate and
+      // formats from local getters.
+      const when = cmd.when === "today" ? today : addDays(today, 1);
       const prior = (await tasksSvc.task(target.id))?.due ?? null;
       const ok = await attemptWrite(() => tasksSvc.setDue(target.id, when));
       if (!ok) return;

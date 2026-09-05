@@ -15,6 +15,22 @@ describe("weekStartISO", () => {
     expect(weekStartISO("2026-08-09")).toBe("2026-08-03"); // Sun still last Mon
     expect(weekStartISO("2026-08-10")).toBe("2026-08-10"); // next Mon resets
   });
+
+  // SHELL-F-07 (2026-09-05): beyond UTC+12 (Auckland in summer, Kiribati all
+  // year) local noon is still the previous day in UTC, so reading the shifted
+  // date back through toISOString() started the week on Sunday. Kiritimati is
+  // UTC+14 in every season, so the case does not depend on the calendar.
+  it("still starts Monday fourteen hours ahead of Greenwich", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Pacific/Kiritimati";
+    try {
+      expect(weekStartISO("2026-01-12")).toBe("2026-01-12"); // Mon is its own start
+      expect(weekStartISO("2026-01-14")).toBe("2026-01-12"); // Wed -> Mon
+      expect(weekStartISO("2026-01-18")).toBe("2026-01-12"); // Sun still last Mon
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
 });
 
 describe("weekReceipt", () => {

@@ -89,3 +89,31 @@ describe("ChatFlow capture undo (S4-Q23)", () => {
     expect(showToast).not.toHaveBeenCalled();
   });
 });
+
+// SHELL-F-07 (2026-09-05): "move dentist to tomorrow" moved it to today at
+// UTC+13 and UTC+14. ChatFlow computed tomorrow as local noon plus a fixed
+// day, read back through toISOString(); beyond UTC+12 local noon is still
+// yesterday in UTC. Kiritimati is UTC+14 in every season.
+describe("ChatFlow reschedule (SHELL-F-07)", () => {
+  it("move X to tomorrow lands on the next local day fourteen hours ahead of Greenwich", async () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Pacific/Kiritimati";
+    try {
+      renderChat("u-chat-tz");
+      await waitFor(() => expect(tasksRef).toBeTruthy());
+      let id = "";
+      await act(async () => { id = (await tasksRef!.createTask("Dentist", { category: "" }))!; });
+      const now = new Date();
+      const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const today = iso(now);
+      const t = new Date(now); t.setDate(t.getDate() + 1);
+      const want = iso(t);
+      expect(want).not.toBe(today);
+      sendText("move dentist to tomorrow");
+      await waitFor(() => expect(screen.getByText("Moved to tomorrow: Dentist")).toBeInTheDocument());
+      expect((await tasksRef!.task(id))?.due).toBe(want);
+    } finally {
+      process.env.TZ = prevTz;
+    }
+  });
+});

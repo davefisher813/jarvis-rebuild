@@ -1,5 +1,6 @@
 import type { CompletionSample } from "../shared/timeSense";
 import { capAfterNumber } from "../shared/casing";
+import { addDays } from "../schedule/calendar";
 
 // The This Week receipt (2026-08-03): the category page reports what actually
 // HAPPENED, derived from real completions (Time Sense samples) and real
@@ -10,11 +11,15 @@ import { capAfterNumber } from "../shared/casing";
 export interface WeekEvent { date: string; start: string; category?: string }
 
 /** Monday of the week containing the given local date. */
+// SHELL-F-07 (2026-09-05): this read the shifted date back through
+// toISOString(), which is the UTC date. Beyond UTC+12 local noon is still
+// yesterday in UTC, so in Auckland's summer the week started on Sunday and
+// this-week/last-week counts moved with it. addDays formats from local
+// getters.
 export function weekStartISO(todayIso: string): string {
   const d = new Date(todayIso + "T12:00:00");
   const shift = (d.getDay() + 6) % 7; // Mon=0 ... Sun=6
-  d.setDate(d.getDate() - shift);
-  return d.toISOString().slice(0, 10);
+  return addDays(todayIso, -shift);
 }
 
 function toMin(hhmm: string): number {
