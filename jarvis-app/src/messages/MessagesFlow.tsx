@@ -915,7 +915,12 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           // The tone escalates; the blame never does.
           // The WAIT sets the tone, the ASK sets what the draft is for.
           const p = nudgePrompt(row, await voiceText());
-          body = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system + "\n" + (chosen.instruction ?? ""), { tier: "write" })).trim());
+          // PLUMB-F-13 (2026-09-05): this drafts an email, so it rides the
+          // Email Drafts pin. Without it the pin gated the background card
+          // job alone, and turning Email Drafts off still wrote a draft the
+          // moment he tapped one. The catch below is what makes a refusal
+          // safe: an empty body is compose with his own words in it.
+          body = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system + "\n" + (chosen.instruction ?? ""), { tier: "write", pin: "emailDrafts" })).trim());
         } catch { body = ""; }
       }
       setEditingDraftId(null);
@@ -2067,7 +2072,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       if (ai.available) {
         try {
           const p = handoffPrompt(target, t.subject, effTriage[t.id]?.gist || "", await voiceText());
-          const written = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system, { tier: "write" })).trim());
+          // PLUMB-F-13 (2026-09-05): the hand-off note is an email draft too.
+          // Refused, the plain note stands, which is what the catch says.
+          const written = noDashes((await ai.complete([{ role: "user", content: p.user }], p.system, { tier: "write", pin: "emailDrafts" })).trim());
           if (written) note = written;
         } catch { /* the plain note is a fine note */ }
       }

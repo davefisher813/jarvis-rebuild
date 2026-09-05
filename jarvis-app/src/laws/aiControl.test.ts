@@ -5,9 +5,9 @@
 // spend AI the user turned off.
 
 import { describe, it, expect, afterEach } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { aiCallAllowed, effectiveLevel, normalizeLevel, DEFAULT_AI_LEVEL, type AILevel } from "../ai/aiGate";
+import { aiCallAllowed, effectiveLevel, normalizeLevel, AI_PIN_KEYS, DEFAULT_AI_LEVEL, type AILevel } from "../ai/aiGate";
 import { setAIControl } from "../ai/levelStore";
 import { AIService } from "../ai/AIService";
 
@@ -75,6 +75,51 @@ describe("law: Off means zero proxy calls from the client", () => {
     setAIControl({ level: "everything", pins: { emailDrafts: "off" } });
     await expect(svc.complete([{ role: "user", content: "hi" }], undefined, { pin: "emailDrafts" })).rejects.toThrow();
     expect(fetched).toBe(0);
+  });
+});
+
+// LAW (PLUMB-F-13, 2026-09-05): a switch that controls nothing is worse than
+// no switch. "Estimates" was rendered as a pin for weeks while no call site
+// passed it, and "Email Drafts" gated the background card job while three
+// on-demand draft calls rode the master level, so turning it off stopped the
+// pre-drafting and still wrote a draft the moment he tapped Draft. Every pin
+// AI Control offers must be enforced somewhere the user can actually reach.
+describe("law: every pin the settings screen offers is enforced at a call site", () => {
+  const SRC = join(__dirname, "..");
+  function walk(dir: string, out: string[] = []): string[] {
+    for (const name of readdirSync(dir)) {
+      const p = join(dir, name);
+      if (statSync(p).isDirectory()) walk(p, out);
+      else if (/\.(ts|tsx)$/.test(p) && !/\.test\.(ts|tsx)$/.test(p)) out.push(p);
+    }
+    return out;
+  }
+  // The gate itself and the settings screen only NAME the pins; they are not
+  // enforcement, so they cannot be what makes a pin look wired.
+  const DECLARERS = ["ai/aiGate.ts", "settings/AIControlPage.tsx"];
+  const sources = walk(SRC)
+    .filter((f) => !DECLARERS.some((d) => f.endsWith(d)))
+    .map((f) => ({ file: f.slice(SRC.length + 1), text: readFileSync(f, "utf8") }));
+
+  for (const key of AI_PIN_KEYS) {
+    it(`${key} is passed to AIService or checked with effectiveLevel by real app code`, () => {
+      // Two honest shapes: handing the pin to AIService (which gates before
+      // fetch), or reading its level directly to refuse before building the
+      // call at all (planDayAI does this so Estimates can refuse the same
+      // call Morning Plan would allow).
+      const passed = new RegExp(`pin:\\s*"${key}"`);
+      const checked = new RegExp(`effectiveLevel\\([^;\\n]*"${key}"`);
+      const sites = sources.filter((s) => passed.test(s.text) || checked.test(s.text)).map((s) => s.file);
+      expect(sites.length, `no call site enforces the "${key}" pin`).toBeGreaterThan(0);
+    });
+  }
+
+  it("the on-demand email draft calls carry the pin, not just the background job", () => {
+    const withPin = (f: string) => readFileSync(join(SRC, f), "utf8").match(/pin:\s*"emailDrafts"/g)?.length ?? 0;
+    expect(withPin("messages/cardDraftJob.ts")).toBeGreaterThan(0);
+    expect(withPin("messages/DeckFlow.tsx")).toBeGreaterThan(0);
+    // The nudge draft and the hand-off note, both written on a tap.
+    expect(withPin("messages/MessagesFlow.tsx")).toBe(2);
   });
 });
 

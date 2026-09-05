@@ -3,7 +3,7 @@ import { useProfile, useAccessToken } from "../data/NotesProvider";
 import LargeTitleNav from "../shared/LargeTitleNav";
 import { haptics } from "../shared/haptics";
 import { apiUrl } from "../shared/apiBase";
-import { AI_LEVELS, DEFAULT_AI_LEVEL, type AIControlState, type AILevel, type AIPinKey } from "../ai/aiGate";
+import { AI_LEVELS, AI_PIN_KEYS, DEFAULT_AI_LEVEL, type AIControlState, type AILevel, type AIPinKey } from "../ai/aiGate";
 import { setAIControl } from "../ai/levelStore";
 import { Head, Card, Row, Menu } from "./kit";
 
@@ -26,7 +26,9 @@ const PIN_LABEL: Record<AIPinKey, string> = {
   messageDrafts: "Message Drafts",
   estimates: "Estimates",
 };
-const PIN_KEYS: AIPinKey[] = ["emailDrafts", "morningPlan", "pasteFallback", "messageDrafts", "estimates"];
+// PLUMB-F-13 (2026-09-05): was a second hand-typed copy of the same five
+// names. The screen offers exactly the pins the gate declares, and no more.
+const PIN_KEYS: readonly AIPinKey[] = AI_PIN_KEYS;
 // Every pin is a menu (2026-09-02): the old row cycled on tap, so the
 // fifth option cost four taps and nobody knew there were five.
 const PIN_OPTIONS = [{ value: "match", label: "Match Master" }, ...AI_LEVELS.map((l) => ({ value: l, label: LEVEL_LABEL[l] }))];

@@ -147,7 +147,10 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
         .catch(() => "");
       if (!live()) return;
       const { system, user } = buildPlanPrompt(full, voice, today, userVoice);
-      const raw = await ai.complete([{ role: "user", content: user }], system, { tier: "write" });
+      // PLUMB-F-13 (2026-09-05): a deck card is prepared with a reply in it,
+      // so this rides the Email Drafts pin like cardDraftJob already did.
+      // Tapping into the Sweep used to bypass the pin entirely.
+      const raw = await ai.complete([{ role: "user", content: user }], system, { tier: "write", pin: "emailDrafts" });
       if (!live()) return;
       // S2-3: verbatim-anchored against the same text the model was shown,
       // not the model's own say-so -- a bill or an event with no anchor in

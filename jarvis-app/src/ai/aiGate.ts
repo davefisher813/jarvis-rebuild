@@ -9,7 +9,15 @@ export type AILevel = "everything" | "draft" | "request" | "off";
 export const AI_LEVELS: readonly AILevel[] = ["everything", "draft", "request", "off"];
 
 // Per-feature pins (addendum item 19). "match" follows the master level.
-export type AIPinKey = "emailDrafts" | "morningPlan" | "pasteFallback" | "messageDrafts" | "estimates";
+//
+// PLUMB-F-13 (2026-09-05): this was a bare union, and the settings screen
+// kept its own copy of the same five names. A pin the screen offered but no
+// call site ever passed looked identical to a working one: the switch moved,
+// nothing changed. One runtime list now, the type derived from it, and a law
+// test (laws/aiControl.test.ts) that fails if a pin on this list is not
+// enforced anywhere in the app.
+export const AI_PIN_KEYS = ["emailDrafts", "morningPlan", "pasteFallback", "messageDrafts", "estimates"] as const;
+export type AIPinKey = (typeof AI_PIN_KEYS)[number];
 
 export interface AIControlState {
   level: AILevel;
