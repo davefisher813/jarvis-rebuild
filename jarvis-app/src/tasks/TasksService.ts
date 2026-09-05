@@ -111,9 +111,19 @@ export class TasksService {
     if (!t.done && t.recurrence) {
       // completing a recurring task rolls it to the next occurrence instead of
       // finishing it, and advances the streak (pauses, never dies: lifecycle.ts)
-      const streak = nextStreak(t, todayISO());
+      const today = todayISO();
+      const streak = nextStreak(t, today);
+      // LIFE-F-03 (2026-09-05): the roll advanced exactly ONE period from the
+      // stored due, so a weekly task last done three weeks ago came back due
+      // two weeks ago and sat on Today wearing a TODAY chip: three ticks to
+      // clear it, five for a daily missed five days. It rolls past today in
+      // one tick now, keeping the weekday or month-day anchor, which is what
+      // rollAutopayBills (below) has always done for bills.
+      let due = t.due || today;
+      let guard = 0;
+      do { due = nextDue(due, t.recurrence); } while (due <= today && guard++ < 400);
       await this.store.update(this.ownerId, id, {
-        due: nextDue(t.due || todayISO(), t.recurrence),
+        due,
         lastDone: streak.lastDone,
         runLen: streak.runLen,
         bestRun: streak.bestRun,

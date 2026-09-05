@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { Store, InMemoryAdapter } from "@core";
 import { TasksService } from "./TasksService";
 import { nextDue } from "./grouping";
@@ -14,32 +14,46 @@ describe("recurrence", () => {
     expect(nextDue("2026-05-29", "weekdays")).toBe("2026-06-01");
   });
 
+  // LIFE-F-03 (2026-09-05): the clock is pinned to the task's own due day, so
+  // this stays an ON-TIME roll whatever day the suite runs. Read against a
+  // later today it was really testing a stale task, and a stale task rolls
+  // past today now.
   it("completing a recurring task rolls it forward instead of finishing", async () => {
-    const svc = new TasksService(new Store(new InMemoryAdapter()), "u");
-    const id = (await svc.createTask("Stretch", { due: "2026-05-27", recurrence: "daily" }))!;
-    await svc.toggleDone(id);
-    const t = await svc.task(id);
-    expect(t?.done).toBe(false);
-    expect(t?.due).toBe("2026-05-28");
+    vi.useFakeTimers({ now: new Date(2026, 4, 27, 9, 0, 0), toFake: ["Date"] });
+    try {
+      const svc = new TasksService(new Store(new InMemoryAdapter()), "u");
+      const id = (await svc.createTask("Stretch", { due: "2026-05-27", recurrence: "daily" }))!;
+      await svc.toggleDone(id);
+      const t = await svc.task(id);
+      expect(t?.done).toBe(false);
+      expect(t?.due).toBe("2026-05-28");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   // LIFE-F-02 (2026-09-05): the audit's run. Tick a weekly task due today,
   // then Undo. Through a second toggleDone it landed two weeks out with a run
   // of 2; restoreCompletion puts the snapshot back.
   it("Undo after ticking a recurring task restores due and the run, never rolls again", async () => {
-    const svc = new TasksService(new Store(new InMemoryAdapter()), "u");
-    const id = (await svc.createTask("Water plants", { due: "2026-09-05", recurrence: "weekly" }))!;
-    const before = (await svc.task(id))!;
-    await svc.toggleDone(id);
-    const ticked = (await svc.task(id))!;
-    expect(ticked.due).toBe("2026-09-12");
-    expect(ticked.runLen).toBe(1);
-    await svc.restoreCompletion(id, before);
-    const after = (await svc.task(id))!;
-    expect(after.done).toBe(false);
-    expect(after.due).toBe("2026-09-05");
-    expect(after.runLen ?? 0).toBe(0);
-    expect(after.lastDone ?? null).toBeNull();
+    vi.useFakeTimers({ now: new Date(2026, 8, 5, 9, 0, 0), toFake: ["Date"] });
+    try {
+      const svc = new TasksService(new Store(new InMemoryAdapter()), "u");
+      const id = (await svc.createTask("Water plants", { due: "2026-09-05", recurrence: "weekly" }))!;
+      const before = (await svc.task(id))!;
+      await svc.toggleDone(id);
+      const ticked = (await svc.task(id))!;
+      expect(ticked.due).toBe("2026-09-12");
+      expect(ticked.runLen).toBe(1);
+      await svc.restoreCompletion(id, before);
+      const after = (await svc.task(id))!;
+      expect(after.done).toBe(false);
+      expect(after.due).toBe("2026-09-05");
+      expect(after.runLen ?? 0).toBe(0);
+      expect(after.lastDone ?? null).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("Undo on a plain task puts done back to false and drops the bill receipt", async () => {
@@ -52,6 +66,25 @@ describe("recurrence", () => {
     const after = (await svc.task(id))!;
     expect(after.done).toBe(false);
     expect(after.lastDone ?? null).toBeNull();
+  });
+
+  // LIFE-F-03 (2026-09-05): a stale recurring task used to roll exactly one
+  // period from its stored due, so it landed in the past again and stayed on
+  // Today. One tick now clears it, and the weekday anchor survives.
+  it("completing a stale recurring task rolls it past today in one tick", async () => {
+    vi.useFakeTimers({ now: new Date(2026, 8, 5, 9, 0, 0), toFake: ["Date"] });
+    try {
+      const svc = new TasksService(new Store(new InMemoryAdapter()), "u");
+      // 2026-08-15 is a Saturday, three weeks and a day before 2026-09-05.
+      const weekly = (await svc.createTask("Water plants", { due: "2026-08-15", recurrence: "weekly" }))!;
+      await svc.toggleDone(weekly);
+      expect((await svc.task(weekly))?.due).toBe("2026-09-12"); // still a Saturday
+      const daily = (await svc.createTask("Stretch", { due: "2026-08-31", recurrence: "daily" }))!;
+      await svc.toggleDone(daily);
+      expect((await svc.task(daily))?.due).toBe("2026-09-06");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("a non-recurring task still completes normally", async () => {
