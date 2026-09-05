@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { medWindowDays, callItFor } from "./medWindow";
+import { medWindowDays } from "./medWindow";
 import type { AteBeforeEntry, LightsOutEntry, TookItEntry } from "./types";
 
 describe("medWindowDays", () => {
@@ -35,14 +35,5 @@ describe("medWindowDays", () => {
     for (const mark of rows[0]!.marks) {
       expect(Object.keys(mark).sort()).toEqual(["at", "kind", "label"]);
     }
-  });
-});
-
-describe("callItFor", () => {
-  it("finds an RPE logged near a session start, and nothing when there is none", () => {
-    const sessionAt = Date.parse("2026-08-27T15:30:00");
-    const entries = [{ id: "c1", data: { category: "load" as const, rpe: 6, at: sessionAt + 3600000 } }];
-    expect(callItFor(entries, sessionAt)).toBe(6);
-    expect(callItFor(entries, sessionAt + 24 * 3600000)).toBeUndefined();
   });
 });

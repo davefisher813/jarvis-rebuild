@@ -101,8 +101,6 @@ export function sharedView<T extends { data: { category: string } }>(items: T[],
   });
 }
 
-// Which categories are currently shared, for rendering a summary line on
-// "What They See" ("Sharing: Fuel, Medication" or "Nothing is shared yet").
-export function sharedCategoryLabels(grants: ConsentGrant[]): string[] {
-  return HEALTH_CATEGORIES.filter((c) => grantOf(grants, c) && c !== "logistics").map((c) => HEALTH_CATEGORY_LABEL[c]);
-}
+// HMN-F-23 (2026-09-05): sharedCategoryLabels had no caller. What They See
+// renders each shared category as its own titled section off sharedView,
+// which shows the entries themselves rather than a list of category names.

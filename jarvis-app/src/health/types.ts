@@ -69,10 +69,10 @@ export interface ConsentGrant {
 export interface ConsentGrantsData {
   grants: ConsentGrant[];
 }
-export interface ConsentGrants {
-  id: string;
-  data: ConsentGrantsData;
-}
+// HMN-F-23 (2026-09-05): the ConsentGrants entry wrapper had no reader.
+// HealthService reads the single row's `data` straight through
+// ConsentGrantsData, because there is exactly one grants row per owner and
+// nothing ever needs to hold its id.
 
 // ---- The five one-tap loggers ----
 //

@@ -1,6 +1,7 @@
 import { useRef, useState, type MouseEvent } from "react";
-import type { StillTherePattern } from "../timelines";
+import type { StillTherePattern, StillThereSummaryRow } from "../timelines";
 import { pressable } from "../../shared/pressable";
+import { shortDate } from "../../shared/dateFormat";
 
 // POINT AT IT (Part 6). A body map. Tap where it hurts. Three seconds, one
 // hand, no words. No severity scale, no diagnosis, no condition name: the
@@ -9,8 +10,14 @@ import { pressable } from "../../shared/pressable";
 // The tap reads a normal click event's own clientX/clientY relative to the
 // map's bounding box, never raw touch coordinates, so this is not a second
 // swipe/drag implementation and does not trip the one-swipe-controller law.
-export default function PointAtItScreen({ patterns, onLog, onBack, onHandToSomeone }: {
+export default function PointAtItScreen({ patterns, summaries = [], onLog, onBack, onHandToSomeone }: {
   patterns: StillTherePattern[];
+  // HMN-F-23 (2026-09-05): the dated taps behind each pattern, in the same
+  // order. The catalog calls this "a shareable dated summary of the taps",
+  // and this screen's only action is handing it to a human, so the days are
+  // on the screen rather than shut inside a function nobody called. Dates
+  // only: no severity, no name for the spot, same restraint as the pattern.
+  summaries?: StillThereSummaryRow[][];
   onLog: (x: number, y: number, side: "front" | "back") => void;
   onBack: () => void;
   // BRAIN-F-26 (2026-09-05): absent when there is nobody to reach, so the row
@@ -90,14 +97,20 @@ export default function PointAtItScreen({ patterns, onLog, onBack, onHandToSomeo
         <>
           <div className="sh2 sh2-quiet"><span className="t">Still There?</span></div>
           <div className="pad-x"><div className="card list-card-ruled">
-            {patterns.map((p, i) => (
-              <div className="row" key={i}>
-                <div className="row-grow">
-                  <div className="conn-name">Same Spot, {p.sessions} Sessions</div>
-                  <div className="bp-sub">Over {p.days} days</div>
+            {patterns.map((p, i) => {
+              const dates = summaries[i] ?? [];
+              return (
+                <div className="row" key={i}>
+                  <div className="row-grow">
+                    <div className="conn-name">Same Spot, {p.sessions} Sessions</div>
+                    <div className="bp-sub">Over {p.days} days</div>
+                    {dates.length > 0 && (
+                      <div className="bp-sub">Tapped {dates.map((d) => shortDate(d.date)).join(", ")}</div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {/* BRAIN-F-26 keeps the row out when there is nobody to reach;
                 HMN-F-24 makes the row it does show answer Enter and Space. */}
             {onHandToSomeone && (

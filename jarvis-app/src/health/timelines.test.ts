@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ateBeforeMarks, ateBeforeCountLine, ateBeforeForDate, tookItTimeline, callItHistory, stillThere, stillThereSummary } from "./timelines";
+import { ateBeforeMarks, ateBeforeCountLine, tookItTimeline, callItHistory, stillThere, stillThereSummary } from "./timelines";
 import type { AteBeforeEntry, CallItEntry, PointAtItEntry, TookItEntry } from "./types";
 
 describe("Ate Before: marks, never a fraction", () => {
@@ -26,10 +26,6 @@ describe("Ate Before: marks, never a fraction", () => {
     expect(ateBeforeCountLine(ateBeforeMarks(entries.slice(0, 1)))).toBe("1 Day Marked Eaten");
   });
 
-  it("looks up a single date directly", () => {
-    expect(ateBeforeForDate(entries, "2026-08-02")?.ate).toBe(true);
-    expect(ateBeforeForDate(entries, "2026-09-01")).toBeUndefined();
-  });
 });
 
 describe("Took It: a timeline, never a miss count", () => {

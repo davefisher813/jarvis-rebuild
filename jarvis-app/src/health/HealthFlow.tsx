@@ -7,7 +7,7 @@ import type {
   ConsentGrant, HealthCategoryId, LightsOutEntry, AteBeforeEntry, TookItEntry, CallItEntry, PointAtItEntry,
   MedRefillEntry, BagCheckEntry, LockerDocEntry, LockerDocKind,
 } from "./types";
-import { stillThere, tookItTimeline, ateBeforeMarks } from "./timelines";
+import { stillThere, stillThereSummary, tookItTimeline, ateBeforeMarks } from "./timelines";
 import { refillRunway, refillOffer } from "./refillRunway";
 import { medWindowDays, type SessionStartCandidate } from "./medWindow";
 import { buildDoctorReport, doctorReportText } from "./doctorReport";
@@ -307,6 +307,9 @@ export default function HealthFlow({
       return (
         <PointAtItScreen
           patterns={patterns}
+          // HMN-F-23 (2026-09-05): the dated taps behind each pattern, which
+          // is what the catalog says gets handed over.
+          summaries={patterns.map((p) => stillThereSummary(pointAtIt, p))}
           onLog={(x, y, side) => { svc.logPointAtIt({ x, y, side }); void reload(); }}
           onHandToSomeone={() => setScreen("sayItToSomeone")}
           onBack={onExit}

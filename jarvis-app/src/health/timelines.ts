@@ -44,9 +44,9 @@ export function ateBeforeCountLine(marks: AteBeforeMark[]): string {
   return yes + (yes === 1 ? " Day Marked Eaten" : " Days Marked Eaten");
 }
 
-export function ateBeforeForDate(entries: AteBeforeEntry[], date: string): AteBeforeData | undefined {
-  return entries.find((e) => e.data.date === date)?.data;
-}
+// HMN-F-23 (2026-09-05): ateBeforeForDate had no caller. AteBeforeScreen is
+// handed the whole `answered` map by HealthFlow, which builds it in one pass
+// rather than searching the list per row.
 
 // ---- Took It: a plain timeline, never a count of misses ----
 

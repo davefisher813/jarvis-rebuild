@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   HEALTH_CATEGORIES, KID_ROOM_CATEGORIES, DEFAULT_GRANTED,
-  defaultGrants, isKidRoomId, updateGrant, sharedView, sharedCategoryLabels,
+  defaultGrants, isKidRoomId, updateGrant, sharedView,
 } from "./shareLine";
 import type { ConsentGrant } from "./types";
 
@@ -90,16 +90,5 @@ describe("THE KID'S ROOM: a hard floor, not a default", () => {
     const items = [{ id: "1", data: { category: "logistics" } }];
     const visible = sharedView(items, defaultGrants(1000));
     expect(visible.map((i) => i.id)).toEqual(["1"]);
-  });
-});
-
-describe("sharedCategoryLabels", () => {
-  it("names nothing when only logistics is on", () => {
-    expect(sharedCategoryLabels(defaultGrants(1000))).toEqual([]);
-  });
-
-  it("names a category once it is granted", () => {
-    const g = updateGrant(defaultGrants(1000), "sleep", true, 2000);
-    expect(sharedCategoryLabels(g)).toEqual(["Sleep"]);
   });
 });

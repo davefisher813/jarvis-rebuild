@@ -52,7 +52,13 @@ const VERDICT_WORDS = /\b(too much|overtraining|excessive|dangerous|unsafe)\b/i;
 
 /** Guards the module's own output at the boundary: nothing returned by
  *  ageRuleFacts may ever contain a verdict word. Exported so a caller (and
- *  this file's own test) can check it directly rather than trusting intent. */
+ *  this file's own test) can check it directly rather than trusting intent.
+ *
+ *  HMN-F-23 (2026-09-05): KEPT, deliberately, as the one dead export in that
+ *  finding that earns its keep. ageRule.test.ts is its only caller today,
+ *  which is the point: it is this module's health rail written as a function
+ *  so the rail can be asserted instead of trusted, and VERDICT_WORDS above
+ *  stays private to it. Any screen that renders these facts checks here. */
 export function isVerdictFree(facts: AgeRuleFact[]): boolean {
   return facts.every((f) => !VERDICT_WORDS.test(f.label) && !VERDICT_WORDS.test(f.value));
 }

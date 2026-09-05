@@ -45,6 +45,28 @@ describe("HealthFlow: the Share Line", () => {
   });
 });
 
+// HMN-F-23 (2026-09-05): stillThereSummary is the catalog's "shareable dated
+// summary of the taps", and nothing called it. The screen whose only action
+// is handing the pattern to a human now shows the days behind it.
+describe("HealthFlow: Still There? shows the dated taps it hands over", () => {
+  it("lists the days the same spot was tapped, and nothing more about it", async () => {
+    const store = new Store(new InMemoryAdapter());
+    const svc = new HealthService(store, "u1");
+    const day = (d: string) => Date.parse(d + "T15:00:00");
+    for (const d of ["2026-08-02", "2026-08-09", "2026-08-16"]) {
+      svc.logPointAtIt({ x: 0.5, y: 0.7, side: "front" }, day(d));
+    }
+    await svc.flush();
+    render(<HealthFlow store={store} ownerId="u1" initialScreen="pointAtIt" onExit={() => {}} />);
+    await waitFor(() => expect(screen.getByText(/Same Spot, 3 Sessions/)).toBeInTheDocument());
+    const dated = screen.getByText(/^Tapped /);
+    expect(dated.textContent).toMatch(/Aug 2/);
+    expect(dated.textContent).toMatch(/Aug 16/);
+    // Dates only. No severity, no name for the spot, no verdict on it.
+    expect(dated.textContent).not.toMatch(/severe|mild|pain|injur|sprain/i);
+  });
+});
+
 describe("HealthFlow: Point at It hands off to a human, not to exit", () => {
   it("Still There? routes to Say It to Someone, never straight out of the module", async () => {
     const store = new Store(new InMemoryAdapter());

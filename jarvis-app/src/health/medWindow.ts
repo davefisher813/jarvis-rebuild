@@ -65,7 +65,6 @@ export function medWindowDays(
 // marks exactly, and RPE already has its own screen. This helper exists only
 // so a caller can show "how hard" next to a session mark without this file
 // pretending it belongs on the axis.
-export function callItFor(entries: CallItEntry[], sessionAt: number, withinMs = 6 * 3600000): number | undefined {
-  const hit = entries.find((e) => Math.abs(e.data.at - sessionAt) <= withinMs);
-  return hit?.data.rpe;
-}
+// HMN-F-23 (2026-09-05): callItFor had no caller. It was built for a "how
+// hard" value beside a session mark on a screen that never asked for one, and
+// The Med Window deliberately draws four marks and no fifth.
