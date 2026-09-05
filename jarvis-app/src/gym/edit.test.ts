@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
-  moveExerciseToDay, copyExerciseToDays, extractDay, appendDayToWeek, ensureExerciseKey, moveDayBetweenPrograms,
+  moveExerciseToDay, copyExerciseToDays, extractDay, appendDayToWeek, ensureExerciseKey, moveDayBetweenPrograms, applyExerciseEdit,
 } from "./edit";
 import type { Exercise, ProgramData, ProgramDay, ProgramWeek } from "./types";
 
@@ -192,5 +192,30 @@ describe("ensureExerciseKey", () => {
   it("leaves an existing key alone", () => {
     const withKey = ensureExerciseKey(ex("e1", "Bench", { exerciseKey: "ek1" }));
     expect(withKey.exerciseKey).toBe("ek1");
+  });
+});
+
+// GYM-F-03 (2026-09-05): editing either half of a pair used to unpair it.
+describe("applyExerciseEdit (GYM-F-03)", () => {
+  const draft = { name: "Row", kind: "weight_reps" as const, sets: [{ id: "n1", w: 135, r: 10 }], exerciseKey: "ekRow" };
+
+  it("a paired exercise keeps its pairWith after Save", () => {
+    const out = applyExerciseEdit(ex("e1", "Row", { pairWith: "e2", exerciseKey: "ekRow" }), draft);
+    expect(out.pairWith).toBe("e2");
+    expect(out.id).toBe("e1");
+    expect(out.sets).toEqual([{ id: "n1", w: 135, r: 10 }]);
+  });
+
+  it("an unpaired exercise gains no pairWith key at all", () => {
+    const out = applyExerciseEdit(ex("e1", "Row"), draft);
+    expect("pairWith" in out).toBe(false);
+  });
+
+  it("the sheet still owns every field it renders: a cleared note stays cleared", () => {
+    const out = applyExerciseEdit(ex("e1", "Row", { note: "old cue", ramp: true, restSec: 90, pairWith: "e2" }), draft);
+    expect(out.note).toBeUndefined();
+    expect(out.ramp).toBeUndefined();
+    expect(out.restSec).toBeUndefined();
+    expect(out.pairWith).toBe("e2");
   });
 });

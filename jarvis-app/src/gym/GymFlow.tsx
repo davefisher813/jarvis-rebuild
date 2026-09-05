@@ -20,7 +20,7 @@ import { buildLibrary } from "./library";
 import { pairLabels, pairExercises, unpairExercise } from "./pairs";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
-  moveExerciseToDay, copyExerciseToDays, moveDayBetweenPrograms,
+  moveExerciseToDay, copyExerciseToDays, moveDayBetweenPrograms, applyExerciseEdit,
 } from "./edit";
 import { pinLabel, todayDow, pinnedTo, nextPinnedDay, WEEKDAY_ABBR, WEEKDAY_FULL } from "./pins";
 import { nextDayFor } from "./nextDay";
@@ -1250,7 +1250,7 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
             const days = week.days.map((d) => {
               if (d.id !== day.id) return d;
               const exercises = existing
-                ? d.exercises.map((e) => (e.id === existing.id ? { ...draft, id: existing.id } : e))
+                ? d.exercises.map((e) => (e.id === existing.id ? applyExerciseEdit(existing, draft) : e))
                 : [...d.exercises, { ...draft, id: nid("e") }];
               return { ...d, exercises };
             });

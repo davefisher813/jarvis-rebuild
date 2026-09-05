@@ -164,6 +164,22 @@ export async function moveDayBetweenPrograms(
   return "moved";
 }
 
+/** Apply an ExerciseSheet draft onto the exercise it edited. The sheet owns
+ *  every field it renders, so a cleared note or a switched-off ramp really is
+ *  gone; `pairWith` is the one Exercise field the sheet has no state for at
+ *  all (pairing is set from the row menu, catalog §4.2), so it rides through
+ *  the edit untouched.
+ *
+ *  GYM-F-03 (2026-09-05): GymFlow.tsx:1224-1226 replaced the exercise with
+ *  the bare draft, so changing the reps on either half of an A1/A2 pair
+ *  silently unpaired it: the tags vanished, the session stopped alternating
+ *  and offering Next/Switch, Unpair no longer offered itself on the edited
+ *  half, and the partner was left pointing at an exercise that no longer
+ *  pointed back. */
+export function applyExerciseEdit(existing: Exercise, draft: Omit<Exercise, "id">): Exercise {
+  return { ...draft, id: existing.id, ...(existing.pairWith ? { pairWith: existing.pairWith } : {}) };
+}
+
 /** A stable, freshly-minted exerciseKey for an exercise that has never had
  *  one (predates the library, or was created before this session's edit).
  *  Idempotent: an exercise that already carries a key is returned as-is. */
