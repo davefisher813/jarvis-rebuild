@@ -116,10 +116,52 @@ export function extractDay(weeks: ProgramWeek[], dayId: string): { weeks: Progra
 
 /** Append a day into a target week -- the other half of a day move. Mints a
  *  fresh id when the day is landing in a DIFFERENT program (own storage
- *  item, own identity) but keeps it when reordering within the same one. */
+ *  item, own identity) but keeps it when reordering within the same one.
+ *
+ *  GYM-F-12 (2026-09-05): a week id this program does not have (the caller
+ *  minted one because the target had no weeks) used to be a silent no-op,
+ *  so the day was dropped while the toast said "Moved". The day now lands
+ *  in a NEW week under that id instead. */
 export function appendDayToWeek(weeks: ProgramWeek[], weekId: string, day: ProgramDay, freshId: boolean): ProgramWeek[] {
   const landing: ProgramDay = freshId ? { ...day, id: nid("d"), exercises: day.exercises.map(duplicateExerciseFresh) } : day;
+  if (!weeks.some((w) => w.id === weekId)) {
+    return [...weeks, { id: weekId, label: `Week ${weeks.length + 1}`, days: [landing] }];
+  }
   return weeks.map((w) => (w.id === weekId ? { ...w, days: [...w.days, landing] } : w));
+}
+
+/** Move a day from one program to another: the two writes in the order that
+ *  cannot lose it. GYM-F-12 (2026-09-05): GymFlow removed the day from the
+ *  source first and appended it to the target second, with no catch, so a
+ *  second write that failed on a flaky connection left the day in neither
+ *  program and the toast never showed. The target is written first; the
+ *  source is only touched once the day exists somewhere else. `write`
+ *  resolves true when the program took the weeks (GymService.updateProgram's
+ *  own contract) and may throw.
+ *    "moved"  both writes landed
+ *    "landed" the day is in the target AND still in the source (the second
+ *             write failed): a duplicate to tidy, never a loss
+ *    "failed" nothing changed */
+export async function moveDayBetweenPrograms(
+  write: (programId: string, weeks: ProgramWeek[]) => Promise<boolean>,
+  source: { id: string; weeks: ProgramWeek[] },
+  target: { id: string; weeks: ProgramWeek[] },
+  dayId: string,
+  targetWeekId: string,
+): Promise<"moved" | "landed" | "failed"> {
+  const { weeks: sourceLeft, day } = extractDay(source.weeks, dayId);
+  if (!day) return "failed";
+  try {
+    if (!(await write(target.id, appendDayToWeek(target.weeks, targetWeekId, day, true)))) return "failed";
+  } catch {
+    return "failed";
+  }
+  try {
+    if (!(await write(source.id, sourceLeft))) return "landed";
+  } catch {
+    return "landed";
+  }
+  return "moved";
 }
 
 /** A stable, freshly-minted exerciseKey for an exercise that has never had

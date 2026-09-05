@@ -20,7 +20,7 @@ import { buildLibrary } from "./library";
 import { pairLabels, pairExercises, unpairExercise } from "./pairs";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
-  moveExerciseToDay, copyExerciseToDays, extractDay, appendDayToWeek,
+  moveExerciseToDay, copyExerciseToDays, moveDayBetweenPrograms,
 } from "./edit";
 import { pinLabel, todayDow, pinnedTo, nextPinnedDay, WEEKDAY_ABBR, WEEKDAY_FULL } from "./pins";
 import { nextDayFor } from "./nextDay";
@@ -38,6 +38,7 @@ import ReorderList from "../shared/ReorderList";
 import { usePushDepth } from "../shared/pushNav";
 import { useLongPress } from "../shared/useLongPress";
 import { showToast } from "../shared/toast";
+import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { useAI } from "../ai/useAI";
 import { capAfterNumber } from "../shared/casing";
 import { BarbellGlyph } from "../shared/glyphs";
@@ -705,17 +706,29 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     if (!week || !day) return;
     await saveDays(weekId, week.days.map((d) => (d.id === dayId ? { ...d, exercises: unpairExercise(day.exercises, exId) } : d)));
   };
-  const moveDayToProgramAction = async (sourceWeekId: string, day: ProgramDay, targetProgramId: string, targetWeekId: string) => {
+  // GYM-F-12 (2026-09-05): target first, source second, and the toast says
+  // what actually happened. This used to remove the day from the source and
+  // then append it to the target with no catch, so a second write that
+  // failed left "Speed Work" in neither program while the toast never showed
+  // (or, with a target that had no weeks, said "Moved" over a day that
+  // appendDayToWeek had silently dropped). The ordering lives in edit.ts
+  // where it can be tested against a writer that fails.
+  const moveDayToProgramAction = async (_sourceWeekId: string, day: ProgramDay, targetProgramId: string, targetWeekId: string) => {
     if (!program) return;
-    const { weeks: sourceLeft } = extractDay(program.data.weeks, day.id);
-    await svc.updateProgram(program.id, { weeks: sourceLeft });
     const target = programs.find((p) => p.id === targetProgramId);
-    if (target) {
-      await svc.updateProgram(target.id, { weeks: appendDayToWeek(target.data.weeks, targetWeekId, day, true) });
-    }
-    if (openDayId === day.id) setOpenDayId(null);
+    if (!target) return;
+    const outcome = await moveDayBetweenPrograms(
+      (id, weeks) => svc.updateProgram(id, { weeks }),
+      { id: program.id, weeks: program.data.weeks },
+      { id: target.id, weeks: target.data.weeks },
+      day.id,
+      targetWeekId,
+    );
+    if (outcome === "moved" && openDayId === day.id) setOpenDayId(null);
     await reload();
-    showToast({ message: `Moved to ${target?.data.name ?? "another program"}` });
+    if (outcome === "moved") showToast({ message: `Moved to ${target.data.name}` });
+    else if (outcome === "landed") showToast({ message: `Copied to ${target.data.name} · Couldn't remove it here` });
+    else showToast({ message: WRITE_FAILED_MESSAGE });
   };
   const duplicateProgramAction = async (p: Program) => {
     await svc.createProgram(duplicateProgramData(p.data));
