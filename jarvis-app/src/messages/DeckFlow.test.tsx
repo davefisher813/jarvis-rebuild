@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
+import { useState } from "react";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "../data/NotesProvider";
@@ -122,6 +123,59 @@ describe("DeckFlow prepare race", () => {
     // Still on the card, not advanced past it: deferring never means losing.
     await waitFor(() => expect(screen.getByText("Alpha")).toBeInTheDocument());
     expect(onHandled).not.toHaveBeenCalled();
+  });
+});
+
+// EMAIL-F-10 (2026-09-05): "The Sweep re-prepares the card on screen on
+// every parent re-render." MessagesFlow's apiFor was a plain arrow, remade
+// every render, and it sat in prepare's useCallback deps, which fed the
+// effect keyed on [row, prepare]: every parent re-render (a queue write, the
+// pump marking an item sending, a toast, the toast clearing) refetched the
+// thread and re-drafted the reply for a card already prepared. PROOF B: two
+// parent re-renders produced two additional getThread calls for one card.
+describe("DeckFlow re-prepare", () => {
+  function Parent({ api, threads }: { api: ReturnType<typeof makeFakeGoogleApi>; threads: ThreadRow[] }) {
+    const [, setTick] = useState(0);
+    // The old MessagesFlow shape: a fresh apiFor identity on every render.
+    const apiFor = () => api;
+    return (
+      <NotesProvider userId="u-reprep">
+        <button onClick={() => setTick((n) => n + 1)}>rerender</button>
+        <DeckFlow
+          ai={new AIService({ available: false })}
+          apiFor={apiFor}
+          threads={threads}
+          queueSend={vi.fn()}
+          onDone={vi.fn()} onOpenThread={vi.fn()}
+          onEditReply={vi.fn()} onHandled={vi.fn()}
+        />
+      </NotesProvider>
+    );
+  }
+
+  it("a parent re-render with a fresh apiFor does not refetch or re-prepare the card on screen", async () => {
+    const fetched: string[] = [];
+    const api = makeFakeGoogleApi({
+      getThread: async (id: string) => { fetched.push(id); return gThread(id, "Alpha", "First", "ALPHA-BODY"); },
+      searchThreads: async () => [],
+    });
+    render(<Parent api={api} threads={[row("tA", "Alpha", "First"), row("tB", "Bravo", "Second")]} />);
+    expect(await screen.findByText("Alpha")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Reading it...")).not.toBeInTheDocument());
+    expect(fetched).toEqual(["tA"]);
+
+    fireEvent.click(screen.getByText("rerender"));
+    fireEvent.click(screen.getByText("rerender"));
+    await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    // Still one fetch for card A, and the card never flipped back to
+    // "Reading it..." under him.
+    expect(fetched).toEqual(["tA"]);
+    expect(screen.queryByText("Reading it...")).not.toBeInTheDocument();
+
+    // Advancing the deck is what prepares the next card, exactly once.
+    fireEvent.click(screen.getByText("Later"));
+    expect(await screen.findByText("Bravo")).toBeInTheDocument();
+    await waitFor(() => expect(fetched).toEqual(["tA", "tB"]));
   });
 });
 

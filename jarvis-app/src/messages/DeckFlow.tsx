@@ -160,9 +160,23 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
     }
   }, [ai, apiFor, people, gatherContext]);
 
+  // EMAIL-F-10 (2026-09-05): "The Sweep re-prepares the card on screen on
+  // every parent re-render." This effect was keyed on [row, prepare], and
+  // prepare's deps carried apiFor, which MessagesFlow passed as a fresh arrow
+  // every render: Send & Next (a queue write), the pump marking the item
+  // sending, "Sent" toasting, the toast clearing, each one refetched the
+  // thread and re-drafted the reply for a card he was already reading. The
+  // prepGen guard made the late results harmless but not free. A card is
+  // prepared when it BECOMES the card, so the effect keys on the card's id
+  // alone and reads the latest prepare through a ref.
+  const prepareRef = useRef(prepare);
+  prepareRef.current = prepare;
+  const rowRef = useRef(row);
+  rowRef.current = row;
+  const rowId = row?.id;
   useEffect(() => {
-    if (row) void prepare(row);
-  }, [row, prepare]);
+    if (rowId && rowRef.current) void prepareRef.current(rowRef.current);
+  }, [rowId]);
 
   const finish = useCallback(() => {
     if (done.current) return;

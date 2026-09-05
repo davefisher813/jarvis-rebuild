@@ -1162,7 +1162,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
 
   // The api for a specific account, falling back to any live one so legacy
   // single-account data (no account tag) keeps working.
-  const apiFor = (account?: string) => (account ? g.api(account) : null) ?? g.api();
+  // EMAIL-F-10 (2026-09-05): stable on the session, not remade every render.
+  // As a plain arrow it sat in DeckFlow's prepare deps and re-prepared the
+  // card on screen every time this component re-rendered.
+  const apiFor = useCallback((account?: string) => (account ? g.api(account) : null) ?? g.api(), [g]);
   // EMAIL-F-09: search hits know their account too (runSearch tags them the
   // same way loadThreads does), so a thread opened from a hit is read,
   // archived and trashed through the account it actually lives in.
