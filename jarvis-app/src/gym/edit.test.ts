@@ -48,6 +48,41 @@ describe("duplicateDay (catalog §3.3)", () => {
     expect(out.days[1]!.id).not.toBe("d1");
     expect(out.days[1]!.exercises[0]!.id).not.toBe("e1");
   });
+
+  // GYM-F-05 (2026-09-05): the copy used to arrive as id/name/exercises and
+  // nothing else, so a duplicated day had no warm-up, no cool-down and no
+  // pairs.
+  it("carries the warm-up and cool-down blocks, with their own fresh ids", () => {
+    const src: ProgramDay = {
+      ...day("d1", "Push Day", [ex("e1", "Bench")]),
+      warmUp: [{ id: "b1", name: "Bike, easy", amount: "5 min" }], warmUpMin: 8,
+      coolDown: [{ id: "b2", name: "Couch stretch" }], coolDownMin: 5,
+    };
+    const out = duplicateDay(week("w1", "Week 1", [src]), "d1");
+    const copy = out.days[1]!;
+    expect(copy.warmUp!.map((b) => b.name)).toEqual(["Bike, easy"]);
+    expect(copy.warmUp![0]!.id).not.toBe("b1");
+    expect(copy.coolDown!.map((b) => b.name)).toEqual(["Couch stretch"]);
+    expect(copy.coolDown![0]!.id).not.toBe("b2");
+    expect(copy.warmUpMin).toBe(8);
+    expect(copy.coolDownMin).toBe(5);
+  });
+
+  it("keeps A1/A2 pairing, remapped onto the copy's own exercise ids", () => {
+    const src = day("d1", "Push Day", [ex("e1", "Row", { pairWith: "e2" }), ex("e2", "Curl", { pairWith: "e1" })]);
+    const copy = duplicateDay(week("w1", "Week 1", [src]), "d1").days[1]!;
+    const [row, curl] = copy.exercises;
+    expect(row!.id).not.toBe("e1");
+    expect(curl!.id).not.toBe("e2");
+    expect(row!.pairWith).toBe(curl!.id);
+    expect(curl!.pairWith).toBe(row!.id);
+  });
+
+  it("drops the pins: two days in one week on the same weekday would both claim it", () => {
+    const src: ProgramDay = { ...day("d1", "Push Day", [ex("e1", "Bench")]), pinDays: [0, 3] };
+    const copy = duplicateDay(week("w1", "Week 1", [src]), "d1").days[1]!;
+    expect(copy.pinDays).toBeUndefined();
+  });
 });
 
 describe("duplicateProgramData (catalog §3.3)", () => {
@@ -62,6 +97,23 @@ describe("duplicateProgramData (catalog §3.3)", () => {
     expect(out.weeks[0]!.id).not.toBe("w1");
     expect(out.weeks[0]!.days[0]!.id).not.toBe("d1");
     expect(out.weeks[0]!.days[0]!.exercises[0]!.id).not.toBe("e1");
+  });
+
+  // GYM-F-05 (2026-09-05): "the basis of every new block" arrived with every
+  // day stripped of its pins, its blocks and its pairs.
+  it("every day keeps its pins, its blocks and its pairs", () => {
+    const d: ProgramDay = {
+      ...day("d1", "Push", [ex("e1", "Row", { pairWith: "e2" }), ex("e2", "Curl", { pairWith: "e1" })]),
+      pinDays: [1], warmUp: [{ id: "b1", name: "Bike, easy" }], warmUpMin: 8,
+    };
+    const out = duplicateProgramData({ name: "PPL", weeks: [week("w1", "Week 1", [d])] });
+    const copy = out.weeks[0]!.days[0]!;
+    expect(copy.pinDays).toEqual([1]);
+    expect(copy.warmUp!.map((b) => b.name)).toEqual(["Bike, easy"]);
+    expect(copy.warmUp![0]!.id).not.toBe("b1");
+    expect(copy.warmUpMin).toBe(8);
+    expect(copy.exercises[0]!.pairWith).toBe(copy.exercises[1]!.id);
+    expect(copy.exercises[1]!.pairWith).toBe(copy.exercises[0]!.id);
   });
 });
 
@@ -117,6 +169,22 @@ describe("extractDay / appendDayToWeek: move a day to another program (catalog �
     expect(out[0]!.days[0]!.id).not.toBe("d1");
     expect(out[0]!.days[0]!.exercises[0]!.id).not.toBe("e1");
     expect(out[0]!.days[0]!.name).toBe("Push");
+  });
+
+  // GYM-F-05 (2026-09-05): a day moved to another program arrived without
+  // its pins, its blocks or its pairs.
+  it("landing in a different program carries the pins, the blocks and the pairs", () => {
+    const src: ProgramDay = {
+      ...day("d1", "Push", [ex("e1", "Row", { pairWith: "e2" }), ex("e2", "Curl", { pairWith: "e1" })]),
+      pinDays: [2], coolDown: [{ id: "b1", name: "Couch stretch" }], coolDownMin: 5,
+    };
+    const out = appendDayToWeek([week("w2", "Week 1", [])], "w2", src, true);
+    const landed = out[0]!.days[0]!;
+    expect(landed.pinDays).toEqual([2]);
+    expect(landed.coolDown!.map((b) => b.name)).toEqual(["Couch stretch"]);
+    expect(landed.coolDown![0]!.id).not.toBe("b1");
+    expect(landed.coolDownMin).toBe(5);
+    expect(landed.exercises[0]!.pairWith).toBe(landed.exercises[1]!.id);
   });
 
   it("reordering within the same program keeps the day's own id", () => {

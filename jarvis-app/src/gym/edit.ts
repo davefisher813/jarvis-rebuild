@@ -39,13 +39,50 @@ function duplicateExerciseFresh(e: Exercise): Exercise {
   return { ...e, id: nid("e"), sets: freshSets(e.sets), pairWith: undefined };
 }
 
+// GYM-F-05 (2026-09-05): every day copy in this file was rebuilt from an
+// allow-list of three fields (id, name, exercises), so Duplicate Day,
+// Duplicate Program, Duplicate & Bump and a cross-program Move Day all landed
+// a day with no Pin Days, no Warm-Up card and no Cool-Down card, and with
+// Row/Curl no longer A1/A2. A pair is a relationship BETWEEN two exercises in
+// one day: copying both halves has to copy the link and point it at the new
+// ids, which is what duplicateExerciseFresh (built for the single-exercise
+// case, where the partner stays behind) could not do on its own.
+
+/** Fresh ids for a whole day's exercises, with pairing remapped onto the
+ *  copies. A half whose partner is not in this set keeps no link, because
+ *  there is nothing in the copy for it to point at. */
+function duplicateExercisesFresh(exercises: Exercise[]): Exercise[] {
+  const idMap = new Map(exercises.map((e) => [e.id, nid("e")]));
+  return exercises.map((e) => {
+    const copy: Exercise = { ...e, id: idMap.get(e.id)!, sets: freshSets(e.sets) };
+    const partner = e.pairWith ? idMap.get(e.pairWith) : undefined;
+    if (partner) copy.pairWith = partner;
+    else delete copy.pairWith;
+    return copy;
+  });
+}
+
+/** A whole day, copied: its blocks (own fresh ids, so editing one copy's
+ *  warm-up never touches the other's), its budgeted minutes, its pins, and
+ *  its exercises with pairing intact.
+ *
+ *  `keepPins` is false only for a copy landing in the SAME week, where two
+ *  days pinned to one weekday would both claim that day on the calendar. */
+export function duplicateDayFresh(d: ProgramDay, keepPins: boolean): ProgramDay {
+  const copy: ProgramDay = { ...d, id: nid("d"), exercises: duplicateExercisesFresh(d.exercises) };
+  if (d.warmUp) copy.warmUp = d.warmUp.map((b) => ({ ...b, id: nid("b") }));
+  if (d.coolDown) copy.coolDown = d.coolDown.map((b) => ({ ...b, id: nid("b") }));
+  if (!keepPins) delete copy.pinDays;
+  return copy;
+}
+
 /** Duplicate a whole day -- "Push Day" becomes "Push Day 2" ready to edit
  *  (catalog §3.3), right after the original in the same week. */
 export function duplicateDay(week: ProgramWeek, dayId: string): ProgramWeek {
   const i = week.days.findIndex((d) => d.id === dayId);
   if (i < 0) return week;
   const src = week.days[i]!;
-  const copy: ProgramDay = { id: nid("d"), name: nextCopyName(src.name), exercises: src.exercises.map(duplicateExerciseFresh) };
+  const copy: ProgramDay = { ...duplicateDayFresh(src, false), name: nextCopyName(src.name) };
   const days = [...week.days.slice(0, i + 1), copy, ...week.days.slice(i + 1)];
   return { ...week, days };
 }
@@ -57,7 +94,7 @@ export function duplicateProgramData(data: ProgramData): ProgramData {
     name: nextCopyName(data.name),
     weeks: data.weeks.map((w) => ({
       id: nid("w"), label: w.label, ...(w.backOff ? { backOff: true } : {}),
-      days: w.days.map((d) => ({ id: nid("d"), name: d.name, exercises: d.exercises.map(duplicateExerciseFresh) })),
+      days: w.days.map((d) => duplicateDayFresh(d, true)),
     })),
     ...(data.inSeason ? { inSeason: true } : {}),
     ...(data.gameCategoryId ? { gameCategoryId: data.gameCategoryId } : {}),
@@ -123,7 +160,7 @@ export function extractDay(weeks: ProgramWeek[], dayId: string): { weeks: Progra
  *  so the day was dropped while the toast said "Moved". The day now lands
  *  in a NEW week under that id instead. */
 export function appendDayToWeek(weeks: ProgramWeek[], weekId: string, day: ProgramDay, freshId: boolean): ProgramWeek[] {
-  const landing: ProgramDay = freshId ? { ...day, id: nid("d"), exercises: day.exercises.map(duplicateExerciseFresh) } : day;
+  const landing: ProgramDay = freshId ? duplicateDayFresh(day, true) : day;
   if (!weeks.some((w) => w.id === weekId)) {
     return [...weeks, { id: weekId, label: `Week ${weeks.length + 1}`, days: [landing] }];
   }

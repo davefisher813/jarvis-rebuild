@@ -15,12 +15,12 @@ import type { MetricDef, MetricLog } from "./metrics";
 import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, queueFinished, flushPending, hasWork, isStillActive, type LiveSession } from "./liveSession";
-import { bumpStrip, newSetId } from "./strip";
+import { bumpStrip } from "./strip";
 import { buildLibrary } from "./library";
 import { pairLabels, pairExercises, unpairExercise } from "./pairs";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
-  moveExerciseToDay, copyExerciseToDays, moveDayBetweenPrograms, applyExerciseEdit,
+  moveExerciseToDay, copyExerciseToDays, moveDayBetweenPrograms, applyExerciseEdit, duplicateDayFresh,
 } from "./edit";
 import { pinLabel, todayDow, pinnedTo, nextPinnedDay, WEEKDAY_ABBR, WEEKDAY_FULL } from "./pins";
 import { nextDayFor } from "./nextDay";
@@ -677,8 +677,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
   const duplicateDayAction = async (weekId: string, dayId: string) => {
     const week = program?.data.weeks.find((w) => w.id === weekId);
     if (!week) return;
+    // GYM-F-05 (2026-09-05): the copy carries the blocks, the minutes and the
+    // A1/A2 pairs now, but not the pins -- two days in one week pinned to the
+    // same weekday would both claim it on the calendar. Said out loud rather
+    // than left to be discovered.
+    const pinned = !!week.days.find((d) => d.id === dayId)?.pinDays?.length;
     await saveDays(weekId, duplicateDay(week, dayId).days);
-    showToast({ message: "Day duplicated" });
+    showToast({ message: pinned ? "Day duplicated · The copy is unpinned" : "Day duplicated" });
   };
   const duplicateExerciseAction = async (weekId: string, dayId: string, exId: string) => {
     const week = program?.data.weeks.find((w) => w.id === weekId);
@@ -1160,15 +1165,15 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
         <BumpSheet
           weekLabel={src.label}
           onSave={async (bump, backOff) => {
-            const days: ProgramDay[] = src.days.map((d) => ({
-              id: nid("d"),
-              name: d.name,
-              exercises: d.exercises.map((e): Exercise => ({
-                ...e,
-                id: nid("e"),
-                sets: bumpStrip(e.kind, e.sets.map((s): SetEntry => ({ ...s, id: newSetId() })), bump),
-              })),
-            }));
+            // GYM-F-05 (2026-09-05): the bumped week is a full day copy now
+            // (pins, warm-up and cool-down blocks, A1/A2 pairs remapped onto
+            // the new ids), then the strips are bumped on top of it. It used
+            // to rebuild each day from id/name/exercises, so every copy of
+            // last week arrived stripped of all three.
+            const days: ProgramDay[] = src.days.map((d) => {
+              const copy = duplicateDayFresh(d, true);
+              return { ...copy, exercises: copy.exercises.map((e): Exercise => ({ ...e, sets: bumpStrip(e.kind, e.sets, bump) })) };
+            });
             const week: ProgramWeek = {
               id: nid("w"), label: `Week ${program.data.weeks.length + 1}`, days,
               ...(backOff ? { backOff: true } : {}),
