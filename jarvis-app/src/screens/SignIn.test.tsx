@@ -12,12 +12,16 @@ import SignIn from "./SignIn";
 const signInWithPassword = vi.fn();
 const signUpWithPassword = vi.fn();
 const sendPasswordReset = vi.fn();
+const signInWithApple = vi.fn();
+const signInWithEmail = vi.fn();
 
 vi.mock("../auth/AuthProvider", () => ({
   useAuth: () => ({
     signInWithPassword,
     signUpWithPassword,
     sendPasswordReset,
+    signInWithApple,
+    signInWithEmail,
     backendConfigured: true,
   }),
 }));
@@ -28,6 +32,8 @@ beforeEach(() => {
   signInWithPassword.mockReset();
   signUpWithPassword.mockReset();
   sendPasswordReset.mockReset();
+  signInWithApple.mockReset().mockResolvedValue(undefined);
+  signInWithEmail.mockReset().mockResolvedValue(undefined);
 });
 
 function openEmailSignIn() {
@@ -87,5 +93,47 @@ describe("SignIn Forgot Password", () => {
     fireEvent.change(screen.getByPlaceholderText("you@email.com"), { target: { value: "dave@example.com" } });
     fireEvent.click(screen.getByText("Forgot Password?"));
     await screen.findByText("rate limited, try later");
+  });
+});
+
+// SHELL-F-18 (2026-09-05): AuthProvider has carried signInWithApple and
+// signInWithEmail since it was written and no screen offered either, so a
+// reader of that file was told about two flows the app did not have.
+describe("SignIn: Apple and the magic link", () => {
+  it("offers Apple first, and taps it", async () => {
+    render(<SignIn />);
+    const apple = screen.getByText("Continue with Apple");
+    expect(apple).toBeInTheDocument();
+    fireEvent.click(apple);
+    await waitFor(() => expect(signInWithApple).toHaveBeenCalledTimes(1));
+  });
+
+  it("says what went wrong when the provider is not switched on", async () => {
+    signInWithApple.mockRejectedValue(new Error("Unsupported provider: provider is not enabled"));
+    render(<SignIn />);
+    fireEvent.click(screen.getByText("Continue with Apple"));
+    await waitFor(() => expect(screen.getByText(/provider is not enabled/)).toBeInTheDocument());
+  });
+
+  it("emails a sign-in link to the address in the field, and says so", async () => {
+    openEmailSignIn();
+    fireEvent.change(screen.getByPlaceholderText("you@email.com"), { target: { value: "dave@example.com" } });
+    fireEvent.click(screen.getByText("Email Me a Link"));
+    await waitFor(() => expect(signInWithEmail).toHaveBeenCalledWith("dave@example.com"));
+    expect(screen.getByText("Check your email for a sign-in link.")).toBeInTheDocument();
+  });
+
+  it("asks for the address before sending, instead of sending nothing", () => {
+    openEmailSignIn();
+    fireEvent.click(screen.getByText("Email Me a Link"));
+    expect(signInWithEmail).not.toHaveBeenCalled();
+    expect(screen.getByText(/Enter your email first/)).toBeInTheDocument();
+  });
+
+  // Creating an account is a password flow; a link is for getting back in.
+  it("does not offer the link on the create-account form", () => {
+    openEmailSignIn();
+    fireEvent.click(screen.getByText("Create a new account"));
+    expect(screen.queryByText("Email Me a Link")).not.toBeInTheDocument();
   });
 });
