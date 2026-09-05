@@ -524,7 +524,11 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 .sheet-scrim .sheet-actions { flex-shrink: 0; }
 
 /* Category color + icon pickers (Category sheet). Tokens only. */
-.swatch-pick { display: flex; gap: var(--s-3); flex-wrap: wrap; }
+/* BROWSER-F-08 (2026-09-05): --s-6, not --s-3. The swatch paints 24px, so a
+   12px gap put the grid on a 36px pitch, smaller than the 44px target each
+   swatch needs, and two neighbouring targets could not both exist. 20px is
+   the pitch that lets them. */
+.swatch-pick { display: flex; gap: var(--s-6); flex-wrap: wrap; }
 .swatch { width: 34px; height: 34px; border-radius: var(--r-circle); flex-shrink: 0; border: 0; padding: 0; }
 .swatch.sel { outline: 2px solid var(--tint); outline-offset: 2px; }
 .icon-pick { display: flex; gap: var(--s-2h); flex-wrap: wrap; }
@@ -1622,6 +1626,47 @@ button {
 .chip::after {
   content: ""; position: absolute; top: 50%; left: 0; right: 0;
   transform: translateY(-50%); height: var(--tap-min);
+}
+/* BROWSER-F-08 (2026-09-05). The expander above is right and it still measured
+   short, 263 times across the dark run, and the reason is not the chip: it is
+   the row BELOW it. A wrapping chip grid (the onboarding answers, the duration
+   picker, the sheet strips) stacks 32px chips 8px apart, so two 44px targets
+   overlap by 4px and the lower one wins the hit test for the upper one's
+   bottom edge. A target you cannot reach because your neighbour got there
+   first is not a target. 12px of ROW gap is the smallest number where 32 and
+   44 tile exactly; the column gap is untouched, so nothing moves sideways. */
+.convo-chips, .chip-wrap, .chip-wrap-row, .chip-picker-open { row-gap: 12px; }
+
+/* The swatch is 24px of paint with no hit area at all, in a grid whose pitch
+   (24 + 12) was smaller than the target it needs. Both halves have to move or
+   neither does anything: 20px of gap puts the swatches on a 44px pitch, and
+   the pseudo-element fills it (the grid's own gap moves at :522, where it is
+   declared). .swatch-row is a different grid holding .av-swatch, untouched. */
+.swatch { position: relative; }
+.swatch::after {
+  content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  min-width: var(--tap-min); min-height: var(--tap-min); width: 100%; height: 100%;
+}
+
+/* The dropdown VALUE variant zeroes .dd's min-height (:4288), so .dd's own
+   -7px expander was working from an 18px line box and reached 32. -13px tall
+   and -12px wide reaches 44 from there. The whole row also becomes the button
+   under SHARED-F-11, which is the iOS answer; this is what makes the value
+   itself honest in the meantime and everywhere the row cannot carry it. */
+.dd.dd-value::after { inset: -13px -12px; }
+
+/* Two <input>s, so a pseudo-element is not available to them: a replaced
+   element has no generated content. Both live in a 48px row, so a 44px
+   minimum costs no layout at all, it just stops the row's own height being
+   dead space around a 22px line of type. */
+.form-sheet .xs-field, .ruled .set-field { min-height: var(--tap-min); }
+
+/* The quiet capsule carries "1 Finished" and its siblings at 32px. Only the
+   .drain-line copy of it ever got an expander (:1668). */
+.quiet-action { position: relative; }
+.quiet-action::after {
+  content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  min-width: var(--tap-min); min-height: var(--tap-min); width: 100%; height: 100%;
 }
 
 /* === Session 6.6: connected Bigger Picture === */

@@ -495,9 +495,18 @@
 .ruled .sc-date { font-size: 22px; font-weight: var(--w-bold); letter-spacing: -0.02em; line-height: 1.1; }
 .ruled .sc-date .yr { color: var(--tx-3); font-weight: var(--w-semi); margin-left: 7px; }
 .ruled .sc-sp { flex: 1; }
-.ruled .sc-steps { display: inline-flex; align-items: center; gap: 2px; color: var(--tx-3); flex-shrink: 0; }
+/* BROWSER-F-08 (2026-09-05): 2px of gap between two 34px arrows meant the
+   month stepper could not carry two 44px targets without them overlapping
+   each other, so neither of them had one. 10px puts the pair on a 44px pitch;
+   the arrows themselves do not move or change size. */
+.ruled .sc-steps { display: inline-flex; align-items: center; gap: 10px; color: var(--tx-3); flex-shrink: 0; }
 .ruled .sc-step { width: 34px; height: 34px; display: grid; place-items: center; padding: 0;
   background: none; border: 0; color: inherit; }
+.ruled .sc-step { position: relative; }
+.ruled .sc-step::after {
+  content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  min-width: var(--tap-min); min-height: var(--tap-min); width: 100%; height: 100%;
+}
 .ruled .sc-step .ic { width: 17px; height: 17px; }
 .ruled .sc-step:active { color: var(--tx-1); }
 /* The list's head (Dave 2026-09-02, "if one should, all should"): the same

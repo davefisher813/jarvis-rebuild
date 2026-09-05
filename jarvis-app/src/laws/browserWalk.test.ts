@@ -313,6 +313,43 @@ describe("BROWSER-F-06: the app's own names and facts are not cut in half", () =
   });
 });
 
+describe("BROWSER-F-08: chips, values, steppers and swatches reach 44", () => {
+  const ruled = () => read("styles/ruled.css");
+  const has44 = (body: string | null) =>
+    !!body && /min-height:\s*var\(--tap-min\)/.test(body) && /min-width:\s*var\(--tap-min\)/.test(body);
+
+  it("the swatch, the stepper and the quiet capsule each carry a 44px expander", () => {
+    expect(has44(ruleBody(css(), ".swatch::after")), ".swatch").toBe(true);
+    expect(has44(ruleBody(css(), ".quiet-action::after")), ".quiet-action").toBe(true);
+    expect(has44(ruleBody(ruled(), ".ruled .sc-step::after")), ".ruled .sc-step").toBe(true);
+  });
+
+  it("the dropdown value's expander works from a zeroed capsule", () => {
+    // .dd.dd-value sets min-height: 0, so .dd's own -7px reached 32 from an
+    // 18px line box. -13px is what reaches 44 from there.
+    const inset = /inset:\s*-(\d+)px/.exec(ruleBody(css(), ".dd.dd-value::after") ?? "");
+    expect(inset, ".dd.dd-value::after must restate its own inset").toBeTruthy();
+    expect(Number(inset![1]) * 2 + 18).toBeGreaterThanOrEqual(44);
+  });
+
+  // Two <input>s cannot carry a pseudo-element, so they carry the height.
+  it("the sheet and settings fields are 44 tall inside their 48px rows", () => {
+    expect(ruleBody(css(), ".form-sheet .xs-field, .ruled .set-field")).toMatch(/min-height:\s*var\(--tap-min\)/);
+  });
+
+  // A 44px target that a neighbour's 44px target overlaps is not a target.
+  // Wrapping chip grids and the swatch grid have to be on a 44px PITCH.
+  it("stacked chip rows and the swatch grid tile at 44 instead of overlapping", () => {
+    const gap = ruleBody(css(), ".convo-chips, .chip-wrap, .chip-wrap-row, .chip-picker-open");
+    expect(gap, "wrapping chip containers must set a row gap").toBeTruthy();
+    const px = Number(/row-gap:\s*(\d+)px/.exec(gap!)?.[1]);
+    expect(px + 32, "a 32px chip plus the row gap must reach the tap minimum").toBeGreaterThanOrEqual(44);
+    // The swatch is 24px of paint (uniformity.css), so its grid needs 20.
+    expect(ruleBody(css(), ".swatch-pick")).toMatch(/gap:\s*var\(--s-6\)/);
+    expect(ruleBody(ruled(), ".ruled .sc-steps")).toMatch(/gap:\s*10px/);
+  });
+});
+
 describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
   // The strip rule re-sets the chip background at (0,4,0), which beats
   // .chip.active (0,2,0) for the background alone. Any rule that overrides a
