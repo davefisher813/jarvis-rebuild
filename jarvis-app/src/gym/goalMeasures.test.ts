@@ -36,6 +36,22 @@ describe("meetsLiftTarget", () => {
   it("done has no score, so no lift goal can ever fire on it", () => {
     expect(meetsLiftTarget("done", {}, { done: true })).toBe(false);
   });
+
+  // GYM-F-20 (2026-09-05): a target of 0 was met by any set at all for
+  // height, distance and time_longer ("0 In -- hit it", 100%, celebrated on
+  // the next receipt), and could never be met for time_faster. It is not a
+  // target either way.
+  it("a target of zero is not a target, in either direction", () => {
+    expect(meetsLiftTarget("height", { v: 0 }, { v: 12 })).toBe(false);
+    expect(meetsLiftTarget("distance", { v: 0 }, { v: 400 })).toBe(false);
+    expect(meetsLiftTarget("time_longer", { v: 0 }, { v: 60 })).toBe(false);
+    expect(meetsLiftTarget("time_faster", { v: 0 }, { v: 4.9 })).toBe(false);
+    expect(meetsLiftTarget("reps", { r: 0 }, { r: 10 })).toBe(false);
+    expect(meetsLiftTarget("weight_reps", { w: 0, r: 5 }, { w: 225, r: 5 })).toBe(false);
+    expect(meetsLiftTarget("distance_time", { v: 400, t: 0 }, { v: 400, t: 60 })).toBe(false);
+    // A real target still behaves exactly as it did.
+    expect(meetsLiftTarget("height", { v: 30 }, { v: 32 })).toBe(true);
+  });
 });
 
 describe("liftMeasureState", () => {
@@ -71,6 +87,16 @@ describe("liftMeasureState", () => {
     const st = liftMeasureState(target, []);
     expect(st.done).toBe(0);
     expect(st.met).toBe(false);
+  });
+
+  // GYM-F-20: the goal card used to read "0 In -- hit it" at 100% for a goal
+  // saved with the target untouched.
+  it("a zero-target goal is never met and never full", () => {
+    const m: LiftMeasure = { kind: "lift", exercise: "Vertical Jump", measureKind: "height", target: { v: 0 }, unit: "in" };
+    const h = [workout("2026-08-01", [{ exerciseId: "e1", name: "Vertical Jump", kind: "height", unit: "in", sets: [set({ v: 30 })] }])];
+    const st = liftMeasureState(m, h);
+    expect(st.met).toBe(false);
+    expect(st.pct).toBe(0);
   });
 });
 

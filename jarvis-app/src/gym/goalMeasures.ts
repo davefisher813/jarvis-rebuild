@@ -1,5 +1,5 @@
 import type { Workout, WorkoutExercise, MeasureKind, SetLog } from "./types";
-import { scoreOf, has } from "./measures";
+import { scoreOf, has, fieldsFor } from "./measures";
 import { capAfterNumber } from "../shared/casing";
 
 // GOALS ON THE BAR, D12-A/C (Training Catalog V2, approved 2026-08-31).
@@ -76,6 +76,14 @@ export interface LiftMeasureState {
  */
 export function meetsLiftTarget(kind: MeasureKind, target: Pick<SetLog, "w" | "r" | "v" | "t">, s: SetLog): boolean {
   if (s.warmup || s.skipped) return false; // THE RAMP IS NOT THE WORK, same as scoreOf itself
+  // GYM-F-20 (2026-09-05): a target of 0 is not a target. For height,
+  // distance and time_longer the comparison below is `value >= 0`, which any
+  // set on earth meets, so a goal saved with the stepper untouched read
+  // "0 In -- hit it" at 100% and the next receipt celebrated a Goal Hit; for
+  // time_faster the same 0 could never be met at all. Neither is a goal, so
+  // neither fires. LiftGoalSheet no longer lets one be saved either; this is
+  // the half that protects the goals already in the store.
+  if (!fieldsFor(kind).every((f) => has(target[f.key]))) return false;
   if (kind === "weight_reps") {
     if (!has(s.w) || !has(s.r)) return false;
     if (target.w != null && s.w! < target.w) return false;

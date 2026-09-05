@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { GoalData } from "../life/types";
 import type { MeasureKind } from "./types";
 import type { LiftMeasure, TrainingMeasure, TrainingCadence } from "./goalMeasures";
+import { fieldsFor, has } from "./measures";
 import Stepper from "../shared/Stepper";
 
 // A GOAL ON THE BAR, D12-A/C (Training Catalog V2, approved 2026-08-31). Set
@@ -48,7 +49,18 @@ export default function LiftGoalSheet({
   const [times, setTimes] = useState(trainInit?.times ?? 3);
   const [scoped, setScoped] = useState(trainInit ? !!trainInit.exercise : true);
 
-  const valid = title.trim().length > 0 && (mode === "training" || kind === "weight_reps" ? true : true);
+  // GYM-F-20 (2026-09-05): the old expression collapsed to title-only
+  // (`(mode === "training" || kind === "weight_reps" ? true : true)`), so a
+  // goal saved with the stepper untouched carried a target of 0. On Vertical
+  // Jump that read "0 In -- hit it" at 100% and the next session's receipt
+  // celebrated a Goal Hit; on a sprint the same 0 could never be met at all.
+  // Every field this kind actually asks for has to carry a real number.
+  const targetFields: Record<"w" | "r" | "v" | "t", number> = { w, r, v, t };
+  const targetGiven = fieldsFor(kind).every((f) => has(targetFields[f.key]));
+  const valid = title.trim().length > 0 && (mode === "training" ? times >= 1 : targetGiven);
+  // Double-tapping Save used to create two goals: the write is async and
+  // nothing disarmed the button while it ran.
+  const [saving, setSaving] = useState(false);
 
   const measureOf = (): LiftMeasure | TrainingMeasure => {
     if (mode === "training") {
@@ -113,6 +125,12 @@ export default function LiftGoalSheet({
             </div>
           )}
 
+          {/* GYM-F-20: a target of zero is not a target, and the sheet says
+              which number is missing rather than refusing in silence. */}
+          {mode === "lift" && touched && !targetGiven && (
+            <div className="input-error">Set a target above zero.</div>
+          )}
+
           {mode === "training" && (
             <div className="field">
               <div className="input-label">Rhythm</div>
@@ -138,8 +156,10 @@ export default function LiftGoalSheet({
           </div>
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-launch btn-block" onClick={() => {
+          <button className="btn btn-primary btn-launch btn-block" disabled={saving} onClick={() => {
             if (!valid) { setTouched(true); return; }
+            if (saving) return;
+            setSaving(true);
             onSave({
               title: title.trim(), state: "on_track",
               ...(healthCategoryIds.length ? { tags: healthCategoryIds } : {}),
