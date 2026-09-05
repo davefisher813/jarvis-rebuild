@@ -195,3 +195,35 @@ describe("Schedule: the blend offer goes to blocks that can hold a task", () => 
     expect(container.querySelector(".blend-tuck")!.textContent).toContain("Call the plumber");
   });
 });
+
+// SCHED-F-11 (2026-09-05): "a series date change is silently ignored". Apply
+// To: All Events plus Tomorrow closed the sheet and moved nothing, because
+// the save path only called moveDay for a one-off.
+describe("Schedule: All Events plus a new date moves the whole series", () => {
+  it("a day later on one occurrence slides the anchor a day, not onto that occurrence", async () => {
+    const { useSchedule } = await import("../data/NotesProvider");
+    const { notifyFreshLists } = await import("../data/store");
+    const { ENTITY_EVENT } = await import("./types");
+    const { todayISO, addDays } = await import("./calendar");
+    let sched: import("./ScheduleService").ScheduleService | null = null;
+    function Grab() { sched = useSchedule(); return null; }
+    render(<NotesProvider userId="u-series-move"><Grab /><ScheduleFlow /></NotesProvider>);
+    await screen.findAllByText("Schedule");
+    const anchor = todayISO();
+    const id = (await sched!.createEvent("Team Sync", { date: anchor, start: "10:00", recurrence: "weekly" }))!;
+    notifyFreshLists(ENTITY_EVENT);
+    // Open next week's occurrence, a week away from the anchor.
+    for (let i = 0; i < 7; i++) fireEvent.click(screen.getByLabelText("Next"));
+    await waitFor(() => expect(screen.getByText("Team Sync")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Team Sync"));
+    await screen.findByText("Edit Event");
+    // Apply To is already All Events; the Date field moves the day (the
+    // sheet's Tomorrow chip writes the same field).
+    fireEvent.change(screen.getByLabelText("Date"), { target: { value: addDays(anchor, 8) } });
+    fireEvent.click(screen.getByText("Save"));
+    await waitFor(() => expect(screen.queryByText("Edit Event")).not.toBeInTheDocument());
+    // One day later, from the anchor: the series keeps its shape and its start.
+    await waitFor(async () => expect((await sched!.event(id))!.date).toBe(addDays(anchor, 1)));
+    expect((await sched!.event(id))!.recurrence).toBe("weekly");
+  });
+});

@@ -232,6 +232,15 @@ export function addDays(iso: string, n: number): string {
   const d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() + n); return isoOf(d);
 }
 
+// SCHED-F-11 (2026-09-05): whole days from one local day to another, the
+// inverse of addDays. Rounded, because a day that crosses a DST boundary is
+// 23 or 25 hours long and a truncating divide would lose it.
+export function daysBetween(from: string, to: string): number {
+  const a = new Date(from + "T00:00:00");
+  const b = new Date(to + "T00:00:00");
+  return Math.round((b.getTime() - a.getTime()) / 86400000);
+}
+
 // Time as distance (roadmap v2): "in 40m", "in 2h 10m". Time blindness reads
 // distances, not clocks. Returns null when the moment has passed.
 export function fmtDistance(startHHMM: string, nowHHMM: string): string | null {

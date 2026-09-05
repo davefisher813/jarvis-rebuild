@@ -16,7 +16,7 @@ import SchedulePage from "./screens/SchedulePage";
 import EventSheet, { type SheetCategory, type EventDraft } from "./screens/EventSheet";
 import BlockSheet, { type BlockDraft } from "./screens/BlockSheet";
 import ScheduleUploadFlow from "./screens/ScheduleUploadFlow";
-import { todayISO, weekOf, addDays, addMinutes, fmtTime, eventsForDate, nextFreeSlot, fmtRange, minToHHMM, nextOccurrence } from "./calendar";
+import { todayISO, weekOf, addDays, addMinutes, fmtTime, eventsForDate, nextFreeSlot, fmtRange, minToHHMM, nextOccurrence, daysBetween } from "./calendar";
 import { durLabel } from "./durations";
 import { isKept, keepBoth } from "./overlapAck";
 import OverlapSheet from "./screens/OverlapSheet";
@@ -530,6 +530,15 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         await attemptWrite(async () => {
           await svc.editTitle(id, draft.title);
           if (!recurring) await svc.moveDay(id, draft.date);
+          // SCHED-F-11 (2026-09-05): All Events plus a new date MOVES THE
+          // SERIES. Tapping Tomorrow on a weekly series and saving used to do
+          // nothing at all, with no message (:489, `if (!recurring)`). The
+          // whole series slides by the number of days the occurrence moved,
+          // which is what changes the anchor and therefore every occurrence.
+          else if (draft.date !== sheet.occurrence) {
+            const cur = await svc.event(id);
+            if (cur) await svc.moveDay(id, addDays(cur.date, daysBetween(sheet.occurrence, draft.date)));
+          }
           await svc.editTime(id, draft.start);
           await svc.editEnd(id, draft.end);
           await svc.editRecurrence(id, draft.recurrence);

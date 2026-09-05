@@ -129,7 +129,12 @@ export default function EventSheet({
   const recurringEdit = mode === "edit" && recurrence !== "none";
 
   const save = () => {
-    if (!title.trim() || !date || !start || endInvalid) {
+    // SCHED-F-11 (2026-09-05): untilBad was display only. "Ends before it
+    // starts" showed in red and Save closed the sheet anyway, with the
+    // service quietly dropping the end date, so the series stayed endless
+    // and nothing said so. The error the sheet is already showing now stops
+    // the save, like every other one here does.
+    if (!title.trim() || !date || !start || endInvalid || untilBad) {
       setErr(true);
       return;
     }

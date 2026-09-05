@@ -145,3 +145,31 @@ describe("EventSheet move chips", () => {
     expect(screen.getByText("+15m")).toBeInTheDocument();
   });
 });
+
+// SCHED-F-11 (2026-09-05): "an Until before the start shows the error but Save
+// proceeds". The red line was rendered from its own check and the save guard
+// never read it, so the sheet closed and the series stayed endless.
+describe("EventSheet: a series end before the start blocks the save", () => {
+  const openSeries = (onSave = vi.fn()) => {
+    render(
+      <EventSheet mode="edit" categories={CATS} onSave={onSave} onCancel={() => {}}
+        initial={{ title: "Clinic", date: "2026-05-26", start: "16:00", end: "17:00", category: "c1", recurrence: "weekly", until: "2026-05-01" }} />,
+    );
+    return onSave;
+  };
+
+  it("says Ends before it starts and refuses to save", () => {
+    const onSave = openSeries();
+    expect(screen.getByText("Ends before it starts")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("saves once the end is on or after the start", () => {
+    const onSave = openSeries();
+    fireEvent.change(screen.getByLabelText("Until date"), { target: { value: "2026-11-30" } });
+    expect(screen.queryByText("Ends before it starts")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ until: "2026-11-30" });
+  });
+});
