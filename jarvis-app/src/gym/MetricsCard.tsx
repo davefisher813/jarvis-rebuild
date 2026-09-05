@@ -68,6 +68,12 @@ export function MetricLogSheet({ def, date, initial, onSave, onDelete, onCancel 
   const [scale, setScale] = useState(initial?.data.value ?? 0);
   const [yes, setYes] = useState(!!initial?.data.yes);
   const step = def.data.type === "minutes" ? 5 : 0.5;
+  // GYM-F-25 (2026-09-05): the scale starts at 0 because there is no such
+  // chip, and Save wrote that 0 straight through -- the strip read "0/5" and
+  // insights and correlations ingested a zero on a 1-5 scale. A scale with
+  // nothing picked has nothing to say (EMPTY IS LEGAL), so it cannot be
+  // saved until a chip is.
+  const scalePicked = def.data.type !== "scale5" || scale >= 1;
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>
       <div className="card" onClick={(e) => e.stopPropagation()}>
@@ -90,6 +96,7 @@ export function MetricLogSheet({ def, date, initial, onSave, onDelete, onCancel 
                   <div key={n} className={"chip" + (scale === n ? " active" : "")} role="button" tabIndex={0} onClick={() => setScale(n)}>{n}</div>
                 ))}
               </div>
+              {!scalePicked && <div className="input-hint">Pick a number to save.</div>}
             </div>
           ) : (
             <div className="field">
@@ -101,7 +108,8 @@ export function MetricLogSheet({ def, date, initial, onSave, onDelete, onCancel 
           )}
         </div>
         <div className="pad-x sheet-actions">
-          <button className="btn btn-primary btn-launch btn-block" onClick={() => {
+          <button className="btn btn-primary btn-launch btn-block" disabled={!scalePicked} onClick={() => {
+            if (!scalePicked) return;
             if (def.data.type === "yesno") onSave({ yes });
             else if (def.data.type === "scale5") onSave({ value: scale });
             else onSave({ value: num });
