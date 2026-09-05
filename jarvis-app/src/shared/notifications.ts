@@ -35,14 +35,27 @@ export const EVENING_ID = 9002;
 export function buildCheckinNotifications(routine: RoutineData, briefTime?: string): CheckinNotification[] {
   const out: CheckinNotification[] = [];
 
-  let morningMin: number;
-  if (briefTime) {
-    const p = briefTime.split(":");
-    morningMin = Number(p[0] ?? 7) * 60 + Number(p[1] ?? 0);
-  } else {
-    morningMin = routine.wakeMin + 15;
-  }
-  if (morningMin < 12 * 60) {
+  // SHARED-F-24 (2026-09-05): a brief time of "12:30" (a late shift) or a
+  // brief the app could not parse both fell through the old `morningMin <
+  // 12 * 60` gate, and the morning nudge simply never came, with nothing on
+  // the Routine or Notifications page saying why. Two answers, both here:
+  // an unreadable brief falls back to the wake-based time rather than
+  // producing NaN, and a time that lands at or after noon is CLAMPED to the
+  // last minute this question still makes sense in, rather than dropped. The
+  // ask exists either way now, which also makes the check-in pair a fixed
+  // two in the notification budget (SHARED-F-05).
+  const MORNING_LATEST = 11 * 60 + 45;
+  const parsed = briefTime ? briefTime.split(":") : null;
+  const fromBrief = parsed ? Number(parsed[0]) * 60 + Number(parsed[1] ?? 0) : NaN;
+  const wakeBased = routine.wakeMin + 15;
+  const morningMin = Math.min(
+    Number.isFinite(fromBrief) ? fromBrief : wakeBased,
+    MORNING_LATEST,
+  );
+  // A routine with an unreadable wake time and no brief is the one case left
+  // with nothing to schedule from; a NaN hour would be a silent no-op inside
+  // iOS anyway.
+  if (Number.isFinite(morningMin)) {
     out.push({
       id: MORNING_ID,
       // S1-04 (2026-09-04): the old copy asked "What's your ONE thing

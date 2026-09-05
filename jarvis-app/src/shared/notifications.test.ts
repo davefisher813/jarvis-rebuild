@@ -41,9 +41,25 @@ describe("buildCheckinNotifications", () => {
     expect(n.find((x) => x.id === EVENING_ID)).toMatchObject({ hour: 22, minute: 30 });
   });
 
-  it("skips the morning nudge when it would land after noon (matches CheckIn's window)", () => {
-    const n = buildCheckinNotifications(r({ wakeMin: 12 * 60 }));
-    expect(n.find((x) => x.id === MORNING_ID)).toBeUndefined();
+  // SHARED-F-24 (2026-09-05): this test used to assert the bug. A brief time
+  // at or after noon (a late shift) meant no morning nudge at all, and
+  // nothing on the Routine or Notifications page said why. It is clamped to
+  // the last minute the question still makes sense in, never dropped.
+  it("clamps a late morning to 11:45 instead of dropping it", () => {
+    expect(buildCheckinNotifications(r({ wakeMin: 12 * 60 })).find((x) => x.id === MORNING_ID))
+      .toMatchObject({ hour: 11, minute: 45 });
+    expect(buildCheckinNotifications(r(), "12:30").find((x) => x.id === MORNING_ID))
+      .toMatchObject({ hour: 11, minute: 45 });
+  });
+
+  it("[edge] a brief time it cannot read falls back to wake + 15, not to nothing", () => {
+    const n = buildCheckinNotifications(r({ wakeMin: 6 * 60 + 30 }), "garbage");
+    expect(n.find((x) => x.id === MORNING_ID)).toMatchObject({ hour: 6, minute: 45 });
+  });
+
+  it("[edge] noon exactly is still clamped back inside the morning", () => {
+    expect(buildCheckinNotifications(r(), "12:00").find((x) => x.id === MORNING_ID))
+      .toMatchObject({ hour: 11, minute: 45 });
   });
 
   it("copy is kind: no guilt words, no em dashes, matches the check-in questions", () => {
