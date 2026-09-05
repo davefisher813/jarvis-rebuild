@@ -4,7 +4,12 @@ import { requestGoogleToken, type TokenOpts } from "./gis";
 import { GOOGLE_SCOPES } from "./config";
 import { serverBroker, type TokenBroker } from "./broker";
 import { useOptionalSession } from "../../auth/AuthProvider";
-import { createGoogleApi, type GoogleApi } from "./api";
+import { createGoogleApi, withSilentRefresh, type FetchLike, type GoogleApi } from "./api";
+
+// PLUMB-F-04 (2026-09-05): Google access tokens last about an hour. A token
+// older than this is re-minted silently when the app comes back to the
+// foreground, before any call has the chance to 401 in his face.
+const TOKEN_STALE_MS = 50 * 60e3;
 
 // App-wide Google session, multi-account (2026-08-04). Each account has its
 // own in-memory token (never persisted); the ACCOUNT LIST persists on the
@@ -60,16 +65,22 @@ const Ctx = createContext<GoogleSessionValue | null>(null);
 export function GoogleSessionProvider({
   children,
   requestToken = requestGoogleToken,
-  makeApi = (t: string) => createGoogleApi(t),
+  makeApi,
   broker,
+  fetchImpl,
 }: {
   children: ReactNode;
   /** Test/bench override: forces the legacy direct-token flow (no persistence). */
   requestToken?: (opts?: TokenOpts) => Promise<string>;
-  makeApi?: (token: string) => GoogleApi;
+  /** Test override: build the api for a token (and, when known, the account
+   *  it belongs to). The default builds the real one with the 401 re-mint. */
+  makeApi?: (token: string, email?: string) => GoogleApi;
   /** Test override: a full broker, so the silent path (and its scope gate)
    *  can be exercised without a server. Wins over both real and legacy. */
   broker?: TokenBroker;
+  /** Test override for the network the DEFAULT makeApi uses, so the 401
+   *  re-mint path can be exercised end to end without a real Google. */
+  fetchImpl?: FetchLike;
 }) {
   const profile = useProfile();
   const supaSession = useOptionalSession();
@@ -77,8 +88,13 @@ export function GoogleSessionProvider({
   const tokenRefValue = useRef<string | undefined>(supaToken);
   tokenRefValue.current = supaToken;
   const tokens = useRef<Record<string, string>>({});
+  // PLUMB-F-04: when each token was minted, so a stale one can be re-minted
+  // on return to the foreground rather than waiting to fail.
+  const mintedAt = useRef<Record<string, number>>({});
   const [tokenVersion, setTokenVersion] = useState(0); // bumps re-render when tokens change
   const [accounts, setAccounts] = useState<GoogleAccount[]>([]);
+  const accountsRef = useRef(accounts);
+  accountsRef.current = accounts;
   const [legacyConnected, setLegacyConnected] = useState(false);
 
   // If a connect lands before the initial profile read resolves, the read must
@@ -110,6 +126,7 @@ export function GoogleSessionProvider({
 
   const storeToken = useCallback((email: string, token: string) => {
     tokens.current[email.toLowerCase()] = token;
+    mintedAt.current[email.toLowerCase()] = Date.now();
     setTokenVersion((v) => v + 1);
   }, []);
 
@@ -126,16 +143,46 @@ export function GoogleSessionProvider({
       : serverBroker(() => tokenRefValue.current);
   }
 
+  // PLUMB-F-04: one silent re-mint for one account, deduped so a burst of
+  // 401s (every method of a screen's load failing at once) asks the server
+  // once and every caller waits on the same answer. Same scope gate as the
+  // mount-time mint: an account stamped with older scopes gets nothing, so
+  // the UI tells the truth instead of arming a token that cannot write.
+  const refreshing = useRef<Record<string, Promise<string | null>>>({});
+  const refreshToken = useCallback((email: string): Promise<string | null> => {
+    const key = email.toLowerCase();
+    const inFlight = refreshing.current[key];
+    if (inFlight) return inFlight;
+    const silent = brokerRef.current?.silent;
+    const known = accountsRef.current.find((a) => a.email === key);
+    if (!silent || !known || !scopesCurrent(known)) return Promise.resolve(null);
+    const p = silent(key)
+      .then((t) => { if (t) storeToken(key, t); return t; })
+      .catch(() => null)
+      .finally(() => { delete refreshing.current[key]; });
+    refreshing.current[key] = p;
+    return p;
+  }, [storeToken]);
+
+  // The api for a token: the injected builder when a test gave one, else the
+  // real client over a fetch that answers a 401 with one silent re-mint and
+  // a replay. An api built before the account is known (the getProfile
+  // right after an interactive authorize) has no one to re-mint for.
+  const buildApi = useCallback((token: string, email?: string): GoogleApi => {
+    if (makeApi) return makeApi(token, email);
+    const base = fetchImpl ?? (fetch as unknown as FetchLike);
+    return createGoogleApi(token, email ? withSilentRefresh(base, () => refreshToken(email)) : base);
+  }, [makeApi, fetchImpl, refreshToken]);
+
   // A token grant always ends with getProfile when the broker didn't already
   // say whose it is: the USER picks the account in Google's UI, so the truth
   // of "who authorized" comes from Google, not from what we asked for.
   const authorize = useCallback(async (opts: TokenOpts): Promise<{ api: GoogleApi; email: string }> => {
     const got = await brokerRef.current!.authorize(opts);
-    const api = makeApi(got.token);
-    const email = (got.email ?? (await api.getProfile()).emailAddress).toLowerCase();
+    const email = (got.email ?? (await buildApi(got.token).getProfile()).emailAddress).toLowerCase();
     storeToken(email, got.token);
-    return { api, email };
-  }, [makeApi, storeToken]);
+    return { api: buildApi(got.token, email), email };
+  }, [buildApi, storeToken]);
 
   // "Stays signed in": on app open, mint tokens for every known account from
   // the stored sign-ins, no popup, no tap. Interactive connect remains the
@@ -159,6 +206,24 @@ export function GoogleSessionProvider({
       }
     })();
   }, [accounts, supaToken, injectedBroker, storeToken]);
+
+  // PLUMB-F-04: the app stays resident on the phone; the token does not.
+  // When it comes back to the foreground, any token older than
+  // TOKEN_STALE_MS is re-minted before a screen has the chance to load on
+  // it and 401. The on-401 replay (buildApi) covers the case this misses,
+  // such as a token that expires while the app is in front.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      for (const email of Object.keys(tokens.current)) {
+        if (now - (mintedAt.current[email] ?? 0) >= TOKEN_STALE_MS) void refreshToken(email);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refreshToken]);
 
   // After an interactive authorize, the account's entry records the scopes it
   // was granted under, so the gate above can tell current sign-ins from
@@ -186,7 +251,7 @@ export function GoogleSessionProvider({
       const t = await silent(email).catch(() => null);
       if (t) {
         storeToken(email.toLowerCase(), t);
-        return makeApi(t);
+        return buildApi(t, email.toLowerCase());
       }
     }
     const got = await authorize({ loginHint: email });
@@ -194,7 +259,7 @@ export function GoogleSessionProvider({
     // honoring reality also creates the entry when they picked someone new).
     await persist(stamped(accounts, got.email));
     return got.api;
-  }, [authorize, accounts, persist, stamped]);
+  }, [authorize, accounts, persist, stamped, storeToken, buildApi]);
 
   const connect = useCallback(async (): Promise<GoogleApi> => {
     if (accounts.length === 0) return (await addAccount()).api;
@@ -234,21 +299,21 @@ export function GoogleSessionProvider({
     void tokenVersion;
     if (email) {
       const t = tokens.current[email.toLowerCase()];
-      return t ? makeApi(t) : null;
+      return t ? buildApi(t, email.toLowerCase()) : null;
     }
-    const firstTokened = accounts.find((a) => tokens.current[a.email]) ?? null;
-    const t = firstTokened ? tokens.current[firstTokened.email] : Object.values(tokens.current)[0];
-    return t ? makeApi(t) : null;
-  }, [accounts, makeApi, tokenVersion]);
+    const first = accounts.find((a) => tokens.current[a.email])?.email ?? Object.keys(tokens.current)[0];
+    const t = first ? tokens.current[first] : undefined;
+    return t ? buildApi(t, first) : null;
+  }, [accounts, buildApi, tokenVersion]);
 
   const apis = useCallback((feature?: "mail" | "cal") => {
     void tokenVersion;
     const known = accounts.length > 0 ? accounts : Object.keys(tokens.current).map((email) => ({ email, mail: true, cal: true }));
     return known
       .filter((a) => (feature ? a[feature] : true))
-      .map((a) => ({ email: a.email, api: tokens.current[a.email] ? makeApi(tokens.current[a.email]!) : null }))
+      .map((a) => ({ email: a.email, api: tokens.current[a.email] ? buildApi(tokens.current[a.email]!, a.email) : null }))
       .filter((x): x is { email: string; api: GoogleApi } => x.api !== null);
-  }, [accounts, makeApi, tokenVersion]);
+  }, [accounts, buildApi, tokenVersion]);
 
   void tokenVersion; // token changes re-render, so this read is fresh
   const hasToken = Object.keys(tokens.current).length > 0;

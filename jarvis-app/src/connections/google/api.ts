@@ -28,11 +28,33 @@ export interface GoogleApi {
   getAttachment(messageId: string, attachmentId: string): Promise<{ data: string; size: number }>;
 }
 
-type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<{
+export type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<{
   ok: boolean;
   status: number;
   json: () => Promise<unknown>;
 }>;
+
+// PLUMB-F-04 (2026-09-05): "Google access tokens are minted once at open and
+// never refreshed." An access token lives about an hour; the app stays
+// resident on the phone for days. Every method below threw on 401 and
+// humanError turned that into "Your Google sign-in expired · Reconnect in
+// Settings", where one tap on Reconnect worked instantly and silently,
+// because the server still held the refresh token the whole time. This
+// wraps the fetch every api instance uses: a 401 is met with ONE silent
+// re-mint (the same broker.silent the Reconnect chip calls) and the same
+// request replayed under the fresh token. Only when the re-mint itself comes
+// back empty does the 401 reach the caller and the sentence get said. Nothing
+// but 401 is touched: a 403 is a scope problem, a 429 a rate limit, and
+// replaying either would be noise.
+export function withSilentRefresh(doFetch: FetchLike, refresh: () => Promise<string | null>): FetchLike {
+  return async (url, init) => {
+    const res = await doFetch(url, init);
+    if (res.status !== 401) return res;
+    const fresh = await refresh().catch(() => null);
+    if (!fresh) return res;
+    return doFetch(url, { ...init, headers: { ...(init?.headers ?? {}), Authorization: "Bearer " + fresh } });
+  };
+}
 
 export function createGoogleApi(token: string, doFetch: FetchLike = fetch as unknown as FetchLike): GoogleApi {
   const auth = { headers: { Authorization: "Bearer " + token } };
