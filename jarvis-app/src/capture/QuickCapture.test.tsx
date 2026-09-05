@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import { NotesProvider, useOptionalStrands, useTasks } from "../data/NotesProvider";
+import { NotesProvider, useOptionalStrands, useTasks, useCategories } from "../data/NotesProvider";
 import { AIService } from "../ai/AIService";
 import QuickCapture from "./QuickCapture";
 import { recordCapture } from "../paste/captureLog";
@@ -23,9 +23,11 @@ beforeEach(() => localStorage.clear());
 
 let strandsRef: ReturnType<typeof useOptionalStrands> | null = null;
 let tasksRef: ReturnType<typeof useTasks> | null = null;
+let catsRef: ReturnType<typeof useCategories> | null = null;
 function CaptureStrands() {
   strandsRef = useOptionalStrands();
   tasksRef = useTasks();
+  catsRef = useCategories();
   return null;
 }
 
@@ -250,5 +252,37 @@ describe("QuickCapture: Recent Captures opens what it created (S6-Q35)", () => {
     const row = screen.getByText("Ideas for the offsite").closest(".row")!;
     expect(row).not.toHaveAttribute("role");
     fireEvent.click(row); // must not throw
+  });
+});
+
+// SHELL-F-16 (2026-09-05): the receipt's category chips were cats.slice(0, 4)
+// for row width. Every template seeds six areas, so a capture that belonged
+// in the fifth or sixth showed no active chip and could not be moved there at
+// all, which also meant the learned-rules loop could never be taught them.
+describe("QuickCapture receipt offers every area", () => {
+  it("shows all six areas, and filing under the sixth lands on the record", async () => {
+    render(
+      <NotesProvider userId="u-six-areas">
+        <CaptureStrands />
+        <QuickCapture ai={new AIService({ available: false })} onClose={() => {}} />
+      </NotesProvider>,
+    );
+    const names = ["Work", "Family", "Health", "Money", "Friends", "Personal"];
+    const ids: string[] = [];
+    await act(async () => {
+      for (const n of names) ids.push((await catsRef!.create(n, "blue"))!);
+    });
+
+    fireEvent.change(screen.getByPlaceholderText(/Paste or type/), { target: { value: "Renew the domain" } });
+    fireEvent.click(screen.getByText("Capture"));
+    await waitFor(() => expect(screen.getByText("Saved")).toBeInTheDocument());
+
+    for (const n of names) expect(screen.getByText(n)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Personal"));
+    await waitFor(async () => {
+      const t = (await tasksRef!.listTasks())[0]!;
+      expect(t.data.category).toBe(ids[5]);
+    });
   });
 });

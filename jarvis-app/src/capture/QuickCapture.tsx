@@ -248,7 +248,14 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                     </div>
                     <button className="btn-sm" onClick={() => void onUndo(s)}>Undo</button>
                   </div>
-                  <div className="chip-row">
+                  {/* SHELL-F-16 (2026-09-05): a wrapping row, because the
+                      category chips below used to be cats.slice(0, 4) for
+                      row width. Every template seeds six areas, so a capture
+                      filed under the fifth or sixth showed no active chip
+                      and could not be moved there from the receipt at all,
+                      which also meant the learned-rules loop could never be
+                      taught those areas. Same wrap the gym sheets use. */}
+                  <div className="chip-row chip-wrap-row">
                     {/* SHELL-F-02: no Brain, no Fact chip. Offering a lane
                         that cannot take the record is a chip that can only
                         refuse. */}
@@ -266,7 +273,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
                             {STRAND_CATEGORY_LABEL[c]}
                           </div>
                         ))
-                      : cats.slice(0, 4).map((c) => (
+                      : cats.map((c) => (
                           <div key={c.id} className={"chip" + (s.category === c.id ? " active" : "")} role="radio" aria-checked={s.category === c.id} tabIndex={0} onClick={() => void onCat(s, c.id)}>
                             <span className={"cat-dot cat-bg-" + c.data.color} />
                             {c.data.name}
