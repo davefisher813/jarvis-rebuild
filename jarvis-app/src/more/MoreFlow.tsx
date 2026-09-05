@@ -22,7 +22,7 @@ import LearnedRulesPage from "../settings/LearnedRulesPage";
 import type { Destination } from "../shell/destinations";
 // Admin is a hidden owner-only surface; its chunk loads on first open.
 const AdminPanel = lazyWithRecovery(() => import("../admin/AdminPanel"));
-import { createAdminApi, makeSampleAdminSource } from "../admin/AdminService";
+import { createAdminApi, adminConfigured, makeSampleAdminSource } from "../admin/AdminService";
 import { useIsAdmin } from "../admin/useIsAdmin";
 import { useAuth } from "../auth/AuthProvider";
 import { backendConfigured } from "../data/store";
@@ -55,8 +55,12 @@ export default function MoreFlow({
   const isAdmin = useIsAdmin();
   const { session } = useAuth();
   const canAdmin = !backendConfigured || isAdmin;
+  // PLUMB-F-21 (2026-09-05): isAdmin IS the probe. useIsAdmin only returns
+  // true on a 200 from /api/admin/usage, so it says the admin server is
+  // deployed and answering for this account; the panel no longer waits on a
+  // build flag nobody set to admit that.
   const adminSource = backendConfigured
-    ? createAdminApi(session?.access_token || "")
+    ? createAdminApi(session?.access_token || "", isAdmin || adminConfigured())
     : makeSampleAdminSource();
   const [route, setRoute] = useState<"hub" | MoreRoute | "terms" | "privacy" | "support" | "admin">("hub");
 

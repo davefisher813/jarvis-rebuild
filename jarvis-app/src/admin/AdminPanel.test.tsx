@@ -4,7 +4,7 @@ import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import AdminPanel from "./AdminPanel";
-import { makeSampleAdminSource, type AdminService } from "./AdminService";
+import { createAdminApi, makeSampleAdminSource, type AdminService } from "./AdminService";
 
 describe("AdminPanel", () => {
   it("blocks non-admins", () => {
@@ -34,6 +34,24 @@ describe("AdminPanel", () => {
     expect(screen.getByText("Enable")).toBeInTheDocument();
   });
 
+  // PLUMB-F-21 (2026-09-05): the row was optimistic with no rollback, so a
+  // failed disable left an account reading "disabled" that was not.
+  it("puts the row back when the server refuses the change", async () => {
+    const src: AdminService = {
+      available: true,
+      async listUsers() { return [{ id: "u1", email: "a@b.com", createdAt: "2026-01-01", plan: "Pro", status: "active", role: "user" }]; },
+      async setUserStatus() { throw new Error("admin 502"); },
+      async usage() { return { totalUsers: 1, activeUsers: 1, signups7d: 0, aiCalls30d: 0 }; },
+      async billing() { return { mrr: 0, activeSubs: 0, trialing: 0, currency: "USD" }; },
+    };
+    render(<AdminPanel isAdmin source={src} />);
+    fireEvent.click(await screen.findByText("Disable"));
+    await waitFor(() => expect(screen.getByText("admin 502")).toBeInTheDocument());
+    // The account is active, because nothing changed it.
+    expect(screen.getByText("Disable")).toBeInTheDocument();
+    expect(screen.getByText(/Pro . active/)).toBeInTheDocument();
+  });
+
   it("is honest when there is no admin server", () => {
     const src: AdminService = {
       available: false,
@@ -43,5 +61,16 @@ describe("AdminPanel", () => {
     };
     render(<AdminPanel isAdmin source={src} />);
     expect(screen.getAllByText("Live Data Needs the Admin Server").length).toBeGreaterThan(0);
+  });
+});
+
+// PLUMB-F-21 (2026-09-05): availability used to be the VITE_ADMIN_API build
+// flag and nothing else, and that flag was never set on the deployed build,
+// so a real admin was told the server was "Wired at launch" while
+// api/admin/{users,usage,billing} were live and answering.
+describe("createAdminApi availability", () => {
+  it("follows what the caller already proved, not only the build flag", () => {
+    expect(createAdminApi("tok", true).available).toBe(true);
+    expect(createAdminApi("tok", false).available).toBe(false);
   });
 });

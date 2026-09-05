@@ -41,8 +41,17 @@ export function adminConfigured(): boolean {
   return import.meta.env.VITE_ADMIN_API === "1";
 }
 
-// Real source: calls the privileged /api/admin endpoints (built at launch).
-export function createAdminApi(token: string, doFetch: FetchLike = fetch as unknown as FetchLike): AdminService {
+// Real source: calls the privileged /api/admin endpoints.
+//
+// PLUMB-F-21 (2026-09-05): `available` used to be the VITE_ADMIN_API build
+// flag alone. api/admin/{users,usage,billing} are deployed and the flag was
+// never set on the deployed build, so the panel told an admin "Live Data
+// Needs the Admin Server · Wired at launch" about a server that was right
+// there. The caller passes what it knows instead: useIsAdmin's probe is a
+// 200 from /api/admin/usage, which proves both halves at once, that the
+// endpoint exists and that this account is on the server's allowlist. The
+// flag stays as the default, for a local build pointed at a dev server.
+export function createAdminApi(token: string, available = adminConfigured(), doFetch: FetchLike = fetch as unknown as FetchLike): AdminService {
   const base = apiUrl("/api/admin");
   const auth = { headers: { Authorization: "Bearer " + token } };
   const get = async (path: string) => {
@@ -51,7 +60,7 @@ export function createAdminApi(token: string, doFetch: FetchLike = fetch as unkn
     return r.json();
   };
   return {
-    available: adminConfigured(),
+    available,
     async listUsers() { return ((await get("/users")) as { users: AdminUser[] }).users; },
     async setUserStatus(id, status) {
       const r = await doFetch(base + "/users", {

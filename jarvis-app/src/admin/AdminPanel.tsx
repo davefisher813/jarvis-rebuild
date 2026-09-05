@@ -30,10 +30,20 @@ export default function AdminPanel({ isAdmin, source, onBack }: {
     return () => { on = false; };
   }, [isAdmin, source]);
 
+  // PLUMB-F-21 (2026-09-05): the row flipped, the write failed, the error
+  // line appeared, and the row still read the way the failed write meant to
+  // leave it. On this screen that reads as an account that has been disabled
+  // and has not been.
   const toggle = async (u: AdminUser) => {
     const next = u.status === "active" ? "disabled" : "active";
+    const was = u.status;
     setUsers((xs) => xs.map((x) => (x.id === u.id ? { ...x, status: next } : x)));
-    try { await source.setUserStatus(u.id, next); } catch (e) { setError((e as Error).message || "Action failed"); }
+    try {
+      await source.setUserStatus(u.id, next);
+    } catch (e) {
+      setUsers((xs) => xs.map((x) => (x.id === u.id ? { ...x, status: was } : x)));
+      setError((e as Error).message || "Action failed");
+    }
   };
 
   if (!isAdmin) {
