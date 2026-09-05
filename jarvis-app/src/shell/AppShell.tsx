@@ -27,6 +27,7 @@ import { useAI } from "../ai/useAI";
 import { GoogleSessionProvider } from "../connections/google/GoogleSession";
 import GoogleAutoImport from "../connections/google/AutoImport";
 import TodayOutboxPump from "../messages/TodayOutboxPump";
+import MailOutboxPump from "../messages/MailOutboxPump";
 import MailSnapshotPump from "../messages/MailSnapshotPump";
 
 // Heavier, less-visited surfaces load on demand so the startup bundle stays
@@ -302,6 +303,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
     <GoogleSessionProvider>
     <GoogleAutoImport />
     <TodayOutboxPump />
+    {/* EMAIL-F-01 (2026-09-05): the Email tab's own outbox (Send, Schedule
+        Send, Send & Next) is pumped here, where nothing unmounts on a tab
+        switch, instead of inside MessagesFlow, which does. */}
+    <MailOutboxPump ai={ai} />
     <MailSnapshotPump />
     <div className="app-shell">
       <div className="app-scroll">

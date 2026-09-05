@@ -28,7 +28,7 @@ import { Burst } from "../shared/Burst";
 import { useOptionalSession } from "../auth/AuthProvider";
 import { shortDateFromMs } from "../shared/dateFormat";
 import { findWaiting, waitingLine, nudgePrompt, type WaitingRow } from "./waiting";
-import { loadTracks, saveTrack, trackForThread, newTrackId, pixelUrlFor, registerTrack, checkOpens } from "./tracking";
+import { loadTracks, trackForThread, newTrackId, checkOpens } from "./tracking";
 import { loadNetted, saveNetted, netCandidates, guardLine, seedFirstRun } from "./safetyNet";
 import { madeBy } from "../shared/provenance";
 import { effectiveLevel } from "../ai/aiGate";
@@ -38,8 +38,8 @@ import MailHtmlView from "./MailHtmlView";
 import { recordToss, markAsked, tossOffer, tossLine, loadTossed, loadAsked } from "./selfClean";
 import { sweepCandidates, sweepTitle, sweepSub, sweepReceipt, type SweepCandidate } from "./unsubSweep";
 import { PRESETS, loadMinutes, saveMinutes, clampMinutes } from "./drain";
-import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, handoffLine, type HandoffTarget } from "./handoff";
-import { COMMITMENT_SYSTEM, commitmentPrompt, parseCommitment, alreadyPromised, markPromised, commitmentLine, loadPromised } from "./commitments";
+import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, type HandoffTarget } from "./handoff";
+import { alreadyPromised, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import { settleAll, settleLine, type SettleWords } from "./settle";
 import { recordSweepDay, loadSweepDays, streakView, receiptLines, sweepEstimate, type SweepReceipts } from "./sweep";
@@ -78,11 +78,11 @@ const RESTORE_WORDS: SettleWords = {
   did: "back in your inbox", doing: "put those back", stuck: "still archived in Gmail",
 };
 import { inboxSentence } from "./inboxBrief";
-import { dueChases, loadChases, clearChase, setChase, CHASE_DAYS, CHASE_DEFAULT } from "./followUp";
+import { dueChases, loadChases, CHASE_DAYS, CHASE_DEFAULT } from "./followUp";
 import { loadVips, toggleVip, isVip, applyVips, vipLine, VIP_MAX } from "./vip";
 import { mailSnapshot, hydrateMailFromProfile } from "./mailSync";
 import { collapseNoise, collapseLine } from "./collapse";
-import { loadNudgeCounts, countNudge } from "./escalate";
+import { loadNudgeCounts } from "./escalate";
 import { decide, type Decision, type MailAction } from "./mailAction";
 import MailMoreSheet from "./MailMoreSheet";
 import { phoneBook, phoneFor, telLink, smsLink, colleagueBook, altFor, firstName,
@@ -95,7 +95,9 @@ import { loadLetGo, letGo, undoLetGo } from "./letGo";
 import { closeCandidates, closeLine, amnestyDue, amnestyLine, amnestyPromise, markClosed, lastClose } from "./weeklyClose";
 import { speakable, canSpeak, speak, stopSpeaking } from "./readAloud";
 import { attachOffer, amountIn } from "./attachmentKind";
-import { loadOutbox, saveOutbox, holdUntil, dueNow, sendSlots, holdLine, whenLabel, type OutboxItem } from "./outbox";
+import { enqueueOutbox, removeFromOutbox, patchOutbox, holdUntil, sendSlots, holdLine, whenLabel, type OutboxItem } from "./outbox";
+import { useOutbox } from "./useOutbox";
+import { subscribeSent } from "./sendPump";
 import { loadWindows, saveWindows, isOpenNow, closedLine, peekLine, type WindowSettings } from "./batching";
 import WindowsSheet from "./WindowsSheet";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
@@ -238,15 +240,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     [gatherContext],
   );
   const authToken = token ?? session?.access_token;
-  // Open tracking is a setting now (2026-08-09), not a constant. Loaded once;
-  // missing provider or profile means the default (on), matching history.
+  // Open tracking is a setting (2026-08-09), not a constant; EMAIL-F-01
+  // moved its read to MailOutboxPump, which is where the pixel is now added.
   const profileSvc = useOptionalProfile();
-  const [trackOpens, setTrackOpens] = useState(true);
-  useEffect(() => {
-    let on = true;
-    profileSvc?.get().then((p) => { if (on) setTrackOpens(p?.trackOpens !== false); }).catch(() => {});
-    return () => { on = false; };
-  }, [profileSvc]);
   const [view, setView] = useState<View>("list");
   // A PUSHED SCREEN STARTS AT THE TOP (2026-08-25, caught by a browser walk
   // of the Clean Out). Nothing in the app resets scroll between views, so
@@ -1257,137 +1253,43 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // outbox module (outbox.ts) was written for exactly this, tested, and
   // never wired to anything but its HOLD_SECONDS constant. It is wired here.
   //
-  // QueuedSend is a superset of OutboxItem: handoffTo and editingDraftId are
-  // MessagesFlow-only bookkeeping the pure module has no reason to know
-  // about, kept alongside the fields it does (round-trips through
-  // load/saveOutbox fine; both only ever read the fields they declare).
-  //
-  // deckVerbatim (S2-2, 2026-09-04) distinguishes DeckFlow's own Send & Next
-  // (queued here now too) from a compose send that started life as a deck
-  // draft but was edited first (fromDeck alone used to mean only that). Both
-  // set fromDeck, so the voice metric below needs the second flag to tell a
-  // verbatim send (flag: false) from an edited one (flag: true).
-  type QueuedSend = OutboxItem & { handoffTo?: string; editingDraftId?: string; deckVerbatim?: boolean };
-  const [outbox, setOutbox] = useState<QueuedSend[]>(() => loadOutbox() as QueuedSend[]);
-  const outboxRef = useRef(outbox);
-  useEffect(() => {
-    outboxRef.current = outbox;
-    saveOutbox(outbox);
-  }, [outbox]);
-  // Ids currently being sent, so a pump tick can never pick the same item up
-  // twice while its network call is still in flight (a double send is worse
-  // than a slow one).
-  const inFlight = useRef(new Set<string>());
+  // EMAIL-F-01 (2026-09-05): "Send and Schedule Send only leave while the
+  // Email tab is open." The queue was React state here and the pump was an
+  // effect here, and AppShell unmounts this component on every tab switch
+  // (AppShell.tsx: `{active === "messages" && <MessagesFlow/>}`), so a held
+  // send only left if he stayed on this tab for twelve seconds, and a
+  // Schedule Send fired whenever Email was next opened after its moment.
+  // todayOutbox.ts diagnosed this exact failure a day earlier and built a
+  // second always-mounted pump for the Today card's sends; the original
+  // queue kept the tab-local one. Now: outbox.ts is a module-level store,
+  // MailOutboxPump (mounted once in AppShell, beside TodayOutboxPump) does
+  // the sending through sendPump.ts, and this tab only SUBSCRIBES, for its
+  // hold cards. Everything processSend used to read from this component's
+  // closure (chaseDays, whether the thread was on Waiting On, the draft id,
+  // the handoff name, the deck flag) rides on the queued item instead.
+  const outbox = useOutbox();
   // Schedule Send popover on the compose screen: a handful of human slots
   // (sendSlots), never a raw date/time picker.
   const [showSchedule, setShowSchedule] = useState(false);
 
-  // The actual send, plus every side effect the old doSend carried: draft
-  // cleanup, the commitment catcher, the chase timer, the handoff move, the
-  // nudge count, the sent toast. All of it reads from the QUEUED item's own
-  // fields (or live settings/services in closure), never from `draft`, which
-  // may already belong to a different, later compose by the time this runs.
-  const processSend = useCallback(async (item: QueuedSend) => {
-    const api = apiFor(item.account);
-    if (!api) {
-      // Not connected right now is not necessarily final (a token refresh,
-      // a moment offline): revert to held so the next tick tries again,
-      // rather than leaving the item stuck showing "Sending" forever with
-      // no Undo, Send Now, or Retry able to touch it (dueNow only ever
-      // looks at held items).
-      setOutbox((obs) => obs.map((o) => (o.id === item.id ? { ...o, state: "held" } : o)));
-      inFlight.current.delete(item.id);
-      return;
+  // What this screen still owes once a message has ACTUALLY left: the sent
+  // draft leaves the Drafts list, the ladder count refreshes, a handed-off
+  // thread leaves the inbox rows and Waiting On reloads. The pump does the
+  // Gmail side of each of those; this is the on-screen half, and it simply
+  // does not run when the tab is not mounted, which is correct -- the next
+  // mount loads fresh.
+  useEffect(() => subscribeSent((item, sent) => {
+    if (item.editingDraftId) {
+      const id = item.editingDraftId;
+      setDrafts((ds) => ds.filter((d) => d.id !== id));
     }
-    try {
-      const raw = encodeEmail({
-        to: item.to, cc: item.cc, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
-        attachment: item.attachment,
-        ...(trackOpens ? { pixelUrl: pixelUrlFor(item.trackId ?? newTrackId()) } : {}),
-      });
-      const sent = await api.sendMessage(raw, item.threadId);
-      if (trackOpens && item.trackId) {
-        saveTrack(item.trackId, { threadId: sent.threadId || item.threadId || sent.id, sentAt: Date.now() });
-        void registerTrack(item.trackId, authToken);
-      }
-      // The honest voice metric: sent exactly as drafted (deckVerbatim, from
-      // DeckFlow's own Send & Next) gets flag: false; a deck draft that
-      // needed editing before compose sent it gets flag: true. Durable
-      // EventType since 2026-08-07; S2-2 (2026-09-04) moved the deck-verbatim
-      // half of this here too, so a send that fails or gets Undone never
-      // counts either way.
-      if (item.fromDeck) emit({ type: "email.deck_sent", props: { flag: !item.deckVerbatim } });
-      emit({ type: "email.handled", props: { kind: "reply" } });
-      if (item.editingDraftId) {
-        const id = item.editingDraftId;
-        setDrafts((ds) => ds.filter((d) => d.id !== id));
-        void (async () => {
-          const { failed } = await settleAll([id], () => api.deleteDraft(id));
-          if (failed.length) say("Sent · The old draft is still in your drafts");
-        })();
-      }
-      if (item.threadId && chaseDays > 0) {
-        setChase({ threadId: item.threadId, to: item.to, subject: item.subject, setISO: todayISO(), days: chaseDays });
-      }
-      const nudged = item.threadId && waiting.some((w) => w.threadId === item.threadId);
-      if (nudged) setNudgeCounts(countNudge(item.threadId!));
-      if (item.threadId) clearChase(item.threadId);
-      const threadForPromise = item.threadId || sent.threadId;
-      if (tasks && ai.available && !item.handoffTo && threadForPromise && !alreadyPromised(threadForPromise)) {
-        const today = todayISO();
-        void (async () => {
-          try {
-            const raw2 = await ai.complete([{ role: "user", content: commitmentPrompt(item.body, today) }], COMMITMENT_SYSTEM);
-            const c = parseCommitment(raw2, today);
-            if (!c) return;
-            markPromised(threadForPromise);
-            await tasks.createTask(c.text, { due: c.due ?? null, source: madeBy("email", threadForPromise) });
-            emit({ type: "action", props: { name: "email.commitment.caught" } });
-            setToast(commitmentLine(c, todayISO()));
-            setTimeout(() => setToast(null), 4000);
-          } catch { /* a missed catch is silent; a wrong task is not */ }
-        })();
-      }
-      if (item.handoffTo) {
-        const tid = item.threadId || sent.threadId;
-        if (tid) {
-          setRows((rs) => rs.filter((r) => r.id !== tid));
-          void (async () => {
-            const { failed } = await settleAll([tid], () => apiFor(item.account)?.modifyThread(tid, [], ["INBOX"]));
-            if (failed.length) say("Handed off · Still in your inbox");
-          })();
-        }
-        void loadWaiting();
-        emit({ type: "action", props: { name: "email.handoff" } });
-        setToast(handoffLine(item.handoffTo));
-      } else {
-        setToast("Sent");
-      }
-      setTimeout(() => setToast(null), item.handoffTo ? 3000 : 2000);
-      setOutbox((obs) => obs.filter((o) => o.id !== item.id));
-    } catch (e) {
-      setOutbox((obs) => obs.map((o) => (o.id === item.id ? { ...o, state: "failed", error: humanError(e, "Could not send") } : o)));
-    } finally {
-      inFlight.current.delete(item.id);
+    if (item.nudge) setNudgeCounts(loadNudgeCounts());
+    if (item.handoffTo) {
+      const tid = item.threadId || sent.threadId;
+      if (tid) setRows((rs) => rs.filter((r) => r.id !== tid));
+      void loadWaiting();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trackOpens, authToken, chaseDays, waiting, tasks, ai, g]);
-
-  // The pump: once a second, whatever is due (held past its dueMs, or a
-  // scheduled send whose moment arrived) actually goes. Native to this
-  // effect surviving a reload is the whole point of persisting outbox to
-  // storage above, rather than keeping it only in a timer's closure.
-  useEffect(() => {
-    const t = setInterval(() => {
-      for (const item of dueNow(outboxRef.current, Date.now())) {
-        if (inFlight.current.has(item.id)) continue;
-        inFlight.current.add(item.id);
-        setOutbox((obs) => obs.map((o) => (o.id === item.id ? { ...o, state: "sending" } : o)));
-        void processSend(item as QueuedSend);
-      }
-    }, 1000);
-    return () => clearInterval(t);
-  }, [processSend]);
+  }), []);
 
   // Queues the current compose, held for the standard window, and returns to
   // the list where its hold banner lives. `scheduledAt` overrides the hold
@@ -1395,7 +1297,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const send = (scheduledAt?: number) => {
     if (!draft.to.trim()) { setError("Add a recipient"); return; }
     setError(null);
-    const item: QueuedSend = {
+    const item: OutboxItem = {
       id: newTrackId(),
       account: draft.account,
       to: draft.to.trim(),
@@ -1412,8 +1314,13 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       state: "held",
       handoffTo: draft.handoffTo,
       editingDraftId: editingDraftId ?? undefined,
+      chaseDays: draft.threadId ? chaseDays : 0,
+      // The ladder climbs on what was actually SENT (escalate.ts's law), and
+      // "was this a nudge" is decided by the thread being on Waiting On at
+      // the moment he sent, not twelve seconds later.
+      nudge: !!draft.threadId && waiting.some((w) => w.threadId === draft.threadId),
     };
-    setOutbox((obs) => [...obs, item]);
+    enqueueOutbox(item);
     setView("list");
   };
 
@@ -1421,7 +1328,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // change -- the Sweep advances the card itself the moment it calls this;
   // only the mail's actual departure is held.
   const queueDeckSend = (input: { to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; account?: string }) => {
-    const item: QueuedSend = {
+    enqueueOutbox({
       id: newTrackId(),
       account: input.account,
       to: input.to,
@@ -1435,8 +1342,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       dueMs: holdUntil(Date.now()),
       scheduled: false,
       state: "held",
-    };
-    setOutbox((obs) => [...obs, item]);
+    });
   };
 
   // Undo (still held) and Edit (already failed) are the same move: pull the
@@ -1446,21 +1352,21 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const pullBackToCompose = (id: string) => {
     const item = outbox.find((o) => o.id === id);
     if (!item) return;
-    setOutbox((obs) => obs.filter((o) => o.id !== id));
+    removeFromOutbox(id);
     setDraft({
       to: item.to, cc: item.cc, subject: item.subject, body: item.body, inReplyTo: item.inReplyTo,
       threadId: item.threadId, fromDeck: item.fromDeck, account: item.account, handoffTo: item.handoffTo,
       attachment: item.attachment,
     });
     setEditingDraftId(item.editingDraftId ?? null);
+    if (item.chaseDays !== undefined) setChaseDays(item.chaseDays);
     setView("compose");
   };
 
   // Send Now: skip the rest of the hold. Retry: a failed item goes straight
   // back to held, due immediately, so the pump picks it up on its next tick.
-  const sendNowFor = (id: string) => setOutbox((obs) => obs.map((o) => (o.id === id ? { ...o, dueMs: Date.now() } : o)));
-  const retrySend = (id: string) =>
-    setOutbox((obs) => obs.map((o) => (o.id === id ? { ...o, state: "held", dueMs: Date.now(), error: undefined } : o)));
+  const sendNowFor = (id: string) => patchOutbox(id, { dueMs: Date.now() });
+  const retrySend = (id: string) => patchOutbox(id, { state: "held", dueMs: Date.now(), error: undefined });
 
   const openThread = async (id: string) => {
     const api = apiFor(accountOfThread(id));

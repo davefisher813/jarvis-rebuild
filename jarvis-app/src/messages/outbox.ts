@@ -49,6 +49,26 @@ export interface OutboxItem {
   scheduled: boolean;
   state: OutboxState;
   error?: string;
+  // EMAIL-F-01 (2026-09-05): everything the send's side effects need rides
+  // ON the item now, because the pump that performs them no longer lives in
+  // the screen that queued it (see sendPump.ts). These used to be read from
+  // MessagesFlow's closure at send time, which only worked while that tab
+  // was mounted.
+  //   handoffTo: the person's name, when this is a Hand This to Someone;
+  //     the thread archives once it has actually left.
+  //   editingDraftId: the Gmail draft this compose started from; deleted
+  //     once the message has actually left, never during the hold.
+  //   deckVerbatim: DeckFlow's own Send & Next, sent exactly as drafted
+  //     (the voice metric's honest flag; see MessagesFlow's S2-2 note).
+  //   chaseDays: the Chase If No Reply setting at the moment he tapped Send.
+  //     0 means off.
+  //   nudge: the thread was on Waiting On when he sent, so this send climbs
+  //     the escalation ladder; a plain reply does not.
+  handoffTo?: string;
+  editingDraftId?: string;
+  deckVerbatim?: boolean;
+  chaseDays?: number;
+  nudge?: boolean;
 }
 
 const KEY = "jarvis.mail.outbox.v1";
@@ -66,6 +86,59 @@ export function loadOutbox(storage: Pick<Storage, "getItem"> = localStorage): Ou
 
 export function saveOutbox(items: OutboxItem[], storage: Pick<Storage, "setItem"> = localStorage): void {
   try { storage.setItem(KEY, JSON.stringify(items)); } catch { /* private mode */ }
+}
+
+// THE ONE TRUE QUEUE (EMAIL-F-01, 2026-09-05): "Send and Schedule Send only
+// leave while the Email tab is open." The queue used to be React state
+// inside MessagesFlow, pumped by an effect there, and AppShell unmounts that
+// component on every tab switch: tap Send, see "Sending in 12", tap Today,
+// and the mail sat in localStorage until the Email tab was next opened.
+// todayOutbox.ts diagnosed exactly this a day earlier and built its own
+// always-mounted pump for the Today card's sends; this is the same idiom
+// (module-level state, subscribers, same as shared/toast.ts) applied to the
+// original queue, so the pump (MailOutboxPump, mounted once in AppShell) and
+// the screen that renders the hold cards (MessagesFlow) see one list rather
+// than two copies of it. Every write goes through commit, which persists and
+// notifies in the same breath.
+let items: OutboxItem[] | null = null;
+const subs = new Set<(items: OutboxItem[]) => void>();
+
+function commit(next: OutboxItem[]): void {
+  items = next;
+  saveOutbox(next);
+  subs.forEach((s) => s(next));
+}
+
+export function getOutbox(): OutboxItem[] {
+  if (items === null) items = loadOutbox();
+  return items;
+}
+
+export function subscribeOutbox(fn: (items: OutboxItem[]) => void): () => void {
+  subs.add(fn);
+  fn(getOutbox());
+  return () => { subs.delete(fn); };
+}
+
+export function enqueueOutbox(item: OutboxItem): void {
+  commit([...getOutbox(), item]);
+}
+
+export function removeFromOutbox(id: string): void {
+  commit(getOutbox().filter((i) => i.id !== id));
+}
+
+// A partial write to one item. `error: undefined` in the patch clears the
+// field (Retry uses it); JSON drops the key on the way to storage.
+export function patchOutbox(id: string, patch: Partial<OutboxItem>): void {
+  commit(getOutbox().map((i) => (i.id === id ? { ...i, ...patch } : i)));
+}
+
+// Test-only: forgets the in-memory list so one test's queued sends cannot
+// leak into the next (localStorage.clear() alone cannot reach this cache).
+export function resetOutboxForTest(): void {
+  items = null;
+  subs.forEach((s) => s(getOutbox()));
 }
 
 export function holdUntil(nowMs: number, seconds = HOLD_SECONDS): number {

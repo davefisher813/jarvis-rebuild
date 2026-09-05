@@ -3,7 +3,7 @@ import { useGoogle } from "../connections/google/GoogleSession";
 import type { GoogleApi } from "../connections/google/api";
 import { encodeEmail } from "../connections/google/map";
 import { humanError } from "../connections/google/humanError";
-import { dueNow, loadOutbox, saveOutbox, type OutboxItem } from "./outbox";
+import { dueNow, enqueueOutbox, type OutboxItem } from "./outbox";
 import { getTodayOutbox, removeTodaySend, markTodaySendState, type TodaySend } from "./todayOutbox";
 import { countNudge } from "./escalate";
 import { clearChase } from "./followUp";
@@ -38,13 +38,17 @@ export async function processTodaySend(item: TodaySend, api: GoogleApi | null): 
   } catch (e) {
     // Never silently lost: it graduates into the real outbox -- the one
     // MessagesFlow renders with Retry and Edit -- the same recovery S2-1
-    // already built and tested, reused rather than reinvented.
+    // already built and tested, reused rather than reinvented. EMAIL-F-01:
+    // through the store, so an Email tab that is mounted sees the card land
+    // without a reload. It lands FAILED, never held, so MailOutboxPump only
+    // ever touches it after a tap on Retry: the two pumps never race for one
+    // item.
     const failed: OutboxItem = {
       id: item.id, account: item.account, to: item.to, subject: item.subject, body: item.body,
       inReplyTo: item.inReplyTo, threadId: item.threadId, dueMs: item.dueMs, scheduled: false,
       state: "failed", error: humanError(e, "Could not send"),
     };
-    saveOutbox([...loadOutbox(), failed]);
+    enqueueOutbox(failed);
     showToast({ message: "Couldn't send · In your email outbox to retry" });
     removeTodaySend(item.id);
   }

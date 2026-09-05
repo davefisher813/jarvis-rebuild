@@ -14,8 +14,10 @@ import { makeFakeGoogleApi } from "../connections/google/fakeApi";
 import { AIService } from "../ai/AIService";
 import type { GmailMeta, GmailThreadMeta } from "../connections/google/map";
 import MessagesFlow from "./MessagesFlow";
+import MailOutboxPump from "./MailOutboxPump";
+import ToastHost from "../shared/ToastHost";
 import { saveMailSnapshot, loadMailSnapshot } from "./home";
-import { loadOutbox } from "./outbox";
+import { loadOutbox, resetOutboxForTest } from "./outbox";
 
 const noAI = new AIService({ available: false });
 
@@ -57,10 +59,18 @@ function makeApi(o: Parameters<typeof makeFakeGoogleApi>[0] = {}) {
   });
 }
 
+// EMAIL-F-01 (2026-09-05): the send pump lives in AppShell now, not in
+// MessagesFlow, so the wrapper mounts it the way AppShell does (beside the
+// tab, inside the same GoogleSessionProvider), plus the app's ToastHost,
+// because "Sent" is the app-wide toast now rather than a line the tab owns.
 function wrap(node: React.ReactNode, api = makeApi()) {
   return (
     <NotesProvider userId="u1">
-      <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}>{node}</GoogleSessionProvider>
+      <GoogleSessionProvider requestToken={async () => "tok"} makeApi={() => api}>
+        <MailOutboxPump ai={noAI} />
+        <ToastHost />
+        {node}
+      </GoogleSessionProvider>
     </NotesProvider>
   );
 }
@@ -99,7 +109,7 @@ function wrapWithNotes(node: React.ReactNode, onNotes: (n: NotesService) => void
   );
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => { localStorage.clear(); resetOutboxForTest(); });
 
 describe("MessagesFlow (threads)", () => {
   it("connects and lists threads: latest sender's voice, first message's subject, count", async () => {
