@@ -161,9 +161,15 @@ export default function TasksFlow({ openId, openFilter, onOpenNote, onWhatNow, t
           return;
         }
         try { localStorage.setItem("jarvis.setaside.last", today); } catch { /* ok */ }
-        await reload();
+        // LIFE-F-13 (2026-09-05): the second clause used to be the fixed
+        // string "Nothing overdue" while the Overdue filter still held every
+        // task 1 to 14 days late plus every overdue bill (setAsideCandidates
+        // only takes quiet ones over 14 days, lifecycle.ts:20-29). It is
+        // counted off the reloaded list now, and says nothing when nothing
+        // is left.
+        const left = partition(await reload(), today).overdue.length;
         showToast({
-          message: `Set aside ${ids.length} quiet ${ids.length === 1 ? "task" : "tasks"} · Nothing overdue`,
+          message: `Set aside ${ids.length} quiet ${ids.length === 1 ? "task" : "tasks"}` + (left > 0 ? ` · ${left} still overdue` : ""),
           actionLabel: "Undo",
           onAction: async () => { await attemptWrite(() => svc.restoreAside(ids)); await reload(); },
         });

@@ -8,6 +8,7 @@ import type { TasksService } from "./TasksService";
 import type { NotesService } from "../notes/NotesService";
 import TasksFlow from "./TasksFlow";
 import { todayISO } from "./grouping";
+import { subscribeToast } from "../shared/toast";
 
 // LIFE-F-01 (2026-09-05): "Swipe Tomorrow re-dates the task to TODAY for
 // anyone east of UTC." TasksFlow computed tomorrow by serialising local
@@ -140,5 +141,43 @@ describe("TasksFlow area filter (LIFE-F-11)", () => {
       const left = await areaSvc!.listTasks();
       expect(left.map((t) => t.data.text).sort()).toEqual(["Home done one", "Home done three", "Home done two"]);
     });
+  });
+});
+
+// LIFE-F-13 (2026-09-05): the Set Aside receipt ended in the fixed string
+// "Nothing overdue" while everything 1 to 14 days late was still sitting in
+// the Overdue filter. The count is read off the reloaded list now.
+
+const toasts: string[] = [];
+
+function daysAgo(n: number): string {
+  const d = new Date(); d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function SeededAncient() {
+  const tasks = useTasks();
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    (async () => {
+      await tasks.createTask("Ancient paperwork", { due: daysAgo(40) });
+      await tasks.createTask("Call the roofer", { due: daysAgo(3) });
+      setReady(true);
+    })();
+  }, [tasks]);
+  return ready ? <TasksFlow openFilter="overdue" /> : null;
+}
+
+describe("TasksFlow set aside receipt (LIFE-F-13)", () => {
+  it("names what is still overdue instead of claiming nothing is", async () => {
+    localStorage.removeItem("jarvis.setaside.last");
+    const stop = subscribeToast((t) => { if (t) toasts.push(t.message); });
+    try {
+      render(<NotesProvider userId="aside-life-13"><SeededAncient /></NotesProvider>);
+      await waitFor(() => expect(toasts.some((m) => m.startsWith("Set aside"))).toBe(true));
+      expect(toasts.find((m) => m.startsWith("Set aside"))).toBe("Set aside 1 quiet task · 1 still overdue");
+    } finally {
+      stop();
+    }
   });
 });
