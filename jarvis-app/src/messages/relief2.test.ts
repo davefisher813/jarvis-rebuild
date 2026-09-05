@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { handoffTargets, defaultNote, forwardSubject, handoffLine, handoffPrompt } from "./handoff";
+import { handoffTargets, defaultNote, forwardSubject, forwardDraft, handoffLine, handoffPrompt } from "./handoff";
 import { parseCommitment, commitmentLine, alreadyPromised, markPromised } from "./commitments";
 import { todayEmailLine, needsYouCount, type TriageMap } from "./triage";
 
@@ -57,6 +57,23 @@ describe("hand off", () => {
     expect(forwardSubject("Invoice")).toBe("Fwd: Invoice");
     expect(forwardSubject("Fwd: Invoice")).toBe("Fwd: Invoice");
     expect(forwardSubject("FW: Invoice")).toBe("FW: Invoice");
+  });
+
+  // EMAIL-F-20 (2026-09-05): "Forward It from More Moves opens an empty
+  // compose." The waiting row's forward set a subject and left the body empty,
+  // so nothing was forwarded unless he pasted it himself. Both forwards build
+  // the draft here now, from the message the thread actually holds.
+  it("a forward carries the message, under a rule, with room to write above it", () => {
+    const d = forwardDraft({ subject: "Waiver", body: "Need the waiver by Friday" });
+    expect(d.to).toBe("");
+    expect(d.subject).toBe("Fwd: Waiver");
+    expect(d.body).toBe("\n\n---------- Forwarded ----------\nNeed the waiver by Friday");
+  });
+
+  it("a forwarded body is cleaned the way the reader sees it, not the raw plumbing", () => {
+    const d = forwardDraft({ subject: "Fwd: Sale", body: "Shop now ( https://x.com/track?id=9 )" });
+    expect(d.subject).toBe("Fwd: Sale");
+    expect(d.body).not.toContain("https://");
   });
 
   it("tells him who has it now", () => {

@@ -38,7 +38,7 @@ import MailHtmlView from "./MailHtmlView";
 import { recordToss, markAsked, tossOffer, tossLine, loadTossed, loadAsked } from "./selfClean";
 import { sweepCandidates, sweepTitle, sweepSub, sweepReceipt, type SweepCandidate } from "./unsubSweep";
 import { PRESETS, loadMinutes, saveMinutes, clampMinutes } from "./drain";
-import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, type HandoffTarget } from "./handoff";
+import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, forwardDraft, type HandoffTarget } from "./handoff";
 import { alreadyPromised, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import { settleAll, settleLine, type SettleWords } from "./settle";
@@ -955,17 +955,24 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         if (alt) await startNudge(row, a, alt.email);
         return;
       }
-      case "forward":
+      case "forward": {
+        // EMAIL-F-20 (2026-09-05): "Forward It from More Moves opens an empty
+        // compose." The label says "Starts a forward" and this opened a blank
+        // one: the waiting row carries a subject and no body, and this case
+        // never fetched the thread the way startNudge two cases up does. It
+        // fetches now, and hands the same body shape the detail view's
+        // Forward builds, so the two buttons cannot behave differently.
+        const api = apiFor(row.account);
+        if (!api) return;
+        const full = mapThreadFull(await api.getThread(row.threadId));
+        const m = full.messages[full.messages.length - 1];
+        if (!m) return;
         setEditingDraftId(null);
         setThread(null);
-        setDraft({
-          to: "",
-          subject: "Fwd: " + (row.subject ?? "").replace(/^(re|fwd):\s*/i, ""),
-          body: "",
-          account: row.account,
-        });
+        setDraft({ ...forwardDraft(m), account: row.account });
         setView("compose");
         return;
+      }
       case "add_bill": {
         const amount = amountIn(row.subject ?? "");
         // Silent returns, both of them (2026-08-25). A label that promises
@@ -1942,7 +1949,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const startForward = (t: ThreadFull) => {
     const m = lastMsg(t);
     setEditingDraftId(null);
-    setDraft({ to: "", subject: /^fwd:/i.test(m.subject) ? m.subject : "Fwd: " + m.subject, body: "\n\n---------- Forwarded ----------\n" + m.body, account: accountOfThread(t.id) });
+    // EMAIL-F-20: the same shape the waiting row's Forward It uses.
+    setDraft({ ...forwardDraft(m), account: accountOfThread(t.id) });
     setView("compose");
   };
   // Hand off. Opens the people list; picking a person drafts the note and puts

@@ -1,4 +1,5 @@
 import { JARVIS_VOICE } from "../ai/voice";
+import { cleanBody } from "./bodyText";
 
 // Hand off: not everything in your inbox is yours.
 //
@@ -65,6 +66,22 @@ export function handoffPrompt(target: HandoffTarget, subject: string, gist: stri
 // The subject a forwarded thread carries. Never stacks Fwd: on Fwd:.
 export function forwardSubject(subject: string): string {
   return /^fwd?:/i.test(subject.trim()) ? subject.trim() : "Fwd: " + subject.trim();
+}
+
+// EMAIL-F-20 (2026-09-05): "Forward It from More Moves opens an empty
+// compose." There were two forwards: the detail view's, which carried the
+// message, and the waiting row's, which set a subject and an empty body
+// because a waiting row has no body to carry. One shape, in one place, so a
+// forward means the same thing wherever it is started from. The blank line
+// above the rule is where he writes.
+export const FORWARD_RULE = "---------- Forwarded ----------";
+
+export function forwardDraft(m: { subject: string; body: string }): { to: string; subject: string; body: string } {
+  return {
+    to: "",
+    subject: forwardSubject(m.subject),
+    body: "\n\n" + FORWARD_RULE + "\n" + cleanBody(m.body),
+  };
 }
 
 // What the user is told afterwards. It names the person, because the point of
