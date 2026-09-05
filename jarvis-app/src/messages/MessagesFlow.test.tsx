@@ -311,6 +311,40 @@ describe("MessagesFlow (threads)", () => {
     expect(screen.queryByText("Nothing you wrote covers that")).toBeNull();
   });
 
+  // EMAIL-F-09 (2026-09-05): "Detail-view Archive is a silent no-op for any
+  // thread not in the loaded inbox list." archiveThread looked the row up in
+  // `rows` only; a search hit lives in `results`, so the screen popped back
+  // to the list with no toast, no Undo, and the thread still in the inbox.
+  it("archiving an opened search hit really archives it, with the toast and Undo the list gets", async () => {
+    const hitFull = { id: "t9", messages: [
+      { id: "m9", threadId: "t9", snippet: "", payload: { mimeType: "text/plain", body: { data: btoa("Operating agreement attached") },
+        headers: [{ name: "From", value: "Sarah <s@x.com>" }, { name: "Subject", value: "LLC docs" }, { name: "Date", value: "Mon" }, { name: "Message-ID", value: "<c@x>" }] } },
+    ] };
+    const calls: string[] = [];
+    const api = makeApi({
+      searchThreads: async () => [{ id: "t9", messages: [msg("m9", "Sarah <s@x.com>", "LLC docs", "Operating agreement", [], 50)] }],
+      getThread: async (id: string) => (id === "t9" ? hitFull : fullThread),
+      modifyThread: async (id, add, remove) => {
+        if (remove.includes("INBOX")) calls.push("archive:" + id);
+        if (add.includes("INBOX")) calls.push("restore:" + id);
+      },
+    });
+    render(wrap(<MessagesFlow ai={noAI} configured />, api));
+    fireEvent.click(await screen.findByText("Connect Google"));
+    await screen.findByText("Ridgeley");
+    fireEvent.change(screen.getByPlaceholderText("Search All Mail"), { target: { value: "llc" } });
+    fireEvent.keyDown(screen.getByPlaceholderText("Search All Mail"), { key: "Enter" });
+    fireEvent.click(await screen.findByText("Sarah"));
+    expect(await screen.findByText("Operating agreement attached")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Archive"));
+    await waitFor(() => expect(calls).toContain("archive:t9"));
+    expect(await screen.findByText("Archived")).toBeInTheDocument();
+    // Gone from the results list, and Undo puts it back in Gmail.
+    expect(screen.queryByText("Sarah")).toBeNull();
+    fireEvent.click(screen.getByText("Undo"));
+    await waitFor(() => expect(calls).toContain("restore:t9"));
+  });
+
   it("triage failure lands on a calm state, never the wall and never an invented sort", async () => {
     const ai = aiReturning("I refuse to answer with JSON today.");
     render(wrap(<MessagesFlow ai={ai} configured />));

@@ -1163,7 +1163,10 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // The api for a specific account, falling back to any live one so legacy
   // single-account data (no account tag) keeps working.
   const apiFor = (account?: string) => (account ? g.api(account) : null) ?? g.api();
-  const accountOfThread = (id: string) => rows.find((r) => r.id === id)?.account;
+  // EMAIL-F-09: search hits know their account too (runSearch tags them the
+  // same way loadThreads does), so a thread opened from a hit is read,
+  // archived and trashed through the account it actually lives in.
+  const accountOfThread = (id: string) => rows.find((r) => r.id === id)?.account ?? results?.find((r) => r.id === id)?.account;
 
   // Fans out across EVERY mail account (2026-08-09): it used to quietly
   // cover only the first, so a hit in the second account came back as "No
@@ -1521,10 +1524,43 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // Detail-view archive rides the list row's path (2026-08-09): the same
   // gesture used to teach two contracts, toast+Undo from the list and dead
   // silence from the open thread.
+  //
+  // EMAIL-F-09 (2026-09-05): "Detail-view Archive is a silent no-op for any
+  // thread not in the loaded inbox list." It looked the row up in `rows`
+  // only; search hits live in `results` (most are older than the 30 loaded
+  // inbox threads), and a thread opened from a What Did I Say hit or the
+  // curtain's VIP list after a reload has no row anywhere. Tapping Archive
+  // popped back to the list with no toast, no Undo, and the thread still in
+  // the inbox. Now: `results` is searched too, and failing both, a minimal
+  // ThreadRow is built from the open thread itself (Trash already worked
+  // without a row; Archive now does the same work through the same path).
   const archiveThread = (id: string) => {
-    const row = rows.find((r) => r.id === id);
+    const row = rows.find((r) => r.id === id)
+      ?? results?.find((r) => r.id === id)
+      ?? (thread && thread.id === id ? rowFromThread(thread) : undefined);
     setView("list");
     if (row) archiveRow(row);
+  };
+
+  // The least a ThreadRow needs for archiveRow to do its job: the id, who it
+  // was from (the toss offer is per sender), when, and which account it lives
+  // in. Everything else is display bookkeeping the list never gets to show
+  // for a row it does not hold.
+  const rowFromThread = (t: ThreadFull): ThreadRow => {
+    const last = t.messages[t.messages.length - 1];
+    return {
+      id: t.id,
+      from: last?.from ?? "",
+      fromEmail: last?.fromEmail ?? "",
+      subject: t.subject,
+      snippet: last?.snippet ?? "",
+      unread: false,
+      inInbox: true,
+      dateMs: last?.dateMs ?? 0,
+      count: t.messages.length,
+      lastMsgId: last?.id ?? t.id,
+      account: accountOfThread(t.id),
+    };
   };
 
   // How many loaded threads share this sender. Only offered when it is more
