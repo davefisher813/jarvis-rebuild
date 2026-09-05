@@ -93,13 +93,21 @@ export function gapFill(
   gapMin: number | null,
   today: string,
   estimateFor: (category: string) => number,
+  // TODAY-F-20 (2026-09-05): categories paused for the season. The planner
+  // has refused to offer their tasks since candidatesFor learned the rule,
+  // but the pause lived in that one caller instead of here, and this is the
+  // other place a task becomes work: a paused category's task could be dealt
+  // by the Now card with a Start pill. Bills need no exemption here (unlike
+  // candidatesFor, where pausing Money must never silence rent) because a
+  // bill never reaches the gap offer at all, see the filter below.
+  paused: ReadonlySet<string> = new Set<string>(),
 ): GapCandidate | null {
   if (gapMin === null || gapMin < GAP_MIN_MINUTES) return null;
   // B6-5 (2026-09-04): "The Now card can offer a reminder as work." Every
   // other chokepoint that turns tasks into a work queue (filters.ts,
   // upnext.ts) excludes reminders; this one did not, so a 50-minute gap
   // could deal Morning Meds a Start button and a ritual sheet.
-  const open = tasks.filter((t) => !t.done && !t.bill && !t.reminder);
+  const open = tasks.filter((t) => !t.done && !t.bill && !t.reminder && !paused.has(t.category));
   if (open.length === 0) return null;
   const fits = open
     .map((t) => ({ t, est: estimateFor(t.category) }))

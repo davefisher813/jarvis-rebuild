@@ -1567,6 +1567,9 @@ export default function TodayFlow({
         nowCtx.gapMin,
         today,
         (cat) => estimates[cat] ?? 45,
+        // TODAY-F-20 (2026-09-05): the same season pause candidatesFor
+        // applies, at the other door a task becomes work.
+        pausedCats,
       );
   const gapTask = gapPick ? taskItems.find((t) => t.id === gapPick.id) ?? null : null;
   const gapMoves = gapTask ? movesLine(goalTitleForTask(goalIdx, gapTask), gapTask.data.text) : null;

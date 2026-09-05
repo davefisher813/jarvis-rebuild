@@ -76,6 +76,20 @@ describe("Gap Fill (item 11)", () => {
   it("silent for a reminder, even when it would otherwise fit", () => {
     expect(gapFill([task("a", "Take meds", { reminder: { time: "09:00" } })], 60, TODAY, () => 10)).toBeNull();
   });
+
+  // TODAY-F-20 (2026-09-05): the planner has never offered a paused
+  // category's tasks; this door could.
+  it("silent for a task in a category paused for the season", () => {
+    expect(gapFill([task("a", "Book the field")], 60, TODAY, () => 10, new Set(["work"]))).toBeNull();
+  });
+
+  it("still offers work from every category that is not paused", () => {
+    const pick = gapFill(
+      [task("a", "Paused thing"), { id: "b", text: "Live thing", category: "family", done: false }],
+      60, TODAY, () => 10, new Set(["work"]),
+    );
+    expect(pick!.id).toBe("b");
+  });
 });
 
 describe("Hyperfocus Guard (item 12)", () => {
