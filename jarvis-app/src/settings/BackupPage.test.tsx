@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { NotesProvider } from "../data/NotesProvider";
 import BackupPage from "./BackupPage";
@@ -21,7 +21,7 @@ beforeEach(() => {
 
 describe("BackupPage export", () => {
   it("saves a real file, then shows the count and stamps Last exported", async () => {
-    saveBackupFile.mockResolvedValue(undefined);
+    saveBackupFile.mockResolvedValue(true);
     render(<NotesProvider userId="u1"><BackupPage onBack={() => {}} /></NotesProvider>);
     fireEvent.click(screen.getByText("Export All Data"));
     await waitFor(() => expect(saveBackupFile).toHaveBeenCalledTimes(1));
@@ -33,6 +33,23 @@ describe("BackupPage export", () => {
   // directly and reported success no matter what happened, which is exactly
   // how the iOS web view swallowed it silently. Now a real failure from
   // saveBackupFile must surface, not be papered over.
+  // SHELL-F-23 (2026-09-05): tapping outside the iOS share sheet read
+  // "Export failed · Try again". Nothing failed and nothing was exported, so
+  // the page says nothing and leaves the Last exported stamp alone.
+  it("dismissing the share sheet says nothing and stamps nothing", async () => {
+    let dismiss: (sent: boolean) => void = () => {};
+    saveBackupFile.mockReturnValue(new Promise<boolean>((r) => { dismiss = r; }));
+    render(<NotesProvider userId="u1"><BackupPage onBack={() => {}} /></NotesProvider>);
+    fireEvent.click(screen.getByText("Export All Data"));
+    await waitFor(() => expect(saveBackupFile).toHaveBeenCalledTimes(1));
+    // Settle the share sheet inside act, so the receipt (or its absence) is
+    // what the page decided, not what it had not got to yet.
+    await act(async () => { dismiss(false); });
+    expect(screen.queryByText("Export failed · Try again")).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Exported /)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Last exported/)).not.toBeInTheDocument();
+  });
+
   it("a failed save shows the honest failure message, not a false success", async () => {
     saveBackupFile.mockRejectedValue(new Error("disk full"));
     render(<NotesProvider userId="u1"><BackupPage onBack={() => {}} /></NotesProvider>);

@@ -69,12 +69,26 @@ describe("saveBackupFile on native", () => {
     });
   });
 
-  it("canceling the share sheet (empty activityType) is not a failure", async () => {
+  // SHELL-F-23 (2026-09-05): this test asserted the plugin behaviour the
+  // comment in exportFile.ts described, not the one the installed plugin
+  // has. @capacitor/share 8 REJECTS with "Share canceled" when the sheet is
+  // dismissed (SharePlugin.swift:63, SharePlugin.java:60), so the old
+  // resolve-with-empty-activityType case could never happen and the real
+  // cancel fell into the caller's catch as "Export failed".
+  it("dismissing the share sheet is a cancel, not a failure", async () => {
     isNativePlatform.mockReturnValue(true);
     writeFile.mockResolvedValue({ uri: "file:///cache/x.json" });
-    share.mockResolvedValue({ activityType: "" });
+    share.mockRejectedValue(new Error("Share canceled"));
 
-    await expect(saveBackupFile(bundle())).resolves.toBeUndefined();
+    await expect(saveBackupFile(bundle())).resolves.toBe(false);
+  });
+
+  it("a sent file resolves true", async () => {
+    isNativePlatform.mockReturnValue(true);
+    writeFile.mockResolvedValue({ uri: "file:///cache/x.json" });
+    share.mockResolvedValue({ activityType: "com.apple.UIKit.activity.Mail" });
+
+    await expect(saveBackupFile(bundle())).resolves.toBe(true);
   });
 
   it("a write failure throws, so the caller never reports a success that did not happen", async () => {

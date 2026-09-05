@@ -19,7 +19,12 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
     setBusy(true);
     try {
       const bundle = await backup.exportBundle();
-      await saveBackupFile(bundle);
+      // SHELL-F-23 (2026-09-05): dismissing the iOS share sheet used to read
+      // "Export failed · Try again". Nothing failed: the person closed the
+      // sheet. Nothing left the app either, so nothing is claimed and the
+      // Last exported stamp is left where it was.
+      const sent = await saveBackupFile(bundle);
+      if (!sent) { setStatus(""); return; }
       setStatus(`Exported ${bundle.items.length} ${bundle.items.length === 1 ? "item" : "items"}.`);
       const stamp = bundle.exportedAt.slice(0, 10);
       setLastExport(stamp);
