@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { onPressKey } from "./pressable";
 
 const GRIP = <svg className="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9" /><line x1="4" y1="15" x2="20" y2="15" /></svg>;
 
@@ -51,10 +53,39 @@ export default function ReorderList({
   }
   useEffect(() => { orderRef.current = order; }, [order]);
 
+  // BROWSER-F-14 (2026-09-05), option B. The handle said role="button" and
+  // aria-label="Reorder" and did nothing at all when you tapped it: a dead tap
+  // on a control that promises to be a button, and with a switch control or a
+  // keyboard there was no way to change tab order in the app at all (it also
+  // carried tabIndex -1, so Tab never even reached it). A tap on the handle
+  // opens Move Up / Move Down now. Drag is untouched: the two live on the same
+  // control because the control already reads as the reorder control, and a
+  // drag is simply a tap that travelled.
+  const [menu, setMenu] = useState<{ i: number; top: number; right: number } | null>(null);
+  const openMenu = (i: number, el: HTMLElement | null) => {
+    const r = el?.getBoundingClientRect();
+    setMenu({ i, top: (r?.bottom ?? 0) + 6, right: Math.max(8, window.innerWidth - (r?.right ?? 0)) });
+  };
+  const move = (i: number, dir: -1 | 1) => {
+    const to = i + dir;
+    setMenu(null);
+    if (to < 0 || to >= orderRef.current.length) return;
+    const a = [...orderRef.current];
+    const [m] = a.splice(i, 1);
+    a.splice(to, 0, m!);
+    setOrder(a);
+    orderRef.current = a;
+    onReorder(a);
+  };
+
   const start = (e: React.PointerEvent, i: number) => {
     e.preventDefault();
     fromRef.current = i;
     setIdx(i);
+    // Where the finger went down, so the end can tell a tap from a drag.
+    const downX = e.clientX, downY = e.clientY;
+    const handle = e.currentTarget as HTMLElement;
+    let moved = false;
 
     const targetIndex = (clientY: number): number => {
       const rows = Array.from(listRef.current?.children ?? []) as HTMLElement[];
@@ -69,6 +100,13 @@ export default function ReorderList({
       ev.preventDefault();
       const cur = fromRef.current;
       if (cur === null) return;
+      // TRAVELLED, not merely twitched: a finger resting on the handle emits
+      // a pointermove or two of a pixel or so, and treating those as a drag
+      // would take the tap away again. Where the engine reports no pointer
+      // coordinates at all (jsdom), a move event is the only signal there is,
+      // so it counts as one.
+      const measurable = [downX, downY, ev.clientX, ev.clientY].every((n) => Number.isFinite(n));
+      if (!measurable || Math.abs(ev.clientX - downX) > 6 || Math.abs(ev.clientY - downY) > 6) moved = true;
       const t = targetIndex(ev.clientY);
       if (t !== cur && t >= 0) {
         setOrder((prev) => { const a = [...prev]; const [m] = a.splice(cur, 1); a.splice(t, 0, m!); return a; });
@@ -82,7 +120,11 @@ export default function ReorderList({
       window.removeEventListener("pointerup", end);
       window.removeEventListener("pointercancel", end);
       document.removeEventListener("touchmove", blockScroll);
-      if (fromRef.current !== null) onReorder(orderRef.current);
+      // A press that never travelled is a TAP, and a tap on the reorder
+      // control opens the reorder menu instead of silently committing the
+      // order it already had.
+      if (!moved) openMenu(i, handle);
+      else if (fromRef.current !== null) onReorder(orderRef.current);
       fromRef.current = null;
       setIdx(null);
     };
@@ -97,9 +139,41 @@ export default function ReorderList({
       {shown.map((id, i) => (
         <div className={"row reorder-row" + (idx === i ? " dragging" : "")} key={id}>
           {renderRow(id)}
-          {handles && <div className="drag-handle" onPointerDown={(e) => start(e, i)} aria-label="Reorder" role="button">{GRIP}</div>}
+          {handles && (
+            <div
+              className="drag-handle"
+              onPointerDown={(e) => start(e, i)}
+              onKeyDown={onPressKey(() => openMenu(i, listRef.current?.children[i]?.querySelector<HTMLElement>(".drag-handle") ?? null))}
+              aria-label={"Reorder " + (i + 1) + " of " + shown.length}
+              aria-haspopup="menu"
+              aria-expanded={menu?.i === i}
+              role="button"
+              tabIndex={0}
+            >{GRIP}</div>
+          )}
         </div>
       ))}
+      {menu !== null && createPortal(
+        <div className="hmenu-scrim" onClick={() => setMenu(null)}>
+          <div
+            className="hmenu hmenu-right"
+            role="menu"
+            aria-label="Reorder"
+            style={{ top: menu.top, right: menu.right }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button type="button" className="hmenu-item" role="menuitem" disabled={menu.i === 0}
+              onClick={() => move(menu.i, -1)}>
+              <span className="hmenu-tick" /><span className="hmenu-l">Move Up</span>
+            </button>
+            <button type="button" className="hmenu-item" role="menuitem" disabled={menu.i === shown.length - 1}
+              onClick={() => move(menu.i, 1)}>
+              <span className="hmenu-tick" /><span className="hmenu-l">Move Down</span>
+            </button>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

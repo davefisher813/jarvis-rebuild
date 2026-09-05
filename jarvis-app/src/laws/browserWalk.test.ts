@@ -572,6 +572,22 @@ describe("BROWSER-F-12: Chat has one input, and the shell keeps its tab bar", ()
   });
 });
 
+describe("BROWSER-F-14: the reorder handle does something when you tap it", () => {
+  // It said role="button" and aria-label="Reorder" and answered only a drag,
+  // so a tap did nothing at all and tabIndex -1 kept every keyboard and switch
+  // control out of tab order entirely.
+  it("the handle is a real button with a menu behind it", () => {
+    const src = readFileSync(join(SRC, "shared/ReorderList.tsx"), "utf8");
+    const at = src.indexOf('className="drag-handle"');
+    const tag = src.slice(at, src.indexOf(">", src.indexOf("tabIndex", at)) + 1);
+    expect(tag, "tabIndex -1 was why no keyboard could reorder").toMatch(/tabIndex=\{0\}/);
+    expect(tag).toMatch(/aria-haspopup="menu"/);
+    expect(src, "Enter and Space open it too").toMatch(/onKeyDown=\{onPressKey\(/);
+    expect(src, "Move Up").toMatch(/Move Up/);
+    expect(src, "Move Down").toMatch(/Move Down/);
+  });
+});
+
 describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
   // The strip rule re-sets the chip background at (0,4,0), which beats
   // .chip.active (0,2,0) for the background alone. Any rule that overrides a
