@@ -2344,8 +2344,16 @@ button {
 
 /* THE NO-WRAP LAW: titles ellipsize, never wrap. Subs clamp at two lines. */
 .conn-name, .lib-name, .sched-title, .task-title, .restore-title, .tip-title,
-.sh2 .t, .empty-title, .msg-name, .proj-title, .pagebar-title, .pagehead-title {
+.sh2 .t, .empty-title, .msg-name, .proj-title, .pagebar-title {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* BROWSER-F-06 (2026-09-05): .pagehead-title is off this list. It is 34px
+   bold with -0.03em tracking in a 358px column, which is 15 characters, and
+   two of the app's OWN page names are longer: "What JARVIS Knows" rendered as
+   "What JARVIS Kno..." and "What JARVIS Learned" the same way. A page whose
+   name does not fit is not a truncation problem, it is a two-line title, which
+   is what iOS largeTitle does. .pagebar-title, the 44px bar's centred twin,
+   stays on the list: that one really does have one line. */
+.pagehead-title { white-space: normal; overflow: visible; text-overflow: clip; }
 .conn-meta, .lib-sub, .msg-preview {
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 /* THE ONE EXCEPTION, AND ONLY AT THE NARROWEST WIDTH (sweep 2026-08-21).
@@ -3316,6 +3324,16 @@ button.check-linked:active { opacity: 1; background: var(--press-3); }
 .notice-card .vrow-fact, .notice-card .vrow-sub {
   display: block; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* BROWSER-F-06 (2026-09-05): except when there is no sub. A uniform card is
+   72px tall by law, which is TWO lines of title type, and the verb row spent
+   one of them on a line that does not exist, so "You train between 9 AM and
+   12 PM" lost half of itself inside a card with an empty line under it. This
+   is the same allowance .notice-card-solo already grants the card form, said
+   again at a specificity the verb-row clamp above cannot beat. One line is
+   still the contract whenever a sub is there to fill the other. */
+.notice-card.notice-card-solo .vrow-fact {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  white-space: normal; overflow: hidden; text-overflow: clip; }
 
 /* ============================================================
    LIGHT, THE SECOND SUN (facelift 2026-08-22). Everything here is
@@ -3555,8 +3573,18 @@ body.selecting .voice-dock { display: none; }
 
 /* On a uniform card the title is the content and the button is a known verb,
    so the verb yields first. Capped tighter than the app-wide .pill-act, which
-   at 9.5rem could take 139px of a 358px row. */
-.notice-card-uniform .pill-act { max-width: 7.5rem; }
+   at 9.5rem could take 139px of a 358px row.
+   BROWSER-F-06 (2026-09-05): "yields" has to mean "takes only the width its
+   own word needs", never "loses its word". 7.5rem is 127px (rem is 17px here,
+   not 16), and five verbs the app actually ships are wider than that:
+   "Ask Again in 15m" 152, "Remember This" and "Pick Something" 139,
+   "Add to Routine" 135, "Plan Tomorrow" 134. So the stream showed
+   "Remember ..." on a button, which is a button that no longer says what it
+   does. The cap goes back to the app-wide 9.5rem, which is 161px and clears
+   every sanctioned verb; the pill still sizes to its text, so nothing short
+   grows, and the title buys the room back on the line below (the solo rule
+   just above this block). */
+.notice-card-uniform .pill-act { max-width: 9.5rem; }
 
 /* Two lines, always, whichever form the stream chose. A row with no sub
    spends both on its title rather than truncating it; a row with one spends

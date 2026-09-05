@@ -259,6 +259,60 @@ describe("BROWSER-F-07: the bare-text buttons reach the tap minimum", () => {
   });
 });
 
+describe("BROWSER-F-06: the app's own names and facts are not cut in half", () => {
+  const ruled = () => read("styles/ruled.css");
+
+  it("the large page title wraps instead of ellipsizing its own page name", () => {
+    const bare = css().replace(/\/\*[\s\S]*?\*\//g, "");
+    const law = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .find((m) => /white-space:\s*nowrap/.test(m[2]!) && m[1]!.includes(".pagebar-title"));
+    expect(law, "the no-wrap law still exists").toBeTruthy();
+    expect(law![1], ".pagehead-title is off the no-wrap law").not.toMatch(/\.pagehead-title\b/);
+    expect(ruleBody(css(), ".pagehead-title")).toBeTruthy();
+    const own = [...bare.matchAll(/([^{}]+)\{([^}]*)\}/g)]
+      .filter((m) => m[1]!.split(",").some((s) => s.trim() === ".pagehead-title"))
+      .map((m) => m[2]!).join(" ");
+    expect(own).toMatch(/white-space:\s*normal/);
+    // The bar's centred twin really does have one line and keeps the law.
+    expect(law![1]).toMatch(/\.pagebar-title\b/);
+  });
+
+  it("the day word never shrinks and the count line is the one that gives", () => {
+    expect(ruleBody(ruled(), ".ruled .sc-dayhead .t")).toMatch(/flex-shrink:\s*0/);
+    const fact = ruleBody(ruled(), ".ruled .sc-dayhead .sc-fact")!;
+    expect(fact).toMatch(/overflow:\s*hidden/);
+    expect(fact).toMatch(/text-overflow:\s*ellipsis/);
+  });
+
+  it("the goal line takes its own row rather than splitting one with the badge", () => {
+    expect(ruleBody(ruled(), ".ruled .r-k")).toMatch(/flex-wrap:\s*wrap/);
+  });
+
+  // A button that says "Remember ..." has stopped saying what it does. The cap
+  // on the uniform card's verb has to clear every verb the app actually ships.
+  it("the uniform card's pill is never capped under an action label it carries", () => {
+    const cap = ruleBody(css(), ".notice-card-uniform .pill-act")!;
+    const rem = /max-width:\s*([\d.]+)rem/.exec(cap);
+    expect(rem, "the cap is stated in rem").toBeTruthy();
+    // rem is --t-h3 (17px) here, not 16: html sets font-size: var(--t-h3).
+    const px = Number(rem![1]) * 17;
+    // Measured in chromium on 2026-09-05, .pill-act with max-width off, in the
+    // container's fallback face (which is WIDER than SF Pro, so this is the
+    // pessimistic number): "Ask Again in 15m" 152, "Remember This" 139,
+    // "Pick Something" 139, "Add to Routine" 135, "Plan Tomorrow" 134.
+    const WIDEST_LABEL_PX = 152;
+    expect(px, `the widest verb the app ships needs ${WIDEST_LABEL_PX}px`)
+      .toBeGreaterThanOrEqual(WIDEST_LABEL_PX);
+  });
+
+  it("a uniform verb row with no sub spends the second line on its title", () => {
+    const body = ruleBody(css(), ".notice-card.notice-card-solo .vrow-fact")!;
+    expect(body, "the solo allowance must beat the verb-row single-line clamp").toBeTruthy();
+    expect(body).toMatch(/-webkit-line-clamp:\s*2/);
+    expect(body).toMatch(/white-space:\s*normal/);
+  });
+});
+
 describe("BROWSER-F-02: a picked chip inside a form sheet is readable", () => {
   // The strip rule re-sets the chip background at (0,4,0), which beats
   // .chip.active (0,2,0) for the background alone. Any rule that overrides a
