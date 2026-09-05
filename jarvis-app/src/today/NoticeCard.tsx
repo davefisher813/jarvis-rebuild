@@ -280,10 +280,14 @@ export default function NoticeCard({
 
   return (
     <div className="pad-x">
-      <div className="notice-swipe">
+      {/* TODAY-F-23 (2026-09-05): tabbing into one of the revealed buttons
+          opens the rail around it, so a keyboard or switch user is never
+          pressing a control parked underneath the card. */}
+      <div className="notice-swipe" onFocus={swipe.revealFocus}>
         {altOnReveal && (
           <button
             className="notice-alt"
+            data-reveal
             style={altRight ? { right: altRight } : undefined}
             onClick={() => swipe.closeThen(altOnReveal.onClick)}
           >
@@ -293,6 +297,7 @@ export default function NoticeCard({
         {onDismiss && (
           <button
             className="notice-dismiss"
+            data-reveal
             style={dismissRight ? { right: dismissRight } : undefined}
             onClick={() => swipe.closeThen(onDismiss)}
           >
@@ -302,6 +307,7 @@ export default function NoticeCard({
         {onDelete && (
           <button
             className="notice-delete"
+            data-reveal
             style={deleteRight ? { right: deleteRight } : undefined}
             onClick={() => swipe.closeThen(onDelete)}
           >

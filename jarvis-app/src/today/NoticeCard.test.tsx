@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
-import { render } from "@testing-library/react";
+import { render, act } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import NoticeCard from "./NoticeCard";
 
@@ -73,5 +73,57 @@ describe("NoticeCard: the delete slot", () => {
     const { getByText } = render(<NoticeCard {...base} onDelete={() => { fired = true; }} />);
     getByText("Delete").click();
     expect(fired).toBe(true);
+  });
+});
+
+// TODAY-F-23 (2026-09-05): every secondary action on Today lived behind a
+// touch-only gesture, so on the web, with a mouse, or with a keyboard,
+// Dismiss and Delete could not be reached at all. Same rail, three more ways
+// in, and useSwipe.toggle (which existed and was wired to nothing) is what
+// they all call.
+import { vi, afterEach } from "vitest";
+import { fireEvent } from "@testing-library/react";
+
+const rail = (container: HTMLElement) => (container.querySelector(".notice-card") as HTMLElement).style.transform;
+
+describe("NoticeCard: the reveal without a touchscreen", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("a right-click (or the iOS callout) opens the same rail", () => {
+    const { container } = render(<NoticeCard {...base} onDismiss={() => {}} />);
+    const card = container.querySelector(".notice-card")!;
+    expect(rail(container)).toBe("");
+    fireEvent.contextMenu(card);
+    expect(rail(container)).toBe("translateX(-88px)");
+    // And closes again, so it is a toggle, not a trap.
+    fireEvent.contextMenu(card);
+    expect(rail(container)).toBe("");
+  });
+
+  it("a long press with the mouse opens it; a quick click does not", () => {
+    vi.useFakeTimers();
+    const { container } = render(<NoticeCard {...base} onDismiss={() => {}} />);
+    const card = container.querySelector(".notice-card")!;
+    fireEvent.mouseDown(card);
+    fireEvent.mouseUp(card);
+    act(() => { vi.advanceTimersByTime(600); });
+    expect(rail(container)).toBe("");
+    fireEvent.mouseDown(card);
+    act(() => { vi.advanceTimersByTime(600); });
+    expect(rail(container)).toBe("translateX(-88px)");
+  });
+
+  it("tabbing onto Dismiss opens the rail around it", () => {
+    const { container, getByText } = render(<NoticeCard {...base} onDismiss={() => {}} />);
+    fireEvent.focus(getByText("Dismiss"));
+    expect(rail(container)).toBe("translateX(-88px)");
+  });
+
+  it("focus on the card's own action leaves the rail shut", () => {
+    const { container, getByText } = render(
+      <NoticeCard {...base} onDismiss={() => {}} action={{ label: "Plan", onClick: () => {} }} />,
+    );
+    fireEvent.focus(getByText("Plan"));
+    expect(rail(container)).toBe("");
   });
 });

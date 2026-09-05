@@ -1626,8 +1626,11 @@ export default function TodayFlow({
             // Set a Start and Not Now move to the swipe every other row in this
             // app already uses for its secondary actions, so nothing new is
             // being taught and the card gets ~280px back.
-            <div className="task-swipe now-swipe">
-              <button className="task-snooze" onClick={() => setRitual({
+            // TODAY-F-23 (2026-09-05): the same reveal, reachable without a
+            // touchscreen: long-press or right-click the row, or tab into one
+            // of these two buttons and the rail opens around it.
+            <div className="task-swipe now-swipe" onFocus={nowSwipe.revealFocus}>
+              <button data-reveal className="task-snooze" onClick={() => setRitual({
                 taskId: gapPick.id,
                 text: gapPick.text,
                 firstMove: proposeFirstMove(gapPick.text),
@@ -1637,7 +1640,7 @@ export default function TodayFlow({
                 <Clock className="ic" />
                 <span className="swipe-label">Set a Start</span>
               </button>
-              <button className="task-del" onClick={() => setGapDismissed(gapKey)} aria-label="Not now">
+              <button data-reveal className="task-del" onClick={() => setGapDismissed(gapKey)} aria-label="Not now">
                 <CircleSlash className="ic" />
                 <span className="swipe-label">Not Now</span>
               </button>
