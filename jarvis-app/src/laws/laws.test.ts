@@ -4009,3 +4009,26 @@ describe("LAW: Today never reads a calendar day from toISOString", () => {
     expect(hits).toEqual([]);
   });
 });
+
+// TODAY-F-19 (2026-09-05): the re-flow and overflow cards went into the notice
+// stream with no key, so React matched them by position. NoticeCard holds its
+// own expanded flag and swipe offset in state, and an unkeyed sibling hands
+// that state to whatever card next lands in its slot: open the overflow card
+// or let the ranking shift, and a half-swiped rail or an expanded card jumps
+// onto a different notice. Every NoticeCard in TodayFlow ends up in the
+// notices array, so every one of them is keyed.
+describe("LAW: every notice in Today's stream is keyed", () => {
+  it("no <NoticeCard in TodayFlow.tsx renders without a key", () => {
+    const flow = read(SRC + "/today/TodayFlow.tsx");
+    const unkeyed: string[] = [];
+    // Each element runs from its tag to the first prop line; the key belongs
+    // in the first few props, which is where every keyed sibling puts it.
+    const lines = flow.split("\n");
+    lines.forEach((line, i) => {
+      if (!/<NoticeCard\b/.test(line)) return;
+      const head = lines.slice(i, i + 4).join("\n");
+      if (!/\bkey=/.test(head)) unkeyed.push(`line ${i + 1}`);
+    });
+    expect(unkeyed).toEqual([]);
+  });
+});

@@ -232,6 +232,10 @@ export default function TodayFlow({
   // Re-flow overflow (push 16): the one block that stopped fitting, offered
   // Set Aside out loud, never dropped silently.
   const [overflowOffer, setOverflowOffer] = useState<{ eventId: string; title: string } | null>(null);
+  // TODAY-F-19 (2026-09-05): the slippage card can be waved off for this
+  // visit. Not stored: the plan is still behind the clock, so it is back the
+  // next time Today opens, same rule as the live-gym card below.
+  const [reflowHidden, setReflowHidden] = useState(false);
 
   // Group A: Auto-Sweep receipt (item 9) and the Where You Were spot (item 6).
   const [sweepReceipt, setSweepReceipt] = useState<SweepReceipt | null>(null);
@@ -1769,26 +1773,43 @@ export default function TodayFlow({
   ) : null;
 
   // Slippage stated out loud below Everything; automatic (receipted) at it.
-  const reflowSection = !evening && dayDraft?.accepted && slippedCount > 0 && effectiveLevel(getAIControl()) !== "everything" && (
+  // TODAY-F-19 (2026-09-05): keyed, like every sibling in the notice stream.
+  // These two went in unkeyed, so React matched them by position: when the
+  // overflow card appeared or the ranking shifted, NoticeCard's own expanded
+  // and swipe-offset state stayed with the slot and jumped onto whichever
+  // card landed there.
+  const reflowSection = !evening && !reflowHidden && dayDraft?.accepted && slippedCount > 0 && effectiveLevel(getAIControl()) !== "everything" && (
     <NoticeCard
+      key="reflow"
       weight={WAITING}
       icon={SWEEP_ICO}
       tone="cat-fg-orange"
       title={slippedCount === 1 ? "1 Block Slipped" : `${slippedCount} Blocks Slipped`}
       sub="The plan is behind the clock"
       action={{ label: "Re-Flow", onClick: () => void runReflow() }}
+      // Keying it revealed that it had no way out at all (the every-notice-
+      // can-be-dismissed law only ever saw keyed cards). Waving it off is
+      // this visit's UI state only, exactly like the live-gym card: the plan
+      // really is behind the clock either way, so a stored silence would be
+      // the app hiding a fact from him for the rest of the day.
+      onDismiss={() => setReflowHidden(true)}
     />
   );
 
   const overflowSection = overflowOffer && (
     <NoticeCard
+      key="overflow"
       weight={FAILING}
       icon={SWEEP_ICO}
       tone="cat-fg-orange"
       title={overflowOffer.title}
       sub="No room left today"
-      action={{ label: "Leave", onClick: () => setOverflowOffer(null) }}
-      alt={{
+      // Leaving it where it is IS the dismissal, so it rides the swipe under
+      // the standard word and the visible control is the offer the card
+      // exists to make. Before this the one visible verb was "Leave", which
+      // is the button for doing nothing.
+      onDismiss={() => setOverflowOffer(null)}
+      action={{
         label: "Set Aside",
         onClick: () => void (async () => {
           const ev = todayEvents.find((e) => e.id === overflowOffer.eventId);
