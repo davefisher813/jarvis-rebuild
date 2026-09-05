@@ -196,6 +196,12 @@ export default function PlanDaySheet({
   const seededRef = useRef(false);
   const [picks, setPicks] = useState<string[]>([]);
   const [usedUsual, setUsedUsual] = useState(false);
+  // SCHED-F-12 (2026-09-05): ONE CAP EXPRESSION, for the seed and for the
+  // re-plan. His chosen cap (the monthly report's one change, 2026-08-25)
+  // outranks the evidence-derived offer and evidence fills its absence, but
+  // only the seed said so: unpicking everything and tapping Plan It went
+  // back to the finish-rate number he had already overridden.
+  const seedCap = chosenCap ?? cap?.n ?? sizing.maxBlocks ?? 3;
   // Seeded from a standing draft rather than from autoSelect: the AI refine
   // stands down in that case (below), so the sheet cannot renumber a plan
   // the card already showed him.
@@ -212,9 +218,6 @@ export default function PlanDaySheet({
       // The card showed these lengths. The sheet opens agreeing with it.
       setDurations(seed.minutes);
     } else {
-      // His chosen cap outranks the evidence-derived offer (the monthly
-      // report's one change, 2026-08-25); evidence fills its absence.
-      const seedCap = chosenCap ?? cap?.n ?? sizing.maxBlocks ?? 3;
       const chosen = autoSelect(allTasks, open, durFor, seedCap);
       if (chosen.length > 0) {
         setPicks(chosen);
@@ -432,7 +435,19 @@ export default function PlanDaySheet({
     ].filter((g) => g.rows.length > 0);
   }, [allTasks, dayLabel]);
 
+  // SCHED-F-12 (2026-09-05): FIRES EXACTLY ONCE. commitPlan writes one event
+  // per block, so two quick taps on Add These 3 ran it twice: two "Planned 3
+  // blocks" toasts, and the first Undo no longer matching the day once the
+  // heal sweep took the duplicates out on the next reload. B12 put this latch
+  // on Accept the Day and on the event sheet and this button never got one. A
+  // ref, not state, for the same reason ScheduleFlow's does: a state flag
+  // re-renders, and the second tap can land before React commits it.
+  const committing = useRef(false);
+  const [saving, setSaving] = useState(false);
   const commit = () => {
+    if (committing.current) return;
+    committing.current = true;
+    setSaving(true);
     const day = date;
     // No past placements for today (invariant, hotfix 2026-08-21). Keyed on
     // the date (SCHED-F-02): a Monday planned from Sunday afternoon is not
@@ -755,7 +770,7 @@ export default function PlanDaySheet({
               className="btn btn-primary btn-block"
               disabled={allTasks.length === 0}
               onClick={() => {
-                const chosen = autoSelect(allTasks, open, durFor, cap?.n ?? sizing.maxBlocks ?? 3);
+                const chosen = autoSelect(allTasks, open, durFor, seedCap);
                 if (chosen.length === 0) return;
                 setPicks(chosen);
                 setOverrides({});
@@ -767,8 +782,8 @@ export default function PlanDaySheet({
               Plan It
             </button>
           ) : (
-            <button className="btn btn-primary btn-block" onClick={commit}>
-              {count === 1 ? "Add This One" : `Add These ${count}`}
+            <button className="btn btn-primary btn-block" disabled={saving} onClick={commit}>
+              {saving ? "Adding..." : count === 1 ? "Add This One" : `Add These ${count}`}
             </button>
           )}
           <button className="btn btn-tertiary btn-block" onClick={onClose}>Cancel</button>

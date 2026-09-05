@@ -292,3 +292,29 @@ describe("the commit-time floor keys on the date, not the toggle", () => {
     }
   });
 });
+
+// SCHED-F-12 (2026-09-05): "Add These N has no double-tap latch, and the Plan
+// It re-plan ignores the chosen cap." Two quick taps ran commitPlan twice
+// (two toasts, an Undo that no longer matched the day once the heal sweep
+// ran), and after unpicking everything the re-plan seeded by the finish-rate
+// cap instead of the one he chose in the monthly report.
+describe("the commit fires once, and the re-plan uses his cap", () => {
+  it("a fast double-tap on Add These commits once, and the button says so", () => {
+    const onCommit = vi.fn();
+    render(sheet({ onCommit }));
+    const add = screen.getByText("Add These 3");
+    fireEvent.click(add);
+    expect(add).toHaveTextContent("Adding...");
+    fireEvent.click(add);
+    expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it("Plan It after unpicking everything seeds his chosen cap, not the default", () => {
+    render(sheet({ chosenCap: 2 }));
+    // The seed already respected it.
+    expect(document.querySelectorAll(".p3-row.on").length).toBe(2);
+    for (const t of ["Email vendor", "Book flights"]) fireEvent.click(screen.getByText(t));
+    fireEvent.click(screen.getByText("Plan It"));
+    expect(document.querySelectorAll(".p3-row.on").length).toBe(2);
+  });
+});
