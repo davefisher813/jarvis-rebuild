@@ -797,6 +797,9 @@ export default function NotesFlow({
       <CreateTasks
         category={cat}
         categoryLabel={catName(cat)}
+        // HMN-F-16 (2026-09-05): the flow wired only `items`, so the header
+        // said From "This Week" for every note in the app.
+        source={current?.title || "Untitled"}
         items={items}
         onCreate={runCreateTasks}
         onBack={() => setScreen("connections")}

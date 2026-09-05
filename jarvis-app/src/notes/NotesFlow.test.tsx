@@ -109,6 +109,16 @@ describe("NotesFlow: the editor comes back fresh from Create Tasks (HMN-F-14)", 
     expect((await svc.listTasks()).length).toBe(2);
     expect((await svc.note(id))!.connections).toHaveLength(2);
   });
+
+  // HMN-F-16 (2026-09-05): the flow passed only `items`, so the header kept
+  // the locked frame's default and said From "This Week" for every note.
+  it("the header names the note it was opened from", async () => {
+    await openNoteWith([{ type: "checklist", items: ["Milk", "Eggs"] }]);
+    fireEvent.click(screen.getByLabelText("Connections"));
+    fireEvent.click(await screen.findByText("Create Tasks from Checklist"));
+    expect(await screen.findByText("From “Race”")).toBeInTheDocument();
+    expect(screen.queryByText(/This Week/)).not.toBeInTheDocument();
+  });
 });
 
 // HMN-F-02 (2026-09-05): the flow is unmounted on any tab change

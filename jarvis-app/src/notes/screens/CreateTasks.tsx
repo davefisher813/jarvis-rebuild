@@ -11,22 +11,23 @@ interface CreateTaskItem {
   urgency: "warn" | "muted";
 }
 
+// HMN-F-16 (2026-09-05): this screen kept the locked frame's own demo data as
+// its defaults, so the header read From "This Week" whatever the note was
+// called, and the area it named was Health for every note. The frame's values
+// are gone: the note the screen was opened from supplies all four, and there
+// is nothing left to fall back to.
 export default function CreateTasks({
-  category = "health",
-  categoryLabel = "Health",
-  source = "This Week",
-  items = [
-    { text: "Tuesday tempo, 6 mi", due: "TODAY", urgency: "warn" },
-    { text: "Thursday intervals, 8x800", due: "THU", urgency: "muted" },
-    { text: "Sunday long run, 18 mi", due: "SUN", urgency: "muted" },
-  ],
+  category,
+  categoryLabel,
+  source,
+  items,
   onCreate,
   onBack,
 }: {
-  category?: string;
-  categoryLabel?: string;
-  source?: string;
-  items?: CreateTaskItem[];
+  category: string;
+  categoryLabel: string;
+  source: string;
+  items: CreateTaskItem[];
   onCreate?: () => void;
   onBack?: () => void;
 }) {
