@@ -98,7 +98,7 @@ interface PendingChoice {
   options: CommandTarget[];
 }
 
-export default function ChatFlow({ onOpen, onCompose }: {
+export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onAskConsumed }: {
   // UP-MIND-02 (2026-09-05): open the record an answer was built from.
   // Optional, and the chips only render when it is given: a chip that opens
   // nothing is a control that lies about being one.
@@ -107,6 +107,12 @@ export default function ChatFlow({ onOpen, onCompose }: {
   // wrote and stored. Absent means the email path is unavailable, and the
   // command says so rather than writing words that go nowhere.
   onCompose?: () => void;
+  // UP-MIND-24 (2026-09-05): Today's meeting line asked "what did you say"
+  // about this person. Chat is where that question already has an answer
+  // (UP-MIND-21), so the tap lands here with the person filled in.
+  askPersonId?: string;
+  askNonce?: number;
+  onAskConsumed?: () => void;
 } = {}) {
   const chat = useChat();
   const tasksSvc = useTasks();
@@ -362,6 +368,25 @@ export default function ChatFlow({ onOpen, onCompose }: {
     }
     if (cmd) await runCommand(cmd, target);
   };
+
+  // UP-MIND-24: one-shot, same shape as every intent the shell owns: act on
+  // the value and the nonce together, then say it was consumed.
+  const askedFor = useRef<string>("");
+  useEffect(() => {
+    if (!askPersonId) return;
+    const key = askPersonId + "|" + (askNonce ?? 0);
+    if (askedFor.current === key) return;
+    askedFor.current = key;
+    onAskConsumed?.();
+    void (async () => {
+      const p = (await peopleSvc.list().catch(() => [])).find((x) => x.id === askPersonId);
+      if (!p) return;
+      // The box is FILLED, not fired: the user still taps Send, which is the
+      // same rule the starter chips follow.
+      setDraft(`What did I tell ${p.data.name} about `);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [askPersonId, askNonce]);
 
   const send = async () => {
     const text = draft.trim();

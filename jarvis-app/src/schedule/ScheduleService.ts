@@ -74,6 +74,8 @@ export class ScheduleService {
     if (data.recurrence === "weekly" && opts.interval === 2) data.interval = 2;
     if (opts.url?.trim()) data.url = opts.url.trim();
     if (opts.notes?.trim()) data.notes = opts.notes.trim();
+    // UP-CORE-10 / UP-MIND-24 (2026-09-05): who else is on it, from the
+    // import only. An event the user made here has no attendee list to keep.
     if (opts.attendees?.length) data.attendees = opts.attendees;
     if (data.location && isTravel(opts.travelMin)) data.travelMin = opts.travelMin;
     if (data.location && isTravel(opts.bufferMin)) data.bufferMin = opts.bufferMin;

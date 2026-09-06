@@ -21,6 +21,13 @@ export interface EventData {
   // list an imported Google event carries. url and notes are editable here
   // (and settable on a hand-made event); attendees are Google's own list and
   // refresh with the import, since there is nothing here that writes them.
+  //
+  // UP-MIND-24 (2026-09-05) wanted the same list for meeting prep and wrote
+  // it as bare addresses. One field, one shape: the richer one, because an
+  // address is always there and a name sometimes is. Kept on the event
+  // rather than in a second store, the same way `until` was: no migration
+  // and no new entity type. Never written for an event the user made
+  // themselves.
   url?: string;
   notes?: string;
   attendees?: { email: string; name?: string }[];

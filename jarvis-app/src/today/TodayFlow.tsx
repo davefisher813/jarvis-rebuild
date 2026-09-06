@@ -121,6 +121,8 @@ import type { DecisionRecord } from "../decisions/types";
 import { nowContext, gapFill, fmtSpan } from "./nowContext";
 import { scheduleTask, breakDownTask as splitIntoSteps, undoBreakdown, splitLine, type BreakdownResult } from "../tasks/taskMoves";
 import { identityToText, voiceToText } from "../ai/context";
+import { meetingPrep, type PrepPerson } from "./meetingPrep";
+import { loadLastContact } from "../people/lastContact";
 import { useAIContext } from "../ai/useAIContext";
 import { learnedDurations, readCommittedDurationsWindowed } from "../schedule/learnedDurations";
 import { supabase } from "../auth/supabaseClient";
@@ -179,6 +181,8 @@ export default function TodayFlow({
   onRestoreSpot,
   onOpenNote,
   onOpenProject,
+  onOpenPerson,
+  onAskSaid,
   onGoBigger,
 }: {
   onGoSchedule: () => void;
@@ -205,6 +209,11 @@ export default function TodayFlow({
   // UP-CORE-18 (2026-09-05): open a project, for the near-deadline card.
   // Absent means the card is not offered rather than tapping into nothing.
   onOpenProject?: (id: string) => void;
+  // UP-MIND-24 (2026-09-05): the two taps the meeting line offers. Absent
+  // means the chips do not render: a chip that goes nowhere is a control
+  // that lies about being one.
+  onOpenPerson?: (personId: string) => void;
+  onAskSaid?: (personId: string) => void;
 }) {
   const ai = useAI();
   const gatherContext = useAIContext();
@@ -1727,6 +1736,29 @@ export default function TodayFlow({
   // hash the same string or every pre-generated draft misses. styleRule:
   // false because CARD_REPLY_SYSTEM and CARD_NUDGE_SYSTEM already emit
   // STYLE_SCOPE_RULE, same reason the deck passes it.
+  // UP-MIND-24: Contacts and their cached last-contact times, for the
+  // meeting line. Read once per open; neither costs a request.
+  const [prepPeople, setPrepPeople] = useState<PrepPerson[]>([]);
+  const [prepLast, setPrepLast] = useState<Record<string, number>>({});
+  useEffect(() => {
+    let live = true;
+    void peopleSvc.list()
+      .then((list) => {
+        if (!live) return;
+        setPrepPeople(list.map((p) => ({ id: p.id, name: p.data.name, ...(p.data.email ? { email: p.data.email } : {}) })));
+        const cache = loadLastContact();
+        const out: Record<string, number> = {};
+        for (const p of list) {
+          const e = (p.data.email || "").trim().toLowerCase();
+          const ms = e ? cache[e]?.ms : null;
+          if (typeof ms === "number" && ms > 0) out[p.id] = ms;
+        }
+        setPrepLast(out);
+      })
+      .catch(() => { /* no meeting line: the day renders exactly as before */ });
+    return () => { live = false; };
+  }, [peopleSvc]);
+
   const cardVoiceRef = useRef("");
   const [cardVoiceReady, setCardVoiceReady] = useState(false);
   useEffect(() => {
@@ -1810,6 +1842,24 @@ export default function TodayFlow({
     const e0 = e.data.end ? minsOf(e.data.end) : s0 + 60;
     return s0 <= nowMin && nowMin < e0;
   }) ?? null;
+  // UP-MIND-24 (2026-09-05): the next event within three hours that involves
+  // somebody in Contacts. Derived fresh, no AI call, and null on almost
+  // every render, which is the normal case and shows nothing.
+  const prep = meetingPrep(
+    todayEvents.map((e) => ({
+      id: e.id, title: e.data.title, date: e.data.date, start: e.data.start,
+      ...(e.data.location ? { location: e.data.location } : {}),
+      ...(e.data.attendees?.length ? { attendees: e.data.attendees } : {}),
+    })),
+    prepPeople,
+    taskItems.map((t) => ({
+      id: t.id, text: t.data.text, done: t.data.done, due: t.data.due ?? null,
+      ...(t.data.personId ? { personId: t.data.personId } : {}),
+    })),
+    today,
+    nowMin,
+    (personId) => prepLast[personId] ?? null,
+  );
   const gapKey = today + ":" + (nowCtx.nextStart ?? "end");
   // Pick 1 + pick 31: the goal this gap task moves, when naming it says
   // something the task title did not already say.
@@ -2003,6 +2053,24 @@ export default function TodayFlow({
             ) : (
               <button className="pill-act" onClick={() => setUpNextOpen(true)}>Pick Something</button>
             )}
+          </div>
+        )}
+        {/* UP-MIND-24 (2026-09-05): the next meeting with somebody the app
+            knows, and what is already between you. Facts only: what is
+            open and when you last wrote, never advice about it. Both taps
+            are ones the user would otherwise make by hand. */}
+        {prep && (
+          <div className="row">
+            <RowIcon kind="event" />
+            <div className="row-stack">
+              <div className="conn-name truncate">{prep.line}</div>
+              <div className="row mail-chips">
+                {prep.open.length > 0 && (
+                  <button className="chip" onClick={() => void onOpenPerson?.(prep.person.id)}>What's Open</button>
+                )}
+                <button className="chip" onClick={() => void onAskSaid?.(prep.person.id)}>What Did You Say</button>
+              </div>
+            </div>
           </div>
         )}
       </div></div>

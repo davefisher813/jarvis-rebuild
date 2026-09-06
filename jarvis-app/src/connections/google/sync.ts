@@ -262,6 +262,11 @@ export async function importCalendar(
       attendees: m.attendees,
       gcalId: m.gcalId,
       gcalHash: hashOf(m),
+      // UP-MIND-24 (2026-09-05): who else is on it, kept rather than dropped.
+      // Deliberately NOT part of gcalHash: the hash is the five fields the
+      // field-by-field merge protects from being clobbered, and an attendee
+      // list is not something the user edits here.
+      ...(m.attendees?.length ? { attendees: m.attendees } : {}),
     });
     if (id) {
       created++;

@@ -140,6 +140,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // open on it. The words travel in chat/composeDraft.ts; this carries only
   // the ask, the same way every other intent here carries only a pointer.
   const composeIntent = useOneShot<string>();
+  // UP-MIND-24 (2026-09-05): "what did you say" about this person, asked in
+  // Chat, which is where that question already has an answer (UP-MIND-21).
+  const chatAskIntent = useOneShot<string>();
   // Decision deep-link: BrainFlow opens Decisions, DecisionsFlow opens the record.
   const decisionIntent = useOneShot<string>();
   // S6-Q35: a fact captured through Quick Add lives in the Brain's "What
@@ -150,7 +153,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // SHELL-F-21: which account the Money tab should open.
   const accountIntent = useOneShot<string>();
   // Every intent the shell owns, for the one place that cancels them all.
-  const allIntents = [brainIntent, gymIntent, routineBlockIntent, taskIntent, taskFilterIntent, projectIntent, eventIntent, goalIntent, personIntent, noteIntent, mailIntent, draftIntent, composeIntent, decisionIntent, factIntent, accountIntent];
+  const allIntents = [brainIntent, gymIntent, routineBlockIntent, taskIntent, taskFilterIntent, projectIntent, eventIntent, goalIntent, personIntent, noteIntent, mailIntent, draftIntent, composeIntent, chatAskIntent, decisionIntent, factIntent, accountIntent];
   const navigateToNote = (id: string) => { noteIntent.fire(id); setActive("notes"); };
   // B3-4 (2026-09-04): search does full text over note bodies and hands its
   // hits to this function with kind "note" (SearchFlow.tsx's open("note", id)),
@@ -519,7 +522,12 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
             every once-per-open job (the sweep, the autopay roll, the spot,
             the Day Loop draft, Fresh Start, the mail dismissals) runs for
             the new day instead of yesterday's. See shell/useDayKey.ts. */}
-        {active === "today" && <TodayFlow key={dayKey} onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { goLife("tasks"); taskFilterIntent.fire("all"); }} onGoTasksOverdue={() => { goLife("tasks"); taskFilterIntent.fire("overdue"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); }} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }} onGoBigger={(goalId?: string) => { if (goalId) goalIntent.fire(goalId); else goalIntent.clear(); goLife("goals"); }} />}
+        {active === "today" && <TodayFlow key={dayKey} onGoSchedule={() => setActive("schedule")} onGoTasks={() => goLife("tasks")} onGoTasksAll={() => { goLife("tasks"); taskFilterIntent.fire("all"); }} onGoTasksOverdue={() => { goLife("tasks"); taskFilterIntent.fire("overdue"); }} onSearch={() => setSearchOpen(true)} onProfile={() => setActive("more")} onEditRoutine={goToRoutine} onGoEmail={(threadId?: string, draftId?: string) => { if (threadId) mailIntent.fire(threadId); else mailIntent.clear(); if (draftId) draftIntent.fire(draftId); else draftIntent.clear(); setActive("messages"); }} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onRestoreSpot={(kind, id) => { if (kind === "note") navigateToNote(id); else if (kind === "gym") { brainIntent.fire(id); gymIntent.fire(true); setActive("brain"); } else void navigateToEntity(kind, id); }}
+          /* UP-MIND-24 (2026-09-05): the meeting line's two taps. Both go to
+             screens that already answer the question: the person's own card
+             for what is open, and Chat for what you told them. */
+          onOpenPerson={(personId) => void navigateToEntity("person", personId)}
+          onAskSaid={(personId) => { chatAskIntent.fire(personId); setActive("chat"); }} onGoBigger={(goalId?: string) => { if (goalId) goalIntent.fire(goalId); else goalIntent.clear(); goLife("goals"); }} />}
         {active === "life" && <LifeFlow segment={lifeSegment} segmentNav={lifeNav} taskOpenId={taskIntent.value} taskNonce={taskIntent.nonce} onTaskOpened={taskIntent.clear} taskFilter={taskFilterIntent.value} filterNonce={taskFilterIntent.nonce} onFilterApplied={taskFilterIntent.clear} projectOpenId={projectIntent.value} projectNonce={projectIntent.nonce} onProjectOpened={projectIntent.clear} goalOpenId={goalIntent.value} goalNonce={goalIntent.nonce} onGoalOpened={goalIntent.clear} onOpenNote={navigateToNote} onWhatNow={() => void openWhatNow()} onOpenDecision={(id) => void navigateToEntity("decision", id)} onGoEmail={(threadId) => { mailIntent.fire(threadId); setActive("messages"); }} />}
         {active === "schedule" && <ScheduleFlow onEditRoutine={goToRoutine} openId={eventIntent.value} onNavigate={(kind, id) => void navigateToEntity(kind, id)} />}
         {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} personNonce={personIntent.nonce} onPersonConsumed={personIntent.clear} decisionOpenId={decisionIntent.value} decisionNonce={decisionIntent.nonce} onDecisionConsumed={decisionIntent.clear} factOpenId={factIntent.value} factNonce={factIntent.nonce} onFactConsumed={factIntent.clear} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => setActive("money")} autoOpenGym={gymIntent.value === true} gymNonce={gymIntent.nonce} onGymConsumed={gymIntent.clear} />}
@@ -529,6 +537,9 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} openAccountId={accountIntent.value} openNonce={accountIntent.nonce} onOpenConsumed={accountIntent.clear} />}
         {active === "chat" && <ChatFlow
+          askPersonId={chatAskIntent.value}
+          askNonce={chatAskIntent.nonce}
+          onAskConsumed={chatAskIntent.clear}
           onOpen={(kind, id) => void navigateToEntity(kind, id)}
           // UP-MIND-22: the draft is already written and stored; this opens
           // the composer on it. Nothing sends without the user's tap there.

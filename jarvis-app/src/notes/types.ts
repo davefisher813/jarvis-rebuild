@@ -148,11 +148,6 @@ export interface TaskData {
   // under (see messages/threadTasks.ts), and so a task can find its way back
   // to the conversation that produced it. Optional and additive.
   fromThread?: string;
-  // UP-MIND-10 (2026-09-05): WHO this is about, when the counterpart on the
-  // thread is someone in Contacts. Nothing visible changes the day it lands;
-  // the person card's Still Open, the ledger, labels and meeting prep all
-  // read it, and a link that was never written cannot be recovered later.
-  personId?: string;
   projectId?: string; // the project this task belongs to (Session 6). Optional
   // field on the existing task entity, so no registry migration is needed.
   due?: string | null;
@@ -202,6 +197,11 @@ export interface TaskData {
   // card should list the task without having to guess from spelling. A real
   // contact's id, chosen from a bounded chooser, never free text: a name
   // typed into a task is exactly the guessing this replaces.
+  //
+  // UP-MIND-10 (2026-09-05) fills the same field from the other direction:
+  // when a task is born off a thread whose counterpart is in Contacts, the
+  // sender's id is written at creation, because a link that was never
+  // written cannot be recovered from a title later. One field, two writers.
   personId?: string;
 }
 

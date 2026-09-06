@@ -17,7 +17,8 @@ export interface GCalEvent {
   // UP-CORE-10 (2026-09-05): the three fields the mapper dropped and an exec
   // pays for. hangoutLink is Meet's shortcut; conferenceData is the general
   // form every provider (Zoom, Teams, Meet) fills in; description is the
-  // agenda somebody typed; attendees is who is in the room.
+  // agenda somebody typed; attendees is who is in the room. UP-MIND-24 read
+  // the same list for meeting prep; one mapper serves both.
   hangoutLink?: string;
   conferenceData?: { entryPoints?: { entryPointType?: string; uri?: string }[] };
   description?: string;
@@ -54,13 +55,22 @@ function joinLink(g: GCalEvent): string | undefined {
 // Who is in the room, minus the machines. A room or a piece of equipment is
 // an attendee to Google and is not a person to prepare for; "self" is the
 // user, who does not need introducing to themselves.
+//
+// UP-MIND-24 (2026-09-05): deduped by address and capped, because a mailing
+// list invite can carry hundreds and this list rides on the event row itself.
+// The first mention of an address wins, so the one carrying a display name is
+// the one kept when Google repeats it.
+const MAX_ATTENDEES = 20;
 function attendeesOf(g: GCalEvent): MappedAttendee[] | undefined {
   const out: MappedAttendee[] = [];
+  const seen = new Set<string>();
   for (const a of g.attendees ?? []) {
     const email = a.email?.trim().toLowerCase();
-    if (!email || a.resource || a.self) continue;
+    if (!email || a.resource || a.self || seen.has(email)) continue;
+    seen.add(email);
     const name = decodeEntities(decodeWords(a.displayName?.trim() ?? ""));
     out.push({ email, ...(name ? { name } : {}) });
+    if (out.length === MAX_ATTENDEES) break;
   }
   return out.length ? out : undefined;
 }
