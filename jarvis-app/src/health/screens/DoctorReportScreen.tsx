@@ -4,9 +4,13 @@ import { shortDate } from "../../shared/dateFormat";
 // TAKE THIS TO THE DOCTOR (Part 4). A plain, dated summary of the last N
 // weeks, family-owned, no interpretation. Labeled clearly as the family's
 // own log, never a medical record.
-export default function DoctorReportScreen({ report, onExport, onBack }: {
+export default function DoctorReportScreen({ report, onExport, onCopy, onBack }: {
   report: DoctorReport;
   onExport: () => void;
+  // UP-ATH-11 (2026-09-06): the web's way out. A browser with no share sheet
+  // cannot hand a file to Messages or Mail, and a report you can see and
+  // cannot get out of the page is not an export.
+  onCopy?: () => void;
   onBack: () => void;
 }) {
   return (
@@ -40,7 +44,16 @@ export default function DoctorReportScreen({ report, onExport, onBack }: {
         </div></div>
       )}
 
+      {/* EVERY LIST HAS A FLOOR. The window is six weeks and the rows are all
+          of it, which is the whole claim this page makes to a prescriber. */}
+      {report.rows.length > 0 && (
+        <div className="pad-x"><div className="bp-sub">That's everything logged between those dates.</div></div>
+      )}
+
       <div className="pad-x"><button className="btn btn-primary btn-block" onClick={onExport}>Export This Log</button></div>
+      {onCopy && (
+        <div className="pad-x"><button className="btn btn-secondary btn-block" onClick={onCopy}>Copy This Log</button></div>
+      )}
       <div className="screen-foot" />
     </div>
   );

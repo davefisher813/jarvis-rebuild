@@ -27,7 +27,7 @@ import { showToast } from "../shared/toast";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { capAfterNumber } from "../shared/casing";
 import { saveTextFile } from "../shared/saveTextFile";
-import { shareText } from "../shared/shareText";
+import { shareText, copyText } from "../shared/shareText";
 import ShareLineScreen from "./screens/ShareLineScreen";
 import WhatTheySeeScreen from "./screens/WhatTheySeeScreen";
 import LightsOutScreen from "./screens/LightsOutScreen";
@@ -376,6 +376,18 @@ export default function HealthFlow({
               if (sent) showToast({ message: "Log exported" });
             } catch {
               showToast({ message: "Couldn't export · Try again" });
+            }
+          }}
+          // UP-ATH-11 (2026-09-06): the web half. saveTextFile's browser path
+          // is an anchor download, which a phone browser and an in-app
+          // webview both swallow, so the one surface that cannot reach a
+          // share sheet gets the plain text instead.
+          onCopy={async () => {
+            try {
+              await copyText(doctorReportText(report));
+              showToast({ message: "Copied to your clipboard" });
+            } catch {
+              showToast({ message: "Couldn't copy · Try again" });
             }
           }}
           onBack={onExit}

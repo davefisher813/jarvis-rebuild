@@ -28,6 +28,17 @@ function isShareCancel(e: unknown): boolean {
   return /share cancell?ed/i.test(m) || /abort/i.test(m);
 }
 
+// UP-ATH-11 (2026-09-06): the explicit Copy the web needs. A browser with no
+// share sheet still has to be able to get a report out of the page, and a
+// button labelled Copy that quietly opened a share sheet instead would be a
+// different action than the one the person tapped. Throws when the clipboard
+// is unavailable, so the caller says so rather than claiming a copy.
+export async function copyText(text: string): Promise<void> {
+  const nav = typeof navigator === "undefined" ? undefined : navigator;
+  if (!nav?.clipboard?.writeText) throw new Error("No clipboard in this browser");
+  await nav.clipboard.writeText(text);
+}
+
 export async function shareText(text: string, title?: string): Promise<ShareTextResult> {
   if (Capacitor.isNativePlatform()) {
     try {

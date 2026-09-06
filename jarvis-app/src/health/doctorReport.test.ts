@@ -41,4 +41,25 @@ describe("doctorReportText", () => {
     expect(text).toMatch(/family's own log/i);
     expect(text).toMatch(/not a medical record/i);
   });
+
+  // UP-ATH-11 (2026-09-06): what actually crosses the device boundary when
+  // the athlete taps Export or Copy. It is the log and the log only.
+  it("carries every logged row, dated, with no interpretation of any of it", () => {
+    const now = new Date("2026-09-06T18:00:00").getTime();
+    const tookIt: TookItEntry[] = [{ id: "t1", data: { category: "medication", at: now - DAY } }];
+    const lightsOut: LightsOutEntry[] = [{ id: "l1", data: { category: "sleep", at: now - 2 * DAY } }];
+    const ateBefore: AteBeforeEntry[] = [{ id: "a1", data: { category: "fuel", date: "2026-09-04", ate: true, at: now - 2 * DAY } }];
+    const callIt: CallItEntry[] = [{ id: "c1", data: { category: "load", rpe: 7, at: now - DAY } }];
+    const text = doctorReportText(buildDoctorReport({ tookIt, ateBefore, lightsOut, callIt }, 6, now));
+    const body = text.split("\n").slice(4);
+    expect(body.filter((l) => l.trim().length > 0)).toHaveLength(4);
+    expect(text).toContain("2026-09-05");
+    expect(text).toContain("Dose Logged");
+    expect(text).toContain("Ate Before");
+    expect(text).toContain("Lights Out");
+    // No verdict about any of it, on any line.
+    for (const word of ["adherence", "average", "trend", "improving", "worse", "should"]) {
+      expect(text.toLowerCase(), word + " is a reading, and this file does not read").not.toContain(word);
+    }
+  });
 });
