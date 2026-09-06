@@ -27,7 +27,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; sourceTaskId?: string; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -47,6 +47,10 @@ export class ScheduleService {
     // its own change from one he made here. Only ever set by the importer.
     if (opts.gcalHash) data.gcalHash = opts.gcalHash;
     if (opts.sourceTaskId) data.sourceTaskId = opts.sourceTaskId;
+    // SCHED-F-04 (2026-09-05): which sitting of that task this block is, when
+    // Split It made more than one. The dedupe sweep groups on the pair, so a
+    // second sitting is no longer read as a duplicate of the first.
+    if (opts.sourceTaskId && opts.sitting && opts.sitting > 0) data.sitting = opts.sitting;
     if (opts.taskIds && opts.taskIds.length) data.taskIds = opts.taskIds;
     if (opts.source) data.source = opts.source;
     // SCHED-F-09 (2026-09-05): a copy of a door block is still the door.
@@ -180,7 +184,7 @@ export class ScheduleService {
   // a plan can therefore move a task's block but never multiply it.
   async commitPlan(
     date: string,
-    blocks: { taskId: string; text: string; category: string; start: string; end: string }[],
+    blocks: { taskId: string; text: string; category: string; start: string; end: string; sitting?: number }[],
     source?: import("../shared/provenance").Source,
     // THE ONE EVENT DOOR (audit 2026-08-25). PlanDaySheet used to be the
     // only emitter of plan.picked and plan.duration_committed, while five
@@ -192,7 +196,7 @@ export class ScheduleService {
     plan?: { picks: string[] },
   ): Promise<{ created: string[]; replaced: number }> {
     const existing = eventsForDate(await this.listEvents(), date);
-    const superseded = supersededPlanEventIds(existing, blocks.map((b) => b.taskId));
+    const superseded = supersededPlanEventIds(existing, blocks.map((b) => ({ taskId: b.taskId, sitting: b.sitting })));
     for (const id of superseded) await this.deleteEvent(id);
     const created: string[] = [];
     for (const b of blocks) {
@@ -200,6 +204,7 @@ export class ScheduleService {
         date, start: b.start, end: b.end,
         category: b.category || undefined,
         sourceTaskId: b.taskId,
+        ...(b.sitting ? { sitting: b.sitting } : {}),
         ...(source ? { source } : {}),
       });
       if (id) created.push(id);

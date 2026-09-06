@@ -30,6 +30,15 @@ export interface EventData {
   // event he made himself.
   gcalHash?: string;
   sourceTaskId?: string; // task this block was generated from, via Plan my day
+  // SCHED-F-04 (2026-09-05): WHICH SITTING OF THAT TASK this block is, 1-based,
+  // absent when the task was placed as one block. Split It (P13, 2026-08-20)
+  // says a three-hour task is not a three-hour sitting and commits two blocks;
+  // the one-block-per-task sweep (hotfix 2026-08-21) then read the second as a
+  // duplicate and deleted it on the next reload, with no toast and no undo.
+  // The unit both rules argue about is (task, sitting), so the event says
+  // which sitting it is. A JSONB field: no migration, and the sweep stays
+  // honest instead of being switched off.
+  sitting?: number;
   taskIds?: string[]; // attached tasks (Session 4 connections). Links live on
   // the event and die with it; non-recurring events only.
   // Provenance (addendum item 8): set on every AUTO-created event, absent on

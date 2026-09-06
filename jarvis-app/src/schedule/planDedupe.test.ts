@@ -96,7 +96,7 @@ describe("supersededPlanEventIds", () => {
       ev("c", {}),
       ev("d", { sourceTaskId: "t3", gcalId: "g" }),
     ];
-    expect(supersededPlanEventIds(evs, ["t1", "t3"])).toEqual(["a"]);
+    expect(supersededPlanEventIds(evs, [{ taskId: "t1" }, { taskId: "t3" }])).toEqual(["a"]);
   });
 });
 
@@ -146,5 +146,51 @@ describe("ScheduleService.healPlanDuplicates", () => {
     await svc.createEvent("Solo", { date: DAY, start: "09:00", sourceTaskId: "t1" });
     expect(await svc.healPlanDuplicates(DAY, null)).toBe(0);
     expect((await svc.eventsOn(DAY)).length).toBe(1);
+  });
+});
+
+// SCHED-F-04 (2026-09-05): "Split It commits two blocks for one task and the
+// dedupe sweep deletes the second on the next reload." The one-block-per-task
+// law (hotfix 2026-08-21) and the sittings feature (P13) contradicted each
+// other, and the sweep won because it runs on every reload. The unit both
+// rules argue about is (task, sitting).
+describe("two sittings of one task are two blocks, not a duplicate", () => {
+  it("the sweep keeps both sittings and still collapses a real duplicate", () => {
+    const evs = [
+      ev("s1", { sourceTaskId: "t1", sitting: 1, start: "09:00", end: "10:30" }),
+      ev("s2", { sourceTaskId: "t1", sitting: 2, start: "14:00", end: "15:30" }),
+      ev("dupe", { sourceTaskId: "t1", sitting: 2, start: "16:00", end: "17:30" }),
+    ];
+    expect(planDuplicateIds(evs)).toEqual(["dupe"]);
+  });
+
+  it("a block with no sitting is sitting one, so old events read as they did", () => {
+    const evs = [
+      ev("old", { sourceTaskId: "t1", start: "09:00" }),
+      ev("new", { sourceTaskId: "t1", sitting: 1, start: "11:00" }),
+    ];
+    expect(planDuplicateIds(evs)).toEqual(["new"]);
+  });
+
+  it("committing two sittings leaves both on the day", async () => {
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    await svc.commitPlan(DAY, [
+      { taskId: "t1", text: "Write Report (1 of 2)", category: "work", start: "09:00", end: "10:30", sitting: 1 },
+      { taskId: "t1", text: "Write Report (2 of 2)", category: "work", start: "14:00", end: "15:30", sitting: 2 },
+    ]);
+    expect(await svc.healPlanDuplicates(DAY, null)).toBe(0);
+    const mine = (await svc.eventsOn(DAY)).filter((e) => e.data.sourceTaskId === "t1");
+    expect(mine.map((e) => e.data.sitting)).toEqual([1, 2]);
+  });
+
+  it("dropping the split back to one block leaves no orphan sitting behind", async () => {
+    const svc = new ScheduleService(new Store(new InMemoryAdapter()), "u");
+    await svc.commitPlan(DAY, [
+      { taskId: "t1", text: "Write Report (1 of 2)", category: "work", start: "09:00", end: "10:30", sitting: 1 },
+      { taskId: "t1", text: "Write Report (2 of 2)", category: "work", start: "14:00", end: "15:30", sitting: 2 },
+    ]);
+    await svc.commitPlan(DAY, [{ taskId: "t1", text: "Write Report", category: "work", start: "09:00", end: "12:00" }]);
+    const mine = (await svc.eventsOn(DAY)).filter((e) => e.data.sourceTaskId === "t1");
+    expect(mine.map((e) => e.data.title)).toEqual(["Write Report"]);
   });
 });

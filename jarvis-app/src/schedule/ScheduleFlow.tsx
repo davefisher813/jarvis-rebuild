@@ -406,7 +406,7 @@ export default function ScheduleFlow({ onEditRoutine, openId }: { onEditRoutine?
         });
       }
     : undefined;
-  const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string }[], picks: string[]) => {
+  const onPlanCommit = async (blocks: { taskId: string; text: string; category: string; start: string; end: string; sitting?: number }[], picks: string[]) => {
     // Replace, never add (hotfix 2026-08-21): commitPlan sweeps each task's
     // prior plan event on this day before writing, against a fresh read.
     let ids: string[] = [];

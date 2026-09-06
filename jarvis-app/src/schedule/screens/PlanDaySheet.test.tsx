@@ -318,3 +318,32 @@ describe("the commit fires once, and the re-plan uses his cap", () => {
     expect(document.querySelectorAll(".p3-row.on").length).toBe(2);
   });
 });
+
+// SCHED-F-04 (2026-09-05): "Split It commits two blocks for one task and the
+// dedupe sweep deletes the second on the next reload." The sheet collapsed
+// both sittings to the same task id at the commit, so the calendar could not
+// tell them apart and the one-block-per-task sweep took the afternoon one.
+describe("Split It reaches the calendar as two sittings", () => {
+  it("commits both blocks, each saying which sitting it is", async () => {
+    const long = vi.fn(async (picks: { id: string }[]) => ({
+      items: picks.map((p) => ({ id: p.id, minutes: 180 })), leanedOn: [] as string[],
+    }));
+    const got: { taskId: string; text: string; sitting?: number }[][] = [];
+    render(sheet({
+      tasks: TASKS.slice(0, 1),
+      onAIPlan: long,
+      onCommit: (b) => { got.push(b.map((x) => ({ taskId: x.taskId, text: x.text, sitting: x.sitting }))); },
+    }));
+    await waitFor(() => expect(long).toHaveBeenCalledTimes(1));
+    fireEvent.click(document.querySelector(".p3-time-btn")!);
+    await waitFor(() => expect(screen.getByText("Split It")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Split It"));
+    expect(screen.getByText(/2 Sittings/)).toBeInTheDocument();
+    // Two blocks now, and the button counts blocks.
+    fireEvent.click(screen.getByText("Add These 2"));
+    expect(got.length).toBe(1);
+    expect(got[0]!.map((b) => b.taskId)).toEqual(["t1", "t1"]);
+    expect(got[0]!.map((b) => b.sitting)).toEqual([1, 2]);
+    expect(got[0]![0]!.text).toContain("(1 of 2)");
+  });
+});

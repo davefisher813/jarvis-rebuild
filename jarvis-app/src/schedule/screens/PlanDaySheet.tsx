@@ -52,6 +52,14 @@ function label(hhmmStr: string) { const t = fmtTime(hhmmStr); return `${t.time} 
 // A pick split into sittings carries a synthetic id, "<taskId>#2". Everything
 // downstream of the planner speaks the real id again.
 const realId = (id: string) => id.split("#")[0] ?? id;
+// SCHED-F-04 (2026-09-05): and the sitting number rides ALONG with it, instead
+// of being dropped at the commit. Two sittings used to reach the calendar as
+// two events with the same sourceTaskId, which the one-block-per-task sweep
+// then read as a duplicate and deleted on the next reload.
+const sittingOf = (id: string): number | undefined => {
+  const n = Number(id.split("#")[1]);
+  return Number.isInteger(n) && n > 0 ? n : undefined;
+};
 
 // PLAN MY DAY, rebuilt around one decision (2026-08-22).
 //
@@ -493,7 +501,15 @@ export default function PlanDaySheet({
         ).catch(() => { /* the next identical override re-observes it */ });
       }
     }
-    onCommit(committed.map((b) => ({ ...b, taskId: realId(b.taskId) })), picks.map(realId));
+    onCommit(
+      committed.map((b) => {
+        const sitting = sittingOf(b.taskId);
+        return { ...b, taskId: realId(b.taskId), ...(sitting ? { sitting } : {}) };
+      }),
+      // One task picked once, however many sittings it was broken into: the
+      // pick order is about tasks, and plan.picked counts a task once.
+      Array.from(new Set(picks.map(realId))),
+    );
   };
 
   const hide = (k: string) => setDismissed((d) => ({ ...d, [k]: true }));

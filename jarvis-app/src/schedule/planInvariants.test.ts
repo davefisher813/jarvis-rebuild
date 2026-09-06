@@ -182,9 +182,15 @@ describe("invariant 5: open rows agree with the busy day (randomized)", () => {
 
 // Invariant 6 (hotfix 2026-08-21, the "adhd nightmare" screenshots): however
 // many placement passes run, in whatever order, a task holds at most ONE
-// planner event on a day. Randomized re-plan storms against the real service.
-describe("invariant 6: no day ever holds two planner events for one task", () => {
-  it("random storms of commits and heals leave one block per task", async () => {
+// planner event per SITTING on a day. Randomized re-plan storms against the
+// real service.
+//
+// SCHED-F-04 (2026-09-05): the invariant used to be "one block per task",
+// which is what deleted the second sitting of a task Split It had
+// deliberately broken in two. Split It is a real feature (P13) and the storms
+// below now commit sittings too; the law is the pair.
+describe("invariant 6: no day ever holds two planner events for one sitting", () => {
+  it("random storms of commits and heals leave one block per task and sitting", async () => {
     const { Store, InMemoryAdapter } = await import("@core");
     const { ScheduleService } = await import("./ScheduleService");
     const r = rng(61221);
@@ -198,22 +204,31 @@ describe("invariant 6: no day ever holds two planner events for one task", () =>
       const passes = int(r, 2, 5);
       for (let p = 0; p < passes; p++) {
         const subset = taskIds.filter(() => r() < 0.7);
-        const blocks = subset.map((id, k) => {
-          const s = int(r, 8 * 60, 20 * 60);
-          return { taskId: id, text: "T " + id, category: "c" + k, start: hhmm(s), end: hhmm(Math.min(24 * 60 - 1, s + int(r, 15, 90))) };
+        const blocks = subset.flatMap((id, k) => {
+          // Some passes split a task into two sittings, the way Split It does.
+          const parts = r() < 0.3 ? 2 : 1;
+          return Array.from({ length: parts }, (_, i) => {
+            const s = int(r, 8 * 60, 20 * 60);
+            return {
+              taskId: id, text: "T " + id, category: "c" + k,
+              start: hhmm(s), end: hhmm(Math.min(24 * 60 - 1, s + int(r, 15, 90))),
+              ...(parts > 1 ? { sitting: i + 1 } : {}),
+            };
+          });
         });
         await svc.commitPlan(date, blocks);
         if (r() < 0.3) await svc.healPlanDuplicates(date, int(r, 0, 24 * 60 - 1));
       }
       await svc.healPlanDuplicates(date, null);
       const evs = await svc.eventsOn(date);
-      const perTask = new Map<string, number>();
+      const perSitting = new Map<string, number>();
       for (const e of evs) {
         if (!e.data.sourceTaskId) continue;
         if (e.data.gcalId) continue;
-        perTask.set(e.data.sourceTaskId, (perTask.get(e.data.sourceTaskId) ?? 0) + 1);
+        const key = e.data.sourceTaskId + "#" + (e.data.sitting ?? 1);
+        perSitting.set(key, (perSitting.get(key) ?? 0) + 1);
       }
-      for (const [task, n] of perTask) expect(n, `round=${round} task=${task}`).toBe(1);
+      for (const [key, n] of perSitting) expect(n, `round=${round} key=${key}`).toBe(1);
       expect(evs.some((e) => e.data.title === "Dentist"), `round=${round}`).toBe(true);
       expect(evs.some((e) => e.data.gcalId === "g1"), `round=${round}`).toBe(true);
     }

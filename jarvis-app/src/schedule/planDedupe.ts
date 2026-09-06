@@ -38,11 +38,20 @@ export function isPlanEvent(e: EventItem): boolean {
 // earliest copy starting at or after now is the one the user can still act
 // on, so it survives; with no upcoming copy, or on another day, the earliest
 // copy survives. Events must already be the single day's list.
+// SCHED-F-04 (2026-09-05): the unit is (task, SITTING), not the task alone.
+// Split It commits two blocks for one task on purpose, and grouping by task
+// read the afternoon sitting as a duplicate of the morning one and deleted
+// it on the next reload. An event with no sitting is sitting one, so every
+// block written before this reads exactly as it did.
+export function planKeyOf(e: EventItem): string {
+  return e.data.sourceTaskId + "#" + (e.data.sitting ?? 1);
+}
+
 export function planDuplicateIds(events: EventItem[], nowMin: number | null = null): string[] {
   const byTask = new Map<string, EventItem[]>();
   for (const e of events) {
     if (!isPlanEvent(e)) continue;
-    const key = e.data.sourceTaskId!;
+    const key = planKeyOf(e);
     const list = byTask.get(key);
     if (list) list.push(e); else byTask.set(key, [e]);
   }
@@ -57,10 +66,20 @@ export function planDuplicateIds(events: EventItem[], nowMin: number | null = nu
   return out;
 }
 
-// Ids of the plan events a new commit for `taskIds` supersedes: the same
-// task's prior placement on the same day. Deleted before the new events are
-// written, so a plan commit REPLACES, never adds.
-export function supersededPlanEventIds(events: EventItem[], taskIds: string[]): string[] {
-  const tasks = new Set(taskIds);
+// Ids of the plan events a new commit supersedes: the same task's prior
+// placement on the same day. Deleted before the new events are written, so a
+// plan commit REPLACES, never adds.
+//
+// SCHED-F-04 (2026-09-05): the commit now names (task, sitting) pairs, the
+// same unit the sweep above groups by. What a commit supersedes is still
+// every prior block of the tasks it names, and deliberately so: a plan that
+// drops Split It writes one block where two stood, and a delete keyed
+// strictly on the pair would leave the old afternoon sitting on the day with
+// nothing left to claim it. The pair decides what is a DUPLICATE; the task
+// decides what is REPLACED.
+export interface PlanKey { taskId: string; sitting?: number }
+
+export function supersededPlanEventIds(events: EventItem[], picks: PlanKey[]): string[] {
+  const tasks = new Set(picks.map((p) => p.taskId));
   return events.filter((e) => isPlanEvent(e) && tasks.has(e.data.sourceTaskId!)).map((e) => e.id);
 }

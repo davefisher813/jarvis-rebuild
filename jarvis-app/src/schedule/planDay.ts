@@ -16,7 +16,10 @@ export interface PlanTask { id: string; text: string; category: string; duration
 // preferred work-hours window. overSoft: landed on top of a SOFT routine
 // block (named, so the UI can say "overlaps your Dinner"), which only happens
 // when the day had no room anywhere else.
-export interface PlanBlock { taskId: string; text: string; category: string; start: string; end: string; outsideWindow?: boolean; overSoft?: string }
+// SCHED-F-04 (2026-09-05): `sitting` is set only on a block that is one of
+// several sittings of the same task (Split It, P13). It travels with the
+// commit so the calendar can say which sitting a block is.
+export interface PlanBlock { taskId: string; text: string; category: string; start: string; end: string; sitting?: number; outsideWindow?: boolean; overSoft?: string }
 export interface DayPlan { blocks: PlanBlock[]; unplaced: PlanTask[] }
 
 function toMin(hhmm: string): number {
