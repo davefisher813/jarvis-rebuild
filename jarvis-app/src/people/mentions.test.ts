@@ -60,3 +60,41 @@ describe("what is still open with them", () => {
     expect(out.map((m) => m.id)).toEqual(["e9"]);
   });
 });
+
+// UP-CORE-17 (2026-09-05): a task can name its person outright now, from a
+// bounded chooser. A stated link is not a guess, so it counts where the name
+// matcher is right to stay silent, and it never widens what the matcher
+// itself will risk.
+describe("openWith with a filed person", () => {
+  const today = "2026-08-21";
+
+  it("lists work filed under this person, even when the name is not safe to match", () => {
+    const out = openWith(
+      { id: "p1", name: "Mark" },
+      [{ id: "t1", text: "Chase the invoice", personId: "p1" }, { id: "t2", text: "Mark done" }],
+      [],
+      today,
+    );
+    expect(out.map((m) => m.id)).toEqual(["t1"]);
+  });
+
+  it("still leaves out a filed task that is finished", () => {
+    const out = openWith(
+      { id: "p1", name: "Mark" },
+      [{ id: "t1", text: "Chase the invoice", personId: "p1", done: true }],
+      [],
+      today,
+    );
+    expect(out).toEqual([]);
+  });
+
+  it("a filed task and a named one both count, without duplicating", () => {
+    const out = openWith(
+      { id: "p2", name: "Nadia Sorensen" },
+      [{ id: "t1", text: "Send Nadia the deck", personId: "p2" }, { id: "t2", text: "Email Nadia Sorensen" }],
+      [],
+      today,
+    );
+    expect(out.map((m) => m.id)).toEqual(["t1", "t2"]);
+  });
+});

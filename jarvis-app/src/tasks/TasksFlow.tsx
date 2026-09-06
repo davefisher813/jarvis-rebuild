@@ -1,6 +1,9 @@
 import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTasks, useCategories, useSchedule, useRoutine, useNotes } from "../data/NotesProvider";
+import { useTasks, useCategories, useSchedule, useRoutine, useNotes, usePeople } from "../data/NotesProvider";
+import type { Person } from "../people/types";
+import CallPrepSheet from "../people/CallPrepSheet";
+import MessageDraftSheet from "../people/MessageDraftSheet";
 import { pausedCategoryIds, offHoursCategoryIds } from "../categories/kinds";
 import TasksPage from "./screens/TasksPage";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "./screens/TaskSheet";
@@ -82,6 +85,18 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   const estimateOf = useTaskEstimate();
   // UP-CORE-02: what each area usually takes, for the Length row's fact line.
   const categoryMinutes = useCategoryEstimates();
+  // UP-CORE-17 (2026-09-05): the real contacts, for the task sheet's bounded
+  // Person chooser and for the two person surfaces a linked task can open.
+  // One people store, PeopleService, the same one the People tab reads.
+  const peopleSvc = usePeople();
+  const [people, setPeople] = useState<Person[]>([]);
+  const [peopleTick, setPeopleTick] = useState(0);
+  useEffect(() => {
+    let on = true;
+    peopleSvc.list().then((ps) => { if (on) setPeople(ps); }).catch(() => {});
+    return () => { on = false; };
+  }, [peopleSvc, peopleTick]);
+  const [personSheet, setPersonSheet] = useState<{ kind: "call" | "text"; personId: string; about: string } | null>(null);
   // LIFE-F-01 (2026-09-05): this used to serialise local midnight with
   // toISOString(), which reads the UTC date. East of Greenwich that is still
   // today, so swiping Tomorrow set the due date to today, the row stayed put
@@ -120,6 +135,19 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // flow can actually reach, so Provenance keeps rendering a plain fact for
   // the rest (Smart Paste, the recorder, a sweep) rather than a button that
   // does nothing, which is the bug in a different costume.
+  // UP-CORE-17 (2026-09-05): the contact a task names, and the door to their
+  // card. Only for a person who still exists: a deleted contact leaves the
+  // task's personId pointing at nothing, and a chip that opens nothing is
+  // worse than no chip.
+  const personFor = useCallback((t: TaskItem): { name: string; onOpen?: () => void } | null => {
+    const p = t.data.personId ? people.find((x) => x.id === t.data.personId) : undefined;
+    if (!p) return null;
+    return {
+      name: p.data.name,
+      onOpen: () => setPersonSheet({ kind: "call", personId: p.id, about: t.data.text }),
+    };
+  }, [people]);
+
   const openSourceFor = useCallback((source: Source): (() => void) | undefined => {
     const ref = source.ref;
     if (!ref) return undefined;
@@ -410,7 +438,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     // plan rides into the sheet (2026-08-25): without it the sheet's fields
     // start empty, save() sees an untouched plan, and setPlan(id, null) below
     // silently erased the task's if-then on EVERY edit.
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin }, source: rowSource(t.source, t.moved) });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin, personId: t.personId }, source: rowSource(t.source, t.moved) });
   };
 
   // When arriving via a note connection, open that task. SHELL-F-12: on the
@@ -436,7 +464,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
-      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, plan: draft.plan, steps: draft.steps, estimateMin: draft.estimateMin }));
+      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, plan: draft.plan, steps: draft.steps, estimateMin: draft.estimateMin, personId: draft.personId }));
     } else if (sheet?.mode === "edit") {
       saved = await attemptWrite(async () => {
         await svc.editText(sheet.id, draft.text);
@@ -447,6 +475,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         await svc.setPlan(sheet.id, draft.plan ?? null);
         await svc.setSteps(sheet.id, draft.steps ?? []);
         await svc.setEstimate(sheet.id, draft.estimateMin ?? null);
+        await svc.setPerson(sheet.id, draft.personId ?? null);
         // Close Task: one tap on the sheet's own offer both saves and marks
         // the task done, once every step is checked.
         if (draft.closeNow) await svc.toggleDone(sheet.id);
@@ -758,6 +787,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         // answered before the tap instead.
         burstSizeOf={(t) => (t.data.done ? "small" : burstSize(movedByTask(t.data, t.id)?.moved ?? null))}
         openSourceFor={openSourceFor}
+        personFor={personFor}
         momentum={momentum && {
           afterId: momentum.afterId,
           el: (
@@ -805,11 +835,22 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
           openSourceFor={openSourceFor}
           categories={categories}
           categoryMinutes={categoryMinutes}
+          people={people.map((p) => ({ id: p.id, name: p.data.name }))}
           onSave={onSave}
           otherPlans={allItems.map((t) => ({ id: t.id, text: t.data.text, plan: t.data.plan }))}
           selfId={sheet.mode === "edit" ? sheet.id : undefined}
           onSchedule={sheet.mode === "edit" ? onScheduleTask : undefined}
           onBreakDown={sheet.mode === "edit" && ai.available ? (t) => void breakDown(t) : undefined}
+          onTextPerson={(() => {
+            // UP-CORE-17: only when the task names a person who still exists
+            // and has a number: MessageDraftSheet's own door out is an sms:
+            // link, so without one the row would promise nothing.
+            if (sheet.mode !== "edit") return undefined;
+            const t = allItems.find((x) => x.id === sheet.id);
+            const p = t?.data.personId ? people.find((x) => x.id === t.data.personId) : undefined;
+            if (!p?.data.phone) return undefined;
+            return { name: p.data.name, onOpen: () => { const text = t!.data.text; setSheet(null); setPersonSheet({ kind: "text", personId: p.id, about: text }); } };
+          })()}
           onDelete={sheet.mode === "edit" ? onDelete : undefined}
           onCancel={() => setSheet(null)}
           linkedNotes={sheet.mode === "edit" ? linkedNotes : []}
@@ -835,6 +876,42 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
             if (noteId) onOpenNote(noteId);
           })() : undefined}
         />
+      )}
+      {/* UP-CORE-17 (2026-09-05): the two person surfaces, opened from a task
+          that names someone. CallPrepSheet is THE person card by law, so this
+          mounts the same component the People tab does, with the same
+          PeopleService wiring, and hands it the task's own words as the
+          reason it is open. */}
+      {personSheet && people.find((p) => p.id === personSheet.personId) && (
+        personSheet.kind === "call" ? (
+          <CallPrepSheet
+            person={people.find((p) => p.id === personSheet.personId)!}
+            reason={personSheet.about}
+            onCall={async () => {
+              const out = await peopleSvc.logCallAttempt(personSheet.personId);
+              setPeopleTick((n) => n + 1);
+              return out;
+            }}
+            onUndoCall={async (prior) => { await peopleSvc.restoreCallAttempt(personSheet.personId, prior); setPeopleTick((n) => n + 1); }}
+            onCaptureNote={async (text) => {
+              const person = people.find((p) => p.id === personSheet.personId);
+              if (!person) return false;
+              const noteId = await notesSvc.createNote("Call with " + person.data.name, "");
+              if (!noteId) return false;
+              await notesSvc.addBlock(noteId, { type: "text", text });
+              await notesSvc.addConnection(noteId, "person", person.data.name, person.id);
+              return true;
+            }}
+            onClose={() => setPersonSheet(null)}
+          />
+        ) : (
+          <MessageDraftSheet
+            person={people.find((p) => p.id === personSheet.personId)!}
+            ai={ai}
+            about={personSheet.about}
+            onClose={() => setPersonSheet(null)}
+          />
+        )
       )}
     </>
   );

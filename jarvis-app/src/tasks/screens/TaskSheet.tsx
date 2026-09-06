@@ -6,7 +6,7 @@ import type { TaskStep } from "../../notes/types";
 import Provenance from "../../shared/Provenance";
 import type { Source } from "../../shared/provenance";
 import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, type IfThen, type CueKind } from "../ifThen";
-import { FileText, CheckSquare, Clock, Hourglass, Tag, FolderKanban, Calendar, Sparkles, Check, X } from "../../shared/icons";
+import { FileText, CheckSquare, Clock, Hourglass, Tag, FolderKanban, Calendar, MessageSquare, Sparkles, Check, User, X } from "../../shared/icons";
 import { DUR_CHOICES, durLabel } from "../../schedule/durations";
 import { RepeatGlyph, PinGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
@@ -25,6 +25,8 @@ export interface TaskDraft {
   // UP-CORE-02 (2026-09-05): how long this one takes, in minutes. Absent
   // means he has not said, and the learned category median answers instead.
   estimateMin?: number;
+  // UP-CORE-17 (2026-09-05): the contact this task is about, by id.
+  personId?: string;
   // Set only by the "Close Task" offer under a fully-checked list: this
   // Save should also mark the task done. Never set by the ordinary Save tap.
   closeNow?: boolean;
@@ -70,12 +72,14 @@ export default function TaskSheet({
   initial,
   categories,
   categoryMinutes = {},
+  people = [],
   projects = [],
   source,
   openSourceFor,
   onSave,
   onSchedule,
   onBreakDown,
+  onTextPerson,
   onDelete,
   onCancel,
   otherPlans = [],
@@ -101,6 +105,11 @@ export default function TaskSheet({
   // Length row can say what this area usually takes without claiming it as
   // this task's answer. Empty where the flow has no history to offer.
   categoryMinutes?: Record<string, number>;
+  // UP-CORE-17: the real contacts to choose from. A bounded chooser, never
+  // free text (A25): a typed name is the guessing this field replaces.
+  // Empty means no Person row at all, so a person with no contacts never
+  // meets a control that can only say None.
+  people?: { id: string; name: string }[];
   // Provenance of the task being edited, when it was auto-created. A fact
   // line only; the sheet never writes it (coverage map: not editable).
   source?: Source;
@@ -114,6 +123,10 @@ export default function TaskSheet({
   // Break It Down: hands the current text back so the flow can split it into
   // real tasks. Absent when AI is off, so the row never promises nothing.
   onBreakDown?: (text: string) => void;
+  // UP-CORE-17 (2026-09-05): "Text Marco about the invoice" without leaving
+  // the task. Present only when the linked person has a number, so the row
+  // never promises a composer that cannot open.
+  onTextPerson?: { name: string; onOpen: () => void };
   onDelete?: () => void;
   onCancel: () => void;
   // LINKED NOTES (Dave 2026-08-28, "very very easy to connect things"): the
@@ -154,6 +167,7 @@ export default function TaskSheet({
   const [due, setDue] = useState(initial?.due ?? "");
   const [repeat, setRepeat] = useState(initial?.repeat ?? "");
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
+  const [personId, setPersonId] = useState(initial?.personId ?? "");
   // UP-CORE-02: null means he has not said how long, which is different from
   // zero and is what lets the learned median keep answering.
   const [estimateMin, setEstimateMin] = useState<number | null>(initial?.estimateMin ?? null);
@@ -237,6 +251,7 @@ export default function TaskSheet({
   const primaryName = categories.find((c) => c.id === category)?.name ?? "";
   const areaWord = cats.length === 0 ? "None" : cats.length === 1 ? primaryName : `${primaryName} +${cats.length - 1}`;
   const projectWord = projects.find((p) => p.id === projectId)?.title ?? "None";
+  const personWord = people.find((p) => p.id === personId)?.name ?? "None";
 
   // closeNow: the "Close Task" offer under a fully-checked list calls
   // save(true) -- one tap both saves the steps and marks the task done. The
@@ -257,13 +272,14 @@ export default function TaskSheet({
       plan: planTouched && isUsable(draftPlan) ? draftPlan : undefined,
       steps: steps.length ? steps : undefined,
       estimateMin: estimateMin ?? undefined,
+      personId: personId || undefined,
       closeNow: closeNow || undefined,
     });
     void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
   };
 
   const showNotes = mode === "edit" && (linkedNotes.length > 0 || !!onAddNote);
-  const showActions = mode === "edit" && (!!onSchedule || (!!onBreakDown && !!text.trim()) || !!onDelete);
+  const showActions = mode === "edit" && (!!onSchedule || (!!onBreakDown && !!text.trim()) || !!onTextPerson || !!onDelete);
   const planLine = planOpen ? null : planTouched ? (planWeak ?? sentence(draftPlan)) : "Not set";
 
   return createPortal(
@@ -410,6 +426,21 @@ export default function TaskSheet({
                 options={[{ value: "", label: "None" }, ...categories.map((c) => ({ value: c.id, label: c.name, dot: c.color as string }))]}
                 onPick={toggleCat} />
             </div>
+            {/* UP-CORE-17 (2026-09-05) · WHO THIS IS ABOUT. "Call Marco
+                about the invoice" carried Marco's name in a string and
+                nothing else: his card could not list the task without
+                guessing from spelling, and the task could not open his Call
+                Prep card at all. The chooser hands back a real contact's
+                id, so neither end has to guess. */}
+            {people.length > 0 && (
+              <div className="row xs-row">
+                <Tile tone="teal"><User className="ic" /></Tile>
+                <div className="conn-name">Person</div>
+                <HeadMenu variant="value" ariaLabel="Person" value={personId} label={personWord} off={personId === ""}
+                  options={[{ value: "", label: "None" }, ...people.map((p) => ({ value: p.id, label: p.name }))]}
+                  onPick={setPersonId} />
+              </div>
+            )}
             {projects.length > 0 && (
               <div className="row xs-row">
                 <Tile tone="indigo"><FolderKanban className="ic" /></Tile>
@@ -501,6 +532,15 @@ export default function TaskSheet({
                 <div className="row xs-row" role="button" tabIndex={0} onClick={() => onBreakDown(text.trim())}>
                   <Tile tone="purple"><Sparkles className="ic" /></Tile>
                   <div className="conn-name">Break It Down</div>
+                  <div className="chev"></div>
+                </div>
+              )}
+              {/* UP-CORE-17: Messages Drafting, with this task's own words
+                  as what the message is about. */}
+              {onTextPerson && (
+                <div className="row xs-row" role="button" tabIndex={0} onClick={onTextPerson.onOpen}>
+                  <Tile tone="teal"><MessageSquare className="ic" /></Tile>
+                  <div className="conn-name">Text {onTextPerson.name}</div>
                   <div className="chev"></div>
                 </div>
               )}

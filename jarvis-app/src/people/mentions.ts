@@ -66,22 +66,32 @@ export interface MentionItem {
 
 // Open work and upcoming time involving this person. Done tasks and past
 // events are left out: this is what is STILL between you, not a history.
+// UP-CORE-17 (2026-09-05): a task can now NAME its person (TaskData.personId,
+// set from a bounded chooser), and a stated link outranks a guessed one. The
+// id match is exact and needs no patterns, so a person whose name the matcher
+// refuses to guess from ("Mark", "Will") still gets their filed work here,
+// which the name-only version could never show.
 export function openWith(
-  person: { name: string },
-  tasks: { id: string; text: string; done?: boolean; due?: string | null }[],
+  person: { id?: string; name: string },
+  tasks: { id: string; text: string; done?: boolean; due?: string | null; personId?: string }[],
   events: { id: string; title: string; date: string; start?: string; location?: string }[],
   today: string,
   max = 6,
 ): MentionItem[] {
   const pats = namePatterns(person.name);
-  if (pats.length === 0) return [];
+  const linked = (t: { personId?: string }) => !!person.id && t.personId === person.id;
   const hit = (s: string) => pats.some((re) => re.test(s));
   const out: MentionItem[] = [];
   for (const t of tasks) {
     if (t.done) continue;
-    if (!hit(t.text)) continue;
+    // Filed first, so a link he made himself is never lost to a name the
+    // matcher will not risk.
+    if (!linked(t) && !hit(t.text)) continue;
     out.push({ id: t.id, kind: "task", title: t.text, sub: t.due ?? undefined });
   }
+  // With no usable name patterns the events half has nothing to match on;
+  // events carry no person link of their own yet.
+  if (pats.length === 0) return out.slice(0, max);
   for (const e of events) {
     if (e.date < today) continue;
     if (!hit(e.title) && !hit(e.location ?? "")) continue;

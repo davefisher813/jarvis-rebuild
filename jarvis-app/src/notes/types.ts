@@ -192,6 +192,12 @@ export interface TaskData {
   // automated move (TasksService.setDue's movedBy), and cleared by the next
   // move he makes himself, because from then on the date is his.
   moved?: import("../shared/provenance").Source;
+  // WHO THIS IS ABOUT (UP-CORE-17, 2026-09-05). "Call Marco about the
+  // invoice" should open Marco's Call Prep card from the task, and Marco's
+  // card should list the task without having to guess from spelling. A real
+  // contact's id, chosen from a bounded chooser, never free text: a name
+  // typed into a task is exactly the guessing this replaces.
+  personId?: string;
 }
 
 export type TemplateKey =

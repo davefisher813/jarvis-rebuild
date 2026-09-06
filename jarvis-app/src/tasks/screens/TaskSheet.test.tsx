@@ -77,6 +77,26 @@ describe("TaskSheet", () => {
     expect(onSave.mock.calls[0]![0].estimateMin).toBe(90);
   });
 
+  // UP-CORE-17 (2026-09-05): who this task is about, chosen from real
+  // contacts and stored as an id. Never free text: a name typed into a task
+  // is exactly the guessing this field replaces.
+  it("the person value is a bounded chooser, and there is no row without contacts", () => {
+    const onSave = vi.fn();
+    const { rerender } = render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    expect(screen.queryByLabelText("Person")).toBeNull();
+    rerender(
+      <TaskSheet mode="new" categories={CATS} people={[{ id: "p1", name: "Marco Diaz" }]} onSave={onSave} onCancel={() => {}} />,
+    );
+    const person = screen.getByLabelText("Person");
+    expect(person.textContent).toContain("None");
+    fireEvent.click(person);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /Marco Diaz/ }));
+    expect(screen.getByLabelText("Person").textContent).toContain("Marco Diaz");
+    fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "Call about the invoice" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0].personId).toBe("p1");
+  });
+
   it("the due value opens a menu and Today sets the date", () => {
     const onSave = vi.fn();
     render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);

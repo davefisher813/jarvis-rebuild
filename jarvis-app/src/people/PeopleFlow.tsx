@@ -102,6 +102,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   // B1: what is still open with this person. Best effort and additive; a
   // failure here leaves the card exactly as it was before.
   const currentName = current?.data.name;
+  const currentId = current?.id;
   useEffect(() => {
     if (!currentName) { setStill([]); return; }
     let on = true;
@@ -110,15 +111,18 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
         const [ts, evs] = await Promise.all([tasksSvc.listTasks(), schedSvc.listEvents()]);
         if (!on) return;
         setStill(openWithPerson(
-          { name: currentName },
-          ts.map((t) => ({ id: t.id, text: t.data.text, done: t.data.done, due: t.data.due ?? null })),
+          // UP-CORE-17 (2026-09-05): with the id, a task he FILED under this
+          // person counts whatever its wording, so the card lists the work
+          // the name matcher was right to refuse to guess at.
+          { id: currentId, name: currentName },
+          ts.map((t) => ({ id: t.id, text: t.data.text, done: t.data.done, due: t.data.due ?? null, personId: t.data.personId })),
           evs.map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, start: e.data.start, location: e.data.location })),
           todayISO(),
         ));
       } catch { if (on) setStill([]); }
     })();
     return () => { on = false; };
-  }, [currentName, tasksSvc, schedSvc]);
+  }, [currentName, currentId, tasksSvc, schedSvc]);
 
   // LAST TALKED (S6-Q40): one cached Gmail lookup for whichever person is
   // open, the same derivation CategoryDetail already runs per row. Cleared

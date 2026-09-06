@@ -60,7 +60,7 @@ export class TasksService {
   // set the precedent; Store.create takes the id straight through.
   async createTask(
     text: string,
-    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number } = {},
+    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number; personId?: string } = {},
     id?: string,
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
@@ -81,6 +81,7 @@ export class TasksService {
     if (opts.source) data.source = opts.source;
     if (opts.plan && isUsable(opts.plan)) data.plan = opts.plan;
     if (isLength(opts.estimateMin)) data.estimateMin = opts.estimateMin;
+    if (opts.personId) data.personId = opts.personId;
     const steps = cleanSteps(opts.steps);
     if (steps.length) data.steps = steps;
     const newId = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData, id);
@@ -110,6 +111,7 @@ export class TasksService {
       plan: t.plan,
       steps: t.steps,
       estimateMin: t.estimateMin,
+      personId: t.personId,
       fromNote: t.fromNote,
       fromThread: t.fromThread,
       source: t.source,
@@ -398,6 +400,17 @@ export class TasksService {
     const t = await this.getTask(id);
     if (!t) return false;
     await this.store.update(this.ownerId, id, { estimateMin: isLength(minutes) ? minutes : null });
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
+  // UP-CORE-17: the contact this task is about. Null clears it. Never a
+  // name: the chooser hands back an id, so a person who gets renamed keeps
+  // their tasks and a task never claims a person the app cannot open.
+  async setPerson(id: string, personId: string | null): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t) return false;
+    await this.store.update(this.ownerId, id, { personId: personId ?? null });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }

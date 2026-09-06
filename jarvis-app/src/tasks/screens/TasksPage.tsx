@@ -128,6 +128,7 @@ export function TaskRow({
   action = null,
   burstSize = "small",
   openSourceFor,
+  person = null,
 }: {
   item: TaskItem;
   today: string;
@@ -176,6 +177,9 @@ export function TaskRow({
   // SHARED-F-17 (2026-09-05): a handler for this row's source, or undefined
   // when the flow has no route to it. Undefined leaves the line a fact.
   openSourceFor?: (source: Source) => (() => void) | undefined;
+  // UP-CORE-17 (2026-09-05): who this task is about, when it names someone.
+  // Tapping opens the Call Prep card, the app's one person card by law.
+  person?: { name: string; onOpen?: () => void } | null;
 }) {
   const t = item.data;
   const u = urgencyFor(t, today);
@@ -324,6 +328,12 @@ export function TaskRow({
                   {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || "No category"}
                 </span>}
             {t.recurrence && <span className="r-goal r-cat r-rec">{"\u00b7 " + t.recurrence}</span>}
+            {/* UP-CORE-17 (2026-09-05): the person this is about, and the
+                door to their card. A chip, because the second line already
+                carries where the task lives. */}
+            {person && (person.onOpen
+              ? <span className="r-goal r-cat" role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); person.onOpen!(); }}>{"\u00b7 " + person.name}</span>
+              : <span className="r-goal r-cat">{"\u00b7 " + person.name}</span>)}
             {/* UP-CORE-02 (2026-09-05): how long he said this one takes,
                 where he is deciding what to pick up. A fact, only when set. */}
             {t.estimateMin ? <span className="r-goal r-cat">{"\u00b7 " + durLabel(t.estimateMin)}</span> : null}
@@ -398,6 +408,7 @@ export default function TasksPage({
   parentOf,
   burstSizeOf,
   openSourceFor,
+  personFor,
   title = "Tasks",
   segments,
 }: {
@@ -447,6 +458,9 @@ export default function TasksPage({
   // undefined for a source this flow cannot route. The page never decides
   // what a source type means; it only asks.
   openSourceFor?: (source: Source) => (() => void) | undefined;
+  // UP-CORE-17 (2026-09-05): the contact a task names, and the way to open
+  // their card. Resolved by the flow, which holds the people list.
+  personFor?: (t: TaskItem) => { name: string; onOpen?: () => void } | null;
   // LIFE (2026-09-01): the head's word and the segment control under it,
   // when this page is the Tasks lens of the Life tab.
   title?: string;
@@ -680,6 +694,7 @@ export default function TasksPage({
                       parent={parentOf?.(it) ?? null}
                       burstSize={burstSizeOf?.(it) ?? "small"}
                       openSourceFor={openSourceFor}
+                      person={personFor?.(it) ?? null}
                     />
                     {/* Momentum Chain (addendum item 7): the suggestion slides
                         into the just-finished slot, right below its row. */}

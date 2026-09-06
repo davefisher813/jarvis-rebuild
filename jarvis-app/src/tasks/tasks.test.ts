@@ -346,3 +346,18 @@ describe("the automated move says so (UP-CORE-05)", () => {
     expect((await svc.task(id))?.moved ?? null).toBeNull();
   });
 });
+
+// UP-CORE-17 (2026-09-05): who a task is about, by id and never by spelling.
+describe("a person on a task (UP-CORE-17)", () => {
+  it("stores the contact's id, clears it, and carries it through an undo", async () => {
+    const svc = new TasksService(new Store(new InMemoryAdapter()), "u-person");
+    const id = (await svc.createTask("Call about the invoice", { personId: "p1" }))!;
+    expect((await svc.task(id))?.personId).toBe("p1");
+    const snapshot = (await svc.task(id))!;
+    await svc.deleteTask(id);
+    const back = (await svc.recreateFrom(snapshot, id))!;
+    expect((await svc.task(back))?.personId).toBe("p1");
+    await svc.setPerson(back, null);
+    expect((await svc.task(back))?.personId ?? null).toBeNull();
+  });
+});

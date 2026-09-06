@@ -30,6 +30,7 @@ function ago(iso: string | undefined): string | null {
 
 export default function CallPrepSheet({
   person,
+  reason,
   linkedNotes = [],
   onCall,
   onUndoCall,
@@ -37,6 +38,10 @@ export default function CallPrepSheet({
   onClose,
 }: {
   person: Person;
+  // UP-CORE-17 (2026-09-05): why this card is open, when a surface knows.
+  // The task's own words, unrewritten, so the card that opens from "Call
+  // Marco about the invoice" says which thing it is about.
+  reason?: string;
   linkedNotes?: { id: string; title: string }[];
   // Logs the attempt; resolves the undo payload. The sheet stays dumb about
   // services on purpose (same principle as PersonDetail).
@@ -98,6 +103,9 @@ export default function CallPrepSheet({
               {lastCalled && <div className="conn-meta">You called {lastCalled}</div>}
             </div>
           </div>
+          {reason && (
+            <div className="row"><div className="row-stack"><div className="eyebrow">About</div><div className="conn-meta">{reason}</div></div></div>
+          )}
           {relationship && (
             <div className="row"><div className="row-stack"><div className="eyebrow">Relationship</div><div className="conn-meta">{relationship}</div></div></div>
           )}
