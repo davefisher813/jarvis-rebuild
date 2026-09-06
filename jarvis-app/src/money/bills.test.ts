@@ -106,6 +106,32 @@ describe("payday anchoring", () => {
     expect(line!.sub).toBe("$1,200 in · $165 of bills out");
   });
 
+  // HMN-F-10 (2026-09-05), option A. The line carried a fourth filter that
+  // dropped an autopay bill rolled in the last five days whose next date was
+  // still ahead. On the monthly case the rolled date lands past payday and
+  // `due <= payday` had already excluded it, so the filter only ever changed
+  // the answer for weekly autopay, where it hid a real outflow: the Yours
+  // hero subtracted the $500 and this row said nothing at all.
+  it("a weekly autopay bill rolled two days ago and due before payday is money out", () => {
+    const p = { amount: 1200, next: "2026-08-07", freq: "biweekly" as const };
+    const weekly = bill({
+      text: "childcare",
+      bill: { amount: 500, autopay: true },
+      recurrence: "weekly",
+      lastDone: "2026-08-01",
+      due: "2026-08-05",
+    });
+    const line = paydayLine(p, [weekly], TODAY);
+    expect(line).not.toBeNull();
+    expect(line!.sub).toBe("$1,200 in · $500 of bills out");
+    // And it agrees with the hero, which counts by the same one rule
+    // (MoneyFlow.tsx: unpaid, dated, due on or before payday).
+    const heroOut = [weekly]
+      .filter((t) => !t.data.done && !!t.data.due && t.data.due <= paydayNext(p, TODAY))
+      .reduce((sum, t) => sum + (t.data.bill?.amount ?? 0), 0);
+    expect(line!.sub).toContain("$" + heroOut.toLocaleString() + " of bills out");
+  });
+
   it("says nothing when there is nothing honest to say", () => {
     const p = { amount: 1200, next: "2026-08-07", freq: "weekly" as const };
     expect(paydayLine(p, [], TODAY)).toBeNull();

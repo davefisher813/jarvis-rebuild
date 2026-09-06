@@ -137,10 +137,18 @@ export function paydayLine(
   today: string,
 ): { title: string; sub: string } | null {
   const payday = paydayNext(p, today);
+  // HMN-F-10 (2026-09-05), option A. A fourth filter used to drop an autopay
+  // bill rolled in the last five days whose next date is still ahead. It was
+  // written for the monthly case, where the rolled date lands past payday and
+  // `due <= payday` has already excluded it, so it changed the answer only
+  // for weekly autopay: a $500 bill leaving before payday vanished from this
+  // line while the Yours hero above kept subtracting it (MoneyFlow.tsx:299
+  // has no such filter), and two numbers on one screen disagreed. Money
+  // leaving before payday is money out. One rule, both places: due on or
+  // before payday, not done.
   const out = bills
     .filter(isBillTask)
     .filter((t) => !t.data.done && !!t.data.due && t.data.due <= payday)
-    .filter((t) => !(t.data.bill?.autopay && t.data.lastDone && daysBetween(t.data.lastDone, today) <= 5 && t.data.due! > today))
     .reduce((sum, t) => sum + (t.data.bill?.amount ?? 0), 0);
   if (out === 0) return null;
   const when = dayPhrase(payday, today);
