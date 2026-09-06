@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useOptionalFiles, useFileStore } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
-import { ACCOUNT_META, ACCOUNT_KINDS, formatMoney, totalBalance, isLiability, signedBalance, type Account, type AccountData, type AccountKind } from "./types";
+import { ACCOUNT_META, ACCOUNT_KINDS, ENTITY_ACCOUNT, formatMoney, totalBalance, isLiability, signedBalance, type Account, type AccountData, type AccountKind } from "./types";
+import { useFreshLists } from "../data/useFreshLists";
+import { ENTITY_TASK } from "../notes/types";
 import {
   loadEnvelopes, forgetLocalEnvelopes, cleanEnvelopes, setAsideTotal, leftToSpend, leftSub, shortLine,
   daysUntil, perDayLine, envelopeId, type Envelope,
@@ -374,6 +376,9 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
     setTagged(allTasks.filter((t) => !t.data.done && !t.data.bill && moneyCatIds.has(t.data.category ?? "")));
   }, [svc, tasksSvc, profileSvc, catsSvc]);
   useEffect(() => { void reload(); }, [reload]);
+  // UP-PLAT-06 (2026-09-06): this page draws accounts AND the bills that live
+  // as tasks, so a bill paid on the laptop repaints here too.
+  useFreshLists([ENTITY_ACCOUNT, ENTITY_TASK], reload);
 
   // SHELL-F-21: the account the shell was asked to open, once the list it
   // lives in has arrived. Held until then rather than opening an empty sheet;

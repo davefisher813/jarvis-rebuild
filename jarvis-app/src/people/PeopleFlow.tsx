@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { usePeople, useNotes, useCategories, useTasks, useSchedule } from "../data/NotesProvider";
 import { openWith as openWithPerson, type MentionItem } from "./mentions";
 import { todayISO } from "../tasks/grouping";
-import type { Person } from "./types";
+import { ENTITY_PERSON, type Person } from "./types";
+import { useFreshLists } from "../data/useFreshLists";
 import { needsAdversarialReview, extractEmailFromNotes } from "./views";
 import type { SheetCategoryOpt } from "./screens/PersonSheet";
 import PeopleListPage from "./screens/PeopleListPage";
@@ -86,6 +87,8 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   }, [people]);
 
   useEffect(() => { void reload(); }, [reload]);
+  // UP-PLAT-06 (2026-09-06): a person edited on another device repaints here.
+  useFreshLists([ENTITY_PERSON], reload);
 
   // Fetch notes linked to the open person for the Linked Notes section.
   useEffect(() => {

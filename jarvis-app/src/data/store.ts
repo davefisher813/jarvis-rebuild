@@ -11,6 +11,12 @@ export const backendConfigured = !!(url && anonKey);
 // entity type whenever a background refresh found real changes behind a list
 // that answered from the persisted cache. Surfaces that want the repaint
 // subscribe; everything else just reloads on its own interactions as before.
+// UP-PLAT-06 (2026-09-06): the wildcard every subscriber honours, fired when
+// the whole account may have moved on somewhere else (the app coming back to
+// the foreground). No entity type can collide with it: the registry's types
+// are all bare identifiers.
+export const ALL_LISTS = "*";
+
 const freshSubs = new Set<(entityType: string) => void>();
 export function subscribeFreshLists(fn: (entityType: string) => void): () => void {
   freshSubs.add(fn);

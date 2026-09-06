@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { sourceOpener } from "../shared/openSource";
+import { useFreshLists } from "../data/useFreshLists";
+import { ENTITY_NOTE } from "./types";
 import { useNotes, useCategories, useTasks, useSchedule, useProjects, useGoals, usePeople, useOptionalProfile, useFileStore } from "../data/NotesProvider";
 import { catName } from "../shared/categories";
 import type { Category } from "../categories/types";
@@ -382,6 +384,13 @@ export default function NotesFlow({
       await loadList();
     })();
   }, [seed, svc, cats, loadList, profile]);
+
+  // UP-PLAT-06 (2026-09-06): a note written on the laptop shows up here
+  // without a relaunch. useFreshLists shipped 2026-08-24 and only three
+  // surfaces ever subscribed; the resume refresh and the Realtime channel
+  // both speak through it, so every list surface has to be listening or the
+  // repaint stops at the three that were.
+  useFreshLists([ENTITY_NOTE], loadList);
 
   useEffect(() => {
     onChrome?.({ tabBar: screen === "list" });

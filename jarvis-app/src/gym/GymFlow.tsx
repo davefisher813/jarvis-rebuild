@@ -4,7 +4,8 @@ import { useGym, useOptionalSchedule, useOptionalCategories, useOptionalGoals, u
 import { todayISO } from "../tasks/grouping";
 import { monthDay } from "../money/bills";
 import { agoPhraseLower } from "./summary";
-import type { DayBlock, Exercise, Program, ProgramDay, ProgramWeek, Workout, SetEntry, WorkoutExercise, MeasureKind } from "./types";
+import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type MeasureKind } from "./types";
+import { useFreshLists } from "../data/useFreshLists";
 import { targetLine, formatSet, isCompactPlan } from "./measures";
 import { applySuggestion, type Suggestion } from "./progression";
 import { receiptFor, lastSessionFor, type Receipt } from "./prs";
@@ -611,6 +612,8 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
     setLoaded(true);
   }, [svc]);
   useEffect(() => { void reload(); }, [reload]);
+  // UP-PLAT-06 (2026-09-06): a workout logged on another device repaints here.
+  useFreshLists([ENTITY_PROGRAM, ENTITY_WORKOUT], reload);
 
   // THE SEASON LINK (catalog §4.7): a real calendar read, gated on the
   // athlete having actually said which category means "a game" -- the

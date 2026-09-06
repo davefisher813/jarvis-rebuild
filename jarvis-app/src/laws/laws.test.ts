@@ -3228,9 +3228,21 @@ describe("LAW 12: a write survives the refresh racing it, and one thing never re
   // subscribed. Tasks and Schedule were wired that day. The HOME PAGE was
   // not -- so the one screen he opens first was the one screen that never
   // repainted when the app detected it was stale.
+  //
+  // UP-PLAT-06 (2026-09-06): and three surfaces was still not "every". The
+  // resume refresh and the Realtime channel both speak through this same
+  // pipe, so a list that does not subscribe stays wrong after picking the
+  // phone up or after the laptop writes, however good the push path is. The
+  // list below is every surface that draws a cached list, and it is pinned
+  // here so the next one cannot be forgotten.
   it("every surface that draws a cached list subscribes to the repaint", () => {
     const subscribers = COMPONENTS.filter((f) => read(f).includes("useFreshLists(")).map(rel).sort();
-    expect(subscribers, "Today included, not just Tasks and Schedule").toEqual([
+    expect(subscribers, "every list surface, not just the first three").toEqual([
+      "brain/BrainFlow.tsx",
+      "gym/GymFlow.tsx",
+      "money/MoneyFlow.tsx",
+      "notes/NotesFlow.tsx",
+      "people/PeopleFlow.tsx",
       "schedule/ScheduleFlow.tsx",
       "tasks/TasksFlow.tsx",
       "today/TodayFlow.tsx",

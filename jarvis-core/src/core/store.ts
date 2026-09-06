@@ -188,6 +188,17 @@ export class Store {
     }
   }
 
+  /**
+   * UP-PLAT-06 (2026-09-06): drop every cached list, for the one case the
+   * per-owner invalidation above cannot cover: the app coming back to the
+   * foreground. Nothing this Store did made the lists stale, so it has no
+   * ownerId to key on; what happened is that time passed and another device
+   * may have written. The next list call goes to the network.
+   */
+  invalidateAll(): void {
+    this.listCache.clear();
+  }
+
   // HMN-F-15 (2026-09-05): `id` lets a caller put a record back under the id
   // it had. The adapter has accepted one since the offline queue's replay
   // (S3-Q14); this exposes it for the one caller that needs it, Undo after a

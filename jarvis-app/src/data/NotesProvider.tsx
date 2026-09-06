@@ -26,6 +26,8 @@ import { supabase } from "../auth/supabaseClient";
 import { makeStore } from "./store";
 import type { Store } from "@core";
 import { wireOfflineSync } from "./offlineSync";
+import { wireResumeRefresh } from "./resumeRefresh";
+import { wireRealtime } from "./realtimeSync";
 import { emit } from "../events";
 
 // One store per session, shared by Notes, Tasks, and Schedule, so cross-feature
@@ -115,6 +117,14 @@ export function NotesProvider({
   // once at mount, instead of only on the next health tap. A flush that
   // fails leaves its entries queued for the next one; nothing to surface.
   useEffect(() => wireOfflineSync(store, () => { health.flush().catch(() => { /* still queued for the next online event */ }); }), [store, health]);
+  // UP-PLAT-06 (2026-09-06): two devices agree without a relaunch. Resume
+  // clears the Store's list cache and tells every subscribed surface to
+  // re-list when the app comes back to the foreground; the Realtime channel
+  // does the same for one row at a time while the app is open. Both are tied
+  // to `store` for the same reason wireOfflineSync is: a token refresh builds
+  // a new Store, and a listener left on the old one is a leak.
+  useEffect(() => wireResumeRefresh(store), [store]);
+  useEffect(() => wireRealtime(supabase, userId), [userId]);
   return (
     <TokenContext.Provider value={accessToken}>
     <StoreContext.Provider value={store}>

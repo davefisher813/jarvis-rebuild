@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import BrainPage, { type BrainCategory } from "./BrainPage";
 import { useCategories } from "../data/NotesProvider";
+import { useFreshLists } from "../data/useFreshLists";
+import { ENTITY_CATEGORY } from "../categories/types";
 import PeopleFlow from "../people/PeopleFlow";
 import BrainDocPage from "./docs/BrainDocPage";
 import CategoryDetail from "./CategoryDetail";
@@ -72,6 +74,8 @@ export default function BrainFlow({ openKey, openNonce, onKeyConsumed, routineBl
     setCatsLoaded(true);
   }, [cats]);
   useEffect(() => { void loadCats(); }, [loadCats]);
+  // UP-PLAT-06 (2026-09-06): an area renamed on another device repaints here.
+  useFreshLists([ENTITY_CATEGORY], loadCats);
 
   // AN AREA THAT DOES NOT EXIST IS NOT AN AREA (2026-08-26). This used to
   // fall through to a screen reading "This area is coming soon.", which was

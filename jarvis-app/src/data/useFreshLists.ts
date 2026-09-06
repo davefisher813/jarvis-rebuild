@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { subscribeFreshLists } from "./store";
+import { subscribeFreshLists, ALL_LISTS } from "./store";
 
 // THE REPAINT THAT NEVER ARRIVED (2026-08-24).
 //
@@ -32,7 +32,11 @@ export function useFreshLists(types: readonly string[], reload: () => unknown): 
     const want = new Set(key.split(",").filter(Boolean));
     if (want.size === 0) return;
     return subscribeFreshLists((entityType) => {
-      if (want.has(entityType)) void reloadRef.current();
+      // UP-PLAT-06 (2026-09-06): "*" means everything, and it is what the
+      // resume refresh fires. Coming back to the app after a day is not one
+      // type going stale, it is the whole account possibly having moved on
+      // another device, and every subscribed surface should hear it.
+      if (entityType === ALL_LISTS || want.has(entityType)) void reloadRef.current();
     });
   }, [key]);
 }
