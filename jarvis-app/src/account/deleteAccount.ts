@@ -24,6 +24,11 @@ export interface ServiceCtx {
   url: string;
   /** The service-role key. Never leaves the server. */
   serviceKey: string;
+  /** UP-LAUNCH-06 (2026-09-05): GOOGLE_TOKEN_KEY, base64. Without it the
+      stored refresh tokens cannot be decrypted, so they cannot be revoked
+      with Google; the deletion still happens and says how many it could not
+      revoke rather than pretending. */
+  tokenKey?: string;
 }
 
 export interface FetchResponse {
@@ -47,6 +52,14 @@ export const OWNED_TABLES: readonly { table: string; column: string }[] = [
   { table: "ai_usage", column: "user_id" },
   { table: "ai_tokens", column: "user_id" },
 ];
+
+// UP-LAUNCH-16 (2026-09-05): `feedback` is deliberately NOT in that list and
+// must not be added to it. A bug report is a message to us, not the user's
+// data, and the report most worth keeping is the one about the delete flow
+// itself. Migration 0033 sets its user_id to null when the auth user goes, so
+// the message survives with nobody attached to it.
+
+export const GOOGLE_REVOKE_URL = "https://oauth2.googleapis.com/revoke";
 
 export const BUCKET = "user-files";
 const PAGE = 1000;
@@ -103,7 +116,76 @@ export async function deleteUserFiles(ctx: ServiceCtx, userId: string, doFetch: 
   return paths;
 }
 
+// UP-LAUNCH-06 (2026-09-05): tell GOOGLE about it.
+//
+// google_tokens cascades from auth.users, so the ROW disappears on its own.
+// The GRANT does not: Google keeps the refresh token live, and JARVIS would
+// still hold a working authorization for a Gmail account belonging to
+// somebody who deleted their account. Deleting our copy of a key is not the
+// same as returning it.
+//
+// Best effort, on purpose. A refusal from Google (an already revoked token,
+// an offline moment) must never block a deletion the person asked for and has
+// a right to: the count of what could not be revoked comes back so the
+// endpoint can log it.
+export async function revokeGoogleGrants(
+  ctx: ServiceCtx,
+  userId: string,
+  doFetch: FetchLike,
+  decryptFn: (packedB64: string, secretB64: string) => Promise<string> = decryptToken,
+): Promise<{ revoked: number; failed: number }> {
+  if (!ctx.tokenKey) return { revoked: 0, failed: 0 };
+  const r = await doFetch(
+    `${ctx.url}/rest/v1/google_tokens?user_id=eq.${encodeURIComponent(userId)}&select=token_enc`,
+    { headers: headers(ctx) },
+  );
+  // No table, no rows, no problem: this account never connected Google.
+  if (!r.ok) return { revoked: 0, failed: 0 };
+  const rows = ((await r.json()) as { token_enc?: string }[]) || [];
+  let revoked = 0;
+  let failed = 0;
+  for (const row of rows) {
+    if (!row?.token_enc) continue;
+    try {
+      const refresh = await decryptFn(row.token_enc, ctx.tokenKey);
+      const rev = await doFetch(GOOGLE_REVOKE_URL, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: "token=" + encodeURIComponent(refresh),
+      });
+      if (rev.ok) revoked += 1; else failed += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+  return { revoked, failed };
+}
+
+// The same AES-GCM unpacking api/google.ts does when it mints a token: a
+// 12-byte iv followed by the ciphertext, base64. It lives here rather than in
+// api/ because api/ is in neither the typecheck nor the test run.
+export async function decryptToken(packedB64: string, secretB64: string): Promise<string> {
+  const raw = Uint8Array.from(atob(secretB64), (c) => c.charCodeAt(0));
+  const packed = Uint8Array.from(atob(packedB64), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
+  const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv: packed.slice(0, 12) }, key, packed.slice(12));
+  return new TextDecoder().decode(plain);
+}
+
 export async function deleteOwnedRows(ctx: ServiceCtx, userId: string, doFetch: FetchLike): Promise<void> {
+  // UP-LAUNCH-06: one transaction when the database has the function
+  // (migration 0034), the per-table walk when it does not. Same shape as the
+  // offline queue's fallback in PLUMB-F-10: the app works before the
+  // migration is run and gets atomicity the moment it is, with no new build.
+  const rpc = await doFetch(`${ctx.url}/rest/v1/rpc/delete_owned`, {
+    method: "POST",
+    headers: { ...headers(ctx), "content-type": "application/json" },
+    body: JSON.stringify({ p_uid: userId }),
+  });
+  if (rpc.ok) return;
+  // 404 means the function is not installed. Anything else is a real failure
+  // of a real function, and falling back would hide it.
+  if (rpc.status !== 404) throw new Error(`Could not delete your data (${rpc.status})`);
   for (const { table, column } of OWNED_TABLES) {
     const r = await doFetch(`${ctx.url}/rest/v1/${table}?${column}=eq.${encodeURIComponent(userId)}`, {
       method: "DELETE",
@@ -126,9 +208,13 @@ export async function deleteAuthUser(ctx: ServiceCtx, userId: string, doFetch: F
 
 // The whole thing. Throws on the first failure, with a message the endpoint
 // passes back, and never claims more than it did.
-export async function deleteAccountEverywhere(ctx: ServiceCtx, userId: string, doFetch: FetchLike): Promise<{ files: number }> {
+export async function deleteAccountEverywhere(ctx: ServiceCtx, userId: string, doFetch: FetchLike): Promise<{ files: number; revoked: number; revokeFailed: number }> {
+  // Google first, because it is the only step that needs a row a later step
+  // deletes, and because a grant handed back is the part of this that another
+  // company holds.
+  const google = await revokeGoogleGrants(ctx, userId, doFetch);
   const files = await deleteUserFiles(ctx, userId, doFetch);
   await deleteOwnedRows(ctx, userId, doFetch);
   await deleteAuthUser(ctx, userId, doFetch);
-  return { files: files.length };
+  return { files: files.length, revoked: google.revoked, revokeFailed: google.failed };
 }

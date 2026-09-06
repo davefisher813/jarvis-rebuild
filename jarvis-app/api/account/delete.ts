@@ -41,6 +41,11 @@ export default async function handler(req: Request): Promise<Response> {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
   const anon = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+  // UP-LAUNCH-06 (2026-09-05): the key the stored Google refresh tokens are
+  // encrypted with, so they can be handed back to Google rather than merely
+  // dropped from our database. Optional: a project with no Google connection
+  // configured deletes exactly as before.
+  const tokenKey = process.env.GOOGLE_TOKEN_KEY || "";
   // Said plainly rather than as a 500 with no shape: without the service-role
   // key this endpoint cannot delete anything, and the person tapping it needs
   // to know that nothing happened.
@@ -55,11 +60,17 @@ export default async function handler(req: Request): Promise<Response> {
   if (!me.id) return json({ error: "Unauthorized" }, 401);
 
   try {
-    const { files } = await deleteAccountEverywhere({ url, serviceKey }, me.id, fetch as unknown as FetchLike);
+    const { files, revoked, revokeFailed } = await deleteAccountEverywhere(
+      { url, serviceKey, ...(tokenKey ? { tokenKey } : {}) },
+      me.id,
+      fetch as unknown as FetchLike,
+    );
     // One line per deletion, in the function log, so "did that account
     // actually go" is a log search and not a guess. The id only: what was in
-    // the account is exactly what this endpoint just erased.
-    console.log("[jarvis-account-delete]", me.id, "files:", files);
+    // the account is exactly what this endpoint just erased. A Google grant
+    // that would not revoke is named here because it is the one part of this
+    // that another company still holds afterwards.
+    console.log("[jarvis-account-delete]", me.id, "files:", files, "google revoked:", revoked, "google failed:", revokeFailed);
     return json({ ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not delete the account";

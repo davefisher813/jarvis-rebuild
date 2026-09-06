@@ -7,7 +7,9 @@ import { describe, it, expect } from "vitest";
 import {
   deleteAccountEverywhere,
   deleteOwnedRows,
+  revokeGoogleGrants,
   OWNED_TABLES,
+  GOOGLE_REVOKE_URL,
   type FetchLike,
 } from "./deleteAccount";
 
@@ -36,10 +38,14 @@ function rig(opts: { files?: Record<string, { name: string; id: string | null }[
 }
 
 describe("deleting an account", () => {
+  // UP-LAUNCH-06 (2026-09-05): deleteOwnedRows now asks for one transaction
+  // first (delete_owned, migration 0034) and walks the tables only when that
+  // function is not installed. This test is about the WALK, so it forces the
+  // fallback; the transaction has its own tests further down.
   it("clears every owned table, keyed to that user and nobody else", async () => {
-    const { calls, doFetch } = rig();
+    const { calls, doFetch } = rig({ fail: (url) => (url.includes("rpc/delete_owned") ? 404 : null) });
     await deleteOwnedRows(CTX, UID, doFetch);
-    expect(calls.map((c) => c.method)).toEqual(OWNED_TABLES.map(() => "DELETE"));
+    expect(calls.filter((c) => c.method === "DELETE").map((c) => c.method)).toEqual(OWNED_TABLES.map(() => "DELETE"));
     for (const { table, column } of OWNED_TABLES) {
       const hit = calls.find((c) => c.url.includes(`/rest/v1/${table}?`));
       expect(hit, table).toBeTruthy();
@@ -75,13 +81,18 @@ describe("deleting an account", () => {
     // The rows go before the account: rows key on owner_id and RLS keys on
     // auth.uid(), so anything left after the user is gone is unreachable by
     // anyone, which is the same as never deleting it.
-    for (const { table } of OWNED_TABLES) {
-      expect(order.findIndex((u) => u.includes(`/rest/v1/${table}?`))).toBeLessThan(order.length - 1);
-    }
+    // The data goes before the account: rows key on owner_id and RLS keys on
+    // auth.uid(), so anything left after the user is gone is unreachable by
+    // anyone, which is the same as never deleting it. The data step is one
+    // rpc call now, so its position is what this checks.
+    const rpcAt = calls.findIndex((c) => c.url.includes("rpc/delete_owned"));
+    const authAt = calls.findIndex((c) => c.url.includes("/auth/v1/admin/users/"));
+    expect(rpcAt).toBeGreaterThan(-1);
+    expect(rpcAt).toBeLessThan(authAt);
   });
 
   it("a table that refuses stops the whole thing, and the account is still there", async () => {
-    const { calls, doFetch } = rig({ fail: (url, m) => (url.includes("/rest/v1/event_log") && m === "DELETE" ? 500 : null) });
+    const { calls, doFetch } = rig({ fail: (url, m) => (url.includes("rpc/delete_owned") ? 404 : url.includes("/rest/v1/event_log") && m === "DELETE" ? 500 : null) });
     await expect(deleteAccountEverywhere(CTX, UID, doFetch)).rejects.toThrow(/event_log/);
     expect(calls.some((c) => c.url.includes("/auth/v1/admin/users/"))).toBe(false);
   });
@@ -97,7 +108,7 @@ describe("deleting an account", () => {
 
   it("a project with no file bucket still deletes the account", async () => {
     const { calls, doFetch } = rig({ fail: (url) => (url.includes("/storage/v1/object/list/") ? 404 : null) });
-    await expect(deleteAccountEverywhere(CTX, UID, doFetch)).resolves.toEqual({ files: 0 });
+    await expect(deleteAccountEverywhere(CTX, UID, doFetch)).resolves.toEqual({ files: 0, revoked: 0, revokeFailed: 0 });
     expect(calls.some((c) => c.url.includes("/auth/v1/admin/users/"))).toBe(true);
   });
 
@@ -105,6 +116,77 @@ describe("deleting an account", () => {
   // that is already gone is the outcome, not an error the person cannot act on.
   it("an account already gone is a success, so a retry can finish", async () => {
     const { doFetch } = rig({ fail: (url) => (url.includes("/auth/v1/admin/users/") ? 404 : null) });
-    await expect(deleteAccountEverywhere(CTX, UID, doFetch)).resolves.toEqual({ files: 0 });
+    await expect(deleteAccountEverywhere(CTX, UID, doFetch)).resolves.toEqual({ files: 0, revoked: 0, revokeFailed: 0 });
+  });
+});
+
+// UP-LAUNCH-06 (2026-09-05): what SHELL-F-03's deletion was still missing.
+// The rows and the files were right; the GRANT at Google was not handed back,
+// and the five deletes were five separate calls with no transaction around
+// them.
+describe("what the deletion owes other people", () => {
+  const KEY = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+  const withGoogle = { ...CTX, tokenKey: KEY };
+
+  function googleRig(rows: { token_enc?: string }[], opts: { revokeStatus?: number } = {}) {
+    const calls: Call[] = [];
+    const doFetch: FetchLike = async (url, init) => {
+      const method = init?.method ?? "GET";
+      calls.push({ url, method, body: init?.body, headers: init?.headers ?? {} });
+      if (url.includes("google_tokens")) return { ok: true, status: 200, json: async () => rows };
+      if (url === GOOGLE_REVOKE_URL) {
+        const st = opts.revokeStatus ?? 200;
+        return { ok: st < 400, status: st, json: async () => ({}) };
+      }
+      return { ok: true, status: 204, json: async () => ({}) };
+    };
+    return { calls, doFetch };
+  }
+
+  it("hands every stored refresh token back to Google before the rows go", async () => {
+    const { calls, doFetch } = googleRig([{ token_enc: "a" }, { token_enc: "b" }]);
+    const out = await revokeGoogleGrants(withGoogle, UID, doFetch, async (packed) => "refresh-" + packed);
+    expect(out).toEqual({ revoked: 2, failed: 0 });
+    const revokes = calls.filter((c) => c.url === GOOGLE_REVOKE_URL);
+    expect(revokes).toHaveLength(2);
+    expect(revokes[0]!.method).toBe("POST");
+    expect(String(revokes[0]!.body)).toBe("token=refresh-a");
+    // Never the service key: this request goes to Google, not to Supabase.
+    expect(revokes[0]!.headers["apikey"]).toBeUndefined();
+  });
+
+  it("a refusal from Google is counted, never fatal: the deletion was asked for", async () => {
+    const { doFetch } = googleRig([{ token_enc: "a" }], { revokeStatus: 400 });
+    expect(await revokeGoogleGrants(withGoogle, UID, doFetch, async () => "r")).toEqual({ revoked: 0, failed: 1 });
+  });
+
+  it("does nothing at all without the encryption key, rather than guessing", async () => {
+    const { calls, doFetch } = googleRig([{ token_enc: "a" }]);
+    expect(await revokeGoogleGrants(CTX, UID, doFetch)).toEqual({ revoked: 0, failed: 0 });
+    expect(calls).toEqual([]);
+  });
+
+  it("deletes the five tables in one transaction when the function exists", async () => {
+    const { calls, doFetch } = rig();
+    await deleteOwnedRows(CTX, UID, doFetch);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url).toContain("/rest/v1/rpc/delete_owned");
+    expect(calls[0]!.body).toEqual({ p_uid: UID });
+  });
+
+  it("falls back to the per-table walk when the function is not installed yet", async () => {
+    const { calls, doFetch } = rig({ fail: (url) => (url.includes("rpc/delete_owned") ? 404 : null) });
+    await deleteOwnedRows(CTX, UID, doFetch);
+    expect(calls).toHaveLength(1 + OWNED_TABLES.length);
+    for (const { table } of OWNED_TABLES) expect(calls.some((c) => c.url.includes(`/rest/v1/${table}?`))).toBe(true);
+  });
+
+  it("a function that exists and fails stops everything, instead of quietly walking", async () => {
+    const { doFetch } = rig({ fail: (url) => (url.includes("rpc/delete_owned") ? 500 : null) });
+    await expect(deleteOwnedRows(CTX, UID, doFetch)).rejects.toThrow(/500/);
+  });
+
+  it("a bug report is not the user's data, so no step deletes it", () => {
+    expect(OWNED_TABLES.map((t) => t.table)).not.toContain("feedback");
   });
 });
