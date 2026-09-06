@@ -43,6 +43,8 @@ import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, forwardDraf
 import { alreadyPromised, loadPromised } from "./commitments";
 import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeeting } from "./home";
 import EvidenceChip from "./EvidenceChip";
+import ThreadStateCard from "./ThreadStateCard";
+import DecisionCaptureSheet from "../decisions/DecisionCaptureSheet";
 import { anchorNeedsYou, needsAnchor, ANCHOR_CAP } from "./evidencePass";
 import { makePersonIdFor, noPersonId, type PersonIdFor } from "./personFor";
 import { labelFor, autoArchivable } from "./confidence";
@@ -145,7 +147,7 @@ const DemoMail = __DEMO_SEED__ ? lazyWithRecovery(() => import("./DemoMail")) : 
 import { noDashes } from "../ai/suggestions";
 import { useOptionalAIContext } from "../ai/useAIContext";
 import { voiceToText } from "../ai/context";
-import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile, useOptionalNotes, useOptionalProjects, useOptionalRoutine, useOptionalBrainDocs } from "../data/NotesProvider";
+import { useOptionalTasks, useOptionalSchedule, useOptionalPeople, useOptionalProfile, useOptionalNotes, useOptionalProjects, useOptionalRoutine, useOptionalBrainDocs, useOptionalDecisions } from "../data/NotesProvider";
 import { b64urlDecodeBytes } from "../connections/google/map";
 import { capAfterNumber } from "../shared/casing";
 
@@ -269,6 +271,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const routineSvc = useOptionalRoutine();
   const people = useOptionalPeople();
   const brainDocs = useOptionalBrainDocs();
+  const decisionsSvc = useOptionalDecisions();
   // UP-MIND-10 (2026-09-05): Contacts by address, rebuilt when Contacts
   // change and read by the snapshot build and every email-born task. Address
   // equality only: a wrong person id on a promise is worse than none.
@@ -547,6 +550,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const [thread, setThread] = useState<ThreadFull | null>(null);
   // UP-MIND-12: the message an evidence chip sent us to, for one open.
   const [focusMsg, setFocusMsg] = useState<string | null>(null);
+  // UP-MIND-19 (2026-09-05): the "Worth remembering?" offer, taken. Nothing
+  // is written here: this opens the same capture sheet the Decisions tab
+  // uses, prefilled with the thread's own sentence and linked to whoever the
+  // thread is with (UP-MIND-10).
+  const [keepDecision, setKeepDecision] = useState<{ decision: string; threadId: string } | null>(null);
+  // True when the ledger sent us into this thread, which is the one place
+  // the state card IS the landing view rather than a fold above the mail.
+  const [fromLedger, setFromLedger] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
   const [replies, setReplies] = useState<string[]>(DEFAULT_ANSWERS);
   const [draft, setDraft] = useState<Draft>({ to: "", subject: "", body: "" });
@@ -1786,10 +1797,14 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // UP-MIND-12 (2026-09-05): `focusMsgId` is the message an evidence chip
   // pointed at. The thread opens scrolled to it and marks it, so "show me
   // where that came from" lands on the sentence rather than on the thread.
-  const openThread = async (id: string, focusMsgId?: string) => {
+  const openThread = async (id: string, focusMsgId?: string, opts?: { fromLedger?: boolean }) => {
     const api = apiFor(accountOfThread(id));
     if (!api) return;
     setFocusMsg(focusMsgId ?? null);
+    // UP-MIND-19: the state card is the landing view only when the ledger
+    // sent us here. Set on EVERY open, so a thread opened from the list
+    // afterwards folds again rather than inheriting the last visit.
+    setFromLedger(!!opts?.fromLedger);
     // A new thread gets a fresh attachment offer; the last one's dismissal
     // must not silence this one.
     setAttachDone(false);
@@ -2535,7 +2550,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   if (view === "ledger") {
     const l = ledger ?? { youOwe: [], theyOweYou: [], late: [], total: 0 };
     const openRow = (r: LedgerRow) => {
-      if (r.threadId) { void openThread(r.threadId); return; }
+      // UP-MIND-19: from the ledger, the state card IS the landing view.
+      if (r.threadId) { void openThread(r.threadId, undefined, { fromLedger: true }); return; }
       if (r.taskId) say("That one lives in your tasks");
     };
     const act = (r: LedgerRow) => {
@@ -3110,6 +3126,24 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               <div className="msg-summary-text">{summary}</div>
             </div>
           )}
+          {/* UP-MIND-19 (2026-09-05): where the thread stands, above the
+              messages. Collapsed from the inbox, open when the ledger sent
+              us here, and absent entirely when the pass could not establish
+              anything. */}
+          {(() => {
+            const b = briefFor(thread.messages[thread.messages.length - 1]?.id || thread.id);
+            if (!b) return null;
+            const ev = effTriage[thread.id]?.byEv;
+            return (
+              <ThreadStateCard
+                brief={b}
+                {...(ev ? { evidence: ev } : {})}
+                defaultOpen={fromLedger}
+                onOpenSource={(msgId) => setFocusMsg(msgId)}
+                onRemember={(decision) => setKeepDecision({ decision, threadId: thread.id })}
+              />
+            );
+          })()}
           {thread.messages.map((m) => {
             // No text walls: strip the plumbing, and fold anything long behind
             // one tap. The words are never altered, only what is shown first.
@@ -4478,6 +4512,37 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
         </div>
       )}
       {/* Everything else this thread could become, one swipe from the row. */}
+      {/* UP-MIND-19: the capture sheet, prefilled. The decision is the
+          thread's own sentence, the link is the person it is with, and the
+          why stays empty because the why is the record's whole point and
+          only the user has it. */}
+      {keepDecision && decisionsSvc && (
+        <DecisionCaptureSheet
+          initial={(() => {
+            const t = rows.find((r) => r.id === keepDecision.threadId);
+            const pid = t ? personIdFor(t.fromEmail) : undefined;
+            return {
+              decision: keepDecision.decision,
+              ...(pid && t ? { linkedType: "person" as const, linkedId: pid, linkedLabel: displayName(t.from) } : {}),
+            };
+          })()}
+          attachOptions={[]}
+          onCancel={() => setKeepDecision(null)}
+          onSave={(draft) => {
+            const k = keepDecision;
+            setKeepDecision(null);
+            void (async () => {
+              const id = await decisionsSvc.create(draft).catch(() => null);
+              if (!id) { say("Couldn't save · Check your connection and try again"); return; }
+              // UP-MIND-05's intake: a decision act, with where it came from
+              // in the kind and nothing else. No free text on this path.
+              emit({ type: "decision.recorded", entityType: "decision", entityId: id, props: { kind: "email" } });
+              say("Kept in your decisions");
+              void k;
+            })();
+          }}
+        />
+      )}
       {more && (
         <MailMoreSheet
           who={displayName(more.row.to)}

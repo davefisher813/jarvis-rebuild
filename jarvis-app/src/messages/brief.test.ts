@@ -44,3 +44,52 @@ describe("thread brief", () => {
     expect(BRIEF_SYSTEM).toContain("JSON");
   });
 });
+
+// UP-MIND-19 (2026-09-05): where the thread stands, above the messages.
+// Anything the pass could not establish is ABSENT: a card that hedges is a
+// card you have to check, which is the trip it exists to save.
+describe("the thread state card", () => {
+  it("reads a whole state when the model gives one", () => {
+    const b = parseBrief(JSON.stringify({
+      summary: "Wants the roster", replies: ["Ok"],
+      state: "waiting_on_you",
+      agreed: ["Friday delivery", "Two coaches"],
+      unresolved: ["Who pays the field fee"],
+      deadline: "Friday",
+      next: "Send the roster",
+      decision: "We're going with Ridgeline for the fields.",
+    }))!;
+    expect(b.state).toBe("waiting_on_you");
+    expect(b.agreed).toEqual(["Friday delivery", "Two coaches"]);
+    expect(b.unresolved).toEqual(["Who pays the field fee"]);
+    expect(b.deadline).toBe("Friday");
+    expect(b.next).toBe("Send the roster");
+    expect(b.decision).toBe("We're going with Ridgeline for the fields.");
+  });
+
+  it("leaves out everything it was not given, rather than filling it", () => {
+    const b = parseBrief(JSON.stringify({ summary: "Wants the roster", replies: ["Ok"] }))!;
+    expect(b.state).toBeUndefined();
+    expect(b.agreed).toBeUndefined();
+    expect(b.decision).toBeUndefined();
+  });
+
+  it("drops a state outside its own vocabulary", () => {
+    const b = parseBrief(JSON.stringify({ summary: "s", replies: [], state: "on_fire" }))!;
+    expect(b.state).toBeUndefined();
+  });
+
+  it("drops empty lists and caps the ones it keeps", () => {
+    const b = parseBrief(JSON.stringify({
+      summary: "s", replies: [], agreed: ["", "  "], unresolved: ["a", "b", "c", "d"],
+    }))!;
+    expect(b.agreed).toBeUndefined();
+    expect(b.unresolved).toHaveLength(3);
+  });
+
+  it("still reads a brief with none of it, which is every cached one", () => {
+    const b = parseBrief('{"summary":"Wants the roster","replies":["Ok","No"]}')!;
+    expect(b.summary).toBe("Wants the roster");
+    expect(b.replies).toHaveLength(2);
+  });
+});

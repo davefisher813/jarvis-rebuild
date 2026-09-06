@@ -13,9 +13,43 @@ import { HOSTILE_CLAUSE, untrustedBlock } from "./untrusted";
 export interface Brief {
   summary: string;
   replies: string[];
+  // UP-MIND-19 (2026-09-05): WHERE THE THREAD STANDS, above the messages.
+  // Opening a fourteen-message thread should answer "where does this stand"
+  // before showing a single message, and the vendor picked in message nine
+  // should be one tap from the Decisions log.
+  //
+  // Every field is optional and every one is ABSENT when the model could not
+  // establish it. Nothing here is filled with a hedge or a placeholder: the
+  // card shows what is known and stops, which is the only way a state card
+  // is worth trusting on a thread you have not read.
+  state?: ThreadState;
+  agreed?: string[];
+  unresolved?: string[];
+  deadline?: string;
+  next?: string;
+  // A real decision the thread contains, in its own words. It becomes a
+  // "Worth remembering?" offer, and NOTHING is written without the tap.
+  decision?: string;
 }
 
-const KEY = "jarvis.mail.brief.v1";
+// The closed vocabulary. A state outside it is dropped rather than shown:
+// "where does this stand" is only useful if the words mean the same thing
+// every time.
+export type ThreadState = "waiting_on_you" | "waiting_on_them" | "scheduled" | "settled" | "no_action";
+export const THREAD_STATE_LABEL: Record<ThreadState, string> = {
+  waiting_on_you: "Waiting on you",
+  waiting_on_them: "Waiting on them",
+  scheduled: "Scheduled",
+  settled: "Settled",
+  no_action: "Nothing needed",
+};
+const STATES = Object.keys(THREAD_STATE_LABEL) as ThreadState[];
+
+// v2 (2026-09-05, UP-MIND-19): the cached shape gained the state card. The
+// cache only invalidates when a NEW message arrives, so every thread already
+// summarised would keep an entry with no state and never get one. One
+// re-summary on the next open buys the card.
+const KEY = "jarvis.mail.brief.v2";
 const CAP = 100;
 const REPLY_MAX = 6; // words
 // A WALL BEHIND THE INSTRUCTION (2026-08-25). The prompt asks for 15 words
@@ -43,6 +77,16 @@ export function briefPrompt(convo: string): string {
     "Bad: \"This is an automated reminder that Dave has a video appointment with Resolve Psychiatric Services at 1:00 pm ET on Wednesday, September 23rd\"\n" +
     "replies: three short reply options the reader could send, each under " + REPLY_MAX + " words, " +
     "in a plain human voice. No greetings, no signatures.\n\n" +
+    // UP-MIND-19: the state card. Every one of these is OPTIONAL and must be
+    // LEFT OUT rather than guessed: a card that hedges is a card that has to
+    // be checked, which is the trip it exists to save.
+    "You may also add any of these, and you must leave out any you cannot establish from the text:\n" +
+    "state: one of waiting_on_you, waiting_on_them, scheduled, settled, no_action.\n" +
+    "agreed: up to 3 short fragments, each a thing the parties actually agreed.\n" +
+    "unresolved: up to 3 short fragments, each a question the thread has not answered.\n" +
+    "deadline: the date or phrase somebody stated, copied in their words.\n" +
+    "next: the single next action, starting with a verb, under 8 words.\n" +
+    "decision: a settled choice the thread contains, COPIED as a sentence from the text. Leave it out unless you can copy it exactly.\n\n" +
     // UP-MIND-06 (2026-09-05): the whole conversation is outside text.
     untrustedBlock(convo)
   );
@@ -60,13 +104,32 @@ export function parseBrief(raw: string): Brief | null {
     return null;
   }
   if (typeof o !== "object" || o === null) return null;
-  const { summary, replies } = o as { summary?: unknown; replies?: unknown };
+  const { summary, replies, state, agreed, unresolved, deadline, next, decision } = o as Record<string, unknown>;
   const s = typeof summary === "string" ? clip(noDashes(summary.trim()), SUMMARY_MAX) : "";
   const r = Array.isArray(replies)
     ? replies.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => noDashes(x.trim())).slice(0, 3)
     : [];
   if (!s && r.length === 0) return null;
-  return { summary: s, replies: r };
+  // UP-MIND-19: tolerant, and never inventive. A state outside the closed
+  // vocabulary, an empty list, a deadline longer than a phrase: all dropped.
+  const frag = (v: unknown): string[] => (Array.isArray(v)
+    ? v.filter((x): x is string => typeof x === "string" && !!x.trim()).map((x) => noDashes(clip(x.trim(), 80))).slice(0, 3)
+    : []);
+  const st = typeof state === "string" && (STATES as string[]).includes(state) ? state as ThreadState : undefined;
+  const ag = frag(agreed);
+  const un = frag(unresolved);
+  const dl = typeof deadline === "string" && deadline.trim() ? noDashes(deadline.trim().slice(0, 40)) : "";
+  const nx = typeof next === "string" && next.trim() ? noDashes(clip(next.trim(), 60)) : "";
+  const dc = typeof decision === "string" && decision.trim() ? noDashes(decision.trim().slice(0, 200)) : "";
+  return {
+    summary: s, replies: r,
+    ...(st ? { state: st } : {}),
+    ...(ag.length ? { agreed: ag } : {}),
+    ...(un.length ? { unresolved: un } : {}),
+    ...(dl ? { deadline: dl } : {}),
+    ...(nx ? { next: nx } : {}),
+    ...(dc ? { decision: dc } : {}),
+  };
 }
 
 // Cut at a word boundary, with the ellipsis that says it happened.
