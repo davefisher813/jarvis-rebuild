@@ -401,3 +401,47 @@ describe("law: Chat drafts and never sends", () => {
     expect(src).not.toMatch(/\bsendMessage\b|\bqueueSend\b|\bapi\.send\b/);
   });
 });
+
+// UP-MIND-21 (2026-09-05): the sentence you wrote is the answer, not the
+// thread. Reachable from the box people already ask in, and it quotes him.
+describe("what did I tell them", () => {
+  const people = [{ id: "p1", name: "Marco Silva", email: "marco@example.com" }];
+
+  it("quotes with the date, and cites the thread it came from", async () => {
+    const a = (await answerQuestion("what did I tell Marco Silva about the invoice", snap({
+      people,
+      said: async () => [{ quote: "I'll send the invoice Friday.", dateISO: "2026-08-11", subject: "Invoice 4021", threadId: "th1" }],
+    })))!;
+    expect(a.text).toContain('"I\'ll send the invoice Friday."');
+    expect(a.provenance.refs?.some((r) => r.kind === "thread" && r.id === "th1")).toBe(true);
+  });
+
+  it("passes the person and the topic through to the search", async () => {
+    const seen: string[] = [];
+    await answerQuestion("what did I promise Marco Silva about the roster", snap({
+      people,
+      said: async (person, about) => { seen.push(person, about); return []; },
+    }));
+    expect(seen).toEqual(["marco@example.com", "the roster"]);
+  });
+
+  // No match is a real answer. A confident invention is a disaster.
+  it("says nothing covers it rather than inventing a sentence", async () => {
+    const a = (await answerQuestion("what did I tell Marco Silva about the invoice", snap({ people, said: async () => [] })))!;
+    expect(a.text).toBe("Nothing you wrote to Marco Silva covers that");
+  });
+
+  it("says so when there is no mail session at all", async () => {
+    const a = (await answerQuestion("what did I tell Marco Silva about the invoice", snap({ people })))!;
+    expect(a.text).toBe("Marco Silva · Email isn't connected");
+  });
+
+  it("works without a topic", async () => {
+    const seen: string[] = [];
+    await answerQuestion("what did I tell Marco Silva", snap({
+      people,
+      said: async (person, about) => { seen.push(person, about); return []; },
+    }));
+    expect(seen).toEqual(["marco@example.com", ""]);
+  });
+});

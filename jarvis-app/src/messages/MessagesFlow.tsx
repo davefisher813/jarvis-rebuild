@@ -115,7 +115,7 @@ import { subscribeSent } from "./sendPump";
 import { loadWindows, saveWindows, isOpenNow, closedLine, peekLine, type WindowSettings } from "./batching";
 import WindowsSheet from "./WindowsSheet";
 import { loadLinks, linkThread, type LinkMap } from "./threadLink";
-import { saidQuery, saidPrompt, parseSaid, saidEmpty, SAID_SYSTEM } from "./saidWhat";
+import { saidEmpty, askSaid } from "./saidWhat";
 import { autoReplyEnabled, setAutoReplyEnabled, AUTO_REPLY_EXPLAINER } from "./autoReply";
 import { protectedRangesFor, isFocusRange } from "../routine/types";
 import { fmtTime, todayISO, addDays, eventsForDate } from "../schedule/calendar";
@@ -1549,38 +1549,25 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // he told Wei is no less his sentence for having been sent from the
       // other address. The 8-thread ceiling holds: it is split between the
       // accounts rather than raised.
+      // UP-MIND-21 (2026-09-05): the pass itself moved to saidWhat.ts, so
+      // Chat can ask the same question from the box people already use. The
+      // 8-thread ceiling still holds and is still SPLIT between accounts
+      // rather than raised (EMAIL-F-13), and the bodies are still really
+      // fetched (EMAIL-F-03) rather than mapped from metadata.
       const share = Math.max(1, Math.ceil(SENT_BODY_CAP / list.length));
-      const perAccount = await Promise.all(list.map(async ({ api }) => {
-        const metas = await api.searchThreads(saidQuery("", question), share).catch(() => []);
-        // EMAIL-F-03 (2026-09-05): the hits are metadata, and mapping metadata
-        // gave every message an empty body, which parseSaid's verbatim guard
-        // then (correctly) refused to quote from. sentBodies.ts fetches the
-        // real threads first, capped at the 8 already in play.
-        return fullThreadsFor(api, metas, share);
+      setSaid(await askSaid("", question, {
+        search: async (query, cap) => {
+          const per = await Promise.all(list.map(async ({ api }) => {
+            const metas = await api.searchThreads(query, cap).catch(() => []);
+            return fullThreadsFor(api, metas, cap);
+          }));
+          return per.flat();
+        },
+        complete: (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
+        localDay: (d) => todayISO(d),
+        clean: cleanBody,
+        cap: share,
       }));
-      const items = perAccount.flat()
-        .map((full) => {
-          const mine = full.messages[full.messages.length - 1];
-          if (!mine) return null;
-          return {
-            subject: full.subject,
-            // The INSTANT, read as a local calendar day. This used to parse
-            // the raw Date header and re-serialize it through UTC, so a mail
-            // sent at 8:40 PM ET on the 19th was filed and shown as the 20th
-            // (2026-08-25). It now takes dateMs and todayISO, which is the
-            // app's own local-day function.
-            dateISO: todayISO(mine.dateMs ? new Date(mine.dateMs) : new Date()),
-            threadId: full.id,
-            body: cleanBody(mine.body),
-          };
-        })
-        .filter((x): x is NonNullable<typeof x> => x !== null);
-      if (items.length === 0) { setSaid([]); return; }
-      const raw = await ai.complete(
-        [{ role: "user", content: saidPrompt(question, items.map((i) => ({ subject: i.subject, dateISO: i.dateISO, body: i.body }))) }],
-        SAID_SYSTEM,
-      );
-      setSaid(parseSaid(raw, items));
     } catch {
       setSaid([]);
     } finally {

@@ -81,3 +81,67 @@ export function parseSaid(
 export function saidEmpty(person: string): string {
   return person.trim() ? `Nothing you wrote to ${person.trim()} covers that` : "Nothing you wrote covers that";
 }
+
+// ASKING FROM ANYWHERE (UP-MIND-21, 2026-09-05).
+//
+// The fetch-and-parse lived inside MessagesFlow, so the one feature that
+// answers "what did I tell Marco about the invoice" was reachable only from
+// the Email tab's search box, and only if you thought to look for it there.
+// It is a question, and questions go in the box people already ask in.
+//
+// This is that pass, unchanged in what it does and now callable from Chat
+// too. It keeps every law above: it quotes HIM, verbatim or not at all, and
+// no match is a real answer.
+//
+// The email handoff bans a chatbot panel INSIDE Email. This keeps Email
+// panel-free: the Email tab still owns its own button, and the second caller
+// is the app-wide Chat that A23 decided on, not a panel bolted into mail.
+
+export interface SaidThread { id: string; subject: string; messages: { dateMs: number; body: string }[] }
+
+export interface AskSaidDeps {
+  /** One entry per connected mail account, already scoped by the caller. */
+  search: (query: string, cap: number) => Promise<SaidThread[]>;
+  complete: (messages: { role: string; content: string }[], system: string) => Promise<string>;
+  /** The app's local-day function, handed in so this module needs no clock. */
+  localDay: (d: Date) => string;
+  /** Strips display plumbing out of a body, the same way the reader does. */
+  clean: (body: string) => string;
+  cap?: number;
+}
+
+/** The sentences the user actually wrote that answer the question, or an
+ *  empty array, which is a real answer. Never throws. */
+export async function askSaid(
+  person: string,
+  about: string,
+  deps: AskSaidDeps,
+): Promise<SaidHit[]> {
+  const cap = deps.cap ?? 8;
+  try {
+    const threads = await deps.search(saidQuery(person, about), cap);
+    const items = threads
+      .map((full) => {
+        const mine = full.messages[full.messages.length - 1];
+        if (!mine) return null;
+        return {
+          subject: full.subject,
+          // The INSTANT, read as a LOCAL calendar day: the same rule the tab
+          // learned the hard way when an 8:40 PM message filed as tomorrow.
+          dateISO: deps.localDay(mine.dateMs ? new Date(mine.dateMs) : new Date()),
+          threadId: full.id,
+          body: deps.clean(mine.body),
+        };
+      })
+      .filter((x): x is NonNullable<typeof x> => x !== null);
+    if (items.length === 0) return [];
+    const question = about.trim() || `what did I tell ${person.trim() || "them"}`;
+    const raw = await deps.complete(
+      [{ role: "user", content: saidPrompt(question, items.map((i) => ({ subject: i.subject, dateISO: i.dateISO, body: i.body }))) }],
+      SAID_SYSTEM,
+    );
+    return parseSaid(raw, items);
+  } catch {
+    return [];
+  }
+}

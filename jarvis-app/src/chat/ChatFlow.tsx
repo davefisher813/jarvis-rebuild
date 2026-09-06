@@ -3,6 +3,9 @@ import PageHeader, { BarAction } from "../shared/PageHeader";
 import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands, usePeople, useOptionalFiles, useFileStore, useOptionalGym } from "../data/NotesProvider";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import { lastContactFor } from "../people/lastContact";
+import { askSaid } from "../messages/saidWhat";
+import { fullThreadsFor, SENT_BODY_CAP } from "../messages/sentBodies";
+import { cleanBody } from "../messages/bodyText";
 import { namePatterns } from "../people/mentions";
 import { usePickFile, PICK_ANY } from "../shared/usePickFile";
 import { routeFile, parseRouteAnswer, ROUTE_PROMPT, DESTINATION_LABEL, isPdf, type FileDestination } from "../files/route";
@@ -206,7 +209,8 @@ export default function ChatFlow({ onOpen, onCompose }: {
     const people = await peopleSvc.list().catch(() => []);
     // UP-MIND-03: the mail account that can answer "when did we last talk".
     // Null with no session, which the answer distinguishes from "never".
-    const mailApi = google?.apis("mail")[0]?.api ?? null;
+    const mailApis = (google?.apis("mail") ?? []).map((a) => a.api);
+    const mailApi = mailApis[0] ?? null;
     return {
       today,
       nowHHMM: nowHHMM(new Date()),
@@ -226,6 +230,23 @@ export default function ChatFlow({ onOpen, onCompose }: {
       })),
       waiting: mail.waiting,
       ...(mailApi ? { lastContact: (email: string) => lastContactFor(mailApi, email, Date.now()) } : {}),
+      // UP-MIND-21 (2026-09-05): the same pass the Email tab runs, over every
+      // connected account, reachable from the box people already ask in.
+      ...(mailApis.length && ai.available ? {
+        said: (person: string, about: string) => askSaid(person, about, {
+          search: async (query, cap) => {
+            const per = await Promise.all(mailApis.map(async (api) => {
+              const metas = await api.searchThreads(query, cap).catch(() => []);
+              return fullThreadsFor(api, metas, cap);
+            }));
+            return per.flat();
+          },
+          complete: (messages, system) => ai.complete(messages as { role: "user" | "assistant"; content: string }[], system),
+          localDay: (d) => todayISO(d),
+          clean: cleanBody,
+          cap: Math.max(1, Math.ceil(SENT_BODY_CAP / mailApis.length)),
+        }),
+      } : {}),
       now: Date.now(),
     };
   };

@@ -47,6 +47,10 @@ export interface AnswerSnapshot {
   // none. Absent means no Google session, which is a different answer from
   // "you have never talked": the reply says which.
   lastContact?: (email: string) => Promise<number | null>;
+  // UP-MIND-21 (2026-09-05): "what did I tell Marco about the invoice". The
+  // sentence the user wrote is the answer, not the thread. Absent means no
+  // mail session, and the reply says so rather than guessing.
+  said?: (person: string, about: string) => Promise<{ quote: string; dateISO: string; subject: string; threadId: string }[]>;
   now?: number;
 }
 
@@ -224,7 +228,43 @@ function birthdayOf(p: SnapPerson): ChatAnswer {
 // The four shapes, in one place. Returns null when the question is not about
 // a person at all, or names nobody the app knows: the AI path takes it from
 // there, exactly as it did before.
+// UP-MIND-21: verbatim quotes, with the date and the thread as a ref. It
+// quotes HIM: parseSaid refuses any quote that is not really in what he
+// sent, so no match is a real answer and never a confident invention.
+async function whatISaid(p: SnapPerson, about: string, snap: AnswerSnapshot): Promise<ChatAnswer> {
+  const refs = [personRef(p)];
+  if (!snap.said) return { text: `${p.name} · Email isn't connected`, provenance: { kind: "records", refs } };
+  const hits = await snap.said(p.email || p.name, about);
+  if (hits.length === 0) {
+    return { text: `Nothing you wrote to ${p.name} covers that`, provenance: { kind: "records", refs } };
+  }
+  return {
+    text: hits.map((h) => `"${h.quote}" · ${shortDate(h.dateISO)}`).join("\n"),
+    provenance: {
+      kind: "records",
+      refs: [...refs, ...hits.map((h) => ({ kind: "thread", id: h.threadId, label: h.subject }))],
+    },
+  };
+}
+
 async function answerAboutPerson(q: string, snap: AnswerSnapshot, pinned?: SnapPerson): Promise<ChatAnswer | null> {
+  // The said shapes run FIRST: "what did I tell Marco about the invoice"
+  // also matches nothing else here, but putting it first keeps the reading
+  // obvious to the next person adding a shape.
+  const said = q.match(/^what did i (?:say|tell|promise)(?: to)? (.+?)(?:\s+(?:about|re|regarding)\s+(.+))?$/);
+  if (said) {
+    const who = (said[1] ?? "").trim();
+    const about = (said[2] ?? "").trim();
+    const target = pinned ?? (() => {
+      const m = peopleNamed(who, snap.people);
+      return m.length === 1 ? m[0]! : null;
+    })();
+    if (!target) {
+      const m = peopleNamed(who, snap.people);
+      return m.length > 1 ? chooser(m) : null;
+    }
+    return whatISaid(target, about, snap);
+  }
   const shapes: { re: RegExp; group: number; run: (p: SnapPerson) => Promise<ChatAnswer> | ChatAnswer }[] = [
     { re: /^when did i (?:last )?(?:talk|speak|email|write) (?:to|with) (.+)$/, group: 1, run: (p) => lastTalked(p, snap) },
     { re: /^when did i last (?:hear from|contact) (.+)$/, group: 1, run: (p) => lastTalked(p, snap) },
