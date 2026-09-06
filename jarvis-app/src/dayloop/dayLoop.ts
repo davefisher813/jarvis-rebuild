@@ -186,7 +186,10 @@ export function seedFrom(
 
 export interface DraftInputs {
   date: string;
-  candidates: { id: string; text: string; category: string; suggested: boolean; windowS?: number; windowE?: number }[];
+  // UP-CORE-02 (2026-09-05): estimateMin is the length he set on the task
+  // itself. Absent means the category median (estimateFor) answers, exactly
+  // as it always has.
+  candidates: { id: string; text: string; category: string; suggested: boolean; windowS?: number; windowE?: number; estimateMin?: number }[];
   events: EventItem[];
   startMin: number;
   endMin: number;
@@ -205,7 +208,7 @@ export function draftDay(inp: DraftInputs): DayDraft {
     id: c.id,
     text: c.text,
     category: c.category,
-    durationMin: inp.estimateFor(c.category),
+    durationMin: c.estimateMin ?? inp.estimateFor(c.category),
     ...(c.windowS !== undefined ? { windowS: c.windowS } : {}),
     ...(c.windowE !== undefined ? { windowE: c.windowE } : {}),
   }));
@@ -243,7 +246,7 @@ export interface EditInputs {
   minutes: Record<string, number>;
   // Everything the day could hold, so a promoted Anytime task can be found
   // and a dropped one can go back to the pool.
-  pool: { id: string; text: string; category: string; windowS?: number; windowE?: number }[];
+  pool: { id: string; text: string; category: string; windowS?: number; windowE?: number; estimateMin?: number }[];
   events: EventItem[];
   startMin: number;
   endMin: number;
@@ -261,7 +264,7 @@ export function editDraft(standing: DayDraft, inp: EditInputs): DayDraft {
       id: c.id,
       text: c.text,
       category: c.category,
-      durationMin: inp.minutes[id] ?? inp.estimateFor(c.category),
+      durationMin: inp.minutes[id] ?? c.estimateMin ?? inp.estimateFor(c.category),
       ...(c.windowS !== undefined ? { windowS: c.windowS } : {}),
       ...(c.windowE !== undefined ? { windowE: c.windowE } : {}),
     });

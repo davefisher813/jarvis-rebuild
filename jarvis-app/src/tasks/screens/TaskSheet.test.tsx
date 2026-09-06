@@ -57,6 +57,26 @@ describe("TaskSheet", () => {
     expect(onSave).toHaveBeenCalledWith({ text: "X", category: "c2", extraCategories: ["c1"], due: "", repeat: "" });
   });
 
+  // UP-CORE-02 (2026-09-05): the task's own length, the number Gap Fill and
+  // Plan My Day were built to read. The learned category median is shown as
+  // a fact and never pre-selected: choosing it for him would store JARVIS's
+  // guess as his answer.
+  it("the length value opens a menu, saves minutes, and shows the area's usual as a fact only", () => {
+    const onSave = vi.fn();
+    render(<TaskSheet mode="new" categories={CATS} categoryMinutes={{ c1: 45 }} initial={{ category: "c1" }} onSave={onSave} onCancel={() => {}} />);
+    const length = screen.getByLabelText("Length");
+    expect(length.textContent).toContain("None");
+    expect(screen.getByText("Usually 45m in this area")).toBeInTheDocument();
+    fireEvent.click(length);
+    fireEvent.click(screen.getByRole("menuitemradio", { name: /^1h 30m$/ }));
+    expect(screen.getByLabelText("Length").textContent).toContain("1h 30m");
+    // Once he has said, the area's usual is no longer the answer on offer.
+    expect(screen.queryByText("Usually 45m in this area")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByPlaceholderText("What needs doing?"), { target: { value: "Write the report" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0].estimateMin).toBe(90);
+  });
+
   it("the due value opens a menu and Today sets the date", () => {
     const onSave = vi.fn();
     render(<TaskSheet mode="new" categories={CATS} onSave={onSave} onCancel={() => {}} />);

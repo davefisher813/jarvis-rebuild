@@ -6,7 +6,8 @@ import type { TaskStep } from "../../notes/types";
 import Provenance from "../../shared/Provenance";
 import type { Source } from "../../shared/provenance";
 import { whyWeak, isUsable, sentence, findClash, clashLine, cueIsDetectable, type IfThen, type CueKind } from "../ifThen";
-import { FileText, CheckSquare, Clock, Tag, FolderKanban, Calendar, Sparkles, Check, X } from "../../shared/icons";
+import { FileText, CheckSquare, Clock, Hourglass, Tag, FolderKanban, Calendar, Sparkles, Check, X } from "../../shared/icons";
+import { DUR_CHOICES, durLabel } from "../../schedule/durations";
 import { RepeatGlyph, PinGlyph } from "../../shared/glyphs";
 import { catColor } from "../../shared/categories";
 import SheetBar from "../../shared/SheetBar";
@@ -21,6 +22,9 @@ export interface TaskDraft {
   // STEPS (2026-09-04): the checklist inside this task, whole-array like the
   // rest of this draft -- see TasksService.setSteps.
   steps?: TaskStep[];
+  // UP-CORE-02 (2026-09-05): how long this one takes, in minutes. Absent
+  // means he has not said, and the learned category median answers instead.
+  estimateMin?: number;
   // Set only by the "Close Task" offer under a fully-checked list: this
   // Save should also mark the task done. Never set by the ordinary Save tap.
   closeNow?: boolean;
@@ -65,6 +69,7 @@ export default function TaskSheet({
   mode,
   initial,
   categories,
+  categoryMinutes = {},
   projects = [],
   source,
   openSourceFor,
@@ -91,6 +96,11 @@ export default function TaskSheet({
   otherPlans?: { id: string; text: string; plan?: IfThen }[];
   projects?: SheetProject[];
   categories: SheetCategory[];
+  // UP-CORE-02: the learned median minutes per category (schedule's
+  // learnedDurations, three samples inside thirty days or silence), so the
+  // Length row can say what this area usually takes without claiming it as
+  // this task's answer. Empty where the flow has no history to offer.
+  categoryMinutes?: Record<string, number>;
   // Provenance of the task being edited, when it was auto-created. A fact
   // line only; the sheet never writes it (coverage map: not editable).
   source?: Source;
@@ -144,6 +154,11 @@ export default function TaskSheet({
   const [due, setDue] = useState(initial?.due ?? "");
   const [repeat, setRepeat] = useState(initial?.repeat ?? "");
   const [projectId, setProjectId] = useState(initial?.projectId ?? "");
+  // UP-CORE-02: null means he has not said how long, which is different from
+  // zero and is what lets the learned median keep answering.
+  const [estimateMin, setEstimateMin] = useState<number | null>(initial?.estimateMin ?? null);
+  const lengthLabel = estimateMin === null ? "None" : durLabel(estimateMin);
+  const usualWord = categoryMinutes[category] ? durLabel(categoryMinutes[category]!) : "";
   const [err, setErr] = useState(false);
 
   // STEPS (2026-09-04): a checklist inside the task, edited locally like
@@ -241,6 +256,7 @@ export default function TaskSheet({
       // than none: it feels like a plan and carries no effect.
       plan: planTouched && isUsable(draftPlan) ? draftPlan : undefined,
       steps: steps.length ? steps : undefined,
+      estimateMin: estimateMin ?? undefined,
       closeNow: closeNow || undefined,
     });
     void Promise.resolve(r).then((ok) => { if (ok === false) setSaving(false); }, () => setSaving(false));
@@ -358,6 +374,27 @@ export default function TaskSheet({
               <HeadMenu variant="value" ariaLabel="Repeat" value={repeat} off={repeat === ""}
                 options={[{ value: "", label: "None" }, { value: "daily", label: "Daily" }, { value: "weekly", label: "Weekly" }, { value: "monthly", label: "Monthly" }]}
                 onPick={setRepeat} />
+            </div>
+            {/* UP-CORE-02 (2026-09-05) · LENGTH. Time blindness is the
+                disease: Gap Fill, Plan My Day, What Now and the Day Loop
+                draft all sized a task by its CATEGORY's median, so a ten
+                minute call and a three hour report were the same size and
+                neither ever fit the gap it belonged in. This is the number
+                for this one task.
+
+                The learned median is shown as a fact under the row, never
+                pre-selected. Selecting it for him would store a number
+                JARVIS guessed as one he chose, and from then on the
+                category could no longer teach this task anything. */}
+            <div className="row xs-row">
+              <Tile tone="purple"><Hourglass className="ic" /></Tile>
+              <div className="row-grow">
+                <div className="conn-name">Length</div>
+                {estimateMin === null && usualWord && <div className="conn-meta">Usually {usualWord} in this area</div>}
+              </div>
+              <HeadMenu variant="value" ariaLabel="Length" value={estimateMin === null ? "" : String(estimateMin)} label={lengthLabel} off={estimateMin === null}
+                options={[{ value: "", label: "None" }, ...DUR_CHOICES.map((m) => ({ value: String(m), label: durLabel(m) }))]}
+                onPick={(v) => setEstimateMin(v === "" ? null : Number(v))} />
             </div>
           </div></div>
 

@@ -172,6 +172,14 @@ export interface TaskData {
   // Rides the task entity the same way; display-only rollup, never
   // auto-completes the task (TasksService.setSteps, TaskSheet's Steps group).
   steps?: TaskStep[];
+  // HOW LONG THIS ONE TAKES (UP-CORE-02, 2026-09-05). Minutes, his number,
+  // for this task alone. Every place that sizes work (Gap Fill, Plan My Day,
+  // the Day Loop draft, What Now, Just This One) asked the category median
+  // and got the same answer for "call the dentist" as for "write the board
+  // report". The task's own number wins over the category's wherever one is
+  // set, and its absence leaves the learned median exactly as it was
+  // (schedule/useTaskEstimate.ts). Optional and additive, no migration.
+  estimateMin?: number;
 }
 
 export type TemplateKey =

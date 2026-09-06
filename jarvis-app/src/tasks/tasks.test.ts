@@ -303,3 +303,32 @@ describe("Undo on a completion toast (SHARED-F-03)", () => {
     expect(after?.runLen ?? 0).toBe(0);
   });
 });
+
+// UP-CORE-02 (2026-09-05): a task that knows how long it takes. The number
+// is his, it survives a delete and an Undo, and clearing it hands the
+// question back to the learned category median rather than storing a zero.
+describe("how long this one takes (UP-CORE-02)", () => {
+  it("stores minutes, clears to nothing, and refuses an impossible length", async () => {
+    const svc = new TasksService(new Store(new InMemoryAdapter()), "u-est");
+    const id = (await svc.createTask("Call the dentist", { estimateMin: 15 }))!;
+    expect((await svc.task(id))?.estimateMin).toBe(15);
+    await svc.setEstimate(id, 90);
+    expect((await svc.task(id))?.estimateMin).toBe(90);
+    await svc.setEstimate(id, null);
+    expect((await svc.task(id))?.estimateMin ?? null).toBeNull();
+    // Not a length: dropped rather than clamped into one he never chose.
+    await svc.setEstimate(id, -5);
+    expect((await svc.task(id))?.estimateMin ?? null).toBeNull();
+    const wild = (await svc.createTask("Wild", { estimateMin: 100000 }))!;
+    expect((await svc.task(wild))?.estimateMin).toBeUndefined();
+  });
+
+  it("comes back with the task after an undo", async () => {
+    const svc = new TasksService(new Store(new InMemoryAdapter()), "u-est2");
+    const id = (await svc.createTask("Write the report", { estimateMin: 120 }))!;
+    const snapshot = (await svc.task(id))!;
+    await svc.deleteTask(id);
+    const back = (await svc.recreateFrom(snapshot, id))!;
+    expect((await svc.task(back))?.estimateMin).toBe(120);
+  });
+});

@@ -38,7 +38,7 @@ const DUR_MAX = 240;
 // as busy time so proposed blocks route around it. soft ranges are preferences
 // used only when the day is tight; focus ranges pull picks IN.
 export interface PlanBlocked { s: number; e: number; label: string; soft?: boolean; kind?: BlockKind }
-export interface PlanCandidate { id: string; text: string; category: string; suggested: boolean; overdue: boolean; goal?: string | null; windowS?: number; windowE?: number; due?: string }
+export interface PlanCandidate { id: string; text: string; category: string; suggested: boolean; overdue: boolean; goal?: string | null; windowS?: number; windowE?: number; due?: string; estimateMin?: number }
 
 function fromMin(t: number) {
   const m = Math.max(0, Math.min(24 * 60 - 1, t));
@@ -188,7 +188,11 @@ export default function PlanDaySheet({
   // Precedence, most specific first: a length chosen for THIS task this
   // session beats a rule about this kind of task, which beats the statistical
   // estimate from committed history. His hands always win.
-  const durFor = (id: string) => durations[id] ?? ruled[id] ?? estFor(id).minutes;
+  // UP-CORE-02 (2026-09-05): the task's own length sits between his hands
+  // this session and a rule about the category. A number he typed on THIS
+  // task is more specific than a rule about every task like it.
+  const ownEst = (id: string) => allTasks.find((t) => t.id === realId(id))?.estimateMin;
+  const durFor = (id: string) => durations[id] ?? ownEst(id) ?? ruled[id] ?? estFor(id).minutes;
   const setDur = (id: string, next: number) => setDurations((prev) => ({ ...prev, [id]: Math.max(DUR_MIN, Math.min(DUR_MAX, next)) }));
   const setOverride = (id: string, hhmmStr: string) => setOverrides((prev) => {
     if (!hhmmStr) { const n = { ...prev }; delete n[id]; return n; }

@@ -15,4 +15,12 @@ describe("useTaskEstimate", () => {
     await waitFor(() => expect(result.current(task("work"))).toBe(DEFAULT_TASK_MINUTES));
     expect(result.current(task(""))).toBe(DEFAULT_TASK_MINUTES);
   });
+
+  // UP-CORE-02 (2026-09-05): the length he set on the task itself is the most
+  // specific evidence there is, so it outranks anything learned by category.
+  it("prefers the length set on the task over the category default", async () => {
+    const { result } = renderHook(() => useTaskEstimate());
+    const own: TaskItem = { id: "t", data: { text: "Call the dentist", category: "work", done: false, estimateMin: 10 } };
+    await waitFor(() => expect(result.current(own)).toBe(10));
+  });
 });

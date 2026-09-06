@@ -89,7 +89,7 @@ export interface GapCandidate {
 }
 
 export function gapFill(
-  tasks: { id: string; text: string; category: string; done: boolean; due?: string | null; bill?: unknown; reminder?: unknown }[],
+  tasks: { id: string; text: string; category: string; done: boolean; due?: string | null; bill?: unknown; reminder?: unknown; estimateMin?: number }[],
   gapMin: number | null,
   today: string,
   estimateFor: (category: string) => number,
@@ -110,7 +110,11 @@ export function gapFill(
   const open = tasks.filter((t) => !t.done && !t.bill && !t.reminder && !paused.has(t.category));
   if (open.length === 0) return null;
   const fits = open
-    .map((t) => ({ t, est: estimateFor(t.category) }))
+    // UP-CORE-02 (2026-09-05): the task's own length before the category's
+    // median. This is the whole point of the gap offer: a ten minute call
+    // fits a twenty minute gap, and it never did while every task in a
+    // category was the same size.
+    .map((t) => ({ t, est: t.estimateMin ?? estimateFor(t.category) }))
     .filter((x) => x.est + GAP_BUFFER <= gapMin);
   if (fits.length === 0) return null;
   // Due today first, then overdue, then anything; nearest due inside a tier.

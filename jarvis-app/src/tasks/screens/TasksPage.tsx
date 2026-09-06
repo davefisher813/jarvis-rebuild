@@ -17,6 +17,7 @@ import Provenance from "../../shared/Provenance";
 import type { Source } from "../../shared/provenance";
 import { capAfterNumber } from "../../shared/casing";
 import { cueLine } from "../ifThen";
+import { durLabel } from "../../schedule/durations";
 import { OVERWHELM_ENTER, OVERWHELM_EXIT } from "../overwhelmed";
 import InlineEdit from "../../shared/InlineEdit";
 import HeadMenu from "../../shared/HeadMenu";
@@ -322,6 +323,9 @@ export function TaskRow({
                   {categoriesOf(t).map((id) => catName(id)).filter(Boolean).join(" \u00b7 ") || "No category"}
                 </span>}
             {t.recurrence && <span className="r-goal r-cat r-rec">{"\u00b7 " + t.recurrence}</span>}
+            {/* UP-CORE-02 (2026-09-05): how long he said this one takes,
+                where he is deciding what to pick up. A fact, only when set. */}
+            {t.estimateMin ? <span className="r-goal r-cat">{"\u00b7 " + durLabel(t.estimateMin)}</span> : null}
           </div>
           {/* A1: the cue, where he will see it while scanning. The whole
               sentence is on the sheet; the row carries the trigger, which is

@@ -83,6 +83,19 @@ describe("Gap Fill (item 11)", () => {
     expect(gapFill([task("a", "Book the field")], 60, TODAY, () => 10, new Set(["work"]))).toBeNull();
   });
 
+  // UP-CORE-02 (2026-09-05): the task's own length beats the category median,
+  // which is the entire point of the offer: a ten minute call fits a thirty
+  // minute gap that its category's 45 minute median would have hidden it from.
+  it("a task's own length fits the gap its category's median would not", () => {
+    const pick = gapFill([task("a", "Call the dentist", { estimateMin: 10 })], 30, TODAY, () => 45);
+    expect(pick!.id).toBe("a");
+    expect(pick!.estimateMin).toBe(10);
+  });
+
+  it("a task's own length also keeps it out of a gap it cannot fit", () => {
+    expect(gapFill([task("a", "Write the report", { estimateMin: 180 })], 60, TODAY, () => 20)).toBeNull();
+  });
+
   it("still offers work from every category that is not paused", () => {
     const pick = gapFill(
       [task("a", "Paused thing"), { id: "b", text: "Live thing", category: "family", done: false }],

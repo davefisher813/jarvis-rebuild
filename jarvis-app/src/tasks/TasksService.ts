@@ -18,6 +18,14 @@ export interface TaskItem {
 function cleanSteps(steps: TaskStep[] | undefined): TaskStep[] {
   return (steps ?? []).filter((s) => s.text.trim().length > 0).map((s) => ({ text: s.text.trim(), done: s.done }));
 }
+
+// UP-CORE-02 (2026-09-05): a length is minutes, whole, and inside the day.
+// A corrupt or absurd number is dropped rather than clamped into one he
+// never chose, the same refusal PlanDaySheet applies to a duration rule.
+const MAX_ESTIMATE_MIN = 8 * 60;
+function isLength(min: number | null | undefined): min is number {
+  return typeof min === "number" && Number.isFinite(min) && Number.isInteger(min) && min > 0 && min <= MAX_ESTIMATE_MIN;
+}
 export interface GroupedTasks {
   today: TaskItem[];
   upcoming: TaskItem[];
@@ -51,7 +59,7 @@ export class TasksService {
   // set the precedent; Store.create takes the id straight through.
   async createTask(
     text: string,
-    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[] } = {},
+    opts: { category?: string; extraCategories?: string[]; due?: string | null; fromNote?: string; fromThread?: string; recurrence?: Recurrence; projectId?: string; bill?: BillInfo; reminder?: ReminderInfo; source?: import("../shared/provenance").Source; plan?: IfThen; steps?: TaskStep[]; estimateMin?: number } = {},
     id?: string,
   ): Promise<string | null> {
     if (!text || !text.trim()) return null;
@@ -71,6 +79,7 @@ export class TasksService {
     if (opts.reminder) data.reminder = opts.reminder;
     if (opts.source) data.source = opts.source;
     if (opts.plan && isUsable(opts.plan)) data.plan = opts.plan;
+    if (isLength(opts.estimateMin)) data.estimateMin = opts.estimateMin;
     const steps = cleanSteps(opts.steps);
     if (steps.length) data.steps = steps;
     const newId = await this.store.create(this.ownerId, ENTITY_TASK, data as unknown as ItemData, id);
@@ -99,6 +108,7 @@ export class TasksService {
       reminder: t.reminder,
       plan: t.plan,
       steps: t.steps,
+      estimateMin: t.estimateMin,
       fromNote: t.fromNote,
       fromThread: t.fromThread,
       source: t.source,
@@ -370,6 +380,17 @@ export class TasksService {
     if (!t) return false;
     const clean = cleanSteps(steps);
     await this.store.update(this.ownerId, id, { steps: clean.length ? clean : null } as unknown as ItemData);
+    this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
+    return true;
+  }
+
+  // UP-CORE-02: how long this one takes, in minutes. Null clears it and the
+  // learned category median takes over again, so there is always an answer
+  // and never an invented one.
+  async setEstimate(id: string, minutes: number | null): Promise<boolean> {
+    const t = await this.getTask(id);
+    if (!t) return false;
+    await this.store.update(this.ownerId, id, { estimateMin: isLength(minutes) ? minutes : null });
     this.onEvent({ type: "entity.updated", entityType: ENTITY_TASK, entityId: id });
     return true;
   }

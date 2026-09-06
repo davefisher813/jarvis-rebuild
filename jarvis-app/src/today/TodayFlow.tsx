@@ -540,7 +540,7 @@ export default function TodayFlow({
     // the same TaskSheet the Tasks tab opens, so a project, an extra area or
     // an if-then plan set from Tasks would silently vanish the moment the
     // task was edited from home instead. Same sheet, same fields, both ends.
-    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps } });
+    if (t) setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin } });
   };
 
   // Tappable schedule rows (roadmap v2): an event on Today opens the same
@@ -869,6 +869,7 @@ export default function TodayFlow({
         await tasks.setRecurrence(sheet.id, rec || null);
         await tasks.setPlan(sheet.id, draft.plan ?? null);
         await tasks.setSteps(sheet.id, draft.steps ?? []);
+        await tasks.setEstimate(sheet.id, draft.estimateMin ?? null);
         if (draft.closeNow) await tasks.toggleDone(sheet.id);
       });
     }
@@ -912,6 +913,10 @@ export default function TodayFlow({
           // filed ones, so most of his real work ranked as if it moved
           // nothing. A tagged task now claims its place in the day.
           goal: goalTitleForTask(goalIdx, t),
+          // UP-CORE-02 (2026-09-05): the length he set on this task, so the
+          // planner and the Day Loop draft deal it a slot that fits it
+          // rather than one sized by its category.
+          ...(t.data.estimateMin ? { estimateMin: t.data.estimateMin } : {}),
           ...(win ? { windowS: win.s, windowE: win.e } : {}),
         };
       })
@@ -1596,7 +1601,7 @@ export default function TodayFlow({
   const gapPick = evening || gapDismissed === gapKey
     ? null
     : gapFill(
-        taskItems.map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done, due: t.data.due, bill: t.data.bill, reminder: t.data.reminder })),
+        taskItems.map((t) => ({ id: t.id, text: t.data.text, category: t.data.category ?? "", done: t.data.done, due: t.data.due, bill: t.data.bill, reminder: t.data.reminder, estimateMin: t.data.estimateMin })),
         nowCtx.gapMin,
         today,
         (cat) => estimates[cat] ?? 45,
@@ -2745,6 +2750,7 @@ export default function TodayFlow({
         mode="edit"
         initial={sheet.initial}
         categories={categories}
+        categoryMinutes={estimates}
         onSave={onSaveTask}
         onDelete={onDeleteTask}
         onSchedule={onScheduleFromToday}

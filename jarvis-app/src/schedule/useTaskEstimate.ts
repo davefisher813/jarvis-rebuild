@@ -23,7 +23,9 @@ import type { TaskItem } from "../tasks/TasksService";
 // for anyone whose history has not spoken yet.
 export const DEFAULT_TASK_MINUTES = 30;
 
-export function useTaskEstimate(): (t: TaskItem) => number {
+// The learned medians alone, for the surfaces that need the number BEFORE
+// they have a task: the Length row's "usually 30m in this area" line.
+export function useCategoryEstimates(): Record<string, number> {
   const [byCategory, setByCategory] = useState<Record<string, number>>({});
   useEffect(() => {
     let on = true;
@@ -34,8 +36,16 @@ export function useTaskEstimate(): (t: TaskItem) => number {
       .catch(() => undefined);
     return () => { on = false; };
   }, []);
+  return byCategory;
+}
+
+export function useTaskEstimate(): (t: TaskItem) => number {
+  const byCategory = useCategoryEstimates();
   return useCallback(
-    (t: TaskItem) => byCategory[t.data.category ?? ""] ?? DEFAULT_TASK_MINUTES,
+    // UP-CORE-02 (2026-09-05): his number for THIS task first. A category
+    // median is evidence about a kind of work; a length he typed on the task
+    // is evidence about the work, and the more specific one wins.
+    (t: TaskItem) => t.data.estimateMin ?? byCategory[t.data.category ?? ""] ?? DEFAULT_TASK_MINUTES,
     [byCategory],
   );
 }

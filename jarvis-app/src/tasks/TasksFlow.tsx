@@ -19,7 +19,7 @@ import { nextFreeSlot, addMinutes, addDays } from "../schedule/calendar";
 import { showToast } from "../shared/toast";
 import { attemptWrite } from "../shared/guard";
 import { setAsideCandidates, firstStepCandidate, isFirstStepDismissed, dismissFirstStep, backOnTrackMessage, slidingLine } from "./lifecycle";
-import { useTaskEstimate } from "../schedule/useTaskEstimate";
+import { useCategoryEstimates, useTaskEstimate } from "../schedule/useTaskEstimate";
 import { useAI } from "../ai/useAI";
 import { useAIContext } from "../ai/useAIContext";
 import { identityToText } from "../ai/context";
@@ -80,6 +80,8 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // LIFE-F-23 (2026-09-05): what "smallest" is measured with. See
   // schedule/useTaskEstimate.
   const estimateOf = useTaskEstimate();
+  // UP-CORE-02: what each area usually takes, for the Length row's fact line.
+  const categoryMinutes = useCategoryEstimates();
   // LIFE-F-01 (2026-09-05): this used to serialise local midnight with
   // toISOString(), which reads the UTC date. East of Greenwich that is still
   // today, so swiping Tomorrow set the due date to today, the row stayed put
@@ -408,7 +410,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     // plan rides into the sheet (2026-08-25): without it the sheet's fields
     // start empty, save() sees an untouched plan, and setPlan(id, null) below
     // silently erased the task's if-then on EVERY edit.
-    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps }, source: t.source });
+    setSheet({ mode: "edit", id, initial: { text: t.text, category: t.category ?? "", extraCategories: t.extraCategories, due: t.due ?? "", repeat: t.recurrence ?? "", projectId: t.projectId ?? "", plan: t.plan, steps: t.steps, estimateMin: t.estimateMin }, source: t.source });
   };
 
   // When arriving via a note connection, open that task. SHELL-F-12: on the
@@ -434,7 +436,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
     const rec = (draft.repeat || "") as "" | Recurrence;
     let saved = true;
     if (sheet?.mode === "new") {
-      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, plan: draft.plan, steps: draft.steps }));
+      saved = await attemptWrite(() => svc.createTask(draft.text, { category: draft.category || undefined, extraCategories: draft.extraCategories, due: draft.due || null, recurrence: rec || undefined, projectId: draft.projectId, plan: draft.plan, steps: draft.steps, estimateMin: draft.estimateMin }));
     } else if (sheet?.mode === "edit") {
       saved = await attemptWrite(async () => {
         await svc.editText(sheet.id, draft.text);
@@ -444,6 +446,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         await svc.setRecurrence(sheet.id, rec || null);
         await svc.setPlan(sheet.id, draft.plan ?? null);
         await svc.setSteps(sheet.id, draft.steps ?? []);
+        await svc.setEstimate(sheet.id, draft.estimateMin ?? null);
         // Close Task: one tap on the sheet's own offer both saves and marks
         // the task done, once every step is checked.
         if (draft.closeNow) await svc.toggleDone(sheet.id);
@@ -801,6 +804,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
           source={sheet.mode === "edit" ? sheet.source : undefined}
           openSourceFor={openSourceFor}
           categories={categories}
+          categoryMinutes={categoryMinutes}
           onSave={onSave}
           otherPlans={allItems.map((t) => ({ id: t.id, text: t.data.text, plan: t.data.plan }))}
           selfId={sheet.mode === "edit" ? sheet.id : undefined}
