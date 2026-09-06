@@ -125,6 +125,14 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
 /* Red is a verb, so the "already has one" state is INK, not colour: the
    quiet grey brightens to the ordinary secondary text. */
 .sched-notes.on { color: var(--tx-2); }
+/* UP-CORE-10 (2026-09-05): the meeting link, on the row. The smallest
+   capsule the capsule law allows, in ordinary ink on the press grey: red is
+   a verb reserved for the completing action, and joining a call is neither
+   completion nor alarm. */
+.sched-join { margin-left: var(--s-1h); font-size: var(--t-meta); font-weight: var(--w-semi); color: var(--tx-1);
+  background: var(--press-3); border-radius: var(--r-pill); padding: 0 var(--s-1h); vertical-align: middle;
+  text-decoration: none; position: relative; }
+.sched-join::after { content: ""; position: absolute; inset: -4px -8px; }
 .sched-row-warn { box-shadow: inset 2px 0 0 var(--accent); }
 .input-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); font-size: var(--t-meta); color: var(--tx-2); margin-top: var(--s-1); }
 /* Capsule law: the inline fix offer wears the smallest capsule. */

@@ -284,3 +284,52 @@ describe("extractBody and extractHtml on HTML mail", () => {
     expect(extractHtml(payload)).toBeNull();
   });
 });
+
+// UP-CORE-10 (2026-09-05): the mapper read five fields and dropped the three
+// an exec actually needs: the video link, the agenda, and who is coming.
+describe("mapGoogleEvent: the meeting itself", () => {
+  it("takes the Meet link, the description, and the human attendees", () => {
+    const m = mapGoogleEvent({
+      id: "g9", summary: "Board sync", start: { dateTime: "2026-07-04T09:00:00" },
+      hangoutLink: "https://meet.google.com/abc-defg-hij",
+      description: "Q3 numbers &amp; the hiring plan",
+      attendees: [
+        { email: "Marco@Example.com", displayName: "Marco Diaz" },
+        { email: "me@example.com", self: true },
+        { email: "room-4@resource.calendar.google.com", resource: true },
+        { email: "nadia@example.com" },
+      ],
+    })!;
+    expect(m.url).toBe("https://meet.google.com/abc-defg-hij");
+    // Entity-decoded like every other header this file reads, never rewritten.
+    expect(m.notes).toBe("Q3 numbers & the hiring plan");
+    // The machines and the user themselves are not people to prepare for.
+    expect(m.attendees).toEqual([
+      { email: "marco@example.com", name: "Marco Diaz" },
+      { email: "nadia@example.com" },
+    ]);
+  });
+
+  it("falls back to a video entry point, and never to a phone number", () => {
+    const zoom = mapGoogleEvent({
+      id: "g10", summary: "Client call", start: { dateTime: "2026-07-04T09:00:00" },
+      conferenceData: { entryPoints: [
+        { entryPointType: "phone", uri: "tel:+15551234567" },
+        { entryPointType: "video", uri: "https://zoom.us/j/123" },
+      ] },
+    })!;
+    expect(zoom.url).toBe("https://zoom.us/j/123");
+    const phoneOnly = mapGoogleEvent({
+      id: "g11", summary: "Dial in", start: { dateTime: "2026-07-04T09:00:00" },
+      conferenceData: { entryPoints: [{ entryPointType: "phone", uri: "tel:+15551234567" }] },
+    })!;
+    expect(phoneOnly.url).toBeUndefined();
+  });
+
+  it("says nothing about a meeting that has none of it", () => {
+    const m = mapGoogleEvent({ id: "g12", summary: "Focus", start: { dateTime: "2026-07-04T09:00:00" } })!;
+    expect(m.url).toBeUndefined();
+    expect(m.notes).toBeUndefined();
+    expect(m.attendees).toBeUndefined();
+  });
+});

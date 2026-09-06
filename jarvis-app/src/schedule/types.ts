@@ -17,6 +17,13 @@ export interface EventData {
   // deliberately is not. Only meaningful alongside a location.
   travelMin?: number;
   bufferMin?: number;
+  // UP-CORE-10 (2026-09-05): the video link, the description and the guest
+  // list an imported Google event carries. url and notes are editable here
+  // (and settable on a hand-made event); attendees are Google's own list and
+  // refresh with the import, since there is nothing here that writes them.
+  url?: string;
+  notes?: string;
+  attendees?: { email: string; name?: string }[];
   recurrence?: EventRecurrence; // repeats from `date` forward
   // N3 (2026-08-21): the last day the series runs, inclusive. Absent means
   // forever, which is what every repeating event used to be: "fall clinics

@@ -46,11 +46,18 @@ export interface ImportSummary {
 }
 
 // The Google-owned fields, in the order gcalHash records them.
-function valuesOf(m: MappedEvent): [string, string, string, string, string] {
-  return [m.title, m.date, m.start, m.end ?? "", m.location ?? ""];
+//
+// UP-CORE-10 (2026-09-05): the meeting link and the description joined the
+// tuple. They follow the SAME field-by-field rule as the first five (an edit
+// made here wins forever), and a row written before this carries a five-long
+// record: readHash accepts either length and the comparison below treats a
+// missing index as untouched, so those two fields import once and are
+// protected from then on.
+function valuesOf(m: MappedEvent): string[] {
+  return [m.title, m.date, m.start, m.end ?? "", m.location ?? "", m.url ?? "", m.notes ?? ""];
 }
-function currentValues(d: EventData): [string, string, string, string, string] {
-  return [d.title ?? "", d.date ?? "", d.start ?? "", d.end ?? "", d.location ?? ""];
+function currentValues(d: EventData): string[] {
+  return [d.title ?? "", d.date ?? "", d.start ?? "", d.end ?? "", d.location ?? "", d.url ?? "", d.notes ?? ""];
 }
 function hashOf(m: MappedEvent): string {
   return JSON.stringify(valuesOf(m));
@@ -59,7 +66,7 @@ function readHash(raw: unknown): string[] | null {
   if (typeof raw !== "string" || !raw) return null;
   try {
     const v: unknown = JSON.parse(raw);
-    return Array.isArray(v) && v.length === 5 && v.every((x) => typeof x === "string") ? (v as string[]) : null;
+    return Array.isArray(v) && (v.length === 5 || v.length === 7) && v.every((x) => typeof x === "string") ? (v as string[]) : null;
   } catch {
     return null;
   }
@@ -208,20 +215,31 @@ export async function importCalendar(
     const next: string[] = current.slice();
     let changed = false;
     for (let i = 0; i < incoming.length; i++) {
-      const untouched = last === null || current[i] === last[i];
+      // A record that predates this field said nothing about it, which is
+      // not the same as saying he changed it (PLUMB-F-07's own rule).
+      const untouched = last === null || i >= last.length || current[i] === last[i];
       if (untouched && incoming[i] !== current[i]) {
         next[i] = incoming[i]!;
         changed = true;
       }
     }
     const hash = hashOf(m);
-    if (!changed && e.data.gcalHash === hash) continue;
+    // The guest list is not in the hash (nothing here edits it, so there is
+    // nothing to protect), which means a changed list has to be noticed on
+    // its own or an attendee added in Google would never arrive.
+    const guestsChanged = JSON.stringify(m.attendees ?? []) !== JSON.stringify(e.data.attendees ?? []);
+    if (!changed && !guestsChanged && e.data.gcalHash === hash) continue;
     await schedule.applyGoogleChange(e.id, {
       title: next[0]!,
       date: next[1]!,
       start: next[2]!,
       end: next[3] || undefined,
       location: next[4] || undefined,
+      url: next[5] || undefined,
+      notes: next[6] || undefined,
+      // UP-CORE-10: the guest list is Google's alone (nothing in the app
+      // writes it), so it simply follows, and a changed list refreshes.
+      attendees: m.attendees,
       gcalHash: hash,
     });
     if (changed) {
@@ -239,6 +257,9 @@ export async function importCalendar(
       start: m.start,
       end: m.end,
       location: m.location,
+      url: m.url,
+      notes: m.notes,
+      attendees: m.attendees,
       gcalId: m.gcalId,
       gcalHash: hashOf(m),
     });

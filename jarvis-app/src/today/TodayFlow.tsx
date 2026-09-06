@@ -1860,7 +1860,12 @@ export default function TodayFlow({
                 the time and a verb already fill the row, and while you are
                 IN a thing, its page beats a menu of other things. A routine
                 block is not a meeting and keeps Pick Something. */}
-            {insideEvent && onOpenNote ? (
+            {/* UP-CORE-10 (2026-09-05): JOIN BEATS EVERYTHING while you are
+                inside a meeting that has a link: being in the call is the
+                thing, and the page for it is one row away on the schedule. */}
+            {insideEvent?.data.url ? (
+              <a className="pill-act" href={insideEvent.data.url} target="_blank" rel="noreferrer">Join</a>
+            ) : insideEvent && onOpenNote ? (
               <button className="pill-act" onClick={() => void openEventNote(insideEvent)}>
                 {notedEvents.has(insideEvent.id) ? "Notes" : "Take Notes"}
               </button>

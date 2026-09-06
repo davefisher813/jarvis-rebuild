@@ -298,3 +298,16 @@ describe("the notes glyph on an event row", () => {
     expect(screen.queryByLabelText("Add Notes")).toBeNull();
   });
 });
+
+// UP-CORE-10 (2026-09-05): Join, where the link is.
+describe("the Join link on an event row", () => {
+  it("opens the meeting link, and is absent without one", () => {
+    const { rerender } = render(
+      <DayRow e={ev({ url: "https://zoom.us/j/1" })} conflict={false} isNext={false} isPast={false} now={null} />,
+    );
+    const join = screen.getByText("Join") as HTMLAnchorElement;
+    expect(join.href).toBe("https://zoom.us/j/1");
+    rerender(<DayRow e={ev()} conflict={false} isNext={false} isPast={false} now={null} />);
+    expect(screen.queryByText("Join")).toBeNull();
+  });
+});

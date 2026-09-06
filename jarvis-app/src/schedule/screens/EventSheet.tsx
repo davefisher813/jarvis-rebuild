@@ -15,7 +15,7 @@ import Provenance from "../../shared/Provenance";
 import type { Source } from "../../shared/provenance";
 import HeadMenu from "../../shared/HeadMenu";
 import { Tile } from "../../shared/FormSheet";
-import { Calendar, Tag, Hourglass, Shuffle, Timer, Plus } from "../../shared/icons";
+import { Calendar, Tag, Hourglass, Shuffle, Timer, Link2, FileText, User, Plus } from "../../shared/icons";
 import { CalendarGlyph, ClockGlyph, RepeatGlyph, PinGlyph, BarbellGlyph, SunGlyph } from "../../shared/glyphs";
 
 export type { SheetCategory };
@@ -46,10 +46,16 @@ export interface EventDraft {
   // what every repeat used to be.
   until?: string;
   taskIds?: string[]; // attached tasks (Session 4 connections)
+  // UP-CORE-10: Google's guest list, shown but never written here.
+  attendees?: { email: string; name?: string }[];
   // LEAVE BY (UP-CORE-07, 2026-09-05): minutes to get there, and the slack
   // on top. Null means not set, which is most events.
   travelMin?: number | null;
   bufferMin?: number | null;
+  // UP-CORE-10 (2026-09-05): the meeting link and the description. Editable
+  // for a hand-made event too, not only an imported one.
+  url?: string;
+  notes?: string;
   // The Forget row: stop remembering this place's travel time. Set only by
   // that row, so an ordinary save never erases the memory.
   forgetTravel?: boolean;
@@ -88,6 +94,9 @@ export default function EventSheet({
   source,
   openSourceFor,
   travelMemory,
+  knownPeople = [],
+  onOpenPerson,
+  onAddPerson,
 }: {
   mode: "new" | "edit";
   initial?: Partial<EventDraft>;
@@ -120,6 +129,12 @@ export default function EventSheet({
   // prefill this sheet the second time a place is used, and to know whether
   // there is anything to forget.
   travelMemory?: TravelMemory;
+  // UP-CORE-10: the contacts, for matching a guest by email; the door to
+  // that person's card; and the one-tap add for a guest who is not in
+  // Contacts yet. All optional: without them the guest list is a fact.
+  knownPeople?: { id: string; name: string; email?: string }[];
+  onOpenPerson?: (personId: string) => void;
+  onAddPerson?: (a: { email: string; name?: string }) => void;
 }) {
   const [taskIds, setTaskIds] = useState<string[]>(initial?.taskIds ?? []);
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -136,6 +151,9 @@ export default function EventSheet({
   const [bufferMin, setBufferMin] = useState<number | null>(initial?.bufferMin ?? null);
   const [forgetTravel, setForgetTravel] = useState(false);
   const [travelCustom, setTravelCustom] = useState(false);
+  // UP-CORE-10: the video link and the agenda.
+  const [url, setUrl] = useState(initial?.url ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
   const [until, setUntil] = useState(initial?.until ?? "");
   const untilBad = recurrence !== "none" ? untilError(date, until) : null;
   const [scope, setScope] = useState<"this" | "series">("series");
@@ -176,6 +194,8 @@ export default function EventSheet({
       // behind it, and the service refuses it anyway. Absent rather than
       // null when unset, so a draft for an event with no travel time is the
       // same object it has always been.
+      ...(url.trim() ? { url: url.trim() } : {}),
+      ...(notes.trim() ? { notes: notes.trim() } : {}),
       ...(place && travelMin !== null ? { travelMin } : {}),
       ...(place && travelMin !== null && bufferMin !== null ? { bufferMin } : {}),
       ...(forgetTravel ? { forgetTravel: true } : {}),
@@ -482,6 +502,49 @@ export default function EventSheet({
                 <div className="conn-name">{l}</div>
               </div>
             ))}
+          </div></div>
+
+          {/* UP-CORE-10 (2026-09-05) · THE MEETING ITSELF. An imported Google
+              event arrived with its video link, its description and its
+              guest list dropped on the floor (map.ts read five fields), so
+              "Join" was a thing you went to another app to find and who was
+              in the room was a thing you found out by walking in. The link
+              and the notes are editable here, for a hand-made event too. */}
+          <div className="grp xs-grp"><div className="eyebrow">Meeting</div></div>
+          <div className="pad-x"><div className="card xs-group">
+            <div className="row xs-row">
+              <Tile tone="indigo"><Link2 className="ic" /></Tile>
+              <div className="conn-name">Link</div>
+              <input className="xs-input xs-field" placeholder="Optional" aria-label="Meeting Link" value={url} onChange={(e) => setUrl(e.target.value)} />
+            </div>
+            <div className="row xs-row">
+              <Tile tone="yellow"><FileText className="ic" /></Tile>
+              <div className="conn-name">Notes</div>
+              <input className="xs-input xs-field" placeholder="Optional" aria-label="Meeting Notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+            {/* WHO IS IN THE ROOM. Google's list, read-only because nothing
+                here writes it back (the coverage map forbids write-back).
+                A guest already in Contacts opens the one person card the app
+                has; one who is not is a single tap to add, with the real
+                name and address, never a guess. */}
+            {(initial?.attendees ?? []).map((a) => {
+              const known = onOpenPerson ? knownPeople.find((p) => p.email && p.email.toLowerCase() === a.email) : undefined;
+              return (
+                <div className="row xs-row" key={a.email}>
+                  <Tile tone="teal"><User className="ic" /></Tile>
+                  <div className="row-grow">
+                    <div className="conn-name truncate">{a.name || a.email}</div>
+                    {a.name && <div className="conn-meta truncate">{a.email}</div>}
+                  </div>
+                  {known && onOpenPerson && (
+                    <button type="button" className="pill-act" onClick={() => onOpenPerson(known.id)}>Open</button>
+                  )}
+                  {!known && onAddPerson && (
+                    <button type="button" className="pill-act" onClick={() => onAddPerson(a)}>Add</button>
+                  )}
+                </div>
+              );
+            })}
           </div></div>
 
           {canAttach && (attached.length > 0 || offers.length > 0 || rest.length > 0) && (

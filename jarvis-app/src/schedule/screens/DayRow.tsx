@@ -227,6 +227,19 @@ export default function DayRow({
                 the row. The glyph says whether one already exists: filled
                 opens it, hollow makes it, titled and linked, with the
                 meeting template already in it. */}
+            {/* UP-CORE-10 (2026-09-05): Join, where the link is. An imported
+                meeting arrived with its video link dropped, so joining meant
+                going to another app to find it. A link, not a button: it
+                opens the way every other link in this app opens. */}
+            {e.data.url && !selecting && (
+              <a
+                className="sched-join"
+                href={e.data.url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(ev) => ev.stopPropagation()}
+              >Join</a>
+            )}
             {onNotes && !selecting && (
               <button
                 type="button"

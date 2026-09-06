@@ -223,3 +223,44 @@ describe("EventSheet: Leave By", () => {
     expect(onSave.mock.calls[0]![0].travelMin).toBeUndefined();
   });
 });
+
+// UP-CORE-10 (2026-09-05): the meeting link, the agenda and the guest list.
+describe("EventSheet: the meeting itself", () => {
+  it("edits the link and the notes, on a hand-made event too", () => {
+    const onSave = vi.fn();
+    render(<EventSheet mode="new" initial={{ date: "2026-05-24" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    fireEvent.change(screen.getByLabelText("Meeting Link"), { target: { value: "https://zoom.us/j/1" } });
+    fireEvent.change(screen.getByLabelText("Meeting Notes"), { target: { value: "Q3 numbers" } });
+    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Board sync" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ url: "https://zoom.us/j/1", notes: "Q3 numbers" });
+  });
+
+  // The anti-drift rule: a guest already in Contacts opens the app's one
+  // person card, and a guest who is not is one tap to add with the real
+  // address, never a guess.
+  it("opens a known guest and offers to add an unknown one", () => {
+    const onOpenPerson = vi.fn();
+    const onAddPerson = vi.fn();
+    render(
+      <EventSheet
+        mode="edit"
+        initial={{ title: "Board sync", date: "2026-05-24", attendees: [
+          { email: "marco@example.com", name: "Marco Diaz" },
+          { email: "nadia@example.com" },
+        ] }}
+        categories={CATS}
+        knownPeople={[{ id: "p1", name: "Marco Diaz", email: "Marco@Example.com" }]}
+        onOpenPerson={onOpenPerson}
+        onAddPerson={onAddPerson}
+        onSave={() => {}}
+        onCancel={() => {}}
+      />,
+    );
+    expect(screen.getByText("Marco Diaz")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Open"));
+    expect(onOpenPerson).toHaveBeenCalledWith("p1");
+    fireEvent.click(screen.getByText("Add"));
+    expect(onAddPerson).toHaveBeenCalledWith({ email: "nadia@example.com" });
+  });
+});

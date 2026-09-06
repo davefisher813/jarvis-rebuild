@@ -28,7 +28,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number; url?: string; notes?: string; attendees?: { email: string; name?: string }[] },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -62,6 +62,9 @@ export class ScheduleService {
     if (opts.gym) data.gym = true;
     // UP-CORE-07 (2026-09-05): travel and slack only mean something next to a
     // place, so they are stored only when there is one.
+    if (opts.url?.trim()) data.url = opts.url.trim();
+    if (opts.notes?.trim()) data.notes = opts.notes.trim();
+    if (opts.attendees?.length) data.attendees = opts.attendees;
     if (data.location && isTravel(opts.travelMin)) data.travelMin = opts.travelMin;
     if (data.location && isTravel(opts.bufferMin)) data.bufferMin = opts.bufferMin;
     const id = await this.store.create(this.ownerId, ENTITY_EVENT, data as unknown as ItemData);
@@ -186,9 +189,21 @@ export class ScheduleService {
   // it under, the tasks he attached, or the gym door he marked.
   applyGoogleChange(
     id: string,
-    patch: Pick<EventData, "title" | "date" | "start" | "end" | "location" | "gcalHash">,
+    // UP-CORE-10 (2026-09-05): url, notes and attendees ride the same door.
+    // The first two are field-by-field like the rest (his edit here wins);
+    // attendees are Google's list alone, since nothing in the app writes them.
+    patch: Pick<EventData, "title" | "date" | "start" | "end" | "location" | "gcalHash" | "url" | "notes" | "attendees">,
   ): Promise<boolean> {
     return this.patch(id, patch);
+  }
+
+  // UP-CORE-10: the meeting link and the notes, by hand. Empty clears either,
+  // which is how a dead Zoom link stops being offered as a Join button.
+  editMeeting(id: string, patch: { url?: string; notes?: string }): Promise<boolean> {
+    return this.patch(id, {
+      ...(patch.url !== undefined ? { url: patch.url.trim() || undefined } : {}),
+      ...(patch.notes !== undefined ? { notes: patch.notes.trim() || undefined } : {}),
+    });
   }
 
   async deleteEvent(id: string): Promise<void> {

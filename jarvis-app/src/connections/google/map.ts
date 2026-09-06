@@ -14,7 +14,17 @@ export interface GCalEvent {
   // Google's own word for "this is not happening", and a cancelled instance
   // often carries nothing else, not even a start.
   status?: string;
+  // UP-CORE-10 (2026-09-05): the three fields the mapper dropped and an exec
+  // pays for. hangoutLink is Meet's shortcut; conferenceData is the general
+  // form every provider (Zoom, Teams, Meet) fills in; description is the
+  // agenda somebody typed; attendees is who is in the room.
+  hangoutLink?: string;
+  conferenceData?: { entryPoints?: { entryPointType?: string; uri?: string }[] };
+  description?: string;
+  attendees?: { email?: string; displayName?: string; self?: boolean; resource?: boolean }[];
 }
+
+export interface MappedAttendee { email: string; name?: string }
 export interface MappedEvent {
   title: string;
   date: string;   // YYYY-MM-DD
@@ -22,6 +32,37 @@ export interface MappedEvent {
   end?: string;
   location?: string;
   gcalId: string;
+  // UP-CORE-10: the video link, the description, and who is coming.
+  url?: string;
+  notes?: string;
+  attendees?: MappedAttendee[];
+}
+
+// The link you actually tap. hangoutLink first because Google fills it for
+// its own conferences; otherwise the first video entry point, and only a
+// video one: a phone number and a "more info" page are not a Join button.
+function joinLink(g: GCalEvent): string | undefined {
+  const direct = g.hangoutLink?.trim();
+  if (direct && /^https?:\/\//i.test(direct)) return direct;
+  for (const ep of g.conferenceData?.entryPoints ?? []) {
+    const uri = ep.uri?.trim();
+    if (ep.entryPointType === "video" && uri && /^https?:\/\//i.test(uri)) return uri;
+  }
+  return undefined;
+}
+
+// Who is in the room, minus the machines. A room or a piece of equipment is
+// an attendee to Google and is not a person to prepare for; "self" is the
+// user, who does not need introducing to themselves.
+function attendeesOf(g: GCalEvent): MappedAttendee[] | undefined {
+  const out: MappedAttendee[] = [];
+  for (const a of g.attendees ?? []) {
+    const email = a.email?.trim().toLowerCase();
+    if (!email || a.resource || a.self) continue;
+    const name = decodeEntities(decodeWords(a.displayName?.trim() ?? ""));
+    out.push({ email, ...(name ? { name } : {}) });
+  }
+  return out.length ? out : undefined;
 }
 
 function parseWall(iso: string): { date: string; time: string } {
@@ -38,6 +79,14 @@ export function mapGoogleEvent(g: GCalEvent): MappedEvent | null {
   const endStr = g.end?.dateTime;
   if (endStr) m.end = parseWall(endStr).time;
   if (g.location?.trim()) m.location = g.location.trim();
+  const url = joinLink(g);
+  if (url) m.url = url;
+  // The agenda as typed, entity-decoded like every other header this file
+  // reads, and never rewritten: it is somebody's words.
+  const notes = decodeEntities(g.description?.trim() ?? "");
+  if (notes) m.notes = notes;
+  const people = attendeesOf(g);
+  if (people) m.attendees = people;
   return m;
 }
 

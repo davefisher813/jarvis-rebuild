@@ -3,6 +3,9 @@ import { sourceOpener } from "../shared/openSource";
 import { rowSource } from "../shared/provenance";
 import { useSchedule, useCategories, useTasks, useRoutine, useProjects, useGoals, useProfile, useNotes, useOptionalStrands, useOptionalRules, useOptionalGym } from "../data/NotesProvider";
 import { rememberTravel, type TravelMemory } from "./leaveBy";
+import { usePeople } from "../data/NotesProvider";
+import type { Person } from "../people/types";
+import CallPrepSheet from "../people/CallPrepSheet";
 import GymFlow, { readActiveProgramId } from "../gym/GymFlow";
 import { doorInfoFor } from "../gym/door";
 import { readGymSettings, rackFrom } from "../gym/settings";
@@ -110,7 +113,27 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
   // asking it per row would scan it per row.
   const notesSvc = useNotes();
   const [notedEvents, setNotedEvents] = useState<ReadonlySet<string>>(new Set());
+  // UP-CORE-10 (2026-09-05): the contacts, so a guest on an imported event
+  // can be matched by email to a person the app already knows. One people
+  // store, PeopleService, the same one every other surface reads.
+  const peopleSvc = usePeople();
+  const [people, setPeople] = useState<Person[]>([]);
+  const [peopleTick, setPeopleTick] = useState(0);
+  const [prepPerson, setPrepPerson] = useState<{ id: string; about: string } | null>(null);
+  useEffect(() => {
+    let on = true;
+    peopleSvc.list().then((ps) => { if (on) setPeople(ps); }).catch(() => {});
+    return () => { on = false; };
+  }, [peopleSvc, peopleTick]);
   const [noteTick, setNoteTick] = useState(0);
+  // UP-CORE-10: a guest who is not in Contacts is one tap to add, with the
+  // real name and address off the invite and nothing invented.
+  const addGuest = async (a: { email: string; name?: string }) => {
+    const ok = await attemptWrite(() => peopleSvc.create({ name: a.name?.trim() || a.email, group: "contacts", email: a.email }));
+    setPeopleTick((n) => n + 1);
+    if (ok) showToast({ message: "Added to Contacts" });
+  };
+
   const cats = useCategories();
   const today = todayISO();
   const t0 = new Date(today + "T00:00:00");
@@ -515,7 +538,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     // B1-2 (2026-09-04): "until" has to travel into the sheet too, or the
     // sheet's own default of "" reads as "forever" and onSave below writes
     // that back, silently erasing a real end date on any unrelated edit.
-    setSheet({ mode: "edit", id, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null } });
+    setSheet({ mode: "edit", id, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [] } });
   };
 
   // When arriving via a note connection, jump to the event's own date and open
@@ -532,7 +555,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
       const occurrence = repeating ? nextOccurrence(e, todayISO()) ?? e.date : e.date;
       setSelected(occurrence);
       syncView(occurrence);
-      setSheet({ mode: "edit", id: openId, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null } });
+      setSheet({ mode: "edit", id: openId, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [] } });
     })();
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -559,7 +582,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     let newEventDate: string | null = null;
     if (sheet?.mode === "new") {
       const created = await attemptWrite(async () => {
-        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, until: draft.until || undefined, taskIds: draft.taskIds, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined });
+        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, until: draft.until || undefined, taskIds: draft.taskIds, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes });
         if (newEventId && draft.gym) await svc.editGymDoor(newEventId, true);
       });
       if (!created) newEventId = null;
@@ -598,6 +621,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           await svc.editCategory(id, draft.category);
           await svc.editLocation(id, draft.location);
           await svc.editTravel(id, draft.travelMin ?? null, draft.bufferMin ?? null);
+          await svc.editMeeting(id, { url: draft.url ?? "", notes: draft.notes ?? "" });
           await svc.editTaskIds(id, draft.taskIds ?? []);
           await svc.editGymDoor(id, !!draft.gym);
         });
@@ -1443,6 +1467,27 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           source={sheet.mode === "edit" ? sheet.source : undefined}
           openSourceFor={openSourceFor}
           travelMemory={travelMemory}
+          knownPeople={people.map((p) => ({ id: p.id, name: p.data.name, email: p.data.email }))}
+          onOpenPerson={(id) => setPrepPerson({ id, about: sheet.mode === "edit" ? sheet.initial.title : "" })}
+          onAddPerson={(a) => void addGuest(a)}
+        />
+      )}
+      {/* UP-CORE-10 (2026-09-05): MEETING PREP IS THE CARD THE APP ALREADY
+          HAS. The coverage map's anti-drift rule is explicit that any surface
+          offering a person action opens CallPrepSheet, so a guest tapped on
+          the event sheet opens THAT, with the meeting as the reason, rather
+          than a second card saying the same things in a different order. */}
+      {prepPerson && people.find((p) => p.id === prepPerson.id) && (
+        <CallPrepSheet
+          person={people.find((p) => p.id === prepPerson.id)!}
+          reason={prepPerson.about || undefined}
+          onCall={async () => {
+            const out = await peopleSvc.logCallAttempt(prepPerson.id);
+            setPeopleTick((n) => n + 1);
+            return out;
+          }}
+          onUndoCall={async (prior) => { await peopleSvc.restoreCallAttempt(prepPerson.id, prior); setPeopleTick((n) => n + 1); }}
+          onClose={() => setPrepPerson(null)}
         />
       )}
       {blockSheet && (
