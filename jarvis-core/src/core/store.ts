@@ -67,6 +67,25 @@ export function isNetworkError(e: unknown): boolean {
   return /failed to fetch|network ?error|network request failed|load failed|fetch failed|connection|econnreset|econnrefused|etimedout|timed? ?out|offline/.test(msg);
 }
 
+// UP-PLAT-05 (2026-09-06): WHAT THE STORE KNOWS ABOUT ITSELF.
+//
+// queueLen() has been here since S3-Q14 and only spec harnesses ever read it,
+// so the app could tell the user "On" and nothing else while three writes sat
+// on the phone. This is the whole truth in one shape, and it is pushed rather
+// than polled: the moments that change it are exactly the moments the Store
+// already handles.
+//
+// lastSyncedAt is the last write that actually REACHED the server from this
+// Store, or null when none has since launch. Null is not "never synced": it
+// means nothing has left this phone yet in this session, and the screen says
+// that instead of inventing a time. It is deliberately not persisted, because
+// a stamp restored from disk cannot know what another device did since.
+export interface SyncState {
+  online: boolean;
+  queued: number;
+  lastSyncedAt: number | null;
+}
+
 // The typed client layer the app talks to. It wraps any DataAdapter and adds
 // the one client-side concern the adapter does not have: the offline queue.
 //
@@ -122,8 +141,45 @@ export class Store {
     return { id: op.id, ownerId: op.ownerId, entityType: op.entityType, data: op.data, serverTime: op.queuedAt };
   }
 
+  // UP-PLAT-05: the queue only ever changes through here, so this is the one
+  // place that has to announce a change in length.
   private saveQueue(): void {
     this.persistence?.save(this.queue);
+    this.emitSync();
+  }
+
+  private lastSyncedAt: number | null = null;
+  private syncSubs = new Set<(s: SyncState) => void>();
+
+  syncState(): SyncState {
+    return { online: this.online, queued: this.queue.length, lastSyncedAt: this.lastSyncedAt };
+  }
+
+  /**
+   * Watch the sync state. Fires immediately with the current value, so a
+   * subscriber never has to render an empty first frame, then on every
+   * change: going offline, reconnecting, a write landing, a queue growing or
+   * draining. Returns the unsubscribe.
+   */
+  subscribe(fn: (s: SyncState) => void): () => void {
+    this.syncSubs.add(fn);
+    fn(this.syncState());
+    return () => { this.syncSubs.delete(fn); };
+  }
+
+  private emitSync(): void {
+    if (this.syncSubs.size === 0) return;
+    const s = this.syncState();
+    for (const fn of this.syncSubs) {
+      try { fn(s); } catch { /* a listener must never break a write */ }
+    }
+  }
+
+  // A write reached the server. The one thing "Last synced" is allowed to
+  // mean, so the line can never claim more than actually happened.
+  private landed(): void {
+    this.lastSyncedAt = Date.now();
+    this.emitSync();
   }
 
   private invalidate(ownerId: string): void {
@@ -162,6 +218,7 @@ export class Store {
     try {
       const newId = await this.adapter.create(ownerId, entityType, data, id);
       this.invalidate(ownerId);
+      this.landed();
       return newId;
     } catch (e) {
       // PLUMB-F-09: the signal dropped mid-write. Going offline and calling
@@ -181,6 +238,7 @@ export class Store {
     if (datas.length === 0) return [];
     const ids = await this.adapter.createMany(ownerId, entityType, datas);
     this.invalidate(ownerId);
+    this.landed();
     return ids;
   }
 
@@ -235,6 +293,7 @@ export class Store {
       try {
         const r = await this.adapter.apply(ownerId, id, patch, serverTime);
         this.invalidate(ownerId);
+        this.landed();
         return r;
       } catch (e) {
         // PLUMB-F-09: same seam as create. The edit rides the queue instead
@@ -271,6 +330,7 @@ export class Store {
     try {
       await this.adapter.del(ownerId, id);
       this.invalidate(ownerId);
+      this.landed();
     } catch (e) {
       // PLUMB-F-09: a delete that never reached the server is queued too, so
       // the row does not reappear on the next list.
@@ -312,6 +372,7 @@ export class Store {
 
   goOffline(): void {
     this.online = false;
+    this.emitSync();
   }
 
   // PLUMB-F-09: told when a write discovers the signal is gone, so the app
@@ -342,6 +403,7 @@ export class Store {
   private dropSignal(e: unknown): boolean {
     if (!isNetworkError(e)) return false;
     this.online = false;
+    this.emitSync();
     try { this.dropped?.(); } catch { /* a listener must never break a write */ }
     return true;
   }
@@ -358,6 +420,7 @@ export class Store {
 
   reconnect(): Promise<void> {
     this.online = true;
+    this.emitSync();
     if (this.draining) return this.draining;
     const run = this.drain().finally(() => { this.draining = null; });
     this.draining = run;
@@ -425,6 +488,9 @@ export class Store {
     if (lostRows.size > 0) {
       try { this.keptNewer?.(lostRows.size); } catch { /* a listener must never wedge the queue */ }
     }
+    // UP-PLAT-05: the queue is empty and everything in it landed, which is
+    // the strongest form of "last synced" there is.
+    this.landed();
   }
 
   queueLen(): number {

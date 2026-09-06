@@ -24,6 +24,7 @@ import { FilesService } from "../files/FilesService";
 import { MemoryFileStore, SupabaseFileStore, type FileStore } from "../files/FileStore";
 import { supabase } from "../auth/supabaseClient";
 import { makeStore } from "./store";
+import type { Store } from "@core";
 import { wireOfflineSync } from "./offlineSync";
 import { emit } from "../events";
 
@@ -60,6 +61,12 @@ const FileStoreContext = createContext<FileStore | null>(null);
 // The Supabase access token, for callers that hit privileged endpoints (e.g.
 // the admin check). Undefined when signed out or in the local harness.
 const TokenContext = createContext<string | undefined>(undefined);
+
+// UP-PLAT-05 (2026-09-06): the Store itself, for the one thing no service can
+// answer: whether this phone is caught up. Every service wraps the Store and
+// exposes queueLen(), but the sync LINE is about the account, not about tasks
+// or notes, so it reads the one Store all of them share.
+const StoreContext = createContext<Store | null>(null);
 
 export function NotesProvider({
   userId,
@@ -110,6 +117,7 @@ export function NotesProvider({
   useEffect(() => wireOfflineSync(store, () => { health.flush().catch(() => { /* still queued for the next online event */ }); }), [store, health]);
   return (
     <TokenContext.Provider value={accessToken}>
+    <StoreContext.Provider value={store}>
     <NotesContext.Provider value={notes}>
       <TasksContext.Provider value={tasks}>
         <ScheduleContext.Provider value={schedule}>
@@ -151,6 +159,7 @@ export function NotesProvider({
         </ScheduleContext.Provider>
       </TasksContext.Provider>
     </NotesContext.Provider>
+    </StoreContext.Provider>
     </TokenContext.Provider>
   );
 }
@@ -349,4 +358,11 @@ export function useOptionalStrands(): StrandsService | null {
 
 export function useAccessToken(): string | undefined {
   return useContext(TokenContext);
+}
+
+// Null outside a provider (the settings screens all live inside one; a test
+// harness may not), so a caller renders the honest nothing rather than
+// throwing.
+export function useStore(): Store | null {
+  return useContext(StoreContext);
 }

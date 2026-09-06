@@ -15,6 +15,7 @@ import RollingNumber from "../shared/RollingNumber";
 import YourDay from "./YourDay";
 import DayRing from "./DayRing";
 import { useCondensed } from "../shared/PageHeader";
+import { useSyncState } from "../data/useSyncState";
 import { Burst, useBurst } from "../shared/Burst";
 import type { BurstSize } from "../shared/completion";
 import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats, type WeekRecap } from "./evening";
@@ -568,6 +569,10 @@ export default function TodayPage({
   // sticky glass bar; it condenses over the hero with the red energy line
   // once the greeting scrolls away. Nothing collides with the clock.
   const [condProbe, condensed, scrolled] = useCondensed();
+  // UP-PLAT-05 (2026-09-06): whether this phone is caught up. Null outside a
+  // provider (the visual harnesses render this page bare), which renders
+  // nothing at all rather than claiming either state.
+  const sync = useSyncState();
   // Everything JARVIS noticed, in one stream: the priority cards from the
   // flow first, then the standing facts (money, email), then the quiet
   // offers. Each is one tap from resolved; nothing here is a dead end.
@@ -622,7 +627,14 @@ export default function TodayPage({
       <div className={"today-hero" + (daypart === "morning" ? " hero-morning" : daypart === "evening" ? " hero-evening" : "")}>
         <div className="today-hero-row">
           <div>
-            <div className="eyebrow">{dateLong}</div>
+            {/* UP-PLAT-05 (2026-09-06): one quiet word when the Store is
+                offline. Today is the screen he is on when a write is held,
+                and until now nothing anywhere said so: the whole app looked
+                identical whether or not anything had left the phone. It says
+                only what is true and offers nothing, because the queue is
+                already draining itself; Settings, Backup is where the count
+                and the Retry live. */}
+            <div className="eyebrow">{dateLong}{sync && !sync.online ? " · Offline" : ""}</div>
             <div className="today-title">{greeting}</div>
             <div className="today-summary">{evening ? eveningSummary(evening, movedLine) : parts}</div>
             {/* Weather Fact (addendum item 4): the morning line. Threshold-

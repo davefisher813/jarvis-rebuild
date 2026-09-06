@@ -1,12 +1,17 @@
 import { useRef, useState } from "react";
 import LargeTitleNav from "../shared/LargeTitleNav";
-import { useBackup } from "../data/NotesProvider";
+import { useBackup, useStore } from "../data/NotesProvider";
 import { backendConfigured } from "../data/store";
 import { saveBackupFile } from "../backup/exportFile";
+import { useSyncState, syncLine } from "../data/useSyncState";
+import { attemptWrite } from "../shared/guard";
 import { Head, Card, Row, Foot } from "./kit";
 
 export default function BackupPage({ onBack }: { onBack: () => void }) {
   const backup = useBackup();
+  const store = useStore();
+  const sync = useSyncState();
+  const [retrying, setRetrying] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,6 +39,17 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
     } finally {
       setBusy(false);
     }
+  };
+
+  // UP-PLAT-05: drains the queue now instead of waiting out the backoff in
+  // data/offlineSync.ts. Through attemptWrite, so a retry that cannot reach
+  // the server says so in the one voice every other failed write in the app
+  // uses; a success needs no toast, because the row above it just changed.
+  const onRetry = async () => {
+    if (!store) return;
+    setRetrying(true);
+    await attemptWrite(() => store.reconnect());
+    setRetrying(false);
   };
 
   const onPickFile = () => fileRef.current?.click();
@@ -100,7 +116,23 @@ export default function BackupPage({ onBack }: { onBack: () => void }) {
           backendConfigured implies a real session wherever this page can be
           reached, so it alone is the honest signal. */}
       <Card>
-        <Row label="iCloud / Account Sync" value={backendConfigured ? "On" : "Off"} />
+        {/* UP-PLAT-05 (2026-09-06): this row said "On" and nothing else, so
+            the one place a person looks after watching a note vanish told
+            them nothing. It is the live state now: what is waiting, whether
+            the phone is online, and when something last actually left it.
+            Only where there is a Store to ask; the demo build has none. */}
+        <Row label="iCloud / Account Sync" value={backendConfigured ? "On" : "Off"} meta={sync ? syncLine(sync) : undefined} />
+        {/* Retry only exists when there is something to retry: a button that
+            can do nothing is a promise the screen cannot keep. */}
+        {sync && sync.queued > 0 && (
+          <Row
+            label={retrying ? "Sending..." : "Retry Now"}
+            meta="Sends what is waiting"
+            disabled={retrying}
+            className="set-act"
+            onClick={() => void onRetry()}
+          />
+        )}
         <Row
           label={backendConfigured ? "Data Lives in Your Account" : "Data Lives on This Device"}
           meta={backendConfigured ? "Synced automatically · Export keeps your own copy" : "Export keeps your own copy"}
