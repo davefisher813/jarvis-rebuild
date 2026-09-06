@@ -21,7 +21,7 @@
 // never slip under the counter (the old version logged after, which under-counted).
 export const config = { runtime: "edge" };
 
-import { aiCallAllowed, normalizeLevel, refusalMessage, DEFAULT_AI_LEVEL } from "../src/ai/aiGate";
+import { aiCallAllowed, effectiveLevel, refusalMessage, AI_PIN_KEYS, DEFAULT_AI_LEVEL, type AIControlState, type AIPinKey } from "../src/ai/aiGate";
 import { schemaOk, toolPayload, extractText } from "../src/ai/structured";
 import { tokenRow, withoutCacheCounts } from "../src/ai/tokenLog";
 import { systemPayload } from "../src/ai/systemPrompt";
@@ -62,9 +62,9 @@ export default async function handler(req: Request): Promise<Response> {
   const maxInput = parseInt(process.env.AI_MAX_INPUT_BYTES || "32768", 10);
   const maxVision = parseInt(process.env.AI_MAX_VISION_BYTES || "600000", 10);
   if (raw.length > maxVision) return json({ error: "Request too large" }, 413);
-  let body: { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown; schema?: unknown };
+  let body: { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown; schema?: unknown; pin?: unknown };
   try {
-    body = JSON.parse(raw) as { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown; schema?: unknown };
+    body = JSON.parse(raw) as { messages?: unknown; system?: unknown; tier?: unknown; kind?: unknown; background?: unknown; schema?: unknown; pin?: unknown };
   } catch {
     return json({ error: "Bad request" }, 400);
   }
@@ -84,6 +84,11 @@ export default async function handler(req: Request): Promise<Response> {
   // not just ask for, which is what AI Control gates hardest.
   const kind = typeof body.kind === "string" ? body.kind.toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 32) : "";
   const background = body.background === true;
+  // UP-PLAT-03 (2026-09-06): which per-feature pin this call rides under.
+  // Sanitised against the gate's own list rather than trusted: a made-up pin
+  // name is simply no pin, which falls back to the master level. Clients lie,
+  // same rule as kind above.
+  const pin: AIPinKey | undefined = AI_PIN_KEYS.includes(body.pin as AIPinKey) ? (body.pin as AIPinKey) : undefined;
 
   // AI CONTROL, SERVER SIDE (addendum item 21). The stored profile is the
   // authority, read with the CALLER'S token under RLS, so this works with or
@@ -93,6 +98,13 @@ export default async function handler(req: Request): Promise<Response> {
   // If the profile cannot be read the default level applies (draft): taking
   // AI down on a transient read failure would hurt more than it protects,
   // and Off is enforced the moment the read succeeds again.
+  //
+  // UP-PLAT-03 (2026-09-06): the whole `ai` object, not just `level`. The pins
+  // were stored on this very row and read by the client only, so "Email
+  // Drafts: Off" was a promise the server never kept: a stale build, a
+  // background job or a bug could still send that user's mail to the model.
+  // effectiveLevel is the same pure function the client uses, so both sides
+  // resolve a pin identically and there is one answer to argue with.
   let aiLevel = DEFAULT_AI_LEVEL;
   try {
     const pr = await fetch(
@@ -100,8 +112,8 @@ export default async function handler(req: Request): Promise<Response> {
       { headers: { apikey: supaAnon, Authorization: `Bearer ${token}` } },
     );
     if (pr.ok) {
-      const rows = (await pr.json()) as { data?: { ai?: { level?: unknown } } }[];
-      aiLevel = normalizeLevel(rows[0]?.data?.ai?.level);
+      const rows = (await pr.json()) as { data?: { ai?: AIControlState } }[];
+      aiLevel = effectiveLevel(rows[0]?.data?.ai, pin);
     }
   } catch { /* default level applies; see above */ }
   if (!aiCallAllowed(aiLevel, background)) {

@@ -94,6 +94,12 @@ export class AIService {
         system: wireSystem(system),
         ...(opts?.tier ? { tier: opts.tier } : {}),
         ...(opts?.kind ? { kind: opts.kind } : {}),
+        // UP-PLAT-03 (2026-09-06): the pin rides to the server. The gate a
+        // few lines up already refuses locally, but the proxy could only ever
+        // see the MASTER level, so a stale client, a background job or a bug
+        // could spend AI on a feature the user had pinned Off and the server
+        // had no way to know. Sanitised against AI_PIN_KEYS on arrival.
+        ...(opts?.pin ? { pin: opts.pin } : {}),
         ...(background ? { background: true } : {}),
         ...(opts?.schema ? { schema: opts.schema } : {}),
       }),
