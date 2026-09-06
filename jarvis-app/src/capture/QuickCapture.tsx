@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, usePeople, useProjects } from "../data/NotesProvider";
 import { STRAND_CATEGORY_LABEL, type StrandCategory } from "../brain/strands/types";
 import { aliasTrigger } from "../rules/triggers";
@@ -18,6 +18,7 @@ import { showToast } from "../shared/toast";
 import { haptics } from "../shared/haptics";
 import { weekdayLongDate, shortDateFromMs } from "../shared/dateFormat";
 import { formatMoney } from "../money/types";
+import Dictate from "../shared/Dictate";
 
 // "Fact" is Quick Add's lane (Brain handoff 5.0): a standing truth about the
 // user, filed into the Brain rather than onto a list. It is a chip like the
@@ -114,6 +115,7 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   const rules = useOptionalRules();
   // Same seam for the genome: no strand store means the fact lane is closed
   // and a self-fact lands as a task, exactly as it did before Quick Add.
+  const boxRef = useRef<HTMLTextAreaElement | null>(null);
   const strands = useOptionalStrands();
   // UP-CORE-01 reads Contacts and Projects to match names against; UP-MIND-08
   // WRITES to Contacts when a line states a fact about somebody. One reader
@@ -355,12 +357,17 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
         {phase !== "saved" && (
           <div className="pad-x sheet-form">
             <textarea
+              ref={boxRef}
               className="input input-multiline"
               placeholder="Paste or type · dinner with Marco Thursday 7pm"
               value={text}
               onChange={(e) => { setText(e.target.value); setDupAge(null); }}
               autoFocus
             />
+            {/* UP-MIND-26 (2026-09-05): the capture failure is at the moment
+                of encoding, and every phone already has dictation on its
+                keyboard. This points at it. */}
+            <div className="row mail-chips"><Dictate target={boxRef} /></div>
             {error && <div className="input-error">{error}</div>}
             {dupAge !== null && (
               <div className="input-note">You captured this exact text {Math.max(1, Math.round(dupAge / 86400000))} {dupAge < 86400000 * 1.5 ? "day" : "days"} ago.</div>

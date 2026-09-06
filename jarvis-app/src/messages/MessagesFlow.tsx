@@ -58,6 +58,7 @@ import { humanError } from "../connections/google/humanError";
 import { aiFailureLine } from "../ai/failureLine";
 import { endOfAct } from "./mailAct";
 import { dayPhrase, monthDay } from "../money/bills";
+import Dictate from "../shared/Dictate";
 import { Head, Card } from "../settings/kit";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 
@@ -524,6 +525,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   const pageRef = useRef(MAIL_PAGE);
   const [atEnd, setAtEnd] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const composeRef = useRef<HTMLTextAreaElement | null>(null);
   const [thread, setThread] = useState<ThreadFull | null>(null);
   // UP-MIND-12: the message an evidence chip sent us to, for one open.
   const [focusMsg, setFocusMsg] = useState<string | null>(null);
@@ -2877,7 +2879,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             <input className="msg-input" placeholder="Cc" value={draft.cc} onChange={(e) => setDraft({ ...draft, cc: e.target.value })} />
           )}
           <input className="msg-input" placeholder="Subject" value={draft.subject} onChange={(e) => setDraft({ ...draft, subject: e.target.value })} />
-          <textarea className="msg-textarea" placeholder="Message" value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
+          <textarea ref={composeRef} className="msg-textarea" placeholder="Message" value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} />
+          {/* UP-MIND-26 (2026-09-05): speak it instead of thumbing it. The
+              words land in this box and go out on the same tap they always
+              did. */}
+          <div className="row mail-chips"><Dictate target={composeRef} /></div>
 
           {/* N15 (2026-08-20): they asked for the waiver, he has a waiver.
               Every mail client waits until Send and then asks if he forgot;

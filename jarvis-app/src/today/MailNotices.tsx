@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useOptionalSchedule } from "../data/NotesProvider";
 import { addDays, occursOn } from "../schedule/calendar";
 import { Mail, Clock, CalendarClock, CornerUpLeft, CalendarCheck, BellRing, PenLine, CalendarPlus } from "../shared/icons";
@@ -11,6 +11,7 @@ import {
 } from "../messages/home";
 import type { MailAct } from "../messages/mailAct";
 import EvidenceChip from "../messages/EvidenceChip";
+import Dictate from "../shared/Dictate";
 import { loadSnoozes, snoozeNotice, sleepingNow, snoozeChoices } from "../messages/snoozeNotice";
 import { quickAnswers } from "../messages/quickAnswers";
 import { removeTodaySend } from "../messages/todayOutbox";
@@ -109,6 +110,7 @@ export default function MailNotices({
   const [done, setDone] = useState<string[]>([]);
   const [drafts, setDrafts] = useState<Record<string, MailDraft>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  const draftRef = useRef<HTMLTextAreaElement | null>(null);
   // UP-MIND-07 (2026-09-05): today and tomorrow, for the collision clause on
   // a deadline the sender put a clock on. Optional provider on purpose: with
   // no schedule the deadline reads exactly as it did before, never an
@@ -418,6 +420,7 @@ export default function MailNotices({
                         because a draft you cannot change is a draft you have
                         to leave the page to fix. */}
                     <textarea
+                      ref={draftRef}
                       className="mail-draft-text"
                       aria-label={n.kind === "nudge" ? "Nudge" : "Reply"}
                       value={draft.text}
@@ -425,6 +428,10 @@ export default function MailNotices({
                       onChange={(e) => setDrafts((d) => ({ ...d, [n.key]: { ...draft, text: e.target.value } }))}
                     />
                     <div className="row mail-draft-acts">
+                      {/* UP-MIND-26 (2026-09-05): the card's draft is his
+                          words before they go out over his name, so it is
+                          exactly the field worth speaking into. */}
+                      <Dictate target={draftRef} />
                       <button className="pill-act" disabled={draft.sending} onClick={() => void send(n, draft.text)}>
                         {draft.sending ? "Sending…" : "Send"}
                       </button>
