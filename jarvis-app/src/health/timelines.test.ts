@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ateBeforeMarks, ateBeforeCountLine, tookItTimeline, callItHistory, stillThere, stillThereSummary } from "./timelines";
+import { ateBeforeMarks, ateBeforeCountLine, tookItTimeline, callItHistory, stillThere, stillThereSummary, stillThereMessage, STILL_THERE_CLOSING } from "./timelines";
 import type { AteBeforeEntry, CallItEntry, PointAtItEntry, TookItEntry } from "./types";
 
 describe("Ate Before: marks, never a fraction", () => {
@@ -118,5 +118,37 @@ describe("Still There?: a counted pattern, never a diagnosis", () => {
     const patterns = stillThere(entries, 3);
     const summary = stillThereSummary(entries, patterns[0]!);
     expect(summary).toHaveLength(3);
+  });
+
+  // UP-ATH-05 (2026-09-06): the message a real person receives.
+  it("stillThereMessage writes the side, the count, the span and the dates, and nothing else", () => {
+    const entries = [tap(0), tap(3), tap(11)];
+    const patterns = stillThere(entries, 3);
+    const msg = stillThereMessage(patterns, patterns.map((p) => stillThereSummary(entries, p)));
+    expect(msg).toBe("Front, same spot. 3 sessions over 12 days: Aug 1, Aug 4, Aug 12.\n" + STILL_THERE_CLOSING);
+  });
+
+  it("stillThereMessage names no body part and states no severity", () => {
+    const entries = [tap(0), tap(3), tap(11)];
+    const patterns = stillThere(entries, 3);
+    const msg = stillThereMessage(patterns, patterns.map((p) => stillThereSummary(entries, p)));
+    for (const word of ["knee", "ankle", "shoulder", "hurt", "pain", "injury", "severe", "mild"]) {
+      expect(msg.toLowerCase(), word + " must not appear in the one string that leaves the phone").not.toContain(word);
+    }
+    // And the coordinates themselves never travel either: the spot key is an
+    // internal cluster id, not a fact about a person's body.
+    expect(msg).not.toContain(patterns[0]!.spotKey);
+  });
+
+  it("stillThereMessage is empty when there is no pattern, so nothing can be sent about nothing", () => {
+    expect(stillThereMessage([], [])).toBe("");
+  });
+
+  it("stillThereMessage covers every pattern on the screen, not only the first", () => {
+    const entries = [tap(0, 0.1, 0.1), tap(1, 0.1, 0.1), tap(2, 0.1, 0.1), tap(3, 0.9, 0.9), tap(4, 0.9, 0.9), tap(5, 0.9, 0.9)];
+    const patterns = stillThere(entries, 3);
+    const msg = stillThereMessage(patterns, patterns.map((p) => stillThereSummary(entries, p)));
+    expect(msg.split("\n")).toHaveLength(patterns.length + 1);
+    expect(msg.endsWith(STILL_THERE_CLOSING)).toBe(true);
   });
 });

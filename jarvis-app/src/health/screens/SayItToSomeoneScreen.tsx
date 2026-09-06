@@ -1,17 +1,33 @@
 import { useEffect, useState } from "react";
-import { telHref, hasTrustedAdult, CRISIS_LINE_LABEL, CRISIS_LINE_NUMBER } from "../trustedAdult";
+import { telHref, smsHref, hasTrustedAdult, crisisLineFor, regionOf, type CrisisLine } from "../trustedAdult";
 
 // SAY IT TO SOMEONE (Part 5). Always present, one tap, no preamble: the
-// athlete's own chosen trusted adult, plus 988. Never gated behind a mood
-// question or any screener -- this screen asks nothing before it offers
-// both numbers.
+// athlete's own chosen trusted adult, plus the crisis line for where they
+// are. Never gated behind a mood question or any screener -- this screen
+// asks nothing before it offers both numbers.
 export default function SayItToSomeoneScreen({
-  name, phone, onSetTrustedAdult, onBack,
+  name, phone, onSetTrustedAdult, onBack, handOff, onShare,
+  // BRAIN-F-26 (2026-09-05, option a), reaching this screen too: 988 connects
+  // in two countries, and this screen dialled it from anywhere on earth. The
+  // line is read from the browser's own locale, and a region with none gets
+  // no row, because a number that does not connect is worse than no number.
+  // A default parameter rather than a required prop so the bench and the
+  // module's own tests keep working, and so every caller is region-aware
+  // without having to remember to be.
+  crisisLine = crisisLineFor(regionOf(typeof navigator === "undefined" ? null : navigator.language)),
 }: {
   name: string;
   phone: string;
   onSetTrustedAdult: (name: string, phone: string) => void;
   onBack: () => void;
+  // UP-ATH-05 (2026-09-06): the dated Still There? summary, when the athlete
+  // arrived here from Point at It. Absent on a normal visit, and then this
+  // screen is exactly what it was: two numbers and no preamble.
+  handOff?: string;
+  // The way out when there is no trusted adult saved: the OS share sheet, so
+  // the summary can still reach a person the app has never heard of.
+  onShare?: (text: string) => void;
+  crisisLine?: CrisisLine | null;
 }) {
   const [editing, setEditing] = useState(!hasTrustedAdult(name, phone));
   const [draftName, setDraftName] = useState(name);
@@ -51,18 +67,40 @@ export default function SayItToSomeoneScreen({
         <div className="bp-sub">One tap, no questions first.</div>
       </div></div>
 
+      {/* UP-ATH-05: what is about to be sent, in full, before anything is
+          sent. The athlete reads their own message and can decide not to. */}
+      {handOff && (
+        <div className="pad-x"><div className="card pad">
+          <div className="input-label">What Gets Sent</div>
+          {/* One div per line rather than a white-space rule: the message is
+              built as lines, and the app has no inline styles. */}
+          {handOff.split("\n").map((line, i) => <div className="bp-sub" key={i}>{line}</div>)}
+        </div></div>
+      )}
+
       <div className="pad-x"><div className="card list-card-ruled">
         {hasTrustedAdult(name, phone) && !editing ? (
-          <a className="row" href={telHref(phone)}>
-            <div className="row-grow"><div className="conn-name">{name}</div><div className="bp-sub">Your chosen person</div></div>
+          <a className="row" href={handOff ? smsHref(phone, handOff) : telHref(phone)}>
+            <div className="row-grow">
+              <div className="conn-name">{handOff ? "Send This to " + name : name}</div>
+              <div className="bp-sub">Your chosen person</div>
+            </div>
           </a>
         ) : (
           <div className="row"><div className="row-grow"><div className="conn-name">Choose Someone</div></div></div>
         )}
-        <a className="row" href={telHref(CRISIS_LINE_NUMBER)}>
-          <div className="row-grow"><div className="conn-name">{CRISIS_LINE_LABEL}</div><div className="bp-sub">Always here, day or night</div></div>
-        </a>
+        {crisisLine && (
+          <a className="row" href={telHref(crisisLine.number)}>
+            <div className="row-grow"><div className="conn-name">{crisisLine.label}</div><div className="bp-sub">Always here, day or night</div></div>
+          </a>
+        )}
       </div></div>
+
+      {/* No saved person, or somebody else this time: the share sheet reaches
+          anyone the phone can reach, and the summary goes with it. */}
+      {handOff && onShare && (
+        <div className="pad-x"><button className="btn btn-secondary btn-block" onClick={() => onShare(handOff)}>Hand It to Someone Else</button></div>
+      )}
 
       {editing ? (
         <div className="pad-x"><div className="card pad">

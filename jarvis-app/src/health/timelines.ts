@@ -13,6 +13,7 @@
 
 import type { AteBeforeData, AteBeforeEntry, CallItEntry, PointAtItEntry, TookItEntry } from "./types";
 import { daysBetween } from "../upnext/upnext";
+import { shortDate } from "../shared/dateFormat";
 
 // ---- Ate Before: marks on a timeline, never "2 of 6" ----
 
@@ -172,6 +173,33 @@ export function stillThereSummary(entries: PointAtItEntry[], pattern: StillThere
     out.push({ date: day, side: e.data.side });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
+}
+
+// UP-ATH-05 (2026-09-06): the thing a human actually receives. stillThere
+// counts the pattern and stillThereSummary dates it; neither of them was ever
+// written out, so "Hand It to Someone" dialled a crisis line with no summary
+// attached and the person on the other end got a phone call with nothing in
+// it. This is those two facts as one short message the athlete sends.
+//
+// Still coordinate-only. This file has never translated a tap into a
+// body-part name (see StillTherePattern's own note: "ankle" nudges toward
+// "sprained ankle"), and the one string that leaves the phone is the last
+// place to start. Side and dates, nothing else, plus the single closing
+// sentence the catalog allows -- which is why it is a named constant rather
+// than a literal somebody edits without noticing what it is.
+export const STILL_THERE_CLOSING = "Worth showing someone who can look at it.";
+
+export function stillThereMessage(patterns: StillTherePattern[], summaries: StillThereSummaryRow[][]): string {
+  const lines: string[] = [];
+  patterns.forEach((p, i) => {
+    const dates = (summaries[i] ?? []).map((r) => shortDate(r.date));
+    const head = (p.side === "front" ? "Front" : "Back") + ", same spot. "
+      + p.sessions + " sessions over " + p.days + " days";
+    lines.push(dates.length > 0 ? head + ": " + dates.join(", ") + "." : head + ".");
+  });
+  if (lines.length === 0) return "";
+  lines.push(STILL_THERE_CLOSING);
+  return lines.join("\n");
 }
 
 function localDay(atMs: number): string {

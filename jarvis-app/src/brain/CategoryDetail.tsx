@@ -45,8 +45,7 @@ import TookItScreen from "../health/screens/TookItScreen";
 import CallItScreen from "../health/screens/CallItScreen";
 import PointAtItScreen from "../health/screens/PointAtItScreen";
 import type { LightsOutEntry, TookItEntry, CallItEntry, PointAtItEntry } from "../health/types";
-import { tookItTimeline, stillThere } from "../health/timelines";
-import { telHref, crisisLineFor, regionOf, type CrisisLine } from "../health/trustedAdult";
+import { tookItTimeline, stillThere, stillThereSummary, stillThereMessage } from "../health/timelines";
 // HMN-F-06 (2026-09-05), fork option A: the other fourteen screens of the
 // health module, mounted behind the More row on this page. See the
 // HEALTH_MORE list below for the three that stay dormant and why.
@@ -218,12 +217,13 @@ export default function CategoryDetail({
   const [tookIt, setTookIt] = useState<TookItEntry[]>([]);
   const [callIt, setCallIt] = useState<CallItEntry[]>([]);
   const [pointAtIt, setPointAtIt] = useState<PointAtItEntry[]>([]);
-  // BRAIN-F-26 (2026-09-05, fork option A): who "Hand It to Someone" actually
-  // reaches. The athlete's own trusted adult first (HealthService has stored
-  // one since the module shipped, and nothing outside it ever read one), then
-  // the line for their region. 988 is a US and Canada number; dialling it from
-  // anywhere else reached nothing, which is worse than offering nothing.
-  const [reachOut, setReachOut] = useState<{ label: string; number: string } | null>(null);
+  // UP-ATH-05 (2026-09-06): the dated Still There? summary, in flight from
+  // Point at It to Say It to Someone. BRAIN-F-26's question (who does this
+  // button actually reach) moved with it: the destination is a screen that
+  // holds the athlete's own person, the share sheet, and the line for their
+  // region, and hides the last of those when there is none to state, rather
+  // than this page dialling a bare number from anywhere on earth.
+  const [handOff, setHandOff] = useState<string | null>(null);
   // Full project list, unfiltered: goal reach is computed across ALL
   // projects (a goal tagged here can be filed anywhere).
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -311,14 +311,6 @@ export default function CategoryDetail({
     healthSvc.listTookIt().then((l) => { if (on) setTookIt(l); }).catch(() => {});
     healthSvc.listCallIt().then((l) => { if (on) setCallIt(l); }).catch(() => {});
     healthSvc.listPointAtIt().then((l) => { if (on) setPointAtIt(l); }).catch(() => {});
-    healthSvc.getTrustedAdult().then((ta) => {
-      if (!on) return;
-      const name = ta?.data.name.trim();
-      const phone = ta?.data.phone.trim();
-      if (name && phone) { setReachOut({ label: name, number: phone }); return; }
-      const line: CrisisLine | null = crisisLineFor(regionOf(typeof navigator === "undefined" ? null : navigator.language));
-      setReachOut(line);
-    }).catch(() => {});
     return () => { on = false; };
   }, [healthSvc, healthScreen]);
 
@@ -454,15 +446,22 @@ export default function CategoryDetail({
     );
   }
   if (healthScreen === "pointAtIt") {
+    const patterns = stillThere(pointAtIt);
+    const summaries = patterns.map((p) => stillThereSummary(pointAtIt, p));
     return (
       <PointAtItScreen
-        patterns={stillThere(pointAtIt)}
+        patterns={patterns}
+        // UP-ATH-05 (2026-09-06): this page showed the pattern's count and
+        // withheld the dates behind it, then handed the button a bare tel:
+        // link, so the one action on the screen placed a call with no summary
+        // in it. The dates are on the screen, and they travel with the tap.
+        summaries={summaries}
         onLog={(x, y, side) => { healthSvc.logPointAtIt({ x, y, side }); }}
-        // Point at It's own "Still There?" affordance, still honest: the
-        // person they chose if they have one, their region's line if we can
-        // state it, and no row at all when neither exists, because a number
-        // that does not connect is a worse answer than none.
-        onHandToSomeone={reachOut ? () => { window.location.href = telHref(reachOut.number); } : undefined}
+        onHandToSomeone={() => {
+          setHandOff(stillThereMessage(patterns, summaries));
+          setHealthScreen(null);
+          setHealthDeep("sayItToSomeone");
+        }}
         onBack={() => setHealthScreen(null)}
       />
     );
@@ -556,7 +555,8 @@ export default function CategoryDetail({
       <HealthFlow
         service={healthSvc}
         initialScreen={healthDeep}
-        onExit={() => { setHealthDeep(null); void reload(); }}
+        initialHandOff={handOff ?? undefined}
+        onExit={() => { setHealthDeep(null); setHandOff(null); void reload(); }}
         sportSessions={sportSessions}
         weekDates={healthWeek}
         nightBeforeCommitments={nightBeforeCommitments}

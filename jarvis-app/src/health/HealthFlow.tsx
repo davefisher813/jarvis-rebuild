@@ -7,7 +7,7 @@ import type {
   ConsentGrant, HealthCategoryId, LightsOutEntry, AteBeforeEntry, TookItEntry, CallItEntry, PointAtItEntry,
   MedRefillEntry, BagCheckEntry, LockerDocEntry, LockerDocKind,
 } from "./types";
-import { stillThere, stillThereSummary, tookItTimeline, ateBeforeMarks } from "./timelines";
+import { stillThere, stillThereSummary, stillThereMessage, tookItTimeline, ateBeforeMarks } from "./timelines";
 import { refillRunway, refillOffer } from "./refillRunway";
 import { medWindowDays, type SessionStartCandidate } from "./medWindow";
 import { buildDoctorReport, doctorReportText } from "./doctorReport";
@@ -27,6 +27,7 @@ import { showToast } from "../shared/toast";
 import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 import { capAfterNumber } from "../shared/casing";
 import { saveTextFile } from "../shared/saveTextFile";
+import { shareText } from "../shared/shareText";
 import ShareLineScreen from "./screens/ShareLineScreen";
 import WhatTheySeeScreen from "./screens/WhatTheySeeScreen";
 import LightsOutScreen from "./screens/LightsOutScreen";
@@ -99,7 +100,7 @@ function currentSeason(now: number = Date.now()): string {
 // wires Health into the real app (still out of scope here, same Track 3
 // follow-up the foundation already named) supplies these shapes.
 export default function HealthFlow({
-  store, ownerId, service, onEvent, candidates = [], callItDuration, initialScreen = "share", onExit,
+  store, ownerId, service, onEvent, candidates = [], callItDuration, initialScreen = "share", initialHandOff, onExit,
   sportSessions = [], weekDates, athleteAgeYears, monthsInSeason,
   nightBeforeCommitments = [], eatingWindowBlocks = [], sessionStarts = [],
   bagEvent, ai, onOffer, onLandParentTask, onCommitSeasonFeed,
@@ -116,6 +117,11 @@ export default function HealthFlow({
   candidates?: AteBeforeCandidate[];
   callItDuration?: number;
   initialScreen?: ScreenKey;
+  // UP-ATH-05 (2026-09-06): a Still There? summary handed in from outside, so
+  // the health area page's own grafted Point at It (brain/CategoryDetail) can
+  // walk into Say It to Someone carrying the same message this flow's copy of
+  // Point at It builds for itself.
+  initialHandOff?: string;
   onExit: () => void;
   // Part 2 (The Third Practice, Week Shape, Two Days Off, The Age Rule):
   // the same calendar candidates, reduced to which org and how long.
@@ -150,6 +156,9 @@ export default function HealthFlow({
 }) {
   const svc = useState(() => service ?? new HealthService(store!, ownerId ?? "", onEvent))[0];
   const [screen, setScreen] = useState<ScreenKey>(initialScreen);
+  // UP-ATH-05: the dated summary in flight between Point at It and Say It to
+  // Someone. Null on every other path through this flow.
+  const [handOff, setHandOff] = useState<string | null>(initialHandOff ?? null);
 
   const [grants, setGrants] = useState<ConsentGrant[]>([]);
   const [lightsOut, setLightsOut] = useState<LightsOutEntry[]>([]);
@@ -303,18 +312,24 @@ export default function HealthFlow({
           onBack={onExit}
         />
       );
-    case "pointAtIt":
+    case "pointAtIt": {
+      const summaries = patterns.map((p) => stillThereSummary(pointAtIt, p));
       return (
         <PointAtItScreen
           patterns={patterns}
           // HMN-F-23 (2026-09-05): the dated taps behind each pattern, which
           // is what the catalog says gets handed over.
-          summaries={patterns.map((p) => stillThereSummary(pointAtIt, p))}
+          summaries={summaries}
           onLog={(x, y, side) => { svc.logPointAtIt({ x, y, side }); void reload(); }}
-          onHandToSomeone={() => setScreen("sayItToSomeone")}
+          // UP-ATH-05 (2026-09-06): the summary travels with the tap. Before
+          // this the button walked to Say It to Someone empty-handed, so the
+          // athlete had to remember and retype the dates the screen had just
+          // shown them.
+          onHandToSomeone={() => { setHandOff(stillThereMessage(patterns, summaries)); setScreen("sayItToSomeone"); }}
           onBack={onExit}
         />
       );
+    }
 
     case "refillRunway":
       return (
@@ -458,6 +473,17 @@ export default function HealthFlow({
             void svc.setTrustedAdult(name, phone)
               .then(reload)
               .catch(() => showToast({ message: WRITE_FAILED_MESSAGE }));
+          }}
+          handOff={handOff ?? undefined}
+          // UP-ATH-05: no saved person, or a different one this time. The
+          // receipt waits for the sheet, and says nothing at all when the
+          // person backed out of it, because a dismissed share sheet sent
+          // nothing and "Sent" would be the same lie every other seam here
+          // was just taught not to tell.
+          onShare={(text) => {
+            void shareText(text, "Still There?")
+              .then((r) => { if (r === "copied") showToast({ message: "Copied to your clipboard" }); })
+              .catch(() => showToast({ message: "Couldn't hand that over · Try again" }));
           }}
           onBack={onExit}
         />

@@ -11,6 +11,17 @@ export function telHref(phone: string): string {
   return "tel:" + digits;
 }
 
+// UP-ATH-05 (2026-09-06): the same normalisation, opening the composer with a
+// body instead of placing a call. iOS accepts "&body=". Deliberately a second
+// small copy of people/messageDraft.ts's smsLink rather than an import: this
+// module's whole shape is that it reaches nothing outside itself (see
+// HealthFlow's EXTERNAL CANDIDATES note), and two lines of link plumbing are
+// a cheaper price than health importing people.
+export function smsHref(phone: string, body: string): string {
+  const digits = phone.replace(/[^\d+]/g, "");
+  return "sms:" + digits + (body ? "&body=" + encodeURIComponent(body) : "");
+}
+
 export function hasTrustedAdult(name: string, phone: string): boolean {
   return name.trim().length > 0 && phone.trim().length > 0;
 }
