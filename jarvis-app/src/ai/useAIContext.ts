@@ -3,12 +3,17 @@ import {
   useProfile, usePeople, useBrainDocs, useTasks, useSchedule, useCategories, useRoutine, useGoals, useProjects, useMoney,
   useOptionalProfile, useOptionalPeople, useOptionalBrainDocs, useOptionalTasks, useOptionalSchedule,
   useOptionalCategories, useOptionalRoutine, useOptionalGoals, useOptionalProjects, useOptionalMoney,
-  useOptionalStrands, useOptionalDecisions, useOptionalSeal, useOptionalMetrics,
+  useOptionalStrands, useOptionalDecisions, useOptionalSeal, useOptionalMetrics, useOptionalGym,
 } from "../data/NotesProvider";
 import type { StrandsService } from "../brain/strands/StrandsService";
 import type { DecisionService } from "../decisions/DecisionService";
 import type { SealService } from "../review/seal";
 import type { MetricsService } from "../gym/MetricsService";
+import type { GymService } from "../gym/GymService";
+import { trainingLines } from "../gym/trainingContext";
+import { readGymSettings, rackFrom } from "../gym/settings";
+import { protectedRangesFor } from "../routine/types";
+import { occursOn } from "../schedule/calendar";
 import { sealLines } from "../review/seal";
 import { rankForRecall } from "../brain/recall";
 import { pulseLines } from "../brain/pulse";
@@ -64,6 +69,10 @@ interface ContextServices {
   // of logged sleep taught the planner nothing. Optional, same seam as the
   // three above: no metrics store means a thinner context, never a broken one.
   metrics?: MetricsService | null;
+  // UP-ATH-19 (2026-09-06): the gym. Optional on the same seam as the four
+  // above, for the same reason: no gym store means a thinner context, never
+  // a broken one, and no gym history means no training lines at all.
+  gym?: GymService | null;
 }
 
 // Session 5: the ONE assembler behind every AI feature. Routine, goals,
@@ -145,6 +154,43 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
       pulseLinesOut = pulseLines(defs, logs, today);
     }
   } catch { /* same rule again */ }
+  // UP-ATH-19 (2026-09-06): the gym's own facts, beside the pulse. Until now
+  // nothing in ai/, schedule/planDayAI or dayloop/ mentioned training at all,
+  // so the assistant planned a Tuesday evening the athlete had already
+  // spent. Every number below comes from a derivation the gym pages already
+  // render; see gym/trainingContext.ts for the refusals it keeps.
+  let trainingLinesOut: string[] = [];
+  try {
+    if (s.gym) {
+      const [programs, workouts] = await Promise.all([s.gym.listPrograms(), s.gym.listWorkouts()]);
+      const program = programs.find((p) => !p.data.archived) ?? null;
+      const dow = new Date(today + "T12:00:00").getDay();
+      // THE SEASON LINK, same read GymFlow's own does: gated on the athlete
+      // having said which category means a game, so this never guesses one.
+      let nextGame: string | null = null;
+      let hasGymEventToday = false;
+      const catId = program?.data.inSeason ? program.data.gameCategoryId : undefined;
+      const events = await s.schedule.listEvents();
+      hasGymEventToday = events.some((e) => e.data.gym && occursOn(e.data, today));
+      if (catId) {
+        for (let i = 0; i <= 7; i++) {
+          const iso = isoPlus(today, i);
+          if (events.some((e) => e.data.category === catId && occursOn(e.data, iso))) { nextGame = iso; break; }
+        }
+      }
+      const gymBlock = rt ? protectedRangesFor(rt, dow).find((b) => b.kind === "gym") : undefined;
+      trainingLinesOut = trainingLines({
+        program,
+        workouts,
+        today,
+        dow,
+        rack: rackFrom(readGymSettings()),
+        nextGame,
+        gymWindow: gymBlock ? { startMin: gymBlock.s, endMin: gymBlock.e } : null,
+        hasGymEventToday,
+      });
+    }
+  } catch { /* same rule again */ }
   // The full money picture (2026-08-10): bills with amounts and due dates,
   // and the same cash-flow derivation the Money tab shows (payday, bills
   // before it, envelopes, left to spend). Same helpers, so the AI can never
@@ -224,7 +270,16 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
     decisions: decisionLines,
     months: monthLines,
     pulse: pulseLinesOut,
+    training: trainingLinesOut,
   });
+}
+
+// UP-ATH-19: local days, stepped with setDate, never by adding 86,400,000 ms
+// (the timezone law: a DST boundary is not 24 hours long).
+function isoPlus(iso: string, days: number): string {
+  const d = new Date(iso + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
 }
 
 // Returns a gather() that assembles the user's live context for the AI.
@@ -243,10 +298,11 @@ export function useAIContext(): () => Promise<AIContext> {
   const decisions = useOptionalDecisions();
   const seal = useOptionalSeal();
   const metrics = useOptionalMetrics();
+  const gym = useOptionalGym();
 
   return useCallback(
-    () => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics }),
-    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics],
+    () => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym }),
+    [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym],
   );
 }
 
@@ -270,9 +326,10 @@ export function useOptionalAIContext(): () => Promise<AIContext | null> {
   const decisions = useOptionalDecisions();
   const seal = useOptionalSeal();
   const metrics = useOptionalMetrics();
+  const gym = useOptionalGym();
 
   return useCallback(async () => {
     if (!profile || !people || !docs || !tasks || !schedule || !cats || !routine || !goals || !projects || !money) return null;
-    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics });
-  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics]);
+    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym });
+  }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym]);
 }
