@@ -23,6 +23,7 @@ import { FAILING, WAITING, NEW, RESUME, spotIsDuplicate } from "./stream";
 import { chainQuietToday, dismissChain, nextBest, chainReason } from "../tasks/momentum";
 import { AUTOMATION_LABEL, tuningAllows, tuningScope, tuningWeight, tuningsFrom, type TuningChoice } from "../rules/tuning";
 import { leadFor } from "../schedule/leaveBy";
+import { EventWeatherLine } from "../weather/WeatherLine";
 import { capAfterNumber } from "../shared/casing";
 import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
 import { birthdaysOn, upcomingBirthdays, type BirthdayHit } from "../people/birthdays";
@@ -1723,6 +1724,12 @@ export default function TodayFlow({
   const nowCtx = nowContext(todayEvents, blocked, nhm);
   // UP-CORE-08: the event happening right now, if it is an event and not a
   // protected routine range. The Now card's pill is its page.
+  // UP-CORE-20: the next commitment, when it has a place. A block with no
+  // location is not outdoors as far as this app knows, and guessing is how a
+  // weather line ends up on a phone call.
+  const nextOutdoor = todayEvents
+    .filter((e) => !!e.data.location && minsOf(e.data.start) > nowMin)
+    .sort((a, b) => a.data.start.localeCompare(b.data.start))[0] ?? null;
   const insideEvent = todayEvents.find((e) => {
     const s0 = minsOf(e.data.start);
     const e0 = e.data.end ? minsOf(e.data.end) : s0 + 60;
@@ -1783,6 +1790,14 @@ export default function TodayFlow({
             <span className="now-until">
               &middot; until {nowCtx.nextTitle ?? "your next event"} {fmtTime(nowCtx.nextStart).time} {fmtTime(nowCtx.nextStart).ap}
             </span>
+            {/* UP-CORE-20 (2026-09-05): the outdoor line, where the next
+                commitment is outdoors. It has been under the event's own row
+                on both tabs since weather shipped; the Now card is the one
+                surface that says what is coming and never said this about
+                it. Same threshold gate (weather.ts's eventLine returns null
+                when there is nothing worth saying) and the same cached
+                snapshot, so it costs no read of its own. */}
+            {nextOutdoor && <EventWeatherLine dateIso={today} start={nextOutdoor.data.start} />}
           </div>
           {gapPick ? (
             // The task name and its buttons do NOT share a line. On a 390px
