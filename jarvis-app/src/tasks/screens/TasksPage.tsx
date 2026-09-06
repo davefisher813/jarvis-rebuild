@@ -5,6 +5,7 @@ import SelectBar from "../../shared/SelectBar";
 import { Plus, Trash2, Clock, ListChecks, Check } from "../../shared/icons";
 import SkeletonRows from "../../shared/SkeletonRows";
 import { Burst } from "../../shared/Burst";
+import type { BurstSize } from "../../shared/completion";
 import type { TaskItem } from "../TasksService";
 import { urgencyFor, distanceFor, type UrgencyKind } from "../grouping";
 import { FILTERS, FILTER_LABEL, type TaskFilter } from "../filters";
@@ -123,6 +124,7 @@ export function TaskRow({
   kicker = null,
   kickerTone = null,
   action = null,
+  burstSize = "small",
 }: {
   item: TaskItem;
   today: string;
@@ -162,6 +164,12 @@ export function TaskRow({
   // A caller's own trailing pill in place of Start (First Step on the
   // task that keeps sliding). One pill per row, always.
   action?: { label: string; onClick: () => void } | null;
+  // SHARED-F-16 (2026-09-05): how loud this row's tick should be. Ticking the
+  // last task of a six-month project used to burst exactly like ticking "buy
+  // milk", because the flow only learned what the tick moved AFTER the row
+  // had already burst. The flow can see it beforehand from data it already
+  // holds, so the answer arrives with the row.
+  burstSize?: BurstSize;
 }) {
   const t = item.data;
   const u = urgencyFor(t, today);
@@ -265,7 +273,7 @@ export function TaskRow({
                 the same thing twice and made the done state a colour change
                 instead of a state change. */}
             <div className={"task-check" + (shownDone ? " done" : "")} />
-            <Burst show={burst} />
+            <Burst show={burst} size={burstSize} />
           </div>
         )}
         <div className="task-title" role="button" tabIndex={0} onClick={() => (selecting ? onPick?.(item.id) : onOpen?.(item.id))}>
@@ -368,6 +376,7 @@ export default function TasksPage({
   onMoveMany,
   goalOf,
   parentOf,
+  burstSizeOf,
   title = "Tasks",
   segments,
 }: {
@@ -408,6 +417,11 @@ export default function TasksPage({
   // as goals. The row itself reads parentOf (2026-09-02).
   goalOf?: (t: TaskItem) => string | null;
   parentOf?: (t: TaskItem) => ParentLine | null;
+  // SHARED-F-16 (2026-09-05): whether ticking this row would clear the last
+  // task of its project, answered before the tick so the burst can escalate
+  // with the moment. Derived by the flow through shared/completion's
+  // burstSize, which is the one place that judgement lives.
+  burstSizeOf?: (t: TaskItem) => BurstSize;
   // LIFE (2026-09-01): the head's word and the segment control under it,
   // when this page is the Tasks lens of the Life tab.
   title?: string;
@@ -639,6 +653,7 @@ export default function TasksPage({
                       selecting={sel.active} picked={sel.isSelected(it.id)}
                       onPick={sel.toggle} muteToday={filter === "today"}
                       parent={parentOf?.(it) ?? null}
+                      burstSize={burstSizeOf?.(it) ?? "small"}
                     />
                     {/* Momentum Chain (addendum item 7): the suggestion slides
                         into the just-finished slot, right below its row. */}

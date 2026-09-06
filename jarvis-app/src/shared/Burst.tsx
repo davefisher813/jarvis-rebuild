@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import type { BurstSize } from "./completion";
 
 // The completion micro-burst: 8 good-green dots radiating from the checkbox
 // for 420ms (RDB, Dave 2026-07-29). Render <Burst show={bursting} /> inside a
@@ -6,7 +7,7 @@ import { useRef, useState } from "react";
 // The moment scales with what it was (dopamine layer, 2026-08-20): ticking a
 // loose task and clearing the last task of a six-month project are not the
 // same event, so they must not feel the same. Same 8 dots, further and longer.
-export function Burst({ show, size = "small" }: { show: boolean; size?: "small" | "big" }) {
+export function Burst({ show, size = "small" }: { show: boolean; size?: BurstSize }) {
   if (!show) return null;
   return (
     <span className={"burst" + (size === "big" ? " burst-big" : "")} aria-hidden="true">

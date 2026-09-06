@@ -21,7 +21,7 @@ import { useOptionalSeal } from "../data/NotesProvider";
 import NoticeCard from "./NoticeCard";
 import { FAILING, WAITING, NEW, RESUME, spotIsDuplicate } from "./stream";
 import { capAfterNumber } from "../shared/casing";
-import { movedBy, celebrationLine, type Moved } from "../shared/completion";
+import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
 import { birthdaysOn, type BirthdayHit } from "../people/birthdays";
 import CheckIn from "./CheckIn";
 import TaskSheet, { type SheetCategory, type TaskDraft } from "../tasks/screens/TaskSheet";
@@ -2585,6 +2585,13 @@ export default function TodayFlow({
       tomorrowDate={shortDate(new Date(tmrw + "T00:00:00"))}
       tasks={todaysTasks(taskItems, today)}
       parentOf={(t) => parentForTask(parentIdx, t)}
+      // SHARED-F-16 (2026-09-05): the escalating burst finally reaches a
+      // row. burstSize has existed in shared/completion since the dopamine
+      // layer landed and nothing called it, because movedBy was computed
+      // AFTER the toggle, by which time the row had already burst. It is a
+      // pure read of tasks and projects already in hand, so it can be
+      // answered before the tap instead.
+      burstSizeOf={(t) => (t.data.done ? "small" : burstSize(movedByTask(t.data, t.id)?.moved ?? null))}
       evening={evening}
       ring={ring}
       daypart={daypart}

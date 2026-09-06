@@ -418,3 +418,28 @@ describe("the Momentum Chain slot (LIFE-F-09)", () => {
     expect(screen.getByTestId("keep-going")).toBeInTheDocument();
   });
 });
+
+// SHARED-F-16 (2026-09-05): burstSize has judged this since the dopamine
+// layer landed and nothing called it, so clearing the last task of a
+// six-month project bursted exactly like ticking "buy milk".
+describe("the burst escalates with what the tick moved", () => {
+  const row = (extra: Record<string, unknown> = {}) =>
+    render(
+      <TasksPage filter="all" counts={counts} items={[tk("a", "2026-05-20")]} today="2026-05-20"
+        categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }]} {...extra} />,
+    );
+
+  it("a loose task bursts small", () => {
+    const { container } = row();
+    act(() => { fireEvent.click(container.querySelector(".task-check-tap")!); });
+    const burst = container.querySelector(".burst");
+    expect(burst).not.toBeNull();
+    expect(burst).not.toHaveClass("burst-big");
+  });
+
+  it("the tick that clears a project bursts big", () => {
+    const { container } = row({ burstSizeOf: () => "big" });
+    act(() => { fireEvent.click(container.querySelector(".task-check-tap")!); });
+    expect(container.querySelector(".burst")).toHaveClass("burst-big");
+  });
+});

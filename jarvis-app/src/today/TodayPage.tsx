@@ -16,6 +16,7 @@ import YourDay from "./YourDay";
 import DayRing from "./DayRing";
 import { useCondensed } from "../shared/PageHeader";
 import { Burst, useBurst } from "../shared/Burst";
+import type { BurstSize } from "../shared/completion";
 import { eveningSummary, EVENING_TASKS_NOTE, type EveningStats, type WeekRecap } from "./evening";
 import { capAfterNumber } from "../shared/casing";
 import { MorningWeatherLine, WeatherOfferRow } from "../weather/WeatherLine";
@@ -55,7 +56,11 @@ function StreamMember(props: { weight: number; anchor?: boolean; children: React
 // `u` is still accepted and still decides whether the row is urgent at all
 // (the flow passes null in the evening to keep the recap calm), but the
 // chip's WORDS come from distanceFor.
-function TaskRow({ t, u, sub, parent, today, onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; sub?: string | null; parent?: ParentLine | null; today?: string; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
+// SHARED-F-16 (2026-09-05): `burstSize` says how loud this tick should be.
+// Clearing the last task of a six-month project used to burst exactly like
+// ticking "buy milk"; the flow can answer that before the tick, from the
+// projects and tasks it already holds, so the answer arrives with the row.
+function TaskRow({ t, u, sub, parent, today, burstSize = "small", onToggle, onOpen, onStart }: { t: TaskItem; u: { kind: UrgencyKind; label: string } | null; sub?: string | null; parent?: ParentLine | null; today?: string; burstSize?: BurstSize; onToggle?: () => void; onOpen?: () => void; onStart?: () => void }) {
   const [bursting, fireBurst] = useBurst();
   const [localDone, setLocalDone] = useState(false);
   const pending = useRef(false);
@@ -84,7 +89,7 @@ function TaskRow({ t, u, sub, parent, today, onToggle, onOpen, onStart }: { t: T
     <div className={"task-row" + (localDone ? " just-done" : "")}>
       <div className="task-check-tap" role="checkbox" aria-checked={done} aria-label={done ? "Mark not done" : "Mark done"} onClick={tap}>
         <div className={"task-check" + (done ? " done" : "")} />
-        <Burst show={bursting} />
+        <Burst show={bursting} size={burstSize} />
       </div>
       <div className="task-title" role="button" tabIndex={0} onClick={onOpen}>
         <span className="task-name">{t.data.text}</span>
@@ -224,6 +229,7 @@ export default function TodayPage({
   onRetimeBlock,
   onResizeBlock,
   parentOf,
+  burstSizeOf,
 }: {
   greeting: string;
   // Where a task lives, for the ruled row's second line (The Row and Health,
@@ -233,6 +239,11 @@ export default function TodayPage({
   // means the row says "No category" and stays adoptable, which is the
   // Things rule: orphans conspicuous, never hidden.
   parentOf?: (t: TaskItem) => ParentLine | null;
+  // SHARED-F-16 (2026-09-05): whether ticking this row clears the last task
+  // of its project, answered before the tick so the burst escalates with the
+  // moment. Derived by the flow through shared/completion's burstSize, which
+  // is the one place that judgement lives.
+  burstSizeOf?: (t: TaskItem) => BurstSize;
   dateLong: string;
   // Email as WORK, not a count (Dave 2026-08-20: the old "14 emails need you
   // → deal with it here" line "serves absolutely no purpose"). The flow hands
@@ -438,6 +449,7 @@ export default function TodayPage({
         u={urgencyFor(upNextTop.data, today)}
         parent={parentOf?.(upNextTop)}
         today={today}
+        burstSize={burstSizeOf?.(upNextTop) ?? "small"}
         sub={upNextReason ?? undefined}
         onToggle={() => onToggleTask?.(upNextTop.id)}
         onOpen={() => onOpenTask?.(upNextTop.id)}
@@ -480,7 +492,7 @@ export default function TodayPage({
       <div>
         <div>
           {shownTasks.map((t) => (
-            <TaskRow key={t.id} t={t} u={evening ? null : urgencyFor(t.data, today)} parent={parentOf?.(t)} today={today} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
+            <TaskRow key={t.id} t={t} u={evening ? null : urgencyFor(t.data, today)} parent={parentOf?.(t)} today={today} burstSize={burstSizeOf?.(t) ?? "small"} onToggle={() => onToggleTask?.(t.id)} onOpen={() => onOpenTask?.(t.id)} />
           ))}
           {foldedTasks > 0 && (
             <button className="receipt-line" onClick={openDoor}>

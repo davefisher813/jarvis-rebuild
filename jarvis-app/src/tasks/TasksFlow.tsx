@@ -8,7 +8,7 @@ import { useProjects, useGoals } from "../data/NotesProvider";
 import type { Goal } from "../life/types";
 import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
 import { buildParentIndex, parentForTask } from "../life/parent";
-import { movedBy, celebrationLine, type Moved } from "../shared/completion";
+import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
 import type { Project } from "../projects/types";
 import { partition, byCategory, filterOf, FILTERS, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
 import type { Recurrence, TaskData } from "../notes/types";
@@ -727,6 +727,13 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         onStartTask={(id) => void onStartTask(id)}
         goalOf={(t) => goalTitleForTask(goalIdx, t)}
         parentOf={(t) => parentForTask(parentIdx, t)}
+        // SHARED-F-16 (2026-09-05): the escalating burst finally reaches a
+        // row. burstSize has existed in shared/completion since the dopamine
+        // layer landed and nothing called it, because movedBy was computed
+        // AFTER the toggle, by which time the row had already burst. It is a
+        // pure read of tasks and projects already in hand, so it can be
+        // answered before the tap instead.
+        burstSizeOf={(t) => (t.data.done ? "small" : burstSize(movedByTask(t.data, t.id)?.moved ?? null))}
         momentum={momentum && {
           afterId: momentum.afterId,
           el: (
