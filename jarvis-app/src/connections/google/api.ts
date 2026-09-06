@@ -24,6 +24,11 @@ export interface GoogleApi {
   updateDraft(id: string, raw: string, threadId?: string): Promise<{ id: string }>;
   deleteDraft(id: string): Promise<void>;
   listThreads(max: number): Promise<GmailThreadMeta[]>;
+  // UP-MIND-17 (2026-09-05): one page of the inbox WITH its cursor, so the
+  // Clean Out screen can speak for the account instead of for the first
+  // thirty threads. listThreads stays exactly as it was: everything that
+  // wants one page still asks for one page.
+  listThreadPage(max: number, pageToken?: string): Promise<{ metas: GmailThreadMeta[]; nextPageToken?: string }>;
   searchThreads(q: string, max: number): Promise<GmailThreadMeta[]>;
   getThread(id: string): Promise<GmailThreadFull>;
   modifyThread(id: string, add: string[], remove: string[]): Promise<void>;
@@ -181,7 +186,13 @@ export function createGoogleApi(token: string, doFetch: FetchLike = fetch as unk
       if (!r.ok) throw new Error("draft del " + r.status);
     },
     async listThreads(max) {
-      return fetchThreadMetas(doFetch, auth, "labelIds=INBOX&maxResults=" + max);
+      return (await fetchThreadPage(doFetch, auth, "labelIds=INBOX&maxResults=" + max)).metas;
+    },
+    async listThreadPage(max, pageToken) {
+      return fetchThreadPage(
+        doFetch, auth,
+        "labelIds=INBOX&maxResults=" + max + (pageToken ? "&pageToken=" + encodeURIComponent(pageToken) : ""),
+      );
     },
     async searchThreads(q, max) {
       return fetchThreadMetas(doFetch, auth, "q=" + encodeURIComponent(q) + "&maxResults=" + max);
@@ -235,9 +246,20 @@ async function fetchThreadMetas(
   auth: { headers: Record<string, string> },
   query: string,
 ): Promise<GmailThreadMeta[]> {
+  return (await fetchThreadPage(doFetch, auth, query)).metas;
+}
+
+// UP-MIND-17 (2026-09-05): the same fetch, keeping Gmail's own cursor. One
+// function, so the paged reader and the one-shot reader cannot drift about
+// which headers they ask for.
+async function fetchThreadPage(
+  doFetch: FetchLike,
+  auth: { headers: Record<string, string> },
+  query: string,
+): Promise<{ metas: GmailThreadMeta[]; nextPageToken?: string }> {
   const lr = await doFetch("https://gmail.googleapis.com/gmail/v1/users/me/threads?" + query, auth);
   if (!lr.ok) throw new Error("threads " + lr.status);
-  const list = (await lr.json()) as { threads?: { id: string }[] };
+  const list = (await lr.json()) as { threads?: { id: string }[]; nextPageToken?: string };
   const out: GmailThreadMeta[] = [];
   for (const t of list.threads || []) {
     const r = await doFetch(
@@ -247,5 +269,5 @@ async function fetchThreadMetas(
     );
     if (r.ok) out.push((await r.json()) as GmailThreadMeta);
   }
-  return out;
+  return { metas: out, ...(list.nextPageToken ? { nextPageToken: list.nextPageToken } : {}) };
 }

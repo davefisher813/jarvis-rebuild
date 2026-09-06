@@ -17,6 +17,12 @@ export function makeFakeGoogleApi(o: Partial<GoogleApi> = {}): GoogleApi {
     updateDraft: o.updateDraft ?? (async (id: string) => ({ id })),
     deleteDraft: o.deleteDraft ?? (async () => {}),
     listThreads: o.listThreads ?? (async () => [] as GmailThreadMeta[]),
+    // UP-MIND-17 (2026-09-05): the paged reader. Defaults to one page of
+    // whatever listThreads gives, with no cursor, so every fake that only
+    // stubs listThreads keeps working and reads as "that is all there is".
+    listThreadPage: o.listThreadPage ?? (async (max: number) => ({
+      metas: await (o.listThreads ?? (async () => [] as GmailThreadMeta[]))(max),
+    })),
     searchThreads: o.searchThreads ?? (async () => [] as GmailThreadMeta[]),
     getThread: o.getThread ?? (async (id: string) => ({ id, messages: [] }) as GmailThreadFull),
     modifyThread: o.modifyThread ?? (async () => {}),

@@ -35,7 +35,8 @@ import { effectiveLevel } from "../ai/aiGate";
 import { getAIControl } from "../ai/levelStore";
 import { cleanBody, isLong, leadIn, wordCount } from "./bodyText";
 import MailHtmlView from "./MailHtmlView";
-import { recordToss, markAsked, tossOffer, tossLine, loadTossed, loadAsked } from "./selfClean";
+import { recordToss, markAsked, tossOffer, tossLine, loadTossed } from "./selfClean";
+import { loadUnsubs, recordUnsub, askedSenders, stillSending, unsubReceipt, canBlock, BLOCK_AFTER, type UnsubRecord } from "./unsubRecords";
 import { sweepCandidates, sweepTitle, sweepSub, sweepReceipt, type SweepCandidate } from "./unsubSweep";
 import { PRESETS, loadMinutes, saveMinutes, clampMinutes } from "./drain";
 import { handoffTargets, defaultNote, handoffPrompt, forwardSubject, forwardDraft, type HandoffTarget } from "./handoff";
@@ -67,6 +68,10 @@ import { WRITE_FAILED_MESSAGE } from "../shared/guard";
 // page more (each account, newest first), which is the shape Gmail's threads
 // list gives us without a page token.
 const MAIL_PAGE = 30;
+// UP-MIND-17 (2026-09-05): how far Clean Out walks. Six pages of thirty is
+// most real inboxes and a bounded number of requests; past that the screen
+// still says "there may be more", which it already knew how to say.
+const PURGE_PAGES = 6;
 
 // The words every mail-archive receipt uses, in one place, because the four
 // batch sites used to phrase the same outcome four ways.
@@ -485,6 +490,8 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // UP-MIND-20 (2026-09-05): the user's stated hard lines, read once. Values
   // is never written by the app; this only ever reads it.
   const [hardLines, setHardLines] = useState<HardLine[]>([]);
+  // UP-MIND-17 (2026-09-05): who has been asked to stop, when, and how.
+  const [unsubs, setUnsubs] = useState<UnsubRecord[]>(() => loadUnsubs());
   useEffect(() => {
     if (!brainDocs) return;
     let live = true;
@@ -1985,7 +1992,46 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // window.open returns null when it is blocked, so that is the check. There
   // is no way to make the second tab open, and the honest move is to say so
   // rather than to report three asks and send one.
-  const requestUnsub = async (u: Unsub, account?: string): Promise<boolean> => {
+  // UP-MIND-17 (2026-09-05): THE COUNT IS THE ACCOUNT, not the first page.
+  // Clean Out used to speak for whatever thirty threads happened to be
+  // loaded: delete those and it said the inbox was down to what matters with
+  // hundreds still sitting in Gmail. This walks Gmail's own cursor, capped,
+  // and the rows it brings back feed the same piles the screen already
+  // builds, so nothing about the screen's rules changes.
+  const deepPages = useRef(false);
+  const deepLoad = async () => {
+    if (deepPages.current) return;
+    deepPages.current = true;
+    try {
+      const per = await Promise.all(g.apis("mail").map(async ({ email, api }) => {
+        const out: ThreadRow[] = [];
+        let token: string | undefined;
+        for (let page = 0; page < PURGE_PAGES; page++) {
+          const res = await api.listThreadPage(MAIL_PAGE, token).catch(() => null);
+          if (!res) break;
+          out.push(...res.metas.map(mapThread)
+            .filter((t): t is ThreadRow => t !== null && t.inInbox)
+            .map((t) => ({ ...t, account: email })));
+          token = res.nextPageToken;
+          if (!token) break;
+        }
+        // No cursor left means Gmail has nothing more: the honest end, which
+        // is the only thing that lets this screen claim the inbox.
+        return { rows: out, all: !token };
+      }));
+      const merged = per.flatMap((p) => p.rows);
+      if (merged.length === 0) return;
+      setRows((cur) => {
+        const seen = new Set(cur.map((r) => r.id));
+        return [...cur, ...merged.filter((r) => !seen.has(r.id))].sort((a, b) => b.dateMs - a.dateMs);
+      });
+      if (per.every((p) => p.all)) setAtEnd(true);
+    } finally {
+      deepPages.current = false;
+    }
+  };
+
+  const requestUnsub = async (u: Unsub, account?: string, sender?: string): Promise<boolean> => {
     let sent = false;
     if (u.kind === "mailto") {
       // EMAIL-F-13 (2026-09-05): the ask leaves from the address the list
@@ -1999,7 +2045,20 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     } else {
       sent = !!window.open(u.target, "_blank", "noopener,noreferrer");
     }
-    if (sent) emit({ type: "action", props: { name: "email.unsubscribe", kind: u.kind } });
+    if (sent) {
+      emit({ type: "action", props: { name: "email.unsubscribe", kind: u.kind } });
+      // UP-MIND-17 (2026-09-05): WHEN, HOW and FROM WHICH ACCOUNT. Without
+      // those three the app could only ever say "asked", which is why it
+      // could never say "asked three weeks ago and they are still sending".
+      if (sender) {
+        setUnsubs(recordUnsub({
+          sender: sender.toLowerCase(),
+          askedISO: todayISO(),
+          via: u.kind === "mailto" ? "header" : "link",
+          ...(account ? { account } : {}),
+        }));
+      }
+    }
     return sent;
   };
 
@@ -2009,7 +2068,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     if (rows.length === 0) return;
     const names: Record<string, string> = {};
     for (const r of rows) if (r.fromEmail) names[r.fromEmail.toLowerCase()] = r.from;
-    const cands = sweepCandidates(loadTossed(), loadAsked(), names, Object.keys(unsubbable));
+    const cands = sweepCandidates(loadTossed(), askedSenders(loadUnsubs()), names, Object.keys(unsubbable));
     setSweep(cands);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, unsubbable]);
@@ -2649,6 +2708,41 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
             </div>
           ))}
         </Card>
+        {/* UP-MIND-17 (2026-09-05): the receipt for every sender asked to
+            stop. It says when, and whether it worked, and only offers the
+            Block once a sender has sent three more since being asked: one
+            more mail after an unsubscribe is the queue draining, which is
+            what "takes a few days" means. */}
+        {unsubs.length > 0 && (
+          <>
+            <Head label="Asked to Stop" />
+            <Card>
+              {unsubs.map((r) => {
+                const s2 = stillSending([r], rows)[0];
+                return (
+                  <div className="row" key={r.sender}>
+                    <div className="row-grow">
+                      <div className="conn-name truncate">{nameFor(names, r.sender, prettyHandle(r.sender.split("@")[0] ?? "") ?? r.sender)}</div>
+                      <div className="conn-meta">{unsubReceipt(r, s2?.since ?? 0, todayISO())}</div>
+                    </div>
+                    {s2 && canBlock(s2) && (
+                      <button className="pill-act" onClick={() => void (async () => {
+                        // The app doing what the sender would not: file them
+                        // to noise from now on, and archive what is here.
+                        setRules(saveRule(r.sender, "noise"));
+                        const theirs = rows.filter((x) => (x.fromEmail || "").toLowerCase() === r.sender);
+                        const { ok, failed } = await settleAll(theirs, (t) => apiFor(t.account)?.modifyThread(t.id, [], ["INBOX"]));
+                        if (ok.length) setRows((rs) => rs.filter((x) => !ok.some((o) => o.id === x.id)));
+                        say(settleLine(ok.length, failed.length, ARCHIVE_WORDS));
+                        mirrorMail();
+                      })()}>Block</button>
+                    )}
+                  </div>
+                );
+              })}
+            </Card>
+          </>
+        )}
         {/* EMAIL-F-08 (2026-09-05): the week half of "Undo for a week". The
             toast's Undo is gone in six seconds; this is where the promise
             lives out its seven days. It puts every thread the close archived
@@ -3716,7 +3810,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                 </div>
               )}
               {unmutedRows.length > 0 && (
-                <div className="mode-card" {...pressable(() => { setPurgePicks(null); setView("purge"); })}>
+                <div className="mode-card" {...pressable(() => { setPurgePicks(null); void deepLoad(); setView("purge"); })}>
                   <div className="mode-name">Clean Out</div>
                   <div className="mode-n">{unmutedRows.length}</div>
                   {/* THE SURVIVING HALF IS THE USEFUL HALF (Dave 2026-08-29).
@@ -4295,7 +4389,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
                   for (const c of sweep) {
                     markAsked(c.sender);
                     const u = c.canUnsub ? unsubbable[c.sender] : undefined;
-                    if (u && await requestUnsub(u, accountOfSender(c.sender))) { ended++; continue; }
+                    if (u && await requestUnsub(u, accountOfSender(c.sender), c.sender)) { ended++; continue; }
                     setRules(saveRule(c.sender, "noise"));
                     filed++;
                   }
@@ -4379,7 +4473,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
               triageState === "ready" and this is the only door before then.
               It is now the FALLBACK it was supposed to become. */}
           {unmutedRows.length > 0 && triageState !== "ready" && (
-            <button className="quiet-action" onClick={() => { setPurgePicks(null); setView("purge"); }}>Clean Out</button>
+            <button className="quiet-action" onClick={() => { setPurgePicks(null); void deepLoad(); setView("purge"); }}>Clean Out</button>
           )}
         </div>
       )}
