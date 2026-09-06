@@ -5,6 +5,7 @@ import { dayPhrase } from "../money/bills";
 import { fmtTime } from "../schedule/calendar";
 import { readAct, actLabel, type ActProposal, type MailAct } from "./mailAct";
 import type { Evidence } from "./evidence";
+import { hedge, confidenceOf, isHigh } from "./confidence";
 
 // THE HOME-PAGE EMAIL SURFACE (Dave 2026-08-20: "give me ideas to make the
 // email homepage feature actually useful or we can scratch it because right
@@ -232,7 +233,12 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
   if (!due || (!bareClock && rank > 1)) return null; // only when the date is NOW
   const clash = at ? spanningEvent(events, due, at) : null;
   const day = due === todayISO ? "" : byLabel(t.by, now).toLowerCase() + " ";
-  const dueLabel = at ? day + fmtTime(at).time + " " + fmtTime(at).ap : byLabel(t.by, now).toLowerCase();
+  // UP-MIND-18 (2026-09-05): "Due 3:00 PM" when the deadline can show the
+  // sentence it came from, "Looks like 3:00 PM" when it cannot. The whole
+  // segment changes rather than gaining a prefix, because "Due looks like
+  // 3 PM" is not a sentence anybody wrote.
+  const plain = at ? day + fmtTime(at).time + " " + fmtTime(at).ap : byLabel(t.by, now).toLowerCase();
+  const dueLabel = isHigh(confidenceOf(t.byEv)) ? "Due " + plain : hedge(plain);
   const endAp = clash?.end ? fmtTime(clash.end) : null;
   const until = clash && endAp
     ? " · You're in " + clash.title + " until " + endAp.time + (at && endAp.ap === fmtTime(at).ap ? "" : " " + endAp.ap)
@@ -242,7 +248,7 @@ function deadlineNotice(t: MailThread, todayISO: string, now: Date, events: DayE
     kind: "deadline",
     threadId: t.id,
     title: titleCase(t.subject),
-    sub: capAfterNumber(`From ${t.from} · Due ${dueLabel}${until}`),
+    sub: capAfterNumber(`From ${t.from} · ${dueLabel}${until}`),
     action: "Add Task",
     tone: "cat-fg-red",
     ...(t.byEv ? { evidence: t.byEv } : {}),
@@ -347,11 +353,15 @@ function draftNotice(d: MailDraftRow): MailNotice {
 // that writes an event has to show the event first.
 function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
   const when = dayPhrase(a.date, todayISO);
-  const sub = a.verb === "schedule"
+  const plain = a.verb === "schedule"
     ? `${when} ${fmtTime(a.start!).time} ${fmtTime(a.start!).ap} · ${a.durationMin} min`
     : a.verb === "bill"
       ? `$${a.amount!.toFixed(2)} · Due ${when}`
       : when;
+  // UP-MIND-18: this card writes to the schedule or to Money on one tap, so
+  // a reading the app cannot back with the sender's own sentence says so
+  // before the tap rather than after.
+  const sub = isHigh(confidenceOf(t.actEv)) ? plain : hedgedActSub(plain);
   return {
     key: "act:" + a.verb + ":" + t.id,
     kind: "act",
@@ -363,6 +373,14 @@ function actNotice(t: MailThread, a: MailAct, todayISO: string): MailNotice {
     act: a,
     ...(t.actEv ? { evidence: t.actEv } : {}),
   };
+}
+
+// The hedge for a dated commitment. The label keeps its shape (a date, a
+// time, an amount) and gains the qualifier in front, because the numbers are
+// what the card is FOR and burying them would make the hedge cost more than
+// it buys.
+function hedgedActSub(sub: string): string {
+  return "Looks like " + sub.charAt(0).toLowerCase() + sub.slice(1);
 }
 
 // THE ASK DECIDES THE ACTION, ON THIS PAGE TOO (2026-08-21).

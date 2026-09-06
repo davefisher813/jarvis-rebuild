@@ -44,6 +44,7 @@ import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeet
 import EvidenceChip from "./EvidenceChip";
 import { anchorNeedsYou, needsAnchor, ANCHOR_CAP } from "./evidencePass";
 import { makePersonIdFor, noPersonId, type PersonIdFor } from "./personFor";
+import { labelFor, autoArchivable } from "./confidence";
 import { expandQuery, groupByPerson, loadRecents, rememberSearch, MIN_CHARS, DEBOUNCE_MS, type SearchPerson } from "./mailSearch";
 import { takeComposeDraft } from "../chat/composeDraft";
 import { buildLedger, ledgerFloor, type Ledger, type LedgerRow } from "./ledger";
@@ -2201,9 +2202,16 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     // below), computed the same way, so nothing archives here that the list
     // would not also have called Noise.
     const { noise } = splitByBucket(rows, applyKnownPeople(applyRules(triage, rows, rules), rows, knownSenders));
-    if (noise.length === 0) return;
+    // UP-MIND-18 (2026-09-05): the unattended sweep takes only the rows the
+    // app can ground outside the model: a machine address, or the user's own
+    // sender rule. Anything the model alone called noise stays in the pile
+    // and still archives on a tap. Nobody is watching this one, which is
+    // exactly why it may not act on a guess.
+    const ruled = new Set(rows.filter((r) => rules[r.fromEmail.toLowerCase()] === "noise").map((r) => r.id));
+    const safe = autoArchivable(noise, (id) => ruled.has(id));
+    if (safe.length === 0) return;
     autoRan.current = true;
-    void archiveAllNoise(noise, false);
+    void archiveAllNoise(safe, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [triaged, autoNoise, rows, triage, rules, knownSenders]);
 
@@ -3395,7 +3403,9 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
           {effTriage[r.id]?.by
             ? <EvidenceChip
                 className={"msg-due" + (byRank(effTriage[r.id]!.by) >= 900 ? " soft" : "")}
-                label={byLabel(effTriage[r.id]!.by)}
+                // UP-MIND-18 (2026-09-05): plain when the claim can show
+                // the sentence it came from, hedged when it cannot.
+                label={labelFor(byLabel(effTriage[r.id]!.by), effTriage[r.id]!.byEv)}
                 evidence={effTriage[r.id]!.byEv}
                 onOpenSource={(msgId) => void openThread(r.id, msgId)}
               />

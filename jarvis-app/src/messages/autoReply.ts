@@ -70,6 +70,11 @@ export function markAutoReplied(
 
 export interface AutoReplyInput {
   enabled: boolean;
+  // UP-MIND-18 (2026-09-05): how sure the app is about what this thread IS.
+  // A reply that goes out with nobody looking may only go out on a claim
+  // that can show the sentence behind it. Defaults to high so every existing
+  // caller and test keeps its behaviour; the callers that know pass it.
+  confidence?: "high" | "low";
   fromEmail: string;
   myEmail: string;
   vips: string[];
@@ -81,6 +86,9 @@ export interface AutoReplyInput {
 // single reason and never a chain of ifs spread across a component.
 export function shouldAutoReply(i: AutoReplyInput): boolean {
   if (!i.enabled) return false;
+  // The gate order the decision names: confidence first, then everything
+  // else. A low-confidence read never sends on its own, at any AI level.
+  if (i.confidence === "low") return false;
   const from = (i.fromEmail || "").toLowerCase();
   if (!from) return false;
   if (from === (i.myEmail || "").toLowerCase()) return false;

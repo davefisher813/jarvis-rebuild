@@ -88,6 +88,12 @@ export async function runAutoReplyPass(deps: AutoReplyDeps): Promise<number> {
       if (mine.has((row.fromEmail || "").toLowerCase())) continue;
       if (!shouldAutoReply({
         enabled, fromEmail: row.fromEmail, myEmail: email, vips,
+        // UP-MIND-18 (2026-09-05): the auto-reply's own claim is "a VIP
+        // wrote to you", and the VIP list is the user's own statement, not
+        // a model's reading, so it is grounded by construction. The
+        // parameter is here because the gate order is confidence first: a
+        // future caller with a model-derived claim has to answer it.
+        confidence: "high",
         // Re-read per row: the pass marks as it goes, so the second thread
         // from the same VIP inside one pass is already covered.
         state: loadAutoState(blockId),

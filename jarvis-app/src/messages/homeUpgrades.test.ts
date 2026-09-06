@@ -172,9 +172,12 @@ describe("quick answers", () => {
 describe("UP-MIND-07: a deadline that lands during a meeting", () => {
   const today = "2026-08-15";
   const at2pm = new Date("2026-08-15T09:00:00");
+  // Anchored on purpose: UP-MIND-18 hedges a claim that cannot show the
+  // sentence it came from, and these cases are about the collision clause.
+  const anchored = { sourceMsgId: "m1", span: "Can you get it back to me by 3 PM?", confidence: "high" as const };
   const snapWith = (by: string): MailSnapshot => ({
     ts: Date.now(), needsYou: 1, waiting: [], promises: [],
-    threads: [{ id: "t1", from: "Nadia", fromEmail: "n@x.com", subject: "Roster", gist: "needs the roster", by }],
+    threads: [{ id: "t1", from: "Nadia", fromEmail: "n@x.com", subject: "Roster", gist: "needs the roster", by, byEv: anchored }],
   });
 
   it("reads a clock out of the sender's phrase, and nothing out of a day word", () => {
