@@ -1,3 +1,9 @@
 node_modules/
 dist/
 *.log
+
+# Environment: real values live in Vercel and Codemagic, never here.
+# .env.example is the documented list (UP-LAUNCH-04).
+.env
+.env.local
+.env.*.local

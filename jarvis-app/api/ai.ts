@@ -8,10 +8,10 @@
 // of Anthropic calls. The size caps still apply, so a request cannot be large,
 // but nothing stops it being frequent. That is a config gap, not a code one,
 // and it used to fail silently; it now shouts into the Vercel logs on every
-// request. Deliberately not a hard failure: taking AI offline across the whole
-// app because one env var is missing is worse than serving uncapped while the
-// logs are screaming. Revisit that tradeoff before public launch, when the
-// blast radius stops being one person.
+// request. UP-LAUNCH-04 (2026-09-05) revisited the tradeoff the line below
+// used to describe: with strangers on the app a deploy that cannot count
+// refuses to serve, because uncapped now means every user at once against one
+// key. AI_REQUIRE_LIMITS=0 restores the old behaviour for local development.
 //
 // The bounds:
 //   1. per-user hourly cap   (AI_RATE_PER_HOUR, default 120)
@@ -117,13 +117,15 @@ export default async function handler(req: Request): Promise<Response> {
     console.error(
       "[ai] SUPABASE_SERVICE_ROLE_KEY is not set: per-user and global AI rate limits are NOT being enforced. Serving uncapped.",
     );
-    // The launch lever (audit 2026-08-07): with AI_REQUIRE_LIMITS=1 set, a
-    // missing service key fails CLOSED instead of serving uncapped. Off by
-    // default on purpose: while the blast radius is one person, taking AI
-    // down app-wide over an env var is the worse failure. Flip it on before
-    // Track 3, when "uncapped" means every user at once, and the flip is a
-    // dashboard toggle instead of a code change.
-    if (process.env.AI_REQUIRE_LIMITS === "1") {
+    // The launch lever (audit 2026-08-07), thrown for Track 3 by UP-LAUNCH-04
+    // (2026-09-05). It used to default OFF, which was right while the blast
+    // radius was one person: taking AI down app-wide over a missing env var
+    // was the worse failure. With strangers on it, "uncapped" means every
+    // user at once against one Anthropic key, so a deploy that cannot count
+    // refuses to serve rather than serving without a ceiling. Opt out with
+    // AI_REQUIRE_LIMITS=0 in local development, where the cost of an uncapped
+    // proxy is your own key.
+    if (process.env.AI_REQUIRE_LIMITS !== "0") {
       return json({ error: "AI is temporarily unavailable. Try again later." }, 503);
     }
   }

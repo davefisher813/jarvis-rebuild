@@ -15,6 +15,16 @@ workflows:
         XCODE_WORKSPACE: ios/App/App.xcworkspace
         XCODE_SCHEME: App
         VITE_API_BASE: https://jarvis-rebuild.vercel.app
+        # UP-LAUNCH-04 (2026-09-05): the two build flags the shipping app
+        # needs. VITE_ADMIN_API tells the admin panel its endpoints are
+        # deployed (without it the panel says "Wired at launch" about a
+        # server that is right there); VITE_ERROR_SINK points crash reports
+        # at api/client-error.ts, the only way a tester's crash is ever seen.
+        # Both are public build flags, not secrets: the secrets live in the
+        # appstore_credentials group and in Vercel.
+        VITE_ADMIN_API: "1"
+        VITE_ERROR_SINK: "1"
+
       node: 20
       xcode: latest
       cocoapods: default
