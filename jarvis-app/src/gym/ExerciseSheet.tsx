@@ -118,7 +118,7 @@ export default function ExerciseSheet({ mode, initial, library, history, onSave,
   };
 
   const suggestions = library && nameFocused && name.trim().length > 0
-    ? searchLibrary(library, name, 5).filter((s) => s.name.toLowerCase() !== name.trim().toLowerCase())
+    ? searchLibrary(library, name, 5, readGymSettings().hiddenKeys ?? []).filter((s) => s.name.toLowerCase() !== name.trim().toLowerCase())
     : [];
 
   // ONE EDITOR (D1): the bulk steppers write straight into the strip, so a

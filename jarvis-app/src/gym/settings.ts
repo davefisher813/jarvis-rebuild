@@ -25,6 +25,12 @@ export interface GymSettings {
    *  no way to be right for a lifter whose exercises are in the other one.
    *  Defaults to pounds, which is what every rack stored before this was. */
   rackUnit: "lb" | "kg";
+  /** UP-ATH-21 (2026-09-06): library keys the athlete has taken off the
+   *  suggestion lists. HIDE, NEVER DELETE, the same rule the metric strip
+   *  keeps: the history stays and the row stays on Your Lifts, it just stops
+   *  being offered by Swap and autocomplete. Absent on every settings blob
+   *  written before this, which reads as nothing hidden. */
+  hiddenKeys?: string[];
 }
 
 export const DEFAULT_GYM_SETTINGS: GymSettings = {

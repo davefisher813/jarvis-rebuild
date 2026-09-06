@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { searchLibrary, searchLibraryByKind, newExerciseKey, type LibraryEntry } from "./library";
+import { readGymSettings } from "./settings";
 import { MEASURE_LABEL, type MeasureKind } from "./types";
 
 /**
@@ -24,7 +25,11 @@ export default function LibraryPickSheet({
   onCancel: () => void;
 }) {
   const [q, setQ] = useState("");
-  const results = kindFilter ? searchLibraryByKind(library, q, kindFilter) : searchLibrary(library, q);
+  // UP-ATH-21 (2026-09-06): a lift hidden on Your Lifts is not offered here.
+  // Read at render, which is cheap and always current: hiding one is a rare
+  // tap and the answer must not be stale behind it.
+  const hiddenKeys = readGymSettings().hiddenKeys ?? [];
+  const results = kindFilter ? searchLibraryByKind(library, q, kindFilter, 8, hiddenKeys) : searchLibrary(library, q, 8, hiddenKeys);
 
   return createPortal(
     <div className="sheet-scrim" onClick={onCancel}>

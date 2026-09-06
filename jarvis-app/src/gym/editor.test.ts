@@ -177,8 +177,10 @@ describe("GYM-F-30: Back from a lift returns to History", () => {
     expect(flow.indexOf("if (liftDetailFor) {")).toBeLessThan(flow.indexOf("if (historyOpen) {"));
   });
 
+  // UP-ATH-21 (2026-09-06): Your Lifts is the second list a lift opens FROM,
+  // so it stacks the same way and the depth rule names both.
   it("the two of them stacked are two levels deep, not one", () => {
-    expect(flow).toMatch(/historyOpen && liftDetailFor\s*\n\s*\? 2/);
+    expect(flow).toMatch(/\(historyOpen \|\| libraryOpen\) && liftDetailFor\s*\n\s*\? 2/);
   });
 });
 

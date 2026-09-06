@@ -27,7 +27,10 @@ export interface LibraryEntry {
   lastSets: SetEntry[];
 }
 
-function fallbackKey(name: string, kind: MeasureKind): string {
+/** UP-ATH-21 (2026-09-06): exported, so Your Lifts asks the same question
+ *  this file does when it matches a row back to its sightings. Two answers to
+ *  "which lift is this" would be two libraries. */
+export function fallbackKey(name: string, kind: MeasureKind): string {
   return name.trim().toLowerCase() + "\u0000" + kind;
 }
 
@@ -88,17 +91,25 @@ export function buildLibrary(programs: Program[], workouts: Workout[]): LibraryE
 
 /** Case-insensitive substring match on the typed text, most recent first.
  *  Empty query returns the most recently used entries -- useful for "recent"
- *  pickers (Swap, Add Mid-Session) that open with nothing typed yet. */
-export function searchLibrary(library: LibraryEntry[], query: string, limit = 8): LibraryEntry[] {
+ *  pickers (Swap, Add Mid-Session) that open with nothing typed yet.
+ *
+ *  UP-ATH-21 (2026-09-06): a lift the athlete hid on Your Lifts is not
+ *  offered. HIDE, NEVER DELETE: its history is untouched and its row is still
+ *  on that page, it just stops crowding the list of things you might do next.
+ *  Hiding is read from GymSettings by the caller and passed in, so this file
+ *  stays a pure derivation with no store of its own. */
+export function searchLibrary(library: LibraryEntry[], query: string, limit = 8, hiddenKeys: string[] = []): LibraryEntry[] {
+  const hidden = new Set(hiddenKeys);
+  const visible = hidden.size ? library.filter((e) => !hidden.has(e.key)) : library;
   const q = query.trim().toLowerCase();
-  const hits = q ? library.filter((e) => e.name.toLowerCase().includes(q)) : library;
+  const hits = q ? visible.filter((e) => e.name.toLowerCase().includes(q)) : visible;
   return hits.slice(0, limit);
 }
 
 /** Same search, restricted to one measure kind -- the Swap picker only ever
  *  offers a substitute that logs the same way as what it replaces. */
-export function searchLibraryByKind(library: LibraryEntry[], query: string, kind: MeasureKind, limit = 8): LibraryEntry[] {
-  return searchLibrary(library.filter((e) => e.kind === kind), query, limit);
+export function searchLibraryByKind(library: LibraryEntry[], query: string, kind: MeasureKind, limit = 8, hiddenKeys: string[] = []): LibraryEntry[] {
+  return searchLibrary(library.filter((e) => e.kind === kind), query, limit, hiddenKeys);
 }
 
 let seq = 0;

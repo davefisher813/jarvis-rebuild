@@ -18,7 +18,7 @@ import LiftDetailScreen from "./LiftDetailScreen";
 import LiftGoalSheet from "./LiftGoalSheet";
 import { readLive, writeLive, clearLive, logSet, setLoggedSets, skipExercise, swapExercise, addExerciseMidSession, sessionExercisesSameAsLastTime, programExerciseFor, queueFinished, flushPending, hasWork, isStillActive, type LiveSession } from "./liveSession";
 import { bumpStrip } from "./strip";
-import { buildLibrary } from "./library";
+import { buildLibrary, newExerciseKey } from "./library";
 import { groupLabels, groupExercises, ungroupExercise, groupOf } from "./groups";
 import {
   nextCopyName, duplicateExercise, duplicateDay, duplicateProgramData,
@@ -29,17 +29,20 @@ import { nextDayFor } from "./nextDay";
 import { muscleMapFromProgram } from "./insights";
 import { sameLiftAnyKind } from "./identity";
 import { estimateDay, type FitPlan } from "./fit";
-import { readGymSettings, rackFrom } from "./settings";
+import { readGymSettings, writeGymSettings, rackFrom } from "./settings";
 import FitSheet from "./FitSheet";
 import ExerciseSheet from "./ExerciseSheet";
 import SessionScreen from "./SessionScreen";
 import ReceiptSheet from "./ReceiptSheet";
 import UploadFlow from "./UploadFlow";
 import HistoryScreen from "./HistoryScreen";
+import LibraryPage from "./LibraryPage";
+import { libraryRows, renameLift, mergeLifts, isEmptyPatch, type LibraryRow } from "./libraryEdit";
 import ActionSheet, { PickSheet, type SheetAction, type PickItem } from "./ActionSheet";
 import SetStrip from "./SetStrip";
 import ReorderList from "../shared/ReorderList";
 import { usePushDepth } from "../shared/pushNav";
+import { pressable } from "../shared/pressable";
 import { useLongPress } from "../shared/useLongPress";
 import { showToast } from "../shared/toast";
 import { attemptWrite, WRITE_FAILED_MESSAGE } from "../shared/guard";
@@ -581,6 +584,10 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   const [sheet, setSheet] = useState<Sheet>({ kind: "closed" });
   const [uploadOpen, setUploadOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  // UP-ATH-21 (2026-09-06): Your Lifts. `hiddenKeys` is read into state so a
+  // hide shows immediately; the store is still the source of truth.
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [hiddenKeys, setHiddenKeys] = useState<string[]>(() => readGymSettings().hiddenKeys ?? []);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [rowMenu, setRowMenu] = useState<RowMenu | null>(null);
   const [picker, setPicker] = useState<Picker | null>(null);
@@ -721,9 +728,9 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
       ? (openDayId ? (multiWeek ? 3 : 2) : 1)
       : openDayId
         ? (multiWeek ? 2 : 1)
-        : historyOpen && liftDetailFor
+        : (historyOpen || libraryOpen) && liftDetailFor
           ? 2
-          : (multiWeek && openWeekId) || historyOpen || uploadOpen || liftDetailFor
+          : (multiWeek && openWeekId) || historyOpen || libraryOpen || uploadOpen || liftDetailFor
             ? 1
             : 0,
   );
@@ -1201,6 +1208,40 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
   }
   if (historyOpen) {
     return <HistoryScreen workouts={workouts} onBack={() => setHistoryOpen(false)} onOpenLift={(row) => setLiftDetailFor(row)} />;
+  }
+  // UP-ATH-21: the library as a page. Both writes go through the same door,
+  // one update per touched workout and program, each guarded: a bulk rewrite
+  // that fails partway says so rather than leaving the library half renamed.
+  if (libraryOpen) {
+    const applyPatch = async (patch: ReturnType<typeof renameLift>, said: string) => {
+      if (isEmptyPatch(patch)) return;
+      const ok = await attemptWrite(async () => {
+        for (const w of patch.workouts) await svc.updateWorkout(w.id, { exercises: w.exercises });
+        for (const p of patch.programs) await svc.updateProgram(p.id, { weeks: p.weeks });
+      });
+      await reload();
+      if (ok) showToast({ message: said });
+    };
+    return (
+      <LibraryPage
+        rows={libraryRows(library, workouts, hiddenKeys)}
+        todayIso={todayISO()}
+        onOpen={(r) => setLiftDetailFor({ name: r.name, kind: r.kind, ...(r.exerciseKey ? { exerciseKey: r.exerciseKey } : {}), ...(r.unit ? { unit: r.unit } : {}) })}
+        onRename={(r, name) => void applyPatch(renameLift(workouts, allPrograms, r, name, newExerciseKey), `Renamed to ${name.trim()}`)}
+        onMerge={(loser, survivorKey) => {
+          const survivor = libraryRows(library, workouts, hiddenKeys).find((x) => x.key === survivorKey);
+          if (!survivor) return;
+          void applyPatch(mergeLifts(workouts, allPrograms, loser, survivor, newExerciseKey), `Merged into ${survivor.name}`);
+        }}
+        onToggleHidden={(r) => {
+          const next = hiddenKeys.includes(r.key) ? hiddenKeys.filter((k) => k !== r.key) : [...hiddenKeys, r.key];
+          setHiddenKeys(next);
+          writeGymSettings({ ...readGymSettings(), hiddenKeys: next });
+          showToast({ message: r.hidden ? `${r.name} is offered again` : `${r.name} hidden from suggestions` });
+        }}
+        onBack={() => setLibraryOpen(false)}
+      />
+    );
   }
   if (viewWorkout && workoutDraft) {
     const w = viewWorkout;
@@ -2097,6 +2138,22 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId, ar
             logged workouts showed "No Program Yet" and nothing else, while
             the Health page above it said "Last session Push Day · Aug 28".
             Creating any program, even an empty one, made them appear. */}
+        {/* UP-ATH-21 (2026-09-06): Your Lifts. buildLibrary has known every
+            exercise the athlete has ever used since the library shipped and
+            nothing rendered it outside an autocomplete, so there was no way
+            to see the list, rename one, or fold the duplicates a free-text
+            library grows. Offered whenever there is a library to look at. */}
+        {library.length > 0 && (
+          <div className="pad-x"><div className="card list-card-ruled">
+            <div {...pressable(() => setLibraryOpen(true))} className="task-row p2">
+              <div className="task-title">
+                <span className="task-name">Your Lifts</span>
+                <div className="r-k"><span className="r-goal r-cat">{capAfterNumber(library.length + (library.length === 1 ? " exercise, with its history" : " exercises, each with its history"))}</span></div>
+              </div>
+              {CHEV}
+            </div>
+          </div></div>
+        )}
         {recent.length > 0 && (
           <>
             {/* History wears the home-page head pill (Dave 2026-08-26's
