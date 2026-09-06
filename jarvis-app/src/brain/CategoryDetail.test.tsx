@@ -609,10 +609,22 @@ describe("CategoryDetail: the rest of the health module (HMN-F-06)", () => {
     await waitFor(() => expect(screen.getByText(/^Wind Down at /)).toBeInTheDocument());
   });
 
-  it("Personal has no More row: this is the student-athlete track", async () => {
+  // UP-ATH-01 (2026-09-06): Personal used to get no More row at all, so the
+  // default template, which is the one the app is actually used on, could
+  // open none of the fourteen screens. It gets the medication half, because
+  // an adult on a monthly script has the same use for it as an athlete, and
+  // none of the parent or season half, because those questions do not exist
+  // on a Personal page.
+  it("Personal opens the medication screens, and none of the parent or season ones", async () => {
     render(<NotesProvider userId="hm3"><SeededHealthMore template="personal" /></NotesProvider>);
     await waitFor(() => expect(screen.getByText("Log It")).toBeInTheDocument());
     expect(screen.getByText("Lights Out")).toBeInTheDocument();
-    expect(screen.queryByText("More")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("More"));
+    expect(await screen.findByText("Refill Runway")).toBeInTheDocument();
+    expect(screen.getByText("The Med Window")).toBeInTheDocument();
+    expect(screen.getByText("Take This to the Doctor")).toBeInTheDocument();
+    expect(screen.queryByText("The Share Line")).not.toBeInTheDocument();
+    expect(screen.queryByText("The Third Practice")).not.toBeInTheDocument();
+    expect(screen.queryByText("The Handoff")).not.toBeInTheDocument();
   });
 });

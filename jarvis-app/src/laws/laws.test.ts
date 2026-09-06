@@ -4031,8 +4031,7 @@ describe("LAW: the window never carries a type nothing reads, and durations trav
 //
 // HMN-F-06 (2026-09-05), fork option A: the other seventeen screens were still
 // written, tested and unreachable, so the page now mounts HealthFlow itself
-// behind a More row, on the Student template only, which is the track those
-// screens were written for. Three of the seventeen stay dormant, and this law
+// behind a More row. Three of the seventeen stay dormant, and this law
 // names them so the reason has to be argued rather than quietly forgotten:
 //   ateBefore   nothing marks a calendar event as a practice or a game, and
 //               that question is the entire screen.
@@ -4054,8 +4053,30 @@ describe("LAW: the Health module is reachable, and whatever stays dormant says w
       expect(src, `must import ${s}`).toMatch(new RegExp("import " + s + " from \"\\.\\./health/screens/" + s + "\""));
     }
     expect(src, "the rest of the module opens from this page now").toMatch(/import HealthFlow\b/);
-    expect(src, "and only on the template those screens were written for")
-      .toMatch(/template === "student"/);
+  });
+
+  // UP-ATH-01 (2026-09-06): HMN-F-06 gated the whole menu on the Student
+  // template, so a Personal account, which is the default and the one the app
+  // is actually used on, could open none of the fourteen. Medication is not a
+  // student-athlete question: an adult on a monthly script has the same use
+  // for a dose runway, a med window and a dated log to hand a prescriber. The
+  // rows that ARE about a parent or a season stay Student, and this law is
+  // what makes moving one across a deliberate act.
+  it("the medication screens open on every template, and the parent and season ones do not", () => {
+    const src = read(SRC + "/brain/CategoryDetail.tsx");
+    const menu = src.slice(src.indexOf("const healthMoreRows"), src.indexOf("if (healthDeep)"));
+    for (const key of ["refillRunway", "medWindow", "doctorReport", "sayItToSomeone"]) {
+      const row = menu.slice(menu.indexOf('key: "' + key + '"'));
+      expect(row.slice(0, row.indexOf("\n")), key + " is about a person and their own medication")
+        .toMatch(/everyone: true/);
+    }
+    for (const key of ["share", "whatTheySee", "theBag", "thirdPractice", "handoff"]) {
+      const row = menu.slice(menu.indexOf('key: "' + key + '"'));
+      expect(row.slice(0, row.indexOf("\n")), key + " asks a question a Personal page does not have")
+        .not.toMatch(/everyone: true/);
+    }
+    expect(menu, "and the filter that enforces it is still here")
+      .toMatch(/template === "student" \|\| r\.everyone/);
   });
 
   it("the three screens with no honest source of their own are not offered", () => {

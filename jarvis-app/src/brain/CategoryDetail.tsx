@@ -533,13 +533,23 @@ export default function CategoryDetail({
     if (ok) await reload();
     return ok;
   };
-  const healthMoreRows: { group: string; key: HealthScreenKey; label: string; sub: string }[] = [
+  // UP-ATH-01 (2026-09-06): `everyone` marks the rows that are about a person
+  // and their own medication, which is not a student-athlete question: an
+  // adult on a monthly script has exactly the same use for a dose runway, a
+  // med window and a dated log to hand a prescriber. HMN-F-06 gated the whole
+  // menu on the Student template, which meant a Personal account (the default,
+  // and the one this app is used on today) could not open a single one of the
+  // fourteen screens. The rest stay Student: The Share Line and What They See
+  // are about what crosses to a parent, The Bag and The Third Practice are
+  // about a season, and neither question exists on a Personal page.
+  type HealthMoreRow = { group: string; key: HealthScreenKey; label: string; sub: string; everyone?: boolean };
+  const healthMoreRows: HealthMoreRow[] = ([
     { group: "Sharing", key: "share", label: "The Share Line", sub: "What crosses to a parent, one switch at a time" },
     { group: "Sharing", key: "whatTheySee", label: "What They See", sub: "The same list, from their side" },
-    { group: "Sharing", key: "sayItToSomeone", label: "Say It to Someone", sub: "The adult Point at It hands to" },
-    { group: "Medication", key: "refillRunway", label: "Refill Runway", sub: "Doses left in this fill" },
-    { group: "Medication", key: "medWindow", label: "The Med Window", sub: "Dose, food, session start, lights out, by day" },
-    { group: "Medication", key: "doctorReport", label: "Take This to the Doctor", sub: "The last few weeks on one page" },
+    { group: "Sharing", key: "sayItToSomeone", label: "Say It to Someone", sub: "The adult Point at It hands to", everyone: true },
+    { group: "Medication", key: "refillRunway", label: "Refill Runway", sub: "Doses left in this fill", everyone: true },
+    { group: "Medication", key: "medWindow", label: "The Med Window", sub: "Dose, food, session start, lights out, by day", everyone: true },
+    { group: "Medication", key: "doctorReport", label: "Take This to the Doctor", sub: "The last few weeks on one page", everyone: true },
     { group: "Tomorrow", key: "nightBefore", label: "The Night Before", sub: "A wind-down before tomorrow's first fixed thing" },
     { group: "Tomorrow", key: "eatingWindows", label: "Eating Windows", sub: "Where tomorrow leaves no room" },
     ...(bagEvent ? [{ group: "Tomorrow", key: "theBag" as HealthScreenKey, label: "The Bag", sub: bagEvent.eventTitle }] : []),
@@ -548,7 +558,7 @@ export default function CategoryDetail({
     { group: "The Week", key: "twoDaysOff", label: "Two Days Off", sub: "Where a rest day fits" },
     { group: "Keeping", key: "locker", label: "The Locker", sub: "Forms and the dates they run out" },
     { group: "Keeping", key: "handoff", label: "The Handoff", sub: "What the next adult needs to know" },
-  ];
+  ] as HealthMoreRow[]).filter((r) => template === "student" || r.everyone === true);
 
   if (healthDeep) {
     return (
@@ -832,7 +842,7 @@ export default function CategoryDetail({
           healthLoggers={healthLoggers}
           onOpenHealthLogger={(key) => setHealthScreen(key)}
           // HMN-F-06: Student only, and absent rather than disabled.
-          onOpenHealthMore={template === "student" ? () => setHealthMore(true) : undefined}
+          onOpenHealthMore={healthMoreRows.length > 0 ? () => setHealthMore(true) : undefined}
           onToggleTask={(id) => void toggle(id)}
           onOpenTask={onOpenTask}
           onDeleteTask={(id) => void deleteTask(id)}
