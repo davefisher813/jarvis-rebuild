@@ -428,6 +428,8 @@ describe("a correction taught on one capture applies to the next", () => {
 // capture could not hold, so it became a task with a tick box.
 import { selfFact } from "./selfFact";
 import { StrandsService } from "../brain/strands/StrandsService";
+import { decisionLine } from "./decisionLine";
+import { personLine, personReceipt } from "./personLine";
 
 function rigWithStrands(aiCalls: { n: number }, available = true): PasteDeps & { strandsSvc: StrandsService } {
   const store = new Store(new InMemoryAdapter());
@@ -680,5 +682,64 @@ describe("capture refuses the reads it cannot honestly make", () => {
   it("a standing fact about the person is still a fact, not a bill or a ping", () => {
     expect(classifyLine("I never take calls before 9am", TODAY).kind).toBe("fact");
     expect(classifyLine("my rule is $20 a day", TODAY).kind).toBe("fact");
+  });
+});
+
+// UP-MIND-08 (2026-09-05): two more deterministic lanes, on the fact lane's
+// own terms. Shapes or nothing, never the model, and a date means it is not
+// one of these.
+describe("the decision lane", () => {
+  it("reads the shapes people actually type", () => {
+    expect(decisionLine("We're going with Ridgeline")?.decision).toBe("We're going with Ridgeline");
+    expect(decisionLine("I decided to drop the second vendor")).not.toBeNull();
+    expect(decisionLine("We'll use Supabase")).not.toBeNull();
+    expect(decisionLine("Decided: mornings for the gym")?.decision).toBe("mornings for the gym");
+  });
+
+  it("refuses a question, somebody else's call, and a paragraph", () => {
+    expect(decisionLine("Should we go with Ridgeline?")).toBeNull();
+    expect(decisionLine("They decided to close early")).toBeNull();
+    expect(decisionLine("We decided to " + "x".repeat(300))).toBeNull();
+  });
+
+  it("keeps the sentence verbatim and never invents a why", () => {
+    const d = decisionLine("We picked Ridgeline")!;
+    expect(d.decision).toBe("We picked Ridgeline");
+    expect(Object.keys(d)).toEqual(["decision"]);
+  });
+
+  it("loses to a dated read, because a date means it is not a decision", () => {
+    const { entities } = parsePaste("We decided to meet Thursday 3pm", "2026-08-15");
+    expect(entities[0]!.kind).toBe("event");
+  });
+});
+
+describe("the person lane", () => {
+  it("reads a label, a number, an address and a move", () => {
+    expect(personLine("Marco is my dentist")).toEqual({ name: "Marco", field: "relationship", value: "dentist" });
+    expect(personLine("Sarah's number is 555 0134")).toEqual({ name: "Sarah", field: "phone", value: "555 0134" });
+    expect(personLine("Marco's email is marco@example.com")).toEqual({ name: "Marco", field: "email", value: "marco@example.com" });
+    expect(personLine("Mike moved to Acme")).toEqual({ name: "Mike", field: "note", value: "Acme" });
+  });
+
+  it("refuses a question and anything with no name or no value", () => {
+    expect(personLine("Is Marco my dentist?")).toBeNull();
+    expect(personLine("m is my dentist")).toBeNull();
+    expect(personLine("Marco is my")).toBeNull();
+  });
+
+  it("never infers a label from anything but the sentence", () => {
+    expect(personLine("Marco emailed me twice today")).toBeNull();
+  });
+
+  it("says what happened in the user's own words", () => {
+    expect(personReceipt({ name: "Marco", field: "relationship", value: "dentist" })).toBe("Marco is your dentist");
+    expect(personReceipt({ name: "Sarah", field: "phone", value: "555" })).toBe("Saved Sarah's number");
+  });
+
+  it("is read as a person by the parser, not as a task", () => {
+    const { entities } = parsePaste("Marco is my dentist", "2026-08-15");
+    expect(entities[0]!.kind).toBe("person");
+    expect(entities[0]!.person?.field).toBe("relationship");
   });
 });

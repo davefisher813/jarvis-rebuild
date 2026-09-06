@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { useState } from "react";
-import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, usePeople, useProjects } from "../data/NotesProvider";
+import { useTasks, useSchedule, useNotes, useCategories, useOptionalRules, useOptionalStrands, useOptionalDecisions, usePeople, useProjects } from "../data/NotesProvider";
 import { STRAND_CATEGORY_LABEL, type StrandCategory } from "../brain/strands/types";
 import { aliasTrigger } from "../rules/triggers";
 import { useAIContext, todayISO } from "../ai/useAIContext";
@@ -23,7 +23,11 @@ import { formatMoney } from "../money/types";
 // user, filed into the Brain rather than onto a list. It is a chip like the
 // others, so a sentence read the wrong way is one tap from right in either
 // direction.
-const KIND_LABEL: Record<SavedEntity["kind"], string> = { task: "Task", event: "Event", note: "Note", fact: "Fact" };
+// UP-MIND-08 (2026-09-05): two more kinds a capture can BE. They are not
+// refile targets (KINDS below): a decision record and a person's card are
+// not things a task can be turned into by a chip, and offering it would be a
+// control that promises a move nobody built.
+const KIND_LABEL: Record<SavedEntity["kind"], string> = { task: "Task", event: "Event", note: "Note", fact: "Fact", decision: "Decision", person: "Person" };
 const KINDS: SavedEntity["kind"][] = ["task", "event", "note", "fact"];
 const FACT_CATEGORIES = Object.keys(STRAND_CATEGORY_LABEL) as StrandCategory[];
 
@@ -111,8 +115,12 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   // Same seam for the genome: no strand store means the fact lane is closed
   // and a self-fact lands as a task, exactly as it did before Quick Add.
   const strands = useOptionalStrands();
+  // UP-CORE-01 reads Contacts and Projects to match names against; UP-MIND-08
+  // WRITES to Contacts when a line states a fact about somebody. One reader
+  // of the store either way, passed to the pipeline as `peopleSvc`.
   const peopleSvc = usePeople();
   const projectsSvc = useProjects();
+  const decisions = useOptionalDecisions();
 
   const [text, setText] = useState("");
   const [phase, setPhase] = useState<"input" | "saving" | "saved">("input");
@@ -131,8 +139,13 @@ export default function QuickCapture({ ai, onClose, onOpen }: { ai: AIService; o
   // rules is passed IN, not reached for inside smartPaste: the pipeline stays
   // a pure function of its deps, and a surface that has no rules store simply
   // does not learn rather than crashing or reaching for a global.
+  // UP-MIND-08 (2026-09-05): the Decisions log joins the same optional seam
+  // every other store here rides, and the contact store rides in beside it as
+  // peopleSvc. Absent means the lane is closed and the line lands exactly as
+  // it did before.
   const deps = (categories: Category[], who: { people?: { id: string; name: string }[]; projects?: { id: string; title: string }[] } = { people, projects }) =>
-    ({ ai, gather, tasks, schedule, notes, categories, today: todayISO(), ...who, ...(rules ? { rules } : {}), ...(strands ? { strands } : {}) });
+    ({ ai, gather, tasks, schedule, notes, categories, today: todayISO(), ...who, ...(rules ? { rules } : {}), ...(strands ? { strands } : {}),
+      ...(decisions ? { decisions } : {}), peopleSvc });
 
   // UP-ATH-18 (2026-09-06, option A): THE SET GOES TO THE SESSION, NOT TO A
   // LIST. While a session is live the bar is standing right next to the

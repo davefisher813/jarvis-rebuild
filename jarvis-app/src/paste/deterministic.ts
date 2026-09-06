@@ -14,13 +14,18 @@ export interface ParsedEntity {
   // the user, filed into the Brain instead of onto a to-do list. It never
   // reaches the AI fallback and never becomes a CaptureResult; smartPaste
   // branches on it first. See selfFact.ts for why it is deterministic-only.
-  kind: "task" | "event" | "note" | "fact";
+  // UP-MIND-08 (2026-09-05): two more deterministic lanes, on the fact
+  // lane's own terms. "decision" lands in the Decisions log, "person"
+  // updates a contact's card. Neither ever reaches the AI fallback.
+  kind: "task" | "event" | "note" | "fact" | "decision" | "person";
   title: string;
   // Note body: the pasted text verbatim (never rewritten).
   body?: string;
   // Fact only: which part of the genome it belongs in. A guess, changeable
   // on the receipt like every other category.
   factCategory?: StrandCategory;
+  // Person only: which card and which field the sentence named.
+  person?: PersonLine;
   date?: string; // yyyy-mm-dd
   start?: string; // HH:MM 24h
   // True when the deterministic rules are sure. False = AI may improve it.
@@ -53,6 +58,8 @@ export interface ParsedEntity {
 }
 
 import { selfFact } from "./selfFact";
+import { decisionLine } from "./decisionLine";
+import { personLine, type PersonLine } from "./personLine";
 import type { StrandCategory } from "../brain/strands/types";
 import type { Recurrence } from "../notes/types";
 import { mentions } from "../people/mentions";
@@ -284,6 +291,22 @@ export function classifyLine(line: string, today: string, ctx: CaptureContext = 
   // A dated appointment still wins (the branch above), per selfFact's own
   // law 2. The sentence is kept verbatim: it is the user's words about
   // themselves, and titleCase does not touch it.
+  // UP-MIND-08 (2026-09-05): a settled call and a fact about a person, both
+  // read here for the same reason the fact lane is read here: they carry no
+  // date, and the to-do reads below would file the sentence a person most
+  // wants recorded as something to tick off. Decision first: "we're going
+  // with Ridgeline" names a thing, not a person.
+  const decided = decisionLine(t);
+  if (decided) {
+    return { kind: "decision", title: decided.decision, confident: true, raw: t };
+  }
+  // `who` above is already the person and project this line is ABOUT
+  // (UP-CORE-01); this is the person the line is a FACT about, which is a
+  // different question with a different answer.
+  const about = personLine(t);
+  if (about) {
+    return { kind: "person", title: t, person: about, confident: true, raw: t };
+  }
   const fact = selfFact(t);
   if (fact) {
     return { kind: "fact", title: fact.text, factCategory: fact.category, confident: true, raw: t };

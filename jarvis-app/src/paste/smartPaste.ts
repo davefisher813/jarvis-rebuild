@@ -15,6 +15,10 @@ import type { Category } from "../categories/types";
 import { madeBy } from "../shared/provenance";
 import { parsePaste, titleCase, type ParsedEntity } from "./deterministic";
 import { selfFact } from "./selfFact";
+import { personReceipt } from "./personLine";
+import type { DecisionService } from "../decisions/DecisionService";
+import type { PeopleService } from "../people/PeopleService";
+import type { PersonData } from "../people/types";
 import { markPasteSeen, recordCapture } from "./captureLog";
 import { aliasTrigger } from "../rules/triggers";
 import type { LearnedRule, LearnedRulesService } from "../rules/LearnedRulesService";
@@ -25,7 +29,10 @@ export interface SavedEntity {
   id: string;
   // "fact" lands in the Brain (a told-rank strand), not on a list. See
   // selfFact.ts and the Quick Add block in smartPasteSave below.
-  kind: "task" | "event" | "note" | "fact";
+  // UP-MIND-08 (2026-09-05): "decision" lands in the Decisions log and
+  // "person" updates a contact's card. Both are records, not list rows, and
+  // both are reversible from the same receipt as everything else here.
+  kind: "task" | "event" | "note" | "fact" | "decision" | "person";
   title: string;
   date?: string;
   start?: string;
@@ -42,6 +49,9 @@ export interface SavedEntity {
   // receipt asks (the Uncertainty Protocol).
   personChoices?: string[];
   projectId?: string;
+  // Person only: the card exactly as it was before this sentence touched it,
+  // so Undo restores rather than deletes. Absent when the card was created.
+  priorPerson?: PersonData;
   // The line exactly as pasted. Both halves of the learned-rules loop derive
   // their trigger from THIS and never from title, so the correction that
   // teaches a rule and the lookup that applies it key on the same string.
@@ -72,6 +82,15 @@ export interface PasteDeps {
   // degrading to the old behaviour, never dropping the capture on the floor.
   // Same seam shape as `rules` above.
   strands?: Pick<StrandsService, "add" | "list" | "remove" | "recategorize">;
+  // UP-MIND-08 (2026-09-05): the Decisions log and Contacts, both optional
+  // on the same seam. Absent means the lane is closed and the line lands as
+  // it did before, which is what every existing caller and test gets.
+  //
+  // Merge (2026-09-06): the CONTACT STORE is `peopleSvc`, because `people`
+  // above is already UP-CORE-01's bounded list of names to match against.
+  // Two different things, and one of them writes.
+  decisions?: Pick<DecisionService, "create" | "remove">;
+  peopleSvc?: Pick<PeopleService, "list" | "create" | "update" | "remove">;
   // Called when a fact could not be filed because the genome (or its
   // category) is at its cap. A refusal with a real reason has to reach the
   // person: without this the receipt would fall through to "Nothing to save
@@ -198,11 +217,58 @@ export async function smartPasteSave(text: string, deps: PasteDeps): Promise<Sav
       }
       continue;
     }
+    // UP-MIND-08: the decision lane. The sentence IS the decision, verbatim,
+    // and the why stays empty because inventing a reason is how a decision
+    // record stops being evidence. With no decisions store the lane is
+    // closed and the line falls through, which is today's behaviour.
+    if (e.kind === "decision" && deps.decisions) {
+      const id = await deps.decisions.create({ decision: e.title });
+      if (id) {
+        const s: SavedEntity = { id, kind: "decision", title: e.title, raw: e.raw };
+        saved.push(s);
+        recordCapture({ id, kind: "decision", title: s.title, ts: Date.now() });
+        continue;
+      }
+    }
+    // UP-MIND-08: the person lane. It updates an existing card when exactly
+    // one contact answers to the name, and creates one when none does. Two
+    // matches is an ambiguity, and this refuses rather than picking: the
+    // line falls through to the ordinary reads, where it is one chip from
+    // right, which is better than the wrong person's card being edited.
+    if (e.kind === "person" && e.person && deps.peopleSvc) {
+      const line = e.person;
+      const all = await deps.peopleSvc.list().catch(() => []);
+      const hits = all.filter((p) => p.data.name.toLowerCase() === line.name.toLowerCase()
+        || p.data.name.toLowerCase().startsWith(line.name.toLowerCase() + " "));
+      if (hits.length <= 1) {
+        const patch = line.field === "relationship" ? { relationship: line.value }
+          : line.field === "phone" ? { phone: line.value }
+            : line.field === "email" ? { email: line.value }
+              : { notes: line.value };
+        const before = hits[0];
+        const id = before
+          ? (await deps.peopleSvc.update(before.id, patch) ? before.id : null)
+          : await deps.peopleSvc.create({ name: line.name, group: "contacts", ...patch });
+        if (id) {
+          const s: SavedEntity = {
+            id, kind: "person", title: personReceipt(line), raw: e.raw,
+            ...(before ? { priorPerson: before.data } : {}),
+          };
+          saved.push(s);
+          recordCapture({ id, kind: "person", title: s.title, ts: Date.now() });
+          continue;
+        }
+      }
+    }
     let result: CaptureResult;
     if (e.kind === "fact") {
       // The lane is closed (no strand store). Read it the way this pipeline
       // read it before Quick Add existed: a short line with no date is a
       // task, reversible with one chip.
+      result = { kind: "task", title: titleCase(e.title) };
+    } else if (e.kind === "decision" || e.kind === "person") {
+      // The lane is closed (no store, or an ambiguous name). Read the line
+      // the way this pipeline read it before these lanes existed.
       result = { kind: "task", title: titleCase(e.title) };
     } else if (e.confident) {
       result = toCaptureResult(e, e.kind);
@@ -256,7 +322,24 @@ export async function smartPasteSave(text: string, deps: PasteDeps): Promise<Sav
 }
 
 // Undo one created entity: the record disappears entirely.
-export async function undoSaved(s: SavedEntity, deps: Pick<PasteDeps, "tasks" | "schedule" | "notes" | "strands">): Promise<void> {
+export async function undoSaved(
+  s: SavedEntity,
+  deps: Pick<PasteDeps, "tasks" | "schedule" | "notes" | "strands" | "decisions" | "peopleSvc">,
+): Promise<void> {
+  // UP-MIND-08: a decision record is removed outright. A person's card is
+  // PUT BACK to what it held: the card almost always existed before the
+  // sentence, and deleting a contact because one field was typed wrong
+  // would be the most expensive undo in the app.
+  if (s.kind === "decision") {
+    await deps.decisions?.remove(s.id);
+    return;
+  }
+  if (s.kind === "person") {
+    if (!deps.peopleSvc) return;
+    if (s.priorPerson) await deps.peopleSvc.update(s.id, s.priorPerson);
+    else await deps.peopleSvc.remove(s.id);
+    return;
+  }
   if (s.kind === "fact") {
     // remove() takes the strand so it can emit a correction event for a
     // WATCHED one; a told strand emits nothing. Looked up through list()
@@ -289,6 +372,15 @@ export async function refileSaved(
   deps: PasteDeps,
 ): Promise<SavedEntity | null> {
   if (toKind === s.kind) return s;
+  // UP-MIND-08 (2026-09-05): neither of the two new kinds is a refile
+  // TARGET. A decision record needs a decision, a person's card needs a
+  // name and a field, and neither can be conjured from a task title; the
+  // chips never offer them (QuickCapture's KINDS), and this refuses rather
+  // than half-writing one if a future caller asks.
+  if (toKind === "decision" || toKind === "person") return null;
+  // Refiling one AWAY is the ordinary path: the target is created first and
+  // the original removed after (SHELL-F-02's order), which undoSaved
+  // already handles for both kinds.
   let next: SavedEntity;
   // Refiling INTO the Brain: the sentence becomes a told-rank strand. The
   // category comes from the same classifier the lane uses, so a line the

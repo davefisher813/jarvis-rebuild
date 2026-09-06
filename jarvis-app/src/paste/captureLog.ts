@@ -7,7 +7,10 @@ export interface RecentCapture {
   // "fact" joined the list with Quick Add (2026-09-04): a sentence filed into
   // the Brain belongs on the same strip as everything else captured, so a
   // mis-filed fact is as visible and as recoverable as a mis-filed task.
-  kind: "task" | "event" | "note" | "fact";
+  // UP-MIND-08 (2026-09-05): the two lanes added there. Recent Captures
+  // lists them like everything else, and the 7-day dedupe covers them for
+  // free, because it keys on the pasted line and not on the kind.
+  kind: "task" | "event" | "note" | "fact" | "decision" | "person";
   title: string;
   ts: number;
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
-import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands, usePeople, useOptionalFiles, useFileStore, useOptionalGym } from "../data/NotesProvider";
+import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands, useOptionalDecisions, usePeople, useOptionalFiles, useFileStore, useOptionalGym } from "../data/NotesProvider";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import { lastContactFor } from "../people/lastContact";
 import { askSaid } from "../messages/saidWhat";
@@ -121,6 +121,7 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
   const catsSvc = useCategories();
   const peopleSvc = usePeople();
   const strands = useOptionalStrands();
+  const decisionsSvc = useOptionalDecisions();
   // UP-MIND-03: "when did I last talk to Marco" reads the cached Gmail
   // lookup the person card already uses. Optional, because Chat has to
   // render with no Google provider above it, and the answer says so.
@@ -491,7 +492,16 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
           // The genome rides along (Quick Add, handoff 5.0): "I never work out
           // on Sundays" typed into chat is a fact about the person, and the one
           // box that answers, acts and captures now also remembers.
-          saved = await smartPasteSave(text, { ai, gather, tasks: tasksSvc, schedule, notes, categories: cats, today: todayISO(), ...(strands ? { strands } : {}), onFactRefused: () => { refusedFact = true; } });
+          saved = await smartPasteSave(text, {
+            ai, gather, tasks: tasksSvc, schedule, notes, categories: cats, today: todayISO(),
+            ...(strands ? { strands } : {}),
+            // UP-MIND-08 (2026-09-05): "we're going with Ridgeline" typed into
+            // Chat lands in the Decisions log, and "Marco is my dentist"
+            // updates his card, the same as through Quick Add.
+            ...(decisionsSvc ? { decisions: decisionsSvc } : {}),
+            peopleSvc,
+            onFactRefused: () => { refusedFact = true; },
+          });
         });
         if (!ok) return;
         if (saved.length === 0) {
@@ -523,7 +533,17 @@ export default function ChatFlow({ onOpen, onCompose, askPersonId, askNonce, onA
           actionLabel: "Undo",
           onAction: async () => {
             await attemptWrite(async () => {
-              for (const s of justSaved) await undoSaved(s, { tasks: tasksSvc, schedule, notes, ...(strands ? { strands } : {}) });
+              // UP-MIND-08: the two new kinds undo too. A decision record
+              // is removed; a person's card is put BACK to what it held,
+              // never deleted, because it almost always existed first.
+              for (const s of justSaved) {
+                await undoSaved(s, {
+                  tasks: tasksSvc, schedule, notes,
+                  ...(strands ? { strands } : {}),
+                  ...(decisionsSvc ? { decisions: decisionsSvc } : {}),
+                  peopleSvc,
+                });
+              }
             });
           },
         });
