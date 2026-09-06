@@ -122,9 +122,10 @@ export function planRecord(
   return { picks: rows.length, done: rows.filter((e) => e.props?.flag === true).length };
 }
 
-// The locked definition rides in the copy: "done the same day". A pick
-// finished two days later after a push did not survive that plan.
-export function planRecordLine(r: PlanRecord): string | null {
-  if (r.picks < PLAN_RECORD_MIN_PICKS) return null;
-  return `Lately · ${r.done} of ${r.picks} picks done same-day`;
-}
+// PLUMB-F-19 (2026-09-05): planRecordLine went, and schedule/planCap.ts's
+// header says why. "Lately · 2 of 7 picks done same-day" was pulled from the
+// sheet on 2026-08-20 as a scoreboard sitting above the thing it said he was
+// failing at; the same measurement pointed forward became capOffer. The
+// sentence outlived its screen with only its own test to keep it green, and
+// leaving it there is how it comes back. planRecord above still counts, and
+// planCap is what reads the count.

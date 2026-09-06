@@ -261,17 +261,11 @@ export function useRules(): LearnedRulesService {
 
 // Rules are an enhancement at decision points; outside NotesProvider they
 // simply do not exist (same principle as useOptionalTasks).
-export function useSeal(): SealService {
-  const s = useContext(SealContext);
-  if (!s) throw new Error("useSeal outside provider");
-  return s;
-}
+// PLUMB-F-19 (2026-09-05): the required useSeal and useFiles went. Every
+// reader of both is optional by design (a month seal and a file store are
+// enhancements, not preconditions), so the throwing variants had no caller
+// and the optional ones below carry all six.
 export function useOptionalSeal(): SealService | null { return useContext(SealContext) ?? null; }
-export function useFiles(): FilesService {
-  const v = useContext(FilesContext);
-  if (!v) throw new Error("useFiles must be used within NotesProvider");
-  return v;
-}
 export function useOptionalFiles(): FilesService | null { return useContext(FilesContext) ?? null; }
 export function useFileStore(): FileStore | null { return useContext(FileStoreContext) ?? null; }
 export function useOptionalRules(): LearnedRulesService | null {
@@ -306,7 +300,9 @@ export function useHealth(): HealthService {
   if (!s) throw new Error("useHealth must be used inside NotesProvider");
   return s;
 }
-export function useOptionalHealth(): HealthService | null { return useContext(HealthContext) ?? null; }
+// PLUMB-F-19 (2026-09-05): useOptionalHealth went with them. The health
+// track is reached through the required useHealth above, from inside a full
+// NotesProvider, which is the tree S5-Q29 registered it for.
 
 export function useRoutine(): RoutineService {
   const s = useContext(RoutineContext);

@@ -4,7 +4,9 @@
 //   1. Offline (vitest): prove the machinery. Every expected output, played
 //     through the real parsers, must score 100%. If a parser or schema change
 //    breaks a golden case, the suite says so before any deploy.
-//   2. Live (tools/ai-harness.mjs): send the same inputs to the real model
+//   2. Live (tools/ai-harness.test.ts, gated behind AI_HARNESS=1; PLUMB-F-19
+//     (2026-09-05) corrected the name here, which said .mjs and pointed at
+//     no file): send the same inputs to the real model
 //     through the real prompts and score what comes back. That run costs
 //     money, so it is a dev command, never part of the suite. It is how model
 //     drift, prompt regressions, and a new model candidate get MEASURED.

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { recordPicks, resolvePendingPlans, planRecord, planRecordLine, type PlanStorage } from "./planOutcome";
+import { recordPicks, resolvePendingPlans, planRecord, type PlanStorage } from "./planOutcome";
 import type { EventInput } from "./types";
 
 // Plan-vs-done is advertised as the app's most valuable measurement, so its
@@ -99,11 +99,5 @@ describe("planRecord", () => {
   it("ignores other event types", () => {
     const r = planRecord([ev(1, true), ev(1, true, "plan.picked"), ev(1, true, "task.completed")], NOW);
     expect(r.picks).toBe(1);
-  });
-
-  it("line renders the locked definition, silent under 3 picks", () => {
-    expect(planRecordLine({ picks: 5, done: 3 })).toBe("Lately · 3 of 5 picks done same-day");
-    expect(planRecordLine({ picks: 2, done: 2 })).toBeNull();
-    expect(planRecordLine({ picks: 0, done: 0 })).toBeNull();
   });
 });

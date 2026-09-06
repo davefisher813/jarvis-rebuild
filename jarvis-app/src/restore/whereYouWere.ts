@@ -109,13 +109,13 @@ export function clearSpot(): void {
   try { s.removeItem(KEY); s.removeItem(DISMISSED_KEY); } catch { /* gone is gone */ }
 }
 
-// "Training Plan note · 25 min ago"
-export function spotMeta(spot: WorkSpot, now: () => number = Date.now): string {
-  const noun = spot.kind === "note" ? "note" : spot.kind === "task" ? "task" : spot.kind === "event" ? "event" : "gym session";
-  const mins = Math.round((now() - spot.ts) / 60_000);
-  const when = mins < 60 ? `${mins} Min ago` : `${Math.round(mins / 60)} ${Math.round(mins / 60) === 1 ? "Hour" : "Hours"} ago`;
-  return `${spot.label} ${noun} · ${when}`;
-}
+// PLUMB-F-19 (2026-09-05): spotMeta went. It repeated the spot's kind beside
+// a title that already names the thing, which is exactly the padding Law 3E
+// removed on 2026-08-22; spotAgo below is what the card renders. Worth noting
+// while we are here: only "note" and "task" spots are ever recorded
+// (NotesFlow.tsx:270, TasksFlow.tsx:341). The "event" and "gym" kinds are
+// carried by the type and routed by AppShell.onRestoreSpot, so a recorder for
+// them can be added without touching either end.
 
 // The quiet-line form of the age (Law 3E, 2026-08-22): fused units, no noun.
 // "Left 9h ago" -- the row's title already names the thing, so repeating its

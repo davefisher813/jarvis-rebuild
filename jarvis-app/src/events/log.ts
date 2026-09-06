@@ -109,6 +109,12 @@ export class LocalEventLog {
     this.storage.write(JSON.stringify(this.cache));
   }
 
+  // PLUMB-F-19 (2026-09-05): KEPT, and the finding's "no caller" is out of
+  // date. Five suites (events, brain/window, schedule/learnedDurations,
+  // today/TodaySuggestions and today/stream) reset the module-level log
+  // through this between cases, so it is the fixture reset, not dead weight.
+  // No app code calls it: wiping the device goes through
+  // settings/clearLocalData.ts, which drops the whole key.
   clear(): void {
     if (this.timer !== null) { clearTimeout(this.timer); this.timer = null; }
     this.cache = [];

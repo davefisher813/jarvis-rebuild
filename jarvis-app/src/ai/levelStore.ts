@@ -18,7 +18,7 @@ export function getAIControl(): AIControlState {
   return current;
 }
 
-export function subscribeAIControl(fn: (s: AIControlState) => void): () => void {
-  subs.add(fn);
-  return () => subs.delete(fn);
-}
+// PLUMB-F-19 (2026-09-05): subscribeAIControl had no subscriber and no test.
+// Every reader calls getAIControl at the moment it is about to spend a token,
+// which is when the level has to be right; a stale subscription would be the
+// one way to spend at a level the person has since turned down.

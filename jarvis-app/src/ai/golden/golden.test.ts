@@ -7,8 +7,9 @@ import { parseTriage, fillSkipped } from "../../messages/triage";
 // The offline half of the golden set: every expected output, rendered the way
 // the model would emit it (as tool-call JSON), must ride through the real
 // parsers and score 100%. This proves the parsers, schemas, and scorer agree
-// on what "right" means; the live harness (tools/ai-harness.mjs) proves the
-// model still produces it.
+// on what "right" means; the live harness (tools/ai-harness.test.ts, gated
+// behind AI_HARNESS=1) proves the model still produces it. PLUMB-F-19
+// (2026-09-05): this pointer said .mjs and named no file that exists.
 
 describe("golden set: recorded outputs score 100% through the real parsers", () => {
   it("capture", () => {
