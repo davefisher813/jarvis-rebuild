@@ -153,6 +153,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // the exact function every other note-opening path in this shell uses.
   const navigateToEntity = async (kind: string, targetId: string) => {
     if (kind === "note") { navigateToNote(targetId); return; }
+    // UP-MIND-02 (2026-09-05): a Chat answer can cite an email thread, and
+    // the shell already knows how to open one: the same one-shot Today's
+    // mail notices ride. Without this branch a cited thread chip did nothing.
+    if (kind === "thread") { mailIntent.fire(targetId); draftIntent.clear(); setActive("messages"); return; }
     if (kind === "task") { taskIntent.fire(targetId); goLife("tasks"); }
     else if (kind === "project") { projectIntent.fire(targetId); goLife("projects"); }
     else if (kind === "event") { eventIntent.fire(targetId); setActive("schedule"); }
@@ -508,7 +512,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} threadNonce={mailIntent.nonce} onThreadConsumed={mailIntent.clear} openDraftId={draftIntent.value} draftNonce={draftIntent.nonce} onDraftConsumed={draftIntent.clear} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
         {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} openAccountId={accountIntent.value} openNonce={accountIntent.nonce} onOpenConsumed={accountIntent.clear} />}
-        {active === "chat" && <ChatFlow />}
+        {active === "chat" && <ChatFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
 
         {active === "more" && (
           <MoreFlow

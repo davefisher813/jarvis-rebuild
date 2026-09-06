@@ -31,11 +31,11 @@ function Capture() {
   return null;
 }
 
-const renderChat = (userId: string) =>
+const renderChat = (userId: string, onOpen?: (kind: string, id: string) => void) =>
   render(
     <NotesProvider userId={userId}>
       <Capture />
-      <ChatFlow />
+      <ChatFlow {...(onOpen ? { onOpen } : {})} />
     </NotesProvider>,
   );
 
@@ -179,5 +179,31 @@ describe("BROWSER-F-12: one input, and Send says when it cannot send", () => {
     // Whitespace is nothing typed.
     fireEvent.change(box, { target: { value: "   " } });
     expect(screen.getByRole("button", { name: "Send" }), "spaces are not a message").toBeDisabled();
+  });
+});
+
+// UP-MIND-02 (2026-09-05): every record an answer used has been stored on the
+// bubble since Chat shipped and nothing rendered it, so an answer about a
+// task left the user to go and find that task themselves.
+describe("UP-MIND-02: tap what Chat cites", () => {
+  it("renders the records behind an answer as chips, and tapping one opens it", async () => {
+    const opened: string[] = [];
+    renderChat("u-chat-refs", (kind, id) => opened.push(kind + ":" + id));
+    await waitFor(() => expect(tasksRef).toBeTruthy());
+    const t = await tasksRef!.createTask("Call the plumber");
+    sendText("Complete the plumber");
+    await waitFor(() => expect(screen.getByText("Done: Call the plumber")).toBeInTheDocument());
+    const chip = await screen.findByRole("button", { name: "Call the plumber" });
+    fireEvent.click(chip);
+    expect(opened).toEqual(["task:" + t]);
+  });
+
+  it("renders no chip when the shell gave it nowhere to go", async () => {
+    renderChat("u-chat-norefs");
+    await waitFor(() => expect(tasksRef).toBeTruthy());
+    await tasksRef!.createTask("Call the plumber");
+    sendText("Complete the plumber");
+    await waitFor(() => expect(screen.getByText("Done: Call the plumber")).toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Call the plumber" })).toBeNull();
   });
 });

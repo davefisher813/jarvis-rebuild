@@ -2178,6 +2178,10 @@ button {
 .chat-jarvis { align-self: flex-start; background: var(--press-3); color: var(--tx-1); border-bottom-left-radius: 6px; }
 .chat-text { font-size: var(--t-body); line-height: var(--lh-relaxed); white-space: pre-wrap; }
 .chat-prov { margin-top: var(--s-1); font-size: var(--t-eyebrow); font-weight: var(--w-semi); text-transform: uppercase; letter-spacing: var(--track-caps); color: var(--tx-3); }
+/* UP-MIND-02: the records the answer was built from, tappable. Sits under
+   the provenance line because the line says where it came from and these
+   say exactly which rows. */
+.chat-refs { margin-top: var(--s-1h); }
 .chat-inputbar { display: flex; gap: var(--s-2); padding: var(--s-2h) var(--s-4); padding-bottom: calc(var(--s-2h) + var(--s-safe-b)); }
 .chat-inputbar .input { flex: 1; }
 

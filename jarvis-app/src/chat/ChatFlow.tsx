@@ -59,7 +59,12 @@ interface PendingChoice {
   options: CommandTarget[];
 }
 
-export default function ChatFlow() {
+export default function ChatFlow({ onOpen }: {
+  // UP-MIND-02 (2026-09-05): open the record an answer was built from.
+  // Optional, and the chips only render when it is given: a chip that opens
+  // nothing is a control that lies about being one.
+  onOpen?: (kind: string, id: string) => void;
+} = {}) {
   const chat = useChat();
   const tasksSvc = useTasks();
   const schedule = useSchedule();
@@ -426,6 +431,12 @@ export default function ChatFlow() {
 
   const picker = usePickFile((f) => { setLastFile(f); void onPickedFile(f); });
 
+  // UP-MIND-02 (2026-09-05): every record an answer used has been stored on
+  // the bubble since Chat shipped (types.ts ChatProvenance.refs) and nothing
+  // ever rendered them, so "when is the dentist" answered with a date and
+  // left the user to go and find the event themselves.
+  const refsOf = (m: ChatMessage) => (m.data.role === "jarvis" ? m.data.provenance?.refs ?? [] : []);
+
   const provLine = (m: ChatMessage): string | null => {
     const p = m.data.provenance;
     if (!p) return null;
@@ -471,6 +482,18 @@ export default function ChatFlow() {
           <div key={m.id} className={"chat-bubble " + (m.data.role === "user" ? "chat-user" : "chat-jarvis")}>
             <div className="chat-text">{m.data.text}</div>
             {m.data.role === "jarvis" && provLine(m) && <div className="chat-prov">{provLine(m)}</div>}
+            {onOpen && refsOf(m).length > 0 && (
+              <div className="chip-row chat-refs">
+                {refsOf(m).map((r) => (
+                  <button
+                    key={r.kind + ":" + r.id}
+                    type="button"
+                    className="chip"
+                    onClick={() => onOpen(r.kind, r.id)}
+                  >{r.label}</button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {/* UP-PLAT-08: refile chips, Smart Paste's anatomy applied to bytes.
