@@ -76,6 +76,13 @@ describe("law: one drag controller", () => {
   });
 });
 
+// SHARED-F-15 (2026-09-05): these three exercise the stack in isolation, and
+// that is all that has ever exercised it: no app code calls pushUndo, so the
+// stack is empty in production and clearUndo on sign-out clears nothing. The
+// cases stay because the primitive stays (see shared/undoStack.ts's header
+// for the fork), but they prove the mechanism, never that a surface reaches
+// it. The Undo people actually tap is the toast's, and law "an Undo sets a
+// state, it never toggles one" is what guards that one.
 describe("law: the undo stack", () => {
   it("push, undo, and depth behave as a stack", async () => {
     clearUndo();
