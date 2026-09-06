@@ -14,6 +14,7 @@ import { catColor, catName } from "../../shared/categories";
 import type { SheetCategory, SheetProject } from "./TaskSheet";
 import { useSwipe } from "../../shared/useSwipe";
 import Provenance from "../../shared/Provenance";
+import type { Source } from "../../shared/provenance";
 import { capAfterNumber } from "../../shared/casing";
 import { cueLine } from "../ifThen";
 import { OVERWHELM_ENTER, OVERWHELM_EXIT } from "../overwhelmed";
@@ -125,6 +126,7 @@ export function TaskRow({
   kickerTone = null,
   action = null,
   burstSize = "small",
+  openSourceFor,
 }: {
   item: TaskItem;
   today: string;
@@ -170,6 +172,9 @@ export function TaskRow({
   // had already burst. The flow can see it beforehand from data it already
   // holds, so the answer arrives with the row.
   burstSize?: BurstSize;
+  // SHARED-F-17 (2026-09-05): a handler for this row's source, or undefined
+  // when the flow has no route to it. Undefined leaves the line a fact.
+  openSourceFor?: (source: Source) => (() => void) | undefined;
 }) {
   const t = item.data;
   const u = urgencyFor(t, today);
@@ -324,7 +329,13 @@ export function TaskRow({
           {t.plan && <div className="task-cue">{cueLine(t.plan)}</div>}
           {/* Provenance Line (addendum item 8): auto-created rows say where
               they came from; hand-made rows render nothing here. */}
-          <Provenance source={t.source} />
+          {/* SHARED-F-17 (2026-09-05): "From an email · Aug 12" was a plain
+              line everywhere, although the entity carries source.ref and the
+              app has a route for the types it names. openSourceFor hands
+              back a handler only for a source this flow can actually reach,
+              so a line that cannot be opened stays a plain fact instead of
+              becoming a button that does nothing. */}
+          <Provenance source={t.source} {...(t.source && openSourceFor ? { onOpen: openSourceFor(t.source) } : {})} />
         </div>
         {/* The urgency label steps aside for Start, exactly as it does on
             Today: knowing a thing is due is worth less than a way to begin
@@ -377,6 +388,7 @@ export default function TasksPage({
   goalOf,
   parentOf,
   burstSizeOf,
+  openSourceFor,
   title = "Tasks",
   segments,
 }: {
@@ -422,6 +434,10 @@ export default function TasksPage({
   // with the moment. Derived by the flow through shared/completion's
   // burstSize, which is the one place that judgement lives.
   burstSizeOf?: (t: TaskItem) => BurstSize;
+  // SHARED-F-17 (2026-09-05): given a row's source, the way to open it, or
+  // undefined for a source this flow cannot route. The page never decides
+  // what a source type means; it only asks.
+  openSourceFor?: (source: Source) => (() => void) | undefined;
   // LIFE (2026-09-01): the head's word and the segment control under it,
   // when this page is the Tasks lens of the Life tab.
   title?: string;
@@ -654,6 +670,7 @@ export default function TasksPage({
                       onPick={sel.toggle} muteToday={filter === "today"}
                       parent={parentOf?.(it) ?? null}
                       burstSize={burstSizeOf?.(it) ?? "small"}
+                      openSourceFor={openSourceFor}
                     />
                     {/* Momentum Chain (addendum item 7): the suggestion slides
                         into the just-finished slot, right below its row. */}

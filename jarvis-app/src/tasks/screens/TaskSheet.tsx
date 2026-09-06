@@ -67,6 +67,7 @@ export default function TaskSheet({
   categories,
   projects = [],
   source,
+  openSourceFor,
   onSave,
   onSchedule,
   onBreakDown,
@@ -93,6 +94,9 @@ export default function TaskSheet({
   // Provenance of the task being edited, when it was auto-created. A fact
   // line only; the sheet never writes it (coverage map: not editable).
   source?: Source;
+  // SHARED-F-17 (2026-09-05): the way to open that source, or undefined when
+  // the flow has no route to it, in which case the line stays a plain fact.
+  openSourceFor?: (source: Source) => (() => void) | undefined;
   // BRAIN-F-09 (2026-09-05): a parent that writes hands back whether the
   // write landed, so the Saving latch can let go when it did not.
   onSave: (draft: TaskDraft) => void | Promise<boolean | void>;
@@ -256,7 +260,9 @@ export default function TaskSheet({
             would read every ordinary click as a truthy closeNow. */}
         <SheetBar title={mode === "new" ? "New Task" : "Edit Task"} onCancel={onCancel} onSave={() => save()} saveLabel={saving ? "Saving" : "Save"} />
         <div className="sheet-form">
-          <Provenance source={source} />
+          {/* SHARED-F-17 (2026-09-05): the sheet's provenance line opens its
+              source too, when the flow has a route to it. */}
+          <Provenance source={source} {...(source && openSourceFor ? { onOpen: openSourceFor(source) } : {})} />
 
           <div className="grp xs-grp"><div className="eyebrow">Task</div></div>
           <div className="pad-x"><div className="card xs-group">

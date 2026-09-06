@@ -45,7 +45,7 @@ export default function LifeFlow({
   useEffect(() => { if (segment) pick(segment); }, [segment, segmentNav]);
   const segments = <LifeSegments value={seg} onPick={pick} />;
   if (seg === "tasks") {
-    return <TasksFlow title="Life" segments={segments} openId={taskOpenId} openNonce={taskNonce} onOpenConsumed={onTaskOpened} openFilter={taskFilter} filterNonce={filterNonce} onFilterApplied={onFilterApplied} onOpenNote={onOpenNote} onWhatNow={onWhatNow} />;
+    return <TasksFlow title="Life" segments={segments} openId={taskOpenId} openNonce={taskNonce} onOpenConsumed={onTaskOpened} openFilter={taskFilter} filterNonce={filterNonce} onFilterApplied={onFilterApplied} onOpenNote={onOpenNote} onGoEmail={onGoEmail} onWhatNow={onWhatNow} />;
   }
   return (
     <BiggerPictureFlow

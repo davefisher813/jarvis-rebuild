@@ -443,3 +443,36 @@ describe("the burst escalates with what the tick moved", () => {
     expect(container.querySelector(".burst")).toHaveClass("burst-big");
   });
 });
+
+// SHARED-F-17 (2026-09-05): Provenance.tsx has rendered a button since it was
+// written, for any caller that could supply the navigation, and no caller
+// ever did. "From an email · Aug 12" under a task was a line you could tap
+// forever.
+describe("a task's provenance line opens what it came from", () => {
+  const fromEmail = (): TaskItem => ({
+    id: "a", data: { text: "a", category: "orgB", done: false, due: "2026-05-20", source: { type: "email", ref: "th1", ts: Date.parse("2026-05-12T09:00:00") } },
+  });
+
+  it("a source the flow can reach is a button, and tapping it opens the source", () => {
+    const open = vi.fn();
+    const { container } = render(
+      <TasksPage filter="all" counts={counts} items={[fromEmail()]} today="2026-05-20"
+        categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }]}
+        openSourceFor={(s) => (s.ref ? () => open(s.ref) : undefined)} />,
+    );
+    const link = container.querySelector(".prov-link")!;
+    expect(link).toHaveTextContent("From an email");
+    fireEvent.click(link);
+    expect(open).toHaveBeenCalledWith("th1");
+  });
+
+  it("a source the flow cannot reach stays a plain fact, never a dead button", () => {
+    const { container } = render(
+      <TasksPage filter="all" counts={counts} items={[fromEmail()]} today="2026-05-20"
+        categories={[{ id: "orgB", name: "Ridgeley", color: "sky" }]}
+        openSourceFor={() => undefined} />,
+    );
+    expect(container.querySelector(".prov-link")).toBeNull();
+    expect(container.querySelector(".prov-line")).toHaveTextContent("From an email");
+  });
+});

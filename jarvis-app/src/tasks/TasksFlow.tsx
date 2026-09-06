@@ -8,6 +8,7 @@ import { useProjects, useGoals } from "../data/NotesProvider";
 import type { Goal } from "../life/types";
 import { buildGoalIndex, liveGoals, goalTitleForTask } from "../bigger/reach";
 import { buildParentIndex, parentForTask } from "../life/parent";
+import type { Source } from "../shared/provenance";
 import { movedBy, burstSize, celebrationLine, type Moved } from "../shared/completion";
 import type { Project } from "../projects/types";
 import { partition, byCategory, filterOf, FILTERS, FILTER_LABEL, type Partitioned, type TaskFilter } from "./filters";
@@ -41,8 +42,11 @@ import { ENTITY_TASK } from "../notes/types";
 const EMPTY: Partitioned = { all: [], daily: [], today: [], overdue: [], upcoming: [], done: [] };
 type SheetState = { mode: "new"; initial?: Partial<TaskDraft> } | { mode: "edit"; id: string; initial: TaskDraft; source?: import("../shared/provenance").Source } | null;
 
-export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilter, filterNonce, onFilterApplied, onOpenNote, onWhatNow, title, segments }: {
+export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilter, filterNonce, onFilterApplied, onOpenNote, onGoEmail, onWhatNow, title, segments }: {
   openId?: string; openFilter?: string; onOpenNote?: (id: string) => void;
+  // SHARED-F-17 (2026-09-05): the mail route, so a task made from an email
+  // can open the thread it came from.
+  onGoEmail?: (threadId: string) => void;
   // SHELL-F-12 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
   // Both of these were read once per mount and cleared only by a bottom-tab
   // tap, and LifeFlow remounts this list on every segment change: arrive on a
@@ -105,6 +109,22 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
   // WHERE A TASK LIVES (The Row and Health, 2026-09-02): project, goal or
   // category, with the project's progress for its pie. Built once per pass.
   const parentIdx = useMemo(() => buildParentIndex(projects, goals, allItems), [projects, goals, allItems]);
+
+  // SHARED-F-17 (2026-09-05): PROVENANCE OPENS ITS SOURCE. Provenance.tsx has
+  // rendered a button since it was written, for any caller that could supply
+  // the navigation, and no caller ever did: "From an email · Aug 12" under a
+  // task was a line you could tap forever. The routes exist, they were just
+  // never handed over. This returns a handler only for the source types this
+  // flow can actually reach, so Provenance keeps rendering a plain fact for
+  // the rest (Smart Paste, the recorder, a sweep) rather than a button that
+  // does nothing, which is the bug in a different costume.
+  const openSourceFor = useCallback((source: Source): (() => void) | undefined => {
+    const ref = source.ref;
+    if (!ref) return undefined;
+    if (source.type === "note" && onOpenNote) return () => onOpenNote(ref);
+    if ((source.type === "email" || source.type === "gmail") && onGoEmail) return () => onGoEmail(ref);
+    return undefined;
+  }, [onOpenNote, onGoEmail]);
   const [categories, setCategories] = useState<SheetCategory[]>([]);
   const [pausedCats, setPausedCats] = useState<ReadonlySet<string>>(new Set());
   // Work-hours quiet set (audit 2026-08-10): after hours, work-category tasks
@@ -734,6 +754,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
         // pure read of tasks and projects already in hand, so it can be
         // answered before the tap instead.
         burstSizeOf={(t) => (t.data.done ? "small" : burstSize(movedByTask(t.data, t.id)?.moved ?? null))}
+        openSourceFor={openSourceFor}
         momentum={momentum && {
           afterId: momentum.afterId,
           el: (
@@ -778,6 +799,7 @@ export default function TasksFlow({ openId, openNonce, onOpenConsumed, openFilte
           mode={sheet.mode}
           initial={sheet.initial}
           source={sheet.mode === "edit" ? sheet.source : undefined}
+          openSourceFor={openSourceFor}
           categories={categories}
           onSave={onSave}
           otherPlans={allItems.map((t) => ({ id: t.id, text: t.data.text, plan: t.data.plan }))}
