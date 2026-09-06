@@ -13,6 +13,7 @@ import {
   type Strand, type StrandCategory, type StrandEvidence, type DerivationKey,
 } from "./types";
 import { pressable } from "../../shared/pressable";
+import ReadinessPanel from "./ReadinessPanel";
 
 // What JARVIS Knows (Brain Layer 2). The genome made visible: every strand,
 // its category, where it came from, and its receipts. Wrongness has an exit
@@ -227,6 +228,16 @@ export default function StrandsPage({ onBack, openId: initialOpenId, openNonce, 
           belongs: an observation waiting to become a strand, sitting above
           the strands it would join. */}
       <TodaySuggestions ai={ai} always />
+
+      {/* WHY IS THIS LIST NOT GROWING (Dave 2026-09-06: "i dont see any trace
+          of jarvis learning anything"). Above the facts, below the offers,
+          because it is the answer to the question this screen makes him ask.
+          It reports; it proposes nothing and writes nothing. */}
+      <ReadinessPanel strands={strands} today={today} />
+
+      {strands.length > 0 && (
+        <div className="sh2 sh2-quiet"><span className="t">What It Knows</span><span className="n">{strands.length}</span></div>
+      )}
 
       {strands.length === 0 && (
         <div className="empty-state">

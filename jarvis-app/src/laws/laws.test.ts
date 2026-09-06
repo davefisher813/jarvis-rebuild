@@ -5033,4 +5033,22 @@ describe("LAW: the readiness panel reports the gates the Brain enforces (2026-09
     const keys = new Set(readiness([], [], [], NOW).map((r) => r.key));
     expect(keys.size).toBeGreaterThanOrEqual(called.length + 1); // the seven plus task_timing
   });
+
+  it("the instrument is actually rendered, not just computed", () => {
+    // The recurring lesson in this codebase, three times over: a tested
+    // function proves nothing about whether a screen reaches it.
+    const page = read(join(SRC, "brain/strands/StrandsPage.tsx"));
+    expect(page, "What JARVIS Knows stopped rendering the readiness panel").toContain("<ReadinessPanel");
+    const panel = read(join(SRC, "brain/strands/ReadinessPanel.tsx"));
+    expect(panel).toMatch(/from "\.\.\/readiness"/);
+    // And it says where the evidence came from. readWindowWithSource has
+    // returned "server" or "local" since BRAIN-F-11 and nothing surfaced it;
+    // a panel that hid it would leave "your events never reached the server"
+    // looking exactly like "not enough evidence yet".
+    expect(panel).toContain("readWindowWithSource");
+    expect(panel, "the local fallback stopped being said in plain words").toContain("This device only");
+    // And when the day's pass has never recorded a day, it says so rather
+    // than leaving that fourth failure indistinguishable from the others.
+    expect(panel).toContain("readConsolidation");
+  });
 });

@@ -925,3 +925,39 @@
    the logged half of the strip would grow a 14pt corner and a shadow. Three
    classes deep so the strip stays flat. */
 .ruled .set-strip .reorder-list { border-radius: 0; box-shadow: none; }
+
+/* ---------- WHY THE BRAIN IS QUIET (2026-09-06) ---------------------------
+   The readiness rows on What JARVIS Knows. Dave: "i dont see any trace of
+   jarvis learning anything." Four different failures rendered as the same
+   empty screen, so this row exists to make each one a number he can read.
+
+   A new component rather than a local exception (contract section 0): the
+   app had no read-only row that carries a wrapping sentence AND a fraction
+   in the right slot. The right slot is the contract's own (section 5:
+   12.5/600, --tx-2, tabular, never shrinks), the sentence is the 12.5 fact
+   line the Areas page already uses, and the only colours are the wired
+   --good and --warn. Category colour is user data and appears nowhere here.
+
+   The state rides the COUNT, not the row: the number that moved is the one
+   that changes colour, which is section 5's inline number emphasis pointed
+   at the one number on the row that answers the question. */
+.ruled .rdy-row { align-items: flex-start; padding-top: 10px; padding-bottom: 10px; }
+/* The height follows the SENTENCE, which is the one thing on this row that
+   must never be clipped: a reading a phone cut in half is the ambiguity the
+   panel was built to end. So the task row's 44/56/64 ladder (contract 4.1)
+   does not apply here, and this row is not a task row: measured 63 / 81 / 99
+   for a one, two and three line reading at 390 wide. Copy is written to land
+   on two wherever it can be said in two. */
+.ruled .rdy-why { font-size: calc(12.5px * var(--type-scale)); color: var(--tx-3); line-height: 1.45; margin-top: 3px; }
+.ruled .rdy-why b { font-weight: var(--w-medium); color: var(--tx-2); }
+.ruled .rdy-n { flex-shrink: 0; align-self: flex-start; margin-top: 1px;
+  font-size: calc(12.5px * var(--type-scale)); font-weight: var(--w-medium);
+  color: var(--tx-3); font-variant-numeric: tabular-nums; text-align: right; }
+/* The have, against the gate behind it. Quiet ink is the resting state: a
+   detector that is simply waiting is not a warning. */
+.ruled .rdy-n b { font-weight: var(--w-semi); color: var(--tx-2); }
+.ruled .rdy-n.rdy-good b { color: var(--good); }
+.ruled .rdy-n.rdy-warn b { color: var(--warn); }
+/* Muted: the nod test switched this detector off, so its count is the
+   quietest thing on the screen rather than a state worth chasing. */
+.ruled .rdy-n.rdy-off, .ruled .rdy-n.rdy-off b { color: var(--tx-4); }

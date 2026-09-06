@@ -327,3 +327,68 @@ describe("StrandsPage write guard (BRAIN-F-12)", () => {
     }
   });
 });
+
+// WHY IS THIS LIST NOT GROWING (Dave 2026-09-06: "i dont see any trace of
+// jarvis learning anything. theres 1 fact in what jarvis knows about me").
+//
+// The readiness panel is only worth building if the screen actually reaches
+// it, which is the lesson this codebase has learned three times. These render
+// the real StrandsPage through the real provider and read the rows back.
+describe("What JARVIS Knows says why the list is not growing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    svc.list.mockResolvedValue([]);
+    try { localStorage.clear(); } catch { /* private mode */ }
+  });
+
+  it("names where the evidence came from, in plain words", async () => {
+    render(<StrandsPage onBack={() => {}} />);
+    await screen.findByText("The Evidence");
+    // No Supabase client in a test build, so the read falls back to this
+    // device's log, and the panel is required to say so rather than let a
+    // server that was never reached look like a quiet month.
+    expect(screen.getByText(/This device only/)).toBeInTheDocument();
+    expect(screen.getByText("The Last 30 Days")).toBeInTheDocument();
+  });
+
+  it("gives every detector a row, so none of them fails invisibly", async () => {
+    render(<StrandsPage onBack={() => {}} />);
+    await screen.findByText("What JARVIS Is Watching");
+    for (const label of [
+      "When Tasks Get Done", "The Area That Slips", "Whether Plans Finish",
+      "When You Train", "When Email Gets Done", "The Person You Email Most",
+      "Who Has Gone Quiet", "How Long Tasks Take",
+    ]) {
+      expect(screen.getByText(label), label + " lost its row").toBeInTheDocument();
+    }
+  });
+
+  it("says what each detector is still waiting for, never just nothing", async () => {
+    const { container } = render(<StrandsPage onBack={() => {}} />);
+    await screen.findByText("What JARVIS Is Watching");
+    const whys = [...container.querySelectorAll(".rdy-why")].map((e) => e.textContent ?? "");
+    expect(whys.length).toBeGreaterThanOrEqual(10); // 8 detectors plus the two evidence rows
+    expect(whys.every((w) => w.trim().length > 0)).toBe(true);
+    expect(whys.some((w) => w.includes("Needs 10 completions"))).toBe(true);
+  });
+
+  it("says the day's pass has recorded nothing, which is its own failure", async () => {
+    const { container } = render(<StrandsPage onBack={() => {}} />);
+    await screen.findByText("The Day's Pass");
+    expect(screen.getByText(/No day recorded yet/)).toBeInTheDocument();
+    // And it never fakes a zero for a pass that has not run.
+    const passRow = [...container.querySelectorAll(".rdy-row")]
+      .find((e) => e.textContent?.includes("The Day's Pass"));
+    expect(passRow?.querySelector(".rdy-n")).toBeNull();
+  });
+
+  it("a fact JARVIS already knows reads as known, not as a failure", async () => {
+    svc.list.mockResolvedValue([strand()]); // derivation: completion_window
+    const { container } = render(<StrandsPage onBack={() => {}} />);
+    await screen.findByText("When Tasks Get Done");
+    const row = [...container.querySelectorAll(".rdy-row")]
+      .find((e) => e.textContent?.includes("When Tasks Get Done"));
+    expect(row?.textContent).toContain("already knows");
+    expect(row?.querySelector(".rdy-n")?.className).toContain("rdy-good");
+  });
+});
