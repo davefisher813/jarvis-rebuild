@@ -254,6 +254,20 @@ describe("the Resume offer never repeats a row the stream already has", () => {
     expect(spotIsDuplicate(spot("t1", "gym"), { dealtTaskId: "t1" })).toBe(false);
   });
 
+  // UP-PLAT-26 (2026-09-06): the gym spot fires now (gym/GymFlow.tsx records
+  // one on every session start), and Today already has a live-session card
+  // for the same workout. Two Resume rows for one thing is what TODAY-F-17
+  // removed from the reminders strip; the bookmark stands, it is just not
+  // offered twice.
+  it("a gym spot stands down while the live session card is on screen", () => {
+    expect(spotIsDuplicate(spot("area1", "gym"), { liveGymShown: true })).toBe(true);
+  });
+
+  it("and stands on its own once that card is gone", () => {
+    expect(spotIsDuplicate(spot("area1", "gym"), { liveGymShown: false })).toBe(false);
+    expect(spotIsDuplicate(spot("area1", "gym"), {})).toBe(false);
+  });
+
   it("[edge] no spot at all is not a duplicate", () => {
     expect(spotIsDuplicate(null, { dealtTaskId: "t1" })).toBe(false);
     expect(spotIsDuplicate(undefined, { dealtTaskId: "t1" })).toBe(false);

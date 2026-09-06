@@ -57,6 +57,7 @@ import { repeatRows } from "./repeats";
 import { overlapsOn, overlapLine, copyDay, durationOf, type Overlap } from "./dayEdit";
 import { capAfterNumber } from "../shared/casing";
 import { useFreshLists } from "../data/useFreshLists";
+import { recordSpot } from "../restore/whereYouWere";
 import { ENTITY_EVENT } from "./types";
 import { ENTITY_TASK } from "../notes/types";
 import { moveEventToAnytime, undoMoveToAnytime, duplicateEvent as duplicateEventMove } from "./eventMoves";
@@ -539,6 +540,12 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     // sheet's own default of "" reads as "forever" and onSave below writes
     // that back, silently erasing a real end date on any unrelated edit.
     setSheet({ mode: "edit", id, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1 } });
+    // UP-PLAT-26 (2026-09-06): Where You Were declared four kinds and only
+    // two ever fired (restore/whereYouWere.ts:8-13). This is the third: an
+    // event sheet opened is a spot, the same way a note editor opened is one
+    // (notes/NotesFlow.tsx:333). The restore door already existed at the
+    // other end, so nothing else changes.
+    recordSpot({ kind: "event", id, label: e.title });
   };
 
   // When arriving via a note connection, jump to the event's own date and open

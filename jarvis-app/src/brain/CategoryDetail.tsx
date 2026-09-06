@@ -421,7 +421,7 @@ export default function CategoryDetail({
   // sat offering Start on a session already logged, open to a double entry.
   // BRAIN-F-07 (2026-09-05): the door is gymDoor, the block marked `gym`,
   // not "whatever this page had first on today's list".
-  if (gymOpen) return <GymFlow startDayId={gymStartDay ?? undefined} startDoorEventId={gymDoor?.id} onBack={() => { setGymOpen(false); setGymStartDay(null); void reload(); }} />;
+  if (gymOpen) return <GymFlow areaId={categoryId} startDayId={gymStartDay ?? undefined} startDoorEventId={gymDoor?.id} onBack={() => { setGymOpen(false); setGymStartDay(null); void reload(); }} />;
   // S5-Q29: the four grafted Health screens, unmodified from the dormant
   // module -- they were always presentational (props in, callbacks out),
   // never wired to a store of their own. onBack just closes the screen;

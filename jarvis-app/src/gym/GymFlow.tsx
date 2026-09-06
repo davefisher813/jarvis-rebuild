@@ -6,6 +6,7 @@ import { monthDay } from "../money/bills";
 import { agoPhraseLower } from "./summary";
 import { ENTITY_PROGRAM, ENTITY_WORKOUT, type DayBlock, type Exercise, type Program, type ProgramDay, type ProgramWeek, type Workout, type SetEntry, type WorkoutExercise, type MeasureKind } from "./types";
 import { useFreshLists } from "../data/useFreshLists";
+import { recordSpot } from "../restore/whereYouWere";
 import { targetLine, formatSet, isCompactPlan } from "./measures";
 import { applySuggestion, type Suggestion } from "./progression";
 import { receiptFor, lastSessionFor, type Receipt } from "./prs";
@@ -461,8 +462,14 @@ function BlockSheet({ title, blocks, minutes, onSave, onCancel }: {
 // The gym track: programs in the user's own words, weeks as the time axis,
 // the set strip as the same object in the plan and in the live session, the
 // in-gym loop, live PRs, and an honest receipt.
-export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: {
+export default function GymFlow({ onBack, door, startDayId, startDoorEventId, areaId }: {
   onBack: () => void;
+  /** UP-PLAT-26 (2026-09-06): the area this gym lives under, so starting a
+   *  session can record a Where You Were spot that actually leads back here.
+   *  The restore door (shell/AppShell.tsx) opens a Brain AREA and then the
+   *  gym inside it, so a spot with no area id could not be restored, and a
+   *  spot that cannot be restored is not recorded. */
+  areaId?: string;
   /** D4-C: this mount came through a calendar gym block. The session that
    *  starts here carries the event id so finishing can stamp the block done
    *  with the real minutes, and the block's own length pre-fills the fit
@@ -900,6 +907,13 @@ export default function GymFlow({ onBack, door, startDayId, startDoorEventId }: 
       ...(opts.doorEventId ? { doorEventId: opts.doorEventId } : {}),
     };
     writeLive(s);
+    // UP-PLAT-26 (2026-09-06): the "gym" WorkSpot kind was declared in
+    // restore/whereYouWere.ts:8-13 and nothing in src/gym ever wrote one, so
+    // two of the banner's four kinds never fired. The live-session card on
+    // Today covers the same session while it is still live; this covers the
+    // day after, when the session has gone stale and the only thing left is
+    // a bookmark back to the gym.
+    if (areaId) recordSpot({ kind: "gym", id: areaId, label: day.name });
     enterSession(s);
     if (opts.sameAsLastTime && !last) showToast({ message: "No prior session for this day yet · Starting fresh" });
   };

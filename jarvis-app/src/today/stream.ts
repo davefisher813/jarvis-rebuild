@@ -66,11 +66,19 @@ export interface Ranked {
 // to test directly.
 export function spotIsDuplicate(
   spot: { kind: string; id: string } | null | undefined,
-  shown: { dealtTaskId?: string | undefined; slideTaskId?: string | undefined },
+  shown: { dealtTaskId?: string | undefined; slideTaskId?: string | undefined; liveGymShown?: boolean },
 ): boolean {
-  // Only a task can collide today: nothing else in this stream is keyed by a
-  // note, event or gym id. A spot of another kind is always its own row.
-  if (!spot || spot.kind !== "task") return false;
+  if (!spot) return false;
+  // UP-PLAT-26 (2026-09-06): a gym spot collides with the live-session card,
+  // which is the same session said better (it names the day and the exercise
+  // he is on, and it is live rather than a bookmark). Two Resume rows for one
+  // workout is the exact shape TODAY-F-17 removed from the reminders strip.
+  // The bookmark still stands; it is simply not offered twice, and it is what
+  // is left tomorrow once the live session has gone stale.
+  if (spot.kind === "gym") return shown.liveGymShown === true;
+  // Otherwise only a task can collide: nothing else in this stream is keyed
+  // by a note or event id. A spot of another kind is always its own row.
+  if (spot.kind !== "task") return false;
   // An absent id is "nothing is shown", never "matches everything" -- the
   // trap this being a real function instead of an inline && exists to catch.
   return (

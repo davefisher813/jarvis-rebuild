@@ -2127,7 +2127,14 @@ export default function TodayFlow({
   // category-agnostic), so the tap target is whichever area the Brain
   // renders gym UI for -- any category CategoryDetail resolves to "health".
   const gymCatId = catsFull.find((c) => effectiveKind(c.data) === "health")?.id;
-  const spotAlreadyShown = spotIsDuplicate(spot, { dealtTaskId, slideTaskId });
+  // UP-PLAT-26 (2026-09-06): liveGymShown is the exact condition the
+  // live-session card below renders on, read once so the two can never
+  // disagree about whether that card is on screen. The tuning gate is part
+  // of that condition: a live-gym card tuned off is not on screen, and the
+  // Where You Were row is then the only offer to get back to the session,
+  // so it must stand rather than be suppressed as a duplicate of nothing.
+  const liveGymShown = !!(liveGym && gymCatId && !gymDismissed && tuned("live-gym"));
+  const spotAlreadyShown = spotIsDuplicate(spot, { dealtTaskId, slideTaskId, liveGymShown });
   const alertCards = [
     // The welcome-back recap is a RECEIPT: it reports, it does not ask.
     // One quiet line; tapping it opens the pile it describes.
@@ -2289,7 +2296,7 @@ export default function TodayFlow({
     // gap to clear, no hiding itself once he is "active" elsewhere. It is
     // just true or not true, read straight off the live session, and gone
     // on its own the moment the session ends or goes stale.
-    liveGym && gymCatId && !gymDismissed && tuned("live-gym") ? (
+    liveGymShown ? (
       <NoticeCard
         key="live-gym"
         {...tuneProps("live-gym", "Back to " + liveGym.dayName)}

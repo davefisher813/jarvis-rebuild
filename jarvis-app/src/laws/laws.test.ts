@@ -3310,7 +3310,9 @@ describe("LAW 12: a write survives the refresh racing it, and one thing never re
     const src = read(join(SRC, "today/TodayFlow.tsx"));
     expect(src, "the spot card is gated on it").toMatch(/spot && !spotAlreadyShown \?/);
     expect(src, "the rule is the shared pure one, not a second copy inline")
-      .toMatch(/spotIsDuplicate\(spot, \{ dealtTaskId, slideTaskId \}\)/);
+      // UP-PLAT-26 (2026-09-06): and liveGymShown, so a gym spot is not
+      // offered beside the live-session card that says the same thing better.
+      .toMatch(/spotIsDuplicate\(spot, \{ dealtTaskId, slideTaskId, liveGymShown \}\)/);
     // The dealt row is evening-gated in TodayPage; in the evening there is no
     // dealt row, so the Resume offer is the only mention and must survive.
     expect(src, "the evening gate is mirrored, not ignored")
