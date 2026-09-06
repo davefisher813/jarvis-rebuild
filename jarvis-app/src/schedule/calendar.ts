@@ -85,7 +85,17 @@ export function occursOn(e: EventData, date: string): boolean {
   const base = new Date(e.date + "T00:00:00");
   const day = new Date(date + "T00:00:00");
   if (rec === "daily") return true;
-  if (rec === "weekly") return base.getDay() === day.getDay();
+  if (rec === "weekly") {
+    // UP-CORE-11 (2026-09-05): a weekly series can name its own weekdays and
+    // can run every other week. Absent `days` means the anchor's weekday,
+    // which is what weekly has always meant, so nothing already on the
+    // calendar moves. This is the ONE place weekly is decided, so the week
+    // view, the Repeats list, the plan dedupe and every day list follow.
+    const days = weekdaysOf(e);
+    if (!days.includes(day.getDay())) return false;
+    if (e.interval === 2 && weeksBetween(base, day) % 2 !== 0) return false;
+    return true;
+  }
   // B2-5 (2026-09-04): an unclamped day-of-month check meant a series
   // anchored on the 29th, 30th or 31st simply had no matching day at all in
   // a shorter month, and the Repeats list still showed it as standing. Rent
@@ -99,6 +109,24 @@ export function occursOn(e: EventData, date: string): boolean {
   return false;
 }
 
+
+// The weekdays a weekly series lands on: the ones it names, or the anchor's
+// own. A corrupt list (out of range, empty) falls back to the anchor rather
+// than making the event vanish or appear on days nobody chose.
+export function weekdaysOf(e: Pick<EventData, "date" | "days">): number[] {
+  const anchor = new Date(e.date + "T00:00:00").getDay();
+  const clean = (e.days ?? []).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+  return clean.length ? [...new Set(clean)] : [anchor];
+}
+
+// Whole weeks between two dates, counted from each one's Sunday, so "every
+// other week" means alternate CALENDAR weeks rather than every fourteenth
+// day from the anchor. Local noon on both sides keeps a DST change from
+// rounding a week away.
+function weeksBetween(a: Date, b: Date): number {
+  const sunday = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay(), 12).getTime();
+  return Math.round((sunday(b) - sunday(a)) / (7 * 86400000));
+}
 
 // SCHED-F-03 (2026-09-05): the first day on or after `from` that this event
 // actually lands on. A series edited from a list with no day behind it (the

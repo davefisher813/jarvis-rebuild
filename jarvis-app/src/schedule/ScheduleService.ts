@@ -7,6 +7,12 @@ import { recordPicks } from "../events/planOutcome";
 import { madeBy } from "../shared/provenance";
 import { isTravel } from "./leaveBy";
 
+// 0=Sun..6=Sat, de-duped and ordered. Anything else is dropped rather than
+// clamped: a weekday nobody chose is worse than no weekday at all.
+function cleanDays(days: number[] | undefined): number[] {
+  return [...new Set((days ?? []).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort((a, b) => a - b);
+}
+
 // The Schedule feature, backed by the engine Store. Each event is a Store item
 // of entity type "event". onEvent feeds the gaming event bus (no-op in tests).
 export class ScheduleService {
@@ -28,7 +34,7 @@ export class ScheduleService {
 
   async createEvent(
     title: string,
-    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number; url?: string; notes?: string; attendees?: { email: string; name?: string }[] },
+    opts: { date: string; start: string; category?: string; end?: string; location?: string; recurrence?: EventRecurrence; until?: string; gcalId?: string; gcalHash?: string; sourceTaskId?: string; sitting?: number; taskIds?: string[]; source?: import("../shared/provenance").Source; gym?: boolean; travelMin?: number; bufferMin?: number; url?: string; notes?: string; attendees?: { email: string; name?: string }[]; days?: number[]; interval?: 1 | 2 },
   ): Promise<string | null> {
     if (!title || !title.trim() || !opts.date || !opts.start) return null;
     const data: EventData = {
@@ -62,6 +68,10 @@ export class ScheduleService {
     if (opts.gym) data.gym = true;
     // UP-CORE-07 (2026-09-05): travel and slack only mean something next to a
     // place, so they are stored only when there is one.
+    // UP-CORE-11 (2026-09-05): weekday sets and the every-other-week cadence
+    // only mean something on a weekly series, so they are stored only there.
+    if (data.recurrence === "weekly" && opts.days?.length) data.days = cleanDays(opts.days);
+    if (data.recurrence === "weekly" && opts.interval === 2) data.interval = 2;
     if (opts.url?.trim()) data.url = opts.url.trim();
     if (opts.notes?.trim()) data.notes = opts.notes.trim();
     if (opts.attendees?.length) data.attendees = opts.attendees;
@@ -113,9 +123,28 @@ export class ScheduleService {
   editRecurrence(id: string, recurrence: EventRecurrence): Promise<boolean> {
     // Clearing the repeat clears its end date too: an end on a one-off is a
     // dangling fact that would come back the moment it repeated again.
+    // UP-CORE-11 (2026-09-05): and the weekday set goes with anything that is
+    // not weekly, for the same reason: "Mon and Wed" on a monthly series is a
+    // fact about a cadence that no longer exists.
     return this.patch(id, recurrence === "none"
-      ? { recurrence: undefined, until: undefined }
-      : { recurrence });
+      ? { recurrence: undefined, until: undefined, days: undefined, interval: undefined }
+      : recurrence === "weekly"
+        ? { recurrence }
+        : { recurrence, days: undefined, interval: undefined });
+  }
+
+  // UP-CORE-11: which weekdays a weekly series lands on, and whether it runs
+  // every week or every other. An empty list clears back to the anchor's own
+  // weekday, which is what weekly meant before this existed.
+  async editWeekdays(id: string, days: number[], interval: 1 | 2 = 1): Promise<boolean> {
+    const e = await this.get(id);
+    if (!e) return false;
+    if (e.recurrence !== "weekly") return false;
+    const clean = cleanDays(days);
+    return this.patch(id, {
+      days: clean.length ? clean : undefined,
+      interval: interval === 2 ? 2 : undefined,
+    });
   }
   // N3: set or clear the series end. Empty clears it back to forever, and an
   // end before the start is refused rather than stored as a lie.

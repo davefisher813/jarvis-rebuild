@@ -31,6 +31,16 @@ export interface EventData {
   // had to be deleted by hand. Stored as YYYY-MM-DD on the event itself, so
   // no migration and no second entity.
   until?: string;
+  // UP-CORE-11 (2026-09-05): WEEKLY ON CHOSEN DAYS, AND EVERY OTHER WEEK.
+  // Bio Monday and Wednesday, practice Tuesday and Thursday, lifting every
+  // other Saturday: none of those could be said, so they were entered as
+  // four separate events or as one that lied. `days` is 0=Sun..6=Sat and
+  // only means anything on a weekly series; absent means the anchor's own
+  // weekday, which is exactly what weekly did before this and is why no
+  // existing event changes. `interval` of 2 is every other week, counted
+  // from the anchor's week.
+  days?: number[];
+  interval?: 1 | 2;
   exdates?: string[]; // occurrence dates removed/overridden from the series
   gcalId?: string; // Google Calendar event id, when imported (dedupe key)
   // PLUMB-F-07 (2026-09-05): WHAT GOOGLE LAST SAID, on the day this event was

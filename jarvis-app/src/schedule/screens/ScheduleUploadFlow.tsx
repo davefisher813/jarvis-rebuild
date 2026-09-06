@@ -29,7 +29,11 @@ interface Row extends ScheduleRow {
 
 function toRows(extracted: ExtractedEvent[], fallbackYear: number, existing: EventItem[], defaultCategory: string): Row[] {
   return buildScheduleRows(extracted, fallbackYear, existing.map((e) => ({ id: e.id, title: e.data.title, date: e.data.date })))
-    .map((r) => ({ ...r, category: defaultCategory, recurrence: "none" as EventRecurrence, skip: false }));
+    // UP-CORE-11 (2026-09-05): a row the source showed as a weekly grid
+    // arrives with its repeat already on, so a printed timetable imports as
+    // repeating classes rather than one week of dated events. It is a chip,
+    // so the read is visible and one tap from wrong to right.
+    .map((r) => ({ ...r, category: defaultCategory, recurrence: (r.repeats ? "weekly" : "none") as EventRecurrence, skip: false }));
 }
 
 // Upload a schedule (photo or pasted text). The model extracts what it can
@@ -105,10 +109,13 @@ export default function ScheduleUploadFlow({
   };
 
   const toggleSkip = (i: number) => setRows((cur) => cur && cur.map((r, ri) => (ri === i ? { ...r, skip: !r.skip } : r)));
+  // UP-CORE-11: weekly or once, per row.
+  const toggleRepeat = (i: number) => setRows((cur) => cur && cur.map((r, ri) => (
+    ri === i ? { ...r, recurrence: (r.recurrence === "weekly" ? "none" : "weekly") as EventRecurrence, repeats: r.recurrence !== "weekly" } : r)));
 
   const applyFix = (i: number, draft: EventDraft) => {
     setRows((cur) => cur && cur.map((r, ri) => (ri === i
-      ? { ...r, title: draft.title, date: draft.date, start: draft.start, end: draft.end, location: draft.location, category: draft.category, recurrence: draft.recurrence, noTime: false }
+      ? { ...r, title: draft.title, date: draft.date, start: draft.start, end: draft.end, location: draft.location, category: draft.category, recurrence: draft.recurrence, days: draft.days ?? r.days, repeats: draft.recurrence === "weekly", noTime: false }
       : r)));
     setFixIdx(null);
   };
@@ -142,12 +149,15 @@ export default function ScheduleUploadFlow({
           await svc.editTime(r.matchId, r.start);
           await svc.editEnd(r.matchId, r.end);
           await svc.editRecurrence(r.matchId, r.recurrence);
+          if (r.recurrence === "weekly") await svc.editWeekdays(r.matchId, r.days);
           await svc.editLocation(r.matchId, r.location);
           await svc.editCategory(r.matchId, r.category);
         } else {
           const id = await svc.createEvent(r.title, {
             date: r.date, start: r.start, end: r.end || undefined,
             category: r.category || undefined, location: r.location || undefined, recurrence: r.recurrence,
+            // UP-CORE-11: the weekdays the grid showed, on a weekly row.
+            days: r.recurrence === "weekly" ? r.days : undefined,
           });
           if (id) created.push(id);
         }
@@ -244,6 +254,15 @@ export default function ScheduleUploadFlow({
                     {r.matchId ? " · Updates existing" : ""}
                   </div>
                 </div>
+                {/* UP-CORE-11: the repeat, said out loud and flippable here.
+                    "Repeats weekly" beside a row is the difference between a
+                    semester of classes and one week of them. */}
+                <button
+                  type="button"
+                  className={"note-fix" + (r.recurrence === "weekly" ? " on" : "")}
+                  aria-pressed={r.recurrence === "weekly"}
+                  onClick={() => toggleRepeat(i)}
+                >{r.recurrence === "weekly" ? "Repeats" : "Once"}</button>
                 {CHEV}
                 <button type="button" className="note-fix" onClick={() => toggleSkip(i)}>{r.skip ? "Skipped" : "Skip"}</button>
               </div>
@@ -268,6 +287,7 @@ export default function ScheduleUploadFlow({
             initial={{
               title: rows[fixIdx]!.title, date: rows[fixIdx]!.date, start: rows[fixIdx]!.start, end: rows[fixIdx]!.end,
               category: rows[fixIdx]!.category, location: rows[fixIdx]!.location, recurrence: rows[fixIdx]!.recurrence,
+              days: rows[fixIdx]!.days,
             }}
             categories={categories}
             onSave={(draft) => applyFix(fixIdx, draft)}

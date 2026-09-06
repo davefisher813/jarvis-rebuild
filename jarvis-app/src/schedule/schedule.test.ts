@@ -422,3 +422,57 @@ dw("SCHED-F-09: a restored event is the whole event", () => {
     ew(back.taskIds).toEqual(["t1"]);
   });
 });
+
+// UP-CORE-11 (2026-09-05): a timetable is Bio on Monday and Wednesday,
+// practice on Tuesday and Thursday, lifting every other Saturday. None of
+// that could be said, so it was entered as four events or as one that lied.
+describe("weekly on chosen days, and every other week", () => {
+  // 2026-05-20 is a Wednesday.
+  const mk = (over: Partial<import("./types").EventData> = {}) =>
+    ({ title: "Bio", date: "2026-05-20", start: "09:00", category: "", recurrence: "weekly" as const, ...over });
+
+  it("lands on every weekday it names, and on none it does not", () => {
+    const bio = mk({ days: [1, 3] }); // Monday and Wednesday
+    expect(occursOn(bio, "2026-05-20")).toBe(true);  // the anchor Wednesday
+    expect(occursOn(bio, "2026-05-25")).toBe(true);  // Monday
+    expect(occursOn(bio, "2026-05-27")).toBe(true);  // Wednesday
+    expect(occursOn(bio, "2026-05-26")).toBe(false); // Tuesday
+  });
+
+  it("without days it is exactly what weekly always meant", () => {
+    const old = mk();
+    expect(occursOn(old, "2026-05-27")).toBe(true);
+    expect(occursOn(old, "2026-05-26")).toBe(false);
+  });
+
+  it("every 2 weeks skips the week between, counted in calendar weeks", () => {
+    const lift = mk({ title: "Lift", date: "2026-05-23", days: [6], interval: 2 }); // a Saturday
+    expect(occursOn(lift, "2026-05-23")).toBe(true);
+    expect(occursOn(lift, "2026-05-30")).toBe(false);
+    expect(occursOn(lift, "2026-06-06")).toBe(true);
+  });
+
+  it("a semester ends: until still stops the series", () => {
+    const bio = mk({ days: [1, 3], until: "2026-05-25" });
+    expect(occursOn(bio, "2026-05-25")).toBe(true);
+    expect(occursOn(bio, "2026-05-27")).toBe(false);
+  });
+
+  it("a skipped occurrence is still skipped", () => {
+    const bio = mk({ days: [1, 3], exdates: ["2026-05-25"] });
+    expect(occursOn(bio, "2026-05-25")).toBe(false);
+  });
+
+  it("the service stores the set only on a weekly series, and drops it otherwise", async () => {
+    const svc2 = new ScheduleService(new Store(new InMemoryAdapter()), "u-days");
+    const id = (await svc2.createEvent("Bio", { date: "2026-05-20", start: "09:00", recurrence: "weekly", days: [1, 3], interval: 2 }))!;
+    expect((await svc2.event(id))?.days).toEqual([1, 3]);
+    expect((await svc2.event(id))?.interval).toBe(2);
+    // Not weekly any more: a weekday set is a fact about a cadence that no
+    // longer exists.
+    await svc2.editRecurrence(id, "monthly");
+    expect((await svc2.event(id))?.days ?? null).toBeNull();
+    const once = (await svc2.createEvent("Game", { date: "2026-05-20", start: "09:00", days: [1, 3] }))!;
+    expect((await svc2.event(once))?.days ?? null).toBeNull();
+  });
+});

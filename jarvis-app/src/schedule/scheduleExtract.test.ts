@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { parseScheduleExtract, toISODate, buildScheduleRows, normTitle, type ExtractedEvent, type ExistingEvent } from "./scheduleExtract";
 
 const ex = (over: Partial<ExtractedEvent> = {}): ExtractedEvent =>
-  ({ id: "x1", title: "vs Eagles", month: 8, day: 15, year: 2026, start: "14:00", end: null, location: "", ...over });
+  ({ id: "x1", title: "vs Eagles", month: 8, day: 15, year: 2026, start: "14:00", end: null, location: "", recurring: false, weekdays: null, ...over });
 
 const GOOD = JSON.stringify({
   events: [
@@ -143,5 +143,40 @@ describe("normTitle", () => {
   it("collapses case and whitespace so matching is forgiving but not blind", () => {
     expect(normTitle("  VS   Eagles  ")).toBe(normTitle("vs eagles"));
     expect(normTitle("vs Eagles")).not.toBe(normTitle("vs Hawks"));
+  });
+});
+
+// UP-CORE-11 (2026-09-05): a printed timetable is a weekly grid, and reading
+// it as one week of dated events is what made "Bio Mon/Wed" fourteen rows a
+// semester.
+describe("the weekly grid the extractor can now see", () => {
+  it("carries the repeat and its weekdays into the review rows", () => {
+    const rows = buildScheduleRows(
+      [ex({ title: "Bio", month: 5, day: 20, recurring: true, weekdays: [1, 3] })],
+      2026,
+      [],
+    );
+    expect(rows[0]).toMatchObject({ repeats: true, days: [1, 3] });
+  });
+
+  it("a one-off keeps its own day and does not repeat", () => {
+    const rows = buildScheduleRows([ex({ month: 5, day: 20 })], 2026, []);
+    // 2026-05-20 is a Wednesday.
+    expect(rows[0]).toMatchObject({ repeats: false, days: [3] });
+  });
+
+  it("a weekday list alone is never a repeat: the model has to say so", () => {
+    const parsed = parseScheduleExtract(JSON.stringify({
+      events: [{ title: "Bio", month: 5, day: 20, year: 2026, start: "09:00", weekdays: [1, 3] }],
+    }))!;
+    expect(parsed[0]!.recurring).toBe(false);
+    expect(parsed[0]!.weekdays).toEqual([1, 3]);
+  });
+
+  it("drops weekday numbers that are not weekdays", () => {
+    const parsed = parseScheduleExtract(JSON.stringify({
+      events: [{ title: "Bio", month: 5, day: 20, year: 2026, start: "09:00", recurring: true, weekdays: [1, 9, "x", 3, 3] }],
+    }))!;
+    expect(parsed[0]!.weekdays).toEqual([1, 3]);
   });
 });

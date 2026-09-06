@@ -13,12 +13,19 @@
 export const SCHEDULE_EXTRACT_PROMPT = [
   "Extract every scheduled event (games, practices, meetings, appointments) from this content.",
   "Reply with ONLY a JSON object, no prose, no code fences, in exactly this shape:",
-  '{"events":[{"title":"...","month":8,"day":15,"year":2026,"start":"14:00","end":"15:30","location":"..."}]}',
+  '{"events":[{"title":"...","month":8,"day":15,"year":2026,"start":"14:00","end":"15:30","location":"...","recurring":false,"weekdays":[1,3]}]}',
   "month is 1-12, day is 1-31.",
   "Use the source's own words for the title (e.g. \"vs Eagles\", \"Practice\"). Do not invent events that are not in the content.",
   "If a year is not written anywhere in the content, set year to null. Do not guess a year.",
   "If a start time is not written for an event, set start to null. Do not guess a time.",
   "end and location are optional: use null when not given. Times are 24-hour \"HH:MM\".",
+  // UP-CORE-11 (2026-09-05): a printed timetable is a WEEKLY GRID, and
+  // reading it as one week of dated events is what made "Bio Mon/Wed"
+  // fourteen separate rows a semester. The model reports the shape it sees;
+  // the review screen shows it and the person confirms it.
+  "A weekly timetable (a class or practice grid with weekday columns) is RECURRING: set recurring to true and weekdays to the days it runs, 0=Sunday..6=Saturday.",
+  "A dated one-off (a game on a date, an appointment) has recurring false and weekdays null. When in doubt, use false: a wrong repeat fills a calendar with events that never happen.",
+  "For a recurring row, month and day are the FIRST date it runs (the week the schedule starts).",
 ].join("\n");
 
 export interface ExtractedEvent {
@@ -30,6 +37,9 @@ export interface ExtractedEvent {
   start: string | null; // "HH:MM" or null when not stated
   end: string | null;
   location: string;
+  // UP-CORE-11: the weekly-grid shape, when the source is one.
+  recurring: boolean;
+  weekdays: number[] | null;
 }
 
 // Same deterministic id shape as the gym program parser: a running counter
@@ -56,6 +66,14 @@ function cleanTitle(x: unknown): string | null {
 
 function cleanTime(x: unknown): string | null {
   return typeof x === "string" && TIME_RE.test(x) ? x : null;
+}
+
+// 0=Sun..6=Sat, de-duped and ordered. Null when the model gave nothing
+// usable, which means "the day this row's own date falls on".
+function cleanWeekdays(x: unknown): number[] | null {
+  if (!Array.isArray(x)) return null;
+  const out = [...new Set(x.map((v) => intInRange(v, 0, 6)).filter((v): v is number => v !== null))].sort((a, b) => a - b);
+  return out.length ? out : null;
 }
 
 function intInRange(x: unknown, lo: number, hi: number): number | null {
@@ -96,7 +114,12 @@ export function parseScheduleExtract(raw: string): ExtractedEvent[] | null {
     const evStart = cleanTime(e.start);
     const evEnd = cleanTime(e.end);
     const location = typeof e.location === "string" ? e.location.trim().slice(0, MAX_LOCATION) : "";
-    out.push({ id: nid(), title, month, day, year, start: evStart, end: evEnd, location });
+    const weekdays = cleanWeekdays((e as { weekdays?: unknown }).weekdays);
+    // A repeat is claimed only when the model says so outright. A weekday
+    // list on its own is not a repeat: the source may simply have named the
+    // day a one-off falls on.
+    const recurring = (e as { recurring?: unknown }).recurring === true;
+    out.push({ id: nid(), title, month, day, year, start: evStart, end: evEnd, location, recurring, weekdays });
   }
   return out.length ? out : null;
 }
@@ -132,6 +155,12 @@ export interface ScheduleRow {
   location: string;
   noTime: boolean;  // the source did not state a time; flagged, not hidden
   matchId: string | null; // existing event this will UPDATE instead of duplicating
+  // UP-CORE-11 (2026-09-05): the review's own answer to "is this a weekly
+  // class or a one-off". Defaulted from what the source looked like and
+  // changed by a chip, so a printed timetable imports as repeating classes
+  // rather than one week of dated events.
+  repeats: boolean;
+  days: number[];
 }
 
 export const normTitle = (s: string): string => s.trim().toLowerCase().replace(/\s+/g, " ");
@@ -158,6 +187,9 @@ export function buildScheduleRows(extracted: ExtractedEvent[], fallbackYear: num
       location: ex.location,
       noTime: !ex.start,
       matchId: match?.id ?? null,
+      repeats: ex.recurring,
+      // The days it runs, or the one its own date falls on.
+      days: ex.weekdays ?? [new Date(date + "T00:00:00").getDay()],
     });
   }
   return rows;

@@ -538,7 +538,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     // B1-2 (2026-09-04): "until" has to travel into the sheet too, or the
     // sheet's own default of "" reads as "forever" and onSave below writes
     // that back, silently erasing a real end date on any unrelated edit.
-    setSheet({ mode: "edit", id, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [] } });
+    setSheet({ mode: "edit", id, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1 } });
   };
 
   // When arriving via a note connection, jump to the event's own date and open
@@ -555,7 +555,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
       const occurrence = repeating ? nextOccurrence(e, todayISO()) ?? e.date : e.date;
       setSelected(occurrence);
       syncView(occurrence);
-      setSheet({ mode: "edit", id: openId, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [] } });
+      setSheet({ mode: "edit", id: openId, occurrence, source: rowSource(e.source, e.moved), initial: { title: e.title, date: occurrence, start: e.start, end: e.end ?? "", category: e.category ?? "", location: e.location ?? "", recurrence: e.recurrence ?? "none", until: e.until ?? "", taskIds: e.taskIds ?? [], gym: !!e.gym, travelMin: e.travelMin ?? null, bufferMin: e.bufferMin ?? null, url: e.url ?? "", notes: e.notes ?? "", attendees: e.attendees ?? [], days: e.days ?? [], interval: e.interval ?? 1 } });
     })();
     return () => { on = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -582,7 +582,7 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
     let newEventDate: string | null = null;
     if (sheet?.mode === "new") {
       const created = await attemptWrite(async () => {
-        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, until: draft.until || undefined, taskIds: draft.taskIds, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes });
+        newEventId = await svc.createEvent(draft.title, { date: draft.date, start: draft.start, end: draft.end || undefined, category: draft.category || undefined, location: draft.location || undefined, recurrence: draft.recurrence, until: draft.until || undefined, days: draft.days, interval: draft.interval, taskIds: draft.taskIds, travelMin: draft.travelMin ?? undefined, bufferMin: draft.bufferMin ?? undefined, url: draft.url, notes: draft.notes });
         if (newEventId && draft.gym) await svc.editGymDoor(newEventId, true);
       });
       if (!created) newEventId = null;
@@ -617,6 +617,9 @@ export default function ScheduleFlow({ onEditRoutine, openId, onNavigate }: { on
           await svc.editTime(id, draft.start);
           await svc.editEnd(id, draft.end);
           await svc.editRecurrence(id, draft.recurrence);
+          // UP-CORE-11: after the recurrence, because editRecurrence clears
+          // the weekday set for anything that is not weekly.
+          if (draft.recurrence === "weekly") await svc.editWeekdays(id, draft.days ?? [], draft.interval ?? 1);
           await svc.editUntil(id, draft.until || null);
           await svc.editCategory(id, draft.category);
           await svc.editLocation(id, draft.location);

@@ -33,6 +33,10 @@ const toMin = (hhmm: string): number => {
 // control never quietly does two things.
 const NUDGES: [number, string][] = [[-30, "-30m"], [-15, "-15m"], [15, "+15m"], [30, "+30m"]];
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// UP-CORE-11: the weekday chips. One letter each is the phone convention and
+// the only thing that fits seven across; the aria-label carries the real name.
+const DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
+const DOW_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const dateWord = (iso: string) => { const d = new Date(iso + "T00:00:00"); return `${MONTHS[d.getMonth()]} ${d.getDate()}`; };
 export interface EventDraft {
   title: string;
@@ -46,6 +50,10 @@ export interface EventDraft {
   // what every repeat used to be.
   until?: string;
   taskIds?: string[]; // attached tasks (Session 4 connections)
+  // UP-CORE-11: the weekdays a weekly series runs on (0=Sun..6=Sat), and
+  // every-other-week. Absent days means the event's own weekday.
+  days?: number[];
+  interval?: 1 | 2;
   // UP-CORE-10: Google's guest list, shown but never written here.
   attendees?: { email: string; name?: string }[];
   // LEAVE BY (UP-CORE-07, 2026-09-05): minutes to get there, and the slack
@@ -152,6 +160,10 @@ export default function EventSheet({
   const [forgetTravel, setForgetTravel] = useState(false);
   const [travelCustom, setTravelCustom] = useState(false);
   // UP-CORE-10: the video link and the agenda.
+  // UP-CORE-11 (2026-09-05): the weekdays a weekly series runs on, and
+  // whether it runs every week or every other.
+  const [days, setDays] = useState<number[]>(initial?.days ?? []);
+  const [interval, setInterval] = useState<1 | 2>(initial?.interval === 2 ? 2 : 1);
   const [url, setUrl] = useState(initial?.url ?? "");
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [until, setUntil] = useState(initial?.until ?? "");
@@ -194,6 +206,9 @@ export default function EventSheet({
       // behind it, and the service refuses it anyway. Absent rather than
       // null when unset, so a draft for an event with no travel time is the
       // same object it has always been.
+      // Weekday sets and the cadence belong to a weekly series alone.
+      ...(recurrence === "weekly" && days.length ? { days } : {}),
+      ...(recurrence === "weekly" && interval === 2 ? { interval: 2 as const } : {}),
       ...(url.trim() ? { url: url.trim() } : {}),
       ...(notes.trim() ? { notes: notes.trim() } : {}),
       ...(place && travelMin !== null ? { travelMin } : {}),
@@ -227,6 +242,10 @@ export default function EventSheet({
 
   const slot = (c: SheetCategory): ColorSlot => c.color;
   const reps: [EventRecurrence, string][] = [["none", "None"], ["daily", "Daily"], ["weekly", "Weekly"], ["monthly", "Monthly"]];
+  // Nothing picked shows the event's own weekday lit, because that is the
+  // day it will run on: the chips state the truth rather than looking empty.
+  const anchorDay = date ? new Date(date + "T00:00:00").getDay() : new Date().getDay();
+  const pickedDays = days.length ? days : [anchorDay];
 
   // Memory: only offer on a new event, and stop once a suggestion was applied
   // or the title exactly matches (nothing left to fill).
@@ -385,6 +404,42 @@ export default function EventSheet({
               <HeadMenu variant="value" ariaLabel="Repeat" value={recurrence} off={recurrence === "none"}
                 options={reps.map(([val, label]) => ({ value: val, label }))} onPick={(v) => setRecurrence(v as EventRecurrence)} />
             </div>
+            {/* UP-CORE-11 (2026-09-05) · WHICH DAYS. Bio Monday and Wednesday,
+                practice Tuesday and Thursday: none of that could be said, so
+                a timetable was entered as four separate events or as one
+                that lied. One event, the days it actually runs. Picking
+                none means the day the event itself is on, which is what
+                weekly has always meant. */}
+            {recurrence === "weekly" && (
+              <div className="row xs-row">
+                <Tile tone="green"><Calendar className="ic" /></Tile>
+                <div className="row-grow">
+                  <div className="conn-name">On</div>
+                  <div className="chip-row chip-wrap-row">
+                    {DOW_LABELS.map((label, n) => (
+                      <div
+                        key={n}
+                        className={"chip" + (pickedDays.includes(n) ? " active" : "")}
+                        role="checkbox"
+                        aria-checked={pickedDays.includes(n)}
+                        aria-label={DOW_FULL[n]}
+                        tabIndex={0}
+                        onClick={() => setDays((cur) => (cur.includes(n) ? cur.filter((d) => d !== n) : [...cur, n].sort((a, b) => a - b)))}
+                      >{label}</div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            {recurrence === "weekly" && (
+              <div className="row xs-row">
+                <Tile tone="orange"><RepeatGlyph /></Tile>
+                <div className="conn-name">Every</div>
+                <HeadMenu variant="value" ariaLabel="Every" value={String(interval)} off={interval === 1}
+                  options={[{ value: "1", label: "Week" }, { value: "2", label: "2 Weeks" }]}
+                  onPick={(v) => setInterval(v === "2" ? 2 : 1)} />
+              </div>
+            )}
             {/* N3 (2026-08-21): a repeat can END. Until now every repeating
                 event ran forever, so "fall clinics through November" could
                 not be said. */}

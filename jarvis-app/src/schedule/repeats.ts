@@ -1,5 +1,5 @@
 import type { EventItem, EventData, EventRecurrence } from "./types";
-import { occursOn } from "./calendar";
+import { occursOn, weekdaysOf } from "./calendar";
 
 // THE REPEATS VIEW AND ITS PLAIN ENGLISH (W1/W2/N3, wave 4).
 //
@@ -34,7 +34,20 @@ export function cadenceOf(e: EventData): string {
   if (!rec || rec === "none") return "";
   if (rec === "daily") return "Every day";
   const d = new Date(e.date + "T12:00:00");
-  if (rec === "weekly") return "Every " + DAYS[d.getDay()];
+  if (rec === "weekly") {
+    // UP-CORE-11 (2026-09-05): a weekly series can name several weekdays and
+    // can run every other week, so the plain-English line has to be able to
+    // say both. One day on every week is still "Every Tuesday", exactly as
+    // it read before.
+    const days = weekdaysOf(e);
+    const every2 = e.interval === 2;
+    const names = days.map((n) => DAYS[n]!);
+    const list = names.length === 1 ? names[0]!
+      : names.length === 2 ? names.join(" and ")
+      : names.slice(0, -1).join(", ") + " and " + names[names.length - 1];
+    if (every2) return "Every 2 weeks on " + list;
+    return names.length === 1 ? "Every " + list : list + " every week";
+  }
   return "Monthly on the " + ordinal(d.getDate());
 }
 

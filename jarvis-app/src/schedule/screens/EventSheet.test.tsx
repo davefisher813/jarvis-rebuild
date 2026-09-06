@@ -264,3 +264,23 @@ describe("EventSheet: the meeting itself", () => {
     expect(onAddPerson).toHaveBeenCalledWith({ email: "nadia@example.com" });
   });
 });
+
+// UP-CORE-11 (2026-09-05): one event for Bio on Monday and Wednesday.
+describe("EventSheet: weekly on chosen days", () => {
+  it("shows the day chips only on a weekly repeat, and saves the set", () => {
+    const onSave = vi.fn();
+    render(<EventSheet mode="new" initial={{ date: "2026-05-20", start: "09:00" }} categories={CATS} onSave={onSave} onCancel={() => {}} />);
+    expect(screen.queryByLabelText("Monday")).toBeNull();
+    fireEvent.click(screen.getByLabelText("Repeat"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Weekly" }));
+    // 2026-05-20 is a Wednesday, and the anchor day reads as lit because it
+    // is the day the event will run on.
+    expect(screen.getByLabelText("Wednesday")).toHaveClass("active");
+    fireEvent.click(screen.getByLabelText("Monday"));
+    fireEvent.click(screen.getByLabelText("Every"));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "2 Weeks" }));
+    fireEvent.change(screen.getByPlaceholderText(/happening/), { target: { value: "Bio" } });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onSave.mock.calls[0]![0]).toMatchObject({ recurrence: "weekly", days: [1], interval: 2 });
+  });
+});
