@@ -2668,10 +2668,14 @@ export default function TodayFlow({
       // survives leaving this tab, unlike this screen itself. The nudge
       // count and chase-clear that used to happen right here now happen in
       // TodayOutboxPump, once the send actually goes through.
-      const account = loadMailSnapshot().threads.find((x) => x.id === n.threadId)?.account;
+      const snapThread = loadMailSnapshot().threads.find((x) => x.id === n.threadId);
       return enqueueTodaySend({
-        to, subject: reply.subject, body, inReplyTo: reply.inReplyTo, threadId: full.id, account,
+        to, subject: reply.subject, body, inReplyTo: reply.inReplyTo, threadId: full.id, account: snapThread?.account,
         todayKind: n.kind === "nudge" || n.kind === "chase" ? n.kind : "reply",
+        // UP-MIND-16 (2026-09-05): who it is with, so the handled row the
+        // pump emits remembers the person. Already resolved on the snapshot
+        // (UP-MIND-10); the pump runs with no component above it.
+        ...(snapThread?.personId ? { personId: snapThread.personId } : {}),
       });
     } catch {
       return null;

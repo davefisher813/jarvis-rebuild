@@ -1710,6 +1710,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       // "was this a nudge" is decided by the thread being on Waiting On at
       // the moment he sent, not twelve seconds later.
       nudge: !!draft.threadId && waiting.some((w) => w.threadId === draft.threadId),
+      // UP-MIND-16 (2026-09-05): who it is going to, when they are in
+      // Contacts. Resolved here because the pump runs with no component
+      // above it and cannot look one up. The first address only: a send to
+      // five people is not a fact about any one of them.
+      ...(personIdFor(draft.to.split(",")[0]?.trim()) ? { personId: personIdFor(draft.to.split(",")[0]?.trim())! } : {}),
     };
     enqueueOutbox(item);
     setView("list");
@@ -1729,6 +1734,7 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
       threadId: input.threadId,
       fromDeck: true,
       deckVerbatim: true,
+      ...(personIdFor(input.to) ? { personId: personIdFor(input.to)! } : {}),
       trackId: newTrackId(),
       dueMs: holdUntil(Date.now()),
       scheduled: false,

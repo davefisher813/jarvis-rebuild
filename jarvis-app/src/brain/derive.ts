@@ -23,6 +23,27 @@ export interface Derived {
   sub: string;
   strandText: string;
   evidence: StrandEvidence[];
+  // UP-MIND-16 (2026-09-05): a write the accept performs BESIDES the strand.
+  // Contacts is the one place where the fact and the record are different
+  // things: "you deal with Marco constantly" is a strand, and the label on
+  // his card is a field. One tap should do both, and neither happens
+  // without it.
+  apply?: { kind: "person_label"; personId: string; label: string };
+}
+
+// UP-MIND-16: who the people derivations are allowed to talk about. Names
+// come from Contacts because the log carries ids and nothing else; a
+// derivation with no name has nothing showable to say and stays silent.
+export interface DerivePerson {
+  id: string;
+  name: string;
+  /** The relationship label already on their card, when there is one. */
+  label?: string;
+  /** A thread with them is linked to a live project. */
+  onProject?: boolean;
+  /** Epoch ms of the last message either way, from the cached lookup the
+   *  person card already runs. Absent means unknown, which is not quiet. */
+  lastMs?: number;
 }
 
 const MIN_COMPLETIONS = 10;
@@ -238,14 +259,111 @@ export function deriveEmailWindow(rows: WindowRow[]): Derived | null {
   };
 }
 
+// 6. People rhythm (UP-MIND-16, Email 5.14 and Brain build order 6).
+//
+// A person card that reads NO LABEL YET for everyone is a Brain that cannot
+// rank a sister above a stranger, and the app has been watching the mail all
+// along: since UP-MIND-10 every email.handled row carries the person it was
+// with. Steady traffic with one contact is a real, showable fact, and the
+// label it proposes is the weakest true one: "Work" only when the threads
+// are linked to a live project, "Frequent" otherwise. It never infers a
+// relationship, and nothing is written without the tap.
+//
+// The gate is ten handled rows for ONE person inside the window. The record
+// asked for ten in sixty days; brain/window.ts reads thirty (WINDOW_DAYS),
+// so ten in thirty is the same bar applied to the data that exists, and it
+// errs toward silence, which is this file's governing principle.
+export const MIN_PERSON_HANDLED = 10;
+
+export function personHandled(rows: WindowRow[]): Map<string, WindowRow[]> {
+  const out = new Map<string, WindowRow[]>();
+  for (const r of rows) {
+    if (r.type !== "email.handled") continue;
+    const id = r.entity_id;
+    if (!id) continue;
+    const cur = out.get(id);
+    if (cur) cur.push(r); else out.set(id, [r]);
+  }
+  return out;
+}
+
+export function derivePeopleRhythm(rows: WindowRow[], people: DerivePerson[]): Derived | null {
+  const byPerson = personHandled(rows);
+  let best: { p: DerivePerson; rows: WindowRow[] } | null = null;
+  for (const p of people) {
+    // Somebody the user has already labelled needs no proposal.
+    if (p.label?.trim()) continue;
+    const hits = byPerson.get(p.id) ?? [];
+    if (hits.length < MIN_PERSON_HANDLED) continue;
+    if (!best || hits.length > best.rows.length) best = { p, rows: hits };
+  }
+  if (!best) return null;
+  const { p, rows: hits } = best;
+  const days = [...new Set(hits.map((r) => r.day))].sort();
+  const weeks = Math.max(1, Math.round(days.length / 7) || 1);
+  const label = p.onProject ? "Work" : "Frequent";
+  return {
+    derivation: "people_rhythm",
+    category: "people",
+    title: `${p.name} is someone you deal with constantly`,
+    sub: capAfterNumber(`${hits.length} emails handled with them, across ${days.length} ${days.length === 1 ? "day" : "days"}`),
+    strandText: `Deals with ${p.name} regularly`,
+    evidence: days.slice(-6).map((day) => ({ day, a: weeks })),
+    apply: { kind: "person_label", personId: p.id, label },
+  };
+}
+
+// 7. Gone quiet (UP-MIND-16, second half).
+//
+// Someone the user said matters, who they have not talked to in a month.
+// Read off the cached last-contact lookup rather than the event log, because
+// a person who has gone quiet has no rows in a thirty-day window BY
+// DEFINITION: the absence is the whole signal, and an absence cannot be
+// counted in a window that only holds the present.
+//
+// Gated on a label, which is the user's own statement that this person
+// matters. Never a guess about a stranger, and never a reproach: the copy
+// states the gap and offers the check-in, and the draft is the one the
+// person card already writes (people/lastContact.ts checkinPrompt).
+export const QUIET_MS = 30 * 86400000;
+
+export function deriveGoneQuiet(people: DerivePerson[], nowMs: number): Derived | null {
+  let best: { p: DerivePerson; gapDays: number } | null = null;
+  for (const p of people) {
+    if (!p.label?.trim()) continue;
+    if (typeof p.lastMs !== "number" || p.lastMs <= 0) continue;
+    const gap = nowMs - p.lastMs;
+    if (gap < QUIET_MS) continue;
+    const gapDays = Math.floor(gap / 86400000);
+    if (!best || gapDays > best.gapDays) best = { p, gapDays };
+  }
+  if (!best) return null;
+  const { p, gapDays } = best;
+  const weeks = Math.round(gapDays / 7);
+  return {
+    derivation: "gone_quiet",
+    category: "people",
+    title: `${p.name} has gone quiet`,
+    sub: capAfterNumber(`${weeks} ${weeks === 1 ? "week" : "weeks"} since either of you wrote`),
+    strandText: `Checks in with ${p.name} when it has been a while`,
+    evidence: [],
+  };
+}
+
 // All derivations, in the order they surface. One at a time is the moments
 // layer's job; this just says everything the data supports.
-export function deriveAll(rows: WindowRow[]): Derived[] {
+//
+// UP-MIND-16 (2026-09-05): `people` is optional and empty by default, so
+// every existing caller and test keeps working and the two people
+// derivations simply stay silent without Contacts in hand.
+export function deriveAll(rows: WindowRow[], people: DerivePerson[] = [], nowMs = Date.now()): Derived[] {
   return [
     deriveCompletionWindow(rows),
     deriveSlipCategory(rows),
     derivePlanRate(rows),
     deriveTrainingWindow(rows),
     deriveEmailWindow(rows),
+    derivePeopleRhythm(rows, people),
+    deriveGoneQuiet(people, nowMs),
   ].filter((d): d is Derived => d !== null);
 }

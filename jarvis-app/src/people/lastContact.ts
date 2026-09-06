@@ -18,6 +18,15 @@ const TTL_MS = 24 * 3600e3;
 
 type Cache = Record<string, { ms: number | null; ts: number }>;
 
+// UP-MIND-16 (2026-09-05): the cache, read only. The gone-quiet derivation
+// needs to know when the app last saw traffic with each person, and it must
+// not trigger a Gmail search per contact to find out: the times it wants
+// were already looked up by the person card. A miss is simply unknown, which
+// is not the same as quiet and never surfaces as one.
+export function loadLastContact(storage: Pick<Storage, "getItem"> = localStorage): Record<string, { ms: number | null; ts: number }> {
+  return load(storage);
+}
+
 function load(storage: Pick<Storage, "getItem">): Cache {
   try {
     const raw = storage.getItem(CACHE_KEY);

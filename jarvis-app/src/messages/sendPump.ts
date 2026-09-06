@@ -96,7 +96,13 @@ export async function processOutboxSend(item: OutboxItem, deps: SendDeps): Promi
     // editing before compose sent it gets flag: true. A send that fails or
     // gets Undone never counts either way.
     if (item.fromDeck) emit({ type: "email.deck_sent", props: { flag: !item.deckVerbatim } });
-    emit({ type: "email.handled", props: { kind: "reply" } });
+    // UP-MIND-16: the row remembers WHO, when the app knows them. entity_id
+    // and a regex-gated kind is the whole payload; rowFrom drops the rest.
+    emit({
+      type: "email.handled",
+      props: { kind: "reply" },
+      ...(item.personId ? { entityType: "person", entityId: item.personId } : {}),
+    });
     if (item.editingDraftId) {
       const id = item.editingDraftId;
       void (async () => {

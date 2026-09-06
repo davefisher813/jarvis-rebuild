@@ -36,9 +36,17 @@ export type StrandStatus = "active" | "paused";
 // Both are the same three-hour band shape completion_window proved, sharing
 // completionBand() so there is one definition of "when does this happen" and
 // four readers of it.
+//   people_rhythm    reads email.handled rows carrying a PERSON (UP-MIND-10
+//                    put the id on them), so a contact the user deals with
+//                    constantly stops reading NO LABEL YET on their card.
+//   gone_quiet       someone the user labelled, who has gone quiet. Reads
+//                    the cached last-contact lookup the person card already
+//                    runs, not the event log: a person who has gone quiet
+//                    has no rows in a 30-day window by definition.
 export type DerivationKey =
   | "completion_window" | "slip_category" | "plan_rate" | "task_timing"
-  | "training_window" | "email_window";
+  | "training_window" | "email_window"
+  | "people_rhythm" | "gone_quiet";
 
 // One receipt. Meaning of a/b depends on the derivation and is decided by the
 // renderer: completion_window a=hour; slip_category a=count;

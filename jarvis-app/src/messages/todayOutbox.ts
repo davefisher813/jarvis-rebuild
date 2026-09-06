@@ -76,6 +76,8 @@ function newId(): string {
 // a held send and a sent one as far as the person tapping is concerned.
 export function enqueueTodaySend(input: {
   to: string; subject: string; body: string; inReplyTo?: string; threadId?: string; account?: string; todayKind: TodayKind;
+  // UP-MIND-16 (2026-09-05): who it is going to, when they are in Contacts.
+  personId?: string;
 }): string {
   const item: TodaySend = {
     id: newId(),
@@ -89,6 +91,7 @@ export function enqueueTodaySend(input: {
     scheduled: false,
     state: "held",
     todayKind: input.todayKind,
+    ...(input.personId ? { personId: input.personId } : {}),
   };
   commit([...items, item]);
   return item.id;

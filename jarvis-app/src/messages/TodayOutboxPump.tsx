@@ -33,7 +33,11 @@ export async function processTodaySend(item: TodaySend, api: GoogleApi | null): 
     // that thread, whatever kind of card it went out from.
     if (item.todayKind !== "reply" && item.threadId) countNudge(item.threadId);
     if (item.threadId) clearChase(item.threadId);
-    emit({ type: "email.handled", props: { kind: "reply" } });
+    emit({
+      type: "email.handled",
+      props: { kind: "reply" },
+      ...(item.personId ? { entityType: "person", entityId: item.personId } : {}),
+    });
     removeTodaySend(item.id);
   } catch (e) {
     // Never silently lost: it graduates into the real outbox -- the one

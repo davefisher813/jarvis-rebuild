@@ -41,6 +41,12 @@ export interface OutboxItem {
   threadId?: string;
   fromDeck?: boolean;
   trackId?: string;
+  // UP-MIND-16 (2026-09-05): who this went to, when they are in Contacts.
+  // Resolved at QUEUE time, where the sender's address is in hand: the pump
+  // runs with no component above it and cannot look one up. Ids only, which
+  // is what lets the send emit a person-shaped email.handled row without any
+  // free text leaving the device.
+  personId?: string;
   // S2-8: the note he already has, riding along as a real attachment.
   attachment?: EmailAttachment;
   // When it should actually leave. Now + HOLD for a normal send; a chosen

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { AIService } from "../ai/AIService";
 import { useAIContext, todayISO } from "../ai/useAIContext";
 import { suggestionsSystemPrompt, parseSuggestions, type Suggestion } from "../ai/suggestions";
-import { useTasks, useProfile, useBrainDocs, useSchedule, useRoutine, useOptionalStrands } from "../data/NotesProvider";
+import { useTasks, useProfile, useBrainDocs, useSchedule, useRoutine, useOptionalStrands, useOptionalPeople } from "../data/NotesProvider";
+import { peopleForDerivation } from "../brain/peopleFacts";
 import { readWindow, type WindowClient } from "../brain/window";
 import { brainMoments } from "../brain/moments";
 import { readChosen } from "../brain/nightly";
@@ -62,6 +63,9 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
   // Today's one-row law is untouched: this stays empty there.
   const [moments, setMoments] = useState<Derived[]>([]);
   const strandsSvc = useOptionalStrands();
+  // UP-MIND-16 (2026-09-05): Contacts, for the two people derivations. The
+  // log carries person ids; the names and the labels live here.
+  const peopleSvc = useOptionalPeople();
   // Texts of the tasks already visible in Up Next: a suggestion that echoes
   // one of them is repetition, not value (Dave 2026-07-30), and is hidden.
   const [visibleTaskTexts, setVisibleTaskTexts] = useState<Set<string> | null>(null);
@@ -104,9 +108,10 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       let faded: Strand[] = [];
       try {
         if (strandsSvc) {
-          const [rows, strands] = await Promise.all([
+          const [rows, strands, folk] = await Promise.all([
             readWindow(supabase as unknown as WindowClient | null, Date.now()),
             strandsSvc.list(),
+            peopleForDerivation(peopleSvc),
           ]);
           // THE NIGHTLY PASS (handoff item 2 + decision x3): the day's set is
           // consolidated once per local day and capped at three, instead of
@@ -116,7 +121,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
           // decided at the local day rollover. It used to decide it here,
           // which meant a day this screen never rendered was a day the
           // Brain never reviewed at all.
-          moments = readChosen(brainMoments(rows, strands), today);
+          moments = readChosen(brainMoments(rows, strands, folk), today);
           // FADE (handoff 5.8, decision m1): a fact nobody has confirmed in a
           // season asks whether it still holds. Never a silent deletion and
           // never silent staleness, which is why it is a question here rather
@@ -158,7 +163,7 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
       }
     })();
     return () => { on = false; };
-  }, [profileSvc, scheduleSvc, routineSvc, strandsSvc, today, always]);
+  }, [profileSvc, scheduleSvc, routineSvc, strandsSvc, peopleSvc, today, always]);
 
   useEffect(() => {
     if (!ai.available) return;
@@ -294,6 +299,13 @@ export default function TodaySuggestions({ ai, always = false }: { ai: AIService
     });
     const landed: string | null = outcome;
     if (!ok || !landed) return false;
+    // UP-MIND-16: the label the moment proposed lands on the person's card
+    // in the same tap. Never written without it, and a failed write says so
+    // rather than leaving a card claiming a label it does not have.
+    if (m.apply?.kind === "person_label" && peopleSvc) {
+      const wrote = await attemptWrite(() => peopleSvc.update(m.apply!.personId, { relationship: m.apply!.label }));
+      if (!wrote) return false;
+    }
     haptics.success();
     showToast({
       message: landed === "created" ? "JARVIS will remember that"

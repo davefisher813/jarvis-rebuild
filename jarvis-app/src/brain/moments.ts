@@ -1,6 +1,6 @@
 import type { WindowRow } from "./window";
 import type { Strand, DerivationKey } from "./strands/types";
-import { deriveAll, type Derived } from "./derive";
+import { deriveAll, type Derived, type DerivePerson } from "./derive";
 
 // Being-known moments (Brain Layer 2). A moment is a derivation the user has
 // not answered yet, dressed for the Noticed row. The rules that keep it a
@@ -63,12 +63,20 @@ export function derivationMuted(stats: CorrectionStats | undefined): boolean {
 // The moments worth offering right now, in derivation order. The caller
 // surfaces the first non-dismissed one; the rest wait their turn on later
 // days. Every filter here is a reason to stay silent, which is the design.
-export function brainMoments(rows: WindowRow[], strands: Strand[]): Derived[] {
+export function brainMoments(
+  rows: WindowRow[],
+  strands: Strand[],
+  // UP-MIND-16 (2026-09-05): Contacts, for the two people derivations. The
+  // log carries ids and nothing else, so a name has to be handed in; with
+  // none in hand those two derivations simply stay silent.
+  people: DerivePerson[] = [],
+  nowMs = Date.now(),
+): Derived[] {
   const stats = correctionStats(rows);
   const taken = new Set<DerivationKey>(
     strands.map((s) => s.data.derivation).filter((d): d is DerivationKey => !!d),
   );
-  return deriveAll(rows)
+  return deriveAll(rows, people, nowMs)
     .filter((d) => !taken.has(d.derivation))
     .filter((d) => !derivationMuted(stats.get(d.derivation)));
 }
