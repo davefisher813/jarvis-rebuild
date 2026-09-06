@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader, { BarAction } from "../shared/PageHeader";
 import { useMoney, useTasks, useProfile, useCategories, useOptionalGoals, useOptionalFiles, useFileStore } from "../data/NotesProvider";
 import { effectiveKind } from "../categories/kinds";
@@ -28,7 +28,8 @@ import { JARVIS_VOICE } from "../ai/voice";
 import { encodeImageForVision } from "../shared/imageEncode";
 import { madeBy } from "../shared/provenance";
 import { RECEIPT_EXTRACT_PROMPT, parseReceiptExtract } from "./receiptExtract";
-import { Paperclip, Image as ImageGlyph, FileText, Calendar, FolderKanban } from "../shared/icons";
+import { Paperclip, Image as ImageGlyph, FileText, Calendar, FolderKanban, Check as CheckGlyph } from "../shared/icons";
+import { useSwipe } from "../shared/useSwipe";
 import { FormSheet, Group, FieldRow, MenuRow, DeleteRow, ErrorLine } from "../shared/FormSheet";
 import { pressable } from "../shared/pressable";
 
@@ -141,6 +142,38 @@ function PaydaySheet({ initial, onSave, onRemove, onCancel }: {
 }
 
 type Sheet = { kind: "closed" } | { kind: "new" } | { kind: "edit"; id: string };
+// UP-CORE-15 (2026-09-05): SWIPE RIGHT MARKS IT PAID. The same gesture the
+// task rows answer to, on the row that most deserves a whole-row target.
+// Autopay is exempt by the money law: the app cannot know a payment cleared,
+// so there is nothing here for a gesture to claim. A bill already paid has
+// nothing to mark.
+function BillRow({ paid, autopay, onPay, children }: {
+  paid: boolean;
+  autopay: boolean;
+  onPay: () => void;
+  children: React.ReactNode;
+}) {
+  const completable = !paid && !autopay;
+  const swipe = useSwipe({ revealW: 0, rightW: completable ? 88 : 0, ...(completable ? { onRightCommit: onPay } : {}) });
+  return (
+    <div className="task-swipe">
+      {completable && (
+        <div className="task-done-rail" aria-hidden="true">
+          <CheckGlyph className="ic" />
+          <span className="swipe-label">Paid</span>
+        </div>
+      )}
+      <div
+        className={"task-row p2" + (swipe.dragging ? " swiping" : "")}
+        style={swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined}
+        {...swipe.handlers}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 type BillSheetState =
   | { kind: "closed" }
   | { kind: "new" }
@@ -511,7 +544,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
         // "Due in 2 days" said one thing twice (caught on the port).
         const subText = chip && b.data.due ? "Due " + monthDay(b.data.due) : sub.text;
         return (
-          <div className="task-row p2" key={b.id}>
+          <BillRow key={b.id} paid={paid} autopay={!!info.autopay} onPay={() => void markPaid(b)}>
             {info.autopay ? (
               <div className="task-check-tap"><span className="gm-slot cat-fg-blue">{REPEAT}</span></div>
             ) : (
@@ -532,7 +565,7 @@ export default function MoneyFlow({ onOpenTask, openAccountId, openNonce, onOpen
             {!info.autopay && !paid && info.payUrl && (
               <a className="bill-pay" href={info.payUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>Pay</a>
             )}
-          </div>
+          </BillRow>
         );
       })}
       {payHalfOn && !payday && bills.length > 0 && (

@@ -49,9 +49,25 @@ import { useEffect, useRef, useState } from "react";
 //   revealFocus on the wrapper.
 const LONG_PRESS_MS = 500;
 
+// SWIPE RIGHT COMPLETES (UP-CORE-15, 2026-09-05, option A: tasks, bills and
+// reminders; an event has no "done" and a note has nothing to complete, so
+// both opt out).
+//
+// The clamp below was [-revealW, 0] since this file was written, so no right
+// swipe existed anywhere in the app: a whole-row gesture that beats a
+// 24-point checkbox for a thumb on a moving bus was unreachable on every
+// list. The right half is deliberately NOT a second reveal: there is nothing
+// to choose, so the row follows the finger, and releasing past half fires the
+// one action and snaps straight back.
 export interface SwipeOptions {
   // Total width of the revealed action area (88 per action).
   revealW: number;
+  // How far right the row may travel before the action is certain. Zero (the
+  // default) means this row has no right action and cannot move right at all.
+  rightW?: number;
+  // Fired on release past half of rightW. The row snaps back either way: the
+  // action is the feedback, not a revealed button.
+  onRightCommit?: () => void;
   // A row that is not swipeable right now (e.g. schedule rows on other days)
   // keeps its markup and ignores the gesture.
   enabled?: boolean;
@@ -78,7 +94,7 @@ export interface SwipeState {
   toggle: () => void;
 }
 
-export function useSwipe({ revealW, enabled = true }: SwipeOptions): SwipeState {
+export function useSwipe({ revealW, rightW = 0, onRightCommit, enabled = true }: SwipeOptions): SwipeState {
   const [dx, setDx] = useState(0);
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -127,7 +143,12 @@ export function useSwipe({ revealW, enabled = true }: SwipeOptions): SwipeState 
     if (!horizontal.current) return;
     if (e.cancelable) e.preventDefault();
     const base = open ? -revealW : 0;
-    moveTo(Math.max(-revealW, Math.min(0, base + mx)));
+    // UP-CORE-15: the right half only exists for a row that declared one, so
+    // every other row clamps at 0 exactly as it always has. An open row
+    // still closes rightwards to 0 and no further, because the gesture that
+    // closes a reveal must not also tick the task.
+    const rightLimit = open || !onRightCommit ? 0 : rightW;
+    moveTo(Math.max(-revealW, Math.min(rightLimit, base + mx)));
   };
 
   const onTouchEnd = () => {
@@ -135,6 +156,13 @@ export function useSwipe({ revealW, enabled = true }: SwipeOptions): SwipeState 
     endPress();
     setDragging(false);
     if (!horizontal.current) return;
+    // Past half the right travel: the action fires and the row snaps back.
+    if (onRightCommit && rightW > 0 && dxRef.current > rightW / 2) {
+      moveTo(0);
+      setOpen(false);
+      onRightCommit();
+      return;
+    }
     const nowOpen = dxRef.current < -revealW / 2;
     openTo(nowOpen);
   };

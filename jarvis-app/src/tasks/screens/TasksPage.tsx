@@ -202,7 +202,28 @@ export function TaskRow({
   // And only where the caller can move it: a reminder on the Health page
   // has no Tomorrow, so its reveal is Delete alone.
   const snoozable = !t.done && !t.bill && !!onSnooze;
-  const { dx, dragging, handlers } = useSwipe({ revealW: snoozable ? 176 : 88 });
+  const tapCheck = () => {
+    if (pendingDone.current) return;
+    if (t.done) { onToggle?.(item.id); return; } // un-completing: no ceremony
+    pendingDone.current = true;
+    setLocalDone(true);
+    setBurst(true);
+    setTimeout(() => setBurst(false), 650);
+    setTimeout(() => { pendingDone.current = false; setLocalDone(false); onToggle?.(item.id); }, 600);
+  };
+
+  // UP-CORE-15 (2026-09-05): SWIPE RIGHT COMPLETES. A whole-row gesture beats
+  // a 24-point checkbox for a thumb on a moving bus, and the clamp in
+  // useSwipe meant no right swipe existed on any list in the app. It fires
+  // the row's own tick, so the burst, the optimistic flip and the Undo are
+  // the ones the checkbox already had. An open row is closing, not
+  // completing; a done row has nothing to complete.
+  const completable = !t.done && !!onToggle && !selecting;
+  const { dx, dragging, handlers } = useSwipe({
+    revealW: snoozable ? 176 : 88,
+    rightW: completable ? 88 : 0,
+    ...(completable ? { onRightCommit: tapCheck } : {}),
+  });
 
   useEffect(() => {
     if (t.done && !prevDone.current) {
@@ -223,18 +244,15 @@ export function TaskRow({
     enabled: !!onRename && !t.done && !selecting,
   });
 
-  const tapCheck = () => {
-    if (pendingDone.current) return;
-    if (t.done) { onToggle?.(item.id); return; } // un-completing: no ceremony
-    pendingDone.current = true;
-    setLocalDone(true);
-    setBurst(true);
-    setTimeout(() => setBurst(false), 650);
-    setTimeout(() => { pendingDone.current = false; setLocalDone(false); onToggle?.(item.id); }, 600);
-  };
-
   return (
     <div className="task-swipe">
+      {/* UP-CORE-15: the leading rail, seen only while the finger is moving. */}
+      {completable && (
+        <div className="task-done-rail" aria-hidden="true">
+          <Check className="ic" />
+          <span className="swipe-label">Done</span>
+        </div>
+      )}
       {snoozable && (
         <button className="task-snooze" onClick={() => onSnooze?.(item.id)} aria-label="Move to tomorrow">
           <Clock className="ic" />

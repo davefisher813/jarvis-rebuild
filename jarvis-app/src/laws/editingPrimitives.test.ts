@@ -72,6 +72,12 @@ describe("law: one swipe controller", () => {
       "gym/SetStrip.tsx": "set-chip",
       "schedule/screens/DayRow.tsx": "sched-row",
       "schedule/screens/LockedRow.tsx": "sched-row",
+      // UP-CORE-15 (2026-09-05): swipe right completes, so two more surfaces
+      // moved: the bill rows (the money page's own .task-row) and the
+      // reminders strip (.rem-row, which took the same pan-y and the same
+      // snap-back transition the task rows have always carried).
+      "money/MoneyFlow.tsx": "task-row",
+      "today/RemindersStrip.tsx": "rem-row",
     };
     const css = read(join(SRC, "styles", "components.css")) + read(join(SRC, "styles", "ruled.css"));
     const usesSwipe = FILES.filter((f) => rel(f) !== "shared/useSwipe.ts" && /from "[^"]*shared\/useSwipe"/.test(read(f))).map(rel);
@@ -83,6 +89,33 @@ describe("law: one swipe controller", () => {
       if (!rule.test(css)) bare.push(file + " (." + cls + ")");
     }
     expect(bare, "the moving element's class must say touch-action: pan-y").toEqual([]);
+  });
+
+  // UP-CORE-15 (2026-09-05), option A: "swipe right completes / left defers on
+  // EVERY list." Every list where a row can be FINISHED answers to the same
+  // gesture; the ones where nothing can be finished say so here, with the
+  // reason, rather than quietly not having it. An event has no "done" and a
+  // note has nothing to complete: those are the opt-outs the option names.
+  it("every swipe surface completes on a right swipe, or says why it cannot", () => {
+    const NO_RIGHT: Record<string, string> = {
+      "today/NoticeCard.tsx": "a notice is dismissed, never completed; the hold opens its tuning sheet instead",
+      "notes/screens/NotesList.tsx": "a note has nothing to complete (option A's own opt-out)",
+      "schedule/screens/DayRow.tsx": "an event has no done; attendance would be a new field (option B, not taken)",
+      "schedule/screens/LockedRow.tsx": "a protected block is a container, not work",
+      "messages/MailSwipe.tsx": "mail completes by archiving, which is the LEFT reveal's own verb",
+      "messages/LetGoSwipe.tsx": "letting go is the whole gesture; a second verb would fight it",
+      "notifications/NotificationsFlow.tsx": "a notification is cleared, not finished",
+      "gym/SetStrip.tsx": "a set is logged by its own big button, mid-lift, with numbers attached",
+      "today/TodayFlow.tsx": "the Now card's gap row is an offer to START, and starting is not completing",
+    };
+    const usesSwipe = FILES.filter((f) => rel(f) !== "shared/useSwipe.ts" && /from "[^"]*shared\/useSwipe"/.test(read(f))).map(rel);
+    const bad: string[] = [];
+    for (const f of usesSwipe) {
+      const declares = /onRightCommit/.test(read(join(SRC, f)));
+      if (!declares && !(f in NO_RIGHT)) bad.push(f);
+      if (declares && f in NO_RIGHT) bad.push(f + " (declares a right action and is also listed as opting out)");
+    }
+    expect(bad, "a swipe surface either completes on a right swipe or names its reason here").toEqual([]);
   });
 });
 

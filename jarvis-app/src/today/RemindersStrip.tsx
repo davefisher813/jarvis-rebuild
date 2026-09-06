@@ -1,6 +1,7 @@
 import { Check, Plus, CalendarPlus } from "../shared/icons";
 import { Burst } from "../shared/Burst";
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
+import { useSwipe } from "../shared/useSwipe";
 import type { ReminderView } from "../tasks/reminders";
 import { fmtTime } from "../schedule/calendar";
 
@@ -12,6 +13,39 @@ import { fmtTime } from "../schedule/calendar";
 // no overdue styling. A missed reminder greys its time rather than reddening
 // it, because "you didn't take your meds yet" is information and "YOU ARE
 // LATE" is a reason to stop opening the app.
+// UP-CORE-15 (2026-09-05): SWIPE RIGHT TAKES IT. One row, one gesture, the
+// same one a task and a bill answer to: the whole row is the target, which
+// is what a thumb on a moving bus actually hits. Extracted from the map so
+// the row can own a hook; a reminder already ticked has nothing to take.
+function ReminderRow({ r, bursting, onTickRow, children }: {
+  r: ReminderView;
+  bursting: boolean;
+  onTickRow: () => void;
+  children: React.ReactNode;
+}) {
+  const completable = !r.done;
+  // No left reveal on this strip: a reminder's other actions are its own
+  // pill and its sheet, and revealW 0 keeps the gesture one-directional.
+  const swipe = useSwipe({ revealW: 0, rightW: completable ? 88 : 0, ...(completable ? { onRightCommit: onTickRow } : {}) });
+  return (
+    <div className="task-swipe">
+      {completable && (
+        <div className="task-done-rail" aria-hidden="true">
+          <Check className="ic" />
+          <span className="swipe-label">Done</span>
+        </div>
+      )}
+      <div
+        className={"rem-row" + (r.done ? " done" : "") + (r.missed && !r.letGo ? " missed" : "") + (r.letGo ? " let-go" : "") + (swipe.dragging ? " swiping" : "")}
+        style={swipe.dx ? { transform: `translateX(${swipe.dx}px)` } : undefined}
+        {...swipe.handlers}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function RemindersStrip({
   items,
   onTick,
@@ -56,7 +90,8 @@ export default function RemindersStrip({
       </div>
       <div className="pad-x"><div className="card">
         {items.map((r) => (
-          <div className={"rem-row" + (r.done ? " done" : "") + (r.missed && !r.letGo ? " missed" : "") + (r.letGo ? " let-go" : "")} key={r.id}>
+          <ReminderRow key={r.id} r={r} bursting={burstId === r.id}
+            onTickRow={() => { if (!r.done) celebrate(r.id); onTick?.(r.id, !r.done); }}>
             <div
               className={"cb" + (r.done ? " on" : "") + (burstId === r.id ? " just-checked" : "")}
               role="button"
@@ -91,7 +126,7 @@ export default function RemindersStrip({
             {!r.done && onSnooze && (
               <button className="pill-act" onClick={() => onSnooze(r.id)}>Snooze 10m</button>
             )}
-          </div>
+          </ReminderRow>
         ))}
         {items.length === 0 && onAdd && (
           <button className="row row-act" onClick={onAdd}>
