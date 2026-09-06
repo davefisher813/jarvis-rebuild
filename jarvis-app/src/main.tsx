@@ -9,6 +9,7 @@ import App from "./App";
 import ErrorBoundary from "./monitoring/ErrorBoundary";
 import { initMonitoring } from "./monitoring/monitor";
 import { startAppUrlListener } from "./native/appUrl";
+import { trackVisualViewport } from "./shared/viewport";
 
 import "./styles/jarvis-design-system.css";
 import "./styles/uniformity.css";
@@ -16,6 +17,10 @@ import "./styles/components.css";
 import "./styles/ruled.css";
 
 initMonitoring();
+// A sheet is fixed to the layout viewport, and iOS moves the VISIBLE one when
+// the keyboard comes up. This states where the visible one is, so the sheet can
+// sit in it and its Cancel and Save stay reachable (see shared/viewport.ts).
+trackVisualViewport();
 // UP-LAUNCH-12 (2026-09-05): URLs that arrive from outside, on the phone.
 // The Google sign-in sheet's callback comes back this way, and so will the
 // magic link and the widget deep links. A no-op on the web and on a native

@@ -566,7 +566,24 @@ button.voice-bar { width: 100%; border: 0; font-family: var(--f); text-align: le
    list you had to scroll to reach. A sliver of scrim is the dismiss gesture
    every other sheet on this platform has; the sheet gives up 8 percent of a
    height it only reaches when it is already scrolling. */
-.sheet-scrim > .card { max-height: 92dvh; display: flex; flex-direction: column; border-radius: var(--r-xl) var(--r-xl) 0 0; }
+/* THE SHEET LIVES IN WHAT YOU CAN SEE (2026-09-06, Dave from his phone:
+   "sometimes when modals render I can't click save or cancel (I think they
+   might be too high up on the screen)").
+   position: fixed pins the scrim to the LAYOUT viewport, and iOS does not
+   shrink that for the keyboard: it shrinks the VISUAL viewport and slides it
+   down the page until the focused field clears the keys. Measured on the built
+   app: New Event caps at 92 percent with its bar at 97.5 to 141.5, and its
+   Location field sits at y 766, so with the keyboard up iOS reports a 508 tall
+   band offset 310 down and the bar sits 212.5px above the top of it. Both
+   controls are then off screen, which is the same defect as a control under
+   44pt: it cannot be reached.
+   --vv-h and --vv-top are written by shared/viewport.ts. The 92 percent is
+   untouched, and so is the bottom anchor, the corner and the scrim: 92 percent
+   now measures the band the person can see, which is what "of viewport" meant.
+   With no visualViewport both fall back and this is byte for byte today's
+   layout. */
+.sheet-scrim { top: var(--vv-top, 0px); height: var(--vv-h, 100dvh); }
+.sheet-scrim > .card { max-height: calc(0.92 * var(--vv-h, 100dvh)); display: flex; flex-direction: column; border-radius: var(--r-xl) var(--r-xl) 0 0; }
 .sheet-scrim .sheet-handle, .sheet-scrim .grp { flex-shrink: 0; }
 .sheet-scrim .grp { padding-top: var(--s-2); padding-bottom: var(--s-1h); }
 .sheet-scrim .sheet-actions { padding-bottom: max(var(--s-4), env(safe-area-inset-bottom)); }

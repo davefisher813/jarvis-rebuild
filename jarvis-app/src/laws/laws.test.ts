@@ -4601,3 +4601,60 @@ describe("an overlay's scroll stops at the overlay (2026-09-06)", () => {
     expect(main).toMatch(/classList\.toggle\("sheet-open", !!document\.querySelector\("\.sheet-scrim"\)\)/);
   });
 });
+
+// A SHEET'S CANCEL AND SAVE STAY WHERE A THUMB CAN REACH THEM (2026-09-06,
+// Dave from his phone: "sometimes when modals render I can't click save or
+// cancel (I think they might be too high up on the screen)").
+//
+// position: fixed pins a sheet to the LAYOUT viewport. iOS does not shrink
+// that when the keyboard opens: it shrinks the VISUAL viewport and slides it
+// down the page until the focused field clears the keys. dvh does not track
+// it, so a tall sheet keeps its old box and the Cancel / title / Save bar at
+// the top of it goes off screen. Measured on the built app: New Event caps at
+// 92 percent, bar 97.5 to 141.5, Location field at y 766, so with the keyboard
+// up the visible band is 508 tall offset 310 and the bar sits 212.5px above
+// it. The contract's tap-target rule says a control that cannot be reached is
+// the same defect as one under 44pt, and this is that.
+//
+// The rule, stated once: a sheet is laid out against the band the person can
+// see. It is enforced from both ends, because either end alone is dead: the
+// CSS must READ the two properties, and something must WRITE them.
+describe("a sheet's Cancel and Save stay where a thumb can reach them (2026-09-06)", () => {
+  it("the scrim is sized and placed by the visible viewport", () => {
+    expect(CSS).toMatch(/\.sheet-scrim\s*\{[^{}]*top:\s*var\(--vv-top,\s*0px\)/);
+    expect(CSS).toMatch(/\.sheet-scrim\s*\{[^{}]*height:\s*var\(--vv-h,\s*100dvh\)/);
+  });
+
+  it("and so is the 92 percent cap, which is still 92 percent", () => {
+    // BROWSER-F-15 ruled 92, and the UI contract says that value stands. It is
+    // 92 percent of what can be seen now, not of a viewport hidden behind a
+    // keyboard: this law fails if anyone trims it to buy room.
+    expect(CSS).toMatch(/\.sheet-scrim\s*>\s*\.card\s*\{[^{}]*max-height:\s*calc\(0\.92\s*\*\s*var\(--vv-h,\s*100dvh\)\)/);
+  });
+
+  it("something writes the two properties the scrim reads", () => {
+    const src = read(join(SRC, "shared/viewport.ts"));
+    expect(src).toContain("--vv-h");
+    expect(src).toContain("--vv-top");
+    // both events: the keyboard resizes the band AND scrolls it down the page,
+    // and listening to resize alone leaves the bar off screen.
+    expect(src).toMatch(/addEventListener\("resize"/);
+    expect(src).toMatch(/addEventListener\("scroll"/);
+    expect(read(join(SRC, "main.tsx"))).toContain("trackVisualViewport()");
+  });
+
+  it("and a browser with no visual viewport keeps the layout it has", () => {
+    // Every var() in the pair carries the old value as its fallback, so the
+    // sheet on a browser without visualViewport is byte for byte what shipped.
+    const src = read(join(SRC, "shared/viewport.ts"));
+    expect(src).toMatch(/if \(!vv\) return/);
+    const uses = [...CSS.matchAll(/var\(--vv-(h|top)(,\s*[^)]*)?\)/g)];
+    expect(uses.length).toBeGreaterThan(2);
+    for (const u of uses) expect(u[2], `var(--vv-${u[1]}) with no fallback`).toBeTruthy();
+  });
+
+  it("the bar itself still meets the tap minimum", () => {
+    // The other half of the same contract rule: reachable AND 44pt.
+    expect(CSS).toMatch(/\.sheet-bar-cancel,\s*\.sheet-bar-save\s*\{[^{}]*min-height:\s*44px/);
+  });
+});
