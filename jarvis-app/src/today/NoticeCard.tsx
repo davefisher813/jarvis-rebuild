@@ -131,25 +131,65 @@ export default function NoticeCard({
   // ellipsed and "2 Blocks Slip... Behi..." told him nothing twice. The
   // FACT is the row's reason for existing and the sub only supports it, so
   // the sub is what yields. The law is the STREAM's, not the row's: a sub
-  // renders whole or not at all, in a row and in the headliner's foot
-  // alike. (The plain card form is exempt: there the sub owns a full line
-  // under the title and wrapping to two lines is the design.)
+  // renders whole or not at all.
   //
-  // Two ways a row runs out of line, and the sub loses both: the fact is
-  // clipped (the sub is stealing room the fact needs), or the sub itself
-  // cannot finish (a mail gist ending at "...starts Mon" is furniture
-  // pretending to be information).
+  // ONE LAW, TWO FORMS (2026-09-06, Dave photographed What JARVIS Knows at
+  // 390x844: "You train bet... / 14 Sessions th..."). This latch used to
+  // exempt every card form, on the reasoning that "there the sub owns a
+  // full line under the title and wrapping to two lines is the design".
+  // That is true of the NON-UNIFORM card and of nothing else. A uniform
+  // card is clamped to one nowrap line each by .notice-card-uniform
+  // .conn-name / .conn-meta (components.css), so the comment described a
+  // card the stream had not rendered since 2026-08-25 while the CSS
+  // shredded the one it did. The CSS is what Dave sees, so the CSS is what
+  // the law has to answer: measured, the offer's title asked 296px of the
+  // 133px the pill left it, and lost 55% of the sentence that is the whole
+  // reason the card exists.
+  //
+  // The sub yields the room the title needs, and each form says "room" in
+  // its own geometry:
+  //   row     one shared line. The fact is clipped (the sub is stealing
+  //           room the fact needs), OR the sub itself cannot finish (a mail
+  //           gist ending at "...starts Mon" is furniture pretending to be
+  //           information). Either one, and the sub goes.
+  //   uniform the two lines are stacked, not shared, so the sub holds
+  //   card    nothing the title is short of until the title needs a second
+  //           line. Only a clipped TITLE drops it; a sub that ellipses
+  //           beside a title that fits keeps its line, because dropping it
+  //           would buy the title a line it does not want and cost the card
+  //           a fact it had. That is why Dental Cleaning's "Looks like
+  //           tuesday 2:00 PM - 45 Min" still renders.
+  // Dropping the sub is what turns .notice-card-solo on (it keys on a sub
+  // RENDERED, not passed), and solo is what hands the title both lines at
+  // the same 72px card height.
+  //
+  // AND ONLY WHERE THERE IS A SECOND LINE TO HAND IT. The trade is free
+  // because a uniform card is a TWO-LINE BOX: min-height 72 is two lines of
+  // title type, so the sub's line becomes the title's and the card does not
+  // move. The grouped Heads Up band stands that box down on purpose (.ruled
+  // .stream-grouped .notice-card-uniform is 56, one line, the density it
+  // chose), and there the same trade costs a fact and buys 4.5px of extra
+  // height: measured, "Complete Your Enrollment" went 61.05 to 65.59 beside
+  // neighbours still at 61.05, which is the ragged stream Dave asked us to
+  // stop making in the first place. So the card form reads its own box
+  // before it spends it, rather than assuming the 72.
+  //
+  // The non-uniform card stays exempt, and now for the stated reason: mail
+  // opts out of the clamp, so its sub really does own a full line and
+  // really does wrap.
   //
   // Measured, not predicted: a character budget would have to guess the
   // font, and Dynamic Type moves it. The latch is one-way per mounted
   // notice -- dropping the sub only ever gives the fact more room, so it
   // cannot oscillate -- and producers key their notices, so new content
   // arrives as a new instance with a fresh measurement.
-  const factRef = useRef<HTMLSpanElement>(null);
-  const subRef = useRef<HTMLSpanElement>(null);
+  const factRef = useRef<HTMLElement | null>(null);
+  const subRef = useRef<HTMLElement | null>(null);
   const [subDropped, setSubDropped] = useState(false);
   useLayoutEffect(() => {
-    if (effForm !== "row" || subDropped) return;
+    if (subDropped) return;
+    // The one form with no clamp to answer to.
+    if (effForm !== "row" && !uniform) return;
     // ZERO TOLERANCE, measured live (probe 2026-08-26): Rent's sub sat at
     // scrollWidth 146 vs clientWidth 145, the old +1 grace called that
     // "fits", and text-overflow answered a 1px deficit by eating "ay" and
@@ -157,7 +197,24 @@ export default function NoticeCard({
     // pixel of loss; it is a word of loss. The law says whole or not at
     // all, so the comparison is exactly that.
     const over = (el: HTMLElement | null) => !!el && el.scrollWidth > el.clientWidth;
-    const check = () => { if (over(factRef.current) || over(subRef.current)) setSubDropped(true); };
+    // Does this card's box already hold two lines of its title? Read, never
+    // assumed: the 72 is a base rule and a band is allowed to override it,
+    // so the question is asked of the rendered card and not of the number.
+    const twoLineBox = (fact: HTMLElement) => {
+      const card = fact.closest(".notice-card");
+      const line = fact.closest(".row");
+      if (!card || !line) return false;
+      const ls = getComputedStyle(line);
+      const lh = parseFloat(getComputedStyle(fact).lineHeight);
+      const pad = parseFloat(ls.paddingTop) + parseFloat(ls.paddingBottom);
+      if (!Number.isFinite(lh) || !Number.isFinite(pad)) return false;
+      return card.getBoundingClientRect().height >= 2 * lh + pad;
+    };
+    const check = () => {
+      const fact = factRef.current;
+      if (fact && over(fact) && (effForm === "row" || twoLineBox(fact))) { setSubDropped(true); return; }
+      if (effForm === "row" && over(subRef.current)) setSubDropped(true);
+    };
     check();
     // A LATCH THAT LOOKS ONLY AT MOUNT CAN MISS (Dave's 9:57 screenshot,
     // 2026-08-26: "All 1 do..." shipped mid-word). The mount-time
@@ -199,8 +256,8 @@ export default function NoticeCard({
       >
         <div className={"row-glyph notice-disc " + (tone ?? DEFAULT_TONE).replace("cat-fg-", "cat-bg-")}>{icon}</div>
         <div className="row-grow vrow-line">
-          <span className="conn-name vrow-fact" ref={factRef}>{title}</span>
-          {subNode && !subDropped && <span className="conn-meta vrow-sub" ref={subRef}>{subNode}</span>}
+          <span className="conn-name vrow-fact" ref={(el) => { factRef.current = el; }}>{title}</span>
+          {subNode && !subDropped && <span className="conn-meta vrow-sub" ref={(el) => { subRef.current = el; }}>{subNode}</span>}
         </div>
         {action ? (
           <button className="pill-act" onClick={(e) => { e.stopPropagation(); action.onClick(); }}>
@@ -220,8 +277,10 @@ export default function NoticeCard({
         >
           <div className={"row-glyph notice-disc " + (tone ?? DEFAULT_TONE).replace("cat-fg-", "cat-bg-")}>{icon}</div>
           <div className="row-grow">
-            <div className="conn-name">{title}</div>
-            {subNode && <div className="conn-meta">{subNode}</div>}
+            {/* Same refs the verb row uses: the latch above is one law and
+                it measures whichever form is on screen. */}
+            <div className="conn-name" ref={(el) => { factRef.current = el; }}>{title}</div>
+            {subNode && !subDropped && <div className="conn-meta" ref={(el) => { subRef.current = el; }}>{subNode}</div>}
           </div>
           {action ? (
             <button

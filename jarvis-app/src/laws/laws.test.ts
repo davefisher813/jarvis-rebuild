@@ -5052,3 +5052,108 @@ describe("LAW: the readiness panel reports the gates the Brain enforces (2026-09
     expect(panel).toContain("readConsolidation");
   });
 });
+
+// A SHREDDED TITLE IS THE ONE THING A NOTICE CANNOT SURVIVE (2026-09-06).
+//
+// Dave photographed What JARVIS Knows at 390x844 and got
+//
+//     [glyph]  You train bet...          [ Remember This ]
+//              14 Sessions th...
+//
+// on the one card in the app that asks him to teach JARVIS something. Both
+// lines ellipsed, neither readable, and it is an offer he is meant to accept
+// or refuse on what it says.
+//
+// The cause was a contradiction inside one component. NoticeCard.tsx has
+// carried the shredded-sub law since 2026-08-22 (when the title and the sub
+// cannot both be whole, the sub yields) and it exempted the card form in a
+// comment: "the plain card form is exempt: there the sub owns a full line
+// under the title and wrapping to two lines is the design". components.css
+// made that untrue three days later, when ONE HEIGHT clamped
+// .notice-card-uniform .conn-name and .conn-meta to one nowrap line each. So
+// the comment described a card the stream no longer rendered while the CSS
+// shredded the one it did, and the CSS is what Dave sees.
+//
+// The halves only work together: the latch drops the sub, the drop turns
+// .notice-card-solo on (it keys on a sub RENDERED, not passed), and solo is
+// what hands the title the second line at the SAME card height. Measured on
+// the built app at 390x844: title scrollWidth 296 into clientWidth 133
+// before, 15 of 32 characters painted; scrollWidth 133 into clientWidth 133
+// after, 23 of 32; card height 72 both times. Delete either half and the
+// screenshot comes back, so both are asserted, and so is the guard that
+// stops the drop where it would buy nothing.
+//
+// A source check on purpose: jsdom reports every box as 0, so no rendered
+// test can exercise a measurement latch. The pixels live in the browser walk;
+// what this holds is the wiring that walk proved.
+describe("the card form is not exempt from the shredded sub law (2026-09-06)", () => {
+  const NOTICE = read(join(SRC, "today/NoticeCard.tsx"));
+  const COMP = read(join(SRC, "styles/components.css")).replace(/\/\*[\s\S]*?\*\//g, "");
+  const LATCH = NOTICE.slice(NOTICE.indexOf("useLayoutEffect(() => {"), NOTICE.indexOf("// Both forms keep alt"))
+    .replace(/\/\/[^\n]*/g, "");
+  // Selector-start anchored: ".notice-card-solo .conn-name" is also a
+  // substring of the grouped band's own rule, which sits earlier in the file.
+  const ruleAt = (start: string) => {
+    const at = COMP.indexOf("\n" + start);
+    if (at < 0) return null;
+    const open = COMP.indexOf("{", at);
+    return { at, body: COMP.slice(open + 1, COMP.indexOf("}", open)).replace(/\s+/g, " ").trim() };
+  };
+
+  it("the latch measures every form that is clamped, not just the verb row", () => {
+    // The exact guard that shipped the defect. The only card the law lets go
+    // is the one with no clamp to answer to, which is mail's opt-out.
+    expect(LATCH, "the latch went back to measuring only the verb row")
+      .not.toMatch(/effForm\s*!==\s*"row"\s*\)\s*return/);
+    expect(LATCH, "the card form's exemption is no longer stated as a form, but as a clamp")
+      .toMatch(/!uniform\)\s*return/);
+  });
+
+  it("both forms are wired to the one latch", () => {
+    // Without the refs the guard is decoration: the card form would pass
+    // every check by measuring nothing.
+    const cardText = NOTICE.slice(NOTICE.indexOf('<div className="row-grow">'));
+    expect(cardText.slice(0, 700), "the card form's title is not measured")
+      .toMatch(/className="conn-name"[^\n]*factRef\.current = el/);
+    expect(cardText.slice(0, 700), "the card form's sub is not measured")
+      .toMatch(/className="conn-meta"[^\n]*subRef\.current = el/);
+    expect([...NOTICE.matchAll(/factRef\.current = el/g)], "one latch, two forms").toHaveLength(2);
+    // And a dropped sub is dropped in BOTH forms. Leaving it rendered in the
+    // card form would set .notice-card-solo on a card that still paints a
+    // sub, which is three lines in a two-line box: the card grows instead of
+    // the title getting its line, which is the opposite of the fix.
+    expect([...NOTICE.matchAll(/\{subNode && !subDropped && </g)], "a form still paints a sub the law dropped")
+      .toHaveLength(2);
+  });
+
+  it("the drop only happens where there is a second line to hand the title", () => {
+    // The grouped Heads Up band stands the two-line box down to one line on
+    // purpose. Dropping a sub there costs a fact and buys 4.5px of extra
+    // height: measured, "Complete Your Enrollment" went 61.05 to 65.59 beside
+    // neighbours still at 61.05, which is the ragged stream ONE HEIGHT exists
+    // to prevent. So the card form reads its own box rather than assuming 72.
+    expect(LATCH, "the card form spends a second line it may not have").toContain("twoLineBox");
+    expect(LATCH, "the box is assumed rather than measured").toMatch(/getBoundingClientRect\(\)\.height/);
+  });
+
+  it("the uniform clamp cannot ship without the escape that survives it", () => {
+    const clamp = ruleAt(".notice-card-uniform .conn-name");
+    const solo = ruleAt(".notice-card-solo .conn-name");
+    expect(clamp, "ONE HEIGHT stopped clamping the uniform card's title").toBeTruthy();
+    expect(clamp!.body, "the clamp is one nowrap line").toMatch(/white-space:\s*nowrap/);
+    expect(solo, "a card with no sub lost the second line the clamp takes").toBeTruthy();
+    expect(solo!.body, "solo stopped granting two lines").toMatch(/line-clamp:\s*2/);
+    expect(solo!.body, "solo stopped letting the title wrap").toMatch(/white-space:\s*normal/);
+    // Same specificity, so order is the whole argument: solo has to come
+    // after the clamp or it never reaches the title.
+    expect(solo!.at, "the solo escape moved above the clamp and stopped winning")
+      .toBeGreaterThan(clamp!.at);
+  });
+
+  it("solo keys on a sub that is rendered, not on one that was passed", () => {
+    // This is the join between the two halves. Reading the prop would leave
+    // the fixed card with a dropped sub, an unused second line, and a title
+    // still cut to fit one, which is the 2026-08-25 bug wearing new clothes.
+    expect(NOTICE).toMatch(/!\(subNode && !subDropped\) \? " notice-card-solo"/);
+  });
+});

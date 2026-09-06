@@ -3749,7 +3749,19 @@ body.selecting .voice-dock { display: none; }
    Both lines clamp to one, so nothing in the stream can push a card taller:
    a long title ellipses instead of wrapping, and the sub does the same. The
    pill never wraps under the title, which is what made "1 Moved to Today"
-   the tallest card on his screen while carrying the least. */
+   the tallest card on his screen while carrying the least.
+
+   THIS CLAMP IS ONLY LIVEABLE BECAUSE THE TITLE CAN ESCAPE IT (2026-09-06).
+   For a year NoticeCard.tsx exempted the card form from the shredded-sub
+   law, on a comment that said the card's sub "owns a full line under the
+   title" -- which this rule had already made untrue. So What JARVIS Knows
+   shipped "You train bet... / 14 Sessions th...", both lines ellipsed, on
+   the one card that asks Dave to teach JARVIS something. The latch now
+   measures this form too: a clipped title drops the sub, which turns
+   .notice-card-solo on (see just below), which spends both of the card's
+   lines on the title at the same height. Delete the latch and this rule
+   goes back to shredding; the pair only works together, and
+   src/laws/laws.test.ts holds them to each other. */
 .notice-card-uniform .conn-name,
 .notice-card-uniform .conn-meta {
   display: block; -webkit-line-clamp: none;
