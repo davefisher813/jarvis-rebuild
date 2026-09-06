@@ -209,7 +209,13 @@ describe("law: chat pipeline is deterministic before AI", () => {
     // first, deterministic Q&A second, the billed call only after both.
     const cmdAt = src.indexOf("parseCommand(asked)");
     const qaAt = src.indexOf("answerQuestion(asked");
-    const aiAt = src.indexOf("ai.complete(");
+    // UP-MIND-22 (2026-09-05): the CHAT call specifically. A draft command
+    // is a command, so it resolves before the Q&A layer by design, and it
+    // spends a model call of its own inside that handler; a bare
+    // "ai.complete(" probe found that one and read the pipeline backwards.
+    // The law is unchanged: the billed answer call comes after both
+    // deterministic layers. Its marker is the same one the next test pins.
+    const aiAt = src.indexOf('{ kind: "chat", background: false }');
     expect(cmdAt).toBeGreaterThan(-1);
     expect(qaAt).toBeGreaterThan(cmdAt);
     expect(aiAt).toBeGreaterThan(qaAt);
@@ -346,5 +352,52 @@ describe("chat follow-ups", () => {
     expect(rewriteFollowUp("where is it", null)).toBeNull();
     expect(rewriteFollowUp("where is it", { question: "what's on today" })).toBeNull();
     expect(rewriteFollowUp("what's on today", { question: "what's next" })).toBeNull();
+  });
+});
+
+// UP-MIND-22 (2026-09-05, A23 "can draft but never send"). The parser is the
+// half worth pinning: what it reads as a draft, what it refuses, and that
+// `about` comes through in the user's own casing, because those words end up
+// in a message over their name.
+describe("the draft command", () => {
+  it("reads the medium, the person and the topic", () => {
+    expect(parseCommand("draft an email to Sarah about the Ridgeline quote")).toEqual({
+      kind: "draft", medium: "email", query: "Sarah", about: "the Ridgeline quote",
+    });
+    expect(parseCommand("write a text to Marco saying I'll be late")).toEqual({
+      kind: "draft", medium: "text", query: "Marco", about: "I'll be late",
+    });
+  });
+
+  it("treats a message and a note as a text, which is what people mean on a phone", () => {
+    expect(parseCommand("draft a message to Marco")).toMatchObject({ medium: "text" });
+    expect(parseCommand("write a note to Marco")).toMatchObject({ medium: "text" });
+  });
+
+  it("keeps the user's own words and casing in the topic", () => {
+    expect(parseCommand("draft an email to Sarah about the BFFSA Roster")!).toMatchObject({
+      about: "the BFFSA Roster",
+    });
+  });
+
+  it("works with no topic at all", () => {
+    expect(parseCommand("draft a text to Marco")).toEqual({ kind: "draft", medium: "text", query: "Marco", about: "" });
+  });
+
+  it("is not confused by the other commands", () => {
+    expect(parseCommand("complete the roster")).toMatchObject({ kind: "complete" });
+    expect(parseCommand("draft the roster")).toBeNull();
+    expect(parseCommand("write about the roster")).toBeNull();
+  });
+});
+
+// The whole promise of the path: it writes and it hands over. Pinned
+// structurally, the way the pipeline law above is, because "never sends" is
+// the kind of rule a refactor breaks silently.
+describe("law: Chat drafts and never sends", () => {
+  it("ChatFlow has no send call of any kind on the draft path", async () => {
+    const fs = await import("node:fs");
+    const src = fs.readFileSync(new URL("./ChatFlow.tsx", import.meta.url), "utf8");
+    expect(src).not.toMatch(/\bsendMessage\b|\bqueueSend\b|\bapi\.send\b/);
   });
 });

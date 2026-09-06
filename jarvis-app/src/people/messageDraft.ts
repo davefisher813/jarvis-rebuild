@@ -20,7 +20,16 @@ const TONE_RULE: Record<DraftTone, string> = {
   brief: "Tone for this message: brief. The fewest words that carry it.",
 };
 
-export function draftSystemPrompt(person: PersonData, tone: DraftTone, about: string | undefined): string {
+// UP-MIND-22 (2026-09-05): `medium` and `voice`. The sheet still drafts a
+// text message and passes neither, so its prompt is byte-identical to what
+// it always was; Chat can ask for an email, and can hand in the How You
+// Write doc the same way every other drafting prompt in the app does.
+export function draftSystemPrompt(
+  person: PersonData,
+  tone: DraftTone,
+  about: string | undefined,
+  opts: { medium?: "text" | "email"; voice?: string } = {},
+): string {
   const audience = person.flagged
     ? "This recipient is marked handle-with-care: clean, guarded, professional prose, whatever else applies."
     : person.register === "friend"
@@ -33,12 +42,15 @@ export function draftSystemPrompt(person: PersonData, tone: DraftTone, about: st
   return [
     JARVIS_VOICE,
     STYLE_SCOPE_RULE,
-    `Task: draft ONE text message from the user to ${person.name}.`,
+    opts.medium === "email"
+      ? `Task: draft ONE short email from the user to ${person.name}. No subject line, no signature: the body only.`
+      : `Task: draft ONE text message from the user to ${person.name}.`,
     audience,
     TONE_RULE[tone],
     about ? `What the message needs to say: ${about}` : "No topic was given: draft a short, natural check-in that fits the relationship. Do not invent events, plans, or facts.",
     "Reply with ONLY the message text. No quotes, no preamble, no sign-off unless the register calls for one.",
-  ].join("\n");
+    opts.voice?.trim() ? "\nWrite it as this person would write it:\n" + opts.voice.trim() : "",
+  ].filter(Boolean).join("\n");
 }
 
 // sms: deep link with the drafted body. iOS accepts "&body=", and the number

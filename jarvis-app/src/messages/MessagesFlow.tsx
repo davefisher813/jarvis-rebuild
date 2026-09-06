@@ -44,6 +44,7 @@ import { saveMailSnapshot, mailNotices, loadMailSnapshot, byLabel, type MailMeet
 import EvidenceChip from "./EvidenceChip";
 import { anchorNeedsYou, needsAnchor, ANCHOR_CAP } from "./evidencePass";
 import { makePersonIdFor, noPersonId, type PersonIdFor } from "./personFor";
+import { takeComposeDraft } from "../chat/composeDraft";
 import { settleAll, settleLine, type SettleWords } from "./settle";
 import { recordSweepDay, loadSweepDays, sweepWeek, receiptLines, sweepEstimate, type SweepReceipts } from "./sweep";
 import ListFloor from "../shared/ListFloor";
@@ -235,7 +236,7 @@ function fmtWhen(ms: number): string {
 // so junk is never opened. The headline counts what needs Dave, never unread.
 // Threads are the unit throughout; search is server-side over the whole
 // mailbox. Without AI the tab is an honest threaded list, no fake triage.
-export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections , demoMail = false, openThreadId, threadNonce, onThreadConsumed, openDraftId, draftNonce, onDraftConsumed }: { demoMail?: boolean; ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void; openThreadId?: string; openDraftId?: string;
+export default function MessagesFlow({ ai, configured = googleConfigured(), token, onOpenConnections , demoMail = false, openThreadId, threadNonce, onThreadConsumed, openDraftId, draftNonce, onDraftConsumed, composeNonce, onComposeConsumed }: { demoMail?: boolean; ai: AIService; configured?: boolean; token?: string; onOpenConnections?: () => void; openThreadId?: string; openDraftId?: string;
   // EMAIL-F-06 (2026-09-05): the shell's one-shot shape (shell/intents.ts).
   // These two ids were the only intents the tab bar did not clear, and the
   // jump refs below live inside a flow the shell remounts on every tab
@@ -244,7 +245,11 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
   // had since been sent, into "Could not open draft"). The nonce also makes a
   // second tap on the same card a real navigation.
   threadNonce?: number; onThreadConsumed?: () => void;
-  draftNonce?: number; onDraftConsumed?: () => void }) {
+  draftNonce?: number; onDraftConsumed?: () => void;
+  // UP-MIND-22 (2026-09-05): Chat wrote a message and asked for the
+  // composer. The words travel in chat/composeDraft.ts, not in this prop,
+  // because a one-shot intent is a pointer and never a payload.
+  composeNonce?: number; onComposeConsumed?: () => void }) {
   const g = useGoogle();
   const tasks = useOptionalTasks();
   const scheduleSvc = useOptionalSchedule();
@@ -1184,6 +1189,26 @@ export default function MessagesFlow({ ai, configured = googleConfigured(), toke
     onDraftConsumed?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openDraftId, draftNonce]);
+
+  // UP-MIND-22 (2026-09-05): Chat wrote a message and asked for the
+  // composer. Same one-shot shape as the two above: act on the nonce, then
+  // say it was consumed. The draft itself is read AND cleared in one go, so
+  // coming back to this tab tomorrow cannot reopen a composer over words
+  // that were already sent.
+  const jumpedCompose = useRef<number | null>(null);
+  useEffect(() => {
+    if (composeNonce === undefined || composeNonce === 0) return;
+    if (jumpedCompose.current === composeNonce) return;
+    jumpedCompose.current = composeNonce;
+    const d = takeComposeDraft();
+    onComposeConsumed?.();
+    if (!d) return;
+    setEditingDraftId(null);
+    setThread(null);
+    setDraft({ to: d.to, subject: d.subject, body: d.body });
+    setView("compose");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [composeNonce]);
 
   // THE HOME SNAPSHOT (Dave 2026-08-20). Today must render instantly, so it
   // never touches Gmail: the Email tab leaves behind everything the home page

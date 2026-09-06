@@ -136,6 +136,10 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // "Finish It" on an unsent draft, which is a different destination from a
   // thread: a draft composed from scratch has no thread to open.
   const draftIntent = useOneShot<string>();
+  // UP-MIND-22 (2026-09-05): Chat wrote a message and wants the composer
+  // open on it. The words travel in chat/composeDraft.ts; this carries only
+  // the ask, the same way every other intent here carries only a pointer.
+  const composeIntent = useOneShot<string>();
   // Decision deep-link: BrainFlow opens Decisions, DecisionsFlow opens the record.
   const decisionIntent = useOneShot<string>();
   // S6-Q35: a fact captured through Quick Add lives in the Brain's "What
@@ -146,7 +150,7 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
   // SHELL-F-21: which account the Money tab should open.
   const accountIntent = useOneShot<string>();
   // Every intent the shell owns, for the one place that cancels them all.
-  const allIntents = [brainIntent, gymIntent, routineBlockIntent, taskIntent, taskFilterIntent, projectIntent, eventIntent, goalIntent, personIntent, noteIntent, mailIntent, draftIntent, decisionIntent, factIntent, accountIntent];
+  const allIntents = [brainIntent, gymIntent, routineBlockIntent, taskIntent, taskFilterIntent, projectIntent, eventIntent, goalIntent, personIntent, noteIntent, mailIntent, draftIntent, composeIntent, decisionIntent, factIntent, accountIntent];
   const navigateToNote = (id: string) => { noteIntent.fire(id); setActive("notes"); };
   // B3-4 (2026-09-04): search does full text over note bodies and hands its
   // hits to this function with kind "note" (SearchFlow.tsx's open("note", id)),
@@ -521,10 +525,15 @@ export default function AppShell({ seedDemo = false }: { seedDemo?: boolean }) {
         {active === "brain" && <BrainFlow openKey={brainIntent.value} openNonce={brainIntent.nonce} onKeyConsumed={brainIntent.clear} routineBlockId={routineBlockIntent.value} onRoutineBlockConsumed={routineBlockIntent.clear} personOpenId={personIntent.value} personNonce={personIntent.nonce} onPersonConsumed={personIntent.clear} decisionOpenId={decisionIntent.value} decisionNonce={decisionIntent.nonce} onDecisionConsumed={decisionIntent.clear} factOpenId={factIntent.value} factNonce={factIntent.nonce} onFactConsumed={factIntent.clear} onOpenNote={navigateToNote} onOpenProject={(id) => void navigateToEntity("project", id)} onOpenEntity={(kind, id) => void navigateToEntity(kind, id)} onOpenMoney={() => setActive("money")} autoOpenGym={gymIntent.value === true} gymNonce={gymIntent.nonce} onGymConsumed={gymIntent.clear} />}
         {active === "notes" && <NotesFlow seed={seedDemo} onChrome={(c) => setNotesChrome(c.tabBar)} onNavigate={navigateToEntity} openId={noteIntent.value} openNonce={noteIntent.nonce} onOpenConsumed={noteIntent.clear} />}
 
-        {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} threadNonce={mailIntent.nonce} onThreadConsumed={mailIntent.clear} openDraftId={draftIntent.value} draftNonce={draftIntent.nonce} onDraftConsumed={draftIntent.clear} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
+        {active === "messages" && <MessagesFlow ai={ai} demoMail={seedDemo} openThreadId={mailIntent.value} threadNonce={mailIntent.nonce} onThreadConsumed={mailIntent.clear} openDraftId={draftIntent.value} draftNonce={draftIntent.nonce} onDraftConsumed={draftIntent.clear} composeNonce={composeIntent.nonce} onComposeConsumed={composeIntent.clear} onOpenConnections={() => { setMoreRoute("connections"); setActive("more"); }} />}
         {active === "notifications" && <NotificationsFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
         {active === "money" && <MoneyFlow onOpenTask={(id) => void navigateToEntity("task", id)} openAccountId={accountIntent.value} openNonce={accountIntent.nonce} onOpenConsumed={accountIntent.clear} />}
-        {active === "chat" && <ChatFlow onOpen={(kind, id) => void navigateToEntity(kind, id)} />}
+        {active === "chat" && <ChatFlow
+          onOpen={(kind, id) => void navigateToEntity(kind, id)}
+          // UP-MIND-22: the draft is already written and stored; this opens
+          // the composer on it. Nothing sends without the user's tap there.
+          onCompose={() => { composeIntent.fire("chat"); setActive("messages"); }}
+        />}
 
         {active === "more" && (
           <MoreFlow

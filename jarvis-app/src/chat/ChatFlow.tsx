@@ -3,6 +3,7 @@ import PageHeader, { BarAction } from "../shared/PageHeader";
 import { useChat, useTasks, useSchedule, useNotes, useCategories, useOptionalStrands, usePeople, useOptionalFiles, useFileStore, useOptionalGym } from "../data/NotesProvider";
 import { useOptionalGoogle } from "../connections/google/GoogleSession";
 import { lastContactFor } from "../people/lastContact";
+import { namePatterns } from "../people/mentions";
 import { usePickFile, PICK_ANY } from "../shared/usePickFile";
 import { routeFile, parseRouteAnswer, ROUTE_PROMPT, DESTINATION_LABEL, isPdf, type FileDestination } from "../files/route";
 import { fileStem, sizeLabel } from "../files/types";
@@ -31,6 +32,11 @@ import type { ChatProvenance } from "./types";
 import type { EventItem } from "../schedule/types";
 import type { SheetCategory } from "../tasks/screens/TaskSheet";
 import { emit } from "../events";
+import { putComposeDraft } from "./composeDraft";
+import { draftSystemPrompt } from "../people/messageDraft";
+import { voiceToText } from "../ai/context";
+import MessageDraftSheet from "../people/MessageDraftSheet";
+import type { Person } from "../people/types";
 
 // Chat (addendum item 23): one box that ANSWERS (deterministic Q&A first,
 // grounded AI second, honest refusal offline), ACTS (command parser under
@@ -89,11 +95,15 @@ interface PendingChoice {
   options: CommandTarget[];
 }
 
-export default function ChatFlow({ onOpen }: {
+export default function ChatFlow({ onOpen, onCompose }: {
   // UP-MIND-02 (2026-09-05): open the record an answer was built from.
   // Optional, and the chips only render when it is given: a chip that opens
   // nothing is a control that lies about being one.
   onOpen?: (kind: string, id: string) => void;
+  // UP-MIND-22 (2026-09-05): open the email composer on the draft Chat just
+  // wrote and stored. Absent means the email path is unavailable, and the
+  // command says so rather than writing words that go nowhere.
+  onCompose?: () => void;
 } = {}) {
   const chat = useChat();
   const tasksSvc = useTasks();
@@ -119,6 +129,13 @@ export default function ChatFlow({ onOpen }: {
   // THIS conversation on THIS screen, and a stale one from last week is
   // exactly the wrong thing to resolve a pronoun against.
   const [prior, setPrior] = useState<Prior | null>(null);
+  // UP-MIND-22: the person whose text sheet is open, and what the message
+  // needs to say. The sheet owns no services and sends nothing; the user
+  // taps Open in Messages and sends it themselves.
+  const [textTo, setTextTo] = useState<{ person: Person; about: string } | null>(null);
+  // The email draft, shown in the bubble with an Open button. Never sent
+  // from here, and never sent by anything this path touches.
+  const [emailDraft, setEmailDraft] = useState<{ to: string; name: string; body: string } | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   const filesSvc = useOptionalFiles();
@@ -213,6 +230,55 @@ export default function ChatFlow({ onOpen }: {
     };
   };
 
+  // UP-MIND-22 (2026-09-05): "draft a note to Sarah saying I'll send the
+  // roster Friday". Writes the words in the user's voice, in the recipient's
+  // register, and hands them over. NOTHING here sends: the email path opens
+  // the composer and the text path opens the system message sheet, and both
+  // end in a tap the user makes.
+  const runDraft = async (cmd: Extract<ChatCommand, { kind: "draft" }>, person: Person) => {
+    if (!ai.available) {
+      await say("jarvis", "I can draft that when you're back online", { kind: "records" });
+      return;
+    }
+    if (cmd.medium === "email" && !person.data.email) {
+      await say("jarvis", `${person.data.name} has no email on file`, { kind: "records", refs: [{ kind: "person", id: person.id, label: person.data.name }] });
+      return;
+    }
+    if (cmd.medium === "email" && !onCompose) {
+      await say("jarvis", "Email isn't available from here", { kind: "records" });
+      return;
+    }
+    // A text goes to the sheet that already exists for exactly this, with
+    // the topic passed in: the sheet drafts, shows the words, and hands them
+    // to the system composer.
+    if (cmd.medium === "text") {
+      setTextTo({ person, about: cmd.about });
+      await say("jarvis", `Drafting a text to ${person.data.name}`, { kind: "action", refs: [{ kind: "person", id: person.id, label: person.data.name }] });
+      logAnswered("action");
+      return;
+    }
+    const voice = await gather().then((c) => voiceToText(c, { styleRule: false })).catch(() => "");
+    let body = "";
+    try {
+      body = (await ai.complete(
+        [{ role: "user", content: cmd.about || `Draft an email to ${person.data.name}.` }],
+        draftSystemPrompt(person.data, "direct", cmd.about || undefined, { medium: "email", voice }),
+        { kind: "message", pin: "messageDrafts", tier: "write" },
+      )).trim();
+    } catch {
+      await say("jarvis", "Couldn't reach JARVIS · Nothing was written", { kind: "records" });
+      return;
+    }
+    if (!body) {
+      await say("jarvis", "Couldn't draft that one · Nothing was written", { kind: "records" });
+      return;
+    }
+    putComposeDraft({ to: person.data.email!, subject: cmd.about ? cmd.about.slice(0, 80) : "", body });
+    setEmailDraft({ to: person.data.email!, name: person.data.name, body });
+    await say("jarvis", body, { kind: "action", refs: [{ kind: "person", id: person.id, label: person.data.name }] });
+    logAnswered("action");
+  };
+
   const runCommand = async (cmd: ChatCommand, target: CommandTarget) => {
     if (cmd.kind === "complete") {
       // SHARED-F-03 (2026-09-05): the Undo was a second toggleDone, which
@@ -263,6 +329,11 @@ export default function ChatFlow({ onOpen }: {
       if (ans) await say("jarvis", ans.text, ans.provenance);
       return;
     }
+    if (cmd?.kind === "draft") {
+      const p = (await peopleSvc.list().catch(() => [])).find((x) => x.id === target.id);
+      if (p) await runDraft(cmd, p);
+      return;
+    }
     if (cmd) await runCommand(cmd, target);
   };
 
@@ -291,6 +362,23 @@ export default function ChatFlow({ onOpen }: {
 
         // 1. Commands, before any AI call (cost guard).
         const cmd = parseCommand(asked);
+        // UP-MIND-22: a draft resolves against PEOPLE, not against open
+        // tasks, so it branches before the task chooser below.
+        if (cmd?.kind === "draft") {
+          const all = await peopleSvc.list().catch(() => []);
+          const matches = all.filter((p) => namePatterns(p.data.name).some((re) => re.test(cmd.query)));
+          if (matches.length === 0) {
+            await say("jarvis", `Nobody in Contacts matches "${cmd.query}" · Nothing was written`, { kind: "records" });
+            return;
+          }
+          if (matches.length > 1) {
+            await say("jarvis", "Which one?", { kind: "records", refs: matches.slice(0, 4).map((p) => ({ kind: "person", id: p.id, label: p.data.name })) });
+            setChoice({ command: cmd, options: matches.slice(0, 4).map((p) => ({ id: p.id, text: p.data.name })) });
+            return;
+          }
+          await runDraft(cmd, matches[0]!);
+          return;
+        }
         if (cmd) {
           const open = (await tasksSvc.listTasks()).filter((t) => !t.data.done).map((t) => ({ id: t.id, text: t.data.text }));
           const res = resolveTarget(open, cmd.query);
@@ -623,8 +711,27 @@ export default function ChatFlow({ onOpen }: {
             <div className="chip" role="button" tabIndex={0} onClick={() => setChoice(null)}>Never Mind</div>
           </div>
         )}
+        {/* UP-MIND-22: the draft, and the tap that opens it. The words are
+            on screen before anything can be sent, and Chat itself never
+            sends: this button opens the composer, where Send lives. */}
+        {emailDraft && onCompose && (
+          <div className="chip-row chat-refs">
+            <button type="button" className="chip chip-act" onClick={() => { setEmailDraft(null); onCompose(); }}>
+              Open in Email
+            </button>
+            <button type="button" className="chip" onClick={() => setEmailDraft(null)}>Discard</button>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
+      {textTo && (
+        <MessageDraftSheet
+          person={textTo.person}
+          ai={ai}
+          {...(textTo.about ? { about: textTo.about } : {})}
+          onClose={() => setTextTo(null)}
+        />
+      )}
       <div className="chat-inputbar">
         {/* UP-PLAT-08 (2026-09-06): the attach button. One picker, the
             phone's own sheet (camera, library, Files), same seam Money and

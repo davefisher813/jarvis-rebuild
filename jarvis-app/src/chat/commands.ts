@@ -8,7 +8,12 @@
 export type ChatCommand =
   | { kind: "complete"; query: string }
   | { kind: "reschedule"; query: string; when: "today" | "tomorrow" }
-  | { kind: "deleteTask"; query: string };
+  | { kind: "deleteTask"; query: string }
+  // UP-MIND-22 (2026-09-05, A23 "can draft but never send"): "draft a note to
+  // Sarah saying I'll send the roster Friday". The fastest route from a
+  // thought to a sent message, and it still needs the tap: this command
+  // writes words and opens a composer, and nothing on this path sends.
+  | { kind: "draft"; medium: "email" | "text"; query: string; about: string };
 
 export function parseCommand(raw: string): ChatCommand | null {
   const t = raw.trim().toLowerCase().replace(/[.!]+$/, "");
@@ -21,6 +26,21 @@ export function parseCommand(raw: string): ChatCommand | null {
 
   const del = t.match(/^(delete|remove)\s+(?:the\s+)?task\s+(.+)$/);
   if (del) return { kind: "deleteTask", query: del[2]! };
+
+  // "draft an email to Sarah about the roster" / "write a text to Marco
+  // saying I'll be late". The medium decides where it opens: email goes to
+  // the composer, a text goes to the message sheet. A bare "message" is a
+  // text, which is what people mean by it on a phone.
+  //
+  // Read off the RAW string, not the lowercased one, because `about` is the
+  // user's own words and goes into a draft over their name.
+  const draft = raw.trim().replace(/[.!]+$/, "").match(
+    /^(?:draft|write)\s+(?:an?\s+)?(email|text|message|note)\s+to\s+(.+?)(?:\s+(?:about|saying|re)\s+(.+))?$/i,
+  );
+  if (draft) {
+    const medium = /^email$/i.test(draft[1]!) ? "email" : "text";
+    return { kind: "draft", medium, query: draft[2]!.trim(), about: (draft[3] ?? "").trim() };
+  }
 
   return null;
 }
