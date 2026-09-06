@@ -158,7 +158,13 @@ export default function DeckFlow({ ai, apiFor, threads, queueSend, limitMs, onDo
       // styleRule: false because buildPlanPrompt already emits
       // STYLE_SCOPE_RULE unconditionally. Sending it twice is roughly 250
       // wasted tokens on every card in the deck.
-      const userVoice = await gatherContext()
+      // UP-MIND-23 (2026-09-05): scoped to the situation. The card is about
+      // THIS thread and THIS sender, so the context walks one hop from them
+      // instead of carrying every strand, decision and bill in the app.
+      const userVoice = await gatherContext({
+        threadId: r.id,
+        ...(person ? { personId: person.id, personName: person.data.name } : {}),
+      })
         .then((c) => voiceToText(c, { styleRule: false }))
         .catch(() => "");
       if (!live()) return;

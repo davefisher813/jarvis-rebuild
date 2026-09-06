@@ -26,6 +26,8 @@ import { openWorkOf } from "../today/goalPulse";
 import { activeBills, paydayNext } from "../money/bills";
 import { setAsideTotal, leftToSpend } from "../money/budget";
 import { signedBalance } from "../money/types";
+import { relatedLines, relatedStrands, type Anchor } from "../brain/related";
+import { loadLinks } from "../messages/threadLink";
 
 // B2-4 (2026-09-04): this used to serialise with toISOString(), which reads
 // UTC. Four other modules (Chat, Today's suggestions, Quick Capture, the
@@ -80,7 +82,11 @@ interface ContextServices {
 // all ride along, so no feature reasons from a thinner picture. Both hooks
 // below funnel through this single function, so there is still exactly one
 // place that decides what the AI knows.
-async function gatherFrom(s: ContextServices): Promise<AIContext> {
+// UP-MIND-23 (2026-09-05): the situation the caller is in, when there is
+// one. With no anchor every caller gets exactly the context it always got.
+export type ContextAbout = Anchor;
+
+async function gatherFrom(s: ContextServices, about?: ContextAbout): Promise<AIContext> {
   const today = todayISO();
   const [p, ppl, tk, cs, ev, voice, values, philosophy, rt, gl, pj, mn, habits] = await Promise.all([
     s.profile.get(),
@@ -217,6 +223,44 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
   // doing it per goal would parse it five times to answer one question.
   const goalSamples = readSamples();
   const goalNow = Date.now();
+  // UP-MIND-23: ONE HOP from the thing in hand. Built from the stores this
+  // function already read, plus decisions and notes it reads for exactly
+  // this; a failed read means a thinner block, never a broken prompt. Empty
+  // without an anchor, which is what keeps every existing caller unchanged.
+  let related: string[] = [];
+  let scopedStrands: string[] | null = null;
+  if (about && (about.personId || about.personName || about.projectId || about.threadId)) {
+    try {
+      const [decisionRecords, noteItems] = await Promise.all([
+        s.decisions ? s.decisions.list().catch(() => []) : Promise.resolve([]),
+        Promise.resolve([] as { title: string; connections?: { type: string; id: string }[] }[]),
+      ]);
+      const links = loadLinks();
+      related = relatedLines(about, {
+        tasks: tk.map((t) => ({
+          id: t.id, text: t.data.text, done: t.data.done, due: t.data.due ?? null,
+          ...(t.data.personId ? { personId: t.data.personId } : {}),
+          ...(t.data.projectId ? { projectId: t.data.projectId } : {}),
+          ...(t.data.fromThread ? { fromThread: t.data.fromThread } : {}),
+        })),
+        events: ev.map((e) => ({ id: e.id, title: e.data.title, date: e.data.date, location: e.data.location })),
+        decisions: decisionRecords.map((d) => ({
+          decision: d.data.decision,
+          ...(d.data.why ? { why: d.data.why } : {}),
+          ...(d.data.linkedType ? { linkedType: d.data.linkedType } : {}),
+          ...(d.data.linkedId ? { linkedId: d.data.linkedId } : {}),
+        })),
+        notes: noteItems,
+        strands: [],
+        threadProject: (threadId) => (links[threadId]?.type === "project" ? links[threadId]!.id : undefined),
+        projects: pj.map((p) => ({ id: p.id, title: p.data.title })),
+        today,
+      });
+      // The scoped strand set REPLACES the flat one: an anchored prompt that
+      // also carried everything JARVIS knows is the unscoped prompt.
+      scopedStrands = relatedStrands(about, strandLines.map((text) => ({ text })));
+    } catch { /* thinner context, never a broken one */ }
+  }
   return assembleContext({
     name: p?.name,
     template: p?.template,
@@ -265,7 +309,8 @@ async function gatherFrom(s: ContextServices): Promise<AIContext> {
       ...(b.data.bill?.autopay ? { autopay: true } : {}),
     })),
     cashFlow,
-    strands: strandLines,
+    strands: scopedStrands ?? strandLines,
+    related,
     writingFacts: writingFactLines,
     decisions: decisionLines,
     months: monthLines,
@@ -283,7 +328,7 @@ function isoPlus(iso: string, days: number): string {
 }
 
 // Returns a gather() that assembles the user's live context for the AI.
-export function useAIContext(): () => Promise<AIContext> {
+export function useAIContext(): (about?: ContextAbout) => Promise<AIContext> {
   const profile = useProfile();
   const people = usePeople();
   const docs = useBrainDocs();
@@ -301,7 +346,7 @@ export function useAIContext(): () => Promise<AIContext> {
   const gym = useOptionalGym();
 
   return useCallback(
-    () => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym }),
+    (about?: ContextAbout) => gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym }, about),
     [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym],
   );
 }
@@ -311,7 +356,7 @@ export function useAIContext(): () => Promise<AIContext> {
 // throwing, so personalization stays what it should be: an enhancement that
 // degrades to the plain prompt, never a new hard dependency. MessagesFlow uses
 // this for the same reason it uses useOptionalTasks.
-export function useOptionalAIContext(): () => Promise<AIContext | null> {
+export function useOptionalAIContext(): (about?: ContextAbout) => Promise<AIContext | null> {
   const profile = useOptionalProfile();
   const people = useOptionalPeople();
   const docs = useOptionalBrainDocs();
@@ -328,8 +373,8 @@ export function useOptionalAIContext(): () => Promise<AIContext | null> {
   const metrics = useOptionalMetrics();
   const gym = useOptionalGym();
 
-  return useCallback(async () => {
+  return useCallback(async (about?: ContextAbout) => {
     if (!profile || !people || !docs || !tasks || !schedule || !cats || !routine || !goals || !projects || !money) return null;
-    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym });
+    return gatherFrom({ profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym }, about);
   }, [profile, people, docs, tasks, schedule, cats, routine, goals, projects, money, strands, decisions, seal, metrics, gym]);
 }

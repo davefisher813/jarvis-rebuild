@@ -152,6 +152,20 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
   // never flashes on the next one while the lookup is in flight.
   const google = useOptionalGoogle();
   const gatherCtx = useOptionalAIContext();
+  // UP-MIND-23 (2026-09-05): the writing voice plus what is linked to THIS
+  // person, gathered here because the sheet owns no services (its own law).
+  // Empty until it resolves, which is the plain prompt, never a broken one.
+  const [msgVoice, setMsgVoice] = useState("");
+  useEffect(() => {
+    if (!msg || !current) { setMsgVoice(""); return; }
+    let live = true;
+    void gatherCtx({ personId: current.id, personName: current.data.name })
+      .then((c) => (c ? voiceToText(c, { styleRule: false }) : ""))
+      .catch(() => "")
+      .then((v) => { if (live) setMsgVoice(v); });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [msg, current?.id]);
   const currentEmail = current?.data.email;
   const [lastMs, setLastMs] = useState<number | null>(null);
   const [checkingIn, setCheckingIn] = useState(false);
@@ -404,7 +418,7 @@ export default function PeopleFlow({ onBack, openId: initialOpenId, openNonce, o
           />
         )}
         {msg && (
-          <MessageDraftSheet person={current} ai={ai} about={msg.about} onClose={() => setMsg(null)} />
+          <MessageDraftSheet person={current} ai={ai} about={msg.about} voice={msgVoice} onClose={() => setMsg(null)} />
         )}
         {sheetEl}
       </div>

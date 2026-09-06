@@ -278,7 +278,12 @@ export default function ChatFlow({ onOpen, onCompose }: {
       logAnswered("action");
       return;
     }
-    const voice = await gather().then((c) => voiceToText(c, { styleRule: false })).catch(() => "");
+    // UP-MIND-23 (2026-09-05): scoped to the person being written to, so
+    // the draft knows what is already decided with them and does not
+    // re-open it.
+    const voice = await gather({ personId: person.id, personName: person.data.name })
+      .then((c) => voiceToText(c, { styleRule: false }))
+      .catch(() => "");
     let body = "";
     try {
       body = (await ai.complete(

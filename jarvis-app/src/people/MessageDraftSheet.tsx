@@ -17,10 +17,15 @@ export default function MessageDraftSheet({
   person,
   ai,
   about,
+  voice: userVoice,
   onClose,
 }: {
   person: Person;
   ai: AIService;
+  // UP-MIND-23 (2026-09-05): the writing voice plus what is LINKED to this
+  // person, gathered by the caller (this sheet owns no services, which is
+  // its own law and pinned by a test). Absent means the plain prompt.
+  voice?: string;
   // What the message needs to say, when the opening surface knows (a task,
   // an event, a lateness). Absent = a natural check-in.
   about?: string;
@@ -36,7 +41,7 @@ export default function MessageDraftSheet({
     try {
       const out = await ai.complete(
         [{ role: "user", content: about ?? `Draft a message to ${person.data.name}.` }],
-        draftSystemPrompt(person.data, t, about),
+        draftSystemPrompt(person.data, t, about, { ...(userVoice?.trim() ? { voice: userVoice } : {}) }),
         { kind: "message", pin: "messageDrafts", tier: "write" },
       );
       setText(out.trim());
@@ -46,7 +51,7 @@ export default function MessageDraftSheet({
     } finally {
       setDrafting(false);
     }
-  }, [ai, person, about]);
+  }, [ai, person, about, userVoice]);
 
   // Draft exists at open.
   useEffect(() => { void draft(tone); }, []); // eslint-disable-line react-hooks/exhaustive-deps

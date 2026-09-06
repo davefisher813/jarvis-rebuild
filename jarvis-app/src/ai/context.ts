@@ -41,6 +41,13 @@ export interface AIContextInput {
   // the genome cap. The bridge until relevance scoping ships: every feature
   // that reads the assembled context gets what JARVIS knows, unscoped.
   strands?: string[];
+  // UP-MIND-23 (2026-09-05): RELEVANCE SCOPING, the thing the comment above
+  // has been promising. One hop from the thing in hand (brain/related.ts):
+  // the decisions attached to this person or project, the open work naming
+  // them, the notes connected to them. Present only when the gather had an
+  // anchor, and when it is present it REPLACES the unscoped strand list
+  // rather than joining it.
+  related?: string[];
   // S4-Q25 (2026-09-04): the one scoped exception to "unscoped" above. Facts
   // filed under the Writing bucket ("never opens with Hi there"), and only
   // those, so the drafting prompt can carry them without also carrying every
@@ -90,6 +97,8 @@ export interface AIContext {
   billsLine?: string;
   cashLine?: string;
   strands?: string[];
+  // UP-MIND-23: see AIContextInput.related.
+  related?: string[];
   // S4-Q25: see AIContextInput.writingFacts.
   writingFacts?: string[];
   // Settled decisions, read back (Brain handoff item 5). One line each,
@@ -160,6 +169,7 @@ export function assembleContext(input: AIContextInput): AIContext {
       .map((b) => `${b.name} $${b.amount}${b.due ? ` due ${isoToMonthDay(b.due)}` : ""}${b.autopay ? ", autopay" : ""}`)
       .join("; "),
     strands: (input.strands ?? []).map((s) => s.trim()).filter(Boolean),
+    related: (input.related ?? []).map((s) => s.trim()).filter(Boolean),
     writingFacts: (input.writingFacts ?? []).map((s) => s.trim()).filter(Boolean),
     decisions: (input.decisions ?? []).map((d) => d.trim()).filter(Boolean),
     months: (input.months ?? []).map((m) => m.trim()).filter(Boolean),
@@ -222,7 +232,11 @@ export function contextToText(ctx: AIContext): string {
   if (ctx.goals?.length) lines.push(`Goals: ${ctx.goals.join("; ")}`);
   if (ctx.projects?.length) lines.push(`Projects: ${ctx.projects.join(", ")}`);
   if (ctx.patternLine) lines.push(`Patterns: ${ctx.patternLine}`);
-  if (ctx.strands?.length) lines.push(`Known about the user (watched or confirmed by them): ${ctx.strands.join("; ")}`);
+  // UP-MIND-23 (2026-09-05): when the gather had an anchor, what is LINKED
+  // to it replaces the flat list of everything JARVIS knows. A scoped block
+  // that also carried the unscoped one would be the unscoped one.
+  if (ctx.related?.length) lines.push(`Linked to what you are working on right now: ${ctx.related.join("; ")}`);
+  else if (ctx.strands?.length) lines.push(`Known about the user (watched or confirmed by them): ${ctx.strands.join("; ")}`);
   if (ctx.decisions?.length) lines.push(`Already decided (do not re-open unless asked): ${ctx.decisions.join("; ")}`);
   if (ctx.months?.length) lines.push(`Recent months: ${ctx.months.join(" | ")}`);
   if (ctx.pulse?.length) lines.push(`How they have been (their own logs, facts not judgments): ${ctx.pulse.join("; ")}`);
@@ -280,6 +294,10 @@ export function voiceToText(ctx: AIContext, { styleRule = true }: { styleRule?: 
   // user's voice, not their whole life, so nothing else JARVIS knows rides
   // along with it.
   if (ctx.writingFacts?.length) lines.push(`Known about how they write (watched or confirmed by them): ${ctx.writingFacts.join("; ")}`);
+  // UP-MIND-23 (2026-09-05): what is linked to the person being written to.
+  // "Already decided: going with Ridgeline" is the difference between a
+  // draft that reads informed and one that re-opens a settled question.
+  if (ctx.related?.length) lines.push(`Linked to this person or this work: ${ctx.related.join("; ")}`);
   if (ctx.voice) {
     lines.push(`Writing voice: ${ctx.voice}`);
     if (styleRule) lines.push(STYLE_SCOPE_RULE);
@@ -300,7 +318,11 @@ export function identityToText(ctx: AIContext): string {
   if (ctx.projects?.length) lines.push(`Projects: ${ctx.projects.join(", ")}`);
   if (ctx.routineLine) lines.push(`Routine: ${ctx.routineLine}`);
   if (ctx.patternLine) lines.push(`Patterns: ${ctx.patternLine}`);
-  if (ctx.strands?.length) lines.push(`Known about the user (watched or confirmed by them): ${ctx.strands.join("; ")}`);
+  // UP-MIND-23 (2026-09-05): when the gather had an anchor, what is LINKED
+  // to it replaces the flat list of everything JARVIS knows. A scoped block
+  // that also carried the unscoped one would be the unscoped one.
+  if (ctx.related?.length) lines.push(`Linked to what you are working on right now: ${ctx.related.join("; ")}`);
+  else if (ctx.strands?.length) lines.push(`Known about the user (watched or confirmed by them): ${ctx.strands.join("; ")}`);
   if (ctx.decisions?.length) lines.push(`Already decided (do not re-open unless asked): ${ctx.decisions.join("; ")}`);
   if (ctx.months?.length) lines.push(`Recent months: ${ctx.months.join(" | ")}`);
   if (ctx.pulse?.length) lines.push(`How they have been (their own logs, facts not judgments): ${ctx.pulse.join("; ")}`);
